@@ -27,9 +27,10 @@ MAX_DETAIL_RECORDS = 8192
 OBSERVATION_VM_STEPS = 250_000
 PROGRESS_INTERVAL = 1000
 PROGRAM_SCOPES = ('program:meteora', 'program:pump', 'program:pumpswap')
+_RECENT_UNREAD=object()
 
 
-def retirement_suffix(writer,scope,top,before_time):
+def retirement_suffix(writer,scope,top,before_time,*,recent_floor=_RECENT_UNREAD):
     """One expired disjoint range outside required gaps and whole witnesses.
 
     An unresolved gap does not reference all future history, or the history
@@ -53,13 +54,22 @@ def retirement_suffix(writer,scope,top,before_time):
         if value is not None:bound=min(bound,value)
     account=writer._account_floor(scope)
     if account is not None:bound=min(bound,account)
+    # This readonly function and its observation run on the same sole owner.
+    # Reuse the exact fresh minimum for older gap starts within this operation;
+    # it cannot be borrowed across commands, mutations, blocks or restarts.
+    if recent_floor is _RECENT_UNREAD:
+        recent_floor=db.execute('SELECT MIN(lo) FROM coverage INDEXED BY maintenance_recent_coverage WHERE scope=? AND available>=?',
+            (scope,before_time)).fetchone()[0]
     continuity=[row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE name IN ('stream_receipts','stream_deliveries','stream_order')")]
     for index in range(len(merged)-1,-1,-1):
         start=merged[index][1]+1
         end=min(bound,merged[index+1][0] if index+1<len(merged) else top+1)
         if start>=end:continue
         hot=db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND slot>=? AND body IS NOT NULL',(scope,start)).fetchone()[0]
-        recent=db.execute('SELECT MIN(lo) FROM coverage INDEXED BY maintenance_recent_coverage WHERE scope=? AND lo>=? AND available>=?',(scope,start,before_time)).fetchone()[0]
+        if recent_floor is None or start<=recent_floor:
+            recent=recent_floor
+        else:
+            recent=db.execute('SELECT MIN(lo) FROM coverage INDEXED BY maintenance_recent_coverage WHERE scope=? AND lo>=? AND available>=?',(scope,start,before_time)).fetchone()[0]
         for value in (hot,recent):
             if value is not None:end=min(end,value)
         if start>=end:continue
@@ -475,7 +485,7 @@ class DebtAgeAdapter:
                     floor = min(floor, min(p[1] for p in pins))
                 if account_floor is not None:
                     floor = min(floor, account_floor)
-                suffix=retirement_suffix(writer,scope,top,wall-PRESERVATION_SECONDS)
+                suffix=retirement_suffix(writer,scope,top,wall-PRESERVATION_SECONDS,recent_floor=recent)
                 if gaps:
                     floor = min(floor, min(g[0] for g in gaps))
                 old = db.execute('SELECT value FROM meta WHERE key=?', ('retention_floor:'+scope,)).fetchone()

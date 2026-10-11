@@ -1,0 +1,291 @@
+{
+  "source": "3d89e5f19772c92ad761fdca19a24d77c0765664",
+  "started_at": 1791751002.0920925,
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pons-bridge-usd-3d89e5f1-1791751001716.sqlite",
+  "purpose": "Original Pons native USD reader: verified two-hop cold and warm five-second refresh",
+  "samples": [
+    {
+      "kind": "cold",
+      "seconds": 3.3697084730956703,
+      "value": {
+        "asset": "ETH",
+        "decimals": 18,
+        "usd_per_unit": "2026.52913303",
+        "observed_at": 1791751002,
+        "valid_until": 1791751007,
+        "evidence_id": "native-usdg-usd:86118063:0x544c010194d904a152524455fd9f3de59bbac034",
+        "evidence_hash": "719d10b3b1fe794fabf10278d70ca61cf50d88dcfa6e3341c6619c3bd610cb25"
+      },
+      "completed_at": 1791751005.473032
+    },
+    {
+      "kind": "warm",
+      "seconds": 2.1312933209119365,
+      "value": {
+        "asset": "ETH",
+        "decimals": 18,
+        "usd_per_unit": "2026.52913303",
+        "observed_at": 1791751007,
+        "valid_until": 1791751012,
+        "evidence_id": "native-usdg-usd:86118119:0x544c010194d904a152524455fd9f3de59bbac034",
+        "evidence_hash": "35635e9ef566eabac5ed0edaf53ee9a4a77120ee7e3e3b761f477f9aef08c8b7"
+      },
+      "completed_at": 1791751010.131454
+    }
+  ],
+  "funding": false,
+  "orders": false,
+  "epoch_reinitialized": false,
+  "historical_counters_reset": false,
+  "full_protection": false,
+  "regimes_enabled": false,
+  "status": "PASS_NATIVE_USD_COMPONENT_ONLY",
+  "ended_at": 1791751010.1319256,
+  "elapsed_seconds": 8.039833545684814,
+  "preflight": {
+    "limits_verified": true,
+    "limits": {
+      "http_attempts": 32,
+      "http_bytes": 33554432,
+      "native_bytes": 67108864,
+      "native_inflight_bytes": 33554432,
+      "native_stop_bytes": 33554432,
+      "rpc_cu": 6000,
+      "rpc_elements": 200
+    },
+    "wall_seconds": 60,
+    "modeled_spend_limit": "0.01",
+    "maximum_native_opens": 1,
+    "lanes": [
+      "pons"
+    ],
+    "physical_http_start_intervals": {
+      "robinhood": "0.25",
+      "solana": "0.5"
+    }
+  },
+  "usage_delta": {
+    "http_attempts": 23,
+    "rpc_elements": 92,
+    "rpc_cu": 2162,
+    "http_bytes": 239353,
+    "native_opens": 0
+  },
+  "modeled_public_upper_usd": "0.00113505",
+  "invoice_verified": false,
+  "call_timings": [
+    {
+      "methods": [
+        "eth_chainId"
+      ],
+      "seconds": 0.11890841403510422
+    },
+    {
+      "methods": [
+        "eth_getBlockByNumber"
+      ],
+      "seconds": 0.2549743539420888
+    },
+    {
+      "methods": [
+        "eth_getCode",
+        "eth_call",
+        "eth_call",
+        "eth_call",
+        "eth_call",
+        "eth_call",
+        "eth_getCode",
+        "eth_call"
+      ],
+      "seconds": 0.27464953798335046
+    },
+    {
+      "methods": [
+        "eth_getCode"
+      ],
+      "seconds": 0.2416110859485343
+    },
+    {
+      "methods": [
+        "eth_getCode"
+      ],
+      "seconds": 0.2412576830247417
+    },
+    {
+      "methods": [
+        "eth_getCode",
+        "eth_call"
+      ],
+      "seconds": 0.21691980597097427
+    },
+    {
+      "methods": [
+        "eth_call"
+      ],
+      "seconds": 0.26570570399053395
+    },
+    {
+      "methods": [
+        "eth_getCode",
+        "eth_call",
+        "eth_getCode",
+        "eth_call",
+        "eth_getCode",
+        "eth_call",
+        "eth_getCode",
+        "eth_call",
+        "eth_getCode",
+        "eth_call",
+        "eth_getCode",
+        "eth_call"
+      ],
+      "seconds": 0.2264616040047258
+    },
+    {
+      "methods": [
+        "eth_call",
+        "eth_call",
+        "eth_call",
+        "eth_call",
+        "eth_call",
+        "eth_call"
+      ],
+      "seconds": 0.20872759504709393
+    },
+    {
+      "methods": [
+        "eth_getCode",
+        "eth_call",
+        "eth_call",
+        "eth_getCode",
+        "eth_call",
+        "eth_call"
+      ],
+      "seconds": 0.28402729507070035
+    },
+    {
+      "methods": [
+        "eth_getCode",
+        "eth_call",
+        "eth_getCode",
+        "eth_call",
+        "eth_getCode",
+        "eth_call",
+        "eth_getCode",
+        "eth_call"
+      ],
+      "seconds": 0.22054170398041606
+    },
+    {
+      "methods": [
+        "eth_call",
+        "eth_call"
+      ],
+      "seconds": 0.203706590924412
+    },
+    {
+      "methods": [
+        "eth_call",
+        "eth_call"
+      ],
+      "seconds": 0.25232553598470986
+    },
+    {
+      "methods": [
+        "eth_getBlockByNumber"
+      ],
+      "seconds": 0.25122920295689255
+    },
+    {
+      "methods": [
+        "eth_chainId"
+      ],
+      "seconds": 0.010489045991562307
+    },
+    {
+      "methods": [
+        "eth_getBlockByNumber"
+      ],
+      "seconds": 0.09826727490872145
+    },
+    {
+      "methods": [
+        "eth_call"
+      ],
+      "seconds": 0.24294524500146508
+    },
+    {
+      "methods": [
+        "eth_getCode",
+        "eth_call",
+        "eth_getCode",
+        "eth_call",
+        "eth_getCode",
+        "eth_call",
+        "eth_getCode",
+        "eth_call",
+        "eth_getCode",
+        "eth_call",
+        "eth_getCode",
+        "eth_call"
+      ],
+      "seconds": 0.2543495079735294
+    },
+    {
+      "methods": [
+        "eth_call",
+        "eth_call",
+        "eth_call",
+        "eth_call",
+        "eth_call",
+        "eth_call"
+      ],
+      "seconds": 0.20624965406022966
+    },
+    {
+      "methods": [
+        "eth_getCode",
+        "eth_call",
+        "eth_call",
+        "eth_getCode",
+        "eth_call",
+        "eth_call"
+      ],
+      "seconds": 0.276872935006395
+    },
+    {
+      "methods": [
+        "eth_getCode",
+        "eth_call",
+        "eth_getCode",
+        "eth_call",
+        "eth_getCode",
+        "eth_call",
+        "eth_getCode",
+        "eth_call"
+      ],
+      "seconds": 0.26217775407712907
+    },
+    {
+      "methods": [
+        "eth_call",
+        "eth_call"
+      ],
+      "seconds": 0.19249228306580335
+    },
+    {
+      "methods": [
+        "eth_call",
+        "eth_call"
+      ],
+      "seconds": 0.23973038396798074
+    },
+    {
+      "methods": [
+        "eth_getBlockByNumber",
+        "eth_getBlockByNumber"
+      ],
+      "seconds": 0.2663111429428682
+    }
+  ]
+}

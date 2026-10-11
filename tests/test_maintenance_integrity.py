@@ -53,6 +53,30 @@ class MaintenanceIntegrityTests(unittest.TestCase):
             self.assertEqual(db.execute('SELECT COUNT(*) FROM coverage').fetchone()[0],25001)
             self.assertEqual(db.execute('SELECT COUNT(*) FROM records').fetchone()[0],0)
 
+    def test_closed_gaps_share_fresh_minimum_without_erasing_retirement_debt(self):
+        from meme_machine.solana_maintenance_state import DebtAgeAdapter,OBSERVATION_VM_STEPS
+        with self.state() as state:
+            w=state.writer;db=w.db
+            with w.transaction():
+                db.execute('INSERT INTO cursors VALUES(?,?,?)',('control:solana',25100,1000))
+                db.executemany('INSERT INTO coverage(scope,lo,hi,available,proof) VALUES(?,?,?,?,?)',
+                    [('control:solana',100+i,100+i,1000,'fresh-'+str(i)) for i in range(25000)])
+                db.executemany('INSERT INTO gaps(scope,lo,hi,reason,created,repaired) VALUES(?,?,?,?,?,?)',
+                    [('control:solana',1+4*i,2+4*i,'retained-gap',400,None) for i in range(15)])
+            adapter=DebtAgeAdapter(w,wall=lambda:1000)
+            observation=adapter.observe('closed-gaps')
+            self.assertLessEqual(observation.vm_steps,OBSERVATION_VM_STEPS)
+            control=next(r for r in observation.scopes if r.scope=='control:solana')
+            self.assertEqual((control.floor,control.gaps,control.continuity),(1,15,0))
+            with w.transaction():
+                db.execute('INSERT INTO coverage(scope,lo,hi,available,proof) VALUES(?,?,?,?,?)',
+                    ('control:solana',60,60,500,'actual-retirable-work'))
+            observation=adapter.observe('closed-gaps-with-debt')
+            control=next(r for r in observation.scopes if r.scope=='control:solana')
+            self.assertEqual((control.floor,control.gaps,control.continuity),(1,15,1))
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM coverage').fetchone()[0],25001)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0],15)
+
     def test_large_live_address_dictionary_observation_stays_bounded(self):
         from meme_machine.solana_maintenance_state import DebtAgeAdapter,OBSERVATION_VM_STEPS
         with self.state() as state:

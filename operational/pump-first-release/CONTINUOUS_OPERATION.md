@@ -399,3 +399,19 @@ including original direct-route behavior, disabled no-acquisition behavior,
 source transfer semantics, hook/membership/quantity/fee refusals, depeg composition,
 expiry, reorganization and pending-accounting recovery. Actual shared native
 financial/protective latency and continuous economic coverage remain unproved.
+
+The next maintained-prefix observation exposed repeated fresh-minimum scans
+inside each old closed-gap range. Exact second failure-time replay exhausted
+251,000 steps. Reusing the minimum within the same single-owner readonly command
+reduces that identical observation to 53,000 steps; no cross-command cache or
+authoritative-state change is involved. Forty-two focused maintenance/retention
+tests passed in 10.523 seconds (one existing optional-capability skip), preserving
+25,000 fresh intervals, all unresolved gaps and actual older retirement debt.
+
+The disabled Pons two-hop reader passed an authenticated cold and warm native
+USD component on 3d89e5f19772c92ad761fdca19a24d77c0765664. Cold acquisition took
+3.369708 seconds and warm refresh 2.131293 seconds with distinct current canonical
+blocks and the original five-second validity. It used 23 starts, 92 logical
+elements, 2,162 CU and 239,353 HTTP bytes: public-modeled $0.00113505. This is not
+invoice evidence or full Current/Survivor protective capacity. The feature remains
+unset in the service pending coincident native quote/USD/deadline proof.

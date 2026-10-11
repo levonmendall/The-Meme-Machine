@@ -1,0 +1,36 @@
+{
+  "status": "FAIL_OFFLINE_REPLAY",
+  "type": "EvidenceUnavailable",
+  "reason": "maintenance_observation_vm_bound",
+  "steps": 251000,
+  "wall": 1791750893.3,
+  "seconds": 0.007312797009944916,
+  "last_queries": [
+    {
+      "sql": "SELECT 1 FROM gaps WHERE scope='control:solana' AND lo>=455715414 AND lo<455716316 AND hi<455716316 AND repaired IS NOT NULL LIMIT 1",
+      "steps_at_start": 228000
+    },
+    {
+      "sql": "SELECT 1 FROM stream_receipts WHERE scope='control:solana' AND slot>=455715414 AND slot<455716316 LIMIT 1",
+      "steps_at_start": 228000
+    },
+    {
+      "sql": "SELECT 1 FROM stream_deliveries WHERE scope='control:solana' AND slot>=455715414 AND slot<455716316 LIMIT 1",
+      "steps_at_start": 228000
+    },
+    {
+      "sql": "SELECT 1 FROM stream_order WHERE scope='control:solana' AND slot>=455715414 AND slot<455716316 LIMIT 1",
+      "steps_at_start": 228000
+    },
+    {
+      "sql": "SELECT MIN(slot) FROM records WHERE scope='control:solana' AND slot>=455677145 AND body IS NOT NULL",
+      "steps_at_start": 228000
+    },
+    {
+      "sql": "SELECT MIN(lo) FROM coverage INDEXED BY maintenance_recent_coverage WHERE scope='control:solana' AND lo>=455677145 AND available>=1791750713.3",
+      "steps_at_start": 228000
+    }
+  ],
+  "provider_requests": 0,
+  "canonical_db_unchanged": true
+}
