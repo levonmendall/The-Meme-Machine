@@ -1,7 +1,7 @@
 {
   "schema": "pump-first-native-component-v1",
   "enabled": false,
-  "owner_authorization": "GRANTED_FOR_ONE_BOUNDED_READ_ONLY_COMPONENT_RUN",
+  "owner_authorization": "CONSUMED_ONE_BOUNDED_COMPONENT_RUN",
   "release_tag": "release/pump-first-paper-20261011",
   "source_commit": null,
   "entrypoint": "python -m engineering.pump_first.check",
@@ -68,5 +68,7 @@
   "diagnostic_quantities_usd": {
     "initial": "50",
     "eligible_addition_quote_only": "25"
-  }
+  },
+  "executed_source_commit": "dbf2aa12d339ed69a2656ef19bc678e0d7448859",
+  "receipt": "operational/pump-first-release/AUTHENTICATED_COMPONENT.json"
 }

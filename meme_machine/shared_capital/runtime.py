@@ -76,6 +76,21 @@ def connection(path):
     return cached[1]
 
 
+def allocation_regimes(state):
+    """Scoped bootstrap needs its funded families and every outstanding owner.
+
+    Ordinary allocation keeps the original four-owner quorum. A flat family
+    with no funding authority contributes an empty manifest, never exposure.
+    """
+    scope=state.get('runtime_admission',{})
+    if scope.get('mode')!='BOOTSTRAP':return ACTIVE_REGIMES
+    from meme_machine.operational.position_continuation import funding_scope,position_lanes
+    limits=funding_scope(scope.get('continuation_envelope',{}))
+    if limits is None:return ACTIVE_REGIMES
+    families={FAMILIES[r] for r in limits['regimes']}|set(position_lanes(state))
+    return tuple(r for r in ACTIVE_REGIMES if FAMILIES[r] in families)
+
+
 class RuntimeCapital(PumpPonsCapital):
     def ledger(self):
         # Read the validated durable projection without a portfolio valuation
@@ -121,14 +136,15 @@ class RuntimeCapital(PumpPonsCapital):
         state=self.ledger();queued=state.get('runtime_inbox',{})
         if not queued:return {'decisions':{},'order':[]}
         owners=state.get('runtime_owners',{})
-        for r in ACTIVE_REGIMES:
+        for r in allocation_regimes(state):
             owner=owners.get(r)
             if not owner or not owner['ready']:raise CapitalError('missing_active_manifest:'+r)
             try:alive=process_identity(owner['pid'])==owner['start']
             except (OSError,CapitalError):alive=False
             if not alive:raise CapitalError('missing_active_manifest:'+r)
         ids=sorted(queued)
-        return self.command('round:'+digest(ids),'runtime_allocate',dict(request_ids=ids,owners=owners),at)
+        return self.command('round:'+digest(ids),'runtime_allocate',dict(request_ids=ids,owners=owners,
+            required_regimes=list(allocation_regimes(state))),at)
 
     def _apply(self,state,event):
         action=event['action']
@@ -192,7 +208,12 @@ class RuntimeCapital(PumpPonsCapital):
             return state,dict(status='QUEUED',request_id=q['request_id'],lifecycle_id=life)
         if action=='runtime_allocate':
             owners=state.get('runtime_owners',{})
-            if data['owners']!=owners or set(owners)!=set(ACTIVE_REGIMES) or any(not o['ready'] for o in owners.values()):
+            # Old journals retain their original four-owner semantics. New
+            # scoped rounds fence any obligation/quorum change since live checks.
+            required=allocation_regimes(state) if 'required_regimes' in data else ACTIVE_REGIMES
+            if (data.get('required_regimes',list(required))!=list(required)
+                    or data['owners']!=owners or set(owners)-set(ACTIVE_REGIMES)
+                    or any(r not in owners or not owners[r]['ready'] for r in required)):
                 raise CapitalError('missing_or_changed_active_manifest')
             inbox=state.get('runtime_inbox',{})
             if sorted(inbox)!=data['request_ids']:raise CapitalError('allocation_inbox_frontier_changed')

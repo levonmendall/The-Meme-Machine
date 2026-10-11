@@ -3,7 +3,7 @@
   "optimization_handoff_commit": "4fd362c675480aa61bcf917f42af87ca7b41d86f",
   "CI_host_prerequisite_fix_commit": "bfb90b810ffebad525173083eebf07688736b6a0",
   "funding_scope_commit": "c774fca89bd6956ab9446309c612a1699b5a7124",
-  "final_release_source_identity": "Immutable release tag and external FROZEN_RELEASE.json after exact-source CI; pending is not PASS.",
+  "final_release_source_identity": "BOUND_AFTER_EXACT_FINAL_CI_BY_RELEASE_TAG_AND_EXTERNAL_FROZEN_RELEASE_RECEIPT",
   "python": "3.12.14",
   "final_focused": {
     "status": "PASS",
@@ -49,20 +49,20 @@
     "meme_machine/operational/supervisor.py": "298f698ee72be4a50bc4a8760abca99ef1f4da50d29df9da41a0113fa484d271",
     "meme_machine/shared_capital/native_sleeve.py": "577b85bb39fd27e3c9133af873b5a8c50050cde9c45b937a2b939083e3cce12c",
     "operational/tests.py": "8a6e227cee5475fd7efa2af0c52d82c1f2ba67e21a41d9d9d9d17113aa28a7a1",
-    "tests/test_first_owner_scope.py": "d6ab1f519b5a65a00b1595876a90fafdd3ed222973390ce1d1b76126614ac3f4",
+    "tests/test_first_owner_scope.py": "9394b70c2af4432f48c2e69cb2109d14f1b601bb382d5d2f5882fdec126d2fae",
     "tests/test_pump_first_check.py": "da492b8989b0bc8151db3c07e5778fb8b8791cd1ea2da58fe089f852b5a4b7a2",
     "engineering/pump_first/check.py": "5ad16f3ec55e8586fd378d3640157166e0140bff7c9935bef9b35bd5e82fbd2f",
     "requirements.txt": "d1e960f8fe94fed128958c849e48d034ba004b156739ca9be0f9767425698ffe",
-    "deployment/paper-bootstrap.conf": "c96d6cc67b557943c780cd2f93fd6b8e73c336a862fd949c729e18dac3e4ff34",
-    "deployment/paper.env.example": "318e31f355f5004b19e1649661d6a2150147208d2a3d52038c712f31181ee3c1",
+    "deployment/paper-bootstrap.conf": "69e06b0e91bd378330800d749daa80b42fe49a484fc14c0785bfe0af225c2e72",
+    "deployment/paper.env.example": "9f9492355189e02c3ed7d5671ff09202b6ff6819ceaab661be97d526e09cba7c",
     "operational/shared-capital-activation/risk-policy.shared-1000.proposed.json": "f2da6f2fa3f1451c1313be20bc3592d53070b70c62725cb0ac43fa6f3a73d034",
-    "operational/pump-first-release/LAUNCH_1000_DISABLED.json": "b57f199cd6ec3f745b5247849bf08b6654bfe7d213e7a4e30f3ee2d29ded2902",
+    "operational/pump-first-release/LAUNCH_1000_DISABLED.json": "256a9c2171332e3112b411dc2b62814c541f080bfa1469d0e3589601104a47d3",
     "operational/pump-first-release/storage.shared-1000.uninitialized.example.json": "2d6e5cba00cf9919f80c9f6e1bbdd0de09c73f6581706d9a12f0c6aa90fcca9d",
-    "deployment/meme-machine-paper.service": "0a6738ed223d9305ab4276d802fdb655670e9ad3e69f9a0133315b222b088daa",
-    "deployment/meme-machine-backup.service": "f0722de9ce5d62599c75db5a10c8ee8c3971e741a264286a3bac0e48ccf439ea",
-    "deployment/meme-machine-backup-point.service": "791b8394a7c122af12fd8a83e16d28b13eb323f614e035b29c92a041ce730f62",
-    "deployment/meme-machine-acceptance@.service": "d4a7b45794262d23409c34a78ec89fe8946310b59e3c454acc195ca862c3da88",
-    "deployment/meme-machine-observer.service": "fdfa454b2b41639b3122b40b2c47c82faf1331b81d89190adb1cd32864a1f6cd",
+    "deployment/meme-machine-paper.service": "216c76c1d40dc08fd1120270d5bf2d7eca6e98c15d1862b961606002cb285a6b",
+    "deployment/meme-machine-backup.service": "8a3b303644f7b6c57035977a36f193c6d588b179115f78c5c9004b9f22216e81",
+    "deployment/meme-machine-backup-point.service": "a5894eeb0ebfca1527b9f25e71c2cedce5c62653b1953b7e8731cab7504354fd",
+    "deployment/meme-machine-acceptance@.service": "d2d1236b187976ff00caf4b1564d6b3579a9b564810a687b0389690f47896471",
+    "deployment/meme-machine-observer.service": "b798383b6dee41ee71e7b69c9dada53cc4084ff9691600f04011d69a5e6aed30",
     "deployment/meme-machine-monitor.service": "b36e3191d0c53189f6906d07911d0699898845f7a3c8b4dd3bf791e3867b4f18"
   },
   "logs": [
@@ -163,6 +163,69 @@
       "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
       "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "raw_bytes": 0
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../release-inclusion-focused.log",
+      "retained": "operational/pump-first-release/evidence/release-inclusion-focused.log.gz",
+      "sha256": "24450e8cd30bd86c6dc3fb74f3f797de9c5d3592bd595443e964d229c5bf2038",
+      "raw_sha256": "36abb4a9f2d7a1893d8ec1db1f3a7892e6ff3fea94f3995d0a308d513101da85",
+      "raw_bytes": 37061
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../release-cutover-final.log",
+      "retained": "operational/pump-first-release/evidence/release-cutover-final.log.gz",
+      "sha256": "b858570974d2be736279579612d560698d038f7fcff88dcb1c20f9817ea7f30b",
+      "raw_sha256": "a51c89d674a4a29d714cc6d500fd9ccfbfea7f755f3643ff98fb38660c30b0cb",
+      "raw_bytes": 6430
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../release-owner-quorum-before.log",
+      "retained": "operational/pump-first-release/evidence/release-owner-quorum-before.log.gz",
+      "sha256": "68d63f5f340c22ef99fe8f379f374cce0d5b4c0b9996b823e322d316da7563da",
+      "raw_sha256": "f9fbaa0694ac9b39c0d229c9e416811cc93a78d42654470d8c12a039e5bd2a2b",
+      "raw_bytes": 1495
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../release-owner-quorum-final.log",
+      "retained": "operational/pump-first-release/evidence/release-owner-quorum-final.log.gz",
+      "sha256": "2e32599af22dd08111dd081194aec602ea21ec3251648afef2848782c15407e9",
+      "raw_sha256": "95adf45cd4968e1a092f29cbbe26c8f0ecce37ab83a600f7f1dc32eed85b52f4",
+      "raw_bytes": 23898
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../release-historical-guard-final.log",
+      "retained": "operational/pump-first-release/evidence/release-historical-guard-final.log.gz",
+      "sha256": "4baedd4036aff483ee3b43d616c7a7697b4281ee722ed481597577ffc75c6227",
+      "raw_sha256": "0dd6959ac374b50f6a97ad7ec138ee59e8e78a047e05b62276017af8afa17438",
+      "raw_bytes": 377
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../release-dashboard-frontend.log",
+      "retained": "operational/pump-first-release/evidence/release-dashboard-frontend.log.gz",
+      "sha256": "f4617f626a292706d1ed22e4893540d7e79283ed78204c225ee15dc5af5746fd",
+      "raw_sha256": "1583f2c02f9bf7dfc90d87be455de130bd98278c0d338296b5ce2367e98db83d",
+      "raw_bytes": 188
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../release-prepared-profile-verify.log",
+      "retained": "operational/pump-first-release/evidence/release-prepared-profile-verify.log.gz",
+      "sha256": "013bc5af6432a3a255f379b93281d55c726df5d1849133602609238e3e2c7722",
+      "raw_sha256": "7a5e4691457c0e0f795f4000418b8a0b277e53cd9c85862899916513ac64ea67",
+      "raw_bytes": 148
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../release-final-changed-cases.log",
+      "retained": "operational/pump-first-release/evidence/release-final-changed-cases.log.gz",
+      "sha256": "e721dd8c71c0895a30178c51ae4fd141110801f8b3092f5a27c6a45f4682eeff",
+      "raw_sha256": "54baff1d82de5dc6564e7b3e4c130bcac0f971d14f3e1e673304280d4be5e288",
+      "raw_bytes": 9440
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../ci-882-fast.log",
+      "retained": "operational/pump-first-release/evidence/ci-882-fast.log.gz",
+      "sha256": "dc64e1d5613a3e1f45e30ea9e20dd3c1944e8bcefab95d13dce6b8b6b32efabb",
+      "raw_sha256": "3810e8cbabcdd7a53afceffeef46a5b71ee8c7f354dac4792ee3e004d2e2f46a",
+      "raw_bytes": 630740
     }
   ],
   "market_provider_requests": 0,
@@ -197,7 +260,7 @@
     "balance_migration": false,
     "new_epoch_initialized": false
   },
-  "component_authorization": "One separately authorized read-only invocation; public provisional billing basis; local credential binding and charges still checked before dispatch. Result retained in release attestation.",
+  "component_authorization": "CONSUMED_ONE_BOUNDED_READ_ONLY_COMPONENT_RUN",
   "bootstrap_environment_precedence": "Separate new private EnvironmentFile replaces historical list; absent new file refuses startup; no installed change.",
   "cutover_focused": {
     "status": "PASS",
@@ -218,16 +281,35 @@
   },
   "prepared_units_syntax": {
     "status": "PASS",
-    "exit": 0,
-    "units": [
-      "meme-machine-paper.service",
-      "meme-machine-backup.service",
-      "meme-machine-backup-point.service",
-      "meme-machine-acceptance@.service",
-      "meme-machine-observer.service",
-      "meme-machine-monitor.service"
-    ],
-    "log": "evidence/pump-1000-units-verify.log.gz",
-    "installed": false
-  }
+    "unit_count": 8,
+    "source": "operational/pump-first-release/deployment/",
+    "log": "evidence/release-prepared-profile-verify.log.gz",
+    "host_mutations": 0
+  },
+  "release_inclusion_audit": "RELEASE_INCLUSION_AUDIT.json",
+  "authenticated_component": {
+    "status": "PASS_COMPONENT_ONLY",
+    "source_commit": "dbf2aa12d339ed69a2656ef19bc678e0d7448859",
+    "receipt": "AUTHENTICATED_COMPONENT.json",
+    "physical_starts": 7,
+    "logical_elements": 7,
+    "modeled_CU": 130,
+    "modeled_public_tariff_usd": "0.00006825",
+    "invoice_usd": null,
+    "authorization": "CONSUMED"
+  },
+  "final_source_repairs": [
+    "selected new-epoch acceptance and monitoring identity",
+    "historical root restore-target fence",
+    "scoped Pump-first shared allocation with all outstanding owner obligations"
+  ],
+  "historical_source_guard": "RESTORED_ORIGINAL_SERVICE_TEMPLATE; original test unchanged; new inactive eight-service profile prepared separately for authorized cutover",
+  "source_profile_rule": "Use coherent new-epoch release bundle under existing service identities; top-level unit templates preserve historical profile, not new launch source.",
+  "scoped_allocation_focused": {
+    "status": "PASS",
+    "tests": 119,
+    "seconds": 43.547,
+    "log": "evidence/release-owner-quorum-final.log.gz"
+  },
+  "host_preservation": "Historical inception and portfolio bytes identical; PAPER inactive/disabled/PID0; new root absent; existing installed source unchanged."
 }

@@ -210,3 +210,34 @@ required. Meteora and Ramses stay paused; unproven Pons funding stays closed.
 
 The minimum next step is the bounded Pump component, followed by the separately
 bounded complete Pump protection acceptance for the intended new shared epoch.
+
+## Final release inclusion and deployment profile
+
+The comprehensive [release-inclusion audit](RELEASE_INCLUSION_AUDIT.md) and
+[source/test/configuration matrix](RELEASE_INCLUSION_AUDIT.json) supersede older
+branch inventories. PRs #120 and #123 are incorporated through maintained
+successors; their old branch heads must not overwrite the release. All nine
+approved strategy changes are retained. The ninth is Meteora-specific and stays
+paused; the four intended directional regimes retain their original economic
+rules and the later approved removal of age-only sales.
+
+The coherent new-epoch installation bundle is `operational/pump-first-release/deployment/`.
+Install those files under the existing eight service names only after deployment
+authorization, with its bootstrap drop-in under the existing PAPER service.
+Top-level `deployment/` service templates remain the preserved historical
+profile, including the strict research source guard; they are not the new launch
+installation source. This is one existing supervisor and service topology.
+Acceptance selects `MM_PAPER_ENV_FILE` and `MM_STORAGE_GUARD_CONFIG`; mixed
+state roots fail closed. The prepared monitor explicitly selects the new guard.
+Restore verification rejects both the historical root and the selected new root.
+Scoped Pump bootstrap allocation requires its selected family plus every family
+with any open or pending obligation; ordinary four-regime owner quorum is unchanged.
+
+The [component receipt](AUTHENTICATED_COMPONENT.json) is `PASS_COMPONENT_ONLY`: the
+one-run authorization is consumed. It used seven physical starts/elements, 130
+modeled CU, 17,489 bytes and 6.188 seconds on source `dbf2aa12d339ed69a2656ef19bc678e0d7448859`.
+The native component code and financial/quote adapters retain their exact bytes;
+later deployment and scoped-allocation changes are separately offline tested.
+At the owner-authorized public tariff, RPC CU value is $0.00006825, with no
+authenticated invoice amount. This is not full one-owner protection or PAPER
+readiness. No further component or broader provider dispatch is authorized.

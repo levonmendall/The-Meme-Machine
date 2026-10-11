@@ -163,6 +163,70 @@ class SharedAuthorityTests(unittest.TestCase):
     fixture=Native.fixture
     queue=Native.queue
 
+    def test_flat_unfunded_pons_owner_cannot_veto_pump_first_shared_allocation(self):
+        import os
+        root,a,now,s=self.service('pump')
+        health,portfolio,rss=healthy()
+        a.command('arm-pump-only','runtime_admission',dict(s.admission_data,mode='BOOTSTRAP',
+            continuation_ready=readiness(health,portfolio,rss,s.admission_data['continuation_envelope'])),now)
+        for r in ('pons_current','pons_survivor'):
+            a.owner(r,'unfunded-not-ready',os.getpid(),ready=False,at=now)
+        self.queue(a,'pump_survivor','pump-only',now)
+        a.drain(at=now)
+        self.assertEqual(a.ledger()['requests']['pump-only']['status'],'RESERVED')
+        self.assertFalse(any(p['regime'].startswith('pons') for p in a.ledger()['reservations'].values()))
+        a.verify_replay()
+
+    def test_pump_first_quorum_still_includes_every_unselected_position_or_obligation(self):
+        from meme_machine.shared_capital.runtime import allocation_regimes,ACTIVE_REGIMES
+        state=scoped_state(resources(('pump_current','pump_survivor')))
+        self.assertEqual(allocation_regimes(state),('pump_current','pump_survivor'))
+        obligations=(('positions',{'held':dict(regime='pons_current',status='OPEN')}),
+                     ('reservations',{'held':dict(regime='pons_survivor')}),
+                     ('commitments',{'held':dict(regime='pons_current')}),
+                     ('obligations',{'held':dict(regime='pons_survivor')}),
+                     ('pending_deliveries',{'held':dict(lane='pons')}),
+                     ('runtime_pending',{'held':dict(lane='pons')}),
+                     ('runtime_inbox',{'held':dict(regime='pons_survivor')}))
+        for key,value in obligations:
+            with self.subTest(obligation=key):
+                changed=deepcopy(state);changed[key]=value
+                self.assertEqual(allocation_regimes(changed),ACTIVE_REGIMES)
+        for mode in ('NORMAL','AUTONOMY','CONTINUATION','OBSERVATION'):
+            changed=deepcopy(state);changed['runtime_admission']['mode']=mode
+            self.assertEqual(allocation_regimes(changed),ACTIVE_REGIMES)
+        changed=deepcopy(state);changed['runtime_admission']['continuation_envelope'].pop('bootstrap_funding_scope')
+        self.assertEqual(allocation_regimes(changed),ACTIVE_REGIMES)
+
+    def test_unfunded_manifest_exception_never_waives_selected_owner_readiness(self):
+        import os
+        root,a,now,s=self.service('pump')
+        health,portfolio,rss=healthy()
+        a.command('arm-selected-owners','runtime_admission',dict(s.admission_data,mode='BOOTSTRAP',
+            continuation_ready=readiness(health,portfolio,rss,s.admission_data['continuation_envelope'])),now)
+        self.queue(a,'pump_survivor','selected-required',now)
+        a.owner('pump_current','selected-not-ready',os.getpid(),ready=False,at=now)
+        with self.assertRaisesRegex(CapitalError,'missing_active_manifest:pump_current'):a.drain(at=now)
+        self.assertTrue(a.ledger()['runtime_inbox']);self.assertFalse(a.ledger()['reservations'])
+        a.verify_replay()
+
+    def test_scoped_round_fences_quorum_changes_and_replays_original_manifest_semantics(self):
+        from meme_machine.shared_capital.runtime import ACTIVE_REGIMES
+        root,a,now,s=self.service('pump')
+        health,portfolio,rss=healthy()
+        a.command('arm-fenced-quorum','runtime_admission',dict(s.admission_data,mode='BOOTSTRAP',
+            continuation_ready=readiness(health,portfolio,rss,s.admission_data['continuation_envelope'])),now)
+        self.queue(a,'pump_survivor','fenced-round',now)
+        state=a.ledger();data=dict(request_ids=sorted(state['runtime_inbox']),owners=state['runtime_owners'])
+        with self.assertRaisesRegex(CapitalError,'missing_or_changed_active_manifest'):
+            a.command('changed-quorum','runtime_allocate',dict(data,required_regimes=list(ACTIVE_REGIMES)),now)
+        self.assertTrue(a.ledger()['runtime_inbox']);self.assertFalse(a.ledger()['reservations'])
+        # Historical round shape has no scoped quorum field and still needs
+        # all four ready owners. Its deterministic replay remains supported.
+        a.command('old-four-owner-round','runtime_allocate',data,now)
+        self.assertEqual(a.ledger()['requests']['fenced-round']['status'],'RESERVED')
+        a.verify_replay()
+
     def service(self,family):
         from tests.test_paper_bootstrap import AdmissionTests
         root,a,now,_=self.fixture()

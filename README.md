@@ -1,12 +1,19 @@
 # The Meme Machine — PAPER
 
 One Python supervisor runs Pump Current/Survivor and Pons Current/Survivor from
-committed source, sharing one preserved $500 Decimal portfolio. Meteora and
+committed source. The prepared launch uses a separate $1,000 shared Decimal
+portfolio with $50 initial targets and eligible $25 additions, pending explicit
+policy, initialization and PAPER approval. The historical $500 portfolio and its
+accounting remain preserved. Meteora and
 Ramses are PAUSED indefinitely; their code and historical accounting remain.
 Existing positions reconcile before discovery resumes. There are no wallet keys,
 transaction signers, real trade submissions, owner permits or live-money switch.
 
 Start here: [OPERATIONAL_STATE.md](OPERATIONAL_STATE.md).
+
+The current release and activation preparation is
+[Pump-first release](operational/pump-first-release/HANDOFF.md).
+Source inclusion does not activate that portfolio or authorize provider spending.
 
 Migration completeness must pass before deployment acceptance. Robinhood USD valuation
 uses its existing RPC and the verified Chainlink USDG/USD feed. No genuine

@@ -41,8 +41,11 @@ def environment(path):
                     mode=oct(stat.st_mode&0o777),mtime_ns=stat.st_mtime_ns))
 
 
-def capture(source, *, configuration_root='/etc/meme-machine', unit_root='/etc/systemd/system'):
+def capture(source, *, configuration_root='/etc/meme-machine', unit_root='/etc/systemd/system', environ=None):
     source=Path(source);configuration_root=Path(configuration_root);unit_root=Path(unit_root)
+    env=os.environ if environ is None else environ
+    paper_file=Path(env.get('MM_PAPER_ENV_FILE',configuration_root/'paper.env'))
+    storage_file=Path(env.get('MM_STORAGE_GUARD_CONFIG',configuration_root/'storage.json'))
     def git(*args):
         return subprocess.check_output(['git',*args],cwd=source,text=True,timeout=5).strip()
     if git('status','--porcelain'):raise ValueError('acceptance_requires_clean_deployed_source')
@@ -51,13 +54,17 @@ def capture(source, *, configuration_root='/etc/meme-machine', unit_root='/etc/s
         name='meme-machine-'+suffix;path=unit_root/name
         units[name]=dict(file_sha256=sha(path),dropins={p.name:sha(p) for p in sorted((unit_root/(name+'.d')).glob('*.conf'))})
     packages={d.metadata['Name']:d.version for d in importlib.metadata.distributions()}
-    storage=json.loads((configuration_root/'storage.json').read_text())
+    storage=json.loads(storage_file.read_text())
+    paper=environment(paper_file)
+    for state_root in (env.get('MM_STATE_ROOT'),paper['public_values'].get('MM_STATE_ROOT')):
+        if state_root and Path(state_root).resolve()!=Path(storage['state_root']).resolve():
+            raise ValueError('acceptance_configuration_state_root_mismatch')
     device=os.stat(storage['volume_device'])
     return dict(commit=git('rev-parse','HEAD'),tree=git('rev-parse','HEAD^{tree}'),
         python=platform.python_version(),sqlite=sqlite3.sqlite_version,
         websockets=importlib.metadata.version('websockets'),requirements_sha256=sha(source/'requirements.txt'),
         installed_requirements=packages,units=units,storage=storage,
-        environment=environment(configuration_root/'paper.env'),
+        environment=paper,configuration_files=dict(paper=str(paper_file),storage=str(storage_file)),
         maintenance_environment=environment(configuration_root/'digitalocean.env'),
         block_device_identity=dict(major=os.major(device.st_rdev),minor=os.minor(device.st_rdev)),
         backup_configuration_sha256=sha(configuration_root/'backup.json'),

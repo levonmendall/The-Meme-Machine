@@ -36,7 +36,7 @@
     "select_old_sizing_for_new_launch": false
   },
   "bootstrap": {
-    "prepared_dropin": "deployment/paper-bootstrap.conf",
+    "prepared_dropin": "operational/pump-first-release/deployment/paper-bootstrap.conf",
     "new_private_environment_file": "/etc/meme-machine/paper.shared-1000.env",
     "historical_environment_file": "/etc/meme-machine/paper.env",
     "historical_environment_file_is_cleared_from_bootstrap": true,
@@ -62,16 +62,20 @@
     "clock_expiration_closes_funding_only": true,
     "existing_position_protection_remains_independent": true,
     "ordinary_cutover_units": [
-      "deployment/meme-machine-paper.service",
-      "deployment/meme-machine-backup.service",
-      "deployment/meme-machine-backup-point.service",
-      "deployment/meme-machine-acceptance@.service",
-      "deployment/meme-machine-observer.service",
-      "deployment/meme-machine-monitor.service"
+      "operational/pump-first-release/deployment/meme-machine-paper.service",
+      "operational/pump-first-release/deployment/meme-machine-backup.service",
+      "operational/pump-first-release/deployment/meme-machine-backup-point.service",
+      "operational/pump-first-release/deployment/meme-machine-acceptance@.service",
+      "operational/pump-first-release/deployment/meme-machine-observer.service",
+      "operational/pump-first-release/deployment/meme-machine-monitor.service"
     ],
     "new_acceptance_environment_file": "/etc/meme-machine/acceptance.shared-1000.env",
     "ordinary_PAPER_target_and_resource_limits_persist_after_bootstrap": true,
-    "backup_and_observer_target_new_epoch": true
+    "backup_and_observer_target_new_epoch": true,
+    "coherent_service_bundle": "operational/pump-first-release/deployment/",
+    "paper_environment_identity_variable": "MM_PAPER_ENV_FILE",
+    "condition_monitor_storage_guard": "storage.shared-1000.json",
+    "legacy_top_level_service_templates_preserved": true
   },
   "dashboard_cutover": {
     "authorized": false,
@@ -101,7 +105,7 @@
     ]
   },
   "validation_status": {
-    "bounded_native_component": "SEPARATELY_AUTHORIZED_NOT_DISPATCHED",
+    "bounded_native_component": "PASS_COMPONENT_ONLY_ONE_RUN_AUTHORIZATION_CONSUMED",
     "complete_authenticated_Pump_protection": "NOT_AUTHORIZED_OR_PROVEN",
     "combined_operational_PAPER_lifecycle": "NOT_AUTHORIZED_OR_PROVEN"
   }

@@ -139,9 +139,10 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--observer',default='/var/lib/meme-machine-observer')
     parser.add_argument('--output',default='/var/lib/meme-machine-monitor')
+    parser.add_argument('--storage-config',default=os.environ.get('MM_STORAGE_GUARD_CONFIG','/etc/meme-machine/storage.json'))
     parser.add_argument('--once',action='store_true')
     args=parser.parse_args();folder=Path(args.output);folder.mkdir(parents=True,exist_ok=True)
-    epoch=read_json('/etc/meme-machine/storage.json')['epoch_id']
+    epoch=read_json(args.storage_config)['epoch_id']
     while True:
         try:sample=read_json(Path(args.observer)/'latest.json',SAMPLE_BOUND)
         except (OSError,ValueError):sample={}
