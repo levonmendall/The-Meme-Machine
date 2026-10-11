@@ -187,6 +187,53 @@ class ClosureTests(unittest.TestCase):
         self.life.pin(coverage_scope('meteora',other),'position','right_tail_hwm',rows[0].slot)
         self.assertEqual(ScopedRetirement(self.h).retire()['retired_records'],0)
 
+    def test_retirement_slice_checks_pinned_shared_owner_outside_its_cursor(self):
+        address,rows=self.ingest_fixture('meteora');other=next(a for a in rows[0].addresses if a!=address)
+        self.seed('meteora',other,rows[0].slot)
+        self.life.pin(coverage_scope('meteora',other),'position','right_tail_hwm',rows[0].slot)
+        scope=self.h.scope_for('meteora',address)
+        self.h.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('scoped_retirement_cursor',scope[:-1]))
+        result=ScopedRetirement(self.h).retire(limit=1)
+        self.assertEqual(result['candidate_scopes_examined'],1)
+        self.assertEqual(result['retired_records'],0)
+        self.assertGreater(result['pinned_bytes'],0)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM scoped_cold_records').fetchone()[0],0)
+
+    def test_retirement_large_shared_fanout_keeps_hot_history(self):
+        address,rows=self.ingest_fixture('meteora')
+        for n in range(70):self.h.bind('meteora','view-'+str(n),market_address=address)
+        scope=self.h.scope_for('meteora',address)
+        self.h.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('scoped_retirement_cursor',scope[:-1]))
+        result=ScopedRetirement(self.h).retire(limit=1)
+        self.assertEqual(result['retired_records'],0)
+        self.assertEqual(result['oldest_unretired_scope']['reason'],'shared_binding_bound')
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM canonical_evidence WHERE body IS NOT NULL').fetchone()[0],len(rows))
+
+    def test_retirement_cursor_advances_boundedly_and_survives_restart(self):
+        for n in range(150):self.h.bind('pump',f'quiet-{n:03d}')
+        result=ScopedRetirement(self.h).retire()
+        self.assertEqual(result['candidate_scopes_examined'],64)
+        self.assertEqual(self.h.db.execute("SELECT value FROM meta WHERE key='scoped_retirement_cursor'").fetchone()[0],coverage_scope('pump','quiet-063'))
+        self.restart();result=ScopedRetirement(self.h).retire()
+        self.assertEqual(result['candidate_scopes_examined'],64)
+        self.assertEqual(self.h.db.execute("SELECT value FROM meta WHERE key='scoped_retirement_cursor'").fetchone()[0],coverage_scope('pump','quiet-127'))
+        result=ScopedRetirement(self.h).retire()
+        self.assertEqual(result['candidate_scopes_examined'],22)
+        self.assertEqual(ScopedRetirement(self.h).retire()['candidate_scopes_examined'],64)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM evidence_bindings').fetchone()[0],150)
+
+    def test_failed_retirement_journal_does_not_skip_its_cursor(self):
+        self.h.bind('pump','quiet')
+        cold=ScopedRetirement(self.h)
+        self.h.db.execute("CREATE TRIGGER fail_retirement_journal BEFORE INSERT ON scoped_retirement_observations BEGIN SELECT RAISE(ABORT,'offline journal fault'); END")
+        import sqlite3
+        with self.assertRaises(sqlite3.IntegrityError):cold.retire(limit=1)
+        self.assertIsNone(self.h.db.execute("SELECT value FROM meta WHERE key='scoped_retirement_cursor'").fetchone())
+        self.h.db.execute('DROP TRIGGER fail_retirement_journal')
+        self.restart();result=ScopedRetirement(self.h).retire(limit=1)
+        self.assertEqual(result['candidate_scopes_examined'],1)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM scoped_retirement_observations').fetchone()[0],1)
+
     def test_large_legal_records_split_into_recoverable_cold_batches(self):
         from dataclasses import replace
         address,rows=self.ingest_fixture('meteora');original=rows[0]

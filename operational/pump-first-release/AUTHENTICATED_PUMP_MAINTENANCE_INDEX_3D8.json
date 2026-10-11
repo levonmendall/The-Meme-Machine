@@ -1,0 +1,290 @@
+{
+  "source": "3d8ca1d159af78907eb85c43d463b8648d6e9ea5",
+  "started_at": 1791758753.501063,
+  "ended_at": 1791758953.2622108,
+  "status": "FAIL_CANONICAL_INTAKE",
+  "reason": "candidate_log_buffer_pressure",
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-owner-repair-3d8ca1d1-1791758753398.sqlite",
+  "usage": {
+    "http_attempts": 57,
+    "rpc_elements": 53,
+    "rpc_cu": 5060,
+    "http_bytes": 16991341,
+    "native_opens": 4,
+    "native_bytes": 193228206,
+    "native_reserved": 0,
+    "native_uncertain_bytes": 285212672
+  },
+  "modeled_public_upper_usd": "0.05289279219",
+  "invoice_verified": false,
+  "new_canonical_events_by_scope": {
+    "program:pump": 3557,
+    "program:pumpswap": 16334
+  },
+  "startup": {
+    "phase": "STEADY_STATE",
+    "started": 1791758754.1234198,
+    "changed": 1791758911.9068258,
+    "released": 1
+  },
+  "join_evidence": [
+    {
+      "at": 1791758951.5242102,
+      "body": {
+        "completed": 455821367,
+        "early_log_bytes": 33549390,
+        "early_log_count": 13083,
+        "early_log_max_slot": 455821474,
+        "early_log_min_slot": 455821368,
+        "filtered_from_slot": 455821094,
+        "oldest_age": null,
+        "oldest_bodies": 0,
+        "oldest_finality": null,
+        "oldest_meta": false,
+        "oldest_missing_logs": 0,
+        "oldest_slot": null,
+        "oldest_statuses": 0,
+        "pending_bytes": 0,
+        "pending_slots": 0,
+        "reason": "candidate_log_buffer_pressure",
+        "replay_prefix_bytes": 590706
+      }
+    },
+    {
+      "at": 1791758953.235313,
+      "body": {
+        "completed": 455821367,
+        "early_log_bytes": 33549390,
+        "early_log_count": 13083,
+        "early_log_max_slot": 455821474,
+        "early_log_min_slot": 455821368,
+        "filtered_from_slot": 455821094,
+        "oldest_age": null,
+        "oldest_bodies": 0,
+        "oldest_finality": null,
+        "oldest_meta": false,
+        "oldest_missing_logs": 0,
+        "oldest_slot": null,
+        "oldest_statuses": 0,
+        "pending_bytes": 0,
+        "pending_slots": 0,
+        "reason": "candidate_log_buffer_pressure",
+        "replay_prefix_bytes": 590706
+      }
+    }
+  ],
+  "owner_trace": {
+    "work": {
+      "0::boot": {
+        "count": 1,
+        "wall_seconds": 0.038736333954147995,
+        "execution_seconds": 0.03810398292262107,
+        "max_wall_seconds": 0.038736333954147995,
+        "max_execution_seconds": 0.03810398292262107
+      },
+      "2::<lambda>": {
+        "count": 4,
+        "wall_seconds": 0.1902339649386704,
+        "execution_seconds": 0.038488695048727095,
+        "max_wall_seconds": 0.16117081500124186,
+        "max_execution_seconds": 0.030282896012067795
+      },
+      "2:source_commit:publish": {
+        "count": 880,
+        "wall_seconds": 61.7418970890576,
+        "execution_seconds": 29.84360705164727,
+        "max_wall_seconds": 1.963795164017938,
+        "max_execution_seconds": 0.5942762420745566
+      },
+      "4::request_development": {
+        "count": 8649,
+        "wall_seconds": 488.7295279306127,
+        "execution_seconds": 8.898178811650723,
+        "max_wall_seconds": 2.8706047349842265,
+        "max_execution_seconds": 1.556365282041952
+      },
+      "5:source_commit:<lambda>": {
+        "count": 1626,
+        "wall_seconds": 102.48660208308138,
+        "execution_seconds": 22.26024515822064,
+        "max_wall_seconds": 2.64417556906119,
+        "max_execution_seconds": 0.6258262490155175
+      },
+      "2::commit": {
+        "count": 880,
+        "wall_seconds": 48.29894433717709,
+        "execution_seconds": 3.543427988421172,
+        "max_wall_seconds": 3.9209771680179983,
+        "max_execution_seconds": 0.038751000072807074
+      },
+      "2:source_commit:commit": {
+        "count": 3034,
+        "wall_seconds": 114.1759586292319,
+        "execution_seconds": 19.970810654573143,
+        "max_wall_seconds": 2.543282932951115,
+        "max_execution_seconds": 0.12225689296610653
+      },
+      "6::rows": {
+        "count": 1,
+        "wall_seconds": 0.0013614560011774302,
+        "execution_seconds": 1.3554934412240982e-05,
+        "max_wall_seconds": 0.0013614560011774302,
+        "max_execution_seconds": 1.3554934412240982e-05
+      },
+      "3::replay_floor": {
+        "count": 1,
+        "wall_seconds": 0.0007622690172865987,
+        "execution_seconds": 0.0002236400032415986,
+        "max_wall_seconds": 0.0007622690172865987,
+        "max_execution_seconds": 0.0002236400032415986
+      },
+      "1::<lambda>": {
+        "count": 51,
+        "wall_seconds": 2.6787967266282067,
+        "execution_seconds": 0.003040668088942766,
+        "max_wall_seconds": 0.6306695389794186,
+        "max_execution_seconds": 0.002917870064266026
+      },
+      "3::warm": {
+        "count": 1,
+        "wall_seconds": 0.04190040903631598,
+        "execution_seconds": 0.03554425109177828,
+        "max_wall_seconds": 0.04190040903631598,
+        "max_execution_seconds": 0.03554425109177828
+      },
+      "2:source_commit:durable": {
+        "count": 69,
+        "wall_seconds": 79.72424046683591,
+        "execution_seconds": 27.8895822718041,
+        "max_wall_seconds": 2.6816056079696864,
+        "max_execution_seconds": 0.8795018469681963
+      },
+      "2::plan": {
+        "count": 1,
+        "wall_seconds": 2.448465586057864,
+        "execution_seconds": 0.30237473803572357,
+        "max_wall_seconds": 2.448465586057864,
+        "max_execution_seconds": 0.30237473803572357
+      },
+      "4:retention:retire": {
+        "count": 15,
+        "wall_seconds": 29.4375427152263,
+        "execution_seconds": 8.32914018491283,
+        "max_wall_seconds": 3.9399069939972833,
+        "max_execution_seconds": 1.4913689329987392
+      },
+      "4::<lambda>": {
+        "count": 50,
+        "wall_seconds": 83.64340553770307,
+        "execution_seconds": 0.30395839631091803,
+        "max_wall_seconds": 2.5796445111045614,
+        "max_execution_seconds": 0.030304588028229773
+      },
+      "3:source_commit:commit": {
+        "count": 50,
+        "wall_seconds": 85.18039579037577,
+        "execution_seconds": 8.908655792707577,
+        "max_wall_seconds": 2.8815986659610644,
+        "max_execution_seconds": 0.9471963669639081
+      },
+      "4::expired": {
+        "count": 2,
+        "wall_seconds": 3.072192353894934,
+        "execution_seconds": 0.006110130925662816,
+        "max_wall_seconds": 1.6028944329591468,
+        "max_execution_seconds": 0.003178852959536016
+      },
+      "3::disconnect": {
+        "count": 1,
+        "wall_seconds": 0.5647205699933693,
+        "execution_seconds": 0.00723416602704674,
+        "max_wall_seconds": 0.5647205699933693,
+        "max_execution_seconds": 0.00723416602704674
+      }
+    },
+    "native_frames": {
+      "pump:account": {
+        "count": 9184,
+        "bytes": 2162251,
+        "min_slot": 455820288,
+        "max_slot": 455821480,
+        "max_delivery_age_seconds": 70.1000599861145
+      },
+      "shared:slot": {
+        "count": 4633,
+        "bytes": 151645,
+        "min_slot": 455816705,
+        "max_slot": 455821337,
+        "max_delivery_age_seconds": 841.7847261428833
+      },
+      "shared:block_meta": {
+        "count": 4602,
+        "bytes": 962597,
+        "min_slot": 455816736,
+        "max_slot": 455821337,
+        "max_delivery_age_seconds": 842.7272186279297
+      },
+      "pump:ping": {
+        "count": 17,
+        "bytes": 272,
+        "min_slot": null,
+        "max_slot": null,
+        "max_delivery_age_seconds": 22.706186771392822
+      },
+      "pump:pong": {
+        "count": 16,
+        "bytes": 288,
+        "min_slot": null,
+        "max_slot": null,
+        "max_delivery_age_seconds": 13.906161069869995
+      },
+      "shared:ping": {
+        "count": 10,
+        "bytes": 158,
+        "min_slot": null,
+        "max_slot": null,
+        "max_delivery_age_seconds": 30.707818746566772
+      },
+      "shared:pong": {
+        "count": 9,
+        "bytes": 162,
+        "min_slot": null,
+        "max_slot": null,
+        "max_delivery_age_seconds": 31.51080822944641
+      },
+      "pump:slot": {
+        "count": 311,
+        "bytes": 10177,
+        "min_slot": 455821063,
+        "max_slot": 455821373,
+        "max_delivery_age_seconds": 22.957760095596313
+      },
+      "pump:transaction_status": {
+        "count": 62667,
+        "bytes": 6258137,
+        "min_slot": 455821063,
+        "max_slot": 455821373,
+        "max_delivery_age_seconds": 30.200191497802734
+      },
+      "pump:block_meta": {
+        "count": 310,
+        "bytes": 64828,
+        "min_slot": 455821063,
+        "max_slot": 455821372,
+        "max_delivery_age_seconds": 30.107734203338623
+      }
+    },
+    "native_status_results": {
+      "failed": 22975,
+      "successful": 39692
+    },
+    "resources": {
+      "user_cpu_seconds": 114.135133,
+      "system_cpu_seconds": 21.047902,
+      "maximum_rss_kib": 255252
+    }
+  },
+  "log_sha256": "fc21d29cb7da4f130eaa978d7982ac34c123031cf2a9bd2c323d50f19b02bf45",
+  "acceptance_minutes": 0,
+  "trading_active": false
+}

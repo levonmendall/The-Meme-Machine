@@ -1,0 +1,74 @@
+{
+  "parent_source": "3d8ca1d159af78907eb85c43d463b8648d6e9ea5",
+  "change": "durable fair candidate retirement slice with selected-row shared ownership fence",
+  "offline_only": true,
+  "provider_requests": 0,
+  "tests": {
+    "suite": "FAST",
+    "modules": [
+      "tests.test_solana_closure",
+      "tests.test_solana_rolling_prewarm"
+    ],
+    "passed": 65,
+    "seconds": 28.569,
+    "log_sha256": "3132f5d0c5aec841a2f313ec22a981afcfb679e1174e0d8bba89f9db7c55c98b"
+  },
+  "retained_copy_baseline": {
+    "seconds": 0.5766816809773445,
+    "result": {
+      "hot_bytes_before": 63781028,
+      "hot_bytes_after": 63712991,
+      "retired_records": 64,
+      "retired_logical_bytes": 68037,
+      "pinned_bytes": 2940951,
+      "oldest_unretired_scope": {
+        "scope": "candidate:pump:24Vvc4DMbzBoX1oxvsu68ZykGKTSFooV4QwrqYmrki5h",
+        "slot": 447235525,
+        "reason": "warming_or_deadline"
+      },
+      "retirement_seconds": 0.5741667270194739,
+      "records_per_second": 111.46588088137216,
+      "physical_database_bytes": 671154408,
+      "retained_candidate_history_bytes": 149295104,
+      "cold_bytes": 1078179
+    },
+    "immutable_identity_sha256_before": "c5da973c36938c84e31dd2b07a43b6509ca5b35e332c0b8ace4672ef805fd1e7",
+    "immutable_identity_sha256_after": "c5da973c36938c84e31dd2b07a43b6509ca5b35e332c0b8ace4672ef805fd1e7",
+    "profile": "         68882 function calls in 0.576 seconds\n\n   Ordered by: cumulative time\n   List reduced from 130 to 20 due to restriction <20>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.030    0.030    0.576    0.576 solana_scoped_retirement.py:115(retire)\n    13250    0.383    0.000    0.383    0.000 {method 'execute' of 'sqlite3.Connection' objects}\n        2    0.000    0.000    0.140    0.070 solana_scoped_retirement.py:226(hot_bytes)\n      155    0.024    0.000    0.091    0.001 solana_scoped_retirement.py:83(pinned)\n      180    0.002    0.000    0.066    0.000 {method 'extend' of 'list' objects}\n     9164    0.063    0.000    0.063    0.000 solana_scoped_retirement.py:139(<genexpr>)\n     8331    0.027    0.000    0.027    0.000 {method 'fetchone' of 'sqlite3.Cursor' objects}\n      311    0.026    0.000    0.026    0.000 {method 'fetchall' of 'sqlite3.Cursor' objects}\n      157    0.002    0.000    0.004    0.000 {built-in method builtins.sorted}\n      471    0.002    0.000    0.003    0.000 {method 'join' of 'str' objects}\n      130    0.000    0.000    0.003    0.000 solana_evidence_plane.py:47(canonical)\n      130    0.000    0.000    0.003    0.000 __init__.py:183(dumps)\n        6    0.000    0.000    0.003    0.001 {built-in method builtins.next}\n        4    0.000    0.000    0.003    0.001 solana_evidence_plane.py:291(transaction)\n        2    0.000    0.000    0.003    0.002 contextlib.py:141(__exit__)\n      130    0.000    0.000    0.003    0.000 encoder.py:183(encode)\n      130    0.003    0.000    0.003    0.000 encoder.py:205(iterencode)\n      128    0.000    0.000    0.002    0.000 solana_evidence_plane.py:63(decode_body)\n      128    0.000    0.000    0.002    0.000 solana_evidence_storage.py:135(decode)\n      128    0.000    0.000    0.002    0.000 __init__.py:299(loads)\n\n\n",
+    "disposable_only": true,
+    "provider_requests": 0,
+    "root_copy_not_provider_latency": true
+  },
+  "retained_copy_bounded": {
+    "seconds": 0.16526177793275565,
+    "result": {
+      "hot_bytes_before": 63781028,
+      "hot_bytes_after": 63781028,
+      "retired_records": 0,
+      "retired_logical_bytes": 0,
+      "pinned_bytes": 107645,
+      "oldest_unretired_scope": {
+        "scope": "candidate:pump:24Vvc4DMbzBoX1oxvsu68ZykGKTSFooV4QwrqYmrki5h",
+        "slot": 447235525,
+        "reason": "warming_or_deadline"
+      },
+      "retirement_seconds": 0.16237548901699483,
+      "records_per_second": 0.0,
+      "physical_database_bytes": 670454008,
+      "retained_candidate_history_bytes": 149295104,
+      "cold_bytes": 1063549,
+      "candidate_scopes_examined": 64,
+      "candidate_scan_bound": 64,
+      "pinned_bytes_domain": "examined slice and selected-row shared owners"
+    },
+    "immutable_identity_sha256_before": "c5da973c36938c84e31dd2b07a43b6509ca5b35e332c0b8ace4672ef805fd1e7",
+    "immutable_identity_sha256_after": "c5da973c36938c84e31dd2b07a43b6509ca5b35e332c0b8ace4672ef805fd1e7",
+    "profile": "         2557 function calls in 0.165 seconds\n\n   Ordered by: cumulative time\n   List reduced from 101 to 20 due to restriction <20>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.001    0.001    0.165    0.165 solana_scoped_retirement.py:115(retire)\n      282    0.157    0.001    0.157    0.001 {method 'execute' of 'sqlite3.Connection' objects}\n        2    0.000    0.000    0.143    0.072 solana_scoped_retirement.py:255(hot_bytes)\n        5    0.000    0.000    0.004    0.001 {method 'extend' of 'list' objects}\n      251    0.004    0.000    0.004    0.000 solana_scoped_retirement.py:146(<genexpr>)\n        4    0.000    0.000    0.003    0.001 solana_scoped_retirement.py:83(pinned)\n        4    0.000    0.000    0.002    0.001 {built-in method builtins.next}\n        2    0.000    0.000    0.002    0.001 solana_evidence_plane.py:291(transaction)\n        1    0.000    0.000    0.002    0.002 contextlib.py:141(__exit__)\n        1    0.000    0.000    0.001    0.001 candidate_history.py:78(__init__)\n      191    0.001    0.000    0.001    0.000 {method 'fetchone' of 'sqlite3.Cursor' objects}\n        1    0.000    0.000    0.000    0.000 candidate_history.py:59(_enable_wal)\n        3    0.000    0.000    0.000    0.000 {built-in method builtins.sum}\n       15    0.000    0.000    0.000    0.000 {method 'join' of 'str' objects}\n        1    0.000    0.000    0.000    0.000 contextlib.py:359(__exit__)\n        1    0.000    0.000    0.000    0.000 candidate_history.py:181(close)\n        1    0.000    0.000    0.000    0.000 {method 'close' of 'sqlite3.Connection' objects}\n        6    0.000    0.000    0.000    0.000 pathlib.py:835(stat)\n        6    0.000    0.000    0.000    0.000 {built-in method posix.stat}\n        1    0.000    0.000    0.000    0.000 {built-in method _sqlite3.connect}\n\n\n",
+    "disposable_only": true,
+    "provider_requests": 0,
+    "root_copy_not_provider_latency": true
+  },
+  "production_strategy_parameters_changed": false,
+  "provider_capacity_proven": false,
+  "billing_reduction_proven": false
+}

@@ -117,10 +117,17 @@ class ScopedRetirement:
         if not 1<=limit<=1000:raise EvidenceUnavailable('retention_batch_bound')
         started=time.monotonic();selected={};pinned={};oldest=None
         before=self.hot_bytes()
+        # The record limit must bound the candidate traversal too. A full
+        # population sweep on each one-second turn stalls canonical commits.
+        # Rotate durably; this is a maintenance slice, never an admission cap.
+        cursor=self.db.execute("SELECT value FROM meta WHERE key='scoped_retirement_cursor'").fetchone()
+        cursor='' if cursor is None else cursor[0]
+        query='''SELECT DISTINCT family,coverage_scope FROM evidence_bindings WHERE '''+active_sql('family',solana=True)+''' AND coverage_scope>? ORDER BY coverage_scope LIMIT ?'''
+        bindings=self.db.execute(query,(cursor,min(limit,64))).fetchall()
+        if not bindings and cursor:bindings=self.db.execute(query,('',min(limit,64))).fetchall()
         with closing(CandidateHistory(self.lifecycle.path,clock=self.clock)) as shared:
-            for family,address in self.db.execute('''SELECT DISTINCT family,
-                    substr(coverage_scope,length('candidate:'||family||':')+1) FROM evidence_bindings WHERE '''+
-                    active_sql('family',solana=True)).fetchall():
+            for family,scope in bindings:
+                address=scope[len('candidate:'+family+':'):]
                 binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
                 market=binding[0]
                 # Resolve the indexed address set before expanding the canonical
@@ -155,6 +162,24 @@ class ScopedRetirement:
                     # Legacy evidence lacking a durable consumer receipt cannot
                     # be guessed safe under storage pressure.
                     if receipt and len(selected)<limit:selected[row[0]]=row
+            # A row can belong to a pinned consumer outside this fair slice.
+            # Check its complete indexed binding set before changing any hot
+            # pointer. Large fanout remains hot rather than exceeding this work
+            # bound or guessing that unseen owners have released the record.
+            for identity,row in tuple(selected.items()):
+                owners=self.db.execute('''SELECT DISTINCT b.family,b.coverage_scope
+                    FROM canonical_addresses a JOIN evidence_bindings b
+                    ON b.market_address=a.address AND b.canonical_scope=?
+                    WHERE a.identity=? ORDER BY b.coverage_scope LIMIT 65''',(row[1],identity)).fetchall()
+                reason='shared_binding_bound' if len(owners)>64 else None
+                if reason:scope=owners[0][1]
+                for family,scope in owners if reason is None else ():
+                    address=scope[len('candidate:'+family+':'):]
+                    reason=self.pinned(family,address,row[2],row[2],shared)
+                    if reason:break
+                if reason:
+                    pinned[identity]=len(row[9].encode() if isinstance(row[9],str) else row[9])
+                    if oldest is None or row[2]<oldest['slot']:oldest=dict(scope=scope,slot=row[2],reason=reason)
         # A canonical row shared with a pinned candidate remains pinned even if
         # a different candidate has no current consumer.
         for identity in pinned:selected.pop(identity,None)
@@ -219,8 +244,13 @@ class ScopedRetirement:
             physical_database_bytes=sum(p.stat().st_size for p in (
                 self.writer.path,Path(str(self.writer.path)+'-wal')) if p.exists()),
             retained_candidate_history_bytes=Path(self.lifecycle.path).stat().st_size,
-            cold_bytes=sum(r[0] for r in self.db.execute('SELECT cold_bytes FROM scoped_cold_manifests')))
-        with self.writer.transaction():self.db.execute('INSERT INTO scoped_retirement_observations(at,body) VALUES(?,?)',(self.clock(),canonical(result)))
+            cold_bytes=sum(r[0] for r in self.db.execute('SELECT cold_bytes FROM scoped_cold_manifests')),
+            candidate_scopes_examined=len(bindings),candidate_scan_bound=min(limit,64),
+            pinned_bytes_domain='examined slice and selected-row shared owners',
+            oldest_unretired_scope_domain='examined slice; global fallback when no local witness')
+        with self.writer.transaction():
+            if bindings:self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('scoped_retirement_cursor',bindings[-1][1]))
+            self.db.execute('INSERT INTO scoped_retirement_observations(at,body) VALUES(?,?)',(self.clock(),canonical(result)))
         return result
 
     def hot_bytes(self):

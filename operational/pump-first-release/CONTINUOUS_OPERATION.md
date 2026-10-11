@@ -605,3 +605,41 @@ OPERATIONAL maintenance tests passed, including a 30,000-row old prefix, long
 overlapping witnesses and a small prefix with 10,000 protected future rows.
 Full FAST passed for `5db82c42`; successor CI and live validation are pending.
 Funding and the real sixty-minute acceptance clock remain off.
+
+The `3d8ca1d1` authenticated run passed maintenance observation and reached
+`STEADY_STATE` with durable startup release, but stopped on
+`candidate_log_buffer_pressure`. It retained 3,557 Pump and 16,334 PumpSwap
+economic events, using 57 physical starts, 53 logical elements, 5,060 CU,
+16,991,341 HTTP bytes, 193,228,206 known and 285,212,672 uncertain native bytes.
+Public modeled upper $0.05289279219; this is not authenticated billing or a
+complete protection pass. Native/log delivery lag increased after ordinary
+post-release work started. The real acceptance clock remains zero.
+
+Retained owner records locate one concrete scheduling defect: scoped retirement
+limits retired output to 64 records but scans all 3,880 candidate scopes each
+second. Eleven completed live sweeps consumed 0.53–1.49 seconds each while
+canonical logs accumulated. Retirement now visits at most 64 candidate scopes
+per turn, using a durable rotating cursor. Every selected record's indexed
+shared binding set is checked even when an owner is outside that slice; more
+than 64 related bindings keeps the record hot. Original pins, consumer receipts,
+hash verification and cold restoration remain mandatory. Cursor advancement
+commits with its maintenance journal; a failed turn cannot skip the slice.
+This is a maintenance work bound, not a funded-position limit. Slice-scoped
+pinned-byte telemetry is labeled accordingly.
+
+On identical disposable retained-state copies the sweep changed from 13,250
+SQL executions / 0.577 seconds to 282 / 0.165 seconds for the first rotating
+slice. All canonical identity, hash and original availability tuples remained
+identical. The slice retires a different bounded set over successive turns;
+these measurements do not prove provider capacity, full retirement throughput
+or a billing reduction. The 65 affected closure/rolling tests passed, including
+an out-of-slice pinned owner, oversized sharing, durable rotation, journal
+failure and existing economic history restoration. No strategy parameter,
+native buffer, quote deadline or provider allowance changed.
+
+Pons' parallel fresh Current qualification diagnostic found no nominee in its
+bounded recent observation interval. It therefore did not reach qualification
+and grants no admission authority. Valid native USD acquisition was retained;
+17 starts, 64 elements, 1,832 CU, 180,036 HTTP bytes, public modeled upper
+$0.0009618. No synthetic trade was introduced. Full FAST passed for `3d8ca1d1`
+and `9f658ea3`; the new successor still requires its own CI and provider proof.

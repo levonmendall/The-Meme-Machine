@@ -1,0 +1,62 @@
+{
+  "source": "3d8ca1d159af78907eb85c43d463b8648d6e9ea5",
+  "started_at": 1791758722.1904814,
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pons-current-qualification-3d8ca1d1-1791758722013.sqlite",
+  "preflight": {
+    "limits_verified": true,
+    "limits": {
+      "http_attempts": 80,
+      "http_bytes": 134217728,
+      "native_bytes": 67108864,
+      "native_inflight_bytes": 33554432,
+      "native_stop_bytes": 33554432,
+      "rpc_cu": 42000,
+      "rpc_elements": 700
+    },
+    "wall_seconds": 60,
+    "modeled_spend_limit": "0.03",
+    "maximum_native_opens": 1,
+    "lanes": [
+      "pons"
+    ],
+    "physical_http_start_intervals": {
+      "solana": "0.5",
+      "robinhood": "0.25"
+    }
+  },
+  "maximum_public_modeled_usd": "0.02205",
+  "invoice_verified": false,
+  "purpose": "One fresh natural Current nominee through the original qualification path, with shared $1000 realized-equity native sizing",
+  "funding": false,
+  "orders": false,
+  "full_protection": false,
+  "epoch_reinitialized": false,
+  "historical_counters_reset": false,
+  "regimes_enabled": false,
+  "epoch_id": "paper-shared-1000-20261011T071207Z",
+  "stages": [],
+  "native_usd_valuation": {
+    "asset": "ETH",
+    "decimals": 18,
+    "usd_per_unit": "2026.52913303",
+    "observed_at": 1791758722,
+    "valid_until": 1791758727,
+    "evidence_id": "native-usdg-usd:86193395:0x544c010194d904a152524455fd9f3de59bbac034",
+    "evidence_hash": "ea255d94d1de26b6e8b13225d7d366bbfaf9c9409afddecbfbe2d837be25e80d"
+  },
+  "strategy_capital_quote": 493454539439476374,
+  "initial_directional_usd_target": "50.00",
+  "status": "NO_RECENT_CURRENT_NOMINEE",
+  "head": 86193429,
+  "qualification_proven": false,
+  "ended_at": 1791758726.347137,
+  "elapsed_seconds": 4.156656265258789,
+  "usage": {
+    "http_attempts": 17,
+    "rpc_elements": 64,
+    "rpc_cu": 1832,
+    "http_bytes": 180036,
+    "native_opens": 0
+  },
+  "modeled_public_upper_usd": "0.0009618"
+}
