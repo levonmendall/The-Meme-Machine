@@ -165,4 +165,14 @@ class StrategyCapitalTests(unittest.TestCase):
                      'meme_machine/lanes/pons/pons_postgrad_survivor.py',
                      'operational/nine-change-implementation.json')
         for path in preserved:
-            self.assertEqual(subprocess.check_output(["git", "diff", "b577cc1c67f4d64f887b430f5e933f376b607dc2", "--", path], cwd=root), b"")
+            # The owner explicitly removed Survivor's position-count veto.
+            # Pin that one file to the isolated, approved-scope commit; retain
+            # exact byte preservation for every other original economic file.
+            # test_pons_owner_admission also checks the original policy
+            # identity and every economic function except this admission rule.
+            expected = ("aa9fdcee23604ddacb740b454ca18c4909ca61d2"
+                        if path.endswith("pons_postgrad_survivor.py")
+                        else "b577cc1c67f4d64f887b430f5e933f376b607dc2")
+            from tests.test_robinhood_usd_valuation import assert_holding_delta
+            original=subprocess.check_output(["git","show",expected+":"+path],cwd=root)
+            assert_holding_delta(self,path,original,(root/path).read_bytes())

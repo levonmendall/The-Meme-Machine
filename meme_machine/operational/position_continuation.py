@@ -13,6 +13,7 @@ import time
 
 from .bounded_provider import LIMITS
 from meme_machine.shared_capital.model import CapitalError, FAMILIES
+from meme_machine.exact_money import money
 
 HOLD_SECONDS=72*60*60
 BRIDGE_SECONDS=36*60*60
@@ -22,11 +23,43 @@ TOTAL_SECONDS=1200+HOLD_SECONDS+EXIT_RECOVERY_SECONDS+SHUTDOWN_SECONDS
 PHASES=('BOOTSTRAP','CONTINUATION','RECOVERY','FAULT','FLAT')
 
 
+def funding_scope(envelope):
+    """Optional first-owner funding limits; native protection stays independent."""
+    scope=envelope.get('bootstrap_funding_scope')
+    if scope is None:return None
+    keys={'regimes','maximum_initial_basis_usd','maximum_addition_basis_usd','maximum_fee_reserve_usd'}
+    if not isinstance(scope,dict) or set(scope)!=keys:
+        raise CapitalError('complete_bootstrap_funding_scope_required')
+    regimes=scope['regimes']
+    if (not isinstance(regimes,list) or not 1<=len(regimes)<=2
+            or any(r not in ('pump_current','pump_survivor','pons_current','pons_survivor') for r in regimes)
+            or len(set(regimes))!=len(regimes) or len({FAMILIES[r] for r in regimes})!=1):
+        raise CapitalError('bootstrap_single_family_funding_scope_required')
+    try:
+        initial=money(scope['maximum_initial_basis_usd'],positive=True)
+        addition=money(scope['maximum_addition_basis_usd'],nonnegative=True)
+        money(scope['maximum_fee_reserve_usd'],nonnegative=True)
+    except (ValueError,TypeError):
+        raise CapitalError('explicit_exact_bootstrap_basis_and_fee_limits_required') from None
+    if initial>50 or addition>25:
+        raise CapitalError('bootstrap_first_owner_basis_limit')
+    return scope
+
+
+def funding_lanes(envelope):
+    scope=funding_scope(envelope)
+    return tuple(dict.fromkeys(FAMILIES[r] for r in scope['regimes'])) if scope else ('pump','pons')
+
+
 def validate_envelope(row):
     """Explicit finite operational allowances, never provider account quotas."""
-    if row.get('schema')!='paper-position-continuation-resources-v1':
+    if row.get('schema') not in ('paper-position-continuation-resources-v1','paper-position-maintenance-resources-v2'):
         raise CapitalError('explicit_continuation_resource_envelope_required')
-    if row.get('maximum_seconds')!=TOTAL_SECONDS or row.get('recovery_seconds')!=EXIT_RECOVERY_SECONDS:
+    maintenance=row['schema']=='paper-position-maintenance-resources-v2'
+    if (row.get('recovery_seconds')!=EXIT_RECOVERY_SECONDS or
+            (not maintenance and row.get('maximum_seconds')!=TOTAL_SECONDS) or
+            (maintenance and (row.get('maximum_seconds') is not None or
+                row.get('holding_time_exit') is not False or row.get('cumulative_usage') is not True))):
         raise CapitalError('original_hold_and_bounded_exit_recovery_required')
     for phase in ('continuation','recovery'):
         limits=row.get(phase,{})
@@ -44,6 +77,7 @@ def validate_envelope(row):
         value=row.get(phase+'_modeled_spend_usd')
         if not isinstance(value,str) or not Decimal(value).is_finite() or Decimal(value)<=0:
             raise CapitalError('explicit_continuation_modeled_spend_required')
+    funding_scope(row)
     return row
 
 
@@ -101,23 +135,28 @@ def readiness(health,portfolio,rss,envelope):
     if not portfolio.get('reconciliation',{}).get('checks') or not all(
             value is True for value in portfolio['reconciliation']['checks'].values()):
         raise ValueError('continuation_reconciliation_unavailable')
-    for lane in ('pump','pons'):
+    lanes=funding_lanes(envelope)
+    for lane in lanes:
         row=health['lanes'][lane]
         proof=row.get('native_continuation',{})
         if (not row.get('reconciled') or row.get('exit_code') is not None
                 or not all(proof.get(key) is True for key in
                     ('current_restored','survivor_replay_verified','survivor_handoff_ready','exit_path_bound'))):
             raise ValueError(lane+'_native_continuation_not_ready')
-    for provider in ('solana','robinhood'):
+    for provider in ('solana' if lane=='pump' else 'robinhood' for lane in lanes):
         row=health['providers'].get(provider,{})
         if (row.get('state')!='CURRENT' or row['queue_depth']>envelope['maximum_queue_depth']
                 or row['oldest_wait_seconds']>envelope['maximum_queue_wait_seconds']):
             raise ValueError(provider+'_continuation_provider_not_ready')
-    evidence=health['providers']['evidence']
-    if evidence.get('startup_released') is not True or evidence.get('phase')!='ACTIVE':
-        raise ValueError('continuation_subscription_or_coverage_not_ready')
-    return dict(native_managers=True,native_recovery=True,exit_paths=True,
+    if 'pump' in lanes:
+        evidence=health['providers']['evidence']
+        if evidence.get('startup_released') is not True or evidence.get('phase')!='ACTIVE':
+            raise ValueError('continuation_subscription_or_coverage_not_ready')
+    proof=dict(native_managers=True,native_recovery=True,exit_paths=True,
         authenticated_evidence=True,reconciliation=True,provider_governors=True)
+    scope=funding_scope(envelope)
+    if scope:proof['funding_regimes']=list(scope['regimes'])
+    return proof
 
 
 def addition_rejection(book,identity,reason,at):
@@ -208,12 +247,15 @@ def tick(supervisor):
             budget.set_phase('FLAT','all_positions_exited_and_reconciled')
             supervisor.stop_requested=True
     if outstanding(state):
-        # Hard service deadlines are absolute, not renewed per systemd restart.
-        # Native 72h/36h clocks still evaluate at their original economic times.
-        if now>=scope['started_at']+TOTAL_SECONDS-SHUTDOWN_SECONDS:
+        # The legacy acceptance wall stays absolute on restart. The separately
+        # selected maintenance schema has no position/service age ceiling, but
+        # retains every cumulative purchase, byte, spending and incident bound.
+        wall=budget.envelope['maximum_seconds']
+        if wall is not None and now>=scope['started_at']+wall-SHUTDOWN_SECONDS:
             budget.set_phase('FAULT','original_continuation_and_exit_recovery_deadline_exhausted')
-        elif now>=scope['funding_until']+HOLD_SECONDS and budget.phase() not in ('RECOVERY','FAULT'):
-            budget.set_phase('RECOVERY','original_maximum_hold_expired_exit_or_reconciliation_pending')
+        elif (wall is not None and now>=scope['started_at']+wall-EXIT_RECOVERY_SECONDS-SHUTDOWN_SECONDS
+                and budget.phase() not in ('RECOVERY','FAULT')):
+            budget.set_phase('RECOVERY','finite_operating_window_exhausted_protection_degraded')
         if budget.phase()=='RECOVERY':
             from .bounded_provider import Budget
             recovery=Budget(budget.path,phase='recovery')
@@ -242,7 +284,7 @@ def provider_failure(supervisor,reason):
         row=db.execute("SELECT value FROM run WHERE key='provider_degraded_at'").fetchone()
         at=int(row[0]) if row else now
         db.execute('INSERT OR IGNORE INTO run VALUES(?,?)',('provider_degraded_at',str(at)))
-        detail=dict(phase='DEGRADED',reason=reason,at=at,deadline=at+EXIT_RECOVERY_SECONDS,
+        detail=dict(phase='DEGRADED',state='DEGRADED_PROTECTION',reason=reason,at=at,deadline=at+EXIT_RECOVERY_SECONDS,
             funding_closed=True,protected=False,action='restore_authenticated_market_evidence_and_exit_connectivity')
         db.execute('INSERT INTO run VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
             ('provider_fault',json.dumps(detail)))

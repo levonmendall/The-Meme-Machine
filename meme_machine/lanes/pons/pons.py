@@ -10,7 +10,7 @@ from pathlib import Path
 
 from . import BoundaryError
 from .abi import receipt_log_matches, decode_event, scalar, words
-from .identity import authenticate, load, verify_compilation
+from .identity import authenticate, metadata as load, verify_compilation
 from .protocols import PoolKey
 
 TEMPLATE = Path(__file__).with_name('pons_curve_template.json')
@@ -28,8 +28,7 @@ def mul(a, b):
 
 
 def authenticate_curve(address, code, *, factory_record):
-    template = json.loads(TEMPLATE.read_text())
-    verify_compilation(load('pons_deployer'))
+    template = _template()
     raw = bytes.fromhex(code[2:])
     expected = bytearray.fromhex(template['runtime']['object'])
     if len(raw) != len(expected):
@@ -70,7 +69,28 @@ def factory_record(raw, role='pons_v2_factory'):
 
 
 def curve_abi():
-    return json.loads(TEMPLATE.read_text())['abi']
+    return _template()['abi']
+
+
+def _validate_template(value):
+    if (value['compiler_input_role']!='pons_deployer' or not value['runtime']['object']
+            or not isinstance(value['immutable_names'],dict)):
+        raise BoundaryError('curve_source_template_invalid')
+    bytes.fromhex(value['runtime']['object'])
+
+
+def _template():
+    from meme_machine.runtime.source_artifacts import REGISTRY,fingerprint
+    from .identity import metadata,ROOT
+    from .abi import compiled_metadata
+    # The generating compiler input remains verified and is also a dependency.
+    metadata('pons_deployer')
+    try:
+        return REGISTRY.get(TEMPLATE,validate=_validate_template,prepare=compiled_metadata,
+            generation=fingerprint(ROOT/'pons_deployer.json'))
+    except BoundaryError:raise
+    except (OSError,ValueError,KeyError,TypeError):
+        raise BoundaryError('source_artifact_unavailable_or_invalid') from None
 
 
 def raw_event(abi, event, *, address, receipt, header, observed_at, confirmation):

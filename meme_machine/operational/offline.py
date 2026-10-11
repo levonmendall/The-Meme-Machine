@@ -17,6 +17,7 @@ from meme_machine.runtime.lifecycle_identity import issue
 def install_network_guard():
     import socket,urllib.request
     def forbidden(*args,**kwargs):raise RuntimeError('market I/O is forbidden in offline mode')
+    forbidden.meme_machine_offline=True
     socket.create_connection=forbidden
     socket.socket.connect=forbidden
     socket.socket.connect_ex=forbidden

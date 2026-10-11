@@ -13,7 +13,7 @@ import sqlite3
 
 from meme_machine.exact_money import amount, exact, money
 from meme_machine.portfolio_accounting import (PortfolioAccounting, _decode_checkpoint,
-    _encode_checkpoint, validate_inception, digest as legacy_digest)
+    _encode_checkpoint, validate_inception, SCHEMA_SHARED_INCEPTION, digest as legacy_digest)
 from .model import (CapitalError, FAMILIES, REGIMES, RiskPolicy, ZERO, checksum,
                     digest, identity, regime, second, wire)
 
@@ -105,7 +105,14 @@ def _build_seed(source, mapping, policy):
     reader = object.__new__(PortfolioAccounting)
     reader._reconcile(old)
     sleeves = {lane: money(genesis, positive=True) for lane, genesis in source["sleeves"]}
-    if set(sleeves) != set(FAMILIES.values()) or sum(sleeves.values(), ZERO) != money(old["receipt"]["starting_capital"]):
+    if old['receipt']['schema'] == SCHEMA_SHARED_INCEPTION:
+        if policy['sizing_basis'] != 'shared_realized_equity' or policy['adaptive']:
+            raise CapitalError('shared_inception_sizing_policy_mismatch')
+        if (sleeves or old['positions'] or old['reservations'] or source['pending_deliveries']
+                or source['native_ids'] or old['native_cursors'] or old['shared_costs']
+                or any(row['count'] or row['realized_pnl'] or row['fees'] for row in old['retired'].values())):
+            raise CapitalError('new_shared_inception_must_be_empty')
+    elif set(sleeves) != set(FAMILIES.values()) or sum(sleeves.values(), ZERO) != money(old["receipt"]["starting_capital"]):
         raise CapitalError("hard_sleeve_genesis_reconciliation")
     if set(mapping["contracts"]) != set(REGIMES):
         raise CapitalError("all_six_strategy_contracts_required")

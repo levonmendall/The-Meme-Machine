@@ -2,6 +2,7 @@
 from . import BoundaryError
 from .keccak import keccak256
 from functools import lru_cache
+from types import MappingProxyType
 
 
 def signature(item):
@@ -61,9 +62,29 @@ def scalar(typ, word):
     raise BoundaryError('unsupported_abi_type')
 
 
+class CompiledABI(tuple):
+    """Strict topic dispatch over immutable source specs; duplicates still refuse."""
+    def __new__(cls,abi):
+        value=super().__new__(cls,abi);dispatch={}
+        for spec in value:
+            if spec['type']=='event' and not spec.get('anonymous'):
+                dispatch.setdefault(topic(signature(spec)),[]).append(spec)
+        object.__setattr__(value,'dispatch',MappingProxyType({k:tuple(v) for k,v in dispatch.items()}))
+        return value
+    def __setattr__(self,*args):raise TypeError('immutable_source_artifact')
+
+
+def compiled_metadata(value):
+    from meme_machine.runtime.source_artifacts import FrozenDict
+    return FrozenDict(dict(value,abi=CompiledABI(value['abi'])))
+
+
 def decode_event(abi, event):
-    matches = [a for a in abi if a['type'] == 'event' and not a.get('anonymous')
-               and event['topics'] and topic(signature(a)) == event['topics'][0].lower()]
+    if isinstance(abi,CompiledABI):
+        matches=abi.dispatch.get(event['topics'][0].lower(),()) if event['topics'] else ()
+    else:
+        matches = [a for a in abi if a['type'] == 'event' and not a.get('anonymous')
+                   and event['topics'] and topic(signature(a)) == event['topics'][0].lower()]
     if len(matches) != 1:
         raise BoundaryError('unsupported_event_signature')
     spec = matches[0]

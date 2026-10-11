@@ -4,6 +4,17 @@ Do not execute these steps during consolidation or the oracle repair. USDG/USD
 is resolved through the verified read-only Chainlink feed; production `check`
 validates configuration without network I/O or inception.
 
+The intended launch is the separately approved new $1,000 shared epoch in
+[the Pump-first release handoff](pump-first-release/HANDOFF.md). Historical
+$500 acceptance records and state remain preserved. The legacy migration steps
+below do not authorize migrating that balance into the new portfolio. New-epoch
+acceptance uses `paper.shared-1000.env`, `storage.shared-1000.json` and
+`acceptance.shared-1000.env`, with its own inception, source and dashboard replica.
+Initialize that exclusive root only after separate approval; acceptance and
+ordinary startup never initialize or reseed it. Acceptance captures the explicitly
+selected environment and storage guard, and the condition monitor binds to that
+same guard. Missing new configuration fails closed.
+
 1. Begin only from an explicit independent migration completeness PASS with its
    exact pushed commit/tree. Close volume/epoch protection, durable acceptance
    and observation, off-host backup/isolated recovery, and independent actionable

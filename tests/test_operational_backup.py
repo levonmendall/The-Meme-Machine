@@ -18,6 +18,14 @@ from meme_machine.portfolio_accounting import PortfolioAccounting,LANES
 from meme_machine.runtime.portfolio import NativePortfolio
 
 class BackupRestore(unittest.TestCase):
+    def test_separate_epoch_selection_keeps_historical_500_root_out_of_restore_targets(self):
+        new=self.base/'new-shared-1000'
+        with patch.dict(os.environ,MM_STATE_ROOT=str(new)):
+            for root in (new,new/'child',backup.PRODUCTION_ROOT,backup.PRODUCTION_ROOT/'child'):
+                with self.subTest(root=root),self.assertRaisesRegex(ValueError,'restore_verification_requires_isolated_target'):
+                    backup.require_isolated(root)
+            self.assertEqual(backup.require_isolated(self.base/'isolated-copy'),self.base/'isolated-copy')
+
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.base=Path(self.temp.name);self.root=self.base/'source'

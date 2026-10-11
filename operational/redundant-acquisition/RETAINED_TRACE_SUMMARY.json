@@ -1,0 +1,165 @@
+{
+  "actual_transport_requests": 3631,
+  "authenticated_invoice_charge_usd": null,
+  "baseline_vs_candidate_savings": null,
+  "delivered_transport_rows": [
+    {
+      "bytes": 114979,
+      "duplicate_bytes": 0,
+      "family": "discovery",
+      "messages": 475,
+      "transport": "yellowstone"
+    },
+    {
+      "bytes": 381022,
+      "duplicate_bytes": 131951,
+      "family": "shared",
+      "messages": 3190,
+      "transport": "yellowstone"
+    },
+    {
+      "bytes": 402117946,
+      "duplicate_bytes": 0,
+      "family": "candidate_logs",
+      "messages": 208141,
+      "transport": "websocket"
+    },
+    {
+      "bytes": 90705729,
+      "duplicate_bytes": 2338578,
+      "family": "candidate_live",
+      "messages": 118045,
+      "transport": "yellowstone"
+    }
+  ],
+  "drained_after_steady_seconds": 231.45649671554565,
+  "exclusions": [
+    "older mixed Pump/Meteora capture; not current paused-family workload",
+    "no monetary controller or complete PAPER lifecycle",
+    "delivered application payload is not authenticated billing bytes or TLS framing",
+    "78 RPC -32600 failures; actual exceptional billing unknown",
+    "180-second planned steady window plus startup/drain is not representative monthly activity",
+    "20 starts/s historical governor is not current two-starts/s capacity proof",
+    "do not compare this older period/source with current usage and call the difference savings"
+  ],
+  "grpc_bytes": 91201730,
+  "logical_rpc_methods": {
+    "getBlockTime": 554,
+    "getGenesisHash": 157,
+    "getMultipleAccounts": 903,
+    "getProgramAccounts": 78,
+    "getProgramAccountsV2": 11,
+    "getSlot": 1589,
+    "getTokenLargestAccounts": 149,
+    "getTransaction": 17,
+    "getTransactionsForAddress": 173
+  },
+  "market_provider_calls_in_this_assignment": 0,
+  "native_component_latency": {
+    "meteora_hydration": {
+      "N": 8,
+      "max": 0.8169150352478027,
+      "p50": 0.28560471534729004,
+      "p95": 0.5479867458343506,
+      "p99": 0.5479867458343506
+    },
+    "meteora_position": {
+      "N": 11,
+      "max": 4.383177280426025,
+      "p50": 2.623218297958374,
+      "p95": 3.7017228603363037,
+      "p99": 3.7017228603363037
+    },
+    "meteora_qualification": {
+      "N": 8,
+      "max": 15.84980845451355,
+      "p50": 10.08324146270752,
+      "p95": 15.515753746032715,
+      "p99": 15.515753746032715
+    },
+    "pump_position": {
+      "N": 72,
+      "max": 3.3061602115631104,
+      "p50": 2.676741361618042,
+      "p95": 3.0620131492614746,
+      "p99": 3.2719504833221436
+    },
+    "pumpswap_position": {
+      "N": 76,
+      "max": 3.56744384765625,
+      "p50": 3.100674867630005,
+      "p95": 3.2677173614501953,
+      "p99": 3.479696273803711
+    }
+  },
+  "planned_steady_seconds": 180,
+  "provider_concurrency_peak": 3,
+  "public_current_price_sensitivity_usd": {
+    "grpc": "0.00684012975",
+    "http_cu": "0.044745750",
+    "total": "0.0938082640800",
+    "websocket": "0.0422223843300"
+  },
+  "recorded_classification": "MEASURED_LIVE",
+  "schema": "meme-machine-retained-provider-trace-summary-v1",
+  "source_capture": "engineering/solana_final_mixed/captures/final-476bad20",
+  "source_commit": "476bad205014c8c3d586f45d87f84ec44306817a",
+  "source_errors": {
+    "RPC_-32600": 78
+  },
+  "source_governor_interval_seconds": 0.05,
+  "source_http_payload_bytes": 95059577,
+  "source_schedule_modeled_cu": 85230,
+  "source_sha256": {
+    "audit.json.gz": "1240dac4b3e98139edba6b6f88a169ce58bc4ac68f41c5d917024977cdc9325e",
+    "result.json.gz": "cefccdffeac6d492ee1833f2499afbb8668e338eebfc52d9af23712a6f105c40"
+  },
+  "source_tree": "e9158889bd78b42ffd93b9fe563d0a64b54b5928",
+  "started_utc": "2026-10-07T19:53:59.829575+00:00",
+  "startup_steady_shutdown_counts": {
+    "shutdown": {
+      "HTTP_bytes": 1739,
+      "RPC_CU": 40,
+      "RPC_calls": 2,
+      "blocks": 0,
+      "delivery_messages": 1,
+      "physical_requests": 2,
+      "provider_payload_bytes": 1837,
+      "scoped_transaction_bodies": 0,
+      "transaction_body_calls": 0,
+      "yellowstone_bytes": 98
+    },
+    "startup": {
+      "HTTP_bytes": 210,
+      "RPC_CU": 70,
+      "RPC_calls": 4,
+      "blocks": 0,
+      "delivery_messages": 48678,
+      "duplicate_delivery_bytes": 8497,
+      "physical_requests": 4,
+      "provider_payload_bytes": 60987493,
+      "scoped_transaction_bodies": 0,
+      "transaction_body_calls": 0,
+      "websocket_bytes": 59111496,
+      "yellowstone_bytes": 1875787
+    },
+    "steady": {
+      "HTTP_bytes": 95057628,
+      "RPC_CU": 85120,
+      "RPC_calls": 3625,
+      "blocks": 0,
+      "delivery_messages": 281172,
+      "duplicate_delivery_bytes": 2462032,
+      "history_RPC_calls": 190,
+      "physical_requests": 3625,
+      "provider_payload_bytes": 527389923,
+      "repair_HTTP_bytes": 74227840,
+      "scoped_transaction_bodies": 9454,
+      "transaction_body_calls": 17,
+      "websocket_bytes": 343006450,
+      "yellowstone_bytes": 89325845
+    }
+  },
+  "websocket_bytes": 402117946,
+  "window_seconds": 411.45649671554565
+}

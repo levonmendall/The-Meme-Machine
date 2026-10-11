@@ -111,9 +111,11 @@ class RunnerTests(unittest.TestCase):
         _,a=mark(s,self.obs(3,3600),self.policy)
         self.assertEqual(a['reason'],'runner_trail')
 
-    def test_maximum_hold_cannot_be_masked_by_soft_confirmation(self):
-        _,a=mark(self.state,self.obs(259200,0,soft_deterioration=True),self.policy)
-        self.assertEqual(a['reason'],'maximum_hold')
+    def test_age_does_not_short_circuit_original_deterioration_confirmation(self):
+        s,a=mark(self.state,self.obs(259200,0,soft_deterioration=True),self.policy)
+        self.assertEqual(a['action'],'hold')
+        _,a=mark(s,self.obs(259203,0,soft_deterioration=True),self.policy)
+        self.assertEqual(a['reason'],'persistent_demand_deterioration')
 
     def test_deterioration_distinct_consecutive_observations(self):
         s,a=mark(self.state,self.obs(1,0,soft_deterioration=True),self.policy)

@@ -213,7 +213,8 @@ def build():
             classification='offline 2-events-per-3s fixture; linear work arithmetic is not wall-time or live benchmark',
             horizon_seconds={str(h): str(Decimal(str(history_cpu))*Decimal(h)/72) for h in HORIZONS},
             marginal_hardware_dollar_cost='no new service/instance proposed; existing fixed cost, spare capacity unproved'),
-        recommended_policy='Retain approved 72h maximum; no economically justified longer horizon established',
+        model_scope='Historical finite-window study; timer fields describe preserved policy identities, not current exit authority',
+        recommended_policy='Owner removed age-only sales. Continuous protection and recurring resources require separate acceptance; see --maintenance',
         conditional_research_parameters=dict(renewal_hours_candidates=[1,3,6], absolute_hours_candidates=list(HORIZONS[1:]),
             selected_renewal_hours=None, selected_absolute_hours=None,
             threshold_selection='No economic data sufficient to choose minimum winner multiple or tighter price-to-high gate',
@@ -225,11 +226,89 @@ def build():
         limitation='No market P&L, continuous economic coverage, paid-provider throughput or 336h service capacity is proved by synthetic tests.')
 
 
+def maintenance_projection():
+    """Explicit sustained cycles from existing native traces, never live demand.
+
+    Pons assumes coincident compatible owners, one new required receipt each
+    cycle and the same small log payload as the fixture. Stagger/failure/entry,
+    recovery, streams and storage are additional unknowns, not multipliers.
+    Pump uses the existing independent postgrad method model without a union
+    discount. Neither model proves continuous history or endpoint capacity.
+    """
+    capacity=read('operational/proven-efficiency-phase1/CAPACITY_REPAIR_NATIVE.json')
+    resources=read('operational/position-continuation/RESOURCE_ENVELOPE.maintenance.example.json')
+    specimens={r['positions']:r for r in capacity['survivor_specimens']
+        if r['action']=='hold' and r['rps']==2 and not r.get('sender_fallback')}
+    base=specimens[1]['actual_admission_with_injected_rtt']
+    def pons_cycle(count,seconds):
+        methods=dict(base['methods']);methods['eth_call']+=count-1
+        row=__import__('engineering.continuation_resources.model',fromlist=['demand']).demand(
+            'robinhood',methods,1,4)
+        actual=specimens.get(count)
+        if actual:
+            measured=actual['actual_admission_with_injected_rtt']
+            if methods!=measured['methods']:raise ValueError('native_maintenance_method_shape_changed')
+            row.update(fixture_delivered_bytes=measured['mock_json_delivered_bytes'],
+                fixture_cpu_seconds=actual['measured_optimized_local_cpu_seconds'],
+                fixture_complete_seconds=actual['conservative_combined_envelope_seconds'])
+        else:
+            row.update(fixture_delivered_bytes=None,fixture_cpu_seconds=None,fixture_complete_seconds=None)
+        row.update(cadence_seconds=seconds,classification='measured one-cycle counters' if actual else 'source-shaped method extrapolation')
+        return row
+    def pons_total(count,hours,current=False):
+        cycle=pons_cycle(count,5 if current else 3);turns=ceil(hours*3600/cycle['cadence_seconds'])
+        result={k:cycle[k]*turns for k in ('rpc_cu','rpc_elements','physical_attempts_without_failures')}
+        result.update(turns=turns,cycle=cycle,rpc_only_modeled_usd=str(Decimal(result['rpc_cu'])*PRICE),
+            delivered_fixture_bytes=None if cycle['fixture_delivered_bytes'] is None else cycle['fixture_delivered_bytes']*turns,
+            fixture_cpu_seconds=None if cycle['fixture_cpu_seconds'] is None else cycle['fixture_cpu_seconds']*turns)
+        return result
+    rows=[]
+    for count in (1,2,4,5,10,20):
+        for hours in (24,72,168,336,720):
+            for scenario in ('pump_current','pump_survivor','pons_current','pons_survivor','mixed_pump_pons','mixed_pons_current_survivor'):
+                parts=[]
+                if scenario.startswith('pump_'):
+                    p=pump(hours,current=scenario=='pump_current')
+                    parts=[dict(p,**{k:p[k]*count for k in ('rpc_cu','rpc_elements','physical_attempts_without_failures')},
+                        rpc_only_modeled_usd=str(Decimal(p['rpc_cu']*count)*PRICE),delivered_fixture_bytes=None,fixture_cpu_seconds=None)]
+                elif scenario.startswith('pons_'):
+                    parts=[pons_total(count,hours,current=scenario=='pons_current')]
+                else:
+                    a=count//2;b=count-a
+                    if a:
+                        if scenario=='mixed_pump_pons':
+                            p=pump(hours);parts.append(dict(p,**{k:p[k]*a for k in ('rpc_cu','rpc_elements','physical_attempts_without_failures')},
+                                rpc_only_modeled_usd=str(Decimal(p['rpc_cu']*a)*PRICE),delivered_fixture_bytes=None,fixture_cpu_seconds=None))
+                        else:parts.append(pons_total(a,hours,current=True))
+                    if b:parts.append(pons_total(b,hours))
+                totals={k:sum(p[k] for p in parts) for k in ('rpc_cu','rpc_elements','physical_attempts_without_failures')}
+                totals['rpc_only_modeled_usd']=str(Decimal(totals['rpc_cu'])*PRICE)
+                totals['minimum_average_physical_rps']=totals['physical_attempts_without_failures']/(hours*3600)
+                known_bytes=all(p.get('delivered_fixture_bytes') is not None for p in parts)
+                totals['projected_fixture_delivered_bytes']=sum(p['delivered_fixture_bytes'] for p in parts) if known_bytes else None
+                totals['unchanged_continuation_limits_fit']={k:totals[v]<=resources['continuation'][k] for k,v in
+                    (('rpc_cu','rpc_cu'),('rpc_elements','rpc_elements'),('http_attempts','physical_attempts_without_failures'))}
+                if known_bytes:totals['unchanged_continuation_limits_fit']['http_bytes']=totals['projected_fixture_delivered_bytes']<=resources['continuation']['http_bytes']
+                rows.append(dict(scenario=scenario,positions=count,hours=hours,totals=totals,components=parts,
+                    continuous_protection_proven=False,storage_growth_bytes=None,live_memory_cpu_proven=False))
+    return dict(schema='long-duration-native-maintenance-projection-v1',actual_provider_calls=0,
+        source='CAPACITY_REPAIR_NATIVE.json plus engineering.continuation_resources.model.pump',
+        holding_time_exit=False,production_governor_changed=False,price_usd_per_million_cu='0.525',
+        price_classification='public sensitivity; authenticated account tariff unavailable',
+        provider_actual_billing_savings_usd=0,rows=rows,
+        exclusions=['mandatory native USD monetary valuation acquisitions','discovery','qualification','native streams and redelivery','entry and exit incidence','charged failures',
+            'cold recovery','archive classification','host and volume stock','database growth and backups'],
+        limits=resources,capacity_unknowns=['sender fallback','slow provider responses','adversarial owner clocks',
+            'account-wide Pump/Pons throughput','original protection deadlines at actual endpoint','recurring budget'],
+        disposition='No age-only sale; insufficient authorized resources are an operational blocker, never a market signal')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path)
+    parser.add_argument('--maintenance',action='store_true')
     args = parser.parse_args()
-    result = json.dumps(build(), indent=2, sort_keys=True) + '\n'
+    result = json.dumps(maintenance_projection() if args.maintenance else build(), indent=2, sort_keys=True) + '\n'
     if args.output:
         args.output.write_text(result)
     else:

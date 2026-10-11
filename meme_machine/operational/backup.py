@@ -194,7 +194,7 @@ def copy_state(root, target, *, seconds=60, nonessential=True, reuse=None):
 def require_isolated(root):
     root=Path(root).resolve()
     authoritative=Path(os.environ.get('MM_STATE_ROOT',PRODUCTION_ROOT)).resolve()
-    if root==authoritative or authoritative in root.parents:
+    if any(root==protected or protected in root.parents for protected in (PRODUCTION_ROOT.resolve(),authoritative)):
         raise ValueError('restore_verification_requires_isolated_target')
     return root
 

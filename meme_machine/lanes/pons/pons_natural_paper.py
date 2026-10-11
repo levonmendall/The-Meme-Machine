@@ -24,7 +24,7 @@ from . import BoundaryError, CHAIN_ID
 from .abi import calldata, topic, words, scalar
 from .evidence import Stamp, Store, digest
 from .finality import Finality
-from .identity import load
+from .identity import metadata as load
 from .keccak import keccak256
 from .paper import Paper, Quote
 from .pons import factory_record, raw_event, curve_abi, prove_v4_lineage
@@ -345,8 +345,10 @@ def _v4_quoter_calldata(key,zero_for_one,amount):
 def _v4_quote(
     rpc,key,pool_id,tokens,gas_units,store,label,*,local_freshness=False,side="sell"
 ):
-    freshness_started_wall=time.time()
-    freshness_started_monotonic=time.monotonic()
+    freshness_started_wall=getattr(rpc,'original_acquisition_wall',None)
+    if not isinstance(freshness_started_wall,(int,float)):freshness_started_wall=time.time()
+    freshness_started_monotonic=getattr(rpc,'original_acquisition_monotonic',None)
+    if not isinstance(freshness_started_monotonic,(int,float)):freshness_started_monotonic=time.monotonic()
     header=_latest_header(rpc); block=int(header["number"],16)
     manager=load("uniswap_v4_manager")["address"].lower()
     # Authenticate the official deployment's chain wiring before trusting the quote.
@@ -374,7 +376,8 @@ def _v4_quote(
     # larger of the observed curve-tx proxy and 2x quoter estimate.
     units=max(gas_units,quoter_gas*2)
     gas=units*gas_price
-    observed_at=int(time.time())
+    original_observed=getattr(rpc,'original_observed_at',None)
+    observed_at=int(original_observed) if isinstance(original_observed,(int,float)) else int(time.time())
     acquisition_latency=time.monotonic()-freshness_started_monotonic
     local_age=acquisition_latency if local_freshness else None
     stamp=_fresh_stamp(

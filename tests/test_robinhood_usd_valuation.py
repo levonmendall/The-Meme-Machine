@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 from types import SimpleNamespace
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -33,6 +34,28 @@ def baseline(path):
         # Normal CI uses a shallow checkout. No historical/network fetch belongs
         # to a deterministic unit suite; full source comparisons run locally.
         raise unittest.SkipTest('Historical source comparison needs the existing baseline commit') from None
+
+
+# Explicit owner-approved removal of holding-age sales. Every other economic
+# node stays pinned to the original nine-change source. These reviewed methods
+# have their own exact AST identities; valuation cannot change them implicitly.
+# The later owner directive also requires adverse flow for Pons's legacy
+# stale-thesis helper. Its exact two-node delta from fe752458 is independently
+# derived by SourceDeltaTests; constants, interfaces and siblings remain pinned.
+HOLDING_DELTAS = {'meme_machine/lanes/pump/pump_acceleration_strategy.py': {'exit_decision': 'a2c3d9c0755ac779dc77298eda3a0b88b33eb1e4e3ebada5b34b93dea1dd1535'}, 'meme_machine/lanes/pump/pump_acceleration_paper.py': {'PumpAccelerationPaperLifecycle.mark': '094bb23a9533d1f96183d0239482d3a49afeb55b29567268bc8c6493e87ba671', 'PumpAccelerationPaperLifecycle.exceptional_exit_intent': '6e31ca62cbc145ec2ad27a9cd46cde386772a4cf7f1a6753a171833929534e23', 'PumpAccelerationPaperLifecycle.restore': '0c4afd4cd3497e47a452baf809face20a756d114eb90b8c05c093f229b1a9065'}, 'meme_machine/lanes/pump/runner.py': {'_monitor_positions': '9ff7f86373d2598cf6a9fa0130822ba4aafb9a6b8bfce504e0d80e998b794ba1'}, 'meme_machine/lanes/pump/pumpswap_survivor_runtime.py': {'Runtime._position': 'eb6a182cd92506c80c0506dcef8894a7c14bdd698bbf7eec63a35fe39038dcf2'}, 'meme_machine/lanes/pons/pons_selective_continuation.py': {'pregraduation_action': '123c3c69fcb29d907ea62109e7b7fb96793470439114279ce6a74b791f253ee2'}, 'meme_machine/lanes/pons/pons_postgrad_survivor.py': {'exit_action': 'a7418d0279afe5c8a1ff6e08b3fd48b1a995b81509cb6bf0cd6ef477b7a6e463'}, 'meme_machine/runtime/directional_continuation.py': {'bridge_state': 'ef830dabb4491bd7be1ed77599060e0e0d0b496a3655111b97deb330e6b16763'}, 'meme_machine/runtime/survivor_risk.py': {'mark': 'f3b06981eddd1e839624db849fe8c80fbfa2d520f0c17ed73f37922ce8581d19'}, 'tests/test_operational_nine.py': {'NineChanges.test_bridge_exact_age_and_all_required_evidence': 'd7890408ef6ac990d22ab3afafe32a4c68ecfbb82f5cff033ceae3dce4d92553'}}
+
+def assert_holding_delta(test, relative, original, current):
+    expected=HOLDING_DELTAS.get(relative,{})
+    old=ast.parse(original);new=ast.parse(current)
+    for name,pinned in expected.items():
+        before=old;after=new
+        for part in name.split('.'):
+            before=next(n for n in before.body if isinstance(n,(ast.ClassDef,ast.FunctionDef)) and n.name==part)
+            after=next(n for n in after.body if isinstance(n,(ast.ClassDef,ast.FunctionDef)) and n.name==part)
+        test.assertEqual(__import__('hashlib').sha256(ast.dump(after).encode()).hexdigest(),pinned,relative+':'+name)
+        # Retain the full function interface/decorators and every sibling node.
+        before.body=[ast.Pass()];after.body=[ast.Pass()]
+    test.assertEqual(ast.dump(old),ast.dump(new),relative)
 
 
 def abi(*values):
@@ -337,9 +360,112 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_pons_oracle_and_conversion_reuse_one_pinned_block(self):
         NativeValueReader('pons',rpc=self.rpc)(NOW)
-        self.assertEqual(sum(method=='eth_getBlockByNumber' for method,_,_ in self.rpc.calls),1)
+        self.assertEqual(sum(method=='eth_getBlockByNumber' and params[0]=='latest'
+            for method,params,_ in self.rpc.calls),1)
+        self.assertEqual(self.rpc.calls[-1][:2],('eth_getBlockByNumber',['0x4bdc170',False]))
         blocks=[params[1] for method,params,_ in self.rpc.calls if method in ('eth_call','eth_getCode')]
         self.assertEqual(set(blocks),{'0x4bdc170'})
+
+    def test_pons_currency_fence_runs_after_route_state_and_refuses_reorganization(self):
+        original=self.rpc.call;fork=[False];reader=NativeValueReader('pons',rpc=self.rpc)
+        def call(method,params,**kw):
+            result=original(method,params,**kw)
+            if method=='eth_call' and params[0]['data']==calldata('getSwapOut(uint128,bool)',10**15,1):
+                fork[0]=True
+            if method=='eth_getBlockByNumber' and params[0]!='latest' and fork[0]:
+                result['hash']='0x'+'34'*32
+            return result
+        with patch.object(self.rpc,'call',side_effect=call):
+            with self.assertRaisesRegex(ValuationUnavailable,'canonical_block_changed'):reader(NOW)
+        self.assertIsNone(reader.cached);self.assertIsNone(reader.oracle)
+        self.assertIsNone(reader.oracle_block);self.assertFalse(reader.route_state)
+        self.assertEqual(self.rpc.calls[-1][0],'eth_getBlockByNumber')
+        # Refusal never permanently rejects a future canonical observation.
+        self.assertEqual(reader(NOW).usd_per_unit,Decimal('2500.349025'))
+
+    def test_pons_currency_fence_compares_numeric_identity_without_encoding_veto(self):
+        original=self.rpc.call
+        def call(method,params,**kw):
+            result=original(method,params,**kw)
+            if method=='eth_getBlockByNumber' and params[0]!='latest':result['number']='0x4BDC170'
+            return result
+        with patch.object(self.rpc,'call',side_effect=call):
+            self.assertEqual(NativeValueReader('pons',rpc=self.rpc)(NOW).usd_per_unit,Decimal('2500.349025'))
+
+    def test_concurrent_pons_currency_consumers_share_one_complete_acquisition(self):
+        reader=NativeValueReader('pons',rpc=self.rpc)
+        entered=threading.Event();release=threading.Event();values=[];errors=[]
+        original=self.rpc.call
+        def call(method,params,**kw):
+            if method=='eth_getBlockByNumber' and params[0]=='latest':
+                entered.set()
+                if not release.wait(2):raise AssertionError('fixture_release_missing')
+            return original(method,params,**kw)
+        def consume():
+            try:values.append(reader(NOW))
+            except Exception as error:errors.append(error)
+        with patch.object(self.rpc,'call',side_effect=call):
+            threads=[threading.Thread(target=consume) for _ in range(8)]
+            try:
+                for thread in threads:thread.start()
+                self.assertTrue(entered.wait(2))
+            finally:
+                release.set()
+                for thread in threads:thread.join(3)
+        self.assertFalse(errors);self.assertFalse(any(t.is_alive() for t in threads))
+        self.assertEqual(len(values),8);self.assertTrue(all(v is values[0] for v in values))
+        self.assertEqual(sum(m=='eth_getBlockByNumber' and p[0]=='latest' for m,p,_ in self.rpc.calls),1)
+        self.assertEqual(sum(m=='eth_chainId' for m,_,_ in self.rpc.calls),1)
+        self.assertEqual(len(self.rpc.calls),19)
+        self.assertEqual(values[0].amount(10**15,NOW),Decimal('2.500349025'))
+        self.assertEqual(values[1].amount(3*10**15,NOW),Decimal('7.501047075'))
+
+    def test_local_currency_wait_cannot_renew_or_return_expired_evidence(self):
+        reader=NativeValueReader('pons',rpc=self.rpc);first=reader(NOW)
+        started=threading.Event();values=[]
+        def consume():started.set();values.append(reader(NOW))
+        with reader._lock:
+            thread=threading.Thread(target=consume);thread.start()
+            self.assertTrue(started.wait(2))
+            self.rpc.now=NOW+6;self.rpc.route_output=2000000
+        thread.join(3);self.assertFalse(thread.is_alive())
+        self.assertIsNot(values[0],first)
+        self.assertEqual(values[0].observed_at,NOW+6);self.assertEqual(values[0].valid_until,NOW+11)
+        self.assertEqual(values[0].usd_per_unit,Decimal('2000.27922'))
+
+    def test_pons_cached_oracle_block_remains_an_independent_canonical_obligation(self):
+        reader=NativeValueReader('pons',rpc=self.rpc);reader(NOW)
+        original=self.rpc.call;self.rpc.now=NOW+6
+        def call(method,params,**kw):
+            result=original(method,params,**kw)
+            if method=='eth_getBlockByNumber':
+                result.update(number='0x4bdc171',hash='0x'+'34'*32)
+                if params[0]=='0x4bdc170':result.update(number=params[0],hash='0x'+'56'*32)
+            return result
+        with patch.object(self.rpc,'call',side_effect=call):
+            with self.assertRaisesRegex(ValuationUnavailable,'canonical_block_changed'):reader(NOW+6)
+            self.assertIsNone(reader.oracle)
+            # Fresh oracle and route on the new canonical block restore safely.
+            value=reader(NOW+6)
+            self.assertEqual(value.valid_until,NOW+11)
+            self.assertEqual(reader.oracle_block[0],int('4bdc171',16))
+
+    def test_pons_currency_fence_partial_response_and_delay_cannot_publish_or_refresh(self):
+        original=self.rpc.batch
+        def partial(calls,**kw):
+            result=original(calls,**kw)
+            return [] if calls[0][0]=='eth_getBlockByNumber' else result
+        reader=NativeValueReader('pons',rpc=self.rpc)
+        with patch.object(self.rpc,'batch',side_effect=partial):
+            with self.assertRaisesRegex(ValuationUnavailable,'canonical_block_proof_incomplete'):reader(NOW)
+        self.assertIsNone(reader.cached)
+        def delayed(calls,**kw):
+            result=original(calls,**kw)
+            if calls[0][0]=='eth_getBlockByNumber':self.rpc.now=NOW+6
+            return result
+        with patch.object(self.rpc,'batch',side_effect=delayed):
+            with self.assertRaises(ValuationUnavailable):reader(NOW)
+        self.assertIsNone(reader.cached)
 
     def test_pons_feed_depeg_is_composed_without_fixed_dollar_fallback(self):
         self.rpc.round[1]=80000000
@@ -397,12 +523,34 @@ class RobinhoodUSDTests(unittest.TestCase):
         self.assertEqual(decoder(old),decoder(current))
 
     def test_strategy_sources_and_nine_change_tests_byte_unchanged(self):
-        # Keep the owner-approved nine-change tests byte-pinned to their original
-        # directive. The older operational pin predates completed Pons/Pump
-        # repairs; the owner explicitly names b1f215ed as this task's reference.
-        self.assertEqual((ROOT/'tests/test_operational_nine.py').read_bytes(),
-                         baseline('tests/test_operational_nine.py'))
-        active='b1f215edd3dc079b623401c7e09e9c91a380e6a0'
+        # USD valuation originally had no authority to alter trading source.
+        # Keep that economic guard and the original nine changes. The owner's
+        # PR #129 finalization names e1070404 as the implementation predecessor;
+        # later reviewed transport/storage repairs are no longer USD changes.
+        assert_holding_delta(self,'tests/test_operational_nine.py',
+            baseline('tests/test_operational_nine.py'),(ROOT/'tests/test_operational_nine.py').read_bytes())
+        economic_reference='b1f215edd3dc079b623401c7e09e9c91a380e6a0'
+        for rel in ('meme_machine/lanes/pump/pump_acceleration_strategy.py',
+                    'meme_machine/lanes/pump/pumpswap_survivor.py',
+                    'meme_machine/lanes/pons/pons_selective_continuation.py',
+                    'meme_machine/runtime/directional_continuation.py',
+                    'meme_machine/runtime/survivor_risk.py',
+                    'operational/nine-change-implementation.json'):
+            original=subprocess.check_output(['git','show',economic_reference+':'+rel],cwd=ROOT)
+            assert_holding_delta(self,rel,original,(ROOT/rel).read_bytes())
+        rel='meme_machine/lanes/pons/pons_postgrad_survivor.py'
+        original=subprocess.check_output(['git','show',economic_reference+':'+rel],cwd=ROOT)
+        def survivor_economics(content):
+            # Explicit owner exception: remove the two-position selection veto.
+            # Policy identity and every qualification still pin; the owner's
+            # holding-age exit removal is separately pinned below.
+            return [ast.dump(n) for n in ast.parse(content).body
+                if not isinstance(n,ast.FunctionDef) or n.name not in ('select_entries','exit_action')]
+        self.assertEqual(survivor_economics(original),survivor_economics((ROOT/rel).read_bytes()))
+        approved=ast.parse((ROOT/rel).read_bytes())
+        node=next(n for n in approved.body if isinstance(n,ast.FunctionDef) and n.name=='exit_action')
+        self.assertEqual(__import__('hashlib').sha256(ast.dump(node).encode()).hexdigest(),HOLDING_DELTAS[rel]['exit_action'])
+        active='e1070404849dfa86eb3e47d57cf24263b2fefc25'
         def source(path):
             return subprocess.check_output(['git','show',active+':'+path],cwd=ROOT)
         paths=subprocess.check_output(['git','ls-tree','-r','--name-only',active,'meme_machine/lanes'],cwd=ROOT,text=True).splitlines()
@@ -412,16 +560,20 @@ class RobinhoodUSDTests(unittest.TestCase):
                         'meme_machine/lanes/pons/pons_natural_observation.py',
                         'meme_machine/lanes/pons/pons_selective_cohort.py',
                         'meme_machine/lanes/pons/pons_selective_v4.py',
+                        'meme_machine/lanes/pons/pons_quotes.py',
+                        'meme_machine/lanes/pons/pons_selective_paper.py',
+                        'meme_machine/lanes/pons/pons_current_workers.py',
+                        'meme_machine/lanes/pons/pons_selective_acquisition.py',
                         'meme_machine/lanes/pons/provider_topology.py',
                         'meme_machine/lanes/pons/provider_admission.py',
                         'meme_machine/lanes/pons/provider.py',
                         'meme_machine/lanes/pons/sequencer_feed.py',
                         'meme_machine/lanes/pons/abi.py'}
         for rel in paths:
-            if rel not in infrastructure:self.assertEqual((ROOT/rel).read_bytes(),source(rel),rel)
+            if rel not in infrastructure:assert_holding_delta(self,rel,source(rel),(ROOT/rel).read_bytes())
         for rel in ('meme_machine/runtime/directional_continuation.py','meme_machine/runtime/survivor_risk.py',
                     'operational/nine-change-implementation.json'):
-            self.assertEqual((ROOT/rel).read_bytes(),source(rel),rel)
+            assert_holding_delta(self,rel,source(rel),(ROOT/rel).read_bytes())
         rel='meme_machine/lanes/pons/pons_history.py'
         # The only history reducer change is transport work order near the
         # original expiry. All native append, recovery and retention math pins.
@@ -444,7 +596,8 @@ class RobinhoodUSDTests(unittest.TestCase):
             elif name!='Runtime':self.assertEqual(ast.dump(node),ast.dump(new[name]),rel+':'+name)
         old_methods=functions(old['Runtime']);new_methods=functions(new['Runtime'])
         mechanical={'__init__','historical_preparation_step','_provider','discover','_bootstrap_cursor',
-                    '_increment_candidates','reconstruct','step'}
+                    '_increment_candidates','reconstruct','step','_prepare_held_acquisition','_manage_position',
+                    '_position','exit_quote','validate_exit'}
         for name,node in old_methods.items():
             if name not in mechanical:
                 node.decorator_list=[];new_methods[name].decorator_list=[]
@@ -464,6 +617,17 @@ class RobinhoodUSDTests(unittest.TestCase):
             assigns['window']=ast.dump(next(n for n in ast.walk(node) if isinstance(n,ast.FunctionDef) and n.name=='window'))
             return assigns
         self.assertEqual(economic_expressions(before),economic_expressions(after))
+        # This release changes acquisition order/reuse, not native settlement
+        # arithmetic or its exact-quantity/five-second commit prerequisites.
+        def net_expressions(node):
+            return {ast.dump(k.value) for n in ast.walk(node) if isinstance(n,ast.Call)
+                for k in n.keywords if k.arg in ('net_proceeds','gas')}
+        self.assertEqual(net_expressions(old_methods['exit_quote']),net_expressions(new_methods['exit_quote']))
+        def stale_expression(node):
+            return ast.dump(next(n.test for n in ast.walk(node) if isinstance(n,ast.If)
+                and any(isinstance(a,ast.Constant) and a.value=='survivor_exit_quote_stale'
+                    for a in ast.walk(n))))
+        self.assertEqual(stale_expression(old_methods['validate_exit']),stale_expression(new_methods['validate_exit']))
         def constants(tree):
             return [ast.dump(n) for n in tree.body if isinstance(n,(ast.Assign,ast.AnnAssign))]
         self.assertEqual(constants(original),constants(current))

@@ -2,6 +2,8 @@
   "schema_version": 1,
   "source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
   "retrieved_at": "2026-09-20",
+  "method_additions_verified_at": "2026-10-09",
+  "method_additions_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
   "units": "estimated billed compute units; not invoice; batch members billed individually",
   "methods": {
     "eth_callMany": 20,
@@ -28,7 +30,11 @@
     "getProgramAccounts": 20,
     "getTokenLargestAccounts": 20,
     "getSignaturesForAddress": 40,
-    "getTransaction": 40
+    "getTransaction": 40,
+    "getBlock": 40,
+    "getSlot": 20,
+    "getProgramAccountsV2": 20,
+    "getTransactionsForAddress": 100
   },
   "throughput_overrides": {
     "eth_chainId": 5,

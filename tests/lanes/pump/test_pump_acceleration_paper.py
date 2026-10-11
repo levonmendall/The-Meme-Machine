@@ -95,7 +95,7 @@ class PumpAccelerationPaperLifecycleTests(unittest.TestCase):
         second=life.mark(900,now=120,demand_score=80)
         self.assertEqual(second["partial_harvest_bps"],0)
 
-    def test_profitable_healthy_position_extends_once_then_times_out(self):
+    def test_profitable_healthy_position_extends_once_without_time_liquidation(self):
         life=PumpAccelerationPaperLifecycle()
         life.reserve(qualification(),1000,100)
         life.fill(tokens=100,cost_quote_units=1000,now=102,surface="pump.fun")
@@ -105,7 +105,9 @@ class PumpAccelerationPaperLifecycleTests(unittest.TestCase):
         self.assertIsNone(first["exit_reason"])
         second=life.mark(1100,now=1902,demand_score=80)
         self.assertFalse(second["hold_extended"])
-        self.assertEqual(second["exit_reason"],"timeout")
+        self.assertIsNone(second["exit_reason"])
+        self.assertIsNone(life.mark(1100,now=30*86400,demand_score=80)['exit_reason'])
+        self.assertEqual(life.mark(800,now=30*86400+5,demand_score=80)['exit_reason'],'risk_stop')
 
 
 if __name__ == "__main__":

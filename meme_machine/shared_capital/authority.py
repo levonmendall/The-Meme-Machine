@@ -74,6 +74,7 @@ def risk_view(state, at):
     exposure = dict(regime={r: ZERO for r in REGIMES}, family={f: ZERO for f in FAMILIES.values()},
                     asset={}, group={g: ZERO for g in policy["group_bps"]}, portfolio=ZERO)
     marked = ZERO
+    marked_assets, invested_assets = {}, {}
     complete = True
     def add(r, value, keys):
         exposure["regime"][r] += value
@@ -92,6 +93,11 @@ def risk_view(state, at):
         complete = complete and valid
         value = money(mark["net_value"]) if valid else basis
         marked += value
+        for key in p["economic_keys"]:
+            marked_assets[key] = marked_assets.get(key, ZERO) + value
+            # Realizations release remaining basis, not permission to reinvest
+            # the original/add principal repeatedly while this owner stays open.
+            invested_assets[key] = invested_assets.get(key, ZERO) + money(p["capital_deployed"])
         # Losses lower the risk base; gains increase gross exposure but never the
         # realized sizing/funding base. Missing marks cannot authorize new risk.
         add(p["regime"], max(basis, value), p["economic_keys"])
@@ -100,11 +106,14 @@ def risk_view(state, at):
             # Native entry fees can be capitalized into basis. Reserve their
             # possible gross exposure as well as their cash and equity effect.
             add(hold["regime"], money(hold["basis"]) + money(hold["cost_headroom"]), hold["economic_keys"])
+            for key in hold["economic_keys"]:
+                invested_assets[key] = invested_assets.get(key, ZERO) + money(hold["basis"]) + money(hold["cost_headroom"])
     equity = realized_equity(state)
     nav = money(state["cash"]) + marked
     risk_base = max(ZERO, min(equity, nav))
     drawdown = ratio_bps(max(ZERO, money(state["risk_high_water"]) - nav), money(state["risk_high_water"]))
     return dict(exposure=exposure, marked_exposure=marked,
+                marked_asset_exposure=marked_assets, asset_invested_basis=invested_assets,
                 marked_equity=nav if complete else None, valuation_ready=complete,
                 risk_base=risk_base, drawdown_bps=drawdown)
 
@@ -148,7 +157,15 @@ def _scale_limit(state, request, at):
             return dict(realized_equity=size_units, target=size_units * target_bps // 10000,
                         available=int(Fraction(money(capital_view(state)["free_cash"])) / Fraction(unit_value)))
     allowance = int(Fraction(min(money(request["execution_capacity"]), money(request["liquidity_capacity"]))) / Fraction(unit_value))
-    return Decimal(scale_budget(control, facts, now=at, sleeve=NativeSizing(), execution_allowance=allowance)) * unit_value
+    budget = Decimal(scale_budget(control, facts, now=at, sleeve=NativeSizing(), execution_allowance=allowance)) * unit_value
+    if state["policy"]["sizing_basis"] == "shared_realized_equity":
+        # Original native units stay authoritative for strategy/execution. Their
+        # changing USD price must not enlarge the original portfolio investment
+        # or remove the separately approved USD half-basis/combined limits.
+        equity = max(ZERO, realized_equity(state))
+        budget = min(budget, scaled(equity, 250), scaled(money(p["original_basis"]), 5000),
+                     max(ZERO, scaled(equity, 750) - money(p["capital_deployed"])))
+    return budget
 
 
 @exact
@@ -198,10 +215,12 @@ def funding_decision(state, request, at):
             money(capital_view(state)["free_cash"]) - overhead - floor)
     for key in keys:
         limits["ASSET_CONCENTRATION:" + key] = max(ZERO, scaled(base, policy["asset_bps"]) - exposure["asset"].get(key, ZERO))
+        if policy.get("asset_invested_bps") is not None:
+            limits["ASSET_INVESTED_BASIS:" + key] = max(ZERO, scaled(base, policy["asset_invested_bps"]) - risk["asset_invested_basis"].get(key, ZERO))
     for group in policy["groups"][r]:
         limits["CORRELATED_EXPOSURE:" + group] = max(ZERO, scaled(base, policy["group_bps"][group]) - exposure["group"][group])
     for constraint in list(limits):
-        if "EXPOSURE_HEADROOM" in constraint or constraint.startswith(("ASSET_CONCENTRATION:", "CORRELATED_EXPOSURE:")):
+        if "EXPOSURE_HEADROOM" in constraint or constraint.startswith(("ASSET_CONCENTRATION:", "ASSET_INVESTED_BASIS:", "CORRELATED_EXPOSURE:")):
             limits[constraint] = max(ZERO, limits[constraint] - money(request["cost_headroom"]))
     if request["kind"] == "scale":
         limits["STAGED_SCALE_CONTRACT"] = _scale_limit(state, request, at)

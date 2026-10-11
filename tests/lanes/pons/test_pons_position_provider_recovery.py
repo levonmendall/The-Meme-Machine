@@ -179,7 +179,7 @@ class PositionRecoveryTests(unittest.TestCase):
         self.assertNotIn('provider_recoveries',r);self.assertEqual(len(times),1)
         self.assertEqual(b['unsettled'],1)
 
-    def test_impossible_pending_exit_drains_at_original_max_hold_with_zero_proceeds(self):
+    def test_authenticated_impossible_pending_exit_writes_off_without_a_hold_timer(self):
         from meme_machine.lanes.pons.pons_selective_continuation import EXIT_POLICY
         with tempfile.TemporaryDirectory() as d:r,b,events,_,times=self.run_case(d,'impossible_exit')
         self.assertEqual(r['status'],'settled',r.get('boundary'))
@@ -188,7 +188,8 @@ class PositionRecoveryTests(unittest.TestCase):
         self.assertEqual(sum(e['action']=='exit_intent' for e in events),1)
         self.assertFalse(any(e['action']=='exit' for e in events))
         self.assertEqual(sum(e['action']=='liquidity_writeoff' for e in events),1)
-        self.assertGreaterEqual(r['final_position']['last_at']-r['entry']['position']['last_at'],EXIT_POLICY['max_total_hold_seconds'])
+        self.assertLess(r['final_position']['last_at']-r['entry']['position']['last_at'],EXIT_POLICY['max_total_hold_seconds'])
+        self.assertEqual(r['exit']['reason'],'test_authenticated_exit')
         self.assertEqual(r['final_position']['realized_proceeds'],0)
         self.assertEqual(r['realized_pnl_quote'],-r['entry']['position']['cost'])
         self.assertEqual(b['unsettled'],0)

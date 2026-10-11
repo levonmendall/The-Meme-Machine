@@ -19,7 +19,7 @@ from .pons_selective_acquisition import (
     _authenticate_window, _header_search, _rpc,
 )
 from .pons_selective_continuation import demand_metrics, curve_progress_bps
-from .identity import load
+from .identity import metadata as load
 
 STRATEGY="pons-quote-relative-value-v1"
 ZERO="0x0000000000000000000000000000000000000000"

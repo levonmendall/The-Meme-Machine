@@ -38,7 +38,8 @@ class Budget:
             state=self.read(db)
         self.started=float(state['started'])
         self.started_wall=float(state.get('started_wall',time.time()))
-        self.seconds=int(state.get('wall_seconds',1800))
+        wall=state.get('wall_seconds',1800)
+        self.seconds=None if wall=='' and phase!='bootstrap' else int(wall)
         if phase!='bootstrap':self.started=time.monotonic()-max(0,time.time()-self.started_wall)
         self.clock=time.monotonic;self.ready_at=None
         self.time={'total_wall_seconds':self.seconds}
@@ -52,6 +53,7 @@ class Budget:
         db.executemany('UPDATE run SET value=? WHERE key=?',[(str(v),self.prefix+k) for k,v in state.items()])
 
     def expired(self,state):
+        if self.seconds is None:return False
         if self.phase=='bootstrap':return time.monotonic()-float(state['started'])>=self.seconds
         return time.time()>=float(state['started_wall'])+self.seconds
 
@@ -61,7 +63,8 @@ class Budget:
         for phase in ('continuation','recovery'):
             values=dict(started=str(time.monotonic()),started_wall=str(int(time.time())),
                 boot=Path('/proc/sys/kernel/random/boot_id').read_text().strip(),
-                wall_seconds=str(envelope['maximum_seconds']),limits=json.dumps(envelope[phase]),
+                wall_seconds=str(envelope['maximum_seconds']) if envelope['maximum_seconds'] is not None else
+                    ('' if phase=='continuation' else str(envelope['recovery_seconds'])),limits=json.dumps(envelope[phase]),
                 reason='',rpc_cu='0',rpc_elements='0',http_attempts='0',native_bytes='0',
                 native_reserved='0',native_uncertain_bytes='0',http_bytes='0',alchemy_rpc_cu='0',
                 solana_rpc_elements='0',robinhood_rpc_elements='0',native_opens='0',
@@ -236,13 +239,16 @@ class PhaseBudget:
             db.execute('UPDATE run SET value=? WHERE key=?',(phase,'phase'))
             if phase!='BOOTSTRAP':db.execute("UPDATE run SET value='POSITION_ONLY' WHERE key='work_mode'")
             if phase=='RECOVERY' and 'recovery_activated_wall' not in state:
-                now=time.time();remaining=max(0,float(state['started_wall'])+self.envelope['maximum_seconds']-now)
+                now=time.time();wall=self.envelope['maximum_seconds']
+                remaining=(self.envelope['recovery_seconds'] if wall is None else
+                    max(0,float(state['started_wall'])+wall-now))
                 db.executemany('UPDATE run SET value=? WHERE key=?',[
                     (str(now),'recovery.started_wall'),
                     (str(int(min(remaining,self.envelope['recovery_seconds']))),'recovery.wall_seconds')])
                 db.execute('INSERT INTO run VALUES(?,?)',('recovery_activated_wall',str(now)))
             if phase in ('RECOVERY','FAULT'):
-                value=json.dumps(dict(phase=phase,reason=reason,at=int(time.time()),
+                value=json.dumps(dict(phase=phase,state='OPERATIONAL_FAULT' if phase=='FAULT' else 'DEGRADED_PROTECTION',
+                    reason=reason,at=int(time.time()),
                     funding_closed=True,protected=False,action='restore_provider_or_review_remaining_resource_allowance'))
                 db.execute('INSERT INTO run VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',('fault',value))
             db.execute('COMMIT')

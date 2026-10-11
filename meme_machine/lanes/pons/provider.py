@@ -9,6 +9,7 @@ from urllib.request import Request, urlopen
 from . import BoundaryError, CHAIN_ID
 from meme_machine.runtime.robinhood.provider_usage import http_started, http_received
 from meme_machine.runtime.robinhood.provider_authority import failure_class, protect_response
+from meme_machine.runtime.provider_purchases import account_transport,ledger
 
 RPC_HTTP_HEADERS = {
     'Content-Type': 'application/json',
@@ -78,6 +79,7 @@ class Rpc:
         if deadline is not None and time.monotonic() >= deadline:
             raise BoundaryError('evidence_deadline_during_transport')
 
+    @account_transport('pons')
     def _http(self, method, params):
         self.last_retry_after_seconds = None
         body = json.dumps(dict(jsonrpc='2.0', id=1, method=method, params=params)).encode()
@@ -147,6 +149,7 @@ class Rpc:
         # Latest/state/log requests never reuse stale cache entries.
         key = json.dumps([method, params], sort_keys=True)
         cacheable = method == 'eth_getBlockByHash'
+        ledger(self).consumer([method],cache_hit=cacheable and key in self.cache,family='pons')
         if cacheable and key in self.cache:
             return json.loads(self.cache[key])
         for attempt in range(self.retries + 1):
@@ -179,6 +182,7 @@ class Rpc:
                     raise
                 _stop_sleep(0.1 * (attempt + 1))
 
+    @account_transport('pons')
     def _http_batch(self, calls):
         body=json.dumps([
             dict(jsonrpc='2.0',id=i+1,method=method,params=params)
@@ -251,6 +255,7 @@ class Rpc:
         if self.used+needed>self.limit:
             raise BoundaryError('provider_session_budget_exhausted')
         self.logical+=needed
+        ledger(self).consumer(methods,cache_hit=False,family='pons')
         self.used+=needed
         self.transport_used+=1
         self.counts[scope]+=needed
@@ -277,6 +282,7 @@ class Rpc:
 
     def telemetry(self):
         return dict(requests=self.used, transport_requests=self.transport_used,
+                    provider_purchases=ledger(self).snapshot(),
                     physical_http_requests=self.physical_http_requests,
                     request_bytes=self.request_bytes,response_bytes=self.response_bytes,
                     byte_basis='HTTP request payload attempted; response payload read; excludes headers/TLS/unread error bodies',
@@ -288,6 +294,7 @@ class Rpc:
         # A receipt is immutable only under the (transaction, block) identity.
         key = 'receipt:' + tx_hash + ':' + block_hash
         if key in self.cache:
+            ledger(self).consumer(['eth_getTransactionReceipt'],cache_hit=True,family='pons')
             self.logical += 1
             self.logical_methods['eth_getTransactionReceipt'] += 1
             return json.loads(self.cache[key])

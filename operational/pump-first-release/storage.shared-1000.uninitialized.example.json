@@ -1,0 +1,8 @@
+{
+  "mount_target": "/mnt/volume_nyc1_1790918115030",
+  "state_root": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000",
+  "filesystem_uuid": "0ce00d89-000b-4af1-960f-d5be400ff115",
+  "volume_device": "/dev/disk/by-uuid/0ce00d89-000b-4af1-960f-d5be400ff115",
+  "epoch_id": null,
+  "inception_sha256": null
+}

@@ -3,6 +3,7 @@
 One incremental monitoring task, at most one candidate hydration per turn. It
 never scans RPC history and never qualifies from public websocket discoveries.
 """
+from meme_machine.runtime.provider_purchases import attributed_work
 from contextlib import nullcontext
 from fractions import Fraction
 import json
@@ -72,6 +73,7 @@ class Runtime:
         self.rpc.evidence_priority=priority
         self.rpc.evidence_kind='survivor_monitor' if priority==30 else 'survivor_commit_or_exit'
 
+    @attributed_work('pump_discovery')
     def discover(self):
         from meme_machine.solana_selective_runtime import selective
         selected=selective(self.plane._selective_reader()) if hasattr(self.plane,'_selective_reader') else False
@@ -183,6 +185,18 @@ class Runtime:
 
     def fresh_quotes(self,state,budget):return Quotes(state,self.now())
 
+    def necessary_scale_return(self,state,position,risk):
+        """Exact native sell arithmetic; no extra acquisition or retained quote."""
+        try:
+            if not (0<=self.now()-state['available_time']<=5
+                    and 0<=self.now()-state['market_time']<=10):return None
+            self.plane.require_usable(SWAP_SCOPE)
+            q=sell_quote(state,position['tokens'])
+            from meme_machine.runtime.directional_continuation import reference_return
+            return reference_return(max(0,q.output_amount-GAS),position['tokens'],
+                risk['original_basis'],risk['original_quantity'])
+        except (ValueError,Unavailable,KeyError,TypeError,ZeroDivisionError):return None
+
     def reconstruct(self,state,quote_context,*,maintenance=False):
         row=self.current;at=state['market_time'];self._increment(row,at,state['slot'])
         price=Fraction(state['state']['quote_reserve'],state['state']['base_reserve'])
@@ -248,6 +262,7 @@ class Runtime:
         if quote['quantity']!=qty or not 0<=now-quote['market_time']<=10 or not 0<=now-quote['acquired']<=5:
             raise ValueError('survivor_exit_quote_stale')
 
+    @attributed_work('pump_held_protection',consumer='survivor')
     def _position(self,row,*,admit=True):
         from meme_machine.operational.position_continuation import cancel_unfilled
         if cancel_unfilled(self.book,self.sleeve,self.history,row,self.now()):return
@@ -274,6 +289,7 @@ class Runtime:
         net=None if q is None else q['net_proceeds']
         flow={} if facts is None else buyer_persistence(facts['demand_events'],now=facts['now'],window_seconds=1800)
         observation=dict(id=str(state['slot']) if state else 'unavailable:'+str(self.now()),at=self.now(),
+            evidence_current=state is not None and facts is not None and q is not None,
             after_cost_return_bps=None if net is None else (net-position['basis'])*10000//position['basis'],
             net_exit_proceeds=position['mark'] if net is None else net,
             exit_liquidity_valid=True if q is not None else None,creator_distribution=facts is not None and not facts['creator_distribution_safe'],
@@ -288,13 +304,14 @@ class Runtime:
             exit_quote_available=q is not None,pending_exit=action['action']=='exit_pending',
             blocker='pump_survivor_authenticated_state_flow_or_exit_quote_unavailable')
         self.history.save(row)
-        if action['action']=='hold':
+        if action['action']=='hold' and row['position_safety']['evidence_current']:
             scale(book=self.book,sleeve=self.sleeve,identity=row['position'],candidate=row['id'],
                 generation=row['generation'],adapter=self,qualify=evaluate_entry,ordinary_limit=600,
                 stress_limit=600,minimum=GAS*2+1)
         if action['action']=='partial_exit':
             row=self.history.get(row['id']);row['state']='runner';self.history.save(row)
 
+    @attributed_work('pump_survivor_qualification')
     def _enter(self,row,decision,generation,regime,identity):
         sizing=self.sleeve.sizing_basis(POLICY["target_sleeve_bps"])
         result=commit(book=self.book,sleeve=self.sleeve,identity=identity,candidate=row['id'],generation=generation,

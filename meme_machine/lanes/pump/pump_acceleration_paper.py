@@ -171,12 +171,6 @@ class PumpAccelerationPaperLifecycle:
             raise ValueError("no_open_position")
         if executable_proceeds_quote_units < 0:
             raise ValueError("invalid_mark")
-        if self.book is not None:
-            self.book.transition(self.lifecycle_id,"mark",int(now),
-                                 amount=int(executable_proceeds_quote_units),
-                                 evidence=dict(demand_score=int(demand_score),
-                                               postgrad_demand_confirmed=bool(postgrad_demand_confirmed),
-                                               execution=evidence))
         basis=self.position.basis_quote_units
         ret=(int(executable_proceeds_quote_units)-basis)*10_000//basis
         if self.position.scale_committed:
@@ -231,7 +225,7 @@ class PumpAccelerationPaperLifecycle:
                 return_bps=int(ret),demand_score=int(demand_score),
             ))
         reason=exit_decision(observation)
-        if reason=='timeout' and self.position.exit_reason is None:
+        if (age>=base and reason is None and self.position.exit_reason is None):
             from meme_machine.runtime.directional_continuation import bridge_state
             state=dict(opened_at=self.position.opened_at,
                 realization_taken=self.position.partial_harvest_taken,
@@ -246,15 +240,23 @@ class PumpAccelerationPaperLifecycle:
                 from meme_machine.runtime.exceptional_winner import current_bridge
                 updated,expired,extension_reason=current_bridge(state,facts,now=int(now),
                     ordinary_expired=True,context=context)
-                if expired and extension_reason:reason=extension_reason
             else:updated,expired=bridge_state(state,facts,now=int(now),ordinary_expired=True)
             for field in ('bridged','bridged_at','bridge_deadline','exceptional'):
                 if field in updated:setattr(self.position,field,updated[field])
-            if not expired:reason=None
         if reason is not None and self.position.exit_reason is None:
             self.position.exit_reason=reason
             self.position.exit_intended_at=int(now)
         reason=self.position.exit_reason
+        if self.book is not None:
+            self.book.transition(self.lifecycle_id,"mark",int(now),
+                amount=int(executable_proceeds_quote_units),
+                evidence=dict(demand_score=int(demand_score),
+                    postgrad_demand_confirmed=bool(postgrad_demand_confirmed),execution=evidence,
+                    holding_time_exit=False,position_state=dict(
+                        opened_at=self.position.opened_at,
+                        high_water_bps=self.position.peak_return_bps,
+                        exit_reason=reason,exit_intended_at=self.position.exit_intended_at,
+                        first_realization=self.position.partial_harvest_taken)))
         partial_harvest_bps=(
             int(POLICY.first_profit_sell_bps)
             if (
@@ -337,12 +339,16 @@ class PumpAccelerationPaperLifecycle:
         return asdict(self.position)
 
     def exceptional_exit_intent(self,reason,now):
-        """Unavailable evidence persists intent without a fabricated mark/fill."""
-        if self.position is None or self.position.exit_reason:return
-        detail=dict(reason=reason,at=int(now),opened_at=self.position.opened_at,protected=False)
+        """Persist protection failure separately from an economic exit intent.
+
+        The method name remains for existing callers. Historical committed exit
+        checkpoints still restore unchanged; new failures cannot authorize sale.
+        """
+        if self.position is None:return
+        detail=dict(reason=reason,at=int(now),opened_at=self.position.opened_at,protected=False,
+            state='DEGRADED_PROTECTION',pending_exit=self.position.exit_reason is not None)
         if self.book is not None:
-            self.book.checkpoint_runtime(self.lifecycle_id,'exceptional-exit-intent',detail,claim=True)
-        self.position.exit_reason=reason;self.position.exit_intended_at=int(now)
+            self.book.checkpoint_runtime(self.lifecycle_id,'position-protection-fault',detail,claim=True)
 
     def settle(self, executable_proceeds_quote_units: int, now: int, *, evidence=None):
         if self.position is None:
@@ -419,6 +425,10 @@ class PumpAccelerationPaperLifecycle:
                 life.mark(position['mark'],at,evidence['demand_score'],
                           evidence.get('postgrad_demand_confirmed',False),
                           evidence=evidence.get('execution'))
+                saved=evidence.get('position_state')
+                if saved and saved.get('exit_reason') and life.position.exit_reason is None:
+                    life.position.exit_reason=saved['exit_reason']
+                    life.position.exit_intended_at=saved['exit_intended_at']
             elif action=='partial_harvest':
                 sold=prior['tokens']-position['tokens']
                 removed=prior['basis']-position['basis']
@@ -428,6 +438,11 @@ class PumpAccelerationPaperLifecycle:
                 life.add(position['basis']-prior['basis'],position['tokens']-prior['tokens'],at,
                     request=evidence['request'],evidence=evidence)
             elif action=='settled':
+                # Old time-triggered sales are immutable monetary history.
+                # Restore their already committed reason, never create a new
+                # time-based intent for an open position under this policy.
+                if life.position.exit_reason is None and evidence['exit_reason']=='timeout':
+                    life.position.exit_reason='timeout';life.position.exit_intended_at=at
                 if life.position.exit_reason!=evidence['exit_reason']:
                     raise ValueError('pump_recovery_exit_thesis_mismatch')
                 life.settle(position['proceeds'],at,evidence=evidence.get('execution'))

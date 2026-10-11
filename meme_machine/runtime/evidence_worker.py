@@ -32,14 +32,26 @@ class RepairRPC:
             self.genesis_reads=ImmutableReads(cache,self.endpoint)
         self.counts=Counter({k:0 for k in ('physical_requests','logical_calls','repair_calls','identity_calls','failures','429s','unsupported_methods','queue_microseconds','transport_microseconds')});self.lock=threading.Lock()
         self.flights={}
+        self.block_repair_profile=None
+        capability=os.environ.get('MM_RPC_CAPABILITIES')
+        if capability:
+            from meme_machine.solana_provider_config import GENESIS
+            try:
+                row=json.loads(Path(capability).read_text())['endpoints'][self.config.identity]
+                method=row['methods']['getBlock']
+                if row['genesis']==GENESIS and row['provider_identity']==self.config.identity and method['supported'] is True:
+                    self.block_repair_profile=method['observed_limits']
+            except (OSError,ValueError,KeyError,TypeError):pass
     def _count(self,key,n=1):
         with self.lock:self.counts[key]+=n
     def telemetry(self):
         from meme_machine.runtime.cu import estimate
+        from .provider_purchases import ledger
         with self.lock:counts=dict(self.counts)
         methods={k.split(':',1)[1]:v for k,v in counts.items() if k.startswith('method:')}
         return dict(counters=counts,estimated_alchemy=estimate(methods),
-                    endpoint_identity=self.config.identity,provider=self.config.provider)
+                    endpoint_identity=self.config.identity,provider=self.config.provider,
+                    provider_purchases=ledger(self).snapshot())
     def validate_network(self):
         from meme_machine.solana_provider_config import GENESIS
         if self.call('getGenesisHash',[],False)!=GENESIS:
@@ -47,6 +59,8 @@ class RepairRPC:
     def call(self,method,params,priority=False):
         return self.call_delivered(method,params,1 if priority else 4)[0]
     def call_delivered(self,method,params,priority=4):
+        from .provider_purchases import ledger
+        ledger(self).consumer([method],family='pump')
         if method=='getGenesisHash' and not params and self.genesis_reads is not None:
             receipt=dict(bytes=0,cu=0,calls=0)
             def fetch():
@@ -55,7 +69,7 @@ class RepairRPC:
                 return value
             value=self.genesis_reads.call(method,params,fetch)
             return value,receipt
-        if (method in ('getTransactionsForAddress','getTransaction') and len(params)==2
+        if (method in ('getTransactionsForAddress','getTransaction','getBlock') and len(params)==2
                 and isinstance(params[1],dict) and params[1].get('commitment')=='finalized'):
             # Join only concurrent immutable content reads at the same safety
             # priority. Fresh head samples must still occur after each WS ACK.
@@ -65,6 +79,7 @@ class RepairRPC:
                 future=self.flights.get(key);leader=future is None
                 if leader:future=self.flights[key]=Future()
             if not leader:
+                ledger(self).consumer([method],cache_hit=True,shared=True,family='pump')
                 try:
                     value,_=future.result()
                     from copy import deepcopy
@@ -83,29 +98,40 @@ class RepairRPC:
 
     def _call_delivered(self,method,params,priority=4):
         import time
-        if method not in ('getTransactionsForAddress','getGenesisHash','getSlot','getProgramAccountsV2','getTransaction'):
+        if method not in ('getTransactionsForAddress','getGenesisHash','getSlot','getProgramAccountsV2','getTransaction') and not (method=='getBlock' and self.block_repair_profile and self.block_repair_profile.get('validated') is True):
             raise ValueError('repair_method_forbidden')
+        maximum=16*1024*1024;timeout=8
+        if method=='getBlock':
+            maximum=min(maximum,int(self.block_repair_profile['max_response_bytes']))
+            timeout=min(timeout,float(self.block_repair_profile['max_latency_seconds']))
+            if maximum<=0 or timeout<=0:raise ValueError('repair_response_bound')
+        from .provider_purchases import ledger,work_label
+        purchases=ledger(self);label=work_label(family='pump');purchased=False;failed=True
         started=time.monotonic();transport=None;received=0;charged=0;code=None
         try:
             self.governor.acquire('solana','evidence',int(priority) if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB') else (2 if priority<=2 else 50),deadline_seconds=8,methods=(method,))
             self._count('queue_microseconds',int((time.monotonic()-started)*1e6))
             transport=time.monotonic()
             self._count('physical_requests');self._count('logical_calls');self._count('method:'+method)
-            charged={'getTransactionsForAddress':100,'getGenesisHash':10,'getSlot':20,'getProgramAccountsV2':20,'getTransaction':40}[method]
+            charged={'getTransactionsForAddress':100,'getGenesisHash':10,'getSlot':20,'getProgramAccountsV2':20,'getTransaction':40,'getBlock':40}[method]
             self._count('repair_calls' if method=='getTransactionsForAddress' else 'identity_calls')
             request=urllib.request.Request(self.endpoint,json.dumps(dict(jsonrpc='2.0',id=1,method=method,params=params)).encode(),{'Content-Type':'application/json'})
-            with urllib.request.urlopen(request,timeout=8) as response:raw=response.read(16*1024*1024+1)
+            purchases.started(label,[method],len(request.data),retry=label.get('retry_attempt',0));purchased=True
+            with urllib.request.urlopen(request,timeout=timeout) as response:raw=response.read(maximum+1)
             received=len(raw)
-            if len(raw)>16*1024*1024:raise ValueError('repair_response_bound')
+            if len(raw)>maximum:raise ValueError('repair_response_bound')
             value=json.loads(raw)
             code=(value.get('error') or {}).get('code')
             if code in (429,-32005):
                 self._count('429s');self.governor.rate_limited('solana',(method,))
-            if code==-32601:self._count('unsupported_methods')
+            if code==-32601:
+                self._count('unsupported_methods')
+                if method=='getBlock':self.block_repair_profile=None
             if value.get('id')!=1 or 'error' in value or 'result' not in value:
                 raise ValueError('repair_response_unavailable')
             self.config.public(value)
             self.governor.succeeded('solana',(method,))
+            failed=False
             return value['result'],dict(bytes=received,cu=charged)
         except urllib.error.HTTPError as exc:
             if exc.code==429:
@@ -119,6 +145,7 @@ class RepairRPC:
             raise DeliveredRPCError('repair_response_unavailable',dict(bytes=received,cu=charged),
                 retryable=retryable,cause_kind=type(exc).__name__) from None
         finally:
+            if purchased:purchases.completed(label,received,failed=failed)
             if transport is not None:self._count('transport_microseconds',int((time.monotonic()-transport)*1e6))
             self._count('delivered_response_bytes',received);self._count('current_pricing_cu',charged)
 

@@ -37,8 +37,6 @@ def mark(state, observation, policy):
         reason = 'severe_persistent_deterioration'
     elif observation.get('exit_liquidity_valid') is False:
         reason = 'invalid_exit_liquidity'
-    elif now-state['opened_at'] >= policy['maximum_hold_seconds']:
-        reason = 'maximum_hold'
     elif current is not None and current <= policy['hard_stop_bps']:
         reason = 'hard_stop'
     elif current is not None and high >= policy['first_profit_bps']:
@@ -51,6 +49,7 @@ def mark(state, observation, policy):
     if reason is None and updated['deterioration_streak'] >= policy['soft_confirmations']:
         reason = 'persistent_demand_deterioration'
     if (reason is None and policy.get('stale_seconds') is not None and current is not None
+            and soft is True
             and now-state['opened_at'] >= policy['stale_seconds']
             and now-updated.get('high_at',state['opened_at']) >= policy['stale_seconds']
             and current < policy['stale_return_ceiling_bps']):

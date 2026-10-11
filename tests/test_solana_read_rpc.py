@@ -211,6 +211,14 @@ class SolanaAuthorityBoundaryTests(unittest.TestCase):
         result=rpc.telemetry()
         self.assertEqual(result['counters']['physical_requests'],2)
         self.assertEqual(result['counters']['429s'],1)
-        self.assertEqual(result['estimated_alchemy']['unpriced_methods'],{'getTransactionsForAddress':1})
+        # Both physical starts are priced, including the delivered 429. Pricing
+        # a known method must not make the charged failure disappear.
+        estimate=result['estimated_alchemy']
+        self.assertEqual(estimate['unpriced_methods'],{})
+        self.assertEqual(estimate['estimated_cu_by_method'],
+                         {'getGenesisHash':10,'getTransactionsForAddress':100})
+        self.assertEqual(estimate['estimated_cu'],110)
+        self.assertEqual(estimate['logical_calls'],2)
+        self.assertTrue(estimate['billing_estimate_only'])
         self.assertNotIn('example-key',str(result))
         governor.rate_limited.assert_called_once()

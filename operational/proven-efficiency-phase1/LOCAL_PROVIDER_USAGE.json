@@ -1,0 +1,337 @@
+{
+  "actual_monthly_frequency": null,
+  "audit_rings": {
+    "transport_starts": {
+      "historical_inactive_family": {
+        "estimated_billed_cu": {
+          "billing_estimate_only": true,
+          "estimated_cu": 215236,
+          "estimated_cu_by_method": {
+            "eth_call": 136136,
+            "eth_chainId": 0,
+            "eth_gasPrice": 760,
+            "eth_getBlockByNumber": 24700,
+            "eth_getCode": 10040,
+            "eth_getLogs": 42360,
+            "eth_getTransactionReceipt": 1240
+          },
+          "known_estimated_cu": 215236,
+          "logical_calls": 7995,
+          "schedule_sha256": "961b0d5aef58196f726f809237329ceb0d21cca296b4bbf25ddf4bd018f745d1",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "unpriced_methods": {}
+        },
+        "failure_records": 0,
+        "legacy_pons_position_monitor_scope_records": 0,
+        "methods": {
+          "eth_call": 5236,
+          "eth_chainId": 216,
+          "eth_gasPrice": 38,
+          "eth_getBlockByNumber": 1235,
+          "eth_getCode": 502,
+          "eth_getLogs": 706,
+          "eth_getTransactionReceipt": 62
+        },
+        "queue_wait_seconds": null,
+        "records": 2677,
+        "retry_records": 0,
+        "transport_seconds": null
+      },
+      "history_receipt": {
+        "estimated_billed_cu": {
+          "billing_estimate_only": true,
+          "estimated_cu": 440,
+          "estimated_cu_by_method": {
+            "eth_getBlockByNumber": 100,
+            "eth_getCode": 20,
+            "eth_getLogs": 300,
+            "eth_getTransactionReceipt": 20
+          },
+          "known_estimated_cu": 440,
+          "logical_calls": 12,
+          "schedule_sha256": "961b0d5aef58196f726f809237329ceb0d21cca296b4bbf25ddf4bd018f745d1",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "unpriced_methods": {}
+        },
+        "failure_records": 0,
+        "legacy_pons_position_monitor_scope_records": 0,
+        "methods": {
+          "eth_getBlockByNumber": 5,
+          "eth_getCode": 1,
+          "eth_getLogs": 5,
+          "eth_getTransactionReceipt": 1
+        },
+        "queue_wait_seconds": null,
+        "records": 6,
+        "retry_records": 0,
+        "transport_seconds": null
+      },
+      "unattributed": {
+        "estimated_billed_cu": {
+          "billing_estimate_only": true,
+          "estimated_cu": 130886,
+          "estimated_cu_by_method": {
+            "eth_call": 91806,
+            "eth_chainId": 0,
+            "eth_getBlockByNumber": 4600,
+            "eth_getCode": 34480
+          },
+          "known_estimated_cu": 130886,
+          "logical_calls": 5716,
+          "schedule_sha256": "961b0d5aef58196f726f809237329ceb0d21cca296b4bbf25ddf4bd018f745d1",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "unpriced_methods": {}
+        },
+        "failure_records": 0,
+        "legacy_pons_position_monitor_scope_records": 443,
+        "methods": {
+          "eth_call": 3531,
+          "eth_chainId": 231,
+          "eth_getBlockByNumber": 230,
+          "eth_getCode": 1724
+        },
+        "queue_wait_seconds": null,
+        "records": 1413,
+        "retry_records": 0,
+        "transport_seconds": null
+      }
+    },
+    "transports": {
+      "historical_inactive_family": {
+        "estimated_billed_cu": {
+          "billing_estimate_only": true,
+          "estimated_cu": 215236,
+          "estimated_cu_by_method": {
+            "eth_call": 136136,
+            "eth_chainId": 0,
+            "eth_gasPrice": 760,
+            "eth_getBlockByNumber": 24700,
+            "eth_getCode": 10040,
+            "eth_getLogs": 42360,
+            "eth_getTransactionReceipt": 1240
+          },
+          "known_estimated_cu": 215236,
+          "logical_calls": 7995,
+          "schedule_sha256": "961b0d5aef58196f726f809237329ceb0d21cca296b4bbf25ddf4bd018f745d1",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "unpriced_methods": {}
+        },
+        "failure_records": 0,
+        "legacy_pons_position_monitor_scope_records": 0,
+        "methods": {
+          "eth_call": 5236,
+          "eth_chainId": 216,
+          "eth_gasPrice": 38,
+          "eth_getBlockByNumber": 1235,
+          "eth_getCode": 502,
+          "eth_getLogs": 706,
+          "eth_getTransactionReceipt": 62
+        },
+        "queue_wait_seconds": {
+          "max": 2.192846278019715,
+          "p50": 0.013810241012834013,
+          "p95": 0.48727483197581023,
+          "p99": 1.4162532149930485
+        },
+        "records": 2677,
+        "retry_records": 0,
+        "transport_seconds": {
+          "max": 2.2722867829725146,
+          "p50": 0.30769381899153814,
+          "p95": 1.3893648199737072,
+          "p99": 1.6143773960066028
+        }
+      },
+      "history_receipt": {
+        "estimated_billed_cu": {
+          "billing_estimate_only": true,
+          "estimated_cu": 440,
+          "estimated_cu_by_method": {
+            "eth_getBlockByNumber": 100,
+            "eth_getCode": 20,
+            "eth_getLogs": 300,
+            "eth_getTransactionReceipt": 20
+          },
+          "known_estimated_cu": 440,
+          "logical_calls": 12,
+          "schedule_sha256": "961b0d5aef58196f726f809237329ceb0d21cca296b4bbf25ddf4bd018f745d1",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "unpriced_methods": {}
+        },
+        "failure_records": 0,
+        "legacy_pons_position_monitor_scope_records": 0,
+        "methods": {
+          "eth_getBlockByNumber": 5,
+          "eth_getCode": 1,
+          "eth_getLogs": 5,
+          "eth_getTransactionReceipt": 1
+        },
+        "queue_wait_seconds": {
+          "max": 0.010904006019700319,
+          "p50": 0.0047887819819152355,
+          "p95": 0.005107681034132838,
+          "p99": 0.005107681034132838
+        },
+        "records": 6,
+        "retry_records": 0,
+        "transport_seconds": {
+          "max": 0.3188881639507599,
+          "p50": 0.28433522599516436,
+          "p95": 0.3148725539795123,
+          "p99": 0.3148725539795123
+        }
+      },
+      "unattributed": {
+        "estimated_billed_cu": {
+          "billing_estimate_only": true,
+          "estimated_cu": 130886,
+          "estimated_cu_by_method": {
+            "eth_call": 91806,
+            "eth_chainId": 0,
+            "eth_getBlockByNumber": 4600,
+            "eth_getCode": 34480
+          },
+          "known_estimated_cu": 130886,
+          "logical_calls": 5716,
+          "schedule_sha256": "961b0d5aef58196f726f809237329ceb0d21cca296b4bbf25ddf4bd018f745d1",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "unpriced_methods": {}
+        },
+        "failure_records": 0,
+        "legacy_pons_position_monitor_scope_records": 443,
+        "methods": {
+          "eth_call": 3531,
+          "eth_chainId": 231,
+          "eth_getBlockByNumber": 230,
+          "eth_getCode": 1724
+        },
+        "queue_wait_seconds": {
+          "max": 1.4942575320019387,
+          "p50": 0.01733438001247123,
+          "p95": 0.6205025240196846,
+          "p99": 1.1319126889575273
+        },
+        "records": 1413,
+        "retry_records": 0,
+        "transport_seconds": {
+          "max": 1.7872264079633169,
+          "p50": 0.28531770105473697,
+          "p95": 0.7361787689733319,
+          "p99": 0.7703720760182478
+        }
+      }
+    }
+  },
+  "charged_failures": null,
+  "classification": "OBSERVED HISTORICAL LOCAL PROVIDER RECORDS; CU IS ESTIMATED",
+  "consistent_copy_supplied_by_caller": true,
+  "input_bytes": 5931008,
+  "input_sha256": "4720d6db9881dfc8f1e30ff7bc83aa7e1944b43ee6fbf5360e6547d93a35ae0e",
+  "integrity": "quick_check OK; read-only input hash unchanged",
+  "lanes": {
+    "pons": {
+      "completed_attempts": 3009,
+      "delivered_bytes": null,
+      "estimated_billed_cu": {
+        "billing_estimate_only": true,
+        "estimated_cu": 270932,
+        "estimated_cu_by_method": {
+          "eth_call": 188552,
+          "eth_chainId": 0,
+          "eth_getBlockByNumber": 9420,
+          "eth_getCode": 72640,
+          "eth_getLogs": 300,
+          "eth_getTransactionReceipt": 20
+        },
+        "known_estimated_cu": 270932,
+        "logical_calls": 11828,
+        "schedule_sha256": "961b0d5aef58196f726f809237329ceb0d21cca296b4bbf25ddf4bd018f745d1",
+        "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+        "unpriced_methods": {}
+      },
+      "estimated_throughput_cu": 273267,
+      "historical_inactive_family": false,
+      "logical_rpc_elements": 11828,
+      "methods": {
+        "eth_call": 7252,
+        "eth_chainId": 467,
+        "eth_getBlockByNumber": 471,
+        "eth_getCode": 3632,
+        "eth_getLogs": 5,
+        "eth_getTransactionReceipt": 1
+      },
+      "physical_starts": 3010,
+      "recorded_failure_count": 0,
+      "request_bytes": null,
+      "responses_429": 0,
+      "retries": 0,
+      "total_queue_wait_seconds": 452.3116600566136,
+      "total_transport_seconds": 744.4605274617497,
+      "unresolved_counter_difference": 1
+    },
+    "ramses": {
+      "completed_attempts": 5914,
+      "delivered_bytes": null,
+      "estimated_billed_cu": {
+        "billing_estimate_only": true,
+        "estimated_cu": 396638,
+        "estimated_cu_by_method": {
+          "eth_call": 232778,
+          "eth_chainId": 0,
+          "eth_gasPrice": 1300,
+          "eth_getBlockByNumber": 63780,
+          "eth_getCode": 17360,
+          "eth_getLogs": 79320,
+          "eth_getTransactionReceipt": 2100
+        },
+        "known_estimated_cu": 396638,
+        "logical_calls": 15142,
+        "schedule_sha256": "961b0d5aef58196f726f809237329ceb0d21cca296b4bbf25ddf4bd018f745d1",
+        "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+        "unpriced_methods": {}
+      },
+      "estimated_throughput_cu": 399838,
+      "historical_inactive_family": true,
+      "logical_rpc_elements": 15142,
+      "methods": {
+        "eth_call": 8953,
+        "eth_chainId": 640,
+        "eth_gasPrice": 65,
+        "eth_getBlockByNumber": 3189,
+        "eth_getCode": 868,
+        "eth_getLogs": 1322,
+        "eth_getTransactionReceipt": 105
+      },
+      "physical_starts": 5957,
+      "recorded_failure_count": 1.0,
+      "request_bytes": null,
+      "responses_429": 0,
+      "retries": 0,
+      "total_queue_wait_seconds": 598.8598116187495,
+      "total_transport_seconds": 2629.531521860423,
+      "unresolved_counter_difference": 43
+    }
+  },
+  "limitations": [
+    "Audit rings overlap cumulative counters: never add them.",
+    "Historical paused-family purchases are retained evidence, not active workloads.",
+    "Old rows lack payload bytes, authenticated evidence IDs, consumer identity and native deadlines.",
+    "Counter differences are unresolved attempts, not proven charged failures.",
+    "Retained monotonic clocks do not establish a billing period or full-month workload.",
+    "Scope-based ring attribution cannot distinguish Current from Survivor or certify reuse."
+  ],
+  "physical_evidence_consumer_native_decision_join": null,
+  "provider_calls_added": 0,
+  "repeat_purchase_avoidability": null,
+  "saved_governor": {
+    "endpoint_rows": 2,
+    "physical_start_intervals_seconds": [
+      0.5
+    ]
+  },
+  "schema_version": 1,
+  "total_completed_attempts": 8923,
+  "total_known_estimated_billed_cu": 667570,
+  "total_observed_physical_starts": 8967,
+  "verified_billed_cu": null
+}

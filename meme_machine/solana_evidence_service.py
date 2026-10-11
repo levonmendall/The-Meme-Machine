@@ -1064,6 +1064,21 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
                 await work(lambda state:setattr(state,'failed',True),0)
                 await work(lambda state:state.fence.health('shutdown_boundary','admitted_frame_drain_timeout'),0)
                 raise EvidenceUnavailable('admitted_frame_drain_timeout') from None
+            # The owner can finish before the maintenance coroutine receives
+            # its future. Join accepted work before cancelling that waiter;
+            # otherwise a terminal error can disappear behind a normal stop.
+            future=admission.maintenance_future
+            if future is not None:
+                try:
+                    if future.done():future.result()
+                    else:await asyncio.wait_for(asyncio.shield(asyncio.wrap_future(future)),5)
+                except TimeoutError as exc:
+                    if future.done() and future.exception() is exc:raise
+                    raise EvidenceUnavailable('evidence_owner_shutdown_timeout') from None
+                except EvidenceUnavailable as exc:
+                    if str(exc) not in ('evidence_background_yield','evidence_command_expired',
+                            'evidence_admission_offer_expired','evidence_admission_offer_unavailable'):
+                        raise
         # Source draining can finish another worker after FIRST_COMPLETED.
         # Inspect all completed workers, not just the original winning set;
         # an owner/arbiter failure racing with stop must not become success.

@@ -1,0 +1,128 @@
+{
+  "recorded_at": "2026-10-09T19:31:37.563159+00:00",
+  "engineering_parent": "2ae0430246d0b747699d4aaae0ebbf7615a4d766",
+  "isolated_branch": "engineering/pons-owner-admission-20261009",
+  "unpublished_original_parent": "cbfcb4137f10474ffc7fe0e19f0b8772f25c1563",
+  "prs": [
+    {
+      "baseRefName": "operational/paper-v1",
+      "headRefName": "repair/observation-qualification-history-20261006",
+      "headRefOid": "87d55b95ef07d96a5bfe01313f5f55cbddd3c2ad",
+      "isDraft": false,
+      "mergedAt": null,
+      "number": 120,
+      "state": "OPEN",
+      "title": "Repair candidate qualification, retention and ordered Solana history",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/120",
+      "head_ancestor_of_candidate": false
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "headRefName": "repair/final-alchemy-solana-20261007",
+      "headRefOid": "05af863f9dc2c98bd41d6d5cef21d0736deb4b99",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 121,
+      "state": "OPEN",
+      "title": "Solana evidence: rolling prewarm startup and bounded provider proof",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/121",
+      "head_ancestor_of_candidate": true
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "headRefName": "operational/pause-ramses-20261007",
+      "headRefOid": "a2893f0800dca842cd20b823117ce2e256f38920",
+      "isDraft": false,
+      "mergedAt": "2026-10-07T15:24:06Z",
+      "number": 122,
+      "state": "MERGED",
+      "title": "Pause Ramses as a reversible operational lane",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/122",
+      "head_ancestor_of_candidate": false
+    },
+    {
+      "baseRefName": "operational/paper-v1",
+      "headRefName": "maintenance/engineering-storage-retention-20261008",
+      "headRefOid": "5978ceb054044197ea9d64fb7e7b03bc18be6e0d",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 123,
+      "state": "OPEN",
+      "title": "Bound engineering artifacts and preserve failure evidence under storage pressure",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/123",
+      "head_ancestor_of_candidate": false
+    },
+    {
+      "baseRefName": "engineering/exceptional-winner-candidate-20261009",
+      "headRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefOid": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 124,
+      "state": "OPEN",
+      "title": "Pons holding efficiency: same-turn head reuse and inactive event-driven quote guard",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/124",
+      "head_ancestor_of_candidate": true
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefName": "engineering/pump-held-vault-snapshot-20261008",
+      "headRefOid": "d47307a5b9bf25848b42cb8f3bee891e42618074",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 125,
+      "state": "CLOSED",
+      "title": "[DRAFT] Pump held-position Alchemy read reduction (verified vault hints)",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/125",
+      "head_ancestor_of_candidate": false
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefName": "engineering/pump-pons-style-request-efficiency-20261008",
+      "headRefOid": "ae6858ef9372196981cb7038ff7671f48bf127bb",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 126,
+      "state": "OPEN",
+      "title": "[DRAFT] Pump held Alchemy optimization with reversible live PAPER test mode",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/126",
+      "head_ancestor_of_candidate": true
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefName": "engineering/pons-event-driven-paper-20261009",
+      "headRefOid": "c49fca072e39695ba5b5c03ba7b3a7d59f3a9742",
+      "isDraft": true,
+      "mergedAt": null,
+      "number": 127,
+      "state": "OPEN",
+      "title": "Pons event-driven held-position PAPER shadow with native exit preservation",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/127",
+      "head_ancestor_of_candidate": true
+    },
+    {
+      "baseRefName": "engineering/pons-held-efficiency-20261009",
+      "headRefName": "integration/pump-pons-live-paper-126-127-20261009",
+      "headRefOid": "2c826ddd0977871cfe66e3bd6d4c4d8eb7437629",
+      "isDraft": false,
+      "mergedAt": null,
+      "number": 128,
+      "state": "OPEN",
+      "title": "Integrate PRs #126 + #127 for next-start live PAPER testing (no host deploy)",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/pull/128",
+      "head_ancestor_of_candidate": true
+    }
+  ],
+  "source_hashes": {
+    "meme_machine/lanes/pons/pons_postgrad_survivor.py": "5daa485ad962806b5f3e70411edbbd9371a9d3e5a0e730addd8ee4fd331bf217",
+    "meme_machine/lanes/pons/pons_survivor_runtime.py": "e1afe213de6ff42b88fcba8ff4e551f1d434c6cf373217c9af31b43783de7920",
+    "meme_machine/lanes/pons/pons_selective_cohort.py": "63cea2c2c4899200c1d468c1a869309d0108f4ac496448650047c20e194fda8f",
+    "meme_machine/lanes/pons/pons_selective_recovery.py": "37e19dde81ba0594875c4a378f1f0ac0a25fc5d00065292c8e8deb5b10486501",
+    "meme_machine/runtime/robinhood/provider_authority.py": "1c5ae9f6dbdf23332abfca321ec02f266f455b565a42f81031419d479f919877"
+  },
+  "fixed_survivor_cap": 2,
+  "current_lifecycle_worker_cap": 8,
+  "original_pons_physical_governor_rps": 2,
+  "pro_archive_present": false,
+  "authority": "offline implementation only; no provider test, subscription, service startup, merge or deployment"
+}

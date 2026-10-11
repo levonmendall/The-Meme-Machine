@@ -1,0 +1,46 @@
+{
+  "schema": "meme-machine-passive-same-evidence-measurement-v1",
+  "enabled": false,
+  "owner_authorization": "NOT_GRANTED",
+  "purpose": "Measure real workload incidence during a later separately authorized, already protected lifecycle without purchasing a parallel baseline",
+  "dependencies": [
+    "Complete authenticated first-owner protection and financial/recovery acceptance",
+    "Separate authorization for the underlying operating lifecycle and its provider resource/dollar budget",
+    "Existing purchase counters, native journals and canonical evidence archives remain the sources"
+  ],
+  "sources": [
+    "meme_machine/runtime/provider_purchases.py: ProviderPurchases.snapshot",
+    "meme_machine/runtime/robinhood/provider_usage.py: snapshot, cache_snapshot",
+    "meme_machine/solana_selective_source.py: stream_telemetry",
+    "Existing native journals and evidence archives, read-only",
+    "Redacted owner Admin usage export for the same application and capture window"
+  ],
+  "envelope": {
+    "new_provider_requests": 0,
+    "new_subscriptions": 0,
+    "new_webhooks": 0,
+    "new_orders_or_strategy_actions": 0,
+    "sampling_window_maximum_seconds": 300,
+    "aggregate_snapshot_maximum_rows": 256,
+    "optional_artifact_maximum_bytes": 2097152,
+    "additional_provider_charge_ceiling_usd": 0,
+    "underlying_lifecycle_provider_budget": "Separately required; not authorized or priced by this specification"
+  },
+  "procedure": [
+    "Retain start/end snapshots of existing fixed-domain counters and original native decisions; reuse existing archives",
+    "Separate no-position discovery, held acquisition, valuation, sender/receipt history, retries/recovery and stream delivery",
+    "Record actual block advancement, uncovered intervals, new relevant transaction cardinality, cache reuse/invalidation and decision deadlines where existing receipts expose them",
+    "Keep unknown or unattributed components unknown; do not create a price or safety observation from missing data",
+    "Replay the same retained canonical market evidence offline against published original and optimized code; never run a second paid native acquisition",
+    "Report additional sampling CPU/disk/latency and abandon optional collection if it could impede protection",
+    "Reconcile method CU and delivery with the applicable authenticated tariff/account export; distinguish model from invoice",
+    "Publish only bounded-window measured incidence; keep monthly expected utilization unknown until representative evidence exists"
+  ],
+  "stop_conditions": [
+    "Sampling duration, artifact or counter-row bound reached",
+    "Optional extraction would need a provider call, reconstruction request, new stream, write to native state or strategy action",
+    "Protection, maintenance, storage headroom or logging availability would be impaired",
+    "Evidence coverage/source identity cannot support an equivalent offline replay"
+  ],
+  "safety": "Stopping optional sampling never sells a position or stops existing native protection. PAPER remains stopped/disabled now. No new sampler service or diagnostic purchase is implemented."
+}

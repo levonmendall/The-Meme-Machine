@@ -12,7 +12,7 @@ import time
 
 from . import BoundaryError
 from .abi import signature, topic
-from .identity import authenticate, load
+from .identity import authenticate, metadata as load
 from .pons import authenticate_curve, factory_record, raw_event
 from .pons_natural_paper import _graduation_transition, _rpc as paper_rpc
 from .pons_selective_acquisition import _header_search, _rpc as evidence_rpc

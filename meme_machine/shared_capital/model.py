@@ -116,6 +116,9 @@ class RiskPolicy:
     transaction_cost_floor: str = "0"
     sizing_basis: str = "effective_family_equivalence"
     adaptive: bool = False
+    # Optional additional limit on original plus added investment in open
+    # canonical asset/lineage obligations. Marked concentration remains separate.
+    asset_invested_bps: int | None = None
 
     def value(self):
         v = asdict(self)
@@ -146,6 +149,13 @@ class RiskPolicy:
             raise ValueError("allocation_window_contract")
         if v["sizing_basis"] not in ("effective_family_equivalence", "shared_realized_equity"):
             raise ValueError("explicit_sizing_basis_required")
+        if v["asset_invested_bps"] is None:
+            # Preserve historical policy bytes, identities and durable replay.
+            del v["asset_invested_bps"]
+        else:
+            bps(v["asset_invested_bps"], 1)
+            if v["asset_invested_bps"] > v["asset_bps"]:
+                raise ValueError("invested_limit_exceeds_marked_asset_limit")
         return wire(v)
 
 

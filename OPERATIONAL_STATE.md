@@ -3,7 +3,12 @@
 The operational candidate runs only Pump Current/Survivor and Pons Current/Survivor
 under one supervisor. Meteora and Ramses are PAUSED indefinitely, with no new
 market work or capital admission; reactivation needs an explicit owner decision.
-Historical four-family accounting remains in one preserved PAPER Decimal portfolio. The existing epoch,
+The intended new launch is the separate $1,000 shared PAPER epoch prepared in
+[the release handoff](operational/pump-first-release/HANDOFF.md), using shared
+realized-equity sizing, $50 initial targets, eligible $25 additions, 7.5%
+cumulative investment and 10% marked admission references. Numeric policy,
+epoch initialization, deployment and PAPER activation still need explicit approval.
+Historical four-family accounting remains in the preserved $500 portfolio. Its existing epoch,
 capital history, positions, reservations and pending deliveries must survive
 every deployment. Missing storage is a startup failure, never permission to
 create a replacement portfolio.
@@ -11,9 +16,10 @@ create a replacement portfolio.
 Before any process starts, canonical and native paused-family obligations must
 be clear. Unverified state or exposure blocks startup with exact identities;
 positions and pending deliveries are never deleted to enforce a pause.
-The native family sleeves remain the funding authority. The shared-capital
-feature is prepared in isolation and requires approved aggregate risk caps and
-a reconciled preserved-epoch migration before activation. Model B is the sole
+The deployed historical family sleeves remain unchanged. The new shared-capital
+authority must be initialized once in an exclusive new root after approval;
+there is no transfer of the old balance or migration of historical accounting.
+Startup never creates or reseeds an epoch. Model B is the sole
 startup candidate; its existing concurrent-provider certification blocker remains.
 This candidate has not been deployed or accepted against real providers.
 
@@ -24,7 +30,9 @@ Required environment: `MM_STATE_ROOT`, `MM_MODE=PAPER`, and the existing
 Solana and Robinhood read RPC configuration (`SOLANA_READ_RPC_URL` and
 `ROBINHOOD_READ_RPC_URL`, with their supported `MM_` aliases). State is SQLite and bounded snapshots below
 `MM_STATE_ROOT`, bound to the verified existing persistent volume at deployment.
-Provider credentials stay outside Git in `/etc/meme-machine/paper.env`.
+The historical `/etc/meme-machine/paper.env` remains preserved. New deployment
+preparation uses `/etc/meme-machine/paper.shared-1000.env` and its own
+`storage.shared-1000.json`; these files are not installed or activated.
 Robinhood valuation uses its existing RPC for the verified Chainlink USDG/USD
 feed and authenticated native→USDG quotes. Invalid/stale valuation reports
 `VALUATION_UNAVAILABLE` and prevents economic work requiring that value.

@@ -1,0 +1,707 @@
+{
+  "actual_deployed_provider_savings": 0,
+  "actual_infrastructure_savings_usd": 0,
+  "capacity": {
+    "caveat": "Existing finite no-failure models; network/service/authentication overhead is additional. The existing hybrid Solana exception was not changed.",
+    "dense_receipts_cannot_fix_quiet_deficit": true,
+    "five_second_start_capacity": 10,
+    "hybrid_solana_governor_interval_seconds": 0.05,
+    "quiet_current_model": {
+      "assumptions": {
+        "active_every_n_turns": 1,
+        "cold_turns": 0,
+        "receipt_sender_missing": false,
+        "relevant_transactions_per_five_seconds": 0
+      },
+      "classification": "finite 10-block/s scenario; warm successor upper plus explicit cold overhead; no cache-hit assumptions",
+      "holding_authority": "Current ordinary policy or original 36-hour tail bridge; longer arithmetic is counterfactual",
+      "methods": {
+        "eth_call": 1440,
+        "eth_chainId": 91,
+        "eth_gasPrice": 720,
+        "eth_getBlockByNumber": 5040,
+        "eth_getCode": 720,
+        "eth_getLogs": 3600
+      },
+      "minimum_physical_rps_under_scenario": 1.4252777777777779,
+      "physical_attempts_without_failures": 5131,
+      "rpc_cu": 383040,
+      "rpc_elements": 11611,
+      "rpc_only_modeled_usd": "0.201096000",
+      "turns": 720
+    },
+    "quiet_survivor_model": {
+      "assumptions": {
+        "active_every_n_turns": 1,
+        "blocks_per_three_seconds": 30,
+        "cross_turn_quote_hits": 0,
+        "distinct_event_blocks": 0,
+        "receipt_sender_missing": false,
+        "relevant_transactions_per_three_seconds": 0,
+        "retries": 0,
+        "verified_log_width": 10
+      },
+      "methods": {
+        "eth_call": 2400,
+        "eth_chainId": 102,
+        "eth_gasPrice": 1200,
+        "eth_getBlockByNumber": 6000,
+        "eth_getCode": 1200,
+        "eth_getLogs": 3600
+      },
+      "minimum_physical_rps_under_scenario": 1.695,
+      "physical_attempts_without_failures": 6102,
+      "rpc_cu": 446400,
+      "rpc_elements": 14502,
+      "rpc_only_modeled_usd": "0.234360000",
+      "turns": 1200
+    },
+    "quiet_survivor_wire_minimum_per_three_second_cycle": 5,
+    "three_second_start_capacity": 6,
+    "two_survivors_feasible_at_two_rps": false,
+    "two_survivors_wire_minimum": 10,
+    "two_survivors_wire_minimum_rps": "10/3 = 3.333333...",
+    "unchanged_pons_requests_per_second": 2
+  },
+  "classification": "OFFLINE; no paid workload or service start",
+  "deprecated_forecasts": "Previous busy/extreme blanket RPC multipliers are not production forecasts. Pro matched specimens are unavailable.",
+  "monthly_sensitivities": {
+    "avoided_cu_per_bundle": 3980,
+    "bundle": "two consumers, same canonical block, 100 required receipts, measured capability and complete successful responses",
+    "classification": "HYPOTHETICAL; no observed dense-block monthly distribution",
+    "excluded": "Qualification/stream baseline, retries, provider package allowances, CPU dollars and previous PR savings",
+    "no_double_counting": "1980 CU from first dense acquisition + 2000 CU from second consumer reuse",
+    "rows": [
+      {
+        "avoided_cu": 3980000,
+        "conditional_usd": "2.0895",
+        "synthetic_bundles_per_month": 1000
+      },
+      {
+        "avoided_cu": 39800000,
+        "conditional_usd": "20.895",
+        "synthetic_bundles_per_month": 10000
+      },
+      {
+        "avoided_cu": 398000000,
+        "conditional_usd": "208.950",
+        "synthetic_bundles_per_month": 100000
+      }
+    ]
+  },
+  "pons_density_comparisons": [
+    {
+      "economic_vectors_equal": true,
+      "optimized": {
+        "billed_cu_estimate": 100,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "physical": 3,
+        "request_bytes": 574,
+        "response_bytes": 9547,
+        "selector": {
+          "occupied_missing_blocks": 1,
+          "required_missing_receipts": 1
+        },
+        "throughput_cu": 100
+      },
+      "original": {
+        "billed_cu_estimate": 100,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "physical": 3,
+        "request_bytes": 574,
+        "response_bytes": 9547,
+        "selector": {},
+        "throughput_cu": 100
+      },
+      "required": 1,
+      "total_block_transactions": 100
+    },
+    {
+      "economic_vectors_equal": true,
+      "optimized": {
+        "billed_cu_estimate": 560,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 24
+        },
+        "physical": 3,
+        "request_bytes": 4039,
+        "response_bytes": 55687,
+        "selector": {
+          "occupied_missing_blocks": 1,
+          "required_missing_receipts": 24
+        },
+        "throughput_cu": 560
+      },
+      "original": {
+        "billed_cu_estimate": 560,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 24
+        },
+        "physical": 3,
+        "request_bytes": 4039,
+        "response_bytes": 55687,
+        "selector": {},
+        "throughput_cu": 560
+      },
+      "required": 24,
+      "total_block_transactions": 24
+    },
+    {
+      "economic_vectors_equal": true,
+      "optimized": {
+        "billed_cu_estimate": 100,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getBlockReceipts": 1,
+          "eth_getLogs": 1
+        },
+        "physical": 3,
+        "request_bytes": 569,
+        "response_bytes": 62793,
+        "selector": {
+          "block_receipt_attempts": 1,
+          "individual_receipt_elements_avoided": 25,
+          "occupied_missing_blocks": 1,
+          "required_missing_receipts": 25,
+          "selected_block_receipts": 1
+        },
+        "throughput_cu": 580
+      },
+      "original": {
+        "billed_cu_estimate": 580,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 25
+        },
+        "physical": 3,
+        "request_bytes": 4190,
+        "response_bytes": 59048,
+        "selector": {},
+        "throughput_cu": 580
+      },
+      "required": 25,
+      "total_block_transactions": 40
+    },
+    {
+      "economic_vectors_equal": true,
+      "optimized": {
+        "billed_cu_estimate": 100,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getBlockReceipts": 1,
+          "eth_getLogs": 1
+        },
+        "physical": 3,
+        "request_bytes": 569,
+        "response_bytes": 227373,
+        "selector": {
+          "block_receipt_attempts": 1,
+          "individual_receipt_elements_avoided": 100,
+          "occupied_missing_blocks": 1,
+          "required_missing_receipts": 100,
+          "selected_block_receipts": 1
+        },
+        "throughput_cu": 580
+      },
+      "original": {
+        "billed_cu_estimate": 2080,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 100
+        },
+        "physical": 4,
+        "request_bytes": 15506,
+        "response_bytes": 231314,
+        "selector": {},
+        "throughput_cu": 2080
+      },
+      "required": 100,
+      "total_block_transactions": 100
+    },
+    {
+      "economic_vectors_equal": true,
+      "optimized": {
+        "billed_cu_estimate": 2080,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 100
+        },
+        "physical": 4,
+        "request_bytes": 15506,
+        "response_bytes": 233344,
+        "selector": {
+          "occupied_missing_blocks": 1,
+          "required_missing_receipts": 100
+        },
+        "throughput_cu": 2080
+      },
+      "original": {
+        "billed_cu_estimate": 2080,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 100
+        },
+        "physical": 4,
+        "request_bytes": 15506,
+        "response_bytes": 233344,
+        "selector": {},
+        "throughput_cu": 2080
+      },
+      "required": 100,
+      "total_block_transactions": 129
+    }
+  ],
+  "pro_artifacts_inspected": false,
+  "pump_known_slot_repair": {
+    "capability_gate_default": "individual repair",
+    "known_authenticated_slots": 1,
+    "modeled_billed_cu_avoided": 280,
+    "modeled_throughput_cu_avoided": 280,
+    "native_interval_completeness_unchanged": true,
+    "native_log_frames_equivalent": true,
+    "optimized_requests": 1,
+    "original_requests": 8,
+    "required_missing_bodies": 8,
+    "response_bytes": 171786
+  },
+  "retained_provider_capture": {
+    "actual_retry_count": null,
+    "attribution": {
+      "basis": "process-lifetime initiated HTTP attempts; streams are delivered messages",
+      "billing_status": "UNMEASURED",
+      "classification": "OFFLINE_CAPTURE_OR_MODEL; not a newly measured provider bill",
+      "known_measured_billed_cu": "0",
+      "label_row_capacity": 256,
+      "largest_modeled_drivers": [
+        {
+          "completed_requests": 1748,
+          "consumer": "shared",
+          "consumer_method:getBlockTime": 323,
+          "consumer_method:getGenesisHash": 1,
+          "consumer_method:getMultipleAccounts": 595,
+          "consumer_method:getProgramAccountsV2": 11,
+          "consumer_method:getSlot": 813,
+          "consumer_method:getTransactionsForAddress": 5,
+          "delivered_payload_bytes": 19157304,
+          "estimated_cu": 35350,
+          "estimated_throughput_cu": 35350,
+          "failed_requests": 0,
+          "family": "shared",
+          "known_estimated_cu": 35350,
+          "known_estimated_throughput_cu": 35350,
+          "logical_consumers": 1748,
+          "operation": "unattributed",
+          "origin_operation": "unattributed",
+          "physical_requests": 1748,
+          "purchased_method:getBlockTime": 323,
+          "purchased_method:getGenesisHash": 1,
+          "purchased_method:getMultipleAccounts": 595,
+          "purchased_method:getProgramAccountsV2": 11,
+          "purchased_method:getSlot": 813,
+          "purchased_method:getTransactionsForAddress": 5,
+          "purpose": "unknown",
+          "retry_requests": 0,
+          "unpriced_methods": {},
+          "verified_billed_cu": null
+        },
+        {
+          "completed_requests": 820,
+          "consumer": "shared",
+          "consumer_method:getSlot": 776,
+          "consumer_method:getTransactionsForAddress": 44,
+          "delivered_payload_bytes": 15502662,
+          "estimated_cu": 19920,
+          "estimated_throughput_cu": 19920,
+          "failed_requests": 0,
+          "family": "shared",
+          "known_estimated_cu": 19920,
+          "known_estimated_throughput_cu": 19920,
+          "logical_consumers": 820,
+          "operation": "recovery_restart",
+          "origin_operation": "recovery_restart",
+          "physical_requests": 820,
+          "purchased_method:getSlot": 776,
+          "purchased_method:getTransactionsForAddress": 44,
+          "purpose": "recovery_restart",
+          "retry_requests": 0,
+          "unpriced_methods": {},
+          "verified_billed_cu": null
+        },
+        {
+          "completed_requests": 922,
+          "consumer": "shared",
+          "consumer_method:getBlockTime": 231,
+          "consumer_method:getGenesisHash": 156,
+          "consumer_method:getMultipleAccounts": 308,
+          "consumer_method:getProgramAccounts": 78,
+          "consumer_method:getTokenLargestAccounts": 149,
+          "delivered_payload_bytes": 1656422,
+          "estimated_cu": 16880,
+          "estimated_throughput_cu": 16880,
+          "failed_requests": 78,
+          "family": "pump",
+          "known_estimated_cu": 16880,
+          "known_estimated_throughput_cu": 16880,
+          "logical_consumers": 922,
+          "operation": "pump_held_protection",
+          "origin_operation": "pump_held_protection",
+          "physical_requests": 922,
+          "purchased_method:getBlockTime": 231,
+          "purchased_method:getGenesisHash": 156,
+          "purchased_method:getMultipleAccounts": 308,
+          "purchased_method:getProgramAccounts": 78,
+          "purchased_method:getTokenLargestAccounts": 149,
+          "purpose": "held_protection",
+          "retry_requests": 0,
+          "unpriced_methods": {},
+          "verified_billed_cu": null
+        },
+        {
+          "completed_requests": 124,
+          "consumer": "shared",
+          "consumer_method:getTransactionsForAddress": 124,
+          "delivered_payload_bytes": 58538299,
+          "estimated_cu": 12400,
+          "estimated_throughput_cu": 12400,
+          "failed_requests": 0,
+          "family": "pump",
+          "known_estimated_cu": 12400,
+          "known_estimated_throughput_cu": 12400,
+          "logical_consumers": 124,
+          "operation": "pump_discovery",
+          "origin_operation": "pump_discovery",
+          "physical_requests": 124,
+          "purchased_method:getTransactionsForAddress": 124,
+          "purpose": "discovery",
+          "retry_requests": 0,
+          "unpriced_methods": {},
+          "verified_billed_cu": null
+        },
+        {
+          "completed_requests": 17,
+          "consumer": "shared",
+          "consumer_method:getTransaction": 17,
+          "delivered_payload_bytes": 204890,
+          "estimated_cu": 680,
+          "estimated_throughput_cu": 680,
+          "failed_requests": 0,
+          "family": "pump",
+          "known_estimated_cu": 680,
+          "known_estimated_throughput_cu": 680,
+          "logical_consumers": 17,
+          "operation": "recovery_restart",
+          "origin_operation": "recovery_restart",
+          "physical_requests": 17,
+          "purchased_method:getTransaction": 17,
+          "purpose": "recovery_restart",
+          "retry_requests": 0,
+          "unpriced_methods": {},
+          "verified_billed_cu": null
+        }
+      ],
+      "operation_categories": [
+        "pump_discovery",
+        "pump_current_qualification",
+        "pump_survivor_qualification",
+        "pump_held_protection",
+        "pons_discovery",
+        "pons_current_qualification",
+        "pons_survivor_qualification",
+        "pons_held_protection",
+        "scaling_requalification",
+        "history_receipt",
+        "recovery_restart",
+        "retries_duplicates",
+        "unattributed"
+      ],
+      "operations": [
+        {
+          "completed_requests": 124,
+          "consumer": "shared",
+          "consumer_method:getTransactionsForAddress": 124,
+          "delivered_payload_bytes": 58538299,
+          "estimated_cu": 12400,
+          "estimated_throughput_cu": 12400,
+          "failed_requests": 0,
+          "family": "pump",
+          "known_estimated_cu": 12400,
+          "known_estimated_throughput_cu": 12400,
+          "logical_consumers": 124,
+          "operation": "pump_discovery",
+          "origin_operation": "pump_discovery",
+          "physical_requests": 124,
+          "purchased_method:getTransactionsForAddress": 124,
+          "purpose": "discovery",
+          "retry_requests": 0,
+          "unpriced_methods": {},
+          "verified_billed_cu": null
+        },
+        {
+          "completed_requests": 922,
+          "consumer": "shared",
+          "consumer_method:getBlockTime": 231,
+          "consumer_method:getGenesisHash": 156,
+          "consumer_method:getMultipleAccounts": 308,
+          "consumer_method:getProgramAccounts": 78,
+          "consumer_method:getTokenLargestAccounts": 149,
+          "delivered_payload_bytes": 1656422,
+          "estimated_cu": 16880,
+          "estimated_throughput_cu": 16880,
+          "failed_requests": 78,
+          "family": "pump",
+          "known_estimated_cu": 16880,
+          "known_estimated_throughput_cu": 16880,
+          "logical_consumers": 922,
+          "operation": "pump_held_protection",
+          "origin_operation": "pump_held_protection",
+          "physical_requests": 922,
+          "purchased_method:getBlockTime": 231,
+          "purchased_method:getGenesisHash": 156,
+          "purchased_method:getMultipleAccounts": 308,
+          "purchased_method:getProgramAccounts": 78,
+          "purchased_method:getTokenLargestAccounts": 149,
+          "purpose": "held_protection",
+          "retry_requests": 0,
+          "unpriced_methods": {},
+          "verified_billed_cu": null
+        },
+        {
+          "completed_requests": 17,
+          "consumer": "shared",
+          "consumer_method:getTransaction": 17,
+          "delivered_payload_bytes": 204890,
+          "estimated_cu": 680,
+          "estimated_throughput_cu": 680,
+          "failed_requests": 0,
+          "family": "pump",
+          "known_estimated_cu": 680,
+          "known_estimated_throughput_cu": 680,
+          "logical_consumers": 17,
+          "operation": "recovery_restart",
+          "origin_operation": "recovery_restart",
+          "physical_requests": 17,
+          "purchased_method:getTransaction": 17,
+          "purpose": "recovery_restart",
+          "retry_requests": 0,
+          "unpriced_methods": {},
+          "verified_billed_cu": null
+        },
+        {
+          "completed_requests": 820,
+          "consumer": "shared",
+          "consumer_method:getSlot": 776,
+          "consumer_method:getTransactionsForAddress": 44,
+          "delivered_payload_bytes": 15502662,
+          "estimated_cu": 19920,
+          "estimated_throughput_cu": 19920,
+          "failed_requests": 0,
+          "family": "shared",
+          "known_estimated_cu": 19920,
+          "known_estimated_throughput_cu": 19920,
+          "logical_consumers": 820,
+          "operation": "recovery_restart",
+          "origin_operation": "recovery_restart",
+          "physical_requests": 820,
+          "purchased_method:getSlot": 776,
+          "purchased_method:getTransactionsForAddress": 44,
+          "purpose": "recovery_restart",
+          "retry_requests": 0,
+          "unpriced_methods": {},
+          "verified_billed_cu": null
+        },
+        {
+          "completed_requests": 1748,
+          "consumer": "shared",
+          "consumer_method:getBlockTime": 323,
+          "consumer_method:getGenesisHash": 1,
+          "consumer_method:getMultipleAccounts": 595,
+          "consumer_method:getProgramAccountsV2": 11,
+          "consumer_method:getSlot": 813,
+          "consumer_method:getTransactionsForAddress": 5,
+          "delivered_payload_bytes": 19157304,
+          "estimated_cu": 35350,
+          "estimated_throughput_cu": 35350,
+          "failed_requests": 0,
+          "family": "shared",
+          "known_estimated_cu": 35350,
+          "known_estimated_throughput_cu": 35350,
+          "logical_consumers": 1748,
+          "operation": "unattributed",
+          "origin_operation": "unattributed",
+          "physical_requests": 1748,
+          "purchased_method:getBlockTime": 323,
+          "purchased_method:getGenesisHash": 1,
+          "purchased_method:getMultipleAccounts": 595,
+          "purchased_method:getProgramAccountsV2": 11,
+          "purchased_method:getSlot": 813,
+          "purchased_method:getTransactionsForAddress": 5,
+          "purpose": "unknown",
+          "retry_requests": 0,
+          "unpriced_methods": {},
+          "verified_billed_cu": null
+        }
+      ],
+      "purchases_without_billing_measurement": 3631,
+      "purchases_without_payload_byte_measurement": 0,
+      "purchases_without_request_byte_measurement": 3631,
+      "repeated_purchase_records": 0,
+      "request_identity_status": "not retained; exact duplicate requests require existing audit/captured records",
+      "retry_failure_overlay": "subset of operation totals; never add twice",
+      "schedule_sha256": "961b0d5aef58196f726f809237329ceb0d21cca296b4bbf25ddf4bd018f745d1",
+      "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+      "schema_version": 1,
+      "shared_logical_consumers": 0,
+      "stream_cu_status": "UNPRICED; bytes do not imply a CU rate",
+      "total_measured_billed_cu": null,
+      "totals": {
+        "completed_requests": 3631,
+        "delivered_payload_bytes": 95059577,
+        "estimated_cu": 85230,
+        "estimated_throughput_cu": 85230,
+        "failed_requests": 78,
+        "known_estimated_cu": 85230,
+        "known_estimated_throughput_cu": 85230,
+        "logical_consumers": 3631,
+        "physical_requests": 3631,
+        "retry_requests": 0
+      },
+      "unique_physical_purchases": 3631,
+      "verified_billed_cu": null
+    },
+    "classification": "OBSERVED_RETAINED_COMPLETED_HTTP_TRACE; CU fields are tariff estimates, not invoices",
+    "completed_http_records": 3631,
+    "input": {
+      "path": "engineering/solana_final_mixed/captures/final-476bad20/http.ndjson.zlib",
+      "sha256": "019880f8f101ce345e656ed30715b6bf47ef7f952a273373fbeff0c35dbdf3d3"
+    },
+    "known_eliminable_getTransaction_calls": 0,
+    "known_missing_body_slots": 1,
+    "measured_billed_cu": null,
+    "missing_bodies_per_known_slot": {
+      "12": 1
+    },
+    "monthly_full_market_forecast": null,
+    "observed_getTransaction_purchases": 17,
+    "omitted_failure_caveat": "HTTP failures before response read are absent from this tape; no billed failure or retry count is invented.",
+    "original_family_counts": {
+      "meteora_hydration": 43,
+      "meteora_position": 875,
+      "meteora_scout_source": 11,
+      "meteora_source": 3,
+      "pump_position": 383,
+      "pump_source": 124,
+      "pumpswap_position": 539,
+      "pumpswap_source": 1,
+      "replay_source": 820,
+      "rolling_recovery_missing_logs_source": 17,
+      "shared": 3,
+      "shared_source": 812
+    },
+    "potential_repeated_argument_records": 2041,
+    "pre_response_http_failure_count": null,
+    "recorded_capture_schedule_cu": 85230,
+    "repeated_getTransaction_purchases": 5,
+    "repetition_caveat": "Includes required fresh heads/quotes; equality of arguments does not prove wasted purchases.",
+    "retained_window": {
+      "end": 1791403248.2557404,
+      "start": 1791402840.3246994
+    },
+    "retry_status": "NOT RECOVERABLE from this retained completed-response trace",
+    "savings_caveat": "Known slots alone are not authenticated block census, resource proof or unknown interval completeness.",
+    "source_commit": "476bad205014c8c3d586f45d87f84ec44306817a",
+    "stream_delivery_by_phase": {
+      "shutdown": {
+        "HTTP_bytes": 1739,
+        "RPC_CU": 40,
+        "RPC_calls": 2,
+        "blocks": 0,
+        "delivery_messages": 1,
+        "physical_requests": 2,
+        "provider_payload_bytes": 1837,
+        "scoped_transaction_bodies": 0,
+        "transaction_body_calls": 0,
+        "yellowstone_bytes": 98
+      },
+      "startup": {
+        "HTTP_bytes": 210,
+        "RPC_CU": 70,
+        "RPC_calls": 4,
+        "blocks": 0,
+        "delivery_messages": 48678,
+        "duplicate_delivery_bytes": 8497,
+        "physical_requests": 4,
+        "provider_payload_bytes": 60987493,
+        "scoped_transaction_bodies": 0,
+        "transaction_body_calls": 0,
+        "websocket_bytes": 59111496,
+        "yellowstone_bytes": 1875787
+      },
+      "steady": {
+        "HTTP_bytes": 95057628,
+        "RPC_CU": 85120,
+        "RPC_calls": 3625,
+        "blocks": 0,
+        "delivery_messages": 281172,
+        "duplicate_delivery_bytes": 2462032,
+        "history_RPC_calls": 190,
+        "physical_requests": 3625,
+        "provider_payload_bytes": 527389923,
+        "repair_HTTP_bytes": 74227840,
+        "scoped_transaction_bodies": 9454,
+        "transaction_body_calls": 17,
+        "websocket_bytes": 343006450,
+        "yellowstone_bytes": 89325845
+      }
+    },
+    "unique_required_missing_pump_bodies": 12
+  },
+  "schema": "high-volume-efficiency-handoff-v1",
+  "shared_native_stress": {
+    "actual_provider_requests": 0,
+    "classification": "SYNTHETIC_NATIVE_STRESS; not Pro specimens or observed market incidence",
+    "cpu_seconds": {
+      "optimized": 31.538180083000007,
+      "original": 38.09537418
+    },
+    "distinct_canonical_blocks": 32,
+    "durable_required_receipts": 3200,
+    "durable_shared_receipt_byte_limit": 67108864,
+    "independent_consumers": 2,
+    "memory_cache_record_limit": 8192,
+    "optimized": {
+      "delivered_payload_bytes": 10532896,
+      "estimated_billed_cu": 5760,
+      "estimated_throughput_cu": 21120,
+      "physical_requests": 160,
+      "request_bytes": 31776,
+      "rpc_elements": 160
+    },
+    "original": {
+      "delivered_payload_bytes": 14804096,
+      "estimated_billed_cu": 133120,
+      "estimated_throughput_cu": 133120,
+      "physical_requests": 256,
+      "request_bytes": 992384,
+      "rpc_elements": 6528
+    },
+    "original_economic_event_observations": 6400,
+    "per_consumer_economic_vectors_equal": true,
+    "required_receipts_per_block": 100
+  }
+}

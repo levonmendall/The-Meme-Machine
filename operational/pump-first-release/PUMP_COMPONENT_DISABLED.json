@@ -1,0 +1,74 @@
+{
+  "schema": "pump-first-native-component-v1",
+  "enabled": false,
+  "owner_authorization": "CONSUMED_ONE_BOUNDED_COMPONENT_RUN",
+  "release_tag": "release/pump-first-paper-20261011",
+  "source_commit": null,
+  "entrypoint": "python -m engineering.pump_first.check",
+  "app_id": "9bin99s96t7ga5e9",
+  "expected_maximum": {
+    "physical_http_starts": 7,
+    "logical_elements": 7,
+    "modeled_cu": 130,
+    "methods": {
+      "getGenesisHash": 1,
+      "getMultipleAccounts": 4,
+      "getBlockTime": 2
+    },
+    "delivered_bytes": null
+  },
+  "limits": {
+    "seconds": 15,
+    "physical_http_starts": 8,
+    "logical_elements": 8,
+    "reserved_upper_cu": 160,
+    "physical_rps": 2,
+    "inflight": 1,
+    "response_bytes": 2000000,
+    "consumed_http_bytes": 4194304,
+    "retries": 0,
+    "subscriptions": 0,
+    "orders": 0,
+    "maximum_marginal_usd": "0.01"
+  },
+  "public_price_assumption_usd_per_million_cu": "0.525",
+  "public_expected_maximum_usd": "0.00006825",
+  "public_upper_cu_value_usd": "0.000084",
+  "authenticated_price": null,
+  "private_account_record_required": true,
+  "account_binding_required": true,
+  "capacity_reservation_max_age_seconds": 300,
+  "original_quote_acquisition_deadline_seconds": 5,
+  "warm_sample_cadence_seconds": 5,
+  "preflight_refuses_unpriced_exceptional_work": true,
+  "result_scope": "native cold/warm PumpSwap quote and authentic SOL/USD component only",
+  "full_protective_capacity_proven": false,
+  "paper_activation_authorized": false,
+  "deployment_authorized": false,
+  "capital_epoch_changed": false,
+  "speculative_or_optional_runtime_flags_enabled": false,
+  "prepared_activation": {
+    "plan": "operational/pump-first-release/LAUNCH_1000_DISABLED.json",
+    "starting_capital": "1000.00",
+    "sizing_basis": "shared_realized_equity",
+    "policy_approval": "NOT_GRANTED",
+    "epoch_initialized": false,
+    "historical_500_preserved": true
+  },
+  "stop_conditions": [
+    "authorization expiration or hard runtime deadline",
+    "request/CU/money/bytes/inflight limit",
+    "timeout/error/redirect/invalid response identity",
+    "wrong genesis, native account identity, decoder, oracle or quote freshness failure",
+    "quote sample exceeds original five-second acquisition deadline"
+  ],
+  "next_after_component": "Separately bound and authorize complete authenticated Pump protection; new $1,000 policy, epoch initialization, isolated dashboard cutover, exact deployment and PAPER activation remain separately pending.",
+  "authorization_basis": "Owner reply 2026-10-11; published provisional CU pricing; local binding/no additional product charge preflight required.",
+  "contractual_price_verified": false,
+  "diagnostic_quantities_usd": {
+    "initial": "50",
+    "eligible_addition_quote_only": "25"
+  },
+  "executed_source_commit": "dbf2aa12d339ed69a2656ef19bc678e0d7448859",
+  "receipt": "operational/pump-first-release/AUTHENTICATED_COMPONENT.json"
+}

@@ -1,0 +1,38 @@
+{
+  "actual_deployed_provider_savings": "0; this branch is not deployed",
+  "actual_infrastructure_savings": "0; infrastructure unchanged",
+  "assumptions": [
+    "N is a hypothetical sensitivity input, not an inferred production frequency.",
+    "Both original methods reach the provider as cache misses; otherwise these physical savings are smaller or zero.",
+    "Only the first fresh-state header and eth_call are priced; subsequent research and quotes are unspecified.",
+    "The frozen repository rate applies; no current invoice, allowance or account discount is assumed.",
+    "No overlap with PR #126 held snapshots or existing Pons reuse is added."
+  ],
+  "classification": "CONDITIONAL SENSITIVITY; NOT OBSERVED MONTHLY SAVINGS",
+  "conditional_monthly_cu": 46000,
+  "conditional_monthly_usd": "0.02415",
+  "cpu_savings_are_dollars": false,
+  "cu_per_denied_add": 46,
+  "explicitly_assumed_denied_adds_per_month": 1000,
+  "formula": "avoided CU = N * 46; avoided USD = N * 46 * 0.525 / 1000000",
+  "frozen_rate_usd_per_million_cu": "0.525",
+  "frozen_schedule": "meme_machine/runtime/alchemy-cu-schedule.json",
+  "rate_source": "engineering/solana_closure/cost_model.py:PRICING",
+  "current_scaling_history_unit_sensitivity": {
+    "classification": "HYPOTHETICAL MUTUALLY EXCLUSIVE COMPONENT; not monthly operating savings",
+    "observed_monthly_warm_requalification_frequency": null,
+    "original_fixture_cu_per_pass": 6340,
+    "retained_fixture_cu_per_pass": 60,
+    "estimated_cu_avoided_per_warm_pass": 6280,
+    "usd_per_million_cu": "0.525",
+    "explicit_assumption": {
+      "warm_eligible_requalification_passes_per_month": 1000,
+      "cold_preparation_included": false
+    },
+    "conditional_cu_avoided": 6280000,
+    "conditional_usd_avoided": "3.29700",
+    "excluded": "cold preparation, quotes/sizing/entry/settlement, charged retries, package allowances, prior PR savings, CPU/infrastructure dollars",
+    "overlap": "Contains receipt/history reuse already represented by dense/shared receipt specimens. Do not add component sensitivities.",
+    "actual_deployed_savings": "0; candidate not deployed and fixture frequency not observed"
+  }
+}

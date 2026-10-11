@@ -31,7 +31,10 @@ class CurrentRecoveryTests(unittest.TestCase):
             if clock[0]>170:clock[0]=max(clock[0],100+EXIT_POLICY['max_total_hold_seconds']+10)
             if workflow is not None:real_sleep(.001)
         def quote(_rpc,_candidate,side,amount,*a,**kw):
-         return fixture.quote(int(clock[0]),side,amount,1000 if side=='buy' else amount*148//1000),dict(block=int(clock[0]),block_hash='h'+str(int(clock[0])),event_at=int(clock[0]))
+         # Complete recovery using an actual adverse price after the crash cuts,
+         # rather than relying on the removed maximum-age sale.
+         proceeds=amount*(90 if clock[0]>170 else 148)//1000
+         return fixture.quote(int(clock[0]),side,amount,1000 if side=='buy' else proceeds),dict(block=int(clock[0]),block_hash='h'+str(int(clock[0])),event_at=int(clock[0]))
         def wait_quote(*a,**kw):q,m=quote(*a,**kw);return q,m,None
         patches={'paper_rpc':lambda *a:rpc,'_gas_quote':lambda *a:(2,1),
          '_entry_capacity':lambda meta,amount,gas:resize(amount,1,lambda n:100,ordinary_limit=600),
@@ -85,6 +88,9 @@ class CurrentRecoveryTests(unittest.TestCase):
                 raise ProcessCut()
             return p
         with ExitStack() as stack:
+            from meme_machine.lanes.pons.pons_current_workers import LifecyclePool
+            stack.enter_context(patch('meme_machine.lanes.pons.pons_current_workers.LifecyclePool',
+                side_effect=lambda **kw:LifecyclePool(**kw,clock=lambda:clock[0],wait_for_due=sleep)))
             if cut=='before_reserve':stack.enter_context(patch.object(SelectivePaper,'reserve',side_effect=ProcessCut()))
             for name,value in patches.items():stack.enter_context(patch('meme_machine.lanes.pons.pons_selective_paper.'+name,side_effect=value))
             with patch.object(SelectivePaper,'advance',advance):
@@ -138,7 +144,7 @@ class CurrentRecoveryTests(unittest.TestCase):
                     self.assertTrue(before['controller_state']['post_grad_checked'])
                     self.assertEqual(before['controller_state']['seen_v4_buyers']['count'],4)
             # Resume without advancing past the partial: duplicate harvesting would
-            # show up as an extra exit. The native policy eventually reaches max hold.
+            # show up as an extra exit. A later genuine price breach closes it.
             if bounded:
                 with patch.object(runtime.time,'monotonic',side_effect=lambda:clock[0]):
                     sliced=runtime.resume_lifecycle('unused',db_path=db,capital_path=capital,slice_seconds=1)

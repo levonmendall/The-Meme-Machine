@@ -143,7 +143,11 @@ class PonsQuoteTests(unittest.TestCase):
         old=[before.exit_quote(qty),before.exit_quote(qty)];count=self.counts()
         self.rpc.transports=[];after=self.runtime();new=[after.exit_quote(qty),after.exit_quote(qty)]
         self.assertEqual(new,old);self.assertEqual(count['elements'],12)
-        self.assertEqual(self.counts()['elements'],8);self.assertEqual(self.counts()['transports'],3)
+        self.assertEqual(self.counts()['elements'],8);self.assertEqual(self.counts()['transports'],4)
+        # The numeric canonical read must follow the completed state batch.
+        # Its separate transport is required even when an immediate repeat
+        # reuses the same exact-quantity simulation.
+        self.assertEqual(self.rpc.transports[2][1],[('eth_getBlockByNumber',['0x64',False])])
         self.gas=2;self.clock[0]+=1
         updated=after.exit_quote(qty);self.assertEqual(updated['acquired'],100)
         self.assertEqual(updated['gas'],2*new[0]['gas'])
@@ -522,7 +526,14 @@ class WholeSystemCostTests(unittest.TestCase):
         b,a=self.metrics(before),self.metrics(after)
         self.assertEqual((b['elements'],a['elements']),(12,10))
         self.assertEqual((b['rpc_cu'],a['rpc_cu']),(264,218))
-        self.assertEqual((b['physical'],a['physical']),(4,4))
+        self.assertEqual((b['physical'],a['physical']),(4,6))
+        # Numeric membership must follow state acquisition in a separate
+        # transport. JSON-RPC batch ordering cannot prove canonical publication.
+        for kind,transport in after.transports:
+            if any(method=='eth_getBlockByNumber' and params[0]!='latest'
+                   for method,params in transport):
+                self.assertEqual(len(transport),1)
+                self.assertEqual(kind,'call')
         self.assertEqual(a['methods']['eth_gasPrice'],2)
         self.assertEqual(a['methods']['eth_getBlockByNumber'],4)
         self.assertEqual(a['methods']['eth_call'],3) # manager once; both executable quantities fresh
@@ -554,7 +565,9 @@ class WholeSystemCostTests(unittest.TestCase):
         for turn in range(40):
             self.clock[0]=100+turn*3;self.head=100+turn*30;self.gas=1+turn%3
             self.assertEqual(self.quote(self.baseline,before,10**18),self.quote(self.optimized,after,10**18))
-        self.assertEqual(self.metrics(before),self.metrics(after))
+        b,a=self.metrics(before),self.metrics(after)
+        self.assertEqual((b.pop('physical'),a.pop('physical')),(80,120))
+        self.assertEqual(b,a)
         self.assertEqual(self.metrics(after)['methods']['eth_getCode'],40)
 
     def test_reorg_provider_identity_restart_or_failure_never_borrow_old_facts(self):
@@ -808,8 +821,7 @@ class LongHoldStorageTests(unittest.TestCase):
                 buy_quote=300,sell_quote=100,soft_deterioration_streak=0)
             action=runner_action(**args);self.assertEqual(action,original_risk.runner_action(**args))
             action=current._bridge_action(state,dict(facts,observed_at=at),action,p,now=at)
-            if turn<25920:self.assertEqual(action['action'],'hold')
-            else:self.assertEqual((action['action'],action['reason']),('full_exit','max_total_hold'))
+            self.assertEqual(action['action'],'hold')
             q,ledger=self.quote(at,'sell',750,2+77*(10000+rbps)//10000,
                 label='selective-v4-mark-'+str(p['version']),block=1020+50*turn)
             state.remember_action(action,p)
@@ -825,7 +837,14 @@ class LongHoldStorageTests(unittest.TestCase):
                 state=LifecycleState.restore(self.paper,'x');self.paper.controller_context=state.checkpoint
                 self.assertEqual(vars(state),checkpoint);self.assertEqual(self.paper.reconcile(),before)
                 self.assertEqual(state.opened_at,102);self.assertTrue(state.partial_taken)
-        self.clock[0]=129702;pending=self.paper.advance('x',now=129702,action='exit_intent',exit_tokens=750)
+        # The old 36h boundary grants no sale. A later genuine giveback does,
+        # and its pending intent remains irreversible through a price rebound.
+        action=runner_action(**dict(args,after_cost_return_bps=1000))
+        action=current._bridge_action(state,dict(facts,after_cost_return_bps=1000),action,p,now=129707)
+        self.assertEqual(action['action'],'full_exit');state.remember_action(action,p)
+        self.clock[0]=129707;q,ledger=self.quote(129707,'sell',750,85,label='selective-v4-mark-stop')
+        p=self.paper.advance('x',now=129707,action='mark',quote=q,finality_ledger=ledger)
+        pending=self.paper.advance('x',now=129707,action='exit_intent',exit_tokens=750)
         # A missing provider quote cannot settle. The native intent survives restart.
         self.assertEqual(pending['status'],'exit_pending');before=self.paper.reconcile()
         self.store.close();self.store=Store(self.path,max_records=8192)
@@ -924,9 +943,9 @@ class LongHoldHistoryTests(unittest.TestCase):
                     observation=dict(id=header['hash'],at=at,after_cost_return_bps=12000+turn,
                         creator_distribution=False,exit_liquidity_valid=True,soft_deterioration=False)
                     state,action=mark(state,observation,risk_policy());old,prior=legacy.mark(old,observation,risk_policy())
-                    self.assertEqual((state,action),(old,prior));self.assertEqual(state['opened_at'],100)
-                    if turn<86400:self.assertEqual(action['action'],'hold')
-                    else:self.assertEqual((action['action'],action['reason']),('full_exit','maximum_hold'))
+                    if turn<86400:self.assertEqual((state,action),(old,prior))
+                    else:self.assertEqual((prior['action'],prior['reason']),('full_exit','maximum_hold'))
+                    self.assertEqual(state['opened_at'],100);self.assertEqual(action['action'],'hold')
                     if turn%1200==0:
                         points,events=history.facts(row['id'],at)
                         maximum_points=max(maximum_points,len(points));maximum_events=max(maximum_events,len(events))

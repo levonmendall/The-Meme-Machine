@@ -65,7 +65,7 @@ class PreparedCapitalTests(unittest.TestCase):
 
 
 class RuntimeIntegrationTests(unittest.TestCase):
-    def fixture(self,policy=None,owners=True):
+    def fixture(self,policy=None,owners=True,*,new_epoch=False):
         import os,time
         from pathlib import Path
         from unittest.mock import patch
@@ -75,14 +75,26 @@ class RuntimeIntegrationTests(unittest.TestCase):
         from meme_machine.shared_capital.cutover import install
         from tests.shared_capital_support import legacy_fixture,empty_mapping
         td=tempfile.TemporaryDirectory();self.addCleanup(td.cleanup);root=Path(td.name)
-        old=legacy_fixture(root/'portfolio.sqlite');old.close()
+        if not new_epoch:
+            old=legacy_fixture(root/'portfolio.sqlite');old.close()
         mapping=empty_mapping()
         for family in ('pump','pons'):
             for strategy,strategy_policy in policies(family).items():
                 r=family+('_survivor' if 'survivor' in strategy else '_current')
                 mapping['contracts'][r]=dict(strategy_id=strategy,policy_hash=strategy_policy)
         from meme_machine.shared_capital.operational_candidate import prepare_plan
-        plan=prepare_plan(root/'portfolio.sqlite',mapping,policy=policy or RiskPolicy())
+        if new_epoch:
+            from meme_machine.portfolio_accounting import inception_receipt
+            from meme_machine.operational.supervisor import identities
+            from meme_machine.runtime.usd_valuation import utc
+            from meme_machine.shared_capital.operational_candidate import initialize_new_epoch
+            root=root/'new-1000'
+            receipt=inception_receipt('offline-fixture-shared-1000',utc(0),'explicit-new-inception',starting_capital='1000.00',shared=True)
+            ids=identities(receipt)
+            plan=initialize_new_epoch(root,receipt,portfolio_identities=ids['pump'],lane_identities=ids,
+                contracts=mapping['contracts'],policy=policy or RiskPolicy(sizing_basis='shared_realized_equity'))
+        else:
+            plan=prepare_plan(root/'portfolio.sqlite',mapping,policy=policy or RiskPolicy())
         prerequisites={k:True for k in ('writers_stopped','coherent_backup_verified','native_mapping_verified','recovery_verified','provider_proof_verified')}
         install(root,plan,approved_policy=plan['policy'],prerequisites=prerequisites)
         authority=RuntimeCapital(root/'shared-capital.sqlite');self.addCleanup(authority.close)

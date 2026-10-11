@@ -50,6 +50,8 @@ def _transient_file_size(path):
 
 
 def http_started(request_bytes=0):
+    from meme_machine.runtime.provider_purchases import purchase_started
+    purchase_started(request_bytes)
     current = _active.get()
     if current is not None:
         current['physical_requests'] += 1
@@ -68,6 +70,8 @@ def http_started(request_bytes=0):
 
 
 def http_received(response_bytes):
+    from meme_machine.runtime.provider_purchases import purchase_received
+    purchase_received(response_bytes)
     current=_active.get()
     if current is not None:current['response_bytes']=current.get('response_bytes',0)+response_bytes
 
@@ -82,6 +86,27 @@ def record(db, row, *, wire=True):
         counts['response_bytes']=row.get('response_bytes',0)
         counts['category:'+purpose+':response_bytes']=row.get('response_bytes',0)
     counts['physical_http_requests']=n
+    from meme_machine.runtime.provider_purchases import OPERATIONS,FAMILIES,CONSUMERS,PURPOSES
+    label=row.get('purchase_work',{});operation=label.get('operation','unattributed')
+    if operation not in OPERATIONS:operation='unattributed'
+    # Fixed domains preserve family/consumer/purpose even after the bounded
+    # transport audit is trimmed. This uses the existing counter transaction.
+    family=label.get('family','unknown');consumer=label.get('consumer','unknown')
+    acquisition=label.get('purpose','unknown')
+    if family not in FAMILIES:family='unknown'
+    if consumer not in CONSUMERS:consumer='unknown'
+    if acquisition not in PURPOSES:acquisition='unknown'
+    origin=label.get('origin_operation',operation)
+    if origin not in OPERATIONS:origin='unattributed'
+    prefix='purchase_work:'+':'.join((operation,family,consumer,acquisition,origin))+':'
+    if n:
+        counts[prefix+'physical_http_requests']=n
+        counts[prefix+'request_bytes']=row.get('request_bytes',0)
+        counts.update({prefix+'method:'+m:v for m,v in Counter(row['methods']).items()})
+        counts[prefix+'retry_requests']=int(row.get('retry_attempt',0)>0)
+    if not wire:
+        counts[prefix+'delivered_payload_bytes']=row.get('response_bytes',0)
+        counts[prefix+'failed_requests']=int(bool(row.get('boundary')))
     if n:
         counts['request_bytes']=row.get('request_bytes',0)
         counts['category:'+purpose+':request_bytes']=row.get('request_bytes',0)
@@ -153,6 +178,26 @@ def snapshot(path, fingerprint):
             effective_interval_seconds=limits[0],cooldown_until_monotonic=limits[1],database_bytes=Path(path).stat().st_size,
             wal_bytes=_transient_file_size(str(path)+'-wal')),
         historical_physical_requests='UNMEASURABLE before boundary instrumentation')
+    from meme_machine.runtime.provider_purchases import OPERATIONS
+    operations={operation:Counter() for operation in OPERATIONS};work={}
+    for metric,value in totals.items():
+        if metric.startswith('purchase_work:'):
+            _,operation,family,consumer,purpose,origin,metric=metric.split(':',6)
+            if operation not in operations:continue
+            operations[operation][metric]+=value
+            work.setdefault((operation,family,consumer,purpose,origin),Counter())[metric]+=value
+        elif metric.startswith('operation:'):
+            _,operation,metric=metric.split(':',2)
+            if operation in operations:operations[operation][metric]+=value
+    result['purchase_work']=[dict(zip(('operation','family','consumer','purpose','origin_operation'),key),**dict(value),
+        estimated_cu=estimate({k[7:]:int(n) for k,n in value.items() if k.startswith('method:')}),
+        verified_billed_cu=None) for key,value in sorted(work.items())]
+    result['operation_purchases']={k:dict(v) for k,v in operations.items()}
+    for value in result['operation_purchases'].values():
+        value['estimated_cu']=estimate({k[7:]:int(n) for k,n in value.items() if k.startswith('method:')})
+        value['verified_billed_cu']=None
+    result['legacy_unattributed_physical_requests']=max(0,int(totals['physical_http_requests'])-
+        sum(int(v.get('physical_http_requests',0)) for v in result['operation_purchases'].values()))
     for value in result['work_categories'].values():
         value['diagnostic_estimated_cu']=estimate({k[7:]:int(n) for k,n in value.items() if k.startswith('method:')})
         value['verified_billed_cu']=None

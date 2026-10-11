@@ -88,7 +88,7 @@ class EntryOrderingTests(unittest.TestCase):
         self.assertEqual(metrics['final_quote_acquisition_seconds'],.5)
         self.assertLessEqual(metrics['quote_age_at_decision_seconds'],5)
         self.assertEqual(metrics['broad_reconstruction_after_final_quote'],0)
-        self.assertEqual((rpc.logical,rpc.transports),(16,4))
+        self.assertEqual((rpc.logical,rpc.transports),(16,6))
 
     def test_real_time_after_final_quote_still_cancels(self):
         r,events,_,_=self.lifecycle(validation_delay=6)
@@ -130,11 +130,14 @@ class EntryOrderingTests(unittest.TestCase):
     def test_exact_delta_does_not_search_or_scan_full_history(self):
         header=dict(number='0x6',hash='h6',timestamp='0x65')
         calls=[]
-        def batch(endpoint,rows,scope,**kwargs):calls.extend(rows);return [[]],[]
+        def batch(endpoint,rows,scope,**kwargs):
+            calls.extend(rows)
+            return [([] if method=='eth_getLogs' else dict(header)) for method,params in rows],[]
         with patch.object(paper,'_header_search',side_effect=AssertionError('history search')),patch.object(paper,'_batched',side_effect=batch):
             events,_=paper._curve_logs('https://robinhood-mainnet.g.alchemy.com/v2/offline',CURVE,header,after_block=5)
         self.assertEqual(events,[])
-        self.assertEqual(len(calls),1)
+        self.assertEqual(len(calls),2)
+        self.assertEqual(calls[-1],('eth_getBlockByNumber',['0x6',False]))
         self.assertEqual(calls[0][1][0]['fromBlock'],'0x6')
         self.assertEqual(calls[0][1][0]['toBlock'],'0x6')
         with self.assertRaisesRegex(BoundaryError,'capacity'):

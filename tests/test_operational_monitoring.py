@@ -3,9 +3,29 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 from meme_machine.operational import monitoring
 
 class Conditions(unittest.TestCase):
+    def test_monitor_cli_binds_new_epoch_guard_and_detects_historical_guard_mismatch(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);observer=root/'observer';observer.mkdir();output=root/'output'
+            sample=self.sample();sample['portfolio']['epoch_id']='paper-separate-1000'
+            (observer/'latest.json').write_text(json.dumps(sample))
+            new=root/'storage.shared-1000.json';new.write_text(json.dumps(dict(epoch_id='paper-separate-1000')))
+            old=root/'storage.json';old.write_text(json.dumps(dict(epoch_id='paper-historical-500')))
+            args=['monitor','--once','--observer',str(observer),'--output',str(output)]
+            with patch('sys.argv',args),patch.dict('os.environ',{'MM_STORAGE_GUARD_CONFIG':str(new)}), \
+                 patch('subprocess.run') as command,patch.object(monitoring.time,'time',return_value=1000):
+                command.return_value.returncode=0
+                self.assertEqual(monitoring.main(),0)
+            self.assertNotIn('epoch_mismatch',json.loads((output/'status.json').read_text())['conditions'])
+            with patch('sys.argv',args+['--storage-config',str(old)]),patch('subprocess.run') as command, \
+                 patch.object(monitoring.time,'time',return_value=1000):
+                command.return_value.returncode=0
+                monitoring.main()
+            self.assertIn('epoch_mismatch',json.loads((output/'status.json').read_text())['conditions'])
+
     def test_disabled_finite_run_and_remaining_obligations_still_expect_management(self):
         sample=self.sample()
         self.assertTrue(monitoring.expected_run(sample,{},False,1000))

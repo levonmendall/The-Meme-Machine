@@ -57,6 +57,8 @@ def prepare(budget,*,maintenance_until):
 def adopt(budget,window=None):
     window=window or read(budget)
     if window is None:return False
+    if budget.envelope['maximum_seconds'] is None:
+        raise ValueError('maintenance_does_not_use_exceptional_holding_window')
     root=budget.bootstrap.snapshot();start=int(float(root['started_wall']))
     if (window['version']!='exceptional-window-candidate-v1' or window['started_at']!=start
             or window['recovery_until']!=window['maintenance_until']+3600
@@ -70,6 +72,7 @@ def adopt(budget,window=None):
 def tick(supervisor):
     """Candidate revision of deadline handling, reusing all native work owners."""
     budget=supervisor.provider_budget;window=read(budget)
+    if budget.envelope['maximum_seconds'] is None:return native.tick(supervisor)
     if window is None:return native.tick(supervisor)
     adopt(budget,window);state=supervisor.shared_capital.ledger();now=int(time.time())
     budget.reap_orphans();scope=state['runtime_admission']

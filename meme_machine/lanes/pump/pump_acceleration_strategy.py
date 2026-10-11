@@ -643,9 +643,6 @@ def exit_decision(observation, policy=POLICY):
         if seconds >= policy.postgrad_confirmation_grace_s and not observation.postgrad_demand_confirmed:
             return "graduation_without_continuation"
 
-    base=mode_max_hold_s(observation.mode,policy)
-    deadline=base*(1+int(observation.hold_extensions_used))
-    if age >= deadline:
-        return "timeout"
+    # The legacy mode durations remain policy/recovery descriptors and refresh
+    # checkpoints. Holding age supplies no authority to sell an existing lot.
     return None
-

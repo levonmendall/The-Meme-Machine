@@ -125,10 +125,12 @@ class NineChanges(unittest.TestCase):
         self.assertFalse(expired);self.assertEqual(bridged['bridge_deadline'],129700)
         self.assertEqual(bridged['opened_at'],100)
         for gate in BRIDGE_GATES:
-            self.assertTrue(bridge_state(original,dict(FACTS,**{gate:False}),now=1000,ordinary_expired=True)[1])
-        for now,expected in ((129699,False),(129700,True)):
+            view,expired=bridge_state(original,dict(FACTS,**{gate:False}),now=1000,ordinary_expired=True)
+            self.assertFalse(expired);self.assertFalse(view.get('bridged',False))
+        for now,expected in ((129699,False),(129700,False),(30*86400,False)):
             self.assertEqual(bridge_state(bridged,FACTS,now=now,ordinary_expired=True)[1],expected)
-        self.assertTrue(bridge_state(dict(original,high_water_bps=4999),FACTS,now=1000,ordinary_expired=True)[1])
+        view,expired=bridge_state(dict(original,high_water_bps=4999),FACTS,now=1000,ordinary_expired=True)
+        self.assertFalse(expired);self.assertFalse(view.get('bridged',False))
 
     def test_scale_time_price_and_capital_boundaries(self):
         s=dict(opened_at=0,original_basis=5000,high_water_bps=10000,first_tail_crossed_at=100,realization_taken=True)

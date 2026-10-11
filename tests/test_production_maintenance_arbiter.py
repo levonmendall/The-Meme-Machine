@@ -1,7 +1,7 @@
 """Production serve()/native SQLite integration and conditional liveness tests."""
 import asyncio
 from concurrent.futures import Future
-from contextlib import closing
+from contextlib import closing,ExitStack
 from dataclasses import replace
 import json
 from pathlib import Path
@@ -186,6 +186,60 @@ class ProductionServeTests(unittest.IsolatedAsyncioTestCase):
         def before(r,f,b):b['clock'].advance(4)
         box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(100,0,0)),before=before,turns=1)
         self.assertTrue(any('owner_lease_exceeded' in str(e) for e in box['errors']))
+        self.assertEqual(box['counters'].get('archived_records',0),0)
+
+    def delayed_maintenance_outcome(self):
+        """Delay only event-loop delivery; accepted native owner work is real."""
+        from meme_machine.solana_owner_admission import OwnerAdmission
+        accepted=OwnerAdmission.accepted;wrap=asyncio.wrap_future
+        def marked(admission,future,offer=None):
+            future.test_maintenance_turn=True
+            return accepted(admission,future,offer)
+        def delayed(future,*args,**kwargs):
+            value=wrap(future,*args,**kwargs)
+            if not getattr(future,'test_maintenance_turn',False):return value
+            async def delivery():
+                try:return await value
+                except BaseException:
+                    await asyncio.sleep(.1)
+                    raise
+            return asyncio.ensure_future(delivery())
+        stack=ExitStack()
+        stack.enter_context(patch.object(OwnerAdmission,'accepted',marked))
+        stack.enter_context(patch.object(asyncio,'wrap_future',delayed))
+        return stack
+
+    async def test_stop_observes_accepted_expiry_before_coroutine_receives_failure(self):
+        def before(r,f,b):b['clock'].advance(4)
+        with self.delayed_maintenance_outcome():
+            box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(100,0,0)),before=before,turns=1)
+            await asyncio.sleep(.15)
+        self.assertTrue(any('owner_lease_exceeded' in str(e) for e in box['errors']))
+        self.assertIn('owner_lease_exceeded',box['runtime'].failure)
+        self.assertEqual(box['health']['phase'],'FAILED')
+        self.assertEqual(box['counters'].get('archived_records',0),0)
+        self.assertTrue(all(row[2]==0 for row in box['records']))
+
+    async def test_stop_keeps_accepted_cooperative_yield_nonterminal(self):
+        def yielded(runtime,flight,submitted):
+            raise EvidenceUnavailable('evidence_background_yield')
+        with self.delayed_maintenance_outcome(),patch.object(production.MaintenanceRuntime,'turn',yielded):
+            box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(100,0,0)),turns=1)
+            await asyncio.sleep(.15)
+        self.assertFalse(box['errors'],box['errors'])
+        self.assertIsNone(box['runtime'].failure)
+        self.assertEqual(box['health']['phase'],'OFF')
+        self.assertEqual(box['counters'].get('archived_records',0),0)
+
+    async def test_stop_preserves_accepted_native_timeout_failure(self):
+        def failed(runtime,flight,submitted):
+            raise TimeoutError('native maintenance timeout')
+        with self.delayed_maintenance_outcome(),patch.object(production.MaintenanceRuntime,'turn',failed):
+            box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(100,0,0)),turns=1)
+            await asyncio.sleep(.15)
+        self.assertTrue(any(type(error) is TimeoutError and str(error)=='native maintenance timeout'
+            for error in box['errors']),box['errors'])
+        self.assertEqual(box['health']['phase'],'FAILED')
         self.assertEqual(box['counters'].get('archived_records',0),0)
 
     async def test_restart_preserves_active_recovery_deadline(self):

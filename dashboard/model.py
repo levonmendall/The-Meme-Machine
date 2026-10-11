@@ -10,6 +10,8 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from decimal import Decimal
 from meme_machine.exact_money import money, arithmetic, exact
+from meme_machine.portfolio_accounting import (inception_receipt as accounting_inception,
+    validate_inception as accounting_validate_inception, PLANNED_SHARED_CAPITAL)
 import hashlib
 import json
 from pathlib import Path
@@ -20,10 +22,11 @@ import time
 LANES = ('pump', 'pons', 'ramses', 'meteora')
 STATES = ('CURRENT', 'STALE', 'UNAVAILABLE', 'FAIL_CLOSED', 'UNKNOWN', 'NOT_INITIALIZED')
 CAPITAL = Decimal('500.00')
+REGIMES = ('pump_current','pump_survivor','pons_current','pons_survivor')
 MAX_BYTES = 4 * 1024 * 1024
 MAX_POSITIONS = 5000
 MAX_POINTS = 2000
-MONEY_FIELDS = ('equity', 'available_cash', 'reserved_cash', 'deployed_capital',
+MONEY_FIELDS = ('equity', 'realized_equity', 'available_cash', 'reserved_cash', 'deployed_capital',
                 'realized_pnl', 'unrealized_pnl', 'net_pnl', 'fees', 'shared_costs')
 METRICS = MONEY_FIELDS + ('return_pct', 'contribution_pct', 'trades_taken',
     'completed_trades', 'open_positions', 'wins', 'losses', 'breakevens',
@@ -71,24 +74,17 @@ def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False)
 
 
-def inception_receipt(epoch_id, inception_at, event_id):
+def inception_receipt(epoch_id, inception_at, event_id, **kwargs):
     """Construct an immutable receipt for a separately authorized canonical event.
 
     Does not establish an account, write a file or mint a timestamp. The caller
     must supply the real canonical event/time. No API exposes this function.
     """
-    stamp(inception_at)
-    return dict(schema='meme-machine-portfolio-inception-v1',
-                epoch_id=identity(epoch_id), inception_at=inception_at,
-                canonical_event_id=identity(event_id), starting_capital='500.00',
-                currency='USD', paper_only=True)
+    return accounting_inception(epoch_id, inception_at, event_id, **kwargs)
 
 
 def validate_inception(value):
-    expected = inception_receipt(value['epoch_id'], value['inception_at'], value['canonical_event_id'])
-    if value != expected:
-        raise ValueError('inception_contract')
-    return expected
+    return accounting_validate_inception(value)
 
 
 def metric(value=None, state='CURRENT', reason=None, unit=None):
@@ -206,6 +202,93 @@ def position(row, epoch, observed):
     for key in ('remaining_runner_exposure',):
         if row.get(key) is not None:
             optional[key] = format(decimal(row[key]), 'f')
+    if row.get('regime') is not None:
+        if row['regime'] not in REGIMES or row['regime'].split('_')[0]!=row['lane']:
+            raise ValueError('position_regime')
+        optional['regime']=row['regime']
+    for key in ('original_basis','staged_add_basis'):
+        if row.get(key) is not None:
+            value=decimal(row[key])
+            if value<0:raise ValueError('negative_position_basis')
+            optional[key]=format(value,'f')
+    if row.get('partial_exits') is not None:
+        if type(row['partial_exits']) is not int or row['partial_exits']<0:raise ValueError('partial_exits_count')
+        optional['partial_exits']=row['partial_exits']
+    if row.get('scale_committed') is not None:
+        if type(row['scale_committed']) is not bool:raise ValueError('scale_state')
+        optional['scale_committed']=row['scale_committed']
+    if row.get('staged_add_limits') is not None:
+        limits=row['staged_add_limits']
+        keys=('portfolio_equity','half_original_basis','combined_basis_headroom','maximum_basis')
+        values={k:decimal(limits[k]) for k in keys}
+        if min(values.values())<0 or values['maximum_basis']>min(values[k] for k in keys[:-1]) or limits.get('native_qualification_required') is not True:
+            raise ValueError('staged_add_limits')
+        optional['staged_add_limits']=dict({k:format(v,'f') for k,v in values.items()},native_qualification_required=True)
+    if row.get('risk_exposure') is not None:
+        risk=row['risk_exposure'];clean={}
+        for key in ('invested_basis','remaining_basis','marked_value','asset_exposure','asset_marked_ceiling',
+                    'lineage_invested_basis','asset_invested_ceiling'):
+            value=decimal(risk[key]) if risk.get(key) is not None else None
+            if value is not None and value<0:raise ValueError('position_risk_exposure')
+            clean[key]=format(value,'f') if value is not None else None
+        if (decimal(clean['invested_basis'])!=decimal(row['capital']) or
+                decimal(clean['remaining_basis'])!=decimal(row['remaining_basis']) or
+                risk.get('reference_only') is not True or risk.get('additional_funding_requires_native_decision') is not True):
+            raise ValueError('position_risk_exposure')
+        if clean['marked_value'] is not None:
+            source_mark=row.get('mark') or {}
+            if (state!='OPEN' or source_mark.get('state')!='CURRENT' or
+                    decimal(source_mark['net_liquidation_value'])!=decimal(clean['marked_value']) or
+                    not stamp(source_mark['as_of'])<=observed<=stamp(source_mark['valid_until'])):
+                raise ValueError('position_marked_risk_evidence')
+        optional['risk_exposure']=dict(clean,reference_only=True,additional_funding_requires_native_decision=True)
+    if row.get('funding_decisions') is not None:
+        if not isinstance(row['funding_decisions'],list) or len(row['funding_decisions'])>8:raise ValueError('funding_decisions')
+        decisions=[]
+        for decision in row['funding_decisions']:
+            if decision['kind'] not in ('new','scale','safety','continuation'):raise ValueError('funding_decision_kind')
+            amounts={k:decimal(decision[k]) for k in ('requested_basis','granted_basis')}
+            if min(amounts.values())<0 or amounts['granted_basis']>amounts['requested_basis']:raise ValueError('funding_decision_amount')
+            constraints=decision['binding_constraints']
+            if (not isinstance(constraints,list) or len(constraints)>32 or any(
+                    not isinstance(c,str) or '://' in c or not re.fullmatch(r'[A-Za-z0-9_.:/-]{1,320}',c) for c in constraints)):
+                raise ValueError('funding_decision_constraints')
+            decisions.append(dict(kind=decision['kind'],status=identity(decision['status']),
+                **{k:format(v,'f') for k,v in amounts.items()},
+                binding_constraints=constraints[:]))
+        optional['funding_decisions']=decisions
+    if row.get('protection') is not None:
+        risk=row['protection']
+        if risk['state'] not in ('UNKNOWN','MONITORING','STRATEGY_EXIT','PROTECTIVE_EXIT','DEGRADED_PROTECTION','EXIT_PENDING','OPERATIONAL_FAULT'):
+            raise ValueError('position_protection_state')
+        if type(risk.get('evidence_current')) is not bool or type(risk.get('pending_exit')) is not bool:
+            raise ValueError('position_protection_flags')
+        clean={k:risk[k] for k in ('state','evidence_current','pending_exit')}
+        if risk.get('observed_at') is not None:
+            when=stamp(risk['observed_at'])
+            if not entered<=when<=observed:raise ValueError('position_protection_clock')
+            clean['observed_at']=risk['observed_at']
+        for k in ('last_action','last_reason'):
+            if risk.get(k) is not None:clean[k]=identity(risk[k])
+        if risk.get('decision_kind') is not None:
+            if risk['decision_kind'] not in ('STRATEGY_EXIT','PROTECTIVE_EXIT'):raise ValueError('position_decision_kind')
+            clean['decision_kind']=risk['decision_kind']
+        for k in ('high_water_bps','remaining_quantity','stop_signal_bps','observed_return_bps','trigger_return_bps','executed_return_bps'):
+            if risk.get(k) is not None:
+                if type(risk[k]) is not int or k=='remaining_quantity' and risk[k]<0:raise ValueError('position_protection_number')
+                clean[k]=risk[k]
+        for k in ('actionable_at','execution_at'):
+            if risk.get(k) is not None:
+                when=stamp(risk[k])
+                if not entered<=when<=observed:raise ValueError('position_protection_clock')
+                clean[k]=risk[k]
+        if risk.get('trail') is not None:
+            trail=risk['trail']
+            if trail['kind'] not in ('not_armed','ordinary_trail','tail_gain_giveback'):raise ValueError('position_trail_kind')
+            floor=trail.get('return_floor_bps')
+            if floor is not None and type(floor) is not int:raise ValueError('position_trail_floor')
+            clean['trail']=dict(kind=trail['kind'],return_floor_bps=floor)
+        optional['protection']=clean
     return dict(id=identity(row['id']), lane=row['lane'], asset=identity(row['asset']),
                 state=state, entered_at=row['entered_at'], settled_at=settled_at,
                 strategy_id=strategy_identity(row['strategy_id']) if row.get('strategy_id') else None,
@@ -265,24 +348,55 @@ def validate_export(raw, epoch, mode):
         decimal(totals['realized_pnl'])
         if decimal(totals['fees'])<0:raise ValueError('retired_lane_costs')
     shared=raw.get('shared_capital')
+    retired_regimes=raw.get('retired_regime_totals',{})
+    for r,totals in retired_regimes.items():
+        if r not in REGIMES+('meteora','ramses') or type(totals['count']) is not int or totals['count']<0:
+            raise ValueError('retired_regime_totals')
+        decimal(totals['realized_pnl'])
+        if decimal(totals['fees'])<0:raise ValueError('retired_regime_costs')
+    if epoch.get('funding_authority')=='SHARED' and shared is None:
+        raise ValueError('selected_shared_authority_required')
     if shared is not None:
-        if not isinstance(shared,dict) or shared.get('sizing_basis')!='effective_family_equivalence':
+        expected=epoch.get('sizing_basis','effective_family_equivalence')
+        if not isinstance(shared,dict) or shared.get('sizing_basis')!=expected:
             raise ValueError('shared_capital_sizing_contract')
+        limits=shared.get('risk_limits',{})
+        invested_limit=limits.get('asset_invested_bps')
+        if invested_limit is not None and (type(invested_limit) is not int or
+                not 0<invested_limit<=limits.get('asset_bps',0)<=10000):
+            raise ValueError('shared_capital_risk_policy')
         amounts={k:decimal(shared[k]) for k in ('inception_equity','realized_equity','actual_cash','free_cash',
             'deployed_basis','active_reservations','pending_authoritative_commitments','required_funding_obligations')}
-        if (amounts['inception_equity']!=CAPITAL or min(amounts.values())<0 or
+        if (amounts['inception_equity']!=decimal(epoch['starting_capital']) or min(amounts.values())<0 or
                 amounts['actual_cash']+amounts['deployed_basis']!=amounts['realized_equity'] or
                 amounts['free_cash']+amounts['active_reservations']+amounts['pending_authoritative_commitments']+
                 amounts['required_funding_obligations']!=amounts['actual_cash']):
             raise ValueError('shared_capital_conservation')
+        if (balance['realized_pnl']!=amounts['realized_equity']-amounts['inception_equity'] or
+                balance['available_cash']!=amounts['free_cash'] or balance['deployed_capital']!=amounts['deployed_basis'] or
+                balance['reserved_cash']!=sum((amounts[k] for k in ('active_reservations','pending_authoritative_commitments','required_funding_obligations')),Decimal(0))):
+            raise ValueError('shared_capital_export_mismatch')
+        if expected=='shared_realized_equity':
+            if 'family_equivalent_equity' in shared:raise ValueError('shared_epoch_family_denominator')
+            from meme_machine.shared_capital.model import scaled
+            if set(shared['directional_sizing'])!=set(REGIMES):raise ValueError('directional_sizing_coverage')
+            for r,sizing in shared['directional_sizing'].items():
+                if (decimal(sizing['realized_equity'])!=amounts['realized_equity'] or
+                        decimal(sizing['new_position_target'])!=scaled(amounts['realized_equity'],500) or
+                        decimal(sizing['staged_add_equity_ceiling'])!=scaled(amounts['realized_equity'],250) or
+                        decimal(sizing['combined_basis_ceiling'])!=scaled(amounts['realized_equity'],750)):
+                    raise ValueError('shared_capital_sizing_contract')
+                realized=sum((decimal(p['realized_pnl']) for p in positions if p.get('regime')==r),Decimal(0))
+                realized+=decimal(retired_regimes.get(r,{}).get('realized_pnl','0'))
+                if realized!=decimal(shared['regimes'][r]['realized_pnl']):raise ValueError('regime_attribution_mismatch')
     return dict(epoch=epoch, as_of=raw['as_of'], valid_until=raw['valid_until'],
                 sequence=raw['sequence'], positions=positions, balances=balance,
                 history=histories, excluded_positions=len(raw['positions'])-len(positions),
                 identities=safe_identities(raw), history_complete=raw.get('history_complete') is True,retired=retired,
-                shared_capital=deepcopy(shared))
+                shared_capital=deepcopy(shared),retired_regimes=deepcopy(retired_regimes))
 
 
-def performance(rows, now, state, retired=None):
+def performance(rows, now, state, retired=None, *, starting_capital=CAPITAL):
     retired=retired or {};retired_count=retired.get('count',0)
     settled = [p for p in rows if p['state'] == 'SETTLED']
     opened = [p for p in rows if p['state'] == 'OPEN']
@@ -324,17 +438,22 @@ def performance(rows, now, state, retired=None):
             out[key]=metric(None,'UNAVAILABLE','individual_closed_history_retired; cumulative_money_and_count_preserved')
     out['unrealized_pnl'] = metric(unrealized if valid else None, mark_state, 'canonical_net_liquidation_marks_required' if not valid else None)
     out['net_pnl'] = metric(net, mark_state)
-    out['contribution_pct'] = metric(net * 100 / CAPITAL if net is not None else None, mark_state)
+    out['contribution_pct'] = metric(net * 100 / starting_capital if net is not None else None, mark_state)
     return out
 
 
 class Reader:
     """Input changes invalidate a bounded cache; reads never import runtime code."""
-    def __init__(self, inception=None, accounting=None, telemetry=None, sources=None, *, mode='canonical', clock=time.time):
+    def __init__(self, inception=None, accounting=None, telemetry=None, sources=None, *, mode='canonical', clock=time.time,
+                 expected_epoch=None, expected_inception_sha256=None):
         if mode not in ('canonical', 'fixture'):
             raise ValueError('mode')
         self.inception, self.accounting, self.telemetry, self.sources = inception, accounting, telemetry, sources
         self.mode, self.clock = mode, clock
+        self.expected_epoch=identity(expected_epoch) if expected_epoch is not None else None
+        if expected_inception_sha256 is not None and not re.fullmatch('[a-f0-9]{64}',expected_inception_sha256):
+            raise ValueError('expected_inception_hash')
+        self.expected_inception_sha256=expected_inception_sha256
         self._cache = None
         self._key = None
         self._epoch_hash = None
@@ -352,6 +471,9 @@ class Reader:
         try:
             epoch = validate_inception(read_json(self.inception))
             digest = hashlib.sha256(canonical(epoch).encode()).hexdigest()
+            if ((self.expected_epoch is not None and epoch['epoch_id']!=self.expected_epoch) or
+                    (self.expected_inception_sha256 is not None and digest!=self.expected_inception_sha256)):
+                return None,'FAIL_CLOSED'
             if self._epoch_hash is not None and digest != self._epoch_hash:
                 return None, 'FAIL_CLOSED'
             self._epoch_hash = digest
@@ -474,7 +596,7 @@ class Reader:
                     data, state = None, 'FAIL_CLOSED'
                 elif now > stamp(data['valid_until']):
                     state = 'STALE'
-            portfolio = dict(state=state, mode=self.mode, desired_starting_capital='500.00',
+            portfolio = dict(state=state, mode=self.mode, desired_starting_capital=PLANNED_SHARED_CAPITAL,
                 starting_capital=metric(None, state), metrics=missing_metrics(state, 'canonical_epoch_accounting_required'),
                 as_of=None, reconciliation=metric(None, state), epoch=None)
             lanes = {lane: dict(lane=lane, metrics=missing_metrics(state, 'canonical_epoch_accounting_required'),
@@ -482,24 +604,28 @@ class Reader:
             history = {k: [] for k in ('portfolio',) + LANES}
             positions = []
             if data is not None:
+                capital=decimal(data['epoch']['starting_capital'])
                 positions = deepcopy(data['positions'])
                 history = data['history']
-                portfolio.update(epoch=data['epoch'], starting_capital=metric(CAPITAL), as_of=data['as_of'],
+                portfolio.update(epoch=data['epoch'], starting_capital=metric(capital), desired_starting_capital=data['epoch']['starting_capital'],as_of=data['as_of'],
                                  excluded_historical_positions=data['excluded_positions'], identities=data['identities'])
                 if data.get('shared_capital') is not None:portfolio['shared_capital']=deepcopy(data['shared_capital'])
                 for lane in LANES:
-                    lanes[lane].update(metrics=performance([p for p in positions if p['lane'] == lane], now, state,data['retired'].get(lane)), as_of=data['as_of'])
+                    lanes[lane].update(metrics=performance([p for p in positions if p['lane'] == lane], now, state,data['retired'].get(lane),starting_capital=capital), as_of=data['as_of'])
+                portfolio['regimes']={r:dict(regime=r,metrics=performance([p for p in positions if p.get('regime')==r],now,state,
+                    data['retired_regimes'].get(r),starting_capital=capital)) for r in REGIMES} if data['shared_capital'] else {}
                 retired=dict(count=sum(r['count'] for r in data['retired'].values()),
                     realized_pnl=format(sum((decimal(r['realized_pnl']) for r in data['retired'].values()),Decimal(0)), 'f'),
                     fees=format(sum((decimal(r['fees']) for r in data['retired'].values()),Decimal(0)), 'f'))
-                metrics = performance(positions, now, state,retired)
+                metrics = performance(positions, now, state,retired,starting_capital=capital)
                 balance = data['balances']
                 for key, value in balance.items():
                     metrics[key] = metric(value, state)
                 unrealized = metrics['unrealized_pnl']['value']
                 net = balance['realized_pnl'] + decimal(unrealized) if balance['realized_pnl'] is not None and unrealized is not None else None
                 metrics['net_pnl'] = metric(net, metrics['unrealized_pnl']['state'])
-                metrics['return_pct'] = metric(net*100/CAPITAL if net is not None else None, metrics['net_pnl']['state'])
+                metrics['return_pct'] = metric(net*100/capital if net is not None else None, metrics['net_pnl']['state'])
+                metrics['realized_equity']=metric(capital+balance['realized_pnl'] if balance['realized_pnl'] is not None else None,state)
                 metrics['contribution_pct'] = metric(None, 'UNAVAILABLE', 'portfolio_uses_return_pct')
                 if unrealized is None:
                     metrics['equity'] = metric(None, metrics['unrealized_pnl']['state'], 'current_valuation_unavailable')
@@ -511,9 +637,9 @@ class Reader:
                 if balance['deployed_capital'] is not None and all(p['remaining_basis'] is not None for p in positions):
                     checks['remaining_basis'] = sum((decimal(p['remaining_basis']) for p in positions), Decimal(0)) == balance['deployed_capital']
                 if all(balance[k] is not None for k in ('available_cash', 'reserved_cash', 'deployed_capital', 'realized_pnl')):
-                    checks['cash_basis_conservation'] = balance['available_cash']+balance['reserved_cash']+balance['deployed_capital'] == CAPITAL+balance['realized_pnl']
+                    checks['cash_basis_conservation'] = balance['available_cash']+balance['reserved_cash']+balance['deployed_capital'] == capital+balance['realized_pnl']
                 if net is not None and balance['equity'] is not None:
-                    checks['equity_equals_inception_plus_net'] = balance['equity'] == CAPITAL+net
+                    checks['equity_equals_inception_plus_net'] = balance['equity'] == capital+net
                 if balance['fees'] is not None and balance['shared_costs'] is not None and all(p['fees'] is not None for p in positions):
                     checks['cost_attribution'] = sum((decimal(p['fees']) for p in positions), Decimal(0))+decimal(retired['fees'])+balance['shared_costs'] == balance['fees']
                 reconcile_state = 'FAIL_CLOSED' if False in checks.values() else state if len(checks) == 5 else 'UNAVAILABLE'
@@ -524,7 +650,7 @@ class Reader:
                     for item in metrics.values():
                         if item['value'] is not None:
                             item['state'] = 'FAIL_CLOSED'
-                    for lane in lanes.values():
+                    for lane in [*lanes.values(),*portfolio.get('regimes',{}).values()]:
                         for item in lane['metrics'].values():
                             if item['value'] is not None:
                                 item['state'] = 'FAIL_CLOSED'
@@ -543,6 +669,14 @@ class Reader:
                     p['unrealized_pnl'] = m['unrealized_pnl']
                     p['unrealized_pct'] = metric(decimal(m['unrealized_pnl']['value'])*100/decimal(p['remaining_basis']) if p['state']=='OPEN' and p['remaining_basis'] is not None and m['unrealized_pnl']['value'] is not None else None, m['unrealized_pnl']['state'])
                     p['age_seconds'] = int((stamp(p['settled_at']) if p['settled_at'] else now)-stamp(p['entered_at']))
+                    risk=p.get('protection')
+                    if risk and p['state']=='OPEN':
+                        age=now-stamp(risk['observed_at']) if risk.get('observed_at') else None
+                        cadence=3 if p.get('regime')=='pons_survivor' else 5
+                        risk['observation_age_seconds']=age
+                        if age is None or age>cadence or state!='CURRENT':
+                            risk['evidence_current']=False
+                            if risk['state']=='MONITORING':risk['state']='DEGRADED_PROTECTION'
                     p['current_value'] = metric(p['mark']['value'] if p['mark'] and m['unrealized_pnl']['state']=='CURRENT' else None, m['unrealized_pnl']['state'])
                     p.pop('mark')
                     p['outcome'] = ('winner' if decimal(p['realized_pnl']) > 0 else 'loser' if decimal(p['realized_pnl']) < 0 else 'breakeven') if p['state']=='SETTLED' and p['realized_pnl'] is not None else None

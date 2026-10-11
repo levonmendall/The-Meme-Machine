@@ -9,6 +9,7 @@ No call by this module can authorize the dormant event-first execution path.
 The shadow uses the existing canonical owned RPC and shared governor.
 """
 import os
+import threading
 from collections import Counter
 from dataclasses import dataclass
 from time import monotonic
@@ -77,7 +78,8 @@ class PaperHeldShadow:
     so a change in gas with an unchanged Swap must NOT count as equivalent.
     Run limits are also enforced by the external finite provider resource ledger.
     """
-    def __init__(self,endpoint,*,environ=None,clock=monotonic):
+    def __init__(self,endpoint,*,environ=None,clock=monotonic,
+                 asynchronous=False,rpc_factory=None):
         env=os.environ if environ is None else environ
         self.enabled=env.get(SHADOW_ENV)=='1'
         self.endpoint=endpoint
@@ -88,16 +90,46 @@ class PaperHeldShadow:
         self.last={}
         self.last_result=None
         self.unsafe=False
+        self.asynchronous=asynchronous
+        self.rpc_factory=rpc_factory or self._new_optional_rpc
+        self._lock=threading.Lock()
+        self._busy=False
+        self._closed=False
+        self._rpc=None
+
+    def _new_optional_rpc(self):
+        from .provider_topology import configured_rpc,ProviderPacer,DIRECTIONAL_RPS
+        rpc=configured_rpc(self.endpoint,limit=200,per_scope=200,retries=0,
+                           timeout=MAX_PROBE_SECONDS)
+        # The existing cross-process governor still enforces the same endpoint
+        # ceiling and priority 30. Optional pacing must not hold the native
+        # controller's in-process pacer lock or change its RPC deadline.
+        rpc.pacer=ProviderPacer(DIRECTIONAL_RPS)
+        return rpc
+
+    def close(self):
+        # A native exit or shutdown never waits for an optional provider read.
+        with self._lock:self._closed=True
 
     def status(self):
         return dict(enabled=self.enabled,mode='PAPER_SHADOW_ONLY',
             entry_authority=False,exit_authority=False,can_skip_quotes=False,
             quote_suppression_enabled=False,controller_policy_modified=False,
             sample_limit=self.sample_limit,every_ticks=self.every_ticks,
+            asynchronous=self.asynchronous,probe_inflight=self._busy,
             unsafe=self.unsafe,counts=dict(self.counts),last_result=self.last_result,
             provider_invoice_savings_verified=False)
 
-    def observe_after_hold(self,*,rpc,pool_id,quantity,quote_block,quote_hash,
+    def observe_after_hold(self,**kwargs):
+        if not self.asynchronous:return self._observe_after_hold(**kwargs)
+        with self._lock:
+            if self._closed:return None
+            if self._busy:
+                self.counts['probe_inflight_no_work']+=1
+                return None
+            return self._observe_after_hold(**kwargs)
+
+    def _observe_after_hold(self,*,rpc,pool_id,quantity,quote_block,quote_hash,
                            net_proceeds,position_open=True,no_pending_exit=True,
                            no_pending_partial=True,owner_protected=True,
                            risk_distance_bps=0,gross_amount_out=None,
@@ -153,15 +185,44 @@ class PaperHeldShadow:
             self.counts['unsampled_hold_turns_no_work']+=1
             return None
         self.counts['coverage_samples']+=1
+        if self.asynchronous:
+            self._busy=True
+            try:
+                threading.Thread(target=self._background_probe,
+                    args=(prior,snapshot,quantity,risk_distance_bps),
+                    name='pons-held-paper-shadow',daemon=True).start()
+            except Exception:
+                self._busy=False
+                self.counts['isolated_unexpected_probe_error']+=1
+            return None
+        return self._probe(rpc,prior,snapshot,quantity,risk_distance_bps)
+
+    def _background_probe(self,prior,snapshot,quantity,risk_distance_bps):
+        try:
+            self._probe(None,prior,snapshot,quantity,risk_distance_bps)
+        except Exception:
+            self.counts['isolated_unexpected_probe_error']+=1
+        finally:
+            with self._lock:self._busy=False
+
+    def _probe(self,rpc,prior,snapshot,quantity,risk_distance_bps):
         prior_deadline=getattr(rpc,'evidence_deadline',None)
         acquisition_started=self.clock()
         try:
             deadline=acquisition_started+MAX_PROBE_SECONDS
             if prior_deadline is not None:
                 deadline=min(deadline,float(prior_deadline))
-            rpc.evidence_deadline=deadline
             from .provider_admission import optional_paper_shadow_work
             with optional_paper_shadow_work():
+                if rpc is None:
+                    if self._closed:return None
+                    if self._rpc is None:self._rpc=self.rpc_factory()
+                    rpc=self._rpc
+                    prior_deadline=getattr(rpc,'evidence_deadline',None)
+                rpc.evidence_deadline=deadline
+                if self.clock()>=deadline:
+                    raise BoundaryError('evidence_deadline_before_transport')
+                if not getattr(rpc,'chain_verified',False):rpc.verify_chain()
                 proof=NativeHeldCoverage(
                     rpc,self.endpoint,clock=self.clock,maximum_blocks=MAX_BLOCK_GAP
                 ).observe(
@@ -238,7 +299,7 @@ class PaperHeldShadow:
                 original_exit_completed_before_shadow=True,
                 quote_skipped=False)
         finally:
-            rpc.evidence_deadline=prior_deadline
+            if rpc is not None:rpc.evidence_deadline=prior_deadline
             seconds=max(0.,self.clock()-acquisition_started)
             self.counts['shadow_elapsed_milliseconds']+=int(seconds*1000)
             if seconds>MAX_PROBE_SECONDS:

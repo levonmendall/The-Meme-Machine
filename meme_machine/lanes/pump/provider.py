@@ -166,6 +166,7 @@ class RPC:
         result = None
         last_error = None
         for attempt in range(attempts):
+            self._purchase_retry_attempt=attempt
             if self.calls >= cap:
                 raise Unavailable('provider_budget_exhausted')
             self._check_evidence_deadline()

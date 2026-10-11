@@ -54,18 +54,19 @@ class ExitBoundaries(unittest.TestCase):
    self.assertEqual((s['deterioration_streak'],a['action']),(1,'hold'))
    s,_=mark(s,observation(3,0,soft_deterioration=False),p)
    self.assertEqual(s['deterioration_streak'],0)
- def test_seventy_two_hour_maximum_even_without_quote(self):
+ def test_seventy_two_hour_age_has_no_exit_authority_even_without_quote(self):
   for p in POLICIES.values():
    self.assertEqual(mark(state(),observation(259199,None),p)[1]['action'],'hold')
-   self.assertEqual(mark(state(),observation(259200,None),p)[1]['reason'],'maximum_hold')
+   self.assertEqual(mark(state(),observation(259200,None),p)[1]['action'],'hold')
    s,_=mark(state(),dict(observation(259199,None),id='same_block'),p)
-   self.assertEqual(mark(s,dict(observation(259200,None),id='same_block'),p)[1]['reason'],'maximum_hold')
+   self.assertEqual(mark(s,dict(observation(259200,None),id='same_block'),p)[1]['action'],'hold')
  def test_pons_six_hour_stale_thesis_and_return_boundary(self):
   p=POLICIES['pons']
   self.assertEqual(mark(state(),observation(21599,499),p)[1]['action'],'hold')
   self.assertEqual(mark(state(),observation(21600,499),p)[1]['action'],'hold') # a new high refreshes thesis
   s=state();s.update(high_water_bps=499)
-  self.assertEqual(mark(s,observation(21600,498),p)[1]['reason'],'stale_thesis')
+  self.assertEqual(mark(s,observation(21600,498),p)[1]['action'],'hold')
+  self.assertEqual(mark(s,observation(21600,498,soft_deterioration=True),p)[1]['reason'],'stale_thesis')
   self.assertEqual(mark(s,observation(21600,500),p)[1]['action'],'hold')
  def test_safety_full_exits_and_pending_intent(self):
   for p in POLICIES.values():

@@ -25,6 +25,7 @@ from .solana_provider_config import AlchemyEndpoint
 
 
 from meme_machine.runtime.request_scheduling import governed_sol_http
+from meme_machine.runtime.provider_purchases import account_transport,purchase_started,purchase_received,ledger
 
 PRIMARY_PROVIDER = "alchemy_solana_mainnet"
 PUBLIC_HTTP_PROVIDER = "solana_public_mainnet_fallback"
@@ -265,8 +266,10 @@ class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
         data = json.dumps(request).encode()
         req = urllib.request.Request(url, data, {"Content-Type": "application/json"})
         try:
+            purchase_started(len(data))
             with urllib.request.urlopen(req, timeout=8) as response:
                 raw = response.read(2_000_001)
+                purchase_received(len(raw))
             if len(raw) > 2_000_000:raise Unavailable("response_size_limit")
             value = json.loads(raw)
             if endpoint:endpoint.public(value)
@@ -379,6 +382,7 @@ class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
                 jsonrpc_error_code=error.get("code", "unknown"),
             )
 
+    @account_transport('pump')
     def _provider_attempt(self, label, url, request):
         self.provider_http_requests[label] += 1
         error_sequence_before = self.provider_error_sequence
@@ -425,7 +429,13 @@ class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
                 except AttributeError:pass
             else:self._active_rpc_method=previous
 
+    def _cache_get(self,key):
+        hit,value=super()._cache_get(key)
+        ledger(self).consumer([getattr(self,'_active_rpc_method','unknown')],cache_hit=hit,family='pump')
+        return hit,value
+
     def call_many(self, method, params_list, priority=False, batch_size=8):
+        self._purchase_retry_attempt=0
         previous=getattr(self,"_active_rpc_method",None)
         self._active_rpc_method=str(method)
         try:
@@ -467,6 +477,7 @@ class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
             failover_count=int(self.failover_count),
             failover_reasons=dict(sorted(self.failover_reasons.items())),
             pacing=self.read_pacer.telemetry(),
+            provider_purchases=ledger(self).snapshot(),
         )
 
 

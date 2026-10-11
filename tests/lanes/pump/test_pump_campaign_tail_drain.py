@@ -8,7 +8,7 @@ from meme_machine.lanes.pump import runner as runner
 
 
 class PumpCampaignTailDrainTests(unittest.TestCase):
-    def test_final_second_entry_can_reach_full_900_second_timeout_and_settle(self):
+    def test_final_second_entry_survives_900_seconds_and_only_a_real_stop_settles(self):
         discovery_end=10_000
         opened_at=discovery_end-1
         q=Qualification(
@@ -38,10 +38,12 @@ class PumpCampaignTailDrainTests(unittest.TestCase):
             now=timeout_at,
             demand_score=POLICY.demand_exit_score,
         )
-        self.assertEqual(mark['exit_reason'],'timeout')
-        closed=life.settle(1_000,timeout_at)
+        self.assertIsNone(mark['exit_reason'])
+        with self.assertRaisesRegex(ValueError,'exit_not_intended'):life.settle(1_000,timeout_at)
+        self.assertEqual(life.mark(800,timeout_at+5,demand_score=80)['exit_reason'],'risk_stop')
+        closed=life.settle(800,timeout_at+5)
         self.assertEqual(closed['opened_at'],opened_at)
-        self.assertEqual(closed['closed_at']-closed['opened_at'],900)
+        self.assertEqual(closed['closed_at']-closed['opened_at'],905)
         self.assertIsNone(life.position)
 
 
