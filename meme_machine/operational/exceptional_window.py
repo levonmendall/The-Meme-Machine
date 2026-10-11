@@ -46,9 +46,20 @@ def prepare(budget,*,maintenance_until):
             if root['phase']!='BOOTSTRAP':raise ValueError('initial_exceptional_configuration_required')
             db.execute('INSERT INTO run VALUES(?,?)',(KEY,json.dumps(value,sort_keys=True)))
             for phase in ('continuation','recovery'):
+                from .bounded_provider import resource_configuration
+                prefix=phase+'.'
+                limits=json.loads(root[prefix+'limits'])
+                before=resource_configuration(limits,
+                    None if root[prefix+'wall_seconds']=='' else int(root[prefix+'wall_seconds']),
+                    root[prefix+'modeled_spend_limit'],int(root[prefix+'reconnect_limit']))
+                if before!=root[prefix+'resource_configuration']:
+                    raise ValueError('initial_exceptional_resource_configuration_unverified')
                 phase_start=int(float(root[phase+'.started_wall']))
-                db.execute('UPDATE run SET value=? WHERE key=?',
-                    (str(value['service_until']-phase_start),phase+'.wall_seconds'))
+                seconds=value['service_until']-phase_start
+                db.executemany('UPDATE run SET value=? WHERE key=?',[
+                    (str(seconds),prefix+'wall_seconds'),
+                    (resource_configuration(limits,seconds,root[prefix+'modeled_spend_limit'],
+                        int(root[prefix+'reconnect_limit'])),prefix+'resource_configuration')])
         db.execute('COMMIT')
     adopt(budget,value)
     return value

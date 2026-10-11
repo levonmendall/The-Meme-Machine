@@ -191,4 +191,19 @@ class ProviderPreflightTests(unittest.TestCase):
         self.assertEqual(state['positions']['foreign']['status'],'OPEN')
         self.assertEqual(self.budget.snapshot()['http_attempts'],'0')
 
+    def test_inactive_window_preparation_cannot_repair_an_unverified_resource_envelope(self):
+        from meme_machine.operational.bounded_provider import PhaseBudget
+        from meme_machine.operational.exceptional_window import prepare
+        from tests.test_position_continuation import envelope
+        path=self.root/'continuation.sqlite';Budget.create(path,continuation=envelope())
+        b=PhaseBudget(path)
+        with b.bootstrap.db() as db:
+            db.execute("UPDATE run SET value='1' WHERE key='continuation.modeled_spend_limit'")
+        with self.assertRaisesRegex(ValueError,'resource_configuration_unverified'):
+            prepare(b,maintenance_until=int(b.bootstrap.started_wall)+3600)
+        with b.bootstrap.db() as db:row=dict(db.execute('SELECT key,value FROM run'))
+        self.assertNotIn('exceptional_operational_window',row)
+        self.assertEqual(row['continuation.modeled_spend_limit'],'1')
+        self.assertEqual(row['continuation.wall_seconds'],str(envelope()['maximum_seconds']))
+
 if __name__=='__main__':unittest.main()
