@@ -93,6 +93,20 @@ class CandidateTransactionJoin:
         self.early_logs={};self.early_log_bytes=0
         self.recent_logs={}
 
+    def diagnostic(self):
+        """Bounded pending-state facts; never substitute these for coverage."""
+        oldest=min(self.pending,default=None)
+        s=self.pending.get(oldest,{})
+        return dict(filtered_from_slot=self.filtered_from_slot,completed=self.completed,
+            pending_slots=len(self.pending),pending_bytes=self.pending_bytes,
+            early_log_count=len(self.early_logs),early_log_bytes=self.early_log_bytes,
+            early_log_min_slot=min((k[0] for k in self.early_logs),default=None),
+            early_log_max_slot=max((k[0] for k in self.early_logs),default=None),
+            oldest_slot=oldest,oldest_age=self.clock()-s['started'] if s else None,
+            oldest_meta=s.get('meta') is not None,oldest_finality=s.get('finality'),
+            oldest_statuses=len(s.get('statuses',{})),oldest_bodies=len(s.get('bodies',{})),
+            oldest_missing_logs=len(s.get('missing_logs',())),replay_prefix_bytes=self.replay_prefix_bytes)
+
     def feed_log(self,slot,sig,logs,error,seen):
         """Body-free content; the independent native identity grants its order."""
         if (type(slot) is not int or slot<=0 or not isinstance(sig,str)

@@ -173,11 +173,15 @@ class SharedAuthorityTests(unittest.TestCase):
         original=budget.snapshot()
         s.epoch=a.ledger()['epoch_id']
         s.admission='OBSERVATION'
-        with patch.dict(os.environ,MM_BOUNDED_PROVIDER_DB=str(budget.path)):
+        from tests.test_bounded_provider_preflight import observation_file
+        envelope=observation_file(root,budget)
+        with patch.dict(os.environ,MM_BOUNDED_PROVIDER_DB=str(budget.path),MM_BOUNDED_PROVIDER_ENVELOPE=str(envelope)):
             for _ in range(2):
                 s.configure_admission()
                 for lane in ('pump','pons','solana'):
                     self.assertEqual(s.environment(lane)['MM_BOUNDED_PROVIDER_DB'],str(budget.path))
+                    self.assertEqual(s.environment(lane)['MM_BOUNDED_PROVIDER_ENVELOPE'],str(envelope))
+                self.assertEqual(s.runtime_lanes(),('pump',))
                 self.assertEqual(s.provider_budget.snapshot(),original)
                 self.assertEqual(a.ledger()['runtime_admission']['mode'],'OBSERVATION')
         a.verify_replay()
@@ -191,7 +195,9 @@ class SharedAuthorityTests(unittest.TestCase):
         budget.change(reason='modeled_spend_limit',check=False)
         original=budget.snapshot();before=a.ledger()['runtime_admission']
         s.admission='OBSERVATION'
-        with patch.dict(os.environ,MM_BOUNDED_PROVIDER_DB=str(budget.path)):
+        from tests.test_bounded_provider_preflight import observation_file
+        envelope=observation_file(root,budget)
+        with patch.dict(os.environ,MM_BOUNDED_PROVIDER_DB=str(budget.path),MM_BOUNDED_PROVIDER_ENVELOPE=str(envelope)):
             with self.assertRaisesRegex(CeilingReached,'modeled_spend_limit'):
                 s.configure_admission()
         self.assertEqual(budget.snapshot(),original)

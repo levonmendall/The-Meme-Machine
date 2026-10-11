@@ -9,6 +9,7 @@ import asyncio
 import base64
 import hashlib
 import json
+import logging
 import time
 import uuid
 import grpc
@@ -313,11 +314,35 @@ class SelectiveSource:
         self.batched=False;self.pending_delivery={};self.delivery_lock=asyncio.Lock();self.control_connected=False
         self.native_streams={};self.native_attempts={};self.native_errors={}
         self.native_peak=0;self.native_revision=0;self.native_published=-1
+        self.pending_diagnostics=[]
+
+    def diagnostic(self,kind,body):
+        # Reuse canonical acquisition observations, without bodies, new files
+        # or a second writer. Journal spill preserves diagnostics when the
+        # owner is delayed; forensic work cannot block native protection.
+        if len(self.pending_diagnostics)>=64:
+            logging.getLogger(__name__).warning('source_diagnostic %s %s',kind,canonical(body))
+            return
+        self.pending_diagnostics.append((kind,body))
+
+    def commit_diagnostics(self,state,rows):
+        h=install(state)
+        for kind,body in rows:h._observation(None,kind,body)
+
+    async def flush_diagnostics(self):
+        rows=list(self.pending_diagnostics)
+        if rows:
+            await self.work(lambda s:self.commit_diagnostics(s,rows),2)
+            del self.pending_diagnostics[:len(rows)]
 
     def observe(self,kind,**values):
         identity=values.get('stream_id');family=values.get('family','shared')
         if kind=='subscribe':
-            self.native_streams[identity]=dict(consumer=family,delivering=False)
+            from google.protobuf.json_format import MessageToDict
+            request=MessageToDict(values['request'],preserving_proto_field_name=True)
+            self.native_streams[identity]=dict(consumer=family,delivering=False,
+                request=request,messages={},samples=[])
+            self.diagnostic('native_subscribe',dict(stream_id=identity,family=family,request=request))
             self.native_attempts[family]=self.native_attempts.get(family,0)+1
             self.native_peak=max(self.native_peak,len(self.native_streams));self.native_revision+=1
         elif kind=='delivery' and identity in self.native_streams and not self.native_streams[identity]['delivering']:
@@ -325,7 +350,21 @@ class SelectiveSource:
         elif kind=='native_error':
             key=family+':'+values['status'];self.native_errors[key]=self.native_errors.get(key,0)+1
             self.native_revision+=1
+            context=self.native_streams.get(identity,{})
+            body=dict(**values,request=context.get('request'),messages=context.get('messages'),samples=context.get('samples'))
+            self.diagnostic('native_error',body)
+            # The existing service journal survives even if the canonical
+            # owner itself fails before the pending observations can commit.
+            logging.getLogger(__name__).warning('native_error %s',canonical(body))
+        elif kind=='native_frame':
+            context=self.native_streams[identity];message=values['message']
+            context['messages'][message]=context['messages'].get(message,0)+1
+            if len(context['samples'])<16:context['samples'].append(values)
+            return # Existing transport observers already receive the raw delivery.
         elif kind=='unsubscribe':
+            context=self.native_streams.get(identity,{})
+            self.diagnostic('native_stream_closed',dict(stream_id=identity,family=family,
+                messages=context.get('messages'),samples=context.get('samples')))
             self.native_streams.pop(identity,None);self.native_revision+=1
         if self.observer is not None:self.observer(kind,values)
 
@@ -377,21 +416,25 @@ class SelectiveSource:
             while not self.stop.is_set():
                 await self.flush_delivery()
                 revision=self.native_revision;native=self.stream_telemetry()
+                diagnostics=list(self.pending_diagnostics)
                 ready=time.monotonic();timing={}
                 def publish(s):
                     timing['owner_claim_monotonic']=time.monotonic()
                     if revision!=self.native_published:s.fence._health('native_streams',native)
+                    self.commit_diagnostics(s,diagnostics)
                     h=install(s);timing['publication_started_monotonic']=time.monotonic()
                     h.lifecycle.publish()
                     timing['publication_finished_monotonic']=time.monotonic()
                     timing['publication_finished_wall']=time.time()
                     return h.startup.advance()
                 await self.work(publish,2,label='source_commit')
+                del self.pending_diagnostics[:len(diagnostics)]
                 self.observe('publication_timing',work_ready_monotonic=ready,
                     work_returned_monotonic=time.monotonic(),**timing)
                 self.native_published=revision
                 await asyncio.sleep(.1)
-        finally:await self.flush_delivery()
+        finally:
+            await self.flush_delivery()
 
     async def control_commits(self,queue):
         while not self.stop.is_set():
@@ -425,6 +468,7 @@ class SelectiveSource:
             except EvidenceUnavailable as exc:
                 if str(exc) not in ('candidate_native_eof','candidate_native_unavailable','candidate_native_internal','candidate_native_deadline_exceeded','candidate_native_cancelled','candidate_native_resource_exhausted'):raise
                 self.control_connected=False
+                self.diagnostic('control_join_failure',dict(reason=str(exc),**join.diagnostic()))
                 retry+=1
                 def disconnected(state):
                     h=install(state)
@@ -487,6 +531,14 @@ class SelectiveSource:
                 await self.delivered(family,'yellowstone',len(raw),at)
                 decode_started=time.monotonic()
                 update=pb.SubscribeUpdate.FromString(raw);kind=update.WhichOneof('update_oneof')
+                item=getattr(update,kind) if kind else None
+                sample=dict(stream_id=stream_id,family=family,message=kind or 'unknown',
+                    bytes=len(raw),filters=list(update.filters),seen=at)
+                if update.HasField('created_at'):
+                    sample['provider_created_at']=update.created_at.seconds+update.created_at.nanos/1e9
+                for key in ('slot','parent','parent_slot','status','index','executed_transaction_count','bank_id'):
+                    if item is not None and hasattr(item,key):sample[key]=getattr(item,key)
+                self.observe('native_frame',**sample)
                 self.observe('decode_timing',stream_id=stream_id,family=family,transport='yellowstone',bytes=len(raw),seconds=time.monotonic()-decode_started)
                 if kind=='ping':await call.write(pb.SubscribeRequest(ping=pb.SubscribeRequestPing(id=1)));continue
                 if kind=='pong':continue
@@ -588,6 +640,7 @@ class SelectiveSource:
             finally:
                 for task in tasks:task.cancel()
                 await asyncio.gather(*tasks,return_exceptions=True)
+                await self.flush_diagnostics()
 
     async def structural_census(self):
         """Exhaust both WSOL orientations. Quiet pools remain durable forever."""
@@ -1007,7 +1060,11 @@ class SelectiveSource:
                     if fresh_rolling:
                         log_frontiers.setdefault(row['family'],result['context']['slot'])
                         if len(log_frontiers)==len({r['family'] for r in desired}):logs_available.set()
-                    if v['err'] is None:await commit(join.feed_log(result['context']['slot'],v['signature'],v['logs'],None,seen))
+                    if v['err'] is None:
+                        try:await commit(join.feed_log(result['context']['slot'],v['signature'],v['logs'],None,seen))
+                        except EvidenceUnavailable as exc:
+                            self.diagnostic('log_join_failure',dict(reason=str(exc),**join.diagnostic()))
+                            raise
         tasks=[];waiter=None
         if len(full)<len(desired):tasks.append(asyncio.create_task(logs()))
         else:acknowledged.set()

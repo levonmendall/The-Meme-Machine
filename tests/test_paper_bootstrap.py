@@ -231,7 +231,10 @@ class ProviderBudgetTests(unittest.TestCase):
         from meme_machine.operational.bounded_provider import install
         from unittest.mock import MagicMock
         opener=MagicMock()
-        with patch.dict(os.environ,{'MM_BOUNDED_PROVIDER_DB':str(self.budget.path)}),\
+        from tests.test_bounded_provider_preflight import observation_file
+        envelope=observation_file(self.budget.path.parent,self.budget)
+        with patch.dict(os.environ,{'MM_BOUNDED_PROVIDER_DB':str(self.budget.path),
+                'MM_BOUNDED_PROVIDER_ENVELOPE':str(envelope)}),\
                 patch('urllib.request.build_opener',return_value=opener),\
                 patch('urllib.request.urlopen'),patch.object(provider,'urlopen'),\
                 patch.object(grpc.aio,'secure_channel'),patch.object(source,'connect'):

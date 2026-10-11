@@ -1,0 +1,18 @@
+{
+  "schema": "bounded-provider-observation-v1",
+  "limits": {
+    "rpc_cu": 150000,
+    "rpc_elements": 1800,
+    "http_attempts": 1200,
+    "http_bytes": 134217728,
+    "native_bytes": 1073741824,
+    "native_stop_bytes": 536870912,
+    "native_inflight_bytes": 536870912
+  },
+  "wall_seconds": 900,
+  "modeled_spend_limit": "0.20",
+  "maximum_native_opens": 8,
+  "lanes": [
+    "pump"
+  ]
+}

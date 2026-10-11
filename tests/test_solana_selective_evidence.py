@@ -293,4 +293,54 @@ class SourceIntegrationTests(SelectiveEvidenceTests):
                 self.assertEqual(summary['delivery'],[]);source.rpc.call_delivered.assert_not_called()
                 call.cancel.assert_called_once()
 
+    def test_native_internal_phase_and_actual_body_free_request_survive_source_restart(self):
+        import asyncio
+        import grpc
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock,MagicMock
+        from meme_machine.solana_selective_source import SelectiveSource,PROGRAMS
+        addresses={PROGRAMS[f]:'program:'+f for f in ('pump','pumpswap')}
+        request=candidate_subscription(addresses,300,full_addresses=set())
+        self.assertFalse(request.transactions)
+        from meme_machine.solana_candidate_lifecycle import CandidateLifecycle
+        self.history.lifecycle=CandidateLifecycle(self.history)
+        state=SimpleNamespace(selective=self.history)
+        async def work(fn,*args,**kwargs):
+            with self.writer.transaction():return fn(state)
+        for phase in ('subscription_write','stream_read'):
+            source=SelectiveSource(SimpleNamespace(credential='fixture-key'),MagicMock(),token='fixture-token')
+            source.stop=asyncio.Event();source.work=work
+            call=MagicMock();call.write=AsyncMock();call.read=AsyncMock()
+            error=grpc.aio.AioRpcError(grpc.StatusCode.INTERNAL,None,None,
+                details='replay failed fixture-token https://solana-mainnet.streaming.alchemy.com/v2/fixture-key')
+            (call.write if phase=='subscription_write' else call.read).side_effect=error
+            channel=MagicMock();channel.stream_stream.return_value.return_value=call
+            with self.assertLogs('meme_machine.solana_selective_source',level='WARNING') as logs:
+                with self.assertRaisesRegex(EvidenceUnavailable,'candidate_native_internal'):
+                    asyncio.run(source.stream(channel,request,AsyncMock(),'pump'))
+            asyncio.run(source.flush_diagnostics())
+            self.assertNotIn('fixture-token',' '.join(logs.output));self.assertNotIn('fixture-key',' '.join(logs.output))
+        rows=[json.loads(r[0]) for r in self.writer.db.execute(
+            "SELECT body FROM acquisition_observations WHERE kind='native_error' ORDER BY id")]
+        self.assertEqual([r['phase'] for r in rows],['subscription_write','stream_read'])
+        self.assertTrue(all(r['status']=='INTERNAL' and r['request']['from_slot']=='300' for r in rows))
+        self.assertTrue(all('transactions' not in r['request'] for r in rows))
+        self.assertTrue(all(len(r['request']['transactions_status'])==2 for r in rows))
+        self.assertEqual(self.writer.db.execute('SELECT count(*) FROM candidate_checkpoints').fetchone()[0],0)
+
+    def test_join_failure_diagnostics_distinguish_logs_from_missing_metadata_and_finality(self):
+        from meme_machine.solana_selective_source import PROGRAMS
+        programs={PROGRAMS['pump']:'program:pump'}
+        join=CandidateTransactionJoin(programs,set(),filtered_from_slot=300)
+        join.feed_log(300,'known-fixture-signature',['Program log: example'],None,self.now[0])
+        status=pb.SubscribeUpdate(filters=['0'])
+        status.transaction_status.slot=300;status.transaction_status.index=0
+        status.transaction_status.signature=b'\x01'*64
+        self.assertIsNone(join.feed(status,status.ByteSize(),self.now[0]))
+        row=join.diagnostic()
+        self.assertEqual(row['oldest_slot'],300);self.assertEqual(row['oldest_statuses'],1)
+        self.assertFalse(row['oldest_meta']);self.assertIsNone(row['oldest_finality'])
+        self.assertEqual(row['early_log_count'],1);self.assertEqual(row['completed'],-1)
+        self.assertEqual(row['oldest_missing_logs'],1)
+
 if __name__=='__main__':unittest.main()

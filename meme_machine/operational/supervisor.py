@@ -93,7 +93,7 @@ class Supervisor:
         self.last_publish=0
 
     def runtime_lanes(self):
-        return getattr(self,'continuation_lanes',ACTIVE_LANES)
+        return getattr(self,'continuation_lanes',getattr(self,'observation_lanes',ACTIVE_LANES))
 
     def _assert_paused_lanes_clear(self,account):
         from .pause import assert_clear
@@ -214,7 +214,10 @@ class Supervisor:
                     getattr(self,'provider_budget',None) is None):
                 raise ValueError('pons_shadow_requires_existing_finite_provider_budget')
             env.update(shadow)
-        if getattr(self,'provider_budget',None):env['MM_BOUNDED_PROVIDER_DB']=str(self.provider_budget.path)
+        if getattr(self,'provider_budget',None):
+            env['MM_BOUNDED_PROVIDER_DB']=str(self.provider_budget.path)
+            if os.environ.get('MM_BOUNDED_PROVIDER_ENVELOPE'):
+                env['MM_BOUNDED_PROVIDER_ENVELOPE']=os.environ['MM_BOUNDED_PROVIDER_ENVELOPE']
         if solana:
             env.update(MM_PROVIDER_GOVERNOR_DB=str(self.root/'shared/solana-provider.sqlite'),
                 MM_SOLANA_EVIDENCE_PLANE_DB=str(self.root/'shared/solana-evidence.sqlite'),
@@ -428,7 +431,11 @@ class Supervisor:
             # A prepared observation allowance must reach every existing child
             # transport. Open its durable counters; never create or replenish it.
             self.provider_budget=Budget(os.environ['MM_BOUNDED_PROVIDER_DB'])
-            self.provider_budget.admission()
+            envelope=self.provider_budget.preflight_file()
+            from .position_continuation import position_lanes
+            if set(position_lanes(state))-set(envelope['lanes']):
+                self.provider_budget.fail('bounded_observation_cannot_omit_existing_owner')
+            self.observation_lanes=tuple(envelope['lanes'])
         self.admission_data=dict(mode='OBSERVATION' if self.admission=='BOOTSTRAP' else self.admission,
             run_id=self.run_id,pid=os.getpid(),process_start=process_identity(os.getpid()))
         if getattr(self,'provider_budget',None):self.admission_data['provider_db']=str(self.provider_budget.path)

@@ -1,0 +1,47 @@
+{
+  "parent_commit": "8882b653668a3225804a249bc22975ebc00c52a4",
+  "checks": [
+    {
+      "log": "FOCUSED-core-final.log.gz",
+      "tests": 141,
+      "seconds": 21.996,
+      "status": "PASS",
+      "raw_sha256": "92379f45a08e7b9c0851a8356773fcde66594b065d9d7c1e2d812170247c94ba"
+    },
+    {
+      "log": "OPERATIONAL-focused-final.log.gz",
+      "tests": 232,
+      "seconds": 39.166,
+      "status": "PASS",
+      "raw_sha256": "5083f84fdb91915b8a47e3aa81da8e08bb474ebd9d545201a46472dd321377ed"
+    },
+    {
+      "log": "PUMP-offline-proof.log.gz",
+      "tests": 79,
+      "seconds": 7.483,
+      "status": "PASS",
+      "raw_sha256": "5e2997207755ea95a06f833f27c5411767c89a32d438d73ed0ae0e28f715757c"
+    }
+  ],
+  "files": {
+    "meme_machine/operational/bounded_provider.py": "39d896a63afa38db0d224dc8020bb4b88312128f1c24b453c387f2f7380e9c0d",
+    "meme_machine/operational/supervisor.py": "432bb02b0cecc2dd0df0d44ae43b0c51ca74f8cda620d9aeb2c1d99ca037a10f",
+    "meme_machine/solana_candidate_join.py": "72a75303cf29acf62009c8f99e4d4902ea89b5d9d2ef743737a23a0c0cb6a12c",
+    "meme_machine/solana_selective_source.py": "6e79c0ede7edea13b9e832745cce56f7c8ead72c1b539f9c06fea0885668f99f",
+    "operational/tests.py": "76fd324b133a9d1ce41564287ec8ac1fbebcc1d6dd8889c183458b5589614b90",
+    "tests/test_bounded_provider_preflight.py": "3359fedff8e3c61b0e111173a0ba91ae736ca1f27a4c7763fe76d9a46cb80e83",
+    "tests/test_first_owner_scope.py": "17a93b1ba7f97656035a5297a8ecffea07a7ce7835be1731ed1d11c1830b0ac6",
+    "tests/test_paper_bootstrap.py": "e5ee0d599abef20234d8d0284c22ec03f12ddc300f9c3369d1ea37f5ecb2003c",
+    "tests/test_solana_selective_evidence.py": "8c974c9ade69bbbb8fca3ac974bbecefd0cf3021461e099b1a2eb07a2c6437fd"
+  },
+  "network": "OFFLINE_ONLY",
+  "authenticated_validation": "NOT_DISPATCHED_NEW_AUTHORIZATION_REQUIRED",
+  "deployment": "FOLLOW_TESTED_SUCCESSOR_IDENTITY",
+  "previous_failures_preserved": [
+    "/tmp/mm-engineering-p70x6p0_",
+    "/tmp/mm-engineering-d31qj3jz",
+    "/tmp/mm-engineering-4pgblo21",
+    "/tmp/mm-engineering-mjzb7ojw"
+  ],
+  "scratch_guard": "The first focused operational attempt used 64 MiB and stopped on its cold-record fixture. Failure preserved; successful retry used the existing repository default of 1 GiB. Production byte limits unchanged."
+}
