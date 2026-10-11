@@ -1,11 +1,11 @@
 {
-  "classification": "READ_ONLY_HOST_CAPABILITY_INSPECTION",
-  "recorded_at": "2026-10-10T18:06:56.263746+00:00",
+  "classification": "AUTHORIZED_ISOLATED_ORIGINAL_CONTAINMENT_CASES_PASS_HOST_RESTORED",
+  "recorded_at": "2026-10-11T01:52:18.350374+00:00",
   "root_enabled": "cpu memory pids",
   "existing_scopes": 65,
   "eligible_existing_scopes": [],
-  "host_modified": false,
-  "exact_blocker": "delegated_cpu_memory_io_controllers_required",
+  "host_modified": "Transient ancestor +io/-io and test-owned cgroups only",
+  "exact_blocker": null,
   "minimum_environment": "Existing authorized dedicated two-vCPU Linux x86_64 cgroup-v2 host with cpu, memory and io delegated to an isolated writable child, cpu.max/memory.max/memory.swap.max/io.max, cgroup.kill, block-device I/O accounting and libseccomp notification support; unchanged assertions.",
   "original_cases": [
     "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_cgroup_contains_and_kills_escaped_descendant",
@@ -14,7 +14,7 @@
   "original_source_assertions_unchanged": true,
   "authorized_alternate_environment_exposed": false,
   "scope_count_method": "Unique inspected cgroup directories, root included once",
-  "current_source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+  "current_source_commit": "5fa099edbce26a69b28503e893a961131feca57e",
   "existing_github_runner_inspected": true,
   "github_predecessor_run": 38025007658,
   "github_new_source_run": 38030100957,
@@ -66,5 +66,17 @@
   "privileged_change_authorized": false,
   "production_cpu_or_memory_shortage_demonstrated": false,
   "root_io_enabled": false,
-  "final_frozen_environment_error_source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab"
+  "final_frozen_environment_error_source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+  "host_restored": true,
+  "authorized_existing_environment_exposed": true,
+  "previous_read_only_inspection": {
+    "classification": "READ_ONLY_HOST_CAPABILITY_INSPECTION",
+    "recorded_at": "2026-10-10T18:06:56.263746+00:00",
+    "root_enabled": "cpu memory pids",
+    "host_modified": false,
+    "exact_blocker": "delegated_cpu_memory_io_controllers_required"
+  },
+  "authorized_validation_report": "CONTAINMENT_VALIDATION.json",
+  "current_controller_configuration": "cpu memory pids",
+  "persistent_controller_or_service_change": false
 }

@@ -1,0 +1,476 @@
+{
+  "schema": "authorized-isolated-containment-acceptance-v1",
+  "recorded_at": "2026-10-11T01:52:18.350374+00:00",
+  "tested_source_commit": "5fa099edbce26a69b28503e893a961131feca57e",
+  "trading_runtime_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+  "code_fingerprint": "08b8ca738183da09715a57ef6951a22194ac957e074638aab36f237df9ef2924",
+  "authorization": {
+    "maximum_minutes": 120,
+    "first_controller_change_at": "2026-10-11T00:01:59.822100+00:00",
+    "additional_provider_spend_usd": "0",
+    "additional_infrastructure_spend_usd": "0",
+    "market_provider_requests": 0,
+    "scope": "Existing DigitalOcean host; transient ancestor I/O availability and isolated original test children only."
+  },
+  "original_cases_passed_before_changes": {
+    "suite": "FOCUSED",
+    "command": [
+      "/root/Documents/Codex/2026-10-08/codex-final-paper-deployment-pr-126/validation-venv/bin/python",
+      "-m",
+      "operational.tests",
+      "FAST",
+      "--cases",
+      "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_cgroup_contains_and_kills_escaped_descendant",
+      "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant",
+      "--verbose"
+    ],
+    "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+    "exit_code": 0,
+    "test_count": 2,
+    "elapsed_seconds": 4.543,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "log_name": "containment-final-FOCUSED.log",
+    "sha256": "d8cd954054d933cb2df984218980fc4a4526d10905ea5ebf2c1e542fc9a03689",
+    "result": "PASS"
+  },
+  "final_focused": {
+    "suite": "FOCUSED",
+    "command": [
+      "/root/Documents/Codex/2026-10-08/codex-final-paper-deployment-pr-126/validation-venv/bin/python",
+      "-m",
+      "operational.tests",
+      "FAST",
+      "--cases",
+      "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_cgroup_contains_and_kills_escaped_descendant",
+      "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant",
+      "--verbose"
+    ],
+    "source_commit": "5fa099edbce26a69b28503e893a961131feca57e",
+    "exit_code": 0,
+    "test_count": 2,
+    "elapsed_seconds": 4.716,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "log_name": "containment-candidate-FOCUSED.log",
+    "sha256": "fe1293eedc529230433274039c923b81865391cf0bd3541bb185e421f443ef77",
+    "result": "PASS"
+  },
+  "final_operational_suffix": {
+    "suite": "OPERATIONAL",
+    "source_commit": "5fa099edbce26a69b28503e893a961131feca57e",
+    "exit_code": 0,
+    "test_count": 1490,
+    "elapsed_seconds": 530.723,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 33,
+    "log_name": "containment-suffix-OPERATIONAL.log",
+    "sha256": "62c3be5a3c6c85a10cabcd9b43a9b3bdbb8c3bb0561db2b8257e8afb4efbbd27",
+    "result": "PASS",
+    "command_template": [
+      "/root/Documents/Codex/2026-10-08/codex-final-paper-deployment-pr-126/validation-venv/bin/python",
+      "-m",
+      "operational.tests",
+      "OPERATIONAL",
+      "--cases",
+      "<exact remaining_cases from CONTAINMENT_RESUME_CASES.json>",
+      "--verbose"
+    ],
+    "exact_command_case_manifest": "CONTAINMENT_RESUME_CASES.json",
+    "command_sha256": "a8a0401b0dede333a0c2dde0fe4d19bcd94e7726ca2fbae2355b1ed66ce9c5e5"
+  },
+  "exact_original_suite_case_coverage": {
+    "source_commit": "5fa099edbce26a69b28503e893a961131feca57e",
+    "runtime_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+    "fast_cases": 1500,
+    "operational_cases": 2930,
+    "original_fixture_body_ast_identical": true,
+    "operational_contains_exact_fast_prefix": true,
+    "actual_log_prefix_matches_fast_case_order": true,
+    "completed_prefix_cases": 1440,
+    "completed_suffix_cases": 1490,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 33,
+    "standalone_final_FAST_repeated": false,
+    "uninterrupted_full_OP_completed": false,
+    "reason": "Exact ordered original OPERATIONAL case coverage across interrupted successful prefix and passing uncompleted suffix; original storage guard and failed prior FAST remain explicit.",
+    "interrupted_prefix_log_sha256": "d7602a5b39eb0c2a5490121ac5b4e947e77b9f077d1566bdcdbffab9cb745e08",
+    "suffix_log_sha256": "62c3be5a3c6c85a10cabcd9b43a9b3bdbb8c3bb0561db2b8257e8afb4efbbd27",
+    "ordered_case_ids_sha256": "f1050ae56a71628a1d8938ca37142b639b4b06382600ce844fea060154209b78"
+  },
+  "full_operational_command_status": "INTERRUPTED_BY_UNCHANGED_STORAGE_GUARD; not a full-suite PASS",
+  "storage_interruption": {
+    "source_commit": "5fa099edbce26a69b28503e893a961131feca57e",
+    "status": "INTERRUPTED_BY_ORIGINAL_STORAGE_ADMISSION",
+    "last_started_case": "tests.lanes.pons.test_pons_finalization.QuietCurrentTests.test_every_quiet_identity_gets_a_turn_under_continuous_new_buy_pressure",
+    "started_cases": 1441,
+    "verbose_success_markers": 1440,
+    "no_unittest_summary": true,
+    "logged_failure_entries": [],
+    "log_name": "containment-candidate-OPERATIONAL.log",
+    "log_sha256": "d7602a5b39eb0c2a5490121ac5b4e947e77b9f077d1566bdcdbffab9cb745e08",
+    "failure_reason": "root_headroom_blocks_nonessential_artifact",
+    "scope": "/tmp/mm-engineering-qp32296u",
+    "root": {
+      "used_bytes": 41986973696,
+      "free_bytes": 8880357376,
+      "total_bytes": 50867331072,
+      "percent_used": 82.54212047526077,
+      "device": 64769
+    },
+    "unchanged_scratch_reserve_bytes": 1073741824,
+    "projected_percent": 84.65298770845644,
+    "minimum_free_up_bytes_for_entry": -176515890,
+    "classification": "No completed whole-suite PASS; preserved scope and resource guard unchanged.",
+    "completed_cases": 1440,
+    "header_parse_note": "One unittest docstring makes its result header span two lines; ordered coverage uses headers with or without a same-line ellipsis."
+  },
+  "final_host_execution_window_seconds": 6589.937,
+  "controller_mutations": [
+    {
+      "at": "2026-10-11T01:02:53.687134+00:00",
+      "path": "/sys/fs/cgroup/cgroup.subtree_control",
+      "operation": "+io",
+      "scope": "temporary ancestor availability; no existing limit changed"
+    },
+    {
+      "at": "2026-10-11T01:38:43.888409+00:00",
+      "path": "/sys/fs/cgroup/cgroup.subtree_control",
+      "operation": "-io",
+      "scope": "original root controller configuration restored"
+    }
+  ],
+  "original_fixture_assertions_and_limits_ast_identical": true,
+  "fixture_repair": {
+    "commit": "5fa099edbce26a69b28503e893a961131feca57e",
+    "path": "tests/test_pump_pons_proof.py",
+    "change": "Existing run_native helper gives the unchanged watchdog body a dedicated supervisor process; 128-MiB parent reserve and all original assertions remain.",
+    "actual_full_suite_parent_resource": {
+      "at": "2026-10-11T01:08:51.148034+00:00",
+      "scope": "Read-only actual full-suite worker before containment fixture; original proof parent limit remains unchanged.",
+      "workers": [
+        {
+          "pid": 1862205,
+          "rss": 214216704,
+          "cpu_seconds": 221.5
+        }
+      ],
+      "proof_parent_reserve_bytes": 134217728
+    },
+    "synthetic_over_reserve_diagnostic": {
+      "classification": "SYNTHETIC_OVER_RESERVE_PARENT_STOPS_BEFORE_FIXTURE_READY",
+      "original_fixture_unchanged": true,
+      "original_memory_reserve_bytes": 134217728,
+      "deliberate_diagnostic_allocation_bytes": 167772160,
+      "before": {
+        "rss": 195796992,
+        "cpu": 0.24,
+        "writes": 12288
+      },
+      "samples": [
+        {
+          "rss": 196714496,
+          "cpu": 0.25,
+          "writes": 12288
+        },
+        {
+          "rss": 196845568,
+          "cpu": 0.26,
+          "writes": 200704
+        },
+        {
+          "rss": 196976640,
+          "cpu": 0.26,
+          "writes": 204800
+        },
+        {
+          "rss": 197107712,
+          "cpu": 0.26,
+          "writes": 204800
+        }
+      ],
+      "errors": 2,
+      "failures": 0,
+      "provider_requests": 0,
+      "limitation": "Earlier e17 FAST parent RSS was not recorded; synthetic mechanism matches pre-ready termination but produced FileNotFoundError, not its ConnectionResetError race.",
+      "observed_abort_reason": "supervisor_memory_reserve",
+      "observed_fixture_errors": "Both unchanged subcases lacked escaped.pid because child was terminated before ready.",
+      "full_FAST_error_identity_reproduced": false
+    },
+    "final_fixture_parent_resource_lines": [
+      "test_supervisor_deadline_kills_hung_worker_and_setsid_descendant (tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant) ... {\"containment_fixture_parent_resources\": {\"rss\": 692830208, \"cpu\": 1606.24, \"writes\": 22294286336}}"
+    ],
+    "limitation": "Prior completed e17 FAST parent RSS was not recorded; synthetic over-budget run aborted before readiness with different error identity."
+  },
+  "preserved_failed_FAST": {
+    "suite": "FAST",
+    "command": [
+      "/root/Documents/Codex/2026-10-08/codex-final-paper-deployment-pr-126/validation-venv/bin/python",
+      "-m",
+      "operational.tests",
+      "FAST",
+      "--verbose"
+    ],
+    "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+    "exit_code": 1,
+    "test_count": 1500,
+    "elapsed_seconds": 2274.0,
+    "failures": 0,
+    "errors": 2,
+    "skipped": 0,
+    "log_name": "containment-final-FAST.log",
+    "sha256": "b5a6f0d1b8b4a283f9cf764b951701203bbbb0d217f5e53f71d1419d5fde401f",
+    "result": "FAIL"
+  },
+  "preserved_interrupted_attempt": {
+    "classification": "STOPPED",
+    "error": "validation_signal_15",
+    "restoration_errors": [],
+    "note": "Initial monitored FAST interruption retained; no completed acceptance claimed. Unchanged timing case subsequently passed."
+  },
+  "resource_evidence": {
+    "mm-provider-proof-1862181-762746753022272": {
+      "first_seen": "2026-10-11T01:02:54.700817+00:00",
+      "creator_pid": 1862181,
+      "samples": [
+        {
+          "at": "2026-10-11T01:02:54.700836+00:00",
+          "limits": {
+            "cgroup.subtree_control": "",
+            "cpu.max": "175000 100000",
+            "cpu.weight": "100",
+            "memory.max": "4144889856",
+            "memory.high": "max",
+            "memory.swap.max": "0",
+            "io.max": "253:0 rbps=max wbps=7102354 riops=max wiops=max",
+            "io.weight": "default 100",
+            "pids.max": "max"
+          },
+          "cpu_stat": "usage_usec 8944\nuser_usec 3833\nsystem_usec 5110\ncore_sched.force_idle_usec 0\nnr_periods 5\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "memory_peak": "1912832",
+          "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+          "io_stat": "253:0",
+          "pids": [
+            1862188,
+            1862192
+          ]
+        }
+      ],
+      "last_sample": {
+        "at": "2026-10-11T01:02:55.709273+00:00",
+        "limits": {
+          "cgroup.subtree_control": "",
+          "cpu.max": "175000 100000",
+          "cpu.weight": "100",
+          "memory.max": "4144889856",
+          "memory.high": "max",
+          "memory.swap.max": "0",
+          "io.max": "253:0 rbps=max wbps=7102354 riops=max wiops=max",
+          "io.weight": "default 100",
+          "pids.max": "max"
+        },
+        "cpu_stat": "usage_usec 14745\nuser_usec 6225\nsystem_usec 8520\ncore_sched.force_idle_usec 0\nnr_periods 14\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+        "memory_peak": "1912832",
+        "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+        "io_stat": "253:0",
+        "pids": [
+          1862188,
+          1862192
+        ]
+      }
+    },
+    "mm-provider-proof-1862181-762749005089607": {
+      "first_seen": "2026-10-11T01:02:56.718207+00:00",
+      "creator_pid": 1862181,
+      "samples": [
+        {
+          "at": "2026-10-11T01:02:56.718223+00:00",
+          "limits": {
+            "cgroup.subtree_control": "",
+            "cpu.max": "175000 100000",
+            "cpu.weight": "100",
+            "memory.max": "4160749568",
+            "memory.high": "max",
+            "memory.swap.max": "0",
+            "io.max": "253:0 rbps=max wbps=7102354 riops=max wiops=max",
+            "io.weight": "default 100",
+            "pids.max": "max"
+          },
+          "cpu_stat": "usage_usec 0\nuser_usec 0\nsystem_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "memory_peak": "0",
+          "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+          "io_stat": "253:0",
+          "pids": []
+        }
+      ],
+      "last_sample": {
+        "at": "2026-10-11T01:02:57.728216+00:00",
+        "limits": {
+          "cgroup.subtree_control": "",
+          "cpu.max": "175000 100000",
+          "cpu.weight": "100",
+          "memory.max": "4160749568",
+          "memory.high": "max",
+          "memory.swap.max": "0",
+          "io.max": "253:0 rbps=max wbps=7102354 riops=max wiops=max",
+          "io.weight": "default 100",
+          "pids.max": "max"
+        },
+        "cpu_stat": "usage_usec 0\nuser_usec 0\nsystem_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+        "memory_peak": "0",
+        "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+        "io_stat": "253:0",
+        "pids": []
+      }
+    },
+    "mm-provider-proof-1869010-764617720824302": {
+      "first_seen": "2026-10-11T01:34:05.709402+00:00",
+      "creator_pid": 1869010,
+      "samples": [
+        {
+          "at": "2026-10-11T01:34:05.709419+00:00",
+          "limits": {
+            "cgroup.subtree_control": "",
+            "cpu.max": "175000 100000",
+            "cpu.weight": "100",
+            "memory.max": "4144889856",
+            "memory.high": "max",
+            "memory.swap.max": "0",
+            "io.max": "253:0 rbps=max wbps=7102354 riops=max wiops=max",
+            "io.weight": "default 100",
+            "pids.max": "max"
+          },
+          "cpu_stat": "usage_usec 8836\nuser_usec 1472\nsystem_usec 7363\ncore_sched.force_idle_usec 0\nnr_periods 5\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "memory_peak": "2043904",
+          "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+          "io_stat": "253:0",
+          "pids": [
+            1869017,
+            1869021
+          ]
+        }
+      ],
+      "last_sample": {
+        "at": "2026-10-11T01:34:06.713130+00:00",
+        "limits": {
+          "cgroup.subtree_control": "",
+          "cpu.max": "175000 100000",
+          "cpu.weight": "100",
+          "memory.max": "4144889856",
+          "memory.high": "max",
+          "memory.swap.max": "0",
+          "io.max": "253:0 rbps=max wbps=7102354 riops=max wiops=max",
+          "io.weight": "default 100",
+          "pids.max": "max"
+        },
+        "cpu_stat": "usage_usec 14564\nuser_usec 5422\nsystem_usec 9141\ncore_sched.force_idle_usec 0\nnr_periods 14\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+        "memory_peak": "2043904",
+        "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+        "io_stat": "253:0",
+        "pids": [
+          1869017,
+          1869021
+        ]
+      }
+    },
+    "mm-provider-proof-1869010-764619978538046": {
+      "first_seen": "2026-10-11T01:34:07.716327+00:00",
+      "creator_pid": 1869010,
+      "samples": [
+        {
+          "at": "2026-10-11T01:34:07.716344+00:00",
+          "limits": {
+            "cgroup.subtree_control": "",
+            "cpu.max": "175000 100000",
+            "cpu.weight": "100",
+            "memory.max": "4160749568",
+            "memory.high": "max",
+            "memory.swap.max": "0",
+            "io.max": "253:0 rbps=max wbps=7102354 riops=max wiops=max",
+            "io.weight": "default 100",
+            "pids.max": "max"
+          },
+          "cpu_stat": "usage_usec 0\nuser_usec 0\nsystem_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+          "memory_peak": "0",
+          "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+          "io_stat": "253:0",
+          "pids": []
+        }
+      ],
+      "last_sample": {
+        "at": "2026-10-11T01:34:08.719450+00:00",
+        "limits": {
+          "cgroup.subtree_control": "",
+          "cpu.max": "175000 100000",
+          "cpu.weight": "100",
+          "memory.max": "4160749568",
+          "memory.high": "max",
+          "memory.swap.max": "0",
+          "io.max": "253:0 rbps=max wbps=7102354 riops=max wiops=max",
+          "io.weight": "default 100",
+          "pids.max": "max"
+        },
+        "cpu_stat": "usage_usec 0\nuser_usec 0\nsystem_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 2\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0",
+        "memory_peak": "0",
+        "memory_events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+        "io_stat": "253:0",
+        "pids": []
+      }
+    }
+  },
+  "preexisting_empty_test_groups_preserved": [
+    "mm-provider-proof-1237751-561421810605489",
+    "mm-provider-proof-1237790-561440027522011",
+    "mm-provider-proof-1237815-561451867776193",
+    "mm-provider-proof-1237861-561489252581474",
+    "mm-provider-proof-1237914-561516884863018",
+    "mm-provider-proof-1328587-570296319238391"
+  ],
+  "restoration_errors": [],
+  "host_verification": {
+    "cgroup_limits_changed": {},
+    "preexisting_cgroups_missing": [
+      "user.slice/user-0.slice/session-11089.scope"
+    ],
+    "services_changed": {},
+    "monetary_identical": true,
+    "deployed_identical": true,
+    "engineering_restored": true,
+    "root_controller_restored": true,
+    "new_proof_groups": [],
+    "live_test_processes": [],
+    "shared_capital_database_exists": false
+  },
+  "containment_phase_host_verification": {
+    "cgroup_limits_changed": {},
+    "preexisting_cgroups_missing": [
+      "user.slice/user-0.slice/session-11010.scope"
+    ],
+    "services_changed": {},
+    "monetary_identical": true,
+    "deployed_identical": true,
+    "engineering_restored": true,
+    "root_controller_restored": true,
+    "new_proof_groups": [],
+    "live_test_processes": [],
+    "shared_capital_database_exists": false
+  },
+  "host_snapshots": {
+    "before": "CONTAINMENT_HOST_BEFORE.json",
+    "after": "CONTAINMENT_HOST_AFTER.json",
+    "before_sha256": "e464d537047e696c3037ef2be2005a07b3b1e27f8ba267205dc6526baaa44a01",
+    "after_sha256": "20a29677580186b67efe8ed956e4b50728662297a21aa14a09380b42e5d2e1cf"
+  },
+  "first_authorization_host_snapshot_locator": "/root/Documents/Codex/2026-10-09/the-meme-machine-codex-implementation-mandate/validation/containment-first-attempt-before.json",
+  "private_raw_evidence_directory": "/root/Documents/Codex/2026-10-09/the-meme-machine-codex-implementation-mandate/validation",
+  "no_paper_deployment_or_new_operating_epoch": true,
+  "no_provider_limit_or_risk_policy_activation": true,
+  "containment_acceptance": "PASS",
+  "readiness": "BLOCKED_BY_SPECIFIC_PROVIDER_OR_RESOURCE_CONSTRAINT",
+  "original_risk_policy_unchanged": true,
+  "root_controller_changes_needed": "Only temporary +io/-io; existing root CPU/memory availability was already sufficient. Original child limits applied by native tests."
+}

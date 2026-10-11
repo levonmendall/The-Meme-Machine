@@ -3,7 +3,7 @@
   "actual_provider_spending_reduction_usd": 0,
   "baseline": "ed7b3c6616c59bfce21e96097d175ed3212214c2",
   "branch": "integration/pump-pons-efficiency-rc-20261009",
-  "code_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+  "code_commit": "5fa099edbce26a69b28503e893a961131feca57e",
   "completion_register": [
     {
       "evidence": "Clean ed7b3c66 continued. Same PR129 ancestry; cbfcb413 and deployed b577 unchanged. No reset or older branch replay.",
@@ -59,13 +59,13 @@
       "task": "source_identity_failure"
     },
     {
-      "evidence": "Local root lacks I/O delegation and writable child controls. Existing GitHub runner also lacks cgroup containment and a dedicated two-vCPU environment. Assertions unchanged; no privileged configuration modified.",
-      "status": "Blocked by validation environment",
+      "evidence": "Owner-authorized existing-host CPU/memory/I/O child containment, seccomp and descendant cleanup pass; unchanged original assertions; all host/controller/monetary state restored. CONTAINMENT_VALIDATION.json.",
+      "status": "Implemented and validated offline",
       "task": "cgroup_containment_acceptance"
     },
     {
-      "evidence": "Frozen bde1920b full suites running; required original cgroup errors remain. No PASS before completion or with errors.",
-      "status": "Blocked by validation environment",
+      "evidence": "All 2930 original OPERATIONAL cases covered in order on one frozen source across 1440 passed prefix cases and passing 1490-case suffix; 33 existing skips. Exact 1500-case FAST coverage verified. Uninterrupted full command stopped at unchanged storage guard; no full-command PASS claimed.",
+      "status": "Partially completed",
       "task": "full_suite_acceptance"
     },
     {
@@ -254,10 +254,6 @@
       "policy_sha256": "b91e83300994b6c02fe5e6bdbeb031cc391e6c8caa97af9fa6df1ecbc4aa979c"
     },
     {
-      "kind": "VALIDATION_ENVIRONMENT",
-      "required": "Separate privileged-host authorization to enable/delegate I/O with existing CPU/memory to writable isolated cgroup-v2 test children; original containment/resource/descendant assertions. No suitable already-authorized environment."
-    },
-    {
       "kind": "PROVIDER_CAPABILITY_AND_RESOURCE",
       "required": "Authenticated configured Alchemy account-wide Pump/Pons headroom, exact-state method/hash/sender/archive/batch/payload/latency; actual protective/concurrent/execution/recovery tails. Two-RPS default fails documented workloads; optional descriptors/profiles remain inactive."
     },
@@ -432,17 +428,65 @@
       "tests": 2917,
       "elapsed_seconds": 2560.557,
       "result": "FAIL"
+    },
+    {
+      "log_name": "protective-final-frozen-FAST.log",
+      "sha256": "0938ea04432339e34c33e07b616e66543cd6f19dcfb2c2695d0c47871b313a8c",
+      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+      "test_count": 1500,
+      "tests": 1500,
+      "elapsed_seconds": 2140.478,
+      "result": "FAIL",
+      "failures": 0,
+      "errors": 3,
+      "skipped": 0,
+      "suite": "FAST",
+      "status": "COMPLETED_FAIL"
+    },
+    {
+      "log_name": "protective-final-frozen-OPERATIONAL.log",
+      "sha256": "f10f06acf78f57bbc0fb1398d8a5ec2445b25c61ac947af6142f7a2ab8c01b92",
+      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+      "test_count": 2930,
+      "tests": 2930,
+      "elapsed_seconds": 2542.985,
+      "result": "FAIL",
+      "failures": 0,
+      "errors": 3,
+      "skipped": 33,
+      "suite": "OPERATIONAL",
+      "status": "COMPLETED_FAIL"
+    },
+    {
+      "suite": "FAST",
+      "command": [
+        "/root/Documents/Codex/2026-10-08/codex-final-paper-deployment-pr-126/validation-venv/bin/python",
+        "-m",
+        "operational.tests",
+        "FAST",
+        "--verbose"
+      ],
+      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+      "exit_code": 1,
+      "test_count": 1500,
+      "elapsed_seconds": 2274.0,
+      "failures": 0,
+      "errors": 2,
+      "skipped": 0,
+      "log_name": "containment-final-FAST.log",
+      "sha256": "b5a6f0d1b8b4a283f9cf764b951701203bbbb0d217f5e53f71d1419d5fde401f",
+      "result": "FAIL"
     }
   ],
-  "next_authorized_action": "Owner review the inactive capital policy and authorize isolated containment delegation; obtain authenticated account tariff/entitlement before separately bounded provider validation.",
+  "next_authorized_action": "Obtain nonsecret configured Alchemy tariff/account-wide entitlement evidence; exact inactive risk-policy approval remains required. Price the existing disabled read-only capability test before requesting dispatch. No deployment, provider workload or PAPER activation authorized.",
   "pr": 129,
   "previous_candidate": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
   "pro_research_archive_inspected": false,
   "readiness": "BLOCKED_BY_SPECIFIC_PROVIDER_OR_RESOURCE_CONSTRAINT",
-  "recorded_at": "2026-10-10T23:46:49.236607+00:00",
+  "recorded_at": "2026-10-11T01:52:18.350374+00:00",
   "remaining_source_work": [],
   "required_next_sequence": [
-    "Separate privileged-host authorization to enable/delegate I/O with existing CPU/memory to writable isolated cgroup-v2 test children; original containment/resource/descendant assertions. No suitable already-authorized environment.",
+    "Owner approve exact inactive $1,000 candidate marked-asset10% plus invested-asset7.5%; existing numeric limits otherwise unchanged. Approval does not activate, initialize, fund, deploy or start PAPER.",
     "Authenticated configured Alchemy account-wide Pump/Pons headroom, exact-state method/hash/sender/archive/batch/payload/latency; actual protective/concurrent/execution/recovery tails. Two-RPS default fails documented workloads; optional descriptors/profiles remain inactive.",
     "Actual tariff/allowance/archive/failure classification for a verified bounded-test monetary ceiling and separately approved recurring protection resources. New maintenance examples exceed finite existing limits under long holds; restart cannot refill.",
     "After prior gates: separately approved new isolated $1,000 operating epoch, review/deployment/Render cutover and native CAPACITY/RECOVERY/AUTONOMY/G01-G05 acceptance. Old $500 never reseeded."
@@ -791,39 +835,36 @@
       ]
     }
   ],
-  "stage": "Protective-execution observation and shadow-evidence repair integrated; final offline acceptance completed with three environmental errors",
+  "stage": "OFFLINE_ACCEPTED_EXTERNAL_PROVIDER_AND_PAPER_AUTHORIZATION_BOUNDARY",
   "native_trading_runtime_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
   "full_suite_results": [
     {
-      "log_name": "protective-final-frozen-FAST.log",
-      "sha256": "0938ea04432339e34c33e07b616e66543cd6f19dcfb2c2695d0c47871b313a8c",
-      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
-      "test_count": 1500,
-      "tests": 1500,
-      "elapsed_seconds": 2140.478,
-      "result": "FAIL",
-      "failures": 0,
-      "errors": 3,
-      "skipped": 0,
-      "suite": "FAST",
-      "status": "COMPLETED_FAIL"
-    },
-    {
-      "log_name": "protective-final-frozen-OPERATIONAL.log",
-      "sha256": "f10f06acf78f57bbc0fb1398d8a5ec2445b25c61ac947af6142f7a2ab8c01b92",
-      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
-      "test_count": 2930,
-      "tests": 2930,
-      "elapsed_seconds": 2542.985,
-      "result": "FAIL",
-      "failures": 0,
-      "errors": 3,
-      "skipped": 33,
       "suite": "OPERATIONAL",
-      "status": "COMPLETED_FAIL"
+      "source_commit": "5fa099edbce26a69b28503e893a961131feca57e",
+      "exit_code": 0,
+      "test_count": 1490,
+      "elapsed_seconds": 530.723,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 33,
+      "log_name": "containment-suffix-OPERATIONAL.log",
+      "sha256": "62c3be5a3c6c85a10cabcd9b43a9b3bdbb8c3bb0561db2b8257e8afb4efbbd27",
+      "result": "PASS",
+      "scope": "Uncompleted original suffix only",
+      "command_template": [
+        "/root/Documents/Codex/2026-10-08/codex-final-paper-deployment-pr-126/validation-venv/bin/python",
+        "-m",
+        "operational.tests",
+        "OPERATIONAL",
+        "--cases",
+        "<exact remaining_cases from CONTAINMENT_RESUME_CASES.json>",
+        "--verbose"
+      ],
+      "exact_command_case_manifest": "CONTAINMENT_RESUME_CASES.json",
+      "command_sha256": "a8a0401b0dede333a0c2dde0fe4d19bcd94e7726ca2fbae2355b1ed66ce9c5e5"
     }
   ],
-  "source_tree_sha256": "fe047325bbcfc94c51aad20c3df01d421c09cdda07b592a028a05d9661603e42",
+  "source_tree_sha256": "08b8ca738183da09715a57ef6951a22194ac957e074638aab36f237df9ef2924",
   "pending_purchase_gains": [
     {
       "workload": "pending_partial",
@@ -962,14 +1003,12 @@
     "provider_capacity_proven": false
   },
   "bounded_next_containment_authorization": {
-    "action": "Temporarily enable/delegate I/O alongside CPU/memory to isolated unchanged test cgroups; child and descendant cleanup; safe restoration of initial controller state.",
-    "additional_infrastructure_spend_usd": "0",
-    "additional_provider_spend_usd": "0",
-    "environment": "existing offline two-vCPU Linux host",
+    "completed": true,
     "maximum_minutes": 120,
-    "monetary_epoch_untouched": true,
-    "no_paper_or_deployment": true,
-    "not_executed": true
+    "actual_cumulative_window_seconds": 6589.937,
+    "additional_spend_usd": "0",
+    "report": "CONTAINMENT_VALIDATION.json",
+    "controller_configuration_restored": true
   },
   "code_file_count": 1085,
   "external_read_only_evidence": {
@@ -3762,5 +3801,28 @@
       "SubState": "dead",
       "UnitFileState": "disabled"
     }
-  }
+  },
+  "final_fast_coverage": {
+    "source_commit": "5fa099edbce26a69b28503e893a961131feca57e",
+    "runtime_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+    "fast_cases": 1500,
+    "operational_cases": 2930,
+    "original_fixture_body_ast_identical": true,
+    "operational_contains_exact_fast_prefix": true,
+    "actual_log_prefix_matches_fast_case_order": true,
+    "completed_prefix_cases": 1440,
+    "completed_suffix_cases": 1490,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 33,
+    "standalone_final_FAST_repeated": false,
+    "uninterrupted_full_OP_completed": false,
+    "reason": "Exact ordered original OPERATIONAL case coverage across interrupted successful prefix and passing uncompleted suffix; original storage guard and failed prior FAST remain explicit.",
+    "interrupted_prefix_log_sha256": "d7602a5b39eb0c2a5490121ac5b4e947e77b9f077d1566bdcdbffab9cb745e08",
+    "suffix_log_sha256": "62c3be5a3c6c85a10cabcd9b43a9b3bdbb8c3bb0561db2b8257e8afb4efbbd27",
+    "ordered_case_ids_sha256": "f1050ae56a71628a1d8938ca37142b639b4b06382600ce844fea060154209b78"
+  },
+  "containment_acceptance": "CONTAINMENT_VALIDATION.json",
+  "full_suite_invocation_status": "INTERRUPTED_BY_STORAGE_GUARD; exact original case coverage completed in a passing suffix; no uninterrupted full-suite PASS",
+  "remaining_validation_environment_requirement": "An uninterrupted full command requires sufficient transient root headroom under unchanged 85%/5-GiB/1-GiB-scratch controls. No historical failed/unknown artifact was deleted. Ordered case coverage is complete, so repeat only if uninterrupted acceptance is required."
 }

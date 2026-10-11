@@ -1,6 +1,6 @@
 {
-  "recorded_at": "2026-10-10T23:46:35.732941+00:00",
-  "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+  "recorded_at": "2026-10-11T01:52:18.350374+00:00",
+  "source_commit": "5fa099edbce26a69b28503e893a961131feca57e",
   "native_monetary_digests": {
     "meteora/native-genesis.json": {
       "bytes": 241,
@@ -60,7 +60,18 @@
   "native_trading_runtime_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
   "shared_authority_selected": false,
   "selection_evidence": "Original portfolio bytes unchanged from verified no-selection state; shared-capital.sqlite absent",
-  "source_tree_sha256": "fe047325bbcfc94c51aad20c3df01d421c09cdda07b592a028a05d9661603e42",
+  "source_tree_sha256": "08b8ca738183da09715a57ef6951a22194ac957e074638aab36f237df9ef2924",
   "source_files": 1085,
-  "additional_frozen_inputs_unchanged": true
+  "additional_frozen_inputs_unchanged": true,
+  "authorized_containment_validation": {
+    "report": "CONTAINMENT_VALIDATION.json",
+    "monetary_identical": true,
+    "services_unchanged": true,
+    "deployed_checkout_unchanged": true,
+    "controller_configuration_restored": true,
+    "no_remaining_test_groups_or_processes": true,
+    "market_provider_requests": 0,
+    "additional_spending_usd": "0",
+    "new_operating_1000_epoch_created": false
+  }
 }

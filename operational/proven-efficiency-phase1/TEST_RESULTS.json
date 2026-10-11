@@ -1,7 +1,7 @@
 {
   "classification": "ACTUAL_OFFLINE_TEST_EXECUTION; no provider workloads",
-  "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
-  "recorded_at": "2026-10-10T23:46:49.236607+00:00",
+  "source_commit": "5fa099edbce26a69b28503e893a961131feca57e",
+  "recorded_at": "2026-10-11T01:52:18.350374+00:00",
   "python": "CPython 3.12.14",
   "network_guard": "operational.tests.network_guard",
   "artifact_isolation": "Scratch; failed and incomplete evidence preserved",
@@ -1263,7 +1263,7 @@
   },
   "pro_reference_tests_inspected": false,
   "pro_archive_available": false,
-  "full_suite_acceptance": "COMPLETED_FAIL; three unavailable delegated-controller errors each",
+  "full_suite_acceptance": "All 2930 original cases covered across segments; no uninterrupted full-command PASS claimed",
   "reproduction_commands": [
     "python -m operational.tests FAST --verbose",
     "python -m operational.tests OPERATIONAL --verbose",
@@ -1284,10 +1284,9 @@
   ],
   "full_suite_blockers": [
     {
-      "kind": "HOST_UNAVAILABLE",
-      "message": "delegated_cpu_memory_io_controllers_required",
-      "environment_report": "CGROUP_VALIDATION_ENVIRONMENT.json",
-      "required_error_entries": 3
+      "kind": "UNINTERRUPTED_INVOCATION_STORAGE_GUARD",
+      "message": "All original cases covered across segments; uninterrupted full command remains interrupted at original root headroom guard.",
+      "report": "CONTAINMENT_VALIDATION.json"
     }
   ],
   "resolved_predecessor_failures": {
@@ -1302,32 +1301,29 @@
   "previous_frozen_source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
   "final_frozen_suites": [
     {
-      "log_name": "protective-final-frozen-FAST.log",
-      "sha256": "0938ea04432339e34c33e07b616e66543cd6f19dcfb2c2695d0c47871b313a8c",
-      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
-      "test_count": 1500,
-      "tests": 1500,
-      "elapsed_seconds": 2140.478,
-      "result": "FAIL",
-      "failures": 0,
-      "errors": 3,
-      "skipped": 0,
-      "suite": "FAST",
-      "status": "COMPLETED_FAIL"
-    },
-    {
-      "log_name": "protective-final-frozen-OPERATIONAL.log",
-      "sha256": "f10f06acf78f57bbc0fb1398d8a5ec2445b25c61ac947af6142f7a2ab8c01b92",
-      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
-      "test_count": 2930,
-      "tests": 2930,
-      "elapsed_seconds": 2542.985,
-      "result": "FAIL",
-      "failures": 0,
-      "errors": 3,
-      "skipped": 33,
       "suite": "OPERATIONAL",
-      "status": "COMPLETED_FAIL"
+      "source_commit": "5fa099edbce26a69b28503e893a961131feca57e",
+      "exit_code": 0,
+      "test_count": 1490,
+      "elapsed_seconds": 530.723,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 33,
+      "log_name": "containment-suffix-OPERATIONAL.log",
+      "sha256": "62c3be5a3c6c85a10cabcd9b43a9b3bdbb8c3bb0561db2b8257e8afb4efbbd27",
+      "result": "PASS",
+      "scope": "Exact uncompleted OPERATIONAL suffix, not a full invocation",
+      "command_template": [
+        "/root/Documents/Codex/2026-10-08/codex-final-paper-deployment-pr-126/validation-venv/bin/python",
+        "-m",
+        "operational.tests",
+        "OPERATIONAL",
+        "--cases",
+        "<exact remaining_cases from CONTAINMENT_RESUME_CASES.json>",
+        "--verbose"
+      ],
+      "exact_command_case_manifest": "CONTAINMENT_RESUME_CASES.json",
+      "command_sha256": "a8a0401b0dede333a0c2dde0fe4d19bcd94e7726ca2fbae2355b1ed66ce9c5e5"
     }
   ],
   "source_pin_resolution": {
@@ -1337,7 +1333,7 @@
     "runtime_policy_hash_or_schema_changed": false,
     "original_test_retained": true
   },
-  "final_frozen_source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+  "final_frozen_source_commit": "5fa099edbce26a69b28503e893a961131feca57e",
   "supplemental_final_native_measurements": [
     {
       "source_commit": "ad77dc805cfd0c8261eeabd335f48445c0d63df1",
@@ -1465,10 +1461,58 @@
       "tests": 2917,
       "elapsed_seconds": 2560.557,
       "result": "FAIL"
+    },
+    {
+      "log_name": "protective-final-frozen-FAST.log",
+      "sha256": "0938ea04432339e34c33e07b616e66543cd6f19dcfb2c2695d0c47871b313a8c",
+      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+      "test_count": 1500,
+      "tests": 1500,
+      "elapsed_seconds": 2140.478,
+      "result": "FAIL",
+      "failures": 0,
+      "errors": 3,
+      "skipped": 0,
+      "suite": "FAST",
+      "status": "COMPLETED_FAIL"
+    },
+    {
+      "log_name": "protective-final-frozen-OPERATIONAL.log",
+      "sha256": "f10f06acf78f57bbc0fb1398d8a5ec2445b25c61ac947af6142f7a2ab8c01b92",
+      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+      "test_count": 2930,
+      "tests": 2930,
+      "elapsed_seconds": 2542.985,
+      "result": "FAIL",
+      "failures": 0,
+      "errors": 3,
+      "skipped": 33,
+      "suite": "OPERATIONAL",
+      "status": "COMPLETED_FAIL"
+    },
+    {
+      "suite": "FAST",
+      "command": [
+        "/root/Documents/Codex/2026-10-08/codex-final-paper-deployment-pr-126/validation-venv/bin/python",
+        "-m",
+        "operational.tests",
+        "FAST",
+        "--verbose"
+      ],
+      "source_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+      "exit_code": 1,
+      "test_count": 1500,
+      "elapsed_seconds": 2274.0,
+      "failures": 0,
+      "errors": 2,
+      "skipped": 0,
+      "log_name": "containment-final-FAST.log",
+      "sha256": "b5a6f0d1b8b4a283f9cf764b951701203bbbb0d217f5e53f71d1419d5fde401f",
+      "result": "FAIL"
     }
   ],
   "new_fingerprint_recipe": "sorted tracked paths and bytes separated by NUL; meme_machine, tests, engineering, dashboard and operational/tests.py",
-  "new_frozen_code_fingerprint": "fe047325bbcfc94c51aad20c3df01d421c09cdda07b592a028a05d9661603e42",
+  "new_frozen_code_fingerprint": "08b8ca738183da09715a57ef6951a22194ac957e074638aab36f237df9ef2924",
   "additional_frozen_inputs": {
     "deployment/paper-bootstrap.conf": "57bb012022828e2d67cfa913be6e7d16405e9dfee1e58237a0d0d23db31ca64e",
     "operational/position-continuation/RESOURCE_ENVELOPE.maintenance.example.json": "674e28872ad3c36215c3e8539579f3cbd22cd9e728637b3f2cfcabb3e8dda674",
@@ -1555,5 +1599,52 @@
     "result": "PASS",
     "routes": 10,
     "scope": "Actual app.js renderer, fixtures and local read-only API; security and responsive rules; browser geometry not tested"
+  },
+  "final_fast_coverage": {
+    "source_commit": "5fa099edbce26a69b28503e893a961131feca57e",
+    "runtime_commit": "e17d91fb1d95194774e94ae444b04cfe127d42ab",
+    "fast_cases": 1500,
+    "operational_cases": 2930,
+    "original_fixture_body_ast_identical": true,
+    "operational_contains_exact_fast_prefix": true,
+    "actual_log_prefix_matches_fast_case_order": true,
+    "completed_prefix_cases": 1440,
+    "completed_suffix_cases": 1490,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 33,
+    "standalone_final_FAST_repeated": false,
+    "uninterrupted_full_OP_completed": false,
+    "reason": "Exact ordered original OPERATIONAL case coverage across interrupted successful prefix and passing uncompleted suffix; original storage guard and failed prior FAST remain explicit.",
+    "interrupted_prefix_log_sha256": "d7602a5b39eb0c2a5490121ac5b4e947e77b9f077d1566bdcdbffab9cb745e08",
+    "suffix_log_sha256": "62c3be5a3c6c85a10cabcd9b43a9b3bdbb8c3bb0561db2b8257e8afb4efbbd27",
+    "ordered_case_ids_sha256": "f1050ae56a71628a1d8938ca37142b639b4b06382600ce844fea060154209b78"
+  },
+  "containment_acceptance": {
+    "report": "CONTAINMENT_VALIDATION.json",
+    "focused": {
+      "suite": "FOCUSED",
+      "command": [
+        "/root/Documents/Codex/2026-10-08/codex-final-paper-deployment-pr-126/validation-venv/bin/python",
+        "-m",
+        "operational.tests",
+        "FAST",
+        "--cases",
+        "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_actual_cgroup_contains_and_kills_escaped_descendant",
+        "tests.test_pump_pons_proof.DispatchAndShutdownTests.test_supervisor_deadline_kills_hung_worker_and_setsid_descendant",
+        "--verbose"
+      ],
+      "source_commit": "5fa099edbce26a69b28503e893a961131feca57e",
+      "exit_code": 0,
+      "test_count": 2,
+      "elapsed_seconds": 4.716,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log_name": "containment-candidate-FOCUSED.log",
+      "sha256": "fe1293eedc529230433274039c923b81865391cf0bd3541bb185e421f443ef77",
+      "result": "PASS"
+    },
+    "assertions_and_limits_unchanged": true
   }
 }

@@ -3,17 +3,20 @@
 **BLOCKED_BY_SPECIFIC_PROVIDER_OR_RESOURCE_CONSTRAINT.** The source supports a
 separately initialized $1,000 shared epoch, its actual dashboard, and four-regime
 holding without age-only sales. The coherent risk-policy candidate is inactive
-pending owner numeric approval. Containment, authentic whole-machine provider
-capacity, recurring protection resources and operational acceptance remain unproved.
+pending owner numeric approval. Original containment cases now pass on the existing
+Droplet with authorized temporary I/O delegation and verified restoration.
+Authentic whole-machine provider capacity, recurring protection resources and
+operational acceptance remain unproved. Every original offline case is covered;
+the uninterrupted full command encountered the unchanged storage guard.
 No deployment, operating inception, PAPER start, funding or provider workload occurred.
 
 Draft [PR #129](https://github.com/levonmendall/The-Meme-Machine/pull/129), branch
-integration/pump-pons-efficiency-rc-20261009. Frozen code/runtime snapshot:
-**e17d91fb1d95194774e94ae444b04cfe127d42ab**. Latest runtime-changing commit:
+integration/pump-pons-efficiency-rc-20261009. Frozen tested snapshot:
+**5fa099edbce26a69b28503e893a961131feca57e**. Latest runtime-changing commit:
 **e17d91fb1d95194774e94ae444b04cfe127d42ab**. Subsequent publication adds acceptance
 evidence only. FINALIZATION.json is the completion register; TEST_RESULTS.json
 retains current and predecessor receipts. Frozen code fingerprint:
-fe047325bbcfc94c51aad20c3df01d421c09cdda07b592a028a05d9661603e42
+08b8ca738183da09715a57ef6951a22194ac957e074638aab36f237df9ef2924
 (sorted tracked paths and bytes separated by NUL for meme_machine/, tests/,
 engineering/, dashboard/ and operational/tests.py; 1,085 files).
 
@@ -28,6 +31,7 @@ records PR120–129. Pro's archive/reference algorithms were not supplied or ins
 
 | Commit | Changes |
 |---|---|
+| 5fa099edbce26a69b28503e893a961131feca57e | Isolate the containment watchdog fixture with the existing native subprocess helper; original body/assertions/limits AST-identical; trading runtime unchanged. |
 | 8e2f3b4e2b07157d3968e5641c7e89b3a4c71f5a | Separate $1,000 inception; total-realized-equity sizing; actual dashboard model/API/frontend, publisher/receiver and snapshot transport; historical $500 compatibility. |
 | fe7524586217c44f18fd8d39614897b2cc5f169b | Remove native age-only sales; retain original positions/real exits; operational renewal diagnostics; cumulative maintenance envelope and recovery tests. |
 | c964b0f9bf7946da68a5c460583cf3c37e1460f5 | Native protection, original entry age, pending intent, high water and trail through shared accounting and dashboard; no oracle purchase or fabricated valuation for an unavailable pending exit. |
@@ -177,17 +181,54 @@ finite unapproved resources cannot promise indefinite protection.
 
 ## Offline acceptance
 
-| Exact frozen source e17d91fb / sequential execution | Tests | Failures | Errors | Skipped | Seconds | Result |
+| Exact frozen source 5fa099ed / sequential execution | Tests | Failures | Errors | Skipped | Seconds | Result |
 |---|---:|---:|---:|---:|---:|---|
-| FAST | 1,500 | 0 | 3 | 0 | 2140.478 | FAIL: delegated containment unavailable |
-| OPERATIONAL | 2,930 | 0 | 3 | 33 | 2542.985 | FAIL: delegated containment unavailable |
+| Original containment methods / three cases | 2 | 0 | 0 | 0 | 4.716 | PASS |
+| Successful original OPERATIONAL prefix | 1,440 | 0 | 0 | 0 | — | Verified ordered passed cases; invocation interrupted |
+| Exact remaining OPERATIONAL suffix | 1,490 | 0 | 0 | 33 | 530.723 | PASS |
+| Combined original OPERATIONAL case coverage | 2,930 | 0 | 0 | 33 | — | All original cases covered in order; no uninterrupted full-command PASS |
+| FAST cases within that exact coverage | 1,500 | 0 | 0 | 0 | — | No redundant separate final FAST invocation |
 
-These suites **do not pass**. All three errors in each are the unchanged
-`HostUnavailable: delegated_cpu_memory_io_controllers_required` cases. Exact
-log SHA-256 values are in TEST_RESULTS.json. The final source and additional
-deployment/resource/policy inputs retained the frozen hashes throughout testing.
-Actual app.js renderer and local API checks pass all ten routes on the same source;
-browser geometry was not tested.
+The owner-authorized run first passed the unchanged original three containment
+cases on e17d91fb (two methods / 4.543 seconds). The complete delegated FAST then
+finished 1,500 tests with zero failures and two seccomp-listener startup errors
+(2274.000 seconds). The full-suite worker had accumulated unrelated replay state:
+the successor measured 692,830,208 bytes of parent RSS at this fixture, above the
+unchanged 128-MiB proof-supervisor reserve. A synthetic oversized-parent diagnostic
+confirmed premature resource termination, with a different error identity; the
+earlier FAST parent RSS was not recorded. Commit 5fa099ed uses the existing
+`run_native` helper to isolate the watchdog fixture. Every original fixture body
+statement, assertion and numeric limit is AST-identical. No trading runtime changed.
+
+The final OPERATIONAL command was interrupted at
+`root_headroom_blocks_nonessential_artifact`, not a test assertion. Its 1-GiB
+unused scratch reserve and 85%/5-GiB root guards were preserved. Once worker
+termination released temporary space, the exact uncompleted suffix ran through
+the existing `--cases` interface, including the interrupted case. Ordered log
+verification proves all 2,930 original cases are covered, including the 1,500
+FAST cases. This **does not claim an uninterrupted full-suite PASS**. No failed
+or unknown historical artifact was deleted. An uninterrupted rerun needs sufficient
+transient root headroom; repeat only if that invocation is required for acceptance.
+
+CONTAINMENT_VALIDATION.json publishes original and repaired outcomes, log hashes,
+resource traces and restoration checks; CONTAINMENT_RESUME_CASES.json records the
+exact suffix. CONTAINMENT_HOST_BEFORE.json and CONTAINMENT_HOST_AFTER.json preserve
+complete host snapshots. The cumulative authorization window was **109.832 minutes**
+of the approved 120 minutes, with **$0 additional provider/infrastructure spending**.
+Original CPU/memory availability was sufficient; only ancestor I/O was enabled
+temporarily. Test children retained 1.75-core hard CPU admission, the original
+4-GiB group budget with its 128-MiB supervisor reserve and fork reservations,
+zero swap and original block-write limits. No surviving test process/new cgroup,
+changed service limit, changed monetary file or changed deployed checkout remains.
+The natural expiration of login-session cgroups is recorded separately.
+
+Historical e17d91fb FAST (1,500 / three environment errors) and OPERATIONAL
+(2,930 / three environment errors / 33 skips) remain retained as completed FAILs.
+The final source and additional deployment/resource/policy inputs retained their
+frozen hashes throughout the new case coverage.
+Actual app.js renderer and local API checks pass all ten routes on byte-identical
+application source; browser geometry was not tested. That evidence ran on e17d91fb; its
+dashboard and application bytes are identical in the test-only successor.
 
 The earlier parallel e17 FAST/OPERATIONAL attempt was stopped and is not an
 accepted full run. It produced four FAST verbose timing-failure entries and three
@@ -453,14 +494,11 @@ no initialization, funding, deployment, provider traffic or PAPER activation.
 The 10% reference permits more additional asset concentration than the old policy;
 it does not limit upside or authorize a sale.
 
-**Smallest required environment authorization:** temporary I/O controller enablement with
-CPU/memory delegation to isolated writable test children on the existing offline
-validation host, unchanged containment tests and acceptance
-suites, up to 120 minutes, **$0 additional provider/infrastructure spend**.
-Only test child cgroups, descendant cleanup and safe restoration of original
-controller state; no PAPER service/configuration, provider traffic, operating
-accounting or deployment changes. Privileged host modifications were expressly
-excluded, so this requires separate permission.
+**Containment authorization completed:** original cases passed, test children and
+descendants were removed, and original controller/service/monetary state was
+restored within 120 minutes. No further cgroup repair is needed. Ordered offline
+case coverage is complete; the separate interrupted full-command storage issue
+must remain visible rather than be reported as a successful invocation.
 
 Obtain the configured Alchemy plan/tariff/entitlement record without secrets.
 Only then request the inactive basic read-only capability envelope: **60 seconds,
@@ -479,11 +517,22 @@ latency, entry/recovery and adversarial clocks. Configured Alchemy Pons comes fi
 Chainstack Pons RPC is optional economic validation, retaining Alchemy Solana
 streams/enhanced history. No provider purchase or migration is required here.
 
-After containment, provider/capacity and recurring-budget proof, separately
+After provider/capacity and recurring-budget proof, separately
 authorize review/merge/deployment, explicit new epoch, isolated dashboard cutover,
 then bounded PAPER CAPACITY/RECOVERY/AUTONOMY. Preserve the old $500 evidence and
 existing allocator/cutover guards. A rollback with open owners must preserve
 their money/intent and cannot restore old age-only exits or unsafe capacity.
+
+Shortest first-trade path: obtain the configured Alchemy tariff and shared account
+entitlement record, and approve or reject the exact inactive risk-policy proposal.
+Authorize the priced read-only capability check first, then prove the complete
+native first-owner protective path (USD reconciliation, pending/full/partial exit,
+sender fallback and actual response/queue latency included). A larger mixed-owner
+stress test is not a prerequisite to one bounded first-trade workload, but no
+additional exposure may exceed demonstrated protection. Only afterward authorize
+the exact source, new isolated $1,000 epoch, read-only dashboard cutover and bounded
+PAPER funding/start with G01–G05, recovery/owner-attention and stop conditions.
+No Chainstack purchase, host upgrade or new optimization project is required.
 
 Offline reproduction (pinned CPython 3.12.14, existing network-guarded Scratch):
 
