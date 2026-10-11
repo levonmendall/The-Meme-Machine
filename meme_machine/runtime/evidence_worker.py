@@ -15,8 +15,9 @@ from meme_machine.solana_evidence_transport import alchemy_stream_endpoint
 from meme_machine.solana_evidence_service import serve
 
 class DeliveredRPCError(ValueError):
-    def __init__(self,reason,receipt,*,retryable=False,cause_kind=None):
+    def __init__(self,reason,receipt,*,retryable=False,cause_kind=None,method=None,rpc_code=None,http_status=None):
         super().__init__(reason);self.receipt=receipt;self.retryable=retryable;self.cause_kind=cause_kind
+        self.method=method;self.rpc_code=rpc_code;self.http_status=http_status
 
 class RepairRPC:
     def __init__(self,endpoint,governor):
@@ -86,7 +87,8 @@ class RepairRPC:
                     return deepcopy(value),dict(bytes=0,cu=0,calls=0)
                 except DeliveredRPCError as exc:
                     raise DeliveredRPCError(str(exc),dict(bytes=0,cu=0,calls=0),
-                        retryable=exc.retryable,cause_kind=exc.cause_kind) from None
+                        retryable=exc.retryable,cause_kind=exc.cause_kind,method=exc.method,
+                        rpc_code=exc.rpc_code,http_status=exc.http_status) from None
             try:
                 result=self._call_delivered(method,params,priority)
                 from copy import deepcopy
@@ -138,12 +140,13 @@ class RepairRPC:
                 self._count('429s');self.governor.rate_limited('solana',(method,))
             self._count('failures')
             raise DeliveredRPCError('repair_http_'+str(int(exc.code)),dict(bytes=received,cu=charged),
-                retryable=exc.code in (429,502,503,504),cause_kind='HTTPError') from None
+                retryable=exc.code in (429,502,503,504),cause_kind='HTTPError',
+                method=method,http_status=int(exc.code)) from None
         except Exception as exc:
             self._count('failures')
             retryable=isinstance(exc,(TimeoutError,urllib.error.URLError,json.JSONDecodeError)) or code in (429,-32603,-32005,-32016)
             raise DeliveredRPCError('repair_response_unavailable',dict(bytes=received,cu=charged),
-                retryable=retryable,cause_kind=type(exc).__name__) from None
+                retryable=retryable,cause_kind=type(exc).__name__,method=method,rpc_code=code) from None
         finally:
             if purchased:purchases.completed(label,received,failed=failed)
             if transport is not None:self._count('transport_microseconds',int((time.monotonic()-transport)*1e6))
@@ -176,6 +179,16 @@ def failure_diagnostic(exc):
     from meme_machine.solana_evidence_plane import EvidenceUnavailable
     def classification(error):
         result=type(error).__name__
+        if isinstance(error,DeliveredRPCError):
+            if error.method in ('getSlot','getGenesisHash','getTransactionsForAddress',
+                    'getTransaction','getBlock','getProgramAccountsV2'):
+                result+=':method='+error.method
+            if type(error.rpc_code) is int and -(2**31)<=error.rpc_code<2**31:
+                result+=':rpc_code='+str(error.rpc_code)
+            if type(error.http_status) is int and 100<=error.http_status<=599:
+                result+=':http_status='+str(error.http_status)
+            if error.cause_kind in ('ValueError','TimeoutError','URLError','HTTPError','JSONDecodeError'):
+                result+=':cause='+error.cause_kind
         import sqlite3
         if isinstance(error,sqlite3.Error):
             code=getattr(error,'sqlite_errorcode',None);name=getattr(error,'sqlite_errorname',None)

@@ -140,7 +140,7 @@ class ProviderPreflightTests(unittest.TestCase):
         with patch('meme_machine.shared_capital.runtime.process_identity',side_effect=OSError):
             resumed=Budget(self.path);resumed.preflight_file(self.file);resumed.preflight_file(self.file)
         after=self.budget.snapshot()
-        self.assertEqual(after['native_uncertain_bytes'],str(3*MAX_FRAME))
+        self.assertEqual(after['native_uncertain_bytes'],str(4*MAX_FRAME))
         self.assertEqual(after['http_uncertain_bytes'],str(MAX_FRAME))
         self.assertEqual(after['native_reserved'],'0');self.assertEqual(after['http_reserved'],'0')
         for key in ('rpc_cu','http_attempts','native_opens','started','started_wall'):
@@ -196,7 +196,7 @@ class ProviderPreflightTests(unittest.TestCase):
         with ThreadPoolExecutor(max_workers=4) as pool:tokens=list(pool.map(opened,range(4)))
         self.assertEqual(len([t for t in tokens if t]),2)
         row=Budget(path).snapshot();self.assertEqual(row['native_opens'],'2')
-        self.assertEqual(row['http_attempts'],'2');self.assertEqual(row['native_reserved'],str(6*MAX_FRAME))
+        self.assertEqual(row['http_attempts'],'2');self.assertEqual(row['native_reserved'],str(8*MAX_FRAME))
         self.assertTrue(row['reason'])
 
     def test_pump_only_observation_cannot_hide_foreign_protection_obligations(self):
@@ -275,7 +275,7 @@ class ProviderPreflightTests(unittest.TestCase):
                 release.set();await asyncio.gather(reader,return_exceptions=True)
         asyncio.run(verify());self.budget.stream_close(token,unread_possible=True)
         state=self.budget.snapshot();self.assertEqual(state['native_reserved'],'0')
-        self.assertEqual(state['native_uncertain_bytes'],str(3*MAX_FRAME))
+        self.assertEqual(state['native_uncertain_bytes'],str(4*MAX_FRAME))
         self.assertEqual(state['native_bytes'],'3')
 
     def test_async_native_ceiling_retains_received_tail_and_never_releases_content(self):
@@ -286,11 +286,11 @@ class ProviderPreflightTests(unittest.TestCase):
         stream=AccountedStream(SimpleNamespace(read=AsyncMock(side_effect=[(3,b'raw'),grpc.aio.EOF])),context,token)
         with self.assertRaisesRegex(CeilingReached,'original_failure'):asyncio.run(stream.read())
         before=self.budget.snapshot();self.assertEqual(before['native_bytes'],'3')
-        self.assertEqual(before['native_reserved'],str(3*MAX_FRAME-3))
+        self.assertEqual(before['native_reserved'],str(4*MAX_FRAME-3))
         self.budget.stream_close(token,unread_possible=True)
         after=Budget(self.path).snapshot();self.assertEqual(after['reason'],'original_failure')
-        self.assertEqual(after['native_uncertain_bytes'],str(3*MAX_FRAME-3))
-        self.assertEqual(sum(int(after[k]) for k in ('native_bytes','native_reserved','native_uncertain_bytes')),3*MAX_FRAME)
+        self.assertEqual(after['native_uncertain_bytes'],str(4*MAX_FRAME-3))
+        self.assertEqual(sum(int(after[k]) for k in ('native_bytes','native_reserved','native_uncertain_bytes')),4*MAX_FRAME)
 
     def test_installed_grpc_boundary_meters_before_delivering_original_decoded_value(self):
         import grpc

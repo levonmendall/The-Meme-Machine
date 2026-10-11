@@ -483,9 +483,9 @@ class Budget:
             if kind=='open':
                 if transport not in ('yellowstone','solana_websocket'):failure=failure or 'native_transport_bound'
                 if self.expired(state):failure=failure or 'bounded_run_wall_limit'
-                # Existing SDK frames plus one bounded charged intake group and
-                # its one look-ahead frame. Never enlarge the installed capacity.
-                reserve=MAX_FRAME*(4 if transport=='solana_websocket' else 3)
+                # Existing SDK frames, charged/ready groups and one look-ahead
+                # frame. Never enlarge the installed physical capacity.
+                reserve=MAX_FRAME*(5 if transport=='solana_websocket' else 4)
                 total=sum(int(state[k]) for k in ('native_bytes','native_uncertain_bytes','native_reserved'))
                 if int(state['native_reserved'])+reserve>self.limits['native_inflight_bytes']:
                     failure=failure or 'native_inflight_limit'
@@ -724,62 +724,72 @@ async def account_native(budget,transport,size):
 class NativeReadBuffer:
     """Coalesce ready SDK frames before durable accounting, without timed waits.
 
-    FIFO content, at most 32 frames / one maximum-frame group, one look-ahead
-    frame and the original bounded SDK buffers. No content precedes its commit;
-    unread/cancelled buffers remain covered by the existing durable reservation.
+    FIFO content, a charged group and a ready group of at most 32 frames / one
+    maximum frame each, one look-ahead and the original SDK buffers. The ready
+    reader continues during the durable commit; no batch timer delays a live
+    event. No content precedes its commit. Every unread buffer is reserved.
     """
     def __init__(self,read,budget,transport):
         self.read_raw=read;self.budget=budget;self.transport=transport
-        self.values=deque();self.pending=None;self.carry=None;self.terminal=None
+        self.values=deque();self.ready=deque();self.ready_bytes=0
+        self.pending=None;self.carry=None;self.terminal=None
+        self.available=asyncio.Event();self.space=asyncio.Event();self.closed=False
 
     def start(self):
-        if self.pending is None:self.pending=asyncio.create_task(self.read_raw())
+        if self.pending is None:self.pending=asyncio.create_task(self.receive())
 
     def cancel(self):
+        self.closed=True
+        self.available.set()
         if self.pending is not None:
-            self.pending.cancel()
-            self.pending.add_done_callback(lambda f:f.exception() if not f.cancelled() else None)
+            if self.pending.done():
+                if not self.pending.cancelled():self.pending.exception()
+            else:
+                self.pending.cancel()
+                self.pending.add_done_callback(lambda f:f.exception() if not f.cancelled() else None)
             self.pending=None
 
-    async def packet(self):
-        if self.carry is not None:
-            result=self.carry;self.carry=None;return result
-        self.start();pending=self.pending
-        try:return await asyncio.shield(pending)
-        finally:
-            if pending.done():self.pending=None
-
-    async def read(self):
+    async def receive(self):
         import grpc
-        if self.values:return self.values.popleft()
-        if self.terminal is not None:
-            if isinstance(self.terminal,BaseException):raise self.terminal
-            return self.terminal
-        group=[];total=0
         try:
-            packet=await self.packet()
             while True:
-                if packet is grpc.aio.EOF:self.terminal=packet;break
+                while len(self.ready)==32 or self.ready_bytes==MAX_FRAME:
+                    self.space.clear();await self.space.wait()
+                packet=await self.read_raw()
+                if packet is grpc.aio.EOF:self.terminal=packet;return
                 size,value=packet
                 if type(size) is not int or not 0<=size<=MAX_FRAME:
                     self.budget.fail('native_frame_bound')
-                if total+size>MAX_FRAME:
-                    self.carry=packet;break
-                group.append(value);total+=size
-                if len(group)==32 or total==MAX_FRAME:break
-                self.start()
-                # Zero wait: coalesce already available delivery, never hold a
-                # live event for a batch timer or cancel an outstanding RPC read.
-                done,_=await asyncio.wait([self.pending],timeout=0)
-                if not done:break
-                try:packet=self.pending.result()
-                finally:self.pending=None
-        except Exception as error:
-            report=getattr(self.budget,'provider_error',None)
-            if report:report('native_'+self.transport+'_read_failed')
+                self.carry=packet
+                while self.ready_bytes+size>MAX_FRAME:
+                    self.space.clear();await self.space.wait()
+                self.ready.append(packet);self.ready_bytes+=size;self.carry=None
+                self.available.set()
+        except asyncio.CancelledError:
+            raise
+        except BaseException as error:
             self.terminal=error
-        if group:
+            if isinstance(error,Exception):
+                report=getattr(self.budget,'provider_error',None)
+                if report:
+                    try:report('native_'+self.transport+'_read_failed')
+                    except BaseException as failure:self.terminal=failure
+        finally:self.available.set()
+
+    async def read(self):
+        if self.closed:raise asyncio.CancelledError()
+        if self.values:return self.values.popleft()
+        self.start()
+        while not self.ready and self.terminal is None:
+            self.available.clear();await self.available.wait()
+            if self.closed:raise asyncio.CancelledError()
+        if self.ready:
+            # Snapshot only currently ready frames. Continue bounded acquisition
+            # while this exact group is committed, never before its reservation.
+            group=[value for size,value in self.ready];total=self.ready_bytes
+            self.ready.clear();self.ready_bytes=0;self.space.set()
             await account_native(self.budget,self.transport,total)
+            if self.closed:raise asyncio.CancelledError()
             self.values.extend(group)
             return self.values.popleft()
         if isinstance(self.terminal,BaseException):raise self.terminal

@@ -63,7 +63,7 @@ class UsageTests(unittest.TestCase):
 
     def test_inflight_capacity_blocks_only_excess_new_transport_and_recovers_without_refill(self):
         b=self.budget
-        capacity=b.limits['native_inflight_bytes']//(3*MAX_FRAME)
+        capacity=b.limits['native_inflight_bytes']//(4*MAX_FRAME)
         tokens=[b.stream_open('yellowstone') for _ in range(capacity)];before=b.snapshot()
         with self.assertRaisesRegex(CeilingReached,'native_inflight_limit'):b.stream_open('yellowstone')
         after=b.snapshot();self.assertEqual(after['native_opens'],before['native_opens'])
@@ -108,7 +108,7 @@ class UsageTests(unittest.TestCase):
         with patch('meme_machine.shared_capital.runtime.process_identity',side_effect=OSError):
             b.reap_orphans();resumed=Budget(self.path);resumed.reap_orphans()
         after=resumed.snapshot();self.assertEqual(after['native_reserved'],after['http_reserved']);self.assertEqual(after['http_reserved'],'0')
-        self.assertEqual(after['native_uncertain_bytes'],str(3*MAX_FRAME));self.assertEqual(after['rpc_cu'],before['rpc_cu'])
+        self.assertEqual(after['native_uncertain_bytes'],str(4*MAX_FRAME));self.assertEqual(after['rpc_cu'],before['rpc_cu'])
         receipt.close();self.assertEqual(resumed.snapshot(),after)
 
     def test_response_frame_unpriced_method_and_configuration_guards_are_still_fatal(self):

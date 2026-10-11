@@ -247,6 +247,69 @@ class TriggerWaitTests(unittest.TestCase):
         self.assertEqual(len(frame.log_transactions),1)
 
 class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_optional_archive_fault_does_not_terminate_canonical_source_or_prove_history(self):
+        from tests.test_solana_closure import state_at,NOW
+        from tests.test_solana_prewarm_startup import quiet_model_b
+        from meme_machine.solana_selective_source import SelectiveSource
+        from meme_machine.runtime.evidence_worker import DeliveredRPCError
+        with tempfile.TemporaryDirectory() as td:
+            state,h=state_at(Path(td)/'canonical.sqlite')
+            source=SelectiveSource(SimpleNamespace(credential='offline'),None);source.stop=asyncio.Event()
+            async def work(fn,*args,**kwargs):return fn(state)
+            source.work=work
+            async def failure(*args):
+                source.stop.set()
+                raise DeliveredRPCError('offline provider fault',dict(bytes=10,cu=100),
+                    method='getTransactionsForAddress',rpc_code=-32602)
+            source.measured_rpc=failure
+            try:
+                done=asyncio.Event();done.set();await quiet_model_b(work,done)
+                h.bind('pump','curve');h.gap(h.scope_for('pump','curve'),101,101,'offline_missing')
+                job=h.request('pump','curve',101,101,priority=3,deadline=NOW+150)
+                await source.acquire()
+                row=h.db.execute('SELECT status,deadline,pages,token FROM acquisition_jobs WHERE id=?',(job,)).fetchone()
+                self.assertEqual(row,('failed',NOW+150,0,None))
+                self.assertEqual(h.lifecycle.missing(h.scope_for('pump','curve'),101,101),[(101,101)])
+                self.assertEqual(h.db.execute('SELECT COUNT(*) FROM acquisition_page_receipts').fetchone()[0],0)
+                self.assertFalse(state.acquisition_inflight)
+                self.assertEqual(h.startup.snapshot()['phase'],'STEADY_STATE')
+            finally:state.writer.close()
+
+    async def test_archive_retry_survives_restart_without_resetting_original_deadline(self):
+        from tests.test_solana_closure import state_at,NOW
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'canonical.sqlite';clock=[NOW];state,h=state_at(path,lambda:clock[0])
+            try:
+                identity=h.request('pump','curve',101,101,priority=3,deadline=NOW+150)
+                job,_=h.plan();h.defer_provider_failure(job,retryable=True,diagnostic='evidence_worker_failed:DeliveredRPCError')
+                self.assertIsNone(h.plan())
+                state.writer.close();state,h=state_at(path,lambda:clock[0])
+                self.assertIsNone(h.plan())
+                clock[0]+=2;resumed,_=h.plan()
+                self.assertEqual((resumed['id'],resumed['deadline'],resumed['pages'],resumed['token']),
+                    (identity,NOW+150,0,None))
+                h.defer_provider_failure(resumed,retryable=True,diagnostic='evidence_worker_failed:DeliveredRPCError')
+                clock[0]=NOW+150;self.assertIsNone(h.plan())
+                self.assertEqual(h.db.execute('SELECT status,deadline FROM acquisition_jobs WHERE id=?',(identity,)).fetchone(),
+                    ('deadline_missed',NOW+150))
+            finally:state.writer.close()
+
+    async def test_protected_upgrade_cannot_borrow_optional_archive_backoff(self):
+        from tests.test_solana_closure import state_at,NOW
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        with tempfile.TemporaryDirectory() as td:
+            state,h=state_at(Path(td)/'canonical.sqlite')
+            try:
+                identity=h.request('pump','curve',101,101,priority=3,deadline=NOW+150);job,_=h.plan()
+                h.defer_provider_failure(job,retryable=True,diagnostic='evidence_worker_failed:DeliveredRPCError')
+                h.request('pump','curve',101,101,priority=1,deadline=NOW+10)
+                protected,_=h.plan();self.assertEqual(protected['id'],identity)
+                with self.assertRaisesRegex(EvidenceUnavailable,'candidate_protective_acquisition_failed'):
+                    h.defer_provider_failure(job,retryable=True,diagnostic='evidence_worker_failed:DeliveredRPCError')
+                self.assertEqual(h.db.execute('SELECT status,priority,deadline FROM acquisition_jobs WHERE id=?',(identity,)).fetchone(),
+                    ('pending',1,NOW+10))
+            finally:state.writer.close()
+
     async def test_rpc_retry_counts_failed_delivery_without_resetting_candidate_deadline(self):
         from tests.test_solana_closure import state_at,NOW
         from meme_machine.solana_selective_source import SelectiveSource

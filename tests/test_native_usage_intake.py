@@ -1,5 +1,6 @@
 """Burst intake preserves every byte and FIFO fact before economic consumers."""
 import asyncio
+import threading
 from collections import deque
 from pathlib import Path
 from types import SimpleNamespace
@@ -41,7 +42,7 @@ class NativeUsageIntakeTests(unittest.TestCase):
         self.budget.stream_close(self.token,unread_possible=True)
         resumed=Budget(self.path).snapshot()
         self.assertEqual(resumed['native_opens'],'1');self.assertEqual(resumed['native_reserved'],'0')
-        self.assertEqual(resumed['native_uncertain_bytes'],str(3*MAX_FRAME))
+        self.assertEqual(resumed['native_uncertain_bytes'],str(4*MAX_FRAME))
 
     def test_live_frame_is_not_held_waiting_for_a_batch(self):
         async def verify():
@@ -55,6 +56,51 @@ class NativeUsageIntakeTests(unittest.TestCase):
             self.assertEqual(await asyncio.wait_for(buffer.read(),.1),b'live')
             self.assertEqual(self.calls,[4]);buffer.cancel();await asyncio.sleep(0)
         asyncio.run(verify())
+
+    def test_async_sdk_delivery_progresses_during_a_durable_write_without_returning_content(self):
+        async def verify():
+            entered=threading.Event();release=threading.Event();packets=deque((10,bytes([n%256])*10) for n in range(200))
+            async def read():
+                await asyncio.sleep(0)
+                return packets.popleft() if packets else grpc.aio.EOF
+            def native(transport,size):
+                if not self.calls:
+                    entered.set()
+                    if not release.wait(2):raise RuntimeError('offline_release_missing')
+                self.native(transport,size)
+            buffer=NativeReadBuffer(read,SimpleNamespace(native=native),'yellowstone')
+            first=asyncio.create_task(buffer.read())
+            try:
+                for _ in range(100):
+                    if entered.is_set():break
+                    await asyncio.sleep(.001)
+                self.assertTrue(entered.is_set())
+                await asyncio.sleep(.02)
+                self.assertFalse(first.done())
+                self.assertEqual(len(buffer.ready),32)
+                self.assertEqual(self.budget.snapshot()['native_bytes'],'0')
+                release.set();output=[await first]
+                output.extend(await self.consume(buffer,199))
+                self.assertIs(await buffer.read(),grpc.aio.EOF)
+                self.assertEqual(output,[bytes([n%256])*10 for n in range(200)])
+                self.assertEqual(self.budget.snapshot()['native_bytes'],'2000')
+                self.assertLess(len(self.calls),16)
+            finally:
+                release.set();await asyncio.gather(first,return_exceptions=True);buffer.cancel()
+        asyncio.run(verify())
+
+    def test_cancellation_retains_unread_ready_delivery_as_reserved_uncertainty(self):
+        async def verify():
+            buffer=self.buffer([(3,b'raw')]*200);buffer.start()
+            await asyncio.sleep(0)
+            self.assertEqual(len(buffer.ready),32)
+            self.assertEqual(self.budget.snapshot()['native_bytes'],'0')
+            buffer.cancel();await asyncio.sleep(0)
+            with self.assertRaises(asyncio.CancelledError):await buffer.read()
+        asyncio.run(verify());self.budget.stream_close(self.token,unread_possible=True)
+        state=Budget(self.path).snapshot()
+        self.assertEqual(state['native_bytes'],'0')
+        self.assertEqual(state['native_uncertain_bytes'],str(4*MAX_FRAME))
 
     def test_transport_error_follows_all_prior_paid_facts(self):
         error=OSError('offline fault');count=0;faults=[]
@@ -76,12 +122,13 @@ class NativeUsageIntakeTests(unittest.TestCase):
         async def verify():
             self.assertEqual(await buffer.read(),raw)
             self.assertEqual(sum(map(len,buffer.values)),0)
-            self.assertIsNotNone(buffer.carry)
+            self.assertLessEqual(buffer.ready_bytes,MAX_FRAME)
+            self.assertLessEqual(sum(map(len,buffer.values))+buffer.ready_bytes,2*MAX_FRAME)
             self.assertEqual(self.budget.snapshot()['native_bytes'],str(len(raw)))
             self.assertEqual(await buffer.read(),raw)
             self.assertIs(await buffer.read(),grpc.aio.EOF)
         asyncio.run(verify());self.assertEqual(self.calls,[len(raw),len(raw)])
-        self.assertEqual(self.budget.snapshot()['native_reserved'],str(3*MAX_FRAME))
+        self.assertEqual(self.budget.snapshot()['native_reserved'],str(4*MAX_FRAME))
         with self.assertRaisesRegex(CeilingReached,'native_frame_bound'):
             asyncio.run(self.buffer([(MAX_FRAME+1,b'invalid')]).read())
         self.assertEqual(self.budget.snapshot()['reason'],'native_frame_bound')

@@ -234,6 +234,34 @@ class SelectiveHistory:
         self.db.execute('INSERT INTO acquisition_observations(job,kind,at,body) VALUES(?,?,?,?)',
             (job,kind,self.clock(),canonical(body)))
 
+    def defer_provider_failure(self,job,*,retryable,diagnostic):
+        """Keep optional missing history local; retain its lease and deadline.
+
+        The existing error field holds a durable bounded backoff. Mandatory
+        work cannot borrow this deferral, including a concurrently upgraded job.
+        No failed request supplies rows, a cursor, or coverage.
+        """
+        now=self.clock()
+        with self.writer.transaction():
+            row=self.db.execute('SELECT priority,deadline,status,token,pages,error FROM acquisition_jobs WHERE id=?',
+                (job['id'],)).fetchone()
+            if row is None or row[2]!='pending' or (row[3],row[4])!=(job['token'],job['pages']):return
+            if row[0]<=2:raise EvidenceUnavailable('candidate_protective_acquisition_failed')
+            previous={}
+            if row[5]:
+                try:previous=json.loads(row[5])
+                except (ValueError,TypeError):pass
+            attempts=(previous.get('attempts',0) if isinstance(previous,dict)
+                and previous.get('kind')=='archive_provider_failure' else 0)+1
+            retry_after=now+min(30,2**min(attempts,5))
+            status='deadline_missed' if row[1]<=now else 'pending' if retryable and retry_after<row[1] else 'failed'
+            body=dict(kind='archive_provider_failure',attempts=attempts,retry_after=retry_after,
+                diagnostic=diagnostic,complete=False,economic_rejection=False,
+                candidate_retained=True,deadline=row[1],deadline_reset=False)
+            self.db.execute('UPDATE acquisition_jobs SET status=?,updated=?,error=? WHERE id=?',
+                (status,now,canonical(body),job['id']))
+            self._observation(job['id'],'archive_provider_failure',dict(body,status=status))
+
     def plan(self,*,excluding=()):
         """Recheck shared evidence at dispatch; retain each original obligation."""
         from .runtime.operating_families import active_sql
@@ -253,6 +281,10 @@ class SelectiveHistory:
                 row=self.db.execute('SELECT family,address,lo,hi FROM acquisition_jobs WHERE id=? AND status=\'pending\'',(identity,)).fetchone()
                 if row:flights.append((identity,*row))
             skipped=set(excluding)
+            skipped.update(r[0] for r in self.db.execute('''SELECT id FROM acquisition_jobs
+                WHERE priority>2 AND status='pending' AND CASE WHEN json_valid(error) THEN
+                json_extract(error,'$.kind')='archive_provider_failure'
+                AND json_extract(error,'$.retry_after')>? ELSE 0 END''',(now,)))
             while True:
                 exclusion='' if not skipped else ' AND id NOT IN ('+','.join('?' for _ in skipped)+')'
                 row=self.db.execute('''SELECT id,family,address,lo,hi,priority,deadline,token,pages,last_slot,last_index,lineage

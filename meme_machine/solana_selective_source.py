@@ -516,6 +516,9 @@ class SelectiveSource:
                 if receipt is not None:
                     await self.work(lambda s:install(s).delivery(family,'rpc',raw_bytes=receipt['bytes'],
                         rpc_cu=receipt['cu'],calls=receipt.get('calls',1)),priority)
+                from .runtime.evidence_worker import failure_diagnostic
+                self.diagnostic('rpc_failure',dict(method=method,family=family,
+                    attempt=attempt+1,deadline_reset=False,diagnostic=failure_diagnostic(exc)))
                 if not getattr(exc,'retryable',False) or attempt==2:raise
                 await self.work(lambda s:install(s)._observation(None,'rpc_retry',dict(method=method,
                     family=family,attempt=attempt+1,deadline_reset=False,cause_kind=getattr(exc,'cause_kind',None))),priority)
@@ -818,6 +821,7 @@ class SelectiveSource:
 
     async def acquire(self):
         from .operational.position_continuation import position_only
+        from .runtime.evidence_worker import DeliveredRPCError,failure_diagnostic
         while not self.stop.is_set():
             def request_development(state):
                 from .lanes.pump.pump_acceleration_strategy import POLICY
@@ -917,6 +921,10 @@ class SelectiveSource:
                                     candidate_retained=True,economic_rejection=False,complete=False,deadline=job['deadline']))
                         await self.work(unavailable,job['priority'])
                     else:raise
+            except DeliveredRPCError as exc:
+                if job['priority']<=2:raise
+                await self.work(lambda state:install(state).defer_provider_failure(job,
+                    retryable=exc.retryable,diagnostic=failure_diagnostic(exc)),job['priority'])
             except EvidenceUnavailable as exc:
                 if str(exc)!='bootstrap_optional_work_closed':raise
                 await self.work(lambda state:install(state)._observation(job['id'],

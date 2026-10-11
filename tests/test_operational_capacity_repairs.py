@@ -166,6 +166,17 @@ class ValuationRPCBounds(unittest.TestCase):
     def test_ramses_valuation_constructor_bounds_and_pacing(self):self.construct('ramses')
 
 class EvidenceWorkerDiagnosticTests(unittest.TestCase):
+    def test_rpc_failure_retains_only_fixed_method_numeric_status_and_cause(self):
+        from meme_machine.runtime.evidence_worker import DeliveredRPCError,failure_diagnostic
+        secret='https://provider.invalid/v2/private-secret'
+        error=DeliveredRPCError(secret,dict(bytes=20,cu=100),method='getTransactionsForAddress',
+            rpc_code=-32602,http_status=400,cause_kind='ValueError')
+        self.assertEqual(failure_diagnostic(error),
+            'evidence_worker_failed:DeliveredRPCError:method=getTransactionsForAddress:'
+            'rpc_code=-32602:http_status=400:cause=ValueError')
+        error.method=secret;error.rpc_code=secret;error.http_status=9999;error.cause_kind=secret
+        self.assertEqual(failure_diagnostic(error),'evidence_worker_failed:DeliveredRPCError')
+
     def test_sqlite_busy_retains_verified_code_without_exception_message(self):
         import sqlite3
         from meme_machine.runtime.evidence_worker import failure_diagnostic

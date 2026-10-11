@@ -67,11 +67,28 @@ Native intake now groups only immediately ready SDK frames, in FIFO order, up to
 durably committed before any content is returned to an economic consumer.
 Cancellation waits for an accounting transaction already started. One look-ahead
 frame and the existing SDK buffers are covered by a larger conservative per-open
-reservation: 48 MiB for Yellowstone and 64 MiB for WebSockets. The installed
+reservation: 64 MiB for Yellowstone and 80 MiB for WebSockets. The installed
 512-MiB native in-flight/diagnostic boundaries are unchanged. This reduces
 duplicate durable-writer work; it does not eliminate delivered-byte charges or
 claim provider equivalence before another authenticated observation. Frame,
 failure, queue and canonical requirements remain unchanged.
+
+The `96ae082d...` retry published two linked initial program intervals but no
+normalized economic records, then filled the 32-MiB log join while native status
+delivery lagged. Zero-wait polling still allowed roughly one SDK read per durable
+meter commit. The reader now continues into a bounded ready group during a
+durable write; both charged and ready groups and one look-ahead frame are covered
+by the conservative reservation above. No batch timer, late-log discard or
+coverage shortcut is introduced. A ready group commits before any content is
+returned. Actual provider equivalence remains unproved.
+
+The same run exposed an optional candidate archive failure terminating the whole
+collector. Optional failures now remain on their existing acquisition job: a
+retryable failure has a durable exponential backoff up to 30 seconds, without
+resetting its cursor or original deadline. Nonretryable/expired failures remain
+unavailable and retained. A mandatory or concurrently upgraded protective job
+cannot borrow this deferral. Safe fixed method/status/cause fields are retained
+for RPC failures; arbitrary exception messages and credentials are excluded.
 
 The previously declared two-RPS validation envelope was not the actual hybrid
 governor setting: enabling the Solana plane selected a 50-ms interval. The
