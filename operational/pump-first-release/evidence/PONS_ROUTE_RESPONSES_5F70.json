@@ -1,0 +1,100 @@
+{
+  "source": "5f70e90b313adfdfdb0b9269d984cc158e4ec71c",
+  "purpose": "Retain exact native USD route failure; no funding or orders",
+  "started_at": 1791737724.4526572,
+  "provider_http_start_interval_seconds": "0.25",
+  "component_only": true,
+  "status": "FAIL_NATIVE_USD_ROUTE",
+  "reason": "VALUATION_UNAVAILABLE:USDG/USD:native_USDG_executable_route_unavailable",
+  "diagnostic_canonical_membership": true,
+  "ended_at": 1791737726.8470588,
+  "duration_seconds": 2.394402027130127,
+  "blocks": [
+    {
+      "number": "0x5201558",
+      "hash": "0xc918e77df5e3f634372954f4189f2649d24cdf68e38c52a08739c26482f8215e",
+      "timestamp": "0x6acbbf7c"
+    }
+  ],
+  "routes": [
+    {
+      "pool": "0xa587f16d1bfd7cfd082624a23e9e4420ae4fe5d0",
+      "block": "0x5201558",
+      "amount_in": 1000000000000000,
+      "swap_for_y": true,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x78f23bca6869935bdbb79e6f04ae641134b2471d",
+      "block": "0x5201558",
+      "amount_in": 1000000000000000,
+      "swap_for_y": true,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x466b7fa3cf5728ad3d69d6042558fbe90ba4d978",
+      "block": "0x5201558",
+      "amount_in": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xd7efa4b3dfb92318d8d1a26f3fc92692e46075ff",
+      "block": "0x5201558",
+      "amount_in": 1000000000000000,
+      "swap_for_y": true,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x56825af734b53a5359dea2eaa2b5fa1e8eacdee8",
+      "block": "0x5201558",
+      "amount_in": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xbc2f7c6ec69341393fd7965dd0bb4d9f42881c63",
+      "block": "0x5201558",
+      "amount_in": 1000000000000000,
+      "swap_for_y": true,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    }
+  ],
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pons-route-5f70-1791737683117.sqlite",
+  "usage_delta": {
+    "http_attempts": 10,
+    "rpc_elements": 34,
+    "rpc_cu": 780,
+    "http_bytes": 129156
+  },
+  "modeled_public_upper_usd": "0.0004095",
+  "invoice_verified": false,
+  "full_protection": false,
+  "historical_counters_reset": false,
+  "funding": false,
+  "orders": false
+}

@@ -1,0 +1,22 @@
+[
+  {
+    "journal_mode": "delete",
+    "frames": 200,
+    "bytes": 20000,
+    "total_seconds": 0.30197442963253707,
+    "mean_ms": 1.5098721481626853,
+    "p95_ms": 1.7474140040576458,
+    "maximum_ms": 2.2606600541621447,
+    "durability": "FULL"
+  },
+  {
+    "journal_mode": "wal",
+    "frames": 200,
+    "bytes": 20000,
+    "total_seconds": 0.3901284788735211,
+    "mean_ms": 1.9506423943676054,
+    "p95_ms": 2.1748460130766034,
+    "maximum_ms": 2.631557988934219,
+    "durability": "FULL"
+  }
+]

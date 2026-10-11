@@ -191,6 +191,14 @@ class EvidenceWorkerDiagnosticTests(unittest.TestCase):
         self.assertEqual(failure_diagnostic(RuntimeError(secret)),'evidence_worker_failed:RuntimeError')
         self.assertEqual(failure_diagnostic(EvidenceUnavailable(secret)),'evidence_worker_failed:EvidenceUnavailable')
 
+    def test_candidate_join_reason_is_retained_without_granting_coverage(self):
+        from meme_machine.runtime.evidence_worker import failure_diagnostic
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        for reason in ('candidate_late_log_content','yellowstone_incomplete_status_census',
+                'candidate_native_eof','rolling_delivery_frontier_unavailable'):
+            self.assertEqual(failure_diagnostic(EvidenceUnavailable(reason)),
+                'evidence_worker_failed:EvidenceUnavailable:'+reason)
+
     def test_native_writer_failure_keeps_safe_causal_reason(self):
         from meme_machine.runtime.evidence_worker import failure_diagnostic
         from meme_machine.solana_evidence_plane import EvidenceUnavailable,IngestionService

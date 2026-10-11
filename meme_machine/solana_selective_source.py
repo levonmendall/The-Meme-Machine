@@ -313,6 +313,14 @@ class SelectiveSource:
         self.native_streams={};self.native_attempts={};self.native_errors={}
         self.native_peak=0;self.native_revision=0;self.native_published=-1
         self.pending_diagnostics=[]
+        self.join_observed={}
+        self.rolling_publications=0
+
+    def observe_join(self,plane,join,session):
+        now=time.monotonic()
+        if now-self.join_observed.get(plane,-5)>=5:
+            self.join_observed[plane]=now
+            self.diagnostic('native_join_state',dict(plane=plane,session=session,**join.diagnostic()))
 
     def diagnostic(self,kind,body):
         # Reuse canonical acquisition observations, without bodies, new files
@@ -461,13 +469,21 @@ class SelectiveSource:
             # A stale checkpoint cannot request replay outside the supported
             # 6,000-slot window. The retained outage remains an explicit gap;
             # current linked receipts never assert that missing history exists.
-            floor=max(1,tip-REPLAY_SLOTS,(tip if checkpoint is None else checkpoint)-CONTROL_OVERLAP)
+            stale=checkpoint is not None and tip-checkpoint>REPLAY_SLOTS
+            # An outage outside the supported replay window cannot be repaired
+            # by replaying its last 6,000 slots. Retain its historical gap and
+            # authenticate the current linked control tail. Exact candidate and
+            # position history obligations remain separately unavailable.
+            floor=max(1,(tip if checkpoint is None or stale else checkpoint)-CONTROL_OVERLAP)
+            if stale:self.diagnostic('control_current_tail',dict(checkpoint=checkpoint,
+                tip=tip,from_slot=floor,historical_gap_repaired=False))
             req=pb.SubscribeRequest(commitment=pb.FINALIZED,from_slot=floor)
             req.blocks_meta['b'].SetInParent();req.slots['f'].filter_by_commitment=True
             join=CandidateTransactionJoin({},set(),filtered_from_slot=floor)
             async def control(update,size,seen):
                 self.control_connected=True
                 frame=join.feed(update,size,seen)
+                self.observe_join('control',join,str(floor))
                 if frame:await queue.put(frame)
             try:
                 await self.stream(channel,req,control,'shared');return
@@ -641,7 +657,8 @@ class SelectiveSource:
             except Exception as exc:
                 # The owner records a Model B defect before shutdown. There is
                 # no archived startup producer to fall back to.
-                await work(lambda s:install(s).startup.fail(type(exc).__name__),0)
+                from .runtime.evidence_worker import failure_diagnostic
+                await work(lambda s:install(s).startup.fail(failure_diagnostic(exc)),0)
                 raise
             finally:
                 for task in tasks:task.cancel()
@@ -752,6 +769,7 @@ class SelectiveSource:
         gap, never falsely completes an unseen past.
         """
         from .solana_rolling_history import program_scope
+        failures=0
         while not self.stop.is_set():
             from .operational.position_continuation import position_only
             if position_only():await asyncio.sleep(.5);continue
@@ -760,6 +778,7 @@ class SelectiveSource:
                 return [dict(family=f,address=PROGRAMS[f],scope=program_scope(f),priority=6,
                     deadline=h.clock()+120,lower_slot=0,rolling=True) for f in ('pump','pumpswap')]
             desired=await self.work(rows,6)
+            published=self.rolling_publications
             task=asyncio.create_task(self.live(channel,desired,self.stop))
             try:
                 while not task.done() and not self.stop.is_set() and not position_only():
@@ -768,8 +787,10 @@ class SelectiveSource:
             except (EvidenceUnavailable,ConnectionClosed,OSError) as exc:
                 reason=str(exc) if isinstance(exc,EvidenceUnavailable) else type(exc).__name__
                 self.observe('rolling_retry',reason=reason)
-                await self.work(lambda state:install(state)._observation(None,'rolling_retry',dict(reason=reason,complete=False)),1)
-                await asyncio.sleep(.5)
+                self.diagnostic('rolling_retry',dict(reason=reason,complete=False))
+                if self.rolling_publications>published:failures=0
+                failures+=1
+                await asyncio.sleep(min(8,.5*2**min(failures-1,4)))
             finally:
                 if not task.done():task.cancel()
                 await asyncio.gather(task,return_exceptions=True)
@@ -1022,10 +1043,12 @@ class SelectiveSource:
                     durable_finished_monotonic=claimed[-1],work_returned_monotonic=time.monotonic(),
                     published_inline=not self.batched)
                 if rolling:native_announced=True
+                if rolling:self.rolling_publications+=1
         acknowledged=asyncio.Event()
         async def native(update,size,seen):
             try:
                 frame=join.feed(update,size,seen)
+                self.observe_join('rolling' if rolling else 'candidate',join,session)
                 await commit(frame)
             except EvidenceUnavailable as exc:
                 diagnostic=dict(reason=str(exc),addresses=len(addresses),pending_slots=len(join.pending),
@@ -1210,6 +1233,8 @@ class SelectiveSource:
             done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
             for task in done:task.result()
         finally:
+            self.diagnostic('native_join_closed',dict(plane='rolling' if rolling else 'candidate',
+                session=session,**join.diagnostic()))
             if waiter is not None:waiter.cancel()
             for task in tasks:task.cancel()
             await asyncio.gather(*tasks,*([waiter] if waiter is not None else []),return_exceptions=True)

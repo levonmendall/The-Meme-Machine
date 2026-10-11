@@ -27,6 +27,34 @@ remain preserved. The failed `df6274e...` retry established the local regression
 not a new provider INTERNAL diagnosis. Provider success after this repair still
 requires authenticated evidence.
 
+The subsequent authenticated canonical-worker diagnostic received native data
+but published no economic events or program checkpoints. It retained 15 physical
+starts, seven logical RPC elements / 140 CU, and 330,695,967 accounted native
+bytes, below the unchanged 512-MiB diagnostic boundary. No native INTERNAL was
+recorded in that attempt. A separate first-failure diagnostic reproduced INTERNAL
+on the sliced Pump account scout. These are failures, not protection passes.
+
+For a checkpoint already outside the supported replay window, control now starts
+the current 256-slot linked tail rather than purchasing 6,000 old slots that
+cannot repair the earlier outage. The original gap, coverage and candidate/held
+history obligations remain unavailable until their own actual repair. New bounded
+join-state/close observations retain missing log, metadata and finality facts.
+Fixed candidate failure reasons survive the safe process diagnostic. Rolling
+retries back off to eight seconds and reset only after real durable publication.
+
+The authenticated Pons route diagnostic read six authenticated hook-free direct
+WNATIVE/USDG pools at canonical block 85,988,696. Every getSwapOut response returned
+the whole 10^15-wei input unspent and zero output. The existing oracle round/code
+acquisition alone cannot convert ETH to USD. Native USD route readiness therefore
+fails closed; no fixed rate or historical snapshot replaces it. This diagnostic
+used ten physical starts, 34 logical elements / 780 CU, 129,156 response bytes,
+and a public-price modeled $0.0004095. It establishes the specific tested route
+failure, not the nonexistence of every possible on-chain route.
+
+A local FULL-durability SQLite journal benchmark did not show a WAL advantage;
+no speculative journal/commit change was made. The 67 affected regressions and
+their exact file hashes/log are retained in CONTINUOUS_JOIN_REPAIR_VALIDATION.json.
+
 The previously declared two-RPS validation envelope was not the actual hybrid
 governor setting: enabling the Solana plane selected a 50-ms interval. The
 successor makes operational pacing explicit and seals bounded-test pacing in the

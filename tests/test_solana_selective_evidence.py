@@ -245,9 +245,11 @@ class SourceIntegrationTests(SelectiveEvidenceTests):
         source.stream=stream
         with patch('meme_machine.solana_selective_source.install',return_value=self.history),patch('asyncio.sleep',new=AsyncMock()):
             asyncio.run(source.control_stream(MagicMock(),10000,asyncio.Queue()))
-        self.assertEqual(floors,[4000,14000])
+        self.assertEqual(floors,[9744,19744])
         source.measured_rpc.assert_awaited_once_with('getSlot',[dict(commitment='finalized')],'shared',2)
         self.assertIsNone(self.writer.db.execute('SELECT hi FROM gaps WHERE scope=?',(CONTROL,)).fetchone()[0])
+        self.assertEqual(self.writer.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
+        self.assertEqual(self.writer.db.execute('SELECT MAX(hi) FROM coverage WHERE scope=?',(CONTROL,)).fetchone()[0],101)
     def test_control_overlap_keeps_later_outage_open_until_authenticated_boundary(self):
         from meme_machine.solana_selective_runtime import CONTROL
         from meme_machine.solana_evidence_transport import Subscription
@@ -392,5 +394,39 @@ class SourceIntegrationTests(SelectiveEvidenceTests):
         self.assertFalse(row['oldest_meta']);self.assertIsNone(row['oldest_finality'])
         self.assertEqual(row['early_log_count'],1);self.assertEqual(row['completed'],-1)
         self.assertEqual(row['oldest_missing_logs'],1)
+
+    def test_join_progress_is_retained_at_bounded_frequency_without_coverage(self):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock,patch
+        from meme_machine.solana_selective_source import SelectiveSource,PROGRAMS
+        source=SelectiveSource(SimpleNamespace(credential='offline'),MagicMock(),token='offline')
+        join=CandidateTransactionJoin({PROGRAMS['pump']:'program:pump'},set(),filtered_from_slot=300)
+        with patch('meme_machine.solana_selective_source.time.monotonic',return_value=10):
+            for _ in range(50):source.observe_join('rolling',join,'same-source-session')
+        self.assertEqual(len(source.pending_diagnostics),1)
+        kind,row=source.pending_diagnostics[0]
+        self.assertEqual(kind,'native_join_state');self.assertEqual(row['completed'],-1)
+        self.assertEqual(row['plane'],'rolling');self.assertEqual(row['filtered_from_slot'],300)
+        self.assertEqual(self.writer.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
+
+    def test_rolling_failures_back_off_without_reconnect_lifetime_exhaustion(self):
+        import asyncio
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock,MagicMock,patch
+        from meme_machine.solana_selective_source import SelectiveSource
+        source=SelectiveSource(SimpleNamespace(credential='offline'),MagicMock(),token='offline')
+        source.stop=asyncio.Event();source.live=AsyncMock(side_effect=EvidenceUnavailable('candidate_native_internal'))
+        async def work(fn,*args,**kwargs):return fn(self.state)
+        source.work=work;delays=[];original_sleep=asyncio.sleep
+        async def sleep(seconds):
+            if seconds>=.5:
+                delays.append(seconds)
+                if len(delays)==10:source.stop.set()
+            await original_sleep(0)
+        with patch('meme_machine.solana_selective_source.install',return_value=self.history),patch('asyncio.sleep',side_effect=sleep):
+            asyncio.run(source.rolling_programs(None))
+        self.assertEqual(delays[:5],[.5,1,2,4,8]);self.assertEqual(delays[5:],[8]*5)
+        self.assertEqual(source.live.await_count,10)
+        self.assertEqual(self.writer.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
 
 if __name__=='__main__':unittest.main()
