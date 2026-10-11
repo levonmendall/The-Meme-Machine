@@ -425,11 +425,35 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
             if len(floors)==1:raise EvidenceUnavailable('candidate_native_internal')
             source.stop.set()
         source.work=work;source.stream=stream
+        async def current(*args):return 1000
+        source.measured_rpc=current
         with patch('meme_machine.solana_selective_source.install',return_value=history):
             await source.scout_stream(None,1000,None)
         self.assertEqual(floors,[1000-CONTROL_OVERLAP]*2)
         self.assertFalse(receipts[0][2]['checkpoint_advanced'])
         self.assertFalse(receipts[0][2]['economic_coverage_claim'])
+
+    async def test_scout_after_long_outage_retains_gap_and_uses_supported_current_replay(self):
+        from meme_machine.solana_selective_source import SelectiveSource,CONTROL_OVERLAP,REPLAY_SLOTS
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        source=SelectiveSource(SimpleNamespace(credential='offline'),None);source.stop=asyncio.Event()
+        floors=[];receipts=[]
+        history=SimpleNamespace(_observation=lambda *args:receipts.append(args))
+        async def work(fn,*args,**kwargs):return fn(SimpleNamespace())
+        async def current(*args):return 10000
+        async def stream(channel,request,*args,**kwargs):
+            floors.append(request.from_slot)
+            if len(floors)==1:raise EvidenceUnavailable('candidate_native_internal')
+            source.stop.set()
+        source.work=work;source.stream=stream;source.measured_rpc=current
+        with patch('meme_machine.solana_selective_source.install',return_value=history):
+            await source.scout_stream(None,1000,None)
+        self.assertEqual(floors,[1000-CONTROL_OVERLAP,10000-REPLAY_SLOTS])
+        gaps=[r[2] for r in receipts if r[1]=='scout_replay_gap']
+        self.assertEqual(len(gaps),1)
+        self.assertEqual(gaps[0]['lower_slot'],1000-CONTROL_OVERLAP)
+        self.assertEqual(gaps[0]['upper_slot'],10000-REPLAY_SLOTS-1)
+        self.assertFalse(gaps[0]['economic_coverage_claim']);self.assertFalse(gaps[0]['checkpoint_advanced'])
 
     async def test_batched_delivery_counts_every_duplicate_byte(self):
         from meme_machine.solana_selective_source import SelectiveSource

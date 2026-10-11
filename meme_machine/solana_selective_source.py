@@ -606,16 +606,28 @@ class SelectiveSource:
             self.observe('unsubscribe',stream_id=stream_id,family=family)
 
     async def scout_stream(self,channel,tip,handler):
-        """Retry transport failure with the original overlapping scout boundary.
+        """Retry locators within the provider's actual bounded replay window.
 
         Account locators grant neither economic coverage nor entry authority.
         Retrying never advances a canonical or CandidateHistory checkpoint.
         """
         retry=0
+        floor=max(1,tip-CONTROL_OVERLAP)
         while not self.stop.is_set():
             from .operational.position_continuation import position_only
             if position_only():await asyncio.sleep(.5);continue
-            request=scout_request();request.from_slot=max(1,tip-CONTROL_OVERLAP)
+            if retry:
+                current=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',2)
+                if current-floor>REPLAY_SLOTS:
+                    next_floor=max(1,current-REPLAY_SLOTS)
+                    def gap(state):
+                        install(state)._observation(None,'scout_replay_gap',dict(
+                            lower_slot=floor,upper_slot=next_floor-1,
+                            reason='outside_provider_replay_window',economic_coverage_claim=False,
+                            checkpoint_advanced=False,canonical_candidate_proofs_still_required=True))
+                    await self.work(gap,1)
+                    floor=next_floor
+            request=scout_request();request.from_slot=floor
             try:
                 await self.stream(channel,request,handler,'pump' if not enabled('meteora') else 'discovery',optional=True)
                 if not position_only():return

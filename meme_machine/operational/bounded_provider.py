@@ -721,10 +721,12 @@ async def account_native(budget,transport,size):
     if cancelled:raise asyncio.CancelledError()
 
 
+NATIVE_READY_FRAMES=256
+
 class NativeReadBuffer:
     """Coalesce ready SDK frames before durable accounting, without timed waits.
 
-    FIFO content, a charged group and a ready group of at most 32 frames / one
+    FIFO content, a charged group and a ready group of at most 256 frames / one
     maximum frame each, one look-ahead and the original SDK buffers. The ready
     reader continues during the durable commit; no batch timer delays a live
     event. No content precedes its commit. Every unread buffer is reserved.
@@ -753,7 +755,7 @@ class NativeReadBuffer:
         import grpc
         try:
             while True:
-                while len(self.ready)==32 or self.ready_bytes==MAX_FRAME:
+                while len(self.ready)==NATIVE_READY_FRAMES or self.ready_bytes==MAX_FRAME:
                     self.space.clear();await self.space.wait()
                 packet=await self.read_raw()
                 if packet is grpc.aio.EOF:self.terminal=packet;return

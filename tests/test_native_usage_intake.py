@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from unittest.mock import AsyncMock
 import grpc
-from meme_machine.operational.bounded_provider import Budget,NativeReadBuffer,MAX_FRAME,CeilingReached
+from meme_machine.operational.bounded_provider import Budget,NativeReadBuffer,MAX_FRAME,CeilingReached,NATIVE_READY_FRAMES
 
 
 class NativeUsageIntakeTests(unittest.TestCase):
@@ -77,7 +77,9 @@ class NativeUsageIntakeTests(unittest.TestCase):
                 self.assertTrue(entered.is_set())
                 await asyncio.sleep(.02)
                 self.assertFalse(first.done())
-                self.assertEqual(len(buffer.ready),32)
+                # One packet is in the uncommitted charged group; only the
+                # remaining 199 can be in lookahead while that write waits.
+                self.assertEqual(len(buffer.ready),min(199,NATIVE_READY_FRAMES))
                 self.assertEqual(self.budget.snapshot()['native_bytes'],'0')
                 release.set();output=[await first]
                 output.extend(await self.consume(buffer,199))
@@ -93,7 +95,7 @@ class NativeUsageIntakeTests(unittest.TestCase):
         async def verify():
             buffer=self.buffer([(3,b'raw')]*200);buffer.start()
             await asyncio.sleep(0)
-            self.assertEqual(len(buffer.ready),32)
+            self.assertEqual(len(buffer.ready),min(200,NATIVE_READY_FRAMES))
             self.assertEqual(self.budget.snapshot()['native_bytes'],'0')
             buffer.cancel();await asyncio.sleep(0)
             with self.assertRaises(asyncio.CancelledError):await buffer.read()
@@ -138,6 +140,20 @@ class NativeUsageIntakeTests(unittest.TestCase):
         buffer=self.buffer(packets)
         self.assertEqual(asyncio.run(self.consume(buffer,len(rows))),rows)
         self.assertEqual(sum(self.calls),sum(len(s.encode()) for s in rows))
+
+    def test_small_status_burst_preserves_count_and_byte_bounds_without_per_32_fsyncs(self):
+        packets=[(93,bytes([n%256])*93) for n in range(1024)]
+        buffer=self.buffer(packets)
+        async def verify():
+            buffer.start();await asyncio.sleep(0)
+            self.assertEqual(len(buffer.ready),NATIVE_READY_FRAMES)
+            self.assertLessEqual(buffer.ready_bytes,MAX_FRAME)
+            output=await self.consume(buffer,1024)
+            self.assertIs(await buffer.read(),grpc.aio.EOF)
+            return output
+        self.assertEqual(asyncio.run(verify()),[p[1] for p in packets])
+        self.assertEqual(sum(self.calls),93*1024)
+        self.assertEqual(len(self.calls),4)
 
     async def consume(self,buffer,count):return [await buffer.read() for _ in range(count)]
 

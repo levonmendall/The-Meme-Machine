@@ -250,3 +250,35 @@ the maintained inventory, but no validated complete USDG route yet. One unknown
 pool clone is excluded with its code hash retained. These read-only capability
 observations grant no financial or funding authority. Both families remain
 funding-disabled; the 60-minute continuous acceptance clock has not started.
+### 2026-10-11 19:15 UTC continuation
+
+The scout-batch follow-up reduced measured priority-2 peak queue wait from
+2,668,479 to 220,687 microseconds in distinct diagnostic runs. This is a queue
+observation, not a controlled billing or protective-equivalence claim. It still
+failed: native statuses stayed in the pre-floor replay prefix while live logs
+filled their 32-MiB guard. Preserve the exact failed receipt and all counters.
+
+The next correction permits 256 already available small messages per durable
+usage group instead of 32. Both group and lookahead remain limited to 16 MiB;
+the original SDK, frame, reserved-memory, response, deadline and 512-MiB
+diagnostic limits are unchanged. No timed batching or content-before-accounting
+is introduced. Offline 1,024-message FIFO proof uses 4 ledger commits instead of
+32; provider starts, logical CU and delivered bytes are unchanged. This is a
+local durable-write reduction, not verified Alchemy savings.
+
+Scout reconnects also refresh the actual provider tip and retain an explicit
+locator gap if the original boundary has fallen outside the supported 6,000-slot
+replay window. Such a gap grants no canonical membership or candidate admission.
+The source no longer retries a permanently obsolete locator replay boundary.
+
+Affected intake, physical-budget, locator and shared-capacity regressions:
+65 tests passed in 5.196 seconds; startup/intake subset 51 passed in 8.360 seconds.
+One initial offline assertion incorrectly counted the packet already held by
+the blocked durable writer as still in lookahead; corrected accounting leaves
+every packet and original byte/rollback assertion intact. Failed log retained.
+
+Pons current-block two-hop investigation found two positive quote paths through
+r33/RAM using authenticated hookless pool identities. Bridge-token transfer
+behavior has not been proved, so neither route is active for financial decisions.
+The diagnostic used 10 starts, 78 elements, 1,834 conservative CU and 139,362 HTTP
+bytes; public-rate estimate $0.00096285, not authenticated invoice charges.
