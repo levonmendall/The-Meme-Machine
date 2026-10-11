@@ -170,6 +170,23 @@ class HistoricalTransactionReuseTests(unittest.TestCase):
                 self.assertIsNone(durable_cache(plane,'legacy-qualification-domain').transaction('tx','bh'))
             finally:plane.close()
 
+    def test_receipt_pressure_retains_constant_work_without_a_metadata_scan(self):
+        from meme_machine.lanes.pons.pons_selective_acquisition import ImmutableEvidenceCache
+        class BoundedReceiptKey(tuple):
+            length_reads=0
+            def __len__(self):
+                type(self).length_reads+=1
+                return super().__len__()
+        cache=ImmutableEvidenceCache()
+        for n in range(8192):cache.remember_receipt(str(n),'bh',dict(transactionHash=str(n),blockHash='bh'))
+        # Count per-entry inspection rather than using a flaky CPU-time bound.
+        cache.receipts=type(cache.receipts)((BoundedReceiptKey(key),value) for key,value in cache.receipts.items())
+        cache.remember_receipt('next','bh',dict(transactionHash='next',blockHash='bh'))
+        self.assertEqual(BoundedReceiptKey.length_reads,0)
+        self.assertEqual(len(cache.receipts),8192)
+        self.assertIsNone(cache.receipt('0','bh'))
+        self.assertIsNotNone(cache.receipt('next','bh'))
+
 
 class InactiveImmutableGetterTests(unittest.TestCase):
     def replay(self,*,optimized,factor=1.,count=1,gas=1,unknown=False):

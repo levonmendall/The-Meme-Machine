@@ -68,10 +68,9 @@ class ImmutableEvidenceCache:
         store[key]=value;sizes[key]=size
         self._bytes[identity]=self._bytes.get(identity,0)+size
         while len(store)>int(limit) or self._bytes[identity]>CACHE_MAP_BYTES:
-            # Optional sender metadata must not reduce receipt coverage at
-            # capacity. Receipts have first claim on the existing map budget.
-            expired=(next((k for k in store if len(k)==3),next(iter(store)))
-                if store is self.receipts else next(iter(store)))
+            # Sender metadata stays before receipts, so the original O(1)
+            # eviction also gives receipts first claim on the shared budget.
+            expired=next(iter(store))
             store.pop(expired)
             self._bytes[identity]-=sizes.pop(expired,0)
         return True
@@ -152,6 +151,7 @@ class ImmutableEvidenceCache:
             return value
         self._remember(self.receipts,key,value,
             CACHE_RECEIPTS,'selective_cached_transaction_conflict')
+        if key in self.receipts:self.receipts.move_to_end(key,last=False)
         self.counts['transaction_store']+=1
         return value
 
