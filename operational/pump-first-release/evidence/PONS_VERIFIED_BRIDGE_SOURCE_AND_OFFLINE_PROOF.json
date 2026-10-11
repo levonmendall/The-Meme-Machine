@@ -1,0 +1,118 @@
+{
+  "status": "PASS_OFFLINE_SOURCE_AND_FINANCIAL_COMPOSITION_ONLY",
+  "roles": [
+    {
+      "role": "pons_usd_r33",
+      "address": "0x4e5195469a0360f5dfe811730c9ccacff0a0feee",
+      "source_api": "https://sourcify.dev/server/v2/contract/4663/0x4e5195469a0360f5dfe811730c9ccacff0a0feee?fields=all",
+      "compiler": {
+        "language": "Solidity",
+        "compiler": "solc",
+        "compilerVersion": "0.8.30+commit.73712a01",
+        "compilerSettings": {
+          "viaIR": true,
+          "metadata": {
+            "appendCBOR": true,
+            "bytecodeHash": "ipfs",
+            "useLiteralContent": false
+          },
+          "optimizer": {
+            "runs": 300,
+            "enabled": true
+          },
+          "evmVersion": "cancun",
+          "remappings": [
+            "@layerzerolabs/=node_modules/@layerzerolabs/",
+            "@layerzerolabs/lz-evm-protocol-v2/=node_modules/@layerzerolabs/lz-evm-protocol-v2/",
+            "@openzeppelin-contracts-upgradeable/=dependencies/@openzeppelin-contracts-upgradeable-5.1.0/",
+            "@openzeppelin-contracts/contracts/=dependencies/@openzeppelin-contracts-5.1.0/",
+            "@openzeppelin/contracts-upgradeable/=dependencies/@openzeppelin-contracts-upgradeable-5.1.0/",
+            "@openzeppelin/contracts/=dependencies/@openzeppelin-contracts-5.1.0/",
+            "erc4626-tests/=dependencies/erc4626-property-tests-1.0/",
+            "forge-std/=dependencies/forge-std-1.9.4/src/",
+            "permit2/=lib/permit2/",
+            "@openzeppelin-3.4.2/=node_modules/@openzeppelin-3.4.2/",
+            "@openzeppelin-contracts-5.1.0/=dependencies/@openzeppelin-contracts-5.1.0/",
+            "@openzeppelin-contracts-upgradeable-5.1.0/=dependencies/@openzeppelin-contracts-upgradeable-5.1.0/",
+            "@uniswap/=node_modules/@uniswap/",
+            "base64-sol/=node_modules/base64-sol/",
+            "erc4626-property-tests-1.0/=dependencies/erc4626-property-tests-1.0/",
+            "eth-gas-reporter/=node_modules/eth-gas-reporter/",
+            "forge-std-1.9.4/=dependencies/forge-std-1.9.4/src/",
+            "hardhat/=node_modules/hardhat/",
+            "solidity-bytes-utils/=node_modules/solidity-bytes-utils/",
+            "solmate/=node_modules/solmate/"
+          ]
+        },
+        "name": "R33OftSatellite",
+        "fullyQualifiedName": "contracts/oft/R33OftSatellite.sol:R33OftSatellite"
+      },
+      "runtime_sha256": "cffaaaceb64237be053f03acaab5a429fe85223c2bd7078fd4ca2b84947d53ed",
+      "compiler_input_sha256": "27be582726b34e54e99c831bcad0a3bd34d0832ce15cc8385ec35a7d2fe7c77f",
+      "pin_sha256": "61469b6a2440b9538944f25ed5d8c5a8e2a3b97267004faa2f33f23fe3297dd2",
+      "local_transfer": "Stock OpenZeppelin ERC20 5.1; no inherited overrides to transfer/transferFrom/_transfer/_update/Context._msgSender",
+      "mutable_remote_state": "Authenticated LayerZero mint/burn and owner peer settings; never treated as a price invariant"
+    },
+    {
+      "role": "pons_usd_ram",
+      "address": "0x5173d45a1191ee33cbb7d8c7e65f21b04ed54802",
+      "source_api": "https://sourcify.dev/server/v2/contract/4663/0x5173d45a1191ee33cbb7d8c7e65f21b04ed54802?fields=all",
+      "compiler": {
+        "language": "Solidity",
+        "compiler": "solc",
+        "compilerVersion": "0.8.30+commit.73712a01",
+        "compilerSettings": {
+          "viaIR": true,
+          "metadata": {
+            "appendCBOR": true,
+            "bytecodeHash": "ipfs",
+            "useLiteralContent": false
+          },
+          "libraries": {},
+          "optimizer": {
+            "runs": 300,
+            "enabled": true
+          },
+          "evmVersion": "cancun",
+          "remappings": [
+            "@layerzerolabs/=node_modules/@layerzerolabs/",
+            "@layerzerolabs/lz-evm-protocol-v2/=node_modules/@layerzerolabs/lz-evm-protocol-v2/",
+            "@openzeppelin-contracts-upgradeable/=dependencies/@openzeppelin-contracts-upgradeable-5.1.0/",
+            "@openzeppelin-contracts/contracts/=dependencies/@openzeppelin-contracts-5.1.0/",
+            "@openzeppelin/contracts-upgradeable/=dependencies/@openzeppelin-contracts-upgradeable-5.1.0/",
+            "@openzeppelin/contracts/=dependencies/@openzeppelin-contracts-5.1.0/",
+            "erc4626-tests/=dependencies/erc4626-property-tests-1.0/",
+            "forge-std/=dependencies/forge-std-1.9.4/src/",
+            "permit2/=lib/permit2/",
+            "@openzeppelin-3.4.2/=node_modules/@openzeppelin-3.4.2/",
+            "@openzeppelin-contracts-5.1.0/=dependencies/@openzeppelin-contracts-5.1.0/",
+            "@openzeppelin-contracts-upgradeable-5.1.0/=dependencies/@openzeppelin-contracts-upgradeable-5.1.0/",
+            "@uniswap/=node_modules/@uniswap/",
+            "base64-sol/=node_modules/base64-sol/",
+            "erc4626-property-tests-1.0/=dependencies/erc4626-property-tests-1.0/",
+            "eth-gas-reporter/=node_modules/eth-gas-reporter/",
+            "forge-std-1.9.4/=dependencies/forge-std-1.9.4/src/",
+            "hardhat/=node_modules/hardhat/",
+            "solidity-bytes-utils/=node_modules/solidity-bytes-utils/",
+            "solmate/=node_modules/solmate/"
+          ]
+        },
+        "name": "RamsesOftSatellite",
+        "fullyQualifiedName": "contracts/oft/RamsesOftSatellite.sol:RamsesOftSatellite"
+      },
+      "runtime_sha256": "386126d9e9fbb3fa27937fce41094d30bea610c475af1bf952e18ad8ae66fe41",
+      "compiler_input_sha256": "59008495a523695207bad5aa210b4074a835f7ca53bab89f8b561d20afa73212",
+      "pin_sha256": "8177a18917f414ab5e3b7edea3c6afff1a5da402d9c0552e64b242577f1994ea",
+      "local_transfer": "Stock OpenZeppelin ERC20 5.1; no inherited overrides to transfer/transferFrom/_transfer/_update/Context._msgSender",
+      "mutable_remote_state": "Authenticated LayerZero mint/burn and owner peer settings; never treated as a price invariant"
+    }
+  ],
+  "focused_tests": 59,
+  "duration_seconds": 10.346,
+  "receipt": "/tmp/pons-bridge-and-maintenance-focused-corrected.log",
+  "activation": "DISABLED",
+  "mode": "MM_PONS_USD_BRIDGE_ROUTES=verified_two_hop_v1",
+  "scope": "Existing Pons native USD reader fallback; no Ramses trading workload",
+  "requirements": "Fresh per-block bridge bytecode, factory membership, pool clone identity/step, hooks, both full-input exact-quantity hop quotes, ordered canonical fence and unchanged five-second validity; live shared protective latency remains unproved",
+  "strategy_changes": false
+}

@@ -368,3 +368,34 @@ OpenZeppelin ERC20 local transfers; remote mint/burn and peer control must not
 be mistaken for immutable pool prices. Four starts/five elements/80 CU/47,299
 HTTP bytes cost public-modeled $0.000042, not invoice evidence. No financial
 route or trading regime has been enabled by this identity check.
+
+### Retained failure-time maintenance repair and bounded Pons route extension
+
+The 60-second WAL-handle observation remained in control replay and did not
+open live economic intake. Its usage was three physical starts, one logical
+element, 20 CU and 135,914,764 accounted native bytes; public-modeled $0.01428155022.
+The original 300-second follow-up stopped on a real local
+`maintenance_observation_vm_bound` before current-control catch-up. Eight thousand
+coverage intervals caused an empty-prefix witness query to scan later protected
+intervals. Frozen failure-time read-only replay reproduced 251,000 steps against
+the unchanged 250,000-step guard. Supplying the native interval's necessary
+`lo < floor` index bound yields the same observation at 219,000 steps. It deletes
+no history and changes neither floor, evidence, debt nor the observation budget.
+A 25,000-interval regression preserves all future coverage and still sees actual
+older coverage/repaired-gap debt. All failed run counters remain retained.
+
+The existing Pons valuation reader now has an explicitly disabled fallback for
+the two compiler-verified R33/RAM bridge routes. It uses the same pinned-block,
+USDG oracle, canonical fence and five-second validity. Every refresh authenticates
+current bridge code, both factory memberships, exact pool clone token/step
+identities, zero hooks and full-input first/second-hop quotes. The second input is
+the exact first output. Unknown bridges and pools are excluded by the bounded
+reviewed identities. Ramses trading stays paused. `MM_PONS_USD_BRIDGE_ROUTES` is
+unset in the service; only `verified_two_hop_v1` can select this diagnostic
+extension. No source identity alone enables funding.
+
+Maintenance and valuation focused acceptance: 59 passed in 10.346 seconds,
+including original direct-route behavior, disabled no-acquisition behavior,
+source transfer semantics, hook/membership/quantity/fee refusals, depeg composition,
+expiry, reorganization and pending-accounting recovery. Actual shared native
+financial/protective latency and continuous economic coverage remain unproved.

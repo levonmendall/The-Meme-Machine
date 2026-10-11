@@ -24,6 +24,35 @@ class MaintenanceIntegrityTests(unittest.TestCase):
     def counts(self,state):
         return dict(state.writer.db.execute('SELECT key,value FROM counters WHERE key LIKE \'lifecycle.%\''))
 
+    def test_protected_future_coverage_does_not_exhaust_empty_retirement_prefix(self):
+        from meme_machine.solana_maintenance_state import DebtAgeAdapter,OBSERVATION_VM_STEPS
+        with self.state() as state:
+            w=state.writer;db=w.db
+            w.interest('pump','control:solana',lower_slot=1,priority=0,lifecycle='open')
+            with w.transaction():
+                db.execute('INSERT INTO cursors VALUES(?,?,?)',('control:solana',25100,1000))
+                db.executemany('INSERT INTO coverage(scope,lo,hi,available,proof) VALUES(?,?,?,?,?)',
+                    [('control:solana',100+i,100+i,1000,'retained-'+str(i)) for i in range(25000)])
+            before=db.execute('SELECT COUNT(*),SUM(lo),SUM(hi) FROM coverage').fetchone()
+            a=DebtAgeAdapter(w,wall=lambda:1000)
+            observation=a.observe('protected-future')
+            control=next(r for r in observation.scopes if r.scope=='control:solana')
+            self.assertLessEqual(observation.vm_steps,OBSERVATION_VM_STEPS)
+            self.assertEqual((control.floor,control.continuity,control.pins),(1,0,1))
+            self.assertEqual(db.execute('SELECT COUNT(*),SUM(lo),SUM(hi) FROM coverage').fetchone(),before)
+            # The indexed empty-prefix test must still see genuinely older
+            # native witnesses. Neither observation retires or fabricates them.
+            with w.transaction():
+                db.execute('INSERT INTO coverage(scope,lo,hi,available,proof) VALUES(?,?,?,?,?)',
+                    ('control:solana',0,0,500,'old-authenticated'))
+                db.execute('INSERT INTO gaps(scope,lo,hi,reason,created,repaired) VALUES(?,?,?,?,?,?)',
+                    ('control:solana',0,0,'old-gap',400,500))
+            observation=a.observe('retained-prefix')
+            control=next(r for r in observation.scopes if r.scope=='control:solana')
+            self.assertEqual((control.floor,control.continuity),(1,2))
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM coverage').fetchone()[0],25001)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM records').fetchone()[0],0)
+
     def test_large_live_address_dictionary_observation_stays_bounded(self):
         from meme_machine.solana_maintenance_state import DebtAgeAdapter,OBSERVATION_VM_STEPS
         with self.state() as state:

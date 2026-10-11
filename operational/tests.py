@@ -63,6 +63,7 @@ FAST=[
  'tests.test_solana_closure','tests.test_solana_shared_capacity','tests.test_solana_rolling_prewarm','tests.test_solana_prewarm_startup',
  'tests.test_operational_nine','tests.test_operational_portfolio',
  'tests.test_robinhood_usd_valuation','tests.test_native_valuation_completion',
+ 'tests.test_pons_usd_bridge_routes',
  'tests.test_opportunity_telemetry','tests.test_opportunity_retention','tests.test_pons_ongoing_scale','tests.test_strategic_reference','tests.test_strategy_observability_runtime','tests.test_current_survivor_independence',
  'tests.test_portfolio_accounting','tests.test_portfolio_lane_integration',
  'tests.test_provider_retry','tests.test_provider_usage_wal_race','tests.test_runtime_wal_races','tests.test_robinhood_archive_snapshot','tests.test_lifecycle_snapshot_connection','tests.test_pump_restart_connection','tests.test_pons_recovery_connection','tests.test_pons_capital_recovery_snapshot','tests.test_sleeve_reconciliation_snapshot','tests.test_pipeline_retention_boundary','tests.test_optional_capability_shapes','tests.test_prefetch_governor_readonly',

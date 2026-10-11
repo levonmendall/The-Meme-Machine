@@ -501,7 +501,14 @@ class DebtAgeAdapter:
                     # Need a bounded work witness, not a full history count. A
                     # saturated continuity backlog is represented conservatively
                     # as pending, never as zero or exact record debt.
-                    found = db.execute('SELECT 1 FROM '+table+' WHERE scope=? AND '+field+'<?'+predicate+' LIMIT 1', (scope, floor)).fetchone()
+                    # Native interval witnesses have lo<=hi. Give their slot
+                    # index the necessary lower-coordinate bound as well: an
+                    # empty prefix must not scan every later protected interval
+                    # and exhaust observation's unchanged VM safety budget.
+                    interval=table in ('coverage','gaps')
+                    prefix=' AND lo<?' if interval else ''
+                    args=(scope,floor,floor) if interval else (scope,floor)
+                    found = db.execute('SELECT 1 FROM '+table+' WHERE scope=? AND '+field+'<?'+prefix+predicate+' LIMIT 1', args).fetchone()
                     continuity += int(found is not None)
                     if suffix is not None:
                         # Coverage/gap witnesses are retired only in their

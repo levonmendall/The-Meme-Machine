@@ -4,6 +4,7 @@ from datetime import datetime,timezone
 from decimal import Decimal
 from meme_machine.exact_money import arithmetic, money, exact
 import re
+import os
 import threading
 import time
 
@@ -12,6 +13,16 @@ USDG_ASSET='0x5fc5360d0400a0fd4f2af552add042d716f1d168'
 USDG_HEARTBEAT=86400
 USDG_CACHE_SECONDS=60
 USDG_BLOCKER='VALUATION_UNAVAILABLE:USDG/USD: verified read-only oracle evidence required'
+
+# Exact current deployments, compiler verified through the existing identity
+# reader. This acquisition extension is inactive until provider equivalence and
+# shared protective deadlines pass; it grants no trading or valuation authority.
+PONS_USD_BRIDGES=(
+    ('pons_usd_r33','0x69e96a790b74c47ac64f65e23e0ea580a7c1903a',
+        '0x544c010194d904a152524455fd9f3de59bbac034'),
+    ('pons_usd_ram','0x6cefa6f3fb2b89aaa8eafba9739b265b2b7aa4da',
+        '0xe5c549d30eb7ac99dcaaddd4a7fec48c5d523a31'),
+)
 
 class ValuationUnavailable(ValueError):pass
 
@@ -179,11 +190,89 @@ def robinhood_usd(rpc=None,*,now=None,_at_block=None):
         raise _unavailable('RPC_unavailable_or_invalid') from None
 
 
+def _pons_bridge_routes(rpc,factory,wnative,probe,block):
+    """Same-block hookless two-hop quotes through two verified ERC20 bridges.
+
+    Ordinary local transfers in the pinned OFT implementations debit and credit
+    the same raw quantity. Remote supply/peer changes are not price invariants:
+    both pool hooks, membership and quantity-specific quotes refresh every time.
+    No unknown bridge, pool discovery, replay or additional service is admitted.
+    """
+    from meme_machine.lanes.ramses.identity import authenticate,load
+    from meme_machine.lanes.ramses.ramses_costs import _decode_pairs,values
+    from meme_machine.lanes.ramses.ramses import authenticate_pool
+    from meme_machine.lanes.ramses.abi import calldata
+    pins=[load(role) for role,_,_ in PONS_USD_BRIDGES]
+    calls=[]
+    for pin in pins:
+        asset=pin['address'].lower()
+        calls.append(('eth_getCode',[asset,hex(block)]))
+        calls.extend(('eth_call',[dict(to=factory,data=calldata(
+            'getAllLBPairs(address,address)',asset,target)),hex(block)])
+            for target in (wnative,USDG_ASSET))
+    raw=rpc.batch(calls,scope='position_monitor')
+    selected=[]
+    for i,(role,first,second) in enumerate(PONS_USD_BRIDGES):
+        asset=pins[i]['address'].lower()
+        identity=authenticate(role,asset,raw[3*i])
+        pairs=[]
+        for j,pool in enumerate((first,second)):
+            eligible=[r for r in _decode_pairs(raw[3*i+j+1])
+                if r['pool']==pool and not r['ignored_for_routing']]
+            if len(eligible)!=1:break
+            pairs.append(eligible[0])
+        if len(pairs)==2:selected.append(dict(asset=asset,identity=identity,pairs=pairs))
+    if not selected:return []
+    calls=[]
+    for route in selected:
+        for pair in route['pairs']:
+            calls.extend((('eth_getCode',[pair['pool'],hex(block)]),
+                ('eth_call',[dict(to=pair['pool'],data=calldata('getLBHooksParameters()')),hex(block)])))
+    raw=rpc.batch(calls,scope='position_monitor')
+    eligible=[]
+    for i,route in enumerate(selected):
+        directions=[]
+        for j,(source,target) in enumerate(((wnative,route['asset']),(route['asset'],USDG_ASSET))):
+            code,hooks=raw[4*i+2*j:4*i+2*j+2]
+            if int(hooks,16):break
+            auth=authenticate_pool(code,factory_member=True)
+            if ({auth['token_x'],auth['token_y']}!={source,target}
+                    or auth['bin_step']!=route['pairs'][j]['bin_step']):
+                raise _unavailable('native_USDG_bridge_pool_identity')
+            directions.append(auth['token_x']==source)
+        if len(directions)==2:eligible.append(dict(route,directions=directions))
+    if not eligible:return []
+    raw=rpc.batch([('eth_call',[dict(to=r['pairs'][0]['pool'],data=calldata(
+        'getSwapOut(uint128,bool)',probe,int(r['directions'][0]))),hex(block)])
+        for r in eligible],scope='position_monitor')
+    first=[]
+    for route,quote in zip(eligible,raw):
+        q=values(quote)
+        if len(q)==3 and q[0]==0 and 0<q[1]<2**128 and 0<=q[2]<=probe:
+            first.append(dict(route,first_output=q[1],first_fee=q[2]))
+    if not first:return []
+    raw=rpc.batch([('eth_call',[dict(to=r['pairs'][1]['pool'],data=calldata(
+        'getSwapOut(uint128,bool)',r['first_output'],int(r['directions'][1]))),hex(block)])
+        for r in first],scope='position_monitor')
+    out=[]
+    for route,quote in zip(first,raw):
+        q=values(quote)
+        if len(q)!=3 or q[0]!=0 or not 0<q[1]<2**128 or not 0<=q[2]<=route['first_output']:continue
+        out.append(dict(amount_out=q[1],route_pool=route['pairs'][1]['pool'],
+            route_kind='verified_erc20_two_hop',bridge=route['asset'],
+            bridge_identity=route['identity'],first_pool=route['pairs'][0]['pool'],
+            first_quantity=probe,first_output=route['first_output'],first_fee=route['first_fee'],
+            second_fee=q[2],directions=route['directions']))
+    return out
+
+
 def _pons_usd(rpc,value,now,state,block_info):
     """Reuse the authenticated executable WNATIVE -> USDG route reader."""
     from meme_machine.lanes.ramses.identity import authenticate,load
     from meme_machine.lanes.ramses.ramses_costs import _wnative,_factory_direct_routes
     from meme_machine.runtime.journal import digest
+    mode=os.environ.get('MM_PONS_USD_BRIDGE_ROUTES','')
+    if mode not in ('','verified_two_hop_v1'):raise _unavailable('native_USDG_bridge_mode_invalid')
     block,timestamp,block_hash=block_info
     factory=load('ramses_factory')['address']
     if not state.get('factory_verified'):
@@ -193,6 +282,8 @@ def _pons_usd(rpc,value,now,state,block_info):
     # A bounded executable reference quantity, not strategy sizing authority.
     probe=10**15
     routes=_factory_direct_routes(rpc,factory,wnative,USDG_ASSET,probe,block)
+    if not routes and mode=='verified_two_hop_v1':
+        routes=_pons_bridge_routes(rpc,factory,wnative,probe,block)
     if not routes:raise _unavailable('native_USDG_executable_route_unavailable')
     route=max(routes,key=lambda item:item['amount_out'])
     output=route['amount_out']
