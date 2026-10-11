@@ -297,3 +297,26 @@ to durably reach the sampled startup tip before opening rolling live log joins.
 It changes acquisition order only. It does not substitute a cached block number
 for canonical membership, skip historical replay or grant candidate admission.
 Source cancellation remains bounded. Affected regressions: 83 passed in 14.841s.
+
+### 2026-10-11 19:48 UTC retained failure and deterministic timing
+
+The control-first bounded diagnostic authenticated a current control frontier
+(455766953) beyond the program join (455766914), but still failed sustained
+economic coverage. It published 654 Pump and 994 PumpSwap rolling facts; its
+32-MiB log guard and 512-MiB accounted native boundary remained intact. Six
+openings, 49 HTTP starts, 43 logical elements and 3,900 conservative CU are
+retained. The public upper is $0.056665675605, including uncertain unread buffers;
+this is not an authenticated invoice or full protection pass.
+
+FAST on `6d64f93e39fb6eeb54245386671b035e75a4714c` failed one research timeline
+assertion: it required an ordinary 20-owner replay to take over three seconds;
+the runner measured 2.959457262 seconds. This is not a production deadline
+relaxation. All ordinary traces remain; an explicit 600-ms provider-RTT stress
+now establishes the intended deadline miss independently of runner CPU speed.
+The affected exact native timing test passed in 8.507 seconds. Genuine
+protective deadline, accounting and economic assertions remain unchanged.
+
+The remaining Pump bottleneck needs attribution between native intake, join
+processing, normalized publication and optional cold work before another
+correctness trial. Further measurement is diagnostic, never a funding gate
+pass. Both families remain disabled; the continuous acceptance clock is zero.

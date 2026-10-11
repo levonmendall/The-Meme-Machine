@@ -337,7 +337,9 @@ class NativeTimingTests(unittest.TestCase):
         from tests import test_pons_protective_capacity as capacity
         rows=[]
         for count in (1,2,5,10,15,20):
-            for factor,label in ((.6,'full_exit'),(2.2,'partial_exit')):
+            cases=[(.6,'full_exit',.1),(2.2,'partial_exit',.1)]
+            if count==20:cases.append((2.2,'partial_exit',.6))
+            for factor,label,latency in cases:
                 events=[]
                 def trace(r,rpc):
                     transition=r.book.transition
@@ -351,15 +353,22 @@ class NativeTimingTests(unittest.TestCase):
                             source_evidence_current=observation.get('evidence_current')))
                         return result
                     r.book.transition=commit
-                _,risk,rpc,result=capacity.replay(self,count,price_factor=factor,before_step=trace)
+                _,risk,rpc,result=capacity.replay(self,count,price_factor=factor,latency=latency,before_step=trace)
                 self.assertTrue(all(r['last_action']['action']==label for r in risk))
                 self.assertTrue(all(b-a>=.5-1e-8 for a,b in zip(rpc.starts,rpc.starts[1:])))
                 self.assertTrue(self.native_runtime.book.replay()['verified'])
                 self.assertTrue(self.native_runtime.sleeve.reconcile()['reconciled'])
                 complete=rpc.clock-100+rpc.local_wall_seconds
-                if count==20 and label=='partial_exit':self.assertGreater(complete,3)
+                # The 100-ms ordinary case may finish on either side of the
+                # deadline as measured host CPU work changes. It is an observed
+                # result, not a guaranteed capacity failure. Keep every ordinary
+                # case and exercise a miss with an explicit 600-ms provider RTT,
+                # instead of requiring a fast runner's local work to be slow.
+                if latency==.6:
+                    self.assertGreater(rpc.clock-100,3)
+                    self.assertGreater(complete,3)
                 rows.append(dict(owners=count,action=label,scope='NATIVE_CORE_USD_VALUATION_STUBBED',
-                    rps=2,scheduled_turn=100,original_observation_due=103,
+                    rps=2,scheduled_turn=100,original_observation_due=103,injected_http_rtt_seconds=latency,
                     physical_starts=rpc.starts,last_responses=rpc.responses,
                     queue_wait_seconds=sum(rpc.waits),local_wall_seconds=rpc.local_wall_seconds,
                     native_cpu_seconds=rpc.local_cpu_seconds,events=events,

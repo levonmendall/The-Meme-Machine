@@ -1,0 +1,16 @@
+{
+  "failed_source": "6d64f93e39fb6eeb54245386671b035e75a4714c",
+  "failed_fast_run": 38166260200,
+  "failed_tests": 1,
+  "total_tests": 1624,
+  "reason": "Research trace assumed ordinary 20-owner partial execution must exceed 3 seconds on every CPU",
+  "observed_seconds": "2.959457262000001",
+  "original_guard_seconds": 3,
+  "correction": "Preserve all ordinary measured cases; add explicit 600-ms native provider RTT stress for deterministic deadline failure",
+  "focused_tests": 1,
+  "focused_passed": true,
+  "elapsed_seconds": "8.507",
+  "log": "/tmp/native-timeline-explicit-rtt.log",
+  "log_sha256": "f77085c6edd8cb77faecc20f9cf5be3e82c3423a1c4840d9fdc5895097b675ef",
+  "production_deadlines_changed": false
+}
