@@ -163,6 +163,41 @@ class SharedAuthorityTests(unittest.TestCase):
     fixture=Native.fixture
     queue=Native.queue
 
+    def test_prepared_observation_budget_reaches_every_child_without_reset(self):
+        import os
+        from meme_machine.operational.bounded_provider import Budget
+        root,a,now,s=self.service('pump')
+        budget=Budget.create(root/'observation-usage.sqlite')
+        budget.reserve_http('https://solana-mainnet.g.alchemy.com/v2/offline',
+            [dict(method='getSlot')])
+        original=budget.snapshot()
+        s.epoch=a.ledger()['epoch_id']
+        s.admission='OBSERVATION'
+        with patch.dict(os.environ,MM_BOUNDED_PROVIDER_DB=str(budget.path)):
+            for _ in range(2):
+                s.configure_admission()
+                for lane in ('pump','pons','solana'):
+                    self.assertEqual(s.environment(lane)['MM_BOUNDED_PROVIDER_DB'],str(budget.path))
+                self.assertEqual(s.provider_budget.snapshot(),original)
+                self.assertEqual(a.ledger()['runtime_admission']['mode'],'OBSERVATION')
+        a.verify_replay()
+
+    def test_faulted_observation_allowance_blocks_start_without_replenishment(self):
+        import os
+        from meme_machine.operational.bounded_provider import Budget
+        from engineering.solana_capacity.proof_limits import CeilingReached
+        root,a,now,s=self.service('pump')
+        budget=Budget.create(root/'observation-usage.sqlite')
+        budget.change(reason='modeled_spend_limit',check=False)
+        original=budget.snapshot();before=a.ledger()['runtime_admission']
+        s.admission='OBSERVATION'
+        with patch.dict(os.environ,MM_BOUNDED_PROVIDER_DB=str(budget.path)):
+            with self.assertRaisesRegex(CeilingReached,'modeled_spend_limit'):
+                s.configure_admission()
+        self.assertEqual(budget.snapshot(),original)
+        self.assertEqual(a.ledger()['runtime_admission'],before)
+        a.verify_replay()
+
     def test_exact_readiness_deadline_uses_the_same_monotonic_clock_boundary(self):
         # Subtracting these floats produces 59.999999999999986 at the
         # existing 60-second deadline. Neither rounding nor grace is allowed.

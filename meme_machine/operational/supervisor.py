@@ -424,6 +424,11 @@ class Supervisor:
         if self.admission=='BOOTSTRAP':
             original=Budget.create(self.root/'shared'/('bootstrap-'+self.run_id+'.sqlite'),continuation=envelope)
             self.provider_budget=PhaseBudget(original.path)
+        elif self.admission=='OBSERVATION' and os.environ.get('MM_BOUNDED_PROVIDER_DB'):
+            # A prepared observation allowance must reach every existing child
+            # transport. Open its durable counters; never create or replenish it.
+            self.provider_budget=Budget(os.environ['MM_BOUNDED_PROVIDER_DB'])
+            self.provider_budget.admission()
         self.admission_data=dict(mode='OBSERVATION' if self.admission=='BOOTSTRAP' else self.admission,
             run_id=self.run_id,pid=os.getpid(),process_start=process_identity(os.getpid()))
         if getattr(self,'provider_budget',None):self.admission_data['provider_db']=str(self.provider_budget.path)
@@ -540,7 +545,7 @@ class Supervisor:
                     # Stop lane owners before shared evidence replacement; their
                     # next start must prove native journals and pending delivery.
                     self.stop_lanes()
-                    if getattr(self,'provider_budget',None):
+                    if hasattr(getattr(self,'provider_budget',None),'bootstrap'):
                         from .position_continuation import provider_failure
                         provider_failure(self,'shared_authenticated_evidence_process_failed')
                     # Native state is durable; close funding before reconnecting.
