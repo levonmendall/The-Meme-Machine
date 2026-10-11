@@ -20,5 +20,6 @@
     "portfolio.sqlite": "3198aae1f3c732451f008c5a620b8f176792caf92c1517435675d9e04f3a4087"
   },
   "modified_host_state": false,
-  "snapshot_or_model_not_current_capacity": "Old cached financial/health snapshots are not fresh provider or protection evidence."
+  "snapshot_or_model_not_current_capacity": "Old cached financial/health snapshots are not fresh provider or protection evidence.",
+  "purpose": "Historical $500 host baseline and preservation evidence; not intended new launch target."
 }

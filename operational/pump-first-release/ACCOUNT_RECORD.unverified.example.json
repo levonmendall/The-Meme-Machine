@@ -3,6 +3,9 @@
   "network": "SOLANA_MAINNET",
   "evidence_kind": "UNVERIFIED_TEMPLATE",
   "runtime_application_binding_verified": false,
+  "runtime_credential_sha256": null,
+  "authenticated_admin_mask_matches": false,
+  "contractual_price_verified": false,
   "shared_obligations_reserved": false,
   "account_source": null,
   "plan": null,
@@ -15,6 +18,7 @@
   "maximum_response_bytes": null,
   "reserved_usd": null,
   "tariff": {
+    "pricing_basis": null,
     "source": null,
     "charged_failures_included": false,
     "exceptional_charges_included": false,

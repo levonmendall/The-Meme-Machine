@@ -1,12 +1,13 @@
 """Offline checks of the inactive read-only component and its purchase limits."""
 from copy import deepcopy
 from decimal import Decimal
+import hashlib
 import io
 import json
 import unittest
 from unittest.mock import patch
 
-from engineering.pump_first.check import Boundary,Stopped,CU,preflight,acquire,main
+from engineering.pump_first.check import Boundary,Stopped,CU,preflight,acquire,main,verify_runtime_binding
 from meme_machine.lanes.pump.provider import RPC
 from meme_machine.lanes.pump.pumpswap_survivor_evidence import SOL_USD_ACCOUNT
 from tests.lanes.pump.test_postgrad_read_efficiency import MeteredRPC,MINT
@@ -32,6 +33,17 @@ def account():
 
 
 class PumpFirstCheck(unittest.TestCase):
+    def test_runtime_credential_change_or_missing_admin_agreement_refuses_locally(self):
+        from meme_machine.lanes.pump.solana_provider_config import AlchemyEndpoint
+        endpoint=AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offlinefixturekey')
+        record=dict(runtime_credential_sha256=hashlib.sha256(b'offlinefixturekey').hexdigest(),
+            authenticated_admin_mask_matches=True)
+        verify_runtime_binding(record,endpoint)
+        for field,value in (('runtime_credential_sha256','changed'),
+                            ('authenticated_admin_mask_matches',False)):
+            with self.subTest(field=field),self.assertRaisesRegex(ValueError,'local_runtime_credential_binding_required'):
+                verify_runtime_binding(dict(record,**{field:value}),endpoint)
+
     def fixture(self,*,edit=None,delay=0):
         from tests.lanes.pump.test_pumpswap_survivor_evidence import EvidenceTests
         clock=Clock();native=MeteredRPC();calls=[]
@@ -69,6 +81,10 @@ class PumpFirstCheck(unittest.TestCase):
         cold,warm=result['native_samples']
         self.assertEqual(cold['buy'],warm['buy']);self.assertEqual(cold['full_sell'],warm['full_sell'])
         self.assertEqual(cold['partial_sell'],warm['partial_sell'])
+        self.assertEqual(cold['initial_budget_usd'],'50')
+        self.assertEqual(cold['addition_budget_usd'],'25')
+        self.assertEqual(cold['buy']['input_amount'],2*cold['addition_quote']['input_amount'])
+        self.assertEqual(cold['addition_quote'],warm['addition_quote'])
         self.assertLessEqual(clock.at,15)
         self.assertTrue(all(s['elapsed_seconds']<=5 for s in result['native_samples']))
         self.assertEqual(result['usd']['valid_until'],220)

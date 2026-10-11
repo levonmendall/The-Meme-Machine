@@ -26,8 +26,16 @@ jobs:
           import os
           from pathlib import Path
           import runpy
+          import resource
           import sys
 
+          # sudo's 1,024-descriptor default is insufficient for the unchanged
+          # multi-owner SQLite replay fixtures in the FAST parent. This does
+          # not change the contained workers' protective resource ceilings.
+          soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+          if hard < 4096:
+              raise RuntimeError('ci_replay_file_descriptors_required')
+          resource.setrlimit(resource.RLIMIT_NOFILE, (max(soft, 4096), hard))
           cpus = sorted(os.sched_getaffinity(0))
           if len(cpus) < 2:
               raise RuntimeError('two_ci_cpus_required')

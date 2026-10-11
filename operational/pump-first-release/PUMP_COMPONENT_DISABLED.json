@@ -1,7 +1,7 @@
 {
   "schema": "pump-first-native-component-v1",
   "enabled": false,
-  "owner_authorization": "NOT_GRANTED",
+  "owner_authorization": "GRANTED_FOR_ONE_BOUNDED_READ_ONLY_COMPONENT_RUN",
   "release_tag": "release/pump-first-paper-20261011",
   "source_commit": null,
   "entrypoint": "python -m engineering.pump_first.check",
@@ -48,23 +48,12 @@
   "capital_epoch_changed": false,
   "speculative_or_optional_runtime_flags_enabled": false,
   "prepared_activation": {
-    "epoch": "paper-1791089005190643467",
-    "starting_capital": "500.00",
-    "sizing_basis": "effective_family_equivalence",
-    "approved_policy_path": "operational/shared-capital-activation/risk-policy.proposed.json",
-    "approved_policy_sha256": "e87385900145e53956df18956ee2390f0d95787e6ffc44243251f9b147eb65f2",
-    "prospective_funding_regimes": [
-      "pump_current",
-      "pump_survivor"
-    ],
-    "maximum_original_lifecycles": 1,
-    "funding_seconds": 1200,
-    "bootstrap_seconds": 1800,
-    "fee_ceiling_usd": null,
-    "continuation_resources": null,
-    "recovery_resources": null,
-    "new_1000_epoch": false,
-    "forced_entry_or_test_clock_sale": false
+    "plan": "operational/pump-first-release/LAUNCH_1000_DISABLED.json",
+    "starting_capital": "1000.00",
+    "sizing_basis": "shared_realized_equity",
+    "policy_approval": "NOT_GRANTED",
+    "epoch_initialized": false,
+    "historical_500_preserved": true
   },
   "stop_conditions": [
     "authorization expiration or hard runtime deadline",
@@ -73,5 +62,11 @@
     "wrong genesis, native account identity, decoder, oracle or quote freshness failure",
     "quote sample exceeds original five-second acquisition deadline"
   ],
-  "next_after_component": "Separately price/authorize complete authenticated Pump one-owner protection and coverage; then separately authorize exact release deployment, preserved-epoch authority cutover and PAPER activation."
+  "next_after_component": "Separately bound and authorize complete authenticated Pump protection; new $1,000 policy, epoch initialization, isolated dashboard cutover, exact deployment and PAPER activation remain separately pending.",
+  "authorization_basis": "Owner reply 2026-10-11; published provisional CU pricing; local binding/no additional product charge preflight required.",
+  "contractual_price_verified": false,
+  "diagnostic_quantities_usd": {
+    "initial": "50",
+    "eligible_addition_quote_only": "25"
+  }
 }

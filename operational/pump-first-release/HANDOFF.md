@@ -5,7 +5,10 @@ confirmed blockers below and an inactive, bounded read-only component check.
 The final source is the immutable `release/pump-first-paper-20261011` tag, created
 after exact-source CI passes. Its commit/tree and completed CI receipts belong in
 the accompanying release attestation; this document does not claim pending CI
-has passed. Nothing here deploys, funds or starts PAPER.
+has passed. Nothing here deploys, funds or starts PAPER. The intended launch is
+the **separate new $1,000 shared PAPER epoch from PR #129**, with the proposed
+realized-equity sizing/risk policy still requiring explicit owner approval.
+The historical $500 epoch is preserved; its balance is not a funding source.
 
 ## Implemented blockers
 
@@ -15,7 +18,10 @@ The hosted runner lacked the real containment test's required permissions and
 CPU affinity. `.github/workflows/ci.yml` now enables the required CPU/memory/I/O
 controllers on the disposable runner and runs the unchanged, network-guarded
 FAST suite with exactly two CPUs. No assertion, kernel limit or deadline was
-weakened. Previous failed logs remain in `evidence/`.
+weakened. That repair passed the containment cases. The subsequent full run
+exhausted sudo's 1,024 file descriptors in the unchanged multi-owner SQLite
+fixtures. The CI parent now receives at least 4,096 descriptors; contained worker
+limits remain unchanged. Previous failed logs remain in `evidence/`.
 
 The existing bootstrap required Pons native readiness, Robinhood health and Pons
 canonical progress even when only a Pump first position should receive funding.
@@ -36,7 +42,7 @@ validation bounds, not authorization to use $50, $25 or a $1,000 epoch.
 
 Focused offline evidence: 81 existing/scope tests passed, followed by all 13 final
 scope cases; 93 component/scope/native Pump/bootstrap/continuation/acquisition
-tests passed. The final account-bound cases were checked separately. Exact logs,
+tests passed. The corrected $1,000 target, native $50/$25 quotes, local binding refusal and existing new-epoch/dashboard matrix passed 125 focused tests. Exact logs,
 test-file hashes and failed attempts are in `VALIDATION.json`. GitHub FAST and
 the existing Pump proof must pass on the final candidate before integration.
 
@@ -46,9 +52,10 @@ the existing Pump proof must pass on the final candidate before integration.
 authorization it can inspect one locally retained PumpSwap mint using the existing
 Alchemy Solana application `9bin99s96t7ga5e9`, native adapter, native USD reader and
 original decoders. It runs one cold and one warm quote sample five seconds apart.
-Each sample produces fresh quantity-specific buy/full-sell/partial-sell arithmetic
-for an isolated $6.25 diagnostic budget. There is no position or simulated fill,
-and those numbers never enter monetary journals.
+Each sample produces fresh quantity-specific $50 initial and $25 addition buy
+quotations and original-position full/partial sell arithmetic. These are isolated
+diagnostic quantities for the intended new portfolio, not eligibility or funding.
+There is no position or simulated fill; nothing enters monetary journals.
 
 Expected upper source shape is **7 physical starts / 7 elements / 130 modeled CU**:
 one `getGenesisHash`, four `getMultipleAccounts`, two `getBlockTime`. This includes
@@ -63,9 +70,23 @@ starts/s, one in flight, 2,000,000 bytes/response, 4 MiB consumed HTTP delivery,
 zero retries, streams, subscriptions or orders; maximum marginal charge $0.01**.
 Expected real bytes/latency are unmeasured. Public $0.525/M-CU arithmetic is
 $0.00006825 for 130 CU and $0.000084 for 160 CU, not an authenticated charge.
-The private account record must bound all request/failure/exceptional and any
-fixed/start/byte charges within one cent, reserve shared account capacity, and
-confirm the runtime credential's binding. Unknown charges refuse execution.
+The owner separately authorized one read-only component run using the published
+price as its **provisional modeled basis**, not a contractual guarantee. Current
+[method costs and error pricing](https://www.alchemy.com/docs/reference/compute-unit-costs)
+are 10/20/20 CU; applicable errors cost at most the method CU. The
+[PAYG FAQ](https://www.alchemy.com/docs/reference/pay-as-you-go-pricing-faq)
+states CU pricing without platform fees. Standard HTTP RPC invokes none of the
+separately metered streaming or other products, and this bounded run does not
+purchase capacity. The supplied dashboard shows 10,000 CU/s and a 431.7 CU/s
+recent peak. No new plan or account setting is requested.
+
+The private record must still bound every applicable charge within the modeled
+cent, reserve shared headroom and confirm runtime binding. Read-only app
+administration confirms the intended app/network; local comparison matches all
+eight visible characters of its masked key to the configured runtime credential.
+A retained credential fingerprint is checked again immediately before dispatch.
+This is not an independent contractual-price attestation. Unknown applicable
+charges or a binding mismatch refuse dispatch.
 
 Stop on any deadline, budget, price, transport, response, native identity,
 freshness or decoder failure. The hard timer and terminal exception prevent
@@ -83,10 +104,10 @@ remains baseline until its complete applicable protection proof passes.
 
 The exact disabled plan and private record template are in
 `PUMP_COMPONENT_DISABLED.json` and `ACCOUNT_RECORD.unverified.example.json`.
-Owner-facing missing evidence is narrowly limited to this app's Billing plan and
-effective method/failure charges, Limits headroom, and private credential-to-app
-binding. The existing administration connector exposes usage, not those
-entitlements. No support message, account change or provider request was sent.
+The account-specific contractual tariff remains unverified. The owner authorized
+the public provisional basis only for this bounded component. Its result belongs
+in the release attestation; this source handoff does not anticipate a PASS. No
+support message, account change, subscription or PAPER action is authorized.
 
 After authorization and authenticated preflight, the prepared command is:
 
@@ -109,8 +130,9 @@ record template is invalid and cannot be dispatched as supplied.
 
 Read-only inspection found deployed checkout
 `b577cc1c67f4d64f887b430f5e933f376b607dc2` clean, service inactive/disabled/PID zero,
-and original $500 epoch `paper-1791089005190643467`. Its operating
-`portfolio.sqlite` has no selected shared funding authority. No continuation
+and historical $500 epoch `paper-1791089005190643467`. Its operating
+`portfolio.sqlite` has no selected shared funding authority. This is historical
+host baseline, not the new launch target or a migration instruction. No continuation
 envelope or bootstrap drop-in is installed; current service CPU/memory limits
 are unlimited. These are concrete cutover/resource prerequisites, not new
 software projects. The existing prepared bootstrap unit supplies the reviewed
@@ -120,8 +142,8 @@ deployment/activation authorization.
 1. Finish exact-source CI, integrate PR #130 by fast-forward into the existing
    integration branch and freeze one source tag. Preserve main and historical
    branches; the original integration checkout remains untouched.
-2. Obtain the minimal private tariff/binding/headroom record and separately
-   authorize only the component above. A component failure blocks funding.
+2. Finish the local tariff/binding/headroom checks and dispatch only the separately
+   authorized component above. A component failure blocks funding.
 3. Use its retained evidence to price the smallest complete Pump one-owner
    protection/coverage acceptance with the existing acquisition/scheduler and
    isolated monetary state. It must include authentic full history/qualification,
@@ -131,20 +153,37 @@ deployment/activation authorization.
    one-cent component and no invented budget is supplied here. Pons certification
    is not a prerequisite for Pump funding; competing discovery resource use
    still needs measurement. No forced candidate or test-clock sale is permitted.
-4. Before PAPER, separately authorize the exact release deployment, preserved
-   $500 shared-authority cutover, unused one-lifecycle bootstrap and adequate
-   continuation/recovery resource envelope. Use the existing verified migration
-   and backup machinery, retain the old sizing/risk policy, and prove native
-   reconciliation and restore before funding. Do not initialize the proposed
-   $1,000 epoch or select its unapproved risk policy.
-5. A prospective selected funding scope can include `pump_current` and
-   `pump_survivor`; the first naturally qualified lifecycle claims it. With the
-   preserved $500 effective-family policy, the initial native target is about
-   $6.25 and eligible half-basis add about $3.125 before exact conversion and
-   execution constraints. Those are existing targets, not a new allocation.
-   Exact fee and provider continuation/recovery ceilings must be separately
-   evidenced/approved, not populated from an example. Funding closes at the
-   original 1,200 seconds; closing funding never closes position protection.
+4. Before PAPER, obtain explicit approval of the existing proposed
+   `risk-policy.shared-1000.proposed.json` (canonical hash
+   `b91e83300994b6c02fe5e6bdbeb031cc391e6c8caa97af9fa6df1ecbc4aa979c`),
+   separate new-epoch initialization, exact release deployment and PAPER
+   activation. Use PR #129's existing `initialize_new_epoch` on the exclusively
+   new `meme-machine-paper-shared-1000` root. Bind new storage/epoch/inception
+   identities, verify coherent backup/restore and native/shared reconciliation,
+   then select that authority through the existing cutover. Do not migrate the
+   old balance, modify historical accounting or reuse its authority/guard.
+5. The proposed shared realized-equity policy supplies $50 initial directional
+   targets and eligible $25 additions at inception, a 7.5% cumulative asset
+   investment reference and a separate 10% marked admission reference. Unrealized
+   appreciation does not enlarge the sizing base; partial realization does not
+   refill lifetime investment. All original eligibility, exact conversion,
+   cash/fee/concentration, addition and protective rules still bind. A selected
+   scope includes `pump_current` and `pump_survivor`; the first naturally qualified
+   original lifecycle claims the one-owner allowance. Exact fees and sustained
+   continuation/recovery ceilings require independent proof/approval, never
+   values borrowed from an example. Funding closes at the original 1,200 seconds;
+   closing funding never closes position protection.
+6. Prepare an isolated new dashboard replica with the new epoch/inception and
+   frozen source identities, authenticated ingestion and sequence checks. Before
+   inception display **planned $1,000; inactive**. After authorized cutover show
+   the genuine new inception and actual shared balances/positions. Preserve the
+   separate historical $500 view; never repoint its replica or backdate capital.
+
+`LAUNCH_1000_DISABLED.json`, the new storage template and
+`deployment/paper-bootstrap.conf` concretely bind that intended isolated target.
+Null fee/resource/epoch/replica fields are deliberate pending gates, not values
+usable for activation. The templates have not been installed; no epoch, balance,
+dashboard or service has been changed.
 
 Long-duration positions remain governed by native economics. Unlimited holding
 does not imply infinite provider credit: reserve adequate sustained protection
@@ -154,5 +193,5 @@ reset, missed protective observation or synthetic proceeds can make readiness
 pass. Independent monitor/observer acceptance and coherent recovery remain
 required. Meteora and Ramses stay paused; unproven Pons funding stays closed.
 
-The minimum next step is the bounded Pump component, not another provider plan,
-Pons history project, new monitoring service or larger portfolio.
+The minimum next step is the bounded Pump component, followed by the separately
+bounded complete Pump protection acceptance for the intended new shared epoch.

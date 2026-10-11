@@ -38,7 +38,8 @@ def number(value):
 
 def preflight(record,*,now):
     if (record.get('app_id')!=APP or record.get('network')!='SOLANA_MAINNET'
-            or record.get('evidence_kind')!='AUTHENTICATED_ACCOUNT_RECORD'
+            or record.get('evidence_kind') not in ('AUTHENTICATED_ACCOUNT_RECORD',
+                'OWNER_DASHBOARD_AND_AUTHENTICATED_APP_RECORD')
             or record.get('runtime_application_binding_verified') is not True
             or record.get('shared_obligations_reserved') is not True
             or not record.get('account_source') or not record.get('plan')
@@ -55,7 +56,7 @@ def preflight(record,*,now):
             or tariff.get('exceptional_charges_included') is not True
             or set(tariff.get('method_max_cu',{}))!=set(CU)
             or set(tariff.get('method_max_usd',{}))!=set(CU)):
-        raise ValueError('complete_authenticated_upper_tariff_required')
+        raise ValueError('complete_component_tariff_required')
     for method in CU:
         if not CU[method]<=number(tariff['method_max_cu'][method])<=20:
             raise ValueError('charged_CU_outside_fixed_component_envelope')
@@ -158,15 +159,20 @@ def acquire(rpc,boundary,mint):
         now=int(boundary.wall());validate_postgrad_snapshot(snapshot,now,'prospective')
         # Floor the diagnostic dollar budget using exact rational arithmetic;
         # native accounting's Decimal traps remain enabled and unchanged.
-        budget=(Fraction(Decimal('6.25'))*10**9)//Fraction(value.amount(10**9,now))
+        sol_usd=Fraction(value.amount(10**9,now))
+        budget=(Fraction(Decimal('50'))*10**9)//sol_usd
+        addition_budget=(Fraction(Decimal('25'))*10**9)//sol_usd
         bought=buy_quote(snapshot,budget)
+        addition=buy_quote(snapshot,addition_budget)
         if tokens is None:tokens=bought.output_amount
         full=sell_quote(snapshot,tokens);partial=sell_quote(snapshot,max(1,tokens//2))
         value.amount(full.output_amount,now);value.amount(partial.output_amount,now)
         elapsed=boundary.clock()-started
         if elapsed>5:boundary.stop('original_five_second_acquisition_deadline')
         samples.append(dict(kind=kind,slot=snapshot['slot'],market_time=snapshot['market_time'],
-            elapsed_seconds=elapsed,buy=asdict(bought),full_sell=asdict(full),partial_sell=asdict(partial)))
+            elapsed_seconds=elapsed,initial_budget_usd='50',addition_budget_usd='25',
+            buy=asdict(bought),addition_quote=asdict(addition),
+            full_sell=asdict(full),partial_sell=asdict(partial)))
         if kind=='cold':boundary.sleep(max(0,started+5-boundary.clock()));boundary.check()
     return dict(native_samples=samples,usd=asdict(value),
         complete_protection_proven=False,discovery_proven=False,paper_ready=False,
@@ -178,6 +184,13 @@ def protected(path):
     if path.is_symlink() or path.stat().st_mode&0o077 or path.stat().st_size>16384:
         raise ValueError('bounded_private_configuration_required')
     return path.read_text()
+
+
+def verify_runtime_binding(record,endpoint):
+    key=endpoint.http_url.rsplit('/',1)[-1]
+    if (record.get('runtime_credential_sha256')!=hashlib.sha256(key.encode()).hexdigest()
+            or record.get('authenticated_admin_mask_matches') is not True):
+        raise ValueError('local_runtime_credential_binding_required')
 
 
 def main(argv=None):
@@ -205,7 +218,12 @@ def main(argv=None):
         if line.startswith('MM_SOLANA_READ_RPC_URL=')]
     if len(lines)!=1:parser.error('one configured authenticated Solana endpoint required')
     endpoint=AlchemyEndpoint.parse(' '.join(shlex.split(lines[0])))
-    prices,overhead,worst=preflight(json.loads(protected(args.account_record)),now=Decimal(str(time.time())))
+    record=json.loads(protected(args.account_record))
+    # Administrative app binding is checked locally without publishing a key.
+    # Retain the independently authenticated masked-key comparison in the record;
+    # also refuse any runtime credential change since that comparison.
+    verify_runtime_binding(record,endpoint)
+    prices,overhead,worst=preflight(record,now=Decimal(str(time.time())))
     expires=number(args.expires_unix)
     if expires<=Decimal(str(time.time())):parser.error('unexpired separately authorized UTC window required')
     output=Path(args.output).resolve()
@@ -226,7 +244,10 @@ def main(argv=None):
             if boundary.reason is None:boundary.reason='native_evidence_unavailable_or_invalid'
         boundary.closed=True
         receipt=dict(source=source,app_id=APP,status='PASS_COMPONENT_ONLY' if result and not boundary.reason else 'FAIL',
-            limits=LIMITS,actual_worst_case_usd=str(worst),acquisition=boundary.receipt(),result=result)
+            limits=LIMITS,modeled_worst_case_usd=str(worst),
+            pricing_basis=record['tariff'].get('pricing_basis','AUTHENTICATED_RECORD'),
+            contractual_price_verified=record.get('contractual_price_verified') is True,
+            acquisition=boundary.receipt(),result=result)
         output.parent.mkdir(parents=True,exist_ok=True)
         # Decimal rates remain exact in a secret-free, private diagnostic receipt.
         output.write_text(json.dumps(receipt,indent=2,default=str)+'\n');output.chmod(0o600)

@@ -1,0 +1,85 @@
+{
+  "schema": "pump-first-shared-1000-launch-preparation-v1",
+  "enabled": false,
+  "policy_approval": "NOT_GRANTED",
+  "capital_initialization_authorized": false,
+  "deployment_authorized": false,
+  "paper_activation_authorized": false,
+  "release_tag": "release/pump-first-paper-20261011",
+  "new_epoch": {
+    "epoch_id": null,
+    "inception_sha256": null,
+    "starting_capital_usd": "1000.00",
+    "state_root": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000",
+    "created": false,
+    "initializer": "meme_machine.shared_capital.operational_candidate.initialize_new_epoch",
+    "exclusive_creation_required": true,
+    "old_balance_transfer_usd": "0",
+    "risk_policy_path": "operational/shared-capital-activation/risk-policy.shared-1000.proposed.json",
+    "canonical_policy_sha256": "b91e83300994b6c02fe5e6bdbeb031cc391e6c8caa97af9fa6df1ecbc4aa979c",
+    "sizing_basis": "shared_realized_equity",
+    "initial_directional_reference_bps": 500,
+    "initial_directional_target_at_inception_usd": "50",
+    "eligible_addition_target_at_inception_usd": "25",
+    "cumulative_asset_investment_reference_bps": 750,
+    "marked_asset_admission_reference_bps": 1000,
+    "unrealized_profit_enlarges_sizing_base": false,
+    "partial_realization_refills_lifetime_investment": false,
+    "concentration_or_age_sale": false
+  },
+  "historical_epoch": {
+    "epoch_id": "paper-1791089005190643467",
+    "starting_capital_usd": "500.00",
+    "state_root": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-v1",
+    "preserve_accounting_inception_balances_and_dashboard_history": true,
+    "migrate_balance_into_new_epoch": false,
+    "select_old_sizing_for_new_launch": false
+  },
+  "bootstrap": {
+    "prepared_dropin": "deployment/paper-bootstrap.conf",
+    "installed": false,
+    "storage_guard_config": "/etc/meme-machine/storage.shared-1000.json",
+    "storage_guard_template": "operational/pump-first-release/storage.shared-1000.uninitialized.example.json",
+    "continuation_envelope": "/etc/meme-machine/position-continuation.pump-first-1000.json",
+    "bootstrap_funding_scope": {
+      "regimes": ["pump_current", "pump_survivor"],
+      "maximum_initial_basis_usd": "50",
+      "maximum_addition_basis_usd": "25",
+      "maximum_fee_reserve_usd": null
+    },
+    "maximum_original_lifecycles": 1,
+    "funding_seconds": 1200,
+    "bootstrap_seconds": 1800,
+    "continuation_resources": null,
+    "recovery_resources": null,
+    "fee_and_provider_reserves_require_separate_proof_and_approval": true,
+    "clock_expiration_closes_funding_only": true,
+    "existing_position_protection_remains_independent": true
+  },
+  "dashboard_cutover": {
+    "authorized": false,
+    "initialized": false,
+    "reuse_old_500_replica": false,
+    "new_isolated_replica_path": null,
+    "expected_epoch_id": null,
+    "expected_inception_sha256": null,
+    "expected_release_commit": null,
+    "publisher_state_root": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000",
+    "before_inception_display": "planned $1,000; inactive",
+    "after_authorized_inception_display": "validated new $1,000 inception and actual shared accounting",
+    "retain_old_500_historical_view": true,
+    "cutover_guards": ["epoch", "inception", "source identity", "sequence", "authenticated ingestion"],
+    "acceptance": [
+      "fresh reconciliation and coherent restore on the isolated new epoch",
+      "shared cash, basis, reservations and actual native partial/add/exit reconciliation",
+      "50 initial / eligible 25 add and separate 7.5 percent investment / 10 percent marked references",
+      "native protection health and pending intent freshness separate from valuation",
+      "Pump-first funding; Pons unqualified funding closed; Meteora and Ramses paused"
+    ]
+  },
+  "validation_status": {
+    "bounded_native_component": "SEPARATELY_AUTHORIZED_NOT_DISPATCHED",
+    "complete_authenticated_Pump_protection": "NOT_AUTHORIZED_OR_PROVEN",
+    "combined_operational_PAPER_lifecycle": "NOT_AUTHORIZED_OR_PROVEN"
+  }
+}

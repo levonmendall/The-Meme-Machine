@@ -7,15 +7,16 @@
   "python": "3.12.14",
   "final_focused": {
     "status": "PASS",
-    "tests": 93,
-    "seconds": 7.888,
+    "tests": 125,
+    "seconds": 24.341,
     "failures": 0,
     "errors": 0,
     "skips": 0,
-    "log": "evidence/pump-first-release-focused.log.gz",
+    "log": "evidence/pump-first-1000-release-final.log.gz",
     "modules": [
       "tests.test_pump_first_check",
       "tests.test_first_owner_scope",
+      "tests.test_shared_portfolio_epoch",
       "tests.lanes.pump.test_postgrad_read_efficiency",
       "tests.test_paper_bootstrap",
       "tests.test_position_continuation",
@@ -38,19 +39,25 @@
     "ci-129-fast.log": "1500 cases; 1 failure and 1 error due missing cgroup permissions and wrong CPU affinity. Original assertions retained.",
     "ci-containment-focused.log": "Two original cases reproduce missing I/O controller delegation on the workspace. No controller was changed locally. Failed scope /tmp/mm-engineering-ta3_6zeh retained.",
     "pump-first-check-focused.log": "New diagnostic budget division met original exact Decimal traps; corrected to exact rational flooring. Failed scope /tmp/mm-engineering-ghbhsabc retained.",
-    "pump-first-final-focused.log": "New aggregate-byte fixture omitted params before opening response; corrected fixture to complete JSON-RPC shape. Failed scope /tmp/mm-engineering-e_gvfk5m retained."
+    "pump-first-final-focused.log": "New aggregate-byte fixture omitted params before opening response; corrected fixture to complete JSON-RPC shape. Failed scope /tmp/mm-engineering-e_gvfk5m retained.",
+    "ci-bfb-fast.log": "1515 cases; containment passes; 6 errors from sudo parent default 1024 file descriptors in multi-owner SQLite fixtures. CI parent provisioned at least 4096; original native assertions and contained limits unchanged."
   },
   "files_sha256": {
-    ".github/workflows/ci.yml": "8b4563aa621dcd2aeaaed2014baa0303628351169a10b24ecbad837a0965d327",
+    ".github/workflows/ci.yml": "f2ee23b5a0b0251d068e56895efc60a1f11946c9a19043cdf9eb1d80eae7b801",
     "meme_machine/operational/admission.py": "55b01c32fb2513676bcdbdef4aa605974246459f265b557c647072bb6530e93e",
     "meme_machine/operational/position_continuation.py": "28b5f5eafe254c308b1621bc370e7f978e1a15d3060f35a016df25c5da292e1a",
     "meme_machine/operational/supervisor.py": "298f698ee72be4a50bc4a8760abca99ef1f4da50d29df9da41a0113fa484d271",
     "meme_machine/shared_capital/native_sleeve.py": "577b85bb39fd27e3c9133af873b5a8c50050cde9c45b937a2b939083e3cce12c",
     "operational/tests.py": "8a6e227cee5475fd7efa2af0c52d82c1f2ba67e21a41d9d9d9d17113aa28a7a1",
     "tests/test_first_owner_scope.py": "d6ab1f519b5a65a00b1595876a90fafdd3ed222973390ce1d1b76126614ac3f4",
-    "tests/test_pump_first_check.py": "e75de3a8509cf28278794168dd7fda5f6714a7e734d90fa5c430d160a4059653",
-    "engineering/pump_first/check.py": "16e9de53b0fff939c33af94d43c08aeb704a6c00cf987383e0a2eb1e65b28f87",
-    "requirements.txt": "d1e960f8fe94fed128958c849e48d034ba004b156739ca9be0f9767425698ffe"
+    "tests/test_pump_first_check.py": "da492b8989b0bc8151db3c07e5778fb8b8791cd1ea2da58fe089f852b5a4b7a2",
+    "engineering/pump_first/check.py": "5ad16f3ec55e8586fd378d3640157166e0140bff7c9935bef9b35bd5e82fbd2f",
+    "requirements.txt": "d1e960f8fe94fed128958c849e48d034ba004b156739ca9be0f9767425698ffe",
+    "deployment/paper-bootstrap.conf": "00e1d429f7fa21bd971f4f97001d9105350dcfed68764c771cdc120c96c8f8d8",
+    "deployment/paper.env.example": "27c7ba4800f13f97353b36315c050dd1cfcaa025b72f476a13ee580f2bfafad9",
+    "operational/shared-capital-activation/risk-policy.shared-1000.proposed.json": "f2da6f2fa3f1451c1313be20bc3592d53070b70c62725cb0ac43fa6f3a73d034",
+    "operational/pump-first-release/LAUNCH_1000_DISABLED.json": "3ed90f182529f769fb33282620398bfb4042ec1b06023388c01355115c3b6e58",
+    "operational/pump-first-release/storage.shared-1000.uninitialized.example.json": "2d6e5cba00cf9919f80c9f6e1bbdd0de09c73f6581706d9a12f0c6aa90fcca9d"
   },
   "logs": [
     {
@@ -115,6 +122,27 @@
       "sha256": "519194a0cfa0e199f92c760da69b17939222ad02bd09f79c6b1968735f82f427",
       "raw_sha256": "c86477404cd5c80828243fd2f58af6823bf754100d7ac37ffc680530c768b7cc",
       "raw_bytes": 2523
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/ci-bfb-fast.log",
+      "retained": "operational/pump-first-release/evidence/ci-bfb-fast.log.gz",
+      "sha256": "8304961d4acfdad56eeaa99b8a1cbb1965618eabae6f0ed0a84f63ff9e66adae",
+      "raw_sha256": "11b7b1c2ff174afc4ba06e81bc5eeb0e1a33cadf3c40e37473ac606de56c2f99",
+      "raw_bytes": 645570
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-first-1000-release-focused.log",
+      "retained": "operational/pump-first-release/evidence/pump-first-1000-release-focused.log.gz",
+      "sha256": "e6cae8dca065f0cb57d4cb58b62b68ad93e55d4d07c4a5ab4019558e6c8b7e48",
+      "raw_sha256": "def4253fbd8efab01537fd933a8aea86d1935c2f071bacb1eb885cfb0b044ea7",
+      "raw_bytes": 24448
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-first-1000-release-final.log",
+      "retained": "operational/pump-first-release/evidence/pump-first-1000-release-final.log.gz",
+      "sha256": "555179d9e7699afeebe1a5a1851b9fdd9d4540e677a5f986780b5b9517fd927d",
+      "raw_sha256": "48727930a523fa77ac3abc0d6d02b26e67c9211cc01b6b7e1de83272aad5ffe0",
+      "raw_bytes": 24648
     }
   ],
   "market_provider_requests": 0,
@@ -122,5 +150,32 @@
   "deployment": false,
   "paper_activation": false,
   "operating_1000_epoch_initialized": false,
-  "existing_handoff_validation": "operational/redundant-acquisition/VALIDATION.json; retained, not recounted as new CI."
+  "existing_handoff_validation": "operational/redundant-acquisition/VALIDATION.json; retained, not recounted as new CI.",
+  "prior_focused": {
+    "status": "PASS",
+    "tests": 93,
+    "seconds": 7.888,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "log": "evidence/pump-first-release-focused.log.gz",
+    "modules": [
+      "tests.test_pump_first_check",
+      "tests.test_first_owner_scope",
+      "tests.lanes.pump.test_postgrad_read_efficiency",
+      "tests.test_paper_bootstrap",
+      "tests.test_position_continuation",
+      "tests.test_final_acquisition"
+    ]
+  },
+  "launch_target": {
+    "starting_capital": "1000.00",
+    "sizing_basis": "shared_realized_equity",
+    "policy_canonical_sha256": "b91e83300994b6c02fe5e6bdbeb031cc391e6c8caa97af9fa6df1ecbc4aa979c",
+    "policy_approval": "NOT_GRANTED",
+    "historical_500_preserved": true,
+    "balance_migration": false,
+    "new_epoch_initialized": false
+  },
+  "component_authorization": "One separately authorized read-only invocation; public provisional billing basis; local credential binding and charges still checked before dispatch. Result retained in release attestation."
 }
