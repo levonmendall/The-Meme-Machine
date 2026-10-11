@@ -1,0 +1,16 @@
+{
+  "status": "FAIL_BEFORE_NATIVE_OPEN",
+  "source": "8a1a5e8d3cba8f5075dae5ea87dd5eadd4944f8b",
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-coalesced-8a1a5e8d-1791752630088.sqlite",
+  "reason": "maintenance_observation_vm_bound",
+  "physical_starts": 1,
+  "logical_rpc_elements": 1,
+  "cu": 20,
+  "http_bytes": 43,
+  "native_openings": 0,
+  "known_native_bytes": 0,
+  "funding": false,
+  "orders": false,
+  "full_protection": false,
+  "historical_counters_reset": false
+}

@@ -61,6 +61,17 @@ def retirement_suffix(writer,scope,top,before_time,*,recent_floor=_RECENT_UNREAD
         recent_floor=db.execute('SELECT MIN(lo) FROM coverage INDEXED BY maintenance_recent_coverage WHERE scope=? AND available>=?',
             (scope,before_time)).fetchone()[0]
     continuity=[row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE name IN ('stream_receipts','stream_deliveries','stream_order')")]
+    def has_work(start,end):
+        # Overlap fencing can only shrink this range. An empty initial range
+        # cannot gain eligible work; avoid scanning its entire older coverage
+        # prefix merely to fence witnesses that do not exist here.
+        predicates=[('records','slot>=? AND slot<? AND body IS NULL'),
+                    ('coverage','lo>=? AND lo<? AND hi<?'),
+                    ('gaps','lo>=? AND lo<? AND hi<? AND repaired IS NOT NULL')]
+        predicates += [(name,'slot>=? AND slot<?') for name in continuity]
+        return any(db.execute('SELECT 1 FROM '+table+' WHERE scope=? AND '+predicate+' LIMIT 1',
+                              (scope,start,end,end) if table in ('coverage','gaps') else
+                              (scope,start,end)).fetchone() for table,predicate in predicates)
     for index in range(len(merged)-1,-1,-1):
         start=merged[index][1]+1
         end=min(bound,merged[index+1][0] if index+1<len(merged) else top+1)
@@ -73,14 +84,20 @@ def retirement_suffix(writer,scope,top,before_time,*,recent_floor=_RECENT_UNREAD
         for value in (hot,recent):
             if value is not None:end=min(end,value)
         if start>=end:continue
+        if not has_work(start,end):continue
         # Bound overlap-chain work. An unknown interval stays protected.
         for _ in range(64):
-            cross=db.execute('SELECT MAX(hi) FROM coverage WHERE scope=? AND lo<? AND hi>=?',(scope,start,start)).fetchone()[0]
+            # Before the exact fresh minimum, seek the small old-lo prefix;
+            # after freshness expires, seek the hi tail instead of repeatedly
+            # scanning all expired older witnesses. Both predicates are exact.
+            index_name='coverage_window' if recent_floor is not None and start<=recent_floor else 'maintenance_coverage_end'
+            cross=db.execute('SELECT MAX(hi) FROM coverage INDEXED BY '+index_name+' WHERE scope=? AND lo<? AND hi>=?',(scope,start,start)).fetchone()[0]
             if cross is None:break
             start=cross+1
         else:continue
         for _ in range(64):
-            cross=db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND lo<? AND hi>=?',(scope,end,end)).fetchone()[0]
+            index_name='coverage_window' if recent_floor is not None and end<=recent_floor else 'maintenance_coverage_end'
+            cross=db.execute('SELECT MIN(lo) FROM coverage INDEXED BY '+index_name+' WHERE scope=? AND lo<? AND hi>=?',(scope,end,end)).fetchone()[0]
             if cross is None:break
             end=cross
         else:continue
@@ -89,14 +106,7 @@ def retirement_suffix(writer,scope,top,before_time,*,recent_floor=_RECENT_UNREAD
         # gaps. These indexed lookups match the native retirement predicates.
         # Native intervals have lo<=hi. Give the slot index both ends instead
         # of scanning every later protected interval for a failed hi predicate.
-        predicates=[('records','slot>=? AND slot<? AND body IS NULL'),
-                    ('coverage','lo>=? AND lo<? AND hi<?'),
-                    ('gaps','lo>=? AND lo<? AND hi<? AND repaired IS NOT NULL')]
-        predicates += [(name,'slot>=? AND slot<?') for name in continuity]
-        if any(db.execute('SELECT 1 FROM '+table+' WHERE scope=? AND '+predicate+' LIMIT 1',
-                          (scope,start,end,end) if table in ('coverage','gaps') else
-                          (scope,start,end)).fetchone() for table,predicate in predicates):
-            return start,end
+        if has_work(start,end):return start,end
     return None
 
 SCHEMA = '''
@@ -120,6 +130,7 @@ CREATE TABLE IF NOT EXISTS maintenance_nonrecord_demand(
 CREATE INDEX IF NOT EXISTS maintenance_interest_bound ON interests(scope,active,lower_slot,owner);
 CREATE INDEX IF NOT EXISTS maintenance_gap_bound ON gaps(scope,repaired,lo,hi);
 CREATE INDEX IF NOT EXISTS maintenance_recent_coverage ON coverage(scope,available,lo);
+CREATE INDEX IF NOT EXISTS maintenance_coverage_end ON coverage(scope,hi,lo);
 CREATE INDEX IF NOT EXISTS maintenance_retired_slot ON records(scope,slot) WHERE body IS NULL;
 '''
 
@@ -524,8 +535,10 @@ class DebtAgeAdapter:
                         # Coverage/gap witnesses are retired only in their
                         # entirety, matching the native mutation's bounds.
                         lower='lo' if table in ('coverage','gaps') else field
-                        found=db.execute('SELECT 1 FROM '+table+' WHERE scope=? AND '+lower+'>=? AND '+field+'<?'+predicate+' LIMIT 1',
-                            (scope,*suffix)).fetchone()
+                        suffix_upper=' AND lo<?' if interval else ''
+                        suffix_args=(scope,*suffix,suffix[1]) if interval else (scope,*suffix)
+                        found=db.execute('SELECT 1 FROM '+table+' WHERE scope=? AND '+lower+'>=? AND '+field+'<?'+suffix_upper+predicate+' LIMIT 1',
+                            suffix_args).fetchone()
                         continuity+=int(found is not None)
                 source_at = self._source_frontier(scope, wall)
                 results.append(ScopeState(scope, hot_debt, hot_oldest,

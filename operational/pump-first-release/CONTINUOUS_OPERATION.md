@@ -426,3 +426,12 @@ Owner attribution identified duplicate development/publication work across eight
 Focused supported FAST: 106 tests passed in 34.463 seconds across shared capacity, rolling prewarm, closure and startup. New regressions prove eight distinct jobs, original deadlines, immediate priority-zero planning between housekeeping polls, no fabricated coverage, no paused-family work, and unchanged Pump history after retirement. Remote predecessor CI 38173187232 passed for 3659ffd; the new successor still requires its own full FAST before normal deployment. This is not a protective-capacity or uninterrupted-operation pass.
 
 Pons authenticated native USD bridge remains PASS_NATIVE_USD_COMPONENT_ONLY. No family funding is enabled. Combined quote/history/USD deadlines and four-regime capacity remain required. The normal deployed source remains df6274e270bcf40b818428a359b30e88ceb21ffb; the $1,000 epoch is unchanged, with zero positions. The 60-minute acceptance clock has not started.
+
+
+Operational checkpoint — 2026-10-11 21:10 UTC
+
+Published source 8a1a5e8d3cba8f5075dae5ea87dd5eadd4944f8b encountered an additional aged-history maintenance admission failure before any native stream opened (one finalized-slot HTTP read, 20 CU). Its exact failure-time readonly replay exhausted 251,000 VM steps. The successor first tests whether an initial between-gap range contains any actually removable row; overlap fencing only shrinks that range, so an empty initial range cannot acquire work. Exact overlap predicates remain intact. Existing SQLite gains a coverage hi/lo index, with same-command fresh-minimum selection of the appropriate index. Suffix debt checks also supply both lo bounds. No observation limit or retention obligation changes.
+
+The same canonical database and frozen failure time replay now require 2,000 VM steps under the unchanged 250,000 limit, with all 21 control gaps retained and zero fabricated coverage. Focused OPERATIONAL: 42 tests passed in 10.213 seconds. The new 25,000-row regression covers aged protected history, empty disjoint ranges, real later retirement debt, and whole overlapping witnesses that must fence that debt. Two failed intermediate offline attempts remain in /tmp/maintenance-aged-empty-suffix-focused.log and /tmp/maintenance-aged-empty-suffix-focused-corrected.log; genuine assertions were preserved and the query selection was corrected.
+
+Native stream/protection acceptance remains pending. No service activation, capital mutation, historical-counter reset or Render reconfiguration occurred.

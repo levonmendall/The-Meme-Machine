@@ -1,0 +1,11 @@
+{
+  "status": "PASS_OFFLINE_ONLY",
+  "command": "/opt/meme-machine/.venv/bin/python -m operational.tests OPERATIONAL --modules tests.test_maintenance_integrity tests.test_retention_progress tests.test_retention_outcomes",
+  "tests": 42,
+  "seconds": 10.213,
+  "log": "/tmp/maintenance-aged-empty-suffix-focused-final.log",
+  "vm_limit": 250000,
+  "failed_attempts_preserved": true,
+  "protective_deadlines_changed": false,
+  "canonical_assertions_weakened": false
+}

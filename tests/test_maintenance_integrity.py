@@ -77,6 +77,40 @@ class MaintenanceIntegrityTests(unittest.TestCase):
             self.assertEqual(db.execute('SELECT COUNT(*) FROM coverage').fetchone()[0],25001)
             self.assertEqual(db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0],15)
 
+    def test_expired_protected_coverage_and_empty_gap_ranges_remain_bounded(self):
+        from meme_machine.solana_maintenance_state import DebtAgeAdapter,OBSERVATION_VM_STEPS
+        with self.state() as state:
+            w=state.writer;db=w.db
+            with w.transaction():
+                db.execute('INSERT INTO cursors VALUES(?,?,?)',('control:solana',27000,500))
+                db.executemany('INSERT INTO coverage(scope,lo,hi,available,proof) VALUES(?,?,?,?,?)',
+                    [('control:solana',100+i,100+i,500,'expired-'+str(i)) for i in range(25000)])
+                db.executemany('INSERT INTO gaps(scope,lo,hi,reason,created,repaired) VALUES(?,?,?,?,?,?)',
+                    [('control:solana',1,25099,'protected-expired-prefix',400,None)]+[
+                     ('control:solana',26000+4*i,26001+4*i,'empty-retained-gap',400,None) for i in range(15)])
+            adapter=DebtAgeAdapter(w,wall=lambda:1000)
+            observation=adapter.observe('expired-no-work')
+            self.assertLessEqual(observation.vm_steps,OBSERVATION_VM_STEPS)
+            control=next(r for r in observation.scopes if r.scope=='control:solana')
+            self.assertEqual((control.floor,control.gaps,control.continuity),(1,16,0))
+            with w.transaction():
+                db.execute('INSERT INTO coverage(scope,lo,hi,available,proof) VALUES(?,?,?,?,?)',
+                    ('control:solana',26002,26002,500,'actual-suffix-work'))
+            observation=adapter.observe('expired-with-work')
+            self.assertLessEqual(observation.vm_steps,OBSERVATION_VM_STEPS)
+            control=next(r for r in observation.scopes if r.scope=='control:solana')
+            self.assertEqual(control.continuity,1)
+            # An authentic whole witness spanning a boundary still fences the
+            # nested row. Empty-range pruning cannot discard overlap protection.
+            with w.transaction():
+                db.execute('INSERT INTO coverage(scope,lo,hi,available,proof) VALUES(?,?,?,?,?)',
+                    ('control:solana',26000,26010,500,'whole-crossing-witness'))
+            observation=adapter.observe('expired-fenced-work')
+            control=next(r for r in observation.scopes if r.scope=='control:solana')
+            self.assertEqual(control.continuity,0)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM coverage').fetchone()[0],25002)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0],16)
+
     def test_large_live_address_dictionary_observation_stays_bounded(self):
         from meme_machine.solana_maintenance_state import DebtAgeAdapter,OBSERVATION_VM_STEPS
         with self.state() as state:
