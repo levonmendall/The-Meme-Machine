@@ -158,6 +158,18 @@ class HistoricalTransactionReuseTests(unittest.TestCase):
                 self.assertIsNone(plane.evidence(ns,canonical(['transaction','a','bh'])))
             finally:plane.close()
 
+    def test_legacy_qualification_domain_keeps_sender_reuse_memory_only(self):
+        with tempfile.TemporaryDirectory() as td:
+            plane=Plane(Path(td)/'plane.sqlite')
+            try:
+                cache=durable_cache(plane,'legacy-qualification-domain')
+                sender=dict(hash='tx',blockHash='bh',**{'from':'0x'+'12'*20})
+                cache.remember_transaction('tx','bh',sender)
+                self.assertEqual(cache.transaction('tx','bh'),sender)
+                self.assertEqual(plane.db.execute('SELECT COUNT(*) FROM evidence').fetchone()[0],0)
+                self.assertIsNone(durable_cache(plane,'legacy-qualification-domain').transaction('tx','bh'))
+            finally:plane.close()
+
 
 class InactiveImmutableGetterTests(unittest.TestCase):
     def replay(self,*,optimized,factor=1.,count=1,gas=1,unknown=False):

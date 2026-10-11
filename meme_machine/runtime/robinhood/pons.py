@@ -411,10 +411,15 @@ def durable_cache(plane,domain):
                 if previous is not None:plane.db.execute('PRAGMA busy_timeout='+str(previous))
                 plane.lock.release()
         def _load(self,kind,key):
-            if kind=='transaction':kind,key='receipt',['transaction',*key]
+            if kind=='transaction':
+                if not domain.startswith('pons:shared:'):return None
+                kind,key='receipt',['transaction',*key]
             row=self._optional(plane.evidence,domain+':'+kind,canonical(key))
             return row[0] if row else None
         def _save(self,kind,key,value):
+            # Legacy qualification namespaces do not have the shared receipt
+            # quota. Sender reuse there remains in the bounded memory map.
+            if kind=='transaction' and not domain.startswith('pons:shared:'):return
             proof=dict(authority='authenticated_alchemy',schema=1,finality='confirmed')
             if kind in ('receipt','transaction') and domain.startswith('pons:shared:'):
                 # Sender facts share the existing receipt count/byte ceiling;
@@ -425,7 +430,6 @@ def durable_cache(plane,domain):
                     allow_evict=kind=='receipt'))
                 self.counts['durable_receipt_retained' if retained else 'durable_receipt_admission_fallback']+=1
             else:
-                if kind=='transaction':kind,key='receipt',['transaction',*key]
                 self._optional(plane.put,domain+':'+kind,canonical(key),value,proof)
         def begin_receipts(self,consumer,owner,generation):
             self._optional(plane.receipt_scope,domain+':receipt',consumer,owner,generation)
