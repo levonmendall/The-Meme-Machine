@@ -1,0 +1,126 @@
+{
+  "schema": "pump-first-release-offline-validation-v1",
+  "optimization_handoff_commit": "4fd362c675480aa61bcf917f42af87ca7b41d86f",
+  "CI_host_prerequisite_fix_commit": "bfb90b810ffebad525173083eebf07688736b6a0",
+  "funding_scope_commit": "c774fca89bd6956ab9446309c612a1699b5a7124",
+  "final_release_source_identity": "Immutable release tag and external FROZEN_RELEASE.json after exact-source CI; pending is not PASS.",
+  "python": "3.12.14",
+  "final_focused": {
+    "status": "PASS",
+    "tests": 93,
+    "seconds": 7.888,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "log": "evidence/pump-first-release-focused.log.gz",
+    "modules": [
+      "tests.test_pump_first_check",
+      "tests.test_first_owner_scope",
+      "tests.lanes.pump.test_postgrad_read_efficiency",
+      "tests.test_paper_bootstrap",
+      "tests.test_position_continuation",
+      "tests.test_final_acquisition"
+    ]
+  },
+  "earlier_scope": {
+    "status": "PASS",
+    "tests": 81,
+    "seconds": 21.013,
+    "log": "evidence/first-owner-focused.log.gz"
+  },
+  "final_scope": {
+    "status": "PASS",
+    "tests": 13,
+    "seconds": 0.538,
+    "log": "evidence/first-owner-scope-final.log.gz"
+  },
+  "failed_attempts": {
+    "ci-129-fast.log": "1500 cases; 1 failure and 1 error due missing cgroup permissions and wrong CPU affinity. Original assertions retained.",
+    "ci-containment-focused.log": "Two original cases reproduce missing I/O controller delegation on the workspace. No controller was changed locally. Failed scope /tmp/mm-engineering-ta3_6zeh retained.",
+    "pump-first-check-focused.log": "New diagnostic budget division met original exact Decimal traps; corrected to exact rational flooring. Failed scope /tmp/mm-engineering-ghbhsabc retained.",
+    "pump-first-final-focused.log": "New aggregate-byte fixture omitted params before opening response; corrected fixture to complete JSON-RPC shape. Failed scope /tmp/mm-engineering-e_gvfk5m retained."
+  },
+  "files_sha256": {
+    ".github/workflows/ci.yml": "8b4563aa621dcd2aeaaed2014baa0303628351169a10b24ecbad837a0965d327",
+    "meme_machine/operational/admission.py": "55b01c32fb2513676bcdbdef4aa605974246459f265b557c647072bb6530e93e",
+    "meme_machine/operational/position_continuation.py": "28b5f5eafe254c308b1621bc370e7f978e1a15d3060f35a016df25c5da292e1a",
+    "meme_machine/operational/supervisor.py": "298f698ee72be4a50bc4a8760abca99ef1f4da50d29df9da41a0113fa484d271",
+    "meme_machine/shared_capital/native_sleeve.py": "577b85bb39fd27e3c9133af873b5a8c50050cde9c45b937a2b939083e3cce12c",
+    "operational/tests.py": "8a6e227cee5475fd7efa2af0c52d82c1f2ba67e21a41d9d9d9d17113aa28a7a1",
+    "tests/test_first_owner_scope.py": "d6ab1f519b5a65a00b1595876a90fafdd3ed222973390ce1d1b76126614ac3f4",
+    "tests/test_pump_first_check.py": "e75de3a8509cf28278794168dd7fda5f6714a7e734d90fa5c430d160a4059653",
+    "engineering/pump_first/check.py": "16e9de53b0fff939c33af94d43c08aeb704a6c00cf987383e0a2eb1e65b28f87",
+    "requirements.txt": "d1e960f8fe94fed128958c849e48d034ba004b156739ca9be0f9767425698ffe"
+  },
+  "logs": [
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/ci-129-fast.log",
+      "retained": "operational/pump-first-release/evidence/ci-129-fast.log.gz",
+      "sha256": "7388994a7e508538e1042312a77db18f71418917c5db741b4f818030569c0dfb",
+      "raw_sha256": "a95f885a846edefb1ff137d0338e29962611c69b9d67391e67492885cb7b1cd3",
+      "raw_bytes": 632019
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/ci-containment-focused.log",
+      "retained": "operational/pump-first-release/evidence/ci-containment-focused.log.gz",
+      "sha256": "15056ef4c40513dce9d8e211cefc2947f5f17b6f7c17c568e759acac65a80634",
+      "raw_sha256": "4c46c58788c76288427bf634a7ee7137161ff185c5feb31790bd3403465b3074",
+      "raw_bytes": 4078
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/first-owner-focused.log",
+      "retained": "operational/pump-first-release/evidence/first-owner-focused.log.gz",
+      "sha256": "1e3339d267db1baf5892f3e0b355ebbdd1baa35ccf0bc1285b8755ce6840b224",
+      "raw_sha256": "26c036a95942268f26ae0ce023a8e65beab61b5fbc5efd09d81122b36a42a6b4",
+      "raw_bytes": 16451
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/first-owner-scope-final.log",
+      "retained": "operational/pump-first-release/evidence/first-owner-scope-final.log.gz",
+      "sha256": "ea62d04c7df25eeac04c76a36483e38dbf3999e69a52fb28f6181ac8e1496ff3",
+      "raw_sha256": "e56a6f8d45597cfafc69ff160b1ea2edfbc4102279a5b83ede47911b6d2bc99b",
+      "raw_bytes": 2591
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-first-check-focused.log",
+      "retained": "operational/pump-first-release/evidence/pump-first-check-focused.log.gz",
+      "sha256": "249594f7107c20858ceed7a4092250ce5d3f912dae4ba2d2a7202025a483f318",
+      "raw_sha256": "d53c9b227712ded581e957fbede7f9d096055564ac00bb762f4e4757e63a2d9a",
+      "raw_bytes": 4217
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-first-final-focused.log",
+      "retained": "operational/pump-first-release/evidence/pump-first-final-focused.log.gz",
+      "sha256": "f00b2c695e5b3d1009c77d34c699d1366aa81120fb891dc835585b623278526b",
+      "raw_sha256": "97e60a82ae80e87fc505101ffb781b7885b0f543bef262605908b6d440995f99",
+      "raw_bytes": 18884
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-first-final-focused-pass.log",
+      "retained": "operational/pump-first-release/evidence/pump-first-final-focused-pass.log.gz",
+      "sha256": "42aeb7d2c8bd47a56ce0e0381ce8a74424ee1a36077f9609fa9c91f76f996cda",
+      "raw_sha256": "ca5d1d9600710154e862eac15410191e098d0a7dbe74c980c39b2efc5380562d",
+      "raw_bytes": 18214
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-first-release-focused.log",
+      "retained": "operational/pump-first-release/evidence/pump-first-release-focused.log.gz",
+      "sha256": "40427c9253a61b705a8bd44d2132de0254af3c47be088b3bb1527a02a67ff91a",
+      "raw_sha256": "a5d8f07ee6585a8b3cbcacc97e9dffa1894f9d7b2f622185856b5f6e738973cb",
+      "raw_bytes": 18214
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-first-account-case-final.log",
+      "retained": "operational/pump-first-release/evidence/pump-first-account-case-final.log.gz",
+      "sha256": "519194a0cfa0e199f92c760da69b17939222ad02bd09f79c6b1968735f82f427",
+      "raw_sha256": "c86477404cd5c80828243fd2f58af6823bf754100d7ac37ffc680530c768b7cc",
+      "raw_bytes": 2523
+    }
+  ],
+  "market_provider_requests": 0,
+  "subscriptions_created": 0,
+  "deployment": false,
+  "paper_activation": false,
+  "operating_1000_epoch_initialized": false,
+  "existing_handoff_validation": "operational/redundant-acquisition/VALIDATION.json; retained, not recounted as new CI."
+}

@@ -1,0 +1,24 @@
+{
+  "schema": "read-only-host-state-v1",
+  "observed_utc": "2026-10-11T03:57:00Z",
+  "deployed_commit": "b577cc1c67f4d64f887b430f5e933f376b607dc2",
+  "deployed_worktree_clean": true,
+  "paper": {
+    "active": "inactive",
+    "enabled": "disabled",
+    "main_pid": 0,
+    "cpu_quota": "infinity",
+    "memory_max": "infinity"
+  },
+  "epoch": "paper-1791089005190643467",
+  "starting_capital": "500.00",
+  "selected_shared_authority_table_exists": false,
+  "installed_continuation_envelope": false,
+  "installed_bootstrap_dropin": false,
+  "monetary_sha256": {
+    "inception.json": "2f3ca8d2f2ce6eb8750fb63622c70f5e87943b1a222e5e29f892c6d9c727aeef",
+    "portfolio.sqlite": "3198aae1f3c732451f008c5a620b8f176792caf92c1517435675d9e04f3a4087"
+  },
+  "modified_host_state": false,
+  "snapshot_or_model_not_current_capacity": "Old cached financial/health snapshots are not fresh provider or protection evidence."
+}

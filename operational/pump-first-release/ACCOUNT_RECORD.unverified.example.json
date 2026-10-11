@@ -1,0 +1,35 @@
+{
+  "app_id": "9bin99s96t7ga5e9",
+  "network": "SOLANA_MAINNET",
+  "evidence_kind": "UNVERIFIED_TEMPLATE",
+  "runtime_application_binding_verified": false,
+  "shared_obligations_reserved": false,
+  "account_source": null,
+  "plan": null,
+  "payg_enabled": null,
+  "capacity_observed_at_unix": null,
+  "reserved_cu": null,
+  "available_cu_per_ten_seconds": null,
+  "reserved_physical_rps": null,
+  "maximum_inflight": null,
+  "maximum_response_bytes": null,
+  "reserved_usd": null,
+  "tariff": {
+    "source": null,
+    "charged_failures_included": false,
+    "exceptional_charges_included": false,
+    "method_max_cu": {
+      "getGenesisHash": null,
+      "getMultipleAccounts": null,
+      "getBlockTime": null
+    },
+    "method_max_usd": {
+      "getGenesisHash": null,
+      "getMultipleAccounts": null,
+      "getBlockTime": null
+    },
+    "fixed_max_usd": null,
+    "start_max_usd": null,
+    "byte_max_usd": null
+  }
+}
