@@ -335,6 +335,7 @@ class SelectiveSource:
         self.pending_diagnostics=[]
         self.join_observed={}
         self.rolling_publications=0
+        self.control_bootstrap_tip=None;self.control_committed_slot=None
 
     def observe_join(self,plane,join,session):
         now=time.monotonic()
@@ -474,7 +475,10 @@ class SelectiveSource:
             def commit(state):
                 with state.writer.transaction():
                     for frame in batch:commit_control(state,frame,active=self.control_connected)
-            await self.work(commit,2,label='source_commit')
+                # Scheduling may follow only the durable authenticated receipt;
+                # a socket, raw slot notification or submitted command is not it.
+                return state.writer.db.execute('SELECT MAX(slot) FROM stream_receipts WHERE scope=?',(CONTROL,)).fetchone()[0]
+            self.control_committed_slot=await self.work(commit,2,label='source_commit')
             for _ in batch:queue.task_done()
 
     async def control_stream(self,channel,tip,queue):
@@ -673,6 +677,7 @@ class SelectiveSource:
             return str(state.writer.path)
         self.canonical_path=await work(boot,0)
         tip=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',2)
+        self.control_bootstrap_tip=tip
         async with grpc.aio.secure_channel(HOST,grpc.ssl_channel_credentials(),options=[
                 ('grpc.max_receive_message_length',MAX_FRAME_BYTES),('grpc.max_send_message_length',4*1024*1024),('grpc.http2.bdp_probe',0)]) as channel:
             control_queue=asyncio.Queue(maxsize=64)
@@ -822,6 +827,7 @@ class SelectiveSource:
         gap, never falsely completes an unseen past.
         """
         from .solana_rolling_history import program_scope
+        await self.wait_current_control()
         failures=0
         while not self.stop.is_set():
             from .operational.position_continuation import position_only
@@ -1048,6 +1054,18 @@ class SelectiveSource:
             try:await asyncio.wait_for(self.stop.wait(),.1)
             except TimeoutError:pass
         raise asyncio.CancelledError()
+
+    async def wait_current_control(self):
+        """Catch up the existing header replay before opening live log joins.
+
+        This orders acquisition only. Full economic publication, canonical
+        candidate coverage, fresh execution and financial admission still apply.
+        """
+        while (self.control_bootstrap_tip is not None and
+                (self.control_committed_slot is None or self.control_committed_slot<self.control_bootstrap_tip)):
+            if self.stop.is_set():raise asyncio.CancelledError()
+            try:await asyncio.wait_for(self.stop.wait(),.05)
+            except TimeoutError:pass
 
     async def live(self,channel,desired,local_stop):
         rolling=any(r.get('rolling') for r in desired);has_checkpoint=False

@@ -282,3 +282,18 @@ r33/RAM using authenticated hookless pool identities. Bridge-token transfer
 behavior has not been proved, so neither route is active for financial decisions.
 The diagnostic used 10 starts, 78 elements, 1,834 conservative CU and 139,362 HTTP
 bytes; public-rate estimate $0.00096285, not authenticated invoice charges.
+### 2026-10-11 19:25 UTC ordering defect
+
+The 256-message intake passed its bounded authenticated follow-up's first
+canonical program interval (58 slots; 723 Pump and 3,741 PumpSwap rolling records)
+but did not pass admission or continuous protection. Control was still replaying
+previous diagnostic history about 3,000 slots behind the new live join. Its
+missing corresponding headers prevented external market-time publication; live
+logs again reached their original 32-MiB guard. The diagnostic stopped within
+512 MiB, and all earlier counters, records and gaps remain intact.
+
+The narrowly scoped correction waits for the existing canonical control owner
+to durably reach the sampled startup tip before opening rolling live log joins.
+It changes acquisition order only. It does not substitute a cached block number
+for canonical membership, skip historical replay or grant candidate admission.
+Source cancellation remains bounded. Affected regressions: 83 passed in 14.841s.

@@ -96,5 +96,24 @@ class ScoutCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(EvidenceUnavailable,'candidate_scout_fields_missing'):
             scout_fact(u,NOW)
 
+    async def test_rolling_waits_for_durable_control_catchup_without_granting_economic_coverage(self):
+        source=SelectiveSource(SimpleNamespace(credential='offline'),None);source.stop=asyncio.Event()
+        source.control_bootstrap_tip=1000
+        waiting=asyncio.create_task(source.wait_current_control())
+        await asyncio.sleep(.01);self.assertFalse(waiting.done())
+        source.control_committed_slot=999
+        await asyncio.sleep(.06);self.assertFalse(waiting.done())
+        source.control_committed_slot=1000
+        await asyncio.wait_for(waiting,.1)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
+
+    async def test_stop_during_control_catchup_does_not_open_a_replacement_feed(self):
+        source=SelectiveSource(SimpleNamespace(credential='offline'),None);source.stop=asyncio.Event()
+        source.control_bootstrap_tip=1000
+        waiting=asyncio.create_task(source.wait_current_control())
+        await asyncio.sleep(0);source.stop.set()
+        with self.assertRaises(asyncio.CancelledError):await waiting
+
 
 if __name__=='__main__':unittest.main()

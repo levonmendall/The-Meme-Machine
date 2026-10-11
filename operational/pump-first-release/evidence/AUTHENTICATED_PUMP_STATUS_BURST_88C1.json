@@ -1,0 +1,41 @@
+{
+  "status": "FAIL_SUSTAINED_COVERAGE_WITH_ECONOMIC_PUBLICATION",
+  "source": "88c10c991855faafd7e5b569efd486b1c7649020",
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-status-burst-88c10c99-1791746274223.sqlite",
+  "physical_starts": 10,
+  "logical_rpc_elements": 5,
+  "conservative_cu": 100,
+  "http_bytes": 215,
+  "known_native_bytes": 147895446,
+  "uncertain_native_bytes": 369096603,
+  "native_reserved_bytes": 0,
+  "accounted_native_bytes": 516992049,
+  "native_openings": 5,
+  "native_boundary_bytes": 536870912,
+  "terminal_failure": "native_inflight_limit",
+  "new_rolling_economic_records": {
+    "pump": 723,
+    "pumpswap": 3741
+  },
+  "proved_program_tail": [
+    455763631,
+    455763688
+  ],
+  "last_program_block": 455763689,
+  "last_program_market_time": 1791746296,
+  "last_program_seen": 1791746327.0033307,
+  "control_finalized_frontier": 455760697,
+  "control_market_time": 1791745642,
+  "control_seen": 1791746328.595031,
+  "startup_phase": "WAIT_FOR_DURABLE_PUBLICATION",
+  "source_cause": "Historical control replay remained roughly 3000 slots behind the newly opened live log/status join; missing control receipts prevented external market-time publication. Local program progress did not establish admission readiness.",
+  "log_buffer_failure_bytes": 33552553,
+  "log_buffer_failure_count": 11486,
+  "priority_two_peak_queue_us": 503813,
+  "modeled_public_upper_usd": "0.054336665145",
+  "invoice_verified": false,
+  "full_protection": false,
+  "funding": false,
+  "orders": false,
+  "historical_counters_reset": false
+}
