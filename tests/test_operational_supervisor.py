@@ -22,6 +22,24 @@ class NativeDeliveryRecovery(unittest.TestCase):
         self.env=patch.dict(os.environ,{'MM_PAPER_EPOCH':self.service.epoch})
         self.env.start();self.addCleanup(self.env.stop)
 
+    def test_native_usd_bridge_opt_in_reaches_only_the_pons_worker(self):
+        self.service.offline=False
+        with patch.dict(os.environ,MM_PONS_USD_BRIDGE_ROUTES='verified_two_hop_v1'):
+            self.assertEqual(self.service.environment('pons')['MM_PONS_USD_BRIDGE_ROUTES'],
+                'verified_two_hop_v1')
+            for lane in ('pump','solana'):
+                self.assertNotIn('MM_PONS_USD_BRIDGE_ROUTES',self.service.environment(lane))
+            self.service.offline=True
+            self.assertNotIn('MM_PONS_USD_BRIDGE_ROUTES',self.service.environment('pons'))
+
+    def test_native_usd_bridge_remains_inactive_without_explicit_selection(self):
+        self.service.offline=False
+        with patch.dict(os.environ,MM_PONS_USD_BRIDGE_ROUTES=''):
+            self.assertNotIn('MM_PONS_USD_BRIDGE_ROUTES',self.service.environment('pons'))
+        with patch.dict(os.environ,MM_PONS_USD_BRIDGE_ROUTES='unverified-route'):
+            with self.assertRaisesRegex(ValueError,'invalid_pons_usd_bridge_routes'):
+                self.service.environment('pons')
+
     def test_four_native_commits_recover_lost_shared_ack_once(self):
         for lane in LANES:
             with self.subTest(lane=lane):

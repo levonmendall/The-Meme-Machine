@@ -1,7 +1,7 @@
 """Active Model B startup proofs; no legacy producer or market I/O."""
 import asyncio
 from contextlib import closing
-import os,tempfile,time,unittest
+import json,os,tempfile,time,unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -50,6 +50,67 @@ class StartupTests(unittest.TestCase):
     def test_missing_startup_state_does_not_authorize_consumer_release(self):
         self.assertFalse(candidate_release(self.path))
         self.assertFalse(candidate_release(Path(self.tmp.name)/'unavailable.sqlite'))
+
+    def current_tail(self):
+        from meme_machine.solana_selective_source import commit_candidate_batch,commit_control
+        from meme_machine.solana_selective_history import PROGRAMS
+        from tests.test_candidate_commit_batches import frame
+        for family in ('pump','pumpswap'):
+            self.h.gap(program_scope(family),90,90,'retained_historical_gap')
+        self.begin()
+        addresses={PROGRAMS[f]:program_scope(f) for f in ('pump','pumpswap')}
+        commit_candidate_batch(self.state,[frame(n,logs=False) for n in range(100,104)],addresses,'native-session')
+        for n in range(100,105):commit_control(self.state,frame(n,logs=False))
+        self.assertTrue(self.h.startup.advance()['released'])
+
+    def test_current_published_frontier_is_independent_of_old_marketwide_gap(self):
+        from meme_machine.solana_prewarm_startup import published_program_frontiers
+        self.current_tail()
+        before=self.h.db.total_changes
+        rows=published_program_frontiers(self.h.db,now=NOW)
+        self.assertEqual(len(rows),2);self.assertEqual({r['slot'] for r in rows},{102})
+        self.assertEqual({r['linked_child_slot'] for r in rows},{103})
+        self.assertEqual(self.h.db.total_changes,before)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_gaps WHERE repaired IS NULL').fetchone()[0],2)
+        self.assertEqual(self.h.rolling.missing('pump',program_scope('pump'),90,90),[(90,90)])
+        self.state.writer.close();self.state,self.h=state_at(self.path,lambda:self.now[0])
+        self.assertEqual(len(published_program_frontiers(self.h.db,now=NOW)),2)
+        self.h.startup.begin()
+        self.assertEqual(published_program_frontiers(self.h.db,now=NOW),[])
+
+    def test_current_gap_pending_content_or_unpublished_tail_blocks_frontier(self):
+        from meme_machine.solana_prewarm_startup import published_program_frontiers
+        self.current_tail();scope=program_scope('pump')
+        self.h.gap(scope,100,100,'current_session_gap')
+        self.assertEqual(published_program_frontiers(self.h.db,now=NOW),[])
+        self.h.lifecycle.defer_proof(proof(scope,100,100));self.h.lifecycle.publish()
+        self.assertEqual(len(published_program_frontiers(self.h.db,now=NOW)),2)
+        body=dict(record=dict(slot=102));self.h.db.execute('''INSERT INTO candidate_history_outbox
+            (id,family,address,kind,body,hash,created,consumed) VALUES(?,?,?,?,?,?,?,NULL)''',
+            ('pending','pump','mint','canonical',json.dumps(body),digest(body),NOW))
+        self.assertEqual(published_program_frontiers(self.h.db,now=NOW),[])
+        self.h.db.execute('UPDATE candidate_history_outbox SET consumed=? WHERE id=?',(NOW,'pending'))
+        self.h.db.execute('DELETE FROM candidate_coverage WHERE scope=?',(scope,))
+        self.assertEqual(published_program_frontiers(self.h.db,now=NOW),[])
+
+    def test_corrupt_frontier_proof_or_startup_identity_cannot_grant_readiness(self):
+        from meme_machine.solana_prewarm_startup import published_program_frontiers
+        self.current_tail()
+        self.h.db.execute("UPDATE candidate_coverage SET hash='invalid'")
+        with self.assertRaisesRegex(EvidenceUnavailable,'candidate_coverage_corrupt'):
+            published_program_frontiers(self.h.db,now=NOW)
+        self.h.db.execute("UPDATE prewarm_startup SET hash='invalid'")
+        with self.assertRaisesRegex(EvidenceUnavailable,'prewarm_startup_corrupt'):
+            published_program_frontiers(self.h.db,now=NOW)
+
+    def test_a_different_control_bank_or_unsealed_membership_prevents_readiness(self):
+        from meme_machine.solana_prewarm_startup import published_program_frontiers
+        self.current_tail()
+        self.h.db.execute('UPDATE stream_receipts SET sealed=0 WHERE scope=? AND slot=103',(CONTROL,))
+        self.assertEqual(published_program_frontiers(self.h.db,now=NOW),[])
+        self.h.db.execute("UPDATE stream_receipts SET sealed=1,hash='another-bank' WHERE scope=? AND slot=103",(CONTROL,))
+        self.assertEqual(published_program_frontiers(self.h.db,now=NOW),[])
     def test_skipped_initial_slot_requires_an_actual_finalized_parent_boundary(self):
         from meme_machine.solana_selective_source import commit_candidates
         from meme_machine.solana_candidate_join import YellowstoneTransactionFrame

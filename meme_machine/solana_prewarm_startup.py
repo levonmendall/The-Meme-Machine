@@ -44,6 +44,50 @@ def candidate_release(path):
     with closing(sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True)) as db:return released(db)
 
 
+def published_program_frontiers(db,*,now=None):
+    """Read actual current published economics, without inventing checkpoints.
+
+    A historical market-wide gap is still retained for each candidate's exact
+    lookback. It cannot substitute for, or veto, the independently authenticated
+    current tail. The linked child's previous slot must itself be fully
+    published, gap-free and acknowledged by CandidateHistory.
+    """
+    if not released(db):return []
+    at=time.time() if now is None else now
+    session,started=db.execute('SELECT session,started FROM prewarm_startup WHERE id=1').fetchone()
+    feeds=db.execute('SELECT family,lo,hi,native_at FROM prewarm_startup_feeds WHERE session=?',(session,)).fetchall()
+    if {r[0] for r in feeds}!={'pump','pumpswap'} or any(r[3] is None for r in feeds):return []
+    from types import SimpleNamespace
+    from .solana_rolling_history import RollingHistory
+    from .solana_candidate_lifecycle import CandidateLifecycle
+    from .solana_selective_runtime import CONTROL
+    # Read-only adapters reuse the exact existing completeness predicates.
+    # Their constructors perform DDL and must never be used on this reader.
+    history=SimpleNamespace(db=db,clock=lambda:at)
+    rolling=RollingHistory.__new__(RollingHistory);rolling.db=db;rolling.history=history
+    history.rolling=rolling
+    lifecycle=CandidateLifecycle.__new__(CandidateLifecycle);lifecycle.db=db;lifecycle.history=history
+    rows=[]
+    control=db.execute('SELECT MAX(hi) FROM coverage WHERE scope=? AND available<=?',(CONTROL,at)).fetchone()[0]
+    for family,lo,hi,_ in feeds:
+        scope=program_scope(family)
+        child=db.execute('SELECT slot,parent,market_time,seen,session,hash,previous_hash FROM candidate_blocks WHERE scope=?',(scope,)).fetchone()
+        if child is None or child[0]<=lo or child[3]<started or child[1]>=child[0]:return []
+        target=child[0]-1
+        if target<hi or control is None or control<target:return []
+        membership=db.execute('SELECT parent,hash,previous_hash FROM stream_receipts WHERE scope=? AND slot=? AND sealed=1',
+            (CONTROL,child[0])).fetchone()
+        if membership!=(child[1],child[5],child[6]):return []
+        if db.execute('''SELECT 1 FROM candidate_gaps WHERE scope=? AND created<=?
+            AND (repaired IS NULL OR repaired>?) AND lo<=? AND (hi IS NULL OR hi>=?) LIMIT 1''',
+                (scope,at,at,target,lo)).fetchone():return []
+        if rolling.missing(family,scope,child[1],target,as_of=at):return []
+        if lifecycle.unconsumed(scope,through=target):return []
+        rows.append(dict(scope=scope,slot=target,updated=child[3],market_time=child[2],
+            native_session=child[4],linked_child_slot=child[0],historical_checkpoint_unchanged=True))
+    return rows
+
+
 class PrewarmStartup:
     def __init__(self,history):
         self.history=history;self.db=history.db;self.writer=history.writer

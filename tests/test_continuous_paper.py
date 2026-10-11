@@ -264,7 +264,7 @@ class AdmissionTests(unittest.TestCase):
         from tests.test_position_continuation import healthy
         health,portfolio,rss=healthy();health['providers'].pop('robinhood');health['lanes'].pop('pons')
         rows=[dict(scope='candidate:'+family,slot=100,updated=now,market_time=now) for family in ('pump','pumpswap')]
-        health['providers']['evidence']['program_checkpoints']=rows
+        health['providers']['evidence']['program_frontiers']=rows
         with patch('meme_machine.operational.acceptance.observe',return_value=(health,portfolio,rss)),patch('time.time',return_value=now):
             s.normal_tick();self.assertFalse(s.provider_budget.usage()['new_risk_ready'])
             s.ready_since-=61

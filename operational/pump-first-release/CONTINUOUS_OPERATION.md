@@ -514,3 +514,40 @@ regression, current missing content preventing checkpoint, and restored pending
 content still blocking after restart. No lifetime usage counter or historical
 evidence was removed. Full remote FAST passed for `969dc905`; successor CI is
 pending. Normal deployment and PAPER funding remain off pending genuine protection.
+
+The exact `1308c9d2` run still failed canonical intake with
+`candidate_log_buffer_pressure` after 102.48 seconds, despite 3,314 additional
+canonical Pump/PumpSwap events. It retained 52 physical starts, 48 logical
+elements, 4,560 CU, 15,854,188 HTTP bytes, four native openings, 72,012,767 known
+and 285,212,672 uncertain native bytes; public modeled upper $0.039902671095,
+not an authenticated invoice. Exit code zero after diagnostic stop is not PASS.
+Full remote FAST passed for `1308c9d2`; earlier failed evidence is preserved.
+
+The next narrowly scoped repair reuses the original eight-frame writer batching
+for candidate frames. FIFO identity/content joins remain unchanged. At most eight
+frames and 32 MiB, including the owner-held batch, can queue; a quiet ready frame
+commits immediately. One atomic owner transaction retains the original economics
+and proofs, while failed batches roll back and durably record their unavailable
+interval. Stream accounting is still committed before content delivery.
+
+Replay now starts its current session receipt at the actual received replay block,
+even when it precedes the previous session's last receipt. Only its subsequent
+linked child republishes that interval. A repeated authenticated native proof
+repairs a disconnect gap without changing original content availability. Existing
+historical checkpoints remain untouched; cached bytes alone cannot repair a gap.
+
+Normal readiness reads current, durably published program frontiers rather than
+requiring a market-wide historical checkpoint to bridge unrelated old gaps. It
+requires the released startup identity, both real native feeds, actual linked
+child membership matching a sealed control header, acknowledged canonical content,
+and no unresolved gap since the current startup boundary. Five-second receipt
+and fifteen-second market freshness and the existing sixty-second progressing
+readiness requirement remain. Historical candidate lookback gaps still prevent
+qualification. No fictitious checkpoint is written.
+
+The Pons supervisor now explicitly forwards the validated USD-route selector
+only to a non-offline Pons worker. The route remains inactive in the installed
+service. Unknown selectors refuse startup, and Pump cannot inherit this flag.
+Focused 95 FAST and 20 OPERATIONAL tests passed; full new source CI and genuine
+combined provider protection remain prerequisites to normal funding. Trading is
+still off, and the real sixty-minute acceptance clock has not started.

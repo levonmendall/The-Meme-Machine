@@ -1,0 +1,25 @@
+{
+  "status": "PASS_OFFLINE",
+  "checks": [
+    {
+      "level": "FAST",
+      "status": "PASS_OFFLINE",
+      "tests": 95,
+      "seconds": 23.295,
+      "command": "python -m operational.tests FAST --modules tests.test_candidate_commit_batches tests.test_solana_prewarm_startup tests.test_continuous_paper tests.test_solana_selective_evidence tests.test_pons_usd_bridge_routes",
+      "log": "/tmp/continuous-linked-frontier-final.log",
+      "log_sha256": "9e5804ac213c73bd10c287ecf3acfe45427c67b5180cfa7c44efa8ea818fc4ae"
+    },
+    {
+      "level": "OPERATIONAL",
+      "status": "PASS_OFFLINE",
+      "tests": 20,
+      "seconds": 11.355,
+      "command": "python -m operational.tests OPERATIONAL --modules tests.test_operational_supervisor",
+      "log": "/tmp/continuous-replay-supervisor-operational.log",
+      "log_sha256": "b96bf4f35faec7d53c5044ad1de75e77080cf8fc8f4137ad2f962d99392cdce9"
+    }
+  ],
+  "authenticated_protection": false,
+  "normal_service_deployed": false
+}

@@ -213,6 +213,15 @@ class Supervisor:
                 raise ValueError('invalid_pump_held_rpc_mode')
             env['MM_PUMP_HELD_RPC_MODE']=held_mode
         if lane=='pons':
+            # Native USD acquisition may use the separately verified two-hop
+            # route. Keep this opt-in confined to the actual Pons worker;
+            # dropping it here would silently restore an unavailable direct
+            # route. It grants no funding or provider-capacity readiness.
+            bridge_mode=os.environ.get('MM_PONS_USD_BRIDGE_ROUTES','')
+            if bridge_mode not in ('','verified_two_hop_v1'):
+                raise ValueError('invalid_pons_usd_bridge_routes')
+            if not self.offline and bridge_mode:
+                env['MM_PONS_USD_BRIDGE_ROUTES']=bridge_mode
             # The supervisor drops unallowlisted parent variables. Explicitly
             # forward ONLY capped PAPER diagnostic settings to Pons workers.
             shadow=pons_held_shadow_settings(os.environ)
@@ -398,9 +407,11 @@ class Supervisor:
             db=None
             try:
                 db=sqlite3.connect(path.as_uri()+'?mode=ro',uri=True,timeout=.1)
+                db.execute('BEGIN') # One coherent read snapshot of proof and child.
                 result['evidence']=dict(state='CURRENT',hot_records=db.execute('SELECT COUNT(*) FROM records WHERE body IS NOT NULL').fetchone()[0],open_gaps=db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0],frontiers=[dict(scope=s,slot=slot,updated=updated) for s,slot,updated in db.execute('SELECT * FROM cursors')])
-                from meme_machine.solana_prewarm_startup import released
+                from meme_machine.solana_prewarm_startup import released,published_program_frontiers
                 result['evidence']['startup_released']=released(db)
+                result['evidence']['program_frontiers']=published_program_frontiers(db)
                 for key,raw in db.execute("SELECT key,value FROM service_health WHERE key IN ('pid','phase','heartbeat','native_streams')"):
                     result['evidence'][key]=json.loads(raw)
                 if db.execute("SELECT 1 FROM sqlite_master WHERE name='candidate_checkpoints'").fetchone():
@@ -408,7 +419,7 @@ class Supervisor:
                     result['evidence']['program_checkpoints']=[dict(scope=s,slot=slot,updated=updated,market_time=market)
                         for s,slot,updated,market in db.execute('SELECT c.scope,c.slot,c.updated,b.market_time FROM candidate_checkpoints c JOIN candidate_blocks b ON b.scope=c.scope AND b.slot BETWEEN c.slot AND c.slot+1 WHERE c.scope IN (?,?)',
                             (program_scope('pump'),program_scope('pumpswap')))]
-            except (OSError,sqlite3.Error):result['evidence']={'state':'UNAVAILABLE'}
+            except (OSError,sqlite3.Error,ValueError):result['evidence']={'state':'UNAVAILABLE'}
             finally:
                 if db:db.close()
         return result
@@ -501,7 +512,7 @@ class Supervisor:
             if failure:raise ValueError(failure)
             frontiers={}
             if 'pump' in funding_lanes(budget.envelope):
-                rows=health['providers']['evidence'].get('program_checkpoints',[])
+                rows=health['providers']['evidence'].get('program_frontiers',[])
                 if len(rows)!=2 or any(not 0<=time.time()-r['updated']<=5 or not 0<=time.time()-r['market_time']<=15 for r in rows):
                     raise ValueError('pump_canonical_program_coverage_not_current')
                 frontiers.update({r['scope']:r['slot'] for r in rows})

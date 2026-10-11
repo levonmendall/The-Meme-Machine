@@ -33,6 +33,8 @@ MAX_FRAME_BYTES=16*1024*1024
 MAX_LIVE_CANDIDATES=48 # StableShards subtracts the one Meteora content filter.
 ARCHIVE_WORKERS=8
 SCOUT_COMMIT_BATCH=64
+CANDIDATE_COMMIT_BATCH=8
+CANDIDATE_COMMIT_BYTES=32*1024*1024
 # Acquisition cannot prove funded-position latency before a position exists.
 # Enforce this guard at capital admission, never at read-only source startup.
 PRODUCTION_BLOCKERS=() # Retained import compatibility; readiness is live and regime-specific.
@@ -197,11 +199,11 @@ def commit_candidates(state,frame,addresses,session,*,publish=True):
             values=(b.slot,b.parent_slot,b.blockhash,b.parent_blockhash,b.block_time.timestamp,seen,session,digest(census))
             if old and b.slot<=old[0]:
                 if b.slot==old[0] and (old[1:5],old[7])!=(values[1:5],values[7]):raise EvidenceUnavailable('candidate_replay_receipt_conflict')
-                if b.slot==old[0] and old[6]!=session:
-                    # An exact replayed boundary can join this session's child.
-                    # Preserve original receipt time and immutable economics.
-                    state.writer.db.execute('UPDATE candidate_blocks SET session=? WHERE scope=?',(session,scope))
-                continue
+                if old[6]==session:continue
+                # The current session's actual replay receipt may precede the
+                # previous session's last block. Its own next linked child is
+                # required before this interval can be republished. Canonical
+                # event availability and historical checkpoints stay unchanged.
             if old is None:skipped_prefix(history,scope,frame)
             if old and old[6]==session:
                 witness=dict(finalized=True,complete=True,scope=scope,lower_slot=old[0],upper_slot=b.slot-1,
@@ -211,6 +213,58 @@ def commit_candidates(state,frame,addresses,session,*,publish=True):
                 history.lifecycle.defer_proof(IntervalProof(scope,old[0],b.slot-1,'alchemy_finalized_stream',history.endpoint_identity,witness,seen))
             state.writer.db.execute('INSERT OR REPLACE INTO candidate_blocks VALUES(?,?,?,?,?,?,?,?,?)',(scope,*values))
     if publish:history.lifecycle.publish()
+
+
+def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publish=True):
+    """The original ordered frames, under one atomic durable owner command."""
+    if not 0<len(frames)<=CANDIDATE_COMMIT_BATCH:
+        raise EvidenceUnavailable('candidate_commit_batch_bound')
+    history=install(state)
+    try:
+        with state.writer.transaction():
+            for frame in frames:
+                (commit_rolling_group if grouped else commit_candidates)(
+                    state,frame,addresses,session,publish=False)
+    except Exception:
+        # A discontinuity inside the enclosing batch rolls back with it.
+        # Retain its unavailable interval outside that rollback, before retry.
+        for scope in addresses.values():
+            history.gap(scope,min(f.update.block.slot for f in frames),
+                max(f.update.block.slot for f in frames),'candidate_native_batch_failed')
+        raise
+    if publish:history.lifecycle.publish()
+
+
+class CandidateCommitQueue:
+    """FIFO verified frames; count and bytes include the owner-held batch."""
+    def __init__(self):
+        self.queue=asyncio.Queue(maxsize=CANDIDATE_COMMIT_BATCH)
+        self.count=0;self.bytes=0;self.space=asyncio.Event()
+
+    async def put(self,frame):
+        # Native bodies are already included in source_bytes. Body-free WS
+        # log content must also remain inside the physical retained-data bound.
+        size=frame.source_bytes+sum(len(canonical(tx).encode()) for tx in frame.log_transactions)
+        if not 0<size<=CANDIDATE_COMMIT_BYTES:
+            raise EvidenceUnavailable('candidate_commit_batch_bound')
+        while self.count>=CANDIDATE_COMMIT_BATCH or self.bytes+size>CANDIDATE_COMMIT_BYTES:
+            self.space.clear();await self.space.wait()
+        self.count+=1;self.bytes+=size
+        self.queue.put_nowait((frame,size,time.monotonic(),time.time()))
+
+    async def batch(self):
+        rows=[await self.queue.get()]
+        while len(rows)<CANDIDATE_COMMIT_BATCH:
+            try:rows.append(self.queue.get_nowait())
+            except asyncio.QueueEmpty:break
+        return rows
+
+    def done(self,rows):
+        for _,size,_,_ in rows:
+            self.count-=1;self.bytes-=size;self.queue.task_done()
+        self.space.set()
+
+    async def join(self):await self.queue.join()
 
 def commit_rolling_group(state,frame,addresses,session,*,publish=True):
     """One proved membership interval, shared by all quiet Meteora views.
@@ -480,6 +534,31 @@ class SelectiveSource:
                 return state.writer.db.execute('SELECT MAX(slot) FROM stream_receipts WHERE scope=?',(CONTROL,)).fetchone()[0]
             self.control_committed_slot=await self.work(commit,2,label='source_commit')
             for _ in batch:queue.task_done()
+
+    async def candidate_commits(self,queue,addresses,session,*,rolling=False,grouped=False,priority=2):
+        native_announced=False
+        while not self.stop.is_set() or queue.count:
+            rows=await queue.batch();frames=[r[0] for r in rows]
+            claimed=[];finished_wall=[]
+            def durable(state):
+                claimed.append(time.monotonic())
+                commit_candidate_batch(state,frames,addresses,session,
+                    grouped=grouped,publish=not self.batched)
+                if rolling and not native_announced:
+                    install(state).startup.native([s.split(':',2)[1] for s in addresses.values()])
+                claimed.append(time.monotonic());finished_wall.append(time.time())
+            await self.work(durable,priority,label='source_commit')
+            for frame,_,ready,ready_wall in rows:
+                self.observe('evidence_timing',session=session,slot=frame.update.block.slot,
+                    native_last_receipt_wall=frame.seen,
+                    economic_available_wall=max((r[4] for r in frame.candidate_statuses),default=frame.seen),
+                    join_ready_wall=ready_wall,durable_finished_wall=finished_wall[-1],
+                    join_ready_monotonic=ready,owner_claim_monotonic=claimed[-2],
+                    durable_finished_monotonic=claimed[-1],work_returned_monotonic=time.monotonic(),
+                    published_inline=not self.batched,durable_batch_frames=len(frames))
+            if rolling:
+                native_announced=True;self.rolling_publications+=len(frames)
+            queue.done(rows)
 
     async def control_stream(self,channel,tip,queue):
         retry=0
@@ -1107,28 +1186,9 @@ class SelectiveSource:
         fresh_rolling=rolling and not has_checkpoint
         join=CandidateTransactionJoin(addresses,full,filtered_from_slot=1 if fresh_rolling else floor,max_join_seconds=120 if rolling else 10);session=uuid.uuid4().hex
         log_frontiers={};logs_available=asyncio.Event()
-        native_announced=False
+        candidate_queue=CandidateCommitQueue()
         async def commit(frame):
-            nonlocal native_announced
-            grouped=all(r['family']=='meteora' and r['priority']>1 for r in desired)
-            if frame:
-                ready=time.monotonic();ready_wall=time.time();claimed=[];finished_wall=[]
-                def durable(state):
-                    claimed.append(time.monotonic())
-                    (commit_rolling_group if grouped else commit_candidates)(state,frame,addresses,session,publish=not self.batched)
-                    if rolling and not native_announced:install(state).startup.native([r['family'] for r in desired])
-                    claimed.append(time.monotonic())
-                    finished_wall.append(time.time())
-                await self.work(durable,0 if any(r['priority']<=1 for r in desired) else 2,label='source_commit')
-                self.observe('evidence_timing',session=session,slot=frame.update.block.slot,
-                    native_last_receipt_wall=frame.seen,
-                    economic_available_wall=max((r[4] for r in frame.candidate_statuses),default=frame.seen),
-                    join_ready_wall=ready_wall,durable_finished_wall=finished_wall[-1],
-                    join_ready_monotonic=ready,owner_claim_monotonic=claimed[-2],
-                    durable_finished_monotonic=claimed[-1],work_returned_monotonic=time.monotonic(),
-                    published_inline=not self.batched)
-                if rolling:native_announced=True
-                if rolling:self.rolling_publications+=1
+            if frame:await candidate_queue.put(frame)
         acknowledged=asyncio.Event()
         async def native(update,size,seen):
             try:
@@ -1179,7 +1239,9 @@ class SelectiveSource:
                         except EvidenceUnavailable as exc:
                             self.diagnostic('log_join_failure',dict(reason=str(exc),**join.diagnostic()))
                             raise
-        tasks=[];waiter=None
+        tasks=[asyncio.create_task(self.candidate_commits(candidate_queue,addresses,session,
+            rolling=rolling,grouped=all(r['family']=='meteora' and r['priority']>1 for r in desired),
+            priority=0 if any(r['priority']<=1 for r in desired) else 2))];waiter=None
         if len(full)<len(desired):tasks.append(asyncio.create_task(logs()))
         else:acknowledged.set()
         try:
@@ -1317,6 +1379,7 @@ class SelectiveSource:
             tasks.append(asyncio.create_task(self.stream(channel,candidate_subscription(addresses,floor,full_addresses=full),native,consumer,local_stop)))
             done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
             for task in done:task.result()
+            await candidate_queue.join()
         finally:
             self.diagnostic('native_join_closed',dict(plane='rolling' if rolling else 'candidate',
                 session=session,**join.diagnostic()))

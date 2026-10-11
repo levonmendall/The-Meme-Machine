@@ -516,6 +516,10 @@ class SelectiveHistory:
         """
         proof.validate();scope=proof.scope
         if not scope.startswith('candidate:'):raise EvidenceUnavailable('candidate_scope_shape')
+        from .solana_rolling_history import program_scope
+        family=scope.split(':',2)[1]
+        rolling_stream=(family in ('pump','pumpswap') and scope==program_scope(family) or
+            proof.witness.get('method')=='scoped_native_membership_census_with_linked_child')
         at=float(proof.observed_at);point=[proof.lower_slot,proof.upper_slot,at]
         with self.writer.transaction():
             prior=self.db.execute('''SELECT lo,hi,count,first_available,last_available,points,hash,lineage,source
@@ -532,16 +536,13 @@ class SelectiveHistory:
                 # not replace the first point's availability or lineage.
                 original=coverage_points(existing[0],existing[1])
                 if any(a==point[0] and b==point[1] and available<=at for a,b,available in original):
-                    if proof.source=='alchemy_finalized_repair':self._repair_gap_segments(proof,at)
+                    if proof.source=='alchemy_finalized_repair' or rolling_stream:
+                        self._repair_gap_segments(proof,at)
                     return
                 points=original+[point];packed=zlib.compress(canonical(points).encode(),1)
                 checksum=hashlib.sha256(packed).hexdigest();first=min(p[2] for p in points)
             self.db.execute('INSERT OR REPLACE INTO candidate_coverage VALUES(?,?,?,?,?,?,?,?,?,?)',
                 (scope,lo,max(p[1] for p in points),len(points),first,at,packed,checksum,lineage,proof.source))
-            from .solana_rolling_history import program_scope
-            family=scope.split(':',2)[1]
-            rolling_stream=(family in ('pump','pumpswap') and scope==program_scope(family) or
-                proof.witness.get('method')=='scoped_native_membership_census_with_linked_child')
             if proof.source=='alchemy_finalized_repair' or rolling_stream:
                 self._repair_gap_segments(proof,at)
 
