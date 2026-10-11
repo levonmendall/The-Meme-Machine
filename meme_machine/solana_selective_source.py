@@ -861,7 +861,8 @@ class SelectiveSource:
         await self.wait_startup()
         while not self.stop.is_set():
             def retire(state):
-                h=install(state);h.lifecycle.publish()
+                h=install(state)
+                if not self.batched:h.lifecycle.publish()
                 return ScopedRetirement(h).retire(limit=64)
             # The owner installs its existing urgent SQL interruption hook for
             # maintenance priority four. Interrupted slices retry durably.
@@ -885,7 +886,12 @@ class SelectiveSource:
                 if not hasattr(state,'acquisition_inflight'):state.acquisition_inflight=set()
                 if not h.startup.snapshot().get('released'):return None
                 frontier=db.execute('SELECT MAX(hi) FROM coverage WHERE scope=?',(CONTROL,)).fetchone()[0]
-                if frontier is not None and not position_only():
+                # Eight acquisition workers share one owner and one development
+                # queue. Coalesce their duplicate housekeeping at the existing
+                # 100-ms polling cadence, while planning every individual job.
+                # This is a scheduling clock, never evidence or a fresh deadline.
+                if (frontier is not None and not position_only()
+                        and time.monotonic()>=getattr(state,'development_poll_at',0)):
                     for addr,fields in db.execute('''SELECT address,fields FROM market_observations m WHERE family='pump'
                         AND NOT EXISTS(SELECT 1 FROM evidence_bindings b WHERE b.family=m.family AND b.address=m.address)'''):
                         value=json.loads(fields);upper=value.get('development_upper_bps')
@@ -905,8 +911,11 @@ class SelectiveSource:
                         h.lifecycle.promote(family,addr,deadline=deadline,lower_slot=0 if family=='pump' else None if family=='meteora' else lo)
                     h.rolling.resume_boundaries()
                     h.rolling.resume_publication()
-                h.lifecycle.publish()
-                h.rolling.repair_required_checkpoint_prefixes()
+                    state.development_poll_at=time.monotonic()+.1
+                # The batched source already owns the ordered 100-ms publisher.
+                # Pending proofs still block false coverage in h.plan below.
+                if not self.batched:h.lifecycle.publish()
+                if 'meteora' in h.active_families:h.rolling.repair_required_checkpoint_prefixes()
                 result=h.plan(excluding=tuple(state.acquisition_inflight))
                 if result:
                     state.acquisition_inflight.add(result[0]['id'])

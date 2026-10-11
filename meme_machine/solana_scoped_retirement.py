@@ -103,13 +103,13 @@ class ScopedRetirement:
         if self.db.execute(f'SELECT 1 FROM candidate_history_outbox WHERE family=? AND address IN ({placeholders}) AND consumed IS NULL LIMIT 1',(family,*aliases)).fetchone():return 'pending_consumer'
         lane='pump' if family in ('pump','pumpswap') else 'meteora'
         if shared.db.execute("SELECT 1 FROM work WHERE lane=? AND candidate=? AND status IN ('active','pending') LIMIT 1",(lane,market)).fetchone():return 'candidate_work'
-        if hasattr(self.history,'rolling'):
+        if family=='meteora' and hasattr(self.history,'rolling'):
             retention=self.history.rolling.retention(family,address)
             rows=self.db.execute('SELECT MAX(r.market_time) FROM canonical_evidence r JOIN canonical_addresses a ON a.identity=r.identity WHERE r.scope=? AND a.address=? AND r.slot BETWEEN ? AND ?',(base,market,lo,hi)).fetchone()
             # Pump economics remain recoverable through canonical cold pointers
             # and CandidateHistory references. Future eligibility does not pin
             # raw log/hydration bytes in hot storage forever.
-            if family=='meteora' and rows and rows[0] is not None and rows[0]>=self.clock()-retention['window_seconds']:return 'rolling_trigger_and_warmup_history'
+            if rows and rows[0] is not None and rows[0]>=self.clock()-retention['window_seconds']:return 'rolling_trigger_and_warmup_history'
         return None
 
     def retire(self,*,limit=64):

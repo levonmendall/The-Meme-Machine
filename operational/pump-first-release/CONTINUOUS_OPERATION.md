@@ -415,3 +415,14 @@ blocks and the original five-second validity. It used 23 starts, 92 logical
 elements, 2,162 CU and 239,353 HTTP bytes: public-modeled $0.00113505. This is not
 invoice evidence or full Current/Survivor protective capacity. The feature remains
 unset in the service pending coincident native quote/USD/deadline proof.
+
+
+Operational checkpoint — 2026-10-11 21:03 UTC
+
+Authenticated source 3659ffd59fe5e35e08b0a8b0ec620f56b5d0751e published 3,926 additional Pump/PumpSwap economic records during the owner-attribution diagnostic. Sustained coverage still failed: status ingestion lagged live logs, which reached the unchanged 32-MiB join bound, then conservative unread-buffer charges closed the unchanged 512-MiB engineering envelope. All failed counters and gaps remain. No funding, orders, component rerun or PAPER service start occurred. The receipt records 39 starts, 33 logical elements, 2,900 CU, 7,812,072 HTTP bytes and 520,141,108 accounted native bytes; the public-model upper is $0.05613731634, not an invoice.
+
+Owner attribution identified duplicate development/publication work across eight archive consumers and unnecessary Pump retention scans. The successor coalesces global development housekeeping at the existing 100-ms poll cadence while every job is still independently planned, retains each original deadline and in-flight exclusion, and lets the existing ordered publisher publish in batched mode. Nonbatched acquisition retains its original inline publication path. Paused Meteora checkpoint requirements are not polled in Pump operation. Retirement no longer computes the Meteora-only hot-history pin rule for Pump; all actual consumer, position, unresolved-gap and unacknowledged-receipt pins remain intact, as do lossless cold restoration and future Survivor histories.
+
+Focused supported FAST: 106 tests passed in 34.463 seconds across shared capacity, rolling prewarm, closure and startup. New regressions prove eight distinct jobs, original deadlines, immediate priority-zero planning between housekeeping polls, no fabricated coverage, no paused-family work, and unchanged Pump history after retirement. Remote predecessor CI 38173187232 passed for 3659ffd; the new successor still requires its own full FAST before normal deployment. This is not a protective-capacity or uninterrupted-operation pass.
+
+Pons authenticated native USD bridge remains PASS_NATIVE_USD_COMPONENT_ONLY. No family funding is enabled. Combined quote/history/USD deadlines and four-regime capacity remain required. The normal deployed source remains df6274e270bcf40b818428a359b30e88ceb21ffb; the $1,000 epoch is unchanged, with zero positions. The 60-minute acceptance clock has not started.

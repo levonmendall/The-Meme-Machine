@@ -196,6 +196,16 @@ class RollingPrewarmTests(unittest.TestCase):
         self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM shared_history_cache').fetchone()[0],0)
         self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM rolling_economic_events WHERE body IS NOT NULL').fetchone()[0],len(rows))
 
+    def test_pump_retirement_avoids_unused_meteora_retention_scan(self):
+        from meme_machine.solana_scoped_retirement import ScopedRetirement
+        mint,rows=self.pump()
+        with closing(CandidateHistory(self.h.lifecycle.path)) as shared:before=shared.events('pump',mint)
+        with patch.object(self.h.rolling,'retention',side_effect=AssertionError('Meteora-only retention scanned Pump')):
+            retired=ScopedRetirement(self.h).retire()
+        self.assertGreater(retired['retired_records'],0)
+        with closing(CandidateHistory(self.h.lifecycle.path)) as shared:self.assertEqual(shared.events('pump',mint),before)
+        self.assertEqual(self.h.lifecycle.missing(coverage_scope('pump',mint),rows[0].slot,rows[0].slot),[])
+
     def test_global_raw_retirement_cannot_delete_normalized_reservoir_or_candidate_view(self):
         mint,rows=self.pump()
         with closing(CandidateHistory(self.h.lifecycle.path)) as shared:before=shared.events('pump',mint)

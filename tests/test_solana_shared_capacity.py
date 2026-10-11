@@ -247,6 +247,51 @@ class TriggerWaitTests(unittest.TestCase):
         self.assertEqual(len(frame.log_transactions),1)
 
 class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_archive_poll_coalescing_preserves_distinct_jobs_and_urgent_deadlines(self):
+        from tests.test_solana_closure import state_at,NOW
+        from tests.test_solana_prewarm_startup import quiet_model_b
+        from meme_machine.solana_selective_source import SelectiveSource
+        class Captured(Exception):pass
+        with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,MM_OPERATIONAL_PHASE='continuous'):
+            state,h=state_at(Path(td)/'canonical.sqlite')
+            try:
+                async def direct(fn,*args,**kwargs):return fn(state)
+                done=asyncio.Event();done.set();await quiet_model_b(direct,done)
+                for i in range(8):
+                    address='archive-'+str(i);scope=h.bind('pump',address)
+                    h.gap(scope,101,101,'offline_missing')
+                    h.request('pump',address,101,101,priority=3,deadline=NOW+150+i)
+                before=h.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0]
+                source=SelectiveSource(SimpleNamespace(credential='offline'),None)
+                source.stop=asyncio.Event();source.batched=True
+                results=[]
+                async def capture(fn,*args,**kwargs):
+                    if fn.__name__!='request_development':return fn(state)
+                    with patch('time.monotonic',return_value=100):
+                        results.extend(fn(state) for _ in range(8))
+                    urgent_scope=h.bind('pump','urgent-position')
+                    h.gap(urgent_scope,103,103,'offline_protective_missing')
+                    h.request('pump','urgent-position',103,103,priority=0,deadline=NOW+3)
+                    with patch('time.monotonic',return_value=100.05):results.append(fn(state))
+                    with patch('time.monotonic',return_value=100.11):results.append(fn(state))
+                    raise Captured()
+                source.work=capture
+                with patch.object(h.rolling,'resume_boundaries',wraps=h.rolling.resume_boundaries) as boundaries,\
+                        patch.object(h.lifecycle,'publish',wraps=h.lifecycle.publish) as publisher,\
+                        patch.object(h.rolling,'repair_required_checkpoint_prefixes') as paused:
+                    with self.assertRaises(Captured):await source.acquire()
+                    self.assertEqual(boundaries.call_count,2)
+                    self.assertEqual(publisher.call_count,0)
+                    self.assertEqual(paused.call_count,0)
+                self.assertEqual(len({row[0]['id'] for row in results[:8]}),8)
+                self.assertEqual([row[0]['deadline'] for row in results[:8]],[NOW+150+i for i in range(8)])
+                self.assertEqual((results[8][0]['address'],results[8][0]['priority'],results[8][0]['deadline']),
+                    ('urgent-position',0,NOW+3))
+                self.assertIsNone(results[9])
+                self.assertEqual(h.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],before)
+                self.assertEqual(h.db.execute("SELECT COUNT(*) FROM acquisition_jobs WHERE status='pending'").fetchone()[0],9)
+            finally:state.writer.close()
+
     async def test_optional_archive_fault_does_not_terminate_canonical_source_or_prove_history(self):
         from tests.test_solana_closure import state_at,NOW
         from tests.test_solana_prewarm_startup import quiet_model_b

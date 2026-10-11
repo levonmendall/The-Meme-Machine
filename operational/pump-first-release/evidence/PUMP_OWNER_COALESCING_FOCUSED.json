@@ -1,0 +1,10 @@
+{
+  "status": "PASS_OFFLINE_ONLY",
+  "command": "/opt/meme-machine/.venv/bin/python -m operational.tests FAST --modules tests.test_solana_shared_capacity tests.test_solana_rolling_prewarm tests.test_solana_closure tests.test_solana_prewarm_startup",
+  "tests": 106,
+  "seconds": 34.463,
+  "original_deadlines_changed": false,
+  "canonical_assertions_weakened": false,
+  "live_strategy_changes": false,
+  "normal_deployment": false
+}
