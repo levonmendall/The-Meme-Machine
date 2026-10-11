@@ -117,6 +117,10 @@ def _transport(endpoint,*,pool_ids,start_block,end_block,max_events,acquisition_
     # Authenticated standard receipts carry the transaction sender. Keep the
     # original transaction-body path for providers/captures missing that field.
     senders={k:context.block_reads.get(('authenticated_v4_sender',*k)) for k in tx_rows}
+    for k,r in zip(tx_rows,receipts_v):
+        if not r.get('from') and not senders[k] and hasattr(context.cache,'transaction'):
+            retained=context.cache.transaction(*k)
+            if retained is not None:senders[k]=retained['from']
     missing=[(tx,bh) for (tx,bh),r in zip(tx_rows,receipts_v) if not r.get('from') and not senders[(tx,bh)]]
     txs_v=acquire([("eth_getTransactionByHash",[tx]) for tx,_ in missing])
     fallback=dict(zip(missing,txs_v))
@@ -245,6 +249,10 @@ def collect_v4_activity(
         for tx,bh in used:
             receipt=receipts[(tx,bh)]
             context.cache.remember_receipt(tx,bh,receipt)
+            # Ordinary receipts already supply the sender. Only the exceptional
+            # transaction-body fallback needs additional durable retention.
+            if not receipt.get('from') and hasattr(context.cache,'remember_transaction'):
+                context.cache.remember_transaction(tx,bh,txs[(tx,bh)])
             context.block_reads[('authenticated_v4_sender',tx,bh)]=txs[(tx,bh)]['from']
             while len(context.block_reads)>4096:context.block_reads.popitem(last=False)
     return activity_summary(rows,preholder_groups=preholder_groups,provider_sessions=sessions)

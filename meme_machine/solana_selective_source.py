@@ -82,7 +82,11 @@ def scout_request():
     for label,offset in [('m',88),('n',120)]:
         if not enabled('meteora'):continue
         request.accounts[label].filters.add().memcmp.CopyFrom(pb.SubscribeRequestFilterAccountsFilterMemcmp(offset=offset,bytes=pump.un58(WSOL)))
-    request.accounts_data_slice.add(offset=0,length=56)
+    # Pump nominations consume only bytes 0..48. The remaining seven bytes
+    # belong to Meteora's bin-array locator, whose producers are paused in
+    # operational mode. Keep its full slice for historical/offline consumers.
+    length=56 if 'a' in request.accounts else 49
+    request.accounts_data_slice.add(offset=0,length=length)
     return request
 
 def commit_scout(state,update,seen):

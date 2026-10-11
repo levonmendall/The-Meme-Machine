@@ -68,7 +68,11 @@ class ImmutableEvidenceCache:
         store[key]=value;sizes[key]=size
         self._bytes[identity]=self._bytes.get(identity,0)+size
         while len(store)>int(limit) or self._bytes[identity]>CACHE_MAP_BYTES:
-            expired,_=store.popitem(last=False)
+            # Optional sender metadata must not reduce receipt coverage at
+            # capacity. Receipts have first claim on the existing map budget.
+            expired=(next((k for k in store if len(k)==3),next(iter(store)))
+                if store is self.receipts else next(iter(store)))
+            store.pop(expired)
             self._bytes[identity]-=sizes.pop(expired,0)
         return True
 
@@ -124,6 +128,33 @@ class ImmutableEvidenceCache:
         self.counts["receipt_store"]+=1
         return receipt
 
+    def transaction(self,tx,block_hash):
+        # Share the existing byte/record budget with receipts. A tagged key
+        # cannot collide with a receipt; neither body proves membership.
+        row=self.receipts.get(('transaction',str(tx),str(block_hash)))
+        self.counts['transaction_hit' if row is not None else 'transaction_miss']+=1
+        return row
+
+    def remember_transaction(self,tx,block_hash,transaction):
+        sender=transaction.get('from') if isinstance(transaction,dict) else None
+        if (not isinstance(transaction,dict) or transaction.get('hash')!=tx
+                or transaction.get('blockHash')!=block_hash or not isinstance(sender,str)
+                or len(sender)!=42 or not sender.startswith('0x')
+                or any(c not in '0123456789abcdef' for c in sender[2:].lower())):
+            raise BoundaryError('selective_cached_transaction_identity')
+        # Retain only the authenticated facts actually consumed by V4 flow.
+        value=dict(hash=tx,blockHash=block_hash,**{'from':sender})
+        key=('transaction',str(tx),str(block_hash))
+        size=len(json.dumps([key,value],sort_keys=True,separators=(',',':')).encode())
+        if key not in self.receipts and (len(self.receipts)>=CACHE_RECEIPTS or
+                self._bytes.get(id(self.receipts),0)+size>CACHE_MAP_BYTES):
+            self.counts['transaction_admission_fallback']+=1
+            return value
+        self._remember(self.receipts,key,value,
+            CACHE_RECEIPTS,'selective_cached_transaction_conflict')
+        self.counts['transaction_store']+=1
+        return value
+
     def launch(self,curve):
         key=str(curve).lower()
         value=self.launch_at.get(key)
@@ -158,7 +189,8 @@ class ImmutableEvidenceCache:
         return dict(
             header_hashes=len(self.headers_by_hash),
             header_numbers=len(self.headers_by_number),
-            receipts=len(self.receipts),
+            receipts=sum(len(k)==2 for k in self.receipts),
+            transactions=sum(len(k)==3 for k in self.receipts),
             launches=len(self.launch_at),
             real_quotes=len(self.real_quote),
             accounted_cache_bytes=sum(self._bytes.values()),

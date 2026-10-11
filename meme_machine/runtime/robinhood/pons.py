@@ -411,14 +411,22 @@ def durable_cache(plane,domain):
                 if previous is not None:plane.db.execute('PRAGMA busy_timeout='+str(previous))
                 plane.lock.release()
         def _load(self,kind,key):
+            if kind=='transaction':kind,key='receipt',['transaction',*key]
             row=self._optional(plane.evidence,domain+':'+kind,canonical(key))
             return row[0] if row else None
         def _save(self,kind,key,value):
             proof=dict(authority='authenticated_alchemy',schema=1,finality='confirmed')
-            if kind=='receipt' and domain.startswith('pons:shared:'):
-                retained=self._optional(plane.put_receipt,domain+':receipt',canonical(key),value,proof,self.receipt_scope)
+            if kind in ('receipt','transaction') and domain.startswith('pons:shared:'):
+                # Sender facts share the existing receipt count/byte ceiling;
+                # optional metadata cannot pin or evict outstanding receipts.
+                scope=self.receipt_scope if kind=='receipt' else None
+                key=key if kind=='receipt' else ['transaction',*key]
+                retained=self._optional(lambda:plane.put_receipt(domain+':receipt',canonical(key),value,proof,scope,
+                    allow_evict=kind=='receipt'))
                 self.counts['durable_receipt_retained' if retained else 'durable_receipt_admission_fallback']+=1
-            else:self._optional(plane.put,domain+':'+kind,canonical(key),value,proof)
+            else:
+                if kind=='transaction':kind,key='receipt',['transaction',*key]
+                self._optional(plane.put,domain+':'+kind,canonical(key),value,proof)
         def begin_receipts(self,consumer,owner,generation):
             self._optional(plane.receipt_scope,domain+':receipt',consumer,owner,generation)
             self.receipt_scope=(consumer,owner,generation)
@@ -477,6 +485,16 @@ def durable_cache(plane,domain):
             return value
         def remember_receipt(self,tx,bh,value):
             super().remember_receipt(tx,bh,value);self._save('receipt',[tx,bh],value);return value
+        def transaction(self,tx,bh):
+            value=super().transaction(tx,bh) or self._load('transaction',[tx,bh])
+            if value is not None:
+                # Validate retained metadata before it can suppress a request.
+                # Durable cache pressure/busy writers use the original path.
+                super().remember_transaction(tx,bh,value)
+            return value
+        def remember_transaction(self,tx,bh,value):
+            value=super().remember_transaction(tx,bh,value)
+            self._save('transaction',[tx,bh],value);return value
         def launch(self,curve):
             value=super().launch(curve)
             return self._load('launch',curve.lower()) if value is None else value

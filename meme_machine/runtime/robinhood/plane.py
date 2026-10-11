@@ -407,7 +407,7 @@ class Plane:
             self.db.execute('DELETE FROM receipt_obligations WHERE namespace=? AND consumer=? AND owner=? '+
                 ('AND generation=?' if acknowledge else 'AND generation<>?'),(namespace,consumer,owner,generation))
 
-    def put_receipt(self,namespace,key,value,provenance,scope=None):
+    def put_receipt(self,namespace,key,value,provenance,scope=None,*,allow_evict=True):
         """Optional shared cache, bounded to 8,192 facts/namespace and 64 MiB.
 
         Outstanding facts cannot be evicted to admit new optional cache entries.
@@ -423,8 +423,8 @@ class Plane:
             if old and tuple(old)!=(body,proof):raise ValueError('canonical_evidence_conflict')
             if old is None:
                 usage=self.db.execute('SELECT bytes,records FROM receipt_cache_usage WHERE namespace=?',(namespace,)).fetchone()
-                if usage and usage[1]>=8192:
-                    self.db.execute('DELETE FROM evidence WHERE namespace=? AND key=(SELECT e.key FROM evidence e WHERE e.namespace=? AND NOT EXISTS(SELECT 1 FROM receipt_obligations o WHERE o.namespace=e.namespace AND o.key=e.key) ORDER BY created,key LIMIT 1)',(namespace,namespace))
+                if usage and usage[1]>=8192 and allow_evict:
+                    self.db.execute('DELETE FROM evidence WHERE namespace=? AND key=(SELECT e.key FROM evidence e WHERE e.namespace=? AND NOT EXISTS(SELECT 1 FROM receipt_obligations o WHERE o.namespace=e.namespace AND o.key=e.key) ORDER BY (key LIKE \'["transaction",%\') DESC,created,key LIMIT 1)',(namespace,namespace))
                     self._immutable.clear();self._immutable_bytes=0
                     usage=self.db.execute('SELECT bytes,records FROM receipt_cache_usage WHERE namespace=?',(namespace,)).fetchone()
                 total=self.db.execute('SELECT COALESCE(SUM(bytes),0) FROM receipt_cache_usage').fetchone()[0]
