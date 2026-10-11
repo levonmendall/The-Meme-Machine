@@ -1,0 +1,14 @@
+{
+  "passed_tests": 77,
+  "duration_seconds": "11.132",
+  "log": "/tmp/native-wal-stream-lifetime-focused.log",
+  "log_sha256": "e9c6fae7a1846ab3fe98081b381b1bc9c55e0cfe051cf993838c083609b1652c",
+  "new_source_behavior": "One read-only ledger handle per bounded native stream; no retained read transaction; closes with stream",
+  "counter_batching": false,
+  "counter_durability": "FULL",
+  "snapshot_pinned": false,
+  "old_ledgers_migrated": false,
+  "stream_limits_changed": false,
+  "physical_requests_saved": 0,
+  "provider_cu_saved": 0
+}

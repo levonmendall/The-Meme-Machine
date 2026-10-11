@@ -348,3 +348,23 @@ All control frontier, timeout, economic and capital assertions are preserved.
 For 64 native frames, the ledger issues 64 changed-key UPDATEs rather than
 rewriting every run key, with exact legacy counter/reason/configuration parity.
 This is local write reduction, not lower provider request/CU billing.
+
+### Stream-scoped WAL handle correction
+
+The first WAL diagnostic still failed sustained joins. Short-lived accounting
+connections were repeatedly the last WAL connection, forcing checkpoint/unlink
+work before the next group. Each already bounded native stream now retains one
+read-only ledger handle until it closes. The handle holds no read transaction,
+permits checkpoints, writes no counters and grants no evidence. Every group
+still completes its FULL commit before data delivery. No old ledger is changed.
+Native, failure, restart, days-of-usage and continuation regression: 77 passed
+in 11.132s, including ordinary checkpoints during the live handle and refusal
+of writes through it. Authenticated throughput remains to be established.
+
+Pons bridge code is now independently retained: two canonical `eth_getCode`
+reads matched the existing Sourcify compiler-input/runtime verification path
+for non-proxy R33OftSatellite and RamsesOftSatellite. They inherit stock OFT and
+OpenZeppelin ERC20 local transfers; remote mint/burn and peer control must not
+be mistaken for immutable pool prices. Four starts/five elements/80 CU/47,299
+HTTP bytes cost public-modeled $0.000042, not invoice evidence. No financial
+route or trading regime has been enabled by this identity check.

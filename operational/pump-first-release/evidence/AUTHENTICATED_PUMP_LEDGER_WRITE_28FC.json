@@ -1,0 +1,32 @@
+{
+  "status": "FAIL_SUSTAINED_COVERAGE",
+  "source": "28fc8e3273e08121726e924777bd76952fb36277",
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-ledger-write-28fc8e32-1791748852753.sqlite",
+  "reason": "native_payload_stop",
+  "physical_starts": 36,
+  "logical_rpc_elements": 30,
+  "cu": 2600,
+  "known_native_bytes": 83930412,
+  "uncertain_native_bytes": 436181882,
+  "reserved_bytes": 0,
+  "http_bytes": 5450269,
+  "native_openings": 6,
+  "new_economic_records": {
+    "pump": 202,
+    "pumpswap": 320
+  },
+  "last_program_slot": 455775430,
+  "program_market_time": 1791748864,
+  "program_seen": 1791748890.1392505,
+  "control_frontier": 455775541,
+  "log_pressure_bytes": 33550981,
+  "log_pressure_messages": 18757,
+  "cause": "Per-group connections closed the last WAL handle, triggering checkpoint churn; local join still lagged incoming logs",
+  "full_protection": false,
+  "funding": false,
+  "orders": false,
+  "previous_counters_reset": false,
+  "invoice_verified": false,
+  "accounted_native_bytes": 520112294,
+  "modeled_public_upper_usd": "0.05597679087"
+}

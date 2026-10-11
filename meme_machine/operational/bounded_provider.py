@@ -734,6 +734,26 @@ async def account_native(budget,transport,size):
 
 NATIVE_READY_FRAMES=256
 
+
+def native_ledger_reader(budget):
+    """Keep WAL open for one bounded stream, without holding a read snapshot.
+
+    Closing the last connection checkpoints/unlinks WAL on every short native
+    commit. This read-only handle prevents that churn. It never writes, batches
+    counters or defers their FULL commit. Offline doubles may have no ledger.
+    """
+    path=getattr(budget,'path',None)
+    if path is None:return None
+    db=sqlite3.connect(Path(path).as_uri()+'?mode=ro',uri=True,isolation_level=None,check_same_thread=False)
+    try:
+        db.execute('PRAGMA query_only=ON')
+        if db.execute('PRAGMA journal_mode').fetchone()[0]!='wal':
+            db.close();return None
+        db.execute('SELECT key FROM run LIMIT 1').fetchall()
+        return db
+    except BaseException:
+        db.close();raise
+
 class NativeReadBuffer:
     """Coalesce ready SDK frames before durable accounting, without timed waits.
 
@@ -812,6 +832,7 @@ class NativeReadBuffer:
 class AccountedStream(Stream):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
+        self.ledger_reader=native_ledger_reader(self.t.budget)
         self.intake=NativeReadBuffer(super().read,self.t.budget,'yellowstone')
 
     async def write(self,request):
@@ -826,12 +847,16 @@ class AccountedStream(Stream):
 
     def cancel(self):
         self.intake.cancel()
-        return super().cancel()
+        try:return super().cancel()
+        finally:
+            if self.ledger_reader is not None:
+                self.ledger_reader.close();self.ledger_reader=None
 
 
 class AccountedWebSocketContext(WebSocketContext):
     async def recv(self,*args,**kwargs):
         if not hasattr(self,'intake'):
+            self.ledger_reader=native_ledger_reader(self.t.budget)
             async def read():
                 value=await self.ws.recv(*args,**kwargs)
                 return len(value.encode() if isinstance(value,str) else value),value
@@ -840,7 +865,10 @@ class AccountedWebSocketContext(WebSocketContext):
 
     async def __aexit__(self,*args):
         if hasattr(self,'intake'):self.intake.cancel()
-        return await super().__aexit__(*args)
+        try:return await super().__aexit__(*args)
+        finally:
+            reader=getattr(self,'ledger_reader',None)
+            if reader is not None:reader.close();self.ledger_reader=None
 
 
 def install():

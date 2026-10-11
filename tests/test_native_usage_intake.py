@@ -11,7 +11,7 @@ import subprocess
 import sys
 from unittest.mock import AsyncMock,patch
 import grpc
-from meme_machine.operational.bounded_provider import Budget,NativeReadBuffer,MAX_FRAME,CeilingReached,NATIVE_READY_FRAMES
+from meme_machine.operational.bounded_provider import Budget,NativeReadBuffer,MAX_FRAME,CeilingReached,NATIVE_READY_FRAMES,native_ledger_reader
 
 
 class NativeUsageIntakeTests(unittest.TestCase):
@@ -76,6 +76,27 @@ os._exit(0)
             db.execute("CREATE TRIGGER reject_usage BEFORE UPDATE OF value ON run WHEN NEW.key='native_bytes' BEGIN SELECT RAISE(ABORT,'offline storage fault'); END")
         before=self.budget.snapshot()
         with self.assertRaises(sqlite3.IntegrityError):self.budget.native('yellowstone',99,token=self.token)
+        self.assertEqual(self.budget.snapshot(),before)
+
+    def test_stream_reader_keeps_wal_open_without_pinning_history_or_delaying_commits(self):
+        reader=native_ledger_reader(self.budget);self.addCleanup(reader.close)
+        self.assertIsNotNone(reader)
+        for size in range(1,65):self.budget.native('yellowstone',size,token=self.token)
+        self.assertTrue(Path(str(self.path)+'-wal').exists())
+        self.assertEqual(Budget(self.path).snapshot()['native_bytes'],str(sum(range(1,65))))
+        with self.budget.db() as db:
+            # No read snapshot prevents ordinary checkpointing.
+            self.assertEqual(db.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone()[0],0)
+            self.assertEqual(db.execute('PRAGMA synchronous').fetchone()[0],2)
+        with self.assertRaises(sqlite3.OperationalError):reader.execute("UPDATE run SET value='0' WHERE key='native_bytes'")
+        reader.close()
+        self.assertEqual(Budget(self.path).snapshot()['native_bytes'],str(sum(range(1,65))))
+
+    def test_historical_delete_ledger_is_not_migrated_by_stream_reader(self):
+        with self.budget.db() as db:db.execute('PRAGMA journal_mode=DELETE')
+        before=self.budget.snapshot()
+        self.assertIsNone(native_ledger_reader(self.budget))
+        with self.budget.db() as db:self.assertEqual(db.execute('PRAGMA journal_mode').fetchone()[0],'delete')
         self.assertEqual(self.budget.snapshot(),before)
 
     def buffer(self,packets):
