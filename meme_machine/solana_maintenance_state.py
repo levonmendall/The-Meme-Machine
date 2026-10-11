@@ -61,6 +61,16 @@ def retirement_suffix(writer,scope,top,before_time,*,recent_floor=_RECENT_UNREAD
         recent_floor=db.execute('SELECT MIN(lo) FROM coverage INDEXED BY maintenance_recent_coverage WHERE scope=? AND available>=?',
             (scope,before_time)).fetchone()[0]
     continuity=[row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE name IN ('stream_receipts','stream_deliveries','stream_order')")]
+    def overlap_index(boundary):
+        # Fresh receipt availability does not imply a small historical lo
+        # prefix: a reconnect can freshly publish much older blocks. Probe a
+        # bounded prefix, then seek the existing hi index when it is large.
+        # This selects an access path only; the exact overlap predicates and
+        # the observation's unchanged VM budget still govern both fences.
+        count=db.execute('''SELECT COUNT(*) FROM (SELECT 1 FROM coverage
+            INDEXED BY coverage_window WHERE scope=? AND lo<? LIMIT ?)''',
+            (scope,boundary,MAX_BUCKETS+1)).fetchone()[0]
+        return 'coverage_window' if count<=MAX_BUCKETS else 'maintenance_coverage_end'
     def has_work(start,end):
         # Overlap fencing can only shrink this range. An empty initial range
         # cannot gain eligible work; avoid scanning its entire older coverage
@@ -87,16 +97,13 @@ def retirement_suffix(writer,scope,top,before_time,*,recent_floor=_RECENT_UNREAD
         if not has_work(start,end):continue
         # Bound overlap-chain work. An unknown interval stays protected.
         for _ in range(64):
-            # Before the exact fresh minimum, seek the small old-lo prefix;
-            # after freshness expires, seek the hi tail instead of repeatedly
-            # scanning all expired older witnesses. Both predicates are exact.
-            index_name='coverage_window' if recent_floor is not None and start<=recent_floor else 'maintenance_coverage_end'
+            index_name=overlap_index(start)
             cross=db.execute('SELECT MAX(hi) FROM coverage INDEXED BY '+index_name+' WHERE scope=? AND lo<? AND hi>=?',(scope,start,start)).fetchone()[0]
             if cross is None:break
             start=cross+1
         else:continue
         for _ in range(64):
-            index_name='coverage_window' if recent_floor is not None and end<=recent_floor else 'maintenance_coverage_end'
+            index_name=overlap_index(end)
             cross=db.execute('SELECT MIN(lo) FROM coverage INDEXED BY '+index_name+' WHERE scope=? AND lo<? AND hi>=?',(scope,end,end)).fetchone()[0]
             if cross is None:break
             end=cross

@@ -582,3 +582,26 @@ starts, 135 logical elements, 5,030 CU and 210,922 HTTP bytes; public modeled
 upper $0.00264075. This is nomination-only evidence, not Current qualification
 or Survivor protection. All four funding gates remain closed; no PAPER trade
 was forced and the real uninterrupted acceptance clock remains zero.
+
+
+The `9f658ea3` native run ended with `maintenance_observation_vm_bound`,
+not a passing protection gate. It retained 1,067 Pump and 6,823 PumpSwap
+canonical events, seven physical starts, three logical elements, 60 CU,
+106,014,684 known and 285,212,672 uncertain native bytes. Public modeled upper
+$0.04111037238. The new development-owner command peaked at 67.1 ms; differing
+market periods are not a controlled live-capacity comparison.
+
+The specific maintenance fault is reproduced offline from retained state.
+Shutdown inserted control gap id 33 after the failure, hiding the expensive
+range from later scans. Only on disposable copies, removal of that one cleanup
+gap restores the failed interval. The unchanged adapter then interrupts at
+251,000 VM steps because its fresh-availability heuristic chooses a 30,911-row
+lo prefix instead of the smaller 5,556-row hi tail for overlap fencing.
+A bounded prefix probe chooses between the existing indexes using current row
+cardinality. The original exact overlap predicates, whole-witness fences and
+250,000-step safety guard are preserved; observation completes in 173,000
+steps. No authoritative gap or historical record is deleted. The 38 focused
+OPERATIONAL maintenance tests passed, including a 30,000-row old prefix, long
+overlapping witnesses and a small prefix with 10,000 protected future rows.
+Full FAST passed for `5db82c42`; successor CI and live validation are pending.
+Funding and the real sixty-minute acceptance clock remain off.

@@ -432,6 +432,48 @@ class HousekeepingRestartTests(unittest.TestCase):
 
 
 class FrontierCurrentnessTests(unittest.TestCase):
+    def test_replayed_fresh_coverage_does_not_scan_large_historical_prefix(self):
+        from meme_machine.solana_maintenance_state import retirement_suffix
+        from meme_machine.solana_evidence_plane import canonical
+        with native_runtime() as (state,r,clock):
+            writer=state.writer;scope='control:solana';now=clock.time()
+            with writer.transaction():
+                writer._gap(scope,1,30000,'retained_history_gap')
+                writer._gap(scope,30100,30110,'separate_retained_gap')
+                writer.db.executemany('INSERT INTO coverage(scope,lo,hi,available,proof) VALUES(?,?,?,?,?)',
+                    [(scope,i,i,now-3600,canonical(dict(slot=i))) for i in range(30050)]+
+                    [(scope,i,i,now,canonical(dict(slot=i))) for i in range(30050,31050)])
+                writer.db.execute('INSERT INTO cursors VALUES(?,?,?)',(scope,31049,now))
+            before=writer.db.execute('SELECT * FROM coverage ORDER BY id').fetchall()
+            self.assertEqual(retirement_suffix(writer,scope,31049,now-180,recent_floor=30050),(30001,30050))
+            observation=r.adapter.observe(r.generation)
+            self.assertLessEqual(observation.vm_steps,250_000)
+            self.assertEqual(next(s for s in observation.scopes if s.scope==scope).gaps,2)
+            self.assertEqual(writer.db.execute('SELECT * FROM coverage ORDER BY id').fetchall(),before)
+            # Long witnesses still fence both ends; the index selection cannot
+            # truncate or retire either whole canonical interval.
+            with writer.transaction():
+                for lo,hi in ((29995,30007),(30045,30055)):
+                    writer.db.execute('INSERT INTO coverage(scope,lo,hi,available,proof) VALUES(?,?,?,?,?)',
+                        (scope,lo,hi,now-3600,canonical(dict(lo=lo,hi=hi))))
+            self.assertEqual(retirement_suffix(writer,scope,31049,now-180,recent_floor=30050),(30008,30045))
+            self.assertLessEqual(r.adapter.observe(r.generation).vm_steps,250_000)
+
+    def test_small_older_prefix_does_not_scan_massive_protected_future(self):
+        from meme_machine.solana_maintenance_state import retirement_suffix
+        from meme_machine.solana_evidence_plane import canonical
+        with native_runtime() as (state,r,clock):
+            writer=state.writer;scope='control:solana';now=clock.time()
+            with writer.transaction():
+                writer._gap(scope,1,8,'first_retained_gap');writer._gap(scope,30,40,'second_retained_gap')
+                writer.db.executemany('INSERT INTO coverage(scope,lo,hi,available,proof) VALUES(?,?,?,?,?)',
+                    [(scope,i,i,now-3600,canonical(dict(slot=i))) for i in range(20)]+
+                    [(scope,i,i,now,canonical(dict(slot=i))) for i in range(100000,110000)])
+                writer.db.execute('INSERT INTO cursors VALUES(?,?,?)',(scope,109999,now))
+            self.assertEqual(retirement_suffix(writer,scope,109999,now-180,recent_floor=100000),(9,30))
+            self.assertLessEqual(r.adapter.observe(r.generation).vm_steps,250_000)
+            self.assertEqual(writer.db.execute('SELECT COUNT(*) FROM coverage WHERE lo>=100000').fetchone()[0],10000)
+
     def test_expired_coverage_with_many_gaps_keeps_freshness_reads_bounded(self):
         from meme_machine.solana_evidence_plane import canonical,digest
         with native_runtime() as (state,r,clock):
