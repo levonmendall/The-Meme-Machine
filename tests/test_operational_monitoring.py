@@ -7,6 +7,45 @@ from unittest.mock import patch
 from meme_machine.operational import monitoring
 
 class Conditions(unittest.TestCase):
+    def test_protection_budget_warns_at_three_quarters_and_persists_without_reset(self):
+        x=self.sample();x['portfolio']['positions_by_lane']={'pump':1}
+        x['lanes']['pump']['progress_at']=1000
+        x['position_continuation']=dict(phase='CONTINUATION',phases=dict(continuation=dict(
+            modeled_spend_usd='11.249',modeled_spend_limit='15')))
+        self.assertNotIn('position_protection_allowance_low',monitoring.conditions(x,'paper-existing',1000))
+        x['position_continuation']['phases']['continuation']['modeled_spend_usd']='11.25'
+        original=copy.deepcopy(x)
+        first=monitoring.evaluate(x,{},'paper-existing',1000)
+        self.assertIn('position_protection_allowance_low',first['conditions'])
+        x['timestamp']=1301;x['lanes']['pump']['progress_at']=1301
+        restarted=monitoring.evaluate(x,json.loads(json.dumps(first)),'paper-existing',1301)
+        self.assertIn('position_protection_allowance_low',restarted['actionable'])
+        self.assertEqual(x['position_continuation'],original['position_continuation'])
+        self.assertFalse(restarted.get('funding_closed',False))
+
+    def test_resource_warning_includes_uncertain_and_reserved_stream_delivery(self):
+        row=dict(modeled_spend_usd='0',modeled_spend_limit='15',rpc_cu='0',rpc_elements='0',
+            http_attempts='0',http_bytes='0',native_bytes='50',native_uncertain_bytes='10',native_reserved='15',
+            limits=json.dumps(dict(rpc_cu=100,rpc_elements=100,http_attempts=100,http_bytes=100,native_stop_bytes=100)))
+        value=dict(phase='RECOVERY',phases=dict(recovery=row,continuation=dict(modeled_spend_usd='15',modeled_spend_limit='15')))
+        self.assertEqual(monitoring.protection_allowance_conditions(value),{'position_protection_resource_low'})
+        row.update(native_reserved='14',http_bytes='75')
+        self.assertIn('position_protection_resource_low',monitoring.protection_allowance_conditions(value))
+        row.update(http_bytes='74')
+        self.assertFalse(monitoring.protection_allowance_conditions(value))
+
+    def test_unreadable_active_allowance_warns_and_existing_fault_stays_critical(self):
+        for used in (None,'NaN','Infinity','-1'):
+            value=dict(phase='CONTINUATION',phases=dict(continuation=dict(modeled_spend_usd=used,modeled_spend_limit='15')))
+            self.assertIn('position_protection_allowance_unavailable',monitoring.protection_allowance_conditions(value))
+        self.assertFalse(monitoring.protection_allowance_conditions({}))
+        self.assertFalse(monitoring.protection_allowance_conditions(dict(phase='FLAT')))
+        x=self.sample();x['position_continuation']=dict(phase='FAULT',fault=dict(reason='rpc_cu_limit'))
+        first=monitoring.evaluate(x,{},'paper-existing',1000)
+        self.assertEqual(first['state'],'FAIL_CLOSED')
+        x['timestamp']=1061
+        self.assertIn('position_continuation_fault',monitoring.evaluate(x,first,'paper-existing',1061)['actionable'])
+
     def test_monitor_cli_binds_new_epoch_guard_and_detects_historical_guard_mismatch(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td);observer=root/'observer';observer.mkdir();output=root/'output'

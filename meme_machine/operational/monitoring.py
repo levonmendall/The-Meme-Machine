@@ -1,5 +1,6 @@
 """Independent observation-only actionable condition persistence and metrics."""
 import argparse
+from decimal import Decimal, InvalidOperation
 import json
 import os
 from pathlib import Path
@@ -10,6 +11,42 @@ from .artifact_storage import storage_conditions
 
 PERSISTENCE=300
 CRITICAL=frozenset(('epoch_mismatch','reconciliation_failure','database_integrity_failure','position_continuation_fault'))
+
+def protection_allowance_conditions(continuation):
+    """Warn from the existing durable counters before protection is exhausted.
+
+    This observer never extends an allowance, closes a position or changes
+    funding. The owner must authorize renewal before a reported reserve runs out.
+    """
+    phase=continuation.get('phase','').lower()
+    if phase not in ('bootstrap','continuation','recovery'):return set()
+    row=(continuation.get('phases') or {}).get(phase) or {}
+    found=set()
+    def low(used,limit):
+        try:
+            used,limit=Decimal(str(used)),Decimal(str(limit))
+            if not used.is_finite() or not limit.is_finite() or used<0 or limit<=0:
+                raise ValueError('invalid_protection_allowance')
+            return used*4>=limit*3
+        except (InvalidOperation,ValueError,TypeError):
+            found.add('position_protection_allowance_unavailable')
+            return False
+    if low(row.get('modeled_spend_usd'),row.get('modeled_spend_limit')):
+        found.add('position_protection_allowance_low')
+    limits=row.get('limits')
+    if isinstance(limits,str):
+        try:limits=json.loads(limits)
+        except (ValueError,TypeError):limits=None
+    if isinstance(limits,dict):
+        for key in ('rpc_cu','rpc_elements','http_attempts','http_bytes'):
+            if key in limits and low(row.get(key),limits[key]):
+                found.add('position_protection_resource_low')
+        try:
+            native=sum(int(row.get(k,0)) for k in ('native_bytes','native_uncertain_bytes','native_reserved'))
+        except (TypeError,ValueError):native=None
+        if 'native_stop_bytes' in limits and low(native,limits['native_stop_bytes']):
+            found.add('position_protection_resource_low')
+    return found
 
 def continuation_idle(sample,lane):
     phase=(sample.get('position_continuation') or {}).get('phase')
@@ -26,6 +63,7 @@ def conditions(sample,epoch,now):
     p=sample.get('portfolio',{})
     continuation=sample.get('position_continuation') or {}
     if continuation.get('phase')=='FAULT':found.add('position_continuation_fault')
+    found.update(protection_allowance_conditions(continuation))
     if p.get('epoch_id') and p['epoch_id']!=epoch:found.add('epoch_mismatch')
     if p.get('reconciliation_failure') or any(v is False for v in p.get('checks',{}).values()):
         found.add('reconciliation_failure')
