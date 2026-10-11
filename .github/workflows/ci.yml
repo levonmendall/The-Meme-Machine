@@ -7,6 +7,7 @@ permissions:
 jobs:
   fast:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -16,4 +17,26 @@ jobs:
         with:
           python-version: '3.12.14'
       - run: python -m pip install -r requirements.txt
-      - run: python -m operational.tests FAST
+      - name: Run offline FAST with the required Linux containment
+        run: |
+          # The real containment regressions require cgroup v2 and exactly two
+          # CPUs. Supply those conditions on this disposable runner; retain the
+          # original tests, kernel limits and market-provider network guard.
+          sudo env CI=true PYTHONDONTWRITEBYTECODE=1 "$(command -v python)" - <<'PY'
+          import os
+          from pathlib import Path
+          import runpy
+          import sys
+
+          cpus = sorted(os.sched_getaffinity(0))
+          if len(cpus) < 2:
+              raise RuntimeError('two_ci_cpus_required')
+          os.sched_setaffinity(0, set(cpus[:2]))
+          Path('/sys/fs/cgroup/cgroup.subtree_control').write_text('+cpu +memory +io')
+          from engineering.solana_capacity.proof_host import LinuxGroup
+          from engineering.solana_capacity.proof_limits import LIMITS
+          group = LinuxGroup(LIMITS)
+          group.close()
+          sys.argv = ['operational.tests', 'FAST']
+          runpy.run_module('operational.tests', run_name='__main__')
+          PY
