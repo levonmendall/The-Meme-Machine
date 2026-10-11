@@ -602,6 +602,19 @@ with tempfile.TemporaryDirectory() as d,patch('subprocess.check_output',side_eff
 """
         result=self.command(code);self.assertEqual(result.returncode,0,result.stderr)
     def test_supervisor_deadline_kills_hung_worker_and_setsid_descendant(self):
+        # The proof supervisor has a fixed 128-MiB parent reserve. Earlier
+        # native replays in a full suite must not consume this fixture's
+        # reserve or terminate its child before the watchdog is exercised.
+        # Keep every original assertion and limit in the isolated fixture.
+        from tests.native_inline import run_native
+        from engineering.solana_capacity.proof_host import supervisor_sample
+        print(json.dumps(dict(containment_fixture_parent_resources=supervisor_sample())),flush=True)
+        result=run_native('''from tests.test_pump_pons_proof import DispatchAndShutdownTests
+DispatchAndShutdownTests()._check_supervisor_deadline_kills_hung_worker_and_setsid_descendant()
+''',timeout=12)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+
+    def _check_supervisor_deadline_kills_hung_worker_and_setsid_descendant(self):
         # Only the test's internal watchdog clock is shortened. The published
         # loader/CLI still requires 300/180, and this injected run must FAIL.
         code="""import sys,os,socket,json,time,signal
