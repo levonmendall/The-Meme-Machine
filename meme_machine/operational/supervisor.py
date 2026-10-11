@@ -440,17 +440,21 @@ class Supervisor:
             close_bootstrap(self,'bootstrap_provider_exposure_closed');return
         try:
             health,portfolio,rss=observe(self.root)
-            from .position_continuation import readiness
+            from .position_continuation import readiness,funding_lanes
             proof=readiness(health,portfolio,rss,self.admission_data['continuation_envelope'])
+            lanes=funding_lanes(self.admission_data['continuation_envelope'])
             if rss>=6*1024**3:raise ValueError('bootstrap_memory_limit')
-            for provider in ('solana','robinhood'):
+            for provider in ('solana' if lane=='pump' else 'robinhood' for lane in lanes):
                 row=health['providers'].get(provider,{})
                 if row.get('state')!='CURRENT' or row['oldest_wait_seconds']>5:
                     raise ValueError('bootstrap_provider_queue_or_health')
-            frontiers={row['scope']:row['slot'] for row in health['providers']['evidence']['frontiers']
-                       if row['scope'] in ('program:pump','program:pumpswap')}
-            frontiers['pons:canonical']=health['active_evidence']['pons_canonical_cursor']
-            if len(frontiers)!=3:raise ValueError('bootstrap_full_coverage_required')
+            frontiers={}
+            if 'pump' in lanes:
+                frontiers.update({row['scope']:row['slot'] for row in health['providers']['evidence']['frontiers']
+                    if row['scope'] in ('program:pump','program:pumpswap')})
+            if 'pons' in lanes:frontiers['pons:canonical']=health['active_evidence']['pons_canonical_cursor']
+            if len(frontiers)!=2*('pump' in lanes)+('pons' in lanes):
+                raise ValueError('bootstrap_selected_coverage_required')
             if self.ready_since is None:
                 self.ready_since=time.monotonic();self.ready_frontiers=frontiers
             if not self.bootstrap_armed and time.monotonic()-self.ready_since>=60:

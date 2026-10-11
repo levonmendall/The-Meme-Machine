@@ -123,7 +123,7 @@ class SharedSleeve(SleeveReservations):
         from meme_machine.runtime.usd_valuation import native_reader
         lane=self.identity['lane'];r=lane+('_survivor' if 'survivor' in strategy else '_current')
         from meme_machine.operational.admission import available
-        reason=available(self.authority.ledger(),max(at,int(time.time())),live=True)
+        reason=available(self.authority.ledger(),max(at,int(time.time())),live=True,regime=r)
         if reason:raise FundingDenied(reason)
         value=native_reader(lane)(at)
         unit=value.amount(1,at)

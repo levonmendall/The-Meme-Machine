@@ -50,7 +50,7 @@ def legacy_funding_guard(sleeve):
         raise FundingDenied('observation_only_shared_authority_not_selected')
 
 
-def available(state,at,*,live=False):
+def available(state,at,*,live=False,regime=None):
     scope=state.get('runtime_admission')
     if scope is None:
         # Historical replay stays independent. An operational client must never
@@ -67,6 +67,10 @@ def available(state,at,*,live=False):
     if at>=scope['funding_until']:return 'bootstrap_funding_deadline'
     if not verified_continuation(scope.get('continuation_ready')):return 'native_continuation_not_ready'
     if not scope.get('continuation_envelope'):return 'separately_authorized_continuation_envelope_missing'
+    if regime is not None:
+        from .position_continuation import funding_scope
+        limits=funding_scope(scope['continuation_envelope'])
+        if limits and regime not in limits['regimes']:return 'bootstrap_regime_not_selected'
     if not live:return None
     from .bounded_provider import Budget
     try:
@@ -86,13 +90,31 @@ def decision(state,request,result,at):
     reason=available(state,at)
     scope=state.get('runtime_admission')
     if not reason and scope and scope['mode']=='BOOTSTRAP' and result['status']=='RESERVED':
+        from .position_continuation import funding_scope
+        limits=funding_scope(scope['continuation_envelope'])
+        if limits and request['regime'] not in limits['regimes']:
+            return dict(status='QUALIFIED_BUT_CAPITAL_UNAVAILABLE',reason='bootstrap_regime_not_selected',basis='0',total='0')
         key=next((key for key,req in state['runtime_native_requests'].items()
                   if req==request['request_id']),None)
         life=state['native_aliases'].get(key.removesuffix(':scale')) if key else None
         if not life:raise CapitalError('bootstrap_native_identity_missing')
         if scope['lifecycle_id'] not in (None,life):reason='bootstrap_one_lifecycle_limit'
-        elif money(scope['gross_reserved'])+money(result['total'])>money(CAPITAL_LIMIT):
+        elif not limits and money(scope['gross_reserved'])+money(result['total'])>money(CAPITAL_LIMIT):
             reason='bootstrap_gross_capital_limit'
+        elif limits:
+            bucket='addition_basis_reserved' if request['kind']=='scale' else 'initial_basis_reserved'
+            ceiling='maximum_addition_basis_usd' if request['kind']=='scale' else 'maximum_initial_basis_usd'
+            basis=money(result['basis'],positive=True)
+            fee=money(result['total'])-basis
+            if fee<0:raise CapitalError('bootstrap_fee_reserve_integrity')
+            if money(scope[bucket])+basis>money(limits[ceiling]):reason='bootstrap_basis_limit'
+            elif money(scope['fee_reserved'])+fee>money(limits['maximum_fee_reserve_usd']):
+                reason='bootstrap_fee_reserve_limit'
+            else:
+                scope['lifecycle_id']=life
+                scope[bucket]=amount(money(scope[bucket])+basis)
+                scope['fee_reserved']=amount(money(scope['fee_reserved'])+fee)
+                scope['gross_reserved']=amount(money(scope['gross_reserved'])+money(result['total']))
         else:
             # No replenishment after cancellation, exit, retry or restart.
             scope['lifecycle_id']=life
@@ -111,16 +133,21 @@ def configure(state,data,at):
                 or previous.get('bootstrap_used')):
             raise CapitalError('bootstrap_requires_unused_observation_run')
         started=previous['started_at']
-        from .position_continuation import validate_envelope
+        from .position_continuation import validate_envelope,funding_scope
         validate_envelope(previous.get('continuation_envelope',{}))
         if not verified_continuation(data.get('continuation_ready')):
             raise CapitalError('native_continuation_not_ready')
+        limits=funding_scope(previous['continuation_envelope'])
+        if limits and data['continuation_ready'].get('funding_regimes')!=limits['regimes']:
+            raise CapitalError('selected_regime_continuation_not_ready')
         if at>=started+FUNDING_SECONDS:raise CapitalError('bootstrap_readiness_deadline')
         if state['positions'] or state['reservations'] or state['commitments'] or state.get('runtime_pending'):
             raise CapitalError('first_bootstrap_requires_empty_preserved_epoch')
         state['runtime_admission']=dict(previous,mode=mode,bootstrap_used=True,
             funding_until=started+FUNDING_SECONDS,stop_at=started+BOOTSTRAP_SECONDS,
             lifecycle_id=None,gross_reserved='0',continuation_ready=data['continuation_ready'])
+        if limits:
+            state['runtime_admission'].update(initial_basis_reserved='0',addition_basis_reserved='0',fee_reserved='0')
     else:
         # Observation/recovery may restart after a claim; its funding stays
         # closed. Preserve the used claim so a restart cannot replenish it.
