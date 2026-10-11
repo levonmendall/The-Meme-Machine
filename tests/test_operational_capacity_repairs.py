@@ -166,6 +166,25 @@ class ValuationRPCBounds(unittest.TestCase):
     def test_ramses_valuation_constructor_bounds_and_pacing(self):self.construct('ramses')
 
 class EvidenceWorkerDiagnosticTests(unittest.TestCase):
+    def test_sqlite_busy_retains_verified_code_without_exception_message(self):
+        import sqlite3
+        from meme_machine.runtime.evidence_worker import failure_diagnostic
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'lock.sqlite'
+            with sqlite3.connect(path) as db:db.execute('CREATE TABLE records(value)')
+            first=sqlite3.connect(path);second=sqlite3.connect(path,timeout=0)
+            try:
+                first.execute('BEGIN IMMEDIATE')
+                try:second.execute('BEGIN IMMEDIATE')
+                except sqlite3.OperationalError as error:
+                    self.assertEqual(failure_diagnostic(error),
+                        'evidence_worker_failed:OperationalError:SQLITE_BUSY:5')
+                else:self.fail('real writer lock did not fail')
+            finally:first.close();second.close()
+        error=sqlite3.OperationalError('https://provider.invalid/private-secret')
+        error.sqlite_errorcode=5;error.sqlite_errorname='SQLITE_private-secret'
+        self.assertEqual(failure_diagnostic(error),'evidence_worker_failed:OperationalError')
+
     def test_maintenance_failure_keeps_only_fixed_numeric_fields(self):
         from meme_machine.runtime.evidence_worker import failure_diagnostic
         from meme_machine.solana_evidence_plane import EvidenceUnavailable

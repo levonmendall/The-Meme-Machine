@@ -1,0 +1,51 @@
+{
+  "status": "FAIL_CANONICAL_ECONOMIC_COVERAGE",
+  "source": "75288fec2f19991c21f042e8f6daa366259f4c45",
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-canonical-75288fec-1791738550706.sqlite",
+  "usage_db_sha256": "c778bb80fc39176b740dcd4715946bbd6ae76c8a0ba4920d9100bcd3f5471911",
+  "physical_starts": 7,
+  "logical_rpc_elements": 3,
+  "conservative_rpc_cu": 60,
+  "http_bytes": 129,
+  "known_native_bytes": 10156276,
+  "uncertain_native_bytes": 150994944,
+  "native_reserved_bytes": 0,
+  "accounted_native_bytes": 161151220,
+  "native_openings": 4,
+  "closed_streams": 4,
+  "diagnostic_limits": {
+    "limits": {
+      "http_attempts": 800,
+      "http_bytes": 134217728,
+      "native_bytes": 1073741824,
+      "native_inflight_bytes": 536870912,
+      "native_stop_bytes": 536870912,
+      "rpc_cu": 50000,
+      "rpc_elements": 1200
+    },
+    "maximum_native_opens": 8,
+    "modeled_spend_limit": "0.10",
+    "wall_seconds": 300
+  },
+  "pacing": {
+    "robinhood": "0.5",
+    "solana": "0.5"
+  },
+  "terminal_error": "sqlite3.OperationalError; original exception code unavailable",
+  "canonical_control_tail_advanced": true,
+  "economic_publications": 0,
+  "program_checkpoints": 0,
+  "native_meter_per_frame_timing": {
+    "kind": "native_meter_timing",
+    "sample_count": 6765,
+    "mean_ms": 27.78912546126556,
+    "p95_ms": 27.718878933228552,
+    "maximum_ms": 5005.12442109175
+  },
+  "modeled_public_upper_usd": "0.0169523781",
+  "invoice_verified": false,
+  "full_protection": false,
+  "funding": false,
+  "orders": false,
+  "counters_reset": false
+}

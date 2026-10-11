@@ -13,6 +13,7 @@ import time
 import uuid
 from decimal import Decimal
 import asyncio
+from collections import deque
 from meme_machine.exact_money import exact
 
 from engineering.solana_capacity.proof_limits import (
@@ -482,7 +483,9 @@ class Budget:
             if kind=='open':
                 if transport not in ('yellowstone','solana_websocket'):failure=failure or 'native_transport_bound'
                 if self.expired(state):failure=failure or 'bounded_run_wall_limit'
-                reserve=MAX_FRAME*(3 if transport=='solana_websocket' else 2)
+                # Existing SDK frames plus one bounded charged intake group and
+                # its one look-ahead frame. Never enlarge the installed capacity.
+                reserve=MAX_FRAME*(4 if transport=='solana_websocket' else 3)
                 total=sum(int(state[k]) for k in ('native_bytes','native_uncertain_bytes','native_reserved'))
                 if int(state['native_reserved'])+reserve>self.limits['native_inflight_bytes']:
                     failure=failure or 'native_inflight_limit'
@@ -702,7 +705,8 @@ async def account_native(budget,transport,size):
 
     Existing SDK reservations cover the received frame until this transaction
     completes. Never return its content, close its reservation, or drop its
-    accounting because the reader was cancelled. No batching or deferred charge.
+    accounting because the reader was cancelled. A bounded group of immediately
+    available frames commits atomically before any grouped content is returned.
     """
     from contextvars import copy_context
     task=asyncio.get_running_loop().run_in_executor(
@@ -717,7 +721,76 @@ async def account_native(budget,transport,size):
     if cancelled:raise asyncio.CancelledError()
 
 
+class NativeReadBuffer:
+    """Coalesce ready SDK frames before durable accounting, without timed waits.
+
+    FIFO content, at most 32 frames / one maximum-frame group, one look-ahead
+    frame and the original bounded SDK buffers. No content precedes its commit;
+    unread/cancelled buffers remain covered by the existing durable reservation.
+    """
+    def __init__(self,read,budget,transport):
+        self.read_raw=read;self.budget=budget;self.transport=transport
+        self.values=deque();self.pending=None;self.carry=None;self.terminal=None
+
+    def start(self):
+        if self.pending is None:self.pending=asyncio.create_task(self.read_raw())
+
+    def cancel(self):
+        if self.pending is not None:
+            self.pending.cancel()
+            self.pending.add_done_callback(lambda f:f.exception() if not f.cancelled() else None)
+            self.pending=None
+
+    async def packet(self):
+        if self.carry is not None:
+            result=self.carry;self.carry=None;return result
+        self.start();pending=self.pending
+        try:return await asyncio.shield(pending)
+        finally:
+            if pending.done():self.pending=None
+
+    async def read(self):
+        import grpc
+        if self.values:return self.values.popleft()
+        if self.terminal is not None:
+            if isinstance(self.terminal,BaseException):raise self.terminal
+            return self.terminal
+        group=[];total=0
+        try:
+            packet=await self.packet()
+            while True:
+                if packet is grpc.aio.EOF:self.terminal=packet;break
+                size,value=packet
+                if type(size) is not int or not 0<=size<=MAX_FRAME:
+                    self.budget.fail('native_frame_bound')
+                if total+size>MAX_FRAME:
+                    self.carry=packet;break
+                group.append(value);total+=size
+                if len(group)==32 or total==MAX_FRAME:break
+                self.start()
+                # Zero wait: coalesce already available delivery, never hold a
+                # live event for a batch timer or cancel an outstanding RPC read.
+                done,_=await asyncio.wait([self.pending],timeout=0)
+                if not done:break
+                try:packet=self.pending.result()
+                finally:self.pending=None
+        except Exception as error:
+            report=getattr(self.budget,'provider_error',None)
+            if report:report('native_'+self.transport+'_read_failed')
+            self.terminal=error
+        if group:
+            await account_native(self.budget,self.transport,total)
+            self.values.extend(group)
+            return self.values.popleft()
+        if isinstance(self.terminal,BaseException):raise self.terminal
+        return self.terminal
+
+
 class AccountedStream(Stream):
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        self.intake=NativeReadBuffer(super().read,self.t.budget,'yellowstone')
+
     async def write(self,request):
         try:return await super().write(request)
         except Exception:
@@ -726,28 +799,25 @@ class AccountedStream(Stream):
             raise
 
     async def read(self):
-        import grpc
-        try:packet=await super().read()
-        except Exception:
-            report=getattr(self.t.budget,'provider_error',None)
-            if report:report('native_stream_read_failed')
-            raise
-        if packet is grpc.aio.EOF:return packet
-        size,value=packet
-        await account_native(self.t.budget,'yellowstone',size)
-        return value
+        return await self.intake.read()
+
+    def cancel(self):
+        self.intake.cancel()
+        return super().cancel()
 
 
 class AccountedWebSocketContext(WebSocketContext):
     async def recv(self,*args,**kwargs):
-        try:value=await self.ws.recv(*args,**kwargs)
-        except Exception:
-            report=getattr(self.t.budget,'provider_error',None)
-            if report:report('native_websocket_read_failed')
-            raise
-        await account_native(self.t.budget,'solana_websocket',
-            len(value.encode() if isinstance(value,str) else value))
-        return value
+        if not hasattr(self,'intake'):
+            async def read():
+                value=await self.ws.recv(*args,**kwargs)
+                return len(value.encode() if isinstance(value,str) else value),value
+            self.intake=NativeReadBuffer(read,self.t.budget,'solana_websocket')
+        return await self.intake.read()
+
+    async def __aexit__(self,*args):
+        if hasattr(self,'intake'):self.intake.cancel()
+        return await super().__aexit__(*args)
 
 
 def install():

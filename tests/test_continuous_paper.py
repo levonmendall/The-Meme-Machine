@@ -62,7 +62,9 @@ class UsageTests(unittest.TestCase):
         self.assertFalse(r['provider_fault'])
 
     def test_inflight_capacity_blocks_only_excess_new_transport_and_recovers_without_refill(self):
-        b=self.budget;tokens=[b.stream_open('yellowstone') for _ in range(16)];before=b.snapshot()
+        b=self.budget
+        capacity=b.limits['native_inflight_bytes']//(3*MAX_FRAME)
+        tokens=[b.stream_open('yellowstone') for _ in range(capacity)];before=b.snapshot()
         with self.assertRaisesRegex(CeilingReached,'native_inflight_limit'):b.stream_open('yellowstone')
         after=b.snapshot();self.assertEqual(after['native_opens'],before['native_opens'])
         self.assertFalse(after['reason']);self.assertEqual(after['new_risk_ready'],'false')
@@ -71,7 +73,7 @@ class UsageTests(unittest.TestCase):
         with DeliveredResponse(io.BytesIO(b'[]'),response) as delivered:delivered.read()
         for token in tokens:b.stream_close(token,unread_possible=True)
         b.stream_close(b.stream_open('yellowstone'));b.admission()
-        self.assertEqual(b.snapshot()['native_opens'],'17')
+        self.assertEqual(b.snapshot()['native_opens'],str(capacity+1))
 
     def test_http_response_reservations_bound_current_memory_not_cumulative_bytes(self):
         b=self.budget;calls=[dict(method='getMultipleAccounts')];endpoint='https://solana-mainnet.g.alchemy.com/v2/offline'
@@ -106,7 +108,7 @@ class UsageTests(unittest.TestCase):
         with patch('meme_machine.shared_capital.runtime.process_identity',side_effect=OSError):
             b.reap_orphans();resumed=Budget(self.path);resumed.reap_orphans()
         after=resumed.snapshot();self.assertEqual(after['native_reserved'],after['http_reserved']);self.assertEqual(after['http_reserved'],'0')
-        self.assertEqual(after['native_uncertain_bytes'],str(2*MAX_FRAME));self.assertEqual(after['rpc_cu'],before['rpc_cu'])
+        self.assertEqual(after['native_uncertain_bytes'],str(3*MAX_FRAME));self.assertEqual(after['rpc_cu'],before['rpc_cu'])
         receipt.close();self.assertEqual(resumed.snapshot(),after)
 
     def test_response_frame_unpriced_method_and_configuration_guards_are_still_fatal(self):

@@ -299,7 +299,7 @@ class SelectiveShutdownTests(unittest.IsolatedAsyncioTestCase):
         import asyncio
         from meme_machine.solana_selective_source import SelectiveSource
         stop=asyncio.Event();closed=asyncio.Event();running=asyncio.Event()
-        source=SimpleNamespace(stop=stop,observe=lambda *args,**kwargs:None)
+        source=SimpleNamespace(stop=stop,observe=lambda *args,**kwargs:None,rolling_publications=0)
         async def work(*args,**kwargs):return [dict(priority=6)]
         async def live(*args):
             running.set()

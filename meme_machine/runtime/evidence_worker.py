@@ -176,6 +176,11 @@ def failure_diagnostic(exc):
     from meme_machine.solana_evidence_plane import EvidenceUnavailable
     def classification(error):
         result=type(error).__name__
+        import sqlite3
+        if isinstance(error,sqlite3.Error):
+            code=getattr(error,'sqlite_errorcode',None);name=getattr(error,'sqlite_errorname',None)
+            if (type(code) is int and isinstance(name,str) and name.startswith('SQLITE_')
+                    and getattr(sqlite3,name,None)==code):result+=':'+name+':'+str(code)
         if type(error) is EvidenceUnavailable and len(error.args)==1:
             reason=error.args[0]
             if isinstance(reason,str) and reason in SAFE_EVIDENCE_REASONS | SAFE_CANDIDATE_REASONS | {'solana_candidate_topology_not_certified',

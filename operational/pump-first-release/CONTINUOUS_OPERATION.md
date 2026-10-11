@@ -55,6 +55,24 @@ A local FULL-durability SQLite journal benchmark did not show a WAL advantage;
 no speculative journal/commit change was made. The 67 affected regressions and
 their exact file hashes/log are retained in CONTINUOUS_JOIN_REPAIR_VALIDATION.json.
 
+The subsequent `75288fec...` diagnostic advanced the current control tail, but
+the economic stream remained in its replay prefix. Per-frame durable native
+metering averaged 27.8 ms and ended with a five-second SQLite operation failure.
+Its original exception code was not retained; a successor diagnostic records only
+validated SQLite names/codes, never arbitrary exception text. The failed run and
+all counters remain in AUTHENTICATED_PUMP_METER_FAILURE_752.json.
+
+Native intake now groups only immediately ready SDK frames, in FIFO order, up to
+32 frames / 16 MiB, with no positive batch timer. The exact group byte total is
+durably committed before any content is returned to an economic consumer.
+Cancellation waits for an accounting transaction already started. One look-ahead
+frame and the existing SDK buffers are covered by a larger conservative per-open
+reservation: 48 MiB for Yellowstone and 64 MiB for WebSockets. The installed
+512-MiB native in-flight/diagnostic boundaries are unchanged. This reduces
+duplicate durable-writer work; it does not eliminate delivered-byte charges or
+claim provider equivalence before another authenticated observation. Frame,
+failure, queue and canonical requirements remain unchanged.
+
 The previously declared two-RPS validation envelope was not the actual hybrid
 governor setting: enabling the Solana plane selected a 50-ms interval. The
 successor makes operational pacing explicit and seals bounded-test pacing in the
