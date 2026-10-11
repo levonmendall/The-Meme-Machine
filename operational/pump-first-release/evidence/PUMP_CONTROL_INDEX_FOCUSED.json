@@ -1,0 +1,16 @@
+{
+  "status": "PASS_OFFLINE_ONLY",
+  "FAST": {
+    "tests": 56,
+    "seconds": 11.682,
+    "log": "/tmp/control-seal-index-fast-focused.log"
+  },
+  "OPERATIONAL": {
+    "tests": 9,
+    "seconds": 0.639,
+    "log": "/tmp/control-seal-index-fences-focused.log"
+  },
+  "index_only": true,
+  "canonical_query_unchanged": true,
+  "original_protective_deadlines_unchanged": true
+}

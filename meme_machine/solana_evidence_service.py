@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS stream_receipts(
  PRIMARY KEY(scope,slot));
 CREATE INDEX IF NOT EXISTS receipt_time ON stream_receipts(scope,market_time,slot);
 CREATE INDEX IF NOT EXISTS receipt_parent ON stream_receipts(scope,parent,session);
+CREATE INDEX IF NOT EXISTS receipt_unsealed ON stream_receipts(scope,session,slot) WHERE sealed=0;
 CREATE TABLE IF NOT EXISTS stream_deliveries(
  scope TEXT NOT NULL,slot INTEGER NOT NULL,signature TEXT NOT NULL,hash TEXT NOT NULL,
  seen REAL NOT NULL,PRIMARY KEY(scope,slot,signature));

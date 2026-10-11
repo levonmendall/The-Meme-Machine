@@ -1,0 +1,192 @@
+{
+  "status": "FAIL_SUSTAINED_ECONOMIC_COVERAGE",
+  "source": "88a0ea0dcf7758f098dbeafb5fbd9784d1795746",
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-owner-repair-88a0ea0d-1791753035947.sqlite",
+  "reason": "candidate_log_buffer_pressure",
+  "physical_starts": 7,
+  "logical_rpc_elements": 3,
+  "cu": 60,
+  "http_bytes": 129,
+  "native_openings": 4,
+  "known_native_bytes": 90111562,
+  "uncertain_native_bytes": 285212672,
+  "accounted_native_bytes": 375324234,
+  "work_attribution": {
+    "work": {
+      "0::boot": {
+        "count": 1,
+        "wall_seconds": 0.03396838391199708,
+        "execution_seconds": 0.03357906499877572,
+        "max_wall_seconds": 0.03396838391199708,
+        "max_execution_seconds": 0.03357906499877572
+      },
+      "2::<lambda>": {
+        "count": 4,
+        "wall_seconds": 0.04764758807141334,
+        "execution_seconds": 0.021873245015740395,
+        "max_wall_seconds": 0.017693054978735745,
+        "max_execution_seconds": 0.012709759059362113
+      },
+      "2:source_commit:publish": {
+        "count": 1083,
+        "wall_seconds": 45.66031644202303,
+        "execution_seconds": 30.38749267195817,
+        "max_wall_seconds": 0.9408504490274936,
+        "max_execution_seconds": 0.35451833193656057
+      },
+      "4::request_development": {
+        "count": 10663,
+        "wall_seconds": 302.92809946869966,
+        "execution_seconds": 2.62415302998852,
+        "max_wall_seconds": 0.8478653760394081,
+        "max_execution_seconds": 0.019459924893453717
+      },
+      "5:source_commit:<lambda>": {
+        "count": 1956,
+        "wall_seconds": 54.66726839647163,
+        "execution_seconds": 16.861718422034755,
+        "max_wall_seconds": 0.812597261974588,
+        "max_execution_seconds": 0.3451708860229701
+      },
+      "2::commit": {
+        "count": 1083,
+        "wall_seconds": 17.536703600082546,
+        "execution_seconds": 4.245348757249303,
+        "max_wall_seconds": 0.4598662640200928,
+        "max_execution_seconds": 0.0796525040641427
+      },
+      "2:source_commit:commit": {
+        "count": 3472,
+        "wall_seconds": 88.84775712713599,
+        "execution_seconds": 53.347837225184776,
+        "max_wall_seconds": 0.8623778920155019,
+        "max_execution_seconds": 0.31686080200597644
+      },
+      "6::rows": {
+        "count": 1,
+        "wall_seconds": 0.004741692915558815,
+        "execution_seconds": 1.4140969142317772e-05,
+        "max_wall_seconds": 0.004741692915558815,
+        "max_execution_seconds": 1.4140969142317772e-05
+      },
+      "3::replay_floor": {
+        "count": 1,
+        "wall_seconds": 0.0004265200113877654,
+        "execution_seconds": 0.00017180806025862694,
+        "max_wall_seconds": 0.0004265200113877654,
+        "max_execution_seconds": 0.00017180806025862694
+      },
+      "1::<lambda>": {
+        "count": 1,
+        "wall_seconds": 0.005319855990819633,
+        "execution_seconds": 0.00314664700999856,
+        "max_wall_seconds": 0.005319855990819633,
+        "max_execution_seconds": 0.00314664700999856
+      },
+      "3::warm": {
+        "count": 1,
+        "wall_seconds": 0.042365554021671414,
+        "execution_seconds": 0.03405559703242034,
+        "max_wall_seconds": 0.042365554021671414,
+        "max_execution_seconds": 0.03405559703242034
+      },
+      "2:source_commit:durable": {
+        "count": 44,
+        "wall_seconds": 13.14767908945214,
+        "execution_seconds": 5.067920532892458,
+        "max_wall_seconds": 0.6212206269847229,
+        "max_execution_seconds": 0.2965377999935299
+      },
+      "3::disconnect": {
+        "count": 1,
+        "wall_seconds": 0.07141215505544096,
+        "execution_seconds": 0.005068046040832996,
+        "max_wall_seconds": 0.07141215505544096,
+        "max_execution_seconds": 0.005068046040832996
+      }
+    },
+    "native_frames": {
+      "pump:account": {
+        "count": 10049,
+        "bytes": 2363759,
+        "min_slot": 455794173,
+        "max_slot": 455795243,
+        "max_delivery_age_seconds": 70.36768889427185
+      },
+      "shared:slot": {
+        "count": 5304,
+        "bytes": 173595,
+        "min_slot": 455789725,
+        "max_slot": 455795028,
+        "max_delivery_age_seconds": 1041.3752427101135
+      },
+      "shared:block_meta": {
+        "count": 5273,
+        "bytes": 1102981,
+        "min_slot": 455789756,
+        "max_slot": 455795028,
+        "max_delivery_age_seconds": 1042.4949514865875
+      },
+      "pump:ping": {
+        "count": 11,
+        "bytes": 166,
+        "min_slot": null,
+        "max_slot": null,
+        "max_delivery_age_seconds": 0.05190753936767578
+      },
+      "pump:pong": {
+        "count": 11,
+        "bytes": 191,
+        "min_slot": null,
+        "max_slot": null,
+        "max_delivery_age_seconds": 0.06439757347106934
+      },
+      "shared:ping": {
+        "count": 10,
+        "bytes": 157,
+        "min_slot": null,
+        "max_slot": null,
+        "max_delivery_age_seconds": 1.984844446182251
+      },
+      "shared:pong": {
+        "count": 10,
+        "bytes": 176,
+        "min_slot": null,
+        "max_slot": null,
+        "max_delivery_age_seconds": 3.424076795578003
+      },
+      "pump:slot": {
+        "count": 77,
+        "bytes": 2517,
+        "min_slot": 455795085,
+        "max_slot": 455795161,
+        "max_delivery_age_seconds": 17.675797939300537
+      },
+      "pump:transaction_status": {
+        "count": 26609,
+        "bytes": 2730917,
+        "min_slot": 455795085,
+        "max_slot": 455795161,
+        "max_delivery_age_seconds": 24.50032091140747
+      },
+      "pump:block_meta": {
+        "count": 76,
+        "bytes": 15893,
+        "min_slot": 455795085,
+        "max_slot": 455795160,
+        "max_delivery_age_seconds": 23.967031478881836
+      }
+    },
+    "resources": {
+      "user_cpu_seconds": 97.397158,
+      "system_cpu_seconds": 15.361761,
+      "maximum_rss_kib": 170712
+    }
+  },
+  "funding": false,
+  "orders": false,
+  "full_protection": false,
+  "historical_counters_reset": false,
+  "invoice_verified": false,
+  "modeled_public_upper_usd": "0.03944054457"
+}

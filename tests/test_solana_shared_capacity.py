@@ -8,6 +8,33 @@ from meme_machine.solana_stable_shards import StableShards
 from meme_machine.runtime.governor import Governor
 
 class SharedCapacityTests(unittest.TestCase):
+    def test_control_seal_seeks_current_unsealed_receipts_without_scanning_history(self):
+        from meme_machine.solana_evidence_service import ServiceState
+        from tests.test_retention_outcomes import CONFIG
+        from meme_machine.solana_selective_runtime import CONTROL
+        with tempfile.TemporaryDirectory() as td:
+            state=ServiceState(Path(td)/'canonical.sqlite',CONFIG)
+            try:
+                db=state.writer.db;session=state.fence.session
+                with state.writer.transaction():
+                    db.executemany('INSERT INTO stream_receipts VALUES(?,?,?,?,?,?,?,?,?,?)',
+                        [(CONTROL,100+i,99+i,'old-'+str(i),'prior-'+str(i),1000,'[]','retained-old',1000,1)
+                         for i in range(25000)])
+                    db.executemany('INSERT INTO stream_receipts VALUES(?,?,?,?,?,?,?,?,?,?)',[
+                        (CONTROL,30000,29999,'current-30000','prior',1000,'[]',session,1000,0),
+                        (CONTROL,30001,30000,'current-30001','current-30000',1001,'[]',session,1001,0)])
+                steps=[0]
+                def budget():steps[0]+=1000;return int(steps[0]>40000)
+                db.set_progress_handler(budget,1000)
+                try:state.fence.seal(CONTROL,1001)
+                finally:db.set_progress_handler(None,0)
+                self.assertLessEqual(steps[0],40000)
+                self.assertEqual(db.execute('SELECT slot,sealed FROM stream_receipts WHERE session=? ORDER BY slot',(session,)).fetchall(),
+                    [(30000,1),(30001,0)])
+                self.assertEqual(db.execute('SELECT lo,hi FROM coverage WHERE scope=?',(CONTROL,)).fetchall(),[(30000,30000)])
+                self.assertEqual(db.execute("SELECT COUNT(*) FROM stream_receipts WHERE session='retained-old' AND sealed=1").fetchone()[0],25000)
+            finally:state.close()
+
     def test_separate_pump_pons_proof_counts_wire_batches_retries_and_stops_before_next_rpc(self):
         from engineering.solana_capacity.pump_pons_proof import Budget,CeilingReached
         from engineering.solana_capacity.proof_limits import load_contract,QueueEvidence
