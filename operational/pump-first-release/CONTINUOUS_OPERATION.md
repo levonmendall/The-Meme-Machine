@@ -228,3 +228,25 @@ replaces assertions of the obsolete unconditional prohibition with assertions
 of current protection refusal. Economic, freshness and capital assertions
 remain intact. Authenticated Pons USD route availability is still unresolved;
 its failed diagnostic is not a native protection pass.
+### 2026-10-11 18:50 UTC checkpoint
+
+Published source `00f1327a010eaadd8c987379a348fecf4a16b993` passed required
+FAST CI: 1,620 tests in 1,450.386 seconds. The authenticated read-only intake
+published Pump and PumpSwap economic records, but failed sustained coverage:
+22.81-second market-to-publication lag, candidate log-buffer pressure and the
+diagnostic's accounted-native stop. The 512-MiB boundary was preserved, as were
+all historical gaps and usage counters. This is not a position-protection pass.
+
+The next narrow repair batches already available scout locator facts on the
+existing canonical owner. It retains priority 5, FIFO order, original times,
+durable lifecycle wakeups and rollback; no batch timer or economic authority is
+introduced. A 64-fact queue holds at most 128 KiB serialized, not native frames.
+One available 64-scout burst uses one writer admission and one durable commit.
+Focused locator/intake/closure/startup regression: 58 tests passed in 28.043s.
+Live latency improvement remains unproven until the repaired source is measured.
+
+Pons has five usable WNATIVE first hops among 87 authenticated hookless pools in
+the maintained inventory, but no validated complete USDG route yet. One unknown
+pool clone is excluded with its code hash retained. These read-only capability
+observations grant no financial or funding authority. Both families remain
+funding-disabled; the 60-minute continuous acceptance clock has not started.

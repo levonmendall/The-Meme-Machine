@@ -1,0 +1,48 @@
+{
+  "status": "FAIL_SUSTAINED_PROTECTION_WITH_ECONOMIC_PUBLICATION",
+  "source": "00f1327a010eaadd8c987379a348fecf4a16b993",
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-prefetch-00f1327a-1791743146688.sqlite",
+  "physical_starts": 80,
+  "logical_rpc_elements": 74,
+  "conservative_cu": 7000,
+  "http_bytes": 62610023,
+  "known_native_bytes": 83890650,
+  "uncertain_native_bytes": 436207583,
+  "native_reserved_bytes": 0,
+  "accounted_native_bytes": 520098233,
+  "native_openings": 6,
+  "native_boundary_bytes": 536870912,
+  "terminal_failure": "native_payload_stop",
+  "canonical_economic_publication": {
+    "pump_new_records": 3732,
+    "pumpswap_new_records": 760,
+    "last_program_slot": 455749492,
+    "last_program_market_time": 1791743186,
+    "last_program_seen": 1791743208.81,
+    "market_to_durable_lag_seconds": 22.81,
+    "proved_initial_tail": [
+      455749311,
+      455749325
+    ],
+    "contiguous_program_checkpoint_established": false
+  },
+  "unresolved_candidate_gaps": 36,
+  "rolling_join_failure": "candidate_log_buffer_pressure",
+  "failed_join_early_log_bytes": 33547383,
+  "failed_join_early_logs": 16323,
+  "owner_priority_two_peak_queue_microseconds": 2668479,
+  "native_group_commit_timing": {
+    "samples": 2630,
+    "mean_ms": 29.097,
+    "p95_ms": 95.419,
+    "max_ms": 947.202
+  },
+  "historical_deadlines_preserved": true,
+  "history_deadline_failures_are_not_funded_position_misses": true,
+  "modeled_public_upper_usd": "0.058285314465",
+  "invoice_verified": false,
+  "full_protection": false,
+  "funding": false,
+  "orders": false,
+  "historical_counters_reset": false
+}

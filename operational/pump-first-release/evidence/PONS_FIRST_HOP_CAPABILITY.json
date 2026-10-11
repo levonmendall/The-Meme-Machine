@@ -1,0 +1,999 @@
+{
+  "source": "00f1327a010eaadd8c987379a348fecf4a16b993",
+  "started_at": 1791744299.2645614,
+  "purpose": "Existing-inventory first-hop route capability only",
+  "funding": false,
+  "orders": false,
+  "native_streams": false,
+  "full_protection": false,
+  "financial_route_activated": false,
+  "historical_counters_reset": false,
+  "results": [
+    {
+      "pool": "0xff60cf709937b523c3206569c62935f45b135482",
+      "asset": "0x0145acbccefbed6f303c420beeaaac72e905430b",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x82a6a903898de530d3928db775514110dce29547",
+      "asset": "0x020bfc650a365f8bb26819deaabf3e21291018b4",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xffb317bb559adedee37429eac557fdc17dbf3ec0",
+      "asset": "0x020bfc650a365f8bb26819deaabf3e21291018b4",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x49d5012aca017cf60433ee9bcda3812b605293f3",
+      "asset": "0x020bfc650a365f8bb26819deaabf3e21291018b4",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x2be38781c29652df20b2c6b6672dd42d3075c7db",
+      "asset": "0x020bfc650a365f8bb26819deaabf3e21291018b4",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x5e2a01b12c134cfb84a52891bc86a14717917af8",
+      "asset": "0x0762c1708f0d23f86b29d6b857121ff7df357506",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xb8017db66fb1a2d3cc1863d02ba649373849dd70",
+      "asset": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xcb3ce44d8c60219f3fb5109a1239105a45794224",
+      "asset": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x196e692e73c58b3d0897fdf8543537a019e08a51",
+      "asset": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x0379d60ee6f245e449f50074e2352f9a047c021f",
+      "asset": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x487220c1b3e6a4b48dbf79998ae6b973e025d1d5",
+      "asset": "0x117cc2133c37b721f49de2a7a74833232b3b4c0c",
+      "input_raw": 1000000000000000,
+      "swap_for_y": true,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xe1a7041d1c7fbb64a42de854396a9392568bf4d2",
+      "asset": "0x12df3d482c50bb0ca2d25763063af4892b6e42f4",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x6bc7fb212849f3f4038bfbca0a4072e58a8df955",
+      "asset": "0x12f190a9f9d7d37a250758b26824b97ce941bf54",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x260d7a1c1f9d5f83b2371c0872610ff3d9b5d81b",
+      "asset": "0x133698a17b7b5c2b981555c56c2b00824f517c1b",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xacca12dd7a1ee9bf1e88e1510db32400186f0483",
+      "asset": "0x1c1daef0300551adbfbe403e7d567b6c5aff566f",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x3dc57a61c7f139ed9f84e072ec415dd70da5adc0",
+      "asset": "0x1c1daef0300551adbfbe403e7d567b6c5aff566f",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x53aca4fbb72a432e3e1871a969a0b4912679d2b5",
+      "asset": "0x1c1daef0300551adbfbe403e7d567b6c5aff566f",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x4272cb801cabefc8f7744a50ca4fe6a807f2b876",
+      "asset": "0x1dd500201ffabc04089aa1313b0a6aba668ca178",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xe89949065ee0c0d08bbadd067cc61ab7a87738af",
+      "asset": "0x2b1c6953ca01a5d098d2e22ab606467b15e5f9f0",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x5bcf7e3dd7927ccb7541b4afe2308c5fc7afca38",
+      "asset": "0x2e8c31162b855a2ffa90f6f8634643ad6f111e18",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x97b9ab615e95a0345b16c540564b08d1a86edf50",
+      "asset": "0x2e8c31162b855a2ffa90f6f8634643ad6f111e18",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x7a3bfbb4f75bf7af948a084f5177118a3097cf18",
+      "asset": "0x2e8c31162b855a2ffa90f6f8634643ad6f111e18",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x390c55e9097ee228b88d3c8ae76b48872f686f44",
+      "asset": "0x3786728a2c49c4617bf4fe5bd82b90b6b0df5508",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x58df454b747a535334da5ff028162161e74021e9",
+      "asset": "0x385b36ff682ab4c76e7c37a66b96aabc466471d5",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xc17e4dead5b6069330fa1c30938ec1687be7bf0e",
+      "asset": "0x39dbed3a2bd333467115de45665cc57f813c4571",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x4461ad1efc37055faeb461a7a73271b43e18c8d5",
+      "asset": "0x39dbed3a2bd333467115de45665cc57f813c4571",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xe19aa0050db57435276bab935b2110ad1c04d702",
+      "asset": "0x451b42a15100c340ca12f7c66de06fac5ea2d751",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x3c5d63c09893049f6dd2ec460d3b47ce3ac49abf",
+      "asset": "0x45242320dbb855eea8fd36804c6487e10e97fcf9",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xb01d16736c89fb3fbbdd433c4459dce156387340",
+      "asset": "0x45242320dbb855eea8fd36804c6487e10e97fcf9",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xcce385a467d72690b481b382860c2da3d0416e6f",
+      "asset": "0x4ad2e9b5d56f14618bf52156ba4a8d3ea4a860d3",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x69e96a790b74c47ac64f65e23e0ea580a7c1903a",
+      "asset": "0x4e5195469a0360f5dfe811730c9ccacff0a0feee",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        0,
+        56979840838794118649,
+        20000000000000
+      ]
+    },
+    {
+      "pool": "0x9502fb4256aab7df54748b84b2578889f7a5c961",
+      "asset": "0x5173d45a1191ee33cbb7d8c7e65f21b04ed54802",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x6cefa6f3fb2b89aaa8eafba9739b265b2b7aa4da",
+      "asset": "0x5173d45a1191ee33cbb7d8c7e65f21b04ed54802",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        0,
+        16479176328791860620,
+        20625000000000
+      ]
+    },
+    {
+      "pool": "0x38c29cd87ba30421ce15160b781fa76960e01a31",
+      "asset": "0x5173d45a1191ee33cbb7d8c7e65f21b04ed54802",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x0f43a0b7d53b098f74fc21ca3f523622eb093233",
+      "asset": "0x51a5853ba953f092c9466516d768ecf056dbc62e",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xe33e9c406ca6b859a6e6ba6efd19c9facb59c1c1",
+      "asset": "0x56910d4409f3a0c78c64dd8d0545ff0705389870",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xbe507176941b772560c2256d690fc3c552b42a80",
+      "asset": "0x5766cb3fbfe71bbbafaaeae3fd8725948915efd4",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x62443b89259998e2d3328b81053563ef2e0e4d7d",
+      "asset": "0x5766cb3fbfe71bbbafaaeae3fd8725948915efd4",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xd3ac97202f05ea1bce5df599cce30a5c72adb82e",
+      "asset": "0x5cb6f181081301b44905f3ae15419112ecabd8a6",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x3b2fe53e58840fbf45c9b410191da4dd51eb2074",
+      "asset": "0x5cb6f181081301b44905f3ae15419112ecabd8a6",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x29fd16f46eece1f80f3abaf2f3113d4e5f015621",
+      "asset": "0x5cb6f181081301b44905f3ae15419112ecabd8a6",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xa587f16d1bfd7cfd082624a23e9e4420ae4fe5d0",
+      "asset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      "input_raw": 1000000000000000,
+      "swap_for_y": true,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x78f23bca6869935bdbb79e6f04ae641134b2471d",
+      "asset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      "input_raw": 1000000000000000,
+      "swap_for_y": true,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x466b7fa3cf5728ad3d69d6042558fbe90ba4d978",
+      "asset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xd7efa4b3dfb92318d8d1a26f3fc92692e46075ff",
+      "asset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      "input_raw": 1000000000000000,
+      "swap_for_y": true,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x56825af734b53a5359dea2eaa2b5fa1e8eacdee8",
+      "asset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xbc2f7c6ec69341393fd7965dd0bb4d9f42881c63",
+      "asset": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      "input_raw": 1000000000000000,
+      "swap_for_y": true,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x2ad501a4ed1ac254baafe03d1d71210fbb44158b",
+      "asset": "0x609bc137331708e088aca9d2278796de024b1e18",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x5b5e48461c3d4d7b8a570f964a6bd52332850f77",
+      "asset": "0x6245e67affa44a23077f0ea7f981a8dc743a0c47",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xc5ce1f3aae5744271e228256a0bead5f4ab1cbe0",
+      "asset": "0x6245e67affa44a23077f0ea7f981a8dc743a0c47",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xc6d747d695d9512474f07eab7a33a7c5652d87d6",
+      "asset": "0x64dc70cee2d6d649dec9f5f6fd0f8c6c586d8d13",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xa4494d3e2746d83ef2a2ef3d9e2c83104002d8ee",
+      "asset": "0x77948655831f48aa17ac85233e6c921f7ef7bb2e",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x07c3770ff405ad9e572dd333f58dff7b5dc3bbb2",
+      "asset": "0x7cd7073a71eaf5f6e4febfa98460ee66cd97deb1",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x3bdfb3a55fb6bf3316a51663f4532dc710c8c0c1",
+      "asset": "0x8005d266423c7ea827372c9c864491e5786600ea",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xd923a1a11516d91d3cbea6d0b091290efb6058b3",
+      "asset": "0x8750da3e48345ec0c5aaaacfcda2a004da3b60c2",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xe4190c54117d945bc05005b1069fc0f5acaefda4",
+      "asset": "0x89314dd83f307d7d9bc19ff261888027fa531658",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xd3aae7f6afe2817c96833f61333e7a11eff23b5a",
+      "asset": "0x8bc3cef1a8b35c420e933602cd4f650ebb0760bc",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        959789660141102,
+        1000000000000000000000,
+        237241005216
+      ]
+    },
+    {
+      "pool": "0xb7a340f2d2716e157b763dd0c2ef3b6f5977ced9",
+      "asset": "0x98096d17e191b3da1d5f99a6d7b3584351b11e18",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xc2e5c7157a7a1108028e4cd12c39a5749b099d2c",
+      "asset": "0xaa40e79e987517f7462bf79315b8a118799b04e3",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x69b07ad2e89d97fd60e518cef2e6ccec99939291",
+      "asset": "0xab528169dcc80d68837a33b1e2b866bb7d7ee301",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x9fa541f730101873a45030340c77974d52ed5f43",
+      "asset": "0xad6629157a774007e46945bb1b6013c79e7656c9",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x06b99377b7ed4f1fa0a429df5e5d9e66fd563bd9",
+      "asset": "0xad6629157a774007e46945bb1b6013c79e7656c9",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x56e776c9436f12edc0a5556b8b5b8bd7cd2024bd",
+      "asset": "0xaf3d76f1834a1d425780943c99ea8a608f8a93f9",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xb091d6bb1adfa9bd33817cb87424259cc87c80ab",
+      "asset": "0xaf3d76f1834a1d425780943c99ea8a608f8a93f9",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xd2fdf35c4db97036f59804ef98685bfab8088413",
+      "asset": "0xbed7c1660a01dbeee225bd893ac31727a91a5773",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x95c617d6fa24d0c8344fa15af8f2911f810520f3",
+      "asset": "0xbed7c1660a01dbeee225bd893ac31727a91a5773",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xe4e00aa14816973dcb22eb89d8c868a64ae7e88b",
+      "asset": "0xbed7c1660a01dbeee225bd893ac31727a91a5773",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x0222bcfc5b0418bceda25ee1ae2f7b49db547396",
+      "asset": "0xbed7c1660a01dbeee225bd893ac31727a91a5773",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x8bde94ad42d98ceaff0999f4508d1c9b93039e0c",
+      "asset": "0xbed7c1660a01dbeee225bd893ac31727a91a5773",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x0f55cb4eddcf8a4dbd2f3b0c88421f8377b243e9",
+      "asset": "0xbee455b5cd3a84b03871c779b018e7959be15bab",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x3b46b4f0036a718329aa25bf1238392527a0800b",
+      "asset": "0xca9c78dd337a67f6e0077f65f5e9218719d30edf",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        0,
+        3039170,
+        22253363812286
+      ]
+    },
+    {
+      "pool": "0xb02f745b2cc6fdbe84fc6205f797ff74ddad6a04",
+      "asset": "0xcd1cca2b3d0a11b295c42fe765ea8f895c2d0901",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x06ffaa507a9c3e7025294a642f1e1c75da3dfb4a",
+      "asset": "0xcec185eb182c47d1ba1efc84e6959e18cd620be4",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        0,
+        3026,
+        400000000000
+      ]
+    },
+    {
+      "pool": "0xbf5752a760b950f2d1dcf071da6d00220a98538c",
+      "asset": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x7120525ce1a9548c35084ae2b4c4483b1d48777f",
+      "asset": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x59fe0eae32cbc33c931d69de5bc67ae1c2133f07",
+      "asset": "0xd25efceb9d690e2a75a8b75e52a7c63cb9a214e0",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x66b0381a0c647dde1595eed72b3d9cb0bb9f39a7",
+      "asset": "0xd928a068d2b90798373a470c9d9ba562322acdef",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x829c5fae2c2567983b652a8043843762fed7c33c",
+      "asset": "0xd928a068d2b90798373a470c9d9ba562322acdef",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xe935761bb5f29984fab32173f2ae28919c251b9a",
+      "asset": "0xd928a068d2b90798373a470c9d9ba562322acdef",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x98a8abc114dde2ce05abbbd966c8011a545d3081",
+      "asset": "0xd928a068d2b90798373a470c9d9ba562322acdef",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x689578ab387ef26165058baf5ca2e66faa0fefd8",
+      "asset": "0xe45cdddf1ac5715f7e596912e184af0ec93a0fce",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x88737056a3989dbb7a58a8f1bafa76d15c26f10c",
+      "asset": "0xea97dfed19cfc581627a433dc4cd35418d298667",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x9233d458304a35b534798ab6b50f4a564326dc63",
+      "asset": "0xf1d3e39cc61aedd53dc40d8afff6aa1dd51875d0",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0x50ecce5a1a3e3bd507632e58b83c0f407b0f5d79",
+      "asset": "0xf6589f11bc40b669e584073f428b05562f568733",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xfdfffff462beac10c1bbbbc9d09fbacf60997e19",
+      "asset": "0xfdf085fc400504ca734e9ef89c68d2b98e604c2c",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    },
+    {
+      "pool": "0xb386d2ffe4193019974dfc4aeb59787bd2e12344",
+      "asset": "0xfdf085fc400504ca734e9ef89c68d2b98e604c2c",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        0,
+        2675375846928913286017,
+        1000000000000
+      ]
+    },
+    {
+      "pool": "0xf067b5f2e2e37e920044bdd15105fe2883a65c84",
+      "asset": "0xfdf085fc400504ca734e9ef89c68d2b98e604c2c",
+      "input_raw": 1000000000000000,
+      "swap_for_y": false,
+      "quote_words": [
+        1000000000000000,
+        0,
+        0
+      ]
+    }
+  ],
+  "excluded_pools": [
+    {
+      "pool": "0x6d6cd1e49cd88b840c58a389334d0f1c463ea594",
+      "reason": "unrecognized_pool_clone_runtime",
+      "code_sha256": "97f9a05b311bc4e3e7816b1c67cfffd98dd006565c9d3b271c97d1dad45cd25f"
+    }
+  ],
+  "current_factory_pairs": 88,
+  "phase": "complete",
+  "block": 86052966,
+  "block_hash": "0x7c25fd6b84335b0bc733c75ea1e26365932920e76739fbfa789408ff8ecf8a25",
+  "block_timestamp": 1791744299,
+  "maintained_assets_checked": 51,
+  "authenticated_hookless_pairs": 87,
+  "usable_first_hops": 5,
+  "status": "PASS_ROUTE_CAPABILITY_ONLY",
+  "canonical_membership": true,
+  "ended_at": 1791744303.2390153,
+  "duration_seconds": 3.974454879760742,
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pons-first-hop-classified-00f1327a-1791744290905.sqlite",
+  "usage_delta": {
+    "http_attempts": 14,
+    "rpc_elements": 321,
+    "rpc_cu": 7742,
+    "http_bytes": 138512,
+    "native_opens": 0
+  },
+  "modeled_public_upper_usd": "0.00406455",
+  "invoice_verified": false
+}

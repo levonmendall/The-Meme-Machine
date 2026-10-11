@@ -88,8 +88,13 @@ def scout_request():
     request.accounts_data_slice.add(offset=0,length=length)
     return request
 
-def commit_scout(state,update,seen):
-    history=install(state);item=update.account;account=item.account
+def scout_fact(update,seen):
+    """Retain only the fixed locator facts, never a queued native payload.
+
+    Delivered bytes have already been charged by the stream reader. Locators
+    cannot establish economic coverage, qualification or execution authority.
+    """
+    item=update.account;account=item.account
     labels=set(update.filters);raw=account.data;address=pubkey(account.pubkey)
     if labels & {'m','n','a'} and not enabled('meteora'):return
     if len(raw)<49:raise EvidenceUnavailable('candidate_scout_fields_missing')
@@ -103,19 +108,34 @@ def commit_scout(state,update,seen):
             # qualifying curve. Exact initial reserves are hydrated before entry.
             development_upper_bps=None if not 0<=reserve<=supply or supply==0 else 10000*(supply-reserve)//supply,
             economic_event=False,history_complete=False,activity=activity)
-        history.observe('pump',address,slot=item.slot,signature=sig,fields=fields,seen=seen)
+        family='pump'
     elif labels and labels.issubset({'m','n'}):
         if pubkey(account.owner)!=PROGRAMS['meteora']:raise EvidenceUnavailable('candidate_scout_owner')
         if labels=={'m','n'}:return # Existing WSOL policy is XOR, not an OR pair.
-        history.observe('meteora',address,slot=item.slot,signature=sig,
-            fields=dict(wsol_pair_locator=True,economic_event=False,history_complete=False,activity=activity),seen=seen)
+        family='meteora';fields=dict(wsol_pair_locator=True,economic_event=False,history_complete=False,activity=activity)
     elif labels=={'a'}:
         if len(raw)!=56 or pubkey(account.owner)!=PROGRAMS['meteora']:raise EvidenceUnavailable('candidate_scout_fields_missing')
         # A bin-array account header is a wakeup only. It cannot replace swaps,
         # exact bins, balances, instructions or economic interval completeness.
-        history.observe('meteora',pubkey(raw[24:56]),slot=item.slot,signature=sig,
-            fields=dict(bin_array_locator=address,economic_event=False,history_complete=False,activity=activity),seen=seen)
+        family='meteora';fields=dict(bin_array_locator=address,economic_event=False,history_complete=False,activity=activity)
+        address=pubkey(raw[24:56])
     else:raise EvidenceUnavailable('candidate_scout_filter')
+    fact=dict(family=family,address=address,slot=item.slot,signature=sig,fields=fields,seen=seen)
+    # A fixed account-data slice needs no unbounded protobuf in the writer queue.
+    if len(canonical(fact).encode())>2048:raise EvidenceUnavailable('candidate_scout_fact_bound')
+    return fact
+
+def commit_scout_fact(state,fact):
+    if fact is not None:install(state).observe(**fact)
+
+def commit_scout(state,update,seen):
+    commit_scout_fact(state,scout_fact(update,seen))
+
+def commit_scout_batch(state,facts):
+    if not 0<len(facts)<=SCOUT_COMMIT_BATCH:raise EvidenceUnavailable('candidate_scout_batch_bound')
+    install(state)
+    with state.writer.source_frame():
+        for fact in facts:commit_scout_fact(state,fact)
 
 def block_message(frame):
     b=frame.update.block
@@ -609,6 +629,21 @@ class SelectiveSource:
                 await self.work(record,1)
                 await asyncio.sleep(min(8,.5*2**min(retry-1,4)))
 
+    async def scout_commits(self,queue):
+        """One ordered writer admission for an available burst; no batch timer.
+
+        At most 64 small facts wait here (128 KiB serialized). Backpressure
+        retains the current fact; control/protective commands keep priority.
+        A failed atomic commit publishes no portion of the batch.
+        """
+        while not self.stop.is_set():
+            batch=[await queue.get()]
+            while len(batch)<SCOUT_COMMIT_BATCH:
+                try:batch.append(queue.get_nowait())
+                except asyncio.QueueEmpty:break
+            await self.work(lambda s:commit_scout_batch(s,batch),5,label='source_commit')
+            for _ in batch:queue.task_done()
+
     async def __call__(self,work,stop):
         return await self.run(work,stop)
 
@@ -629,13 +664,16 @@ class SelectiveSource:
         async with grpc.aio.secure_channel(HOST,grpc.ssl_channel_credentials(),options=[
                 ('grpc.max_receive_message_length',MAX_FRAME_BYTES),('grpc.max_send_message_length',4*1024*1024),('grpc.http2.bdp_probe',0)]) as channel:
             control_queue=asyncio.Queue(maxsize=64)
+            scout_queue=asyncio.Queue(maxsize=SCOUT_COMMIT_BATCH)
             async def scouts(update,size,seen):
                 if update.WhichOneof('update_oneof')!='account':raise EvidenceUnavailable('candidate_scout_filter')
-                await work(lambda s:commit_scout(s,update,seen),5,label='source_commit')
+                fact=scout_fact(update,seen)
+                if fact is not None:await scout_queue.put(fact)
             census=asyncio.create_task(self.structural_census()) if enabled('meteora') else None
             stop_task=asyncio.create_task(stop.wait())
             tasks=[asyncio.create_task(self.control_stream(channel,tip,control_queue)),
                    asyncio.create_task(self.scout_stream(channel,tip,scouts)),
+                   asyncio.create_task(self.scout_commits(scout_queue)),
                    asyncio.create_task(self.acquire_pool()),asyncio.create_task(self.live_manager(channel)),
                    asyncio.create_task(self.rolling_programs(channel)),
                    asyncio.create_task(self.cold_maintenance()),
