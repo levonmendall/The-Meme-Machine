@@ -45,7 +45,10 @@
     "storage_guard_template": "operational/pump-first-release/storage.shared-1000.uninitialized.example.json",
     "continuation_envelope": "/etc/meme-machine/position-continuation.pump-first-1000.json",
     "bootstrap_funding_scope": {
-      "regimes": ["pump_current", "pump_survivor"],
+      "regimes": [
+        "pump_current",
+        "pump_survivor"
+      ],
       "maximum_initial_basis_usd": "50",
       "maximum_addition_basis_usd": "25",
       "maximum_fee_reserve_usd": null
@@ -57,7 +60,18 @@
     "recovery_resources": null,
     "fee_and_provider_reserves_require_separate_proof_and_approval": true,
     "clock_expiration_closes_funding_only": true,
-    "existing_position_protection_remains_independent": true
+    "existing_position_protection_remains_independent": true,
+    "ordinary_cutover_units": [
+      "deployment/meme-machine-paper.service",
+      "deployment/meme-machine-backup.service",
+      "deployment/meme-machine-backup-point.service",
+      "deployment/meme-machine-acceptance@.service",
+      "deployment/meme-machine-observer.service",
+      "deployment/meme-machine-monitor.service"
+    ],
+    "new_acceptance_environment_file": "/etc/meme-machine/acceptance.shared-1000.env",
+    "ordinary_PAPER_target_and_resource_limits_persist_after_bootstrap": true,
+    "backup_and_observer_target_new_epoch": true
   },
   "dashboard_cutover": {
     "authorized": false,
@@ -71,7 +85,13 @@
     "before_inception_display": "planned $1,000; inactive",
     "after_authorized_inception_display": "validated new $1,000 inception and actual shared accounting",
     "retain_old_500_historical_view": true,
-    "cutover_guards": ["epoch", "inception", "source identity", "sequence", "authenticated ingestion"],
+    "cutover_guards": [
+      "epoch",
+      "inception",
+      "source identity",
+      "sequence",
+      "authenticated ingestion"
+    ],
     "acceptance": [
       "fresh reconciliation and coherent restore on the isolated new epoch",
       "shared cash, basis, reservations and actual native partial/add/exit reconciliation",

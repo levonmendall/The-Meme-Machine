@@ -56,8 +56,14 @@
     "deployment/paper-bootstrap.conf": "c96d6cc67b557943c780cd2f93fd6b8e73c336a862fd949c729e18dac3e4ff34",
     "deployment/paper.env.example": "318e31f355f5004b19e1649661d6a2150147208d2a3d52038c712f31181ee3c1",
     "operational/shared-capital-activation/risk-policy.shared-1000.proposed.json": "f2da6f2fa3f1451c1313be20bc3592d53070b70c62725cb0ac43fa6f3a73d034",
-    "operational/pump-first-release/LAUNCH_1000_DISABLED.json": "2ef08df3b6f37776c39e54c2d5c3ceec97b7cbba061035b2446f4db823121f6a",
-    "operational/pump-first-release/storage.shared-1000.uninitialized.example.json": "2d6e5cba00cf9919f80c9f6e1bbdd0de09c73f6581706d9a12f0c6aa90fcca9d"
+    "operational/pump-first-release/LAUNCH_1000_DISABLED.json": "b57f199cd6ec3f745b5247849bf08b6654bfe7d213e7a4e30f3ee2d29ded2902",
+    "operational/pump-first-release/storage.shared-1000.uninitialized.example.json": "2d6e5cba00cf9919f80c9f6e1bbdd0de09c73f6581706d9a12f0c6aa90fcca9d",
+    "deployment/meme-machine-paper.service": "0a6738ed223d9305ab4276d802fdb655670e9ad3e69f9a0133315b222b088daa",
+    "deployment/meme-machine-backup.service": "f0722de9ce5d62599c75db5a10c8ee8c3971e741a264286a3bac0e48ccf439ea",
+    "deployment/meme-machine-backup-point.service": "791b8394a7c122af12fd8a83e16d28b13eb323f614e035b29c92a041ce730f62",
+    "deployment/meme-machine-acceptance@.service": "d4a7b45794262d23409c34a78ec89fe8946310b59e3c454acc195ca862c3da88",
+    "deployment/meme-machine-observer.service": "fdfa454b2b41639b3122b40b2c47c82faf1331b81d89190adb1cd32864a1f6cd",
+    "deployment/meme-machine-monitor.service": "b36e3191d0c53189f6906d07911d0699898845f7a3c8b4dd3bf791e3867b4f18"
   },
   "logs": [
     {
@@ -143,6 +149,20 @@
       "sha256": "555179d9e7699afeebe1a5a1851b9fdd9d4540e677a5f986780b5b9517fd927d",
       "raw_sha256": "48727930a523fa77ac3abc0d6d02b26e67c9211cc01b6b7e1de83272aad5ffe0",
       "raw_bytes": 24648
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-1000-cutover-focused.log",
+      "retained": "operational/pump-first-release/evidence/pump-1000-cutover-focused.log.gz",
+      "sha256": "88501b24ed452eb792ab7d135ce5d2e4b8799ab75bb26a0e3d55793667ebe375",
+      "raw_sha256": "4413de2f40caecfd6173c53e84167a556783943e0e9cdb0e52bc138545a1c027",
+      "raw_bytes": 14823
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-1000-units-verify.log",
+      "retained": "operational/pump-first-release/evidence/pump-1000-units-verify.log.gz",
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "raw_bytes": 0
     }
   ],
   "market_provider_requests": 0,
@@ -178,5 +198,36 @@
     "new_epoch_initialized": false
   },
   "component_authorization": "One separately authorized read-only invocation; public provisional billing basis; local credential binding and charges still checked before dispatch. Result retained in release attestation.",
-  "bootstrap_environment_precedence": "Separate new private EnvironmentFile replaces historical list; absent new file refuses startup; no installed change."
+  "bootstrap_environment_precedence": "Separate new private EnvironmentFile replaces historical list; absent new file refuses startup; no installed change.",
+  "cutover_focused": {
+    "status": "PASS",
+    "tests": 79,
+    "seconds": 3.175,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "log": "evidence/pump-1000-cutover-focused.log.gz",
+    "modules": [
+      "tests.test_operational_storage_guard",
+      "tests.test_operational_backup",
+      "tests.test_operational_observation",
+      "tests.test_operational_monitoring",
+      "tests.test_durable_acceptance",
+      "tests.test_paper_bootstrap"
+    ]
+  },
+  "prepared_units_syntax": {
+    "status": "PASS",
+    "exit": 0,
+    "units": [
+      "meme-machine-paper.service",
+      "meme-machine-backup.service",
+      "meme-machine-backup-point.service",
+      "meme-machine-acceptance@.service",
+      "meme-machine-observer.service",
+      "meme-machine-monitor.service"
+    ],
+    "log": "evidence/pump-1000-units-verify.log.gz",
+    "installed": false
+  }
 }

@@ -7,7 +7,7 @@ RequiresMountsFor=/mnt/volume_nyc1_1790918115030
 Type=oneshot
 User=root
 WorkingDirectory=/opt/meme-machine
-EnvironmentFile=/etc/meme-machine/paper.env
+EnvironmentFile=/etc/meme-machine/paper.shared-1000.env
 Environment=MM_BACKUP_SYSTEMD=1
 ExecStart=/opt/meme-machine/.venv/bin/python -m meme_machine.operational.backup prepare /mnt/volume_nyc1_1790918115030/meme-machine-backups/pending
 ExecStopPost=/opt/meme-machine/.venv/bin/python -m meme_machine.operational.backup thaw

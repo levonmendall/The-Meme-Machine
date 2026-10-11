@@ -191,6 +191,14 @@ because environment-file values override `Environment=` values: leaving the
 historical `paper.env` selected could restore its old state root. A missing new
 private file now refuses startup. Preserve that historical file; prepare new
 credentials/configuration only during the separately authorized deployment.
+The prepared ordinary PAPER unit keeps that same new private environment and
+resource limits after bootstrap. Existing backup/backup-point and acceptance
+units also select the new environment; acceptance has its own new private
+acceptance configuration. The existing independent observer selects the new
+state root. This avoids backing up, validating or observing the historical $500
+epoch while the new one runs. No additional service is introduced. Install and
+verify these existing units together only during authorized cutover; retain old
+unit/configuration receipts and historic backups without reassigning their epoch.
 
 Long-duration positions remain governed by native economics. Unlimited holding
 does not imply infinite provider credit: reserve adequate sustained protection
