@@ -218,6 +218,11 @@ class PacedRpc(Rpc):
             self.shared_admission=offline_admission
             requests_per_second=profile.physical_starts_per_second
             pacer=ProviderPacer(requests_per_second,clock=offline_admission.clock,sleeper=offline_admission.sleep)
+        if (offline_admission is None and self.canonical_authority and self.shared_admission is not None
+                and self.shared_admission.operating_interval is not None):
+            requests_per_second=1/self.shared_admission.interval
+            if pacer is not None and pacer.maximum_requests_per_second!=requests_per_second:
+                pacer=ProviderPacer(requests_per_second)
         self.admission_scope = threading.local()
         self.provider_kind = _provider_kind(endpoint)
         from .immutable_rpc import configured as evidence_store, Reuse

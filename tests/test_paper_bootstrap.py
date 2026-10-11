@@ -70,7 +70,7 @@ class AdmissionTests(unittest.TestCase):
         self.assertEqual(Decimal(a.snapshot()['capital']['actual_cash']),Decimal('500'))
         self.assertTrue(book.replay()['verified']);a.verify_replay()
         # This is a fixture, never a production certificate.
-        with self.assertRaisesRegex(Exception,'combined_position_and_candidate'):require_normal()
+        with self.assertRaisesRegex(Exception,'continuous_profile'):require_normal()
 
     def test_dead_supervisor_and_clock_expiry_close_only_new_exposure(self):
         root,a,now,_=self.fixture();self.scope(a,now,root)
@@ -132,7 +132,7 @@ class AdmissionTests(unittest.TestCase):
         root,a,now,_=self.fixture();self.scope(a,now,root)
         state=a.ledger();state['runtime_admission']['gross_reserved']='24'
         state.setdefault('runtime_native_requests',{})['pump:first']='req';state['native_aliases']['pump:first']='pump:n1'
-        result=decision(state,dict(request_id='req'),dict(status='RESERVED',basis='6.25',total='6.25'),now)
+        result=decision(state,dict(request_id='req',regime='pump_current'),dict(status='RESERVED',basis='6.25',total='6.25'),now)
         self.assertEqual(result['reason'],'bootstrap_gross_capital_limit')
         self.assertEqual(state['runtime_admission']['gross_reserved'],'24')
 

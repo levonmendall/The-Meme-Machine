@@ -312,7 +312,12 @@ class ProcessSupervisor(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'wallet'):validate_environment(offline=True,environ={'WALLET_PRIVATE_KEY':'forbidden-fixture'})
         with tempfile.TemporaryDirectory() as td:
             root=Path(td)/'never-created'
-            with self.assertRaisesRegex(ValuationUnavailable,'USDG/USD'):Supervisor(root).initialize()
+            # A bounded observation still validates the selected family's USD
+            # anchor before touching storage; NORMAL now additionally requires
+            # an explicit continuous profile before any provider work.
+            with patch.dict(os.environ,MM_BOUNDED_PROVIDER_ENVELOPE='',MM_ROBINHOOD_READ_RPC_URL=''):
+                with self.assertRaisesRegex(ValuationUnavailable,'USDG/USD'):
+                    Supervisor(root,admission='OBSERVATION').initialize()
             self.assertFalse(root.exists())
 
     def test_runtime_imports_have_no_historical_certification_dependency(self):

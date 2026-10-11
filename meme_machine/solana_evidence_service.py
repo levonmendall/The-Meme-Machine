@@ -359,7 +359,12 @@ class FinalizedFence:
                 self.writer._gap(scope,prior,parent,'missing_filtered_block_receipt')
             self.writer.db.execute('INSERT OR REPLACE INTO service_health VALUES(?,?)',
                 ('finalized_frontier:'+scope,canonical(dict(slot=slot,time=at,seen=seen))))
-        self.writer.reconnect(scope,slot)
+        # An overlap replay is allowed to arrive before an outstanding outage.
+        # It cannot bound that later gap yet. Keep the strict writer guard and
+        # wait for an authenticated receipt at or beyond every open gap floor.
+        later_gap=self.writer.db.execute('SELECT 1 FROM gaps WHERE scope=? AND hi IS NULL AND repaired IS NULL AND lo>? LIMIT 1',
+            (scope,slot)).fetchone()
+        if not later_gap:self.writer.reconnect(scope,slot)
         self.seal(scope,seen)
 
     def seal(self,scope,seen):

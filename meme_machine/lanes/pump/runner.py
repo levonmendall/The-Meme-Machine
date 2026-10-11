@@ -1253,6 +1253,8 @@ def main(*,campaign=False,discovery_seconds=None):
     from meme_machine.lanes.pump.paper_accounting import PaperBook
     import uuid
     if type(campaign) is not bool:raise ValueError('pump_campaign_flag')
+    from meme_machine.operational.position_continuation import continuous_operation
+    continuous=campaign and continuous_operation()
     discovery_seconds=DISCOVERY_SECONDS if discovery_seconds is None else int(discovery_seconds)
     if not 600<=discovery_seconds<=(21600 if campaign else 3300):
         raise ValueError('pump_discovery_runtime_bound')
@@ -1355,17 +1357,17 @@ def main(*,campaign=False,discovery_seconds=None):
         tape=tape,created=created,postgrad=postgrad,plane=plane,confirmations=confirmations
     )
     last_eval={};last_postgrad_eval={};last_save=0
-    discovery_end=int(time.time())+discovery_seconds
-    end=discovery_end+FOLLOWUP_SECONDS
+    discovery_end=None if continuous else int(time.time())+discovery_seconds
+    end=None if continuous else discovery_end+FOLLOWUP_SECONDS
     report["discovery_deadline"]=discovery_end
 
     try:
-        while int(time.time())<end or (campaign and position_only()):
+        while continuous or int(time.time())<end or (campaign and position_only()):
             now=int(time.time())
             _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,now)
             _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
             maintenance_only=position_only()
-            if survivor is not None:report['survivor']=survivor.tick(now,admit=not maintenance_only and now<discovery_end)
+            if survivor is not None:report['survivor']=survivor.tick(now,admit=not maintenance_only and (continuous or now<discovery_end))
             native=report.get('survivor') or {}
             update('MANAGING' if active or pending or (native.get('accounting') or {}).get('open_positions') else 'DISCOVERING',
                 reconciled=True,restored_positions=len(active)+len(pending),
@@ -1450,12 +1452,12 @@ def main(*,campaign=False,discovery_seconds=None):
 
             # New late-curve entries stop at discovery_end; follow-up never backfills
             # another pre-graduation decision.
-            if now<discovery_end and tape.covered(now):
+            if (continuous or now<discovery_end) and tape.covered(now):
                 for event in fresh:
                     _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time()))
                     _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
                     now=int(time.time())
-                    if now>=discovery_end:break
+                    if not continuous and now>=discovery_end:break
                     mint=event.get("mint")
                     state=created.get(mint)
                     if state is None or state.get("graduated"):
@@ -1602,7 +1604,7 @@ def main(*,campaign=False,discovery_seconds=None):
                 _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time()))
                 _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
                 now=int(time.time())
-                if campaign and now>=discovery_end:break
+                if not continuous and campaign and now>=discovery_end:break
                 age=now-int(state["graduation_time"])
                 if age<5 or now-int(last_postgrad_eval.get(mint,0))<10:
                     continue

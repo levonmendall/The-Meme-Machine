@@ -35,13 +35,11 @@ ARCHIVE_WORKERS=8
 SCOUT_COMMIT_BATCH=64
 # Acquisition cannot prove funded-position latency before a position exists.
 # Enforce this guard at capital admission, never at read-only source startup.
-PRODUCTION_BLOCKERS=(
-    'combined_position_and_candidate_provider_latency_not_certified',
-)
+PRODUCTION_BLOCKERS=() # Retained import compatibility; readiness is live and regime-specific.
 
 def require_certified():
-    if PRODUCTION_BLOCKERS:
-        raise EvidenceUnavailable(PRODUCTION_BLOCKERS[0])
+    from .operational.admission import require_normal
+    return require_normal()
 REPLAY_SLOTS=6000
 CONTROL_OVERLAP=256
 WARM_OVERLAP=32
@@ -454,9 +452,16 @@ class SelectiveSource:
     async def control_stream(self,channel,tip,queue):
         retry=0
         while not self.stop.is_set():
+            if retry:
+                # Reconnect after an ordinary outage uses a current provider
+                # replay boundary, not the process's original startup tip.
+                tip=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',2)
             checkpoint=await self.work(lambda s:s.writer.db.execute(
                 'SELECT MAX(hi) FROM coverage WHERE scope=?',(CONTROL,)).fetchone()[0],2)
-            floor=max(1,(tip if checkpoint is None else checkpoint)-CONTROL_OVERLAP)
+            # A stale checkpoint cannot request replay outside the supported
+            # 6,000-slot window. The retained outage remains an explicit gap;
+            # current linked receipts never assert that missing history exists.
+            floor=max(1,tip-REPLAY_SLOTS,(tip if checkpoint is None else checkpoint)-CONTROL_OVERLAP)
             req=pb.SubscribeRequest(commitment=pb.FINALIZED,from_slot=floor)
             req.blocks_meta['b'].SetInParent();req.slots['f'].filter_by_commitment=True
             join=CandidateTransactionJoin({},set(),filtered_from_slot=floor)

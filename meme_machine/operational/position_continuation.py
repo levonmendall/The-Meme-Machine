@@ -1,4 +1,4 @@
-"""Finite admission and autonomous native maintenance in the existing service.
+"""Continuous PAPER and bounded diagnostic maintenance in the existing service.
 
 This is a lifecycle state machine, not another manager. Economic state belongs
 to the unchanged native journals and shared authority. Resource configuration
@@ -21,6 +21,77 @@ EXIT_RECOVERY_SECONDS=3600
 SHUTDOWN_SECONDS=65
 TOTAL_SECONDS=1200+HOLD_SECONDS+EXIT_RECOVERY_SECONDS+SHUTDOWN_SECONDS
 PHASES=('BOOTSTRAP','CONTINUATION','RECOVERY','FAULT','FLAT')
+
+
+def validate_continuous(row):
+    """Physical operating capacity and warning thresholds, never an allowance."""
+    keys={'schema','funding_regimes','limits','maximum_queue_depth','maximum_queue_wait_seconds',
+        'maximum_rss_bytes','maximum_cpu_cores','failure_window_seconds','failures_before_backoff',
+        'reconnect_backoff_seconds','spend_warning_hourly_usd','spend_warning_daily_usd',
+        'spend_warning_monthly_usd','usage_increase_factor','physical_http_start_interval_seconds',
+        'robinhood_http_start_interval_seconds'}
+    if not isinstance(row,dict) or set(row)!=keys or row['schema']!='paper-continuous-provider-v1':
+        raise CapitalError('explicit_continuous_provider_profile_required')
+    regimes=row['funding_regimes']
+    if (not isinstance(regimes,list) or not regimes or len(set(regimes))!=len(regimes)
+            or any(r not in ('pump_current','pump_survivor','pons_current','pons_survivor') for r in regimes)):
+        raise CapitalError('continuous_selected_regimes_required')
+    limits=row['limits']
+    if (not isinstance(limits,dict) or set(limits)!={'native_inflight_bytes','http_inflight_bytes'}
+            or any(type(v) is not int or not 6*16*1024**2<=v<=512*1024**2 for v in limits.values())):
+        raise CapitalError('continuous_inflight_capacity_required')
+    if (row['maximum_queue_depth']!=64 or row['maximum_queue_wait_seconds']!=5
+            or row['maximum_rss_bytes']!=6*1024**3 or row['maximum_cpu_cores']!='1.8'
+            or row['failure_window_seconds']!=60 or row['failures_before_backoff']!=8
+            or row['reconnect_backoff_seconds']!=30):
+        raise CapitalError('continuous_technical_health_profile_required')
+    from decimal import Decimal
+    try:
+        for key in ('physical_http_start_interval_seconds','robinhood_http_start_interval_seconds'):
+            value=row[key]
+            if not isinstance(value,str) or not Decimal(value).is_finite() or not Decimal('0.1')<=Decimal(value)<=1:
+                raise ValueError()
+        for key in ('spend_warning_hourly_usd','spend_warning_daily_usd','spend_warning_monthly_usd','usage_increase_factor'):
+            value=row[key]
+            if not isinstance(value,str) or not Decimal(value).is_finite() or Decimal(value)<=0:raise ValueError()
+        if Decimal(row['usage_increase_factor'])<2:raise ValueError()
+    except (ValueError,ArithmeticError):raise CapitalError('continuous_usage_warning_profile_required') from None
+    return row
+
+
+def load_continuous(path=None):
+    path=path or os.environ.get('MM_CONTINUOUS_PROVIDER_ENVELOPE')
+    if not path:raise CapitalError('continuous_provider_profile_missing')
+    file=Path(path)
+    if file.is_symlink() or file.stat().st_size>16384:raise CapitalError('continuous_provider_profile_bound')
+    def unique(pairs):
+        result={}
+        for k,v in pairs:
+            if k in result:raise CapitalError('continuous_provider_profile_duplicate')
+            result[k]=v
+        return result
+    return validate_continuous(json.loads(file.read_text(),object_pairs_hook=unique))
+
+
+def continuous_operation():
+    return os.environ.get('MM_PROVIDER_OPERATION_MODE')=='CONTINUOUS'
+
+
+def provider_interval(provider):
+    """Explicit shared pacing; a profile is configuration, not provider proof."""
+    if continuous_operation():
+        key='robinhood_http_start_interval_seconds' if provider=='robinhood' else 'physical_http_start_interval_seconds'
+        return float(load_continuous()[key])
+    if os.environ.get('MM_BOUNDED_PROVIDER_DB'):
+        from .bounded_provider import Budget
+        budget=Budget(os.environ['MM_BOUNDED_PROVIDER_DB'])
+        if 'continuation_envelope' in budget.snapshot():
+            # Legacy bounded maintenance has its own phase admission. An
+            # expired bootstrap must never veto its remaining exit resources.
+            return .5
+        row=budget.preflight_file()
+        return float(row['physical_http_start_intervals'][provider])
+    return None
 
 
 def funding_scope(envelope):
@@ -47,6 +118,8 @@ def funding_scope(envelope):
 
 
 def funding_lanes(envelope):
+    if envelope.get('schema')=='paper-continuous-provider-v1':
+        return tuple(dict.fromkeys(FAMILIES[r] for r in envelope['funding_regimes']))
     scope=funding_scope(envelope)
     return tuple(dict.fromkeys(FAMILIES[r] for r in scope['regimes'])) if scope else ('pump','pons')
 
@@ -96,11 +169,12 @@ def position_only(*,path=None,now=None):
     No run ledger means ordinary separately authorized operational behavior.
     An unreadable finite-run ledger can never resume expensive discovery.
     """
-    path=path or os.environ.get('MM_BOUNDED_PROVIDER_DB')
+    path=path or os.environ.get('MM_PROVIDER_USAGE_DB') or os.environ.get('MM_BOUNDED_PROVIDER_DB')
     if not path:return False
     try:
         with closing(sqlite3.connect(Path(path).absolute().as_uri()+'?mode=ro',uri=True,timeout=.1)) as db:
-            rows=dict(db.execute("SELECT key,value FROM run WHERE key IN ('phase','started_wall','work_mode')"))
+            rows=dict(db.execute("SELECT key,value FROM run WHERE key IN ('phase','started_wall','work_mode','operating_mode')"))
+        if rows.get('operating_mode')=='CONTINUOUS':return rows.get('work_mode')=='POSITION_ONLY'
         return (rows.get('work_mode')=='POSITION_ONLY' or rows.get('phase','BOOTSTRAP')!='BOOTSTRAP'
             or (time.time() if now is None else now)>=float(rows['started_wall'])+1200)
     except (OSError,sqlite3.Error,KeyError,ValueError):return True
@@ -278,6 +352,9 @@ def provider_failure(supervisor,reason):
     is not an exit signal and does not mark stale evidence as usable.
     """
     budget=supervisor.provider_budget;now=int(time.time())
+    if getattr(budget,'continuous',False):
+        budget.publish_readiness(False,supervisor.run_id,reason=reason)
+        return
     if supervisor.admission=='BOOTSTRAP':close_bootstrap(supervisor,reason)
     with closing(budget.bootstrap.db()) as db:
         db.execute('BEGIN IMMEDIATE')
@@ -293,5 +370,6 @@ def provider_failure(supervisor,reason):
 
 
 def provider_recovered(supervisor):
+    if getattr(supervisor.provider_budget,'continuous',False):return # normal_tick proves fresh readiness before reopening
     with closing(supervisor.provider_budget.bootstrap.db()) as db:
         db.execute("DELETE FROM run WHERE key IN ('provider_degraded_at','provider_fault')")

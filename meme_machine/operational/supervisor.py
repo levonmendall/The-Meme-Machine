@@ -58,7 +58,7 @@ def pons_held_shadow_settings(environ):
     return values
 
 
-def validate_environment(*,offline=False,environ=None):
+def validate_environment(*,offline=False,environ=None,required_lanes=ACTIVE_LANES):
     env=os.environ if environ is None else environ
     if env.get('MM_MODE','PAPER')!='PAPER':raise ValueError('PAPER_only_service')
     if any(env.get(key) for key in ('WALLET_PRIVATE_KEY','SOLANA_PRIVATE_KEY','ETH_PRIVATE_KEY','MM_LIVE_TRADING')):
@@ -68,7 +68,7 @@ def validate_environment(*,offline=False,environ=None):
     pons_held_shadow_settings(env)
     if sys.version_info[:3]!=(3,12,14):raise RuntimeError('CPython_3.12.14_required')
     if sqlite3.sqlite_version_info<(3,45,1):raise RuntimeError('SQLite_3.45.1_or_tested_successor_required')
-    if not offline:
+    if not offline and 'pons' in required_lanes:
         # Configuration only. Oracle availability is checked by Robinhood value
         # readers before economic exposure, independently of the Solana lanes.
         from meme_machine.runtime.robinhood.provider_authority import endpoint
@@ -100,10 +100,17 @@ class Supervisor:
         return assert_clear(self.root,account)
 
     def initialize(self):
-        validate_environment(offline=self.offline)
+        required=ACTIVE_LANES
+        if not self.offline and self.admission in ('NORMAL','AUTONOMY'):
+            from .admission import require_normal
+            from .position_continuation import funding_lanes
+            required=funding_lanes(require_normal(startup=True))
+        elif not self.offline and self.admission=='OBSERVATION' and os.environ.get('MM_BOUNDED_PROVIDER_ENVELOPE'):
+            required=tuple(json.loads(Path(os.environ['MM_BOUNDED_PROVIDER_ENVELOPE']).read_text())['lanes'])
+        validate_environment(offline=self.offline,required_lanes=required)
         if not self.offline:
             from .admission import require_normal,require_autonomy
-            if self.admission=='NORMAL':require_normal()
+            if self.admission=='NORMAL':require_normal(startup=True)
             if self.admission=='AUTONOMY':require_autonomy(self.root)
             from .storage_guard import verify_storage
             verify_storage(self.root)
@@ -215,9 +222,14 @@ class Supervisor:
                 raise ValueError('pons_shadow_requires_existing_finite_provider_budget')
             env.update(shadow)
         if getattr(self,'provider_budget',None):
-            env['MM_BOUNDED_PROVIDER_DB']=str(self.provider_budget.path)
-            if os.environ.get('MM_BOUNDED_PROVIDER_ENVELOPE'):
-                env['MM_BOUNDED_PROVIDER_ENVELOPE']=os.environ['MM_BOUNDED_PROVIDER_ENVELOPE']
+            if getattr(self.provider_budget,'continuous',False):
+                env['MM_PROVIDER_OPERATION_MODE']='CONTINUOUS'
+                env['MM_PROVIDER_USAGE_DB']=str(self.provider_budget.path)
+                env['MM_CONTINUOUS_PROVIDER_ENVELOPE']=os.environ['MM_CONTINUOUS_PROVIDER_ENVELOPE']
+            else:
+                env['MM_BOUNDED_PROVIDER_DB']=str(self.provider_budget.path)
+                if os.environ.get('MM_BOUNDED_PROVIDER_ENVELOPE'):
+                    env['MM_BOUNDED_PROVIDER_ENVELOPE']=os.environ['MM_BOUNDED_PROVIDER_ENVELOPE']
         if solana:
             env.update(MM_PROVIDER_GOVERNOR_DB=str(self.root/'shared/solana-provider.sqlite'),
                 MM_SOLANA_EVIDENCE_PLANE_DB=str(self.root/'shared/solana-evidence.sqlite'),
@@ -250,8 +262,11 @@ class Supervisor:
                 self.shared_capital.owner(lane+'_'+suffix,instance,self.processes[lane].pid,ready=False,at=int(time.time()))
 
     def start_services(self):
+        if not hasattr(self,'evidence'):self.evidence=None
         if self.offline:return
         if 'pump' not in self.runtime_lanes():self.evidence=None;return
+        budget=getattr(self,'provider_budget',None)
+        if getattr(budget,'continuous',False) and time.time()<float(budget.snapshot()['backoff_until']):return
         (self.root/'shared').mkdir(exist_ok=True,mode=0o700)
         # Preserve Pump's existing relative broker location while sharing it
         # with the evidence worker, which starts before the lane process.
@@ -279,10 +294,10 @@ class Supervisor:
             except (OSError,ValueError):row=dict(phase='STARTING')
             health[lane]=dict(row,pid=proc.pid,exit_code=proc.poll(),restarts=self.restarts[lane])
         self.last_native_health=health
-        if hasattr(self,'continuation_lanes'):
+        if hasattr(self,'continuation_lanes') or hasattr(self,'observation_lanes'):
             for lane in ACTIVE_LANES:
                 if lane not in health:
-                    health[lane]=dict(lane=lane,phase='CONTINUATION_IDLE',paper_only=True,at=utc(now),
+                    health[lane]=dict(lane=lane,phase='CONTINUATION_IDLE' if hasattr(self,'continuation_lanes') else 'FUNDING_DISABLED',paper_only=True,at=utc(now),
                         discovery_enabled=False,pid=None,process_instance=None,exit_code=None,
                         reconciled=None,ownership_required=False,restarts=self.restarts[lane])
         for lane,reason in PAUSED_LANES.items():
@@ -388,6 +403,11 @@ class Supervisor:
                 result['evidence']['startup_released']=released(db)
                 for key,raw in db.execute("SELECT key,value FROM service_health WHERE key IN ('pid','phase','heartbeat','native_streams')"):
                     result['evidence'][key]=json.loads(raw)
+                if db.execute("SELECT 1 FROM sqlite_master WHERE name='candidate_checkpoints'").fetchone():
+                    from meme_machine.solana_rolling_history import program_scope
+                    result['evidence']['program_checkpoints']=[dict(scope=s,slot=slot,updated=updated,market_time=market)
+                        for s,slot,updated,market in db.execute('SELECT c.scope,c.slot,c.updated,b.market_time FROM candidate_checkpoints c JOIN candidate_blocks b ON b.scope=c.scope AND b.slot BETWEEN c.slot AND c.slot+1 WHERE c.scope IN (?,?)',
+                            (program_scope('pump'),program_scope('pumpswap')))]
             except (OSError,sqlite3.Error):result['evidence']={'state':'UNAVAILABLE'}
             finally:
                 if db:db.close()
@@ -424,7 +444,25 @@ class Supervisor:
             if previous.get('bootstrap_used'):
                 raise RuntimeError('old_bootstrap_without_continuation_requires_disposition')
         self.run_id=uuid.uuid4().hex
-        if self.admission=='BOOTSTRAP':
+        transition_id=self.run_id
+        if self.admission in ('NORMAL','AUTONOMY'):
+            from .admission import require_normal
+            from .position_continuation import funding_lanes,position_lanes
+            envelope=require_normal(startup=True)
+            path=Path(os.environ['MM_PROVIDER_USAGE_DB'])
+            original_path=previous.get('continuous_provider_db')
+            if original_path and (original_path!=str(path) or not path.is_file()):
+                raise ValueError('continuous_usage_history_requires_restore_not_reseed')
+            self.provider_budget=Budget(path) if path.exists() else Budget.create(path,continuous=envelope)
+            if not self.provider_budget.continuous:raise ValueError('continuous_cannot_reuse_bounded_validation_database')
+            self.provider_budget.configure_continuous_scope(envelope)
+            self.provider_budget.preflight_file()
+            if previous.get('mode') in ('NORMAL','AUTONOMY') and previous.get('provider_db')==str(path):
+                self.run_id=previous['run_id']
+            self.provider_budget.publish_readiness(False,self.run_id,reason='startup_reconcile_and_canonical_progress_required')
+            selected=set(funding_lanes(envelope))|set(position_lanes(state))
+            self.observation_lanes=tuple(lane for lane in ACTIVE_LANES if lane in selected)
+        elif self.admission=='BOOTSTRAP':
             original=Budget.create(self.root/'shared'/('bootstrap-'+self.run_id+'.sqlite'),continuation=envelope)
             self.provider_budget=PhaseBudget(original.path)
         elif self.admission=='OBSERVATION' and os.environ.get('MM_BOUNDED_PROVIDER_DB'):
@@ -440,8 +478,45 @@ class Supervisor:
             run_id=self.run_id,pid=os.getpid(),process_start=process_identity(os.getpid()))
         if getattr(self,'provider_budget',None):self.admission_data['provider_db']=str(self.provider_budget.path)
         if self.admission=='BOOTSTRAP':self.admission_data['continuation_envelope']=envelope
-        self.shared_capital.command('run-scope:'+self.run_id,'runtime_admission',self.admission_data,int(time.time()))
+        if self.admission in ('NORMAL','AUTONOMY'):
+            self.admission_data['funding_regimes']=list(envelope['funding_regimes'])
+            self.admission_data['continuous_provider_db']=str(self.provider_budget.path)
+        operation='run-scope:'+self.run_id
+        if self.admission in ('NORMAL','AUTONOMY'):
+            # The usage run survives restarts; each actual process registration
+            # is a new event, never a conflicting replay of the first PID/time.
+            operation+=':'+transition_id
+        self.shared_capital.command(operation,'runtime_admission',self.admission_data,int(time.time()))
         self.ready_since=None;self.ready_frontiers={};self.bootstrap_armed=False
+
+    def normal_tick(self):
+        """Current selected protection conditions, no lifetime funding clock."""
+        budget=self.provider_budget;budget.reap_orphans()
+        from .acceptance import observe
+        from .position_continuation import readiness,funding_lanes
+        try:
+            health,portfolio,rss=observe(self.root,funding_lanes=funding_lanes(budget.envelope))
+            readiness(health,portfolio,rss,budget.envelope)
+            failure=getattr(self,'current_readiness_failure',None)
+            if failure:raise ValueError(failure)
+            frontiers={}
+            if 'pump' in funding_lanes(budget.envelope):
+                rows=health['providers']['evidence'].get('program_checkpoints',[])
+                if len(rows)!=2 or any(not 0<=time.time()-r['updated']<=5 or not 0<=time.time()-r['market_time']<=15 for r in rows):
+                    raise ValueError('pump_canonical_program_coverage_not_current')
+                frontiers.update({r['scope']:r['slot'] for r in rows})
+            if 'pons' in funding_lanes(budget.envelope):frontiers['pons:canonical']=health['active_evidence']['pons_canonical_cursor']
+            if self.ready_since is None:
+                self.ready_since=time.monotonic();self.ready_frontiers=frontiers
+            ready=(time.monotonic()-self.ready_since>=60 and
+                all(frontiers[k]>value for k,value in self.ready_frontiers.items()))
+            budget.publish_readiness(ready,self.run_id)
+        except (OSError,ValueError,KeyError) as error:
+            self.ready_since=None;self.ready_frontiers={}
+            import re
+            detail=str(error)
+            if not re.fullmatch(r'[A-Za-z0-9_:.-]{1,160}',detail):detail=type(error).__name__
+            budget.publish_readiness(False,self.run_id,reason='selected_regime_protection_not_ready:'+detail)
 
     def bootstrap_tick(self):
         """Reuse operational health; readiness never replaces native qualification."""
@@ -529,6 +604,26 @@ class Supervisor:
         if outstanding(self.shared_capital.ledger()):
             if reason:provider_failure(self,reason)
             else:provider_recovered(self)
+        self.current_readiness_failure=reason
+
+    def recover_evidence(self):
+        """An incident blocks new risk; existing native owners keep priority."""
+        if getattr(getattr(self,'provider_budget',None),'continuous',False):
+            now=time.time()
+            if getattr(self,'reported_evidence_failure',None)!=self.evidence.pid:
+                self.reported_evidence_failure=self.evidence.pid
+                self.provider_budget.provider_error('canonical_evidence_process_failed')
+                self.next_evidence_retry=now+2
+            if now>=self.next_evidence_retry and now>=float(self.provider_budget.snapshot()['backoff_until']):
+                self.start_services();self.next_evidence_retry=now+2
+            return
+        # Bounded historical validation keeps its original ownership handoff.
+        self.stop_lanes()
+        if hasattr(getattr(self,'provider_budget',None),'bootstrap'):
+            from .position_continuation import provider_failure
+            provider_failure(self,'shared_authenticated_evidence_process_failed')
+        time.sleep(2);self.start_services()
+        for lane in self.runtime_lanes():self.start_lane(lane)
 
     def run(self,*,seconds=None):
         self.initialize()
@@ -548,24 +643,16 @@ class Supervisor:
                         self.restarts[lane]+=1
                         self.next_start[lane]=time.monotonic()+min(30,2**min(self.restarts[lane],5))
                         self.start_lane(lane)
-                if not self.offline and self.evidence is not None and self.evidence.poll() is not None:
-                    # Stop lane owners before shared evidence replacement; their
-                    # next start must prove native journals and pending delivery.
-                    self.stop_lanes()
-                    if hasattr(getattr(self,'provider_budget',None),'bootstrap'):
-                        from .position_continuation import provider_failure
-                        provider_failure(self,'shared_authenticated_evidence_process_failed')
-                    # Native state is durable; close funding before reconnecting.
-                    time.sleep(2)
-                    self.start_services()
-                    for lane in self.runtime_lanes():self.start_lane(lane)
+                if not self.offline and self.evidence is None and 'pump' in self.runtime_lanes():self.start_services()
+                if not self.offline and self.evidence is not None and self.evidence.poll() is not None:self.recover_evidence()
                 if not self.offline and self.evidence is not None and 'pump' not in self.runtime_lanes():
                     self.stop_process(self.evidence,45);self.evidence=None
                 if time.monotonic()-self.last_publish>=2:
-                    if self.admission in ('BOOTSTRAP','CONTINUATION') and not self.offline:
+                    if self.admission in ('BOOTSTRAP','CONTINUATION','NORMAL','AUTONOMY') and not self.offline:
                         self.continuation_health()
                     self.publish()
                     if self.admission=='BOOTSTRAP' and not self.offline:self.bootstrap_tick()
+                    if self.admission in ('NORMAL','AUTONOMY') and not self.offline:self.normal_tick()
                     if self.admission in ('BOOTSTRAP','CONTINUATION') and not self.offline:
                         from .exceptional_window import tick
                         tick(self)
@@ -573,6 +660,7 @@ class Supervisor:
         finally:
             self.stop_requested=True
             budget=getattr(self,'provider_budget',None)
+            if getattr(budget,'continuous',False):budget.publish_readiness(False,self.run_id,reason='supervisor_stopping')
             if budget and hasattr(budget,'bootstrap'):
                 # Termination never leaves a grant that a child or restart can
                 # spend. The same continuation usage/state resumes on failure.

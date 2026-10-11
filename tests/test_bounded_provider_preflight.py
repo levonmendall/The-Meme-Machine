@@ -36,6 +36,20 @@ class ProviderPreflightTests(unittest.TestCase):
             modeled_spend_limit='0.20',maximum_native_opens=8)
         self.file=observation_file(self.root,self.budget)
 
+    def test_explicit_pacing_is_sealed_before_dispatch_and_cannot_change_after_restart(self):
+        pacing=dict(solana='0.5',robinhood='0.25')
+        path=self.root/'four-rps.sqlite'
+        budget=Budget.create(path,limits=LIMITS,physical_http_start_intervals=pacing)
+        file=observation_file(self.root,budget);row=json.loads(file.read_text())
+        row['physical_http_start_intervals']=dict(pacing);file.write_text(json.dumps(row))
+        self.assertEqual(budget.preflight_file(file)['physical_http_start_intervals'],pacing)
+        row['physical_http_start_intervals']['robinhood']='0.1';file.write_text(json.dumps(row))
+        with self.assertRaisesRegex(CeilingReached,'envelope_unverified'):Budget(path).preflight_file(file)
+        self.assertEqual(budget.snapshot()['http_attempts'],'0')
+        self.assertEqual(json.loads(budget.snapshot()['physical_http_start_intervals']),pacing)
+        with self.assertRaises(ValueError):Budget.create(self.root/'invalid-pace.sqlite',physical_http_start_intervals={})
+        self.assertFalse((self.root/'invalid-pace.sqlite').exists())
+
     def test_persisted_custom_envelope_and_restart_preserve_consumption_and_clocks(self):
         preflight=self.budget.preflight_file(self.file)
         self.assertEqual(preflight['limits'],LIMITS);self.assertEqual(preflight['lanes'],['pump'])

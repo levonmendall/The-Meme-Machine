@@ -1,4 +1,4 @@
-"""Finite operational provider exposure, shared by the existing child processes.
+"""Durable provider usage and physical admission for existing child processes.
 
 Reuses the previously validated physical/native transport boundaries and frozen
 read-only method prices. It does not run the technical proof, inject a restart,
@@ -13,6 +13,7 @@ import time
 import uuid
 from decimal import Decimal
 import asyncio
+from meme_machine.exact_money import exact
 
 from engineering.solana_capacity.proof_limits import (
     CeilingReached,MAX_FRAME,PUBLISHED,STREAM_HOST,endpoint_family)
@@ -21,9 +22,18 @@ from engineering.solana_capacity.proof_transport import Stream,WebSocketContext
 LIMITS=dict(rpc_cu=720000,rpc_elements=10000,http_attempts=10000,
             native_bytes=4*1024**3,native_stop_bytes=2*1024**3-MAX_FRAME,
             native_inflight_bytes=2*1024**3)
+USAGE_COUNTERS=('rpc_cu','alchemy_rpc_cu','rpc_elements','solana_rpc_elements','robinhood_rpc_elements',
+    'http_attempts','http_bytes','http_uncertain_bytes','native_bytes','native_uncertain_bytes',
+    'native_opens','native_failures')
 
-def resource_configuration(limits,seconds,spend,reconnects):
+def resource_configuration(limits,seconds,spend,reconnects,*,continuous=False):
     """Complete persisted dispatch envelope; no runtime default substitution."""
+    if continuous:
+        if (set(limits)!={'native_inflight_bytes','http_inflight_bytes'}
+                or any(type(v) is not int or v<6*MAX_FRAME for v in limits.values())
+                or seconds is not None or spend is not None or reconnects is not None):
+            raise ValueError('continuous_capacity_configuration_invalid')
+        return json.dumps(dict(limits=limits,operating_mode='CONTINUOUS'),sort_keys=True,separators=(',',':'))
     if (not isinstance(limits,dict) or set(limits)!=set(LIMITS)|{'http_bytes'}
             or any(type(v) is not int or v<=0 for v in limits.values())
             or limits['native_stop_bytes']>limits['native_bytes']
@@ -37,6 +47,7 @@ def resource_configuration(limits,seconds,spend,reconnects):
     return json.dumps(dict(limits=limits,wall_seconds=seconds,
         modeled_spend_limit=spend,maximum_native_opens=reconnects),sort_keys=True,separators=(',',':'))
 
+@exact
 def modeled_spend(state):
     # Conservative application-byte model, not an invoice assertion. Charge
     # every HTTP method at the frozen CU price, even non-Alchemy endpoints, and
@@ -53,15 +64,29 @@ class Budget:
         self.path=Path(path)
         with closing(self.db()) as db:
             state=self.read(db)
+        self.continuous=state.get('operating_mode')=='CONTINUOUS'
         try:
             limits=json.loads(state['limits'])
-            seconds=None if state['wall_seconds']=='' and phase!='bootstrap' else int(state['wall_seconds'])
-            configuration=resource_configuration(limits,seconds,state['modeled_spend_limit'],int(state['reconnect_limit']))
+            seconds=None if state['wall_seconds']=='' and (self.continuous or phase!='bootstrap') else int(state['wall_seconds'])
+            configuration=resource_configuration(limits,seconds,
+                None if self.continuous else state['modeled_spend_limit'],
+                None if self.continuous else int(state['reconnect_limit']),continuous=self.continuous)
+            if self.continuous:
+                from .position_continuation import validate_continuous
+                self.envelope=validate_continuous(json.loads(state['continuous_envelope']))
+                if self.envelope['limits']!=limits or any(state[k]!='' for k in ('wall_seconds','modeled_spend_limit','reconnect_limit')):
+                    raise ValueError('continuous_profile_identity')
             if configuration!=state['resource_configuration']:
                 raise ValueError('bounded_provider_configuration_changed')
             for key in ('rpc_cu','rpc_elements','http_attempts','http_bytes','http_reserved','http_uncertain_bytes','native_bytes',
                     'native_reserved','native_uncertain_bytes','native_opens'):
                 if not state[key].isdecimal():raise ValueError('bounded_provider_counter_invalid')
+            if self.continuous:
+                for key in USAGE_COUNTERS:
+                    if not state[key].isdecimal():raise ValueError('continuous_provider_counter_invalid')
+                with closing(self.db()) as usage_db:
+                    columns={r[1] for r in usage_db.execute('PRAGMA table_info(usage_hours)')}
+                if columns!=set(USAGE_COUNTERS)|{'hour'}:raise ValueError('continuous_usage_history_invalid')
             import math
             if (not all(math.isfinite(float(state[k])) and float(state[k])>=0 for k in ('started','started_wall'))
                     or not state['boot']):raise ValueError('bounded_provider_clock_invalid')
@@ -85,10 +110,15 @@ class Budget:
         self.configuration=configuration
 
     def verify_configuration(self,state):
+        if self.continuous:
+            if (state.get('operating_mode')!='CONTINUOUS' or json.loads(state['continuous_envelope'])!=self.envelope
+                    or any(state[k]!='' for k in ('wall_seconds','modeled_spend_limit','reconnect_limit'))):
+                return 'continuous_provider_configuration_changed'
         if (state.get('resource_configuration')!=self.configuration
                 or resource_configuration(json.loads(state['limits']),
                     None if state['wall_seconds']=='' else int(state['wall_seconds']),
-                    state['modeled_spend_limit'],int(state['reconnect_limit']))!=self.configuration):
+                    None if self.continuous else state['modeled_spend_limit'],
+                    None if self.continuous else int(state['reconnect_limit']),continuous=self.continuous)!=self.configuration):
             return 'bounded_provider_configuration_changed'
         return ''
 
@@ -102,6 +132,12 @@ class Budget:
 
     def preflight_file(self,path=None):
         """Match the operator's explicit observation file in parent and children."""
+        if self.continuous:
+            from .position_continuation import load_continuous
+            if load_continuous(path)!=self.envelope:self.fail('continuous_provider_envelope_mismatch')
+            self.reap_orphans();self.admission()
+            return dict(limits_verified=True,operating_mode='CONTINUOUS',limits=dict(self.limits),
+                lanes=list(dict.fromkeys(r.split('_')[0] for r in self.envelope['funding_regimes'])))
         path=path or os.environ.get('MM_BOUNDED_PROVIDER_ENVELOPE')
         try:
             if not path:raise ValueError()
@@ -115,12 +151,23 @@ class Budget:
                 return row
             row=json.loads(file.read_text(),object_pairs_hook=unique)
             keys={'schema','limits','wall_seconds','modeled_spend_limit','maximum_native_opens','lanes'}
-            if (set(row)!=keys or row['schema']!='bounded-provider-observation-v1'
+            if (set(row) not in (keys,keys|{'physical_http_start_intervals'}) or row['schema']!='bounded-provider-observation-v1'
                     or row['lanes'] not in (['pump'],['pons'],['pump','pons'])):raise ValueError()
             result=self.preflight(**{k:row[k] for k in keys-{'schema','lanes'}})
+            pacing=row.get('physical_http_start_intervals',dict(solana='0.5',robinhood='0.5'))
+            if (not isinstance(pacing,dict) or set(pacing)!={'solana','robinhood'}
+                    or any(not isinstance(v,str) or not Decimal(v).is_finite() or not Decimal('0.1')<=Decimal(v)<=1
+                           for v in pacing.values())):raise ValueError()
+            identity=json.dumps(pacing,sort_keys=True)
+            with closing(self.db()) as db:
+                db.execute('BEGIN IMMEDIATE')
+                db.execute('INSERT OR IGNORE INTO run VALUES(?,?)',('physical_http_start_intervals',identity))
+                if db.execute('SELECT value FROM run WHERE key=?',('physical_http_start_intervals',)).fetchone()[0]!=identity:
+                    raise ValueError('bounded_provider_pacing_changed')
+                db.execute('COMMIT')
         except (OSError,ValueError,TypeError,KeyError):
             self.fail('bounded_provider_observation_envelope_unverified')
-        return dict(result,lanes=row['lanes'])
+        return dict(result,lanes=row['lanes'],physical_http_start_intervals=pacing)
 
     def reap_orphans(self):
         """Use the existing reservation ownership journal also for observation."""
@@ -149,6 +196,15 @@ class Budget:
             if (key.startswith(self.prefix) if self.prefix else '.' not in key)}
 
     def write(self,db,state):
+        if self.continuous:
+            before=self.read(db)
+            deltas={k:int(state[k])-int(before[k]) for k in USAGE_COUNTERS}
+            if any(v<0 for v in deltas.values()):raise ValueError('provider_usage_counter_regression')
+            if any(deltas.values()):
+                hour=int(time.time())//3600*3600
+                db.execute('INSERT OR IGNORE INTO usage_hours(hour) VALUES(?)',(hour,))
+                db.execute('UPDATE usage_hours SET '+','.join(k+'='+k+'+?' for k in deltas)+' WHERE hour=?',
+                    (*deltas.values(),hour))
         db.executemany('UPDATE run SET value=? WHERE key=?',[(str(v),self.prefix+k) for k,v in state.items()])
 
     def expired(self,state):
@@ -179,10 +235,21 @@ class Budget:
 
     @classmethod
     def create(cls,path,*,continuation=None,limits=None,wall_seconds=1800,
-            modeled_spend_limit='3',maximum_native_opens=32):
+            modeled_spend_limit='3',maximum_native_opens=32,continuous=None,physical_http_start_intervals=None):
+        pacing=dict(solana='0.5',robinhood='0.5') if physical_http_start_intervals is None else physical_http_start_intervals
+        if (not isinstance(pacing,dict) or set(pacing)!={'solana','robinhood'} or any(not isinstance(v,str) or not Decimal(v).is_finite()
+                or not Decimal('0.1')<=Decimal(v)<=1 for v in pacing.values())):
+            raise ValueError('bounded_provider_pacing_profile_invalid')
+        if continuous is not None:
+            from .position_continuation import validate_continuous
+            validate_continuous(continuous)
+            if continuation is not None or limits is not None:raise ValueError('continuous_cannot_inherit_engineering_allowances')
+            limits=dict(continuous['limits']);wall_seconds=None;modeled_spend_limit=None;maximum_native_opens=None
+            pacing=dict(solana=continuous['physical_http_start_interval_seconds'],
+                robinhood=continuous['robinhood_http_start_interval_seconds'])
         limits=dict(LIMITS,http_bytes=128*1024**2) if limits is None else dict(limits)
-        configuration=resource_configuration(limits,wall_seconds,modeled_spend_limit,maximum_native_opens)
-        if wall_seconds is None or wall_seconds<=0:raise ValueError('bounded_observation_wall_limit_required')
+        configuration=resource_configuration(limits,wall_seconds,modeled_spend_limit,maximum_native_opens,continuous=continuous is not None)
+        if continuous is None and (wall_seconds is None or wall_seconds<=0):raise ValueError('bounded_observation_wall_limit_required')
         if continuation is not None:
             from .position_continuation import validate_envelope
             validate_envelope(continuation)
@@ -196,19 +263,113 @@ class Budget:
             db.execute('CREATE TABLE http_receipts(id TEXT PRIMARY KEY,remaining INTEGER NOT NULL,closed INTEGER NOT NULL,owner TEXT NOT NULL)')
             db.executemany('INSERT INTO run VALUES(?,?)',[
                 ('started',str(time.monotonic())),('boot',Path('/proc/sys/kernel/random/boot_id').read_text().strip()),
-                ('started_wall',str(int(time.time()))),('wall_seconds',str(wall_seconds)),('phase','BOOTSTRAP'),('work_mode','DISCOVERY'),
+                ('started_wall',str(int(time.time()))),('wall_seconds','' if wall_seconds is None else str(wall_seconds)),('phase','CONTINUOUS' if continuous else 'BOOTSTRAP'),('work_mode','DISCOVERY'),
                 ('reason',''),('rpc_cu','0'),('rpc_elements','0'),('http_attempts','0'),
                 ('native_bytes','0'),('native_reserved','0'),('native_uncertain_bytes','0'),
                 ('http_bytes','0'),('http_reserved','0'),('http_uncertain_bytes','0'),('alchemy_rpc_cu','0'),('solana_rpc_elements','0'),('robinhood_rpc_elements','0'),
-                ('native_opens','0'),('modeled_spend_limit',modeled_spend_limit),
-                ('limits',json.dumps(limits,sort_keys=True)),('reconnect_limit',str(maximum_native_opens)),
-                ('resource_configuration',configuration)])
+                ('native_opens','0'),('modeled_spend_limit',modeled_spend_limit or ''),
+                ('limits',json.dumps(limits,sort_keys=True)),('reconnect_limit','' if maximum_native_opens is None else str(maximum_native_opens)),
+                ('resource_configuration',configuration),('physical_http_start_intervals',json.dumps(pacing,sort_keys=True))])
+            if continuous:
+                db.executemany('INSERT INTO run VALUES(?,?)',[
+                    ('operating_mode','CONTINUOUS'),('continuous_envelope',json.dumps(continuous,sort_keys=True)),
+                    ('continuous_configuration_changes','[]'),
+                    ('native_failures','0'),('failure_times','[]'),('backoff_until','0'),
+                    ('new_risk_ready','false'),('readiness_at','0'),('readiness_owner',''),('provider_fault','{}')])
+                db.execute('CREATE TABLE usage_hours(hour INTEGER PRIMARY KEY,'+
+                    ','.join(k+' INTEGER NOT NULL DEFAULT 0' for k in USAGE_COUNTERS)+')')
             if continuation is not None:cls.add_continuation(db,continuation)
             db.commit()
         return cls(path)
 
     def snapshot(self):
         with closing(self.db()) as db:return self.read(db)
+
+    def configure_continuous_scope(self,profile):
+        """Coherent installed scope changes preserve this same usage history.
+
+        The supervisor calls this before children start. No readiness survives a
+        change; each selected native regime must pass current protection again.
+        """
+        from .position_continuation import validate_continuous
+        validate_continuous(profile)
+        if not self.continuous or profile['limits']!=self.limits:
+            raise ValueError('continuous_capacity_change_requires_reviewed_successor')
+        mutable={'funding_regimes','physical_http_start_interval_seconds','robinhood_http_start_interval_seconds',
+            'spend_warning_hourly_usd','spend_warning_daily_usd','spend_warning_monthly_usd','usage_increase_factor'}
+        if any(profile[k]!=self.envelope[k] for k in profile.keys()-mutable):
+            raise ValueError('continuous_capacity_change_requires_reviewed_successor')
+        if profile==self.envelope:return
+        with closing(self.db()) as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('INSERT OR IGNORE INTO run VALUES(?,?)',('continuous_configuration_changes','[]'))
+            state=self.read(db)
+            reason=self.verify_configuration(state)
+            if reason:raise CeilingReached(reason)
+            changes=json.loads(state.get('continuous_configuration_changes','[]'))
+            changes.append(dict(at=time.time(),previous=self.envelope,selected=profile))
+            state['continuous_configuration_changes']=json.dumps(changes,sort_keys=True)
+            state['continuous_envelope']=json.dumps(profile,sort_keys=True)
+            state['physical_http_start_intervals']=json.dumps(dict(solana=profile['physical_http_start_interval_seconds'],
+                robinhood=profile['robinhood_http_start_interval_seconds']),sort_keys=True)
+            state['new_risk_ready']='false'
+            self.write(db,state);db.execute('COMMIT')
+        self.envelope=profile
+
+    def technical_fault(self,state,reason):
+        """Close new risk durably without denying healthy existing transports."""
+        state['new_risk_ready']='false'
+        state['provider_fault']=json.dumps(dict(state='DEGRADED_PROTECTION',reason=reason,
+            at=time.time(),funding_closed=True,protected=False,action='restore_current_evidence_and_provider_health'))
+
+    def provider_error(self,reason):
+        if not self.continuous:return
+        with closing(self.db()) as db:
+            db.execute('BEGIN IMMEDIATE');state=self.read(db);now=time.time()
+            failures=[at for at in json.loads(state['failure_times']) if now-at<self.envelope['failure_window_seconds']]
+            failures.append(now);state['failure_times']=json.dumps(failures[-self.envelope['failures_before_backoff']:])
+            state['native_failures']=str(int(state['native_failures'])+1)
+            if len(failures)>=self.envelope['failures_before_backoff']:
+                state['backoff_until']=str(max(float(state['backoff_until']),now+self.envelope['reconnect_backoff_seconds']))
+            self.technical_fault(state,reason);self.write(db,state);db.execute('COMMIT')
+
+    def publish_readiness(self,ready,owner,*,reason=''):
+        if not self.continuous:raise ValueError('continuous_readiness_required')
+        with closing(self.db()) as db:
+            db.execute('BEGIN IMMEDIATE');state=self.read(db)
+            ready=bool(ready and not state['reason'] and time.time()>=float(state['backoff_until']))
+            state.update(new_risk_ready=json.dumps(ready),readiness_at=str(time.time()),readiness_owner=owner)
+            if ready:state['provider_fault']='{}'
+            elif reason:self.technical_fault(state,reason)
+            self.write(db,state);db.execute('COMMIT')
+
+    def usage(self):
+        if not self.continuous:return None
+        from datetime import datetime,timezone
+        state=self.snapshot();now=time.time();current=datetime.fromtimestamp(now,timezone.utc)
+        hour=int(now)//3600*3600;day=int(current.replace(hour=0,minute=0,second=0,microsecond=0).timestamp())
+        month=int(current.replace(day=1,hour=0,minute=0,second=0,microsecond=0).timestamp())
+        periods={};warnings=[]
+        with closing(self.db()) as db:
+            for label,start in (('hourly',hour),('daily',day),('monthly',month)):
+                sums=db.execute('SELECT '+','.join('COALESCE(SUM('+k+'),0)' for k in USAGE_COUNTERS)+
+                    ' FROM usage_hours WHERE hour>=? AND hour<=?',(start,hour)).fetchone()
+                row=dict(zip(USAGE_COUNTERS,sums));row['native_reserved']=0
+                row['modeled_spend_usd']=str(modeled_spend(row));periods[label]=row
+                if Decimal(row['modeled_spend_usd'])>=Decimal(self.envelope['spend_warning_'+label+'_usd']):
+                    warnings.append('provider_spend_'+label+'_warning')
+            previous=db.execute('SELECT COALESCE(SUM(rpc_cu),0),COALESCE(SUM(native_bytes+native_uncertain_bytes),0),COUNT(*) FROM usage_hours WHERE hour>=? AND hour<?',
+                (hour-24*3600,hour)).fetchone()
+            prior_cost=Decimal(previous[0])*Decimal('0.525')/1000000+Decimal(previous[1])*Decimal('0.0002')*Decimal('0.525')/1000000
+            elapsed=max(60,now-hour)
+            if (previous[2]>=3 and prior_cost>0 and Decimal(periods['hourly']['modeled_spend_usd'])*Decimal(3600/elapsed)>
+                    prior_cost/previous[2]*Decimal(self.envelope['usage_increase_factor'])):
+                warnings.append('provider_usage_increase_warning')
+        return dict(phase='CONTINUOUS',fault=json.loads(state['provider_fault']),provider_fault=json.loads(state['provider_fault']),
+            periods=periods,warnings=warnings,lifetime={k:state[k] for k in USAGE_COUNTERS},
+            modeled_spend_usd=str(modeled_spend(state)),price_basis='conservative_public_price_model_not_invoice',
+            native_reserved=int(state['native_reserved']),http_reserved=int(state['http_reserved']),
+            new_risk_ready=state['new_risk_ready']=='true',backoff_until=float(state['backoff_until']))
 
     def change(self,add=None,*,reason=None,check=True,receipt=None):
         with closing(self.db()) as db:
@@ -217,24 +378,30 @@ class Budget:
             except (KeyError,ValueError,TypeError,ArithmeticError):configuration_failure='bounded_provider_configuration_unverified'
             failure=state['reason'] or configuration_failure
             if check:
-                if self.phase=='bootstrap' and state['boot']!=Path('/proc/sys/kernel/random/boot_id').read_text().strip():failure=failure or 'bounded_run_host_restarted'
+                if not self.continuous and self.phase=='bootstrap' and state['boot']!=Path('/proc/sys/kernel/random/boot_id').read_text().strip():failure=failure or 'bounded_run_host_restarted'
                 elif self.expired(state):failure=failure or 'bounded_run_wall_limit'
             for key,n in (add or {}).items():state[key]=str(int(state[key])+n)
             if add or check:
-                for key in ('rpc_cu','rpc_elements','http_attempts'):
-                    if int(state[key])>self.limits[key]:failure=failure or key+'_limit'
-                if sum(int(state[k]) for k in ('http_bytes','http_uncertain_bytes','http_reserved'))>self.limits['http_bytes']:
-                    failure=failure or 'http_bytes_limit'
+                if not self.continuous:
+                    for key in ('rpc_cu','rpc_elements','http_attempts'):
+                        if int(state[key])>self.limits[key]:failure=failure or key+'_limit'
+                    if sum(int(state[k]) for k in ('http_bytes','http_uncertain_bytes','http_reserved'))>self.limits['http_bytes']:
+                        failure=failure or 'http_bytes_limit'
+                elif int(state['http_reserved'])>self.limits['http_inflight_bytes']:
+                    failure=failure or 'http_inflight_limit'
                 if int(state['native_reserved'])>self.limits['native_inflight_bytes']:failure=failure or 'native_inflight_limit'
-                if sum(int(state[k]) for k in ('native_bytes','native_uncertain_bytes','native_reserved'))>=self.limits['native_stop_bytes']:
+                if not self.continuous and sum(int(state[k]) for k in ('native_bytes','native_uncertain_bytes','native_reserved'))>=self.limits['native_stop_bytes']:
                     failure=failure or 'native_payload_stop'
-                if modeled_spend(state)>Decimal(state['modeled_spend_limit']):failure=failure or 'modeled_spend_limit'
+                if not self.continuous and modeled_spend(state)>Decimal(state['modeled_spend_limit']):failure=failure or 'modeled_spend_limit'
             failure=failure or reason or ''
             if failure and add and check:
                 # RPC/stream reservations which would exceed a ceiling do not
                 # dispatch. Delivery/closure accounting uses check=False.
                 state=self.read(db)
-            state['reason']=failure
+            if self.continuous and failure:
+                self.technical_fault(state,failure)
+                if failure not in ('http_inflight_limit','native_inflight_limit'):state['reason']=failure
+            else:state['reason']=failure
             if receipt and not failure:
                 from meme_machine.shared_capital.runtime import process_identity
                 db.execute('INSERT INTO http_receipts VALUES(?,?,0,?)',(receipt,MAX_FRAME,
@@ -280,7 +447,7 @@ class Budget:
                     remaining=0
                 db.execute('UPDATE http_receipts SET remaining=?,closed=? WHERE id=?',(remaining,int(close),token))
             elif size:failure=failure or 'bounded_http_delivery_after_close'
-            if sum(int(state[k]) for k in ('http_bytes','http_uncertain_bytes','http_reserved'))>self.limits['http_bytes']:
+            if not self.continuous and sum(int(state[k]) for k in ('http_bytes','http_uncertain_bytes','http_reserved'))>self.limits['http_bytes']:
                 failure=failure or 'http_bytes_limit'
             state['reason']=failure;self.write(db,state);db.execute('COMMIT')
         if failure and not close:raise CeilingReached(failure)
@@ -288,7 +455,7 @@ class Budget:
     def http_delivery(self,size):
         # Delivered data is never rolled back, including an exhausted response.
         self.change(dict(http_bytes=size),check=False)
-        if int(self.snapshot()['http_bytes'])>self.limits['http_bytes']:
+        if not self.continuous and int(self.snapshot()['http_bytes'])>self.limits['http_bytes']:
             self.fail('http_bytes_limit')
 
     def stream_open(self,transport):
@@ -308,7 +475,7 @@ class Budget:
             try:configuration_failure=self.verify_configuration(state)
             except (KeyError,ValueError,TypeError,ArithmeticError):configuration_failure='bounded_provider_configuration_unverified'
             failure=state['reason'] or configuration_failure;row=None
-            if self.phase=='bootstrap' and state['boot']!=Path('/proc/sys/kernel/random/boot_id').read_text().strip():
+            if not self.continuous and self.phase=='bootstrap' and state['boot']!=Path('/proc/sys/kernel/random/boot_id').read_text().strip():
                 failure=failure or 'bounded_run_host_restarted'
             elif self.expired(state):
                 failure=failure or 'bounded_run_wall_limit'
@@ -317,13 +484,15 @@ class Budget:
                 if self.expired(state):failure=failure or 'bounded_run_wall_limit'
                 reserve=MAX_FRAME*(3 if transport=='solana_websocket' else 2)
                 total=sum(int(state[k]) for k in ('native_bytes','native_uncertain_bytes','native_reserved'))
-                if (int(state['native_reserved'])+reserve>self.limits['native_inflight_bytes']
-                        or total+reserve+MAX_FRAME>self.limits['native_stop_bytes']
+                if int(state['native_reserved'])+reserve>self.limits['native_inflight_bytes']:
+                    failure=failure or 'native_inflight_limit'
+                if not self.continuous and (total+reserve+MAX_FRAME>self.limits['native_stop_bytes']
                         or total+reserve>self.limits['native_bytes']):failure=failure or 'native_inflight_limit'
-                if physical and int(state['http_attempts'])>=self.limits['http_attempts']:failure=failure or 'http_attempts_limit'
-                if physical and int(state['native_opens'])>=int(state['reconnect_limit']):
+                if self.continuous and time.time()<float(state['backoff_until']):failure=failure or 'native_reconnect_circuit_open'
+                if not self.continuous and physical and int(state['http_attempts'])>=self.limits['http_attempts']:failure=failure or 'http_attempts_limit'
+                if not self.continuous and physical and int(state['native_opens'])>=int(state['reconnect_limit']):
                     failure=failure or 'native_reconnect_limit'
-                if modeled_spend(dict(state,native_reserved=str(int(state['native_reserved'])+reserve)))>Decimal(state['modeled_spend_limit']):
+                if not self.continuous and modeled_spend(dict(state,native_reserved=str(int(state['native_reserved'])+reserve)))>Decimal(state['modeled_spend_limit']):
                     failure=failure or 'modeled_spend_limit'
                 if not failure:
                     token=self.prefix+uuid.uuid4().hex;db.execute('INSERT INTO streams VALUES(?,?,0)',(token,reserve))
@@ -352,10 +521,13 @@ class Budget:
             # After stopping, actual tail replaces its reservation byte for
             # byte; uncertain unread SDK buffers remain charged on close.
             accounted=sum(int(state[k]) for k in ('native_bytes','native_uncertain_bytes','native_reserved'))
-            if accounted+MAX_FRAME>=self.limits['native_stop_bytes']:
+            if not self.continuous and accounted+MAX_FRAME>=self.limits['native_stop_bytes']:
                 failure=failure or 'native_payload_stop'
-            if modeled_spend(state)>Decimal(state['modeled_spend_limit']):failure=failure or 'modeled_spend_limit'
-            state['reason']=failure
+            if not self.continuous and modeled_spend(state)>Decimal(state['modeled_spend_limit']):failure=failure or 'modeled_spend_limit'
+            if self.continuous and failure:
+                self.technical_fault(state,failure)
+                if failure not in ('native_inflight_limit','native_reconnect_circuit_open'):state['reason']=failure
+            else:state['reason']=failure
             self.write(db,state);db.execute('COMMIT')
         if failure and kind!='close':raise CeilingReached(failure)
         return token
@@ -546,9 +718,20 @@ async def account_native(budget,transport,size):
 
 
 class AccountedStream(Stream):
+    async def write(self,request):
+        try:return await super().write(request)
+        except Exception:
+            report=getattr(self.t.budget,'provider_error',None)
+            if report:report('native_subscription_write_failed')
+            raise
+
     async def read(self):
         import grpc
-        packet=await super().read()
+        try:packet=await super().read()
+        except Exception:
+            report=getattr(self.t.budget,'provider_error',None)
+            if report:report('native_stream_read_failed')
+            raise
         if packet is grpc.aio.EOF:return packet
         size,value=packet
         await account_native(self.t.budget,'yellowstone',size)
@@ -557,16 +740,27 @@ class AccountedStream(Stream):
 
 class AccountedWebSocketContext(WebSocketContext):
     async def recv(self,*args,**kwargs):
-        value=await self.ws.recv(*args,**kwargs)
+        try:value=await self.ws.recv(*args,**kwargs)
+        except Exception:
+            report=getattr(self.t.budget,'provider_error',None)
+            if report:report('native_websocket_read_failed')
+            raise
         await account_native(self.t.budget,'solana_websocket',
             len(value.encode() if isinstance(value,str) else value))
         return value
 
 
 def install():
-    path=os.environ.get('MM_BOUNDED_PROVIDER_DB')
+    mode=os.environ.get('MM_PROVIDER_OPERATION_MODE','VALIDATION')
+    if mode not in ('VALIDATION','CONTINUOUS'):raise ValueError('explicit_provider_operation_mode_required')
+    if mode=='CONTINUOUS' and any(os.environ.get(k) for k in
+            ('MM_BOUNDED_PROVIDER_DB','MM_BOUNDED_PROVIDER_ENVELOPE','MM_POSITION_CONTINUATION_ENVELOPE')):
+        raise ValueError('continuous_cannot_inherit_engineering_allowances')
+    path=os.environ.get('MM_PROVIDER_USAGE_DB') if mode=='CONTINUOUS' else os.environ.get('MM_BOUNDED_PROVIDER_DB')
+    if mode=='CONTINUOUS' and not path:raise ValueError('continuous_durable_usage_database_required')
     if not path:return
     budget=Budget(path)
+    if budget.continuous!=(mode=='CONTINUOUS'):budget.fail('provider_operating_mode_mismatch')
     if 'continuation_envelope' in budget.snapshot():budget=PhaseBudget(path)
     else:budget.preflight_file()
     import urllib.request

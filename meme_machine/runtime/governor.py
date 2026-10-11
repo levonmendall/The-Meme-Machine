@@ -20,6 +20,12 @@ class Governor:
         # candidates, continuation and positions. Other providers retain their
         # accepted conservative ceiling. This is observation capacity only.
         self.solana_interval=(.05 if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB') else interval)
+        # Explicit operational profiles override the old hybrid engineering
+        # default. The bounded dispatch envelope promised two RPC starts/s.
+        # Throughput advertised by the account is not a higher-rate proof.
+        from meme_machine.operational.position_continuation import provider_interval
+        operating_interval=provider_interval('solana')
+        if operating_interval is not None:self.solana_interval=operating_interval
         with closing(sqlite3.connect(self.path,timeout=30,isolation_level=None)) as db:
             db.execute('PRAGMA journal_mode=WAL')
             db.executescript('''CREATE TABLE IF NOT EXISTS pressure(

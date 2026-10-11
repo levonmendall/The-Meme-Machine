@@ -83,6 +83,10 @@ def allocation_regimes(state):
     with no funding authority contributes an empty manifest, never exposure.
     """
     scope=state.get('runtime_admission',{})
+    if scope.get('mode') in ('NORMAL','AUTONOMY') and scope.get('funding_regimes'):
+        from meme_machine.operational.position_continuation import position_lanes
+        owners=set(position_lanes(state))
+        return tuple(r for r in ACTIVE_REGIMES if r in scope['funding_regimes'] or FAMILIES[r] in owners)
     if scope.get('mode')!='BOOTSTRAP':return ACTIVE_REGIMES
     from meme_machine.operational.position_continuation import funding_scope,position_lanes
     limits=funding_scope(scope.get('continuation_envelope',{}))
@@ -101,9 +105,10 @@ class RuntimeCapital(PumpPonsCapital):
         # Live process/transport checks stay outside the deterministic replay
         # reducer. Journal replay must remain valid after every process dies.
         from meme_machine.operational.admission import available,require_normal
-        if action=='runtime_admission' and data['mode'] in ('NORMAL','AUTONOMY'):require_normal()
+        if action=='runtime_admission' and data['mode'] in ('NORMAL','AUTONOMY'):require_normal(startup=True)
         if action in ('runtime_queue','runtime_allocate') or (action=='runtime_prepare' and data['kind'] in ('enter','rebalance')):
-            reason=available(self.ledger(),max(at,int(time.time())),live=True)
+            regime=(data.get('request') or {}).get('regime') if action=='runtime_queue' else None
+            reason=available(self.ledger(),max(at,int(time.time())),live=True,regime=regime)
             if reason:raise CapitalError(reason)
         return self._write(op,action,at,wire(data))
 

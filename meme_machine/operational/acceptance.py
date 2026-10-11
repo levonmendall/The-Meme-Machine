@@ -23,11 +23,13 @@ def read(path):
 
 def running_pids(health,required_lanes=ACTIVE_LANES):
     evidence=health.get('providers',{}).get('evidence',{})
-    if evidence.get('state')!='CURRENT' or evidence.get('phase')!='ACTIVE' or evidence.get('startup_released') is not True:
-        raise ValueError('shared_canonical_source_not_ready')
-    if not 0<=time.time()-evidence.get('heartbeat',0)<=60:
-        raise ValueError('shared_canonical_source_stale')
-    pids=[health['pid'],evidence.get('pid')]+[health['lanes'][lane].get('pid') for lane in required_lanes]
+    pids=[health['pid']]+[health['lanes'][lane].get('pid') for lane in required_lanes]
+    if 'pump' in required_lanes:
+        if evidence.get('state')!='CURRENT' or evidence.get('phase')!='ACTIVE' or evidence.get('startup_released') is not True:
+            raise ValueError('shared_canonical_source_not_ready')
+        if not 0<=time.time()-evidence.get('heartbeat',0)<=60:
+            raise ValueError('shared_canonical_source_stale')
+        pids.append(evidence.get('pid'))
     # Count every live family worker in RSS, including unfunded discovery.
     pids.extend(health['lanes'][lane]['pid'] for lane in ACTIVE_LANES
         if lane not in required_lanes and health['lanes'][lane].get('pid') is not None)

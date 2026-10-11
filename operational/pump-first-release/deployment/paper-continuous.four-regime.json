@@ -1,0 +1,26 @@
+{
+  "schema": "paper-continuous-provider-v1",
+  "physical_http_start_interval_seconds": "0.5",
+  "funding_regimes": [
+    "pump_current",
+    "pump_survivor",
+    "pons_current",
+    "pons_survivor"
+  ],
+  "limits": {
+    "native_inflight_bytes": 536870912,
+    "http_inflight_bytes": 134217728
+  },
+  "maximum_queue_depth": 64,
+  "maximum_queue_wait_seconds": 5,
+  "maximum_rss_bytes": 6442450944,
+  "maximum_cpu_cores": "1.8",
+  "failure_window_seconds": 60,
+  "failures_before_backoff": 8,
+  "reconnect_backoff_seconds": 30,
+  "spend_warning_hourly_usd": "1",
+  "spend_warning_daily_usd": "5",
+  "spend_warning_monthly_usd": "100",
+  "usage_increase_factor": "3",
+  "robinhood_http_start_interval_seconds": "0.5"
+}

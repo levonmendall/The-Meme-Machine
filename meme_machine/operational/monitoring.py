@@ -13,12 +13,13 @@ PERSISTENCE=300
 CRITICAL=frozenset(('epoch_mismatch','reconciliation_failure','database_integrity_failure','position_continuation_fault'))
 
 def protection_allowance_conditions(continuation):
-    """Warn from the existing durable counters before protection is exhausted.
+    """Report continuous expense trends or finite diagnostic reserve warnings.
 
     This observer never extends an allowance, closes a position or changes
-    funding. The owner must authorize renewal before a reported reserve runs out.
+    funding. A continuous expense warning never exhausts position protection.
     """
     phase=continuation.get('phase','').lower()
+    if phase=='continuous':return set(continuation.get('warnings',[]))
     if phase not in ('bootstrap','continuation','recovery'):return set()
     row=(continuation.get('phases') or {}).get(phase) or {}
     found=set()
@@ -51,8 +52,8 @@ def protection_allowance_conditions(continuation):
 def continuation_idle(sample,lane):
     phase=(sample.get('position_continuation') or {}).get('phase')
     p=sample.get('portfolio',{})
-    return (phase in ('CONTINUATION','RECOVERY','FLAT') and p.get('state')=='CURRENT'
-        and sample.get('lanes',{}).get(lane,{}).get('phase')=='CONTINUATION_IDLE'
+    return (p.get('state')=='CURRENT'
+        and sample.get('lanes',{}).get(lane,{}).get('phase') in ('CONTINUATION_IDLE','FUNDING_DISABLED')
         and all(p.get(k,{}).get(lane,0)==0 for k in
             ('positions_by_lane','reservations_by_lane','pending_by_lane')))
 
@@ -63,6 +64,8 @@ def conditions(sample,epoch,now):
     p=sample.get('portfolio',{})
     continuation=sample.get('position_continuation') or {}
     if continuation.get('phase')=='FAULT':found.add('position_continuation_fault')
+    if continuation.get('phase')=='CONTINUOUS' and continuation.get('provider_fault'):
+        found.add('position_protection_degraded')
     found.update(protection_allowance_conditions(continuation))
     if p.get('epoch_id') and p['epoch_id']!=epoch:found.add('epoch_mismatch')
     if p.get('reconciliation_failure') or any(v is False for v in p.get('checks',{}).values()):

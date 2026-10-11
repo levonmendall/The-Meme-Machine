@@ -969,12 +969,16 @@ def run(endpoint,*,campaign=False):
         if not campaign and covered<TAPE_WARM_REQUIRED_CHAIN_SECONDS:
             raise BoundaryError("selective_tape_warmup_incomplete")
 
-        if 'discovery_ends_at' not in result:result['discovery_ends_at']=time.time()+DISCOVERY_SECONDS
-        deadline=time.monotonic()+max(0,result['discovery_ends_at']-time.time())
+        from meme_machine.operational.position_continuation import continuous_operation
+        continuous=campaign and continuous_operation()
+        if continuous:result['discovery_ends_at']=None
+        elif not isinstance(result.get('discovery_ends_at'),(int,float)):
+            result['discovery_ends_at']=time.time()+DISCOVERY_SECONDS
+        deadline=None if continuous else time.monotonic()+max(0,result['discovery_ends_at']-time.time())
         save_cohort_checkpoint(result,cursor,'discovery_ready')
         next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
         while (
-            (time.monotonic()<deadline or (campaign and position_only()))
+            (continuous or time.monotonic()<deadline or (campaign and position_only()))
             and (campaign or (len(result["rows"])<MAX_ENROLLED
                               and _qualifier_count(result)<COHORT_TARGET))
         ):

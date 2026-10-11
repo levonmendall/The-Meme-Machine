@@ -224,6 +224,56 @@ class SourceIntegrationTests(SelectiveEvidenceTests):
         from types import SimpleNamespace
         from meme_machine.solana_evidence_service import FinalizedFence
         self.state=SimpleNamespace(writer=self.writer,fence=FinalizedFence(self.writer,endpoint_identity='a'*64))
+
+    def test_control_reconnect_refreshes_tip_and_retains_unavailable_history(self):
+        import asyncio
+        from types import SimpleNamespace
+        from unittest.mock import AsyncMock,MagicMock,patch
+        from meme_machine.solana_selective_source import SelectiveSource
+        from meme_machine.solana_selective_runtime import CONTROL
+        self.writer._coverage(self.proof(CONTROL,100,101))
+        self.writer.gap(CONTROL,102,None,'ordinary_outage')
+        source=SelectiveSource(SimpleNamespace(credential='offline'),MagicMock(),token='offline')
+        source.stop=asyncio.Event();source.diagnostic=MagicMock()
+        async def work(fn,*args,**kwargs):
+            with self.writer.transaction():return fn(self.state)
+        source.work=work;source.measured_rpc=AsyncMock(return_value=20000)
+        floors=[]
+        async def stream(channel,request,handler,family):
+            floors.append(request.from_slot)
+            if len(floors)==1:raise EvidenceUnavailable('candidate_native_internal')
+        source.stream=stream
+        with patch('meme_machine.solana_selective_source.install',return_value=self.history),patch('asyncio.sleep',new=AsyncMock()):
+            asyncio.run(source.control_stream(MagicMock(),10000,asyncio.Queue()))
+        self.assertEqual(floors,[4000,14000])
+        source.measured_rpc.assert_awaited_once_with('getSlot',[dict(commitment='finalized')],'shared',2)
+        self.assertIsNone(self.writer.db.execute('SELECT hi FROM gaps WHERE scope=?',(CONTROL,)).fetchone()[0])
+    def test_control_overlap_keeps_later_outage_open_until_authenticated_boundary(self):
+        from meme_machine.solana_selective_runtime import CONTROL
+        from meme_machine.solana_evidence_transport import Subscription
+        sub=Subscription('source',CONTROL,'control','census',2)
+        self.writer.gap(CONTROL,120,None,'service_shutdown')
+        def block(slot):
+            notification=dict(method='blockNotification',params=dict(result=dict(value=dict(slot=slot,err=None,
+                block=dict(parentSlot=slot-1,blockhash='h'+str(slot),previousBlockhash='h'+str(slot-1),
+                           blockTime=1000,transactions=[])))))
+            prepared=dict(endpoint_identity='a'*64,observed_at=2000.,slot=slot,
+                signatures=[],batches=[],deliveries=[])
+            self.state.fence.block(sub,notification,2000.,prepared=prepared)
+        block(100);block(101)
+        self.assertIsNone(self.writer.db.execute('SELECT hi FROM gaps WHERE scope=? AND reason=?',
+            (CONTROL,'service_shutdown')).fetchone()[0])
+        with self.assertRaisesRegex(EvidenceUnavailable,'reconnect_cursor_regression'):
+            self.writer.reconnect(CONTROL,101)
+        block(120)
+        gap=self.writer.db.execute('SELECT hi,repaired FROM gaps WHERE scope=? AND reason=?',
+            (CONTROL,'service_shutdown')).fetchone()
+        self.assertEqual(gap,(120,None))
+        self.assertEqual(self.writer.db.execute("SELECT COUNT(*) FROM coverage WHERE scope LIKE 'program:%'").fetchone()[0],0)
+        # A same-slot hash conflict still fails; overlap never authenticates a fork.
+        from meme_machine.solana_evidence_plane import EvidenceConflict
+        self.writer.db.execute("UPDATE stream_receipts SET hash='fork' WHERE scope=? AND slot=120",(CONTROL,))
+        with self.assertRaises(EvidenceConflict):block(120)
     def test_all_live_interests_survive_filter_pressure_and_shared_open_role(self):
         from meme_machine.solana_selective_source import plan_live
         for n in range(1024):
@@ -240,12 +290,12 @@ class SourceIntegrationTests(SelectiveEvidenceTests):
         import asyncio
         from unittest.mock import AsyncMock,MagicMock
         from meme_machine.solana_selective_source import SelectiveSource,PRODUCTION_BLOCKERS,require_certified
-        self.assertTrue(PRODUCTION_BLOCKERS)
+        self.assertEqual(PRODUCTION_BLOCKERS,())
         source=SelectiveSource(MagicMock(),MagicMock(),token='offline')
         owner=AsyncMock()
         source.run=AsyncMock(return_value='observation')
         self.assertEqual(asyncio.run(source(owner,asyncio.Event())),'observation')
-        with self.assertRaisesRegex(EvidenceUnavailable,PRODUCTION_BLOCKERS[0]):require_certified()
+        with self.assertRaisesRegex(Exception,'continuous_profile'):require_certified()
         owner.assert_not_called();source.rpc.call_delivered.assert_not_called()
 
     def test_current_rpc_receipt_counts_slot_cost_and_failed_physical_calls(self):

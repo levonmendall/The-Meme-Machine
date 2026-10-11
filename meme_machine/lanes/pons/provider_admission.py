@@ -267,13 +267,19 @@ class Admission:
         from meme_machine.runtime.operating_families import require_active
         require_active(lane)
         self.offline_profile=offline_profile
+        operating_interval=None
         if offline_profile is not None:
             offline_profile.validate();interval=1/offline_profile.physical_starts_per_second
-        elif interval < .5:raise BoundaryError('provider_aggregate_ceiling_invalid')
+        else:
+            from meme_machine.operational.position_continuation import provider_interval
+            operating_interval=provider_interval('robinhood')
+            if operating_interval is not None:interval=operating_interval
+            elif interval < .5:raise BoundaryError('provider_aggregate_ceiling_invalid')
         from pathlib import Path
         Path(path).parent.mkdir(parents=True,exist_ok=True)
         self.path=path;self.endpoint=fingerprint(endpoint);self.lane=lane
         self.clock=clock;self.sleep=sleeper;self.interval=interval
+        self.operating_interval=operating_interval
         self.session=uuid.uuid4().hex
         db=self.connect()
         db.executescript('''
@@ -296,7 +302,10 @@ class Admission:
             CREATE TRIGGER IF NOT EXISTS no_transport_delete BEFORE DELETE ON transports
                 BEGIN SELECT RAISE(ABORT,'append_only'); END;
         ''')
-        db.execute('INSERT INTO limits VALUES(?,0,0,?) ON CONFLICT(endpoint) DO UPDATE SET interval=MAX(interval,excluded.interval)',(self.endpoint,interval))
+        # An explicitly installed operating profile replaces the development
+        # pace, while preserving the next grant, cooldown and all usage records.
+        expression='excluded.interval' if offline_profile is None and operating_interval is not None else 'MAX(interval,excluded.interval)'
+        db.execute('INSERT INTO limits VALUES(?,0,0,?) ON CONFLICT(endpoint) DO UPDATE SET interval='+expression,(self.endpoint,interval))
         if offline_profile is not None:offline_profile.initialize(db,self.endpoint,self.clock())
         db.close()
     def connect(self):

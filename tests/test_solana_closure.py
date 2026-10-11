@@ -319,8 +319,8 @@ class StructuralCensusTests(unittest.TestCase):
                 with closing(CandidateHistory(h.lifecycle.path,clock=lambda:NOW)) as shared:
                     self.assertEqual(shared.pending(),0)
                     self.assertEqual(shared.candidate('meteora','quiet-x')['first_observed'],int(NOW))
-                self.assertEqual(PRODUCTION_BLOCKERS,('combined_position_and_candidate_provider_latency_not_certified',))
-                with self.assertRaises(EvidenceUnavailable):require_certified()
+                self.assertEqual(PRODUCTION_BLOCKERS,())
+                with self.assertRaisesRegex(Exception,'continuous_profile'):require_certified()
             finally:state.writer.close()
 
 

@@ -34,7 +34,7 @@ FAST=[
  'tests.test_pump_pons_live_paper_integration',
  'tests.lanes.pump.test_postgrad_read_efficiency',
  'tests.test_extended_survivor_hold_research',
- 'tests.test_continuation_resource_efficiency',
+ 'tests.test_continuation_resource_efficiency','tests.test_continuous_paper',
  'tests.test_position_continuation',
  'tests.test_paper_bootstrap',
  'tests.test_final_acquisition',
