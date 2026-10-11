@@ -163,6 +163,22 @@ class SharedAuthorityTests(unittest.TestCase):
     fixture=Native.fixture
     queue=Native.queue
 
+    def test_exact_readiness_deadline_uses_the_same_monotonic_clock_boundary(self):
+        # Subtracting these floats produces 59.999999999999986 at the
+        # existing 60-second deadline. Neither rounding nor grace is allowed.
+        start=90.123456789
+        with patch('time.monotonic',return_value=start):
+            root,a,now,s=self.service('pump')
+        for elapsed in (0,59.999,60):
+            health,portfolio,rss=healthy()
+            health['providers']['evidence']['frontiers']=[dict(scope='program:'+p,slot=1 if elapsed==0 else 2)
+                for p in ('pump','pumpswap')]
+            with patch('meme_machine.operational.acceptance.observe',return_value=(health,portfolio,rss)), \
+                    patch('time.monotonic',return_value=start+elapsed):
+                s.bootstrap_tick()
+            self.assertEqual(s.bootstrap_armed,elapsed==60)
+        self.assertEqual(a.ledger()['runtime_admission']['mode'],'BOOTSTRAP')
+
     def test_flat_unfunded_pons_owner_cannot_veto_pump_first_shared_allocation(self):
         import os
         root,a,now,s=self.service('pump')

@@ -457,7 +457,7 @@ class Supervisor:
                 raise ValueError('bootstrap_selected_coverage_required')
             if self.ready_since is None:
                 self.ready_since=time.monotonic();self.ready_frontiers=frontiers
-            if not self.bootstrap_armed and time.monotonic()-self.ready_since>=60:
+            if not self.bootstrap_armed and time.monotonic()>=self.ready_since+60:
                 if any(frontiers[k]<=old for k,old in self.ready_frontiers.items()):
                     raise ValueError('bootstrap_canonical_progress_required')
                 self.shared_capital.command('arm-bootstrap:'+self.run_id,'runtime_admission',
