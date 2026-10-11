@@ -51,6 +51,12 @@ class CandidateLifecycle:
             self.db.execute("UPDATE candidate_history_outbox SET priority=CASE kind WHEN 'canonical' THEN 0 WHEN 'promotion' THEN 1 ELSE 3 END")
         self.db.execute('CREATE INDEX IF NOT EXISTS candidate_history_dispatch ON candidate_history_outbox(consumed,priority,created)')
         self.db.execute('CREATE INDEX IF NOT EXISTS candidate_history_identity_pending ON candidate_history_outbox(family,address,consumed)')
+        # Program publication asks only about current canonical obligations.
+        # Repeatedly scanning every consumed historical receipt delayed the
+        # native feed; retain that history and index the exact pending subset.
+        self.db.execute('''CREATE INDEX IF NOT EXISTS candidate_history_canonical_pending
+            ON candidate_history_outbox(family,json_extract(body,'$.record.slot'))
+            WHERE kind='canonical' AND consumed IS NULL''')
 
     def emit(self,family,address,kind,body,*,at=None):
         require_active(family)

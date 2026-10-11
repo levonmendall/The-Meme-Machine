@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS evidence_bindings(
  family TEXT NOT NULL,address TEXT NOT NULL,market_address TEXT NOT NULL,
  canonical_scope TEXT NOT NULL,coverage_scope TEXT NOT NULL,metadata TEXT NOT NULL,
  PRIMARY KEY(family,address));
+CREATE INDEX IF NOT EXISTS evidence_binding_canonical_market
+ ON evidence_bindings(canonical_scope,market_address);
 CREATE TABLE IF NOT EXISTS acquisition_jobs(
  id TEXT PRIMARY KEY,family TEXT NOT NULL,address TEXT NOT NULL,
  lo INTEGER NOT NULL,hi INTEGER NOT NULL,priority INTEGER NOT NULL,deadline REAL NOT NULL,
@@ -58,6 +60,7 @@ CREATE INDEX IF NOT EXISTS candidate_coverage_bounds ON candidate_coverage(scope
 CREATE TABLE IF NOT EXISTS candidate_gaps(
  id INTEGER PRIMARY KEY,scope TEXT NOT NULL,lo INTEGER NOT NULL,hi INTEGER,
  created REAL NOT NULL,repaired REAL,reason TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS candidate_gap_scope_bounds ON candidate_gaps(scope,lo,hi);
 CREATE TABLE IF NOT EXISTS shared_history_cache(
  identity TEXT PRIMARY KEY,scope TEXT NOT NULL,slot INTEGER NOT NULL,signature TEXT NOT NULL,
  program TEXT NOT NULL,market_time INTEGER,event_index INTEGER NOT NULL,transaction_index INTEGER,

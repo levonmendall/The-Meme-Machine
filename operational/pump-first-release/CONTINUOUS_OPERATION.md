@@ -487,3 +487,30 @@ as a sustained protection guarantee. The first helper attempt's exact-arithmetic
 integer ratio arithmetic corrected the diagnostic quantity without altering the
 production exact-money rules. The previous USD component was not repeated as
 an isolated reassurance test.
+
+
+At 21:40 UTC source `595816300f80f5fbb621d7a9331d399fa0587869` finished
+its next fresh explicit engineering run with `candidate_log_buffer_pressure`
+after 81.327 seconds. Publication reached startup STEADY_STATE and added 1,180
+Pump and 1,757 PumpSwap economic events. This remains a failed canonical-intake
+trial, not a full protection pass. Owner development execution peaked at 2.016
+seconds versus 11.659 in the previous run; different market periods cannot be
+used as a controlled overall capacity comparison. This run retained 42 physical
+starts, 38 logical elements, 3,560 CU, 8,589,942 HTTP bytes, four native openings,
+62,848,907 known and 285,212,672 conservatively accounted uncertain native bytes;
+public modeled upper $0.038415465795. Every failed ledger remains intact.
+
+The next exact retained-state lookup replay identified an independent publication
+bottleneck: the existing program unconsumed-content fence used its family/address
+index to scan historical consumed rows. Over 100 executions of the same query,
+it used 111,079,400 VM steps and 2.706 seconds. A partial index of the exact
+canonical/unconsumed subset returned the identical result in 1,400 VM steps and
+0.000412 seconds. A canonical binding index likewise changed an exact all-binding
+scan from 2,248,300 to 9,900 VM steps; a scope/bounds index reduces gap lookup.
+These are disposable-copy query measurements, not provider response latency.
+The SQL predicates, historical rows, canonical decisions, freshness and proof
+requirements are unchanged. Focused 117 tests include a 30,000-consumed-receipt
+regression, current missing content preventing checkpoint, and restored pending
+content still blocking after restart. No lifetime usage counter or historical
+evidence was removed. Full remote FAST passed for `969dc905`; successor CI is
+pending. Normal deployment and PAPER funding remain off pending genuine protection.

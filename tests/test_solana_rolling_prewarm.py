@@ -70,6 +70,35 @@ class RollingPrewarmTests(unittest.TestCase):
                 getattr(self.h.rolling,method)()
                 self.assertEqual(self.h.db.execute('SELECT status,deadline FROM '+table).fetchone(),('deadline_missed',NOW-1))
                 self.h.db.execute('DELETE FROM acquisition_observations')
+    def test_pending_canonical_fence_ignores_consumed_history_without_ignoring_obligations(self):
+        scope=program_scope('pump');db=self.h.db
+        raw=json.dumps(dict(record=dict(slot=99),available=NOW-100))
+        with self.state.writer.transaction():
+            db.executemany('INSERT INTO candidate_history_outbox VALUES(?,?,?,?,?,?,?,?,?)',
+                [('consumed-'+str(n),'pump','old','canonical',raw,digest(json.loads(raw)),NOW-100,NOW-1,0)
+                 for n in range(30000)])
+            future=json.dumps(dict(record=dict(slot=101),available=NOW))
+            db.execute('INSERT INTO candidate_history_outbox VALUES(?,?,?,?,?,?,?,?,?)',
+                ('pending','pump','current','canonical',future,digest(json.loads(future)),NOW,None,0))
+        steps=[0]
+        def bound():steps[0]+=100;return int(steps[0]>5000)
+        db.set_progress_handler(bound,100)
+        try:
+            self.assertIsNone(self.h.lifecycle.unconsumed(scope,through=100))
+            self.assertIsNotNone(self.h.lifecycle.unconsumed(scope,through=101))
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_checkpoint_ahead_of_history'):
+                self.h.lifecycle.checkpoint(scope,101,digest([scope,101]))
+        finally:db.set_progress_handler(None,0)
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM candidate_history_outbox').fetchone()[0],30001)
+        self.assertIsNone(db.execute('SELECT slot FROM candidate_checkpoints WHERE scope=?',(scope,)).fetchone())
+        db.execute('UPDATE candidate_history_outbox SET consumed=? WHERE id=?',(NOW,'pending'))
+        self.assertIsNone(self.h.lifecycle.unconsumed(scope,through=101))
+        # A recovered unresolved obligation is visible after restart; neither
+        # index membership nor a prior negative lookup is reused as evidence.
+        db.execute("UPDATE candidate_history_outbox SET consumed=NULL WHERE id='consumed-1'")
+        self.state.writer.close();self.state,self.h=state_at(self.path,lambda:self.now[0])
+        self.assertIsNotNone(self.h.lifecycle.unconsumed(scope,through=100))
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_history_outbox').fetchone()[0],30001)
     def test_first_sight_meteora_installs_history_before_promotion_without_rpc_or_entry(self):
         from meme_machine.solana_selective_source import plan_live
         self.h.observe('meteora','pool',slot=100,signature='',seen=NOW,fields=dict(wsol_pair_locator=True,activity=False))

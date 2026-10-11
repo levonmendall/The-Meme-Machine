@@ -1,0 +1,148 @@
+{
+  "disposable_only": true,
+  "provider_requests": 0,
+  "iterations_per_query": 100,
+  "queries": [
+    {
+      "name": "canonical_binding",
+      "before": {
+        "vm_steps": 2248300,
+        "seconds": 0.03704751201439649,
+        "plan": [
+          [
+            3,
+            0,
+            0,
+            "SCAN evidence_bindings"
+          ],
+          [
+            38,
+            0,
+            0,
+            "USE TEMP B-TREE FOR DISTINCT"
+          ]
+        ],
+        "result": [
+          [
+            "pump",
+            "14TYFZRh2KxWH3636yATGZXBz7Nxni25eazMXD8DvH6L",
+            "14TYFZRh2KxWH3636yATGZXBz7Nxni25eazMXD8DvH6L"
+          ],
+          [
+            "pump",
+            "23nc2QHbBhaUMbXj3AYpAyXBcmPL6ELJ2bKS2ddt1cyV",
+            "23nc2QHbBhaUMbXj3AYpAyXBcmPL6ELJ2bKS2ddt1cyV"
+          ],
+          [
+            "pump",
+            "2HynRzb21h46evE3bb4suF6x9933azErGL2AwDsM2GSB",
+            "2HynRzb21h46evE3bb4suF6x9933azErGL2AwDsM2GSB"
+          ]
+        ]
+      },
+      "after": {
+        "vm_steps": 9900,
+        "seconds": 0.001731096999719739,
+        "plan": [
+          [
+            4,
+            0,
+            0,
+            "SEARCH evidence_bindings USING INDEX evidence_binding_canonical_market (canonical_scope=? AND market_address=?)"
+          ],
+          [
+            46,
+            0,
+            0,
+            "USE TEMP B-TREE FOR DISTINCT"
+          ]
+        ],
+        "result": [
+          [
+            "pump",
+            "14TYFZRh2KxWH3636yATGZXBz7Nxni25eazMXD8DvH6L",
+            "14TYFZRh2KxWH3636yATGZXBz7Nxni25eazMXD8DvH6L"
+          ],
+          [
+            "pump",
+            "23nc2QHbBhaUMbXj3AYpAyXBcmPL6ELJ2bKS2ddt1cyV",
+            "23nc2QHbBhaUMbXj3AYpAyXBcmPL6ELJ2bKS2ddt1cyV"
+          ],
+          [
+            "pump",
+            "2HynRzb21h46evE3bb4suF6x9933azErGL2AwDsM2GSB",
+            "2HynRzb21h46evE3bb4suF6x9933azErGL2AwDsM2GSB"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "candidate_gap",
+      "before": {
+        "vm_steps": 71900,
+        "seconds": 0.0015019320417195559,
+        "plan": [
+          [
+            2,
+            0,
+            0,
+            "SCAN candidate_gaps"
+          ]
+        ],
+        "result": [
+          [
+            455800111,
+            455802000
+          ]
+        ]
+      },
+      "after": {
+        "vm_steps": 31300,
+        "seconds": 0.0010567649733275175,
+        "plan": [
+          [
+            3,
+            0,
+            0,
+            "SEARCH candidate_gaps USING INDEX candidate_gap_scope_bounds (scope=? AND lo<?)"
+          ]
+        ],
+        "result": [
+          [
+            455800111,
+            455802000
+          ]
+        ]
+      }
+    },
+    {
+      "name": "pending_canonical",
+      "before": {
+        "vm_steps": 111079400,
+        "seconds": 2.705517257913016,
+        "plan": [
+          [
+            4,
+            0,
+            0,
+            "SEARCH candidate_history_outbox USING INDEX candidate_history_identity_pending (family=?)"
+          ]
+        ],
+        "result": []
+      },
+      "after": {
+        "vm_steps": 1400,
+        "seconds": 0.00041208905167877674,
+        "plan": [
+          [
+            4,
+            0,
+            0,
+            "SEARCH candidate_history_outbox USING INDEX candidate_history_canonical_pending (family=?)"
+          ]
+        ],
+        "result": []
+      }
+    }
+  ]
+}
