@@ -339,7 +339,8 @@ class SelectiveSource:
         identity=values.get('stream_id');family=values.get('family','shared')
         if kind=='subscribe':
             from google.protobuf.json_format import MessageToDict
-            request=MessageToDict(values['request'],preserving_proto_field_name=True)
+            request=(MessageToDict(values['request'],preserving_proto_field_name=True)
+                if values.get('request') is not None else None)
             self.native_streams[identity]=dict(consumer=family,delivering=False,
                 request=request,messages={},samples=[])
             self.diagnostic('native_subscribe',dict(stream_id=identity,family=family,request=request))

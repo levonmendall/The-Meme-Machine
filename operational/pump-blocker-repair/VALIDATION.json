@@ -29,13 +29,21 @@
       "status": "PASS",
       "raw_sha256": "f2c041a20ba5620d9fea0382e7ec7388570bb550985b1e4b8e31a449c2249f55",
       "scope": "Final strict preflight and existing inactive finite-window compatibility only"
+    },
+    {
+      "log": "CI-failure-focused-final.log.gz",
+      "tests": 13,
+      "seconds": 7.669,
+      "status": "PASS",
+      "raw_sha256": "e120e253aec3851d926151d83ce91331c7d7414da8fd389aad43572ab126a5a3",
+      "scope": "Existing stream telemetry compatibility and unchanged native 20-owner timing assertions"
     }
   ],
   "files": {
     "meme_machine/operational/bounded_provider.py": "39d896a63afa38db0d224dc8020bb4b88312128f1c24b453c387f2f7380e9c0d",
     "meme_machine/operational/supervisor.py": "432bb02b0cecc2dd0df0d44ae43b0c51ca74f8cda620d9aeb2c1d99ca037a10f",
     "meme_machine/solana_candidate_join.py": "72a75303cf29acf62009c8f99e4d4902ea89b5d9d2ef743737a23a0c0cb6a12c",
-    "meme_machine/solana_selective_source.py": "6e79c0ede7edea13b9e832745cce56f7c8ead72c1b539f9c06fea0885668f99f",
+    "meme_machine/solana_selective_source.py": "5e81abbbcf1956cc60fcae3a9a6c335c2653361cbb6bea155d92a49685b6511f",
     "operational/tests.py": "76fd324b133a9d1ce41564287ec8ac1fbebcc1d6dd8889c183458b5589614b90",
     "tests/test_bounded_provider_preflight.py": "4851d56a5802082d324eef42db6fc679e22885ade25446b3edbe07fa36b2f713",
     "tests/test_first_owner_scope.py": "17a93b1ba7f97656035a5297a8ecffea07a7ce7835be1731ed1d11c1830b0ac6",
@@ -53,5 +61,19 @@
     "/tmp/mm-engineering-mjzb7ojw"
   ],
   "scratch_guard": "The first focused operational attempt used 64 MiB and stopped on its cold-record fixture. Failure preserved; successful retry used the existing repository default of 1 GiB. Production byte limits unchanged.",
-  "compatibility": "The existing inactive initial finite-window preparation updates its sealed time configuration atomically. It cannot heal changed limits or pricing. No epoch, resource allowance, counter, funding clock or activation is changed."
+  "compatibility": "The existing inactive initial finite-window preparation updates its sealed time configuration atomically. It cannot heal changed limits or pricing. No epoch, resource allowance, counter, funding clock or activation is changed.",
+  "prior_ci": {
+    "run": 38143860028,
+    "source": "1387ecccd2de03608aa8218ca9e71a1e1cfa31a0",
+    "status": "FAIL_PRESERVED",
+    "tests": 1571,
+    "seconds": 856.93,
+    "errors": [
+      "Existing telemetry-only subscribe lacked a protobuf request; optional diagnostic now retains None instead of raising KeyError"
+    ],
+    "failures": [
+      "Unchanged Pons 20-owner synthetic partial-exit timing lower-bound assertion measured 2.957074222 seconds. Unchanged focused replay passed at 3.392017962 seconds. No assertion, deadline, strategy or provider schedule changed."
+    ],
+    "original_test_changed": false
+  }
 }
