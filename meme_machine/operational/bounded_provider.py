@@ -12,9 +12,11 @@ import sqlite3
 import time
 import uuid
 from decimal import Decimal
+import asyncio
 
 from engineering.solana_capacity.proof_limits import (
     CeilingReached,MAX_FRAME,PUBLISHED,STREAM_HOST,endpoint_family)
+from engineering.solana_capacity.proof_transport import Stream,WebSocketContext
 
 LIMITS=dict(rpc_cu=720000,rpc_elements=10000,http_attempts=10000,
             native_bytes=4*1024**3,native_stop_bytes=2*1024**3-MAX_FRAME,
@@ -523,6 +525,44 @@ class DeliveredResponse:
         return data
 
 
+async def account_native(budget,transport,size):
+    """Keep durable per-frame metering off the native consumer's event loop.
+
+    Existing SDK reservations cover the received frame until this transaction
+    completes. Never return its content, close its reservation, or drop its
+    accounting because the reader was cancelled. No batching or deferred charge.
+    """
+    from contextvars import copy_context
+    task=asyncio.get_running_loop().run_in_executor(
+        None,copy_context().run,budget.native,transport,size)
+    cancelled=False
+    while True:
+        try:
+            await asyncio.shield(task)
+            break
+        except asyncio.CancelledError:
+            cancelled=True
+    if cancelled:raise asyncio.CancelledError()
+
+
+class AccountedStream(Stream):
+    async def read(self):
+        import grpc
+        packet=await super().read()
+        if packet is grpc.aio.EOF:return packet
+        size,value=packet
+        await account_native(self.t.budget,'yellowstone',size)
+        return value
+
+
+class AccountedWebSocketContext(WebSocketContext):
+    async def recv(self,*args,**kwargs):
+        value=await self.ws.recv(*args,**kwargs)
+        await account_native(self.t.budget,'solana_websocket',
+            len(value.encode() if isinstance(value,str) else value))
+        return value
+
+
 def install():
     path=os.environ.get('MM_BOUNDED_PROVIDER_DB')
     if not path:return
@@ -567,11 +607,11 @@ def install():
             if path!='/geyser.Geyser/Subscribe':budget.fail('bounded_native_method')
             context=Native();context.budget=StreamBudget()
             original=kwargs.get('response_deserializer',lambda raw:raw)
-            def decoded(raw):context.budget.native('yellowstone',len(raw));return original(raw)
+            def decoded(raw):return len(raw),original(raw)
             kwargs['response_deserializer']=decoded;factory=self.raw.stream_stream(path,**kwargs)
             def call(*args,**options):
                 token=context.budget.stream_open('yellowstone')
-                try:return Stream(factory(*args,**options),context,token)
+                try:return AccountedStream(factory(*args,**options),context,token)
                 except BaseException:budget.stream_close(token);raise
             return call
     channel=grpc.aio.secure_channel;websocket=source.connect
@@ -589,5 +629,5 @@ def install():
         endpoint_family('https://solana-mainnet.g.alchemy.com'+p.path)
         kwargs.update(max_size=MAX_FRAME,max_queue=2,compression=None,open_timeout=8,close_timeout=1)
         context=Native();context.budget=StreamBudget()
-        return WebSocketContext(websocket(url,*args,**kwargs),context)
+        return AccountedWebSocketContext(websocket(url,*args,**kwargs),context)
     grpc.aio.secure_channel=bounded_channel;source.connect=bounded_websocket

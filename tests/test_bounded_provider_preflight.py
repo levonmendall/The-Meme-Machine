@@ -1,14 +1,18 @@
 """Failed-run limit reproduction and SDK headroom; all providers are offline."""
 from copy import deepcopy
 import io
+import asyncio
 import json
 import os
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch,AsyncMock
+from types import SimpleNamespace
+from threading import Event
 
-from meme_machine.operational.bounded_provider import Budget,CeilingReached,DeliveredResponse,MAX_FRAME
+from meme_machine.operational.bounded_provider import (Budget,CeilingReached,DeliveredResponse,
+    MAX_FRAME,AccountedStream,AccountedWebSocketContext)
 
 MIB=1024**2
 LIMITS=dict(rpc_cu=150000,rpc_elements=1800,http_attempts=1200,http_bytes=128*MIB,
@@ -205,5 +209,102 @@ class ProviderPreflightTests(unittest.TestCase):
         self.assertNotIn('exceptional_operational_window',row)
         self.assertEqual(row['continuation.modeled_spend_limit'],'1')
         self.assertEqual(row['continuation.wall_seconds'],str(envelope()['maximum_seconds']))
+
+    def test_native_meter_does_not_starve_control_and_commits_before_content_returns(self):
+        token=self.budget.stream_open('solana_websocket')
+        entered=Event();release=Event();committed=Event()
+        def native(transport,size):
+            entered.set()
+            if not release.wait(2):raise RuntimeError('offline_meter_release_missing')
+            self.budget.native(transport,size,token=token);committed.set()
+        context=AccountedWebSocketContext(None,SimpleNamespace(budget=SimpleNamespace(native=native)))
+        context.ws=SimpleNamespace(recv=AsyncMock(return_value='authentic-shape-fixture'))
+        async def verify():
+            reader=asyncio.create_task(context.recv())
+            try:
+                # A pending independent native/control turn remains runnable
+                # while the real durable budget writer is deliberately held.
+                for _ in range(100):
+                    if entered.is_set():break
+                    await asyncio.sleep(.001)
+                self.assertTrue(entered.is_set());self.assertFalse(reader.done())
+                self.assertFalse(committed.is_set())
+                release.set();self.assertEqual(await reader,'authentic-shape-fixture')
+                self.assertTrue(committed.is_set())
+            finally:
+                release.set();await asyncio.gather(reader,return_exceptions=True)
+        asyncio.run(verify())
+        self.assertEqual(self.budget.snapshot()['native_bytes'],str(len('authentic-shape-fixture')))
+
+    def test_cancelled_native_read_settles_durable_bytes_before_reservation_can_close(self):
+        token=self.budget.stream_open('yellowstone');entered=Event();release=Event()
+        def native(transport,size):
+            entered.set()
+            if not release.wait(2):raise RuntimeError('offline_meter_release_missing')
+            self.budget.native(transport,size,token=token)
+        transport=SimpleNamespace(budget=SimpleNamespace(native=native,ready_at=None))
+        stream=AccountedStream(SimpleNamespace(read=AsyncMock(return_value=(3,b'raw'))),transport,token)
+        async def verify():
+            reader=asyncio.create_task(stream.read())
+            try:
+                for _ in range(100):
+                    if entered.is_set():break
+                    await asyncio.sleep(.001)
+                self.assertTrue(entered.is_set());reader.cancel();reader.cancel()
+                await asyncio.sleep(.005);self.assertFalse(reader.done())
+                self.assertEqual(self.budget.snapshot()['native_bytes'],'0')
+                release.set()
+                with self.assertRaises(asyncio.CancelledError):await reader
+                self.assertEqual(self.budget.snapshot()['native_bytes'],'3')
+            finally:
+                release.set();await asyncio.gather(reader,return_exceptions=True)
+        asyncio.run(verify());self.budget.stream_close(token,unread_possible=True)
+        state=self.budget.snapshot();self.assertEqual(state['native_reserved'],'0')
+        self.assertEqual(state['native_uncertain_bytes'],str(2*MAX_FRAME))
+        self.assertEqual(state['native_bytes'],'3')
+
+    def test_async_native_ceiling_retains_received_tail_and_never_releases_content(self):
+        token=self.budget.stream_open('yellowstone')
+        self.budget.change(reason='original_failure',check=False)
+        native=lambda transport,size:self.budget.native(transport,size,token=token)
+        context=SimpleNamespace(budget=SimpleNamespace(native=native,ready_at=None))
+        stream=AccountedStream(SimpleNamespace(read=AsyncMock(return_value=(3,b'raw'))),context,token)
+        with self.assertRaisesRegex(CeilingReached,'original_failure'):asyncio.run(stream.read())
+        before=self.budget.snapshot();self.assertEqual(before['native_bytes'],'3')
+        self.assertEqual(before['native_reserved'],str(2*MAX_FRAME-3))
+        self.budget.stream_close(token,unread_possible=True)
+        after=Budget(self.path).snapshot();self.assertEqual(after['reason'],'original_failure')
+        self.assertEqual(after['native_uncertain_bytes'],str(2*MAX_FRAME-3))
+        self.assertEqual(sum(int(after[k]) for k in ('native_bytes','native_reserved','native_uncertain_bytes')),2*MAX_FRAME)
+
+    def test_installed_grpc_boundary_meters_before_delivering_original_decoded_value(self):
+        import grpc
+        from meme_machine.operational.bounded_provider import install
+        from meme_machine.yellowstone import geyser_pb2 as pb
+        from engineering.solana_capacity.proof_limits import STREAM_HOST
+        captured={}
+        class RawStream:
+            async def write(self,value):pass
+            async def read(self):return captured['decode'](b'raw')
+            def cancel(self):pass
+        class RawChannel:
+            def stream_stream(self,path,**kwargs):
+                captured['decode']=kwargs['response_deserializer']
+                return lambda *args,**options:RawStream()
+        with patch.dict(os.environ,MM_BOUNDED_PROVIDER_DB=str(self.path),MM_BOUNDED_PROVIDER_ENVELOPE=str(self.file)), \
+                patch('urllib.request.urlopen'),patch('meme_machine.lanes.pons.provider.urlopen'), \
+                patch('grpc.aio.secure_channel',return_value=RawChannel()), \
+                patch('meme_machine.solana_selective_source.connect'):
+            install()
+            channel=grpc.aio.secure_channel(STREAM_HOST)
+            stream=channel.stream_stream('/geyser.Geyser/Subscribe',response_deserializer=lambda b:dict(value=b))()
+            async def verify():
+                await stream.write(pb.SubscribeRequest())
+                self.assertEqual(await stream.read(),dict(value=b'raw'))
+                self.assertEqual(self.budget.snapshot()['native_bytes'],'3')
+            try:asyncio.run(verify())
+            finally:stream.cancel()
+        self.assertEqual(self.budget.snapshot()['native_opens'],'1')
+        self.assertEqual(self.budget.snapshot()['native_reserved'],'0')
 
 if __name__=='__main__':unittest.main()
