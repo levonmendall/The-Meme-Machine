@@ -1,0 +1,70 @@
+{
+  "schema": "meme-machine-next-provider-test-disabled-v1",
+  "enabled": false,
+  "owner_authorization": "NOT_GRANTED",
+  "purpose": "One cold Pons ETH/USD native financial component, before any first-owner protective or PAPER lifecycle test",
+  "reuse_existing_harness": {
+    "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-parallel-alchemy-capacity/preparation/pons_usd_check.py",
+    "do_not_duplicate_or_activate": true,
+    "sha256": "0641649ded160107c3ccd96fd8af125deaa62e5124c698ac86efac733ee43eed"
+  },
+  "baseline": "030705397cf75766b5bffbea41abb8bf8db12104",
+  "methods_expected": {
+    "eth_chainId": 1,
+    "eth_getBlockByNumber": 2,
+    "eth_getCode": 6,
+    "eth_call": 10
+  },
+  "expected": {
+    "physical_http_starts": 10,
+    "logical_rpc_elements": 19,
+    "public_schedule_cu": 420,
+    "public_price_usd": 0.0002205,
+    "delivered_bytes": null,
+    "note": "One eligible USDG route synthetic measurement; expected authentic delivery size is unknown."
+  },
+  "hard_limits": {
+    "runtime_seconds": 15,
+    "physical_http_starts": 12,
+    "logical_rpc_elements": 24,
+    "conservative_cu_ceiling": 1440,
+    "total_delivered_bytes": 4194304,
+    "response_or_inflight_bytes": 2000000,
+    "physical_requests_per_second": 2,
+    "inflight_http": 1,
+    "retries": 0,
+    "subscriptions": 0,
+    "webhooks": 0,
+    "orders": 0,
+    "paper_lifecycle": false,
+    "owner_monetary_ceiling_usd": 0.01
+  },
+  "pricing": {
+    "authenticated_tariff": null,
+    "public_cu_usd_per_million": 0.525,
+    "public_cu_only_maximum_usd": 0.000756,
+    "activation_requires": "Applicable authenticated upper tariff including failed-request and exceptional charges must prove all permitted work <=$0.01. Unknown charge components cannot be treated as free."
+  },
+  "preconditions": [
+    "Owner separately authorizes this exact bounded read-only request envelope and private app-key binding",
+    "Confirm actual Solana/Robinhood account tariff, remaining entitlement and finite usage authority",
+    "Exact reviewed harness/source and native oracle/route/canonical guards remain unchanged",
+    "PAPER stays stopped/disabled; original $500 epoch, unapproved $1000 proposal and paused lanes unchanged"
+  ],
+  "proof_expected": [
+    "Configured Robinhood endpoint can supply oracle, route-code/hook, exact native reference quote and final ordered numeric canonical fence",
+    "Original USD validity/heartbeat checks and provider two-RPS admission survive actual completion time",
+    "Retain physical/logical/CU, delivered bytes, queue/transport/canonical latencies and redacted Admin usage delta"
+  ],
+  "stop_conditions": [
+    "Any resource or dollar envelope would be exceeded",
+    "Wrong chain/app binding, missing response, rate limit, timeout or unexpected method",
+    "Canonical mismatch, stale/unsupported oracle, hook/route or incomplete native quote",
+    "No accepted financial result within original five-second route validity; never extend it",
+    "Authorization deadline expires or owner cancels"
+  ],
+  "limits_of_proof": [
+    "This test does not prove complete one-position capacity, native sale equivalence, operational autonomy or invoice savings",
+    "No automatic follow-up, product upgrade, funding, deployment or PAPER authorization"
+  ]
+}

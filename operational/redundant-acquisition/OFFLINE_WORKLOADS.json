@@ -1,0 +1,2923 @@
+{
+  "baseline": "030705397cf75766b5bffbea41abb8bf8db12104",
+  "cost_model": {
+    "continuous_hold_component_sensitivities": {
+      "pons_survivor_30_new_blocks_validated_40_window_inactive": [
+        {
+          "actual_account_charge_usd": null,
+          "hours": 24,
+          "logical_rpc_elements": 230400,
+          "modeled_cu": 6105600,
+          "observation_cycles": 28800,
+          "physical_http_starts": 86400,
+          "public_price_assumption_usd": 3.20544
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 72,
+          "logical_rpc_elements": 691200,
+          "modeled_cu": 18316800,
+          "observation_cycles": 86400,
+          "physical_http_starts": 259200,
+          "public_price_assumption_usd": 9.61632
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 168,
+          "logical_rpc_elements": 1612800,
+          "modeled_cu": 42739200,
+          "observation_cycles": 201600,
+          "physical_http_starts": 604800,
+          "public_price_assumption_usd": 22.43808
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 720,
+          "logical_rpc_elements": 6912000,
+          "modeled_cu": 183168000,
+          "observation_cycles": 864000,
+          "physical_http_starts": 2592000,
+          "public_price_assumption_usd": 96.1632
+        }
+      ],
+      "pons_survivor_old_one_event_specimen": [
+        {
+          "actual_account_charge_usd": null,
+          "hours": 24,
+          "logical_rpc_elements": 259200,
+          "modeled_cu": 6681600,
+          "observation_cycles": 28800,
+          "physical_http_starts": 115200,
+          "public_price_assumption_usd": 3.50784
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 72,
+          "logical_rpc_elements": 777600,
+          "modeled_cu": 20044800,
+          "observation_cycles": 86400,
+          "physical_http_starts": 345600,
+          "public_price_assumption_usd": 10.52352
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 168,
+          "logical_rpc_elements": 1814400,
+          "modeled_cu": 46771200,
+          "observation_cycles": 201600,
+          "physical_http_starts": 806400,
+          "public_price_assumption_usd": 24.55488
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 720,
+          "logical_rpc_elements": 7776000,
+          "modeled_cu": 200448000,
+          "observation_cycles": 864000,
+          "physical_http_starts": 3456000,
+          "public_price_assumption_usd": 105.2352
+        }
+      ],
+      "pons_survivor_one_block_immutable_getter_candidate_inactive": [
+        {
+          "actual_account_charge_usd": null,
+          "hours": 24,
+          "logical_rpc_elements": 201600,
+          "modeled_cu": 5356800,
+          "observation_cycles": 28800,
+          "physical_http_starts": 86400,
+          "public_price_assumption_usd": 2.81232
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 72,
+          "logical_rpc_elements": 604800,
+          "modeled_cu": 16070400,
+          "observation_cycles": 86400,
+          "physical_http_starts": 259200,
+          "public_price_assumption_usd": 8.43696
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 168,
+          "logical_rpc_elements": 1411200,
+          "modeled_cu": 37497600,
+          "observation_cycles": 201600,
+          "physical_http_starts": 604800,
+          "public_price_assumption_usd": 19.68624
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 720,
+          "logical_rpc_elements": 6048000,
+          "modeled_cu": 160704000,
+          "observation_cycles": 864000,
+          "physical_http_starts": 2592000,
+          "public_price_assumption_usd": 84.3696
+        }
+      ],
+      "pons_survivor_quiet_30_new_blocks_default_10_window": [
+        {
+          "actual_account_charge_usd": null,
+          "hours": 24,
+          "logical_rpc_elements": 288000,
+          "modeled_cu": 9561600,
+          "observation_cycles": 28800,
+          "physical_http_starts": 86400,
+          "public_price_assumption_usd": 5.01984
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 72,
+          "logical_rpc_elements": 864000,
+          "modeled_cu": 28684800,
+          "observation_cycles": 86400,
+          "physical_http_starts": 259200,
+          "public_price_assumption_usd": 15.05952
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 168,
+          "logical_rpc_elements": 2016000,
+          "modeled_cu": 66931200,
+          "observation_cycles": 201600,
+          "physical_http_starts": 604800,
+          "public_price_assumption_usd": 35.13888
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 720,
+          "logical_rpc_elements": 8640000,
+          "modeled_cu": 286848000,
+          "observation_cycles": 864000,
+          "physical_http_starts": 2592000,
+          "public_price_assumption_usd": 150.5952
+        }
+      ],
+      "pons_survivor_quiet_40_new_blocks_default_10_window": [
+        {
+          "actual_account_charge_usd": null,
+          "hours": 24,
+          "logical_rpc_elements": 316800,
+          "modeled_cu": 11289600,
+          "observation_cycles": 28800,
+          "physical_http_starts": 86400,
+          "public_price_assumption_usd": 5.92704
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 72,
+          "logical_rpc_elements": 950400,
+          "modeled_cu": 33868800,
+          "observation_cycles": 86400,
+          "physical_http_starts": 259200,
+          "public_price_assumption_usd": 17.78112
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 168,
+          "logical_rpc_elements": 2217600,
+          "modeled_cu": 79027200,
+          "observation_cycles": 201600,
+          "physical_http_starts": 604800,
+          "public_price_assumption_usd": 41.48928
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 720,
+          "logical_rpc_elements": 9504000,
+          "modeled_cu": 338688000,
+          "observation_cycles": 864000,
+          "physical_http_starts": 2592000,
+          "public_price_assumption_usd": 177.8112
+        }
+      ],
+      "pons_survivor_quiet_one_new_block": [
+        {
+          "actual_account_charge_usd": null,
+          "hours": 24,
+          "logical_rpc_elements": 230400,
+          "modeled_cu": 6105600,
+          "observation_cycles": 28800,
+          "physical_http_starts": 86400,
+          "public_price_assumption_usd": 3.20544
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 72,
+          "logical_rpc_elements": 691200,
+          "modeled_cu": 18316800,
+          "observation_cycles": 86400,
+          "physical_http_starts": 259200,
+          "public_price_assumption_usd": 9.61632
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 168,
+          "logical_rpc_elements": 1612800,
+          "modeled_cu": 42739200,
+          "observation_cycles": 201600,
+          "physical_http_starts": 604800,
+          "public_price_assumption_usd": 22.43808
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 720,
+          "logical_rpc_elements": 6912000,
+          "modeled_cu": 183168000,
+          "observation_cycles": 864000,
+          "physical_http_starts": 2592000,
+          "public_price_assumption_usd": 96.1632
+        }
+      ],
+      "pump_current_baseline_with_holder_element": [
+        {
+          "actual_account_charge_usd": null,
+          "hours": 24,
+          "logical_rpc_elements": 103680,
+          "modeled_cu": 2073600,
+          "observation_cycles": 17280,
+          "physical_http_starts": 103680,
+          "public_price_assumption_usd": 1.08864
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 72,
+          "logical_rpc_elements": 311040,
+          "modeled_cu": 6220800,
+          "observation_cycles": 51840,
+          "physical_http_starts": 311040,
+          "public_price_assumption_usd": 3.26592
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 168,
+          "logical_rpc_elements": 725760,
+          "modeled_cu": 14515200,
+          "observation_cycles": 120960,
+          "physical_http_starts": 725760,
+          "public_price_assumption_usd": 7.62048
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 720,
+          "logical_rpc_elements": 3110400,
+          "modeled_cu": 62208000,
+          "observation_cycles": 518400,
+          "physical_http_starts": 3110400,
+          "public_price_assumption_usd": 32.6592
+        }
+      ],
+      "pump_current_existing_optimized_with_holder_element_inactive": [
+        {
+          "actual_account_charge_usd": null,
+          "hours": 24,
+          "logical_rpc_elements": 51840,
+          "modeled_cu": 1036800,
+          "observation_cycles": 17280,
+          "physical_http_starts": 51840,
+          "public_price_assumption_usd": 0.54432
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 72,
+          "logical_rpc_elements": 155520,
+          "modeled_cu": 3110400,
+          "observation_cycles": 51840,
+          "physical_http_starts": 155520,
+          "public_price_assumption_usd": 1.63296
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 168,
+          "logical_rpc_elements": 362880,
+          "modeled_cu": 7257600,
+          "observation_cycles": 120960,
+          "physical_http_starts": 362880,
+          "public_price_assumption_usd": 3.81024
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 720,
+          "logical_rpc_elements": 1555200,
+          "modeled_cu": 31104000,
+          "observation_cycles": 518400,
+          "physical_http_starts": 1555200,
+          "public_price_assumption_usd": 16.3296
+        }
+      ],
+      "pump_survivor_baseline_warm_quote": [
+        {
+          "actual_account_charge_usd": null,
+          "hours": 24,
+          "logical_rpc_elements": 86400,
+          "modeled_cu": 1728000,
+          "observation_cycles": 17280,
+          "physical_http_starts": 86400,
+          "public_price_assumption_usd": 0.9072
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 72,
+          "logical_rpc_elements": 259200,
+          "modeled_cu": 5184000,
+          "observation_cycles": 51840,
+          "physical_http_starts": 259200,
+          "public_price_assumption_usd": 2.7216
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 168,
+          "logical_rpc_elements": 604800,
+          "modeled_cu": 12096000,
+          "observation_cycles": 120960,
+          "physical_http_starts": 604800,
+          "public_price_assumption_usd": 6.3504
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 720,
+          "logical_rpc_elements": 2592000,
+          "modeled_cu": 51840000,
+          "observation_cycles": 518400,
+          "physical_http_starts": 2592000,
+          "public_price_assumption_usd": 27.216
+        }
+      ],
+      "pump_survivor_existing_optimized_exact_local_time_inactive": [
+        {
+          "actual_account_charge_usd": null,
+          "hours": 24,
+          "logical_rpc_elements": 17280,
+          "modeled_cu": 345600,
+          "observation_cycles": 17280,
+          "physical_http_starts": 17280,
+          "public_price_assumption_usd": 0.18144
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 72,
+          "logical_rpc_elements": 51840,
+          "modeled_cu": 1036800,
+          "observation_cycles": 51840,
+          "physical_http_starts": 51840,
+          "public_price_assumption_usd": 0.54432
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 168,
+          "logical_rpc_elements": 120960,
+          "modeled_cu": 2419200,
+          "observation_cycles": 120960,
+          "physical_http_starts": 120960,
+          "public_price_assumption_usd": 1.27008
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 720,
+          "logical_rpc_elements": 518400,
+          "modeled_cu": 10368000,
+          "observation_cycles": 518400,
+          "physical_http_starts": 518400,
+          "public_price_assumption_usd": 5.4432
+        }
+      ],
+      "pump_survivor_existing_optimized_warm_quote_inactive": [
+        {
+          "actual_account_charge_usd": null,
+          "hours": 24,
+          "logical_rpc_elements": 34560,
+          "modeled_cu": 691200,
+          "observation_cycles": 17280,
+          "physical_http_starts": 34560,
+          "public_price_assumption_usd": 0.36288
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 72,
+          "logical_rpc_elements": 103680,
+          "modeled_cu": 2073600,
+          "observation_cycles": 51840,
+          "physical_http_starts": 103680,
+          "public_price_assumption_usd": 1.08864
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 168,
+          "logical_rpc_elements": 241920,
+          "modeled_cu": 4838400,
+          "observation_cycles": 120960,
+          "physical_http_starts": 241920,
+          "public_price_assumption_usd": 2.54016
+        },
+        {
+          "actual_account_charge_usd": null,
+          "hours": 720,
+          "logical_rpc_elements": 1036800,
+          "modeled_cu": 20736000,
+          "observation_cycles": 518400,
+          "physical_http_starts": 1036800,
+          "public_price_assumption_usd": 10.8864
+        }
+      ]
+    },
+    "market_provider_calls": 0,
+    "market_workload": {
+      "activity_formula_cu": "quiet_core + 20*new_receipts + 20*missing_senders + 20*extra_event_headers",
+      "expected_monthly_total": null,
+      "note": "three base headers include target fence and previous checkpoint; no block advance deduplicates",
+      "observed_high_event_rate": null,
+      "observed_ordinary_event_rate": null,
+      "quiet_cycle_formula_cu": "152 + 60*ceil(new_blocks/window) + 20*extra_event_canonical_headers; no new block:132 with deduplicated target/checkpoint"
+    },
+    "pons_usd_assumptions": [
+      "original five-second route validity and three-second tick",
+      "oracle check valid through sixty seconds; next due route refresh at sixty-six seconds",
+      "one eligible route, distinct current and retained oracle blocks",
+      "no degradation, provider fees beyond CU, processing delay, route cardinality change or restarts"
+    ],
+    "pons_usd_source_shaped_sensitivity": [
+      {
+        "actual_account_charge_usd": null,
+        "hours": 24,
+        "logical_rpc_elements": 125683,
+        "modeled_cu": 2532026,
+        "oracle_refreshes": 1310,
+        "physical_http_starts": 89022,
+        "public_price_assumption_usd": 1.32931365,
+        "route_refreshes": 14400
+      },
+      {
+        "actual_account_charge_usd": null,
+        "hours": 72,
+        "logical_rpc_elements": 377027,
+        "modeled_cu": 7595554,
+        "oracle_refreshes": 3928,
+        "physical_http_starts": 267058,
+        "public_price_assumption_usd": 3.98766585,
+        "route_refreshes": 43200
+      },
+      {
+        "actual_account_charge_usd": null,
+        "hours": 168,
+        "logical_rpc_elements": 879715,
+        "modeled_cu": 17722610,
+        "oracle_refreshes": 9164,
+        "physical_http_starts": 623130,
+        "public_price_assumption_usd": 9.30437025,
+        "route_refreshes": 100800
+      },
+      {
+        "actual_account_charge_usd": null,
+        "hours": 720,
+        "logical_rpc_elements": 3770187,
+        "modeled_cu": 75953574,
+        "oracle_refreshes": 39273,
+        "physical_http_starts": 2670548,
+        "public_price_assumption_usd": 39.87562635,
+        "route_refreshes": 432000
+      }
+    ],
+    "portfolio": {
+      "approved_capital_changed": false,
+      "four_regimes": "Pump Current + Pump Survivor + Pons Current + Pons Survivor at their own five/three-second deadlines",
+      "larger": "eight $25 original-$500 positions, two per regime; $200 aggregate basis, hypothetical admissions still require all actual governors",
+      "one_owner": "component tables; whole protection cost unknown",
+      "scaling": "sum independent components as an unshared ceiling; count shared discovery/USD/history once; exact-quantity quotes remain per owner"
+    },
+    "pricing": {
+      "account_included_allowance": null,
+      "authenticated_marginal_price": null,
+      "evm_subscription_cu_per_delivered_byte": 0.04,
+      "public_cu_usd_per_million": 0.525,
+      "solana_grpc_usd_per_decimal_tb": 75,
+      "solana_websocket_cu_per_delivered_byte": 0.0002
+    },
+    "realized_provider_billing_savings_usd": null,
+    "reference": "030705397cf75766b5bffbea41abb8bf8db12104",
+    "replacement_break_even": {
+      "dedicated_rule": "fixed_node_price + uncovered_products + maintenance < eliminated_PAYG_work",
+      "enterprise_rule": "fixed_monthly_fee + discounted_CU_rate*CU/1e6 + delivery + recovery < PAYG_total",
+      "evm_rule": "0.04*delivered_bytes + fallback_CU + reconciliation_CU + infrastructure_CU_equivalent < 60*eliminated_log_elements",
+      "evm_stream_bytes_per_avoided_log_element": 1500,
+      "solana_grpc_bytes_per_avoided_http_transaction": 280000,
+      "solana_grpc_rule": "75*bytes/1e12 + residual_RPC_USD + overhead_USD < eliminated_RPC_USD",
+      "solana_grpc_to_websocket_byte_ratio_limit": 1.4
+    },
+    "schema": "meme-machine-acquisition-cost-v2",
+    "unknown_components": [
+      "fixed infrastructure already paid without a position",
+      "baseline discovery and sustained market bytes",
+      "candidate qualification frequency",
+      "entry/settlement rates",
+      "failures and restart distribution",
+      "mandatory combined protective latency and sustained reserves",
+      "actual account tariff and credits"
+    ],
+    "window_arithmetic": [
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 30,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 180,
+        "log_elements": 3,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 10
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 30,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 120,
+        "log_elements": 2,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 20
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 30,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 60,
+        "log_elements": 1,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 40
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 30,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 60,
+        "log_elements": 1,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 100
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 30,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 60,
+        "log_elements": 1,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 160
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 30,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 60,
+        "log_elements": 1,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": false,
+        "width": 500
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 40,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 240,
+        "log_elements": 4,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 10
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 40,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 120,
+        "log_elements": 2,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 20
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 40,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 60,
+        "log_elements": 1,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 40
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 40,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 60,
+        "log_elements": 1,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 100
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 40,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 60,
+        "log_elements": 1,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 160
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 40,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 60,
+        "log_elements": 1,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": false,
+        "width": 500
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 100,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 600,
+        "log_elements": 10,
+        "standalone_log_batch_starts": 3,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 10
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 100,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 300,
+        "log_elements": 5,
+        "standalone_log_batch_starts": 2,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 20
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 100,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 180,
+        "log_elements": 3,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 40
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 100,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 60,
+        "log_elements": 1,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 100
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 100,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 60,
+        "log_elements": 1,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 160
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 100,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 60,
+        "log_elements": 1,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": false,
+        "width": 500
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 160,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 960,
+        "log_elements": 16,
+        "standalone_log_batch_starts": 4,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 10
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 160,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 480,
+        "log_elements": 8,
+        "standalone_log_batch_starts": 2,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 20
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 160,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 240,
+        "log_elements": 4,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 40
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 160,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 120,
+        "log_elements": 2,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 100
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 160,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 60,
+        "log_elements": 1,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 160
+      },
+      {
+        "applicable_to_one_held_turn": true,
+        "blocks": 160,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 60,
+        "log_elements": 1,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": false,
+        "width": 500
+      },
+      {
+        "applicable_to_one_held_turn": false,
+        "blocks": 500,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 3000,
+        "log_elements": 50,
+        "standalone_log_batch_starts": 13,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 10
+      },
+      {
+        "applicable_to_one_held_turn": false,
+        "blocks": 500,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 1500,
+        "log_elements": 25,
+        "standalone_log_batch_starts": 7,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 20
+      },
+      {
+        "applicable_to_one_held_turn": false,
+        "blocks": 500,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 780,
+        "log_elements": 13,
+        "standalone_log_batch_starts": 4,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 40
+      },
+      {
+        "applicable_to_one_held_turn": false,
+        "blocks": 500,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 300,
+        "log_elements": 5,
+        "standalone_log_batch_starts": 2,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 100
+      },
+      {
+        "applicable_to_one_held_turn": false,
+        "blocks": 500,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 240,
+        "log_elements": 4,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 160
+      },
+      {
+        "applicable_to_one_held_turn": false,
+        "blocks": 500,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 60,
+        "log_elements": 1,
+        "standalone_log_batch_starts": 1,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": false,
+        "width": 500
+      },
+      {
+        "applicable_to_one_held_turn": false,
+        "blocks": 8192,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 49200,
+        "log_elements": 820,
+        "standalone_log_batch_starts": 205,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 10
+      },
+      {
+        "applicable_to_one_held_turn": false,
+        "blocks": 8192,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 24600,
+        "log_elements": 410,
+        "standalone_log_batch_starts": 103,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 20
+      },
+      {
+        "applicable_to_one_held_turn": false,
+        "blocks": 8192,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 12300,
+        "log_elements": 205,
+        "standalone_log_batch_starts": 52,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 40
+      },
+      {
+        "applicable_to_one_held_turn": false,
+        "blocks": 8192,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 4920,
+        "log_elements": 82,
+        "standalone_log_batch_starts": 21,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 100
+      },
+      {
+        "applicable_to_one_held_turn": false,
+        "blocks": 8192,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 3120,
+        "log_elements": 52,
+        "standalone_log_batch_starts": 13,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": true,
+        "width": 160
+      },
+      {
+        "applicable_to_one_held_turn": false,
+        "blocks": 8192,
+        "excludes": "headers, receipts, sender bodies, splits, state and deadlines",
+        "log_cu": 1020,
+        "log_elements": 17,
+        "standalone_log_batch_starts": 5,
+        "status": "arithmetic only; exact filter and endpoint proof required",
+        "supported_by_existing_inactive_capability_schema": false,
+        "width": 500
+      }
+    ]
+  },
+  "failures_and_reorganizations": "focused original native regression receipts; no successful decision or monthly rate invented",
+  "history_reuse": [
+    {
+      "after": {
+        "logical_rpc_elements": 2,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 1
+        },
+        "modeled_billed_cu": 80,
+        "modeled_throughput_cu": 80,
+        "physical_http_starts": 2
+      },
+      "before": {
+        "logical_rpc_elements": 3,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionByHash": 1
+        },
+        "modeled_billed_cu": 100,
+        "modeled_throughput_cu": 100,
+        "physical_http_starts": 3
+      },
+      "cache": {
+        "accounted_cache_bytes": 2339,
+        "durable_receipt_hit": 1,
+        "durable_receipt_retained": 2,
+        "header_hashes": 1,
+        "header_number_miss": 1,
+        "header_numbers": 1,
+        "header_store": 2,
+        "launches": 0,
+        "real_quotes": 0,
+        "receipt_miss": 1,
+        "receipt_store": 1,
+        "receipts": 1,
+        "transaction_miss": 1,
+        "transaction_store": 2,
+        "transactions": 1
+      },
+      "cold_after": {
+        "logical_rpc_elements": 4,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionByHash": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 120,
+        "modeled_throughput_cu": 120,
+        "physical_http_starts": 4
+      },
+      "cold_before": {
+        "logical_rpc_elements": 4,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionByHash": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 120,
+        "modeled_throughput_cu": 120,
+        "physical_http_starts": 4
+      },
+      "cu_avoided": 20,
+      "economic_and_canonical_event_parity": true,
+      "modeled_usd_avoided": 1.0500000000000001e-05,
+      "name": "warm_history_recovery_missing_receipt_sender",
+      "physical_starts_avoided": 1,
+      "repeated_receipts_after": 0,
+      "repeated_receipts_before": 0,
+      "source": "synthetic identical canonical transactions, fresh independent consumers",
+      "transactions": 1
+    },
+    {
+      "after": {
+        "logical_rpc_elements": 2,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 1
+        },
+        "modeled_billed_cu": 80,
+        "modeled_throughput_cu": 80,
+        "physical_http_starts": 2
+      },
+      "before": {
+        "logical_rpc_elements": 102,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionByHash": 100
+        },
+        "modeled_billed_cu": 2080,
+        "modeled_throughput_cu": 2080,
+        "physical_http_starts": 4
+      },
+      "cache": {
+        "accounted_cache_bytes": 182078,
+        "durable_receipt_hit": 100,
+        "durable_receipt_retained": 200,
+        "header_hashes": 1,
+        "header_number_miss": 1,
+        "header_numbers": 1,
+        "header_store": 2,
+        "launches": 0,
+        "real_quotes": 0,
+        "receipt_miss": 100,
+        "receipt_store": 100,
+        "receipts": 100,
+        "transaction_miss": 100,
+        "transaction_store": 200,
+        "transactions": 100
+      },
+      "cold_after": {
+        "logical_rpc_elements": 202,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionByHash": 100,
+          "eth_getTransactionReceipt": 100
+        },
+        "modeled_billed_cu": 4080,
+        "modeled_throughput_cu": 4080,
+        "physical_http_starts": 6
+      },
+      "cold_before": {
+        "logical_rpc_elements": 202,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionByHash": 100,
+          "eth_getTransactionReceipt": 100
+        },
+        "modeled_billed_cu": 4080,
+        "modeled_throughput_cu": 4080,
+        "physical_http_starts": 6
+      },
+      "cu_avoided": 2000,
+      "economic_and_canonical_event_parity": true,
+      "modeled_usd_avoided": 0.0010500000000000002,
+      "name": "warm_history_recovery_missing_receipt_sender",
+      "physical_starts_avoided": 2,
+      "repeated_receipts_after": 0,
+      "repeated_receipts_before": 0,
+      "source": "synthetic identical canonical transactions, fresh independent consumers",
+      "transactions": 100
+    }
+  ],
+  "interpretation": "Synthetic branch and boundary measurements; authenticated account totals are a separate artifact.",
+  "market_provider_calls": 0,
+  "native_scenarios": [
+    {
+      "after": {
+        "actions": [
+          "hold"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.020071494949064572,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 1605,
+        "fixture_json_response_bytes": 806,
+        "historical_receipts": 0,
+        "local_cpu_seconds": 0.013191371000000007,
+        "local_wall_seconds": 0.017071494949050248,
+        "logical_rpc_elements": 8,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 1
+        },
+        "modeled_billed_cu": 212,
+        "modeled_throughput_cu": 212,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 3,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.0030000000000143245
+      },
+      "before": {
+        "actions": [
+          "hold"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.10309084001650604,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 1605,
+        "fixture_json_response_bytes": 806,
+        "historical_receipts": 0,
+        "local_cpu_seconds": 0.09466029399999998,
+        "local_wall_seconds": 0.10009084001649171,
+        "logical_rpc_elements": 8,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 1
+        },
+        "modeled_billed_cu": 212,
+        "modeled_throughput_cu": 212,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 3,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.0030000000000143245
+      },
+      "blocks_advanced": 1,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "quiet_one_block",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 1.0,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "hold"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.022736838992699404,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2129,
+        "fixture_json_response_bytes": 812,
+        "historical_receipts": 0,
+        "local_cpu_seconds": 0.015408386000000052,
+        "local_wall_seconds": 0.01973683899268508,
+        "logical_rpc_elements": 10,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 3
+        },
+        "modeled_billed_cu": 332,
+        "modeled_throughput_cu": 332,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 3,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.0030000000000143245
+      },
+      "before": {
+        "actions": [
+          "hold"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.030130079921349306,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2129,
+        "fixture_json_response_bytes": 812,
+        "historical_receipts": 0,
+        "local_cpu_seconds": 0.02189028500000001,
+        "local_wall_seconds": 0.027130079921334982,
+        "logical_rpc_elements": 10,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 3
+        },
+        "modeled_billed_cu": 332,
+        "modeled_throughput_cu": 332,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 3,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.0030000000000143245
+      },
+      "blocks_advanced": 30,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "quiet_30_blocks",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 1.0,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "hold"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.022714070018395205,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2391,
+        "fixture_json_response_bytes": 815,
+        "historical_receipts": 0,
+        "local_cpu_seconds": 0.014561823000000196,
+        "local_wall_seconds": 0.01971407001838088,
+        "logical_rpc_elements": 11,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 4
+        },
+        "modeled_billed_cu": 392,
+        "modeled_throughput_cu": 392,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 3,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.0030000000000143245
+      },
+      "before": {
+        "actions": [
+          "hold"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.030496994938715716,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2391,
+        "fixture_json_response_bytes": 815,
+        "historical_receipts": 0,
+        "local_cpu_seconds": 0.021307045000000135,
+        "local_wall_seconds": 0.02749699493870139,
+        "logical_rpc_elements": 11,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 4
+        },
+        "modeled_billed_cu": 392,
+        "modeled_throughput_cu": 392,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 3,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.0030000000000143245
+      },
+      "blocks_advanced": 40,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "quiet_40_blocks",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 1.0,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "hold"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.028903857964110102,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 1707,
+        "fixture_json_response_bytes": 2934,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.01647671000000006,
+        "local_wall_seconds": 0.024903857964091003,
+        "logical_rpc_elements": 9,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 232,
+        "modeled_throughput_cu": 232,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 4,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.004000000000019099
+      },
+      "before": {
+        "actions": [
+          "hold"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.02594975398017141,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 1707,
+        "fixture_json_response_bytes": 2934,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.01584544500000007,
+        "local_wall_seconds": 0.02194975398015231,
+        "logical_rpc_elements": 9,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 232,
+        "modeled_throughput_cu": 232,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 4,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.004000000000019099
+      },
+      "blocks_advanced": 1,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "one_new_transaction",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 1.0,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "full_exit"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.021452511052615364,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 1605,
+        "fixture_json_response_bytes": 806,
+        "historical_receipts": 0,
+        "local_cpu_seconds": 0.014174499999999979,
+        "local_wall_seconds": 0.01845251105260104,
+        "logical_rpc_elements": 8,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 1
+        },
+        "modeled_billed_cu": 212,
+        "modeled_throughput_cu": 212,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 3,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.0030000000000143245
+      },
+      "before": {
+        "actions": [
+          "full_exit"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.021387537915273924,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 1605,
+        "fixture_json_response_bytes": 806,
+        "historical_receipts": 0,
+        "local_cpu_seconds": 0.013053913000000028,
+        "local_wall_seconds": 0.0183875379152596,
+        "logical_rpc_elements": 8,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 1
+        },
+        "modeled_billed_cu": 212,
+        "modeled_throughput_cu": 212,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 3,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.0030000000000143245
+      },
+      "blocks_advanced": 1,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "sharp_decline",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 0.6,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "partial_exit"
+        ],
+        "block_headers": 4,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 3,
+        "conservative_core_latency_seconds": 0.03050132800734673,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2603,
+        "fixture_json_response_bytes": 3268,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.017913878999999966,
+        "local_wall_seconds": 0.02450132800731808,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 3,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 4,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 298,
+        "modeled_throughput_cu": 298,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 2,
+        "observation_cycles": 1,
+        "physical_http_starts": 6,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.006000000000028649
+      },
+      "before": {
+        "actions": [
+          "partial_exit"
+        ],
+        "block_headers": 4,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 3,
+        "conservative_core_latency_seconds": 0.031084643042674998,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2603,
+        "fixture_json_response_bytes": 3268,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.01848869800000008,
+        "local_wall_seconds": 0.02508464304264635,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 3,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 4,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 298,
+        "modeled_throughput_cu": 298,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 2,
+        "observation_cycles": 1,
+        "physical_http_starts": 6,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.006000000000028649
+      },
+      "blocks_advanced": 1,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "partial_realization",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 2.2,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "full_exit"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.025184194018152084,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 1707,
+        "fixture_json_response_bytes": 2934,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.015299116000000001,
+        "local_wall_seconds": 0.021184194018132985,
+        "logical_rpc_elements": 9,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 232,
+        "modeled_throughput_cu": 232,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 4,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.004000000000019099
+      },
+      "before": {
+        "actions": [
+          "full_exit"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.02580346695242497,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 1707,
+        "fixture_json_response_bytes": 2934,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.014962246000000068,
+        "local_wall_seconds": 0.02180346695240587,
+        "logical_rpc_elements": 9,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 232,
+        "modeled_throughput_cu": 232,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 4,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.004000000000019099
+      },
+      "blocks_advanced": 1,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "full_exit",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 0.6,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "full_exit"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.02105982098450454,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 1605,
+        "fixture_json_response_bytes": 814,
+        "historical_receipts": 0,
+        "local_cpu_seconds": 0.013030352999999995,
+        "local_wall_seconds": 0.018059820984490216,
+        "logical_rpc_elements": 8,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 1
+        },
+        "modeled_billed_cu": 212,
+        "modeled_throughput_cu": 212,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 3,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.0030000000000143245
+      },
+      "before": {
+        "actions": [
+          "full_exit"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.023976754953167756,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 1605,
+        "fixture_json_response_bytes": 814,
+        "historical_receipts": 0,
+        "local_cpu_seconds": 0.013949286000000116,
+        "local_wall_seconds": 0.02097675495315343,
+        "logical_rpc_elements": 8,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 1
+        },
+        "modeled_billed_cu": 212,
+        "modeled_throughput_cu": 212,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 3,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.0030000000000143245
+      },
+      "blocks_advanced": 1,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "gas_change_without_swaps",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 1.0,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "hold"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.027743592038774523,
+        "fallback_requests": 1,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 1808,
+        "fixture_json_response_bytes": 3140,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.016065221999999935,
+        "local_wall_seconds": 0.02274359203875065,
+        "logical_rpc_elements": 10,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionByHash": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 252,
+        "modeled_throughput_cu": 252,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 5,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 1,
+        "virtual_native_protective_seconds": 0.005000000000023874
+      },
+      "before": {
+        "actions": [
+          "hold"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.028644761065976354,
+        "fallback_requests": 1,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 1808,
+        "fixture_json_response_bytes": 3140,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.016396387000000123,
+        "local_wall_seconds": 0.02364476106595248,
+        "logical_rpc_elements": 10,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionByHash": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 252,
+        "modeled_throughput_cu": 252,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 5,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 1,
+        "virtual_native_protective_seconds": 0.005000000000023874
+      },
+      "blocks_advanced": 1,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "missing_sender",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 1.0,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "hold",
+          "hold",
+          "hold",
+          "hold"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.07527828896047595,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 4416,
+        "fixture_json_response_bytes": 8841,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.0554696090000002,
+        "local_wall_seconds": 0.07127828896045685,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 5,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 310,
+        "modeled_throughput_cu": 310,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 4,
+        "observation_cycles": 1,
+        "physical_http_starts": 4,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.004000000000019099
+      },
+      "before": {
+        "actions": [
+          "hold",
+          "hold",
+          "hold",
+          "hold"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 0.08289714103659662,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 4416,
+        "fixture_json_response_bytes": 8841,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.06088344999999995,
+        "local_wall_seconds": 0.07889714103657752,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 5,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 310,
+        "modeled_throughput_cu": 310,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 4,
+        "observation_cycles": 1,
+        "physical_http_starts": 4,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.004000000000019099
+      },
+      "blocks_advanced": 1,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "four_compatible_owners",
+      "owners": 4,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 1.0,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "hold"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 1.6569521350078276,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 1707,
+        "fixture_json_response_bytes": 2934,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.03259342100000007,
+        "local_wall_seconds": 0.055952135007828474,
+        "logical_rpc_elements": 9,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 232,
+        "modeled_throughput_cu": 232,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 4,
+        "queue_wait_seconds": 1.1970000000000027,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 1.600999999999999
+      },
+      "before": {
+        "actions": [
+          "hold"
+        ],
+        "block_headers": 3,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 2,
+        "conservative_core_latency_seconds": 1.6607854939987874,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 1707,
+        "fixture_json_response_bytes": 2934,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.03398943600000015,
+        "local_wall_seconds": 0.0597854939987883,
+        "logical_rpc_elements": 9,
+        "methods": {
+          "eth_call": 2,
+          "eth_gasPrice": 1,
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 232,
+        "modeled_throughput_cu": 232,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 1,
+        "observation_cycles": 1,
+        "physical_http_starts": 4,
+        "queue_wait_seconds": 1.1970000000000027,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 1.600999999999999
+      },
+      "blocks_advanced": 1,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0.1,
+      "modeled_physical_rps": 2,
+      "name": "one_owner_two_rps",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 1.0,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "partial_exit"
+        ],
+        "block_headers": 4,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 3,
+        "conservative_core_latency_seconds": 0.03278765601015721,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2603,
+        "fixture_json_response_bytes": 3268,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.020297801999999976,
+        "local_wall_seconds": 0.026787656010128558,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 3,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 4,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 298,
+        "modeled_throughput_cu": 298,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 2,
+        "observation_cycles": 1,
+        "physical_http_starts": 6,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.006000000000028649
+      },
+      "before": {
+        "actions": [
+          "partial_exit"
+        ],
+        "block_headers": 4,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 3,
+        "conservative_core_latency_seconds": 0.03222639795302484,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2603,
+        "fixture_json_response_bytes": 3268,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.01918782100000005,
+        "local_wall_seconds": 0.026226397952996194,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 3,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 4,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 298,
+        "modeled_throughput_cu": 298,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 2,
+        "observation_cycles": 1,
+        "physical_http_starts": 6,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.006000000000028649
+      },
+      "blocks_advanced": 1,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "winner_2x",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 2,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "partial_exit"
+        ],
+        "block_headers": 4,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 3,
+        "conservative_core_latency_seconds": 0.03226557892656956,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2603,
+        "fixture_json_response_bytes": 3268,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.019347835999999674,
+        "local_wall_seconds": 0.02626557892654091,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 3,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 4,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 298,
+        "modeled_throughput_cu": 298,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 2,
+        "observation_cycles": 1,
+        "physical_http_starts": 6,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.006000000000028649
+      },
+      "before": {
+        "actions": [
+          "partial_exit"
+        ],
+        "block_headers": 4,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 3,
+        "conservative_core_latency_seconds": 0.03223566403056566,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2603,
+        "fixture_json_response_bytes": 3268,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.019359525000000044,
+        "local_wall_seconds": 0.02623566403053701,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 3,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 4,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 298,
+        "modeled_throughput_cu": 298,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 2,
+        "observation_cycles": 1,
+        "physical_http_starts": 6,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.006000000000028649
+      },
+      "blocks_advanced": 1,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "winner_5x",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 5,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "partial_exit"
+        ],
+        "block_headers": 4,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 3,
+        "conservative_core_latency_seconds": 0.031769412983237544,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2603,
+        "fixture_json_response_bytes": 3268,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.019037999000000028,
+        "local_wall_seconds": 0.025769412983208895,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 3,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 4,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 298,
+        "modeled_throughput_cu": 298,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 2,
+        "observation_cycles": 1,
+        "physical_http_starts": 6,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.006000000000028649
+      },
+      "before": {
+        "actions": [
+          "partial_exit"
+        ],
+        "block_headers": 4,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 3,
+        "conservative_core_latency_seconds": 0.03279105498830859,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2603,
+        "fixture_json_response_bytes": 3268,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.01982115200000001,
+        "local_wall_seconds": 0.02679105498827994,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 3,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 4,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 298,
+        "modeled_throughput_cu": 298,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 2,
+        "observation_cycles": 1,
+        "physical_http_starts": 6,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.006000000000028649
+      },
+      "blocks_advanced": 1,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "winner_10x",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 10,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "partial_exit"
+        ],
+        "block_headers": 4,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 3,
+        "conservative_core_latency_seconds": 0.031143416016391257,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2603,
+        "fixture_json_response_bytes": 3268,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.018651733999999642,
+        "local_wall_seconds": 0.025143416016362607,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 3,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 4,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 298,
+        "modeled_throughput_cu": 298,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 2,
+        "observation_cycles": 1,
+        "physical_http_starts": 6,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.006000000000028649
+      },
+      "before": {
+        "actions": [
+          "partial_exit"
+        ],
+        "block_headers": 4,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 3,
+        "conservative_core_latency_seconds": 0.03840306198134158,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2603,
+        "fixture_json_response_bytes": 3268,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.025221939999999776,
+        "local_wall_seconds": 0.03240306198131293,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 3,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 4,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 298,
+        "modeled_throughput_cu": 298,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 2,
+        "observation_cycles": 1,
+        "physical_http_starts": 6,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.006000000000028649
+      },
+      "blocks_advanced": 1,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "winner_25x",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 25,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "partial_exit"
+        ],
+        "block_headers": 4,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 3,
+        "conservative_core_latency_seconds": 0.03199462505898509,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2603,
+        "fixture_json_response_bytes": 3268,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.019483564000000175,
+        "local_wall_seconds": 0.025994625058956444,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 3,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 4,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 298,
+        "modeled_throughput_cu": 298,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 2,
+        "observation_cycles": 1,
+        "physical_http_starts": 6,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.006000000000028649
+      },
+      "before": {
+        "actions": [
+          "partial_exit"
+        ],
+        "block_headers": 4,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 3,
+        "conservative_core_latency_seconds": 0.03318778105921183,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2603,
+        "fixture_json_response_bytes": 3268,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.02006024999999978,
+        "local_wall_seconds": 0.02718778105918318,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 3,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 4,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 298,
+        "modeled_throughput_cu": 298,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 2,
+        "observation_cycles": 1,
+        "physical_http_starts": 6,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.006000000000028649
+      },
+      "blocks_advanced": 1,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "winner_50x",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 50,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "partial_exit"
+        ],
+        "block_headers": 4,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 3,
+        "conservative_core_latency_seconds": 0.03319523396811519,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2603,
+        "fixture_json_response_bytes": 3268,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.020545064000000224,
+        "local_wall_seconds": 0.02719523396808654,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 3,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 4,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 298,
+        "modeled_throughput_cu": 298,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 2,
+        "observation_cycles": 1,
+        "physical_http_starts": 6,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.006000000000028649
+      },
+      "before": {
+        "actions": [
+          "partial_exit"
+        ],
+        "block_headers": 4,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 3,
+        "conservative_core_latency_seconds": 0.03335348604622368,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2603,
+        "fixture_json_response_bytes": 3268,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.01963427899999992,
+        "local_wall_seconds": 0.02735348604619503,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 3,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 4,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 298,
+        "modeled_throughput_cu": 298,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 2,
+        "observation_cycles": 1,
+        "physical_http_starts": 6,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.006000000000028649
+      },
+      "blocks_advanced": 1,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "winner_100x",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 100,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    },
+    {
+      "after": {
+        "actions": [
+          "partial_exit"
+        ],
+        "block_headers": 4,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 3,
+        "conservative_core_latency_seconds": 0.031901392102270165,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2603,
+        "fixture_json_response_bytes": 3268,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.019151489999999605,
+        "local_wall_seconds": 0.025901392102241516,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 3,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 4,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 298,
+        "modeled_throughput_cu": 298,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 2,
+        "observation_cycles": 1,
+        "physical_http_starts": 6,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.006000000000028649
+      },
+      "before": {
+        "actions": [
+          "partial_exit"
+        ],
+        "block_headers": 4,
+        "cache_hits": null,
+        "cache_invalidations": null,
+        "canonical_numeric_checks": 3,
+        "conservative_core_latency_seconds": 0.032773991994588414,
+        "fallback_requests": 0,
+        "financial_valuation_acquisitions": 0,
+        "fixture_json_request_bytes": 2603,
+        "fixture_json_response_bytes": 3268,
+        "historical_receipts": 1,
+        "local_cpu_seconds": 0.01931058299999977,
+        "local_wall_seconds": 0.026773991994559765,
+        "logical_rpc_elements": 12,
+        "methods": {
+          "eth_call": 3,
+          "eth_gasPrice": 2,
+          "eth_getBlockByNumber": 4,
+          "eth_getCode": 1,
+          "eth_getLogs": 1,
+          "eth_getTransactionReceipt": 1
+        },
+        "modeled_billed_cu": 298,
+        "modeled_throughput_cu": 298,
+        "native_cash_basis_conservation": true,
+        "native_quotes": 2,
+        "observation_cycles": 1,
+        "physical_http_starts": 6,
+        "queue_wait_seconds": 0,
+        "streaming_bytes": 0,
+        "transaction_sender_acquisitions": 0,
+        "virtual_native_protective_seconds": 0.006000000000028649
+      },
+      "blocks_advanced": 1,
+      "complete_protective_capacity_proven": false,
+      "exclusions": [
+        "mandatory USD market acquisitions injected by the native fixture",
+        "discovery, qualification, provider rotations, streaming, failures and restart costs",
+        "fixture bytes are not authenticated or compressed billable wire bytes"
+      ],
+      "injected_rtt_seconds": 0,
+      "modeled_physical_rps": null,
+      "name": "winner_1000x",
+      "owners": 1,
+      "position_risk_and_execution_equivalence": true,
+      "price_factor": 1000,
+      "source": "synthetic native runtime; same evidence and original PR129 economic state"
+    }
+  ],
+  "pons_usd": [
+    {
+      "assumed_blocks_per_second": 10,
+      "elapsed_seconds": 0,
+      "logical_rpc_elements": 19,
+      "methods": {
+        "eth_call": 10,
+        "eth_chainId": 1,
+        "eth_getBlockByNumber": 2,
+        "eth_getCode": 6
+      },
+      "modeled_billed_cu": 420,
+      "modeled_throughput_cu": 425,
+      "oracle_checked_at": 1791077122,
+      "physical_http_starts": 10,
+      "quote_valid_until": 1791077127,
+      "shared_valuation_cache_hit": false,
+      "source": "synthetic source-shaped USD oracle plus one eligible route",
+      "usd_per_eth": "2500.34902500"
+    },
+    {
+      "assumed_blocks_per_second": 10,
+      "elapsed_seconds": 3,
+      "logical_rpc_elements": 0,
+      "methods": {},
+      "modeled_billed_cu": 0,
+      "modeled_throughput_cu": 0,
+      "oracle_checked_at": 1791077122,
+      "physical_http_starts": 0,
+      "quote_valid_until": 1791077127,
+      "shared_valuation_cache_hit": true,
+      "source": "synthetic source-shaped USD oracle plus one eligible route",
+      "usd_per_eth": "2500.34902500"
+    },
+    {
+      "assumed_blocks_per_second": 10,
+      "elapsed_seconds": 6,
+      "logical_rpc_elements": 8,
+      "methods": {
+        "eth_call": 3,
+        "eth_chainId": 1,
+        "eth_getBlockByNumber": 3,
+        "eth_getCode": 1
+      },
+      "modeled_billed_cu": 158,
+      "modeled_throughput_cu": 163,
+      "oracle_checked_at": 1791077122,
+      "physical_http_starts": 6,
+      "quote_valid_until": 1791077133,
+      "shared_valuation_cache_hit": false,
+      "source": "synthetic source-shaped USD oracle plus one eligible route",
+      "usd_per_eth": "2500.34902500"
+    },
+    {
+      "assumed_blocks_per_second": 10,
+      "elapsed_seconds": 12,
+      "logical_rpc_elements": 8,
+      "methods": {
+        "eth_call": 3,
+        "eth_chainId": 1,
+        "eth_getBlockByNumber": 3,
+        "eth_getCode": 1
+      },
+      "modeled_billed_cu": 158,
+      "modeled_throughput_cu": 163,
+      "oracle_checked_at": 1791077122,
+      "physical_http_starts": 6,
+      "quote_valid_until": 1791077139,
+      "shared_valuation_cache_hit": false,
+      "source": "synthetic source-shaped USD oracle plus one eligible route",
+      "usd_per_eth": "2500.34902500"
+    },
+    {
+      "assumed_blocks_per_second": 10,
+      "elapsed_seconds": 66,
+      "logical_rpc_elements": 16,
+      "methods": {
+        "eth_call": 9,
+        "eth_chainId": 1,
+        "eth_getBlockByNumber": 2,
+        "eth_getCode": 4
+      },
+      "modeled_billed_cu": 354,
+      "modeled_throughput_cu": 359,
+      "oracle_checked_at": 1791077188,
+      "physical_http_starts": 8,
+      "quote_valid_until": 1791077193,
+      "shared_valuation_cache_hit": false,
+      "source": "synthetic source-shaped USD oracle plus one eligible route",
+      "usd_per_eth": "2500.34902500"
+    }
+  ],
+  "pump_existing": [
+    {
+      "exact_sell_outputs": [
+        {
+          "fee_amount": 3,
+          "fee_asset": "quote",
+          "gross_output": 99,
+          "input_amount": 1000000,
+          "output_amount": 96,
+          "side": "sell",
+          "surface": "pumpswap"
+        },
+        {
+          "fee_amount": 750,
+          "fee_asset": "quote",
+          "gross_output": 99999,
+          "input_amount": 1000000000,
+          "output_amount": 99249,
+          "side": "sell",
+          "surface": "pumpswap"
+        },
+        {
+          "fee_amount": 74985,
+          "fee_asset": "quote",
+          "gross_output": 9998000,
+          "input_amount": 100000000000,
+          "output_amount": 9923015,
+          "side": "sell",
+          "surface": "pumpswap"
+        }
+      ],
+      "excludes": [
+        "holders, discovery, streaming, USD, genesis rotation, recovery"
+      ],
+      "logical_rpc_elements": 5,
+      "methods": {
+        "getBlockTime": 2,
+        "getMultipleAccounts": 3
+      },
+      "modeled_billed_cu": 100,
+      "modeled_throughput_cu": 100,
+      "name": "baseline",
+      "physical_http_starts": 5,
+      "source": "existing PR126 path; unchanged in this branch"
+    },
+    {
+      "exact_sell_outputs": [
+        {
+          "fee_amount": 3,
+          "fee_asset": "quote",
+          "gross_output": 99,
+          "input_amount": 1000000,
+          "output_amount": 96,
+          "side": "sell",
+          "surface": "pumpswap"
+        },
+        {
+          "fee_amount": 750,
+          "fee_asset": "quote",
+          "gross_output": 99999,
+          "input_amount": 1000000000,
+          "output_amount": 99249,
+          "side": "sell",
+          "surface": "pumpswap"
+        },
+        {
+          "fee_amount": 74985,
+          "fee_asset": "quote",
+          "gross_output": 9998000,
+          "input_amount": 100000000000,
+          "output_amount": 9923015,
+          "side": "sell",
+          "surface": "pumpswap"
+        }
+      ],
+      "excludes": [
+        "holders, discovery, streaming, USD, genesis rotation, recovery"
+      ],
+      "logical_rpc_elements": 3,
+      "methods": {
+        "getBlockTime": 1,
+        "getMultipleAccounts": 2
+      },
+      "modeled_billed_cu": 60,
+      "modeled_throughput_cu": 60,
+      "name": "existing_optimized_cold",
+      "physical_http_starts": 3,
+      "source": "existing PR126 path; unchanged in this branch"
+    },
+    {
+      "exact_sell_outputs": [
+        {
+          "fee_amount": 3,
+          "fee_asset": "quote",
+          "gross_output": 99,
+          "input_amount": 1000000,
+          "output_amount": 96,
+          "side": "sell",
+          "surface": "pumpswap"
+        },
+        {
+          "fee_amount": 750,
+          "fee_asset": "quote",
+          "gross_output": 99999,
+          "input_amount": 1000000000,
+          "output_amount": 99249,
+          "side": "sell",
+          "surface": "pumpswap"
+        },
+        {
+          "fee_amount": 74985,
+          "fee_asset": "quote",
+          "gross_output": 9998000,
+          "input_amount": 100000000000,
+          "output_amount": 9923015,
+          "side": "sell",
+          "surface": "pumpswap"
+        }
+      ],
+      "excludes": [
+        "holders, discovery, streaming, USD, genesis rotation, recovery"
+      ],
+      "logical_rpc_elements": 2,
+      "methods": {
+        "getBlockTime": 1,
+        "getMultipleAccounts": 1
+      },
+      "modeled_billed_cu": 40,
+      "modeled_throughput_cu": 40,
+      "name": "existing_optimized_warm",
+      "physical_http_starts": 2,
+      "source": "existing PR126 path; unchanged in this branch"
+    },
+    {
+      "exact_sell_outputs": [
+        {
+          "fee_amount": 3,
+          "fee_asset": "quote",
+          "gross_output": 99,
+          "input_amount": 1000000,
+          "output_amount": 96,
+          "side": "sell",
+          "surface": "pumpswap"
+        },
+        {
+          "fee_amount": 750,
+          "fee_asset": "quote",
+          "gross_output": 99999,
+          "input_amount": 1000000000,
+          "output_amount": 99249,
+          "side": "sell",
+          "surface": "pumpswap"
+        },
+        {
+          "fee_amount": 74985,
+          "fee_asset": "quote",
+          "gross_output": 9998000,
+          "input_amount": 100000000000,
+          "output_amount": 9923015,
+          "side": "sell",
+          "surface": "pumpswap"
+        }
+      ],
+      "excludes": [
+        "holders, discovery, streaming, USD, genesis rotation, recovery"
+      ],
+      "logical_rpc_elements": 1,
+      "methods": {
+        "getMultipleAccounts": 1
+      },
+      "modeled_billed_cu": 20,
+      "modeled_throughput_cu": 20,
+      "name": "existing_optimized_exact_local_time",
+      "physical_http_starts": 1,
+      "source": "existing PR126 path; unchanged in this branch"
+    }
+  ],
+  "realized_billing_savings_usd": null,
+  "schema": "meme-machine-redundant-acquisition-offline-v1",
+  "source_commit": "6e4b0a096d3cd45a580c5e956fb8024e098a73fb"
+}
