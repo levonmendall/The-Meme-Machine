@@ -299,7 +299,11 @@ class SelectiveShutdownTests(unittest.IsolatedAsyncioTestCase):
         import asyncio
         from meme_machine.solana_selective_source import SelectiveSource
         stop=asyncio.Event();closed=asyncio.Event();running=asyncio.Event()
-        source=SimpleNamespace(stop=stop,observe=lambda *args,**kwargs:None,rolling_publications=0)
+        # Use the actual source object, including its durable control-startup
+        # barrier. This isolated cutoff test has no sampled startup tip; the
+        # separate control-order tests require the real committed frontier.
+        source=SelectiveSource(SimpleNamespace(credential='offline'),None)
+        source.stop=stop;source.observe=lambda *args,**kwargs:None
         async def work(*args,**kwargs):return [dict(priority=6)]
         async def live(*args):
             running.set()

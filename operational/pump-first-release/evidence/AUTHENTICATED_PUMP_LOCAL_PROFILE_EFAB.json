@@ -1,0 +1,32 @@
+{
+  "status": "DIAGNOSTIC_WALL_STOP_NO_CAPACITY_CLAIM",
+  "source": "efab91925fa21f8f3f7553820e806e995f9f7115",
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-profile-efab9192-1791748055070.sqlite",
+  "physical_starts": 3,
+  "logical_rpc_elements": 1,
+  "cu": 20,
+  "known_native_bytes": 1760646,
+  "uncertain_native_bytes": 134217518,
+  "reserved_bytes": 0,
+  "http_bytes": 43,
+  "native_openings": 2,
+  "reason": "bounded_run_wall_limit",
+  "journal_mode": "DELETE",
+  "native_groups": 2713,
+  "median_native_group_bytes": 210,
+  "mean_native_commit_ms": 13.102908580815587,
+  "full_protection": false,
+  "funding": false,
+  "orders": false,
+  "counters_reset": false,
+  "profiler_overhead": true,
+  "profile_function_timings_not_capacity_measurements": true,
+  "scope": "Control replay and scouts only; live program joins did not open before the sixty-second limit",
+  "local_findings": [
+    "Every delivered group writes all unchanged run keys in original Budget.write",
+    "New ledger creation used rollback DELETE journals",
+    "Native group median 210 bytes is less than one full payload; decoding does not account for measured durable write delays"
+  ],
+  "maximum_modeled_usd": "0.08262144576",
+  "modeled_public_upper_usd": "0.01428820722"
+}

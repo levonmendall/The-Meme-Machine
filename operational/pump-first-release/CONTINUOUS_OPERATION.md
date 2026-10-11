@@ -320,3 +320,31 @@ The remaining Pump bottleneck needs attribution between native intake, join
 processing, normalized publication and optional cold work before another
 correctness trial. Further measurement is diagnostic, never a funding gate
 pass. Both families remain disabled; the continuous acceptance clock is zero.
+
+### 2026-10-11 20:00 UTC accounting-path repair
+
+A separate sixty-second instrumented diagnostic reached only control/scout
+replay, not complete program coverage. Its durable native groups had median
+210 bytes and mean commit latency 13.103 ms. It ended at its wall guard with
+2 openings, 3 physical starts, 20 CU and 1,760,646 known native bytes; unread
+reserved buffers remain conservatively attributed. Public upper $0.01428820722.
+The profiler adds overhead and its asynchronous call timings are diagnostic,
+not a protective-capacity measurement.
+
+The existing usage ledger rewrote every immutable/unchanged run key on each
+small delivery and created rollback DELETE journals. New ledgers now use WAL
+with synchronous FULL, and each transaction updates only changed keys. Usage
+deltas, hourly accounting, original counters, reservations and failure reasons
+remain atomic; content cannot reach consumers before its durable commit. No
+old run ledger is migrated or reset. No stream/response/memory limit changes.
+SQLite's FULL WAL durability is documented at
+https://www.sqlite.org/pragma.html#pragma_synchronous.
+
+Focused native intake, explicit limits, continuous days/restarts, continuation,
+ungraceful worker exit and aborted-write regression: 75 passed in 11.020s.
+The retained first run exposed a cutoff fixture's SimpleNamespace lacking the
+new real control-order barrier; the fixture now uses the actual source object.
+All control frontier, timeout, economic and capital assertions are preserved.
+For 64 native frames, the ledger issues 64 changed-key UPDATEs rather than
+rewriting every run key, with exact legacy counter/reason/configuration parity.
+This is local write reduction, not lower provider request/CU billing.

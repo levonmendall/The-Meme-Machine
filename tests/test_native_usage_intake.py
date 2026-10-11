@@ -6,7 +6,10 @@ from pathlib import Path
 from types import SimpleNamespace
 import tempfile
 import unittest
-from unittest.mock import AsyncMock
+import sqlite3
+import subprocess
+import sys
+from unittest.mock import AsyncMock,patch
 import grpc
 from meme_machine.operational.bounded_provider import Budget,NativeReadBuffer,MAX_FRAME,CeilingReached,NATIVE_READY_FRAMES
 
@@ -20,6 +23,60 @@ class NativeUsageIntakeTests(unittest.TestCase):
 
     def native(self,transport,size):
         self.calls.append(size);self.budget.native(transport,size,token=self.token)
+
+    def test_changed_key_commits_match_legacy_totals_without_rewriting_configuration(self):
+        old=Budget.create(Path(self.tmp.name)/'legacy.sqlite',modeled_spend_limit='3')
+        # Exact prior persistence behavior, including its rollback-journal mode.
+        with old.db() as db:db.execute('PRAGMA journal_mode=DELETE')
+        def legacy_write(budget,db,state):
+            db.executemany('UPDATE run SET value=? WHERE key=?',
+                [(str(v),budget.prefix+k) for k,v in state.items()])
+        original=self.budget.db;updates=[]
+        def traced():
+            db=original();db.set_trace_callback(lambda sql:updates.append(sql) if sql.startswith('UPDATE run') else None)
+            return db
+        with patch.object(Budget,'write',legacy_write):
+            token=old.stream_open('yellowstone')
+            for size in range(1,65):old.native('yellowstone',size,token=token)
+            old.stream_close(token,unread_possible=True)
+        with patch.object(self.budget,'db',traced):
+            for size in range(1,65):self.budget.native('yellowstone',size,token=self.token)
+        self.assertEqual(len(updates),64)
+        self.assertTrue(all("key='native_bytes'" in sql for sql in updates))
+        self.budget.stream_close(self.token,unread_possible=True)
+        before=old.snapshot();after=Budget(self.path).snapshot()
+        for field in ('rpc_cu','rpc_elements','http_attempts','native_bytes','native_reserved',
+                'native_uncertain_bytes','native_opens','reason','limits','resource_configuration'):
+            self.assertEqual(after[field],before[field],field)
+        self.assertEqual(int(after['native_bytes']),sum(range(1,65)))
+
+    def test_new_ledger_full_wal_commits_survive_ungraceful_worker_exit(self):
+        with self.budget.db() as db:
+            self.assertEqual(db.execute('PRAGMA journal_mode').fetchone()[0],'wal')
+            self.assertEqual(db.execute('PRAGMA synchronous').fetchone()[0],2)
+        code='''import os,sys
+from meme_machine.operational.bounded_provider import Budget
+b=Budget(sys.argv[1]);token=b.stream_open('yellowstone')
+b.native('yellowstone',1234,token=token)
+os._exit(0)
+'''
+        result=subprocess.run([sys.executable,'-c',code,str(self.path)],capture_output=True,timeout=5)
+        self.assertEqual(result.returncode,0,result.stderr.decode())
+        resumed=Budget(self.path)
+        self.assertEqual(resumed.snapshot()['native_bytes'],'1234')
+        self.assertEqual(resumed.snapshot()['native_opens'],'2')
+        resumed.reap_orphans()
+        state=resumed.snapshot()
+        self.assertEqual(state['native_bytes'],'1234')
+        self.assertEqual(state['native_uncertain_bytes'],str(4*MAX_FRAME))
+        self.assertEqual(state['native_reserved'],str(4*MAX_FRAME))
+
+    def test_failed_changed_counter_write_does_not_publish_or_partially_commit_usage(self):
+        with self.budget.db() as db:
+            db.execute("CREATE TRIGGER reject_usage BEFORE UPDATE OF value ON run WHEN NEW.key='native_bytes' BEGIN SELECT RAISE(ABORT,'offline storage fault'); END")
+        before=self.budget.snapshot()
+        with self.assertRaises(sqlite3.IntegrityError):self.budget.native('yellowstone',99,token=self.token)
+        self.assertEqual(self.budget.snapshot(),before)
 
     def buffer(self,packets):
         values=deque(packets)

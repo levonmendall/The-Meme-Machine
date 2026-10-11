@@ -197,8 +197,11 @@ class Budget:
             if (key.startswith(self.prefix) if self.prefix else '.' not in key)}
 
     def write(self,db,state):
+        # Rewrite changed facts, not configuration and every unchanged owner
+        # identity for each small delivery. Usage deltas and hourly attribution
+        # still commit atomically before any content reaches its consumer.
+        before=self.read(db)
         if self.continuous:
-            before=self.read(db)
             deltas={k:int(state[k])-int(before[k]) for k in USAGE_COUNTERS}
             if any(v<0 for v in deltas.values()):raise ValueError('provider_usage_counter_regression')
             if any(deltas.values()):
@@ -206,7 +209,8 @@ class Budget:
                 db.execute('INSERT OR IGNORE INTO usage_hours(hour) VALUES(?)',(hour,))
                 db.execute('UPDATE usage_hours SET '+','.join(k+'='+k+'+?' for k in deltas)+' WHERE hour=?',
                     (*deltas.values(),hour))
-        db.executemany('UPDATE run SET value=? WHERE key=?',[(str(v),self.prefix+k) for k,v in state.items()])
+        changed=[(str(v),self.prefix+k) for k,v in state.items() if before.get(k)!=str(v)]
+        if changed:db.executemany('UPDATE run SET value=? WHERE key=?',changed)
 
     def expired(self,state):
         if self.seconds is None:return False
@@ -232,7 +236,9 @@ class Budget:
             db.executemany('INSERT INTO run VALUES(?,?)',[(phase+'.'+k,v) for k,v in values.items()])
 
     def db(self):
-        return sqlite3.connect(self.path.as_uri()+'?mode=rw',uri=True,timeout=5,isolation_level=None)
+        db=sqlite3.connect(self.path.as_uri()+'?mode=rw',uri=True,timeout=5,isolation_level=None)
+        db.execute('PRAGMA synchronous=FULL')
+        return db
 
     @classmethod
     def create(cls,path,*,continuation=None,limits=None,wall_seconds=1800,
@@ -259,6 +265,11 @@ class Budget:
         # Existing consumption must never become a fresh allowance on restart.
         descriptor=os.open(path,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600);os.close(descriptor)
         with closing(sqlite3.connect(path)) as db:
+            # New ledgers use SQLite's existing WAL mechanism with FULL
+            # durability. Historical run ledgers are never migrated or reset.
+            if db.execute('PRAGMA journal_mode=WAL').fetchone()[0]!='wal':
+                raise ValueError('bounded_provider_WAL_unavailable')
+            db.execute('PRAGMA synchronous=FULL')
             db.execute('CREATE TABLE run(key TEXT PRIMARY KEY,value TEXT NOT NULL)')
             db.execute('CREATE TABLE streams(id TEXT PRIMARY KEY,remaining INTEGER NOT NULL,closed INTEGER NOT NULL)')
             db.execute('CREATE TABLE http_receipts(id TEXT PRIMARY KEY,remaining INTEGER NOT NULL,closed INTEGER NOT NULL,owner TEXT NOT NULL)')
