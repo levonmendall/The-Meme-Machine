@@ -31,6 +31,45 @@ class RollingPrewarmTests(unittest.TestCase):
         self.h.ingest(rows);self.seal(program_scope('pump'),txs[0]['slot'],txs[-1]['slot'])
         mint=next(r.payload['event']['mint'] for r in rows if r.payload['event']['event_type']=='create')
         return mint,rows
+    def test_expired_wait_backlog_commits_once_per_owner_command_without_coverage(self):
+        deadline=NOW-1
+        with self.state.writer.transaction():
+            for n in range(200):
+                address='expired-'+str(n)
+                self.h.db.execute('INSERT INTO rolling_boundary_waits VALUES(?,?,?,?,?,?,?,?)',
+                    ('pump',address,100,110,deadline,4,NOW-150,'pending'))
+                self.h.db.execute('INSERT INTO rolling_publication_waits VALUES(?,?,?,?,?,?,?,?)',
+                    ('pump',address,100,110,deadline,4,NOW-150,'pending'))
+        statements=[];self.h.db.set_trace_callback(statements.append)
+        try:
+            self.h.rolling.resume_boundaries();self.h.rolling.resume_publication()
+        finally:self.h.db.set_trace_callback(None)
+        self.assertEqual(sum(s=='COMMIT' for s in statements),2)
+        for table in ('rolling_boundary_waits','rolling_publication_waits'):
+            self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM '+table+" WHERE status='deadline_missed' AND deadline=?",(deadline,)).fetchone()[0],200)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM acquisition_observations').fetchone()[0],400)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM acquisition_jobs').fetchone()[0],0)
+        self.state.writer.close();self.state,self.h=state_at(self.path,lambda:self.now[0])
+        self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM rolling_publication_waits WHERE status='deadline_missed'").fetchone()[0],200)
+    def test_wait_disposition_failure_rolls_back_original_deadlines_and_diagnostics(self):
+        for method,table,values in (
+                ('resume_boundaries','rolling_boundary_waits',('pump','one',100,110,NOW-1,4,NOW-150,'pending')),
+                ('resume_publication','rolling_publication_waits',('pump','one',100,110,NOW-1,4,NOW-150,'pending'))):
+            with self.subTest(method=method):
+                self.h.db.execute('INSERT INTO '+table+' VALUES(?,?,?,?,?,?,?,?)',values)
+                original=self.h._observation
+                def fail_after_diagnostic(*args,**kwargs):
+                    original(*args,**kwargs)
+                    raise EvidenceUnavailable('offline_disposition_failure')
+                with patch.object(self.h,'_observation',side_effect=fail_after_diagnostic),self.assertRaises(EvidenceUnavailable):
+                    getattr(self.h.rolling,method)()
+                self.assertFalse(self.h.db.in_transaction)
+                self.assertEqual(self.h.db.execute('SELECT status,deadline FROM '+table).fetchone(),('pending',NOW-1))
+                self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM acquisition_observations').fetchone()[0],0)
+                getattr(self.h.rolling,method)()
+                self.assertEqual(self.h.db.execute('SELECT status,deadline FROM '+table).fetchone(),('deadline_missed',NOW-1))
+                self.h.db.execute('DELETE FROM acquisition_observations')
     def test_first_sight_meteora_installs_history_before_promotion_without_rpc_or_entry(self):
         from meme_machine.solana_selective_source import plan_live
         self.h.observe('meteora','pool',slot=100,signature='',seen=NOW,fields=dict(wsol_pair_locator=True,activity=False))

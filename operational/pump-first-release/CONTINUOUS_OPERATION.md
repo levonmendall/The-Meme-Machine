@@ -444,3 +444,46 @@ Authenticated 88a0ea0dcf7758f098dbeafb5fbd9784d1795746 got past aged maintenance
 Control publication consumed 53.348 owner execution seconds across 3,472 commands. A same-input disposable replay showed FinalizedFence.seal's unchanged query scanning retained sealed/currently irrelevant historical receipts: 151,000 VM steps versus fewer than 1,000 with a partial (scope,session,slot) index for sealed=0. The query and canonical parent/child, census, session and consumer guarantees remain unchanged. The successor adds that single existing-SQLite index. Focused FAST: 56 tests passed in 11.682 seconds; focused OPERATIONAL fence suite: nine tests passed in 0.639 seconds. The 25,000-retained-header regression also proves the genuine current parent is sealed, its child remains unsealed and old evidence is preserved.
 
 Native provider coverage, qualification and combined protection still require a passing authenticated run. The prepared Pons follow-up tests a historical verified V4 key's exact buy, full and quarter quantities with coincident USD refresh; it cannot establish a newly qualified opportunity or a complete four-regime lifecycle. No PAPER activation or epoch change.
+
+
+At 21:33 UTC the published control-index successor `969dc905c2a454ea800f8572e525d7dbca0262e3`
+was measured through the actual existing filtered source with a fresh explicit
+300-second engineering envelope. It stopped at the first `candidate_log_buffer_pressure`
+after 167.863 seconds; its zero process exit is **not** a passing protection result.
+It published 857 new Pump and 3,953 PumpSwap economic events and reached the
+startup STEADY_STATE publication barrier, but retained logs through slot
+455800207 while native publication stopped at 455800111. Old historical gaps
+and missing program checkpoints remain obligations, not fabricated coverage.
+The retained receipt records 19 physical starts, 15 logical elements, 1,260 CU,
+3,152,134 HTTP bytes, four native openings, 71,940,448 known native bytes and
+285,212,672 conservatively accounted uncertain bytes. Public modeled upper
+$0.0381625776 is not authenticated invoicing. No funding or orders occurred.
+An 11.659-second development housekeeping operation delayed required source work;
+first-10,000 native groups separately averaged 6.291 ms and are a truncated
+sample, not the whole-run average.
+
+The narrow follow-up repair commits rolling-boundary and publication-wait
+state changes together with their diagnostics using the existing sole writer's
+FULL transaction. Previously each UPDATE/diagnostic INSERT outside a transaction
+could fsync independently, including hundreds of expired waits. Original
+obligations, deadlines and proof checks are unchanged. A rollback retains the
+original pending obligation. The focused 82-test receipt proves durability,
+rollback, missing-evidence and unchanged deadline behavior; a 400-wait backlog
+uses two commits rather than independent per-row autocommits. This is offline
+proof, not an authenticated timing pass. No buffer, deadline or VM limit changed.
+
+Pons's exact-quantity combined native/USD diagnostic passed on source `969dc905`
+using the inactive verified-two-hop USD flag and an explicit four-starts/second
+Robinhood profile. Fresh USD plus full sell took 2.867752 seconds against the
+unchanged three-second Survivor deadline; a new quarter-quantity sell took
+0.756068 seconds, and the buy quote took 0.775714 seconds. It consumed 32
+physical starts, 110 logical elements, 2,558 CU and 291,182 HTTP bytes with no
+stream, funding or order; modeled public upper $0.00134295. This verifies only
+the measured quote/USD combination for an authentic historical V4 pool, not
+candidate qualification, discovery contention, native protective-controller
+behavior or four-regime capacity. Its 132-ms headroom must not be extrapolated
+as a sustained protection guarantee. The first helper attempt's exact-arithmetic
+`Inexact` failure and its original 1,212-CU expenditure are retained separately;
+integer ratio arithmetic corrected the diagnostic quantity without altering the
+production exact-money rules. The previous USD component was not repeated as
+an isolated reassurance test.

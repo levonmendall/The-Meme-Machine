@@ -260,37 +260,43 @@ class RollingHistory:
 
     def resume_boundaries(self):
         """A sealed native observation resolves a first-sight publication race."""
-        for family,address,observed,upper,deadline,priority,created in self.db.execute(
-                "SELECT family,address,observed_slot,upper_slot,deadline,priority,created FROM rolling_boundary_waits WHERE "+active_sql('family',solana=True)+" AND status='pending'").fetchall():
-            if self.clock()>=deadline:
-                self.db.execute("UPDATE rolling_boundary_waits SET status='deadline_missed' WHERE family=? AND address=?",(family,address))
-                self.history._observation(None,'boundary_deadline_missed',dict(family=family,address=address,
-                    observed_slot=observed,deadline=deadline,created=created,deadline_reset=False))
-                continue
-            binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
-            origin=self.db.execute('SELECT 1 FROM rolling_origins WHERE family=? AND address=?',
-                (family,address if binding is None else binding[0])).fetchone()
-            start=self.db.execute('SELECT MIN(lo) FROM candidate_coverage WHERE scope=?',(program_scope(family),)).fetchone()[0]
-            if not origin and (start is None or observed>=start) and self.missing(family,program_scope(family),observed,observed):continue
-            result=self.prepare(family,address,0,upper,deadline=deadline,priority=priority,
-                reason=None if origin else 'LATE_DISCOVERY')
-            if result.get('boundary_state'):continue
-            self.db.execute("UPDATE rolling_boundary_waits SET status='resolved' WHERE family=? AND address=?",(family,address))
+        # These writes belong to one owner command. Per-row autocommits turn a
+        # backlog of expired observations into hundreds of FULL fsyncs, blocking
+        # native publication. Commit states and their diagnostics together;
+        # rollback retains every original obligation and deadline.
+        with self.history.writer.transaction():
+            for family,address,observed,upper,deadline,priority,created in self.db.execute(
+                    "SELECT family,address,observed_slot,upper_slot,deadline,priority,created FROM rolling_boundary_waits WHERE "+active_sql('family',solana=True)+" AND status='pending'").fetchall():
+                if self.clock()>=deadline:
+                    self.db.execute("UPDATE rolling_boundary_waits SET status='deadline_missed' WHERE family=? AND address=?",(family,address))
+                    self.history._observation(None,'boundary_deadline_missed',dict(family=family,address=address,
+                        observed_slot=observed,deadline=deadline,created=created,deadline_reset=False))
+                    continue
+                binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
+                origin=self.db.execute('SELECT 1 FROM rolling_origins WHERE family=? AND address=?',
+                    (family,address if binding is None else binding[0])).fetchone()
+                start=self.db.execute('SELECT MIN(lo) FROM candidate_coverage WHERE scope=?',(program_scope(family),)).fetchone()[0]
+                if not origin and (start is None or observed>=start) and self.missing(family,program_scope(family),observed,observed):continue
+                result=self.prepare(family,address,0,upper,deadline=deadline,priority=priority,
+                    reason=None if origin else 'LATE_DISCOVERY')
+                if result.get('boundary_state'):continue
+                self.db.execute("UPDATE rolling_boundary_waits SET status='resolved' WHERE family=? AND address=?",(family,address))
 
     def resume_publication(self):
         """Release waits only on durable publication, preserving first deadline."""
-        for family,address,lo,hi,deadline,priority in self.db.execute(
-                "SELECT family,address,lo,hi,deadline,priority FROM rolling_publication_waits WHERE "+active_sql('family',solana=True)+" AND status='pending'").fetchall():
-            if self.clock()>=deadline:
-                status='deadline_missed'
-                self.history._observation(None,'publication_deadline_missed',dict(
-                    family=family,address=address,lo=lo,hi=hi,deadline=deadline,deadline_reset=False))
-            else:
-                result=self.prepare(family,address,lo,hi,deadline=deadline,priority=priority)
-                if result['missing_intervals']:continue
-                status='resolved'
-            self.db.execute('UPDATE rolling_publication_waits SET status=? WHERE family=? AND address=? AND lo=? AND hi=?',
-                (status,family,address,lo,hi))
+        with self.history.writer.transaction():
+            for family,address,lo,hi,deadline,priority in self.db.execute(
+                    "SELECT family,address,lo,hi,deadline,priority FROM rolling_publication_waits WHERE "+active_sql('family',solana=True)+" AND status='pending'").fetchall():
+                if self.clock()>=deadline:
+                    status='deadline_missed'
+                    self.history._observation(None,'publication_deadline_missed',dict(
+                        family=family,address=address,lo=lo,hi=hi,deadline=deadline,deadline_reset=False))
+                else:
+                    result=self.prepare(family,address,lo,hi,deadline=deadline,priority=priority)
+                    if result['missing_intervals']:continue
+                    status='resolved'
+                self.db.execute('UPDATE rolling_publication_waits SET status=? WHERE family=? AND address=? AND lo=? AND hi=?',
+                    (status,family,address,lo,hi))
 
     def repair_required_checkpoint_prefixes(self):
         """Only a proven prefix before installed rolling coverage needs RPC.

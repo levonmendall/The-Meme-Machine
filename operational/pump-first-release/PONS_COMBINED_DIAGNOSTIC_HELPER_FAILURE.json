@@ -1,0 +1,29 @@
+{
+  "source": "969dc905c2a454ea800f8572e525d7dbca0262e3",
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pons-combined-969dc905-1791754089659.sqlite",
+  "preflight": {
+    "limits_verified": true,
+    "limits": {
+      "http_attempts": 64,
+      "http_bytes": 33554432,
+      "native_bytes": 67108864,
+      "native_inflight_bytes": 33554432,
+      "native_stop_bytes": 33554432,
+      "rpc_cu": 6000,
+      "rpc_elements": 200
+    },
+    "wall_seconds": 60,
+    "modeled_spend_limit": "0.01",
+    "maximum_native_opens": 1
+  },
+  "profile": "/etc/meme-machine/pons-combined.observation.disabled.json",
+  "helper_sha256": "548baba4b895c7a3668ee2ba00c8ba9058dd4d9c386dabddc512edffbfdcea05",
+  "purpose": "Exact-integer quantity corrected helper: coincident native quantity-specific quote and USD deadline check",
+  "maximum_public_modeled_usd": "0.00315",
+  "accepted_billing_basis": "public prices, not verified invoice",
+  "funding": false,
+  "orders": false,
+  "retries": 0,
+  "native_openings_permitted": 0,
+  "historical_counters_reset": false
+}
