@@ -37,6 +37,9 @@
   },
   "bootstrap": {
     "prepared_dropin": "deployment/paper-bootstrap.conf",
+    "new_private_environment_file": "/etc/meme-machine/paper.shared-1000.env",
+    "historical_environment_file": "/etc/meme-machine/paper.env",
+    "historical_environment_file_is_cleared_from_bootstrap": true,
     "installed": false,
     "storage_guard_config": "/etc/meme-machine/storage.shared-1000.json",
     "storage_guard_template": "operational/pump-first-release/storage.shared-1000.uninitialized.example.json",

@@ -185,6 +185,13 @@ Null fee/resource/epoch/replica fields are deliberate pending gates, not values
 usable for activation. The templates have not been installed; no epoch, balance,
 dashboard or service has been changed.
 
+The bootstrap drop-in clears the base unit's `EnvironmentFile` list and selects
+the separately prepared `/etc/meme-machine/paper.shared-1000.env`. This matters
+because environment-file values override `Environment=` values: leaving the
+historical `paper.env` selected could restore its old state root. A missing new
+private file now refuses startup. Preserve that historical file; prepare new
+credentials/configuration only during the separately authorized deployment.
+
 Long-duration positions remain governed by native economics. Unlimited holding
 does not imply infinite provider credit: reserve adequate sustained protection
 and recovery capacity and resolve the existing non-replenishing allowance's

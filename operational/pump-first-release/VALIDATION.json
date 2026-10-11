@@ -53,10 +53,10 @@
     "tests/test_pump_first_check.py": "da492b8989b0bc8151db3c07e5778fb8b8791cd1ea2da58fe089f852b5a4b7a2",
     "engineering/pump_first/check.py": "5ad16f3ec55e8586fd378d3640157166e0140bff7c9935bef9b35bd5e82fbd2f",
     "requirements.txt": "d1e960f8fe94fed128958c849e48d034ba004b156739ca9be0f9767425698ffe",
-    "deployment/paper-bootstrap.conf": "00e1d429f7fa21bd971f4f97001d9105350dcfed68764c771cdc120c96c8f8d8",
-    "deployment/paper.env.example": "27c7ba4800f13f97353b36315c050dd1cfcaa025b72f476a13ee580f2bfafad9",
+    "deployment/paper-bootstrap.conf": "c96d6cc67b557943c780cd2f93fd6b8e73c336a862fd949c729e18dac3e4ff34",
+    "deployment/paper.env.example": "318e31f355f5004b19e1649661d6a2150147208d2a3d52038c712f31181ee3c1",
     "operational/shared-capital-activation/risk-policy.shared-1000.proposed.json": "f2da6f2fa3f1451c1313be20bc3592d53070b70c62725cb0ac43fa6f3a73d034",
-    "operational/pump-first-release/LAUNCH_1000_DISABLED.json": "3ed90f182529f769fb33282620398bfb4042ec1b06023388c01355115c3b6e58",
+    "operational/pump-first-release/LAUNCH_1000_DISABLED.json": "2ef08df3b6f37776c39e54c2d5c3ceec97b7cbba061035b2446f4db823121f6a",
     "operational/pump-first-release/storage.shared-1000.uninitialized.example.json": "2d6e5cba00cf9919f80c9f6e1bbdd0de09c73f6581706d9a12f0c6aa90fcca9d"
   },
   "logs": [
@@ -177,5 +177,6 @@
     "balance_migration": false,
     "new_epoch_initialized": false
   },
-  "component_authorization": "One separately authorized read-only invocation; public provisional billing basis; local credential binding and charges still checked before dispatch. Result retained in release attestation."
+  "component_authorization": "One separately authorized read-only invocation; public provisional billing basis; local credential binding and charges still checked before dispatch. Result retained in release attestation.",
+  "bootstrap_environment_precedence": "Separate new private EnvironmentFile replaces historical list; absent new file refuses startup; no installed change."
 }
