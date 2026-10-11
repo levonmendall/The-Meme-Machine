@@ -551,3 +551,34 @@ service. Unknown selectors refuse startup, and Pump cannot inherit this flag.
 Focused 95 FAST and 20 OPERATIONAL tests passed; full new source CI and genuine
 combined provider protection remain prerequisites to normal funding. Trading is
 still off, and the real sixty-minute acceptance clock has not started.
+
+
+At 22:14 UTC source `5db82c42` added 992 Pump and 3,559 PumpSwap
+canonical events but still failed intake with `candidate_log_buffer_pressure`
+after 46.418 seconds. Development-owner execution peaked at 7.320 seconds and
+blocked queued native commits; a passing batch unit test did not establish live
+protective capacity. All failure logs and the 40-start, 3,360-CU ledger remain
+intact. The public modeled upper was $0.038995961655, not an account invoice.
+Only 2,065 of 15,611 native statuses failed, so suppressing failed statuses was
+not adopted as a purported solution to the dominant observed backlog.
+
+The next narrow repair commits one observation-lease disposition and one
+development-housekeeping operation atomically instead of performing a FULL
+commit per expired lease or new binding. Identical program/slot publication
+questions are reused only inside that sole-owner operation; candidate-specific
+history checks, native content checks and absolute deadlines remain unchanged.
+The disposable retained-state replay returned identical final tables: 732
+expired-lease commits became one, with 0.513 versus 0.313 seconds on a root-disk
+copy. Development checks fell from 590 to 226 and execution from 0.477 to 0.343
+seconds. These copy measurements do not reproduce or certify real provider
+latency. Focused 96 tests passed, including rollback, restart, missing coverage
+and preservation of candidate identity/deadlines. No native guard, usage
+counter, quote requirement or strategy threshold changed.
+
+In parallel, the real Pons Current canonical startup nomination path completed
+authenticated sixty-second history coverage at head 86174924, retaining 23 new
+nominees in 13.748 seconds. Its four-RPS read-only diagnostic used 54 physical
+starts, 135 logical elements, 5,030 CU and 210,922 HTTP bytes; public modeled
+upper $0.00264075. This is nomination-only evidence, not Current qualification
+or Survivor protection. All four funding gates remain closed; no PAPER trade
+was forced and the real uninterrupted acceptance clock remains zero.

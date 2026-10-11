@@ -389,7 +389,7 @@ class CandidateLifecycle:
         """Finish observation leases after native work; keep identities recoverable."""
         rows=self.db.execute("SELECT family,address,deadline FROM candidate_lifecycle WHERE "+active_sql('family',solana=True)+" AND state IN ('queued','warming','active')").fetchall()
         if not rows:return
-        with closing(CandidateHistory(self.path,clock=self.clock)) as shared:
+        with closing(CandidateHistory(self.path,clock=self.clock)) as shared,self.writer.transaction():
             for family,address,deadline in rows:
                 promotion=self.db.execute("SELECT id FROM candidate_history_outbox WHERE family=? AND address=? AND kind='promotion' ORDER BY created DESC,rowid DESC LIMIT 1",(family,address)).fetchone()
                 work=None if not promotion else shared.db.execute('SELECT status FROM work WHERE id=?',('provider:'+promotion[0],)).fetchone()

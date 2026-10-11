@@ -274,6 +274,31 @@ class TriggerWaitTests(unittest.TestCase):
         self.assertEqual(len(frame.log_transactions),1)
 
 class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_development_bindings_and_original_waits_share_one_owner_commit(self):
+        from tests.test_solana_closure import state_at,NOW
+        from tests.test_solana_prewarm_startup import quiet_model_b
+        from meme_machine.solana_selective_source import SelectiveSource
+        class Captured(Exception):pass
+        with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,MM_OPERATIONAL_PHASE='continuous'):
+            state,h=state_at(Path(td)/'canonical.sqlite')
+            try:
+                async def direct(fn,*args,**kwargs):return fn(state)
+                done=asyncio.Event();done.set();await quiet_model_b(direct,done)
+                with state.writer.transaction():
+                    for n in range(32):h.observe('pump','development-'+str(n),slot=100,signature='',seen=NOW,fields={})
+                source=SelectiveSource(SimpleNamespace(credential='offline'),None)
+                source.batched=True;source.stop=asyncio.Event();statements=[]
+                state.writer.db.set_trace_callback(statements.append)
+                async def capture(fn,*args,**kwargs):
+                    fn(state);raise Captured()
+                source.work=capture
+                with self.assertRaises(Captured):await source.acquire()
+                self.assertEqual(sum(sql=='COMMIT' for sql in statements),2)
+                self.assertEqual(h.db.execute("SELECT COUNT(*) FROM evidence_bindings WHERE address LIKE 'development-%'").fetchone()[0],32)
+                self.assertEqual({r[0] for r in h.db.execute('SELECT deadline FROM acquisition_jobs')},{NOW+150})
+                self.assertEqual(h.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+            finally:state.writer.close()
+
     async def test_archive_poll_coalescing_preserves_distinct_jobs_and_urgent_deadlines(self):
         from tests.test_solana_closure import state_at,NOW
         from tests.test_solana_prewarm_startup import quiet_model_b

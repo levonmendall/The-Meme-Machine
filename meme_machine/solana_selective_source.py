@@ -971,25 +971,29 @@ class SelectiveSource:
                 # This is a scheduling clock, never evidence or a fresh deadline.
                 if (frontier is not None and not position_only()
                         and time.monotonic()>=getattr(state,'development_poll_at',0)):
-                    for addr,fields in db.execute('''SELECT address,fields FROM market_observations m WHERE family='pump'
-                        AND NOT EXISTS(SELECT 1 FROM evidence_bindings b WHERE b.family=m.family AND b.address=m.address)'''):
-                        value=json.loads(fields);upper=value.get('development_upper_bps')
-                        if value.get('complete') or upper is None or upper>=POLICY.min_curve_progress_bps:
-                            h.bind('pump',addr)
-                            first=db.execute("SELECT first_seen FROM candidate_lifecycle WHERE family='pump' AND address=?",(addr,)).fetchone()[0]
-                            h.rolling.prepare('pump',addr,0,frontier,priority=3,deadline=first+150)
-                    for family,addr,lo in db.execute("SELECT family,address,lower_slot FROM candidate_lifecycle WHERE "+active_sql('family',solana=True)+" AND state='reactivated'").fetchall():
-                        from .solana_scoped_retirement import ScopedRetirement
-                        ScopedRetirement(h).restore(family,addr)
-                        epoch=db.execute('SELECT epoch FROM candidate_lifecycle WHERE family=? AND address=?',(family,addr)).fetchone()[0]
-                        first=db.execute("SELECT MIN(json_extract(body,'$.seen')) FROM candidate_history_outbox WHERE family=? AND address=? AND kind='reactivated' AND json_extract(body,'$.epoch')=?",(family,addr,epoch)).fetchone()[0]
-                        deadline=(time.time() if first is None else first)+150
-                        if deadline<=time.time():
-                            h._observation(None,'promotion_deadline_missed',dict(family=family,address=addr,deadline=deadline,deadline_reset=False))
-                            h.lifecycle.demote(family,addr,reason='original_promotion_deadline_expired');continue
-                        h.lifecycle.promote(family,addr,deadline=deadline,lower_slot=0 if family=='pump' else None if family=='meteora' else lo)
-                    h.rolling.resume_boundaries()
-                    h.rolling.resume_publication()
+                    # One existing owner operation, not a FULL fsync for every
+                    # binding, wait and reactivation. Original facts and absolute
+                    # deadlines roll back together if this operation yields.
+                    with state.writer.transaction():
+                        for addr,fields in db.execute('''SELECT address,fields FROM market_observations m WHERE family='pump'
+                            AND NOT EXISTS(SELECT 1 FROM evidence_bindings b WHERE b.family=m.family AND b.address=m.address)'''):
+                            value=json.loads(fields);upper=value.get('development_upper_bps')
+                            if value.get('complete') or upper is None or upper>=POLICY.min_curve_progress_bps:
+                                h.bind('pump',addr)
+                                first=db.execute("SELECT first_seen FROM candidate_lifecycle WHERE family='pump' AND address=?",(addr,)).fetchone()[0]
+                                h.rolling.prepare('pump',addr,0,frontier,priority=3,deadline=first+150)
+                        for family,addr,lo in db.execute("SELECT family,address,lower_slot FROM candidate_lifecycle WHERE "+active_sql('family',solana=True)+" AND state='reactivated'").fetchall():
+                            from .solana_scoped_retirement import ScopedRetirement
+                            ScopedRetirement(h).restore(family,addr)
+                            epoch=db.execute('SELECT epoch FROM candidate_lifecycle WHERE family=? AND address=?',(family,addr)).fetchone()[0]
+                            first=db.execute("SELECT MIN(json_extract(body,'$.seen')) FROM candidate_history_outbox WHERE family=? AND address=? AND kind='reactivated' AND json_extract(body,'$.epoch')=?",(family,addr,epoch)).fetchone()[0]
+                            deadline=(time.time() if first is None else first)+150
+                            if deadline<=time.time():
+                                h._observation(None,'promotion_deadline_missed',dict(family=family,address=addr,deadline=deadline,deadline_reset=False))
+                                h.lifecycle.demote(family,addr,reason='original_promotion_deadline_expired');continue
+                            h.lifecycle.promote(family,addr,deadline=deadline,lower_slot=0 if family=='pump' else None if family=='meteora' else lo)
+                        h.rolling.resume_boundaries()
+                        h.rolling.resume_publication()
                     state.development_poll_at=time.monotonic()+.1
                 # The batched source already owns the ordered 100-ms publisher.
                 # Pending proofs still block false coverage in h.plan below.

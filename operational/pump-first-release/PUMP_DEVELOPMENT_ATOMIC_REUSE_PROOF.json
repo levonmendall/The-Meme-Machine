@@ -1,0 +1,82 @@
+{
+  "baseline_source": "5db82c42e9548de508b935c07a649fc1efc503aa",
+  "provider_requests": 0,
+  "disposable_copy_only": true,
+  "root_copy_timings_not_provider_latency": true,
+  "controlled_replays": [
+    {
+      "operation": "request-development",
+      "baseline_seconds": 0.47717091091908514,
+      "optimized_seconds": 0.34277755802031606,
+      "baseline_commits": 3,
+      "optimized_commits": 2,
+      "final_table_sha256": {
+        "evidence_bindings": "d0a6356136b7357e06357cb644cfe534f6ce1f275446b492fb696ac896c7f545",
+        "candidate_lifecycle": "a47d2826e4887be361d780454358c4e30d6cc86e12f95e7c5fb8d2ef8c968bb4",
+        "candidate_history_outbox": "bec75b16303674d810e2bb0f44800c6b8979ad605e2a3e32cde2bde998687ec3",
+        "rolling_boundary_waits": "7879d0b1f3adb94130f1cac379686ed7fa02e801fc43b3906a5f01acf2d202aa",
+        "rolling_publication_waits": "88e3c5cd7a39939ae5b84401220cd607265e12d56b408d5acc7dcdffa966dedd",
+        "acquisition_jobs": "4cb174e3ae468fb825d6e6e62f4f2d4fc79263edeaae82665f0c64ecdc4b24b6",
+        "acquisition_observations": "9d97e0d4eca69ba51421f002300d01fcd58aa1063b545c8c15d194b480501716",
+        "promotion_history_metrics": "06e8a0adb37a5eca08de012737a19ab49ef890b02e24c974343f8c702c814dee"
+      },
+      "baseline_receipt_sha256": "ff3a9a890f4b105c918216100d5d7baad002cda3cfa14dbd1f10b3a64137c17a",
+      "optimized_receipt_sha256": "d5ed2b8a16178754e61c05218a66bf9bcdaf2386af6f66ebab3700ee3324792b",
+      "evidence_clock": 1791756860.0
+    },
+    {
+      "operation": "refresh",
+      "baseline_seconds": 0.1470908890478313,
+      "optimized_seconds": 0.1406543100019917,
+      "baseline_commits": 1,
+      "optimized_commits": 2,
+      "final_table_sha256": {
+        "evidence_bindings": "d0a6356136b7357e06357cb644cfe534f6ce1f275446b492fb696ac896c7f545",
+        "candidate_lifecycle": "a47d2826e4887be361d780454358c4e30d6cc86e12f95e7c5fb8d2ef8c968bb4",
+        "candidate_history_outbox": "bec75b16303674d810e2bb0f44800c6b8979ad605e2a3e32cde2bde998687ec3",
+        "rolling_boundary_waits": "7879d0b1f3adb94130f1cac379686ed7fa02e801fc43b3906a5f01acf2d202aa",
+        "rolling_publication_waits": "88e3c5cd7a39939ae5b84401220cd607265e12d56b408d5acc7dcdffa966dedd",
+        "acquisition_jobs": "4cb174e3ae468fb825d6e6e62f4f2d4fc79263edeaae82665f0c64ecdc4b24b6",
+        "acquisition_observations": "90ae5b8c312319e684d1f4276622ab9aa72783d0646219997d68d0689e39541b",
+        "promotion_history_metrics": "06e8a0adb37a5eca08de012737a19ab49ef890b02e24c974343f8c702c814dee",
+        "history:work": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "history:candidates": "0e086ec51e8c954feaf1b616f519523a853f8cafdb32ae52f50b95a9fa0e7579"
+      },
+      "baseline_receipt_sha256": "1fb1961d54faffedbb2e0810bc5dd6bc56983f48a05819dcf4c370b55c79b027",
+      "optimized_receipt_sha256": "93c731d6b07d3bdf96ef90e5edb9df78c354344751f69401ba7d297642e662f3",
+      "evidence_clock": 1791756860.0
+    },
+    {
+      "operation": "refresh-expired",
+      "baseline_seconds": 0.5128825240535662,
+      "optimized_seconds": 0.31293191807344556,
+      "baseline_commits": 732,
+      "optimized_commits": 1,
+      "final_table_sha256": {
+        "evidence_bindings": "d0a6356136b7357e06357cb644cfe534f6ce1f275446b492fb696ac896c7f545",
+        "candidate_lifecycle": "29fd1be6cad40ada844767e3898294a5419f729a88925efeda964c8d2a7b7a3b",
+        "candidate_history_outbox": "cd18929a83687d8808b1197e50fa2580a45244865212a90b6060828724179fd6",
+        "rolling_boundary_waits": "7879d0b1f3adb94130f1cac379686ed7fa02e801fc43b3906a5f01acf2d202aa",
+        "rolling_publication_waits": "88e3c5cd7a39939ae5b84401220cd607265e12d56b408d5acc7dcdffa966dedd",
+        "acquisition_jobs": "4cb174e3ae468fb825d6e6e62f4f2d4fc79263edeaae82665f0c64ecdc4b24b6",
+        "acquisition_observations": "9d97e0d4eca69ba51421f002300d01fcd58aa1063b545c8c15d194b480501716",
+        "promotion_history_metrics": "06e8a0adb37a5eca08de012737a19ab49ef890b02e24c974343f8c702c814dee",
+        "history:work": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "history:candidates": "0e086ec51e8c954feaf1b616f519523a853f8cafdb32ae52f50b95a9fa0e7579"
+      },
+      "baseline_receipt_sha256": "846a26ef95ae15bb61a0eae3ba8625b3d8c278aa31b6fbbbdf9e08a926f662a1",
+      "optimized_receipt_sha256": "112c7e1a9c42c5fe200b3de4a279bdcbb688dee1ad847a67aca60b48ec998eac",
+      "evidence_clock": 1791757040.0
+    }
+  ],
+  "focused_tests": {
+    "command": "python -m operational.tests FAST --modules tests.test_solana_rolling_prewarm tests.test_solana_shared_capacity tests.test_candidate_commit_batches tests.test_solana_prewarm_startup",
+    "passed": 96,
+    "seconds": "18.782",
+    "log_sha256": "9e6801e5ae41449e8dd018cf171df43f5e55709a9838b7fa37c416fd2e2e6a1d"
+  },
+  "status": "PASS_OFFLINE_EQUIVALENCE_ONLY",
+  "live_canonical_retest_required": true,
+  "funding_enabled": false,
+  "sixty_minute_acceptance_started": false
+}

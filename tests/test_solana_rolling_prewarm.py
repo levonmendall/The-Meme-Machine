@@ -31,6 +31,63 @@ class RollingPrewarmTests(unittest.TestCase):
         self.h.ingest(rows);self.seal(program_scope('pump'),txs[0]['slot'],txs[-1]['slot'])
         mint=next(r.payload['event']['mint'] for r in rows if r.payload['event']['event_type']=='create')
         return mint,rows
+    def test_same_observation_slot_reuses_only_the_same_command_publication_answer(self):
+        with self.state.writer.transaction():
+            for n in range(400):
+                address='waiting-'+str(n)
+                self.h.observe('pump',address,slot=100+n%2,signature='',seen=NOW,fields={})
+                self.h.bind('pump',address)
+                self.h.db.execute('INSERT INTO rolling_boundary_waits VALUES(?,?,?,?,?,?,?,?)',
+                    ('pump',address,100+n%2,110,NOW+150,4,NOW,'pending'))
+        original=self.h.rolling.missing
+        with patch.object(self.h.rolling,'missing',wraps=original) as missing:
+            self.h.rolling.resume_boundaries()
+            self.assertEqual(missing.call_count,2)
+        self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM rolling_boundary_waits WHERE status='pending' AND deadline=?",(NOW+150,)).fetchone()[0],400)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM acquisition_jobs').fetchone()[0],0)
+        self.seal(program_scope('pump'),100,101)
+        with patch.object(self.h.rolling,'missing',wraps=original) as missing:
+            self.h.rolling.resume_boundaries()
+            questions=[c for c in missing.call_args_list if c.args[1]==program_scope('pump') and c.args[2:]==(100,100)]
+            self.assertGreaterEqual(len(questions),1)
+        # The old creation/history deficit remains required. A new same-slot
+        # publication answer never promotes incomplete economics into entry.
+        self.assertGreater(self.h.db.execute('SELECT COUNT(*) FROM acquisition_jobs').fetchone()[0],0)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+
+    def test_program_branch_is_not_read_twice_but_candidate_branch_is_preserved(self):
+        scope=program_scope('pump');candidate=self.h.bind('pump','one-mint')
+        self.assertEqual(self.h.rolling.scopes('pump',scope),(scope,))
+        self.assertEqual(self.h.rolling.scopes('pump',candidate),(candidate,scope))
+        self.seal(scope,100,101);self.seal(candidate,102,103)
+        self.assertEqual(self.h.rolling.missing('pump',candidate,100,104),[(104,104)])
+        self.h.gap(scope,101,101,'native_outage')
+        self.assertEqual(self.h.rolling.missing('pump',candidate,100,104),[(101,101),(104,104)])
+
+    def test_observation_lease_refresh_commits_once_and_rollback_retains_identities(self):
+        with self.state.writer.transaction():
+            for n in range(400):
+                address='lease-'+str(n)
+                self.h.observe('pump',address,slot=100,signature='',seen=NOW,fields={})
+                self.h.lifecycle.promote('pump',address,deadline=NOW+1)
+        self.now[0]=NOW+2;real=self.h.lifecycle.emit;count=[0]
+        def fault(*args,**kwargs):
+            result=real(*args,**kwargs);count[0]+=1
+            if count[0]==10:raise EvidenceUnavailable('offline_lease_disposition_failure')
+            return result
+        with patch.object(self.h.lifecycle,'emit',side_effect=fault),self.assertRaises(EvidenceUnavailable):
+            self.h.lifecycle.refresh()
+        self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM candidate_lifecycle WHERE state='queued'").fetchone()[0],400)
+        self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE kind='demoted'").fetchone()[0],0)
+        statements=[];self.h.db.set_trace_callback(statements.append)
+        try:self.h.lifecycle.refresh()
+        finally:self.h.db.set_trace_callback(None)
+        self.assertEqual(sum(s=='COMMIT' for s in statements),1)
+        self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM candidate_lifecycle WHERE state='demoted' AND first_seen=?",(NOW,)).fetchone()[0],400)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
+        self.state.writer.close();self.state,self.h=state_at(self.path,lambda:self.now[0])
+        self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE kind='demoted'").fetchone()[0],400)
+
     def test_expired_wait_backlog_commits_once_per_owner_command_without_coverage(self):
         deadline=NOW-1
         with self.state.writer.transaction():

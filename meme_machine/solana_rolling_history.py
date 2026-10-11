@@ -155,7 +155,7 @@ class RollingHistory:
     def scopes(self,family,scope):
         # Program-filtered Pump/PumpSwap delivery really covers every candidate.
         # It must never be inferred from an address-filtered receipt.
-        if family in ('pump','pumpswap'):return (scope,program_scope(family))
+        if family in ('pump','pumpswap'):return tuple(dict.fromkeys((scope,program_scope(family))))
         address=scope.split(':',2)[2]
         return (scope,*[s for s, in self.db.execute('SELECT scope FROM rolling_group_members WHERE family=? AND address=?',(family,address))])
 
@@ -265,6 +265,7 @@ class RollingHistory:
         # native publication. Commit states and their diagnostics together;
         # rollback retains every original obligation and deadline.
         with self.history.writer.transaction():
+            observed_coverage={}
             for family,address,observed,upper,deadline,priority,created in self.db.execute(
                     "SELECT family,address,observed_slot,upper_slot,deadline,priority,created FROM rolling_boundary_waits WHERE "+active_sql('family',solana=True)+" AND status='pending'").fetchall():
                 if self.clock()>=deadline:
@@ -276,7 +277,15 @@ class RollingHistory:
                 origin=self.db.execute('SELECT 1 FROM rolling_origins WHERE family=? AND address=?',
                     (family,address if binding is None else binding[0])).fetchone()
                 start=self.db.execute('SELECT MIN(lo) FROM candidate_coverage WHERE scope=?',(program_scope(family),)).fetchone()[0]
-                if not origin and (start is None or observed>=start) and self.missing(family,program_scope(family),observed,observed):continue
+                if not origin and (start is None or observed>=start):
+                    # Every scout at this same slot asks the identical program
+                    # publication question. This sole-owner operation cannot
+                    # publish new coverage while it runs. Never reuse the answer
+                    # across commands, blocks, restarts or a candidate lookback.
+                    key=(family,observed)
+                    if key not in observed_coverage:
+                        observed_coverage[key]=self.missing(family,program_scope(family),observed,observed)
+                    if observed_coverage[key]:continue
                 result=self.prepare(family,address,0,upper,deadline=deadline,priority=priority,
                     reason=None if origin else 'LATE_DISCOVERY')
                 if result.get('boundary_state'):continue
