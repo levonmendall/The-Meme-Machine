@@ -461,10 +461,13 @@ class HistoricalTests(unittest.TestCase):
         self.assertEqual(decision_work(1)(lambda:priority('pons_current'))(),5)
         self.assertEqual(position_work(lambda:priority('pons_monitor'))(),0)
 
-    def test_runtime_increment_limit_and_provider_blocker_preserved(self):
+    def test_runtime_increment_limit_and_current_protection_guard_preserved(self):
         self.complete()
         row=self.history.get(self.tape.tokens[0])
         with self.assertRaisesRegex(BoundaryError,'incremental_slice_required'):
             self.runtime._increment(row,row['block']+41)
-        self.assertIn('combined_position_and_candidate_provider_latency_not_certified',
-            (Path(__file__).parents[1]/'meme_machine/solana_selective_source.py').read_text())
+        from meme_machine.solana_selective_source import require_certified,PRODUCTION_BLOCKERS
+        from meme_machine.shared_capital.model import CapitalError
+        self.assertEqual(PRODUCTION_BLOCKERS,())
+        with patch.dict(os.environ,{'MM_PROVIDER_OPERATION_MODE':''}),self.assertRaisesRegex(CapitalError,'continuous_profile_must_not_inherit_test_limits'):
+            require_certified()

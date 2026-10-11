@@ -3,6 +3,7 @@ import argparse,json,os,signal,time
 from pathlib import Path
 from .supervisor import validate_environment,PAUSED_LANES,ACTIVE_LANES
 from meme_machine.runtime.usd_valuation import utc
+from meme_machine.shared_capital.model import CapitalError
 
 REQUIRED_SECONDS={'CAPACITY':3600,'AUTONOMY':129600}
 CGROUP_ROOT=Path('/sys/fs/cgroup')
@@ -95,11 +96,16 @@ def observe(root,*,funding_lanes=None):
     return health,portfolio,rss
 
 
-def measure(root,seconds,*,clock=time.monotonic,sleeper=time.sleep):
+def measure(root,seconds,*,clock=time.monotonic,sleeper=time.sleep,uninterrupted=False):
     started=clock();deadline=started+seconds;samples=0;max_rss=0;max_queue=0;errors=[];last=None;frontiers={}
     outage_at=None;recovered_events=0;outage_seconds=0
     while clock()<deadline:
         try:
+            if uninterrupted:
+                from .admission import require_normal
+                profile=require_normal()
+                if set(profile['funding_regimes'])!={'pump_current','pump_survivor','pons_current','pons_survivor'}:
+                    raise ValueError('all_four_regimes_funding_ready_required')
             health,portfolio,rss=observe(root);last=portfolio
             max_rss=max(max_rss,rss)
             if rss>=8*1024**3:raise ValueError('process_memory_exceeds_Droplet_RAM')
@@ -117,9 +123,12 @@ def measure(root,seconds,*,clock=time.monotonic,sleeper=time.sleep):
             samples+=1
             if outage_at is not None:
                 outage_seconds+=clock()-outage_at;recovered_events+=1;outage_at=None
-        except (OSError,ValueError,KeyError) as error:
+        except (OSError,ValueError,KeyError,CapitalError) as error:
             if outage_at is None:outage_at=clock()
             reason=str(error)
+            if uninterrupted:
+                errors.append(type(error).__name__+':'+reason)
+                break # Preserve this failed interval; a new healthy hour starts after repair.
             if reason in ('epoch_mismatch','portfolio_not_reconciled','genuine_PAPER_epoch_required') or clock()-outage_at>=180:
                 errors.append(type(error).__name__+':'+reason);errors=errors[-32:]
         sleeper(min(5,max(0,deadline-clock())))
@@ -129,7 +138,8 @@ def measure(root,seconds,*,clock=time.monotonic,sleeper=time.sleep):
         if last_slot<=first_slot:errors.append(scope+':target_evidence_frontier_did_not_advance')
     return dict(passed=bool(samples) and not errors,samples=samples,max_process_rss_bytes=max_rss,max_provider_queue=max_queue,
         target_frontiers=frontiers,errors=errors,pnl=last['balances'] if last else None,
-        elapsed_seconds=clock()-started,self_healing_events=recovered_events,transient_outage_seconds=outage_seconds)
+        elapsed_seconds=clock()-started,self_healing_events=recovered_events,transient_outage_seconds=outage_seconds,
+        uninterrupted_required=uninterrupted,consecutive_healthy_seconds=clock()-started if samples and not errors else 0)
 
 
 def verify_recovery_identity(before,after):
@@ -206,7 +216,7 @@ def main():
     # Environment and valuation repair must precede later deployment acceptance.
     validate_environment()
     root=Path(args.state_root).resolve()
-    result=recovery(root) if args.phase=='RECOVERY' else measure(root,seconds)
+    result=recovery(root) if args.phase=='RECOVERY' else measure(root,seconds,uninterrupted=args.phase=='CAPACITY')
     result.update(phase=args.phase,at=utc(time.time()),profitability_gate=False)
     from meme_machine.portfolio_accounting import _atomic_json
     _atomic_json(args.result_path or root/('acceptance-'+args.phase.lower()+'.json'),result)

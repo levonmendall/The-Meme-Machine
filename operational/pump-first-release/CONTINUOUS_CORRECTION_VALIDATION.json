@@ -1,0 +1,27 @@
+{
+  "continuous_acceptance_started": false,
+  "failed_ci_retained": true,
+  "failed_ci_run": 38154859347,
+  "focused_tests": 144,
+  "parent": "00db97f847b9742aa007b3252f9346e7b47c42bc",
+  "prior_focus_receipt": "CONTINUOUS_VALIDATION.json",
+  "provider_protection_pass": false,
+  "source_changes": [
+    "read-only live readiness",
+    "strict uninterrupted four-regime capacity",
+    "preserve bootstrap unselected eligibility recording"
+  ],
+  "source_identities": {
+    "meme_machine/operational/acceptance.py": "d3cca9feeedf5c3e89b8da4773754b31c444afb6fbda20b3174935832a04bc38",
+    "meme_machine/operational/admission.py": "6ac03f13c07168c010fb1128d9d5c72464308b02ca6f496bf5d1923c5c5167c6",
+    "meme_machine/shared_capital/runtime.py": "761bc2ae450126bef4ab0b21779f5a28a131d3ed56158679b96232bbc5cd0b6e",
+    "operational/pump-first-release/CONTINUOUS_OPERATION.md": "564f0f0af00d06501dd94019aafefb6a0fd0c3442eca929c10182d6eb8ccad4f",
+    "tests/test_continuous_paper.py": "b74d53f3ea3ded942d1e694f61963b87430e937b1da1b884d94723e72d4c427d",
+    "tests/test_operational_acceptance.py": "f3c39a377090940a4761ff07544fbb281df82686ace37121b646bb4a3efc026c",
+    "tests/test_pons_historical.py": "cf627536cc4d443c3b7f79e40d9daaf6ca10f4d2d35ab174738ffa17afbb7b6c",
+    "tests/test_protective_execution_research.py": "269078823902c4879d1103bf50ada3e48f871e76b0605ce06ae5e084b2841285",
+    "tests/test_solana_shared_capacity.py": "7f500d2237f7823592f787be5fc90426d7cc5abb1207b28ab02fbeaf5521a7f1"
+  },
+  "status": "PASS_OFFLINE_ONLY",
+  "test_seconds": "53.109"
+}

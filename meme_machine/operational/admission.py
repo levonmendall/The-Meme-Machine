@@ -40,10 +40,16 @@ def require_normal(*,startup=False,state=None,at=None,regime=None):
         raise CapitalError('continuous_epoch_local_usage_database_required')
     if startup:return profile
     if state is None:
-        from meme_machine.shared_capital.runtime import selected,connection
+        from meme_machine.shared_capital.runtime import selected
         shared=selected(Path(root)/'portfolio.sqlite')
         if shared is None:raise CapitalError('shared_authority_required')
-        state=connection(shared).ledger()
+        # Acceptance mounts the epoch read-only. Reuse the validated reader;
+        # constructing a runtime writer would attempt schema/WAL setup here.
+        from contextlib import closing
+        from meme_machine.shared_capital.reporting import read_authority
+        with closing(sqlite3.connect(shared.as_uri()+'?mode=ro',uri=True)) as db:
+            db.execute('PRAGMA query_only=ON')
+            state=read_authority(db).ledger()
     scope=state.get('runtime_admission',{})
     if (scope.get('provider_db')!=path or scope.get('funding_regimes')!=profile['funding_regimes']
             or regime is not None and regime not in profile['funding_regimes']):

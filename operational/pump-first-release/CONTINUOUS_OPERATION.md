@@ -150,3 +150,18 @@ meaningful coverage, readiness, worker or protective interruptions reset it.
 Separate healthy intervals cannot be combined. A passing hour leaves the service
 running and does not constitute an unobserved trade lifecycle or the separate
 36-hour sustained-autonomy proof.
+
+`CAPACITY` now checks all four selected regimes' current live funding readiness
+at every sample and fails the interval immediately on a meaningful interruption.
+Its separate recovered run must complete the entire hour. Existing longer
+self-recovery observation remains labelled separately. Admission uses the
+existing query-only authority reader on acceptance's read-only epoch mount,
+without constructing a schema/WAL writer.
+
+The first successor's FAST failure is retained. The correction preserves
+bootstrap's all-regime eligibility observations and selected-scope reservation
+guards, supplies the reconnect fixture's newly mandatory tip acquisition, and
+replaces assertions of the obsolete unconditional prohibition with assertions
+of current protection refusal. Economic, freshness and capital assertions
+remain intact. Authenticated Pons USD route availability is still unresolved;
+its failed diagnostic is not a native protection pass.

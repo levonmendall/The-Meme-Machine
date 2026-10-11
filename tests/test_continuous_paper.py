@@ -309,6 +309,16 @@ class AdmissionTests(unittest.TestCase):
         self.assertEqual(available(a.ledger(),now+6,live=True),'selected_regime_current_protection_not_ready')
         self.assertFalse(b.snapshot()['reason'])
 
+    def test_read_only_acceptance_admission_uses_the_existing_reader_without_writer_setup(self):
+        root,a,now,s=self.service(all_regimes=True)
+        before=a.verify_replay()['events']
+        with patch('time.time',return_value=now):
+            s.provider_budget.publish_readiness(True,s.run_id)
+            with patch('meme_machine.shared_capital.authority.CapitalAuthority.__init__',side_effect=AssertionError('writer setup forbidden')):
+                profile=require_normal(at=now)
+                self.assertEqual(set(profile['funding_regimes']),{'pump_current','pump_survivor','pons_current','pons_survivor'})
+        self.assertEqual(a.verify_replay()['events'],before)
+
     def test_physical_queue_memory_and_exit_evidence_guards_remain_mandatory(self):
         root,a,now,s=self.service()
         from tests.test_position_continuation import healthy

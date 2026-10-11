@@ -173,7 +173,7 @@ class FundedProtectionTests(unittest.TestCase):
         from meme_machine.operational.admission import available
         for mode in ('NORMAL','AUTONOMY'):
             reason=available(dict(runtime_admission=dict(mode=mode)),100,live=True)
-            self.assertEqual(reason,'combined_position_and_candidate_provider_latency_not_certified')
+            self.assertEqual(reason,'selected_regime_current_protection_not_ready')
 
     def survivor_loss(self,family,drop,delayed,*,missing=False):
         from meme_machine.lanes.pump.paper_accounting import PaperBook

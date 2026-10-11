@@ -398,11 +398,15 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
             floors.append(request.from_slot)
             if len(floors)==1:raise EvidenceUnavailable('candidate_native_internal')
             source.stop.set()
-        source.work=work;source.stream=stream
+        refreshed=[]
+        async def rpc(method,params,*a):
+            refreshed.append((method,params));return 1200
+        source.work=work;source.stream=stream;source.measured_rpc=rpc
         with patch('meme_machine.solana_selective_source.install',return_value=history):
             await source.control_stream(None,1000,asyncio.Queue(64))
         self.assertEqual(floors,[900-CONTROL_OVERLAP,920-CONTROL_OVERLAP])
         self.assertIn(('phase','DEGRADED'),phases)
+        self.assertEqual(refreshed,[('getSlot',[dict(commitment='finalized')])])
 
     async def test_completed_structural_census_keeps_live_source_running(self):
         from meme_machine.solana_selective_source import SelectiveSource

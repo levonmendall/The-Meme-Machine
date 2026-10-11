@@ -107,8 +107,11 @@ class RuntimeCapital(PumpPonsCapital):
         from meme_machine.operational.admission import available,require_normal
         if action=='runtime_admission' and data['mode'] in ('NORMAL','AUTONOMY'):require_normal(startup=True)
         if action in ('runtime_queue','runtime_allocate') or (action=='runtime_prepare' and data['kind'] in ('enter','rebalance')):
-            regime=(data.get('request') or {}).get('regime') if action=='runtime_queue' else None
-            reason=available(self.ledger(),max(at,int(time.time())),live=True,regime=regime)
+            state=self.ledger()
+            # Bounded bootstrap still records all eligible observations; its
+            # allocator enforces the selected funding scope before reservation.
+            regime=(data.get('request') or {}).get('regime') if action=='runtime_queue' and state.get('runtime_admission',{}).get('mode') in ('NORMAL','AUTONOMY') else None
+            reason=available(state,max(at,int(time.time())),live=True,regime=regime)
             if reason:raise CapitalError(reason)
         return self._write(op,action,at,wire(data))
 

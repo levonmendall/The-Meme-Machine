@@ -86,6 +86,33 @@ class Measurement(unittest.TestCase):
         self.assertTrue(value['passed']);self.assertEqual(value['elapsed_seconds'],200)
         self.assertEqual(value['self_healing_events'],1)
 
+    def test_uninterrupted_capacity_failure_requires_a_new_complete_window(self):
+        profile=dict(funding_regimes=['pump_current','pump_survivor','pons_current','pons_survivor'])
+        now=[0]
+        def sleep(seconds):now[0]+=seconds
+        def observe(_):
+            if now[0]==5:raise ValueError('temporary_canonical_gap')
+            return self.fixture(now[0]+1)
+        with patch('meme_machine.operational.admission.require_normal',return_value=profile),patch.object(acceptance,'observe',side_effect=observe):
+            failed=acceptance.measure(None,60,clock=lambda:now[0],sleeper=sleep,uninterrupted=True)
+            self.assertFalse(failed['passed']);self.assertEqual(failed['elapsed_seconds'],5)
+            self.assertEqual(failed['consecutive_healthy_seconds'],0)
+            self.assertTrue(any('temporary_canonical_gap' in e for e in failed['errors']))
+            now[0]=10
+            recovered=acceptance.measure(None,60,clock=lambda:now[0],sleeper=sleep,uninterrupted=True)
+            self.assertTrue(recovered['passed']);self.assertEqual(recovered['consecutive_healthy_seconds'],60)
+            self.assertEqual(recovered['self_healing_events'],0)
+
+    def test_uninterrupted_capacity_requires_all_regimes_and_live_readiness_throughout(self):
+        from meme_machine.shared_capital.model import CapitalError
+        for profile in (dict(funding_regimes=['pump_current','pump_survivor']),CapitalError('protection_not_ready')):
+            now=[0]
+            def sleep(seconds):now[0]+=seconds
+            kw=dict(side_effect=profile) if isinstance(profile,Exception) else dict(return_value=profile)
+            with self.subTest(profile=type(profile).__name__),patch('meme_machine.operational.admission.require_normal',**kw),patch.object(acceptance,'observe',return_value=self.fixture(1)):
+                value=acceptance.measure(None,60,clock=lambda:now[0],sleeper=sleep,uninterrupted=True)
+                self.assertFalse(value['passed']);self.assertEqual(value['samples'],0)
+
     def test_persistent_failure_cannot_be_combined_with_later_recovery(self):
         value=self.measure([ValueError('provider_unavailable')]*38+[self.fixture(1),self.fixture(2)])
         self.assertFalse(value['passed']);self.assertTrue(value['errors'])
