@@ -1,5 +1,7 @@
 import contextlib
 import io
+import json
+import os
 import unittest
 import tempfile
 import time
@@ -8,6 +10,46 @@ from unittest.mock import patch
 from meme_machine.operational import acceptance
 
 class Measurement(unittest.TestCase):
+    def scoped_files(self,root):
+        from meme_machine.runtime.usd_valuation import utc
+        now=time.time();pid=os.getpid()
+        h=dict(at=utc(now),epoch_id='paper-scoped-new1000',pid=pid,
+            providers={'evidence':dict(state='CURRENT',phase='ACTIVE',startup_released=True,heartbeat=now,pid=pid)},
+            lanes={lane:dict(pid=pid,reconciled=True,exit_code=None) for lane in ('pump','pons')})
+        h['lanes'].update({lane:dict(paused=True,phase='PAUSED',reconciled=True,pid=None,exit_code=None) for lane in ('meteora','ramses')})
+        p=dict(epoch_id=h['epoch_id'],positions=[],reconciliation=dict(checks=dict(conservation=True)))
+        (root/'health.json').write_text(json.dumps(h));(root/'portfolio.json').write_text(json.dumps(p))
+        return h,p
+
+    def test_pump_first_uses_real_health_reader_without_flat_unfunded_pons_progress(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);h,p=self.scoped_files(root)
+            self.assertGreater(acceptance.observe(root,funding_lanes=('pump',))[2],0)
+            with self.assertRaises(FileNotFoundError):acceptance.observe(root)
+            h['lanes']['pons'].update(pid=None,reconciled=False)
+            (root/'health.json').write_text(json.dumps(h))
+            self.assertGreater(acceptance.observe(root,funding_lanes=('pump',))[2],0)
+            with self.assertRaises(ValueError):acceptance.observe(root)
+
+    def test_foreign_obligations_and_shared_source_still_require_protection(self):
+        for field in ('positions_by_lane','reservations_by_lane','pending_by_lane'):
+            with self.subTest(field=field),tempfile.TemporaryDirectory() as folder:
+                root=Path(folder);h,p=self.scoped_files(root)
+                h['portfolio_observation']={field:{'pons':1}}
+                (root/'health.json').write_text(json.dumps(h))
+                with self.assertRaises(FileNotFoundError):acceptance.observe(root,funding_lanes=('pump',))
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);h,p=self.scoped_files(root)
+            p['positions']=[dict(lane='pons')];(root/'portfolio.json').write_text(json.dumps(p))
+            with self.assertRaises(FileNotFoundError):acceptance.observe(root,funding_lanes=('pump',))
+            p['positions']=[];(root/'portfolio.json').write_text(json.dumps(p))
+            h['providers']['evidence']['startup_released']=False
+            (root/'health.json').write_text(json.dumps(h))
+            with self.assertRaisesRegex(ValueError,'shared_canonical_source_not_ready'):
+                acceptance.observe(root,funding_lanes=('pump',))
+            with self.assertRaisesRegex(ValueError,'invalid_acceptance_funding_scope'):
+                acceptance.observe(root,funding_lanes=('meteora',))
+
     def test_shared_source_is_required_and_counted_with_only_active_family_processes(self):
         health={'pid':1,'lanes':{'pump':{'pid':2},'pons':{'pid':3},'meteora':{'pid':None},'ramses':{'pid':None}},
                 'providers':{'evidence':{'state':'CURRENT','phase':'ACTIVE','startup_released':True,'heartbeat':time.time(),'pid':4}}}

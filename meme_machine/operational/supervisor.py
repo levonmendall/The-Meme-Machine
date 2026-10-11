@@ -439,10 +439,10 @@ class Supervisor:
             from .position_continuation import close_bootstrap
             close_bootstrap(self,'bootstrap_provider_exposure_closed');return
         try:
-            health,portfolio,rss=observe(self.root)
             from .position_continuation import readiness,funding_lanes
-            proof=readiness(health,portfolio,rss,self.admission_data['continuation_envelope'])
             lanes=funding_lanes(self.admission_data['continuation_envelope'])
+            health,portfolio,rss=observe(self.root,funding_lanes=lanes)
+            proof=readiness(health,portfolio,rss,self.admission_data['continuation_envelope'])
             if rss>=6*1024**3:raise ValueError('bootstrap_memory_limit')
             for provider in ('solana' if lane=='pump' else 'robinhood' for lane in lanes):
                 row=health['providers'].get(provider,{})

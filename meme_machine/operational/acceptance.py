@@ -21,18 +21,21 @@ def read(path):
     return json.loads(path.read_text())
 
 
-def running_pids(health):
+def running_pids(health,required_lanes=ACTIVE_LANES):
     evidence=health.get('providers',{}).get('evidence',{})
     if evidence.get('state')!='CURRENT' or evidence.get('phase')!='ACTIVE' or evidence.get('startup_released') is not True:
         raise ValueError('shared_canonical_source_not_ready')
     if not 0<=time.time()-evidence.get('heartbeat',0)<=60:
         raise ValueError('shared_canonical_source_stale')
-    pids=[health['pid'],evidence.get('pid')]+[health['lanes'][lane].get('pid') for lane in ACTIVE_LANES]
+    pids=[health['pid'],evidence.get('pid')]+[health['lanes'][lane].get('pid') for lane in required_lanes]
+    # Count every live family worker in RSS, including unfunded discovery.
+    pids.extend(health['lanes'][lane]['pid'] for lane in ACTIVE_LANES
+        if lane not in required_lanes and health['lanes'][lane].get('pid') is not None)
     if any(type(pid) is not int or pid<=0 for pid in pids):raise ValueError('active_process_pid_unavailable')
     return sorted(set(pids))
 
 
-def observe(root):
+def observe(root,*,funding_lanes=None):
     health=read(root/'health.json');portfolio=read(root/'portfolio.json')
     if health.get('offline') or not health['epoch_id'].startswith('paper-'):raise ValueError('genuine_PAPER_epoch_required')
     if portfolio['epoch_id']!=health['epoch_id']:raise ValueError('epoch_mismatch')
@@ -41,16 +44,24 @@ def observe(root):
     if not 0<=age<=10:raise ValueError('supervisor_health_stale')
     if health.get('stopping'):raise ValueError('supervisor_stopping')
     if set(health['lanes'])!={'pump','pons','meteora','ramses'}:raise ValueError('four_lanes_required')
+    required=set(ACTIVE_LANES if funding_lanes is None else funding_lanes)
+    if not required or not required<=set(ACTIVE_LANES):raise ValueError('invalid_acceptance_funding_scope')
+    positions=portfolio.get('positions',[])
+    if isinstance(positions,dict):positions=list(positions.values())
+    projection=health.get('portfolio_observation') or {}
+    for lane in ACTIVE_LANES:
+        if (any(isinstance(p,dict) and p.get('lane')==lane for p in positions)
+                or any(row.get(field,{}).get(lane,0) for row in (projection,portfolio)
+                    for field in ('positions_by_lane','reservations_by_lane','pending_by_lane'))):
+            required.add(lane)
     rss=0
-    pids=running_pids(health)
+    pids=running_pids(health,required)
     for pid in pids:
         os.kill(pid,0)
         for line in Path('/proc/'+str(pid)+'/status').read_text().splitlines():
             if line.startswith('VmRSS:'):rss+=int(line.split()[1])*1024
     checks=portfolio['reconciliation']['checks']
     if not checks or any(v is not True for v in checks.values()):raise ValueError('portfolio_not_reconciled')
-    positions=portfolio.get('positions',[])
-    if isinstance(positions,dict):positions=positions.values()
     for lane,row in health['lanes'].items():
         if lane in PAUSED_LANES:
             if (row.get('paused') is not True or row.get('phase')!='PAUSED' or
@@ -64,8 +75,12 @@ def observe(root):
                     projection.get('pending_by_lane',{}).get(lane,0)):
                 raise ValueError(lane+'_paused_with_economic_obligation')
             continue
+        if lane not in required:continue
         if row.get('paused') or row.get('reconciled') is not True or row.get('exit_code') is not None:
             raise ValueError(lane+'_not_reconciled_or_running')
+    if 'pons' not in required:
+        health['active_evidence']={}
+        return health,portfolio,rss
     report_path=root/'pons/pons-selective-continuation-v1-cohort/cohort-progress.json'
     report=read(report_path)
     if not 0<=time.time()-report['checkpoint_at']<=60:
