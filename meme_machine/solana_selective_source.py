@@ -415,6 +415,7 @@ class SelectiveSource:
         self.join_observed={}
         self.rolling_publications=0
         self.control_bootstrap_tip=None;self.control_committed_slot=None
+        self.acquisition_plan_lock=asyncio.Lock();self.acquisition_idle_until=0
 
     def observe_join(self,plane,join,session):
         now=time.monotonic()
@@ -1029,7 +1030,16 @@ class SelectiveSource:
                     state.acquisition_inflight.add(result[0]['id'])
                     result[0]['finalized_hint']=frontier
                 return result
-            plan=await self.work(request_development,4)
+            # All archive workers use the same sole owner and pending queue.
+            # After an empty plan, eight identical polls otherwise contend with
+            # native publication. Share only the existing 100-ms idle cadence;
+            # every nonempty job still gets its own original claim/deadline.
+            # No evidence result or successful plan is cached here.
+            async with self.acquisition_plan_lock:
+                if time.monotonic()<self.acquisition_idle_until:plan=None
+                else:
+                    plan=await self.work(request_development,4)
+                    if not plan:self.acquisition_idle_until=time.monotonic()+.1
             if not plan:await asyncio.sleep(.1);continue
             job,config=plan
             def commit(state):

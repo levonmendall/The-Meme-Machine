@@ -702,3 +702,7 @@ predicates, windows and deadlines remain unchanged; 65 affected tests passed.
 This offline improvement still requires the next authenticated capacity check.
 Pons prospective census/restart passed; complete qualification and concurrent
 protection remain separate prerequisites. The live sixty-minute clock is zero.
+
+The `da19fd5f` authenticated trial published 8,865 additional economic events (1,745 Pump; 7,120 PumpSwap), then failed again with candidate_log_buffer_pressure. Canonical coverage is not certified by those records. Its retained 81 physical starts, 77 logical calls, 7,460 CU, 12,559,144 HTTP bytes, four stream openings, 91,065,400 delivered native bytes and 285,212,672 uncertain SDK bytes model $0.04342569756 under accepted public prices. No funding occurred.
+
+The concurrent Pons Current run reached a genuine native CurveBuy nominee but consumed almost the full five-second deadline in serialized timestamp-boundary probes before current_state_complete. The successor batches the same finite header search, proves the exact adjacent timestamp boundary, and removes duplicate local pacing before the existing canonical shared governor. Pump idle planners now share their original 100-ms polling cadence. Original evidence clocks, deadlines, nonempty jobs, protective priority, quote lifetimes and buffer bounds are unchanged. Focused OPERATIONAL: 119 tests passed in 12.953 seconds. The new source still requires authentic sustained protection proof; the one-hour acceptance clock remains zero.

@@ -119,6 +119,18 @@ class ProviderAuthorityTests(unittest.TestCase):
         times=sorted(r['admitted_at'] for r in rows)
         self.assertGreaterEqual(times[1]-times[0],.5)
         with self.assertRaises(BoundaryError):Admission(Path(self.tmp.name)/'other',URL,lane='pons',interval=.1)
+
+    def test_canonical_start_uses_one_governor_and_retains_physical_pacing(self):
+        rpc=self.client();rpc.pacer.next_at=1000
+        # A stale role clock cannot hide required work from the real priority
+        # queue. The durable shared governor still paces every physical start.
+        with patch('meme_machine.lanes.pons.provider.urlopen',side_effect=self.http):
+            rpc.verify_chain();rpc.call('eth_blockNumber',[])
+        self.assertEqual(rpc.pacer.paced_requests,0)
+        with sqlite3.connect(rpc.shared_admission.path) as db:
+            rows=[json.loads(r[0]) for r in db.execute('SELECT body FROM transports')]
+        self.assertEqual(len(rows),2)
+        self.assertGreaterEqual(rows[1]['admitted_at']-rows[0]['admitted_at'],.5)
     def test_secrets_absent_from_sqlite_telemetry_and_exception_output(self):
         rpc=self.client(transport=lambda m,p:(_ for _ in ()).throw(RuntimeError(URL)))
         with self.assertRaisesRegex(BoundaryError,'provider_boundary_failure') as caught:rpc.verify_chain()

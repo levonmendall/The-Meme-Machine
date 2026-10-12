@@ -68,6 +68,42 @@ class CachedLaunchAgeTests(unittest.TestCase):
         with self.assertRaisesRegex(BoundaryError,'invalid_curve_launch_time'):
             self.evaluate(self.context(201))
 
+class HeaderBoundaryTests(unittest.TestCase):
+    class Headers:
+        def __init__(self,stamp):self.stamp=stamp;self.batches=[]
+        def batch(self,calls,scope):
+            self.batches.append(calls)
+            return [dict(number=params[0],timestamp=hex(self.stamp(int(params[0],16))))
+                    for method,params in calls]
+
+    def test_cold_boundary_is_exact_with_fewer_physical_rounds(self):
+        end=100000;rpc=self.Headers(lambda n:n//5);cache={}
+        target=end//5-61
+        header=acquisition._header_search(rpc,end,end//5,target,cache)
+        self.assertEqual(int(header['number'],16),(target+1)*5-1)
+        self.assertGreater(int(cache[(target+1)*5]['timestamp'],16),target)
+        self.assertLessEqual(len(rpc.batches),3)
+        self.assertTrue(all(len(batch)<=50 for batch in rpc.batches))
+        before=len(rpc.batches)
+        self.assertEqual(acquisition._header_search(rpc,end,end//5,target,cache),header)
+        self.assertEqual(len(rpc.batches),before)
+
+    def test_equal_timestamp_boundary_does_not_omit_earlier_same_second_events(self):
+        rpc=self.Headers(lambda n:100 if n<=700 else 101)
+        header=acquisition._header_search(rpc,1000,101,100,{})
+        self.assertEqual(int(header['number'],16),700)
+
+    def test_unavailable_or_conflicting_headers_do_not_prove_zero_activity(self):
+        rpc=self.Headers(lambda n:200)
+        with self.assertRaisesRegex(BoundaryError,'trajectory_history_incomplete'):
+            acquisition._header_search(rpc,10000,200,100,{})
+        with patch.object(rpc,'batch',return_value=[]):
+            with self.assertRaisesRegex(BoundaryError,'trajectory_history_incomplete'):
+                acquisition._header_search(rpc,10000,200,199,{})
+        bad=self.Headers(lambda n:1000-n)
+        with self.assertRaisesRegex(BoundaryError,'trajectory_header_time_regression'):
+            acquisition._header_search(bad,100,1000,999,{})
+
 class TransportDeadlineTests(unittest.TestCase):
     class Response:
         def __init__(self, body):self.body=body

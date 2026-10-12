@@ -666,53 +666,65 @@ def _authenticate_window(
 
 
 def _header_search(rpc,current_block,current_at,target_at,cache):
-    """Find latest block whose timestamp is <= target_at with bounded reads."""
+    """Prove the exact timestamp boundary with bounded canonical batches.
+
+    The former exponential/binary search serialized every probe and consumed a
+    cold Current deadline before qualification began. Existing cached headers
+    narrow the bracket; new probes share the existing RPC batch/governor. Only
+    adjacent authenticated headers close it, never estimated block times.
+    """
     current_block=int(current_block);current_at=int(current_at);target_at=int(target_at)
     if target_at>=current_at:
         return dict(number=hex(current_block),timestamp=hex(current_at))
     if current_block<=0:
         raise BoundaryError("trajectory_history_incomplete")
 
-    def read(block):
-        block=max(0,int(block))
-        if block not in cache:
-            header=rpc.call(
-                "eth_getBlockByNumber",[hex(block),False],scope="pons_selective_trajectory"
-            )
-            if int(header["number"],16)!=block:
-                raise BoundaryError("trajectory_block_identity")
-            cache[block]=header
-        return cache[block]
+    floor=max(0,current_block-MAX_TRAJECTORY_LOOKBACK_BLOCKS)
+    known={n:h for n,h in cache.items() if floor<=n<=current_block}
+    known.setdefault(current_block,dict(number=hex(current_block),timestamp=hex(current_at)))
 
-    high=current_block
-    delta=4
-    low=None
-    while delta<=MAX_TRAJECTORY_LOOKBACK_BLOCKS:
-        probe=max(0,current_block-delta)
-        header=read(probe)
-        if int(header["timestamp"],16)<=target_at:
-            low=probe
-            break
-        if probe==0:
-            break
-        high=probe
-        delta*=2
+    def read_many(blocks):
+        missing=sorted({n for n in blocks if n not in known})
+        if not missing:return
+        calls=[('eth_getBlockByNumber',[hex(n),False]) for n in missing]
+        batch=getattr(rpc,'batch',None)
+        values=(batch(calls,'pons_selective_trajectory') if callable(batch) else
+                [rpc.call(m,p,scope='pons_selective_trajectory') for m,p in calls])
+        if not isinstance(values,(list,tuple)) or len(values)!=len(missing):
+            raise BoundaryError('trajectory_history_incomplete')
+        for n,header in zip(missing,values):
+            try:
+                if int(header['number'],16)!=n or int(header['timestamp'],16)<0:raise ValueError()
+            except (KeyError,TypeError,ValueError):raise BoundaryError('trajectory_block_identity') from None
+            known[n]=header;cache[n]=header
+        ordered=sorted(known)
+        if any(int(known[a]['timestamp'],16)>int(known[b]['timestamp'],16)
+               for a,b in zip(ordered,ordered[1:])):
+            raise BoundaryError('trajectory_header_time_regression')
+
+    def bracket():
+        low=max((n for n,h in known.items() if int(h['timestamp'],16)<=target_at),default=None)
+        high=min((n for n,h in known.items() if int(h['timestamp'],16)>target_at),default=current_block)
+        return low,high
+
+    low,high=bracket()
     if low is None:
-        raise BoundaryError("trajectory_history_incomplete")
-
-    # high may already be <= target after the first probe; ensure the upper bound
-    # is a block later than target for the binary search.
-    high=max(high,low)
-    if high==low:
-        high=current_block
+        # Same finite exponential lookback, acquired in one physical batch.
+        probes=[];delta=4
+        while delta<=MAX_TRAJECTORY_LOOKBACK_BLOCKS:
+            probes.append(max(0,current_block-delta))
+            if probes[-1]==0:break
+            delta*=2
+        read_many(probes);low,high=bracket()
+    if low is None:raise BoundaryError('trajectory_history_incomplete')
     while low+1<high:
-        mid=(low+high)//2
-        header=read(mid)
-        if int(header["timestamp"],16)<=target_at:
-            low=mid
-        else:
-            high=mid
-    return read(low)
+        gap=high-low
+        probes=(range(low+1,high) if gap<=50 else
+                {low+gap*i//50 for i in range(1,50)})
+        read_many(probes);new_low,new_high=bracket()
+        if (new_low,new_high)==(low,high):raise BoundaryError('trajectory_history_incomplete')
+        low,high=new_low,new_high
+    return known[low]
 
 
 def _indexed_header_plan(cache,current_header,launch_at):

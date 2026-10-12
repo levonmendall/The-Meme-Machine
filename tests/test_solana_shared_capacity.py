@@ -344,6 +344,31 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(h.db.execute("SELECT COUNT(*) FROM acquisition_jobs WHERE status='pending'").fetchone()[0],9)
             finally:state.writer.close()
 
+    async def test_idle_archive_workers_share_one_poll_without_caching_evidence(self):
+        from tests.test_solana_closure import state_at
+        from tests.test_solana_prewarm_startup import quiet_model_b
+        from meme_machine.solana_selective_source import SelectiveSource
+        with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,MM_OPERATIONAL_PHASE='continuous'):
+            state,h=state_at(Path(td)/'canonical.sqlite')
+            source=SelectiveSource(SimpleNamespace(credential='offline'),None)
+            source.stop=asyncio.Event();source.batched=True;polls=[]
+            async def work(fn,*args,**kwargs):
+                if fn.__name__=='request_development':
+                    polls.append(time.monotonic())
+                    await asyncio.sleep(.005)
+                return fn(state)
+            source.work=work
+            try:
+                done=asyncio.Event();done.set();await quiet_model_b(work,done)
+                async def stop():
+                    await asyncio.sleep(.05);source.stop.set()
+                stopper=asyncio.create_task(stop())
+                await source.acquire_pool();await stopper
+                self.assertEqual(len(polls),1)
+                self.assertFalse(state.acquisition_inflight)
+                self.assertFalse(h.db.execute('SELECT 1 FROM acquisition_jobs').fetchone())
+            finally:state.writer.close()
+
     async def test_optional_archive_fault_does_not_terminate_canonical_source_or_prove_history(self):
         from tests.test_solana_closure import state_at,NOW
         from tests.test_solana_prewarm_startup import quiet_model_b

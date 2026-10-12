@@ -251,7 +251,11 @@ class PacedRpc(Rpc):
             super().__init__(endpoint, transport=transport, **kwargs)
 
     def _http(self, method, params):
-        paced=self.pacer.pace()
+        # Canonical starts already have one durable, deadline/priority-aware
+        # account governor. Waiting on a second role clock before enqueueing
+        # hides exits from that queue and charges the deadline twice. Public
+        # observation still uses its own adaptive pacer.
+        paced=0 if self.canonical_authority and self.shared_admission is not None else self.pacer.pace()
         timing=getattr(self,"evidence_timing",None)
         if timing is not None:timing["local_pacer_wait_seconds"]=timing.get("local_pacer_wait_seconds",0)+paced
         if self.shared_admission is not None:
@@ -263,7 +267,7 @@ class PacedRpc(Rpc):
         return super()._http(method, params)
 
     def _http_batch(self, calls):
-        paced=self.pacer.pace()
+        paced=0 if self.canonical_authority and self.shared_admission is not None else self.pacer.pace()
         timing=getattr(self,"evidence_timing",None)
         if timing is not None:timing["local_pacer_wait_seconds"]=timing.get("local_pacer_wait_seconds",0)+paced
         if self.shared_admission is not None:
