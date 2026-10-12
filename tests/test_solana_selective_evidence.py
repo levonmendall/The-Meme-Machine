@@ -238,15 +238,39 @@ class SourceIntegrationTests(SelectiveEvidenceTests):
         self.assertEqual(self.writer.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
         self.assertEqual(self.writer.db.execute('SELECT COUNT(*) FROM coverage').fetchone()[0],0)
 
-    def test_rolling_replay_includes_overlap_in_exact_supported_bound(self):
+    def test_native_replay_capacity_does_not_pretend_websocket_history_is_available(self):
         from meme_machine.solana_selective_source import install,rolling_replay_boundary
         install(self.state);desired=[dict(family='pump',scope='program:pump',rolling=True)]
         self.writer.db.execute('INSERT INTO candidate_checkpoints VALUES(?,?,?,?)',('program:pump',4001,'fixture',self.now[0]))
-        self.assertEqual(rolling_replay_boundary(self.state,desired,10000),(4000,False,True))
-        self.assertFalse(self.writer.db.execute('SELECT 1 FROM candidate_gaps').fetchone())
-        # One extra overlap slot exceeds the supported window; never request it.
+        self.assertEqual(rolling_replay_boundary(self.state,desired,10000),(10001,True,True))
+        self.assertEqual(self.writer.db.execute('SELECT lo,hi,repaired FROM candidate_gaps').fetchall(),[(4002,10000,None)])
+        self.assertEqual(self.writer.db.execute('SELECT slot FROM candidate_checkpoints').fetchone()[0],4001)
+        # A larger outage remains missing too; a live-tail scheduling boundary
+        # cannot transform either old gap into completed historical evidence.
         self.writer.db.execute("UPDATE candidate_checkpoints SET slot=4000 WHERE scope='program:pump'")
         self.assertEqual(rolling_replay_boundary(self.state,desired,10000),(10001,True,True))
+        self.assertEqual(self.writer.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
+
+    def test_short_rolling_reconnect_retains_missing_prefix_and_checkpoint_after_restart(self):
+        from types import SimpleNamespace
+        from meme_machine.solana_selective_source import install,rolling_replay_boundary
+        from meme_machine.solana_rolling_history import program_scope
+        h=install(self.state)
+        desired=[dict(family=f,scope=program_scope(f),rolling=True) for f in ('pump','pumpswap')]
+        for row in desired:
+            self.writer.db.execute('INSERT INTO candidate_checkpoints VALUES(?,?,?,?)',(row['scope'],100,'prior-authenticated',self.now[0]))
+        before=self.writer.db.execute('SELECT * FROM candidate_checkpoints ORDER BY scope').fetchall()
+        self.assertEqual(rolling_replay_boundary(self.state,desired,103),(104,True,True))
+        for row in desired:self.assertTrue(h.rolling.missing(row['family'],row['scope'],101,103))
+        path=self.writer.path;self.writer.close()
+        from meme_machine.solana_evidence_service import FinalizedFence
+        self.writer=EvidenceWriter(path,clock=lambda:self.now[0])
+        self.state=SimpleNamespace(writer=self.writer,fence=FinalizedFence(self.writer,endpoint_identity='a'*64))
+        h=install(self.state)
+        self.assertEqual(self.writer.db.execute('SELECT * FROM candidate_checkpoints ORDER BY scope').fetchall(),before)
+        self.assertEqual(self.writer.db.execute('SELECT scope,lo,hi,repaired FROM candidate_gaps ORDER BY scope').fetchall(),[(r['scope'],101,103,None) for r in desired])
+        for row in desired:self.assertTrue(h.rolling.missing(row['family'],row['scope'],101,103))
+        self.assertEqual(self.writer.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
 
     def test_missing_program_checkpoint_needs_both_prospective_feed_boundaries(self):
         from meme_machine.solana_selective_source import install,rolling_replay_boundary

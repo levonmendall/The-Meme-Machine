@@ -48,11 +48,13 @@ CONTROL_OVERLAP=256
 WARM_OVERLAP=32
 
 def rolling_replay_boundary(state,desired,tip):
-    """Supported replay or a fresh prospective program census, never old proof.
+    """Fresh prospective program census; retain exact old history obligations.
 
-    An outage beyond the endpoint's replay window remains an explicit history
-    obligation. Candidate/position recovery must still supply its exact missing
-    intervals; account scouts and a new live tail cannot repair that history.
+    Yellowstone's identity replay cannot replay a newly opened WS log feed.
+    Rebuilding every program transaction across an outage would serialize the
+    current market behind exceptional HTTP hydration. Establish the current
+    linked tail instead. Existing candidate/position recovery still supplies
+    every required missing interval; no checkpoint or gap is relabeled complete.
     """
     h=install(state);points=[]
     for row in desired:
@@ -61,16 +63,12 @@ def rolling_replay_boundary(state,desired,tip):
             ','.join('?' for _ in scopes)+')',scopes).fetchone()[0]
         points.append(value)
     present=[p for p in points if p is not None]
-    floor=max(1,min(present)-1) if present else tip+1
-    prospective=not present or any(p is None for p in points) or tip-floor>REPLAY_SLOTS
-    if prospective:
-        for row,point in zip(desired,points):
-            if point is not None and point<tip:
-                h.gap(row['scope'],point+1,tip,'rolling_checkpoint_outside_complete_replay_boundary')
-        # Actual finalized WS observations for BOTH programs replace this
-        # scheduling placeholder before any native subscription is opened.
-        floor=tip+1
-    return floor,prospective,bool(present)
+    for row,point in zip(desired,points):
+        if point is not None and point<tip:
+            h.gap(row['scope'],point+1,tip,'rolling_reconnect_missing_websocket_history')
+    # Actual finalized WS observations for BOTH programs replace this
+    # scheduling placeholder before any native subscription is opened.
+    return tip+1,True,bool(present)
 STATE_SCHEMA='''
 CREATE TABLE IF NOT EXISTS candidate_blocks(scope TEXT PRIMARY KEY,slot INTEGER NOT NULL,
  parent INTEGER NOT NULL,hash TEXT NOT NULL,previous_hash TEXT NOT NULL,
