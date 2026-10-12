@@ -12,6 +12,33 @@ from meme_machine.portfolio_accounting import PortfolioAccounting,LANES,inceptio
 
 
 class StorageBounds(unittest.TestCase):
+    def test_provider_audit_boundary_matches_original_retained_set_and_paused_rows(self):
+        with closing(sqlite3.connect(':memory:')) as db:
+            db.executescript("CREATE TABLE audit(seq INTEGER PRIMARY KEY,active INTEGER,body TEXT);CREATE TRIGGER audit_guard BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT,'append_only');END;")
+            db.executemany('INSERT INTO audit VALUES(?,?,?)',[(i,int(i%3!=0),str(i)) for i in range(1,10001)])
+            kept=db.execute('SELECT seq FROM audit WHERE active=0 OR seq IN (SELECT seq FROM audit WHERE active=1 ORDER BY seq DESC LIMIT 4096) ORDER BY seq').fetchall()
+            statements=[];db.set_trace_callback(statements.append)
+            audit_ring(db,'audit','audit_guard',where='active=1')
+            self.assertEqual(db.execute('SELECT seq FROM audit ORDER BY seq').fetchall(),kept)
+            self.assertFalse(any('NOT IN' in sql for sql in statements))
+            with self.assertRaises(sqlite3.IntegrityError):db.execute('DELETE FROM audit')
+            db.execute("INSERT INTO audit VALUES(10001,1,'new')")
+            audit_ring(db,'audit','audit_guard',where='active=1')
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM audit WHERE active=1').fetchone()[0],4096)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM audit WHERE active=0').fetchone()[0],3333)
+
+    def test_provider_audit_boundary_avoids_scanning_retained_payload_on_every_event(self):
+        with closing(sqlite3.connect(':memory:')) as db:
+            db.executescript("CREATE TABLE audit(seq INTEGER PRIMARY KEY,body TEXT);CREATE TRIGGER audit_guard BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT,'append_only');END;")
+            db.executemany('INSERT INTO audit(body) VALUES(?)',[(str(i),) for i in range(4097)])
+            steps=[0]
+            def count():steps[0]+=1;return 0
+            db.set_progress_handler(count,100)
+            audit_ring(db,'audit','audit_guard')
+            db.set_progress_handler(None,0)
+            self.assertLess(steps[0]*100,16000,'single audit prune rescanned the retained ring')
+            self.assertEqual(db.execute('SELECT MIN(seq),MAX(seq),COUNT(*) FROM audit').fetchone(),(2,4097,4096))
+
     def test_decision_evidence_retention_preserves_waiting_consumers_without_double_archive(self):
         from meme_machine.lanes.pump.solana_evidence_broker import EvidenceBroker
         from meme_machine.runtime.storage import solana_cache_retention

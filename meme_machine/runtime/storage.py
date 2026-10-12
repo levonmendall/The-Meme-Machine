@@ -21,19 +21,27 @@ def audit_ring(db, table, trigger, *, limit=4096, key='seq', where='1=1'):
 
 
 def _audit_ring(db,table,trigger,*,limit,key,where):
-    count=db.execute('SELECT COUNT(*) FROM '+table+' WHERE '+where).fetchone()[0]
-    if count<=limit:return
+    # Seek the same retained boundary once. Rebuilding a 4,096-key NOT IN
+    # set on every provider event repeatedly scans the entire hot audit ring.
+    # All reads and pruning still run in the caller's serialized transaction.
+    if type(limit) is not int or limit<1:raise ValueError('audit_retention_limit')
+    boundary=db.execute('SELECT '+key+' FROM '+table+' WHERE '+where+
+        ' ORDER BY '+key+' DESC LIMIT 1 OFFSET ?',(limit-1,)).fetchone()
+    if boundary is None or boundary[0] is None:return
+    cutoff=boundary[0]
+    if not db.execute('SELECT 1 FROM '+table+' WHERE ('+where+') AND '+key+'<? LIMIT 1',
+            (cutoff,)).fetchone():return
     if table=='progress' and key=='sequence':
         # Four native pipelines share this existing maintenance hook. Keep all
         # strategy code unchanged; derive learning before its debug ring folds.
         from meme_machine.runtime.learning import pipeline,install
         if not db.in_transaction:db.execute('BEGIN')
         install(db)
-        for row in db.execute('SELECT * FROM progress WHERE sequence NOT IN (SELECT sequence FROM progress ORDER BY sequence DESC LIMIT ?) ORDER BY sequence',(limit,)).fetchall():
+        for row in db.execute('SELECT * FROM progress WHERE sequence<? ORDER BY sequence',(cutoff,)).fetchall():
             pipeline(db,row)
     sql=db.execute('SELECT sql FROM sqlite_master WHERE name=?',(trigger,)).fetchone()
     if sql:db.execute('DROP TRIGGER '+trigger)
-    db.execute('DELETE FROM '+table+' WHERE ('+where+') AND '+key+' NOT IN (SELECT '+key+' FROM '+table+' WHERE '+where+' ORDER BY '+key+' DESC LIMIT ?)',(limit,))
+    db.execute('DELETE FROM '+table+' WHERE ('+where+') AND '+key+'<?',(cutoff,))
     if sql:db.execute(sql[0])
 
 

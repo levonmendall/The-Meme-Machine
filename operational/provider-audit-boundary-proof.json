@@ -1,0 +1,42 @@
+{
+  "purpose": "Remove demonstrated shared-host provider-audit pruning contention, with identical retained-set semantics",
+  "parent_source": "76f9d67e2ade6bad89d0dfa57a189e8177dbe4ee",
+  "retained_authenticated_failure": "CONTINUOUS_ACTUAL_WORKERS_1791807868985.json",
+  "source_sample": "/tmp/combined-cpu-solana-1791807868985.raw",
+  "pons_late_sample": "/tmp/combined-cpu-pons-late-1791808109.raw",
+  "pons_late_samples": 985,
+  "audit_delete_leaf_samples": 124,
+  "change": "Seek the existing ordered retained boundary and delete only the older eligible key range in the same serialized transaction; preserve triggers, paused rows and original retention limit",
+  "offline_delete_comparison": {
+    "input_rows": 4097,
+    "retained_limit": 4096,
+    "identical_remaining": [
+      2,
+      4097,
+      4096
+    ],
+    "original_vm_steps_upper": 53299,
+    "boundary_vm_steps_upper": 99,
+    "original_delete_seconds": 0.0023364080116152763,
+    "boundary_delete_seconds": 1.3523967936635017e-05
+  },
+  "tests": {
+    "FAST": {
+      "tests": 13,
+      "seconds": 9.331,
+      "result": "PASS",
+      "log": "/tmp/audit-boundary-fast.log"
+    },
+    "OPERATIONAL": {
+      "tests": 33,
+      "seconds": 10.849,
+      "result": "PASS",
+      "log": "/tmp/audit-boundary-operational.log"
+    }
+  },
+  "economic_rules_changed": false,
+  "canonical_requirements_changed": false,
+  "provider_work_added": false,
+  "authenticated_operational_equivalence": "PENDING",
+  "at": 1791808478.2583036
+}
