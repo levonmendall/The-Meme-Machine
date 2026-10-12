@@ -17,7 +17,7 @@ import grpc
 from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosed
 from .solana_activity_routes import ActivityRoutes,shards
-from .solana_candidate_join import CandidateTransactionJoin,candidate_subscription
+from .solana_candidate_join import CandidateTransactionJoin,candidate_subscription,MAX_PENDING_BYTES
 from .solana_native_evidence import economic_transaction,pubkey,signature
 from .solana_evidence_plane import EvidenceUnavailable,IntervalProof,digest,canonical
 from .solana_evidence_transport import Subscription
@@ -259,6 +259,28 @@ def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publis
                 max(f.update.block.slot for f in frames),'candidate_native_batch_failed')
         raise
     if publish:history.lifecycle.publish()
+
+
+async def wait_candidate_log_space(join,progress,stop,local_stop,slot,sig,logs):
+    """Backpressure the existing socket, never discard or certify its logs.
+
+    Native receipt/commit throughput may lag the other transport. Reading more
+    future logs into a full join caused a disconnect and bought the same replay
+    again. Keep its original count/byte bounds and original maximum join wait.
+    The current message and the socket's existing two-frame queue stay bounded.
+    """
+    if slot<join.filtered_from_slot or slot<=join.completed or (slot,sig) in join.early_logs:return
+    if join.early_log_bytes<MAX_PENDING_BYTES//2 and len(join.early_logs)<16384:return
+    size=len(str(logs).encode())
+    if size>MAX_PENDING_BYTES:raise EvidenceUnavailable('candidate_log_buffer_pressure')
+    started=join.clock()
+    while len(join.early_logs)>=32768 or join.early_log_bytes+size>MAX_PENDING_BYTES:
+        if stop.is_set() or local_stop.is_set():raise asyncio.CancelledError()
+        if join.clock()-started>=join.max_join_seconds:
+            raise EvidenceUnavailable('candidate_log_buffer_pressure')
+        progress.clear()
+        try:await asyncio.wait_for(progress.wait(),.05)
+        except TimeoutError:pass
 
 
 class CandidateCommitQueue:
@@ -1256,13 +1278,14 @@ class SelectiveSource:
         fresh_rolling=rolling and prospective_rolling
         join=CandidateTransactionJoin(addresses,full,filtered_from_slot=1 if fresh_rolling else floor,max_join_seconds=120 if rolling else 10);session=uuid.uuid4().hex
         log_frontiers={};logs_available=asyncio.Event()
-        candidate_queue=CandidateCommitQueue()
+        candidate_queue=CandidateCommitQueue();join_progress=asyncio.Event()
         async def commit(frame):
             if frame:await candidate_queue.put(frame)
         acknowledged=asyncio.Event()
         async def native(update,size,seen):
             try:
                 frame=join.feed(update,size,seen)
+                join_progress.set()
                 self.observe_join('rolling' if rolling else 'candidate',join,session)
                 await commit(frame)
             except EvidenceUnavailable as exc:
@@ -1305,6 +1328,8 @@ class SelectiveSource:
                         log_frontiers.setdefault(row['family'],result['context']['slot'])
                         if len(log_frontiers)==len({r['family'] for r in desired}):logs_available.set()
                     if v['err'] is None:
+                        await wait_candidate_log_space(join,join_progress,self.stop,local_stop,
+                            result['context']['slot'],v['signature'],v['logs'])
                         try:await commit(join.feed_log(result['context']['slot'],v['signature'],v['logs'],None,seen))
                         except EvidenceUnavailable as exc:
                             self.diagnostic('log_join_failure',dict(reason=str(exc),**join.diagnostic()))

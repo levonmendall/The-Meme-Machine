@@ -516,4 +516,66 @@ class SourceIntegrationTests(SelectiveEvidenceTests):
         self.assertEqual(source.live.await_count,10)
         self.assertEqual(self.writer.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
 
+class CandidateLogBackpressureTests(unittest.IsolatedAsyncioTestCase):
+    async def test_full_log_join_waits_for_authentic_native_drain_without_dropping_content(self):
+        import asyncio
+        from unittest.mock import patch
+        from meme_machine.solana_candidate_join import signature
+        from meme_machine.solana_selective_source import wait_candidate_log_space
+        replay=NativeLogJoinTests();tx=replay.setup_join();slot=tx['slot']
+        first=signature(b'1'*64);second=signature(b'2'*64);logs=['x'*4092]
+        bound=len(str(logs).encode())
+        progress=asyncio.Event();stop=asyncio.Event();local_stop=asyncio.Event()
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound),patch('meme_machine.solana_selective_source.MAX_PENDING_BYTES',bound):
+            replay.join.feed_log(slot,first,logs,None,1791400000.)
+            task=asyncio.create_task(wait_candidate_log_space(replay.join,progress,stop,local_stop,slot+1,second,['second']))
+            await asyncio.sleep(.01);self.assertFalse(task.done())
+            self.assertEqual(replay.join.early_logs[(slot,first)][0],logs)
+            replay.status(slot,0,b'1'*64);frame=replay.close_header(slot,1)
+            self.assertEqual(frame.log_transactions[0]['meta']['logMessages'],logs)
+            progress.set();await asyncio.wait_for(task,.1)
+            replay.join.feed_log(slot+1,second,['second'],None,1791400001.)
+            self.assertEqual(replay.join.early_logs[(slot+1,second)][0],['second'])
+            self.assertLessEqual(replay.join.early_log_bytes,bound)
+
+    async def test_duplicate_or_conflicting_log_still_uses_original_validation_when_full(self):
+        import asyncio
+        from unittest.mock import patch
+        from meme_machine.solana_selective_source import wait_candidate_log_space
+        replay=NativeLogJoinTests();tx=replay.setup_join();slot=tx['slot'];logs=['full']
+        bound=len(str(logs).encode());progress=asyncio.Event();stop=asyncio.Event()
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound),patch('meme_machine.solana_selective_source.MAX_PENDING_BYTES',bound):
+            replay.join.feed_log(slot,'same',logs,None,1791400000.)
+            await wait_candidate_log_space(replay.join,progress,stop,stop,slot,'same',logs)
+            self.assertIsNone(replay.join.feed_log(slot,'same',logs,None,1791400001.))
+            await wait_candidate_log_space(replay.join,progress,stop,stop,slot,'same',['conflict'])
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_content_conflict'):
+                replay.join.feed_log(slot,'same',['conflict'],None,1791400001.)
+
+    async def test_stalled_join_retains_original_deadline_and_stop_cancels_wait(self):
+        import asyncio
+        from unittest.mock import patch
+        from meme_machine.solana_selective_source import wait_candidate_log_space
+        replay=NativeLogJoinTests();tx=replay.setup_join();slot=tx['slot']
+        replay.join.early_log_bytes=32*1024*1024;progress=asyncio.Event();stop=asyncio.Event()
+        ticks=iter((0,11));replay.join.clock=lambda:next(ticks)
+        with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_buffer_pressure'):
+            await wait_candidate_log_space(replay.join,progress,stop,stop,slot,'new',['bounded'])
+        stop.set();replay.join.clock=lambda:0
+        with self.assertRaises(asyncio.CancelledError):
+            await wait_candidate_log_space(replay.join,progress,stop,stop,slot,'new',['bounded'])
+        self.assertEqual(replay.join.completed,-1)
+
+    async def test_count_bound_waits_and_other_tasks_keep_running(self):
+        import asyncio
+        from meme_machine.solana_selective_source import wait_candidate_log_space
+        replay=NativeLogJoinTests();tx=replay.setup_join();slot=tx['slot']
+        replay.join.early_logs={(slot,str(i)):(['old'],None,0) for i in range(32768)}
+        progress=asyncio.Event();stop=asyncio.Event();ran=[]
+        task=asyncio.create_task(wait_candidate_log_space(replay.join,progress,stop,stop,slot+1,'new',['new']))
+        await asyncio.sleep(.01);ran.append('protective worker scheduled');self.assertFalse(task.done())
+        del replay.join.early_logs[(slot,'0')];progress.set();await asyncio.wait_for(task,.1)
+        self.assertEqual(ran,['protective worker scheduled']);self.assertEqual(replay.join.completed,-1)
+
+
 if __name__=='__main__':unittest.main()
