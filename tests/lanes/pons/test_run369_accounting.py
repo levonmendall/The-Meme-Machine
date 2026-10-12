@@ -7,6 +7,42 @@ from meme_machine.lanes.pons.pons_selective_continuation import POLICY_HASH
 from tests.lanes.pons.test_pons_candidate_plane import event
 
 class CapacityAccountingTests(unittest.TestCase):
+    def test_completed_decision_categories_project_without_changing_qualification(self):
+        from meme_machine.lanes.pons.pons_attempts import decision_category
+        from meme_machine.runtime.robinhood.accounting import classify
+        cases=[
+            (dict(complete=True,token_age_seconds=901,all_rejections=['token_age']),
+                'EXPIRED_BY_STRATEGY_HORIZON','strategy_rejection'),
+            (dict(complete=True,all_rejections=['execution_capacity'],proposed_size=dict(
+                execution_capacity=dict(final_size=0,evaluated_sizes=[1],binding_reason='ordinary_execution'))),
+                'EXECUTION_CAPACITY_UNAVAILABLE','execution_capacity_unavailable'),
+            (dict(complete=False,all_rejections=['non_native_quote']),
+                'STRUCTURAL_INELIGIBLE','structural_ineligible'),
+            (dict(complete=False,all_rejections=['missing_history']),
+                'INCOMPLETE_EVIDENCE','reconstruction_incomplete'),
+            (dict(complete=False,all_rejections=['stale_quote']),
+                'DEADLINE_MISSED','consumer_deadline'),
+            (dict(complete=False,all_rejections=['provider_unavailable']),
+                'PROVIDER_UNAVAILABLE','provider_failed')]
+        for vector,category,classification in cases:
+            with self.subTest(category=category),tempfile.TemporaryDirectory() as td:
+                root=Path(td);broker=Broker(root/'plane',POLICY_HASH,clock=lambda:100.)
+                pipeline=Pipeline(root/'opportunity-pipeline.sqlite','pons',POLICY_HASH)
+                try:
+                    broker.enqueue(event());work=broker.pop()
+                    self.assertEqual(decision_category(dict(vector=vector)),category)
+                    broker.plane.finish(work['work'],result=dict(vector=vector))
+                    self.assertTrue(broker.plane.decision(work['key'],work['work']['generation'],category.lower(),'retained_rejection'))
+                    broker.report_to(pipeline,drain=True)
+                    snapshot=pipeline.snapshot()
+                    self.assertEqual(snapshot['unique_classes'][classification],1)
+                    self.assertEqual(snapshot['unique_classes'].get('qualified',0),0)
+                    broker.report_to(pipeline,drain=True)
+                    self.assertEqual(pipeline.snapshot()['raw_records'],snapshot['raw_records'])
+                finally:pipeline.close();broker.close()
+        with self.assertRaisesRegex(ValueError,'unclassified_candidate_plane_outcome'):
+            classify('unknown_outcome_must_still_fail')
+
     def test_measured_service_deferral_reaches_opportunity_coverage(self):
         with tempfile.TemporaryDirectory() as td:
             now=[100.]

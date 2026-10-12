@@ -24,6 +24,14 @@ OUTCOMES = {
     'superseded': ('candidate_superseded', 'superseded_generation'),
     'strategy_rejected': ('rejected', 'strategy_rejection'),
     'structural_excluded': ('rejected', 'structural_ineligible'),
+    # Completed Current decisions retain their explicit attempt category in
+    # Plane.decision. These are reporting outcomes, never admission authority.
+    'expired_by_strategy_horizon': ('rejected', 'strategy_rejection'),
+    'execution_capacity_unavailable': ('rejected', 'execution_capacity_unavailable'),
+    'structural_ineligible': ('rejected', 'structural_ineligible'),
+    'incomplete_evidence': ('terminal', 'reconstruction_incomplete'),
+    'deadline_missed': ('terminal', 'consumer_deadline'),
+    'provider_unavailable': ('terminal', 'provider_failed'),
     'promoted': ('current_state_progress', None),
     'qualified': ('qualified', None),
     'entry_confirmation': ('entry_confirmation', None),
