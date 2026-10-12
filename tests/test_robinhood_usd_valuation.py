@@ -87,6 +87,11 @@ ATTENTION_DELTAS = {
 # graduation horizon and 8,192-entry cache. Pin only their exact changed nodes;
 # every other economic function and interface remains compared to the baseline.
 OPERATION_DELTAS = {
+    'meme_machine/lanes/pump/solana_evidence_health.py': {
+        # Restore the maintained indexed and verified-volume health path in
+        # the actual Pump worker; all freshness and coverage checks stay pinned.
+        'evidence_health': '3473d68023a84021ec718f2a7d7a92fe10dee7ef4b7ed4958ed21c382cfed011',
+    },
     'meme_machine/lanes/pump/solana_evidence_plane.py': {
         # Only the existing coverage_end_hint access path differs. Gap,
         # availability, interval ordering and membership checks remain pinned.

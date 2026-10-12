@@ -25,14 +25,25 @@ def evidence_health(reader,scope,now):
         lag=now-frontier['time'];age=now-frontier['seen']
         if not 0<=lag<=FINALIZED_LAG_SECONDS or not 0<=age<=HEARTBEAT_SECONDS:
             return result('DEGRADED','evidence_finalized_stale',lag_seconds=lag,receipt_age_seconds=age)
-        sealed=reader.db.execute('SELECT MAX(hi) FROM coverage WHERE scope=? AND available<=?',(scope,now)).fetchone()[0]
+        # Use the maintained interval-end index in the actual family worker,
+        # retaining the same availability predicate and legacy snapshot path.
+        hint=(' INDEXED BY maintenance_coverage_end' if reader.db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='index' AND name='maintenance_coverage_end' AND tbl_name='coverage'").fetchone() else '')
+        sealed=reader.db.execute('SELECT MAX(hi) FROM coverage'+hint+
+            ' WHERE scope=? AND available<=?',(scope,now)).fetchone()[0]
         parent=reader.db.execute('SELECT parent FROM stream_receipts WHERE scope=? AND slot=?',(scope,frontier['slot'])).fetchone()
         if sealed is None or parent is None:return result('WARMING','evidence_cold_start')
         if sealed<parent[0] or not reader.covered(scope,parent[0],sealed,as_of=now):
             return result('DEGRADED','evidence_discontinuous')
         if phase!='ACTIVE':return result('DEGRADED','evidence_source_disconnected')
         hot=sum(transient_file_size(p) for p in (reader.path,Path(str(reader.path)+'-wal')))
-        if hot>=health.get('hot_limit_bytes',2*1024*1024*1024)*.9:
+        limit=health.get('hot_limit_bytes',2*1024*1024*1024)
+        if limit is None:
+            if health.get('storage_capacity_mode')!='verified_epoch_volume':return result('FAILED','evidence_storage_profile_unverified')
+            from .solana_evidence_plane import storage_health
+            pressure=storage_health(reader.path,required_bytes=32*1024*1024)
+            if pressure['state']!='ok':return result('DEGRADED','evidence_physical_storage_pressure',storage=pressure)
+        elif hot>=limit*.9:
             return result('DEGRADED','evidence_hot_capacity_pressure')
         return result('USABLE','authoritative_current',frontier_slot=sealed,lag_seconds=lag)
     except (sqlite3.Error,OSError,ValueError,KeyError,TypeError):

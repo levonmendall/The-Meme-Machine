@@ -76,17 +76,19 @@ class HealthAtomicityTests(unittest.TestCase):
 
     def test_large_prefix_does_not_scan_old_intervals_for_current_health_and_frontier(self):
         from meme_machine.solana_evidence_health import evidence_health
+        from meme_machine.lanes.pump.solana_evidence_health import evidence_health as worker_health
         from meme_machine.solana_evidence_runtime import RuntimeEvidence,PUMP_SCOPE
         scope=self.coverage_fixture(16384)
         for reader in self.readers():
-            steps=[0]
-            def count():steps[0]+=1;return 0
-            reader.db.set_progress_handler(count,1)
-            try:
-                observed=evidence_health(reader,scope,100)
-                self.assertEqual((observed['usable'],observed['frontier_slot']),(True,16384))
-                self.assertLess(steps[0],2000,'live health traversed the historical prefix')
-            finally:reader.db.set_progress_handler(None,0)
+            for inspect in (evidence_health,worker_health):
+                steps=[0]
+                def count():steps[0]+=1;return 0
+                reader.db.set_progress_handler(count,1)
+                try:
+                    observed=inspect(reader,scope,100)
+                    self.assertEqual((observed['usable'],observed['frontier_slot']),(True,16384))
+                    self.assertLess(steps[0],2000,'live health traversed the historical prefix')
+                finally:reader.db.set_progress_handler(None,0)
         plane=RuntimeEvidence(self.state.writer.path,owner='pump',clock=lambda:100)
         self.addCleanup(plane.close)
         steps=[0]
@@ -96,6 +98,30 @@ class HealthAtomicityTests(unittest.TestCase):
             self.assertEqual(plane.frontier(PUMP_SCOPE),16384)
             self.assertLess(steps[0],2500,'selective frontier traversed the historical prefix')
         finally:plane.reader.db.set_progress_handler(None,0)
+
+    def test_actual_pump_worker_requires_verified_physical_storage_without_lifetime_file_cap(self):
+        from meme_machine.solana_evidence_health import evidence_health
+        from meme_machine.lanes.pump.solana_evidence_health import evidence_health as worker_health
+        scope=self.coverage_fixture()
+        self.state.fence.health('hot_limit_bytes',None)
+        self.state.fence.health('storage_capacity_mode','verified_epoch_volume')
+        for reader in self.readers():
+            for inspect,module in ((evidence_health,'meme_machine.solana_evidence_plane'),
+                    (worker_health,'meme_machine.lanes.pump.solana_evidence_plane')):
+                with patch(module+'.storage_health',return_value={'state':'ok'}) as pressure:
+                    self.assertTrue(inspect(reader,scope,100)['usable'])
+                    pressure.assert_any_call(reader.path,required_bytes=32*1024*1024)
+                def pressured(path,*,required_bytes=0):
+                    return {'state':'critical' if required_bytes==32*1024*1024 else 'ok'}
+                with patch(module+'.storage_health',side_effect=pressured):
+                    self.assertEqual(inspect(reader,scope,100)['reason'],'evidence_physical_storage_pressure')
+                self.state.fence.health('storage_capacity_mode','unverified')
+                self.assertEqual(inspect(reader,scope,100)['reason'],'evidence_storage_profile_unverified')
+                self.state.fence.health('storage_capacity_mode','verified_epoch_volume')
+                self.state.fence.health('hot_limit_bytes',1)
+                self.assertEqual(inspect(reader,scope,100)['reason'],'evidence_hot_capacity_pressure')
+                self.state.fence.health('hot_limit_bytes',None)
+                self.assertEqual(inspect(reader,scope,116)['reason'],'evidence_heartbeat_stale')
 
     def test_existing_index_and_legacy_snapshot_keep_exact_asof_gap_and_floor_semantics(self):
         from meme_machine.solana_evidence_health import evidence_health,coverage_end_hint
