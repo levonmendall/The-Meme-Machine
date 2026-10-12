@@ -1,0 +1,26 @@
+{
+  "parent_source": "c0b6c5a06fa00b7dd48e2940c5182b23a94a164b",
+  "defect": "Actual Pons discovery worker terminated with provider_boundary_failure; the sanitized boundary discarded the underlying exception type and code location, preventing a precise causal repair.",
+  "retained_failure": "CONTINUOUS_ACTUAL_WORKERS_1791790332367.json",
+  "change": "Retain at most six public code frames and the exception class in the existing RPC session telemetry. No exception text, locals, request parameters or provider URLs are included. Original fail-closed results and recovery classification are unchanged.",
+  "tests": {
+    "FAST": {
+      "module": "tests.test_robinhood_scout",
+      "run": 17,
+      "seconds": 8.462,
+      "status": "PASS"
+    },
+    "OPERATIONAL": {
+      "modules": [
+        "tests.lanes.pons.test_provider_topology",
+        "tests.lanes.pons.test_provider"
+      ],
+      "run": 32,
+      "status": "PASS"
+    }
+  },
+  "providers_added": false,
+  "entry_or_protection_gates_changed": false,
+  "authenticated_cause": "AWAITING_ONE_ISOLATED_DIAGNOSTIC",
+  "funding": false
+}

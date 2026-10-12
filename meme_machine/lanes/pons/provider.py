@@ -55,6 +55,7 @@ class Rpc:
         self.timeout, self.max_response = timeout, max_response
         self.transport = transport or self._http
         self.counts, self.failures, self.cache = Counter(), Counter(), OrderedDict()
+        self.last_transport_failure = None
         self.used = 0
         self.transport_used = 0
         self.physical_http_requests = 0
@@ -167,6 +168,7 @@ class Rpc:
                 try:
                     result = protect_response(self.transport(method, params), self._endpoint)
                 except Exception as exc:
+                    self._failure_location(exc)
                     raise BoundaryError(failure_class(exc)) from None
                 if result is None:
                     raise BoundaryError('provider_missing_result')
@@ -270,9 +272,23 @@ class Rpc:
             self.retry_attempt = 0
             return protect_response(self._http_batch(calls),self._endpoint)
         except Exception as exc:
+            self._failure_location(exc)
             reason=failure_class(exc)
             self.failures[reason]+=1
             raise BoundaryError(reason) from None
+
+    def _failure_location(self,exc):
+        # Unknown faults previously became an opaque boundary and lost their
+        # repair location. Retain code identities, never exception text, locals,
+        # request parameters or credential-bearing URLs.
+        frames=[];tb=exc.__traceback__
+        while tb is not None:
+            frame=tb.tb_frame;module=frame.f_globals.get('__name__','')
+            if module.startswith(('meme_machine.','urllib.','http.')):
+                frames.append(dict(module=module,function=frame.f_code.co_name,line=tb.tb_lineno))
+            tb=tb.tb_next
+        self.last_transport_failure=dict(boundary=failure_class(exc),
+            exception_type=type(exc).__name__,frames=frames[-6:])
 
     def verify_chain(self):
         result = self.call('eth_chainId', [])
@@ -288,7 +304,8 @@ class Rpc:
                     byte_basis='HTTP request payload attempted; response payload read; excludes headers/TLS/unread error bodies',
                     logical_requests=self.logical, retries=self.retry_count,
                     methods=dict(self.methods), logical_methods=dict(self.logical_methods),
-                    scopes=dict(self.counts), failures=dict(self.failures))
+                    scopes=dict(self.counts), failures=dict(self.failures),
+                    last_transport_failure=self.last_transport_failure)
 
     def receipt(self, tx_hash, block_hash, *, scope):
         # A receipt is immutable only under the (transaction, block) identity.

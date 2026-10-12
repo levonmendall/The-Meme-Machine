@@ -136,8 +136,23 @@ class ProviderAuthorityTests(unittest.TestCase):
         with self.assertRaisesRegex(BoundaryError,'provider_boundary_failure') as caught:rpc.verify_chain()
         self.assertNotIn('SYNTHETIC_SECRET',str(caught.exception))
         self.assertNotIn('SYNTHETIC_SECRET',json.dumps(rpc.telemetry()))
+        self.assertEqual(rpc.telemetry()['last_transport_failure']['exception_type'],'RuntimeError')
+        self.assertEqual(rpc.telemetry()['last_transport_failure']['boundary'],'provider_boundary_failure')
         for path in Path(self.tmp.name).glob('*'):
             if path.is_file():self.assertNotIn(b'SYNTHETIC_SECRET',path.read_bytes())
+    def test_unknown_batch_fault_retains_code_location_without_weakening_failure(self):
+        rpc=self.client(transport=lambda m,p:'0x1237')
+        rpc.verify_chain()
+        with patch.object(rpc,'_http_batch',side_effect=RuntimeError(URL)):
+            # Select the native batch path; a diagnostic transport failure must
+            # remain unavailable and cannot become an empty successful result.
+            rpc.transport=rpc._http
+            with self.assertRaisesRegex(BoundaryError,'provider_boundary_failure'):
+                rpc.batch([('eth_getLogs',[{}])])
+        failure=rpc.telemetry()['last_transport_failure']
+        self.assertEqual(failure['exception_type'],'RuntimeError')
+        self.assertTrue(any(f['function']=='batch' for f in failure['frames']))
+        self.assertNotIn('SYNTHETIC_SECRET',json.dumps(rpc.telemetry()))
     def test_response_cannot_export_credentials(self):
         rpc=self.client(transport=lambda m,p:'0x1237' if m=='eth_chainId' else URL)
         with self.assertRaisesRegex(BoundaryError,'response_contains_credential'):rpc.call('eth_getCode',['a','latest'])
