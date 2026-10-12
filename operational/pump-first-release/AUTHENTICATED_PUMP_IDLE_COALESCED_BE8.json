@@ -1,0 +1,38 @@
+{
+  "source": "be8dc03434ada013f014760b5ba6f71336e56924",
+  "started_at": 1791764540.158378,
+  "failure_at": 1791764766.329,
+  "elapsed_seconds": 226.17062211036682,
+  "status": "FAIL_CANONICAL_INTAKE_CAPACITY",
+  "failure": "candidate_log_buffer_pressure",
+  "new_economic_records": {
+    "program:pump": 3894,
+    "program:pumpswap": 14023
+  },
+  "new_economic_record_total": 17917,
+  "usage": {
+    "rpc_cu": 5560,
+    "rpc_elements": 58,
+    "http_attempts": 62,
+    "native_bytes": 166633092,
+    "native_reserved": 0,
+    "native_uncertain_bytes": 285212672,
+    "http_bytes": 11404325,
+    "http_reserved": 0,
+    "http_uncertain_bytes": 0,
+    "native_opens": 4
+  },
+  "budget_failure_reason": "",
+  "modeled_public_upper_usd": "0.05036280522",
+  "invoice_verified": false,
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-owner-repair-be8dc034-1791764540.sqlite",
+  "work_trace": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pump-idle-coalesced-be8dc034-1791764540-work.json",
+  "native_group_trace": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pump-idle-coalesced-be8dc034-1791764540-groups.json",
+  "maximum_rss_kib": 289128,
+  "funding": false,
+  "orders": false,
+  "all_four_protection_pass": false,
+  "canonical_coverage_sustained": false,
+  "failed_evidence_preserved": true,
+  "prior_counters_reset": false
+}

@@ -222,6 +222,34 @@ class ClosureTests(unittest.TestCase):
         self.assertEqual(ScopedRetirement(self.h).retire()['candidate_scopes_examined'],64)
         self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM evidence_bindings').fetchone()[0],150)
 
+    def test_hot_byte_indexes_preserve_identity_precedence_updates_and_restart(self):
+        # Measurement-only representations, including Unicode byte lengths.
+        # No synthetic row is consumed as trading or canonical coverage proof.
+        self.ingest_fixture('meteora');cold=ScopedRetirement(self.h);db=self.h.db
+        sample=list(db.execute('SELECT * FROM canonical_evidence WHERE body IS NOT NULL LIMIT 1').fetchone())
+        tables=('records','shared_history_cache','scoped_cold_records','rolling_economic_events')
+        identity='offline-byte-measurement'
+        for index,table in enumerate(tables):
+            row=list(sample);row[0]=identity
+            row[9]=json.dumps({'unicode':'雪'*(index+1)},ensure_ascii=False)
+            row[10]=digest(json.loads(row[9]));row[12]='offline-archive-identity'
+            db.execute('INSERT INTO '+table+' VALUES('+','.join('?' for _ in row)+')',row)
+        original='SELECT COALESCE(SUM(length(CAST(body AS BLOB))),0) FROM canonical_evidence WHERE body IS NOT NULL'
+        def equal():self.assertEqual(cold.hot_bytes(),db.execute(original).fetchone()[0])
+        equal()
+        for table in ('rolling_economic_events','records','scoped_cold_records'):
+            db.execute('UPDATE '+table+' SET body=NULL WHERE identity=?',(identity,));equal()
+        db.execute('DELETE FROM rolling_economic_events WHERE identity=?',(identity,));equal()
+        db.execute('DELETE FROM shared_history_cache WHERE identity=?',(identity,));equal()
+        self.restart();cold=ScopedRetirement(self.h);db=self.h.db;equal()
+        # Length changes roll back with their rows; no independent counter can
+        # survive a failed append or fabricate capacity across restart.
+        with self.assertRaisesRegex(RuntimeError,'offline rollback'):
+            with self.state.writer.transaction():
+                db.execute('UPDATE records SET body=body||? WHERE body IS NOT NULL',(' ',))
+                equal();raise RuntimeError('offline rollback')
+        equal()
+
     def test_failed_retirement_journal_does_not_skip_its_cursor(self):
         self.h.bind('pump','quiet')
         cold=ScopedRetirement(self.h)

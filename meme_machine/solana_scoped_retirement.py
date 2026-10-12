@@ -79,6 +79,15 @@ class ScopedRetirement:
         self.db.execute('''CREATE INDEX IF NOT EXISTS candidate_canonical_consumed_identity
             ON candidate_history_outbox(json_extract(body,'$.record.identity'))
             WHERE kind='canonical' AND consumed IS NOT NULL''')
+        # SQLite maintains exact stored-byte lengths on insert/update/delete.
+        # Retirement telemetry must not reread every rich body twice per slice.
+        # These are covering indexes in the existing database, not counters or
+        # cached evidence; canonical identity precedence below is unchanged.
+        tables=['records','shared_history_cache','scoped_cold_records']
+        if hasattr(self.history,'rolling'):tables.append('rolling_economic_events')
+        for table in tables:
+            self.db.execute('CREATE INDEX IF NOT EXISTS '+table+'_hot_lengths ON '+table+
+                '(length(CAST(body AS BLOB)),identity) WHERE body IS NOT NULL')
 
     def pinned(self,family,address,lo,hi,shared):
         scope=self.history.scope_for(family,address);base=FAMILIES[family]
@@ -254,7 +263,23 @@ class ScopedRetirement:
         return result
 
     def hot_bytes(self):
-        return self.db.execute('SELECT COALESCE(SUM(length(CAST(body AS BLOB))),0) FROM canonical_evidence WHERE body IS NOT NULL').fetchone()[0]
+        # Same UNION identity precedence as canonical_evidence. Filtering hot
+        # bodies first allows the small length indexes to cover the sum. A cold
+        # rolling identity still shadows another representation of that fact.
+        rolling=hasattr(self.history,'rolling')
+        queries=[]
+        if rolling:
+            queries.append('SELECT length(CAST(body AS BLOB)) AS bytes FROM rolling_economic_events '
+                'INDEXED BY rolling_economic_events_hot_lengths WHERE body IS NOT NULL')
+        for table,alias,guards in (
+                ('records','r',[]),
+                ('shared_history_cache','h',['NOT EXISTS(SELECT 1 FROM records r WHERE r.identity=h.identity AND r.body IS NOT NULL)']),
+                ('scoped_cold_records','c',['NOT EXISTS(SELECT 1 FROM records r WHERE r.identity=c.identity AND r.body IS NOT NULL)',
+                    'NOT EXISTS(SELECT 1 FROM shared_history_cache h WHERE h.identity=c.identity)'])):
+            if rolling:guards=[*guards,'NOT EXISTS(SELECT 1 FROM rolling_economic_events e WHERE e.identity='+alias+'.identity)']
+            queries.append('SELECT length(CAST(body AS BLOB)) AS bytes FROM '+table+' '+alias+
+                ' INDEXED BY '+table+'_hot_lengths WHERE body IS NOT NULL'+(' AND '+' AND '.join(guards) if guards else ''))
+        return self.db.execute('SELECT COALESCE(SUM(bytes),0) FROM ('+' UNION ALL '.join(queries)+')').fetchone()[0]
 
     def contents(self,archive):
         path,checksum=self.db.execute('SELECT path,hash FROM scoped_cold_manifests WHERE id=?',(archive,)).fetchone()

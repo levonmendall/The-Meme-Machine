@@ -45,6 +45,8 @@ jobs:
           from engineering.solana_capacity.proof_limits import LIMITS
           group = LinuxGroup(LIMITS)
           group.close()
-          sys.argv = ['operational.tests', 'FAST']
+          # Preserve the last reached regression if containment or the runner
+          # fails. This changes diagnostics only, not tests or their limits.
+          sys.argv = ['operational.tests', 'FAST', '--verbose']
           runpy.run_module('operational.tests', run_name='__main__')
           PY

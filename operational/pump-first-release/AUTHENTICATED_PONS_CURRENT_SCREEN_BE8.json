@@ -1,0 +1,162 @@
+{
+  "source": "be8dc03434ada013f014760b5ba6f71336e56924",
+  "started_at": 1791764551.7281067,
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pons-current-qualification-be8dc034-1791764550275.sqlite",
+  "preflight": {
+    "limits_verified": true,
+    "limits": {
+      "http_attempts": 80,
+      "http_bytes": 134217728,
+      "native_bytes": 67108864,
+      "native_inflight_bytes": 33554432,
+      "native_stop_bytes": 33554432,
+      "rpc_cu": 42000,
+      "rpc_elements": 700
+    },
+    "wall_seconds": 60,
+    "modeled_spend_limit": "0.03",
+    "maximum_native_opens": 1,
+    "lanes": [
+      "pons"
+    ],
+    "physical_http_start_intervals": {
+      "solana": "0.5",
+      "robinhood": "0.25"
+    }
+  },
+  "maximum_public_modeled_usd": "0.02205",
+  "invoice_verified": false,
+  "purpose": "One fresh natural Current nominee through the original qualification path, with shared $1000 realized-equity native sizing",
+  "funding": false,
+  "orders": false,
+  "full_protection": false,
+  "epoch_reinitialized": false,
+  "historical_counters_reset": false,
+  "regimes_enabled": false,
+  "epoch_id": "paper-shared-1000-20261011T071207Z",
+  "stages": [
+    {
+      "stage": "current_state_complete",
+      "elapsed_seconds": 2.79516226996202
+    },
+    {
+      "stage": "prospect_admitted",
+      "elapsed_seconds": 2.79517980304081
+    },
+    {
+      "stage": "trajectory_requested",
+      "elapsed_seconds": 2.7951900269836187
+    }
+  ],
+  "native_usd_valuation": {
+    "asset": "ETH",
+    "decimals": 18,
+    "usd_per_unit": "2026.52913303",
+    "observed_at": 1791764552,
+    "valid_until": 1791764557,
+    "evidence_id": "native-usdg-usd:86249977:0x544c010194d904a152524455fd9f3de59bbac034",
+    "evidence_hash": "6be042a0e2f2653da3972262405832f3f6cf3fc83136cfa15c9b3728a42a9a72"
+  },
+  "strategy_capital_quote": 493454539439476374,
+  "initial_directional_usd_target": "50.00",
+  "nominee": {
+    "curve": "0x7de31cedbd67d19b521bf6681c53b054727af1b8",
+    "transaction": "0xcee7f6a71d7808d2050399bd4f0c3cafd5705b32b786e272b36e6390c5327114",
+    "block": "0x524120f",
+    "block_hash": "0xd7f75bdbb7e59f2ed1961a5254d434cc592525b3bbb8146979b34bd34a569113",
+    "log_index": "0x7",
+    "observed_at": 1791764556.023759,
+    "raw_sha256": "6f6cea2e470f5ed7f1b464f92d79819577430d541d7b02dff7f8ec85392dc07c"
+  },
+  "status": "PASS_AUTHENTICATED_CURRENT_SCREEN_ONLY",
+  "qualification_proven": false,
+  "candidate_qualified": false,
+  "vector": {
+    "complete": false,
+    "current_threshold_pass": false,
+    "qualification": "strategy_trajectory_screen",
+    "all_rejections": [
+      "token_age"
+    ],
+    "progress_bps": 7308,
+    "token_age_seconds": 25901,
+    "trajectory": {
+      "complete": false,
+      "acquired": false,
+      "reason": "immutable_launch_age_veto"
+    },
+    "asof": 1791764555,
+    "demand": {
+      "recent_buy_groups": []
+    },
+    "thresholds": {
+      "min_curve_progress_bps": 4500,
+      "max_curve_progress_bps": 8800,
+      "min_token_age_seconds": 90,
+      "max_token_age_seconds": 900,
+      "min_graduation_eta_seconds": 15,
+      "max_graduation_eta_seconds": 120,
+      "min_progress_15s_bps": 200,
+      "require_curve_acceleration": true,
+      "require_flow_acceleration": true,
+      "min_independent_groups": 3,
+      "min_new_independent_groups_15s": 1,
+      "min_buy_sell_ratio_bps": 11000,
+      "max_largest_buyer_flow_bps": 4500,
+      "max_top3_buyer_flow_bps": 6500,
+      "max_creator_tax_bps": 200,
+      "max_roundtrip_loss_bps": 600,
+      "max_entry_impact_bps": 400,
+      "capital_size_bps": 500,
+      "real_quote_size_bps": 200,
+      "independent_net_size_bps": 1000,
+      "max_state_age_seconds": 5,
+      "min_fill_breadth_retention_bps": 5000,
+      "max_market_events": 512,
+      "execution_stress_multiple": 2,
+      "sizing_search_steps": 32,
+      "repeat_buyer_diagnostics_only": true
+    },
+    "prospect_screen_only": false,
+    "trajectory_screen_only": true
+  },
+  "timing": {
+    "evidence_started_monotonic": 846728.605065656,
+    "first_observation_monotonic": 846728.604276728,
+    "queue_wait_seconds": 0.0007889280095696449,
+    "first_transport_submitted_monotonic": 846728.605543017,
+    "local_pacer_wait_seconds": 0,
+    "first_transport_monotonic": 846728.666801503,
+    "shared_provider_queue_wait_seconds": 0.3286202169256285,
+    "provider_transport_seconds": 1.2434965348802507,
+    "rpc_batch_seconds": 3.3153808162314817,
+    "header_receipt_state_cost_shared_batch_seconds": 0.19776815990917385,
+    "factory_record_in_first_batch": false,
+    "launch_metadata_seconds": 0.25606890802737325,
+    "header_receipt_quote_authentication_seconds": 2.7731053850147873,
+    "authenticated_launch_age_screen_only": true,
+    "trajectory_seconds": 0.8311139220604673,
+    "trajectory_screen_only": true,
+    "evidence_completed_monotonic": 846732.230574925,
+    "evidence_acquisition_seconds": 3.625509268953465,
+    "decision_age_seconds": 3.6262981969630346,
+    "chain_event_at": 1791764555,
+    "chain_timestamp_lag_seconds": 1.023758888244629
+  },
+  "token": "0x28e3c0c404088f1a5d739221072ddf6ab4431022",
+  "curve": "0x7de31cedbd67d19b521bf6681c53b054727af1b8",
+  "source_block": 86250016,
+  "evaluation_completed_at": 1791764559,
+  "usd_valid_at_qualification_completion": false,
+  "financial_admission_proven": false,
+  "ended_at": 1791764559.6764252,
+  "elapsed_seconds": 7.94831919670105,
+  "usage": {
+    "http_attempts": 28,
+    "rpc_elements": 259,
+    "rpc_cu": 8160,
+    "http_bytes": 464648,
+    "native_opens": 0
+  },
+  "modeled_public_upper_usd": "0.0042840"
+}
