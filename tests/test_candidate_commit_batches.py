@@ -123,6 +123,36 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([r['event']['_economic_order'] for r in tape.candidate_history_rows],[0,1,2])
         self.assertTrue(all(r['event']['available_time']==int(NOW) for r in tape.candidate_history_rows))
 
+    async def test_bounded_discovery_matches_original_order_time_and_legacy_hole_fallback(self):
+        from meme_machine.solana_selective_history import ConsumerReader
+        commit_candidate_batch(self.state,[frame(n) for n in range(100,108)],self.addresses,'session')
+        reader=ConsumerReader(SimpleNamespace(db=self.h.db,path=self.state.writer.path,_healthy=lambda:None))
+        original='''SELECT o.sequence,r.body,r.slot,r.identity,r.signature,r.transaction_index,
+            r.event_index,r.market_time,r.first_seen FROM candidate_outbox o JOIN canonical_evidence r
+            ON r.identity=o.identity WHERE o.scope='program:pump' AND o.sequence>? AND o.first_seen<=?
+            ORDER BY o.sequence LIMIT ?'''
+        for cursor,at,limit in ((0,NOW-1,2),(0,NOW,2),(0,NOW,5000)):
+            self.assertEqual(reader.discovery(cursor,as_of=at,limit=limit),
+                self.h.db.execute(original,(cursor,at,limit)).fetchall())
+        first=reader.discovery(0,as_of=NOW,limit=2)
+        later=reader.discovery(first[-1][0],as_of=NOW,limit=2)
+        self.assertTrue(later);self.assertGreater(later[0][0],first[-1][0])
+        # A retained legacy pointer without a canonical body must not cause
+        # the bounded prefix to silently omit a later original opportunity.
+        self.h.db.execute("INSERT INTO candidate_outbox(sequence,scope,identity,slot,first_seen) VALUES(0,'program:pump','legacy-hole',99,?)",(NOW,))
+        self.assertEqual(reader.discovery(-1,as_of=NOW,limit=2),
+            self.h.db.execute(original,(-1,NOW,2)).fetchall())
+
+    async def test_latest_promotion_lookup_keeps_rowid_tie_order_without_economic_scan(self):
+        body=dict(observed_at=NOW,first_seen=NOW,decision_deadline=NOW+120,ready_at=NOW,lower_slot=100)
+        one=self.h.lifecycle.emit('pump','mint','promotion',dict(body,version=1),at=NOW)
+        two=self.h.lifecycle.emit('pump','mint','promotion',dict(body,version=2),at=NOW)
+        for n in range(100):self.h.lifecycle.emit('pump','mint','canonical',dict(record=dict(identity=str(n),slot=100),available=NOW))
+        sql="SELECT id FROM candidate_history_outbox WHERE family=? AND address=? AND kind='promotion' ORDER BY created DESC,rowid DESC LIMIT 1"
+        self.assertEqual(self.h.db.execute(sql,('pump','mint')).fetchone()[0],two)
+        plan=' '.join(r[-1] for r in self.h.db.execute('EXPLAIN QUERY PLAN '+sql,('pump','mint')))
+        self.assertIn('candidate_history_latest_promotion',plan);self.assertNotIn('TEMP B-TREE',plan)
+
     async def test_delayed_control_commit_does_not_regress_liveness_or_refresh_evidence(self):
         from meme_machine.solana_evidence_plane import EvidenceReader
         from meme_machine.solana_evidence_health import evidence_health

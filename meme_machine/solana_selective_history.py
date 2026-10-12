@@ -736,10 +736,24 @@ class ConsumerReader:
     def discovery(self,sequence,*,as_of,limit=5000):
         self.original._healthy()
         if not 1<=limit<=5000:raise EvidenceUnavailable('query_bound')
-        rows=self.db.execute('''SELECT o.sequence,r.body,r.slot,r.identity,r.signature,
+        original='''SELECT o.sequence,r.body,r.slot,r.identity,r.signature,
             r.transaction_index,r.event_index,r.market_time,r.first_seen FROM candidate_outbox o
             JOIN canonical_evidence r ON r.identity=o.identity WHERE o.scope='program:pump'
-            AND o.sequence>? AND o.first_seen<=? ORDER BY o.sequence LIMIT ?''',(sequence,as_of,limit)).fetchall()
+            AND o.sequence>? AND o.first_seen<=? ORDER BY o.sequence LIMIT ?'''
+        # SQLite distributes this join over every canonical UNION branch. An
+        # empty legacy branch otherwise rescans the entire unconsumed outbox,
+        # even when the original limit is satisfied by current economics.
+        # Materialize only the same bounded ordered prefix, never the market
+        # population. Retain the original path for a legacy dangling identity.
+        bounded='''WITH pending AS MATERIALIZED (
+            SELECT sequence,identity FROM candidate_outbox WHERE scope='program:pump'
+            AND sequence>? AND first_seen<=? ORDER BY sequence LIMIT ?)
+            SELECT o.sequence,r.body,r.slot,r.identity,r.signature,r.transaction_index,
+            r.event_index,r.market_time,r.first_seen,(SELECT COUNT(*) FROM pending)
+            FROM pending o JOIN canonical_evidence r ON r.identity=o.identity ORDER BY o.sequence'''
+        selected=self.db.execute(bounded,(sequence,as_of,limit)).fetchall()
+        if selected and len(selected)==selected[0][-1]:rows=[r[:-1] for r in selected]
+        else:rows=self.db.execute(original,(sequence,as_of,limit)).fetchall()
         archives={};result=[]
         for row in rows:
             if row[1] is None:

@@ -1,0 +1,50 @@
+{
+  "schema": "bounded-discovery-lookup-proof-v1",
+  "at": 1791816353.4264534,
+  "parent_source": "c203d3331fd3f233af7829e6ba3886f89cd3c2bb",
+  "files": {
+    "meme_machine/solana_selective_history.py": "4b616a29dcacbb9f92b1a72d896457fdf88ea98cdfbf9e614952b6c3ae3e0fd7",
+    "meme_machine/solana_candidate_lifecycle.py": "4f97d2d08bed8b5f825e5330612f41870f82f7f795a66637c5fb0b9df353c864",
+    "tests/test_candidate_commit_batches.py": "5b746fd1124e97cd27260e6b6b2b62094b622255f3e2e22fa415cb9175b93d66"
+  },
+  "tests": [
+    {
+      "path": "/tmp/bounded-discovery-lookup-fast.log",
+      "passed": 55,
+      "level": "FAST",
+      "sha256": "6edad3a9e2dc2b6bbf15e9466095d74816313345c311e88842102760197cd292"
+    },
+    {
+      "path": "/tmp/bounded-discovery-lookup-operational.log",
+      "passed": 73,
+      "level": "OPERATIONAL",
+      "sha256": "d5963ea4287f0ff693cf840496ae386e8703e47c346066bf888c4699cec01297"
+    }
+  ],
+  "diagnosed_cause": "SQLite distributes an ordered outbox join across the canonical UNION branches; empty legacy branches rescan the full unconsumed prefix despite the original output limit. Promotion lookup also scanned economic receipts and sorted them.",
+  "local_authentic_comparison": {
+    "cursor": 0,
+    "records": 5000,
+    "original_wall_seconds": 1.0703133130446076,
+    "bounded_wall_seconds": 0.1014076720457524,
+    "exact_rows_equal": true,
+    "comparison": "Same authenticated database read transaction; no provider dispatch or market-rate inference."
+  },
+  "repair": [
+    "Materialize only original bounded chronological outbox prefix before canonical UNION join.",
+    "Count selected prefix and preserve original query for a dangling legacy identity, including original limit and later opportunity coverage.",
+    "Partial latest-promotion index preserves created/rowid tie ordering while excluding economic receipts."
+  ],
+  "safety": {
+    "provider_changes": false,
+    "buffer_changes": false,
+    "candidate_population_limit_added": false,
+    "event_omission": false,
+    "strategy_changes": false,
+    "canonical_view_unchanged": true,
+    "archive_recovery_unchanged": true,
+    "original_fallback": true
+  },
+  "whole_machine_throughput_proven": false,
+  "one_hour_acceptance": false
+}
