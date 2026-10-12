@@ -4,6 +4,7 @@ import threading
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 from meme_machine.lanes.pons import BoundaryError
 from meme_machine.lanes.pons.provider_admission import Admission,priority
 
@@ -40,6 +41,42 @@ class SharedAdmissionTests(unittest.TestCase):
             self.assertLess(priority('pons_paper'),priority('research_history'))
 
 class AdmissionFairnessTests(unittest.TestCase):
+    def test_cleanup_receipt_and_guard_maintenance_share_one_durable_transaction(self):
+        with tempfile.TemporaryDirectory() as td:
+            now=[100.]
+            a=Admission(str(Path(td)/'gate.db'),'https://example.com/key',lane='pons',
+                clock=lambda:now[0],sleeper=lambda s:now.__setitem__(0,now[0]+s))
+            connection=a.connect;states=[]
+            def traced():
+                db=connection()
+                db.set_trace_callback(lambda sql:states.append(db.in_transaction)
+                    if sql.startswith(('DELETE FROM queue_meta WHERE id=', 'INSERT INTO admissions')) else None)
+                return db
+            with patch.object(a,'connect',side_effect=traced):a.acquire('paper_unwind')
+            self.assertEqual(states,[True,True])
+            db=connection()
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM queue_meta').fetchone()[0],0)
+            row=json.loads(db.execute('SELECT body FROM admissions').fetchone()[0])
+            self.assertTrue(row['granted']);self.assertEqual(row['priority'],0)
+            self.assertEqual(db.execute('SELECT next_at FROM limits').fetchone()[0],100.5)
+            with self.assertRaisesRegex(sqlite3.IntegrityError,'append_only'):db.execute('DELETE FROM admissions')
+            db.close()
+
+    def test_failed_admission_audit_cannot_start_transport_or_reset_pacing(self):
+        with tempfile.TemporaryDirectory() as td:
+            now=[100.];calls=[]
+            a=Admission(str(Path(td)/'gate.db'),'https://example.com/key',lane='pons',
+                clock=lambda:now[0],sleeper=lambda s:now.__setitem__(0,now[0]+s))
+            with patch('meme_machine.runtime.storage.audit_ring',side_effect=RuntimeError('audit_fault')):
+                with self.assertRaisesRegex(RuntimeError,'audit_fault'):
+                    a.invoke(lambda:calls.append(1),['eth_call'],'paper_unwind')
+            self.assertEqual(calls,[])
+            db=a.connect()
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM admissions').fetchone()[0],0)
+            self.assertEqual(db.execute('SELECT next_at FROM limits').fetchone()[0],100.5)
+            db.close()
+            self.assertGreaterEqual(a.acquire('paper_unwind')['wait_seconds'],.5)
+
     def test_original_deadline_prevents_transport_and_records_wait(self):
         with tempfile.TemporaryDirectory() as td:
             now=[100.]

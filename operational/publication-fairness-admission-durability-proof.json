@@ -1,0 +1,77 @@
+{
+  "parent": "d6059e48c2cd26875f5a7a5472189d5efa064f53",
+  "changes": [
+    "Unfunded native intake uses existing bounded nonurgent FIFO; held/reserved native intake remains priority zero.",
+    "The exact delivery-accounting dependency uses publication foreground priority and original atomic receipt transaction.",
+    "Pons admission queue cleanup, unchanged audit and append-only guard maintenance use one FULL atomic commit before transport."
+  ],
+  "authentic_failure": {
+    "source": "d6059e48c2cd26875f5a7a5472189d5efa064f53",
+    "start": 1791817077.9670708,
+    "end": 1791817785.2223775,
+    "reason": "maintenance_service_deadline_exhausted",
+    "last_lag_slots": 1504,
+    "last_market_age_seconds": 353.45718,
+    "incoming_slots_per_second": 4.32523,
+    "committed_slots_per_second": 2.38856,
+    "publication_dependency_wait_max_seconds": 94.8179731189739,
+    "publication_dependency_execution_max_seconds": 0.03329862095415592,
+    "maintenance_queue_max_seconds": 92.19827998394612
+  },
+  "pons_failure": {
+    "receipt": "PONS_COMBINED_NATIVE_EIGHT_RPS_1791817451.json",
+    "current_seconds": 1.8862484249984846,
+    "usd_seconds": 3.142534441081807,
+    "samples_passed": 0,
+    "physical_starts": 66,
+    "logical": 280,
+    "conservative_cu": 8930,
+    "modeled_public_usd": ".00468825",
+    "invoice_verified": false
+  },
+  "tests": [
+    {
+      "path": "/tmp/publication-fairness-fast.log",
+      "sha256": "dd23f1ac0773b8e0364b6ae6b246274306494629e48dd1f8a0a26730cec7e115",
+      "level": "FAST",
+      "tests": 53,
+      "skipped": 0,
+      "passed": 53
+    },
+    {
+      "path": "/tmp/pons-admission-governor-fast.log",
+      "sha256": "7b6392199341f93504b72797e7e12ec5c1e12a4b53a563204e4264f71505463a",
+      "level": "FAST",
+      "tests": 7,
+      "skipped": 0,
+      "passed": 7
+    },
+    {
+      "path": "/tmp/publication-fairness-operational.log",
+      "sha256": "ca2bbe4a59d61fce099323abba9de41dc36d3ffa038676ef63d1d864a8b673fa",
+      "level": "OPERATIONAL",
+      "tests": 58,
+      "skipped": 5,
+      "passed": 53
+    },
+    {
+      "path": "/tmp/pons-admission-atomic-audit-operational.log",
+      "sha256": "5564f192445fe52fdf29684f906e3bce84ceb02310d1ef18451799dcff484aaf",
+      "level": "OPERATIONAL",
+      "tests": 24,
+      "skipped": 0,
+      "passed": 24
+    }
+  ],
+  "invariants": [
+    "Original ordered canonical records, complete event identities and candidate histories",
+    "Canonical commit then external FULL commit then durable ACK",
+    "Original native quotation and USD validity and safety deadlines",
+    "Original provider pacing, queue protections, position priority, append-only audit and failure refusal",
+    "No capital or strategy semantics changed; zero positions; funding remains disabled"
+  ],
+  "offline_proven": true,
+  "authenticated_repair_proven": false,
+  "normal_activation": false,
+  "acceptance_60_minutes": false
+}

@@ -64,7 +64,7 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(row,(original(body),checksum))
         self.assertEqual(self.h.lifecycle.emit('pump','mint','canonical',body),identity)
 
-    async def test_live_canonical_work_precedes_history_but_not_position_and_preserves_all_work(self):
+    async def test_unfunded_intake_preserves_maintenance_fairness_and_position_priority(self):
         from meme_machine.solana_evidence_control import PriorityOwner
         entered=threading.Event();release=threading.Event();order=[]
         owner=PriorityOwner(lambda:SimpleNamespace(close=lambda:None))
@@ -80,7 +80,8 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
             position=owner.submit(lambda s:order.append('position'),priority=protected)
             release.set()
             for future in (blocker,archive,retirement,native,position):future.result(1)
-            self.assertEqual(order,['position','native','archive','retirement'])
+            self.assertEqual(order,['position','archive','retirement','native'])
+            self.assertEqual(priority,2)
             self.assertEqual(native_commit_priority([dict(family='meteora',priority=6)]),2)
             self.assertEqual(owner.enqueued,{})
         finally:release.set();owner.close()
@@ -96,9 +97,15 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         await asyncio.wait_for(source.control_commits(queue),.5)
         self.assertEqual(calls,[(1,'source_commit')]);self.assertEqual(source.control_committed_slot,100)
         source.stop.clear();calls.clear()
+        source.batched=True
+        # Publication's delivery dependency must share its foreground class.
+        # Every byte, including duplicate deliveries, remains accounted.
+        await source.delivered('candidate_live','yellowstone',100,NOW)
+        await source.delivered('candidate_live','yellowstone',100,NOW)
         with patch.object(self.h.startup,'advance',return_value=None):
             await asyncio.wait_for(source.publish_history(),.5)
-        self.assertEqual(calls,[(1,'source_commit')])
+        self.assertEqual(calls,[(1,'source_commit'),(1,'source_commit')])
+        self.assertFalse(source.pending_delivery)
 
     async def test_selective_consumer_decodes_each_snapshot_body_once_and_keeps_all_history(self):
         from meme_machine import solana_selective_runtime as consumer

@@ -424,17 +424,27 @@ class Admission:
             failure=str(exc);raise
         finally:
             if db.in_transaction:db.execute('ROLLBACK')
-            db.execute('DELETE FROM queue WHERE id=?',(ticket,))
-            db.execute('DELETE FROM queue_meta WHERE id=?',(ticket,))
-            db.execute('INSERT INTO admissions(body) VALUES(?)',(json.dumps(dict(lane=self.lane,
-                endpoint_fingerprint=self.endpoint,scope=scope,created=started,deadline=deadline,
-                ended=self.clock(),wait_seconds=self.clock()-started,granted=granted,
-                request_id=ticket,methods=methods,transport_attempted=False,
-                priority=priority(scope),failure_domain=None if granted else 'local_admission',
-                reason='granted' if granted else failure or 'admission_failed')),))
-            from meme_machine.runtime.storage import audit_ring
-            audit_ring(db,'admissions','no_admission_delete')
-            db.close()
+            # The grant and physical pacing were already committed above.
+            # Clean up its queue metadata and retain the exact admission audit
+            # in one FULL commit, rather than independent fsyncs before every
+            # protective HTTP start. Reporting failure still prevents transport.
+            try:
+                db.execute('BEGIN IMMEDIATE')
+                db.execute('DELETE FROM queue WHERE id=?',(ticket,))
+                db.execute('DELETE FROM queue_meta WHERE id=?',(ticket,))
+                db.execute('INSERT INTO admissions(body) VALUES(?)',(json.dumps(dict(lane=self.lane,
+                    endpoint_fingerprint=self.endpoint,scope=scope,created=started,deadline=deadline,
+                    ended=self.clock(),wait_seconds=self.clock()-started,granted=granted,
+                    request_id=ticket,methods=methods,transport_attempted=False,
+                    priority=priority(scope),failure_domain=None if granted else 'local_admission',
+                    reason='granted' if granted else failure or 'admission_failed')),))
+                from meme_machine.runtime.storage import audit_ring
+                audit_ring(db,'admissions','no_admission_delete')
+                db.execute('COMMIT')
+            except BaseException:
+                if db.in_transaction:db.execute('ROLLBACK')
+                raise
+            finally:db.close()
 
     def complete(self,reservation):
         if self.offline_profile is None:return

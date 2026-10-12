@@ -50,11 +50,12 @@ CONTROL_CURRENT_SECONDS=15 # Same market-time bound as normal Pump readiness.
 WARM_OVERLAP=32
 
 def native_commit_priority(desired):
-    # Current program continuity is foreground work, below held positions and
-    # reservations. Archive/retirement FIFO must not make the live frontier
-    # wait behind every historical slice. Keep inactive-family scheduling.
+    # Unfunded intake shares the existing bounded FIFO with required
+    # maintenance. Continuous priority-one intake starved that work even when
+    # its slices were short. Held/reserved intake retains priority zero;
+    # ordered control and durable publication retain foreground priority.
     if any(row['priority']<=1 for row in desired):return 0
-    return 1 if any(row['family'] in ('pump','pumpswap') for row in desired) else 2
+    return 2
 
 def rolling_replay_boundary(state,desired,tip):
     """Fresh prospective program census; retain exact old history obligations.
@@ -548,7 +549,11 @@ class SelectiveSource:
                 with state.writer.transaction():
                     for (_,family,transport),(size,seen) in pending.items():
                         h.delivery(family,transport,raw_bytes=size,seen=seen)
-            await self.work(commit,2)
+            # Publication awaits these exact delivery receipts. Giving this
+            # small commit background priority stalls the entire publisher
+            # behind newer canonical frames; use the same foreground class
+            # while retaining the reserved position/exit priority above it.
+            await self.work(commit,1,label='source_commit')
             for key,(size,seen) in pending.items():
                 remaining=self.pending_delivery[key][0]-size
                 if remaining:self.pending_delivery[key]=(remaining,self.pending_delivery[key][1])
