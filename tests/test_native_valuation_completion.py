@@ -14,6 +14,16 @@ NOW=1791130000
 IDS=dict(source_sha='a'*40,policy_hash='b'*64,config_hash='c'*64)
 
 class NativeValuationCompletionTests(unittest.TestCase):
+    def test_Pons_candidate_USD_refusal_uses_existing_boundary_without_evaluation(self):
+        from meme_machine.lanes.pons import pons_selective_cohort as cohort,BoundaryError
+        with patch.object(cohort,'_current_pons_realized_equity',side_effect=ValuationUnavailable('native_USD_value_missing_or_stale')),patch.object(cohort,'evaluate_candidate') as evaluate:
+            with self.assertRaisesRegex(BoundaryError,'native_USD_value_missing_or_stale'):
+                cohort._evaluate_current_candidate('offline-endpoint',{},[])
+            evaluate.assert_not_called()
+        with patch.object(cohort,'_current_pons_realized_equity',return_value=123),patch.object(cohort,'evaluate_candidate',return_value={'unchanged':True}) as evaluate:
+            self.assertEqual(cohort._evaluate_current_candidate('offline-endpoint',{},[],canonical_refresh=True),{'unchanged':True})
+            evaluate.assert_called_once_with('offline-endpoint',{},[],strategy_capital_quote=123,canonical_refresh=True)
+
     def initialize(self,path):
         with closing(PortfolioAccounting(path)) as account:
             account.establish_inception(inception_receipt('offline-clock',utc(NOW),'inception'),

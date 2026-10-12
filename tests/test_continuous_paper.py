@@ -412,6 +412,34 @@ class AdmissionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'restore_not_reseed'):resumed.configure_admission()
         self.assertFalse(original.exists());self.assertTrue(preserved.exists());a.verify_replay()
 
+    def test_delayed_shared_USD_sizing_and_grant_keep_original_expiry(self):
+        from meme_machine.runtime.directional_sleeve import open_sleeve,policies
+        from meme_machine.runtime.usd_valuation import USDValue,ValuationUnavailable
+        root,a,now,s=self.service(all_regimes=True)
+        sleeve=open_sleeve('pump',1000000);self.addCleanup(sleeve.close)
+        strategy=next(k for k in policies('pump') if 'survivor' not in k)
+        clock=[now]
+        def delayed(at):
+            clock[0]=max(clock[0],now+3)
+            return USDValue('offline-native',3,Decimal('1'),now+2,now+5,'delayed','e'*64)
+        with patch('time.time',side_effect=lambda:clock[0]),patch('meme_machine.runtime.usd_valuation.native_reader',return_value=delayed):
+            s.provider_budget.publish_readiness(True,s.run_id)
+            basis=sleeve.sizing_basis(500)
+            self.assertEqual((basis['target'],basis['available']),(50000,1000000))
+            sleeve.reserve('delayed-grant',strategy=strategy,amount=50000,at=now,asset='delayed-grant',
+                funding_evidence=dict(qualified=True,policy_hash=policies('pump')[strategy]))
+            req=next(iter(a.ledger()['requests'].values()))['value']
+            self.assertEqual(req['valuation']['valid_until'],now+5)
+            before=a.ledger()
+            clock[0]=now+6
+            s.provider_budget.publish_readiness(True,s.run_id)
+            with self.assertRaises(ValuationUnavailable):sleeve.sizing_basis(500)
+            with self.assertRaises(ValuationUnavailable):
+                sleeve.reserve('expired-grant',strategy=strategy,amount=50000,at=now,asset='expired-grant',
+                    funding_evidence=dict(qualified=True,policy_hash=policies('pump')[strategy]))
+            self.assertEqual(a.ledger(),before)
+        a.verify_replay()
+
     def test_failed_evidence_recovery_does_not_kill_native_owner_or_reset_backoff(self):
         from types import SimpleNamespace
         from unittest.mock import Mock

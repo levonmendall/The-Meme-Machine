@@ -126,6 +126,9 @@ class SharedSleeve(SleeveReservations):
         reason=available(self.authority.ledger(),max(at,int(time.time())),live=True,regime=r)
         if reason:raise FundingDenied(reason)
         value=native_reader(lane)(at)
+        # Acquisition may complete after the original native observation. Use
+        # its actual financial consumption time, retaining the original expiry.
+        at=max(at,int(time.time()))
         unit=value.amount(1,at)
         state=self.authority.ledger()
         with localcontext() as context:
@@ -268,7 +271,8 @@ class SharedSleeve(SleeveReservations):
         # base. Shared cash remains the separate funding component in both models.
         result=super().sizing_basis(target_bps,minimum_bps=minimum_bps)
         from meme_machine.runtime.usd_valuation import native_reader
-        at=int(time.time());unit=native_reader(self.identity['lane'])(at).amount(1,at)
+        at=int(time.time());value=native_reader(self.identity['lane'])(at)
+        unit=value.amount(1,max(at,int(time.time())))
         from .authority import capital_view
         state=self.authority.ledger()
         result['available']=int(money(capital_view(state)['free_cash'])/unit)

@@ -1109,8 +1109,7 @@ def run(endpoint,*,campaign=False):
                         from .provider_admission import _decision_priority
                         _decision_priority.set(10)
                 hydration=hydration_pool.submit(
-                    evaluate_candidate,endpoint,event,list(tape),
-                    strategy_capital_quote=_current_pons_realized_equity(),
+                    _evaluate_current_candidate,endpoint,event,list(tape),
                     wallet_histories=None,creator_history=None,
                     evidence_observed_at=observed_at,
                     evidence_observed_monotonic=observed_monotonic,
@@ -1391,6 +1390,19 @@ def run(endpoint,*,campaign=False):
     result["ended_at"]=time.time()
     return result
 
+
+
+def _evaluate_current_candidate(*args,**kwargs):
+    """Keep USD acquisition and refusal on the existing qualification worker.
+
+    A temporarily unavailable rate refuses this candidate through the original
+    boundary path; it must not terminate discovery or position maintenance.
+    """
+    from meme_machine.runtime.usd_valuation import ValuationUnavailable
+    try:capital=_current_pons_realized_equity()
+    except ValuationUnavailable:
+        raise BoundaryError('native_USD_value_missing_or_stale') from None
+    return evaluate_candidate(*args,strategy_capital_quote=capital,**kwargs)
 
 
 def _current_pons_realized_equity():
