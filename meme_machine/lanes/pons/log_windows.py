@@ -77,7 +77,7 @@ def _capability_file(endpoint, path=None):
                     and row.get('provider_fingerprint') == fp
                     and row.get('chain_id') == CHAIN_ID
                     and row.get('entitlement_status') == 'VERIFIED'
-                    and row.get('app_id') and row.get('team_id')
+                    and row.get('app_id')
                     and row.get('equal') is True
                     and type(row.get('event_count')) is int and row['event_count'] > 0
                     and row.get('canonical_end_hash') and row.get('baseline_digest')

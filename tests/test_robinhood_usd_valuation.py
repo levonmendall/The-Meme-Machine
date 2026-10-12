@@ -109,12 +109,31 @@ OPERATION_DELTAS = {
     },
 }
 
+# cf443e86 is the reviewed acquisition-only Pons wider-window integration;
+# the subsequent explicit owner directive removes only mandatory team_id.
+# Freeze that complete file byte-for-byte, rather than exempting it as generic
+# infrastructure. The source before this exact transition stays pinned too;
+# strategy economics, constants and the nine-change tests retain their guards.
+ACQUISITION_SOURCE_DELTAS = {
+    'meme_machine/lanes/pons/log_windows.py': {
+        'reference': 'cf443e860ee21795453fd7b6311732267562bf1a',
+        'before_sha256': 'bba8cfafcedb7223c4259d2c2a509ec8cb786307cea24ac6ffcbf2b241bf3e84',
+        'reviewed_sha256': '7cc289d0041c21b7758fa0a742e1b792ff96d5049954a063d823556088e8db48',
+    },
+}
+
 def assert_attention_node(test,relative,name,node):
     expected={**ATTENTION_DELTAS.get(relative,{}),**OPERATION_DELTAS.get(relative,{})}[name]
     test.assertEqual(__import__('hashlib').sha256(ast.dump(node).encode()).hexdigest(),expected,relative+':'+name)
 
 
 def assert_holding_delta(test, relative, original, current):
+    if relative in ACQUISITION_SOURCE_DELTAS:
+        reviewed=ACQUISITION_SOURCE_DELTAS[relative]
+        sha256=__import__('hashlib').sha256
+        test.assertEqual(sha256(original).hexdigest(),reviewed['before_sha256'],relative+':original')
+        test.assertEqual(sha256(current).hexdigest(),reviewed['reviewed_sha256'],relative+':reviewed acquisition')
+        return
     expected=dict(HOLDING_DELTAS.get(relative,{}))
     expected.update(ATTENTION_DELTAS.get(relative,{}))
     expected.update(OPERATION_DELTAS.get(relative,{}))
@@ -769,6 +788,22 @@ class RobinhoodUSDTests(unittest.TestCase):
                 assert_attention_node(self,relative,name,node)
                 changed=deepcopy(node);changed.body.append(ast.Expr(ast.Constant('unapproved change')))
                 with self.assertRaises(AssertionError):assert_attention_node(self,relative,name,changed)
+
+    def test_reviewed_acquisition_source_rejects_any_unapproved_change(self):
+        for relative,reviewed in ACQUISITION_SOURCE_DELTAS.items():
+            original=subprocess.check_output(['git','show','e1070404849dfa86eb3e47d57cf24263b2fefc25:'+relative],cwd=ROOT)
+            approved=subprocess.check_output(['git','show',reviewed['reference']+':'+relative],cwd=ROOT)
+            delta=b"and row.get('app_id') and row.get('team_id')"
+            self.assertEqual(approved.count(delta),1)
+            approved=approved.replace(delta,b"and row.get('app_id')")
+            self.assertEqual(approved,(ROOT/relative).read_bytes())
+            assert_holding_delta(self,relative,original,approved)
+            for changed in (approved+b'\n# unreviewed change\n',
+                    approved.replace(b'SAFE_BLOCKS = 10',b'SAFE_BLOCKS = 40'),
+                    approved.replace(b"and row.get('equal') is True",b"and True")):
+                self.assertNotEqual(changed,approved)
+                with self.assertRaises(AssertionError):assert_holding_delta(self,relative,original,changed)
+            with self.assertRaises(AssertionError):assert_holding_delta(self,relative,original+b'\n',approved)
 
     def test_resolved_startup_check_uses_config_only_no_oracle_calls_or_state(self):
         from meme_machine.operational.supervisor import validate_environment

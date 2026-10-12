@@ -100,7 +100,7 @@ class WindowsCase(unittest.TestCase):
 
     def test_entitlement_empty_sample_wrong_chain_and_incomplete_comparison_fall_back(self):
         for changes in (dict(entitlement_status='UNVERIFIED'),dict(equal=False),dict(event_count=0),
-                dict(chain_id=1),dict(team_id=''),dict(baseline_digest=None),dict(range_blocks=100000)):
+                dict(chain_id=1),dict(app_id=''),dict(baseline_digest=None),dict(range_blocks=100000)):
             with self.subTest(changes=changes):
                 self.write(dict(capability(),**changes))
                 self.assertEqual(self.planner().ceiling,10)
@@ -109,6 +109,20 @@ class WindowsCase(unittest.TestCase):
         self.write();old=self.planner()
         rotated=self.planner(endpoint=ENDPOINT+'_ROTATED')
         self.assertEqual(rotated.ceiling,10);self.assertNotEqual(old.key,rotated.key)
+
+    def test_verified_application_and_exact_evidence_do_not_require_team_metadata(self):
+        from meme_machine.lanes.pons.log_windows import protected_capability_path
+        row=capability();row.pop('team_id')
+        self.write(row)
+        self.assertEqual(self.planner().ceiling,40)
+        self.assertEqual(protected_capability_path(ENDPOINT,path=self.file),str(self.file))
+        self.assertEqual(self.planner().read(1,40,self.provider),[event(n) for n in range(1,41)])
+        self.assertEqual(len(self.calls),1)
+        for team in ('synthetic-team',''):
+            self.write(dict(row,team_id=team))
+            self.assertEqual(self.planner().ceiling,40)
+        self.write(dict(row,provider_fingerprint='wrong-credential'))
+        self.assertEqual(self.planner().ceiling,10)
 
     def test_unproved_filter_or_larger_pool_union_falls_back_without_dropping_pools(self):
         self.write()
