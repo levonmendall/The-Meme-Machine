@@ -2,7 +2,7 @@
   "schema": "focused-operational-repair-proof-v1",
   "parent_source": "7b0426b306584712a3a3a651b17531391ebbf696",
   "defect": "Unbounded archive-owner housekeeping reconstructed every waiting candidate and delayed native intake while the retained authenticated run accumulated 11,291 log events/30,983,690 bytes before candidate_log_buffer_pressure.",
-  "retained_failure": "blocker-repair-20261011/CONTINUOUS_ACTUAL_WORKERS_1791790940453.json",
+  "retained_failure": "blocker-repair-20261011/CONTINUOUS_ACTUAL_WORKERS_1791790940002.json",
   "change": "Sixteen durable obligations per housekeeping category/turn; fair keyset cursor wraps without capping the population. Scheduling cursors advance only after the whole owner transaction commits.",
   "preserved": [
     "Every retained candidate and historical event",
