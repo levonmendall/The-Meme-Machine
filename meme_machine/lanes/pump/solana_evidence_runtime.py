@@ -235,9 +235,20 @@ class LocalPumpTape:
     def creation(self,mint):
         db=self.plane.reader.db;db.execute('BEGIN')
         try:
-            rows=db.execute('''SELECT r.body,r.first_seen FROM addresses a JOIN records r ON r.identity=a.identity
-                WHERE a.address=? AND r.scope=? AND r.kind='event' AND r.first_seen<=? ORDER BY r.slot DESC LIMIT 1000''',
-                (mint,PUMP_SCOPE,self.plane.clock())).fetchall()
+            # Materializing the canonical UNION view for a join scanned the
+            # entire retained market on every trade. Bind the same address's
+            # identities first, then use each canonical branch's primary key.
+            # A large identity set keeps the original path, never loses rows.
+            identities=[r[0] for r in db.execute('SELECT identity FROM addresses WHERE address=? LIMIT 2049',(mint,))]
+            if len(identities)>2048:
+                rows=db.execute('''SELECT r.body,r.first_seen FROM addresses a JOIN records r ON r.identity=a.identity
+                    WHERE a.address=? AND r.scope=? AND r.kind='event' AND r.first_seen<=? ORDER BY r.slot DESC LIMIT 1000''',
+                    (mint,PUMP_SCOPE,self.plane.clock())).fetchall()
+            elif identities:
+                rows=db.execute("SELECT r.body,r.first_seen FROM records r WHERE r.identity IN ("+
+                    ','.join('?' for _ in identities)+") AND r.scope=? AND r.kind='event' AND r.first_seen<=? ORDER BY r.slot DESC LIMIT 1000",
+                    (*identities,PUMP_SCOPE,self.plane.clock())).fetchall()
+            else:rows=[]
             for raw,seen in rows:
                 if raw:
                     event=decode_body(raw,db)['payload'].get('event',{})

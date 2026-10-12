@@ -414,6 +414,49 @@ class ClosureTests(unittest.TestCase):
                     self.assertGreater(len(records),0)
                 self.assertEqual(ScopedRetirement(self.h).retire()['retired_records'],0)
 
+    def test_native_creation_lookup_uses_canonical_point_reads_without_market_scan(self):
+        from meme_machine.solana_program_decoders import pump_events
+        from meme_machine.solana_selective_history import ConsumerReader
+        from meme_machine.lanes.pump.solana_evidence_runtime import LocalPumpTape
+        tx=FIXTURE['pump'][0];event=next(e for e in pump_events(tx) if e['event_type']=='create')
+        rows=economic_records('pump',event['mint'],tx,endpoint_identity='a'*64,seen=NOW,source='alchemy_finalized_repair')
+        for row in rows:self.h.rolling.store(row)
+        db=self.state.writer.db
+        with self.state.writer.transaction():
+            db.executemany('INSERT INTO rolling_economic_events VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                [('unrelated-'+str(n),'program:pump',n,'','',0,0,0,'event',None,'',NOW,None) for n in range(5000)])
+        with closing(EvidenceReader(self.path)) as original:
+            reader=ConsumerReader(original);plane=SimpleNamespace(reader=reader,clock=lambda:self.now[0])
+            tape=LocalPumpTape(plane);steps=[];original.db.set_progress_handler(lambda:steps.append(1) or 0,1000)
+            created=tape.creation(event['mint']);original.db.set_progress_handler(None,0)
+            self.assertEqual(created,dict(event,available_time=int(NOW)))
+            self.assertLess(len(steps),2,'one token lookup rescanned retained market content')
+            self.now[0]=NOW-1
+            self.assertIsNone(tape.creation(event['mint']))
+            self.now[0]=NOW;self.assertEqual(tape.creation(event['mint']),created)
+        self.restart()
+        with closing(EvidenceReader(self.path)) as original:
+            tape=LocalPumpTape(SimpleNamespace(reader=ConsumerReader(original),clock=lambda:NOW))
+            self.assertEqual(tape.creation(event['mint']),created)
+
+    def test_large_creation_identity_set_retains_original_query_fallback(self):
+        from meme_machine.solana_program_decoders import pump_events
+        from meme_machine.solana_selective_history import ConsumerReader
+        from meme_machine.lanes.pump.solana_evidence_runtime import LocalPumpTape
+        tx=FIXTURE['pump'][0];event=next(e for e in pump_events(tx) if e['event_type']=='create')
+        for row in economic_records('pump',event['mint'],tx,endpoint_identity='a'*64,seen=NOW,source='alchemy_finalized_repair'):self.h.rolling.store(row)
+        db=self.state.writer.db
+        with self.state.writer.transaction():
+            db.executemany('INSERT INTO rolling_economic_events VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                [('same-address-'+str(n),'program:pump',n,'','',0,0,0,'transaction',None,'',NOW,None) for n in range(2049)])
+            db.executemany('INSERT INTO rolling_economic_addresses VALUES(?,?)',
+                [('same-address-'+str(n),event['mint']) for n in range(2049)])
+        with closing(EvidenceReader(self.path)) as original:
+            statements=[];original.db.set_trace_callback(statements.append)
+            tape=LocalPumpTape(SimpleNamespace(reader=ConsumerReader(original),clock=lambda:NOW))
+            self.assertEqual(tape.creation(event['mint']),dict(event,available_time=int(NOW)))
+            self.assertTrue(any('JOIN canonical_evidence' in sql for sql in statements))
+
 
 class StructuralCensusTests(unittest.TestCase):
     def test_quiet_census_resumes_cursor_and_retains_both_wsol_orientations(self):

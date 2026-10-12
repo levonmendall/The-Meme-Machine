@@ -1,4 +1,6 @@
 import json
+import sqlite3
+import threading
 from pathlib import Path
 import tempfile
 import unittest
@@ -66,3 +68,68 @@ class AdmissionFairnessTests(unittest.TestCase):
             a.acquire('paper_unwind')
             self.assertEqual(attempt[0],0)
             self.assertEqual(priority('pons_natural'),10)
+
+
+class AuditMaintenanceTests(unittest.TestCase):
+    def seed(self,path):
+        db=sqlite3.connect(path,isolation_level=None);db.execute('PRAGMA journal_mode=WAL')
+        db.executescript("CREATE TABLE audit(seq INTEGER PRIMARY KEY,body TEXT); CREATE TRIGGER immutable_audit BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT,'append_only'); END;")
+        db.executemany('INSERT INTO audit(body) VALUES(?)',[(str(n),) for n in range(32)])
+        return db
+
+    def test_trigger_changes_and_retained_rows_are_one_atomic_commit(self):
+        from meme_machine.runtime.storage import audit_ring
+        with tempfile.TemporaryDirectory() as td:
+            db=self.seed(Path(td)/'audit.sqlite');states=[]
+            db.set_trace_callback(lambda sql:states.append(db.in_transaction) if sql.startswith(('DROP TRIGGER','DELETE FROM audit','CREATE TRIGGER')) else None)
+            audit_ring(db,'audit','immutable_audit',limit=16)
+            self.assertEqual(states,[True,True,True])
+            self.assertEqual([r[0] for r in db.execute('SELECT seq FROM audit')],list(range(17,33)))
+            with self.assertRaisesRegex(sqlite3.IntegrityError,'append_only'):db.execute('DELETE FROM audit')
+            db.close()
+
+    def test_failed_pruning_restores_rows_and_append_only_guard(self):
+        from meme_machine.runtime.storage import audit_ring
+        with tempfile.TemporaryDirectory() as td:
+            db=self.seed(Path(td)/'audit.sqlite')
+            class Fault:
+                @property
+                def in_transaction(self):return db.in_transaction
+                def execute(self,sql,*args):
+                    result=db.execute(sql,*args)
+                    if sql.startswith('DELETE FROM audit'):raise RuntimeError('offline_prune_fault')
+                    return result
+            with self.assertRaisesRegex(RuntimeError,'offline_prune_fault'):audit_ring(Fault(),'audit','immutable_audit',limit=16)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM audit').fetchone()[0],32)
+            with self.assertRaisesRegex(sqlite3.IntegrityError,'append_only'):db.execute('DELETE FROM audit')
+            db.close()
+
+    def test_parallel_autocommit_sessions_cannot_race_guard_maintenance(self):
+        from meme_machine.runtime.storage import audit_ring
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'audit.sqlite';db=self.seed(path);db.close();gate=threading.Barrier(4);errors=[]
+            def session():
+                connection=sqlite3.connect(path,isolation_level=None,timeout=5)
+                try:
+                    gate.wait()
+                    for n in range(24):
+                        connection.execute('INSERT INTO audit(body) VALUES(?)',(str(n),))
+                        audit_ring(connection,'audit','immutable_audit',limit=16)
+                except Exception as error:errors.append(error)
+                finally:connection.close()
+            threads=[threading.Thread(target=session) for _ in range(4)]
+            for thread in threads:thread.start()
+            for thread in threads:thread.join(10);self.assertFalse(thread.is_alive())
+            self.assertEqual(errors,[])
+            db=sqlite3.connect(path,isolation_level=None)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM audit').fetchone()[0],16)
+            with self.assertRaisesRegex(sqlite3.IntegrityError,'append_only'):db.execute('DELETE FROM audit')
+            db.close()
+
+    def test_existing_owner_transaction_is_not_committed_by_reporting(self):
+        from meme_machine.runtime.storage import audit_ring
+        with tempfile.TemporaryDirectory() as td:
+            db=self.seed(Path(td)/'audit.sqlite');db.execute('BEGIN IMMEDIATE')
+            audit_ring(db,'audit','immutable_audit',limit=16)
+            self.assertTrue(db.in_transaction);db.execute('ROLLBACK')
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM audit').fetchone()[0],32);db.close()

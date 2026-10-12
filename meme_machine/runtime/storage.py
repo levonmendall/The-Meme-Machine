@@ -6,6 +6,21 @@ from pathlib import Path
 
 def audit_ring(db, table, trigger, *, limit=4096, key='seq', where='1=1'):
     """Ordinary audit rows have no scheduling or capital authority."""
+    if db.in_transaction:
+        return _audit_ring(db,table,trigger,limit=limit,key=key,where=where)
+    # Independent provider sessions use autocommit connections. Dropping and
+    # restoring the append-only guard must be one serialized transaction; two
+    # sessions must never race another session's temporarily removed trigger.
+    db.execute('BEGIN IMMEDIATE')
+    try:
+        _audit_ring(db,table,trigger,limit=limit,key=key,where=where)
+        db.execute('COMMIT')
+    except BaseException:
+        if db.in_transaction:db.execute('ROLLBACK')
+        raise
+
+
+def _audit_ring(db,table,trigger,*,limit,key,where):
     count=db.execute('SELECT COUNT(*) FROM '+table+' WHERE '+where).fetchone()[0]
     if count<=limit:return
     if table=='progress' and key=='sequence':
