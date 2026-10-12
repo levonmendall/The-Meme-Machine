@@ -86,7 +86,7 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(owner.enqueued,{})
         finally:release.set();owner.close()
 
-    async def test_linked_control_commit_and_publication_have_foreground_priority(self):
+    async def test_linked_control_delivery_and_publication_share_intake_fifo(self):
         source=SelectiveSource(SimpleNamespace(credential='offline'),None)
         source.stop=asyncio.Event();source.control_connected=True;calls=[]
         async def work(fn,priority,**kw):
@@ -95,16 +95,16 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         source.work=work;queue=asyncio.Queue()
         for slot in (100,101):await queue.put(frame(slot,logs=False))
         await asyncio.wait_for(source.control_commits(queue),.5)
-        self.assertEqual(calls,[(1,'source_commit')]);self.assertEqual(source.control_committed_slot,100)
+        self.assertEqual(calls,[(2,'source_commit')]);self.assertEqual(source.control_committed_slot,100)
         source.stop.clear();calls.clear()
         source.batched=True
-        # Publication's delivery dependency must share its foreground class.
+        # Publication's delivery dependency must share its intake/FIFO class.
         # Every byte, including duplicate deliveries, remains accounted.
         await source.delivered('candidate_live','yellowstone',100,NOW)
         await source.delivered('candidate_live','yellowstone',100,NOW)
         with patch.object(self.h.startup,'advance',return_value=None):
             await asyncio.wait_for(source.publish_history(),.5)
-        self.assertEqual(calls,[(1,'source_commit'),(1,'source_commit')])
+        self.assertEqual(calls,[(2,'source_commit'),(2,'source_commit')])
         self.assertFalse(source.pending_delivery)
 
     async def test_selective_consumer_decodes_each_snapshot_body_once_and_keeps_all_history(self):

@@ -53,7 +53,7 @@ def native_commit_priority(desired):
     # Unfunded intake shares the existing bounded FIFO with required
     # maintenance. Continuous priority-one intake starved that work even when
     # its slices were short. Held/reserved intake retains priority zero;
-    # ordered control and durable publication retain foreground priority.
+    # ordered control and durable publication share that bounded FIFO too.
     if any(row['priority']<=1 for row in desired):return 0
     return 2
 
@@ -550,10 +550,10 @@ class SelectiveSource:
                     for (_,family,transport),(size,seen) in pending.items():
                         h.delivery(family,transport,raw_bytes=size,seen=seen)
             # Publication awaits these exact delivery receipts. Giving this
-            # small commit background priority stalls the entire publisher
-            # behind newer canonical frames; use the same foreground class
-            # while retaining the reserved position/exit priority above it.
-            await self.work(commit,1,label='source_commit')
+            # small commit a different class stalls the entire publisher.
+            # Use intake/publication's bounded FIFO; actual protective work
+            # retains its reserved higher priority and SQL preemption.
+            await self.work(commit,2,label='source_commit')
             for key,(size,seen) in pending.items():
                 remaining=self.pending_delivery[key][0]-size
                 if remaining:self.pending_delivery[key]=(remaining,self.pending_delivery[key][1])
@@ -575,7 +575,7 @@ class SelectiveSource:
                     timing['publication_finished_monotonic']=time.monotonic()
                     timing['publication_finished_wall']=time.time()
                     return h.startup.advance()
-                await self.work(publish,1,label='source_commit')
+                await self.work(publish,2,label='source_commit')
                 del self.pending_diagnostics[:len(diagnostics)]
                 self.observe('publication_timing',work_ready_monotonic=ready,
                     work_returned_monotonic=time.monotonic(),**timing)
@@ -599,7 +599,7 @@ class SelectiveSource:
                 # a socket, raw slot notification or submitted command is not it.
                 return state.writer.db.execute('''SELECT slot,market_time FROM stream_receipts
                     WHERE scope=? AND sealed=1 ORDER BY slot DESC LIMIT 1''',(CONTROL,)).fetchone()
-            receipt=await self.work(commit,1,label='source_commit')
+            receipt=await self.work(commit,2,label='source_commit')
             if receipt is not None:
                 self.control_committed_slot,self.control_committed_market_time=receipt
             for _ in batch:queue.task_done()
