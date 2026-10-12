@@ -11,7 +11,7 @@ from meme_machine import pump
 from meme_machine.solana_selective_source import (
     SelectiveSource,SCOUT_COMMIT_BATCH,commit_scout,commit_scout_batch,scout_fact,
 )
-from meme_machine.solana_evidence_plane import EvidenceUnavailable
+from meme_machine.solana_evidence_plane import EvidenceUnavailable,IntervalProof,digest
 from meme_machine.solana_selective_history import PROGRAMS
 from meme_machine.yellowstone import geyser_pb2 as pb
 from tests.test_solana_closure import NOW,state_at
@@ -96,6 +96,45 @@ class ScoutCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(q.qsize(),64)
         with self.assertRaisesRegex(EvidenceUnavailable,'candidate_scout_fields_missing'):
             scout_fact(u,NOW)
+
+    async def test_development_slices_retain_all_candidates_and_rollback_cursors(self):
+        from meme_machine.solana_selective_source import DEVELOPMENT_BATCH
+        from meme_machine.solana_selective_runtime import CONTROL
+        h=self.history;db=h.db
+        from meme_machine.solana_scoped_retirement import ScopedRetirement
+        ScopedRetirement(h)
+        self.state.writer.ingest([],proof=IntervalProof(CONTROL,100,110,
+            'alchemy_finalized_stream','a'*64,dict(finalized=True,complete=True,
+                scope=CONTROL,lower_slot=100,upper_slot=110,lineage_hash=digest([CONTROL,100,110])),NOW))
+        for n in range(50):
+            h.observe('pump','candidate-'+str(n),slot=100,signature=str(n),seen=NOW,
+                fields=dict(activity=True))
+        h.observe('pump','quiet',slot=100,signature='quiet',seen=NOW,
+            fields=dict(complete=False,development_upper_bps=0))
+        source=SelectiveSource(SimpleNamespace(credential='offline'),None)
+        source.stop=asyncio.Event();source.batched=True;slices=[]
+        async def work(fn,priority,**kwargs):
+            before=db.execute("SELECT COUNT(*) FROM candidate_lifecycle WHERE state='queued'").fetchone()[0]
+            result=fn(self.state)
+            after=db.execute("SELECT COUNT(*) FROM candidate_lifecycle WHERE state='queued'").fetchone()[0]
+            slices.append(after-before)
+            if after==50:source.stop.set()
+            return result
+        source.work=work
+        with patch.object(h.startup,'snapshot',return_value=dict(released=True)),patch.object(h,'plan',return_value=None),patch('meme_machine.solana_selective_source.time.time',return_value=NOW):
+            with patch.object(h.rolling,'resume_publication',side_effect=EvidenceUnavailable('offline_slice_fault')):
+                with self.assertRaisesRegex(EvidenceUnavailable,'offline_slice_fault'):
+                    await source.acquire()
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM evidence_bindings').fetchone()[0],0)
+            self.assertFalse(hasattr(self.state,'development_cursors'))
+            self.assertFalse(hasattr(self.state,'development_poll_at'))
+            await asyncio.wait_for(source.acquire(),2)
+        self.assertTrue(all(0<count<=DEVELOPMENT_BATCH for count in slices),slices)
+        self.assertEqual(sum(slices),50)
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM candidate_lifecycle WHERE state='queued' AND deadline=?",(NOW+150,)).fetchone()[0],50)
+        self.assertIsNone(db.execute("SELECT 1 FROM evidence_bindings WHERE address='quiet'").fetchone())
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
 
     async def test_rolling_waits_for_durable_control_catchup_without_granting_economic_coverage(self):
         source=SelectiveSource(SimpleNamespace(credential='offline'),None);source.stop=asyncio.Event()

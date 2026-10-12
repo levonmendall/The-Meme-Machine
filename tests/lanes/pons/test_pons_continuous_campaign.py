@@ -98,7 +98,7 @@ class ContinuousCampaignTests(unittest.TestCase):
                 try:ready.set_result(function(*a,**kw))
                 except Exception as exc:ready.set_exception(exc)
                 return ready
-            if function is cohort.evaluate_candidate:
+            if function in (cohort.evaluate_candidate,cohort._evaluate_current_candidate):
                 ready=Future();ready.set_result(dict(evaluation,curve=a[1]['address']) if worker_pressure else evaluation);return ready
             return future
         pool=SimpleNamespace(submit=submit,shutdown=lambda **kw:None)

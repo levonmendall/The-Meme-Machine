@@ -113,6 +113,39 @@ class RollingPrewarmTests(unittest.TestCase):
         self.assertGreater(self.h.db.execute('SELECT COUNT(*) FROM acquisition_jobs').fetchone()[0],0)
         self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
 
+    def test_bounded_wait_turns_visit_every_obligation_and_preserve_restart_deadlines(self):
+        for method,table in (('resume_boundaries','rolling_boundary_waits'),
+                ('resume_publication','rolling_publication_waits')):
+            with self.subTest(method=method):
+                with self.state.writer.transaction():
+                    for n in range(53):
+                        address=method+'-'+str(n);self.h.bind('pump',address)
+                        self.h.db.execute('INSERT INTO '+table+' VALUES(?,?,?,?,?,?,?,?)',
+                            ('pump',address,100,110,NOW+10,4,NOW,'pending'))
+                visited=set();cursor=0
+                for _ in range(7):
+                    selected=self.h.rolling.pending_slice(table,
+                        'family,address',limit=8,after=cursor)
+                    self.assertLessEqual(len(selected),8)
+                    cursor=getattr(self.h.rolling,method)(limit=8,after=cursor)
+                    self.assertEqual(cursor,selected[-1][0])
+                    visited.update(r[2] for r in selected)
+                self.assertEqual(len(visited),53)
+                self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM '+table+" WHERE status='pending' AND deadline=?",(NOW+10,)).fetchone()[0],53)
+                self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
+                # A new obligation and an old unresolved one are both reached
+                # after wrap; a restart cannot grant a new evidence/deadline.
+                self.h.db.execute('INSERT INTO '+table+' VALUES(?,?,?,?,?,?,?,?)',
+                    ('pump',method+'-new',100,110,NOW+10,4,NOW,'pending'))
+                selected=self.h.rolling.pending_slice(table,'family,address',limit=8,after=cursor)
+                self.assertIn(method+'-new',[r[2] for r in selected])
+                self.state.writer.close();self.state,self.h=state_at(self.path,lambda:self.now[0])
+                self.now[0]=NOW+11;cursor=0
+                while self.h.db.execute('SELECT 1 FROM '+table+" WHERE status='pending' LIMIT 1").fetchone():
+                    cursor=getattr(self.h.rolling,method)(limit=8,after=cursor)
+                self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM '+table+" WHERE status='deadline_missed' AND deadline=?",(NOW+10,)).fetchone()[0],54)
+                self.now[0]=NOW
+
     def test_program_branch_is_not_read_twice_but_candidate_branch_is_preserved(self):
         scope=program_scope('pump');candidate=self.h.bind('pump','one-mint')
         self.assertEqual(self.h.rolling.scopes('pump',scope),(scope,))

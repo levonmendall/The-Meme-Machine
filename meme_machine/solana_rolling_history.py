@@ -343,7 +343,22 @@ class RollingHistory:
             (identity,family,address,self.clock(),canonical(metric),digest(metric)))
         return metric
 
-    def resume_boundaries(self):
+    def pending_slice(self,table,columns,*,limit,after):
+        """Fair keyset slice; every unresolved obligation remains durable.
+
+        This is an owner-work bound, never a candidate population or history
+        limit. A cursor has no evidence authority and restarts at zero safely.
+        """
+        if table not in ('rolling_boundary_waits','rolling_publication_waits'):
+            raise ValueError('rolling_wait_table')
+        where=" WHERE "+active_sql('family',solana=True)+" AND status='pending'"
+        if limit is None:return self.db.execute('SELECT rowid,'+columns+' FROM '+table+where+' ORDER BY rowid').fetchall()
+        if type(limit) is not int or limit<1:raise ValueError('rolling_wait_slice')
+        query='SELECT rowid,'+columns+' FROM '+table+where+' AND rowid>? ORDER BY rowid LIMIT ?'
+        rows=self.db.execute(query,(after,limit)).fetchall()
+        return rows if rows or not after else self.db.execute(query,(0,limit)).fetchall()
+
+    def resume_boundaries(self,*,limit=None,after=0):
         """A sealed native observation resolves a first-sight publication race."""
         # These writes belong to one owner command. Per-row autocommits turn a
         # backlog of expired observations into hundreds of FULL fsyncs, blocking
@@ -351,8 +366,9 @@ class RollingHistory:
         # rollback retains every original obligation and deadline.
         with self.history.writer.transaction():
             observed_coverage={}
-            for family,address,observed,upper,deadline,priority,created in self.db.execute(
-                    "SELECT family,address,observed_slot,upper_slot,deadline,priority,created FROM rolling_boundary_waits WHERE "+active_sql('family',solana=True)+" AND status='pending'").fetchall():
+            rows=self.pending_slice('rolling_boundary_waits',
+                'family,address,observed_slot,upper_slot,deadline,priority,created',limit=limit,after=after)
+            for _,family,address,observed,upper,deadline,priority,created in rows:
                 if self.clock()>=deadline:
                     self.db.execute("UPDATE rolling_boundary_waits SET status='deadline_missed' WHERE family=? AND address=?",(family,address))
                     self.history._observation(None,'boundary_deadline_missed',dict(family=family,address=address,
@@ -375,12 +391,14 @@ class RollingHistory:
                     reason=None if origin else 'LATE_DISCOVERY')
                 if result.get('boundary_state'):continue
                 self.db.execute("UPDATE rolling_boundary_waits SET status='resolved' WHERE family=? AND address=?",(family,address))
+        return rows[-1][0] if rows else 0
 
-    def resume_publication(self):
+    def resume_publication(self,*,limit=None,after=0):
         """Release waits only on durable publication, preserving first deadline."""
         with self.history.writer.transaction():
-            for family,address,lo,hi,deadline,priority in self.db.execute(
-                    "SELECT family,address,lo,hi,deadline,priority FROM rolling_publication_waits WHERE "+active_sql('family',solana=True)+" AND status='pending'").fetchall():
+            rows=self.pending_slice('rolling_publication_waits',
+                'family,address,lo,hi,deadline,priority',limit=limit,after=after)
+            for _,family,address,lo,hi,deadline,priority in rows:
                 if self.clock()>=deadline:
                     status='deadline_missed'
                     self.history._observation(None,'publication_deadline_missed',dict(
@@ -391,6 +409,7 @@ class RollingHistory:
                     status='resolved'
                 self.db.execute('UPDATE rolling_publication_waits SET status=? WHERE family=? AND address=? AND lo=? AND hi=?',
                     (status,family,address,lo,hi))
+        return rows[-1][0] if rows else 0
 
     def repair_required_checkpoint_prefixes(self):
         """Only a proven prefix before installed rolling coverage needs RPC.

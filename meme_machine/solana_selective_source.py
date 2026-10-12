@@ -35,6 +35,7 @@ MAX_LIVE_CANDIDATES=48 # StableShards subtracts the one Meteora content filter.
 ARCHIVE_WORKERS=8
 SCOUT_COMMIT_BATCH=64
 CANDIDATE_COMMIT_BATCH=8
+DEVELOPMENT_BATCH=16 # Bounded owner work, not a candidate population limit.
 CANDIDATE_COMMIT_BYTES=32*1024*1024
 # Acquisition cannot prove funded-position latency before a position exists.
 # Enforce this guard at capital admission, never at read-only source startup.
@@ -1011,15 +1012,20 @@ class SelectiveSource:
                     # One existing owner operation, not a FULL fsync for every
                     # binding, wait and reactivation. Original facts and absolute
                     # deadlines roll back together if this operation yields.
+                    cursors=getattr(state,'development_cursors',{})
                     with state.writer.transaction():
-                        for addr,fields in db.execute('''SELECT address,fields FROM market_observations m WHERE family='pump'
-                            AND NOT EXISTS(SELECT 1 FROM evidence_bindings b WHERE b.family=m.family AND b.address=m.address)'''):
-                            value=json.loads(fields);upper=value.get('development_upper_bps')
-                            if value.get('complete') or upper is None or upper>=POLICY.min_curve_progress_bps:
-                                h.bind('pump',addr)
-                                first=db.execute("SELECT first_seen FROM candidate_lifecycle WHERE family='pump' AND address=?",(addr,)).fetchone()[0]
-                                h.rolling.prepare('pump',addr,0,frontier,priority=3,deadline=first+150)
-                        for family,addr,lo in db.execute("SELECT family,address,lower_slot FROM candidate_lifecycle WHERE "+active_sql('family',solana=True)+" AND state='reactivated'").fetchall():
+                        for addr, in db.execute('''SELECT address FROM market_observations m WHERE family='pump'
+                            AND NOT EXISTS(SELECT 1 FROM evidence_bindings b WHERE b.family=m.family AND b.address=m.address)
+                            AND (json_extract(fields,'$.complete') OR json_extract(fields,'$.development_upper_bps') IS NULL
+                                OR json_extract(fields,'$.development_upper_bps')>=?) ORDER BY first_seen,address LIMIT ?''',
+                                (POLICY.min_curve_progress_bps,DEVELOPMENT_BATCH)).fetchall():
+                            h.bind('pump',addr)
+                            first=db.execute("SELECT first_seen FROM candidate_lifecycle WHERE family='pump' AND address=?",(addr,)).fetchone()[0]
+                            h.rolling.prepare('pump',addr,0,frontier,priority=3,deadline=first+150)
+                        query="SELECT rowid,family,address,lower_slot FROM candidate_lifecycle WHERE "+active_sql('family',solana=True)+" AND state='reactivated' AND rowid>? ORDER BY rowid LIMIT ?"
+                        reactivated=db.execute(query,(cursors.get('reactivated',0),DEVELOPMENT_BATCH)).fetchall()
+                        if not reactivated and cursors.get('reactivated',0):reactivated=db.execute(query,(0,DEVELOPMENT_BATCH)).fetchall()
+                        for _,family,addr,lo in reactivated:
                             from .solana_scoped_retirement import ScopedRetirement
                             ScopedRetirement(h).restore(family,addr)
                             epoch=db.execute('SELECT epoch FROM candidate_lifecycle WHERE family=? AND address=?',(family,addr)).fetchone()[0]
@@ -1029,8 +1035,13 @@ class SelectiveSource:
                                 h._observation(None,'promotion_deadline_missed',dict(family=family,address=addr,deadline=deadline,deadline_reset=False))
                                 h.lifecycle.demote(family,addr,reason='original_promotion_deadline_expired');continue
                             h.lifecycle.promote(family,addr,deadline=deadline,lower_slot=0 if family=='pump' else None if family=='meteora' else lo)
-                        h.rolling.resume_boundaries()
-                        h.rolling.resume_publication()
+                        boundary=h.rolling.resume_boundaries(limit=DEVELOPMENT_BATCH,after=cursors.get('boundary',0))
+                        publication=h.rolling.resume_publication(limit=DEVELOPMENT_BATCH,after=cursors.get('publication',0))
+                    # Advance scheduling cursors only after the whole bounded
+                    # owner transaction commits. A yielded slice retries every
+                    # original fact and deadline, without skipping obligations.
+                    state.development_cursors=dict(reactivated=reactivated[-1][0] if reactivated else 0,
+                        boundary=boundary,publication=publication)
                     state.development_poll_at=time.monotonic()+.1
                 # The batched source already owns the ordered 100-ms publisher.
                 # Pending proofs still block false coverage in h.plan below.

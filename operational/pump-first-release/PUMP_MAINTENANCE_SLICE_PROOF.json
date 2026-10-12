@@ -1,0 +1,48 @@
+{
+  "schema": "focused-operational-repair-proof-v1",
+  "parent_source": "7b0426b306584712a3a3a651b17531391ebbf696",
+  "defect": "Unbounded archive-owner housekeeping reconstructed every waiting candidate and delayed native intake while the retained authenticated run accumulated 11,291 log events/30,983,690 bytes before candidate_log_buffer_pressure.",
+  "retained_failure": "blocker-repair-20261011/CONTINUOUS_ACTUAL_WORKERS_1791790940453.json",
+  "change": "Sixteen durable obligations per housekeeping category/turn; fair keyset cursor wraps without capping the population. Scheduling cursors advance only after the whole owner transaction commits.",
+  "preserved": [
+    "Every retained candidate and historical event",
+    "Original promotion/publication/boundary deadlines",
+    "Canonical and economic completeness",
+    "Original monitoring and executable quote rules",
+    "Protection priority and urgent transaction rollback"
+  ],
+  "provider_methods_added": 0,
+  "subscriptions_added": 0,
+  "buffer_limits_changed": false,
+  "tests": {
+    "FAST": {
+      "run": 50,
+      "seconds": 8.498,
+      "result": "PASS",
+      "log": "/tmp/pump-slices-pons-worker-fast-3.log"
+    },
+    "OPERATIONAL": {
+      "run": 107,
+      "seconds": 43.889,
+      "skipped": 4,
+      "result": "PASS",
+      "log": "/tmp/pump-maintenance-slices-operational.log"
+    }
+  },
+  "regressions": [
+    "53+1 unresolved obligations across slice/wrap/restart keep exact deadlines and no fabricated checkpoint",
+    "50 real source candidates all progress in <=16-candidate turns; quiet scouts excluded under original curve predicate; injected failure rolls back all bindings/cursors",
+    "Pons worker-pressure fixture follows the already implemented qualification worker wrapper; existing assertions unchanged"
+  ],
+  "file_sha256": {
+    "meme_machine/solana_rolling_history.py": "b58fc5c55cb7d57d27c31b083269fa75fa0d5bc1df091e378774130506b84235",
+    "meme_machine/solana_selective_source.py": "d284d087a1360ee7ab7094fde9b0426515d31f45d0a9c35d52bcbdeba3e3b50a",
+    "tests/test_solana_rolling_prewarm.py": "8d91b8b1c4c0e8b54494e0bbb40b610f0b5e2ca34bb4dea08dc6270741d8da70",
+    "tests/test_scout_commit_batches.py": "d7c524cf9f9eb6a345ee8a0b70eb0a734645dfc58e134f182bdcbdf633bdd835",
+    "tests/lanes/pons/test_pons_continuous_campaign.py": "712177b8c7011a6c5a6601b82689d6c28012e5aa30e8f3b8163cb5664a2fb0c4"
+  },
+  "authenticated_result": "PENDING",
+  "normal_acceptance": false,
+  "funding": false,
+  "research": "SUSPENDED"
+}
