@@ -91,6 +91,7 @@ class Plane:
         CREATE TABLE IF NOT EXISTS evidence(
           namespace TEXT,key TEXT,body TEXT,provenance TEXT,created REAL,
           PRIMARY KEY(namespace,key));
+        CREATE INDEX IF NOT EXISTS evidence_retention_order ON evidence(namespace,created DESC,key DESC);
         CREATE TABLE IF NOT EXISTS receipt_obligations(
           namespace TEXT,key TEXT,consumer TEXT,owner TEXT,generation TEXT,
           PRIMARY KEY(namespace,key,consumer,owner,generation),
@@ -174,6 +175,11 @@ class Plane:
             self.db.execute('DELETE FROM rolling WHERE at<? AND candidate IN (SELECT id FROM candidates WHERE '+active_sql('lane')+')',(self.clock()-86400,))
             for namespace, in self.db.execute('SELECT DISTINCT namespace FROM evidence WHERE '+active_scope_sql('namespace')).fetchall():
                 limit=8192 if namespace.endswith(':receipt') else 4096
+                # Below the original retained-set bound there is no eligible
+                # eviction. Avoid rebuilding/sorting that entire set on every
+                # header/cache update while discovery and protection compete.
+                if self.db.execute('SELECT COUNT(*) FROM evidence WHERE namespace=?',(namespace,)).fetchone()[0]<=limit:
+                    continue
                 evidence_evicted |= self.db.execute('DELETE FROM evidence WHERE namespace=? AND key NOT IN (SELECT key FROM evidence WHERE namespace=? ORDER BY created DESC,key DESC LIMIT ?) AND NOT EXISTS(SELECT 1 FROM receipt_obligations o WHERE o.namespace=evidence.namespace AND o.key=evidence.key)',(namespace,namespace,limit)).rowcount > 0
             protected=set()
             for key,raw in self.db.execute("SELECT key,body FROM runtime WHERE "+active_scope_sql('key')+" AND (key LIKE 'native_position:%' OR key='pons_cohort')"):

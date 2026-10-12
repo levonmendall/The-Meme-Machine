@@ -16,6 +16,44 @@ from tests.test_pons_dense_v4_receipts import fixture,ENDPOINT
 
 
 class DurableReceiptTests(unittest.TestCase):
+    def test_below_retention_limit_maintenance_does_not_rebuild_retained_set(self):
+        with tempfile.TemporaryDirectory() as td:
+            plane=Plane(Path(td)/'plane.sqlite',clock=lambda:100)
+            try:
+                with plane.transaction():
+                    plane.db.executemany('INSERT INTO evidence VALUES(?,?,?,?,?)',
+                        [('pons:header_hash',str(i),canonical({'i':i}),'{}',100) for i in range(3544)])
+                trace=[];plane.db.set_trace_callback(trace.append);plane.maintain()
+                self.assertFalse(any('DELETE FROM evidence WHERE namespace=' in q for q in trace))
+                self.assertEqual(plane.db.execute('SELECT COUNT(*) FROM evidence').fetchone()[0],3544)
+                self.assertTrue(any('COUNT(*) FROM evidence WHERE namespace=' in q for q in trace))
+            finally:plane.close()
+
+    def test_over_limit_retention_matches_original_ties_nulls_and_protected_receipts(self):
+        with tempfile.TemporaryDirectory() as td:
+            for null_retained in (False,True):
+                old=Plane(Path(td)/('old-'+str(null_retained)+'.sqlite'),clock=lambda:100)
+                new=Plane(Path(td)/('new-'+str(null_retained)+'.sqlite'),clock=lambda:100)
+                try:
+                    ns='pons:shared:fixture:header_hash'
+                    rows=[(ns,str(i),'{}','{}',i//10) for i in range(4150)]
+                    rows.append((ns,None,'{}','{}',10000 if null_retained else None))
+                    for plane in (old,new):
+                        with plane.transaction():
+                            plane.db.executemany('INSERT INTO evidence VALUES(?,?,?,?,?)',rows)
+                            plane.db.execute('INSERT INTO receipt_obligations VALUES(?,?,?,?,?)',
+                                (ns,'0','survivor','owner','a'*64))
+                    with old.transaction():
+                        old.db.execute('DELETE FROM evidence WHERE namespace=? AND key NOT IN (SELECT key FROM evidence WHERE namespace=? ORDER BY created DESC,key DESC LIMIT ?) AND NOT EXISTS(SELECT 1 FROM receipt_obligations o WHERE o.namespace=evidence.namespace AND o.key=evidence.key)',(ns,ns,4096))
+                    new.maintain()
+                    self.assertEqual([tuple(r) for r in old.db.execute('SELECT * FROM evidence ORDER BY namespace,key')],
+                                     [tuple(r) for r in new.db.execute('SELECT * FROM evidence ORDER BY namespace,key')])
+                    self.assertEqual(new.db.execute('SELECT COUNT(*) FROM receipt_obligations').fetchone()[0],1)
+                    plan=new.db.execute('EXPLAIN QUERY PLAN SELECT key FROM evidence WHERE namespace=? ORDER BY created DESC,key DESC LIMIT 4096',(ns,)).fetchall()
+                    self.assertTrue(any('evidence_retention_order' in r[3] for r in plan))
+                    self.assertFalse(any('TEMP B-TREE' in r[3] for r in plan))
+                finally:old.close();new.close()
+
     def test_source_generation_rebinds_long_lived_native_context_and_missing_artifact_refuses(self):
         from meme_machine.lanes.pons import pons
         from meme_machine.lanes.pons.pons_survivor_runtime import Runtime
