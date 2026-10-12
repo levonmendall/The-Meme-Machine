@@ -464,6 +464,17 @@ def _retain_pump_source_history(rows):
         rows,graduation_horizon=max(POLICY.max_postgrad_entry_age_s,600))
 
 
+def _retain_tape_history(tape):
+    # The selective reader commits this exact snapshot before returning it.
+    # Reuse only the same store and the same original graduation deadline;
+    # other readers retain the original path and its validation.
+    if (CANDIDATE_HISTORY is not None
+            and getattr(tape,'candidate_history_retained_path',None)==str(CANDIDATE_HISTORY.path.resolve())
+            and getattr(tape,'candidate_history_graduation_horizon',None)==max(POLICY.max_postgrad_entry_age_s,600)):
+        return tape.candidate_history_retained_count
+    return _retain_pump_source_history(tape.candidate_history_rows)
+
+
 def _restore_observed_pump_candidates(created,postgrad,pumpswap_stream,plane,confirmations,now):
     """Rebuild cheap observation state from the shared ordered history after restart."""
     if CANDIDATE_HISTORY is None:return 0
@@ -1345,6 +1356,7 @@ def main(*,campaign=False,discovery_seconds=None):
     evidence_watch=HealthWatch(time.monotonic())
     plane=RuntimeEvidence(owner='pump')
     tape=LocalPumpTape(plane)
+    tape.candidate_history_graduation_horizon=max(POLICY.max_postgrad_entry_age_s,600)
     discovery_tape=PumpTape()
     broker_path=os.environ.get("MM_SOLANA_EVIDENCE_BROKER_DB",DEFAULT_BROKER_DB)
     broker=EvidenceBroker(broker_path)
@@ -1419,7 +1431,7 @@ def main(*,campaign=False,discovery_seconds=None):
             try:
                 fresh,cursor=tape.events_since(cursor)
                 report['pump_history_events_retained']=report.get('pump_history_events_retained',0)+\
-                    _retain_pump_source_history(tape.candidate_history_rows)
+                    _retain_tape_history(tape)
             except ValueError as exc:
                 report["evidence_plane_wait"]=str(exc)
                 if now-last_save>=2:

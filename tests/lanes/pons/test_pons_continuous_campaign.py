@@ -13,6 +13,17 @@ from meme_machine.lanes.pons.evidence_queue import DeadlineEvidenceQueue
 
 
 class ContinuousCampaignTests(unittest.TestCase):
+    def test_quiet_polling_keeps_native_work_without_rescanning_reporting_history(self):
+        from meme_machine.runtime.robinhood.pons import Broker
+        original=Broker.telemetry;calls=[]
+        def snapshot(broker):
+            calls.append(1);return original(broker)
+        with patch.object(Broker,'telemetry',snapshot):
+            self._campaign_probe(startup=True)
+        # Thirty genuine campaign polls still qualify, settle and reconcile
+        # through the original fixture; finalization refreshes all counts.
+        self.assertEqual(len(calls),2)
+
     def test_terminal_writeoff_keeps_its_accounting_kind(self):
         life=dict(index=0,status='settled',settlement_kind='liquidity_writeoff',
             final_position=dict(status='settled',entry_tokens=2,

@@ -96,7 +96,11 @@ def consume_pump_discovery(tape,sequence):
     finally:db.execute('ROLLBACK')
     history=open_candidate_history()
     if history is not None:
-        with closing(history):history.retain_pump_source_history(history_rows)
+        with closing(history):
+            retained=history.retain_pump_source_history(history_rows,
+                graduation_horizon=getattr(tape,'candidate_history_graduation_horizon',None))
+            tape.candidate_history_retained_path=str(history.path.resolve())
+            tape.candidate_history_retained_count=retained
     tape.candidate_history_rows=history_rows
     # Sequence belongs to this outbox, not to a global market slot. Late history
     # below a former discovery slot remains visible on the next durable read.

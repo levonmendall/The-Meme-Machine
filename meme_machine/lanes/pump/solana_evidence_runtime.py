@@ -253,6 +253,8 @@ class LocalPumpTape:
             return None
         finally:db.execute('ROLLBACK')
     def events_since(self,sequence):
+        self.candidate_history_retained_path=None
+        self.candidate_history_retained_count=0
         from meme_machine.solana_selective_runtime import selective,consume_pump_discovery
         if hasattr(self.plane,'_selective_reader') and selective(self.plane._selective_reader()):return consume_pump_discovery(self,sequence)
         hi=self.plane.frontier(PUMP_SCOPE)

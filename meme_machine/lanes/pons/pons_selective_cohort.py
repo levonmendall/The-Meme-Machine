@@ -1061,7 +1061,11 @@ def run(endpoint,*,campaign=False):
                         original_deadline=now+5,sequencer_last_received_at=getattr(feed.state,'last_received_at',None))
 
             coverage()
-            result['evidence_queue']=queue.telemetry()
+            # These retained-history counts are reporting, never a readiness
+            # or protection witness. Recompute on real observations and the
+            # existing checkpoint cadence, rather than every empty poll.
+            if fresh or 'evidence_queue' not in result or time.monotonic()>=next_checkpoint:
+                result['evidence_queue']=queue.telemetry()
             if time.monotonic()>=next_checkpoint:
                 _checkpoint(
                     result,cursor=cursor,feed=feed,rpc=rpc,phase="discovery"

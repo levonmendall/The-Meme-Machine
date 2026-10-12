@@ -24,6 +24,7 @@ class EvidenceStore:
         self.lock=threading.RLock();self.db.execute('PRAGMA journal_mode=WAL');self.db.execute('PRAGMA synchronous=FULL')
         self.db.executescript('''CREATE TABLE IF NOT EXISTS evidence(
             domain TEXT,key TEXT,body TEXT,created REAL,PRIMARY KEY(domain,key));
+            CREATE INDEX IF NOT EXISTS evidence_creation_order ON evidence(created);
             CREATE TABLE IF NOT EXISTS gas_quotes(domain TEXT,epoch TEXT,monotonic REAL,at REAL,body TEXT);
             CREATE TABLE IF NOT EXISTS flights(domain TEXT,key TEXT,owner TEXT,PRIMARY KEY(domain,key));
             CREATE TABLE IF NOT EXISTS reuse_events(sequence INTEGER PRIMARY KEY,
@@ -68,7 +69,12 @@ class EvidenceStore:
                 self.event('shared',domain,'immutable','conflict',key)
                 raise BoundaryError('immutable_rpc_evidence_conflict')
             self.db.execute('INSERT OR IGNORE INTO evidence VALUES(?,?,?,?)',(domain,key,body,time.time()))
-            self.db.execute('DELETE FROM evidence WHERE rowid NOT IN (SELECT rowid FROM evidence ORDER BY created DESC LIMIT 8192)')
+            excess=self.db.execute('SELECT COUNT(*) FROM evidence').fetchone()[0]-8192
+            if excess>0:
+                # Evict exactly the excess in the original oldest-first order.
+                # Rebuilding an 8,192-row retained set on every hit/miss delayed
+                # live qualification and competed with native publication.
+                self.db.execute('DELETE FROM evidence WHERE rowid IN (SELECT rowid FROM evidence ORDER BY created,rowid DESC LIMIT ?)',(excess,))
     def event(self,lane,domain,method,outcome,key,source_at=None):
         with self.lock,self.db:
             self.db.execute('INSERT INTO reuse_events(lane,domain,method,outcome,at,key_digest,source_at) VALUES(?,?,?,?,?,?,?)',

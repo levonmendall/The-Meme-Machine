@@ -287,13 +287,18 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
                 with state.writer.transaction():
                     for n in range(32):h.observe('pump','development-'+str(n),slot=100,signature='',seen=NOW,fields={})
                 source=SelectiveSource(SimpleNamespace(credential='offline'),None)
-                source.batched=True;source.stop=asyncio.Event();statements=[]
+                source.batched=True;source.stop=asyncio.Event();statements=[];turns=[]
                 state.writer.db.set_trace_callback(statements.append)
                 async def capture(fn,*args,**kwargs):
-                    fn(state);raise Captured()
+                    for turn in range(2):
+                        statements.clear()
+                        with patch('time.monotonic',return_value=100+turn*.11):fn(state)
+                        turns.append((h.db.execute("SELECT COUNT(*) FROM evidence_bindings WHERE address LIKE 'development-%'").fetchone()[0],
+                            sum(sql=='COMMIT' for sql in statements)))
+                    raise Captured()
                 source.work=capture
                 with self.assertRaises(Captured):await source.acquire()
-                self.assertEqual(sum(sql=='COMMIT' for sql in statements),2)
+                self.assertEqual(turns,[(16,2),(32,2)])
                 self.assertEqual(h.db.execute("SELECT COUNT(*) FROM evidence_bindings WHERE address LIKE 'development-%'").fetchone()[0],32)
                 self.assertEqual({r[0] for r in h.db.execute('SELECT deadline FROM acquisition_jobs')},{NOW+150})
                 self.assertEqual(h.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)

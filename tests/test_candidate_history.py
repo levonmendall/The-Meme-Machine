@@ -24,6 +24,53 @@ class CandidateHistoryTests(unittest.TestCase):
         self.assertEqual(self.history.telemetry()["candidates"],256)
         self.assertEqual(self.history.candidate("pump","mint-255")["metadata"]["rank"],255)
 
+    def source_rows(self,count=130):
+        return [dict(identity='source-'+str(n),slot=10+n,transaction_index=1,event_index=0,
+            market_time=1000+n,event=dict(mint='batch-mint',event_type='trade',market_time=1000+n,
+                native_buy=n)) for n in range(count)]
+
+    def test_source_history_has_bounded_full_commits_and_preserves_all_economics(self):
+        rows=self.source_rows();commits=[]
+        self.history.db.set_trace_callback(lambda sql:commits.append(sql) if sql=='COMMIT' else None)
+        self.assertEqual(self.history.retain_pump_source_history(rows),130)
+        self.assertEqual(len(commits),3)
+        before=self.history.events('pump','batch-mint')
+        self.assertEqual([r['payload']['native_buy'] for r in before],list(range(130)))
+        self.assertEqual(self.history.retain_pump_source_history(rows),130)
+        self.assertEqual(self.history.events('pump','batch-mint'),before)
+        self.history.db.set_trace_callback(None)
+        self.history.close();self.history=CandidateHistory(self.path,clock=lambda:self.now[0])
+        self.assertEqual(self.history.events('pump','batch-mint'),before)
+
+    def test_source_batch_failure_rolls_back_and_replay_retains_original_facts(self):
+        rows=self.source_rows(8);original=self.history.append_event
+        def broken(*args,**kw):
+            if kw['identity']=='pump-source:source-4':raise RuntimeError('offline_commit_fault')
+            return original(*args,**kw)
+        with patch.object(self.history,'append_event',side_effect=broken):
+            with self.assertRaisesRegex(RuntimeError,'offline_commit_fault'):
+                self.history.retain_pump_source_history(rows)
+        self.assertIsNone(self.history.candidate('pump','batch-mint'))
+        self.assertEqual(self.history.events('pump','batch-mint'),[])
+        self.assertEqual(self.history.retain_pump_source_history(rows),8)
+        self.assertEqual(len(self.history.events('pump','batch-mint')),8)
+
+    def test_current_reuses_only_matching_committed_tape_history_and_deadline_policy(self):
+        from meme_machine.lanes.pump import runner
+        rows=self.source_rows(1);rows[0]['event'].update(event_type='migration',pool='native-pool')
+        horizon=max(runner.POLICY.max_postgrad_entry_age_s,600)
+        count=self.history.retain_pump_source_history(rows,graduation_horizon=horizon)
+        tape=SimpleNamespace(candidate_history_rows=rows,candidate_history_retained_count=count,
+            candidate_history_retained_path=str(self.path.resolve()),candidate_history_graduation_horizon=horizon)
+        with patch.object(runner,'CANDIDATE_HISTORY',self.history),patch.object(self.history,'retain_pump_source_history',wraps=self.history.retain_pump_source_history) as write:
+            self.assertEqual(runner._retain_tape_history(tape),1);write.assert_not_called()
+            tape.candidate_history_graduation_horizon=None
+            self.assertEqual(runner._retain_tape_history(tape),1);write.assert_called_once()
+            write.reset_mock();tape.candidate_history_graduation_horizon=horizon
+            tape.candidate_history_retained_path='another-store'
+            self.assertEqual(runner._retain_tape_history(tape),1);write.assert_called_once()
+        self.assertEqual(self.history.candidate('pump','batch-mint')['decision_deadline'],1000+horizon)
+
     def test_readiness_without_waiters_retains_proofs_without_rescanning_them(self):
         scope='candidate:pump:program';db=self.history.db
         with self.history.transaction():

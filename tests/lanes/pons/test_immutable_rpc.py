@@ -51,6 +51,33 @@ class ImmutableRpcTest(unittest.TestCase):
         self.store.put(self.reuse.domain,'k',1)
         self.assertIsNone(self.store.get(Reuse('https://other.invalid',self.store).domain,'k'))
         with self.assertRaises(BoundaryError):self.store.put(self.reuse.domain,'k',2)
+
+    def test_capacity_evicts_only_excess_without_rebuilding_the_retained_set(self):
+        db=self.store.db
+        with db:db.executemany('INSERT INTO evidence VALUES(?,?,?,?)',
+            [('domain',str(n),str(n),float(n)) for n in range(8192)])
+        steps=[];db.set_progress_handler(lambda:steps.append(1) or 0,1000)
+        try:
+            with patch('meme_machine.lanes.pons.immutable_rpc.time.time',return_value=8192.):
+                self.store.put('domain','new',8192)
+            self.assertEqual(steps,[],'cache put rescanned every retained entry')
+            steps.clear();self.store.put('domain','10',10)
+            self.assertEqual(steps,[],'duplicate cache put rebuilt the eviction set')
+        finally:db.set_progress_handler(None,0)
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM evidence').fetchone()[0],8192)
+        self.assertIsNone(self.store.get('domain','0'))
+        self.assertEqual(self.store.get('domain','10'),(10,10.))
+        self.assertEqual(self.store.get('domain','new'),(8192,8192.))
+        with self.assertRaisesRegex(BoundaryError,'immutable_rpc_evidence_conflict'):
+            self.store.put('domain','10',11)
+
+    def test_overfull_restored_cache_keeps_the_same_original_retention_order(self):
+        db=self.store.db
+        with db:db.executemany('INSERT INTO evidence VALUES(?,?,?,?)',
+            [('domain',str(n),str(n),float(n//2)) for n in range(8200)])
+        expected={r[0] for r in db.execute('SELECT key FROM evidence ORDER BY created DESC,rowid LIMIT 8192')}
+        self.store.put('domain','8199',8199)
+        self.assertEqual({r[0] for r in db.execute('SELECT key FROM evidence')},expected)
     def test_block_receipts_rule_throughput_and_size_guard(self):
         self.assertTrue(choose_block_receipts(25,40,supported=True,remaining_seconds=2))
         for n,total,supported,remaining in [(2,2,True,2),(25,100,True,2),(100,200,True,2),(25,40,False,2),(25,40,True,.1)]:

@@ -406,25 +406,32 @@ class CandidateHistory:
 
     def retain_pump_source_history(self,rows,*,graduation_horizon=None):
         retained=0
-        for record in rows or ():
-            event=dict(record.get('event') or {})
-            mint=str(event.get('mint') or '')
-            if not mint:continue
-            at=int(event.get('market_time') or record['market_time'])
-            prior=self.candidate('pump',mint)
-            kind=str(event.get('event_type') or 'economic')
-            promoted=kind=='migration' or (prior is not None and prior['surface']=='pumpswap')
-            deadline=(at+graduation_horizon if kind=='migration' and graduation_horizon is not None else None)
-            metadata=dict(source='solana_finalized_evidence_plane')
-            for key in ('creator','pool'):
-                if event.get(key):metadata[key]=str(event[key])
-            self.observe('pump',mint,surface='pumpswap' if promoted else 'pump.fun',
-                observed_at=at,decision_deadline=deadline,metadata=metadata)
-            self.append_event('pump',mint,identity='pump-source:'+str(record['identity']),
-                slot=int(record['slot']),transaction_index=record.get('transaction_index'),
-                event_index=int(record['event_index']),market_time=at,
-                kind='pump_'+kind,payload=event)
-            retained+=1
+        from itertools import islice
+        iterator=iter(rows or ())
+        while batch:=list(islice(iterator,64)):
+            # Match the existing source publication turn. FULL durability is
+            # one bounded batch, while nested per-fact validation still rolls
+            # back the entire failed batch and the caller keeps its cursor.
+            with self.transaction():
+                for record in batch:
+                    event=dict(record.get('event') or {})
+                    mint=str(event.get('mint') or '')
+                    if not mint:continue
+                    at=int(event.get('market_time') or record['market_time'])
+                    prior=self.candidate('pump',mint)
+                    kind=str(event.get('event_type') or 'economic')
+                    promoted=kind=='migration' or (prior is not None and prior['surface']=='pumpswap')
+                    deadline=(at+graduation_horizon if kind=='migration' and graduation_horizon is not None else None)
+                    metadata=dict(source='solana_finalized_evidence_plane')
+                    for key in ('creator','pool'):
+                        if event.get(key):metadata[key]=str(event[key])
+                    self.observe('pump',mint,surface='pumpswap' if promoted else 'pump.fun',
+                        observed_at=at,decision_deadline=deadline,metadata=metadata)
+                    self.append_event('pump',mint,identity='pump-source:'+str(record['identity']),
+                        slot=int(record['slot']),transaction_index=record.get('transaction_index'),
+                        event_index=int(record['event_index']),market_time=at,
+                        kind='pump_'+kind,payload=event)
+                    retained+=1
         return retained
 
     def retain_pumpswap_record(self,candidate,record,transaction_order):
