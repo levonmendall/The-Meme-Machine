@@ -104,6 +104,17 @@ def _append_jsonl(path,row):
     from meme_machine.runtime.storage import jsonl_ring
     jsonl_ring(path,row)
 
+def _publish_current_opportunity(sleeve,evaluation,identity):
+    """Publish the completed native decision without acquiring new evidence."""
+    from meme_machine.runtime.journal import digest
+    from meme_machine.runtime.opportunity_telemetry import pons_context
+    context=pons_context(evaluation)
+    decision_id=identity+':evaluation:'+digest([evaluation.get('evaluation_completed_at'),context,evaluation['vector']])
+    return sleeve.opportunity(evaluation['token'],identity=decision_id,regime='current',
+        status=evaluation['vector'].get('qualification','evaluated'),
+        at=int(evaluation.get('evaluation_completed_at',time.time())),
+        decision=dict(vector=evaluation['vector'],context=context,native_identity=identity))
+
 def _atomic_json(path,row):
     raw=json.dumps(row,sort_keys=True,separators=(",",":")).encode()
     if len(raw)>4_000_000:
@@ -1116,12 +1127,7 @@ def run(endpoint,*,campaign=False):
                 sleeve=open_sleeve('pons',STRATEGY_CAPITAL_QUOTE)
                 if sleeve is not None:
                     try:
-                        from meme_machine.runtime.opportunity_telemetry import pons_context
-                        context=pons_context(evaluation)
-                        decision_id=identity+':evaluation:'+digest([evaluation.get('evaluation_completed_at'),context,evaluation['vector']])
-                        sleeve.opportunity(evaluation['token'],identity=decision_id,regime='current',
-                        status=evaluation['vector'].get('qualification','evaluated'),at=int(evaluation.get('evaluation_completed_at',time.time())),
-                        decision=dict(vector=evaluation['vector'],context=context,native_identity=identity))
+                        _publish_current_opportunity(sleeve,evaluation,identity)
                     except Exception as error:
                         print('opportunity publication failed:',type(error).__name__,flush=True)
                     finally:sleeve.close()

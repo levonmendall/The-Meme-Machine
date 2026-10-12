@@ -44,6 +44,23 @@ class OpportunityTelemetryTests(unittest.TestCase):
     def financial(self):
         return {name:list(self.sleeve.db.execute('SELECT * FROM '+name)) for name in
             ('sleeve_genesis','sleeve_positions','sleeve_candidates','sleeve_journal')}
+    def test_real_pons_worker_publication_is_durable_idempotent_and_read_only(self):
+        from meme_machine.lanes.pons.pons_selective_cohort import _publish_current_opportunity
+        evaluation=dict(token='token',evaluation_completed_at=100.,vector=self.decision()['vector'],
+            source_block=100,source_transaction='canonical-transaction',source_log_index=0,
+            candidate=dict(token='token',auth=True,state=dict(quote_reserve=10,token_reserve=20)))
+        before=self.financial()
+        _publish_current_opportunity(self.sleeve,evaluation,'canonical-transaction:0')
+        proof=telemetry.verify(self.sleeve.db)
+        _publish_current_opportunity(self.sleeve,evaluation,'canonical-transaction:0')
+        self.assertEqual(proof,telemetry.verify(self.sleeve.db))
+        self.assertEqual(proof['receipts'],1)
+        body=self.bodies('receipt')[0]
+        self.assertEqual(body['reference_price'],'1/2')
+        self.assertFalse(body['qualification_authority']);self.assertFalse(body['order_authority'])
+        self.assertEqual(before,self.financial())
+        self.sleeve.close();self.sleeve=self.open()
+        self.assertEqual(proof,telemetry.verify(self.sleeve.db))
     def test_all_gate_distances_categories_and_marginal_alpha(self):
         self.reject();body=self.bodies('receipt')[0]
         self.assertEqual(body['opportunity_id'],'pons:token')
