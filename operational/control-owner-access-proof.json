@@ -1,0 +1,59 @@
+{
+  "predecessor": "c32ac8c52b95bdaddef77fe2a99d12b08f168b98",
+  "failure_receipt": "blocker-repair-20261011/CONTINUOUS_ACTUAL_WORKERS_1791809135791.json",
+  "profiles": [
+    "/tmp/combined-startup-source-cpu.raw",
+    "/tmp/combined-startup-pump-cpu.raw",
+    "/tmp/combined-startup-pons-cpu.raw"
+  ],
+  "diagnosis": [
+    "Queued control-frame seen timestamps overwrote newer process heartbeats",
+    "Owner development polls scanned the full retained scout population; measured 284400 VM steps for an empty result",
+    "Reactivation keyset selection sorted/scanned historical lifecycle states"
+  ],
+  "repairs": [
+    "Heartbeat describes successful control publication; original seen and market time retained in every canonical frontier",
+    "Exact disjoint indexed ranges retain the original complete/unknown/progress predicate and first-seen/address order",
+    "Partial state index retains original keyset cursor selection"
+  ],
+  "retained_population_comparison": {
+    "original_seconds": 0.03953091602306813,
+    "indexed_seconds": 0.002124022925272584,
+    "original_vm_lower": 284400,
+    "indexed_vm_lower": 29300,
+    "identical_result": true,
+    "method": "compact in-memory copy of actual retained observations and binding identities; no provider dispatch or native data alteration"
+  },
+  "tests": {
+    "FAST_batches": {
+      "tests": 9,
+      "seconds": 1.485,
+      "result": "PASS",
+      "log": "/tmp/control-owner-access-fast-corrected.log"
+    },
+    "FAST_selection": {
+      "tests": 2,
+      "result": "PASS",
+      "log": "/tmp/control-owner-access-selection-fast.log"
+    },
+    "OPERATIONAL": {
+      "tests": 58,
+      "skipped": 1,
+      "seconds": 9.118,
+      "result": "PASS",
+      "log": "/tmp/control-owner-access-operational.log"
+    }
+  },
+  "preserved": [
+    "canonical membership",
+    "frame availability",
+    "market-time freshness",
+    "durable publication ordering",
+    "original promotion deadlines",
+    "no buffer/deadline increases",
+    "all economic/capital policy",
+    "all native provider transports"
+  ],
+  "authenticated_success": "NOT_YET_DEMONSTRATED",
+  "funding": false
+}

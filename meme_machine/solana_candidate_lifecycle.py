@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS candidate_lifecycle(
  first_slot INTEGER NOT NULL,last_slot INTEGER NOT NULL,first_seen REAL NOT NULL,
  last_seen REAL NOT NULL,deadline REAL,lower_slot INTEGER NOT NULL,
  PRIMARY KEY(family,address));
+CREATE INDEX IF NOT EXISTS candidate_reactivated_cursor ON candidate_lifecycle(state)
+ WHERE state='reactivated';
 CREATE TABLE IF NOT EXISTS candidate_history_outbox(
  id TEXT PRIMARY KEY,family TEXT NOT NULL,address TEXT NOT NULL,kind TEXT NOT NULL,
  body TEXT NOT NULL,hash TEXT NOT NULL,created REAL NOT NULL,consumed REAL);

@@ -1,6 +1,7 @@
 """Original canonical economics, bounded FIFO batching and durable failure."""
 import asyncio
 import copy
+import json
 import sqlite3
 import tempfile
 import time
@@ -16,7 +17,7 @@ from meme_machine.solana_evidence_plane import EvidenceUnavailable
 from meme_machine.solana_rolling_history import program_scope
 from meme_machine.solana_selective_history import PROGRAMS
 from meme_machine.solana_selective_source import (
-    CandidateCommitQueue,SelectiveSource,commit_candidates,commit_candidate_batch,
+    CandidateCommitQueue,SelectiveSource,commit_candidates,commit_candidate_batch,commit_control,
     CANDIDATE_COMMIT_BATCH,CANDIDATE_COMMIT_BYTES,
 )
 from meme_machine.yellowstone import geyser_pb2 as pb
@@ -45,6 +46,36 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         tables=('rolling_economic_events','rolling_economic_addresses','candidate_blocks',
             'candidate_pending_proofs','candidate_coverage','candidate_history_outbox')
         return {t:h.db.execute('SELECT * FROM '+t+' ORDER BY rowid').fetchall() for t in tables}
+
+    async def test_delayed_control_commit_does_not_regress_liveness_or_refresh_evidence(self):
+        from meme_machine.solana_evidence_plane import EvidenceReader
+        from meme_machine.solana_evidence_health import evidence_health
+        from dataclasses import replace
+        old=replace(frame(100,logs=False),seen=NOW-30);old.update.block.block_time.timestamp=int(NOW)-40
+        self.state.fence.health('heartbeat',NOW-2)
+        commit_control(self.state,old)
+        health={k:json.loads(v) for k,v in self.h.db.execute('SELECT key,value FROM service_health')}
+        self.assertEqual(health['heartbeat'],NOW)
+        for scope in ('control:solana','program:pump','program:pumpswap'):
+            self.assertEqual(health['finalized_frontier:'+scope],
+                dict(slot=100,time=int(NOW)-40,seen=NOW-30))
+        with closing(EvidenceReader(self.state.writer.path)) as reader:
+            observed=evidence_health(reader,'control:solana',NOW)
+            self.assertFalse(observed['usable'])
+            self.assertEqual((observed['state'],observed['reason']),('DEGRADED','evidence_finalized_stale'))
+            self.assertEqual(evidence_health(reader,'control:solana',NOW+16)['reason'],'evidence_heartbeat_stale')
+
+    async def test_control_commit_failure_cannot_publish_a_liveness_heartbeat(self):
+        before=dict(self.h.db.execute('SELECT key,value FROM service_health'))
+        original=self.state.fence._health
+        def fail(key,value):
+            if key=='heartbeat':raise RuntimeError('offline_publication_failure')
+            return original(key,value)
+        with patch.object(self.state.fence,'_health',side_effect=fail):
+            with self.assertRaisesRegex(RuntimeError,'offline_publication_failure'):
+                commit_control(self.state,frame(100,logs=False))
+        self.assertEqual(dict(self.h.db.execute('SELECT key,value FROM service_health')),before)
+        self.assertFalse(self.h.db.in_transaction)
 
     async def test_batch_retains_original_economics_order_proofs_and_restart(self):
         other,h=state_at(Path(self.tmp.name)/'original.sqlite')

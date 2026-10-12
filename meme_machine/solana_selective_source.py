@@ -178,7 +178,11 @@ def commit_control(state,frame,*,active=True):
     with state.writer.source_frame():
         state.fence.block(Subscription('source',CONTROL,'control','census',2),block_message(frame),seen,prepared=prepared)
         state.writer._count('stream_accepted_messages')
-        state.fence._health('phase','ACTIVE' if active else 'DEGRADED');state.fence._health('heartbeat',seen)
+        state.fence._health('phase','ACTIVE' if active else 'DEGRADED')
+        # Liveness records this successful publication, not the age of a frame
+        # that waited in the durable owner queue. Frame availability and market
+        # time below retain their original values and freshness requirements.
+        state.fence._health('heartbeat',state.writer.clock())
         # Source coordinates inform bounded storage maintenance, never global
         # economic completeness. Candidate proofs live in a separate namespace.
         for scope in (FAMILIES[f] for f in install(state).active_families):
@@ -1036,11 +1040,7 @@ class SelectiveSource:
                     # deadlines roll back together if this operation yields.
                     cursors=getattr(state,'development_cursors',{})
                     with state.writer.transaction():
-                        for addr, in db.execute('''SELECT address FROM market_observations m WHERE family='pump'
-                            AND NOT EXISTS(SELECT 1 FROM evidence_bindings b WHERE b.family=m.family AND b.address=m.address)
-                            AND (json_extract(fields,'$.complete') OR json_extract(fields,'$.development_upper_bps') IS NULL
-                                OR json_extract(fields,'$.development_upper_bps')>=?) ORDER BY first_seen,address LIMIT ?''',
-                                (POLICY.min_curve_progress_bps,DEVELOPMENT_BATCH)).fetchall():
+                        for addr, in h.development_candidates(POLICY.min_curve_progress_bps,DEVELOPMENT_BATCH):
                             h.bind('pump',addr)
                             first=db.execute("SELECT first_seen FROM candidate_lifecycle WHERE family='pump' AND address=?",(addr,)).fetchone()[0]
                             h.rolling.prepare('pump',addr,0,frontier,priority=3,deadline=first+150)

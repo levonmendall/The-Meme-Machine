@@ -19,6 +19,9 @@ FAMILIES={'pump':'program:pump','pumpswap':'program:pumpswap','meteora':'program
 PROGRAMS={'pump':'6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P',
           'pumpswap':'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA',
           'meteora':'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo'}
+# NULL is the original complete/unknown-progress attention branch. Other
+# values retain the exact original SQLite comparison with the policy minimum.
+DEVELOPMENT_BOUND="CASE WHEN json_extract(fields,'$.complete') OR json_extract(fields,'$.development_upper_bps') IS NULL THEN NULL ELSE json_extract(fields,'$.development_upper_bps') END"
 SCHEMA='''
 CREATE TABLE IF NOT EXISTS market_observations(
  family TEXT NOT NULL,address TEXT NOT NULL,first_slot INTEGER NOT NULL,
@@ -164,8 +167,21 @@ class SelectiveHistory:
     def __init__(self,writer,endpoint_identity,*,clock=time.time):
         self.writer=writer;self.db=writer.db;self.endpoint_identity=endpoint_identity;self.clock=clock
         self.db.executescript(SCHEMA)
+        self.db.execute('CREATE INDEX IF NOT EXISTS market_development_progress ON market_observations(family,'+
+            DEVELOPMENT_BOUND+',first_seen,address)')
         from .runtime.operating_families import solana_families
         self.active_families=solana_families()
+
+    def development_candidates(self,minimum,limit):
+        # Disjoint indexed ranges are equivalent to the original OR predicate.
+        # Do not scan every retained low-progress scout on each owner poll.
+        return self.db.execute('''SELECT address FROM (
+            SELECT address,first_seen FROM market_observations WHERE family='pump' AND '''+
+            DEVELOPMENT_BOUND+''' IS NULL UNION ALL
+            SELECT address,first_seen FROM market_observations WHERE family='pump' AND '''+
+            DEVELOPMENT_BOUND+'''>=?) m WHERE NOT EXISTS(
+                SELECT 1 FROM evidence_bindings b WHERE b.family='pump' AND b.address=m.address)
+            ORDER BY first_seen,address LIMIT ?''',(minimum,limit)).fetchall()
 
     def observe(self,family,address,*,slot,signature,fields,seen=None):
         """Lossless cheap retention. This record cannot authorize qualification."""

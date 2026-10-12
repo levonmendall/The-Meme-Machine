@@ -48,6 +48,44 @@ class ClosureTests(unittest.TestCase):
     def drain(self):
         while self.life.flush():pass
         self.life.publish()
+
+    def test_development_selection_keeps_original_order_unknowns_and_live_changes(self):
+        def original(minimum,limit):
+            return self.h.db.execute('''SELECT address FROM market_observations m WHERE family='pump'
+                AND NOT EXISTS(SELECT 1 FROM evidence_bindings b WHERE b.family=m.family AND b.address=m.address)
+                AND (json_extract(fields,'$.complete') OR json_extract(fields,'$.development_upper_bps') IS NULL
+                    OR json_extract(fields,'$.development_upper_bps')>=?) ORDER BY first_seen,address LIMIT ?''',
+                (minimum,limit)).fetchall()
+        cases=[('a',{}),('b',dict(complete=True,development_upper_bps=0)),
+            ('c',dict(complete=False,development_upper_bps=8500)),
+            ('d',dict(complete=False,development_upper_bps=100)),
+            ('e',dict(development_upper_bps=None)),('f',dict(development_upper_bps=7500))]
+        for address,fields in cases:
+            self.h.observe('pump',address,slot=100,signature='',fields=fields,seen=NOW)
+        self.h.bind('pump','c')
+        for minimum in (0,7500,8500,10000):
+            for limit in (1,4,100):
+                self.assertEqual(self.h.development_candidates(minimum,limit),original(minimum,limit))
+        self.h.observe('pump','d',slot=101,signature='',fields=dict(development_upper_bps=9000),seen=NOW+1)
+        self.h.observe('pump','b',slot=101,signature='',fields=dict(complete=False,development_upper_bps=0),seen=NOW+1)
+        before=original(7500,100);self.assertIn(('d',),before);self.assertNotIn(('b',),before)
+        self.restart();self.assertEqual(self.h.development_candidates(7500,100),before)
+
+    def test_idle_development_and_reactivation_do_not_traverse_the_retained_population(self):
+        from meme_machine.solana_evidence_plane import canonical,digest
+        fields=dict(complete=False,development_upper_bps=100);raw=canonical(fields);checksum=digest(fields)
+        with self.state.writer.transaction():
+            self.h.db.executemany('INSERT INTO market_observations VALUES(?,?,?,?,?,?,?,?,?)',
+                (('pump','quiet-'+str(n),100,100,NOW,NOW,'',raw,checksum) for n in range(10000)))
+            self.h.db.executemany('INSERT INTO candidate_lifecycle VALUES(?,?,?,?,?,?,?,?,?,?)',
+                (('pump','quiet-'+str(n),'demoted',0,100,100,NOW,NOW,None,100) for n in range(10000)))
+            self.h.db.execute("UPDATE candidate_lifecycle SET state='reactivated' WHERE address='quiet-9999'")
+        steps=[0];self.h.db.set_progress_handler(lambda:steps.__setitem__(0,steps[0]+1) or 0,1)
+        try:
+            self.assertEqual(self.h.development_candidates(7500,4),[])
+            self.assertEqual(self.h.db.execute("SELECT address FROM candidate_lifecycle WHERE family IN ('pump','pumpswap') AND state='reactivated' AND rowid>? ORDER BY rowid LIMIT ?",(0,4)).fetchall(),[('quiet-9999',)])
+            self.assertLess(steps[0],1000)
+        finally:self.h.db.set_progress_handler(None,0)
     def seed(self,family,address,slot=100):
         self.h.observe(family,address,slot=slot,signature='',seen=self.now[0],fields=dict(wsol_pair_locator=True,activity=False))
         self.h.bind(family,address);self.drain()
