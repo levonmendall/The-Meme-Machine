@@ -49,16 +49,61 @@ HOLDING_DELTAS = {'meme_machine/lanes/pump/pump_acceleration_strategy.py': {'exi
 # comparison below still pins all economic helpers, interfaces and siblings.
 HOLDING_DELTAS['meme_machine/lanes/pump/runner.py']['main']='5dd3dbdffec0db1d2b51465298d5e3c70732c3fdee84b3297cbd8f6fb2259686'
 
+# Separately authorized volume-quality-attention-v1. Pin the complete reviewed
+# functions, including their existing economics; only candidate attention and
+# fresh requalification changed. A different body still fails this source guard.
+# New helpers have an exact identity too. No quote, stop, sizing or exit method
+# receives a blanket exemption, and all remaining nodes/interfaces still pin.
+ATTENTION_DELTAS = {
+    'meme_machine/lanes/pump/runner.py': {
+        '_confirmation_meta': '1cc0f6803425581dd6dd91fcd4b037142764d23ae5fbc5a855914ea5f346c000',
+        '_volume_quality_attention': 'a4e73e44c66164b18aadd8102d53d86f7483573fec8d9af8c611fae230cec6ab',
+        '_late_signal': '2ed9c66d2dbbb1fdbbb7f1317d40ed65eeb1cea2fd923545016b38d74c5b6e6f',
+        '_volume_price_signal': 'ca32e28c8363e5ceba28b67fc7edf6d0e3ac98820bf3a06d3234522495ac4b9a',
+        '_record_attempt': 'e0d61bb5bda067f4b12274a946a93af485d03a43ca394938dc38f8754ae5bb6e',
+        'main': 'a9d00abe8743ba5ecb5e88046e21d6b44a08c11fc1fdc9709605acca08dacd66',
+    },
+    'meme_machine/lanes/pump/pumpswap_survivor_runtime.py': {
+        'Runtime.__init__': 'ea88001e5397533149a47b438dddf56a57babb6bb167c768e809c43e36e90cc7',
+        'Runtime._quality_rank': '503bd866a7a3a660a7710386918f292c9e7b7f444e6a4aeecd1326dfdd6338fd',
+        'Runtime.reconstruct': 'bac6cac5d29640d85e3e21bc217b58ca99d0fee696598aa37a6791c0ae9a9176',
+        'Runtime.step': 'aeca30c345bd2d1955a268853b43a3787dea93fac9fc20441c1d37dd9507622f',
+    },
+    'meme_machine/lanes/pons/pons_history.py': {
+        'PonsHistory.__init__': '499d6eed49f38ff1477e1d28873b8bb8a9bd4b57e41019899f58684caa70be50',
+        'PonsHistory._quality_rank': '503bd866a7a3a660a7710386918f292c9e7b7f444e6a4aeecd1326dfdd6338fd',
+        'PonsHistory.qualification_turn': 'a7ade8682f589a00202bb292fda823c4357d7c0f32ebd12a719a8ed0bf17c3a4',
+    },
+    'meme_machine/lanes/pons/pons_survivor_runtime.py': {
+        'Runtime._watch_due': '53d9f1504e9eb48459179e76cd43df6e0e0d229b4f8a22f4f857387e7bc64987',
+        'Runtime._schedule_watch': '9c5959d7e61c6dd69fc1079f928e260b5b34dbcf2dede8aec156055585552b8a',
+        'Runtime.reconstruct': '29f6151b8ebbe4ff385ce4388de3932735e8c01d4f3a411a271cae75a05562ee',
+    },
+}
+
+def assert_attention_node(test,relative,name,node):
+    expected=ATTENTION_DELTAS[relative][name]
+    test.assertEqual(__import__('hashlib').sha256(ast.dump(node).encode()).hexdigest(),expected,relative+':'+name)
+
 
 def assert_holding_delta(test, relative, original, current):
-    expected=HOLDING_DELTAS.get(relative,{})
+    expected=dict(HOLDING_DELTAS.get(relative,{}))
+    expected.update(ATTENTION_DELTAS.get(relative,{}))
     old=ast.parse(original);new=ast.parse(current)
     for name,pinned in expected.items():
         before=old;after=new
         for part in name.split('.'):
-            before=next(n for n in before.body if isinstance(n,(ast.ClassDef,ast.FunctionDef)) and n.name==part)
+            before=next((n for n in before.body if isinstance(n,(ast.ClassDef,ast.FunctionDef)) and n.name==part),None) if before is not None else None
             after=next(n for n in after.body if isinstance(n,(ast.ClassDef,ast.FunctionDef)) and n.name==part)
         test.assertEqual(__import__('hashlib').sha256(ast.dump(after).encode()).hexdigest(),pinned,relative+':'+name)
+        if before is None:
+            # Only the explicitly pinned attention helper may be new. Remove
+            # that node for the historical sibling/interface comparison.
+            test.assertIn(name,('_volume_quality_attention','Runtime._quality_rank'))
+            owner=new
+            for part in name.split('.')[:-1]:owner=next(n for n in owner.body if isinstance(n,ast.ClassDef) and n.name==part)
+            owner.body.remove(after)
+            continue
         # Retain the full function interface/decorators and every sibling node.
         before.body=[ast.Pass()];after.body=[ast.Pass()]
     test.assertEqual(ast.dump(old),ast.dump(new),relative)
@@ -583,11 +628,17 @@ class RobinhoodUSDTests(unittest.TestCase):
         rel='meme_machine/lanes/pons/pons_history.py'
         # The only history reducer change is transport work order near the
         # original expiry. All native append, recovery and retention math pins.
-        def history_methods(content):
+        def history_methods(content,*,reviewed=False):
             cls=next(n for n in ast.parse(content).body if isinstance(n,ast.ClassDef))
+            if reviewed:
+                for name in ('__init__','_quality_rank','qualification_turn'):
+                    node=next(n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name==name)
+                    assert_attention_node(self,rel,'PonsHistory.'+name,node)
+            # The reviewed attention additions do not alter any history reducer.
+            next(n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name=='__init__').body=[ast.Pass()]
             return {n.name:ast.dump(n) for n in cls.body if isinstance(n,ast.FunctionDef)
-                    and n.name!='qualification_turn'}
-        self.assertEqual(history_methods((ROOT/rel).read_bytes()),history_methods(source(rel)))
+                    and n.name not in ('qualification_turn','_quality_rank')}
+        self.assertEqual(history_methods((ROOT/rel).read_bytes(),reviewed=True),history_methods(source(rel)))
         rel='meme_machine/lanes/pons/pons_survivor_runtime.py'
         original=ast.parse(source(rel));current=ast.parse((ROOT/rel).read_bytes())
         def functions(tree):
@@ -605,6 +656,9 @@ class RobinhoodUSDTests(unittest.TestCase):
                     '_increment_candidates','reconstruct','step','_prepare_held_acquisition','_manage_position',
                     '_position','exit_quote','validate_exit'}
         for name,node in old_methods.items():
+            if 'Runtime.'+name in ATTENTION_DELTAS[rel]:
+                assert_attention_node(self,rel,'Runtime.'+name,new_methods[name])
+                if name!='reconstruct':continue
             if name not in mechanical:
                 node.decorator_list=[];new_methods[name].decorator_list=[]
                 self.assertEqual(ast.dump(node),ast.dump(new_methods[name]),rel+':'+name)
@@ -637,6 +691,18 @@ class RobinhoodUSDTests(unittest.TestCase):
         def constants(tree):
             return [ast.dump(n) for n in tree.body if isinstance(n,(ast.Assign,ast.AnnAssign))]
         self.assertEqual(constants(original),constants(current))
+
+    def test_reviewed_attention_nodes_reject_unapproved_edits(self):
+        from copy import deepcopy
+        for relative,methods in ATTENTION_DELTAS.items():
+            tree=ast.parse((ROOT/relative).read_text())
+            for name in methods:
+                node=tree
+                for part in name.split('.'):
+                    node=next(n for n in node.body if isinstance(n,(ast.FunctionDef,ast.ClassDef)) and n.name==part)
+                assert_attention_node(self,relative,name,node)
+                changed=deepcopy(node);changed.body.append(ast.Expr(ast.Constant('unapproved change')))
+                with self.assertRaises(AssertionError):assert_attention_node(self,relative,name,changed)
 
     def test_resolved_startup_check_uses_config_only_no_oracle_calls_or_state(self):
         from meme_machine.operational.supervisor import validate_environment

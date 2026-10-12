@@ -1,0 +1,59 @@
+{
+  "source": "c75b5b6f29d95433de0f2d24c76ced44d9d34215",
+  "started_at": 1791767091.937315,
+  "failure_at": 1791767323.446115,
+  "elapsed_seconds": 231.50880002975464,
+  "status": "FAIL_CANONICAL_INTAKE_CAPACITY",
+  "failure": "candidate_log_buffer_pressure",
+  "new_economic_records": {
+    "program:pump": 5111,
+    "program:pumpswap": 18627
+  },
+  "new_economic_record_total": 23738,
+  "usage": {
+    "rpc_cu": 4060,
+    "rpc_elements": 43,
+    "http_attempts": 47,
+    "native_bytes": 213539080,
+    "native_reserved": 0,
+    "native_uncertain_bytes": 285212672,
+    "http_bytes": 7979369,
+    "http_reserved": 0,
+    "http_uncertain_bytes": 0,
+    "native_opens": 4
+  },
+  "modeled_public_upper_usd": "0.05450043396",
+  "invoice_verified": false,
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-owner-repair-c75b5b6f-1791767091800.sqlite",
+  "work_trace": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pump-proof-cohort-c75b5b6f-1791767091800-work.json",
+  "native_group_trace": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pump-proof-cohort-c75b5b6f-1791767091800-groups.json",
+  "native_join": {
+    "completed": 455859809,
+    "early_log_bytes": 33549720,
+    "early_log_count": 11382,
+    "early_log_max_slot": 455859920,
+    "early_log_min_slot": 455859810,
+    "filtered_from_slot": 455859436,
+    "oldest_age": null,
+    "oldest_bodies": 0,
+    "oldest_finality": null,
+    "oldest_meta": false,
+    "oldest_missing_logs": 0,
+    "oldest_slot": null,
+    "oldest_statuses": 0,
+    "pending_bytes": 0,
+    "pending_slots": 0,
+    "replay_prefix_bytes": 331874
+  },
+  "resources": {
+    "user_cpu_seconds": 135.292829,
+    "system_cpu_seconds": 24.541244,
+    "maximum_rss_kib": 374576
+  },
+  "funding": false,
+  "orders": false,
+  "all_four_protection_pass": false,
+  "failed_evidence_preserved": true,
+  "prior_counters_reset": false,
+  "notes": "Larger successful-log prefix accumulated ahead of the identity feed; no unresolved oldest native slot. Original 32-MiB join bound stopped this read-only trial."
+}

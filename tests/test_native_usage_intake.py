@@ -11,7 +11,7 @@ import subprocess
 import sys
 from unittest.mock import AsyncMock,patch
 import grpc
-from meme_machine.operational.bounded_provider import Budget,NativeReadBuffer,MAX_FRAME,CeilingReached,NATIVE_READY_FRAMES,native_ledger_reader
+from meme_machine.operational.bounded_provider import AccountedStream,Budget,NativeReadBuffer,MAX_FRAME,CeilingReached,NATIVE_READY_FRAMES,native_ledger_reader
 
 
 class NativeUsageIntakeTests(unittest.TestCase):
@@ -232,6 +232,71 @@ os._exit(0)
         self.assertEqual(asyncio.run(verify()),[p[1] for p in packets])
         self.assertEqual(sum(self.calls),93*1024)
         self.assertEqual(len(self.calls),4)
+
+    def test_ready_read_never_exposes_uncommitted_or_closed_delivery(self):
+        async def verify():
+            buffer=self.buffer([(3,b'one'),(3,b'two')])
+            stream=AccountedStream.__new__(AccountedStream);stream.intake=buffer
+            buffer.start();await asyncio.sleep(0)
+            self.assertEqual(len(buffer.ready),2)
+            self.assertEqual(stream.read_ready(),(False,None))
+            self.assertEqual(self.budget.snapshot()['native_bytes'],'0')
+            self.assertEqual(await stream.read(),b'one')
+            self.assertEqual(self.budget.snapshot()['native_bytes'],'6')
+            self.assertEqual(stream.read_ready(),(True,b'two'))
+            self.assertEqual(stream.read_ready(),(False,None))
+            self.assertIs(await stream.read(),grpc.aio.EOF)
+            buffer.cancel()
+            with self.assertRaises(asyncio.CancelledError):stream.read_ready()
+        asyncio.run(verify())
+
+    def test_source_ready_status_fifo_matches_legacy_reads_and_durable_usage(self):
+        from meme_machine.solana_selective_source import SelectiveSource
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        from meme_machine.yellowstone import geyser_pb2 as pb
+        rows=[]
+        for n in range(1024):
+            row=pb.SubscribeUpdate(filters=['0'])
+            row.transaction_status.slot=100+n//128
+            row.transaction_status.index=n%128
+            row.transaction_status.signature=bytes([n%256])*64
+            rows.append(row.SerializeToString())
+        async def replay(fast):
+            reads=0;output=[];raw=deque((len(v),v) for v in rows)
+            async def receive():return raw.popleft() if raw else grpc.aio.EOF
+            charges=[]
+            def charge(transport,size):charges.append(size);self.native(transport,size)
+            buffer=NativeReadBuffer(receive,SimpleNamespace(native=charge),'yellowstone')
+            paid=AccountedStream.__new__(AccountedStream);paid.intake=buffer
+            async def read():
+                nonlocal reads
+                reads+=1;return await paid.read()
+            async def write(request):pass
+            call=SimpleNamespace(read=read,write=write,cancel=buffer.cancel,
+                read_ready=paid.read_ready if fast else None)
+            channel=SimpleNamespace(stream_stream=lambda *args,**kwargs:lambda **kw:call)
+            source=SelectiveSource(SimpleNamespace(credential='offline'),None)
+            source.stop=asyncio.Event()
+            delivered=0
+            async def delivery(family,transport,size,seen):
+                nonlocal delivered
+                delivered+=size
+                self.assertLessEqual(delivered,sum(charges))
+            source.delivered=delivery
+            async def consume(update,size,seen):
+                output.append((update.transaction_status.slot,update.transaction_status.index,
+                    bytes(update.transaction_status.signature)))
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_native_eof'):
+                await source.stream(channel,pb.SubscribeRequest(),consume,'pump')
+            return output,reads,delivered,sum(charges)
+        previous=asyncio.run(replay(False));current=asyncio.run(replay(True))
+        self.assertEqual(previous[0],current[0])
+        self.assertEqual(current[0],[(100+n//128,n%128,bytes([n%256])*64) for n in range(1024)])
+        self.assertEqual(previous[2:],current[2:])
+        self.assertEqual(current[2],sum(map(len,rows)))
+        self.assertEqual(previous[1],1025)
+        self.assertLess(current[1],previous[1]//10)
+        self.assertEqual(int(Budget(self.path).snapshot()['native_bytes']),2*sum(map(len,rows)))
 
     async def consume(self,buffer,count):return [await buffer.read() for _ in range(count)]
 

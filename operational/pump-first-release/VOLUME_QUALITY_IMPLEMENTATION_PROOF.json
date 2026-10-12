@@ -43,6 +43,18 @@
       "passed": 189,
       "seconds": 36.641,
       "sha256": "f4ac4a139fbbc2f3ed5457002268056dd84186ff66ddf01e34a6d775567eb4d5"
+    },
+    {
+      "log": "/tmp/vq-ci-source-fixture-focused.log",
+      "passed": 6,
+      "seconds": 5.502,
+      "sha256": "464268b438cfcee9a0ab7e1bca5bdd3f6168e6b26eddb6125a441888c0ab16a5"
+    },
+    {
+      "log": "/tmp/native-prepaid-vq-integration.log",
+      "passed": 79,
+      "seconds": 2.761,
+      "sha256": "103f5b88adc62195a8dd517da5bd7efd886c14b94eeb5d8dd4cd9dc5d518b70a"
     }
   ],
   "unchanged_approved_economic_source_sha256": {
@@ -78,5 +90,6 @@
   "research_resumed": false,
   "epoch_reinitialized": false,
   "capital_policy_changed": false,
-  "market_context": "Existing canonical curve progress or verified postgraduation phase; explanatory only, no second demand score"
+  "market_context": "Existing canonical curve progress or verified postgraduation phase; explanatory only, no second demand score",
+  "source_guard": "Exact approved attention function AST identities; original quote/stop/sizing/exit nodes and four economic source hashes retain their previous guards."
 }

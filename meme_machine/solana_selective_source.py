@@ -673,10 +673,15 @@ class SelectiveSource:
                 if optional:
                     from .operational.position_continuation import position_only
                     if position_only():return
-                if pending is None:pending=asyncio.create_task(call.read())
-                try:raw=await asyncio.wait_for(asyncio.shield(pending),1)
-                except TimeoutError:continue
-                pending=None
+                ready=False
+                if pending is None:
+                    read_ready=getattr(call,'read_ready',None)
+                    if callable(read_ready):ready,raw=read_ready()
+                if not ready:
+                    if pending is None:pending=asyncio.create_task(call.read())
+                    try:raw=await asyncio.wait_for(asyncio.shield(pending),1)
+                    except TimeoutError:continue
+                    pending=None
                 if raw is grpc.aio.EOF:raise EvidenceUnavailable('candidate_native_eof')
                 if len(raw)>MAX_FRAME_BYTES:raise EvidenceUnavailable('candidate_native_frame_bound')
                 at=time.time();received=time.monotonic()

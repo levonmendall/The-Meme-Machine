@@ -898,8 +898,9 @@ class WindowContext:
     def header(self,n):return block_header(n)
     def call(self,m,p,scope):self.calls.append((m,p));return self.header(int(p[0],16))
     def batch(self,calls,scope):
-        self.windows.extend(calls)
-        return [[e for e in reversed(self.events) if int(p[0]['fromBlock'],16)<=int(e['blockNumber'],16)<=int(p[0]['toBlock'],16)] for _,p in calls]
+        self.windows.extend((m,p) for m,p in calls if m=='eth_getLogs')
+        return [([e for e in reversed(self.events) if int(p[0]['fromBlock'],16)<=int(e['blockNumber'],16)<=int(p[0]['toBlock'],16)]
+                 if m=='eth_getLogs' else self.call(m,p,scope)) for m,p in calls]
 
 
 class CanonicalWindowTests(unittest.TestCase):
@@ -932,6 +933,9 @@ class CanonicalWindowTests(unittest.TestCase):
                 event=self.event(1,160);ctx=WindowContext([event]);real=ctx.batch
                 def batch(calls,scope):
                     rows=real(calls,scope)
+                    # These faults concern log coverage. Canonical timestamp
+                    # probes now share the native batch interface as well.
+                    if all(m=='eth_getBlockByNumber' for m,p in calls):return rows
                     if kind=='missing':return rows[:-1]
                     index=next(i for i,r in enumerate(rows) if r)
                     if kind=='conflict':rows[index].append(dict(event,data='conflict'))

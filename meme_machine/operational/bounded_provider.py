@@ -845,6 +845,17 @@ class AccountedStream(Stream):
     async def read(self):
         return await self.intake.read()
 
+    def read_ready(self):
+        """Expose only FIFO values from an already FULL-committed group.
+
+        Ready SDK delivery and lookahead are deliberately excluded. The caller
+        can consume paid values without scheduling another timeout/task for
+        every small status; an empty paid group uses the ordinary bounded read.
+        """
+        if self.intake.closed:raise asyncio.CancelledError()
+        if self.intake.values:return True,self.intake.values.popleft()
+        return False,None
+
     def cancel(self):
         self.intake.cancel()
         try:return super().cancel()
