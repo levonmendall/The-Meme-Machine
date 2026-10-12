@@ -69,6 +69,26 @@ class RollingPrewarmTests(unittest.TestCase):
         plan=self.h.db.execute('EXPLAIN QUERY PLAN '+query,('pump',scope)).fetchall()
         self.assertTrue(any('evidence_binding_coverage_lookup' in row[-1] and 'coverage_scope=?' in row[-1] for row in plan),plan)
 
+    def test_creation_boundary_lookup_does_not_scan_retained_candidates(self):
+        mint,rows=self.pump();scope=self.h.scope_for('pump',mint)
+        lo=min(r.slot for r in rows);hi=max(r.slot for r in rows)
+        with self.state.writer.transaction():
+            self.h.db.executemany('INSERT INTO evidence_bindings VALUES(?,?,?,?,?,?)',
+                [('pump','retained-'+str(n),'old-'+str(n),'program:pump',
+                  coverage_scope('pump','old-'+str(n)),'{}') for n in range(5000)])
+        self.state.writer.close();self.state,self.h=state_at(self.path,lambda:self.now[0])
+        steps=[0]
+        def bounded():steps[0]+=100;return int(steps[0]>3000)
+        self.h.db.set_progress_handler(bounded,100)
+        try:
+            self.assertEqual(self.h.rolling.missing('pump',scope,0,hi),[])
+        finally:self.h.db.set_progress_handler(None,0)
+        self.assertEqual(self.h.db.execute("SELECT COUNT(*) FROM evidence_bindings WHERE address LIKE 'retained-%'").fetchone()[0],5000)
+        # The indexed creation lookup retains availability and fresh gap checks.
+        self.assertEqual(self.h.rolling.missing('pump',scope,0,hi,as_of=NOW-1),[(0,hi)])
+        self.h.gap(program_scope('pump'),lo,hi,'offline_reorganization')
+        self.assertEqual(self.h.rolling.missing('pump',scope,0,hi),[(lo,hi)])
+
     def test_same_observation_slot_reuses_only_the_same_command_publication_answer(self):
         with self.state.writer.transaction():
             for n in range(400):

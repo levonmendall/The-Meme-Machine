@@ -201,7 +201,10 @@ class RollingHistory:
         at=self.clock() if as_of is None else as_of
         if hi<lo:return []
         if family=='pump':
-            binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE coverage_scope=? LIMIT 1',(scope,)).fetchone()
+            # The scope includes its family. Use that same identity in the
+            # existing indexed lookup: scanning every retained binding for each
+            # waiting candidate blocks current native publication.
+            binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND coverage_scope=? LIMIT 1',(family,scope)).fetchone()
             origin=None if not binding else self.db.execute('SELECT lower_slot,receipt FROM rolling_origins WHERE family=? AND address=?',(family,binding[0])).fetchone()
             if origin and origin[0]>lo and self.db.execute('SELECT 1 FROM canonical_evidence WHERE identity=? AND first_seen<=?',(origin[1],at)).fetchone():
                 # No mint economics precede its authenticated creation. This is
