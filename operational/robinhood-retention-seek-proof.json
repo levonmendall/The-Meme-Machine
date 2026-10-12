@@ -1,0 +1,24 @@
+{
+  "parent": "2dbef3b4fd620f5c0104f965c513a8168a2ab058",
+  "cause": "Authenticated Pons profile: maintenance repeatedly scans the full retained candidate population to find retirement boundaries and to prove an empty rolling tape has no event. SQLite chose the pending/lane index despite the existing age index.",
+  "change": "Seek the existing candidate_retirement and rolling_retirement indexes; skip empty tape deletion; preserve exact age, active-family and MIN/NULL semantics.",
+  "provider_acquisition_change": false,
+  "economic_change": false,
+  "test_only_limits_changed": false,
+  "tests": [
+    {
+      "kind": "FAST",
+      "passed": 15,
+      "receipt": "/tmp/robinhood-maintenance-seek-fast.log",
+      "sha256": "afc09abc56b6e4e550785b8e9856896979b2f28bdef3b80fb4955e0f01e411a4"
+    },
+    {
+      "kind": "OPERATIONAL",
+      "passed": 101,
+      "receipt": "/tmp/robinhood-maintenance-seek-operational.log",
+      "sha256": "718a7a5bb086be762c2fbc92407fe841dce1bc88ef6fcbeca5e15deac3123e9c"
+    }
+  ],
+  "authenticated_measurement": "ROBINHOOD_RETENTION_SEEK_HOST_PROOF_20261012.json",
+  "live_end_to_end_proven": false
+}

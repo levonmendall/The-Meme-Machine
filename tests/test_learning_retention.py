@@ -15,6 +15,54 @@ from tests.test_solana_evidence_plane import record,proof
 
 
 class LearningRetention(unittest.TestCase):
+    def test_robinhood_empty_tape_maintenance_seeks_retirement_boundaries(self):
+        from meme_machine.runtime.robinhood.plane import Plane
+        with tempfile.TemporaryDirectory() as td:
+            p=Plane(Path(td)/'plane.sqlite',clock=lambda:100.)
+            self.addCleanup(p.close)
+            p.observe('base','pons','first',{},ordering=(1,),watermark={},interpretation={},
+                observed=100,deadline=105,priority=2)
+            columns=[r[1] for r in p.db.execute('PRAGMA table_info(candidates)')]
+            expressions=["'candidate:'||?" if col=='id' else col for col in columns]
+            with p.transaction():
+                p.db.executemany('INSERT INTO candidates SELECT '+','.join(expressions)+
+                    " FROM candidates WHERE id='base'",[(n,) for n in range(2000)])
+                p.db.execute('UPDATE candidates SET pending=0')
+            before=p.db.execute('SELECT * FROM candidates ORDER BY id').fetchall()
+            steps=[0]
+            p.db.set_progress_handler(lambda:steps.__setitem__(0,steps[0]+1) or 0,1)
+            try:p.maintain()
+            finally:p.db.set_progress_handler(None,0)
+            self.assertLess(steps[0],1000,'maintenance traverses the quiet population on an empty tape')
+            self.assertEqual(p.db.execute('SELECT * FROM candidates ORDER BY id').fetchall(),before)
+            self.assertEqual(p._maintenance_due,160.)
+            self.assertEqual(p.db.execute('SELECT COUNT(*) FROM rolling').fetchone()[0],0)
+
+    def test_robinhood_retirement_seek_preserves_paused_orphan_and_null_clocks(self):
+        from meme_machine.runtime.robinhood.plane import Plane
+        with tempfile.TemporaryDirectory() as td:
+            now=[86409.]
+            p=Plane(Path(td)/'plane.sqlite',clock=lambda:now[0]);self.addCleanup(p.close)
+            p.observe('active','pons','first',{},ordering=(1,),watermark={},interpretation={},
+                observed=100,deadline=90000,priority=2)
+            p.observe('paused','ramses','first',{},ordering=(1,),watermark={},interpretation={},
+                observed=100,deadline=90000,priority=2)
+            p.db.execute('UPDATE candidates SET pending=0')
+            p.db.executemany('INSERT INTO rolling VALUES(?,?,?,?,?,?)',[
+                ('paused','p',1,1,'{}','{}'),('orphan','o',2,2,'{}','{}'),
+                ('active','n',None,3,'{}','{}'),('active','a',10,10,'{}','{}')])
+            with patch.dict(os.environ,MM_OPERATIONAL_PHASE='continuous'):
+                old_min=p.db.execute("SELECT MIN(at) FROM rolling WHERE candidate IN (SELECT id FROM candidates WHERE lane IN ('pump','pons'))").fetchone()[0]
+                p.maintain()
+                self.assertEqual(old_min,10)
+                self.assertAlmostEqual(p._maintenance_due,86410.000001)
+                self.assertEqual(p.db.execute('SELECT COUNT(*) FROM rolling').fetchone()[0],4)
+                now[0]=86411.;p.maintain()
+                self.assertEqual([tuple(r) for r in p.db.execute('SELECT candidate,identity FROM rolling ORDER BY candidate,identity')],
+                    [('active','n'),('orphan','o'),('paused','p')])
+                self.assertEqual(p.get('active')['generation'],1)
+                self.assertEqual(p.get('paused')['generation'],1)
+
     def test_gapped_retained_audit_population_avoids_repeated_filtered_offset_scan(self):
         import sqlite3
         from meme_machine.runtime.storage import audit_ring

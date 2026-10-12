@@ -172,7 +172,9 @@ class Plane:
             participating='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))'
             audit_ring(self.db,'observations','observations_no_delete',key='rowid',where=participating)
             self.db.execute('DELETE FROM result_consumption WHERE '+participating+' AND NOT EXISTS(SELECT 1 FROM candidates c WHERE c.id=result_consumption.candidate AND c.generation=result_consumption.generation)')
-            self.db.execute('DELETE FROM rolling WHERE at<? AND candidate IN (SELECT id FROM candidates WHERE '+active_sql('lane')+')',(self.clock()-86400,))
+            rolling_present = self.db.execute('SELECT 1 FROM rolling LIMIT 1').fetchone() is not None
+            if rolling_present:
+                self.db.execute('DELETE FROM rolling WHERE at<? AND candidate IN (SELECT id FROM candidates WHERE '+active_sql('lane')+')',(self.clock()-86400,))
             for namespace, in self.db.execute('SELECT DISTINCT namespace FROM evidence WHERE '+active_scope_sql('namespace')).fetchall():
                 limit=8192 if namespace.endswith(':receipt') else 4096
                 # Below the original retained-set bound there is no eligible
@@ -182,7 +184,10 @@ class Plane:
                     continue
                 evidence_evicted |= self.db.execute('DELETE FROM evidence WHERE namespace=? AND key NOT IN (SELECT key FROM evidence WHERE namespace=? ORDER BY created DESC,key DESC LIMIT ?) AND NOT EXISTS(SELECT 1 FROM receipt_obligations o WHERE o.namespace=evidence.namespace AND o.key=evidence.key)',(namespace,namespace,limit)).rowcount > 0
             protected=set()
-            rows=[dict(r) for r in self.db.execute('SELECT * FROM candidates WHERE '+active_sql('lane')+' AND pending=0 AND claim IS NULL AND observed<?',(now-86400,))]
+            # The pending/lane index makes SQLite walk every quiet candidate
+            # on each changed header. The existing retirement index seeks the
+            # exact age boundary without reconstructing that population.
+            rows=[dict(r) for r in self.db.execute('SELECT * FROM candidates INDEXED BY candidate_retirement WHERE '+active_sql('lane')+' AND pending=0 AND claim IS NULL AND observed<?',(now-86400,))]
             native_rows=self.db.execute("SELECT key,body FROM runtime WHERE "+active_scope_sql('key')+" AND key LIKE 'native_position:%'").fetchall()
             # With no eligible candidates or native rows, protection cannot
             # change a retirement decision. Avoid decoding the entire cohort
@@ -216,8 +221,14 @@ class Plane:
             # Eviction must also evict the warm view. Another writer invalidates
             # the stamp; clock rollback and the next age boundary force a sweep.
             if evidence_evicted:self._immutable.clear();self._immutable_bytes = 0
-            next_candidate = self.db.execute('SELECT MIN(observed) FROM candidates WHERE '+active_sql('lane')+' AND pending=0 AND claim IS NULL AND observed>=?',(now-86400,)).fetchone()[0]
-            next_rolling = self.db.execute('SELECT MIN(at) FROM rolling WHERE candidate IN (SELECT id FROM candidates WHERE '+active_sql('lane')+')').fetchone()[0]
+            candidate_boundary = self.db.execute('SELECT observed FROM candidates INDEXED BY candidate_retirement WHERE '+active_sql('lane')+' AND pending=0 AND claim IS NULL AND observed>=? ORDER BY observed LIMIT 1',(now-86400,)).fetchone()
+            next_candidate = candidate_boundary[0] if candidate_boundary else None
+            # Start at the retained event clock, including on an empty tape;
+            # a candidate-first join otherwise scans the whole population just
+            # to establish that no rolling event exists. NULL clocks retain
+            # the original MIN semantics, and inactive families stay untouched.
+            rolling_boundary = self.db.execute('SELECT at FROM rolling INDEXED BY rolling_retirement WHERE at IS NOT NULL AND EXISTS(SELECT 1 FROM candidates c WHERE c.id=rolling.candidate AND '+active_sql('c.lane')+') ORDER BY at LIMIT 1').fetchone() if rolling_present else None
+            next_rolling = rolling_boundary[0] if rolling_boundary else None
             deadlines = [now+60] + [x+86400+.000001 for x in (next_candidate,next_rolling) if x is not None]
             self._maintenance_at = now
             self._maintenance_due = min(deadlines)
