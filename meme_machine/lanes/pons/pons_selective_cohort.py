@@ -918,7 +918,13 @@ def run(endpoint,*,campaign=False):
                 futures.append((qindex,future));active_curve_futures[curve]=(qindex,future)
             queue.release_orphan_entry_guards(active_curve_futures)
 
-        if survivor is not None:survivor.prime()
+        from meme_machine.operational.position_continuation import continuous_operation
+        continuous=campaign and continuous_operation()
+        if survivor is not None:
+            # Actual replay/handoff readiness comes from the owned recovery task.
+            # Continuous Current management cannot wait for Survivor startup.
+            if continuous:result['survivor']=survivor.tick(time.time(),admit=False)
+            else:survivor.prime()
         from meme_machine.runtime.status import update
         update('MANAGING' if futures else 'DISCOVERING',reconciled=True,restored_positions=len(futures))
 
@@ -980,8 +986,6 @@ def run(endpoint,*,campaign=False):
         if not campaign and covered<TAPE_WARM_REQUIRED_CHAIN_SECONDS:
             raise BoundaryError("selective_tape_warmup_incomplete")
 
-        from meme_machine.operational.position_continuation import continuous_operation
-        continuous=campaign and continuous_operation()
         if continuous:result['discovery_ends_at']=None
         elif not isinstance(result.get('discovery_ends_at'),(int,float)):
             result['discovery_ends_at']=time.time()+DISCOVERY_SECONDS

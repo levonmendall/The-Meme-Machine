@@ -13,6 +13,27 @@ from meme_machine.lanes.pons.evidence_queue import DeadlineEvidenceQueue
 
 
 class ContinuousCampaignTests(unittest.TestCase):
+    def test_pending_survivor_recovery_keeps_current_work_and_unready_proof(self):
+        calls=[];updates=[]
+        class PendingRecovery:
+            def __init__(self,factory):pass
+            def prime(self):raise TimeoutError('recovery_still_pending')
+            def tick(self,now,*,admit=True):calls.append(admit);return {}
+            def close(self,*,timeout):calls.append('closed');return {}
+        with patch('meme_machine.runtime.survivor_history.Worker',PendingRecovery), \
+                patch('meme_machine.runtime.status.update',side_effect=lambda *a,**kw:updates.append(kw)):
+            result,_,polls=self._campaign_probe(continuous_recovery=True)
+        self.assertIsNone(result['discovery_ends_at'])
+        self.assertGreaterEqual(polls,3)
+        self.assertFalse(calls[0]);self.assertIn(True,calls)
+        self.assertEqual(calls.count('closed'),1)
+        proofs=[u['native_continuation'] for u in updates if 'native_continuation' in u]
+        self.assertTrue(proofs)
+        self.assertTrue(all(not p['survivor_replay_verified'] and not p['survivor_handoff_ready'] for p in proofs))
+        # The original Current qualification, settlement and conservation
+        # assertions still run while Survivor stays pending.
+        self.assertEqual(len(result['lifecycles']),1)
+
     def test_quiet_polling_keeps_native_work_without_rescanning_reporting_history(self):
         from meme_machine.runtime.robinhood.pons import Broker
         original=Broker.telemetry;calls=[]
@@ -75,7 +96,7 @@ class ContinuousCampaignTests(unittest.TestCase):
     def test_discovery_failure_drains_admitted_future_and_initializes_one_book(self):
         self._campaign_probe()
 
-    def _campaign_probe(self,blocked=False,startup=False,pressure=False,worker_pressure=False):
+    def _campaign_probe(self,blocked=False,startup=False,pressure=False,worker_pressure=False,continuous_recovery=False):
         from meme_machine.lanes.pons import BoundaryError
         future=Future();clock_reads=[0]
         class State:
@@ -133,6 +154,10 @@ class ContinuousCampaignTests(unittest.TestCase):
         evaluation=dict(vector=dict(current_threshold_pass=True),token='token',curve='curve',source_transaction='transaction')
         with tempfile.TemporaryDirectory() as td,ExitStack() as stack:
             root=Path(td)
+            if continuous_recovery:
+                stack.enter_context(patch.dict('os.environ',MM_DIRECTIONAL_COMPOSITE_REQUIRED='1',MM_PAPER_EPOCH='offline-recovery-epoch',
+                    MM_DIRECTIONAL_SLEEVE_DB=str(root/'sleeve.sqlite'),MM_DIRECTIONAL_COHORT_ID='offline-recovery-cohort'))
+                stack.enter_context(patch('meme_machine.operational.position_continuation.continuous_operation',return_value=True))
             for name in ('ROOT','SKILL_DB','PROGRESS','ROWS_LOG','QUALIFIERS_LOG','PROVIDER_LOG','RECOVERY_LOG','REPORT'):
                 stack.enter_context(patch.object(cohort,name,root if name=='ROOT' else root/(name+'.json')))
             for name,value in dict(TAPE_WARM_SECONDS=0,SequencerBlockClock=lambda:feed,_discovery=lambda endpoint:rpc,
