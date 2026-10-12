@@ -5,6 +5,7 @@ acquisition is requested only for an explicitly missing interval.
 """
 import json
 import hashlib
+import sys
 from collections import OrderedDict
 from .runtime.operating_families import active_sql
 from .solana_evidence_plane import EvidenceUnavailable,digest,canonical,decode_body
@@ -48,6 +49,36 @@ CREATE TABLE IF NOT EXISTS rolling_event_lineage(
 
 
 def program_scope(family):return coverage_scope(family,PROGRAMS[family])
+
+
+def _subtract_intervals(intervals,gaps):
+    """Subtract one branch's unavailable union with a single ordered sweep.
+
+    Repeated outages can overlap, and fragment every historical proof. Applying
+    each outage to every already-split piece made candidate planning quadratic.
+    These are the caller's freshly selected, timestamp-filtered intervals only;
+    no coverage verdict or gap state is retained between owner commands.
+    """
+    def union(values):
+        result=[]
+        for a,b in sorted((a,b) for a,b in values if a<=b):
+            if result and a<=result[-1][1]+1:
+                result[-1]=(result[-1][0],max(result[-1][1],b))
+            else:result.append((a,b))
+        return result
+    covered=union(intervals);unavailable=union(gaps);result=[];index=0
+    for a,b in covered:
+        while index<len(unavailable) and unavailable[index][1]<a:index+=1
+        cursor=a;next_gap=index
+        while next_gap<len(unavailable) and unavailable[next_gap][0]<=b:
+            x,y=unavailable[next_gap]
+            if cursor<x:result.append((cursor,min(b,x-1)))
+            cursor=max(cursor,y+1)
+            if cursor>b:break
+            next_gap+=1
+        if cursor<=b:result.append((cursor,b))
+        index=next_gap
+    return result
 
 
 class RollingHistory:
@@ -199,7 +230,17 @@ class RollingHistory:
             # original timestamp filter. No cached missing/coverage verdict.
             cache=getattr(self,'_coverage_span_cache',None)
             if cache is None:cache=self._coverage_span_cache=OrderedDict()
-            compact=cache.get(rows)
+            fingerprint=hashlib.sha256()
+            for packed,checksum in rows:
+                # Hash the fresh bytes even on a cache hit. A stale stored hash
+                # must not turn corruption into a reused completeness witness.
+                actual=hashlib.sha256(packed).hexdigest()
+                if actual!=checksum:
+                    from .solana_evidence_plane import EvidenceConflict
+                    raise EvidenceConflict('candidate_coverage_corrupt')
+                fingerprint.update(actual.encode('ascii'))
+            key=fingerprint.digest()
+            compact=cache.get(key)
             if compact is None:
                 points=[p for packed,checksum in rows for p in coverage_points(packed,checksum)]
                 spans=[]
@@ -207,24 +248,25 @@ class RollingHistory:
                     if spans and a<=spans[-1][1]+1:spans[-1]=(spans[-1][0],max(spans[-1][1],b))
                     else:spans.append((a,b))
                 compact=(tuple(spans),max((t for a,b,t in points),default=float('-inf')))
-                # At most eight proof cohorts and 512 KiB of compressed input;
-                # decoded points are not retained. Large cohorts use the same
-                # exact native path without populating this optional cache.
-                if sum(len(packed) for packed,checksum in rows)<=64*1024 and len(points)<=32768 and len(spans)<=4096:
-                    cache[rows]=compact
+                # Retain compact spans, never the growing historical proof
+                # bodies or decoded timestamp points. The same eight-cohort,
+                # 512-KiB bound applies to the actual retained representation.
+                retained=(sys.getsizeof(key)+sys.getsizeof(compact)+sys.getsizeof(compact[0])+
+                    sys.getsizeof(compact[1])+sum(sys.getsizeof(s)+sum(sys.getsizeof(n) for n in s)
+                    for s in compact[0]))
+                if retained<=64*1024 and len(points)<=32768 and len(spans)<=4096:
+                    cache[key]=compact
                     while len(cache)>8:cache.popitem(last=False)
-            else:cache.move_to_end(rows)
+            else:cache.move_to_end(key)
             if compact[1]<=at:
                 branch.extend((max(lo,a,0 if floor is None else floor[0]),min(hi,b)) for a,b in compact[0])
             else:
                 branch.extend((max(lo,a,0 if floor is None else floor[0]),min(hi,b))
                     for packed,checksum in rows for a,b,t in coverage_points(packed,checksum) if t<=at)
-            for a,b in branch:
-                pieces=[(a,b)]
-                for x,y in gaps:
-                    if x>b or y<a:continue
-                    pieces=[p for c,d in pieces for p in ((c,min(d,x-1)),(max(c,y+1),d)) if p[0]<=p[1]]
-                valid.extend(pieces)
+            # Subtract each source's own gaps before unioning independently
+            # authenticated branches. A candidate proof may repair a program
+            # gap (or vice versa); neither source inherits the other's outage.
+            valid.extend(_subtract_intervals(branch,gaps))
         result=[];cursor=lo
         for a,b in sorted(valid):
             if b<cursor:continue

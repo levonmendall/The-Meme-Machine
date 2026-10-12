@@ -134,6 +134,62 @@ class RollingPrewarmTests(unittest.TestCase):
         self.assertFalse(hasattr(self.h.rolling,'_coverage_span_cache'))
         self.assertEqual(self.h.rolling.missing('pump',scope,100,125),expected)
 
+    def test_large_immutable_proof_cohort_retains_only_bounded_compact_spans(self):
+        import hashlib,sys
+        from meme_machine import solana_rolling_history as module
+        scope=program_scope('pumpswap');candidate=self.h.bind('pumpswap','large-proof-pool')
+        packed_bytes=0
+        # More than the former 64-KiB input cutoff, with a small exact union.
+        # These synthetic proofs exercise representation size, not market rates.
+        with self.state.writer.transaction():
+            for part in range(4):
+                lo=100+part*4096;hi=lo+4095
+                points=[[lo+n,lo+n,NOW-((part*4096+n)*7919%16381)/10000] for n in range(4096)]
+                packed=zlib.compress(json.dumps(points).encode());packed_bytes+=len(packed)
+                self.h.db.execute('INSERT INTO candidate_coverage VALUES(?,?,?,?,?,?,?,?,?,?)',
+                    (scope,lo,hi,0,min(p[2] for p in points),max(p[2] for p in points),
+                     packed,hashlib.sha256(packed).hexdigest(),'synthetic-proof-cohort','offline'))
+        self.assertGreater(packed_bytes,64*1024)
+        with patch.object(module,'coverage_points',wraps=module.coverage_points) as decoded:
+            self.assertEqual(self.h.rolling.missing('pumpswap',candidate,100,16483),[])
+            calls=decoded.call_count;self.assertEqual(calls,4)
+            self.assertEqual(self.h.rolling.missing('pumpswap',candidate,100,16483),[])
+            self.assertEqual(decoded.call_count,calls)
+        for key,compact in self.h.rolling._coverage_span_cache.items():
+            self.assertIsInstance(key,bytes);self.assertEqual(len(key),32)
+            retained=(sys.getsizeof(key)+sys.getsizeof(compact)+sys.getsizeof(compact[0])+
+                sys.getsizeof(compact[1])+sum(sys.getsizeof(s)+sum(sys.getsizeof(n) for n in s)
+                for s in compact[0]))
+            self.assertLessEqual(retained,64*1024)
+        self.h.gap(scope,103,106,'new-outage-after-cache-hit')
+        self.assertEqual(self.h.rolling.missing('pumpswap',candidate,100,16483),[(103,106)])
+        # Original point-in-time availability is still applied to every point.
+        self.assertEqual(self.h.rolling.missing('pumpswap',candidate,100,16483,as_of=NOW-2),[(100,16483)])
+        self.state.writer.close();self.state,self.h=state_at(self.path,lambda:self.now[0])
+        self.assertFalse(hasattr(self.h.rolling,'_coverage_span_cache'))
+        self.assertEqual(self.h.rolling.missing('pumpswap',candidate,100,16483),[(103,106)])
+
+    def test_gap_sweep_matches_original_subtraction_for_overlapping_outages(self):
+        import random
+        from meme_machine.solana_rolling_history import _subtract_intervals
+        rng=random.Random(381)
+        for _ in range(100):
+            covered=[tuple(sorted((rng.randrange(200),rng.randrange(200)))) for n in range(30)]
+            gaps=[tuple(sorted((rng.randrange(200),rng.randrange(200)))) for n in range(75)]
+            original=[]
+            for a,b in covered:
+                pieces=[(a,b)]
+                for x,y in gaps:
+                    if x>b or y<a:continue
+                    pieces=[p for c,d in pieces for p in ((c,min(d,x-1)),(max(c,y+1),d)) if p[0]<=p[1]]
+                original.extend(pieces)
+            expected={slot for a,b in original for slot in range(a,b+1)}
+            actual=_subtract_intervals(covered,gaps)
+            self.assertEqual({slot for a,b in actual for slot in range(a,b+1)},expected)
+            self.assertTrue(all(a<=b for a,b in actual))
+            self.assertTrue(all(actual[n][1]+1<actual[n+1][0] for n in range(len(actual)-1)))
+        self.assertEqual(_subtract_intervals([(1,10),(20,30)],[(5,25)]),[(1,4),(26,30)])
+
     def test_observation_lease_refresh_commits_once_and_rollback_retains_identities(self):
         with self.state.writer.transaction():
             for n in range(400):
