@@ -1,5 +1,6 @@
 """Complete-input equivalence and failures; no actual seven-day seed claim."""
 from copy import deepcopy
+import json
 import os
 from pathlib import Path
 import tempfile
@@ -133,6 +134,107 @@ class HistoricalTests(unittest.TestCase):
     def test_wider_bounded_ranges_preserve_native_output(self):
         self.prep = self.make(range_blocks=40,support=self.support())
         self.test_old_and_new_exact_complete_vectors_and_rejections()
+
+    def window_capability(self):
+        from tests.test_robinhood_payg import ENDPOINT, capability
+        from meme_machine.runtime.robinhood.provider_authority import fingerprint
+        self.tape.provider_fingerprint=fingerprint(ENDPOINT)
+        path=Path(self.temp.name)/'exact-factory-capability.json'
+        path.write_text(json.dumps(dict(comparisons=[capability(Preparation.population_filter())])))
+        path.chmod(0o600)
+        return path
+
+    def forward_packet(self,name,blocks):
+        history=PonsHistory(Path(self.temp.name)/(name+'.sqlite'),policy=POLICY_HASH)
+        self.addCleanup(history.close)
+        prep=Preparation(history,self.tape.provider,forward_only=True,
+            clock=lambda:int(self.tape.header(self.tape.top)['timestamp'],16)+1)
+        old_top=self.tape.top
+        self.tape.top=self.tape.first+blocks-1
+        try:prep.begin(enrollment_block=self.tape.first)
+        finally:self.tape.top=old_top
+        return prep
+
+    def test_normal_factory_capability_preserves_complete_native_vectors_and_rejections(self):
+        path=self.window_capability()
+        with patch.dict(os.environ,{'MM_PONS_LOG_CAPABILITY_FILE':str(path)}):
+            self.test_old_and_new_exact_complete_vectors_and_rejections()
+
+    def test_normal_factory_wide_reorg_rewinds_and_preserves_all_events(self):
+        path=self.window_capability()
+        with patch.dict(os.environ,{'MM_PONS_LOG_CAPABILITY_FILE':str(path)}):
+            self.test_population_reorg_rewinds_affected_tail_not_whole_domain()
+
+    def test_normal_factory_wide_dense_response_cannot_publish_incomplete_coverage(self):
+        path=self.window_capability()
+        with patch.dict(os.environ,{'MM_PONS_LOG_CAPABILITY_FILE':str(path)}):
+            self.test_single_block_saturation_is_incomplete_not_rejection()
+
+    def test_default_forward_factory_consolidates_exact_30_and_40_block_evidence(self):
+        path=self.window_capability()
+        for blocks in (30,40):
+            baseline=self.forward_packet('baseline-'+str(blocks),blocks)
+            optimized=self.forward_packet('wide-'+str(blocks),blocks)
+            original=[]
+            for prep,wide in ((baseline,False),(optimized,True)):
+                self.tape.request_log=[];before=self.tape.physical
+                with patch.dict(os.environ,{'MM_PONS_LOG_CAPABILITY_FILE':str(path) if wide else ''}):
+                    self.assertTrue(prep.discover_step())
+                    original.append(prep.population())
+                    requests=[p[0] for m,p in self.tape.request_log if m=='eth_getLogs']
+                    self.assertEqual(len(requests),1 if wide else blocks//10)
+                    frontier=prep.history.get_meta('pons_historical_frontier:'+prep.population_kind)
+                    self.assertEqual(frontier,dict(block=self.tape.first+blocks-1,
+                        block_hash=self.tape.header(self.tape.first+blocks-1)['hash']))
+                    self.assertEqual(prep.history.db.execute('SELECT COUNT(*) FROM pons_historical_gaps').fetchone()[0],0)
+                    measured_starts=self.tape.physical-before
+                    if wide:self.assertEqual(measured_starts,baseline_starts)
+                    else:baseline_starts=measured_starts
+                    self.tape.request_log=[]
+                    self.assertFalse(prep.discover_step())
+                    self.assertEqual(self.tape.request_log,[])
+            self.assertEqual(original[0],original[1])
+            self.assertEqual(baseline.history.pending_graduations(),optimized.history.pending_graduations())
+            receipts=lambda prep:prep.history.get_meta('pons_historical_usage')['methods']['eth_getTransactionReceipt']
+            self.assertEqual(receipts(baseline),receipts(optimized))
+
+    def test_rejected_wider_forward_query_preserves_gap_and_ten_block_fallback_after_restart(self):
+        path=self.window_capability()
+        prep=self.forward_packet('rejected-width',40)
+        self.tape.max_range=10
+        with patch.dict(os.environ,{'MM_PONS_LOG_CAPABILITY_FILE':str(path)}):
+            self.assertFalse(prep.discover_step())
+            self.assertIsNone(prep.history.get_meta('pons_historical_frontier:'+prep.population_kind))
+            self.assertEqual(prep.history.pending_graduations(),0)
+            self.assertEqual(prep.history.db.execute('SELECT COUNT(*) FROM pons_historical_gaps').fetchone()[0],1)
+            self.assertTrue(prep.discover_step())
+            for restart in (False,True):
+                if restart:
+                    prep=Preparation(prep.history,self.tape.provider,forward_only=True,
+                        clock=lambda:int(self.tape.header(self.tape.top)['timestamp'],16)+1)
+                    prep.resume()
+                prep.extend(self.tape.header(self.tape.first+(119 if restart else 79)))
+                self.tape.request_log=[]
+                prep.discover_step()
+                requests=[p[0] for m,p in self.tape.request_log if m=='eth_getLogs']
+                self.assertTrue(requests)
+                self.assertTrue(all(int(q['toBlock'],16)-int(q['fromBlock'],16)<10 for q in requests))
+            self.assertEqual(self.tape.failures['provider_log_block_range_limit'],1)
+
+    def test_withdrawn_capability_subdivides_pending_wide_queries_before_dispatch(self):
+        path=self.window_capability()
+        prep=self.forward_packet('withdrawn-width',40)
+        self.tape.error='provider_response_capacity'
+        with patch.dict(os.environ,{'MM_PONS_LOG_CAPABILITY_FILE':str(path)}):
+            self.assertFalse(prep.discover_step())
+            self.assertEqual(prep.history.get_meta('pons_historical_subdivision:'+prep.population_kind),
+                [[self.tape.first,self.tape.first+19],[self.tape.first+20,self.tape.first+39]])
+        path.unlink()
+        self.tape.request_log=[]
+        self.assertTrue(prep.discover_step())
+        requests=[p[0] for m,p in self.tape.request_log if m=='eth_getLogs']
+        self.assertEqual(len(requests),4)
+        self.assertTrue(all(int(q['toBlock'],16)-int(q['fromBlock'],16)<10 for q in requests))
 
     def test_shared_group_reconstruction_and_restart(self):
         self.boundary();self.census();self.authenticate()

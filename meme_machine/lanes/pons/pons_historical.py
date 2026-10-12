@@ -408,8 +408,27 @@ class Preparation:
             return False
         pending_key = 'pons_historical_subdivision:' + kind
         pending = self.history.get_meta(pending_key) or []
-        spans = pending[:4] if pending else [(b, min(last, b + self.range_blocks - 1))
-             for b in range(start, min(last + 1, start + 4 * self.range_blocks), self.range_blocks)]
+        windows=None
+        if self.range_blocks==10 and kind==self.population_kind:
+            # Normal forward factory discovery uses the same protected planner
+            # as Current/V4, but only this exact independently proved filter can
+            # widen. Keep the original forty-block turn envelope, worker priority
+            # and canonical transaction/receipt acquisition graph unchanged.
+            from .log_windows import LogWindows
+            planner=LogWindows('alchemy:'+self.fingerprint,query,state=self.history)
+            if planner.support or any(b-a>=10 for a,b in pending):windows=planner
+        if windows:
+            if pending:
+                # A withdrawn or rejected capability must not leave old wider
+                # subdivisions eligible for dispatch after restart.
+                width=windows.spans(start,last,maximum=1)[0][1]-start+1
+                pending=[(a,min(hi,a+width-1)) for lo,hi in pending
+                    for a in range(lo,hi+1,width)]
+                self.history.set_meta(pending_key,pending)
+            spans=pending[:4] if pending else windows.spans(start,min(last,start+39))
+        else:
+            spans = pending[:4] if pending else [(b, min(last, b + self.range_blocks - 1))
+                 for b in range(start, min(last + 1, start + 4 * self.range_blocks), self.range_blocks)]
         if spans[0][0] != start or any(b[0] != a[1] + 1 for a, b in zip(spans, spans[1:])):
             raise BoundaryError('historical_checkpoint_gap')
         end = spans[-1][1]
@@ -433,6 +452,11 @@ class Preparation:
             raw = []
             for (a, b), logs in zip(spans, values[:len(spans)]):
                 raw.extend(self._validated(logs,query,a,b))
+                if windows and windows.support:
+                    try:windows.observe_page(a,b,logs)
+                    except BoundaryError as error:
+                        if str(error)=='pons_log_saturation':raise BoundaryError('historical_response_saturation') from None
+                        raise
             shared = [self._witness(raw,query,start,end,response_bound=False)]
             all_logs = [e for s in shared for e in s['raw']]
             # A fresh post-witness boundary protects against reorg while receipts
@@ -447,7 +471,8 @@ class Preparation:
                 identities=[event_id(e) for e in all_logs], event_digest=digest(all_logs),
                 participants=participants,
                 response_contract='complete eth_getLogs arrays; canonical bounds and receipt membership',
-                support=self.support if self.range_blocks > 10 else 'preserved ten-block runtime bound')
+                support=(windows.support if windows and windows.support else
+                    self.support if self.range_blocks > 10 else 'preserved ten-block runtime bound'))
             with self.history.transaction():
                 origin_key = 'pons_historical_origin:' + kind
                 if self.history.get_meta(origin_key) is None:
@@ -477,10 +502,17 @@ class Preparation:
             reason = str(exc)
             self._gap(kind, start, end, reason)
             if reason in SPLIT_ERRORS and any(a < b for a, b in spans):
+                if windows:
+                    if reason=='provider_log_block_range_limit':windows.reject_range()
+                    else:
+                        windows.width=min(windows.width,max(1,max((b-a+1)//2 for a,b in spans)))
+                        windows._save()
                 divided = []
                 for a, b in spans:
                     if a == b:
                         divided.append((a, b))
+                    elif windows and reason=='provider_log_block_range_limit':
+                        divided.extend((n,min(b,n+9)) for n in range(a,b+1,10))
                     else:
                         mid = (a + b) // 2
                         divided.extend(((a, mid), (mid + 1, b)))

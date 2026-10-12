@@ -64,6 +64,35 @@ class WindowsCase(unittest.TestCase):
         self.assertEqual(len(self.calls),1)
         self.assertEqual(planner.turn_blocks(),160)
 
+    def test_exact_factory_comparison_consolidates_30_and_40_blocks_without_authorizing_other_filters(self):
+        from meme_machine.lanes.pons.pons_natural_observation import MarketScout
+        from meme_machine.runtime.robinhood.plane import Plane
+        plane=Plane(self.root/'factory-plane');self.addCleanup(plane.close);scout=MarketScout(plane)
+        query=dict(address=scout.factory,topics=[[scout.launch,scout.graduation]])
+        self.write(capability(query))
+        for blocks in (30,40):
+            calls=[];starts=[]
+            def acquire(values):
+                starts.append(values);calls.extend(values)
+                return [[dict(event(n),address=scout.factory,topics=[scout.launch])
+                    for n in range(int(p[0]['fromBlock'],16),int(p[0]['toBlock'],16)+1)] for _,p in values]
+            baseline=LogWindows(ENDPOINT,query).read(1,blocks,acquire)
+            self.assertEqual(len(calls),blocks//10);self.assertEqual(len(starts),1)
+            calls.clear();starts.clear()
+            optimized=LogWindows(ENDPOINT,query,capability_path=self.file).read(1,blocks,acquire)
+            self.assertEqual(optimized,baseline);self.assertEqual(len(calls),1);self.assertEqual(len(starts),1)
+        for unproved in (dict(address=scout.manager,topics=[scout.activity_topics,["0x"+'33'*32]]),
+                dict(topics=[scout.curve_topics]),dict(address=scout.factory,topics=[scout.launch])):
+            self.assertEqual(LogWindows(ENDPOINT,unproved,capability_path=self.file).ceiling,10)
+
+    def test_unprotected_or_symlink_capability_is_never_used(self):
+        self.write();self.file.chmod(0o666)
+        self.assertEqual(self.planner().ceiling,10)
+        self.file.chmod(0o600);alias=self.root/'alias.json';alias.symlink_to(self.file)
+        self.assertEqual(LogWindows(ENDPOINT,QUERY,capability_path=alias).ceiling,10)
+        self.file.write_bytes(b' '*65_537)
+        self.assertEqual(self.planner().ceiling,10)
+
     def test_one_wide_success_never_authorizes_larger_windows(self):
         self.write();planner=self.planner();planner.read(1,160,self.provider)
         self.assertTrue(all(int(p[0]['toBlock'],16)-int(p[0]['fromBlock'],16)<40 for _,p in self.calls))

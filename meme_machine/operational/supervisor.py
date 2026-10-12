@@ -228,6 +228,13 @@ class Supervisor:
         if not self.offline and lane=='pons':
             capability=pons_capability_path(os.environ)
             if capability:env['MM_RPC_CAPABILITIES']=capability
+            # The existing Pons adaptive planner consumes only exact,
+            # endpoint-bound comparisons. Do not silently drop its protected
+            # file at the family-worker boundary or expose it to other lanes.
+            from meme_machine.lanes.pons.log_windows import protected_capability_path
+            log_capability=protected_capability_path(os.environ.get('MM_ROBINHOOD_READ_RPC_URL',''),
+                path=os.environ.get('MM_PONS_LOG_CAPABILITY_FILE'))
+            if log_capability:env['MM_PONS_LOG_CAPABILITY_FILE']=log_capability
         env['PYTHONPATH']=str(SOURCE_ROOT)
         env.update(MM_MODE='PAPER',MM_RUNTIME_LANE=lane,MM_PAPER_EPOCH=self.epoch,
             MM_STATE_ROOT=str(self.root),MM_OPERATIONAL_PHASE='continuous',

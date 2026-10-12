@@ -10,6 +10,7 @@ import json
 import math
 import os
 from pathlib import Path
+import stat
 import time
 
 from . import BoundaryError, CHAIN_ID
@@ -57,16 +58,20 @@ def filter_profile(query):
     return static, counts
 
 
-def load_capability(endpoint, query, *, path=None):
-    """Read a small protected runtime capability record. Never probe a provider."""
+def _capability_file(endpoint, path=None):
+    """Only an existing protected file can supply endpoint-bound range hints."""
     path = path or os.environ.get('MM_PONS_LOG_CAPABILITY_FILE')
-    if not path: return None
+    if not path:return None,[]
     try:
         p = Path(path)
-        if p.stat().st_size > 65_536: return None
-        body = json.loads(p.read_text())
-        static, counts = filter_profile(query)
+        if not p.is_absolute() or p.is_symlink():return None,[]
+        info=p.stat()
+        if not stat.S_ISREG(info.st_mode) or info.st_mode&0o022:return None,[]
+        with p.open('rb') as stream:raw=stream.read(65_537)
+        if len(raw)>65_536:return None,[]
+        body = json.loads(raw)
         fp = authority.fingerprint(endpoint)
+        eligible=[]
         for row in body.get('comparisons', []):
             if (row.get('schema') == 'pons-log-window-capability-v1'
                     and row.get('provider_fingerprint') == fp
@@ -76,14 +81,31 @@ def load_capability(endpoint, query, *, path=None):
                     and row.get('equal') is True
                     and type(row.get('event_count')) is int and row['event_count'] > 0
                     and row.get('canonical_end_hash') and row.get('baseline_digest')
-                    and row.get('filter') == static
-                    and len(row.get('indexed_filter_counts', [])) == len(counts)
-                    and all(type(n) is int and n >= c for n, c in
-                            zip(row['indexed_filter_counts'], counts))
                     and type(row.get('range_blocks')) is int
                     and SAFE_BLOCKS < row['range_blocks'] <= MAX_BLOCKS):
-                return row
+                eligible.append(row)
+        return p,eligible
     except (OSError, ValueError, TypeError, KeyError, AttributeError, BoundaryError):
+        return None,[]
+
+
+def protected_capability_path(endpoint, *, path=None):
+    """Forward Pons's actual protected record, never a broad parent override."""
+    p,rows=_capability_file(endpoint,path)
+    return str(p) if p is not None and rows else None
+
+
+def load_capability(endpoint, query, *, path=None):
+    """An eligible credential still needs the exact filter/cardinality proof."""
+    try:
+        static,counts=filter_profile(query)
+        _,rows=_capability_file(endpoint,path)
+        for row in rows:
+            if (row.get('filter')==static
+                    and len(row.get('indexed_filter_counts',[]))==len(counts)
+                    and all(type(n) is int and n>=c for n,c in zip(row['indexed_filter_counts'],counts))):
+                return row
+    except (ValueError, TypeError, KeyError, AttributeError, BoundaryError):
         pass
     return None
 
@@ -130,6 +152,12 @@ class LogWindows:
         self.saved.update(width=self.width, bytes_per_block=self.bytes_per_block,
                           largest_success=self.largest_success,support_digest=self.support_digest, **changes)
         if self.state is not None: self.state.set_meta(self.key, self.saved)
+
+    def reject_range(self):
+        """Remember an unsupported width; no provider call or canonical ACK."""
+        self.ceiling=min(self.ceiling,SAFE_BLOCKS)
+        self.width=min(self.width,self.ceiling)
+        self._save(range_rejected=True)
 
     def turn_blocks(self):
         width = self.width
@@ -203,9 +231,7 @@ class LogWindows:
             raise error
         self.splits += 1
         if str(error) == 'provider_log_block_range_limit':
-            self.ceiling = min(self.ceiling, SAFE_BLOCKS)
-            self.width = min(self.width, self.ceiling)
-            self._save(range_rejected=True)
+            self.reject_range()
             if last-first+1 > SAFE_BLOCKS:
                 spans = [(a, min(last,a+SAFE_BLOCKS-1)) for a in range(first,last+1,SAFE_BLOCKS)]
                 return [e for i in range(0,len(spans),self.batch_elements) for page in
@@ -242,6 +268,15 @@ class LogWindows:
     def _page(self, acquire, first, last, value):
         try: rows = self._validate(value, first, last)
         except BoundaryError as error: return self._split(acquire, first, last, error)
+        return self.observe_page(first,last,value,validated=rows)
+
+    def observe_page(self,first,last,value,*,validated=None):
+        """Retain only capacity hints after a caller's successful bounded page.
+
+        History owns canonical fences, receipts, gaps and publication. This
+        adapter cannot mark history complete or advance its durable checkpoint.
+        """
+        rows=self._validate(value,first,last) if validated is None else validated
         size = len(json.dumps(value, separators=(',',':')).encode())
         span = last-first+1
         # Keep a conservative recent peak. An empty page cannot erase a dense

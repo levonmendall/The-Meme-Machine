@@ -1,0 +1,182 @@
+{
+  "activation_blockers": [
+    "team_id not exposed by available authenticated administration tools",
+    "supplied graduation topic has 58 hex characters, source topic has 64",
+    "complete October 12 comparison receipt with exact row digest and current canonical end-boundary verification not retained"
+  ],
+  "already_present": [
+    "exact-filter/cardinality adaptive planner in log_windows.py",
+    "canonical MarketScout fallback and selective V4 planner",
+    "canonical history reuse, shared provider governor and immutable evidence cache"
+  ],
+  "capital_epoch_reinitialized": false,
+  "capital_or_private_configuration_changed": false,
+  "changes": [
+    "forward protected endpoint-bound log capability only to live Pons family workers",
+    "reuse adaptive planner for default factory forward/history packets with original forty-block turn bounds",
+    "persist range rejection and subdivide withdrawn wider pending work before dispatch",
+    "retain original header/receipt authentication, post-witness fence, gaps and atomic checkpoint publication"
+  ],
+  "current_provider_binding": {
+    "app_id": "v5h0vqr0wpp9zscj",
+    "at": 1791823358.3723197,
+    "chain_id": 4663,
+    "credential_disclosed": false,
+    "private_configuration_sha256": "2ce4ec6d04629779bbd88ae1f673e40b41605ab762f1594ba0881dd95a7d6bb0",
+    "provider_fingerprint": "91ad0f2d5dfd637a3c38c64ab009abe28025e0b4c22085fcd73ecdf7093fd6bb",
+    "provider_requests": 0,
+    "runtime_admin_masked_binding_matches": true
+  },
+  "deployment": "source-only, quiescent guarded installation; separate installation receipt supplies exact commit/tree",
+  "economic_policy_changed": false,
+  "fallback_filters": [
+    "factory launch/graduation: complete current capability record missing",
+    "unfiltered Current launch/graduation/curve trade union: exact filter not compared",
+    "V4 manager activity and all indexed pool-ID cardinalities: exact filter/cardinality not compared",
+    "all other credentials and static filters"
+  ],
+  "funding_state_changed": false,
+  "live_log_query_efficiency_proven": false,
+  "new_market_provider_requests": 0,
+  "offline_equivalence": {
+    "actual_billed_cu": null,
+    "actual_billed_usd": null,
+    "economic_rules_changed": false,
+    "evidence_kind": "synthetic authenticated-shaped fixture, not a provider capability",
+    "protection_deadlines_changed": false,
+    "provider_requests": 0,
+    "public_model_cu_per_getLogs": 60,
+    "public_model_usd_per_million_cu": "0.525",
+    "queue_wait_or_provider_latency_measured": false,
+    "samples": [
+      {
+        "blocks": 30,
+        "optimized": {
+          "all_logical_elements": 12,
+          "canonical_event_count": 4,
+          "complete_frontier": {
+            "block": 56882712,
+            "block_hash": "0xbc43ede529ed444a63791ccd9a3d04a595bdebdb79235f0857eafaa7130bae92"
+          },
+          "event_digest": "7fee71232e406e60eb4953b3e71c965a9f1c4ffb7a77e6af308bf8ddee185b45",
+          "gaps": 0,
+          "log_cu_public_model": 60,
+          "logical_log_elements": 1,
+          "method_counts": {
+            "eth_getBlockByNumber": 7,
+            "eth_getLogs": 1,
+            "eth_getTransactionReceipt": 4
+          },
+          "pending_graduations": 2,
+          "physical_http_starts": 4,
+          "repeat_complete_interval_http_starts": 0
+        },
+        "original": {
+          "all_logical_elements": 14,
+          "canonical_event_count": 4,
+          "complete_frontier": {
+            "block": 56882712,
+            "block_hash": "0xbc43ede529ed444a63791ccd9a3d04a595bdebdb79235f0857eafaa7130bae92"
+          },
+          "event_digest": "7fee71232e406e60eb4953b3e71c965a9f1c4ffb7a77e6af308bf8ddee185b45",
+          "gaps": 0,
+          "log_cu_public_model": 180,
+          "logical_log_elements": 3,
+          "method_counts": {
+            "eth_getBlockByNumber": 7,
+            "eth_getLogs": 3,
+            "eth_getTransactionReceipt": 4
+          },
+          "pending_graduations": 2,
+          "physical_http_starts": 4,
+          "repeat_complete_interval_http_starts": 0
+        },
+        "saved_log_cu": 120,
+        "savings_usd_public_model": "0.000063"
+      },
+      {
+        "blocks": 40,
+        "optimized": {
+          "all_logical_elements": 12,
+          "canonical_event_count": 4,
+          "complete_frontier": {
+            "block": 56882722,
+            "block_hash": "0x9c90cd3f329c88477b8a52f5a5a95d591ab32fd43aab3195119fa289b69b1262"
+          },
+          "event_digest": "7fee71232e406e60eb4953b3e71c965a9f1c4ffb7a77e6af308bf8ddee185b45",
+          "gaps": 0,
+          "log_cu_public_model": 60,
+          "logical_log_elements": 1,
+          "method_counts": {
+            "eth_getBlockByNumber": 7,
+            "eth_getLogs": 1,
+            "eth_getTransactionReceipt": 4
+          },
+          "pending_graduations": 2,
+          "physical_http_starts": 4,
+          "repeat_complete_interval_http_starts": 0
+        },
+        "original": {
+          "all_logical_elements": 15,
+          "canonical_event_count": 4,
+          "complete_frontier": {
+            "block": 56882722,
+            "block_hash": "0x9c90cd3f329c88477b8a52f5a5a95d591ab32fd43aab3195119fa289b69b1262"
+          },
+          "event_digest": "7fee71232e406e60eb4953b3e71c965a9f1c4ffb7a77e6af308bf8ddee185b45",
+          "gaps": 0,
+          "log_cu_public_model": 240,
+          "logical_log_elements": 4,
+          "method_counts": {
+            "eth_getBlockByNumber": 7,
+            "eth_getLogs": 4,
+            "eth_getTransactionReceipt": 4
+          },
+          "pending_graduations": 2,
+          "physical_http_starts": 4,
+          "repeat_complete_interval_http_starts": 0
+        },
+        "saved_log_cu": 180,
+        "savings_usd_public_model": "0.0000945"
+      }
+    ],
+    "schema": "pons-wider-log-offline-equivalence-v1"
+  },
+  "owner_evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_WIDER_LOG_OWNER_EVIDENCE_20261012.json",
+  "parent": "fe3fb9ea92ca7679862355a118a9e4ef03756f3b",
+  "price_basis": "accepted public method model; not authenticated contractual billing",
+  "production_activated_filters": [],
+  "provider_rate_or_budget_changed": false,
+  "schema": "pons-wider-log-integration-proof-v1",
+  "source_files": {
+    "meme_machine/lanes/pons/log_windows.py": "cf69ede16484b549fbbe73512a03f1ed9d10f562c3c1d73f995157783b2c6fd4",
+    "meme_machine/lanes/pons/pons_historical.py": "eca0d582d42decee4bc767686284bc9b67448a4d5e22ec8d3be06694228407a9",
+    "meme_machine/operational/supervisor.py": "a0f47c05b57112ff3c2a28290ae66e98d669c1dcc42e1924b163737c0136c0aa",
+    "tests/test_operational_supervisor.py": "3b0fc12be46548e7f74a4fd81f2cdeb9de78748e3675e1d18a88dbdfa10223e1",
+    "tests/test_pons_historical.py": "77153aba9455f6d1706ba25b6ccf1f149ad8221fc4051ff808b6523cdbb76b0f",
+    "tests/test_robinhood_payg.py": "3ceccf3a9b96039bbd5c6123f57558a433a20590237827654b17928b82b18908"
+  },
+  "tests": [
+    {
+      "kind": "FAST",
+      "passed": 88,
+      "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pons-wider-factory-history-fast.log",
+      "seconds": 44.143,
+      "sha256": "5598db8e229ff198ac9e4507115a36aaa66ebea43d52663dee78c825a04b0cf5"
+    },
+    {
+      "kind": "FAST_ADDED_CASES",
+      "passed": 3,
+      "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pons-wider-factory-history-added-fast.log",
+      "seconds": 1.933,
+      "sha256": "563f3a8a310c264eb982cb563fbe4931572c060459df26737119bc34f82f408c"
+    },
+    {
+      "kind": "OPERATIONAL",
+      "passed": 146,
+      "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pons-wider-factory-history-operational.log",
+      "seconds": 84.975,
+      "sha256": "95205aeb5731a6a6709e463f5ba0896e89b8c0525e3fe66298ce4c821740b8fd"
+    }
+  ]
+}

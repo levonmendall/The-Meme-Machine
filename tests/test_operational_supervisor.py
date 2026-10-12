@@ -56,6 +56,23 @@ class NativeDeliveryRecovery(unittest.TestCase):
             with self.subTest(path=value),patch.dict(os.environ,MM_RPC_CAPABILITIES=value):
                 self.assertNotIn('MM_RPC_CAPABILITIES',self.service.environment('pons'))
 
+    def test_exact_wider_log_record_reaches_only_live_pons_and_rejects_rotation_or_writable_file(self):
+        from tests.test_robinhood_payg import capability,ENDPOINT
+        self.service.offline=False
+        path=self.root/'pons-log-windows.json'
+        path.write_text(json.dumps({'comparisons':[capability()]}));path.chmod(0o600)
+        with patch.dict(os.environ,MM_PONS_LOG_CAPABILITY_FILE=str(path),MM_ROBINHOOD_READ_RPC_URL=ENDPOINT):
+            self.assertEqual(self.service.environment('pons')['MM_PONS_LOG_CAPABILITY_FILE'],str(path))
+            for lane in ('pump','solana'):
+                self.assertNotIn('MM_PONS_LOG_CAPABILITY_FILE',self.service.environment(lane))
+            path.chmod(0o666)
+            self.assertNotIn('MM_PONS_LOG_CAPABILITY_FILE',self.service.environment('pons'))
+            path.chmod(0o600)
+            with patch.dict(os.environ,MM_ROBINHOOD_READ_RPC_URL=ENDPOINT+'rotated'):
+                self.assertNotIn('MM_PONS_LOG_CAPABILITY_FILE',self.service.environment('pons'))
+            self.service.offline=True
+            self.assertNotIn('MM_PONS_LOG_CAPABILITY_FILE',self.service.environment('pons'))
+
     def test_native_usd_bridge_remains_inactive_without_explicit_selection(self):
         self.service.offline=False
         with patch.dict(os.environ,MM_PONS_USD_BRIDGE_ROUTES=''):
