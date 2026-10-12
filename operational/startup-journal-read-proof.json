@@ -1,0 +1,29 @@
+{
+  "predecessor": "77e4b68448d228a0ea9790fe5add3584e7971a59",
+  "failure_receipt": "blocker-repair-20261011/CONTINUOUS_ACTUAL_WORKERS_1791808522315.json",
+  "failure": "Pump startup journal-mode read raised SQLITE_BUSY before the existing WAL-change retry",
+  "repair": "Put read and mode change inside the same original bounded BUSY/LOCKED retry; already-WAL opens still do not request a writer lock",
+  "preserved": [
+    "30-second maximum startup wait",
+    "zero-wait native consumer deferral",
+    "FULL durability",
+    "non-contention exceptions",
+    "canonical and capital gates"
+  ],
+  "tests": {
+    "FAST": {
+      "tests": 28,
+      "seconds": 2.122,
+      "result": "PASS",
+      "log": "/tmp/startup-journal-read-fast.log"
+    },
+    "OPERATIONAL": {
+      "tests": 32,
+      "seconds": 2.241,
+      "result": "PASS",
+      "log": "/tmp/startup-journal-read-operational.log"
+    }
+  },
+  "authenticated_result": "NOT_YET_RUN",
+  "paper_funding": false
+}

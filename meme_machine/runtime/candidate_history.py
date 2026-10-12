@@ -64,9 +64,13 @@ def _enable_wal(db,*,seconds=30.0,monotonic=time.monotonic,sleeper=time.sleep):
         # A read of an already installed WAL mode does not request the writer
         # lock. Reissuing journal_mode=WAL made ordinary concurrent opens wait
         # behind the current native consumer's transaction.
-        if db.execute('PRAGMA journal_mode').fetchone()[0]=='wal':return 'wal'
         while True:
-            try:return db.execute("PRAGMA journal_mode=WAL").fetchone()[0]
+            try:
+                # Even the read can be BUSY while another connection is
+                # opening/recovering the database. Use the same bounded retry
+                # for both phases; zero-wait native consumers still defer.
+                if db.execute('PRAGMA journal_mode').fetchone()[0]=='wal':return 'wal'
+                return db.execute("PRAGMA journal_mode=WAL").fetchone()[0]
             except sqlite3.OperationalError as exc:
                 code=getattr(exc,"sqlite_errorcode",None)
                 if code is None or (code & 255) not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):

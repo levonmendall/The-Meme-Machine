@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from meme_machine.runtime.candidate_history import CandidateDeadlineMissed,CandidateHistory
+from meme_machine.runtime.candidate_history import CandidateDeadlineMissed,CandidateHistory,_enable_wal
 
 
 class CandidateHistoryTests(unittest.TestCase):
@@ -16,6 +16,58 @@ class CandidateHistoryTests(unittest.TestCase):
 
     def tearDown(self):
         self.history.close();self.tmp.cleanup()
+
+    def test_initial_journal_read_retries_real_startup_lock_without_writer_request(self):
+        import sqlite3
+        path=Path(self.tmp.name)/'startup.sqlite'
+        # An exclusive opener also blocks journal-mode reads, the phase that
+        # failed on the host. The existing deadline must cover that phase.
+        opener=sqlite3.connect(path,isolation_level=None)
+        db=sqlite3.connect(path,isolation_level=None)
+        opener.execute('CREATE TABLE retained(value)')
+        opener.execute('BEGIN EXCLUSIVE')
+        waits=[];sql=[];db.set_trace_callback(sql.append)
+        def release(seconds):
+            waits.append(seconds);opener.execute('COMMIT')
+        try:
+            self.assertEqual(_enable_wal(db,seconds=1,sleeper=release),'wal')
+            self.assertEqual(len(waits),1)
+            self.assertEqual(db.execute('PRAGMA busy_timeout').fetchone()[0],1000)
+            sql.clear()
+            self.assertEqual(_enable_wal(db,seconds=1,sleeper=release),'wal')
+            self.assertFalse(any('journal_mode=WAL' in row for row in sql))
+        finally:db.close();opener.close()
+
+    def test_initial_journal_read_zero_wait_and_nonbusy_errors_are_not_hidden(self):
+        import sqlite3
+        from unittest.mock import Mock
+        busy=sqlite3.OperationalError('database is locked');busy.sqlite_errorcode=sqlite3.SQLITE_BUSY
+        corrupt=sqlite3.OperationalError('malformed');corrupt.sqlite_errorcode=sqlite3.SQLITE_CORRUPT
+        for error in (busy,corrupt):
+            db=Mock();sleeper=Mock()
+            def execute(sql):
+                if sql=='PRAGMA journal_mode':raise error
+                return Mock()
+            db.execute.side_effect=execute
+            with self.assertRaises(sqlite3.OperationalError) as caught:
+                _enable_wal(db,seconds=0,sleeper=sleeper)
+            self.assertIs(caught.exception,error);sleeper.assert_not_called()
+            self.assertEqual(db.execute.call_args.args,('PRAGMA busy_timeout=0',))
+
+    def test_initial_journal_read_contention_keeps_original_deadline(self):
+        import sqlite3
+        from unittest.mock import Mock
+        error=sqlite3.OperationalError('locked');error.sqlite_errorcode=sqlite3.SQLITE_LOCKED
+        db=Mock();now=[0.0];waits=[]
+        def execute(sql):
+            if sql=='PRAGMA journal_mode':raise error
+            return Mock()
+        def sleep(seconds):waits.append(seconds);now[0]+=seconds
+        db.execute.side_effect=execute
+        with self.assertRaises(sqlite3.OperationalError):
+            _enable_wal(db,seconds=.12,monotonic=lambda:now[0],sleeper=sleep)
+        self.assertAlmostEqual(sum(waits),.12)
+        self.assertEqual(db.execute.call_args.args,('PRAGMA busy_timeout=120',))
 
     def test_kind_filter_resolves_only_requested_canonical_records_and_survives_restart(self):
         import sqlite3,json
