@@ -55,6 +55,7 @@ class PriorityOwner:
         self.clock=clock;self.enqueued={}
         self.metrics={}
         self.cv=threading.Condition(); self.queue=[]; self.sequence=0
+        self._urgent_queued=0
         self.closed=False; self.ready=concurrent.futures.Future()
         self.admission_notify=None
         self._checkpoint_epoch=0; self._checkpoint_busy=False
@@ -82,7 +83,9 @@ class PriorityOwner:
             future.owner_sequence=self.sequence
             future.owner_accepted_at=accepted_at
             self.enqueued[self.sequence]=accepted_at
-            heapq.heappush(self.queue,(priority,self.sequence,expires,fn,future)); self.cv.notify()
+            heapq.heappush(self.queue,(priority,self.sequence,expires,fn,future))
+            if priority<2:self._urgent_queued+=1
+            self.cv.notify()
             self.metrics['queue_peak']=max(self.metrics.get('queue_peak',0),len(self.queue))
         # A scheduling observer wakes the event loop outside the owner lock.
         # It has no power to reorder, cancel or choose admitted work.
@@ -116,6 +119,7 @@ class PriorityOwner:
                         self.queue[index]=self.queue[-1];self.queue.pop();heapq.heapify(self.queue)
                     else:item=heapq.heappop(self.queue)
                     priority,sequence,expires,fn,future=item
+                    if priority<2:self._urgent_queued-=1
                     queued=self.clock()-self.enqueued.pop(sequence)
                     prefix='priority'+str(priority)
                     wait=int(max(0,queued)*1_000_000)
@@ -131,9 +135,6 @@ class PriorityOwner:
                     if writer is not None:writer._background_sql_interrupted=False
                     def queued_priority():
                         with self.cv:return self.queue[0][0] if self.queue else None
-                    def queued_before(priority_limit):
-                        queued=queued_priority()
-                        return queued is not None and queued<priority_limit
                     def interrupt_background():
                         nonlocal interrupted
                         if interrupted:return 0 # allow rollback to finish
@@ -141,7 +142,11 @@ class PriorityOwner:
                         # urgent foreground/control work. Restarting archive
                         # scans for every normal source frame can starve cleanup.
                         if getattr(writer,'_retention_atomic',False):return 0
-                        if queued_before(2):
+                        # Admission/removal maintains this count under cv. Read
+                        # the atomic integer at the same 1,000-op SQL cadence;
+                        # repeatedly locking the scheduler here consumed CPU
+                        # needed by the native join. Queue order is unchanged.
+                        if self._urgent_queued:
                             interrupted=True
                             writer._background_sql_interrupted=True
                             return 1

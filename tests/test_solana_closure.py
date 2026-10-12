@@ -137,6 +137,40 @@ class ClosureTests(unittest.TestCase):
         w.max_hot_bytes=w.path.stat().st_size
         self.assertEqual(cold.retire()['retired_records'],0)
 
+    def test_live_retirement_defers_totals_without_changing_pins_or_recovery(self):
+        address,rows=self.ingest_fixture('meteora');cold=ScopedRetirement(self.h)
+        scope=coverage_scope('meteora',address)
+        expected=sorted((r.body() for r in rows),key=lambda r:r['identity'])
+        self.life.demote('meteora',address,reason='quiet');self.drain()
+        self.life.pin(scope,'position','right_tail_hwm',rows[0].slot)
+        with patch.object(cold,'hot_bytes',side_effect=AssertionError('global scan on live owner')):
+            pinned=cold.retire(measure_hot_bytes=False)
+            self.assertEqual(pinned['retired_records'],0)
+            self.assertGreater(pinned['pinned_bytes'],0)
+            self.life.unpin(scope,'position','right_tail_hwm')
+            retired=cold.retire(measure_hot_bytes=False)
+        self.assertEqual(retired['retired_records'],len(rows))
+        self.assertIsNone(retired['hot_bytes_before']);self.assertIsNone(retired['hot_bytes_after'])
+        self.assertEqual(retired['hot_bytes_measurement'],'deferred')
+        self.restart();cold=ScopedRetirement(self.h)
+        self.assertEqual(cold.restore('meteora',address),len(rows))
+        stored=self.h.db.execute('SELECT body,first_seen FROM canonical_evidence ORDER BY identity').fetchall()
+        self.assertEqual([json.loads(r[0]) for r in stored],expected)
+        self.assertTrue(all(r[1]==NOW for r in stored))
+
+    def test_deferred_totals_preserve_unacknowledged_oldest_witness(self):
+        address,rows=self.ingest_fixture('meteora');cold=ScopedRetirement(self.h)
+        self.life.demote('meteora',address,reason='quiet');self.drain()
+        self.now[0]+=self.h.rolling.retention('meteora',address)['window_seconds']+1
+        self.h.db.execute("DELETE FROM candidate_history_outbox WHERE kind='canonical'")
+        exact=cold.retire()
+        with patch.object(cold,'hot_bytes',side_effect=AssertionError('global scan on live owner')):
+            deferred=cold.retire(measure_hot_bytes=False)
+        self.assertEqual(deferred['retired_records'],0)
+        self.assertEqual(deferred['oldest_unretired_scope'],exact['oldest_unretired_scope'])
+        self.assertEqual(deferred['oldest_unretired_scope']['reason'],'batch_bound_or_unacknowledged_consumer')
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM canonical_evidence WHERE body IS NOT NULL').fetchone()[0],len(rows))
+
     def test_oldest_unacknowledged_retained_identity_matches_the_join_oracle(self):
         address,rows=self.ingest_fixture('meteora');cold=ScopedRetirement(self.h)
         # A missing durable receipt prohibits retirement and exercises the

@@ -86,6 +86,33 @@ class CoordinatedDatabaseTests(unittest.TestCase):
             time.sleep(.001)
         self.fail('owner_never_became_idle')
 
+    def test_urgent_sql_interrupt_rolls_back_and_clears_after_delivery(self):
+        with tempfile.TemporaryDirectory() as td:
+            owner=self.owner(Path(td)/'db');urgent=[]
+            try:
+                for priority in (0,1):
+                    def background(state):
+                        def submitted(sql):
+                            if sql.startswith('WITH RECURSIVE') and not urgent:
+                                urgent.append(owner.submit(lambda s: s.writer.db.execute(
+                                    "SELECT COUNT(*) FROM meta WHERE key='uncommitted-background'").fetchone()[0],priority=priority))
+                        state.writer.db.set_trace_callback(submitted)
+                        try:
+                            with state.writer.transaction():
+                                state.writer.db.execute("INSERT INTO meta VALUES('uncommitted-background','must roll back')")
+                                state.writer.db.execute('WITH RECURSIVE n(x) AS (VALUES(0) UNION ALL SELECT x+1 FROM n WHERE x<100000) SELECT SUM(x) FROM n').fetchone()
+                        finally:state.writer.db.set_trace_callback(None)
+                    with self.assertRaisesRegex(EvidenceUnavailable,'evidence_background_yield'):
+                        owner.submit(background,priority=4).result(5)
+                    self.assertEqual(urgent.pop().result(5),0)
+                    self.assertEqual(owner.submit(lambda s: owner._urgent_queued,priority=2).result(5),0)
+                # A drained urgent request cannot leave background SQL permanently
+                # interrupted, and normal FIFO source work does not become urgent.
+                self.assertEqual(owner.submit(lambda s: s.writer.db.execute(
+                    'WITH RECURSIVE n(x) AS (VALUES(0) UNION ALL SELECT x+1 FROM n WHERE x<2000) SELECT MAX(x) FROM n'
+                    ).fetchone()[0],priority=4).result(5),2000)
+            finally:owner.close()
+
     def test_intervening_source_or_urgent_command_invalidates_checkpoint(self):
         with tempfile.TemporaryDirectory() as td:
             path=Path(td)/'db';owner=self.owner(path)

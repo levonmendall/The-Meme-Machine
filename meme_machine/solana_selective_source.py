@@ -974,7 +974,7 @@ class SelectiveSource:
             def retire(state):
                 h=install(state)
                 if not self.batched:h.lifecycle.publish()
-                return ScopedRetirement(h).retire(limit=64)
+                return ScopedRetirement(h).retire(limit=64,measure_hot_bytes=False)
             # The owner installs its existing urgent SQL interruption hook for
             # maintenance priority four. Interrupted slices retry durably.
             await self.work(retire,4,label='retention')

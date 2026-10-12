@@ -1,0 +1,66 @@
+{
+  "scope": "Remove demonstrated optional retirement work from the authenticated native owner critical path",
+  "parent": "c4f7b12025583295c947351c620d400b567bc7c0",
+  "retained_failure": "PUMP_JOIN_RETIREMENT_c4f7b120-1791783536094.json; paired diagnostic log records candidate_log_buffer_pressure although process exit was zero",
+  "thread_local_cpu_sample": {
+    "retirement_seconds": 0.813,
+    "global_totals_seconds": 0.293,
+    "progress_callbacks": 15271,
+    "scheduler_checks_seconds": 0.224,
+    "status": "single profiled live slice; instrumentation overhead, not an uninstrumented latency guarantee"
+  },
+  "change": [
+    "Live retirement defers two global byte-total scans; reports null/deferred, retains exact on-demand/default measurement",
+    "Queued urgent count is maintained under existing scheduler condition; same 1000-op SQL interruption cadence without acquiring the condition on each callback"
+  ],
+  "unchanged": [
+    "retirement pin and consumer acknowledgement checks",
+    "atomic durable cold writes and recovery",
+    "canonical completeness and deadlines",
+    "nonurgent FIFO fairness",
+    "original strategy economics",
+    "shared capital and USD validity",
+    "provider limits and transports"
+  ],
+  "tests": [
+    {
+      "suite": "OPERATIONAL",
+      "modules": [
+        "tests.test_solana_closure",
+        "tests.test_coordinated_database",
+        "tests.test_run381_archive_scheduling"
+      ],
+      "run": 67,
+      "skipped": 4,
+      "seconds": 49.218,
+      "result": "PASS",
+      "log": "/tmp/pump-owner-retirement-integration.log"
+    },
+    {
+      "suite": "OPERATIONAL",
+      "modules": [
+        "tests.test_retention_progress",
+        "tests.test_solana_prewarm_startup",
+        "tests.test_pons_usd_overlap",
+        "tests.test_volume_quality"
+      ],
+      "run": 72,
+      "skipped": 0,
+      "seconds": 13.882,
+      "result": "PASS",
+      "log": "/tmp/pump-owner-retirement-safety.log"
+    }
+  ],
+  "file_sha256": {
+    "meme_machine/solana_evidence_control.py": "d9b95907f9f1af6c4af0bf3608726780ef85afef6c10f4926e5b60eb55821433",
+    "meme_machine/solana_scoped_retirement.py": "1ce6ba04430f05a05d5ac9baed891ecde6cbaf3f8f200a7f24103f512ebaa1b3",
+    "meme_machine/solana_selective_source.py": "f67456fd1dedeab5ba2905a922e908a97d264144d5d06bd3e8304c63c502f6b3",
+    "tests/test_coordinated_database.py": "823258ec1c02dc58a51edb28bd702b5c9ad6c5c84c76b7f6c387a21b69d0858e",
+    "tests/test_solana_closure.py": "7efc83808d9e9ffce2fb084b0bde33af26269638ea321c28b2810442cdf7f804"
+  },
+  "new_transports": 0,
+  "strategy_parameters_changed": false,
+  "provider_equivalence": "Awaiting authenticated successor observation",
+  "full_protection": false,
+  "sixty_minute_acceptance": false
+}

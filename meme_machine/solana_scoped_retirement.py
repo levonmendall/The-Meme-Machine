@@ -121,11 +121,14 @@ class ScopedRetirement:
             if rows and rows[0] is not None and rows[0]>=self.clock()-retention['window_seconds']:return 'rolling_trigger_and_warmup_history'
         return None
 
-    def retire(self,*,limit=64):
+    def retire(self,*,limit=64,measure_hot_bytes=True):
         if self.db.in_transaction:raise EvidenceUnavailable('retention_inside_source_transaction')
         if not 1<=limit<=1000:raise EvidenceUnavailable('retention_batch_bound')
         started=time.monotonic();selected={};pinned={};oldest=None
-        before=self.hot_bytes()
+        # Whole-reservoir totals are optional diagnostics, never retirement
+        # permission. Live source maintenance must not scan the growing
+        # reservoir twice while authenticated native frames wait for this owner.
+        before=self.hot_bytes() if measure_hot_bytes else None
         # The record limit must bound the candidate traversal too. A full
         # population sweep on each one-second turn stalls canonical commits.
         # Rotate durably; this is a maintenance slice, never an admission cap.
@@ -230,8 +233,8 @@ class ScopedRetirement:
                     # Address/index/history metadata remains durable. Cache-only
                     # records keep their address table even after the body leaves.
                     self.db.execute('DELETE FROM shared_history_cache WHERE identity=?',(row[0],))
-        after=self.hot_bytes()
-        if oldest is None and after:
+        after=self.hot_bytes() if measure_hot_bytes else None
+        if oldest is None and (after is None or after):
             # A many-to-many join sorts one row per candidate/event binding.
             # Existence is enough to locate the same oldest retained identity;
             # resolve its scope only after the ordered LIMIT, without exploding
@@ -244,6 +247,7 @@ class ScopedRetirement:
                 oldest=dict(scope=scope,slot=row[2],reason='batch_bound_or_unacknowledged_consumer')
         elapsed=time.monotonic()-started
         result=dict(hot_bytes_before=before,hot_bytes_after=after,retired_records=len(content),
+            hot_bytes_measurement='exact' if measure_hot_bytes else 'deferred',
             retired_logical_bytes=hot_bytes,pinned_bytes=sum(pinned.values()),oldest_unretired_scope=oldest,
             retirement_seconds=elapsed,records_per_second=len(content)/max(elapsed,1e-9),
             physical_database_bytes=sum(p.stat().st_size for p in (
