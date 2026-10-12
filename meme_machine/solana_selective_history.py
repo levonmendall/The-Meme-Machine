@@ -497,9 +497,9 @@ class SelectiveHistory:
                         SELECT COALESCE(MAX(sequence)+1,4611686018427387904),?,?,?,?
                         FROM candidate_outbox''',(row.identity,row.scope,row.slot,available))
             if hasattr(self,'lifecycle'):self.lifecycle.queue_records(rows)
-            # Same physical 2-GiB guard, including metadata and the scoped cache.
-            import os
-            if sum(os.path.getsize(p) for p in (self.writer.path,str(self.writer.path)+'-wal') if os.path.exists(p))>=self.writer.max_hot_bytes:
+            # Retain the owner's same physical storage reservation and the
+            # explicit file cap for offline/bounded synthetic stores.
+            if self.writer.hot_capacity_exceeded():
                 raise EvidenceUnavailable('hot_store_capacity')
 
     @staticmethod

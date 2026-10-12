@@ -246,7 +246,7 @@ class EvidenceWriter:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         require_storage(self.path)
         self.clock = clock
-        if type(max_hot_bytes) is not int or max_hot_bytes < 1024 * 1024:
+        if max_hot_bytes is not None and (type(max_hot_bytes) is not int or max_hot_bytes < 1024 * 1024):
             raise EvidenceUnavailable('hot_store_capacity_bound')
         self.max_hot_bytes = max_hot_bytes
         self._owner = threading.get_ident()
@@ -287,6 +287,14 @@ class EvidenceWriter:
     def _check(self):
         if threading.get_ident() != self._owner:
             raise EvidenceUnavailable('writer_thread_violation')
+
+    def hot_capacity_exceeded(self):
+        # Every source append retains the physical free-space reservation.
+        # A verified operational volume has no lifetime SQLite-file allowance;
+        # offline/default writers retain their original explicit file bound.
+        require_storage(self.path,required_bytes=32*1024*1024)
+        return (self.max_hot_bytes is not None and
+            sum(transient_file_size(p) for p in (self.path,Path(str(self.path)+'-wal')))>=self.max_hot_bytes)
 
     @contextmanager
     def transaction(self):
@@ -379,8 +387,7 @@ class EvidenceWriter:
             raise
         if sum(row.byte_count for row in prepared)>16*1024*1024:
             raise EvidenceUnavailable('ingestion_payload_bound')
-        hot_bytes=sum(transient_file_size(p) for p in (self.path,Path(str(self.path)+'-wal')))
-        if hot_bytes >= self.max_hot_bytes:
+        if self.hot_capacity_exceeded():
             with self.transaction():
                 for scope,slot in self.db.execute('SELECT scope,slot FROM cursors').fetchall():
                     self._gap(scope,slot+1,None,'hot_store_capacity')

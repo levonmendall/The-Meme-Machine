@@ -199,6 +199,7 @@ class Supervisor:
             else {'MM_ROBINHOOD_READ_RPC_URL',
                   'MM_ROBINHOOD_SEQUENCER_FEED_URL'})
         allowed=transport | (set() if self.offline else providers)
+        if not self.offline:allowed.add('MM_STORAGE_GUARD_CONFIG')
         env={k:v for k,v in os.environ.items() if k in allowed}
         env['PYTHONPATH']=str(SOURCE_ROOT)
         env.update(MM_MODE='PAPER',MM_RUNTIME_LANE=lane,MM_PAPER_EPOCH=self.epoch,

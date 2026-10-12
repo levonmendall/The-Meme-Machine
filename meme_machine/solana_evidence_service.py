@@ -8,6 +8,8 @@ required to seal it. Silence, root notifications and socket ACKs never seal data
 from contextlib import contextmanager
 from dataclasses import replace
 import json
+import os
+from pathlib import Path
 import time
 import uuid
 from .solana_evidence_plane import EvidenceUnavailable, EvidenceConflict, IntervalProof, digest, canonical
@@ -534,13 +536,30 @@ def program_decoders():
     return {PUMP_SCOPE:pump_events,SWAP_SCOPE:pumpswap_trade_events}
 
 
+def operational_storage_limit(path):
+    """A verified existing epoch uses disk health, not accumulated file size."""
+    from .runtime.operating_families import operational
+    limit=2*1024*1024*1024
+    root=os.environ.get('MM_STATE_ROOT')
+    if not operational() or os.environ.get('MM_MODE')!='PAPER' or not root:return limit
+    root=Path(root)
+    if Path(path).resolve()!=root/'shared/solana-evidence.sqlite':return limit
+    from .operational.storage_guard import verify_storage
+    # Missing/mismatched storage configuration refuses startup. It never
+    # falls back to an unverified permissive operational storage profile.
+    if not os.environ.get('MM_STORAGE_GUARD_CONFIG'):
+        raise EvidenceUnavailable('operational_storage_configuration_required')
+    verify_storage(root)
+    return None
+
+
 class ServiceState:
     """All SQLite access is confined to the priority owner thread."""
     def __init__(self,path,config):
         from .solana_evidence_plane import EvidenceWriter
-        # Whole-program history is an archive workload. Keep a bounded three-minute
-        # hot tail plus explicit lifecycle pins, not two hours of every transaction.
-        self.writer=EvidenceWriter(path,max_hot_bytes=2*1024*1024*1024)
+        # Retention and fixed memory/transaction bounds remain independent of
+        # durable history growth on the verified epoch volume.
+        self.writer=EvidenceWriter(path,max_hot_bytes=operational_storage_limit(path))
         # FULL WAL commits remain durable. The independently scheduled bounded
         # checkpoint worker owns PASSIVE checkpoints; SQLite's default automatic
         # checkpoint otherwise copies/syncs the database inside source commits
@@ -552,8 +571,8 @@ class ServiceState:
         # rollback journals copy them again for each delete. Give the sole owner
         # a fixed 16 MiB working cache and keep temporary rollback work in memory.
         # Source/retention transaction bounds and cache spill remain enabled;
-        # durable evidence still uses FULL-synchronous WAL and the same 2 GiB
-        # guard. Configure before any temporary schema or owner work is created.
+        # durable evidence still uses FULL-synchronous WAL and physical storage
+        # guards. Configure before any temporary schema or owner work is created.
         self.writer.db.execute('PRAGMA cache_size=-16384')
         self.writer.db.execute('PRAGMA temp_store=MEMORY')
         self.fence=FinalizedFence(self.writer,endpoint_identity=config.identity,decoders=program_decoders())
@@ -562,6 +581,7 @@ class ServiceState:
         import os
         self.fence.health('pid',os.getpid())
         self.fence.health('hot_limit_bytes',self.writer.max_hot_bytes)
+        self.fence.health('storage_capacity_mode','verified_epoch_volume' if self.writer.max_hot_bytes is None else 'bounded_file')
         self.failed=False
         prior=self.writer.db.execute("SELECT value FROM service_health WHERE key='storage_maintenance'").fetchone()
         self.storage_metrics=json.loads(prior[0]) if prior else {}

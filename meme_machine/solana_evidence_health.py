@@ -32,7 +32,13 @@ def evidence_health(reader,scope,now):
             return result('DEGRADED','evidence_discontinuous')
         if phase!='ACTIVE':return result('DEGRADED','evidence_source_disconnected')
         hot=sum(transient_file_size(p) for p in (reader.path,Path(str(reader.path)+'-wal')))
-        if hot>=health.get('hot_limit_bytes',2*1024*1024*1024)*.9:
+        limit=health.get('hot_limit_bytes',2*1024*1024*1024)
+        if limit is None:
+            if health.get('storage_capacity_mode')!='verified_epoch_volume':return result('FAILED','evidence_storage_profile_unverified')
+            from .solana_evidence_plane import storage_health
+            pressure=storage_health(reader.path,required_bytes=32*1024*1024)
+            if pressure['state']!='ok':return result('DEGRADED','evidence_physical_storage_pressure',storage=pressure)
+        elif hot>=limit*.9:
             return result('DEGRADED','evidence_hot_capacity_pressure')
         return result('USABLE','authoritative_current',frontier_slot=sealed,lag_seconds=lag)
     except (sqlite3.Error,OSError,ValueError,KeyError,TypeError):

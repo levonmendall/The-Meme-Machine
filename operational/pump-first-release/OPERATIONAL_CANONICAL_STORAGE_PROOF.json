@@ -1,0 +1,59 @@
+{
+  "predecessor": "f0b60d11eee69e3119ef76cd35e638f60ef36384",
+  "cause": "The fixed 2-GiB SQLite plus WAL allowance treats retained canonical event/address/order/outbox metadata as an exhausted operational cache even when the verified volume has free capacity.",
+  "authentic_failure": {
+    "receipt": "PUMP_JOIN_RETIREMENT_f0b60d11-1791776335390.json",
+    "sha256": "edded61a5d759ab4bd13362075b0d064bab6dc24c7e814eafc9df71746354aa0",
+    "native_failure": "hot_store_capacity",
+    "new_canonical_records": 21510,
+    "physical_database_bytes": 2121080832,
+    "retained_event_bodies": 316715,
+    "retained_event_body_bytes": 308181408,
+    "volume_available_gib": 21,
+    "accounting_unchanged": true
+  },
+  "repair": "The exact registered epoch canonical store must pass the existing kernel mount/device/epoch guard before using physical free-space admission instead of a lifetime SQLite-file allowance. Missing/mismatched configuration refuses startup. Other/default/offline stores retain their explicit file cap.",
+  "unchanged": [
+    "single SQLite writer",
+    "FULL WAL durability",
+    "16-MiB owner cache",
+    "32-MiB source storage reservation",
+    "existing physical disk critical/warning thresholds",
+    "all frame, response, queue, pending, native-byte and memory limits",
+    "canonical validation, economics, native quotes, USD expiry, capital and recovery",
+    "engineering provider envelopes and old expenditure counters"
+  ],
+  "tests": [
+    {
+      "log": "/tmp/operational-canonical-storage-focused-fixed.log",
+      "sha256": "e8f013727b6757316c7514b5bae86a6399b6d928947ddbdb5c6bf9839107d1f8",
+      "tests": 182,
+      "seconds": 40.577,
+      "result": "PASS"
+    },
+    {
+      "log": "/tmp/operational-canonical-storage-guard-forward.log",
+      "sha256": "915f93b917c4f3cada35876e0b16cde0b3e95ccd5a6b82dc9cfee2b3e9f84270",
+      "tests": 7,
+      "seconds": 0.52,
+      "result": "PASS"
+    }
+  ],
+  "prior_failed_test": {
+    "log": "/tmp/operational-canonical-storage-focused.log",
+    "scope": "/tmp/mm-engineering-rqxhwkbj",
+    "reason": "New fixture requested unrelated market identity and produced no economic records; corrected to the retained authenticated fixture mint without weakening the assertion."
+  },
+  "files": {
+    "meme_machine/solana_evidence_plane.py": "61ea8bbd3b7d41760cecc900eefbd75af40cd45fe487d196976032744bbdb1ec",
+    "meme_machine/solana_selective_history.py": "d20694d8db75759d0ed7ae36451408f0d49e67d5dc2e1d4ae239b9ff1ffa3f9e",
+    "meme_machine/solana_evidence_service.py": "0427a46e0cb3aa409a1ba2359dfcd5349a8f3baed58d57a8c5fdcac39aa97daf",
+    "meme_machine/solana_evidence_health.py": "ef1015b82842646607c5101ed0cae55c0cb0be4821c83ede5accaf88281983ca",
+    "meme_machine/operational/supervisor.py": "91e70f419d5e277074f6f4a68a93553874fd9c2270e3dcf2fb77411e4f50d3f0",
+    "tests/test_operational_evidence_storage.py": "a27c072f2d8519c7d4155d30a852c54c0d059815fff93d348bb30e3f6b539bde",
+    "operational/tests.py": "37c731bd3a95844250acc92695c89337bd80d328257fc5be8be3525eb4fbed10"
+  },
+  "provider_proof": "AWAITING_TARGETED_AUTHENTICATED_RETRY",
+  "deployment": "AWAITING_REQUIRED_CI_AND_STOPPED_RECONCILED_CUTOVER",
+  "funding": "CLOSED_UNTIL_FULL_NATIVE_PROTECTION"
+}
