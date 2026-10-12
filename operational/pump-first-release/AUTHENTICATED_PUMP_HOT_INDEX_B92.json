@@ -1,0 +1,49 @@
+{
+  "source": "b92b3000355306d9f2cad6cafebbe4f124b70201",
+  "started_at": 1791766191.5516386,
+  "failure_at": 1791766243.8747427,
+  "elapsed_seconds": 52.3231041431427,
+  "status": "FAIL_CANONICAL_INTAKE_CAPACITY",
+  "failure": "candidate_log_buffer_pressure",
+  "new_economic_records": {
+    "program:pump": 1464,
+    "program:pumpswap": 7272
+  },
+  "new_economic_record_total": 8736,
+  "usage": {
+    "rpc_cu": 2960,
+    "rpc_elements": 32,
+    "http_attempts": 36,
+    "native_bytes": 98515313,
+    "native_reserved": 0,
+    "native_uncertain_bytes": 285212672,
+    "http_bytes": 22433238,
+    "http_reserved": 0,
+    "http_uncertain_bytes": 0,
+    "native_opens": 4
+  },
+  "modeled_public_upper_usd": "0.041845438425",
+  "invoice_verified": false,
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-owner-repair-b92b3000-1791766162695.sqlite",
+  "work_trace": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pump-hot-index-b92b3000-1791766162695-work.json",
+  "native_group_trace": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pump-hot-index-b92b3000-1791766162695-groups.json",
+  "native_join": {
+    "completed": 455854886,
+    "early_log_bytes": 33552220,
+    "early_log_count": 9690,
+    "early_log_min_slot": 455854887,
+    "early_log_max_slot": 455854967,
+    "pending_slots": 0
+  },
+  "failed_log_bodies_already_excluded": true,
+  "resources": {
+    "user_cpu_seconds": 46.31631,
+    "system_cpu_seconds": 6.530774,
+    "maximum_rss_kib": 234300
+  },
+  "funding": false,
+  "orders": false,
+  "all_four_protection_pass": false,
+  "failed_evidence_preserved": true,
+  "prior_counters_reset": false
+}

@@ -4,6 +4,7 @@ No capital or entry authority. Checkpoints never seal an interval. Cold archive
 acquisition is requested only for an explicitly missing interval.
 """
 import json
+from collections import OrderedDict
 from .runtime.operating_families import active_sql
 from .solana_evidence_plane import EvidenceUnavailable,digest,canonical,decode_body
 from .solana_selective_history import FAMILIES,PROGRAMS,coverage_scope,coverage_points
@@ -183,8 +184,35 @@ class RollingHistory:
             # historical proof fragment. No result escapes this owner command.
             gaps=self.db.execute('SELECT lo,COALESCE(hi,?) FROM candidate_gaps WHERE scope=? AND created<=? AND (repaired IS NULL OR repaired>?) AND lo<=? AND (hi IS NULL OR hi>=?)',
                 (hi,source,at,at,hi,lo)).fetchall()
-            for packed,checksum in self.db.execute('SELECT points,hash FROM candidate_coverage WHERE scope=? AND hi>=? AND lo<=?',(source,lo,hi)):
-                branch.extend((max(lo,a,0 if floor is None else floor[0]),min(hi,b)) for a,b,t in coverage_points(packed,checksum) if t<=at)
+            rows=tuple(self.db.execute('SELECT points,hash FROM candidate_coverage WHERE scope=? AND hi>=? AND lo<=? ORDER BY lo,hi',
+                (source,lo,hi)))
+            # Reuse only identical immutable proof bytes selected by this fresh
+            # query. Gap/reorganization facts above are always read anew. The
+            # compact union is valid only once ALL its observations are available
+            # at this caller's timestamp; earlier point-in-time reads retain the
+            # original timestamp filter. No cached missing/coverage verdict.
+            cache=getattr(self,'_coverage_span_cache',None)
+            if cache is None:cache=self._coverage_span_cache=OrderedDict()
+            compact=cache.get(rows)
+            if compact is None:
+                points=[p for packed,checksum in rows for p in coverage_points(packed,checksum)]
+                spans=[]
+                for a,b,t in sorted(points):
+                    if spans and a<=spans[-1][1]+1:spans[-1]=(spans[-1][0],max(spans[-1][1],b))
+                    else:spans.append((a,b))
+                compact=(tuple(spans),max((t for a,b,t in points),default=float('-inf')))
+                # At most eight proof cohorts and 512 KiB of compressed input;
+                # decoded points are not retained. Large cohorts use the same
+                # exact native path without populating this optional cache.
+                if sum(len(packed) for packed,checksum in rows)<=64*1024 and len(points)<=32768 and len(spans)<=4096:
+                    cache[rows]=compact
+                    while len(cache)>8:cache.popitem(last=False)
+            else:cache.move_to_end(rows)
+            if compact[1]<=at:
+                branch.extend((max(lo,a,0 if floor is None else floor[0]),min(hi,b)) for a,b in compact[0])
+            else:
+                branch.extend((max(lo,a,0 if floor is None else floor[0]),min(hi,b))
+                    for packed,checksum in rows for a,b,t in coverage_points(packed,checksum) if t<=at)
             for a,b in branch:
                 pieces=[(a,b)]
                 for x,y in gaps:

@@ -64,6 +64,38 @@ class RollingPrewarmTests(unittest.TestCase):
         self.h.gap(scope,101,101,'native_outage')
         self.assertEqual(self.h.rolling.missing('pump',candidate,100,104),[(101,101),(104,104)])
 
+    def test_compact_proof_reuse_still_checks_new_gaps_bytes_and_availability(self):
+        from meme_machine import solana_rolling_history as module
+        from meme_machine.solana_evidence_plane import EvidenceConflict
+        scope=program_scope('pump');candidate=self.h.bind('pump','cache-mint')
+        self.seal(scope,100,103)
+        original=module.coverage_points
+        with patch.object(module,'coverage_points',wraps=original) as decoder:
+            self.assertEqual(self.h.rolling.missing('pump',candidate,100,104),[(104,104)])
+            decoded=decoder.call_count
+            self.assertEqual(self.h.rolling.missing('pump',candidate,100,104),[(104,104)])
+            self.assertEqual(decoder.call_count,decoded)
+        # The same immutable proofs cannot hide a newly observed outage.
+        self.h.gap(scope,101,102,'native_outage')
+        self.assertEqual(self.h.rolling.missing('pump',candidate,100,104),[(101,102),(104,104)])
+        # Future/past calls do not gain publication-time authority from a cache.
+        self.assertEqual(self.h.rolling.missing('pump',candidate,100,104,as_of=NOW-1),[(100,104)])
+        with self.state.writer.transaction():
+            self.h.db.execute('UPDATE candidate_coverage SET points=? WHERE scope=?',(b'corrupt',scope))
+        with self.assertRaisesRegex(EvidenceConflict,'candidate_coverage_corrupt'):
+            self.h.rolling.missing('pump',candidate,100,104)
+
+    def test_compact_proof_cache_is_bounded_and_restart_has_no_cached_verdict(self):
+        scope=program_scope('pump')
+        for n in range(12):
+            self.seal(scope,100+n*2,100+n*2)
+            self.h.rolling.missing('pump',scope,100,125)
+        self.assertLessEqual(len(self.h.rolling._coverage_span_cache),8)
+        expected=self.h.rolling.missing('pump',scope,100,125)
+        self.state.writer.close();self.state,self.h=state_at(self.path,lambda:self.now[0])
+        self.assertFalse(hasattr(self.h.rolling,'_coverage_span_cache'))
+        self.assertEqual(self.h.rolling.missing('pump',scope,100,125),expected)
+
     def test_observation_lease_refresh_commits_once_and_rollback_retains_identities(self):
         with self.state.writer.transaction():
             for n in range(400):
