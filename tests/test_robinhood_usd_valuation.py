@@ -93,7 +93,7 @@ OPERATION_DELTAS = {
         'EvidenceStore.put': '28b55b13579655f0aebcc2b45de5c55404d4a1cdf495a62de0f47189adc4a2de',
     },
     'meme_machine/lanes/pump/solana_evidence_runtime.py': {
-        'LocalPumpTape.creation': '888c306d4acf04aad56a40138ebdf029832978def0c50b00484935362572d17b',
+        'LocalPumpTape.creation': '5cdfd129c466ec077b7de1643f3f6ed7d44232cd630f659150c6f20d5cc3d5f2',
         'LocalPumpTape.events_since': 'd697ddd45b18cb64c2a053c70254686a5f45892b80afaf30f5a167353ec9ce0c',
     },
 }

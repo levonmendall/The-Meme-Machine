@@ -245,8 +245,13 @@ class LocalPumpTape:
                     WHERE a.address=? AND r.scope=? AND r.kind='event' AND r.first_seen<=? ORDER BY r.slot DESC LIMIT 1000''',
                     (mint,PUMP_SCOPE,self.plane.clock())).fetchall()
             elif identities:
-                rows=db.execute("SELECT r.body,r.first_seen FROM records r WHERE r.identity IN ("+
-                    ','.join('?' for _ in identities)+") AND r.scope=? AND r.kind='event' AND r.first_seen<=? ORDER BY r.slot DESC LIMIT 1000",
+                # More than one identity let SQLite favor the whole-program
+                # ordering index again. Materialize only bounded point metadata
+                # before ordering, then expand the same selected bodies by PK.
+                # Keep SELECT outermost so the existing ConsumerReader maps
+                # every record reference to its canonical content views.
+                rows=db.execute("SELECT (SELECT body FROM records e WHERE e.identity=r.identity LIMIT 1),r.first_seen FROM (WITH matched AS MATERIALIZED (SELECT identity,scope,kind,slot,first_seen FROM records WHERE identity IN ("+
+                    ','.join('?' for _ in identities)+")) SELECT identity,first_seen FROM matched WHERE scope=? AND kind='event' AND first_seen<=? ORDER BY slot DESC LIMIT 1000) r",
                     (*identities,PUMP_SCOPE,self.plane.clock())).fetchall()
             else:rows=[]
             for raw,seen in rows:

@@ -425,6 +425,13 @@ class ClosureTests(unittest.TestCase):
         with self.state.writer.transaction():
             db.executemany('INSERT INTO rolling_economic_events VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
                 [('unrelated-'+str(n),'program:pump',n,'','',0,0,0,'event',None,'',NOW,None) for n in range(5000)])
+            # One identity used the PK, but a realistic multi-identity mint made
+            # SQLite choose the whole-program ordering index again. These same
+            # token identities are not creation events and cannot change it.
+            db.executemany('INSERT INTO rolling_economic_events VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                [('token-fact-'+str(n),'program:pump',n,'','',0,0,0,'transaction',None,'',NOW,None) for n in range(10)])
+            db.executemany('INSERT INTO rolling_economic_addresses VALUES(?,?)',
+                [('token-fact-'+str(n),event['mint']) for n in range(10)])
         with closing(EvidenceReader(self.path)) as original:
             reader=ConsumerReader(original);plane=SimpleNamespace(reader=reader,clock=lambda:self.now[0])
             tape=LocalPumpTape(plane);steps=[];original.db.set_progress_handler(lambda:steps.append(1) or 0,1000)
