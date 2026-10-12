@@ -1,0 +1,50 @@
+{
+  "baseline_source": "c2c6e6f25536faa8e4207cbc0c421ee596eabc30",
+  "defect": "Existing supervisor removed MM_RPC_CAPABILITIES; real Pons RPC factories could not load the same endpoint-specific shared native quote resources already used by successful authenticated acquisition diagnostics",
+  "repair": [
+    "Forward existing capability file only to non-offline Pons workers",
+    "Load only endpoint/chain/fingerprint-bound, type/size/latency-bounded observed native quote batch limits in the existing RPC factory"
+  ],
+  "provider_evidence": {
+    "hash_state_receipt": "PONS_HASH_STATE_CAPABILITY_1791768473.json",
+    "samples": 3,
+    "logical_elements_per_sample": 9,
+    "modeled_cu_per_sample": 216,
+    "maximum_observed_response_bytes": 25165,
+    "conservative_sample_latency_seconds": 0.43,
+    "scope": "Hash/numeric equality and ordered after-fences for these samples; not complete position protection",
+    "combined_acquisition_receipt": "PONS_CONCURRENT_HISTORY_1791776381.json",
+    "protected_maximum_seconds": 2.66429724098742,
+    "with_discovery_maximum_seconds": 2.8153586469125003,
+    "operating_profile_installed": false
+  },
+  "tests": {
+    "broader_affected_receipt": "/tmp/pons-capability-worker-handoff.log",
+    "tested": 132,
+    "passed": 4,
+    "fixture_failure": "new positive fixture confused evidence domain with endpoint fingerprint; failed evidence preserved",
+    "corrected_cases_receipt": "/tmp/pons-capability-worker-handoff-fixed.log",
+    "seconds": 0.581,
+    "cases": [
+      "valid resources load without chain or entry authority",
+      "wrong endpoint, chain, type, size or latency fall back to native path",
+      "malformed optional hints do not crash acquisition",
+      "capability path reaches only intended real worker"
+    ]
+  },
+  "unchanged": [
+    "current and survivor economics",
+    "five-second quote and USD lifetime",
+    "three/five-second protection",
+    "physical provider governor and all resource limits",
+    "canonical after-fences",
+    "capital and funding readiness requirements"
+  ],
+  "activation": "EXISTING_ENDPOINT_FILE_ONLY; FULL_PROTECTION_AND_CONCURRENT_CAPACITY_STILL_REQUIRED",
+  "files": {
+    "meme_machine/lanes/pons/provider_topology.py": "1dc4e0172d5ad7dfa4e75f465b663759e5dffa593b42e32292586f121fd9880c",
+    "meme_machine/operational/supervisor.py": "3f6f59195c22277a7dec6390734721bd2067b7e30aa8d2b200450a256f5f7da9",
+    "tests/test_operational_supervisor.py": "17b7d0875cf0ca23ac664e0588e647a6a6957a53791bd3e633b825deaebbfd4e",
+    "tests/test_optional_capability_shapes.py": "cc301ba7dcd7ab5e5b80b83889a7ebdb61a9ece91640f047ff26116dcd80e90d"
+  }
+}

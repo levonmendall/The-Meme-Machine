@@ -32,6 +32,16 @@ class NativeDeliveryRecovery(unittest.TestCase):
             self.service.offline=True
             self.assertNotIn('MM_PONS_USD_BRIDGE_ROUTES',self.service.environment('pons'))
 
+    def test_existing_endpoint_capability_path_reaches_only_live_pons(self):
+        self.service.offline=False
+        with patch.dict(os.environ,MM_RPC_CAPABILITIES='/etc/meme-machine/observed-capabilities.json'):
+            self.assertEqual(self.service.environment('pons')['MM_RPC_CAPABILITIES'],
+                '/etc/meme-machine/observed-capabilities.json')
+            for lane in ('pump','solana'):
+                self.assertNotIn('MM_RPC_CAPABILITIES',self.service.environment(lane))
+            self.service.offline=True
+            self.assertNotIn('MM_RPC_CAPABILITIES',self.service.environment('pons'))
+
     def test_native_usd_bridge_remains_inactive_without_explicit_selection(self):
         self.service.offline=False
         with patch.dict(os.environ,MM_PONS_USD_BRIDGE_ROUTES=''):

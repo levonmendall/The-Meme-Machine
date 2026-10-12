@@ -228,14 +228,34 @@ class PacedRpc(Rpc):
         from .immutable_rpc import configured as evidence_store, Reuse
         store=evidence_store(authority.paths()['cache']) if self.canonical_authority else None
         self.evidence_reuse=Reuse(endpoint,store,os.environ.get('MM_RUNTIME_LANE','unknown')) if store else None
-        self.hash_state_supported=set()
+        self.hash_state_supported=set();self.shared_quote_resources=None
         capability_path=os.environ.get('MM_RPC_CAPABILITIES')
         if capability_path and self.evidence_reuse:
             import json
             from pathlib import Path
             try:
-                methods=json.loads(Path(capability_path).read_text())['endpoints'][self.evidence_reuse.domain]['methods']
+                row=json.loads(Path(capability_path).read_text())['endpoints'][self.evidence_reuse.domain]
+                methods=row['methods']
                 self.hash_state_supported={m for m in ('eth_call','eth_getCode') if methods.get('eip1898_'+m,{}).get('supported') is True}
+                # Reuse the existing endpoint capability file. Resource samples
+                # enable bounded same-turn quote sharing, never chain, market,
+                # financial or funding readiness. All quotes remain fresh and
+                # ordered canonical fences are still mandatory.
+                limits=methods.get('native_quote_batch',{}).get('observed_limits',{})
+                maximum=kwargs.get('max_response',2_000_000)
+                integers=('max_response_bytes','max_logical_elements','max_throughput_cu')
+                latency=limits.get('max_latency_seconds')
+                if (row.get('chain_id')==CHAIN_ID and row.get('provider_domain')==self.evidence_reuse.domain
+                        and row.get('provider_fingerprint')==self.provider_fingerprint
+                        and {'eth_call','eth_getCode'}<=self.hash_state_supported
+                        and methods.get('native_quote_batch',{}).get('supported') is True
+                        and limits.get('validated') is True
+                        and all(type(limits.get(k)) is int and limits[k]>0 for k in integers)
+                        and limits['max_response_bytes']<=maximum
+                        and limits['max_logical_elements']<=50
+                        and type(latency) in (int,float) and 0<=latency<=1):
+                    self.shared_quote_resources={k:limits[k] for k in (*integers,'max_latency_seconds')}
+                    self.shared_quote_resources.update(validated=True,provider_fingerprint=self.provider_fingerprint)
             except (OSError,ValueError,KeyError,TypeError,AttributeError):pass
         self.pacer = pacer or ProviderPacer(requests_per_second)
         self._injected_transport = transport
