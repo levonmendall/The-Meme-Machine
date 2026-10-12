@@ -9,6 +9,17 @@ FINALIZED_LAG_SECONDS=60
 STARTUP_SECONDS=90
 
 
+def coverage_end_hint(db):
+    """Reuse the maintained interval-end index; old snapshots keep their path.
+
+    Current frontier/tail reads must not traverse every historical interval via
+    SQLite's available-time or interval-start choice. This selects only an
+    access path, never a cached frontier or a substitute coverage witness.
+    """
+    return (' INDEXED BY maintenance_coverage_end' if db.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='index' AND name='maintenance_coverage_end' AND tbl_name='coverage'").fetchone() else '')
+
+
 def evidence_health(reader,scope,now):
     def result(state,reason,**extra):return dict(state=state,usable=state=='USABLE',reason=reason,scope=scope,observed_at=now,**extra)
     try:
@@ -25,7 +36,8 @@ def evidence_health(reader,scope,now):
         lag=now-frontier['time'];age=now-frontier['seen']
         if not 0<=lag<=FINALIZED_LAG_SECONDS or not 0<=age<=HEARTBEAT_SECONDS:
             return result('DEGRADED','evidence_finalized_stale',lag_seconds=lag,receipt_age_seconds=age)
-        sealed=reader.db.execute('SELECT MAX(hi) FROM coverage WHERE scope=? AND available<=?',(scope,now)).fetchone()[0]
+        sealed=reader.db.execute('SELECT MAX(hi) FROM coverage'+coverage_end_hint(reader.db)+
+            ' WHERE scope=? AND available<=?',(scope,now)).fetchone()[0]
         parent=reader.db.execute('SELECT parent FROM stream_receipts WHERE scope=? AND slot=?',(scope,frontier['slot'])).fetchone()
         if sealed is None or parent is None:return result('WARMING','evidence_cold_start')
         if sealed<parent[0] or not reader.covered(scope,parent[0],sealed,as_of=now):

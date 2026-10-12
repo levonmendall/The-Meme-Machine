@@ -870,7 +870,9 @@ class EvidenceReader:
             (scope, upper_slot, lower_slot, as_of, as_of)).fetchone():
             return False
         cursor = lower_slot
-        for lo, hi in self.db.execute('SELECT lo,hi FROM coverage WHERE scope=? AND available<=? AND hi>=? AND lo<=? ORDER BY lo,hi',
+        from meme_machine.solana_evidence_health import coverage_end_hint
+        for lo, hi in self.db.execute('SELECT lo,hi FROM coverage'+coverage_end_hint(self.db)+
+                ' WHERE scope=? AND available<=? AND hi>=? AND lo<=? ORDER BY lo,hi',
                                      (scope, as_of, lower_slot, upper_slot)):
             if lo > cursor:
                 return False

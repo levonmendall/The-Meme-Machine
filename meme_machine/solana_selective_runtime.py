@@ -35,7 +35,9 @@ class SelectiveRuntime:
         reader=self._selective_reader()
         if not selective(reader):return super().frontier(scope)
         self.require_usable(scope)
-        row=reader.db.execute('SELECT MAX(hi) FROM coverage WHERE scope=? AND available<=?',(CONTROL,self.clock())).fetchone()
+        from .solana_evidence_health import coverage_end_hint
+        row=reader.db.execute('SELECT MAX(hi) FROM coverage'+coverage_end_hint(reader.db)+
+            ' WHERE scope=? AND available<=?',(CONTROL,self.clock())).fetchone()
         if row is None or row[0] is None:raise EvidenceUnavailable('evidence_cold_start')
         return row[0]
 
