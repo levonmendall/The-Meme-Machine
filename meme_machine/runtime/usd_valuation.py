@@ -312,12 +312,13 @@ class NativeValueReader:
         self.route_state={}
         self._lock=threading.RLock()
 
-    def _robinhood(self,now):
+    def _robinhood(self,now,valid_through=None):
         now=max(now,int(time.time()))
         try:
             if self.lane=='ramses' and self.book is not None and self.book.quote_asset.lower()!=USDG_ASSET:
                 raise _unavailable('wrong_Ramses_quote_asset')
             if (self.cached and self.cached.observed_at<=now<=self.cached.valid_until
+                    and (valid_through is None or valid_through<=self.cached.valid_until)
                     and self.oracle_checked_at<=now<=self.oracle_checked_at+USDG_CACHE_SECONDS):
                 return self.cached
             started=time.monotonic()
@@ -354,17 +355,26 @@ class NativeValueReader:
             update('VALUATION_UNAVAILABLE',asset='USDG/USD',reason=str(failure))
             raise failure from None
 
-    def __call__(self,now):
+    def __call__(self,now,*,valid_through=None):
         # One unit-price acquisition serves compatible independently owned
         # positions. Recheck the original validity after any local wait.
+        # A concurrent acquisition may consume this value after its native
+        # quote completes. Reuse only evidence that survives that caller's
+        # existing deadline; refresh early instead of extending its lifetime.
+        if valid_through is not None and (type(valid_through) is not int
+                or type(now) is not int or valid_through<now):
+            raise ValuationUnavailable('invalid_USD_consumption_deadline')
         with self._lock:
-            return self._read(now)
+            value=self._read(now,valid_through)
+            value.amount(0,max(now,int(time.time()),valid_through or now))
+            return value
 
-    def _read(self,now):
+    def _read(self,now,valid_through=None):
         now=max(now,int(time.time()))
         if self.lane in ('pons','ramses'):
-            return self._robinhood(now)
-        if self.cached and self.cached.observed_at<=now<=self.cached.valid_until:
+            return self._robinhood(now,valid_through)
+        if (self.cached and self.cached.observed_at<=now<=self.cached.valid_until
+                and (valid_through is None or valid_through<=self.cached.valid_until)):
             return self.cached
         from meme_machine.solana_read_rpc import new_rpc
         from meme_machine.lanes.pump.pumpswap_survivor_evidence import SOL_USD_ACCOUNT

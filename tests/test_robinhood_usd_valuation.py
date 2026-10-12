@@ -399,6 +399,41 @@ class RobinhoodUSDTests(unittest.TestCase):
         # A fresh production RPC session must verify chain even with a cached oracle.
         self.assertGreaterEqual(sum(1 for method,_,_ in self.rpc.calls if method=='eth_chainId'),2)
 
+    def test_pons_concurrent_use_refreshes_before_original_cache_expiration(self):
+        reader=NativeValueReader('pons',rpc=self.rpc)
+        first=reader(NOW);count=len(self.rpc.calls)
+        self.rpc.now=NOW+4
+        refreshed=reader(NOW+4,valid_through=NOW+7)
+        self.assertIsNot(refreshed,first)
+        self.assertGreater(len(self.rpc.calls),count)
+        self.assertEqual(first.valid_until,NOW+5)
+        self.assertEqual(refreshed.valid_until,NOW+9)
+        self.assertEqual(refreshed.amount(10**15,NOW+7),Decimal('2.500349025'))
+        with self.assertRaises(ValuationUnavailable):first.amount(1,NOW+7)
+
+    def test_pons_concurrent_use_reuses_compatible_cache_without_provider_work(self):
+        reader=NativeValueReader('pons',rpc=self.rpc)
+        first=reader(NOW);count=len(self.rpc.calls)
+        self.rpc.now=NOW+2
+        self.assertIs(reader(NOW+2,valid_through=NOW+5),first)
+        self.assertEqual(len(self.rpc.calls),count)
+
+    def test_pons_consumption_deadline_cannot_extend_quote_or_hide_outage(self):
+        reader=NativeValueReader('pons',rpc=self.rpc)
+        first=reader(NOW);self.rpc.now=NOW+4;self.rpc.failed=True
+        with self.assertRaises(ValuationUnavailable):reader(NOW+4,valid_through=NOW+7)
+        self.assertEqual(first.valid_until,NOW+5)
+        self.rpc.failed=False
+        with self.assertRaises(ValuationUnavailable):reader(NOW+4,valid_through=NOW+20)
+        self.assertLessEqual(reader.cached.valid_until,NOW+9)
+
+    def test_invalid_consumption_deadline_fails_before_provider_acquisition(self):
+        reader=NativeValueReader('pons',rpc=self.rpc)
+        for deadline in (True,NOW-1,Decimal(NOW+3),'later'):
+            with self.subTest(deadline=deadline):
+                with self.assertRaises(ValuationUnavailable):reader(NOW,valid_through=deadline)
+        self.assertEqual(self.rpc.calls,[])
+
     def test_pons_cached_oracle_refresh_verifies_new_provider_session(self):
         reader=NativeValueReader('pons',rpc=self.rpc)
         reader(NOW)

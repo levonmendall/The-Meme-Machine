@@ -1,0 +1,44 @@
+{
+  "baseline_source": "4afe0fb2b551be2b451411c7aff6920c489cd17f",
+  "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_CONCURRENT_HISTORY_1791771136.json",
+  "receipt_sha256": "d727c24c8bfa5a563a53b298016a7a6406248d5cffb5c56ccd11435a4cf06629",
+  "failure": "native_USD_value_missing_or_stale",
+  "valuation_observed_at": 1791771146,
+  "valuation_valid_until": 1791771151,
+  "consumed_at": 1791771152,
+  "expired_value_was_refused": true,
+  "normal_profile_installed": false,
+  "original_five_second_validity_preserved": true,
+  "repair": "Explicit consumption deadline excludes an otherwise current but expiring cache entry; the existing reader refreshes using the original native route, oracle and ordered canonical fences. Actual-use validation still applies. No retry loop or lifetime extension.",
+  "tests": {
+    "command": "python -m operational.tests FAST --modules tests.test_robinhood_usd_valuation tests.test_pons_usd_bridge_routes tests.test_volume_quality --verbose",
+    "count": 76,
+    "seconds": 9.116,
+    "result": "PASS"
+  },
+  "component_only": true,
+  "full_protection_proven": false,
+  "tracker_samples": {
+    "cycles": 2,
+    "http_elements_cu_delta": [
+      {
+        "http_attempts": 0,
+        "rpc_elements": 0,
+        "rpc_cu": 0
+      },
+      {
+        "http_attempts": 0,
+        "rpc_elements": 0,
+        "rpc_cu": 0
+      }
+    ],
+    "classification": [
+      "STABLE_OR_QUIET",
+      "STABLE_OR_QUIET"
+    ],
+    "processing_seconds": [
+      0.007557017030194402,
+      0.00437176798004657
+    ]
+  }
+}
