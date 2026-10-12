@@ -653,6 +653,48 @@ class RollingPrewarmTests(unittest.TestCase):
             self.assertEqual(shared.db.execute('SELECT COUNT(*) FROM work_history_requirements').fetchone()[0],0)
             self.assertIsNotNone(shared.claim('first'));self.assertIsNotNone(shared.claim('second'))
 
+    def test_pump_readiness_publication_batches_durable_facts_without_dropping_proofs(self):
+        from meme_machine import solana_candidate_lifecycle as lifecycle
+        scopes=[]
+        for n in range(16):
+            address='publish-'+str(n);scope=self.h.bind('pump',address);scopes.append(scope)
+            self.h.lifecycle.defer_proof(IntervalProof(scope,100,100,'alchemy_finalized_stream','a'*64,
+                dict(finalized=True,complete=True,scope=scope,lower_slot=100,upper_slot=100,lineage_hash=digest([scope,100])),NOW))
+        while self.h.lifecycle.flush():pass
+        commits=[];original=CandidateHistory
+        def traced(*args,**kw):
+            shared=original(*args,**kw)
+            shared.db.set_trace_callback(lambda sql:commits.append(sql) if sql=='COMMIT' else None)
+            return shared
+        with patch.object(lifecycle,'CandidateHistory',side_effect=traced):self.h.lifecycle.publish()
+        self.assertEqual(len(commits),1)
+        self.assertEqual(self.state.writer.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone()[0],0)
+        with closing(CandidateHistory(self.h.lifecycle.path,clock=lambda:NOW)) as shared:
+            self.assertEqual(shared.db.execute('SELECT COUNT(*) FROM work_history_proofs').fetchone()[0],16)
+            for scope in scopes:
+                self.assertEqual(self.h.lifecycle.missing(scope,100,100),[])
+                self.assertEqual(shared.db.execute('SELECT available FROM work_history_proofs WHERE scope=?',(scope,)).fetchone()[0],NOW)
+
+    def test_pump_proof_batch_failure_cannot_publish_partial_readiness_or_coverage(self):
+        scopes=[]
+        for n in range(3):
+            scope=self.h.bind('pump','failed-publish-'+str(n));scopes.append(scope)
+            self.h.lifecycle.defer_proof(IntervalProof(scope,100,100,'alchemy_finalized_stream','a'*64,
+                dict(finalized=True,complete=True,scope=scope,lower_slot=100,upper_slot=100,lineage_hash=digest([scope,100])),NOW))
+        while self.h.lifecycle.flush():pass
+        original=CandidateHistory.commit_history_readiness
+        def fail(shared,scope,*args,**kw):
+            if scope==scopes[1]:raise RuntimeError('offline_readiness_commit_fault')
+            return original(shared,scope,*args,**kw)
+        with patch.object(CandidateHistory,'commit_history_readiness',fail):
+            with self.assertRaisesRegex(RuntimeError,'offline_readiness_commit_fault'):self.h.lifecycle.publish()
+        self.assertEqual(self.state.writer.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone()[0],3)
+        with closing(CandidateHistory(self.h.lifecycle.path,clock=lambda:NOW)) as shared:
+            self.assertEqual(shared.db.execute('SELECT COUNT(*) FROM work_history_proofs').fetchone()[0],0)
+        for scope in scopes:self.assertEqual(self.h.lifecycle.missing(scope,100,100),[(100,100)])
+        self.h.lifecycle.publish()
+        for scope in scopes:self.assertEqual(self.h.lifecycle.missing(scope,100,100),[])
+
     def test_owner_queue_rejection_retries_the_same_frame_without_silent_loss(self):
         import asyncio
         from meme_machine.solana_selective_source import source_work

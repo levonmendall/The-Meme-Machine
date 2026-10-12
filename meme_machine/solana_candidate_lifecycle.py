@@ -346,48 +346,56 @@ class CandidateLifecycle:
         if self.db.in_transaction:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')
         self.flush()
         with closing(CandidateHistory(self.path,clock=self.clock)) as shared, self.writer.transaction():
-            for identity,scope,lo,hi,source,endpoint,raw,at in self.db.execute(
-                    'SELECT * FROM candidate_pending_proofs WHERE '+active_scope_sql('scope')+' ORDER BY lo,hi').fetchall():
-                family,address=scope.split(':',2)[1:]
-                if self.unconsumed(scope,through=hi):continue
-                proof=IntervalProof(scope,lo,hi,source,endpoint,json.loads(raw),at)
-                proof.validate()
-                binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND coverage_scope=? LIMIT 1',
-                    (family,scope)).fetchone()
-                candidate=address if binding is None else binding[0]
-                # Publish a scheduling receipt only after every canonical row's
-                # external consumer receipt is durable. The receipt proves this
-                # candidate interval, never program-wide market completeness.
-                shared.commit_history_readiness('candidate:'+family+':'+candidate,lo,hi,
-                    proof_hash=identity,available=self.clock())
-                if hasattr(self.history,'rolling') and address.startswith('group-'):
-                    # Fan out scheduler readiness only for actual pending
-                    # consumers, not one duplicate history per quiet pool.
-                    # Finish the WAL read statement before opening a write
-                    # transaction. A concurrent worker commit otherwise leaves
-                    # this cursor with a stale snapshot (SQLITE_BUSY_SNAPSHOT).
-                    targets=shared.db.execute("SELECT DISTINCT candidate FROM work WHERE lane='meteora' AND status IN ('active','pending')").fetchall()
-                    for target, in targets:
-                        member=self.db.execute('SELECT lower_slot FROM rolling_group_members WHERE scope=? AND family=? AND address=?',(scope,family,target)).fetchone()
-                        if member and member[0]<=hi:
-                            shared.commit_history_readiness('candidate:meteora:'+target,max(lo,member[0]),hi,
-                                proof_hash=identity,available=self.clock())
-                if family in ('pump','pumpswap'):
-                    from .solana_selective_runtime import CONTROL
-                    lower=(0,) if lo==0 else self.db.execute('SELECT market_time FROM stream_receipts WHERE scope=? AND slot=?',
-                        (CONTROL,lo)).fetchone()
-                    upper=self.db.execute('SELECT market_time FROM stream_receipts WHERE scope=? AND slot<=? ORDER BY slot DESC LIMIT 1',
-                        (CONTROL,hi)).fetchone()
-                    if lower and upper:
-                        from .solana_rolling_history import program_scope
-                        shared.commit_coverage(FAMILIES[family],lo,hi,int(lower[0]),int(upper[0]),
-                            proof_hash=identity,candidate=None if scope==program_scope(family) else candidate)
-                self.history.prove(proof)
-                old=self.db.execute('SELECT slot FROM candidate_checkpoints WHERE scope=?',(scope,)).fetchone()
-                # A later isolated complete island is not a contiguous checkpoint.
-                unresolved=self.db.execute('SELECT 1 FROM candidate_gaps WHERE scope=? AND repaired IS NULL AND lo<=? LIMIT 1',(scope,hi)).fetchone()
-                if not unresolved and (old is None or lo<=old[0]+1):self.checkpoint(scope,hi,identity)
-                self.db.execute('DELETE FROM candidate_pending_proofs WHERE id=?',(identity,))
+            proofs=self.db.execute(
+                'SELECT * FROM candidate_pending_proofs WHERE '+active_scope_sql('scope')+' ORDER BY lo,hi').fetchall()
+            # Pump's published intervals use the existing owner turn.
+            # Keep external receipts durable before the canonical writer commits,
+            # without a FULL fsync for every individual coverage/readiness fact.
+            # Group fanout retains its independent interleaved writer behavior.
+            from contextlib import nullcontext
+            batch=bool(proofs) and all(row[1].split(':',2)[1] in ('pump','pumpswap') for row in proofs)
+            with shared.transaction() if batch else nullcontext():
+                for identity,scope,lo,hi,source,endpoint,raw,at in proofs:
+                    family,address=scope.split(':',2)[1:]
+                    if self.unconsumed(scope,through=hi):continue
+                    proof=IntervalProof(scope,lo,hi,source,endpoint,json.loads(raw),at)
+                    proof.validate()
+                    binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND coverage_scope=? LIMIT 1',
+                        (family,scope)).fetchone()
+                    candidate=address if binding is None else binding[0]
+                    # Publish a scheduling receipt only after every canonical row's
+                    # external consumer receipt is durable. The receipt proves this
+                    # candidate interval, never program-wide market completeness.
+                    shared.commit_history_readiness('candidate:'+family+':'+candidate,lo,hi,
+                        proof_hash=identity,available=self.clock())
+                    if hasattr(self.history,'rolling') and address.startswith('group-'):
+                        # Fan out scheduler readiness only for actual pending
+                        # consumers, not one duplicate history per quiet pool.
+                        # Finish the WAL read statement before opening a write
+                        # transaction. A concurrent worker commit otherwise leaves
+                        # this cursor with a stale snapshot (SQLITE_BUSY_SNAPSHOT).
+                        targets=shared.db.execute("SELECT DISTINCT candidate FROM work WHERE lane='meteora' AND status IN ('active','pending')").fetchall()
+                        for target, in targets:
+                            member=self.db.execute('SELECT lower_slot FROM rolling_group_members WHERE scope=? AND family=? AND address=?',(scope,family,target)).fetchone()
+                            if member and member[0]<=hi:
+                                shared.commit_history_readiness('candidate:meteora:'+target,max(lo,member[0]),hi,
+                                    proof_hash=identity,available=self.clock())
+                    if family in ('pump','pumpswap'):
+                        from .solana_selective_runtime import CONTROL
+                        lower=(0,) if lo==0 else self.db.execute('SELECT market_time FROM stream_receipts WHERE scope=? AND slot=?',
+                            (CONTROL,lo)).fetchone()
+                        upper=self.db.execute('SELECT market_time FROM stream_receipts WHERE scope=? AND slot<=? ORDER BY slot DESC LIMIT 1',
+                            (CONTROL,hi)).fetchone()
+                        if lower and upper:
+                            from .solana_rolling_history import program_scope
+                            shared.commit_coverage(FAMILIES[family],lo,hi,int(lower[0]),int(upper[0]),
+                                proof_hash=identity,candidate=None if scope==program_scope(family) else candidate)
+                    self.history.prove(proof)
+                    old=self.db.execute('SELECT slot FROM candidate_checkpoints WHERE scope=?',(scope,)).fetchone()
+                    # A later isolated complete island is not a contiguous checkpoint.
+                    unresolved=self.db.execute('SELECT 1 FROM candidate_gaps WHERE scope=? AND repaired IS NULL AND lo<=? LIMIT 1',(scope,hi)).fetchone()
+                    if not unresolved and (old is None or lo<=old[0]+1):self.checkpoint(scope,hi,identity)
+                    self.db.execute('DELETE FROM candidate_pending_proofs WHERE id=?',(identity,))
 
     def refresh(self):
         """Finish observation leases after native work; keep identities recoverable."""
