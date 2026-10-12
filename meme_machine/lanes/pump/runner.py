@@ -1381,7 +1381,12 @@ def main(*,campaign=False,discovery_seconds=None):
     created,postgrad,pending,active,recovered=restore_runtime(ACCOUNTING,plane,confirmations)
     report['restored_observed_candidates']=0 if position_only() else _restore_observed_pump_candidates(
         created,postgrad,pumpswap_stream,plane,confirmations,int(time.time()))
-    if survivor is not None:survivor.prime()
+    if survivor is not None:
+        # Continuous recovery stays on the existing owned executor. Its real
+        # replay/handoff flags remain unavailable until the step completes;
+        # a synchronous bootstrap wait must not stop the Current manager.
+        if continuous:survivor.tick(time.time(),admit=False)
+        else:survivor.prime()
     from meme_machine.runtime.status import update
     update('MANAGING' if active or pending else 'DISCOVERING',reconciled=True,restored_positions=len(active)+len(pending))
     report["qualifiers"].extend(recovered)

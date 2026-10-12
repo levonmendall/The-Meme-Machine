@@ -3,6 +3,34 @@ from concurrent.futures import TimeoutError
 from meme_machine.runtime.survivor_history import Worker
 
 class SurvivorBoundedDrainTests(unittest.TestCase):
+    def test_continuous_startup_remains_pending_without_blocking_or_fabricating_replay(self):
+        entered=threading.Event();release=threading.Event();calls=[];closed=[]
+        proof={'accounting_replay':{'verified':True},'durable_handoff':True,
+               'accounting':{'open_positions':0,'reserved':0},'last_boundary':None}
+        class Service:
+            def step(self,*,admit):
+                calls.append(admit);entered.set();release.wait(5);return proof
+            def close(self):closed.append(threading.get_ident())
+        worker=Worker(Service,enrichment_enabled=False)
+        try:
+            started=time.monotonic()
+            self.assertEqual(worker.tick(100,admit=False),{})
+            self.assertTrue(entered.wait(1))
+            self.assertLess(time.monotonic()-started,.5)
+            # Subsequent Current turns continue without another recovery job,
+            # admission proof or a fabricated successful Survivor checkpoint.
+            for now in (101,130,3600,86400):
+                self.assertEqual(worker.tick(now,admit=True),{})
+            self.assertEqual(calls,[False]);self.assertEqual(worker.completed_steps,0)
+            release.set();worker.future.result(timeout=2)
+            status=worker.tick(100,admit=False)
+            self.assertTrue(status['accounting_replay']['verified'])
+            self.assertTrue(status['durable_handoff'])
+            self.assertEqual(status['machinery']['admission_enabled_steps'],0)
+            self.assertEqual(calls,[False])
+        finally:release.set();worker.close(timeout=2)
+        self.assertEqual(len(closed),1)
+
     def test_blocked_step_has_bounded_close_and_one_owned_eventual_close(self):
         entered=threading.Event();release=threading.Event();owners=[];closed=[]
         class Service:

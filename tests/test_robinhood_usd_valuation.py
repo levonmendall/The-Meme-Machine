@@ -61,7 +61,7 @@ ATTENTION_DELTAS = {
         '_late_signal': '2ed9c66d2dbbb1fdbbb7f1317d40ed65eeb1cea2fd923545016b38d74c5b6e6f',
         '_volume_price_signal': 'ca32e28c8363e5ceba28b67fc7edf6d0e3ac98820bf3a06d3234522495ac4b9a',
         '_record_attempt': 'e0d61bb5bda067f4b12274a946a93af485d03a43ca394938dc38f8754ae5bb6e',
-        'main': '775aef5124f1a170e474c20e19c82b31c40dd6be26f2f24dec91327f29fb7b12',
+        'main': 'b044a0f2ec3d02f9971b701f8d61ac2513ce4185233957fb8aa663e309d47155',
     },
     'meme_machine/lanes/pump/pumpswap_survivor_runtime.py': {
         'Runtime.__init__': 'ea88001e5397533149a47b438dddf56a57babb6bb167c768e809c43e36e90cc7',
