@@ -475,6 +475,14 @@ def _retain_tape_history(tape):
     return _retain_pump_source_history(tape.candidate_history_rows)
 
 
+def _observed_creation(tape,created,mint):
+    # The original loop already retained this authenticated creation and never
+    # replaced it on later trades. Reuse that exact identity for nomination;
+    # fresh canonical windows and executable qualification still gate entry.
+    if mint in created:return created[mint]['creation']
+    return tape.creation(mint)
+
+
 def _restore_observed_pump_candidates(created,postgrad,pumpswap_stream,plane,confirmations,now):
     """Rebuild cheap observation state from the shared ordered history after restart."""
     if CANDIDATE_HISTORY is None:return 0
@@ -1443,7 +1451,7 @@ def main(*,campaign=False,discovery_seconds=None):
                     report['stream']=plane.telemetry();_save(report);last_save=now
                 _stop_sleep(.25);continue
             for event in fresh:
-                creation=tape.creation(event["mint"])
+                creation=_observed_creation(tape,created,event["mint"])
                 if creation is None:
                     continue
                 if event["mint"] not in created:

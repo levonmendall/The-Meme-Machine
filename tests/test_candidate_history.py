@@ -54,6 +54,27 @@ class CandidateHistoryTests(unittest.TestCase):
         self.assertEqual(self.history.telemetry()["candidates"],256)
         self.assertEqual(self.history.candidate("pump","mint-255")["metadata"]["rank"],255)
 
+    def test_observed_pump_creation_reuses_original_identity_without_qualifying_or_caching_missing(self):
+        from meme_machine.lanes.pump import runner
+        from unittest.mock import Mock
+        creation=dict(event_type='create',mint='mint',creator='original',market_time=1000)
+        tape=Mock();tape.creation.return_value=creation;created={}
+        first=runner._observed_creation(tape,created,'mint')
+        self.assertIs(first,creation);self.assertEqual(created,{})
+        created['mint']=dict(creation=first,pregrad_wallets=set(),graduated=False)
+        for _ in range(1000):self.assertIs(runner._observed_creation(tape,created,'mint'),first)
+        tape.creation.assert_called_once_with('mint')
+        self.assertNotIn('qualified',created['mint']);self.assertFalse(created['mint']['graduated'])
+        # Missing lineage is never negatively cached. Newly published evidence
+        # remains discoverable through the original authenticated tape path.
+        tape.creation.side_effect=[None,dict(creation,mint='new')]
+        self.assertIsNone(runner._observed_creation(tape,created,'new'))
+        self.assertEqual(runner._observed_creation(tape,created,'new')['mint'],'new')
+        self.assertNotIn('new',created)
+        tape.creation.side_effect=ValueError('candidate_history_corruption')
+        with self.assertRaisesRegex(ValueError,'candidate_history_corruption'):
+            runner._observed_creation(tape,created,'unverified')
+
     def source_rows(self,count=130):
         return [dict(identity='source-'+str(n),slot=10+n,transaction_index=1,event_index=0,
             market_time=1000+n,event=dict(mint='batch-mint',event_type='trade',market_time=1000+n,

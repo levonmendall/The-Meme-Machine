@@ -61,7 +61,7 @@ ATTENTION_DELTAS = {
         '_late_signal': '2ed9c66d2dbbb1fdbbb7f1317d40ed65eeb1cea2fd923545016b38d74c5b6e6f',
         '_volume_price_signal': 'ca32e28c8363e5ceba28b67fc7edf6d0e3ac98820bf3a06d3234522495ac4b9a',
         '_record_attempt': 'e0d61bb5bda067f4b12274a946a93af485d03a43ca394938dc38f8754ae5bb6e',
-        'main': 'b044a0f2ec3d02f9971b701f8d61ac2513ce4185233957fb8aa663e309d47155',
+        'main': 'fceba527377a791da506520a5e994f01564567bc4b7b3cb069cde3d3fb882213',
     },
     'meme_machine/lanes/pump/pumpswap_survivor_runtime.py': {
         'Runtime.__init__': 'ea88001e5397533149a47b438dddf56a57babb6bb167c768e809c43e36e90cc7',
@@ -87,6 +87,7 @@ ATTENTION_DELTAS = {
 OPERATION_DELTAS = {
     'meme_machine/lanes/pump/runner.py': {
         '_retain_tape_history': '7e2546ac6ea91029b22809fd3b95fa3ff20a891ad1095a1fd1a39f853e3a6cbd',
+        '_observed_creation': '45a63d1aec238ecd9c13498b4bace0ccf532d757b2866fd215c2c1fa1940f5ec',
     },
     'meme_machine/lanes/pons/immutable_rpc.py': {
         'EvidenceStore.__init__': 'e6558c2232a88f43b6ac74805395343768cfbbfdd453390ba28cf6f4fb16aa3e',
@@ -117,7 +118,7 @@ def assert_holding_delta(test, relative, original, current):
         if before is None:
             # Only the explicitly pinned attention helper may be new. Remove
             # that node for the historical sibling/interface comparison.
-            test.assertIn(name,('_volume_quality_attention','Runtime._quality_rank','_retain_tape_history'))
+            test.assertIn(name,('_volume_quality_attention','Runtime._quality_rank','_retain_tape_history','_observed_creation'))
             owner=new
             for part in name.split('.')[:-1]:owner=next(n for n in owner.body if isinstance(n,ast.ClassDef) and n.name==part)
             owner.body.remove(after)
