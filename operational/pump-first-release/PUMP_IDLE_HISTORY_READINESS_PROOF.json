@@ -1,0 +1,38 @@
+{
+  "schema": "focused-operational-repair-proof-v1",
+  "parent_source": "f35af2fae38c219188437dc36a35306f23d2b179",
+  "retained_combined_failure": "blocker-repair-20261011/CONTINUOUS_ACTUAL_WORKERS_1791793193998.json",
+  "retained_owner_profile": "blocker-repair-20261011/pump-combined-owner-f35af2fa-1791793198210-work.json",
+  "defect": "Each new scheduling proof reconstructed all historical scope intervals even when no work was waiting. Both program scopes retained 8,556 proofs and zero requirements during the authenticated publication failure.",
+  "change": "Retain every new proof in the same writer transaction, then resolve history only if a matching durable requirement exists. The existing contiguous and point-in-time resolver is unchanged.",
+  "preserved": [
+    "All historical proofs and first availability",
+    "Waiting-work coverage and exact deadlines",
+    "Consumer-before-coverage ordering",
+    "No provider or quote changes"
+  ],
+  "tests": {
+    "FAST": {
+      "run": 51,
+      "seconds": 7.269,
+      "result": "PASS",
+      "log": "/tmp/idle-history-readiness-fast.log"
+    },
+    "OPERATIONAL": {
+      "run": 106,
+      "seconds": 16.035,
+      "result": "PASS",
+      "log": "/tmp/idle-history-readiness-operational.log"
+    }
+  },
+  "regression": "10,000 historical proofs retained through restart; idle publication uses fewer than 1,000 SQLite VM steps; later waiters consume retained proofs; future or disjoint intervals cannot release work.",
+  "file_sha256": {
+    "meme_machine/runtime/candidate_history.py": "01aa81b55321880509c2fe926cbd65b3be81ae8f2c44abe226b0fe561413ce95",
+    "tests/test_candidate_history.py": "02f1f6cb10b6893ba70359998fdfca8e37ee1dfc9a4ba24066f30e1fe86fdd0b"
+  },
+  "provider_methods_added": 0,
+  "buffer_limits_changed": false,
+  "authenticated_result": "PENDING",
+  "funding": false,
+  "normal_acceptance": false
+}

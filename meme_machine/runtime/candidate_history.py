@@ -524,8 +524,15 @@ class CandidateHistory:
         with self.transaction():
             self.db.execute('INSERT OR IGNORE INTO work_history_proofs VALUES(?,?,?,?,?,?)',
                 (digest(body),scope,lo,hi,at,proof_hash))
+            requirements=self.db.execute('SELECT work_id,lo,hi FROM work_history_requirements WHERE scope=?',(scope,)).fetchall()
+            # The proof stays durable for future work. With no waiting work,
+            # reconstructing every old interval cannot change a decision and
+            # blocks native publication as the retained receipt history grows.
+            # The same writer transaction prevents a concurrent waiter from
+            # appearing between this check and the complete-interval resolver.
+            if not requirements:return
             spans=self.db.execute('SELECT lo,hi FROM work_history_proofs WHERE scope=? AND available<=? ORDER BY lo,hi',(scope,at)).fetchall()
-            for identity,lower,upper in self.db.execute('SELECT work_id,lo,hi FROM work_history_requirements WHERE scope=?',(scope,)).fetchall():
+            for identity,lower,upper in requirements:
                 cursor=lower
                 for a,b in spans:
                     if b<cursor:continue

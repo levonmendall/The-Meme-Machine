@@ -24,6 +24,37 @@ class CandidateHistoryTests(unittest.TestCase):
         self.assertEqual(self.history.telemetry()["candidates"],256)
         self.assertEqual(self.history.candidate("pump","mint-255")["metadata"]["rank"],255)
 
+    def test_readiness_without_waiters_retains_proofs_without_rescanning_them(self):
+        scope='candidate:pump:program';db=self.history.db
+        with self.history.transaction():
+            db.executemany('INSERT INTO work_history_proofs VALUES(?,?,?,?,?,?)',
+                [(str(n),scope,n,n,999,'a'*64) for n in range(10000)])
+        steps=[];db.set_progress_handler(lambda:steps.append(1) or 0,1000)
+        try:self.history.commit_history_readiness(scope,10000,10000,proof_hash='b'*64)
+        finally:db.set_progress_handler(None,0)
+        self.assertEqual(steps,[],'idle publication rescanned retained history')
+        self.history.close();self.history=CandidateHistory(self.path,clock=lambda:self.now[0],worker_capacity=1)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM work_history_proofs WHERE scope=?',(scope,)).fetchone()[0],10001)
+        work=self.history.enqueue('pump','mint',kind='deep_watch',ready_at=1000,deadline=1020,estimate_seconds=1)
+        self.history.wait_for_history(work,scope,10,12,retry_at=1010)
+        self.history.commit_history_readiness(scope,10001,10001,proof_hash='c'*64,available=1001)
+        self.assertIsNone(self.history.db.execute('SELECT 1 FROM work_history_requirements WHERE work_id=?',(work,)).fetchone())
+        self.assertEqual(self.history.db.execute('SELECT deadline FROM work WHERE id=?',(work,)).fetchone()[0],1020)
+        self.assertEqual(len(self.history.work_observations(kind='history_ready')),1)
+
+    def test_waiting_work_still_requires_contiguous_point_in_time_proofs(self):
+        scope='candidate:pump:mint'
+        self.history.commit_history_readiness(scope,10,12,proof_hash='f'*64,available=1010)
+        work=self.history.enqueue('pump','mint',kind='deep_watch',ready_at=1000,deadline=1020,estimate_seconds=1)
+        self.history.wait_for_history(work,scope,10,12,retry_at=1015)
+        self.history.commit_history_readiness(scope,10,10,proof_hash='a'*64,available=1001)
+        self.assertIsNotNone(self.history.db.execute('SELECT 1 FROM work_history_requirements WHERE work_id=?',(work,)).fetchone())
+        self.history.commit_history_readiness(scope,12,12,proof_hash='b'*64,available=1002)
+        self.assertIsNotNone(self.history.db.execute('SELECT 1 FROM work_history_requirements WHERE work_id=?',(work,)).fetchone())
+        self.history.commit_history_readiness(scope,11,11,proof_hash='c'*64,available=1003)
+        self.assertIsNone(self.history.db.execute('SELECT 1 FROM work_history_requirements WHERE work_id=?',(work,)).fetchone())
+        self.assertEqual(self.history.db.execute('SELECT deadline FROM work WHERE id=?',(work,)).fetchone()[0],1020)
+
     def test_economic_events_are_returned_in_canonical_order(self):
         self.history.observe("pump","mint",surface="pumpswap",observed_at=1000)
         rows=[
