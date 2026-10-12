@@ -61,6 +61,10 @@ def _enable_wal(db,*,seconds=30.0,monotonic=time.monotonic,sleeper=time.sleep):
     deadline=monotonic()+float(seconds)
     db.execute("PRAGMA busy_timeout=0")
     try:
+        # A read of an already installed WAL mode does not request the writer
+        # lock. Reissuing journal_mode=WAL made ordinary concurrent opens wait
+        # behind the current native consumer's transaction.
+        if db.execute('PRAGMA journal_mode').fetchone()[0]=='wal':return 'wal'
         while True:
             try:return db.execute("PRAGMA journal_mode=WAL").fetchone()[0]
             except sqlite3.OperationalError as exc:
@@ -71,11 +75,11 @@ def _enable_wal(db,*,seconds=30.0,monotonic=time.monotonic,sleeper=time.sleep):
                 if remaining<=0:raise
                 sleeper(min(.05,remaining))
     finally:
-        db.execute("PRAGMA busy_timeout=30000")
+        db.execute("PRAGMA busy_timeout="+str(int(seconds*1000)))
 
 
 class CandidateHistory:
-    def __init__(self,path=None,*,clock=time.time,worker_capacity=None):
+    def __init__(self,path=None,*,clock=time.time,worker_capacity=None,write_wait_seconds=30.0):
         value=path or os.environ.get("MM_SOLANA_CANDIDATE_HISTORY_DB")
         if not value:raise ValueError("candidate_history_path_required")
         self.path=Path(value)
@@ -83,10 +87,18 @@ class CandidateHistory:
         self.clock=clock
         self.worker_capacity=int(worker_capacity or os.environ.get("MM_SOLANA_EXPENSIVE_WORKERS","2"))
         if not 1<=self.worker_capacity<=32:raise ValueError("candidate_history_worker_capacity")
-        self.db=sqlite3.connect(str(self.path),timeout=30,isolation_level=None,check_same_thread=False)
-        self.db.execute("PRAGMA busy_timeout=30000")
-        _enable_wal(self.db)
-        self.db.execute("PRAGMA synchronous=FULL")
+        if type(write_wait_seconds) not in (int,float) or not 0<=write_wait_seconds<=30:
+            raise ValueError('candidate_history_write_wait')
+        self.db=sqlite3.connect(str(self.path),timeout=write_wait_seconds,isolation_level=None,check_same_thread=False)
+        try:
+            _enable_wal(self.db,seconds=write_wait_seconds)
+            self.db.execute("PRAGMA synchronous=FULL")
+            self._install_schema()
+        except BaseException:
+            self.db.close()
+            raise
+
+    def _install_schema(self):
         self.db.executescript("""
         CREATE TABLE IF NOT EXISTS candidates(
           lane TEXT NOT NULL,candidate TEXT NOT NULL,surface TEXT NOT NULL,

@@ -1,10 +1,14 @@
 """Original canonical economics, bounded FIFO batching and durable failure."""
 import asyncio
 import copy
+import sqlite3
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from contextlib import closing
+from unittest.mock import patch
 import based58
 
 from meme_machine.solana_candidate_join import YellowstoneTransactionFrame
@@ -125,6 +129,44 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         q.done(rows);await waiting;q.done(await q.batch())
         oversized=YellowstoneTransactionFrame(f.update,CANDIDATE_COMMIT_BYTES+1,NOW)
         with self.assertRaisesRegex(EvidenceUnavailable,'candidate_commit_batch_bound'):await q.put(oversized)
+
+    async def test_busy_consumer_does_not_block_native_intake_or_advance_a_proof(self):
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        with closing(CandidateHistory(self.h.lifecycle.path)) as consumer:
+            with consumer.transaction():
+                started=time.perf_counter()
+                commit_candidate_batch(self.state,[frame(n) for n in range(100,104)],self.addresses,'session')
+                self.assertLess(time.perf_counter()-started,.5,
+                    'canonical owner waited behind the native consumer writer')
+                self.assertGreater(self.h.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+                self.assertGreater(self.h.db.execute('SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0],0)
+                self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
+                self.assertTrue(self.h.rolling.missing('pump',program_scope('pump'),100,102))
+                self.assertFalse(self.h.db.in_transaction)
+                # More valid source frames remain durable while publication waits.
+                commit_candidate_batch(self.state,[frame(n) for n in range(104,108)],self.addresses,'session')
+                retained=self.h.db.execute('SELECT identity,hash,first_seen FROM rolling_economic_events ORDER BY identity').fetchall()
+            # A restart retains deferred obligations, not a claimed consumer ACK.
+            self.state.writer.close();self.state,self.h=state_at(self.state.writer.path)
+            self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
+            self.h.lifecycle.publish()
+            self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0],0)
+            self.assertEqual(self.h.rolling.missing('pump',program_scope('pump'),100,106),[])
+            self.assertEqual(self.h.db.execute('SELECT identity,hash,first_seen FROM rolling_economic_events ORDER BY identity').fetchall(),retained)
+            refs=consumer.db.execute('SELECT identity,hash FROM canonical_event_refs ORDER BY identity').fetchall()
+            self.assertTrue(refs)
+            self.h.lifecycle.publish()
+            self.assertEqual(consumer.db.execute('SELECT identity,hash FROM canonical_event_refs ORDER BY identity').fetchall(),refs)
+
+    async def test_publication_does_not_hide_a_storage_error_as_consumer_contention(self):
+        commit_candidate_batch(self.state,[frame(n) for n in range(100,104)],self.addresses,'session',publish=False)
+        before=self.snapshot(self.h)
+        failure=sqlite3.OperationalError('offline-io-failure');failure.sqlite_errorcode=sqlite3.SQLITE_IOERR
+        with patch('meme_machine.solana_candidate_lifecycle.CandidateHistory',side_effect=failure):
+            with self.assertRaisesRegex(sqlite3.OperationalError,'offline-io-failure'):
+                self.h.lifecycle.publish()
+        self.assertEqual(self.snapshot(self.h),before)
+        self.assertFalse(self.h.db.in_transaction)
 
 
 if __name__=='__main__':unittest.main()

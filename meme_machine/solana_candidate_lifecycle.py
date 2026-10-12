@@ -8,7 +8,9 @@ idempotently in CandidateHistory second, and checkpointed last.
 from contextlib import closing
 import json
 import os
+import sqlite3
 import time
+from functools import wraps
 
 from .runtime.candidate_history import CandidateHistory
 from .solana_evidence_plane import EvidenceUnavailable,IntervalProof,canonical,digest,decode_body
@@ -37,6 +39,28 @@ CREATE TABLE IF NOT EXISTS candidate_activity_receipts(
  family TEXT NOT NULL,address TEXT NOT NULL,slot INTEGER NOT NULL,signature TEXT NOT NULL,
  PRIMARY KEY(family,address,slot,signature));
 '''
+
+
+def defer_busy_consumer(function):
+    """The durable outbox waits; its canonical source owner must not wait.
+
+    Only SQLite writer contention is recoverable here. Missing/corrupt evidence,
+    disk errors and all economic guards still fail through their original path.
+    A replay repeats the original identity; no ACK or proof is advanced early.
+    """
+    @wraps(function)
+    def attempt(self,*args,**kwargs):
+        try:return function(self,*args,**kwargs)
+        except sqlite3.OperationalError as error:
+            if (getattr(error,'sqlite_errorcode',0)&255) not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):raise
+            if self.db.in_transaction:raise
+            now=self.clock()
+            if now-getattr(self,'_consumer_busy_observed_at',float('-inf'))>=5:
+                self.history._observation(None,'candidate_consumer_write_busy',
+                    dict(operation=function.__name__,deferred=True,proof_advancement=False))
+                self._consumer_busy_observed_at=now
+            return 0
+    return attempt
 
 
 class CandidateLifecycle:
@@ -164,6 +188,7 @@ class CandidateLifecycle:
                 body=decode_body(stored[0],self.db)
                 self.emit(family,address,'canonical',dict(record=body,available=stored[1]))
 
+    @defer_busy_consumer
     def flush(self,*,limit=64):
         """Canonical commit -> CandidateHistory commit -> durable consumed receipt.
 
@@ -174,7 +199,7 @@ class CandidateLifecycle:
         rows=self.db.execute('''SELECT id,family,address,kind,body,hash,created FROM candidate_history_outbox
             WHERE '''+active_sql('family',solana=True)+''' AND consumed IS NULL ORDER BY priority,created,rowid LIMIT ?''',(limit,)).fetchall()
         if not rows:return 0
-        with closing(CandidateHistory(self.path,clock=self.clock)) as shared:
+        with closing(CandidateHistory(self.path,clock=self.clock,write_wait_seconds=0)) as shared:
             shared.db.execute('''CREATE TABLE IF NOT EXISTS source_receipts(
                 id TEXT PRIMARY KEY,family TEXT NOT NULL,address TEXT NOT NULL,kind TEXT NOT NULL,
                 at REAL NOT NULL,body TEXT NOT NULL,hash TEXT NOT NULL)''')
@@ -341,11 +366,12 @@ class CandidateLifecycle:
             (identity,proof.scope,proof.lower_slot,proof.upper_slot,proof.source,
              proof.endpoint_identity,canonical(proof.witness),proof.observed_at))
 
+    @defer_busy_consumer
     def publish(self):
         """Proofs become visible only after all source receipts are durable."""
         if self.db.in_transaction:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')
         self.flush()
-        with closing(CandidateHistory(self.path,clock=self.clock)) as shared, self.writer.transaction():
+        with closing(CandidateHistory(self.path,clock=self.clock,write_wait_seconds=0)) as shared, self.writer.transaction():
             proofs=self.db.execute(
                 'SELECT * FROM candidate_pending_proofs WHERE '+active_scope_sql('scope')+' ORDER BY lo,hi').fetchall()
             # Pump's published intervals use the existing owner turn.

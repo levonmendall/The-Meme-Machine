@@ -1,0 +1,66 @@
+{
+  "schema": "nonblocking-consumer-publication-v1",
+  "source_before": "3d8a9e9d209211fd4984af0d04d68ea8527e699f",
+  "cause": "Canonical source owner waited behind the CandidateHistory consumer writer; existing-WAL opens also unnecessarily requested its writer lock.",
+  "authenticated_isolation": {
+    "trace": "/var/lib/meme-machine-observer/native-critical-path-1791805875.json",
+    "optional_archive_dispatch": false,
+    "metrics": {
+      "CandidateLifecycle.flush": {
+        "calls": 834,
+        "wall": 85.48649789148476,
+        "cpu": 24.157844342000086,
+        "max_wall": 6.815163529012352,
+        "max_cpu": 0.06010186000000001
+      },
+      "CandidateLifecycle.publish": {
+        "calls": 834,
+        "wall": 93.77430966484826,
+        "cpu": 25.84327747600002,
+        "max_wall": 6.870191460009664,
+        "max_cpu": 0.09079558900000251
+      },
+      "commit_candidate_batch": {
+        "calls": 28,
+        "wall": 14.658536071889102,
+        "cpu": 5.6428367329999745,
+        "max_wall": 1.0281808979343623,
+        "max_cpu": 0.3626968479999988
+      },
+      "checkpoint_boundary": {
+        "calls": 147,
+        "wall": 7.316450669779442,
+        "cpu": 1.1448721770000014,
+        "max_wall": 0.37074060004670173,
+        "max_cpu": 0.053675372999999915
+      }
+    }
+  },
+  "repair": "Reuse installed WAL mode and defer only SQLITE_BUSY/LOCKED consumer publication using a zero-wait source-owned connection. Retain canonical outbox and pending interval proofs for idempotent retry.",
+  "safety": [
+    "FULL durability unchanged",
+    "ACK only after external commit",
+    "no proof advancement while consumer busy",
+    "no event loss",
+    "restart preserves pending evidence",
+    "storage errors propagate",
+    "provider and protective deadlines unchanged",
+    "all economic policy identities unchanged"
+  ],
+  "tests": {
+    "FAST": {
+      "passed": 95,
+      "seconds": 24.687,
+      "log": "/tmp/nonblocking-consumer-publication-fast.log"
+    },
+    "OPERATIONAL": {
+      "passed": 20,
+      "seconds": 2.284,
+      "log": "/tmp/nonblocking-consumer-publication-operational.log"
+    }
+  },
+  "regression": "A real held SQLite consumer writer cannot block source frames or advance coverage; unlocking and restarting publishes the identical retained hashes once. IO errors remain errors.",
+  "provider_activation_proven": false,
+  "full_protection_proven": false,
+  "continuous_acceptance_proven": false
+}
