@@ -16,6 +16,7 @@ import time
 import zlib
 
 from .runtime.candidate_history import CandidateHistory
+from .solana_candidate_lifecycle import defer_busy_consumer
 from .solana_evidence_plane import EvidenceUnavailable,EvidenceConflict,FinalizedRecord,canonical,digest,decode_body
 from .solana_selective_history import FAMILIES,coverage_scope
 
@@ -121,6 +122,30 @@ class ScopedRetirement:
             if rows and rows[0] is not None and rows[0]>=self.clock()-retention['window_seconds']:return 'rolling_trigger_and_warmup_history'
         return None
 
+    def _oldest_hot_identities(self,family,address,limit):
+        """Bound Python expansion while retaining exact canonical precedence.
+
+        Each storage branch uses its identity index after the shared address
+        lookup. Forcing that index avoids SQLite's whole-program ORDER BY path.
+        The canonical view still decides visibility, including cold shadows.
+        A global top N must occur in a branch's top N; deduplicate before the
+        final bound. Long metadata scans remain interruptible owner SQL work.
+        """
+        tables=['records','shared_history_cache','scoped_cold_records']
+        if hasattr(self.history,'rolling'):tables.append('rolling_economic_events')
+        parts=[];args=[address]
+        for table in tables:
+            parts.append('SELECT identity,slot FROM (SELECT r.identity,r.slot FROM ids a CROSS JOIN '+
+                table+' r INDEXED BY sqlite_autoindex_'+table+'_1 WHERE r.identity=a.identity '
+                'AND r.scope=? AND r.body IS NOT NULL AND EXISTS (SELECT 1 FROM canonical_evidence c '
+                'WHERE c.identity=r.identity AND c.scope=r.scope AND c.slot=r.slot AND c.body IS NOT NULL) '
+                'ORDER BY r.slot,r.identity LIMIT ?)')
+            args.extend((FAMILIES[family],limit))
+        query=('WITH ids AS MATERIALIZED (SELECT identity FROM canonical_addresses WHERE address=?) '
+            'SELECT DISTINCT identity,slot FROM ('+' UNION ALL '.join(parts)+') ORDER BY slot,identity LIMIT ?')
+        return [r[0] for r in self.db.execute(query,(*args,limit))]
+
+    @defer_busy_consumer
     def retire(self,*,limit=64,measure_hot_bytes=True):
         if self.db.in_transaction:raise EvidenceUnavailable('retention_inside_source_transaction')
         if not 1<=limit<=1000:raise EvidenceUnavailable('retention_batch_bound')
@@ -137,7 +162,7 @@ class ScopedRetirement:
         query='''SELECT DISTINCT family,coverage_scope FROM evidence_bindings WHERE '''+active_sql('family',solana=True)+''' AND coverage_scope>? ORDER BY coverage_scope LIMIT ?'''
         bindings=self.db.execute(query,(cursor,min(limit,64))).fetchall()
         if not bindings and cursor:bindings=self.db.execute(query,('',min(limit,64))).fetchall()
-        with closing(CandidateHistory(self.lifecycle.path,clock=self.clock)) as shared:
+        with closing(CandidateHistory(self.lifecycle.path,clock=self.clock,write_wait_seconds=0)) as shared:
             for family,scope in bindings:
                 address=scope[len('candidate:'+family+':'):]
                 binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
@@ -145,21 +170,7 @@ class ScopedRetirement:
                 # Resolve the indexed address set before expanding the canonical
                 # union. Scanning an entire program for every candidate blocks
                 # urgent owner work even though each result is bounded to 64.
-                identities=[r[0] for r in self.db.execute(
-                    'SELECT identity FROM canonical_addresses WHERE address=?',(market,))]
-                if not identities:continue
-                # SQLite distributes ORDER BY through the canonical UNION ALL
-                # and otherwise chooses a whole-program scope scan per quiet
-                # view. Resolve compact metadata by primary identity first;
-                # only the bounded selected rows expand their economic bodies.
-                metadata=[]
-                for start in range(0,len(identities),256):
-                    chunk=identities[start:start+256]
-                    metadata.extend(r for r in self.db.execute(
-                        'SELECT identity,scope,slot,body IS NOT NULL FROM canonical_evidence WHERE identity IN ('+
-                        ','.join('?' for _ in chunk)+')',chunk)
-                        if r[1]==FAMILIES[family] and r[3])
-                selected_ids=[r[0] for r in sorted(metadata,key=lambda r:(r[2],r[0]))[:limit]]
+                selected_ids=self._oldest_hot_identities(family,market,limit)
                 rows=[self.db.execute('SELECT * FROM canonical_evidence WHERE identity=?',(identity,)).fetchone()
                     for identity in selected_ids]
                 if not rows:continue

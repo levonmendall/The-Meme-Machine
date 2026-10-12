@@ -436,6 +436,67 @@ class ClosureTests(unittest.TestCase):
                 equal();raise RuntimeError('offline rollback')
         equal()
 
+    def test_retirement_reads_do_not_block_on_an_unrelated_wal_writer(self):
+        import threading,time
+        cold=ScopedRetirement(self.h)
+        with closing(CandidateHistory(self.life.path)) as writer:
+            writer.db.execute('BEGIN IMMEDIATE')
+            release=threading.Event()
+            def unlock():
+                release.wait(1);writer.db.execute('ROLLBACK')
+            helper=threading.Thread(target=unlock);helper.start()
+            before=self.h.db.execute("SELECT value FROM meta WHERE key='scoped_retirement_cursor'").fetchone()
+            started=time.monotonic()
+            try:
+                self.assertIsInstance(cold.retire(measure_hot_bytes=False),dict)
+                self.assertLess(time.monotonic()-started,.25,'retirement waited for an unrelated consumer writer')
+                self.assertEqual(self.h.db.execute("SELECT value FROM meta WHERE key='scoped_retirement_cursor'").fetchone(),before)
+                self.assertFalse(self.h.db.in_transaction)
+            finally:release.set();helper.join(2)
+        self.assertIsInstance(cold.retire(measure_hot_bytes=False),dict)
+
+    def test_retirement_busy_consumer_preserves_cursor_and_retries_original_slice(self):
+        import sqlite3
+        cold=ScopedRetirement(self.h)
+        before=self.h.db.execute("SELECT value FROM meta WHERE key='scoped_retirement_cursor'").fetchone()
+        error=sqlite3.OperationalError('database is locked');error.sqlite_errorcode=sqlite3.SQLITE_BUSY
+        with patch('meme_machine.solana_scoped_retirement.CandidateHistory',side_effect=error) as opened:
+            self.assertEqual(cold.retire(measure_hot_bytes=False),0)
+            self.assertEqual(opened.call_args.kwargs['write_wait_seconds'],0)
+        self.assertEqual(self.h.db.execute("SELECT value FROM meta WHERE key='scoped_retirement_cursor'").fetchone(),before)
+        self.assertFalse(self.h.db.in_transaction)
+        error=sqlite3.OperationalError('disk I/O error');error.sqlite_errorcode=sqlite3.SQLITE_IOERR
+        with patch('meme_machine.solana_scoped_retirement.CandidateHistory',side_effect=error):
+            with self.assertRaises(sqlite3.OperationalError):cold.retire(measure_hot_bytes=False)
+        self.assertIsInstance(cold.retire(measure_hot_bytes=False),dict)
+
+    def test_retirement_metadata_selection_bounds_rows_and_keeps_canonical_precedence(self):
+        # Metadata-only representations; these rows are never consumed as
+        # economic evidence or used to qualify a market opportunity.
+        self.ingest_fixture('meteora');cold=ScopedRetirement(self.h);db=self.h.db
+        sample=list(db.execute('SELECT * FROM canonical_evidence WHERE body IS NOT NULL LIMIT 1').fetchone())
+        address='offline-wide-history'
+        with self.state.writer.transaction():
+            for n in range(1024):
+                row=list(sample);row[0]='selection-'+str(n);row[2]=1024-n
+                db.execute('INSERT INTO rolling_economic_events VALUES('+','.join('?' for _ in row)+')',row)
+                db.execute('INSERT INTO rolling_economic_addresses VALUES(?,?)',(row[0],address))
+            # A hot legacy copy must not defeat the canonical cold shadow.
+            shadow=list(sample);shadow[0]='selection-1023';shadow[2]=1
+            db.execute('INSERT INTO shared_history_cache VALUES('+','.join('?' for _ in shadow)+')',shadow)
+            db.execute('UPDATE rolling_economic_events SET body=NULL WHERE identity=?',(shadow[0],))
+        baseline=('SELECT r.identity,r.slot FROM canonical_evidence r WHERE r.identity IN '
+            '(SELECT identity FROM canonical_addresses WHERE address=?) AND r.scope=? AND r.body IS NOT NULL')
+        expected=sorted(db.execute(baseline,(address,sample[1])),key=lambda r:(r[1],r[0]))
+        for limit in (1,16,64):
+            statements=[];db.set_trace_callback(statements.append)
+            try:selected=cold._oldest_hot_identities('meteora',address,limit)
+            finally:db.set_trace_callback(None)
+            self.assertEqual(selected,[r[0] for r in expected[:limit]])
+            self.assertEqual(len(statements),1,'retirement expanded history through repeated Python queries')
+            self.assertNotIn(shadow[0],selected)
+        self.assertEqual(cold._oldest_hot_identities('meteora','unobserved',64),[])
+
     def test_failed_retirement_journal_does_not_skip_its_cursor(self):
         self.h.bind('pump','quiet')
         cold=ScopedRetirement(self.h)

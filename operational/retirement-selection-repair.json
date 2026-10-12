@@ -1,0 +1,50 @@
+{
+  "authenticated_stall_resolution_proven": false,
+  "changes": [
+    "single metadata selection statement instead of Python expansion and repeated history chunks, with original canonical hot/cold precedence and oldest-row order",
+    "zero-wait consumer-store access, using existing durable SQLite-BUSY deferral without advancing the retirement cursor"
+  ],
+  "funding": false,
+  "observed_failure": {
+    "largest_owner_wait_seconds": 20.804,
+    "peak_retirement_seconds": 24.137676876969635,
+    "pump_failure": "evidence_heartbeat_stale",
+    "run": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CONTINUOUS_ACTUAL_WORKERS_1791831662143.json"
+  },
+  "parent": "017015637514804c8528917d339a682ea53bc908",
+  "portfolio_reinitialized": false,
+  "safety_unchanged": [
+    "every raw event and canonical identity",
+    "all owner and history pins",
+    "cold-file hashes and fsync-before-pointer change",
+    "original slice and byte bounds",
+    "legacy restoration and missing/corrupt evidence failure",
+    "quote/USD/protection deadlines",
+    "portfolio and strategy rules"
+  ],
+  "sample_record": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/RETIREMENT_CANONICAL_SELECTION_EQUIVALENCE_20261012.json",
+  "sample_sha256": "8bc37d1133d8419c9f7b269b9c666ce9e828cbf14184a7c21cb53e19a1e86929",
+  "selected_retained_sample": {
+    "candidates": 64,
+    "new_seconds": 0.4729437658097595,
+    "new_statements": 64,
+    "old_seconds": 0.733986048377119,
+    "old_statements": 343
+  },
+  "stage_instrumentation": "existing bounded native observer adds retirement substage timings; no new transport or funding",
+  "tests": [
+    {
+      "passed": 105,
+      "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/scoped-retirement-final-operational.log",
+      "seconds": 32.778,
+      "sha256": "b2d08f9914d1572681e71a8d9fee471b4930bab98d1e99e6342fc64561713915"
+    },
+    {
+      "passed": 3,
+      "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/scoped-retirement-final-fast.log",
+      "seconds": 0.561,
+      "sha256": "83e6b25717d9a125eaa189d9357dc272336af52ac13a02bb6c090c7ddc3eb724"
+    }
+  ],
+  "usage_reset": false
+}
