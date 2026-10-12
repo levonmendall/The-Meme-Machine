@@ -211,6 +211,38 @@ class AdmissionTests(unittest.TestCase):
         self.assertEqual(a.ledger()['cash'],'1000.00');self.assertFalse(a.ledger()['positions'])
         a.verify_replay()
 
+    def test_continuous_observation_preserves_usage_and_cannot_open_funding(self):
+        root,a,now,prior=self.service(all_regimes=True)
+        prior.provider_budget.change(dict(rpc_cu=900000,http_attempts=2000,native_bytes=1024**3))
+        before=prior.provider_budget.snapshot()
+        economics={k:deepcopy(a.ledger()[k]) for k in ('cash','positions','realized','policy','inception')}
+        for _ in range(2):
+            observed=Supervisor(root,offline=True,admission='OBSERVATION')
+            observed.shared_capital=a;observed.epoch=a.ledger()['epoch_id'];observed.configure_admission()
+            self.assertEqual(observed.runtime_lanes(),('pump','pons'))
+            self.assertEqual(a.ledger()['runtime_admission']['mode'],'OBSERVATION')
+            self.assertEqual(a.ledger()['runtime_admission']['continuous_provider_db'],str(prior.provider_budget.path))
+            for lane in ('pump','pons','solana'):
+                child=observed.environment(lane)
+                self.assertEqual(child['MM_PROVIDER_OPERATION_MODE'],'CONTINUOUS')
+                self.assertEqual(child['MM_PROVIDER_USAGE_DB'],str(prior.provider_budget.path))
+                self.assertNotIn('MM_BOUNDED_PROVIDER_DB',child)
+            observed.provider_budget.publish_readiness(True,observed.run_id)
+            for regime in ('pump_current','pump_survivor','pons_current','pons_survivor'):
+                self.assertEqual(available(a.ledger(),time.time(),live=True,regime=regime),
+                    'observation_only_funding_closed')
+            self.assertEqual({k:a.ledger()[k] for k in economics},economics)
+            self.assertEqual({k:observed.provider_budget.snapshot()[k] for k in ('rpc_cu','http_attempts','native_bytes','started_wall')},
+                {k:before[k] for k in ('rpc_cu','http_attempts','native_bytes','started_wall')})
+            a.verify_replay()
+
+    def test_continuous_observation_refuses_lost_usage_history(self):
+        root,a,now,prior=self.service()
+        prior.provider_budget.path.unlink()
+        observed=Supervisor(root,offline=True,admission='OBSERVATION');observed.shared_capital=a
+        with self.assertRaisesRegex(ValueError,'restore_not_reseed'):
+            observed.configure_admission()
+
     def test_enabling_independently_proven_family_keeps_lifetime_usage_and_closes_stale_readiness(self):
         root,a,now,s=self.service();b=s.provider_budget
         b.change(dict(rpc_cu=123456,http_attempts=123,native_bytes=987654));b.publish_readiness(True,s.run_id)

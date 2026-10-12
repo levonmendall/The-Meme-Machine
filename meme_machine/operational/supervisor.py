@@ -124,7 +124,8 @@ class Supervisor:
 
     def initialize(self):
         required=ACTIVE_LANES
-        if not self.offline and self.admission in ('NORMAL','AUTONOMY'):
+        if not self.offline and (self.admission in ('NORMAL','AUTONOMY') or
+                self.admission=='OBSERVATION' and os.environ.get('MM_PROVIDER_OPERATION_MODE')=='CONTINUOUS'):
             from .admission import require_normal
             from .position_continuation import funding_lanes
             required=funding_lanes(require_normal(startup=True))
@@ -490,7 +491,9 @@ class Supervisor:
                 raise RuntimeError('old_bootstrap_without_continuation_requires_disposition')
         self.run_id=uuid.uuid4().hex
         transition_id=self.run_id
-        if self.admission in ('NORMAL','AUTONOMY'):
+        continuous_observation=(self.admission=='OBSERVATION' and
+            os.environ.get('MM_PROVIDER_OPERATION_MODE')=='CONTINUOUS')
+        if self.admission in ('NORMAL','AUTONOMY') or continuous_observation:
             from .admission import require_normal
             from .position_continuation import funding_lanes,position_lanes
             envelope=require_normal(startup=True)
@@ -504,7 +507,9 @@ class Supervisor:
             self.provider_budget.preflight_file()
             if previous.get('mode') in ('NORMAL','AUTONOMY') and previous.get('provider_db')==str(path):
                 self.run_id=previous['run_id']
-            self.provider_budget.publish_readiness(False,self.run_id,reason='startup_reconcile_and_canonical_progress_required')
+            self.provider_budget.publish_readiness(False,self.run_id,reason=(
+                'observation_funding_closed' if continuous_observation else
+                'startup_reconcile_and_canonical_progress_required'))
             selected=set(funding_lanes(envelope))|set(position_lanes(state))
             self.observation_lanes=tuple(lane for lane in ACTIVE_LANES if lane in selected)
         elif self.admission=='BOOTSTRAP':
@@ -525,6 +530,7 @@ class Supervisor:
         if self.admission=='BOOTSTRAP':self.admission_data['continuation_envelope']=envelope
         if self.admission in ('NORMAL','AUTONOMY'):
             self.admission_data['funding_regimes']=list(envelope['funding_regimes'])
+        if getattr(getattr(self,'provider_budget',None),'continuous',False):
             self.admission_data['continuous_provider_db']=str(self.provider_budget.path)
         operation='run-scope:'+self.run_id
         if self.admission in ('NORMAL','AUTONOMY'):

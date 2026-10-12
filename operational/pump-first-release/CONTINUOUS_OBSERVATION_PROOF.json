@@ -1,0 +1,27 @@
+{
+  "parent": "ff44a3b8a8d2032eb12a581a78aa4d73d63f7e0e",
+  "cause": "Actual combined observation stopped on rpc_elements_limit before Pump live replay caught up; this is an engineering allowance, not physical capacity.",
+  "change": "OBSERVATION can explicitly reuse the existing continuous provider controller, selected family profile and durable usage database. Shared admission remains OBSERVATION, even if a provider readiness flag is accidentally true.",
+  "limits": "Unchanged physical rate, in-flight byte, frame, queue, memory, failure and storage guards; no silently enlarged bounded validation envelope.",
+  "tests": {
+    "suite": "OPERATIONAL",
+    "modules": [
+      "tests.test_continuous_paper",
+      "tests.test_operational_supervisor",
+      "tests.test_volume_quality"
+    ],
+    "run": 72,
+    "passed": 72,
+    "seconds": 18.349,
+    "log": "/tmp/continuous-observation-integration-pass.log"
+  },
+  "failed_test_evidence": "/tmp/mm-engineering-1fg12tjh: new fixture omitted initialized epoch before calling worker environment; fixture corrected, assertions preserved.",
+  "file_sha256": {
+    "meme_machine/operational/supervisor.py": "41f982400f1c2d68dc2f72fea77e6599467bd3e359b66fb1cfe90271bfabe3db",
+    "tests/test_continuous_paper.py": "cbba7ac750985c18f41d98713936fcbdaf268c714acae9f7ea476bf15bc1b285"
+  },
+  "portfolio_changes": false,
+  "provider_transports_added": false,
+  "funding_activated": false,
+  "sixty_minute_acceptance": false
+}
