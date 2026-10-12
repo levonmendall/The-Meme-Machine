@@ -263,7 +263,10 @@ class LocalPumpTape:
             history=open_candidate_history()
             if history is not None:
                 with closing(history):
-                    for record in history.events('pump',mint):
+                    # Both canonical reference and legacy source producers use
+                    # this normalized kind. Resolve creation only; buying a
+                    # local archived trade history again cannot supply it.
+                    for record in history.events('pump',mint,kind='pump_create'):
                         event=record['payload']
                         if event.get('event_type')=='create':return dict(event,available_time=int(event.get('available_time',event['market_time'])))
             return None

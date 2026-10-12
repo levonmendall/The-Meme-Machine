@@ -16,6 +16,24 @@ from tests.test_pons_dense_v4_receipts import fixture,ENDPOINT
 
 
 class DurableReceiptTests(unittest.TestCase):
+    def test_idle_retirement_does_not_decode_cohort_and_old_protected_candidates_remain(self):
+        with tempfile.TemporaryDirectory() as td:
+            plane=Plane(Path(td)/'plane.sqlite',clock=lambda:100000)
+            try:
+                with plane.transaction():
+                    plane.db.execute('INSERT INTO runtime VALUES(?,?)',('pons_cohort',canonical(
+                        {'result':{'qualifiers':[{'curve':'0xprotected'}],'lifecycles':[]},'large':'x'*1000000})))
+                trace=[];plane.db.set_trace_callback(trace.append);plane.maintain()
+                self.assertFalse(any("key='pons_cohort'" in q for q in trace))
+                # An actual candidate retirement obligation requires the original
+                # protected-owner/cohort read and cannot bypass that protection.
+                plane.observe('pons:0xprotected','pons','observed',{},ordering=(1,),watermark={},
+                    interpretation={},observed=1,deadline=None,priority=3,needs_work=False)
+                trace.clear();plane.maintain()
+                self.assertTrue(any("key='pons_cohort'" in q for q in trace))
+                self.assertIsNotNone(plane.db.execute("SELECT 1 FROM candidates WHERE id='pons:0xprotected'").fetchone())
+            finally:plane.close()
+
     def test_below_retention_limit_maintenance_does_not_rebuild_retained_set(self):
         with tempfile.TemporaryDirectory() as td:
             plane=Plane(Path(td)/'plane.sqlite',clock=lambda:100)

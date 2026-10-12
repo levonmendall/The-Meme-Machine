@@ -356,11 +356,13 @@ class CandidateHistory:
                  market_time,kind,encoded,checksum))
         return body
 
-    def events(self,lane,candidate,*,through=None):
+    def events(self,lane,candidate,*,through=None,kind=None):
         sql="""SELECT body,hash FROM events WHERE lane=? AND candidate=?"""
         args=[lane,candidate]
         if through is not None:
             sql+=" AND market_time<=?";args.append(int(through))
+        if kind is not None:
+            sql+=" AND kind=?";args.append(self._required(kind,'kind'))
         # Unknown transaction order sorts after proven order in the same slot.
         sql+=" ORDER BY slot,(COALESCE(json_extract(body,'$.payload._economic_order'),transaction_index) IS NULL),COALESCE(json_extract(body,'$.payload._economic_order'),transaction_index),event_index,identity"
         result=[]
@@ -371,6 +373,7 @@ class CandidateHistory:
         refs='SELECT identity,kind,body,hash FROM canonical_event_refs WHERE lane=? AND candidate=?'
         params=[lane,candidate]
         if through is not None:refs+=' AND market_time<=?';params.append(int(through))
+        if kind is not None:refs+=' AND kind=?';params.append(kind)
         for identity,kind,raw,checksum in self.db.execute(refs,params):
             ref=json.loads(raw)
             if digest(ref)!=checksum:raise ValueError('candidate_history_corruption')

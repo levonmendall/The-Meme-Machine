@@ -182,13 +182,19 @@ class Plane:
                     continue
                 evidence_evicted |= self.db.execute('DELETE FROM evidence WHERE namespace=? AND key NOT IN (SELECT key FROM evidence WHERE namespace=? ORDER BY created DESC,key DESC LIMIT ?) AND NOT EXISTS(SELECT 1 FROM receipt_obligations o WHERE o.namespace=evidence.namespace AND o.key=evidence.key)',(namespace,namespace,limit)).rowcount > 0
             protected=set()
-            for key,raw in self.db.execute("SELECT key,body FROM runtime WHERE "+active_scope_sql('key')+" AND (key LIKE 'native_position:%' OR key='pons_cohort')"):
+            rows=[dict(r) for r in self.db.execute('SELECT * FROM candidates WHERE '+active_sql('lane')+' AND pending=0 AND claim IS NULL AND observed<?',(now-86400,))]
+            native_rows=self.db.execute("SELECT key,body FROM runtime WHERE "+active_scope_sql('key')+" AND key LIKE 'native_position:%'").fetchall()
+            # With no eligible candidates or native rows, protection cannot
+            # change a retirement decision. Avoid decoding the entire cohort
+            # report on every discovery/header update in this common case.
+            protected_rows=(self.db.execute("SELECT key,body FROM runtime WHERE "+active_scope_sql('key')+" AND (key LIKE 'native_position:%' OR key='pons_cohort')")
+                if rows or native_rows else ())
+            for key,raw in protected_rows:
                 value=json.loads(raw)
                 if key.startswith('native_position:') and value['position']['status']!='settled':protected.add(value['candidate'])
                 if key=='pons_cohort':
                     for kind in ('qualifiers','lifecycles'):
                         protected.update(r['curve'].lower() for r in value['result'].get(kind,[]) if r.get('curve'))
-            rows=[dict(r) for r in self.db.execute('SELECT * FROM candidates WHERE '+active_sql('lane')+' AND pending=0 AND claim IS NULL AND observed<?',(now-86400,))]
             archive=self.history_archive() or dict(schema='robinhood-window-history-v1')
             floors=archive.setdefault('retired_ordering',{})
             for row in rows:
@@ -200,7 +206,7 @@ class Plane:
                 self.db.execute('DELETE FROM observation_archive WHERE candidate=?',(row['id'],))
                 self.db.execute('DELETE FROM result_consumption WHERE candidate=?',(row['id'],))
                 self.db.execute('DELETE FROM rolling WHERE candidate=?',(row['id'],))
-            for key,raw in self.db.execute("SELECT key,body FROM runtime WHERE "+active_scope_sql('key')+" AND key LIKE 'native_position:%'").fetchall():
+            for key,raw in native_rows:
                 value=json.loads(raw)
                 if value['position']['status']=='settled' and value['candidate'] not in protected:
                     self.db.execute('DELETE FROM runtime WHERE key=?',(key,))

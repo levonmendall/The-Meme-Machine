@@ -17,6 +17,36 @@ class CandidateHistoryTests(unittest.TestCase):
     def tearDown(self):
         self.history.close();self.tmp.cleanup()
 
+    def test_kind_filter_resolves_only_requested_canonical_records_and_survives_restart(self):
+        import sqlite3,json
+        from meme_machine.runtime.journal import canonical,digest
+        source=Path(self.tmp.name)/'source.sqlite'
+        with sqlite3.connect(source) as db:
+            db.execute('CREATE TABLE canonical_evidence(identity TEXT PRIMARY KEY,body TEXT,hash TEXT,archive TEXT)')
+            for i,kind in enumerate(('create','trade','trade')):
+                record=dict(identity=str(i),scope='program:pump',kind='event',slot=10+i,
+                    transaction_index=i,event_index=0,market_time=1000,
+                    payload={'event':{'event_type':kind,'mint':'mint','market_time':1000}})
+                db.execute('INSERT INTO canonical_evidence VALUES(?,?,?,NULL)',
+                    (str(i),canonical(record),digest(record)))
+                db.commit()
+                self.history.append_reference('pump','mint',record,path=source,identity=str(i),kind='pump_'+kind)
+        self.history.append_event('pump','mint',identity='legacy',slot=9,transaction_index=0,
+            event_index=0,market_time=999,kind='pump_create',payload={'event_type':'create','mint':'mint'})
+        expected=[r for r in self.history.events('pump','mint') if r['kind']=='pump_create']
+        with patch.object(self.history,'_reference_body',wraps=self.history._reference_body) as expand:
+            self.assertEqual(self.history.events('pump','mint',kind='pump_create'),expected)
+            self.assertEqual(expand.call_count,1)
+            self.assertEqual(self.history.events('pump','mint',kind='pump_migration'),[])
+            self.assertEqual(expand.call_count,1)
+        self.assertEqual(self.history.events('pump','mint',kind='pump_create',through=999),expected[:1])
+        self.history.close();self.history=CandidateHistory(self.path,clock=lambda:self.now[0])
+        self.assertEqual(self.history.events('pump','mint',kind='pump_create'),expected)
+        with sqlite3.connect(source) as db:
+            db.execute("UPDATE canonical_evidence SET hash=? WHERE identity='0'",('f'*64,))
+        with self.assertRaisesRegex(ValueError,'candidate_history_corruption'):
+            self.history.events('pump','mint',kind='pump_create')
+
     def test_candidate_retention_has_no_count_cap(self):
         for i in range(256):
             self.history.observe("pump",f"mint-{i}",surface="pumpswap",
