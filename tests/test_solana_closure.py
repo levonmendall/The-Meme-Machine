@@ -181,6 +181,36 @@ class ClosureTests(unittest.TestCase):
                 self.assertEqual(stored,[(digest(r.body()),NOW) for r in rows])
                 self.assertEqual(self.state.writer.db.execute('SELECT COUNT(*) FROM candidate_history_outbox').fetchone()[0],before)
 
+    def test_oldest_seek_matches_canonical_oracle_for_hot_cold_shadow_and_restart(self):
+        # These metadata-only rows test retirement telemetry, never economics.
+        address,_=self.ingest_fixture('meteora');cold=ScopedRetirement(self.h);db=self.h.db
+        sample=list(db.execute('SELECT * FROM canonical_evidence WHERE body IS NOT NULL LIMIT 1').fetchone())
+        tables=('records','shared_history_cache','scoped_cold_records','rolling_economic_events')
+        aliases=('addresses','cached_addresses','scoped_cold_addresses','rolling_economic_addresses')
+        for index,(table,alias) in enumerate(zip(tables,aliases)):
+            row=list(sample);row[0]='telemetry-hot-'+str(index);row[2]=10+index;row[12]='telemetry-cold'
+            db.execute('INSERT INTO '+table+' VALUES('+','.join('?' for _ in row)+')',row)
+            if alias=='addresses':db.execute('INSERT INTO addresses(address,identity,slot) VALUES(?,?,?)',(address,row[0],row[2]))
+            else:db.execute('INSERT INTO '+alias+' VALUES(?,?)',(row[0],address))
+        # A cold rolling representation shadows an older hot records body.
+        row=list(sample);row[0]='telemetry-shadow';row[2]=1
+        db.execute('INSERT INTO records VALUES('+','.join('?' for _ in row)+')',row)
+        db.execute('INSERT INTO addresses(address,identity,slot) VALUES(?,?,?)',(address,row[0],row[2]))
+        row[9]=None;row[12]='telemetry-cold'
+        db.execute('INSERT INTO rolling_economic_events VALUES('+','.join('?' for _ in row)+')',row)
+        oracle='''SELECT r.identity,r.scope,r.slot FROM canonical_evidence r
+            WHERE r.body IS NOT NULL AND EXISTS(SELECT 1 FROM canonical_addresses a
+                JOIN evidence_bindings b ON b.market_address=a.address AND b.canonical_scope=r.scope
+                WHERE a.identity=r.identity) ORDER BY r.slot,r.identity LIMIT 1'''
+        def equal():self.assertEqual(cold.oldest_hot_bound_record(),db.execute(oracle).fetchone())
+        equal();self.assertEqual(cold.oldest_hot_bound_record()[0],'telemetry-hot-0')
+        for table in tables:
+            mutation='DELETE FROM '+table if table=='shared_history_cache' else 'UPDATE '+table+' SET body=NULL'
+            db.execute(mutation+' WHERE identity LIKE ? AND identity!=?',('telemetry-hot-%','telemetry-hot-3'))
+            equal()
+        self.restart();cold=ScopedRetirement(self.h);db=self.h.db;equal()
+        self.assertEqual(cold.oldest_hot_bound_record()[0],'telemetry-hot-3')
+
     def test_shared_content_cannot_retire_through_a_different_unpinned_binding(self):
         address,rows=self.ingest_fixture('meteora');other=next(a for a in rows[0].addresses if a!=address)
         self.seed('meteora',other,rows[0].slot)

@@ -236,11 +236,7 @@ class ScopedRetirement:
             # Existence is enough to locate the same oldest retained identity;
             # resolve its scope only after the ordered LIMIT, without exploding
             # the rolling reservoir by the number of consumers.
-            row=self.db.execute('''SELECT r.identity,r.scope,r.slot FROM canonical_evidence r
-                WHERE r.body IS NOT NULL AND EXISTS(SELECT 1 FROM canonical_addresses a
-                    JOIN evidence_bindings b ON b.market_address=a.address AND b.canonical_scope=r.scope
-                    WHERE a.identity=r.identity)
-                ORDER BY r.slot,r.identity LIMIT 1''').fetchone()
+            row=self.oldest_hot_bound_record()
             if row:
                 scope=self.db.execute('''SELECT MIN(b.coverage_scope) FROM canonical_addresses a
                     JOIN evidence_bindings b ON b.market_address=a.address AND b.canonical_scope=?
@@ -261,6 +257,39 @@ class ScopedRetirement:
             if bindings:self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('scoped_retirement_cursor',bindings[-1][1]))
             self.db.execute('INSERT INTO scoped_retirement_observations(at,body) VALUES(?,?)',(self.clock(),canonical(result)))
         return result
+
+    def oldest_hot_bound_record(self):
+        # A correlated canonical_addresses UNION materializes the entire address
+        # population before testing one identity. Seek each representation and
+        # scope instead, then take the same global minimum. Both canonical row
+        # precedence and the full binding/address set are retained; this is only
+        # a diagnostic witness, never permission to retire or seal coverage.
+        rolling=hasattr(self.history,'rolling')
+        addresses=['addresses','cached_addresses','scoped_cold_addresses']
+        representations=[]
+        if rolling:
+            addresses.insert(0,'rolling_economic_addresses')
+            representations.append(('rolling_economic_events','e',[]))
+        for table,alias,guards in (
+                ('records','r',[]),
+                ('shared_history_cache','h',['NOT EXISTS(SELECT 1 FROM records r WHERE r.identity=h.identity AND r.body IS NOT NULL)']),
+                ('scoped_cold_records','c',['NOT EXISTS(SELECT 1 FROM records r WHERE r.identity=c.identity AND r.body IS NOT NULL)',
+                    'NOT EXISTS(SELECT 1 FROM shared_history_cache h WHERE h.identity=c.identity)'])):
+            if rolling:guards=[*guards,'NOT EXISTS(SELECT 1 FROM rolling_economic_events e WHERE e.identity='+alias+'.identity)']
+            representations.append((table,alias,guards))
+        scopes=[r[0] for r in self.db.execute('SELECT DISTINCT canonical_scope FROM evidence_bindings')]
+        oldest=None
+        for table,alias,guards in representations:
+            bound=' OR '.join('EXISTS(SELECT 1 FROM '+address+' a JOIN evidence_bindings b '
+                'ON b.market_address=a.address AND b.canonical_scope='+alias+'.scope '
+                'WHERE a.identity='+alias+'.identity)' for address in addresses)
+            query=('SELECT '+alias+'.identity,'+alias+'.scope,'+alias+'.slot FROM '+table+' '+alias+
+                ' WHERE '+alias+'.scope=? AND '+alias+'.body IS NOT NULL'+''.join(' AND '+g for g in guards)+
+                ' AND ('+bound+') ORDER BY '+alias+'.slot,'+alias+'.identity LIMIT 1')
+            for scope in scopes:
+                row=self.db.execute(query,(scope,)).fetchone()
+                if row is not None and (oldest is None or (row[2],row[0])<(oldest[2],oldest[0])):oldest=row
+        return oldest
 
     def hot_bytes(self):
         # Same UNION identity precedence as canonical_evidence. Filtering hot
