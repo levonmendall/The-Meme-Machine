@@ -43,6 +43,20 @@ class StartupTests(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.path=Path(self.tmp.name)/'canonical.sqlite'
         self.now=[NOW];self.state,self.h=state_at(self.path,lambda:self.now[0])
     def tearDown(self):self.state.writer.close();self.tmp.cleanup()
+    def test_first_economic_availability_uses_covering_index_without_changing_timestamp(self):
+        # Startup's exact MIN over all retained normalized history caused the
+        # authenticated 59-second owner stall. Index only its existing field;
+        # neither a scout nor a retimestamped receipt is an alternative source.
+        query='SELECT MIN(first_seen) FROM rolling_economic_events WHERE first_seen>=?'
+        plan=self.h.db.execute('EXPLAIN QUERY PLAN '+query,(NOW,)).fetchall()
+        self.assertTrue(any('COVERING INDEX rolling_event_availability' in r[3] for r in plan),plan)
+        columns='identity,scope,slot,signature,program,market_time,event_index,transaction_index,kind,body,hash,first_seen,archive'
+        with self.state.writer.transaction():
+            for i,seen in enumerate((NOW-1,NOW+2,NOW+1)):
+                self.h.db.execute('INSERT INTO rolling_economic_events('+columns+') VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                    (str(i),program_scope('pump'),i,'sig','program',int(NOW),0,0,'event','{}','hash',seen,None))
+        self.assertEqual(self.h.db.execute(query,(NOW,)).fetchone()[0],NOW+1)
+        self.assertIsNone(self.h.db.execute(query,(NOW+3,)).fetchone()[0])
     def begin(self):
         self.h.startup.begin()
         for family in ('pump','pumpswap'):self.h.startup.feed_ack(family,100,101)

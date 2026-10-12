@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS rolling_economic_events(
  program TEXT NOT NULL,market_time INTEGER,event_index INTEGER NOT NULL,transaction_index INTEGER,
  kind TEXT NOT NULL,body TEXT,hash TEXT NOT NULL,first_seen REAL NOT NULL,archive TEXT);
 CREATE INDEX IF NOT EXISTS rolling_event_order ON rolling_economic_events(scope,slot,transaction_index,event_index);
+CREATE INDEX IF NOT EXISTS rolling_event_availability ON rolling_economic_events(first_seen);
 CREATE TABLE IF NOT EXISTS rolling_economic_addresses(
  identity TEXT NOT NULL,address TEXT NOT NULL,PRIMARY KEY(identity,address));
 CREATE INDEX IF NOT EXISTS rolling_address_lookup ON rolling_economic_addresses(address,identity);

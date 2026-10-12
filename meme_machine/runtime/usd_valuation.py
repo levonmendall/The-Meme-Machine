@@ -314,6 +314,7 @@ class NativeValueReader:
 
     def _robinhood(self,now,valid_through=None):
         now=max(now,int(time.time()))
+        deadline_rpc=None
         try:
             if self.lane=='ramses' and self.book is not None and self.book.quote_asset.lower()!=USDG_ASSET:
                 raise _unavailable('wrong_Ramses_quote_asset')
@@ -323,6 +324,15 @@ class NativeValueReader:
                 return self.cached
             started=time.monotonic()
             rpc=self.rpc if self.rpc is not None else _rpc(self.lane)
+            if self.lane=='pons' and valid_through is not None:
+                # The prefetch is required financial protection, not a
+                # default thirty-second connectivity task. Give every state,
+                # chain and final fence the actual consumer deadline in the
+                # existing priority/EDF governor. Never extend an outer one.
+                prior_deadline=getattr(rpc,'evidence_deadline',None)
+                deadline=started+max(0,valid_through-now)
+                rpc.evidence_deadline=min(deadline,prior_deadline) if prior_deadline is not None else deadline
+                deadline_rpc=rpc
             block=None
             if self.lane=='pons':
                 if rpc.verify_chain()!=4663:raise _unavailable('wrong_chain')
@@ -354,6 +364,8 @@ class NativeValueReader:
             from meme_machine.runtime.status import update
             update('VALUATION_UNAVAILABLE',asset='USDG/USD',reason=str(failure))
             raise failure from None
+        finally:
+            if deadline_rpc is not None:deadline_rpc.evidence_deadline=prior_deadline
 
     def __call__(self,now,*,valid_through=None):
         # One unit-price acquisition serves compatible independently owned

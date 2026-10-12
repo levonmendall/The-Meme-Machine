@@ -203,20 +203,22 @@ class CandidateHistory:
         from .operating_families import require_active
         require_active(lane)
         """Index/view only. Economics remain in the one canonical reservoir."""
+        raw=canonical(record);checksum=hashlib.sha256(raw.encode()).hexdigest()
         ref=dict(path=str(Path(path).resolve()),canonical_identity=record['identity'],
-            canonical_hash=digest(record),fields=dict(payload_fields or {}))
-        body=self._reference_body(lane,candidate,identity,kind,ref)
+            canonical_hash=checksum,fields=dict(payload_fields or {}))
+        body=self._reference_body(lane,candidate,identity,kind,ref,prepared=(record,raw))
         with self.transaction():
             old=self.event(lane,candidate,identity)
             if old is not None and old!=body:raise ValueError('candidate_history_event_conflict')
+            encoded=canonical(ref)
             self.db.execute('INSERT OR IGNORE INTO canonical_event_refs VALUES(?,?,?,?,?,?,?,?,?,?)',
                 (lane,candidate,identity,body['slot'],body['transaction_index'],body['event_index'],
-                 body['market_time'],kind,canonical(ref),digest(ref)))
+                 body['market_time'],kind,encoded,hashlib.sha256(encoded.encode()).hexdigest()))
             # One-way migration removes an identical legacy copy, not its history.
             self.db.execute('DELETE FROM events WHERE lane=? AND candidate=? AND identity=?',(lane,candidate,identity))
         return body
 
-    def _reference_body(self,lane,candidate,identity,kind,ref):
+    def _reference_body(self,lane,candidate,identity,kind,ref,*,prepared=None):
         from meme_machine.solana_evidence_plane import decode_body
         self._source_readers=getattr(self,'_source_readers',{})
         if ref['path'] not in self._source_readers:
@@ -224,9 +226,17 @@ class CandidateHistory:
         db=self._source_readers[ref['path']]
         row=db.execute('SELECT body,hash,archive FROM canonical_evidence WHERE identity=?',(ref['canonical_identity'],)).fetchone()
         if row is None:raise ValueError('candidate_canonical_reference_missing')
-        if row[0] is not None:r=decode_body(row[0],db)
+        if prepared is not None and row[0]==prepared[1]:
+            # A local ingest already holds the decoded record. Reuse it only
+            # when its canonical bytes equal the freshly read authoritative
+            # body, and authenticate that exact body/hash below. Compressed,
+            # archived or unequal representations retain the original path.
+            r=prepared[0]
+            checksum=hashlib.sha256(prepared[1].encode()).hexdigest()
+        elif row[0] is not None:
+            r=decode_body(row[0],db);checksum=digest(r)
         else:
-            import hashlib,zlib
+            import zlib
             manifest=db.execute('SELECT path,hash FROM scoped_cold_manifests WHERE id=?',(row[2],)).fetchone()
             if manifest is None:raise ValueError('candidate_canonical_reference_requires_restore')
             packed=Path(manifest[0]).read_bytes()
@@ -234,7 +244,8 @@ class CandidateHistory:
             decoder=zlib.decompressobj();raw=decoder.decompress(packed,32*1024*1024+1)
             if not decoder.eof or len(raw)>32*1024*1024:raise ValueError('candidate_canonical_archive_bound')
             r=next((x['record'] for x in json.loads(raw) if x['record']['identity']==ref['canonical_identity']),None)
-        if r is None or digest(r)!=row[1] or row[1]!=ref['canonical_hash']:raise ValueError('candidate_history_corruption')
+            checksum=None if r is None else digest(r)
+        if r is None or checksum!=row[1] or row[1]!=ref['canonical_hash']:raise ValueError('candidate_history_corruption')
         # Scoped Meteora packets already contain only the authenticated
         # instruction, balance, event and ordering fields consumed by DLMM.
         # An index resolves that one packet; it never stores a per-pool copy.

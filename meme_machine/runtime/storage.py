@@ -39,6 +39,12 @@ def _audit_ring(db,table,trigger,*,limit,key,where):
         high=db.execute('SELECT '+key+' FROM '+table+' ORDER BY '+key+' DESC LIMIT 1').fetchone()
         if low is None:return
         if type(low[0]) is int and type(high[0]) is int and high[0]-low[0]+1<=limit:return
+        # Retired rowids leave gaps forever. Their numeric span ceases to
+        # prove the live population bound even when precisely 4,096 rows
+        # remain. SQLite's unfiltered count uses the table tree, not a scan of
+        # bodies or the filtered candidate cohort. This also bounds every
+        # participating subset, without changing its exact eviction order.
+        if db.execute('SELECT COUNT(*) FROM '+table).fetchone()[0]<=limit:return
     boundary=db.execute('SELECT '+key+' FROM '+table+' WHERE '+where+
         ' ORDER BY '+key+' DESC LIMIT 1 OFFSET ?',(limit-1,)).fetchone()
     if boundary is None or boundary[0] is None:return

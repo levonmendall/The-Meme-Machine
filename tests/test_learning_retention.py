@@ -15,6 +15,22 @@ from tests.test_solana_evidence_plane import record,proof
 
 
 class LearningRetention(unittest.TestCase):
+    def test_gapped_retained_audit_population_avoids_repeated_filtered_offset_scan(self):
+        import sqlite3
+        from meme_machine.runtime.storage import audit_ring
+        db=sqlite3.connect(':memory:',isolation_level=None)
+        self.addCleanup(db.close)
+        db.execute('CREATE TABLE diagnostic(seq INTEGER PRIMARY KEY,value TEXT)')
+        db.executemany('INSERT INTO diagnostic VALUES(?,?)',[(n,'old') for n in (10,100,1000,10000)])
+        db.execute("CREATE TRIGGER guard BEFORE DELETE ON diagnostic BEGIN SELECT RAISE(ABORT,'append_only'); END")
+        sql=[];db.set_trace_callback(sql.append)
+        for _ in range(20):audit_ring(db,'diagnostic','guard',limit=4,where="value='old'")
+        self.assertFalse(any('OFFSET' in s for s in sql))
+        self.assertEqual(db.execute('SELECT seq FROM diagnostic ORDER BY seq').fetchall(),[(10,),(100,),(1000,),(10000,)])
+        db.execute("INSERT INTO diagnostic VALUES(10001,'old')")
+        audit_ring(db,'diagnostic','guard',limit=4,where="value='old'")
+        self.assertEqual(db.execute('SELECT seq FROM diagnostic ORDER BY seq').fetchall(),[(100,),(1000,),(10000,),(10001,)])
+        with self.assertRaisesRegex(sqlite3.IntegrityError,'append_only'):db.execute('DELETE FROM diagnostic')
     def test_learning_keeps_exact_derived_features_and_discards_full_raw_reconstruction(self):
         with closing(sqlite3.connect(':memory:')) as db,db:
             db.execute('BEGIN')

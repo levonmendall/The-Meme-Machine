@@ -106,6 +106,47 @@ class CandidateHistoryTests(unittest.TestCase):
         self.assertEqual(self.history.telemetry()["candidates"],256)
         self.assertEqual(self.history.candidate("pump","mint-255")["metadata"]["rank"],255)
 
+    def test_reference_reuses_exact_fresh_source_bytes_but_rechecks_reads_and_replay(self):
+        import sqlite3
+        from meme_machine.runtime.journal import canonical,digest
+        source=Path(self.tmp.name)/'reference.sqlite'
+        record=dict(identity='source-event',kind='event',slot=10,transaction_index=2,
+            event_index=3,market_time=1000,payload={'event':{'mint':'mint','buy':True}})
+        with sqlite3.connect(source) as db:
+            db.execute('CREATE TABLE canonical_evidence(identity TEXT PRIMARY KEY,body TEXT,hash TEXT,archive TEXT)')
+            db.execute('INSERT INTO canonical_evidence VALUES(?,?,?,NULL)',
+                (record['identity'],canonical(record),digest(record)))
+        with patch('meme_machine.solana_evidence_plane.decode_body',side_effect=AssertionError('duplicate_decode')):
+            body=self.history.append_reference('pump','mint',record,path=source,identity='event',kind='pump_trade')
+        self.assertEqual((body['slot'],body['transaction_index'],body['event_index']),(10,2,3))
+        self.assertEqual(self.history.events('pump','mint'),[body])
+        self.history.append_reference('pump','mint',record,path=source,identity='event',kind='pump_trade')
+        self.assertEqual(self.history.events('pump','mint'),[body])
+        # Every fresh insertion authenticates the stored hash even when its
+        # body exactly matches the already decoded incoming record.
+        with sqlite3.connect(source) as db:db.execute('UPDATE canonical_evidence SET hash=?',('f'*64,))
+        with self.assertRaisesRegex(ValueError,'candidate_history_corruption'):
+            self.history.append_reference('pump','mint',record,path=source,identity='another',kind='pump_trade')
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM canonical_event_refs').fetchone()[0],1)
+
+    def test_reference_unequal_or_compressed_source_uses_original_validation(self):
+        import sqlite3
+        from meme_machine.runtime.journal import canonical,digest
+        from meme_machine.solana_evidence_storage import prepare
+        source=Path(self.tmp.name)/'compressed-reference.sqlite'
+        record=dict(identity='source-event',kind='event',slot=10,transaction_index=2,
+            event_index=0,market_time=1000,payload={'event':{'mint':'mint','extra':'x'*3000}})
+        packed,chunks=prepare(record);self.assertFalse(chunks)
+        with sqlite3.connect(source) as db:
+            db.execute('CREATE TABLE canonical_evidence(identity TEXT PRIMARY KEY,body,hash TEXT,archive TEXT)')
+            db.execute('INSERT INTO canonical_evidence VALUES(?,?,?,NULL)',(record['identity'],packed,digest(record)))
+        body=self.history.append_reference('pump','mint',record,path=source,identity='event',kind='pump_trade')
+        self.assertEqual(self.history.events('pump','mint'),[body])
+        changed=dict(record,market_time=999)
+        with sqlite3.connect(source) as db:db.execute('UPDATE canonical_evidence SET body=?',(canonical(changed),))
+        with self.assertRaisesRegex(ValueError,'candidate_history_corruption'):
+            self.history.append_reference('pump','mint',record,path=source,identity='bad',kind='pump_trade')
+
     def test_observed_pump_creation_reuses_original_identity_without_qualifying_or_caching_missing(self):
         from meme_machine.lanes.pump import runner
         from unittest.mock import Mock

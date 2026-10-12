@@ -214,8 +214,11 @@ class CandidateLifecycle:
             acknowledgements=[]
             with shared.transaction():
                 for identity,family,address,kind,raw,checksum,at in rows:
+                    # emit stored these exact canonical bytes. Authenticate
+                    # them before decoding instead of dumping the full record
+                    # again solely to reconstruct the same checksum.
+                    if hashlib.sha256(raw.encode()).hexdigest()!=checksum:raise EvidenceUnavailable('candidate_history_outbox_corrupt')
                     body=json.loads(raw)
-                    if digest(body)!=checksum:raise EvidenceUnavailable('candidate_history_outbox_corrupt')
                     compact_raw=compact_hash=None
                     if kind=='canonical':
                         compact=dict(source_hash=checksum,record=dict(identity=body['record']['identity'],
@@ -271,9 +274,10 @@ class CandidateLifecycle:
                             observed_at=int(at),metadata=dict(evidence_state=kind,recoverable=True))
                     receipt=dict(source_hash=checksum,scope=coverage_scope(family,address),
                         canonical_identity=(body.get('record') or {}).get('identity'))
+                    receipt_raw=canonical(receipt)
                     with shared.transaction():
                         shared.db.execute('INSERT OR IGNORE INTO source_receipts VALUES(?,?,?,?,?,?,?)',
-                            (identity,family,address,kind,at,canonical(receipt),digest(receipt)))
+                            (identity,family,address,kind,at,receipt_raw,hashlib.sha256(receipt_raw.encode()).hexdigest()))
             # Coverage/ACK may advance only after the external FULL commit.
             # Failure here replays the identical receipt batch idempotently.
             with self.writer.transaction():

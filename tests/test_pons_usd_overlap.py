@@ -51,6 +51,34 @@ class PonsUSDOverlapTests(unittest.TestCase):
         self.assertIsNone(usd._pons_prefetch_pool);self.assertEqual(len(reader.rpc.calls),before)
         with self.assertRaises(usd.ValuationUnavailable):value.amount(0,NOW+6)
 
+    def test_required_usd_rpcs_receive_consumption_deadline_and_restore_outer_context(self):
+        from meme_machine.lanes.pons.provider_admission import priority
+        rpc=ReadRPC();reader=usd.NativeValueReader('pons',rpc=rpc)
+        original=rpc.call;seen=[]
+        def checked(*args,**kwargs):
+            seen.append((priority(kwargs.get('scope','connectivity')),rpc.evidence_deadline))
+            return original(*args,**kwargs)
+        with patch.object(usd,'native_reader',return_value=reader),patch.object(rpc,'call',side_effect=checked),\
+             patch.object(usd.time,'monotonic',return_value=100):
+            value=usd.prefetch_pons_usd(3,consumer='survivor').result(timeout=3)
+        self.assertTrue(seen)
+        self.assertTrue(all(row==(0,103) for row in seen),seen)
+        self.assertIsNone(rpc.evidence_deadline)
+        self.assertEqual(value.valid_until,NOW+5)
+        # A supplied earlier controller deadline remains authoritative.
+        rpc.evidence_deadline=101;reader.cached=None;seen.clear()
+        with patch.object(rpc,'call',side_effect=checked),patch.object(usd.time,'monotonic',return_value=100):
+            reader(NOW,valid_through=NOW+3)
+        self.assertTrue(all(row[1]==101 for row in seen),seen)
+        self.assertEqual(rpc.evidence_deadline,101)
+
+    def test_usd_failure_restores_deadline_without_publishing_financial_evidence(self):
+        rpc=ReadRPC();rpc.evidence_deadline=101;rpc.failed=True
+        reader=usd.NativeValueReader('pons',rpc=rpc)
+        with patch.object(usd.time,'monotonic',return_value=100):
+            with self.assertRaises(usd.ValuationUnavailable):reader(NOW,valid_through=NOW+3)
+        self.assertIsNone(reader.cached);self.assertEqual(rpc.evidence_deadline,101)
+
     def test_failure_has_fixed_diagnostic_and_cannot_create_valid_USD(self):
         reader=usd.NativeValueReader('pons',rpc=ReadRPC());reader.rpc.failed=True
         with patch.object(usd,'native_reader',return_value=reader),self.assertLogs(usd.__name__,level='WARNING') as logs:

@@ -56,12 +56,14 @@ HOLDING_DELTAS['meme_machine/lanes/pump/runner.py']['main']='5dd3dbdffec0db1d2b5
 # receives a blanket exemption, and all remaining nodes/interfaces still pin.
 ATTENTION_DELTAS = {
     'meme_machine/lanes/pump/runner.py': {
+        # d6059e48 removes only the unused duplicate observer. Original
+        # qualification/quotes/exits and the canonical LocalPumpTape remain.
+        'main': '7677550cab1f9d4bb10836e1dfd77e79c55d20f3ae3e510cebc11c34b38aba79',
         '_confirmation_meta': '1cc0f6803425581dd6dd91fcd4b037142764d23ae5fbc5a855914ea5f346c000',
         '_volume_quality_attention': 'a4e73e44c66164b18aadd8102d53d86f7483573fec8d9af8c611fae230cec6ab',
         '_late_signal': '2ed9c66d2dbbb1fdbbb7f1317d40ed65eeb1cea2fd923545016b38d74c5b6e6f',
         '_volume_price_signal': 'ca32e28c8363e5ceba28b67fc7edf6d0e3ac98820bf3a06d3234522495ac4b9a',
         '_record_attempt': 'e0d61bb5bda067f4b12274a946a93af485d03a43ca394938dc38f8754ae5bb6e',
-        'main': 'fceba527377a791da506520a5e994f01564567bc4b7b3cb069cde3d3fb882213',
     },
     'meme_machine/lanes/pump/pumpswap_survivor_runtime.py': {
         'Runtime.__init__': 'ea88001e5397533149a47b438dddf56a57babb6bb167c768e809c43e36e90cc7',
@@ -85,6 +87,11 @@ ATTENTION_DELTAS = {
 # graduation horizon and 8,192-entry cache. Pin only their exact changed nodes;
 # every other economic function and interface remains compared to the baseline.
 OPERATION_DELTAS = {
+    'meme_machine/lanes/pump/solana_evidence_plane.py': {
+        # Only the existing coverage_end_hint access path differs. Gap,
+        # availability, interval ordering and membership checks remain pinned.
+        'EvidenceReader.covered': '06b4169316bc8f6410235f947719956dce7eb731f03c2dbb788784a7b2556626',
+    },
     'meme_machine/lanes/pump/runner.py': {
         '_retain_tape_history': '7e2546ac6ea91029b22809fd3b95fa3ff20a891ad1095a1fd1a39f853e3a6cbd',
         '_observed_creation': '45a63d1aec238ecd9c13498b4bace0ccf532d757b2866fd215c2c1fa1940f5ec',
@@ -94,8 +101,11 @@ OPERATION_DELTAS = {
         'EvidenceStore.put': '28b55b13579655f0aebcc2b45de5c55404d4a1cdf495a62de0f47189adc4a2de',
     },
     'meme_machine/lanes/pump/solana_evidence_runtime.py': {
-        'LocalPumpTape.creation': 'd4c0fae54c6f0677528d2f99cb7a9f674e476a65d85fb429a4d3fadc2a2db684',
-        'LocalPumpTape.events_since': 'd697ddd45b18cb64c2a053c70254686a5f45892b80afaf30f5a167353ec9ce0c',
+        # 5ec6a2b6 keeps creation lookup and its bounded per-poll attention
+        # cache separate. Missing lineage is forgotten on the next poll.
+        'LocalPumpTape.creation': 'a233fc5649ccc393970f4de814b3462884155a0daf3618a9e608b2990624f0d7',
+        'LocalPumpTape._creation': '1533476e797f59f1d7a241f9134fba9d860d998a2d2156b9ed9a9332bb2a3113',
+        'LocalPumpTape.events_since': 'ba20cb5653544e5ae46696fbc47bf95c684b4e0042df9f76c52c09cca981e631',
     },
 }
 
@@ -118,7 +128,7 @@ def assert_holding_delta(test, relative, original, current):
         if before is None:
             # Only the explicitly pinned attention helper may be new. Remove
             # that node for the historical sibling/interface comparison.
-            test.assertIn(name,('_volume_quality_attention','Runtime._quality_rank','_retain_tape_history','_observed_creation'))
+            test.assertIn(name,('_volume_quality_attention','Runtime._quality_rank','_retain_tape_history','_observed_creation','LocalPumpTape._creation'))
             owner=new
             for part in name.split('.')[:-1]:owner=next(n for n in owner.body if isinstance(n,ast.ClassDef) and n.name==part)
             owner.body.remove(after)

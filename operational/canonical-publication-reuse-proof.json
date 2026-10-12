@@ -1,0 +1,86 @@
+{
+  "parent": "293f7421aa28a45365b8dfd85f8a67134f942e44",
+  "at": 1791820496.5797746,
+  "authentic_failure": {
+    "receipt": "CONTINUOUS_ACTUAL_WORKERS_1791818872965.json",
+    "observed_failure": "evidence_heartbeat_stale",
+    "startup_query_wall_seconds": 59.37269836093765,
+    "normalized_records_at_start": 1288394,
+    "retained_stage_evidence": "prewarm startup VERIFY_CONTIGUOUS_COVERAGE to RELEASE_CANDIDATE_CONSUMERS took 59.26 seconds",
+    "stable_observation": {
+      "incoming_slots_per_second": 4.29836860634289,
+      "completed_slots_per_second": 2.126024989559683,
+      "lag_slots": 863,
+      "market_age_seconds": 235.59915733337402
+    }
+  },
+  "repairs": [
+    "Covering index for the exact existing first_seen startup MIN; install offline before dispatch, no receipt changes",
+    "Authenticate exact canonical outbox bytes instead of reserializing; preserve ACK after external FULL commit",
+    "Reuse already decoded reference only after fresh canonical source bytes/hash equality; original compressed/archive/conflict validation retained",
+    "Fast exact table-population proof for gapped audit rowids; original filtered oldest-first pruning and append-only guards retained",
+    "Bind Pons financial RPC EDF deadline to the current consumption horizon without changing native quote/USD validity or physical pacing"
+  ],
+  "reference_equivalence": {
+    "source": "293f7421_original_vs_pending_successor",
+    "at": 1791820285.840672,
+    "authenticated_retained_rows": 64,
+    "raw_sample_sha256": "65f1edff36d2bad57f3716ef5dd65605bc58ed661dd96f302c6dfdb864056d4a",
+    "results": {
+      "original": {
+        "wall_seconds": 0.041511934949085116,
+        "cpu_seconds": 0.04010873200000001
+      },
+      "optimized": {
+        "wall_seconds": 0.011613177950493991,
+        "cpu_seconds": 0.010795169999999993
+      }
+    },
+    "exact_reference_rows_equal": true,
+    "physical_requests": 0,
+    "logical_rpc_elements": 0,
+    "market_throughput_proven": false,
+    "source_database_read_only": true
+  },
+  "pons_authentic_failure": {
+    "receipt": "PONS_COMBINED_NATIVE_TEN_RPS_1791819117.json",
+    "current_seconds": 1.6060606009559706,
+    "survivor_seconds": 1.7798244339646772,
+    "usd_seconds": 2.9990206350339577,
+    "combined_seconds": 3.012218091986142,
+    "first_usd_admission_wait_seconds": 0.5898,
+    "physical_requests": 66,
+    "modeled_cu": 8950,
+    "modeled_public_usd": "0.00469875",
+    "not_invoice": true
+  },
+  "tests": [
+    {
+      "path": "/tmp/canonical-reuse-usd-deadline-final-fast.log",
+      "sha256": "fefbfafcf9a2410a9f852c89d2f4b3fb69893c6fea11b70a5ba67415684b4136",
+      "tests": 156,
+      "passed": 156,
+      "skipped": 0
+    },
+    {
+      "path": "/tmp/canonical-reuse-usd-deadline-final-operational.log",
+      "sha256": "309d04e1df34af4aa29fb7deae99a373ca06b7c2b580b90022862418a2540ed7",
+      "tests": 226,
+      "passed": 226,
+      "skipped": 0
+    }
+  ],
+  "source_guard_update": "Exact previously reviewed d6059e48 observer removal, 5ec6a2b6 bounded creation attention and indexed EvidenceReader.covered AST pins; mutation assertions and all economic sibling/interface comparisons retained",
+  "invariants_unchanged": [
+    "original strategy hashes and economics",
+    "canonical identity, ordering, invalidation and complete candidate histories",
+    "capital and epoch",
+    "FULL durability before consumed receipts",
+    "native quote and USD five-second validity",
+    "three/five-second protection deadlines",
+    "physical bounds and protection priority"
+  ],
+  "provider_proven": false,
+  "normal_funding": false,
+  "acceptance_pass": false
+}
