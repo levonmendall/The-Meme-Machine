@@ -396,18 +396,26 @@ class SelectiveHistory:
         rows=tuple(rows);restored=restored or {}
         from .runtime.operating_families import require_scope
         for row in rows:require_scope(row.scope)
-        if len(rows)>2048 or sum(len(canonical(r.body()).encode()) for r in rows)>16*1024*1024:
+        if len(rows)>2048:
             raise EvidenceUnavailable('ingestion_batch_bound')
+        # Validate/serialize once on this owner command. The same exact bytes
+        # establish its physical bound and immutable rolling-store hash. This
+        # is never a cache across calls, replay, blocks or mutable payloads.
+        serialized=[];retained_bytes=0
+        for row in rows:
+            prepared=row.serialized_body();retained_bytes+=len(prepared[1].encode())
+            if retained_bytes>16*1024*1024:raise EvidenceUnavailable('ingestion_batch_bound')
+            serialized.append(prepared)
         from .solana_evidence_plane import require_storage
         require_storage(self.writer.path,required_bytes=32*1024*1024)
         hot=[];cached=[]
         with self.writer.transaction():
             if hasattr(self,'rolling'):self.rolling.adopt(rows)
-            for row in rows:
+            for row,prepared in zip(rows,serialized):
                 if hasattr(self,'rolling') and row.kind in ('event','transaction'):
-                    self.rolling.store(row)
+                    self.rolling.store(row,serialized=prepared)
                     continue
-                incoming=row.body()
+                incoming=prepared[0]
                 economic_hash=self.content_hash(incoming)
                 receipt=self.db.execute('SELECT economic_hash,transaction_index,first_seen FROM candidate_content_receipts WHERE identity=?',(row.identity,)).fetchone()
                 if receipt:

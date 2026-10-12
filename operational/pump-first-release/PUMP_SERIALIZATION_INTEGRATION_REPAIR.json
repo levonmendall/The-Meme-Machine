@@ -1,0 +1,21 @@
+{
+  "source": "3c394784ee7f283e4586f86f68b3855a3757b72c",
+  "run_id": 38191735560,
+  "job_id": 114625733705,
+  "status": "FAILED",
+  "tests": 1704,
+  "seconds": 1488.367,
+  "errors": 2,
+  "failures": 0,
+  "reason": "Prepaid fast-path attribute discovery treated dynamic mock attributes as real adapters",
+  "repair": "Static attribute inspection; native reads and dynamic proxies keep original read() behavior",
+  "raw_log": "/tmp/3c-job-direct.log",
+  "raw_log_sha256": "fa47ca339c61b9ed7ebd58594e7d9a84211624ab252c7dea73c29b784371e19d",
+  "failed_evidence_preserved": true,
+  "affected_focused_after_repair": {
+    "tests": 130,
+    "seconds": 34.832,
+    "result": "PASS",
+    "log": "/tmp/rolling-serialization-focused-fixed.log"
+  }
+}

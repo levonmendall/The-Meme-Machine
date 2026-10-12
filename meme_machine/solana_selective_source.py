@@ -10,6 +10,7 @@ import base64
 import hashlib
 import json
 import logging
+from inspect import getattr_static
 import time
 import uuid
 import grpc
@@ -675,8 +676,10 @@ class SelectiveSource:
                     if position_only():return
                 ready=False
                 if pending is None:
-                    read_ready=getattr(call,'read_ready',None)
-                    if callable(read_ready):ready,raw=read_ready()
+                    # Only an explicitly implemented adapter fast path. Native
+                    # calls and dynamic proxy/mock attributes retain read().
+                    read_ready=getattr_static(call,'read_ready',None)
+                    if callable(read_ready):ready,raw=call.read_ready()
                 if not ready:
                     if pending is None:pending=asyncio.create_task(call.read())
                     try:raw=await asyncio.wait_for(asyncio.shield(pending),1)
