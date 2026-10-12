@@ -146,12 +146,23 @@ def snapshot(path, fingerprint):
             "SELECT created,deadline,'shared' FROM queue WHERE endpoint=? AND deadline>?"),(fingerprint,now)).fetchall()
         # Bounded retained audit samples. Old records without a start clock are
         # explicitly absent from rate estimates; lifetime counters stay intact.
-        starts=[json.loads(r[0]) for r in db.execute('SELECT body FROM transport_starts '
-            'WHERE json_extract(body,\'$.endpoint_fingerprint\')=? ORDER BY seq DESC LIMIT 4096',(fingerprint,))] \
-            if 'transport_starts' in tables else []
-        arrivals=[json.loads(r[0]) for r in db.execute('SELECT body FROM admissions '
-            'WHERE json_extract(body,\'$.endpoint_fingerprint\')=? ORDER BY seq DESC LIMIT 4096',(fingerprint,))] \
-            if 'admissions' in tables else []
+        # Preserve the exact retained 4096-row sample before time filtering.
+        # Only the ten-second rows enter rate calculations; parsing thousands
+        # of obsolete dictionaries on each RPC telemetry call delays native
+        # work. SQLite selects the identical subset, without a cached verdict.
+        starts=[];arrivals=[];without_clock=0
+        if 'transport_starts' in tables:
+            sample="SELECT body FROM transport_starts WHERE json_extract(body,'$.endpoint_fingerprint')=? ORDER BY seq DESC LIMIT 4096"
+            without_clock=db.execute('WITH sample AS MATERIALIZED ('+sample+
+                ") SELECT COUNT(*) FROM sample WHERE json_type(body,'$.admitted_at') IS NULL",(fingerprint,)).fetchone()[0]
+            starts=[json.loads(r[0]) for r in db.execute('WITH sample AS MATERIALIZED ('+sample+
+                ") SELECT body FROM sample WHERE json_extract(body,'$.admitted_at')>=? AND json_extract(body,'$.admitted_at')<=?",
+                (fingerprint,now-10,now))]
+        if 'admissions' in tables:
+            sample="SELECT body FROM admissions WHERE json_extract(body,'$.endpoint_fingerprint')=? ORDER BY seq DESC LIMIT 4096"
+            arrivals=[json.loads(r[0]) for r in db.execute('WITH sample AS MATERIALIZED ('+sample+
+                ") SELECT body FROM sample WHERE (json_extract(body,'$.created')>=? AND json_extract(body,'$.created')<=?) OR (json_extract(body,'$.ended')>=? AND json_extract(body,'$.ended')<=?)",
+                (fingerprint,now-10,now,now-10,now))]
     finally:db.close()
     from meme_machine.runtime.cu import estimate
     by_lane={};totals=Counter()
@@ -218,7 +229,7 @@ def snapshot(path, fingerprint):
         original_deadline_remaining_seconds=min([b-now for _,b,_ in queue_rows],default=None))
     result['rolling_10_seconds']=dict(available='transport_starts' in tables and 'admissions' in tables,
         missing_rate_instrumentation_tables=sorted({'transport_starts','admissions'}-tables),
-        records_without_start_clock=sum('admitted_at' not in r for r in starts),
+        records_without_start_clock=without_clock,
         physical_http_attempts=sum(r.get('physical_requests',0) for r in recent),
         physical_rps=sum(r.get('physical_requests',0) for r in recent)/10,
         logical_rpc_elements=sum(recent_methods.values()),logical_calls_by_method=dict(recent_methods),

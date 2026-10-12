@@ -73,5 +73,48 @@ class RollingSerializationTests(unittest.TestCase):
         self.assertEqual(after,before)
         self.assertEqual(self.history.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
 
+    def test_page_reuse_keeps_exact_original_input_and_lineage_hashes(self):
+        import meme_machine.solana_selective_history as module
+        self.history.request('pump','mint',1,2,priority=3,deadline=NOW+100)
+        job,_=self.history.plan()
+        value=dict(data=[],paginationToken='next-\"-é',note={'escaped':'a\\b'})
+        expected_input=digest([job['token'],value])
+        expected_lineage=digest([job['lineage'],digest(value)])
+        original=module.canonical;calls=[]
+        def capture(body):
+            if body is value:calls.append(body)
+            return original(body)
+        with patch.object(module,'canonical',capture):
+            first=self.history.commit_page(job,value,finalized_through=2)
+        self.assertEqual(len(calls),1)
+        self.assertEqual(self.history.db.execute('SELECT input_hash FROM acquisition_page_receipts WHERE job=?',(job['id'],)).fetchone()[0],expected_input)
+        self.assertEqual(self.history.db.execute('SELECT lineage FROM acquisition_jobs WHERE id=?',(job['id'],)).fetchone()[0],expected_lineage)
+        self.assertEqual(self.history.commit_page(job,value,finalized_through=2),first)
+        with self.assertRaisesRegex(EvidenceConflict,'candidate_archive_page_conflict'):
+            self.history.commit_page(job,dict(value,note='different'),finalized_through=2)
+
+    def test_creation_attention_misses_expire_on_every_delivery_poll(self):
+        from types import SimpleNamespace
+        from meme_machine.lanes.pump.solana_evidence_runtime import LocalPumpTape
+        from meme_machine.solana_evidence_plane import EvidenceReader
+        reader=EvidenceReader(self.path);self.addCleanup(reader.close)
+        tape=LocalPumpTape(SimpleNamespace(frontier=lambda _:-1,reader=reader,clock=lambda:NOW))
+        creation=dict(mint='mint',event_type='create',available_time=10)
+        with patch.object(tape,'_creation',side_effect=[None,creation]) as lookup:
+            self.assertEqual(tape.events_since(0),([],0))
+            for _ in range(200):self.assertIsNone(tape.creation('mint'))
+            self.assertEqual(lookup.call_count,1)
+            # Even an empty new poll discards observation-only misses. A later
+            # authentic creation is reconsidered; no absence/coverage proof or
+            # durable rejection is produced by the cache.
+            self.assertEqual(tape.events_since(0),([],0))
+            self.assertEqual(tape.creation('mint'),creation)
+            self.assertEqual(lookup.call_count,2)
+        tape.events_since(0)
+        with patch.object(tape,'_creation',return_value=None) as lookup:
+            for index in range(300):tape.creation(str(index))
+            self.assertEqual(len(tape._creation_batch),256)
+            self.assertEqual(lookup.call_count,300)
+
 
 if __name__=='__main__':unittest.main()

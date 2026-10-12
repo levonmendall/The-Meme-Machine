@@ -302,6 +302,33 @@ class EvidenceCase(unittest.TestCase):
             self.assertIsNone(row['rolling_10_seconds']['diagnostic_throughput_cu'])
             self.assertEqual(row['rolling_10_seconds']['unpriced_throughput_methods'],{'unknown_read':1})
 
+    def test_rate_snapshot_filters_only_after_exact_retained_sample_boundary(self):
+        from meme_machine.lanes.pons.provider_admission import Admission
+        from meme_machine.runtime.robinhood import provider_usage as usage
+        with tempfile.TemporaryDirectory() as tmp:
+            gate=Admission(Path(tmp)/'provider',ENDPOINT,lane='pons',clock=lambda:1000.)
+            with gate.connect() as db:
+                old=dict(endpoint_fingerprint=gate.endpoint,admitted_at=100.,methods=['eth_call'],physical_requests=1)
+                db.executemany('INSERT INTO transport_starts(body) VALUES(?)',[(json.dumps(old),)]*4096)
+                db.execute('INSERT INTO transport_starts(body) VALUES(?)',(json.dumps(dict(endpoint_fingerprint=gate.endpoint)),))
+                for at in (990.,1000.,1001.):
+                    db.execute('INSERT INTO transport_starts(body) VALUES(?)',(json.dumps(dict(old,admitted_at=at)),))
+                db.executemany('INSERT INTO admissions(body) VALUES(?)',[(json.dumps(dict(endpoint_fingerprint=gate.endpoint,created=100.,ended=101.)),)]*4096)
+                for created,ended in ((980.,995.),(995.,1005.),(990.,1000.)):
+                    db.execute('INSERT INTO admissions(body) VALUES(?)',(json.dumps(dict(endpoint_fingerprint=gate.endpoint,created=created,ended=ended,granted=True)),))
+                db.execute('INSERT INTO transport_starts(body) VALUES(?)',(json.dumps(dict(old,endpoint_fingerprint='other',admitted_at=1000.)),))
+            # The body decoder should see current samples, rather than spend
+            # native CPU constructing thousands of obsolete audit dictionaries.
+            original=usage.json.loads
+            with patch.object(usage.time,'monotonic',return_value=1000.),patch.object(usage.json,'loads',wraps=original) as decode:
+                row=gate.telemetry();calls=decode.call_count
+            rate=row['rolling_10_seconds']
+            self.assertEqual(rate['physical_http_attempts'],2)
+            self.assertEqual(rate['records_without_start_clock'],1)
+            self.assertEqual(rate['completed_admissions'],2)
+            self.assertEqual(rate['admissions_arrived'],2)
+            self.assertLess(calls,50)
+
     def test_two_application_binding_and_rotation_are_secret_free(self):
         from engineering.robinhood_payg.identity import reconcile
         pons='SYNTHETIC_SECRET_PONS';pump='SYNTHETIC_SECRET_PUMP'

@@ -1,0 +1,79 @@
+{
+  "schema": "measured-processing-correction-v1",
+  "base_source": "0ebdaa43d9e28ffbd183512221bdf3367e158194",
+  "at": 1791813147.2642138,
+  "source_sha256": {
+    "meme_machine/lanes/pump/solana_evidence_runtime.py": "ec0b8f921de5ffcbfd7c2762cc26511dba02de470ee0156e28f15711637cc9b2",
+    "meme_machine/solana_selective_history.py": "a4a88cd2d03bb5443ffa11c8edf1577c50e60a03a35409963bb8be5b7669fd79",
+    "meme_machine/runtime/robinhood/provider_usage.py": "f39df6eb8b8419c7206c8da5400b295c70d0911551251246c8c5fefbf0f33da5",
+    "tests/test_rolling_ingest_serialization.py": "1aa58bbc229c408e53ecbbea4a9c3c112a996908c06214e4a1af451e4d93afe7",
+    "tests/test_robinhood_payg.py": "ea6a7c20c5e3c44e76132fedaec9b067d907617f4f0c0ef005c0adeecc4feb0b"
+  },
+  "measured_bottlenecks": {
+    "pump": {
+      "profile": "/tmp/steady-processing-pump.raw",
+      "sample_count": 872,
+      "observed_creation_inclusive_samples": 467,
+      "decode_body_leaf_samples": 153
+    },
+    "source": {
+      "profile": "/tmp/steady-processing-source.raw",
+      "duplicate_full_page_hash_samples": 31
+    },
+    "pons": {
+      "profile": "/tmp/steady-processing-pons.raw",
+      "snapshot_decode_samples": 105
+    }
+  },
+  "corrections": {
+    "creation_lookup": "Once per mint within the same bounded delivery poll; at most 256 keys; all misses discarded at next poll including empty poll; canonical/history/entry evidence unchanged. Overflow retains original lookup. No durable negative verdict.",
+    "archive_page": "Serialize the identical complete provider JSON once. Original input and lineage hashes retained byte for byte.",
+    "telemetry": "Retain the same last-4096 audit sample, SQL-select only the original ten-second rows before Python decoding; lifetime totals and missing-clock reporting unchanged."
+  },
+  "local_telemetry_comparison": {
+    "exact_output_equality": true,
+    "before": {
+      "iterations": 20,
+      "wall_seconds": 1.0558926649391651,
+      "cpu_seconds": 1.0486549139999999
+    },
+    "after": {
+      "iterations": 20,
+      "wall_seconds": 0.753348828991875,
+      "cpu_seconds": 0.7464005070000002
+    }
+  },
+  "tests": {
+    "FAST": {
+      "unique_tests": 116,
+      "previous_same_production_source_passed": 115,
+      "fixture_failure": "Test expected list instead of the existing (events, sequence) tuple; failure logs preserved.",
+      "corrected_module_tests": 6,
+      "corrected_module_result": "PASS"
+    },
+    "OPERATIONAL": {
+      "unique_tests": 79,
+      "previous_same_production_source_passed": 77,
+      "intentional_archived_skip": 1,
+      "fixture_failure": "Same assertion-only tuple correction; production code unchanged.",
+      "corrected_module_tests": 6,
+      "corrected_module_result": "PASS"
+    }
+  },
+  "test_logs": {
+    "/tmp/delivery-page-telemetry-fast.log": "61a9ee0f1b6e35e10cc7b586e65cd6deda4f38275b2285f37437455325172e55",
+    "/tmp/delivery-page-telemetry-fast-pass.log": "d79a74207bf51ee9ed4c50da8d1e1bf985907ddd9085f5fdaa58be7e945eec19",
+    "/tmp/delivery-page-telemetry-operational-final.log": "b3d95da16e80fb1d0fd766100f90991d34bd0e97ac11956ab42a9ebee43918d3",
+    "/tmp/delivery-page-telemetry-operational-pass.log": "07479a22850b366c403cdebbcb0a3223c47aef2d0b8f4c2d9dfa4422a4404b6d"
+  },
+  "provider_work_added": 0,
+  "buffers_deadlines_economics_capital_changed": false,
+  "authenticated_throughput_after_correction": "NOT_YET_MEASURED",
+  "paired_pons_requirement": {
+    "previous_result": "FAIL",
+    "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_COMBINED_NATIVE_1791811716.json",
+    "reason": "First combined native Current/Survivor/USD cycle exceeded original three-second deadline; retained request timing shows shared six-RPS pacing contention."
+  },
+  "funding": false,
+  "acceptance_60_minutes": "NOT_STARTED"
+}

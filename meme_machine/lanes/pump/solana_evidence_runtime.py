@@ -233,6 +233,17 @@ class LocalPumpTape:
             except ValueError as exc:raise EvidenceUnavailable(str(exc)) from exc
         return [e for e in rows if e.get('event_type') not in ('create','migration')]
     def creation(self,mint):
+        # This is observation attention, not a negative evidence verdict. A
+        # popular mint can occur many times in one bounded delivery batch. Read
+        # its same historical creation once, and forget misses on the very next
+        # poll (including an empty poll). Quotes/coverage never use this cache.
+        batch=getattr(self,'_creation_batch',None)
+        if batch is not None and mint in batch:return batch[mint]
+        value=self._creation(mint)
+        if batch is not None and len(batch)<256:batch[mint]=value
+        return value
+
+    def _creation(self,mint):
         db=self.plane.reader.db;db.execute('BEGIN')
         try:
             # Materializing the canonical UNION view for a join scanned the
@@ -272,6 +283,7 @@ class LocalPumpTape:
             return None
         finally:db.execute('ROLLBACK')
     def events_since(self,sequence):
+        self._creation_batch={}
         self.candidate_history_retained_path=None
         self.candidate_history_retained_count=0
         from meme_machine.solana_selective_runtime import selective,consume_pump_discovery

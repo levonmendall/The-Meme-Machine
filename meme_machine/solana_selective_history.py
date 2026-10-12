@@ -371,7 +371,12 @@ class SelectiveHistory:
             last=pair
             rows.extend(economic_records(job['family'],job['address'],tx,
                 endpoint_identity=self.endpoint_identity,seen=seen,source='alchemy_finalized_repair'))
-        scoped=self.scope_for(job['family'],job['address']);lineage=digest([job['lineage'],digest(value)])
+        # Hash the original complete provider page, not a projection. The same
+        # immutable JSON is included in both receipt identities below; dumping
+        # the large transaction/log page again adds no verification.
+        value_raw=canonical(value)
+        value_hash=hashlib.sha256(value_raw.encode()).hexdigest()
+        scoped=self.scope_for(job['family'],job['address']);lineage=digest([job['lineage'],value_hash])
         proof=None
         if token is None:
             proof=IntervalProof(scoped,job['lo'],job['hi'],'alchemy_finalized_repair',self.endpoint_identity,
@@ -379,7 +384,7 @@ class SelectiveHistory:
                      lineage_hash=lineage,method='getTransactionsForAddress',pagination_exhausted=True,
                      page_count=job['pages']+1,address=job['address'],canonical_scope=FAMILIES[job['family']]),seen)
         with self.writer.transaction():
-            input_hash=digest([job['token'],value])
+            input_hash=hashlib.sha256(('['+canonical(job['token'])+','+value_raw+']').encode()).hexdigest()
             receipt=self.db.execute('SELECT input_hash,result FROM acquisition_page_receipts WHERE job=? AND page=?',
                 (job['id'],job['pages'])).fetchone()
             if receipt:
