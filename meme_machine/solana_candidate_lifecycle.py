@@ -322,7 +322,11 @@ class CandidateLifecycle:
         bound='' if through is None else " AND (kind!='canonical' OR json_extract(body,'$.record.slot')<=?)"
         tail=() if through is None else (through,)
         if family in ('pump','pumpswap') and scope==program_scope(family):
-            return self.db.execute("SELECT 1 FROM candidate_history_outbox WHERE family=? AND kind='canonical' AND consumed IS NULL"+bound+' LIMIT 1',(family,*tail)).fetchone()
+            # This branch already selects canonical rows exclusively. Keeping
+            # the generic noncanonical OR prevents the exact pending-slot index
+            # from bounding each proof's scan as the durable outbox grows.
+            canonical_bound='' if through is None else " AND json_extract(body,'$.record.slot')<=?"
+            return self.db.execute("SELECT 1 FROM candidate_history_outbox WHERE family=? AND kind='canonical' AND consumed IS NULL"+canonical_bound+' LIMIT 1',(family,*tail)).fetchone()
         if hasattr(self.history,'rolling') and address.startswith('group-'):
             return self.db.execute('''SELECT 1 FROM candidate_history_outbox o JOIN rolling_group_members m
                 ON m.family=o.family AND m.address=o.address WHERE m.scope=? AND o.consumed IS NULL'''+bound+' LIMIT 1',(scope,*tail)).fetchone()

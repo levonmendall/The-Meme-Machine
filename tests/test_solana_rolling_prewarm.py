@@ -31,6 +31,44 @@ class RollingPrewarmTests(unittest.TestCase):
         self.h.ingest(rows);self.seal(program_scope('pump'),txs[0]['slot'],txs[-1]['slot'])
         mint=next(r.payload['event']['mint'] for r in rows if r.payload['event']['event_type']=='create')
         return mint,rows
+    def test_program_pending_membership_matches_original_query_and_uses_slot_index(self):
+        life=self.h.lifecycle;scope=program_scope('pump')
+        with self.state.writer.transaction():
+            identity=life.emit('pump','mint','canonical',dict(record=dict(slot=101)),at=NOW)
+            life.emit('pump','mint','activity',dict(slot=99),at=NOW)
+            life.emit('pumpswap','other','canonical',dict(record=dict(slot=100)),at=NOW)
+        captured=[];self.h.db.set_trace_callback(captured.append)
+        for through in (None,99,100,101,200):
+            bound='' if through is None else " AND (kind!='canonical' OR json_extract(body,'$.record.slot')<=?)"
+            params=('pump',) if through is None else ('pump',through)
+            original=self.h.db.execute("SELECT 1 FROM candidate_history_outbox WHERE family=? AND kind='canonical' AND consumed IS NULL"+bound+' LIMIT 1',params).fetchone()
+            self.assertEqual(life.unconsumed(scope,through=through),original)
+        statement=next(sql for sql in reversed(captured) if 'candidate_history_outbox' in sql and "$.record.slot" in sql and "kind!='canonical'" not in sql)
+        self.h.db.set_trace_callback(None)
+        plan=self.h.db.execute('EXPLAIN QUERY PLAN '+statement).fetchall()
+        self.assertTrue(any('candidate_history_canonical_pending' in row[-1] and '<expr>' in row[-1] for row in plan),plan)
+        with self.state.writer.transaction():
+            self.h.db.execute('UPDATE candidate_history_outbox SET consumed=? WHERE id=?',(NOW+1,identity))
+        self.assertIsNone(life.unconsumed(scope,through=200))
+        # Noncanonical obligations still block their own candidate. They never
+        # disappear just because program publication has no pending economics.
+        self.assertIsNotNone(life.unconsumed(coverage_scope('pump','mint'),through=100))
+        self.state.writer.close();self.state,self.h=state_at(self.path,lambda:self.now[0])
+        self.assertIsNone(self.h.lifecycle.unconsumed(scope,through=200))
+        self.assertIsNotNone(self.h.lifecycle.unconsumed(coverage_scope('pump','mint'),through=100))
+
+    def test_publication_alias_lookup_uses_exact_scope_index_after_restart(self):
+        scope=self.h.bind('pump','curve',market_address='mint',aliases=('mint',))
+        self.h.bind('pump','unrelated',market_address='other-mint',aliases=('other-mint',))
+        self.h.bind('pumpswap','pool',market_address='mint')
+        query='SELECT address FROM evidence_bindings WHERE family=? AND coverage_scope=?'
+        expected={'curve','mint'}
+        self.assertEqual({r[0] for r in self.h.db.execute(query,('pump',scope))},expected)
+        self.state.writer.close();self.state,self.h=state_at(self.path,lambda:self.now[0])
+        self.assertEqual({r[0] for r in self.h.db.execute(query,('pump',scope))},expected)
+        plan=self.h.db.execute('EXPLAIN QUERY PLAN '+query,('pump',scope)).fetchall()
+        self.assertTrue(any('evidence_binding_coverage_lookup' in row[-1] and 'coverage_scope=?' in row[-1] for row in plan),plan)
+
     def test_same_observation_slot_reuses_only_the_same_command_publication_answer(self):
         with self.state.writer.transaction():
             for n in range(400):

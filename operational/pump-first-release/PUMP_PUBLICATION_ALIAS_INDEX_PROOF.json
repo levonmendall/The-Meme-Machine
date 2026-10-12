@@ -1,0 +1,33 @@
+{
+  "baseline_source": "d42b6c8670bea75691e87f31b40d74058840ce83",
+  "canonical_failure_evidence_clock": 1791770255.3107855,
+  "baseline_publication_seconds": 0.1641306709498167,
+  "optimized_publication_seconds": 0.05864112498238683,
+  "exact_final_table_hashes": {
+    "evidence_bindings": "1ffc1bd8d1fd7ce03b0dacb5dde7a94a9e45adb82d145d370d1cd782d787dcc8",
+    "candidate_lifecycle": "c00d02554e78a4c4f7217916ca6d044bab345e0a739362220aa9768c3bd0c571",
+    "candidate_history_outbox": "186d3b3bda14b3cc25be453f3f93b5d409edb5165e8d0fdf0c7a75ab58126600",
+    "rolling_boundary_waits": "1f0f633a84099af198c5d24999e18a5f919b957eb09215dd6e803978a14d075c",
+    "rolling_publication_waits": "6f86a9fde5aaa24c996755bf73077f9ceffa2f29e7f86bcf0afe042891f3a888",
+    "acquisition_jobs": "5371cf6594c64940f3cdd44c04046661f0960a322ca91d249ae9920f06dcf42f",
+    "acquisition_observations": "fc35128f91340dc2c9ebd6794ecb3e0d389fabde38a92468bea2b12482a52a41",
+    "promotion_history_metrics": "ecde415bd52f4049277e2774ac9491bfca0ed3d7fcd37391461e9697e2257b45",
+    "history:work": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "history:candidates": "649a9cadd42919af35bd31fb457d147565e06cb601fed644d86f849623421ef2"
+  },
+  "disposable_copies_only": true,
+  "provider_requests": 0,
+  "cause": "Alias resolution scanned 6,801 retained Pump bindings per pending proof; exact family/coverage_scope index is missing",
+  "pending_proof_membership_checks": 54,
+  "baseline_membership_cumulative_seconds": 0.128,
+  "optimized_membership_cumulative_seconds": 0.003,
+  "original_accounting_and_coverage_unchanged": true,
+  "full_live_protection_pass": false,
+  "tests": {
+    "count": 140,
+    "seconds": 43.848,
+    "result": "PASS",
+    "receipt": "/tmp/publication-alias-focused.log",
+    "sha256": "65826d2268da39a31a113dd8004d4ba6e1d22775782959c96a215e2741bfc129"
+  }
+}

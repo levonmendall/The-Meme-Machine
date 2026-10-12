@@ -31,6 +31,10 @@ CREATE TABLE IF NOT EXISTS evidence_bindings(
  PRIMARY KEY(family,address));
 CREATE INDEX IF NOT EXISTS evidence_binding_canonical_market
  ON evidence_bindings(canonical_scope,market_address);
+-- Publication resolves only the aliases of its exact candidate scope. Scanning
+-- every retained Pump binding per proof eventually delays canonical intake.
+CREATE INDEX IF NOT EXISTS evidence_binding_coverage_lookup
+ ON evidence_bindings(family,coverage_scope,market_address,address);
 CREATE TABLE IF NOT EXISTS acquisition_jobs(
  id TEXT PRIMARY KEY,family TEXT NOT NULL,address TEXT NOT NULL,
  lo INTEGER NOT NULL,hi INTEGER NOT NULL,priority INTEGER NOT NULL,deadline REAL NOT NULL,
