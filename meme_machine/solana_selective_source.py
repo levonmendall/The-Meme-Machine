@@ -45,6 +45,7 @@ def require_certified():
     return require_normal()
 REPLAY_SLOTS=6000
 CONTROL_OVERLAP=256
+CONTROL_CURRENT_SECONDS=15 # Same market-time bound as normal Pump readiness.
 WARM_OVERLAP=32
 
 def rolling_replay_boundary(state,desired,tip):
@@ -414,6 +415,7 @@ class SelectiveSource:
         self.join_observed={}
         self.rolling_publications=0
         self.control_bootstrap_tip=None;self.control_committed_slot=None
+        self.control_committed_market_time=None
         self.acquisition_plan_lock=asyncio.Lock();self.acquisition_idle_until=0
 
     def observe_join(self,plane,join,session):
@@ -556,8 +558,11 @@ class SelectiveSource:
                     for frame in batch:commit_control(state,frame,active=self.control_connected)
                 # Scheduling may follow only the durable authenticated receipt;
                 # a socket, raw slot notification or submitted command is not it.
-                return state.writer.db.execute('SELECT MAX(slot) FROM stream_receipts WHERE scope=?',(CONTROL,)).fetchone()[0]
-            self.control_committed_slot=await self.work(commit,2,label='source_commit')
+                return state.writer.db.execute('''SELECT slot,market_time FROM stream_receipts
+                    WHERE scope=? AND sealed=1 ORDER BY slot DESC LIMIT 1''',(CONTROL,)).fetchone()
+            receipt=await self.work(commit,2,label='source_commit')
+            if receipt is not None:
+                self.control_committed_slot,self.control_committed_market_time=receipt
             for _ in batch:queue.task_done()
 
     async def candidate_commits(self,queue,addresses,session,*,rolling=False,grouped=False,priority=2):
@@ -1194,8 +1199,15 @@ class SelectiveSource:
         This orders acquisition only. Full economic publication, canonical
         candidate coverage, fresh execution and financial admission still apply.
         """
+        # The initial HTTP tip ages while replay drains. Reaching that old
+        # number can leave control minutes behind newly opened WS logs, which
+        # then compete with the required replay and fill the bounded join.
+        # Use only an actually sealed, durably committed native receipt here.
+        # This gate grants no economic coverage or executable quote authority.
         while (self.control_bootstrap_tip is not None and
-                (self.control_committed_slot is None or self.control_committed_slot<self.control_bootstrap_tip)):
+                (self.control_committed_slot is None or self.control_committed_slot<self.control_bootstrap_tip
+                 or self.control_committed_market_time is None
+                 or not 0<=time.time()-self.control_committed_market_time<=CONTROL_CURRENT_SECONDS)):
             if self.stop.is_set():raise asyncio.CancelledError()
             try:await asyncio.wait_for(self.stop.wait(),.05)
             except TimeoutError:pass

@@ -1,0 +1,51 @@
+{
+  "parent": "7cf5441222d7b6fb577998be465d9de0800513cb",
+  "scope": "Demonstrated live-log startup contention with lagging canonical control replay",
+  "failure": "CONTINUOUS_ACTUAL_WORKERS_1791787978094.json",
+  "authenticated_failure": {
+    "started_at": 1791787978.5790255,
+    "first_live_connection": 1791788151.4921312,
+    "latest_durable_control_slot_at_connection": 455954754,
+    "latest_durable_control_market_time": 1791788015,
+    "control_market_age_seconds": 136.49213123321533,
+    "pressure_at": 1791788241.7675018,
+    "pressure_code": "candidate_log_buffer_pressure",
+    "new_canonical_records": 12514,
+    "acceptance_pass": false,
+    "epoch_economics_unchanged": true
+  },
+  "cause": "An initial HTTP slot is a fixed bootstrap number; reaching it after replay does not establish current control. Live logs opened while control was 136 seconds old, and competed with unfinished control replay.",
+  "change": "Before opening live rolling joins, require the actually sealed durable control receipt to reach the initial tip and satisfy the existing 15-second normal-readiness market-time bound. A later unsealed header is insufficient.",
+  "unchanged": [
+    "Full economic publication and candidate lookbacks",
+    "Historical gap obligations and replay window",
+    "Canonical membership and original native quotes",
+    "Buffers, queue and memory bounds",
+    "Protective deadlines",
+    "Provider products, physical pacing and prices",
+    "Original strategy and capital rules"
+  ],
+  "tests": [
+    {
+      "suite": "FAST",
+      "tests": 45,
+      "seconds": 6.157,
+      "log": "pump-current-control-fast.log"
+    },
+    {
+      "suite": "OPERATIONAL",
+      "tests": 69,
+      "seconds": 13.944,
+      "log": "pump-current-control-operational.log"
+    },
+    {
+      "suite": "OPERATIONAL",
+      "tests": 1,
+      "case": "test_control_commit_gate_reads_sealed_receipt_not_later_unsealed_tip",
+      "log": "pump-control-sealed-selection.log"
+    }
+  ],
+  "provider_incremental_requests": 0,
+  "funding_authority_added": false,
+  "authenticated_successor_status": "PENDING"
+}

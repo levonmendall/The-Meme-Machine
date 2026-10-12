@@ -1,6 +1,7 @@
 """Offline locator bursts retain the original facts and durable wakeups."""
 import asyncio
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -104,9 +105,27 @@ class ScoutCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         source.control_committed_slot=999
         await asyncio.sleep(.06);self.assertFalse(waiting.done())
         source.control_committed_slot=1000
+        # A replay reaching the process's old bootstrap tip is not current.
+        source.control_committed_market_time=time.time()-136
+        await asyncio.sleep(.06);self.assertFalse(waiting.done())
+        source.control_committed_market_time=time.time()
         await asyncio.wait_for(waiting,.1)
         self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
         self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
+
+    async def test_recent_but_unpublished_or_future_control_never_opens_logs(self):
+        source=SelectiveSource(SimpleNamespace(credential='offline'),None);source.stop=asyncio.Event()
+        source.control_bootstrap_tip=1000;source.control_committed_slot=1000
+        waiting=asyncio.create_task(source.wait_current_control())
+        await asyncio.sleep(.06);self.assertFalse(waiting.done())
+        source.control_committed_market_time=time.time()+60
+        await asyncio.sleep(.06);self.assertFalse(waiting.done())
+        source.control_committed_market_time=time.time()
+        source.control_committed_slot=999
+        await asyncio.sleep(.06);self.assertFalse(waiting.done())
+        source.control_committed_slot=1001
+        await asyncio.wait_for(waiting,.1)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
 
     async def test_stop_during_control_catchup_does_not_open_a_replacement_feed(self):
         source=SelectiveSource(SimpleNamespace(credential='offline'),None);source.stop=asyncio.Event()
@@ -114,6 +133,25 @@ class ScoutCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         waiting=asyncio.create_task(source.wait_current_control())
         await asyncio.sleep(0);source.stop.set()
         with self.assertRaises(asyncio.CancelledError):await waiting
+
+    async def test_control_commit_gate_reads_sealed_receipt_not_later_unsealed_tip(self):
+        from meme_machine.solana_selective_runtime import CONTROL
+        source=SelectiveSource(SimpleNamespace(credential='offline'),None);source.stop=asyncio.Event()
+        with self.state.writer.transaction():
+            for slot,sealed in ((999,1),(1000,0)):
+                self.history.db.execute('INSERT INTO stream_receipts VALUES(?,?,?,?,?,?,?,?,?,?)',
+                    (CONTROL,slot,slot-1,'offline-hash-'+str(slot),'offline-parent',
+                     int(NOW),'{"offline":true}','offline-session',NOW,sealed))
+        async def work(fn,priority,**kwargs):
+            result=fn(self.state);source.stop.set();return result
+        source.work=work;q=asyncio.Queue();q.put_nowait(object())
+        # Native membership sealing is covered by the existing fence tests;
+        # isolate the consumer's choice between sealed and unsealed receipts.
+        with patch('meme_machine.solana_selective_source.commit_control'):
+            await source.control_commits(q)
+        self.assertEqual(source.control_committed_slot,999)
+        self.assertEqual(source.control_committed_market_time,int(NOW))
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
 
 
 if __name__=='__main__':unittest.main()
