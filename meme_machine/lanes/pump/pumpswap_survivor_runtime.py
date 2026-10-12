@@ -48,6 +48,7 @@ class Runtime:
         self.sleeve=open_sleeve('pump',capital)
         if self.sleeve is None:raise ValueError('survivor_shared_sleeve_required')
         self.history=History(str(self.root/'history.sqlite'),policy=POLICY_HASH)
+        self.history.volume_quote_asset='SOL'
         from meme_machine.runtime.survivor_history import compact_restored_history
         from .pumpswap_survivor import reduce_reset_history
         compact_restored_history(self.history,lane='pump',reducer=reduce_reset_history)
@@ -61,6 +62,11 @@ class Runtime:
         self.rpc=None;self.current=None;self.last_error=None
 
     def now(self):return int(time.time())
+
+    def _quality_rank(self,row,now):
+        from meme_machine.runtime.volume_quality import attention
+        if row.get('complete') is not True or row.get('recovery'):return 0
+        return attention(row.get('volume_quality'),now)
 
     def _provider(self,priority=30):
         if self.rpc is None or self.rpc.calls>160:
@@ -205,6 +211,13 @@ class Runtime:
         grad=row['graduation'];creator=self.confirmations.cluster(state['creator'])
         mayhem=state['state']['mayhem_mode']
         agents={self.confirmations.cluster(MAYHEM_AGENT_WALLET)} if mayhem else set()
+        from meme_machine.runtime import volume_quality as vq
+        if vq.enabled() and not maintenance and not row.get('position'):
+            row=self.history.get(row['id'])
+            row['volume_quality_excluded']=sorted(agents|{creator})
+            row['volume_quality']=self.history.volume_signal(row,self.now())
+            row['volume_quality_requalification_due']=False
+            self.history.save(row)
         organic=[e for e in events if e['group'] not in agents and e['group']!=creator]
         recent=[e for e in organic if at-1800<=e['at']<=at]
         tokens=sum(e['tokens'] for e in recent)
@@ -233,6 +246,7 @@ class Runtime:
                         agent_groups=sorted(agents)),price_points=points,base_end=base_end,
             reset_history_prefix=self.history.prefix(row['id']),qualification_evidence_complete=not maintenance,
             recovery_vwap=vwap,demand_events=organic,holder_concentration_bps=concentration)
+        if vq.enabled() and not maintenance:facts['volume_quality']=row.get('volume_quality')
         self.facts=facts;return facts
 
     def turnover_cap(self,facts,decision):return decision['features']['turnover_cap']
@@ -358,7 +372,7 @@ class Runtime:
                 # Fair, lossless scheduling: oldest checked candidate first so a
                 # quiet older row cannot permanently starve later graduations.
                 row=min(rows,key=lambda r:(int(r.get('last_checked') or 0),
-                                           int(r['graduation']['at']),r['id']))
+                    -self._quality_rank(r,self.now()),int(r['graduation']['at']),r['id']))
                 row['last_checked']=self.now();self.history.save(row)
                 age=self.now()-row['graduation']['at']
                 if age>POLICY['maximum_age_seconds']:

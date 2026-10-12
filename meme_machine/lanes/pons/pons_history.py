@@ -13,6 +13,7 @@ import json
 class PonsHistory(History):
     def __init__(self, path, *, policy):
         super().__init__(path, policy=policy, maximum_candidates=None)
+        self.volume_quote_asset='ROBINHOOD_NATIVE'
         self.db.executescript('''
             CREATE TABLE IF NOT EXISTS pons_graduation_intake(
                 id TEXT PRIMARY KEY, body TEXT NOT NULL, hash TEXT NOT NULL,
@@ -164,7 +165,7 @@ class PonsHistory(History):
             # Deadline work precedes the original fair order. Outside that
             # final window, preserve its existing tie-breaks exactly.
             return (0 if urgent else 1,deadline if urgent else 0,
-                row.get('qualification_attempt',0),row['last_checked'],row['id'])
+                row.get('qualification_attempt',0),-self._quality_rank(row,now),row['last_checked'],row['id'])
         chosen = min(rows,key=priority)
         with self.transaction():
             sequence = (self.get_meta('qualification_attempt_sequence') or 0) + 1
@@ -173,6 +174,11 @@ class PonsHistory(History):
             self.save(row)
             self.set_meta('qualification_attempt_sequence', sequence)
         return row
+
+    def _quality_rank(self,row,now):
+        from meme_machine.runtime.volume_quality import attention
+        if row.get('complete') is not True or row.get('recovery'):return 0
+        return attention(row.get('volume_quality'),now)
 
     def append_block(self, identity, *, block, header, events, points):
         if (int(header['number'], 16) != block or not header.get('hash')

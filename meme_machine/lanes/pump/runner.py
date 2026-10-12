@@ -251,7 +251,19 @@ def _confirmation_meta(value):
         creator_history_launches=int(value.get("creator_history_launches",0)),
         creator_quality_bps=value.get("creator_quality_bps"),
         excluded_clusters=sorted(value.get("excluded_clusters") or []),
+        volume_quality=value.get('volume_quality'),
     )
+
+def _volume_quality_attention(events,now,confirmation,*,complete,seconds=60):
+    from meme_machine.runtime import volume_quality as vq
+    if not vq.enabled():return None
+    if not complete:return vq.unavailable('canonical_interval_incomplete',at=now,asset='SOL')
+    try:
+        return vq.from_events(events,lower=now-seconds,through=now,now=time.time(),
+            observed_at=time.time(),asset='SOL',authoritative=complete,
+            cluster_map=confirmation['cluster_map'],excluded=confirmation['excluded_clusters'])
+    except (ValueError,KeyError,TypeError,ArithmeticError) as error:
+        return vq.neutral_failure(error,at=now,asset='SOL')
 
 
 def _late_roundtrip_loss_bps(snapshot, budget=ENTRY_BUDGET):
@@ -311,6 +323,7 @@ def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
     creator=str(creation.get("creator") or curve.creator)
     confirmation=confirmation_book.signal_inputs(
         events,now,creator,snapshot["mint"])
+    confirmation['volume_quality']=_volume_quality_attention(events,now,confirmation,complete=True)
     flow=flow_metrics(
         events,now,cluster_map=confirmation["cluster_map"],
         excluded_clusters=confirmation["excluded_clusters"])
@@ -506,6 +519,7 @@ def _volume_price_signal(state,snapshot,events,mode,concentration,confirmation_b
     creator=str((state.get("creation") or {}).get("creator") or snapshot.get("creator") or "")
     confirmation=confirmation_book.signal_inputs(
         events,now,creator,snapshot["mint"])
+    confirmation['volume_quality']=_volume_quality_attention(events,now,confirmation,complete=True,seconds=30)
     flow=flow_metrics(
         events,now,cluster_map=confirmation["cluster_map"],
         excluded_clusters=confirmation["excluded_clusters"])
@@ -902,8 +916,11 @@ def _record_attempt(report,signal,q,stage,extra=None,*,snapshot=None):
     )
     if extra:
         row.update(extra)
+    quality=(row.get('confirmation_evidence') or {}).get('volume_quality')
+    if quality is not None:row['volume_quality']=quality
     from dataclasses import asdict
     if CANDIDATE_HISTORY is not None:
+        if quality is not None:CANDIDATE_HISTORY.volume_quality('pump',signal.mint,quality)
         row['decision_id']=CANDIDATE_HISTORY.record_decision(
             'pump',signal.mint,mode=signal.phase,
             observed_at=int(signal.observed_at),qualified=bool(q.qualified),
@@ -1453,6 +1470,12 @@ def main(*,campaign=False,discovery_seconds=None):
             # New late-curve entries stop at discovery_end; follow-up never backfills
             # another pre-graduation decision.
             if (continuous or now<discovery_end) and tape.covered(now):
+                from meme_machine.runtime.volume_quality import attention,enabled
+                # Same market second retains native transaction order. Candidate
+                # attention only reorders independent market identities in that
+                # cohort; the existing five-second evaluation/fairness stays.
+                if enabled():fresh=sorted(fresh,key=lambda e:(e['slot'],
+                    -attention((created.get(e.get('mint')) or {}).get('volume_quality'),now)))
                 for event in fresh:
                     _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time()))
                     _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
@@ -1483,6 +1506,11 @@ def main(*,campaign=False,discovery_seconds=None):
                             if economic_event_cursor(row)<=economic_event_cursor(event)]
                         prospect,prospect_trajectory,prospect_confirmation=_late_stream_signal(
                             creation,stream_events,event,confirmations)
+                        prospect_confirmation['volume_quality']=_volume_quality_attention(
+                            stream_events,stream_time,prospect_confirmation,complete=True)
+                        state['volume_quality']=prospect_confirmation.get('volume_quality')
+                        if CANDIDATE_HISTORY is not None and state['volume_quality'] is not None:
+                            CANDIDATE_HISTORY.volume_quality('pump',mint,state['volume_quality'])
                         prospect_q,prospect_reasons=_late_stream_prospect(prospect)
                     except (ValueError,KeyError,TypeError) as exc:
                         reason=str(exc) or type(exc).__name__

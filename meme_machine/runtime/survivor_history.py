@@ -95,14 +95,17 @@ class History:
             row=self.get(identity)
             if row is None or through<row['through']:raise ValueError('survivor_history_watermark')
             if not complete:
+                row.pop('volume_quality_state',None);row.pop('volume_quality',None)
                 row['complete']=False;self.save(row);return row
             from meme_machine.runtime.learning import survivor
             survivor(self.db,row,points)
+            quality_events=[]
             for event in events:
                 if event.get('authenticated') is not True or event['at']>through:
                     raise ValueError('survivor_history_event_authority')
                 old=self.db.execute('SELECT body,hash FROM events WHERE candidate=? AND id=?',(identity,event['id'])).fetchone()
                 if old and self._verified(old)!=event:raise ValueError('survivor_history_event_conflict')
+                if old is None:quality_events.append(event)
                 self.db.execute('INSERT OR IGNORE INTO events VALUES(?,?,?,?,?)',
                     (identity,event['id'],event['at'],canonical(event),digest(event)))
             prefix=self.get_meta('archive_prefix:'+identity)
@@ -124,6 +127,22 @@ class History:
             if self.db.execute('SELECT count(*) FROM points WHERE candidate=?',(identity,)).fetchone()[0]>self.maximum_points:
                 raise ValueError('survivor_history_point_capacity')
             self.db.execute('DELETE FROM events WHERE candidate=? AND at<?',(identity,through-3600))
+            # Optional attention belongs to candidate work, never held-position
+            # monitoring. Existing canonical append/dedup is its only input.
+            from . import volume_quality as vq
+            asset=getattr(self,'volume_quote_asset',None)
+            if vq.enabled() and asset and not row.get('position'):
+                try:
+                    previous_quality=row.get('volume_quality')
+                    row['volume_quality_state']=vq.advance(row.get('volume_quality_state'),quality_events,
+                        lower=row['through'],through=through,complete=row['complete'],
+                        asset=asset,authoritative=True)
+                    row['volume_quality']=self.volume_signal(row,time.time())
+                    if vq.recovered(previous_quality,row['volume_quality'],time.time()):
+                        row['volume_quality_requalification_due']=True
+                except (ValueError,KeyError,TypeError,ArithmeticError) as error:
+                    row.pop('volume_quality_state',None)
+                    row['volume_quality']=vq.neutral_failure(error,at=through,asset=asset)
             row['through']=through
             if evidence_checkpoint is not None:
                 # Stored in the same FULL-sync transaction as the consumed rows.
@@ -131,6 +150,19 @@ class History:
                 row['evidence_checkpoint']=evidence_checkpoint
             self.save(row)
             return row
+
+    def volume_signal(self,row,now):
+        from . import volume_quality as vq
+        if not vq.enabled() or row.get('recovery') or not row.get('complete'):
+            return vq.unavailable('canonical_interval_incomplete')
+        # Related/creator identities must be established by native qualification
+        # before this optional signal may award positive scheduling attention.
+        if 'volume_quality_excluded' not in row:return vq.unavailable('related_identity_pending')
+        try:
+            return vq.signal(row.get('volume_quality_state'),now=now,observed_at=now,
+                excluded=row['volume_quality_excluded'])
+        except (ValueError,KeyError,TypeError,ArithmeticError) as error:
+            return vq.neutral_failure(error,at=row['through'],asset=getattr(self,'volume_quote_asset',None))
 
     def facts(self,identity,now):
         prefix=self.get_meta('archive_prefix:'+identity)

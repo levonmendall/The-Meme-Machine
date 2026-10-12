@@ -298,6 +298,17 @@ class CandidateHistory:
         if digest(body)!=row[1]:raise ValueError("candidate_history_corruption")
         return body
 
+    def volume_quality(self,lane,candidate,value):
+        """Attention metadata never edits an earlier qualification or funding."""
+        from .volume_quality import enabled
+        if not enabled():return
+        with self.transaction():
+            row=self.candidate(lane,candidate)
+            if row is None:return
+            row['metadata']['volume_quality']=value
+            self.db.execute('UPDATE candidates SET body=?,hash=? WHERE lane=? AND candidate=?',
+                (canonical(row),digest(row),lane,candidate))
+
     def candidates(self,*,lane=None):
         sql="SELECT body,hash FROM candidates"
         args=()
@@ -494,6 +505,11 @@ class CandidateHistory:
             self.db.execute("UPDATE work SET status='pending',worker=NULL,lease_until=NULL,ready_at=?,updated_at=? WHERE id=?",
                 (now,now,identity))
             self._work_observation(identity,'history_blocked',now,dict(scope=scope,lo=lo,hi=hi,reason=reason,deadline_reset=False))
+            # A canonical gap removes attention immediately; its old rejection
+            # and immutable work deadline remain in their separate journals.
+            owner=self.db.execute('SELECT lane,candidate FROM work WHERE id=?',(identity,)).fetchone()
+            from .volume_quality import unavailable
+            self.volume_quality(*owner,unavailable(reason,at=now))
 
     def commit_history_readiness(self,scope,lo,hi,*,proof_hash,available=None):
         """Receive a canonical complete witness after consumer durability.
@@ -654,6 +670,19 @@ class CandidateHistory:
             row=self.db.execute("""SELECT id,lane,candidate,kind,ready_at,deadline,estimate_seconds,
                     priority,created_at,body,hash FROM work WHERE """+where+
                 " ORDER BY CASE WHEN priority<=2 THEN priority ELSE 3 END,deadline,priority,created_at,id LIMIT 1",args).fetchone()
+            from .volume_quality import enabled,attention
+            if row is not None and row[7]>2 and enabled() and now<row[5]:
+                # Exact EDF and priority peers only; protection/recovery never
+                # enter this comparison. Five-second aging restores FIFO so
+                # quiet work cannot starve. The bounded query is not a population cap.
+                peers=self.db.execute('SELECT id,lane,candidate,kind,ready_at,deadline,estimate_seconds,priority,created_at,body,hash FROM work WHERE '+where+
+                    ' AND deadline=? AND priority=? ORDER BY created_at,id LIMIT 32',[*args,row[5],row[7]]).fetchall()
+                def attention_order(peer):
+                    age=now-peer[8]
+                    value=(self.candidate(peer[1],peer[2]) or {}).get('metadata',{}).get('volume_quality')
+                    return (0 if age>=5 else 1,peer[8] if age>=5 else 0,
+                            -attention(value,now),peer[8],peer[0])
+                row=min(peers,key=attention_order)
             if row is not None:
                 keys=("id","lane","candidate","kind","ready_at","deadline","estimate_seconds",
                       "priority","created_at","body","hash")

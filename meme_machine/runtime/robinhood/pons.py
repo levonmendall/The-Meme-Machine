@@ -73,6 +73,7 @@ class Broker:
             self.plane.db.execute('SELECT MIN(at) FROM observations WHERE candidate=?',(key,)).fetchone()[0])
         watch=dict(event=event,first_observed_at=observed if first is None else first,
             last_buy_observed_at=observed,interpretation=self.policy,generation=generation)
+        if old:watch['volume_quality']=json.loads(old[0]).get('volume_quality')
         row=self.plane._row(key)
         watch.update(latest_ordering=json.loads(row['ordering']),latest_id=row['latest_id'])
         self.plane.db.execute('''INSERT INTO pons_current_watch VALUES(?,?,?,?,0)
@@ -100,6 +101,15 @@ class Broker:
         key=self.identity(event)
         previous=self.plane.get(key)
         priority=2 if previous and previous['priority']<=2 else 4
+        from meme_machine.runtime.volume_quality import attention
+        retained=json.loads(previous['result']) if previous and previous['result'] else {}
+        quality=(retained.get('vector') or {}).get('volume_quality')
+        if quality is None:
+            saved=self.plane.db.execute('SELECT body,hash FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()
+            if saved:
+                watch=json.loads(saved[0])
+                if digest(watch)!=saved[1]:raise ValueError('pons_current_watch_corruption')
+                quality=watch.get('volume_quality')
         # Public variants are nominations, never an immutable authority conflict.
         # Bind their full raw body/hash; canonical receipt authentication still
         # decides which (if any) is valid. A bad nomination cannot tombstone a
@@ -115,7 +125,8 @@ class Broker:
         result=self.plane.observe(key,'pons',obs,event,ordering=order,
             watermark=dict(block=order[0],hash=event['blockHash'],log=order[2],finality='confirmed'),
             interpretation=self.policy,observed=observed,
-            deadline=observed+ENTRY_THRESHOLDS['max_state_age_seconds'],priority=priority,needs_work=needs_work)
+            deadline=observed+ENTRY_THRESHOLDS['max_state_age_seconds'],priority=priority,
+            rank=attention(quality,observed),needs_work=needs_work)
         if needs_work and result in ('created','updated'):
             with self.plane.transaction():
                 self._remember_watch(key,event,observed,self.plane.get(key)['generation'])
@@ -270,6 +281,17 @@ class Broker:
         # Retain the full authenticated candidate, including receipt/header and
         # typed-state fields needed by the frozen paper lifecycle after restart.
         value=json.loads(json.dumps(evaluation,default=lambda x:asdict(x) if is_dataclass(x) else (_ for _ in ()).throw(TypeError(type(x).__name__))))
+        from meme_machine.runtime.volume_quality import attention,recovered
+        previous=self.plane.get(scheduled['key'])
+        prior=json.loads(previous['result']) if previous and previous['result'] else {}
+        quality=(value.get('vector') or {}).get('volume_quality')
+        saved=self.plane.db.execute('SELECT body,hash FROM pons_current_watch WHERE candidate=?',(scheduled['key'],)).fetchone()
+        previous_quality=(prior.get('vector') or {}).get('volume_quality')
+        if saved:
+            watch=json.loads(saved[0])
+            if digest(watch)!=saved[1]:raise ValueError('pons_current_watch_corruption')
+            previous_quality=watch.get('volume_quality',previous_quality)
+        renewed=recovered(previous_quality,quality or {},self.clock())
         finished=self.plane.finish(scheduled['work'],result=value,seconds=elapsed,logical=logical,physical=physical)
         if finished:
             from meme_machine.lanes.pons.pons_selective_continuation import ENTRY_THRESHOLDS
@@ -277,6 +299,8 @@ class Broker:
             with self.plane.transaction():
                 row=self.plane._row(scheduled['key'])
                 if row['generation']!=scheduled['work']['generation']:return finished
+                self.plane.db.execute('UPDATE candidates SET rank=? WHERE id=?',
+                    (attention(quality,self.clock()),scheduled['key']))
                 if (value.get('candidate',{}).get('state',{}).get('graduated') or
                         value.get('launch_at') is not None and stamp.get('event_at',0)>
                         value['launch_at']+ENTRY_THRESHOLDS['max_token_age_seconds']):
@@ -285,6 +309,7 @@ class Broker:
                     old=self.plane.db.execute('SELECT body FROM pons_current_watch WHERE candidate=?',(scheduled['key'],)).fetchone()
                     if old:
                         watch=json.loads(old[0]);watch['failures']=0
+                        if quality is not None:watch['volume_quality']=quality
                         candidate=value.get('candidate',{})
                         nomination=candidate.get('nomination_header') or candidate.get('header') or {}
                         buy_at=int(nomination['timestamp'],16) if nomination.get('timestamp') else None
@@ -297,6 +322,12 @@ class Broker:
                         # Keep the identity/history but cease quiet RPC probes.
                         next_at=(1e100 if buy_at is not None and stamp.get('event_at',0)>buy_at+15
                             else self.clock()+delay)
+                        # A native demand transition requests a fresh generation,
+                        # never alters the earlier rejection or grants funding.
+                        if renewed and next_at!=1e100:
+                            next_at=self.clock()
+                            self.plane._audit(row,'watching','volume_quality_requalification_requested',
+                                volume_quality=quality)
                         self.plane.db.execute('UPDATE pons_current_watch SET body=?,hash=?,next_at=? WHERE candidate=?',
                             (canonical(watch),digest(watch),next_at,scheduled['key']))
         return finished

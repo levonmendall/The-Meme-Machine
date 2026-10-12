@@ -685,3 +685,20 @@ The exceptional-winner study is suspended by owner direction. Its existing
 evidence remains outside this operational branch, with STUDY_SUSPENDED.md in the
 retained study directory. No research-derived strategy change or provider workload
 is included in this release.
+
+Owner-approved volume-quality attention is integrated in this successor, with
+the original four economic source files byte-identical to the approved frozen
+release. The normal service profile enables its reversible switch, explicitly
+forwarded to both family workers. It ranks eligible candidate peers and triggers
+fresh requalification without entry authority, new hard vetoes or new provider
+transports. See VOLUME_QUALITY_OPERATION.md and its focused implementation proof.
+
+The 0952 native check again stopped on canonical log buffering, after publishing
+8,526 economic events. Development profiling found repeated unavailable-interval
+SQL reads for each historical proof fragment. Consolidating those reads within
+the exact owner operation changed 0.287 seconds to 0.175 on the same retained
+state, with every compared final table identical. Original availability, gap
+predicates, windows and deadlines remain unchanged; 65 affected tests passed.
+This offline improvement still requires the next authenticated capacity check.
+Pons prospective census/restart passed; complete qualification and concurrent
+protection remain separate prerequisites. The live sixty-minute clock is zero.

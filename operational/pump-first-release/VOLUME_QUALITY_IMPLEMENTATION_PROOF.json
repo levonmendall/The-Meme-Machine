@@ -1,0 +1,63 @@
+{
+  "parent_source": "0952b85589fb79898ae4e7a65a5cf38602b67a16",
+  "version": "volume-quality-attention-v1",
+  "scope": [
+    "pump_current",
+    "pump_survivor",
+    "pons_current",
+    "pons_survivor"
+  ],
+  "tests": [
+    {
+      "log": "/tmp/volume-quality-final-all-hooks.log",
+      "passed": 22,
+      "seconds": 0.225,
+      "sha256": "a3b345addfa15bdf759d6e0f8a8594692e338e3bf9f7f99355980ddc43214fcd"
+    },
+    {
+      "log": "/tmp/volume-quality-enabled-final.log",
+      "passed": 204,
+      "seconds": 26.769,
+      "sha256": "c97164121322e81f6d74500a3a61c74bfc9e977db17d143fc2bedc67da8f2566"
+    },
+    {
+      "log": "/tmp/volume-quality-supervisor-routing.log",
+      "passed": 2,
+      "seconds": 0.13,
+      "sha256": "0a7bc1d16d98ad92cfbd86a8b672e6840b33873d04666089ec61ba8024cab58c"
+    }
+  ],
+  "unchanged_approved_economic_source_sha256": {
+    "meme_machine/lanes/pump/pump_acceleration_strategy.py": "1fb7e42ebc3ba18441c786f8d38675525c0a938dc90597f73c18632bd6011f9a",
+    "meme_machine/lanes/pump/pumpswap_survivor.py": "73b6f28e8331262a0d33ecc53b7c28e0545314983e414a77566edb78029cd7ad",
+    "meme_machine/lanes/pons/pons_selective_continuation.py": "1461b456fba76e3e27674eb3cd626f856176d4ba9fdc00c3907fc75b350da0ed",
+    "meme_machine/lanes/pons/pons_postgrad_survivor.py": "1dece647d5ff6ccdab17fab0d1ef9c3ca0dd8d5bd373e15fefe22d5fa9973f71"
+  },
+  "existing_data_reused": [
+    "Pump canonical local tape/flow/ConfirmationBook clustering",
+    "Pons receipt/header-authenticated normalized canonical_window",
+    "Survivor History.append dedup and hashed candidate rows",
+    "CandidateHistory EDF and Pons Plane/Broker fair scheduling"
+  ],
+  "authority": "candidate_attention_and_fresh_canonical_requalification_only",
+  "funding_authority": false,
+  "new_hard_veto": false,
+  "new_provider_transports": false,
+  "provider_requests_in_offline_tests": 0,
+  "authenticated_incremental_CU": null,
+  "operational_state": "IMPLEMENTED_AWAITING_SAFE_LANE_ACTIVATION",
+  "normal_profile_switch": "MM_VOLUME_QUALITY_ENABLED=1",
+  "supervisor_switch_forwarding_tested": true,
+  "protective_latency_authenticated": false,
+  "offline_instrumented_sample": {
+    "events": 12000,
+    "group_cells": 3600,
+    "build_seconds": 0.15100555901881307,
+    "signal_seconds": 0.0519570961012505,
+    "traced_peak_bytes": 1512218,
+    "notes": "tracemalloc-instrumented bounded local sample; scheduler reads compact cached signals, not these buckets; not a live deadline claim"
+  },
+  "research_resumed": false,
+  "epoch_reinitialized": false,
+  "capital_policy_changed": false
+}

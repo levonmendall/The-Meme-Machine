@@ -1364,6 +1364,16 @@ def evaluate_candidate(
         quote_relative_strength_bps=quote_relative_strength_bps,
     )
     ctx.timing["decision_computation_seconds"]=time.monotonic()-decision_started
+    from meme_machine.runtime import volume_quality as vq
+    if vq.enabled():
+        try:
+            cover=ctx.window_coverage
+            vector['volume_quality']=vq.from_events(market,lower=cover.get('from_time',asof),
+                through=asof,now=time.time(),observed_at=available,asset='ROBINHOOD_NATIVE',
+                authoritative=cover.get('complete') is True and cover.get('through_time')==asof,
+                excluded={str(g).lower() for g in creator_groups if g})
+        except (ValueError,KeyError,TypeError,ArithmeticError) as error:
+            vector['volume_quality']=vq.neutral_failure(error,at=asof,asset='ROBINHOOD_NATIVE')
     ctx.timing["first_transport_delay_seconds"]=(None if ctx.timing.get("first_transport_monotonic") is None
         else ctx.timing["first_transport_monotonic"]-started)
     return dict(

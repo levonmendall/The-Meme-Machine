@@ -1,0 +1,124 @@
+{
+  "source": "0952b85589fb79898ae4e7a65a5cf38602b67a16",
+  "started_at": 1791761666.860985,
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pons-forward-discovery-0952b855-1791761666435.sqlite",
+  "preflight": {
+    "limits_verified": true,
+    "limits": {
+      "http_attempts": 80,
+      "http_bytes": 134217728,
+      "native_bytes": 67108864,
+      "native_inflight_bytes": 33554432,
+      "native_stop_bytes": 33554432,
+      "rpc_cu": 42000,
+      "rpc_elements": 700
+    },
+    "wall_seconds": 60,
+    "modeled_spend_limit": "0.03",
+    "maximum_native_opens": 1,
+    "lanes": [
+      "pons"
+    ],
+    "physical_http_start_intervals": {
+      "robinhood": "0.25",
+      "solana": "0.5"
+    }
+  },
+  "history_path": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/pons/pons-selective-continuation-v1-cohort/pons-survivor/history.sqlite",
+  "maximum_public_modeled_usd": "0.02205",
+  "invoice_verified": false,
+  "purpose": "Native prospective factory census, advancing durable frontier, and authenticated history restart",
+  "funding": false,
+  "orders": false,
+  "epoch_reinitialized": false,
+  "historical_counters_reset": false,
+  "full_protection": false,
+  "stages": [
+    {
+      "turn": 0,
+      "at": 1791761668.0126038,
+      "population_through": 86221878,
+      "target_block": 86221878,
+      "prospective_census_complete": true,
+      "missing_ranges": 0
+    },
+    {
+      "turn": 1,
+      "at": 1791761670.7571633,
+      "population_through": 86221905,
+      "target_block": 86221905,
+      "prospective_census_complete": true,
+      "missing_ranges": 0
+    },
+    {
+      "turn": 2,
+      "at": 1791761673.5123763,
+      "population_through": 86221932,
+      "target_block": 86221932,
+      "prospective_census_complete": true,
+      "missing_ranges": 0
+    }
+  ],
+  "initial_target": 86221878,
+  "before_restart": {
+    "ready": true,
+    "category": "COMPLETE",
+    "population_through": 86221932,
+    "target_block": 86221932,
+    "seven_day_domain_mature": false,
+    "missing_ranges": 0,
+    "incomplete_candidates": [],
+    "missing_graduations": [],
+    "pending_graduations": 0,
+    "provider_certified": false,
+    "current_readiness": "owned by existing Current prerequisites and startup guard",
+    "qualification_authority": false,
+    "observation_domain": "prospective",
+    "enrollment_header": {
+      "hash": "0x6765404dade5fa6876cc0b407412d6e413631681c55d525371452a686552337a",
+      "number": "0x523a436",
+      "parentHash": "0xd4c0c53f0316020086fe8ca4210c11ad1421ad45c9b3888cf769d63c289da625",
+      "timestamp": "0x6acc1d03"
+    },
+    "pre_enrollment_coverage": "UNOBSERVED",
+    "prospective_census_complete": true,
+    "historical_opportunity_recall_complete": false
+  },
+  "status": "PASS_PROSPECTIVE_CENSUS_AND_RESTART_ONLY",
+  "after_restart": {
+    "ready": true,
+    "category": "COMPLETE",
+    "population_through": 86221932,
+    "target_block": 86221932,
+    "seven_day_domain_mature": false,
+    "missing_ranges": 0,
+    "incomplete_candidates": [],
+    "missing_graduations": [],
+    "pending_graduations": 0,
+    "provider_certified": false,
+    "current_readiness": "owned by existing Current prerequisites and startup guard",
+    "qualification_authority": false,
+    "observation_domain": "prospective",
+    "enrollment_header": {
+      "hash": "0x6765404dade5fa6876cc0b407412d6e413631681c55d525371452a686552337a",
+      "number": "0x523a436",
+      "parentHash": "0xd4c0c53f0316020086fe8ca4210c11ad1421ad45c9b3888cf769d63c289da625",
+      "timestamp": "0x6acc1d03"
+    },
+    "pre_enrollment_coverage": "UNOBSERVED",
+    "prospective_census_complete": true,
+    "historical_opportunity_recall_complete": false
+  },
+  "population_events": 0,
+  "qualification_authority": false,
+  "ended_at": 1791761674.5168114,
+  "elapsed_seconds": 7.655827045440674,
+  "usage": {
+    "http_attempts": 14,
+    "rpc_elements": 29,
+    "rpc_cu": 840,
+    "http_bytes": 203639,
+    "native_opens": 0
+  },
+  "modeled_public_upper_usd": "0.0004410"
+}

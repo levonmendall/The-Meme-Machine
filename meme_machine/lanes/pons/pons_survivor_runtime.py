@@ -285,6 +285,8 @@ class Runtime:
         age=now-row['graduation']['at']
         if age<POLICY['universe']['min_seconds_after_graduation']:return False
         if row.get('recovery') or row.get('complete') is not True:return True
+        from meme_machine.runtime.volume_quality import enabled
+        if enabled() and row.get('volume_quality_requalification_due'):return True
         if not row.get('decision'):return True
         if self.scout.signal(row['graduation']['transition']['market']) != row.get('scout_checked_signal',-1):return True
         return now >= row.get('scout_next_check',now)
@@ -316,7 +318,7 @@ class Runtime:
         # recovery probe checks the candidate even in a quiet public journal.
         boundaries.append(now+60)
         row.update(scout_next_check=min(boundaries),
-            scout_checked_signal=signal)
+            scout_checked_signal=signal,volume_quality_requalification_due=False)
         return row
 
     def candidate_readiness(self,candidate,*,through_block=None,through_hash=None):
@@ -485,6 +487,11 @@ class Runtime:
         self.history.append(row['id'],through=state['at'],events=[],points=[(state['at'],str(state['price_index']))],complete=True)
         points,events=self.history.facts(row['id'],state['at']);now=state['at']
         record=row['graduation']['record'];creators={str(record[k]).lower() for k in ('deployer','creatorFeeRecipient') if record.get(k)}
+        from meme_machine.runtime import volume_quality as vq
+        if vq.enabled() and not row.get('position'):
+            row=self.history.get(row['id']);row['volume_quality_excluded']=sorted(creators)
+            row['volume_quality']=self.history.volume_signal(row,self.now())
+            self.history.save(row)
         flow=buyer_persistence([e for e in events if e['group'] not in creators],now=now,window_seconds=1800)
         def window(lower,upper):
             rows=[e for e in events if lower<=e['at']<upper and e['group'] not in creators]
@@ -517,6 +524,7 @@ class Runtime:
             self.facts['execution']=dict(roundtrip_loss_bps=capacity.ordinary_loss_bps,
                 double_size_roundtrip_loss_bps=capacity.double_loss_bps,capacity=capacity.telemetry())
         self.facts['execution_evidence_status']='COMPLETE' if market_ready else 'PENDING_EVIDENCE'
+        if vq.enabled():self.facts['volume_quality']=row.get('volume_quality')
         return self.facts
 
     def qualify(self,facts):

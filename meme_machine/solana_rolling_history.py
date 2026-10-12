@@ -178,11 +178,17 @@ class RollingHistory:
             branch=[]
             floor=self.db.execute('SELECT lower_slot FROM rolling_group_members WHERE scope=? AND family=? AND address=?',
                 (source,family,scope.split(':',2)[2])).fetchone()
+            # Every interval below is a subset of this exact immutable query
+            # window. Read its unavailable intervals once, not once per
+            # historical proof fragment. No result escapes this owner command.
+            gaps=self.db.execute('SELECT lo,COALESCE(hi,?) FROM candidate_gaps WHERE scope=? AND created<=? AND (repaired IS NULL OR repaired>?) AND lo<=? AND (hi IS NULL OR hi>=?)',
+                (hi,source,at,at,hi,lo)).fetchall()
             for packed,checksum in self.db.execute('SELECT points,hash FROM candidate_coverage WHERE scope=? AND hi>=? AND lo<=?',(source,lo,hi)):
                 branch.extend((max(lo,a,0 if floor is None else floor[0]),min(hi,b)) for a,b,t in coverage_points(packed,checksum) if t<=at)
             for a,b in branch:
                 pieces=[(a,b)]
-                for x,y in self.db.execute('SELECT lo,COALESCE(hi,?) FROM candidate_gaps WHERE scope=? AND created<=? AND (repaired IS NULL OR repaired>?) AND lo<=? AND (hi IS NULL OR hi>=?)',(hi,source,at,at,b,a)):
+                for x,y in gaps:
+                    if x>b or y<a:continue
                     pieces=[p for c,d in pieces for p in ((c,min(d,x-1)),(max(c,y+1),d)) if p[0]<=p[1]]
                 valid.extend(pieces)
         result=[];cursor=lo

@@ -205,6 +205,11 @@ class Supervisor:
             MM_STATE_ROOT=str(self.root),MM_OPERATIONAL_PHASE='continuous',
             MM_DIRECTIONAL_SLEEVE_DB=str(self.root/lane/'directional-sleeve.sqlite'),
             MM_DIRECTIONAL_COHORT_ID=self.epoch,MM_DIRECTIONAL_COMPOSITE_REQUIRED='1')
+        if lane in ('pump','pons'):
+            # Explicit operational attention switch reaches both Current and
+            # Survivor in the existing family worker; it cannot grant funding.
+            value=os.environ.get('MM_VOLUME_QUALITY_ENABLED','0')
+            env['MM_VOLUME_QUALITY_ENABLED']='1' if value=='1' else '0'
         if lane=='pump':
             # Explicit opt-in to a reversible PAPER test; other strategy workers
             # cannot inherit Pump's held-quote optimization switch.
