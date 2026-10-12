@@ -961,6 +961,8 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                         raise BoundaryError('provider_transport_failure')
                     header=acquisition['header'];quote_head_at=acquisition['acquired']
                 else:
+                    from meme_machine.runtime.usd_valuation import prefetch_pons_usd
+                    prefetch_pons_usd(3,consumer='current')
                     header=_latest_header(rpc)
                     quote_head_at=time.monotonic()
                 block=int(header["number"],16)

@@ -234,7 +234,12 @@ class NativeBoundary:
 def attach(book,lane):
     database = os.environ.get("MM_PORTFOLIO_ACCOUNTING_DB")
     if not database:return None
-    from meme_machine.runtime.usd_valuation import NativeValueReader
-    boundary = NativeBoundary(database,lane,book,value_reader=NativeValueReader(lane,book))
+    from meme_machine.runtime.usd_valuation import NativeValueReader,native_reader
+    # Pons Current and Survivor account in the same native unit. When overlap
+    # is installed, consume the same validated per-process reader warmed by
+    # their due native turns; never move a native journal across threads.
+    reader=(native_reader('pons') if lane=='pons' and
+        os.environ.get('MM_PONS_USD_ACQUISITION_OVERLAP')=='1' else NativeValueReader(lane,book))
+    boundary = NativeBoundary(database,lane,book,value_reader=reader)
     boundary.recover()
     return boundary

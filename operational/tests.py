@@ -66,6 +66,7 @@ FAST=[
  'tests.test_solana_closure','tests.test_solana_shared_capacity','tests.test_solana_rolling_prewarm','tests.test_solana_prewarm_startup',
  'tests.test_operational_nine','tests.test_operational_portfolio',
  'tests.test_robinhood_usd_valuation','tests.test_native_valuation_completion',
+ 'tests.test_pons_usd_overlap',
  'tests.test_pons_usd_bridge_routes',
  'tests.test_opportunity_telemetry','tests.test_opportunity_retention','tests.test_pons_ongoing_scale','tests.test_strategic_reference','tests.test_strategy_observability_runtime','tests.test_current_survivor_independence',
  'tests.test_portfolio_accounting','tests.test_portfolio_lane_integration',

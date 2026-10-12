@@ -308,6 +308,9 @@ class LifecyclePool:
                         value=owner['context'].run(next,owner['iterator'])
                 else:
                     command='handoff' if self.closing else None
+                    if not self.closing:
+                        from meme_machine.runtime.usd_valuation import prefetch_pons_usd
+                        owner['context'].run(prefetch_pons_usd,3,consumer='current')
                     if acquisition is not None:
                         if cohort is not None:
                             try:

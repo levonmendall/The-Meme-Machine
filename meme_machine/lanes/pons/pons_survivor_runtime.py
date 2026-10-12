@@ -889,6 +889,9 @@ class Runtime:
                     for group in groups:
                         pending=[r for r in group if r['id'] in urgent_ids]
                         due=(pending if compatible else pending[:1]) if pending else [r for r in group if position_priority(r)==1]
+                        if due:
+                            from meme_machine.runtime.usd_valuation import prefetch_pons_usd
+                            prefetch_pons_usd(self.observation_interval_seconds,consumer='survivor')
                         try:self._prepare_held_acquisition([r for r in due if r['id'] not in private_recovery])
                         except (ValueError,BoundaryError) as exc:
                             self.shared_held_quotes={};self.shared_held_boundary=str(exc)

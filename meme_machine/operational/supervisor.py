@@ -210,6 +210,8 @@ class Supervisor:
             # Survivor in the existing family worker; it cannot grant funding.
             value=os.environ.get('MM_VOLUME_QUALITY_ENABLED','0')
             env['MM_VOLUME_QUALITY_ENABLED']='1' if value=='1' else '0'
+            env['MM_PONS_USD_ACQUISITION_OVERLAP']='1' if (
+                lane=='pons' and os.environ.get('MM_PONS_USD_ACQUISITION_OVERLAP')=='1') else '0'
         if lane=='pump':
             # Explicit opt-in to a reversible PAPER test; other strategy workers
             # cannot inherit Pump's held-quote optimization switch.

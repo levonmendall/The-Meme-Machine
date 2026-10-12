@@ -391,3 +391,50 @@ def native_reader(lane):
     with _readers_lock:
         if lane not in _readers:_readers[lane]=NativeValueReader(lane)
         return _readers[lane]
+
+
+_pons_prefetch_lock=threading.Lock()
+_pons_prefetch_pool=None
+_pons_prefetch_pending=None
+
+def prefetch_pons_usd(seconds,*,consumer):
+    """Move the existing required USD read alongside an already-due native turn.
+
+    One pending unit-price acquisition per process, without a work queue or
+    native-book connection on this thread. Every consumer still calls the same
+    reader and checks the original value lifetime at its accounting commit.
+    No quotation, economic decision or financial publication occurs here.
+    """
+    if os.environ.get('MM_PONS_USD_ACQUISITION_OVERLAP')!='1':return None
+    if type(seconds) is not int or not 0<seconds<=5:
+        raise ValuationUnavailable('invalid_USD_consumption_deadline')
+    from concurrent.futures import ThreadPoolExecutor
+    from contextvars import copy_context
+    global _pons_prefetch_pool,_pons_prefetch_pending
+    with _pons_prefetch_lock:
+        if _pons_prefetch_pending is not None and not _pons_prefetch_pending.done():
+            return _pons_prefetch_pending
+        reader=native_reader('pons');now=int(time.time());through=now+seconds
+        # No provider call or background work for a compatible original value.
+        if not reader._lock.acquire(blocking=False):return None
+        try:
+            value=reader.cached
+            if (value is not None and value.observed_at<=now<=through<=value.valid_until
+                    and reader.oracle_checked_at is not None
+                    and reader.oracle_checked_at<=now<=reader.oracle_checked_at+USDG_CACHE_SECONDS):
+                return None
+        finally:reader._lock.release()
+        if _pons_prefetch_pool is None:
+            _pons_prefetch_pool=ThreadPoolExecutor(max_workers=1,thread_name_prefix='pons-usd')
+        from meme_machine.lanes.pons.provider_admission import position_work
+        from meme_machine.runtime.provider_purchases import attributed_work
+        @position_work
+        @attributed_work('pons_held_protection',family='pons',consumer=consumer)
+        def acquire():return reader(now,valid_through=through)
+        _pons_prefetch_pending=_pons_prefetch_pool.submit(copy_context().run,acquire)
+        def report_failure(future):
+            if future.exception() is not None:
+                import logging
+                logging.getLogger(__name__).warning('pons_USD_prefetch_unavailable')
+        _pons_prefetch_pending.add_done_callback(report_failure)
+        return _pons_prefetch_pending
