@@ -163,7 +163,10 @@ class CandidateTransactionJoin:
                         fact=(bytes(item.signature),item.is_vote,bytes(item.err.err) if item.HasField('err') else None,scopes,item.bank_id)
                         if old['statuses'].get(item.index)==fact:return None
             raise EvidenceUnavailable('yellowstone_late_census_content')
-        s=self.pending.setdefault(slot,dict(started=now,statuses={},bodies={},body_seen={},status_seen={},banks=set(),meta=None,finality=None,expected={},required={},log_required={},signature_text={},missing_logs=set(),relevant_count=0,max_index=-1,bytes=0,status_bytes=0,content_bytes=0,continuity_bytes=0))
+        s=self.pending.get(slot)
+        if s is None:
+            s=dict(started=now,statuses={},bodies={},body_seen={},status_seen={},banks=set(),meta=None,finality=None,expected={},required={},log_required={},signature_text={},missing_logs=set(),relevant_count=0,max_index=-1,bytes=0,status_bytes=0,content_bytes=0,continuity_bytes=0)
+            self.pending[slot]=s
         s['last_seen']=seen
         if item.bank_id:s['banks'].add(item.bank_id)
         if len(s['banks'])>1:raise EvidenceUnavailable('yellowstone_finalized_bank_mismatch')
@@ -279,16 +282,22 @@ class CandidateTransactionJoin:
         block.block_time.CopyFrom(meta.block_time);block.executed_transaction_count=count
         block.transactions.extend(s['bodies'][i] for i in sorted(s['bodies']))
         result=YellowstoneTransactionFrame(out,s['bytes'],seen,tuple(failed),seen_by_signature,len(s['statuses']),s['continuity_bytes'],s['status_bytes'],s['content_bytes'],self.filtered_from_slot or 0,tuple(log_transactions),tuple(candidate_statuses))
+        consumed_logs=[]
         for index,fact in log_required.items():
             key=(slot,s['signature_text'][index]);old=self.early_logs.pop(key)
             self.recent_logs[key]=digest([old[0],old[1]])
+            consumed_logs.append(key)
             self.early_log_bytes-=len(str(old[0]).encode())
         self.pending_bytes-=s['bytes'];del self.pending[slot];self.completed=slot
         if self.filtered_from_slot is not None:
+            s['consumed_log_keys']=consumed_logs
             self.recent[slot]=s;self.recent_bytes+=s['bytes']
             while len(self.recent)>MAX_PENDING_SLOTS or self.recent_bytes>MAX_PENDING_BYTES:
-                oldest=min(self.recent);self.recent_bytes-=self.recent.pop(oldest)['bytes']
-                self.recent_logs={key:value for key,value in self.recent_logs.items() if key[0]>oldest}
+                oldest=min(self.recent);expired=self.recent.pop(oldest);self.recent_bytes-=expired['bytes']
+                # Each consumed key belongs to one finalized slot. Removing
+                # that exact slot's keys preserves the same duplicate horizon
+                # without scanning every retained log on each new block.
+                for key in expired['consumed_log_keys']:del self.recent_logs[key]
         return result
 
     def missing_log_keys(self,through):

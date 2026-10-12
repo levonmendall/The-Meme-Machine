@@ -217,6 +217,38 @@ class NativeLogJoinTests(unittest.TestCase):
             self.join.feed_log(slot,text,['changed'],None,1791400000.)
         self.assertIsNotNone(self.close_header(slot,1))
 
+    def _check_recent_log_retirement(self,byte_bound):
+        from unittest.mock import patch
+        from meme_machine.solana_candidate_join import signature
+        class NoFullScan(dict):
+            def items(self):raise AssertionError('retirement_scanned_all_retained_logs')
+        tx=self.setup_join();first=tx['slot'];keys=[]
+        self.join.recent_logs=NoFullScan()
+        def close(slot):
+            raw=slot.to_bytes(8,'big')+b'0'*56;text=signature(raw);keys.append((slot,text))
+            self.join.feed_log(slot,text,['authenticated log'],None,1791400000.)
+            self.status(slot,0,raw)
+            frame=self.close_header(slot,1)
+            self.assertIsNotNone(frame);self.assertEqual(frame.log_transactions[0]['transactionIndex'],0)
+        close(first)
+        name='MAX_PENDING_BYTES' if byte_bound else 'MAX_PENDING_SLOTS'
+        bound=2*self.join.recent_bytes-1 if byte_bound else 2
+        with patch('meme_machine.solana_candidate_join.'+name,bound):
+            for slot in range(first+1,first+5):close(slot)
+        self.assertEqual(set(self.join.recent_logs),set(keys[-1:] if byte_bound else keys[-2:]))
+        self.assertEqual(self.join.early_log_bytes,0);self.assertEqual(self.join.pending_bytes,0)
+        slot,text=keys[-1]
+        self.assertIsNone(self.join.feed_log(slot,text,['authenticated log'],None,1791400001.))
+        for slot,text,content in ((*keys[0],['authenticated log']),(*keys[-1],['changed'])):
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_late_log_content'):
+                self.join.feed_log(slot,text,content,None,1791400001.)
+
+    def test_recent_log_slot_retirement_preserves_exact_duplicate_horizon(self):
+        self._check_recent_log_retirement(False)
+
+    def test_recent_log_byte_retirement_preserves_exact_duplicate_horizon(self):
+        self._check_recent_log_retirement(True)
+
 class SourceIntegrationTests(SelectiveEvidenceTests):
     # Reuse the real temporary canonical writer, never operational state.
     def setUp(self):
