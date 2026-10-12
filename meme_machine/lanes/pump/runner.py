@@ -1365,17 +1365,14 @@ def main(*,campaign=False,discovery_seconds=None):
     plane=RuntimeEvidence(owner='pump')
     tape=LocalPumpTape(plane)
     tape.candidate_history_graduation_horizon=max(POLICY.max_postgrad_entry_age_s,600)
-    discovery_tape=PumpTape()
     broker_path=os.environ.get("MM_SOLANA_EVIDENCE_BROKER_DB",DEFAULT_BROKER_DB)
     broker=EvidenceBroker(broker_path)
-    stop=threading.Event();ready=threading.Event()
-    stream=PumpLogStream(primary_rpc_url(required=True),discovery_tape,ws_url=discovery_ws_url())
     pumpswap_stream=LocalInterestRegistry(plane)
-    thread=threading.Thread(target=stream.run,args=(stop,ready),daemon=True)
     from meme_machine.operational.position_continuation import position_only
-    if not position_only():
-        thread.start()
-        if not ready.wait(15):report['limitations'].append('public_discovery_start_timeout')
+    # LocalPumpTape consumes the canonical evidence service. The separate
+    # public PumpTape was never read by this manager, qualification or exits;
+    # its duplicate logs subscription only decoded an unused observation tape.
+    # Keep the service's required Pump/PumpSwap feeds and all continuity guards.
 
     sessions=Sessions();sessions.plane=plane
     survivor=None
@@ -1829,8 +1826,6 @@ def main(*,campaign=False,discovery_seconds=None):
             _stop_sleep(1)
     finally:
         if survivor is not None:report['survivor']=survivor.close()
-        stop.set()
-        if thread.ident is not None:thread.join(timeout=5)
         sessions.finish()
         report["sessions"]=sessions.history
         report["pump_held_rpc"]=dict(

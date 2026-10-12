@@ -147,6 +147,7 @@ class ProductionCutover(unittest.TestCase):
              patch.dict(lane.os.environ,{'MM_SOLANA_EVIDENCE_BROKER_DB':str(Path(self.temp.name)/'broker')}),patch('builtins.print'):
             stream.return_value.run.side_effect=lambda stop,ready:ready.set()
             lane.main(discovery_seconds=600)
+            stream.assert_not_called()
         result=json.loads(report_path.read_text())
         self.assertEqual(len(result['full_evidence_candidates']),1,result['attempts'])
         self.assertTrue(result['full_evidence_candidates'][0]['qualified'])
