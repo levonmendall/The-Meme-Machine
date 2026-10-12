@@ -58,6 +58,29 @@ def pons_held_shadow_settings(environ):
     return values
 
 
+def pons_capability_path(environ):
+    """Forward an existing endpoint-bound file, never an arbitrary parent hint."""
+    value=environ.get('MM_RPC_CAPABILITIES')
+    if not value:return None
+    try:
+        import hashlib,stat
+        from meme_machine.runtime.robinhood import provider_authority as authority
+        path=Path(value)
+        if not path.is_absolute() or path.is_symlink():return None
+        info=path.stat()
+        if not stat.S_ISREG(info.st_mode) or info.st_mode&0o022:return None
+        with path.open('rb') as stream:body=stream.read(16385)
+        if len(body)>16384:return None
+        endpoint=authority.endpoint(environ=environ)
+        domain=hashlib.sha256(('4663:'+endpoint).encode()).hexdigest()
+        row=json.loads(body)['endpoints'][domain]
+        if (row.get('chain_id')!=4663 or row.get('provider_domain')!=domain
+                or row.get('provider_fingerprint')!=authority.fingerprint(endpoint)
+                or not isinstance(row.get('methods'),dict)):return None
+        return str(path)
+    except (OSError,ValueError,KeyError,TypeError,AttributeError):return None
+
+
 def validate_environment(*,offline=False,environ=None,required_lanes=ACTIVE_LANES):
     env=os.environ if environ is None else environ
     if env.get('MM_MODE','PAPER')!='PAPER':raise ValueError('PAPER_only_service')
@@ -200,8 +223,10 @@ class Supervisor:
                   'MM_ROBINHOOD_SEQUENCER_FEED_URL'})
         allowed=transport | (set() if self.offline else providers)
         if not self.offline:allowed.add('MM_STORAGE_GUARD_CONFIG')
-        if not self.offline and lane=='pons':allowed.add('MM_RPC_CAPABILITIES')
         env={k:v for k,v in os.environ.items() if k in allowed}
+        if not self.offline and lane=='pons':
+            capability=pons_capability_path(os.environ)
+            if capability:env['MM_RPC_CAPABILITIES']=capability
         env['PYTHONPATH']=str(SOURCE_ROOT)
         env.update(MM_MODE='PAPER',MM_RUNTIME_LANE=lane,MM_PAPER_EPOCH=self.epoch,
             MM_STATE_ROOT=str(self.root),MM_OPERATIONAL_PHASE='continuous',

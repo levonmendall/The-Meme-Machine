@@ -173,6 +173,77 @@ class QuietCurrentTests(unittest.TestCase):
     def reopen(self):
         self.broker.close();self.broker=Broker(self.path,CURRENT_HASH,clock=lambda:self.now,source=ENDPOINT)
 
+    def _legacy_attention_adapter(self,key,*,policy=None):
+        from meme_machine.runtime.robinhood.plane import canonical,digest
+        old=dict(self.broker.policy,adapter_source='0'*64,config=None)
+        if policy is not None:old['policy']=policy
+        watch=json.loads(self.broker.plane.db.execute('SELECT body FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()[0])
+        watch.update(interpretation=old,volume_quality={'classification':'QUALITY_ACCELERATING','rank':2})
+        self.broker.plane.db.execute('UPDATE candidates SET interpretation=?,rank=2 WHERE id=?',(canonical(old),key))
+        self.broker.plane.db.execute('UPDATE pons_current_watch SET body=?,hash=? WHERE candidate=?',
+            (canonical(watch),digest(watch),key))
+        return self.broker.plane.get(key)
+
+    def test_adapter_cutover_preserves_rejection_and_requests_fresh_native_evidence(self):
+        self.broker.enqueue(observation(1));old=self.broker.pop();key=old['key']
+        result={'qualified':False,'reason':'original_net_demand_rejection'}
+        self.assertTrue(self.broker.plane.finish(old['work'],result=result))
+        self.broker.plane.consume(key,old['work']['generation'])
+        self.broker.plane.decision(key,old['work']['generation'],'strategy_rejected','original_net_demand_rejection')
+        prior=self._legacy_attention_adapter(key)
+        self.reopen();row=self.broker.plane.get(key)
+        self.assertEqual(row['rank'],0);self.assertIsNone(row['result']);self.assertIsNone(row['completed'])
+        self.assertEqual((row['ordering'],row['latest_id'],row['observed']),
+            (prior['ordering'],prior['latest_id'],prior['observed']))
+        audit=json.loads(self.broker.plane.db.execute("SELECT details FROM transitions WHERE reason='pons_adapter_change_requires_fresh_canonical_state'").fetchone()[0])
+        self.assertEqual(audit['prior_candidate'],prior)
+        self.assertEqual(json.loads(audit['prior_candidate']['result']),result)
+        self.assertNotIn('volume_quality',json.loads(self.broker.plane.db.execute('SELECT body FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()[0]))
+        self.now=106.;fresh=self.broker.pop()
+        self.assertTrue(fresh['canonical_refresh']);self.assertEqual(fresh['deadline'],111.)
+        self.assertEqual(json.loads(fresh['work']['desired'])['first_observed_at'],100.)
+        self.assertIsNone(fresh['work']['result'])
+        self.assertFalse(self.broker.plane.finish(old['work'],result={'qualified':True}))
+
+    def test_economic_policy_change_cannot_reinterpret_or_claim_retained_work(self):
+        self.broker.enqueue(observation(1));key=self.broker.identity(observation(1))
+        prior=self._legacy_attention_adapter(key,policy='unapproved-economic-policy')
+        self.reopen();self.now=106.
+        self.assertIsNone(self.broker.pop())
+        self.assertEqual(self.broker.plane.get(key),prior)
+
+    def test_existing_native_owner_keeps_old_obligations_until_settlement(self):
+        from meme_machine.runtime.robinhood.plane import canonical
+        self.broker.enqueue(observation(1));work=self.broker.pop();key=work['key']
+        self.broker.failure(work,'provider_http_429');prior=self._legacy_attention_adapter(key)
+        name='native_position:pons:retained-owner'
+        body={'candidate':key,'position':{'status':'open','pending_exit':'original-exit-intent'}}
+        self.broker.plane.checkpoint(name,body);self.reopen();self.now=106.
+        self.assertIsNone(self.broker.pop());self.assertEqual(self.broker.plane.get(key),prior)
+        self.assertEqual(self.broker.plane.checkpoint_read(name),body)
+        body['position']['status']='settled';self.broker.plane.checkpoint(name,body)
+        fresh=self.broker.pop();self.assertTrue(fresh['canonical_refresh'])
+        self.assertIsNone(fresh['work']['result'])
+        self.assertEqual(json.loads(fresh['work']['desired'])['first_observed_at'],100.)
+
+    def test_retired_candidate_watch_renews_without_a_new_buy_or_cached_signal(self):
+        self.broker.enqueue(observation(1));key=self.broker.identity(observation(1))
+        self._legacy_attention_adapter(key)
+        self.broker.plane.db.execute('DELETE FROM candidates WHERE id=?',(key,))
+        self.reopen();self.now=106.;fresh=self.broker.pop()
+        self.assertTrue(fresh['canonical_refresh']);self.assertEqual(fresh['event'],observation(1))
+        self.assertEqual(json.loads(fresh['work']['desired'])['first_observed_at'],100.)
+        self.assertIsNone(fresh['work']['result']);self.assertEqual(fresh['work']['rank'],0)
+
+    def test_live_claim_is_not_reinterpreted_and_expired_reply_cannot_qualify(self):
+        self.broker.enqueue(observation(1));old=self.broker.pop();key=old['key']
+        prior=self._legacy_attention_adapter(key);self.reopen()
+        self.assertEqual(self.broker.plane.get(key),prior)
+        self.now=106.;fresh=self.broker.pop()
+        self.assertTrue(fresh['canonical_refresh'])
+        self.assertFalse(self.broker.plane.finish(old['work'],result={'qualified':True}))
+        self.assertIsNone(fresh['work']['result'])
+
     def test_provider_failure_restarts_and_rechecks_without_a_new_buy_or_renewed_source_clock(self):
         raw=observation(1);self.broker.enqueue(raw);work=self.broker.pop()
         self.broker.failure(work,'provider_http_429');self.reopen();self.now=106.

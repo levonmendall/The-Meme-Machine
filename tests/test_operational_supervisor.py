@@ -34,13 +34,27 @@ class NativeDeliveryRecovery(unittest.TestCase):
 
     def test_existing_endpoint_capability_path_reaches_only_live_pons(self):
         self.service.offline=False
-        with patch.dict(os.environ,MM_RPC_CAPABILITIES='/etc/meme-machine/observed-capabilities.json'):
+        from meme_machine.runtime.robinhood.provider_authority import fingerprint
+        endpoint='https://robinhood-mainnet.g.alchemy.com/v2/offline-fixture'
+        domain=hashlib.sha256(('4663:'+endpoint).encode()).hexdigest()
+        path=self.root/'observed-capabilities.json'
+        path.write_text(json.dumps({'endpoints':{domain:{'chain_id':4663,
+            'provider_domain':domain,'provider_fingerprint':fingerprint(endpoint),'methods':{}}}}))
+        path.chmod(0o600)
+        with patch.dict(os.environ,MM_RPC_CAPABILITIES=str(path),MM_ROBINHOOD_READ_RPC_URL=endpoint):
             self.assertEqual(self.service.environment('pons')['MM_RPC_CAPABILITIES'],
-                '/etc/meme-machine/observed-capabilities.json')
+                str(path))
             for lane in ('pump','solana'):
                 self.assertNotIn('MM_RPC_CAPABILITIES',self.service.environment(lane))
             self.service.offline=True
             self.assertNotIn('MM_RPC_CAPABILITIES',self.service.environment('pons'))
+
+    def test_unbound_or_unsafe_parent_capability_does_not_reach_a_live_worker(self):
+        self.service.offline=False
+        path=self.root/'unbound-capabilities.json';path.write_text('{"endpoints":{}}')
+        for value in ('untrusted-parent',str(path),str(self.root/'missing.json')):
+            with self.subTest(path=value),patch.dict(os.environ,MM_RPC_CAPABILITIES=value):
+                self.assertNotIn('MM_RPC_CAPABILITIES',self.service.environment('pons'))
 
     def test_native_usd_bridge_remains_inactive_without_explicit_selection(self):
         self.service.offline=False

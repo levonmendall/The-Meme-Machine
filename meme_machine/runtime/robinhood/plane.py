@@ -285,13 +285,14 @@ class Plane:
         service=values[math.ceil(.95*len(values))-1] if values else provider_interval
         return max(provider_interval,service)+queued_transports*provider_interval+max(0,cooldown_seconds)
 
-    def claim(self, *, lane=None, key=None, estimate_seconds=0):
+    def claim(self, *, lane=None, key=None, interpretation=None, estimate_seconds=0):
         self.recover()
         now=self.clock()
         with self.transaction():
             from meme_machine.runtime.operating_families import active_sql
             rows=[dict(r) for r in self.db.execute('SELECT * FROM candidates WHERE '+active_sql('lane')+' AND pending=1 AND claim IS NULL'+(' AND lane=?' if lane else ''),((lane,) if lane else ())).fetchall()]
             if key is not None:rows=[r for r in rows if r["id"]==key]
+            if interpretation is not None:rows=[r for r in rows if r['interpretation']==canonical(interpretation)]
             def order(r):
                 # Aging applies only below entry confirmation. Safety stays first.
                 span=(max(.001,r['deadline']-r['observed']) if math.isfinite(r['deadline'])

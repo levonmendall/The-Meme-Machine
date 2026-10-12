@@ -45,6 +45,10 @@ class Broker:
         buy=topic('CurveBuy(address,address,uint256,uint256,uint256,uint256)')
         with self.plane.transaction():
             for row in self.plane.db.execute("SELECT * FROM candidates WHERE lane='pons'").fetchall():
+                was_pending=row['pending']
+                if row['interpretation']!=canonical(self.policy):
+                    if not self._renew_retained_interpretation(row['id']):continue
+                    row=self.plane._row(row['id'])
                 event=json.loads(row['payload'])
                 old=self.plane.db.execute('SELECT body FROM pons_current_watch WHERE candidate=?',(row['id'],)).fetchone()
                 if old and row['interpretation']==canonical(self.policy):
@@ -55,9 +59,50 @@ class Broker:
                 if (retained.get('candidate',{}).get('state',{}).get('graduated') or
                         retained.get('launch_at') is not None and stamp.get('event_at',0)>
                         retained['launch_at']+ENTRY_THRESHOLDS['max_token_age_seconds']):continue
-                if (row['pending'] or (event.get('topics') or [None])[0]==buy) and row['interpretation']==canonical(self.policy):
+                if (row['pending'] or was_pending or (event.get('topics') or [None])[0]==buy) and row['interpretation']==canonical(self.policy):
                     if not self.plane.db.execute('SELECT 1 FROM pons_current_watch WHERE candidate=?',(row['id'],)).fetchone():
                         self._remember_watch(row['id'],event,row['observed'],row['generation'])
+
+    def _renew_retained_interpretation(self,key):
+        """Keep the nomination and prior decisions; require new canonical work.
+
+        Adapter/configuration changes invalidate qualification, never token
+        identity, original age or an existing native owner's exit obligations.
+        Economic policy and deployment identity changes remain fail-closed.
+        """
+        row=self.plane._row(key)
+        if row is not None and row['interpretation']==canonical(self.policy):return True
+        saved=self.plane.db.execute('SELECT body,hash FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()
+        watch=json.loads(saved[0]) if saved else None
+        if watch is not None and digest(watch)!=saved[1]:raise ValueError('pons_current_watch_corruption')
+        if row is None and watch is None:return False
+        old=json.loads(row['interpretation']) if row is not None else watch['interpretation']
+        identity=('schema','chain','policy','factory','factory_runtime','deployer_source','curve_template')
+        if any(old.get(k)!=self.policy.get(k) for k in identity):return False
+        if ((row is not None and (row['claim'] is not None or row['state'] in ('entry_confirmation','entry_reserved')))
+                or self.plane.db.execute("SELECT 1 FROM runtime WHERE key LIKE 'native_position:pons:%' "
+                    "AND json_extract(body,'$.candidate')=? AND json_extract(body,'$.position.status')<>'settled'",
+                    (key,)).fetchone()):return False
+        if watch is not None:
+            if watch.get('interpretation')!=old:raise ValueError('pons_current_watch_interpretation_changed')
+        # Existing journal retains the complete previous result and its source
+        # interpretation. Old in-flight replies cannot finish the new generation.
+        audit=row if row is not None else dict(id=key,lane='pons',generation=watch['generation'],
+            desired=canonical({}),interpretation=canonical(old))
+        self.plane._audit(audit,'watching','pons_adapter_change_requires_fresh_canonical_state',
+            prior_candidate=dict(row) if row is not None else None,prior_watch=watch,next_interpretation=self.policy)
+        if row is not None:
+            preserve=row['reason'] in ('strategy_horizon_expired','conflicting_observation')
+            self.plane.db.execute('''UPDATE candidates SET interpretation=?,generation=generation+1,
+                pending=0,rank=0,result=NULL,completed=NULL,state=?,reason=?,desired=? WHERE id=?''',
+                (canonical(self.policy),row['state'] if preserve else 'watching',
+                 row['reason'] if preserve else 'adapter_change_requires_fresh_canonical_state',canonical({}),key))
+        if watch is not None:
+            watch.update(interpretation=self.policy,generation=row['generation']+1 if row is not None else watch['generation'])
+            watch.pop('volume_quality',None)
+            self.plane.db.execute('UPDATE pons_current_watch SET body=?,hash=? WHERE candidate=?',
+                (canonical(watch),digest(watch),key))
+        return True
 
     @staticmethod
     def observation_id(event):
@@ -85,6 +130,7 @@ class Broker:
         if old:
             watch=json.loads(old[0])
             if digest(watch)!=old[1]:raise ValueError('pons_current_watch_corruption')
+            if watch.get('interpretation')!=self.policy:raise ValueError('pons_current_watch_interpretation_changed')
             watch.update(generation=row['generation'],latest_ordering=json.loads(row['ordering']),latest_id=row['latest_id'])
             self.plane.db.execute('UPDATE pons_current_watch SET body=?,hash=? WHERE candidate=?',
                 (canonical(watch),digest(watch),key))
@@ -100,6 +146,10 @@ class Broker:
         observed=self.clock() if now is None else now
         key=self.identity(event)
         previous=self.plane.get(key)
+        if previous and previous['interpretation']!=canonical(self.policy):
+            with self.plane.transaction():
+                if not self._renew_retained_interpretation(key):return False
+            previous=self.plane.get(key)
         priority=2 if previous and previous['priority']<=2 else 4
         from meme_machine.runtime.volume_quality import attention
         retained=json.loads(previous['result']) if previous and previous['result'] else {}
@@ -143,7 +193,7 @@ class Broker:
     @property
     def rows(self):
         with self.plane.lock:
-            rows=self.plane.db.execute("SELECT * FROM candidates WHERE lane='pons' AND pending=1").fetchall()
+            rows=self.plane.db.execute("SELECT * FROM candidates WHERE lane='pons' AND pending=1 AND interpretation=?",(canonical(self.policy),)).fetchall()
         return {r['id']:self._scheduled(dict(r)) for r in rows}
 
     def _scheduled(self,r):
@@ -163,19 +213,25 @@ class Broker:
         with self.plane.transaction():
             rows=self.plane.db.execute('''SELECT w.*,c.generation,c.state,c.pending,c.claim,c.result
                 FROM pons_current_watch w LEFT JOIN candidates c ON c.id=w.candidate
-                WHERE w.next_at<=? AND (c.id IS NULL OR c.pending=0 AND c.claim IS NULL
+                WHERE w.next_at<=? AND (c.id IS NULL OR (c.pending=0 OR c.interpretation<>?) AND c.claim IS NULL
                     AND c.state NOT IN ('entry_confirmation','entry_reserved'))
                 AND NOT EXISTS (SELECT 1 FROM runtime n WHERE n.key LIKE 'native_position:pons:%'
                     AND json_extract(n.body,'$.candidate')=w.candidate
                     AND json_extract(n.body,'$.position.status')<>'settled')
-                ORDER BY w.attempt,w.next_at,w.candidate''',(now,)).fetchall()
+                ORDER BY w.attempt,w.next_at,w.candidate''',(now,canonical(self.policy))).fetchall()
             for row in rows:
                 if row['result'] is not None and not self.plane.db.execute(
                         'SELECT 1 FROM result_consumption WHERE candidate=? AND generation=?',
                         (row['candidate'],row['generation'])).fetchone():continue
                 watch=json.loads(row['body'])
                 if digest(watch)!=row['hash']:raise ValueError('pons_current_watch_corruption')
-                if watch['interpretation']!=self.policy:raise ValueError('pons_current_watch_interpretation_changed')
+                if watch['interpretation']!=self.policy:
+                    if not self._renew_retained_interpretation(row['candidate']):continue
+                    # Constructor restores ordinary retained candidates. A watch
+                    # deferred for an existing owner can renew after settlement.
+                    saved=self.plane.db.execute('SELECT body,hash FROM pons_current_watch WHERE candidate=?',(row['candidate'],)).fetchone()
+                    watch=json.loads(saved[0]);candidate=self.plane._row(row['candidate'])
+                    if candidate is not None:row=dict(row,generation=candidate['generation'],result=None)
                 if row['generation'] is None:
                     event=watch['event'];order=watch['latest_ordering']
                     self.plane.db.execute('''INSERT INTO candidates(id,lane,generation,interpretation,latest_id,
@@ -266,11 +322,11 @@ class Broker:
         work=None
         if probe_turn:
             key=self.reactivate_one()
-            if key is not None:work=self.plane.claim(lane='pons',key=key,estimate_seconds=.5)
-        if work is None:work=self.plane.claim(lane='pons',estimate_seconds=estimate)
+            if key is not None:work=self.plane.claim(lane='pons',key=key,interpretation=self.policy,estimate_seconds=.5)
+        if work is None:work=self.plane.claim(lane='pons',interpretation=self.policy,estimate_seconds=estimate)
         if work is None:
             key=self.reactivate_one()
-            if key is not None:work=self.plane.claim(lane='pons',key=key,estimate_seconds=.5)
+            if key is not None:work=self.plane.claim(lane='pons',key=key,interpretation=self.policy,estimate_seconds=.5)
         if work is not None:
             self.plane.checkpoint('pons_current_probe_turn',
                 json.loads(work['desired']).get('kind')!='pons_canonical_current_recheck')
@@ -336,6 +392,7 @@ class Broker:
         from meme_machine.lanes.pons.pons import CurveState
         from meme_machine.lanes.pons.evidence import Stamp
         for row in self.plane.unconsumed('pons'):
+            if row['interpretation']!=canonical(self.policy):continue
             value=json.loads(row['result'])
             candidate=value['candidate']
             candidate['state']=CurveState(**candidate['state'])
