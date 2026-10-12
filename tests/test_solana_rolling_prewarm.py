@@ -695,6 +695,55 @@ class RollingPrewarmTests(unittest.TestCase):
         self.h.lifecycle.publish()
         for scope in scopes:self.assertEqual(self.h.lifecycle.missing(scope,100,100),[])
 
+    def test_pending_proofs_yield_after_64_and_restart_replays_every_remaining_identity(self):
+        life=self.h.lifecycle;scopes=[]
+        for n in range(130):
+            scope=coverage_scope('pump' if n%2==0 else 'pumpswap','bounded-'+str(n));scopes.append(scope)
+            life.defer_proof(IntervalProof(scope,100,100,'alchemy_finalized_stream','a'*64,
+                dict(finalized=True,complete=True,scope=scope,lower_slot=100,upper_slot=100,
+                    lineage_hash=digest([scope,100])),NOW))
+        pending=lambda:self.h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone()[0]
+        life.publish();self.assertEqual(pending(),66)
+        # Reconstruct only the existing consumer. Its cursor is scheduling state,
+        # not canonical authority and cannot drop the remaining durable proofs.
+        from meme_machine.solana_candidate_lifecycle import CandidateLifecycle
+        self.h.lifecycle=CandidateLifecycle(self.h,candidate_path=life.path)
+        self.h.lifecycle.publish();self.assertEqual(pending(),2)
+        self.h.lifecycle.publish();self.assertEqual(pending(),0)
+        with closing(CandidateHistory(life.path,clock=lambda:NOW)) as shared:
+            self.assertEqual(shared.db.execute('SELECT COUNT(*) FROM work_history_proofs').fetchone()[0],130)
+        for scope in scopes:self.assertEqual(self.h.lifecycle.missing(scope,100,100),[])
+
+    def test_blocked_proof_prefix_cannot_starve_other_family_or_new_earlier_proofs(self):
+        life=self.h.lifecycle;blocked=[]
+        for n in range(64):
+            address='blocked-'+str(n);scope=coverage_scope('pump',address);blocked.append(scope)
+            life.emit('pump',address,'activity',dict(slot=100),at=NOW)
+            life.defer_proof(IntervalProof(scope,100,100,'alchemy_finalized_stream','a'*64,
+                dict(finalized=True,complete=True,scope=scope,lower_slot=100,upper_slot=100,
+                    lineage_hash=digest([scope,100])),NOW))
+        ready=coverage_scope('pumpswap','ready')
+        life.defer_proof(IntervalProof(ready,101,101,'alchemy_finalized_stream','a'*64,
+            dict(finalized=True,complete=True,scope=ready,lower_slot=101,upper_slot=101,
+                lineage_hash=digest([ready,101])),NOW))
+        # Model an external consumer which has not yet durably ACKed its tape.
+        # The real pending outbox rows must keep every earlier proof unavailable.
+        with patch.object(life,'flush',return_value=0):
+            life.publish()
+            self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone()[0],65)
+            earlier=coverage_scope('pumpswap','arrived-earlier')
+            life.defer_proof(IntervalProof(earlier,99,99,'alchemy_finalized_stream','a'*64,
+                dict(finalized=True,complete=True,scope=earlier,lower_slot=99,upper_slot=99,
+                    lineage_hash=digest([earlier,99])),NOW))
+            life.publish();self.assertEqual(life.missing(ready,101,101),[])
+            self.assertEqual(life.missing(earlier,99,99),[(99,99)])
+            life.publish();self.assertEqual(life.missing(earlier,99,99),[])
+        for scope in blocked:self.assertEqual(life.missing(scope,100,100),[(100,100)])
+        # Original consumer recovery, without deleting or bypassing obligations.
+        for _ in range(3):life.publish()
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone()[0],0)
+        for scope in blocked:self.assertEqual(life.missing(scope,100,100),[])
+
     def test_owner_queue_rejection_retries_the_same_frame_without_silent_loss(self):
         import asyncio
         from meme_machine.solana_selective_source import source_work

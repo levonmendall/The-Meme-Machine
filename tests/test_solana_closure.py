@@ -49,6 +49,71 @@ class ClosureTests(unittest.TestCase):
         while self.life.flush():pass
         self.life.publish()
 
+    def test_native_reference_batch_reuses_metadata_fold_with_identical_economics(self):
+        from meme_machine.solana_evidence_plane import FinalizedRecord
+        paths=[Path(self.tmp.name)/'sequential.sqlite',self.life.path]
+        for path in paths:
+            with closing(CandidateHistory(path,clock=lambda:self.now[0])) as shared:
+                shared.observe('pump','mint',surface='pump.fun',observed_at=int(NOW)-200,
+                    metadata=dict(volume_quality={'retained':True}))
+        with self.state.writer.transaction():
+            for n in range(64):
+                at=int(NOW)-100+n
+                event=dict(mint='mint',market_time=at,event_type='migration' if n==1 else 'trade',native_buy=n)
+                if n==1:event.update(creator='é',pool='pool-a')
+                if n==63:event['pool']='pool-b'
+                row=FinalizedRecord('economic:'+str(n),'program:pump',100+n,'signature:'+str(n),
+                    'program',('mint',),at,dict(event=event),'alchemy_finalized_stream','a'*64,NOW,
+                    transaction_index=n,event_index=0)
+                self.h.rolling.store(row)
+                self.life.emit('pump','mint','canonical',dict(record=row.body(),available=NOW))
+        original=self.h.db.execute('SELECT id,body,hash FROM candidate_history_outbox ORDER BY rowid').fetchall()
+        self.life.path=paths[0]
+        while self.life.flush(limit=1):pass
+        with closing(CandidateHistory(paths[0])) as shared:
+            expected_candidate=shared.candidate('pump','mint');expected_events=shared.events('pump','mint')
+            expected_receipts=shared.db.execute('SELECT * FROM source_receipts ORDER BY id').fetchall()
+        with self.state.writer.transaction():
+            self.h.db.executemany('UPDATE candidate_history_outbox SET consumed=NULL,body=?,hash=? WHERE id=?',
+                [(raw,checksum,identity) for identity,raw,checksum in original])
+        self.life.path=paths[1];calls=[];observe=CandidateHistory.observe
+        def measured(shared,*args,**kwargs):
+            calls.append((args,kwargs));return observe(shared,*args,**kwargs)
+        with patch.object(CandidateHistory,'observe',measured):self.assertEqual(self.life.flush(),64)
+        self.assertEqual(len(calls),2)
+        with closing(CandidateHistory(paths[1])) as shared:
+            self.assertEqual(shared.candidate('pump','mint'),expected_candidate)
+            self.assertEqual(shared.events('pump','mint'),expected_events)
+            self.assertEqual(shared.db.execute('SELECT * FROM source_receipts ORDER BY id').fetchall(),expected_receipts)
+        self.restart()
+        with closing(CandidateHistory(paths[1])) as shared:
+            self.assertEqual(shared.candidate('pump','mint'),expected_candidate)
+            self.assertEqual(shared.events('pump','mint'),expected_events)
+
+    def test_reference_metadata_fold_preserves_later_promotion_precedence_and_rollback(self):
+        from meme_machine.solana_evidence_plane import FinalizedRecord
+        row=FinalizedRecord('economic','program:pump',100,'sig','program',('mint',),int(NOW)-1,
+            dict(event=dict(mint='mint',event_type='trade',market_time=int(NOW)-1)),
+            'alchemy_finalized_stream','a'*64,NOW,transaction_index=1)
+        with self.state.writer.transaction():
+            self.h.rolling.store(row)
+            self.life.emit('pump','mint','canonical',dict(record=row.body(),available=NOW))
+            self.life.emit('pump','mint','promotion',dict(first_seen=NOW,observed_at=NOW,
+                decision_deadline=NOW+150,lower_slot=100,ready_at=NOW))
+        self.life.flush()
+        with closing(CandidateHistory(self.life.path)) as shared:
+            before=shared.candidate('pump','mint')
+            self.assertEqual(before['surface'],'pump')
+            self.assertEqual(before['decision_deadline'],int(NOW)+150)
+            events=shared.events('pump','mint')
+        with self.state.writer.transaction():
+            self.life.emit('pump','mint','canonical',dict(record=row.body(),available=NOW+1))
+            self.h.db.execute("UPDATE candidate_history_outbox SET hash='bad' WHERE consumed IS NULL")
+        with self.assertRaisesRegex(EvidenceUnavailable,'candidate_history_outbox_corrupt'):self.life.flush()
+        with closing(CandidateHistory(self.life.path)) as shared:
+            self.assertEqual(shared.candidate('pump','mint'),before)
+            self.assertEqual(shared.events('pump','mint'),events)
+
     def test_development_selection_keeps_original_order_unknowns_and_live_changes(self):
         def original(minimum,limit):
             return self.h.db.execute('''SELECT address FROM market_observations m WHERE family='pump'

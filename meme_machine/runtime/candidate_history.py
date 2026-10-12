@@ -464,16 +464,7 @@ class CandidateHistory:
                 # bounded FULL transaction. Preserve the exact min/max times,
                 # last supplied deadline, metadata merge and migration surface,
                 # without rereading/serializing a popular mint on every trade.
-                for mint,group in observations.items():
-                    prior=self.candidate('pump',mint)
-                    promoted=group['migrated'] or (prior is not None and prior['surface']=='pumpswap')
-                    surface='pumpswap' if promoted else 'pump.fun'
-                    self.observe('pump',mint,surface=surface,observed_at=group['lower'],
-                        decision_deadline=group['deadline'],metadata=group['metadata'])
-                    if group['upper']!=group['lower']:
-                        # A retained migration deadline may already precede a
-                        # later trade. None preserves it, exactly as before.
-                        self.observe('pump',mint,surface=surface,observed_at=group['upper'])
+                self.observe_pump_source_groups(observations)
                 for record,event,mint,at,kind in prepared:
                     self.append_event('pump',mint,identity='pump-source:'+str(record['identity']),
                         slot=int(record['slot']),transaction_index=record.get('transaction_index'),
@@ -481,6 +472,25 @@ class CandidateHistory:
                         kind='pump_'+kind,payload=event)
                     retained+=1
         return retained
+
+    def observe_pump_source_groups(self,observations):
+        """Existing bounded source-batch metadata fold, also used by references.
+
+        Caller owns the FULL source transaction. Every individual economic
+        record remains separately authenticated and retained; only intermediate
+        candidate metadata writes that no reader can observe are coalesced.
+        """
+        if not self.db.in_transaction or len(observations)>64:
+            raise ValueError('candidate_history_source_group_bound')
+        for mint,group in observations.items():
+            prior=self.candidate('pump',mint)
+            promoted=group['migrated'] or (prior is not None and prior['surface']=='pumpswap')
+            surface='pumpswap' if promoted else 'pump.fun'
+            self.observe('pump',mint,surface=surface,observed_at=group['lower'],
+                decision_deadline=group['deadline'],metadata=group['metadata'])
+            if group['upper']!=group['lower']:
+                # None retains a migration deadline preceding a later trade.
+                self.observe('pump',mint,surface=surface,observed_at=group['upper'])
 
     def retain_pumpswap_record(self,candidate,record,transaction_order):
         """Current and Survivor commit one canonical normalized event.

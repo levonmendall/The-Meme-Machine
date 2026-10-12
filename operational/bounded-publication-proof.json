@@ -1,0 +1,44 @@
+{
+  "parent": "aa273104a32f43c8365f6ad4df3b7063fab548d9",
+  "cause": "Authenticated source aa273 run: one unbounded pending-proof publication occupied its single database owner for 6.527 seconds; source callbacks waited up to 13.305 seconds, and required maintenance failed its original service deadline. Native canonical references also bypassed the existing per-token metadata fold.",
+  "changes": [
+    "Fold native Pump reference metadata within its original bounded 64-row FULL transaction; retain every event and source receipt; flush before noncanonical effects.",
+    "Seek at most 64 pending proofs per original owner turn using the existing lo/hi ordering and rowid identity; fixed cycle horizon guarantees blocked and newly earlier proofs get revisited. No pending proof is dropped, ACKed early or treated as coverage. Cursor advances only after both original commit fences; restart replays durable pending identities."
+  ],
+  "safety": [
+    "No provider/filter/rate/monitoring/deadline or capital changes.",
+    "Original proof validation, pending-consumer fences, gaps, checkpoint continuity, external receipts and FULL durability retained.",
+    "No candidate population cap and no historical deletion."
+  ],
+  "offline_measurements": {
+    "metadata_observe_calls_before": 64,
+    "metadata_observe_calls_after": 2,
+    "identical": [
+      "candidate metadata",
+      "all canonical event bodies",
+      "individual source receipts",
+      "restart restored values"
+    ],
+    "proofs_in_offline_batch": 130,
+    "publication_turns_after": 3,
+    "source_restart_after_first_turn": true,
+    "all_proofs_published": true,
+    "blocked_prefix_and_other_family_fairness": true
+  },
+  "tests": [
+    {
+      "kind": "FAST",
+      "passed": 124,
+      "receipt": "/tmp/bounded-publication-fast.log",
+      "sha256": "a5920674a754f2392a22bd93ec7cfea1c5a9128cb9688de5e36514db592ea293"
+    },
+    {
+      "kind": "OPERATIONAL",
+      "passed": 149,
+      "receipt": "/tmp/bounded-publication-operational.log",
+      "sha256": "64b402c297dffc80601ba31649108f2c062b390e92da02fbb53ad1748ea59861"
+    }
+  ],
+  "live_end_to_end_proven": false,
+  "created_at": 1791822999.100189
+}

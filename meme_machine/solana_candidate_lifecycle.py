@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS candidate_evidence_pins(
 CREATE TABLE IF NOT EXISTS candidate_pending_proofs(
  id TEXT PRIMARY KEY,scope TEXT NOT NULL,lo INTEGER NOT NULL,hi INTEGER NOT NULL,
  source TEXT NOT NULL,endpoint TEXT NOT NULL,body TEXT NOT NULL,available REAL NOT NULL);
+CREATE INDEX IF NOT EXISTS candidate_proof_publication ON candidate_pending_proofs(lo,hi);
 CREATE TABLE IF NOT EXISTS candidate_activity_receipts(
  family TEXT NOT NULL,address TEXT NOT NULL,slot INTEGER NOT NULL,signature TEXT NOT NULL,
  PRIMARY KEY(family,address,slot,signature));
@@ -213,12 +214,18 @@ class CandidateLifecycle:
                 at REAL NOT NULL,body TEXT NOT NULL,hash TEXT NOT NULL)''')
             acknowledgements=[]
             with shared.transaction():
+                pump_observations={}
                 for identity,family,address,kind,raw,checksum,at in rows:
                     # emit stored these exact canonical bytes. Authenticate
                     # them before decoding instead of dumping the full record
                     # again solely to reconstruct the same checksum.
                     if hashlib.sha256(raw.encode()).hexdigest()!=checksum:raise EvidenceUnavailable('candidate_history_outbox_corrupt')
                     body=json.loads(raw)
+                    if kind!='canonical' and pump_observations:
+                        # A later scout/promotion may intentionally update this
+                        # same candidate. Keep the original row-order precedence.
+                        shared.observe_pump_source_groups(pump_observations)
+                        pump_observations.clear()
                     compact_raw=compact_hash=None
                     if kind=='canonical':
                         compact=dict(source_hash=checksum,record=dict(identity=body['record']['identity'],
@@ -236,15 +243,29 @@ class CandidateLifecycle:
                         r=body['record']
                         if family=='pump':
                             event=dict(r['payload']['event'],_economic_order=r['transaction_index'],available_time=int(body['available']))
-                            mint=event['mint'];prior=shared.candidate('pump',mint)
-                            shared.observe('pump',mint,surface='pumpswap' if event['event_type']=='migration' or prior and prior['surface']=='pumpswap' else 'pump.fun',
-                                observed_at=event['market_time'],metadata=dict(source='solana_finalized_evidence_plane',
-                                    **{k:event[k] for k in ('creator','pool') if event.get(k)}))
+                            mint=event['mint']
                             if hasattr(self.history,'rolling'):
+                                # Reuse the already validated bounded metadata
+                                # fold. Reference publication previously bypassed
+                                # it and rewrote a popular mint for every trade.
+                                event_at=event['market_time']
+                                if mint not in pump_observations and len(pump_observations)==64:
+                                    shared.observe_pump_source_groups(pump_observations)
+                                    pump_observations.clear()
+                                group=pump_observations.setdefault(mint,dict(lower=event_at,upper=event_at,
+                                    migrated=False,deadline=None,metadata=dict(source='solana_finalized_evidence_plane')))
+                                group['lower']=min(group['lower'],event_at);group['upper']=max(group['upper'],event_at)
+                                group['migrated']|=event['event_type']=='migration'
+                                for key in ('creator','pool'):
+                                    if event.get(key):group['metadata'][key]=event[key]
                                 shared.append_reference('pump',mint,r,path=self.writer.path,
                                     identity='pump-source:'+r['identity'],kind='pump_'+event['event_type'],
                                     payload_fields=dict(_economic_order=r['transaction_index'],available_time=int(body['available'])))
                             else:
+                                prior=shared.candidate('pump',mint)
+                                shared.observe('pump',mint,surface='pumpswap' if event['event_type']=='migration' or prior and prior['surface']=='pumpswap' else 'pump.fun',
+                                    observed_at=event['market_time'],metadata=dict(source='solana_finalized_evidence_plane',
+                                        **{k:event[k] for k in ('creator','pool') if event.get(k)}))
                                 shared.retain_pump_source_history([dict(identity=r['identity'],slot=r['slot'],
                                     transaction_index=r['transaction_index'],event_index=r['event_index'],market_time=r['market_time'],event=event)])
                         elif family=='pumpswap':
@@ -278,6 +299,7 @@ class CandidateLifecycle:
                     with shared.transaction():
                         shared.db.execute('INSERT OR IGNORE INTO source_receipts VALUES(?,?,?,?,?,?,?)',
                             (identity,family,address,kind,at,receipt_raw,hashlib.sha256(receipt_raw.encode()).hexdigest()))
+                shared.observe_pump_source_groups(pump_observations)
             # Coverage/ACK may advance only after the external FULL commit.
             # Failure here replays the identical receipt batch idempotently.
             with self.writer.transaction():
@@ -388,17 +410,30 @@ class CandidateLifecycle:
         """Proofs become visible only after all source receipts are durable."""
         if self.db.in_transaction:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')
         self.flush()
+        # A source turn must yield to ingestion and mandatory maintenance. Match
+        # the existing 64-row external-receipt batch, without deleting or ACKing
+        # any deferred proof. A fixed cycle horizon ensures new arrivals cannot
+        # postpone blocked earlier proofs indefinitely. Restart simply revisits
+        # the durable pending rows; this cursor has no evidence authority.
+        cursor=getattr(self,'_proof_publication_cursor',None)
+        horizon=getattr(self,'_proof_publication_horizon',None)
         with closing(CandidateHistory(self.path,clock=self.clock,write_wait_seconds=0)) as shared, self.writer.transaction():
+            if horizon is None:
+                horizon=self.db.execute('SELECT lo,hi,rowid FROM candidate_pending_proofs WHERE '+
+                    active_scope_sql('scope')+' ORDER BY lo DESC,hi DESC,rowid DESC LIMIT 1').fetchone()
+            after='' if cursor is None else ' AND (lo,hi,rowid)>(?,?,?)'
             proofs=self.db.execute(
-                'SELECT * FROM candidate_pending_proofs WHERE '+active_scope_sql('scope')+' ORDER BY lo,hi').fetchall()
+                'SELECT rowid,* FROM candidate_pending_proofs WHERE '+active_scope_sql('scope')+
+                ' AND (lo,hi,rowid)<=(?,?,?)'+after+' ORDER BY lo,hi,rowid LIMIT 64',
+                (*(horizon or (-1,-1,-1)),*(cursor or ()))).fetchall()
             # Pump's published intervals use the existing owner turn.
             # Keep external receipts durable before the canonical writer commits,
             # without a FULL fsync for every individual coverage/readiness fact.
             # Group fanout retains its independent interleaved writer behavior.
             from contextlib import nullcontext
-            batch=bool(proofs) and all(row[1].split(':',2)[1] in ('pump','pumpswap') for row in proofs)
+            batch=bool(proofs) and all(row[2].split(':',2)[1] in ('pump','pumpswap') for row in proofs)
             with shared.transaction() if batch else nullcontext():
-                for identity,scope,lo,hi,source,endpoint,raw,at in proofs:
+                for rowid,identity,scope,lo,hi,source,endpoint,raw,at in proofs:
                     family,address=scope.split(':',2)[1:]
                     if self.unconsumed(scope,through=hi):continue
                     proof=IntervalProof(scope,lo,hi,source,endpoint,json.loads(raw),at)
@@ -439,6 +474,12 @@ class CandidateLifecycle:
                     unresolved=self.db.execute('SELECT 1 FROM candidate_gaps WHERE scope=? AND repaired IS NULL AND lo<=? LIMIT 1',(scope,hi)).fetchone()
                     if not unresolved and (old is None or lo<=old[0]+1):self.checkpoint(scope,hi,identity)
                     self.db.execute('DELETE FROM candidate_pending_proofs WHERE id=?',(identity,))
+        # Both original commit fences have completed. Never skip failed work or
+        # advance the round-robin cursor after a busy/failed canonical commit.
+        last=None if not proofs else (proofs[-1][3],proofs[-1][4],proofs[-1][0])
+        finished=len(proofs)<64 or last==horizon
+        self._proof_publication_cursor=None if finished else last
+        self._proof_publication_horizon=None if finished else horizon
 
     def refresh(self):
         """Finish observation leases after native work; keep identities recoverable."""
