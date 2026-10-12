@@ -688,7 +688,7 @@ def _header_search(rpc,current_block,current_at,target_at,cache):
         if not missing:return
         calls=[('eth_getBlockByNumber',[hex(n),False]) for n in missing]
         batch=getattr(rpc,'batch',None)
-        values=(batch(calls,'pons_selective_trajectory') if callable(batch) else
+        values=(batch(calls,scope='pons_selective_trajectory') if callable(batch) else
                 [rpc.call(m,p,scope='pons_selective_trajectory') for m,p in calls])
         if not isinstance(values,(list,tuple)) or len(values)!=len(missing):
             raise BoundaryError('trajectory_history_incomplete')
@@ -1383,7 +1383,8 @@ def evaluate_candidate(
             vector['volume_quality']=vq.from_events(market,lower=cover.get('from_time',asof),
                 through=asof,now=time.time(),observed_at=available,asset='ROBINHOOD_NATIVE',
                 authoritative=cover.get('complete') is True and cover.get('through_time')==asof,
-                excluded={str(g).lower() for g in creator_groups if g})
+                excluded={str(g).lower() for g in creator_groups if g},
+                progress=dict(stage='bonding_curve',curve_progress_bps=vector.get('progress_bps')))
         except (ValueError,KeyError,TypeError,ArithmeticError) as error:
             vector['volume_quality']=vq.neutral_failure(error,at=asof,asset='ROBINHOOD_NATIVE')
     ctx.timing["first_transport_delay_seconds"]=(None if ctx.timing.get("first_transport_monotonic") is None

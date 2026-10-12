@@ -26,6 +26,9 @@ diagnostic context. These are attention classifications, not new economic vetoes
 or manipulation verdicts. No statistical probability or profit claim is made.
 Zero historical volume has no infinite ratio; unknown history has no zero rate.
 Native quote units remain distinct; no unsupported USD comparison is computed.
+The component explanation carries the existing canonical curve progress for
+bonding-curve candidates or the verified postgraduation phase. This context
+does not add another demand score or infer an unavailable progress interval.
 
 One classification supplies one attention rank, avoiding repeated scoring of the
 same net-demand fact. Current work remains EDF: only exact priority/deadline peers

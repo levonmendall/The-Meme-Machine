@@ -50,6 +50,18 @@ class VolumeQualityTests(unittest.TestCase):
         self.assertEqual(value['classification'],'VOLUME_ONLY_ACCELERATION')
         self.assertEqual(value['rank'],0)
 
+    def test_market_context_does_not_create_another_demand_score(self):
+        baseline=self.signal(accelerating())
+        context=dict(stage='bonding_curve',curve_progress_bps=6500)
+        value=self.signal(accelerating(),progress=context)
+        self.assertEqual(value['progress_context'],context)
+        self.assertEqual(value['rank'],baseline['rank'])
+        self.assertEqual(value['windows'],baseline['windows'])
+        # Native quote units remain explicit through each market transition.
+        survivor=self.signal(accelerating(),progress=dict(stage='postgraduation'))
+        self.assertEqual(survivor['quote_asset'],'SOL')
+        self.assertEqual(survivor['progress_context']['stage'],'postgraduation')
+
     def test_creator_flow_is_counted_gross_but_not_independent(self):
         rows=accelerating()+[event('creator',95,'creator',1000)]
         value=self.signal(rows,excluded=('creator',))

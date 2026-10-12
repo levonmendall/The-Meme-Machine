@@ -160,7 +160,7 @@ class History:
         if 'volume_quality_excluded' not in row:return vq.unavailable('related_identity_pending')
         try:
             return vq.signal(row.get('volume_quality_state'),now=now,observed_at=now,
-                excluded=row['volume_quality_excluded'])
+                excluded=row['volume_quality_excluded'],progress=dict(stage='postgraduation'))
         except (ValueError,KeyError,TypeError,ArithmeticError) as error:
             return vq.neutral_failure(error,at=row['through'],asset=getattr(self,'volume_quote_asset',None))
 

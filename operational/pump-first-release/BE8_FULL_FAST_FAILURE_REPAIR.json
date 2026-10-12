@@ -1,0 +1,16 @@
+{
+  "source": "be8dc03434ada013f014760b5ba6f71336e56924",
+  "at": 1791766043.0241547,
+  "status": "INTERRUPTED_ALREADY_FAILING_SUITE",
+  "known_failed_cases": [
+    "test_advancing_final_requalification_acquires_only_each_new_block_delta (tests.test_pons_current_scaling_history.CurrentScalingHistoryTests.test_advancing_final_requalification_acquires_only_each_new_block_delta) ... ERROR",
+    "test_same_evidence_has_identical_native_qualification_without_full_window_repurchase (tests.test_pons_current_scaling_history.CurrentScalingHistoryTests.test_same_evidence_has_identical_native_qualification_without_full_window_repurchase) ... ERROR",
+    "test_native_overlapping_v4_acquisition_preserves_all_economics_and_measures_savings (tests.test_continuation_resource_efficiency.LongHoldHistoryTests.test_native_overlapping_v4_acquisition_preserves_all_economics_and_measures_savings) ... ERROR"
+  ],
+  "focused_cause": "keyword-only native Tape.batch scope interface",
+  "repair_verified_cases_log": "/tmp/vq-header-compat-focused.log",
+  "overlap_repair_log": "/tmp/pons-header-overlap-focused.log",
+  "full_pass": false,
+  "log": "/tmp/continuous-volume-quality-full-fast.log",
+  "reason": "Preserve failed evidence and finish the focused causal correction before further authenticated dispatch; source under this run stays immutable"
+}

@@ -254,14 +254,15 @@ def _confirmation_meta(value):
         volume_quality=value.get('volume_quality'),
     )
 
-def _volume_quality_attention(events,now,confirmation,*,complete,seconds=60):
+def _volume_quality_attention(events,now,confirmation,*,complete,seconds=60,progress=None):
     from meme_machine.runtime import volume_quality as vq
     if not vq.enabled():return None
     if not complete:return vq.unavailable('canonical_interval_incomplete',at=now,asset='SOL')
     try:
         return vq.from_events(events,lower=now-seconds,through=now,now=time.time(),
             observed_at=time.time(),asset='SOL',authoritative=complete,
-            cluster_map=confirmation['cluster_map'],excluded=confirmation['excluded_clusters'])
+            cluster_map=confirmation['cluster_map'],excluded=confirmation['excluded_clusters'],
+            progress=progress)
     except (ValueError,KeyError,TypeError,ArithmeticError) as error:
         return vq.neutral_failure(error,at=now,asset='SOL')
 
@@ -323,7 +324,8 @@ def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
     creator=str(creation.get("creator") or curve.creator)
     confirmation=confirmation_book.signal_inputs(
         events,now,creator,snapshot["mint"])
-    confirmation['volume_quality']=_volume_quality_attention(events,now,confirmation,complete=True)
+    confirmation['volume_quality']=_volume_quality_attention(events,now,confirmation,complete=True,
+        progress=dict(stage='bonding_curve',curve_progress_bps=trajectory['curve_progress_bps']))
     flow=flow_metrics(
         events,now,cluster_map=confirmation["cluster_map"],
         excluded_clusters=confirmation["excluded_clusters"])
@@ -519,7 +521,8 @@ def _volume_price_signal(state,snapshot,events,mode,concentration,confirmation_b
     creator=str((state.get("creation") or {}).get("creator") or snapshot.get("creator") or "")
     confirmation=confirmation_book.signal_inputs(
         events,now,creator,snapshot["mint"])
-    confirmation['volume_quality']=_volume_quality_attention(events,now,confirmation,complete=True,seconds=30)
+    confirmation['volume_quality']=_volume_quality_attention(events,now,confirmation,complete=True,seconds=30,
+        progress=dict(stage='postgraduation',mode=mode))
     flow=flow_metrics(
         events,now,cluster_map=confirmation["cluster_map"],
         excluded_clusters=confirmation["excluded_clusters"])
@@ -1507,7 +1510,8 @@ def main(*,campaign=False,discovery_seconds=None):
                         prospect,prospect_trajectory,prospect_confirmation=_late_stream_signal(
                             creation,stream_events,event,confirmations)
                         prospect_confirmation['volume_quality']=_volume_quality_attention(
-                            stream_events,stream_time,prospect_confirmation,complete=True)
+                            stream_events,stream_time,prospect_confirmation,complete=True,
+                            progress=dict(stage='bonding_curve',curve_progress_bps=progress))
                         state['volume_quality']=prospect_confirmation.get('volume_quality')
                         if CANDIDATE_HISTORY is not None and state['volume_quality'] is not None:
                             CANDIDATE_HISTORY.volume_quality('pump',mint,state['volume_quality'])

@@ -25,6 +25,24 @@
       "passed": 2,
       "seconds": 0.13,
       "sha256": "0a7bc1d16d98ad92cfbd86a8b672e6840b33873d04666089ec61ba8024cab58c"
+    },
+    {
+      "log": "/tmp/vq-header-compat-focused.log",
+      "passed": 33,
+      "seconds": 9.476,
+      "sha256": "dc950ddaeb423e2917023f77afed3b86b55c48394e1d527541660746d08dab09"
+    },
+    {
+      "log": "/tmp/pons-header-overlap-focused.log",
+      "passed": 1,
+      "seconds": 3.759,
+      "sha256": "eec1aee5c8dad5068b69214d44e4b033eaf5b4791f37d1de65f23eb31cd826e3"
+    },
+    {
+      "log": "/tmp/vq-context-all-four-enabled.log",
+      "passed": 189,
+      "seconds": 36.641,
+      "sha256": "f4ac4a139fbbc2f3ed5457002268056dd84186ff66ddf01e34a6d775567eb4d5"
     }
   ],
   "unchanged_approved_economic_source_sha256": {
@@ -59,5 +77,6 @@
   },
   "research_resumed": false,
   "epoch_reinitialized": false,
-  "capital_policy_changed": false
+  "capital_policy_changed": false,
+  "market_context": "Existing canonical curve progress or verified postgraduation phase; explanatory only, no second demand score"
 }

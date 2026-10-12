@@ -149,7 +149,7 @@ def signal(state,*,now,observed_at,windows=SURVIVOR_WINDOWS,excluded=(),
 
 
 def from_events(events,*,lower,through,now,observed_at,asset,authoritative,
-                cluster_map=None,excluded=(),windows=CURRENT_WINDOWS):
+                cluster_map=None,excluded=(),windows=CURRENT_WINDOWS,progress=None):
     """Reduce an already loaded, complete native window; no history/provider read."""
     normalized=[];seen={}
     for row in events:
@@ -169,7 +169,8 @@ def from_events(events,*,lower,through,now,observed_at,asset,authoritative,
         normalized.append(dict(at=at,quote=amount,group=group,buy=buy,authenticated=authoritative))
     state=advance(None,normalized,lower=lower,through=through,complete=authoritative,
                   asset=asset,authoritative=authoritative)
-    return signal(state,now=now,observed_at=observed_at,windows=windows,excluded=excluded)
+    return signal(state,now=now,observed_at=observed_at,windows=windows,excluded=excluded,
+                  progress=progress)
 
 
 def attention(value,now):
