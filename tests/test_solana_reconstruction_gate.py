@@ -321,7 +321,10 @@ class ReconstructionGateTests(unittest.TestCase):
                               command=lambda **args:acknowledgements.append(args))
         tape=LocalPumpTape(plane)
         with patch.dict(os.environ,MM_SOLANA_CANDIDATE_HISTORY_DB=str(self.path)):
-            tape.events_since(0)
+            from meme_machine.lanes.pump import solana_evidence_runtime as native_runtime
+            with patch.object(native_runtime,'decode_body',wraps=native_runtime.decode_body) as decode:
+                tape.events_since(0)
+                self.assertEqual(decode.call_count,len(records))
             self.assertEqual(len(acknowledgements),1)
             self.assertEqual(len(self.h.events('pump','mint')),3)
             self.h.close();self.h=CandidateHistory(self.path,clock=lambda:100.)

@@ -1,0 +1,76 @@
+{
+  "predecessor": "a1447577960d9e793eed0f3b8a1653981c081139",
+  "profile_files": [
+    "/tmp/owner-repair-steady-source.raw",
+    "/tmp/owner-repair-steady-pump.raw",
+    "/tmp/owner-repair-steady-pons.raw"
+  ],
+  "diagnosis": [
+    "Pump discovery decoded the same rich economic body twice in one read transaction",
+    "Pending history keyset queries traversed resolved/deadline-missed rows",
+    "Pons audit maintenance scanned 4096 entries when the whole ring still contained exactly 4096 rows"
+  ],
+  "actual_retained_queries": {
+    "boundary_pending": {
+      "seconds": 0.02546191297005862,
+      "vm_lower": 95700,
+      "expired_rows": 12020,
+      "resolved_rows": 1421,
+      "pending_rows": 11
+    },
+    "publication_pending": {
+      "seconds": 0.002917069010436535,
+      "vm_lower": 15400,
+      "expired_rows": 1694,
+      "resolved_rows": 495,
+      "pending_rows": 5
+    }
+  },
+  "actual_pons_rings": {
+    "observations": {
+      "first_rowid": 6070,
+      "last_rowid": 10165,
+      "rows": 4096
+    },
+    "transitions": {
+      "first_seq": 14586,
+      "last_seq": 18681,
+      "rows": 4096
+    }
+  },
+  "repairs": [
+    "Reuse already decoded bodies only inside the same canonical snapshot",
+    "Add partial pending indexes without changing selection, cursor fairness or deadlines",
+    "Prove a whole-table row-count upper bound from unique integer rowid endpoints; otherwise preserve the original exact pruning path"
+  ],
+  "tests": {
+    "FAST_consumer": {
+      "tests": 10,
+      "seconds": 2.738,
+      "result": "PASS",
+      "log": "/tmp/steady-processing-fast.log"
+    },
+    "FAST_pending": {
+      "tests": 1,
+      "seconds": 0.39,
+      "result": "PASS",
+      "log": "/tmp/steady-processing-pending-fast.log"
+    },
+    "FAST_reconstruction": {
+      "tests": 17,
+      "seconds": 11.773,
+      "result": "PASS",
+      "log": "/tmp/consumer-processing-fast.log"
+    },
+    "OPERATIONAL": {
+      "tests": 23,
+      "skipped": 1,
+      "seconds": 12.216,
+      "result": "PASS",
+      "log": "/tmp/steady-processing-operational.log"
+    }
+  },
+  "strategies_capital_buffers_deadlines_changed": false,
+  "additional_provider_transports": 0,
+  "authenticated_equivalence": "AWAITING_SUSTAINED_RUN"
+}

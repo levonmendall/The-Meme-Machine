@@ -86,6 +86,25 @@ class ClosureTests(unittest.TestCase):
             self.assertEqual(self.h.db.execute("SELECT address FROM candidate_lifecycle WHERE family IN ('pump','pumpswap') AND state='reactivated' AND rowid>? ORDER BY rowid LIMIT ?",(0,4)).fetchall(),[('quiet-9999',)])
             self.assertLess(steps[0],1000)
         finally:self.h.db.set_progress_handler(None,0)
+
+    def test_pending_history_cursor_does_not_rescan_resolved_population(self):
+        with self.state.writer.transaction():
+            self.h.db.executemany('INSERT INTO rolling_boundary_waits VALUES(?,?,?,?,?,?,?,?)',
+                (('pump','old-'+str(n),100,101,NOW+150,3,NOW,'resolved') for n in range(10000)))
+            self.h.db.executemany('INSERT INTO rolling_publication_waits VALUES(?,?,?,?,?,?,?,?)',
+                (('pump','old-'+str(n),100,101,NOW+150,3,NOW,'resolved') for n in range(10000)))
+            for table in ('rolling_boundary_waits','rolling_publication_waits'):
+                self.h.db.execute("UPDATE "+table+" SET status='pending' WHERE address='old-9999'")
+        steps=[0];self.h.db.set_progress_handler(lambda:steps.__setitem__(0,steps[0]+1) or 0,1)
+        try:
+            for table in ('rolling_boundary_waits','rolling_publication_waits'):
+                selected=self.h.rolling.pending_slice(table,'family,address,deadline',limit=4,after=0)
+                self.assertEqual([(r[1],r[2],r[3]) for r in selected],[('pump','old-9999',NOW+150)])
+                # A completed keyset wraps fairly without losing the original
+                # pending obligation or extending its absolute deadline.
+                self.assertEqual(self.h.rolling.pending_slice(table,'family,address,deadline',limit=4,after=selected[0][0]),selected)
+            self.assertLess(steps[0],1000)
+        finally:self.h.db.set_progress_handler(None,0)
     def seed(self,family,address,slot=100):
         self.h.observe(family,address,slot=slot,signature='',seen=self.now[0],fields=dict(wsol_pair_locator=True,activity=False))
         self.h.bind(family,address);self.drain()

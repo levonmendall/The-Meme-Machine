@@ -12,6 +12,32 @@ from meme_machine.portfolio_accounting import PortfolioAccounting,LANES,inceptio
 
 
 class StorageBounds(unittest.TestCase):
+    def test_idle_integer_audit_bounds_are_constant_work_and_preserve_all_filtered_rows(self):
+        with closing(sqlite3.connect(':memory:')) as db:
+            db.execute('CREATE TABLE audit(seq INTEGER PRIMARY KEY,active INTEGER)')
+            db.executemany('INSERT INTO audit VALUES(?,?)',[(n,n%2) for n in range(1,4097)])
+            steps=[0];db.set_progress_handler(lambda:steps.__setitem__(0,steps[0]+1) or 0,1)
+            try:audit_ring(db,'audit','absent_guard',where='active=1')
+            finally:db.set_progress_handler(None,0)
+            self.assertLess(steps[0],1000)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM audit').fetchone()[0],4096)
+            db.execute('INSERT INTO audit VALUES(4097,1)')
+            audit_ring(db,'audit','absent_guard',limit=8,where='active=1')
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM audit WHERE active=1').fetchone()[0],8)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM audit WHERE active=0').fetchone()[0],2048)
+
+    def test_audit_nonunique_and_without_rowid_keys_keep_exact_original_retention(self):
+        for schema in ('CREATE TABLE audit(seq INTEGER,body INTEGER)',
+                'CREATE TABLE audit(seq INTEGER PRIMARY KEY,body INTEGER) WITHOUT ROWID'):
+            with closing(sqlite3.connect(':memory:')) as db:
+                db.execute(schema)
+                values=[(1+i/10000,i) for i in range(10000)]
+                if 'WITHOUT' not in schema:values=[(n//5000,n) for n in range(10000)]
+                db.executemany('INSERT INTO audit VALUES(?,?)',values)
+                expected=db.execute('SELECT seq,body FROM audit WHERE seq IN (SELECT seq FROM audit ORDER BY seq DESC LIMIT 4096) ORDER BY body').fetchall()
+                audit_ring(db,'audit','absent_guard')
+                self.assertEqual(db.execute('SELECT seq,body FROM audit ORDER BY body').fetchall(),expected)
+
     def test_provider_audit_boundary_matches_original_retained_set_and_paused_rows(self):
         with closing(sqlite3.connect(':memory:')) as db:
             db.executescript("CREATE TABLE audit(seq INTEGER PRIMARY KEY,active INTEGER,body TEXT);CREATE TRIGGER audit_guard BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT,'append_only');END;")

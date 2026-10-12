@@ -25,6 +25,20 @@ def _audit_ring(db,table,trigger,*,limit,key,where):
     # set on every provider event repeatedly scans the entire hot audit ring.
     # All reads and pruning still run in the caller's serialized transaction.
     if type(limit) is not int or limit<1:raise ValueError('audit_retention_limit')
+    # A unique integer rowid range bounds the whole table's population, hence
+    # every filtered subset too. Most idle maintenance calls have no excess
+    # rows: two endpoint seeks can prove that without walking 4,096 entries.
+    # Non-rowid/nonunique keys retain the original exact boundary calculation.
+    columns=db.execute('PRAGMA table_info('+table+')').fetchall()
+    primary=[r for r in columns if r[5]]
+    rowid=(key in ('rowid','_rowid_','oid') and key not in {r[1] for r in columns})
+    if not rowid and len(primary)==1 and primary[0][1]==key and primary[0][2].upper()=='INTEGER':
+        rowid=not any(r[3]=='pk' for r in db.execute('PRAGMA index_list('+table+')'))
+    if rowid:
+        low=db.execute('SELECT '+key+' FROM '+table+' ORDER BY '+key+' LIMIT 1').fetchone()
+        high=db.execute('SELECT '+key+' FROM '+table+' ORDER BY '+key+' DESC LIMIT 1').fetchone()
+        if low is None:return
+        if type(low[0]) is int and type(high[0]) is int and high[0]-low[0]+1<=limit:return
     boundary=db.execute('SELECT '+key+' FROM '+table+' WHERE '+where+
         ' ORDER BY '+key+' DESC LIMIT 1 OFFSET ?',(limit-1,)).fetchone()
     if boundary is None or boundary[0] is None:return

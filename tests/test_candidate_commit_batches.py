@@ -47,6 +47,29 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
             'candidate_pending_proofs','candidate_coverage','candidate_history_outbox')
         return {t:h.db.execute('SELECT * FROM '+t+' ORDER BY rowid').fetchall() for t in tables}
 
+    async def test_selective_consumer_decodes_each_snapshot_body_once_and_keeps_all_history(self):
+        from meme_machine import solana_selective_runtime as consumer
+        from meme_machine.solana_evidence_plane import canonical
+        rows=[]
+        for n,kind in enumerate(('create','trade','migration')):
+            event=dict(event_type=kind,mint='mint',market_time=int(NOW),index=0)
+            body=dict(identity=str(n),scope='program:pump',slot=100,signature='sig'+str(n),
+                transaction_index=n,event_index=0,market_time=int(NOW),payload=dict(event=event))
+            rows.append((n+1,canonical(body),100,str(n),'sig'+str(n),n,0,int(NOW),NOW))
+        reader=SimpleNamespace(db=self.h.db,discovery=lambda *a,**k:rows)
+        tape=SimpleNamespace(plane=SimpleNamespace(_selective_reader=lambda:reader,clock=lambda:NOW))
+        # This test supplies one already selected canonical snapshot. Startup
+        # release and durable-history failure guards have independent coverage.
+        with patch('meme_machine.solana_prewarm_startup.require_released'),patch(
+                'meme_machine.runtime.candidate_history.open_candidate_history',return_value=None),patch.object(
+                consumer,'decode_body',wraps=consumer.decode_body) as decode:
+            events,cursor=consumer.consume_pump_discovery(tape,0)
+        self.assertEqual(decode.call_count,3);self.assertEqual(cursor,3)
+        self.assertEqual([e['event_type'] for e in events],['trade'])
+        self.assertEqual([r['event']['event_type'] for r in tape.candidate_history_rows],['create','trade','migration'])
+        self.assertEqual([r['event']['_economic_order'] for r in tape.candidate_history_rows],[0,1,2])
+        self.assertTrue(all(r['event']['available_time']==int(NOW) for r in tape.candidate_history_rows))
+
     async def test_delayed_control_commit_does_not_regress_liveness_or_refresh_evidence(self):
         from meme_machine.solana_evidence_plane import EvidenceReader
         from meme_machine.solana_evidence_health import evidence_health

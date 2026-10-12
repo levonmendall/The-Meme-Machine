@@ -26,10 +26,14 @@ CREATE TABLE IF NOT EXISTS rolling_boundary_waits(
  family TEXT NOT NULL,address TEXT NOT NULL,observed_slot INTEGER NOT NULL,
  upper_slot INTEGER NOT NULL,deadline REAL NOT NULL,priority INTEGER NOT NULL,
  created REAL NOT NULL,status TEXT NOT NULL,PRIMARY KEY(family,address));
+CREATE INDEX IF NOT EXISTS rolling_boundary_pending_cursor ON rolling_boundary_waits(status)
+ WHERE status='pending';
 CREATE TABLE IF NOT EXISTS rolling_publication_waits(
  family TEXT NOT NULL,address TEXT NOT NULL,lo INTEGER NOT NULL,hi INTEGER NOT NULL,
  deadline REAL NOT NULL,priority INTEGER NOT NULL,created REAL NOT NULL,status TEXT NOT NULL,
  PRIMARY KEY(family,address,lo,hi));
+CREATE INDEX IF NOT EXISTS rolling_publication_pending_cursor ON rolling_publication_waits(status)
+ WHERE status='pending';
 CREATE TABLE IF NOT EXISTS rolling_group_members(
  scope TEXT NOT NULL,family TEXT NOT NULL,address TEXT NOT NULL,lower_slot INTEGER NOT NULL,
  PRIMARY KEY(scope,family,address));

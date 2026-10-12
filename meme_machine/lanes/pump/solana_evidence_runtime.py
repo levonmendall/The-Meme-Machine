@@ -292,9 +292,9 @@ class LocalPumpTape:
             except ValueError as exc:raise EvidenceUnavailable(str(exc)) from exc
             economic_orders={row['identity']:order for row,order in ordered}
             events=[];history_rows=[]
-            for seq,raw,slot,identity,signature,transaction_index,event_index,market_time,first_seen in rows:
+            for (seq,raw,slot,identity,signature,transaction_index,event_index,market_time,first_seen),record in zip(rows,source_records,strict=True):
                 if raw is None:raise EvidenceUnavailable('pump_consumer_backlog_archived')
-                event=dict(decode_body(raw,db)['payload']['event'])
+                event=dict(record['payload']['event'])
                 event['_economic_order']=economic_orders[identity]
                 event['available_time']=int(first_seen)
                 history_rows.append(dict(

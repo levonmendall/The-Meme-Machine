@@ -88,8 +88,10 @@ def consume_pump_discovery(tape,sequence):
         ordered=order_economic_records(material,db,FAMILIES['pump']);orders={r['identity']:i for r,i in ordered}
         native={r['identity']:r['transaction_index'] for r in material}
         events=[];history_rows=[]
-        for seq,raw,slot,identity,sig,index,event_index,market_time,available in rows:
-            event=dict(decode_body(raw,db)['payload']['event'],_economic_order=orders[identity],available_time=int(available))
+        for (seq,raw,slot,identity,sig,index,event_index,market_time,available),record in zip(rows,material,strict=True):
+            # These exact bodies were decoded and ordered above in this same
+            # canonical read transaction. Do not expand rich lineage twice.
+            event=dict(record['payload']['event'],_economic_order=orders[identity],available_time=int(available))
             history_rows.append(dict(identity=identity,signature=sig,slot=slot,
                 transaction_index=native[identity],
                 event_index=event_index,market_time=market_time,event=event))
