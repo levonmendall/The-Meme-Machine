@@ -16,6 +16,35 @@ BASE='ed7b3c6616c59bfce21e96097d175ed3212214c2'
 
 
 class GovernorConnectionTests(unittest.TestCase):
+    def test_candidate_usd_sizing_keeps_qualification_priority_and_position_precedence(self):
+        from meme_machine.lanes.pons import pons_selective_cohort as module
+        from meme_machine.lanes.pons.provider_admission import priority,position_work
+        calls=[]
+        def sizing():
+            calls.append(('sizing',priority('position_monitor'),priority('universe_cost_route')))
+            return 100
+        def qualify(*args,**kwargs):
+            calls.append(('qualify',priority('position_monitor'),priority('universe_cost_route')))
+            self.assertEqual(kwargs['strategy_capital_quote'],100)
+            return 'unchanged-native-result'
+        with patch.object(module,'_current_pons_realized_equity',sizing),patch.object(module,'evaluate_candidate',qualify):
+            self.assertEqual(module._evaluate_current_candidate(),'unchanged-native-result')
+            self.assertEqual(calls,[('sizing',30,30),('qualify',30,30)])
+            calls.clear()
+            self.assertEqual(position_work(module._evaluate_current_candidate)(),'unchanged-native-result')
+            self.assertEqual(calls,[('sizing',0,0),('qualify',0,0)])
+        self.assertEqual(priority('universe_cost_route'),50)
+
+    def test_candidate_usd_failure_preserves_original_refusal_and_clears_priority(self):
+        from meme_machine.lanes.pons import pons_selective_cohort as module
+        from meme_machine.lanes.pons.provider_admission import priority
+        from meme_machine.runtime.usd_valuation import ValuationUnavailable
+        with patch.object(module,'_current_pons_realized_equity',side_effect=ValuationUnavailable('native_USD_value_missing_or_stale')),patch.object(module,'evaluate_candidate') as qualify:
+            with self.assertRaisesRegex(BoundaryError,'native_USD_value_missing_or_stale'):
+                module._evaluate_current_candidate()
+            qualify.assert_not_called()
+        self.assertEqual(priority('universe_cost_route'),50)
+
     def governor(self,path):
         governor=Admission.__new__(Admission);governor.path=path
         return governor

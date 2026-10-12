@@ -49,6 +49,13 @@ CONTROL_OVERLAP=256
 CONTROL_CURRENT_SECONDS=15 # Same market-time bound as normal Pump readiness.
 WARM_OVERLAP=32
 
+def native_commit_priority(desired):
+    # Current program continuity is foreground work, below held positions and
+    # reservations. Archive/retirement FIFO must not make the live frontier
+    # wait behind every historical slice. Keep inactive-family scheduling.
+    if any(row['priority']<=1 for row in desired):return 0
+    return 1 if any(row['family'] in ('pump','pumpswap') for row in desired) else 2
+
 def rolling_replay_boundary(state,desired,tip):
     """Fresh prospective program census; retain exact old history obligations.
 
@@ -563,7 +570,7 @@ class SelectiveSource:
                     timing['publication_finished_monotonic']=time.monotonic()
                     timing['publication_finished_wall']=time.time()
                     return h.startup.advance()
-                await self.work(publish,2,label='source_commit')
+                await self.work(publish,1,label='source_commit')
                 del self.pending_diagnostics[:len(diagnostics)]
                 self.observe('publication_timing',work_ready_monotonic=ready,
                     work_returned_monotonic=time.monotonic(),**timing)
@@ -587,7 +594,7 @@ class SelectiveSource:
                 # a socket, raw slot notification or submitted command is not it.
                 return state.writer.db.execute('''SELECT slot,market_time FROM stream_receipts
                     WHERE scope=? AND sealed=1 ORDER BY slot DESC LIMIT 1''',(CONTROL,)).fetchone()
-            receipt=await self.work(commit,2,label='source_commit')
+            receipt=await self.work(commit,1,label='source_commit')
             if receipt is not None:
                 self.control_committed_slot,self.control_committed_market_time=receipt
             for _ in batch:queue.task_done()
@@ -1336,7 +1343,7 @@ class SelectiveSource:
                             raise
         tasks=[asyncio.create_task(self.candidate_commits(candidate_queue,addresses,session,
             rolling=rolling,grouped=all(r['family']=='meteora' and r['priority']>1 for r in desired),
-            priority=0 if any(r['priority']<=1 for r in desired) else 2))];waiter=None
+            priority=native_commit_priority(desired)))];waiter=None
         if len(full)<len(desired):tasks.append(asyncio.create_task(logs()))
         else:acknowledged.set()
         try:

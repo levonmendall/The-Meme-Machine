@@ -8,6 +8,7 @@ qualification is durable before any funding outcome is recorded.
 from __future__ import annotations
 
 from contextlib import contextmanager
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -299,7 +300,7 @@ class CandidateHistory:
             # retain their original immutable deadlines independently.
             body=dict(lane=lane,candidate=candidate,surface=surface,first_observed=first,
                       last_observed=last,decision_deadline=deadline,metadata=metadata)
-            encoded=canonical(body);checksum=digest(body)
+            encoded=canonical(body);checksum=hashlib.sha256(encoded.encode()).hexdigest()
             self.db.execute("""INSERT OR REPLACE INTO candidates
                 (lane,candidate,surface,first_observed,last_observed,decision_deadline,body,hash)
                 VALUES(?,?,?,?,?,?,?,?)""",
@@ -353,7 +354,7 @@ class CandidateHistory:
         body=dict(lane=lane,candidate=candidate,identity=identity,slot=slot,
                   transaction_index=transaction_index,event_index=event_index,
                   market_time=market_time,kind=kind,payload=payload)
-        encoded=canonical(body);checksum=digest(body)
+        encoded=canonical(body);checksum=hashlib.sha256(encoded.encode()).hexdigest()
         with self.transaction():
             ref=self.db.execute('SELECT body,hash FROM canonical_event_refs WHERE lane=? AND candidate=? AND identity=?',(lane,candidate,identity)).fetchone()
             if ref:
@@ -432,20 +433,37 @@ class CandidateHistory:
             # one bounded batch, while nested per-fact validation still rolls
             # back the entire failed batch and the caller keeps its cursor.
             with self.transaction():
+                prepared=[];observations={}
                 for record in batch:
                     event=dict(record.get('event') or {})
                     mint=str(event.get('mint') or '')
                     if not mint:continue
                     at=int(event.get('market_time') or record['market_time'])
-                    prior=self.candidate('pump',mint)
                     kind=str(event.get('event_type') or 'economic')
-                    promoted=kind=='migration' or (prior is not None and prior['surface']=='pumpswap')
                     deadline=(at+graduation_horizon if kind=='migration' and graduation_horizon is not None else None)
-                    metadata=dict(source='solana_finalized_evidence_plane')
+                    group=observations.setdefault(mint,dict(lower=at,upper=at,
+                        migrated=False,deadline=None,metadata=dict(source='solana_finalized_evidence_plane')))
+                    group['lower']=min(group['lower'],at);group['upper']=max(group['upper'],at)
+                    group['migrated']|=kind=='migration'
+                    if deadline is not None:group['deadline']=deadline
                     for key in ('creator','pool'):
-                        if event.get(key):metadata[key]=str(event[key])
-                    self.observe('pump',mint,surface='pumpswap' if promoted else 'pump.fun',
-                        observed_at=at,decision_deadline=deadline,metadata=metadata)
+                        if event.get(key):group['metadata'][key]=str(event[key])
+                    prepared.append((record,event,mint,at,kind))
+                # No reader can see intermediate observations within this same
+                # bounded FULL transaction. Preserve the exact min/max times,
+                # last supplied deadline, metadata merge and migration surface,
+                # without rereading/serializing a popular mint on every trade.
+                for mint,group in observations.items():
+                    prior=self.candidate('pump',mint)
+                    promoted=group['migrated'] or (prior is not None and prior['surface']=='pumpswap')
+                    surface='pumpswap' if promoted else 'pump.fun'
+                    self.observe('pump',mint,surface=surface,observed_at=group['lower'],
+                        decision_deadline=group['deadline'],metadata=group['metadata'])
+                    if group['upper']!=group['lower']:
+                        # A retained migration deadline may already precede a
+                        # later trade. None preserves it, exactly as before.
+                        self.observe('pump',mint,surface=surface,observed_at=group['upper'])
+                for record,event,mint,at,kind in prepared:
                     self.append_event('pump',mint,identity='pump-source:'+str(record['identity']),
                         slot=int(record['slot']),transaction_index=record.get('transaction_index'),
                         event_index=int(record['event_index']),market_time=at,

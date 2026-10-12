@@ -158,6 +158,45 @@ class CandidateHistoryTests(unittest.TestCase):
         self.assertEqual(self.history.retain_pump_source_history(rows),8)
         self.assertEqual(len(self.history.events('pump','batch-mint')),8)
 
+    def test_atomic_source_observations_match_original_sequential_history(self):
+        reference=CandidateHistory(Path(self.tmp.name)/'sequential.sqlite',clock=lambda:self.now[0])
+        self.addCleanup(reference.close)
+        for history in (reference,self.history):
+            history.observe('pump','batch-mint',surface='pump.fun',observed_at=900,
+                metadata=dict(volume_quality={'retained':True}))
+        rows=self.source_rows(64)
+        rows[1]['event'].update(event_type='migration',pool='pool-a',creator='é')
+        rows[-1]['event'].update(pool='pool-b')
+        # Late old delivery must preserve the first observation, even when a
+        # retained graduation deadline is earlier than a later trade.
+        rows[-2]['event']['market_time']=800
+        for row in rows:reference.retain_pump_source_history([row],graduation_horizon=1)
+        with patch.object(self.history,'observe',wraps=self.history.observe) as observe:
+            self.assertEqual(self.history.retain_pump_source_history(rows,graduation_horizon=1),64)
+            self.assertEqual(observe.call_count,2)
+        self.assertEqual(self.history.candidate('pump','batch-mint'),reference.candidate('pump','batch-mint'))
+        self.assertEqual(self.history.events('pump','batch-mint'),reference.events('pump','batch-mint'))
+        for table in ('candidates','events'):
+            self.assertEqual(self.history.db.execute('SELECT body,hash FROM '+table+' ORDER BY body').fetchall(),
+                reference.db.execute('SELECT body,hash FROM '+table+' ORDER BY body').fetchall())
+        self.assertEqual(self.history.candidate('pump','batch-mint')['decision_deadline'],1002)
+        self.history.retain_pump_source_history(rows,graduation_horizon=1)
+        self.assertEqual(self.history.events('pump','batch-mint'),reference.events('pump','batch-mint'))
+
+    def test_source_observation_coalescing_keeps_independent_candidates_and_corruption_guard(self):
+        rows=self.source_rows(8)
+        for index,row in enumerate(rows):row['event']['mint']='first' if index%2==0 else 'second'
+        with patch.object(self.history,'observe',wraps=self.history.observe) as observe:
+            self.assertEqual(self.history.retain_pump_source_history(rows),8)
+            self.assertEqual(observe.call_count,4)
+        self.assertEqual(len(self.history.events('pump','first')),4)
+        self.assertEqual(len(self.history.events('pump','second')),4)
+        before=self.history.events('pump','second')
+        self.history.db.execute("UPDATE candidates SET hash=? WHERE candidate='first'",('f'*64,))
+        with self.assertRaisesRegex(ValueError,'candidate_history_corruption'):
+            self.history.retain_pump_source_history(rows)
+        self.assertEqual(self.history.events('pump','second'),before)
+
     def test_current_reuses_only_matching_committed_tape_history_and_deadline_policy(self):
         from meme_machine.lanes.pump import runner
         rows=self.source_rows(1);rows[0]['event'].update(event_type='migration',pool='native-pool')

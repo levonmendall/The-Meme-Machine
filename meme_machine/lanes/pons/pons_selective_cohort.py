@@ -1400,6 +1400,7 @@ def run(endpoint,*,campaign=False):
 
 
 
+@decision_work(4)
 def _evaluate_current_candidate(*args,**kwargs):
     """Keep USD acquisition and refusal on the existing qualification worker.
 

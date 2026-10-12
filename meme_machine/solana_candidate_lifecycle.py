@@ -6,6 +6,7 @@ The cross-database outbox is committed in the canonical store first, consumed
 idempotently in CandidateHistory second, and checkpointed last.
 """
 from contextlib import closing
+import hashlib
 import json
 import os
 import sqlite3
@@ -87,14 +88,17 @@ class CandidateLifecycle:
     def emit(self,family,address,kind,body,*,at=None):
         require_active(family)
         at=self.clock() if at is None else at
-        identity=digest([family,address,kind,body])
+        # These are the exact original canonical bytes, including the entire
+        # economic record. Serialize once for its body, checksum and receipt ID.
+        raw=canonical(body)
+        identity=hashlib.sha256(('['+','.join(canonical(v) for v in (family,address,kind))+','+raw+']').encode()).hexdigest()
         priority=0 if kind=='canonical' else 1 if kind=='promotion' else 3
         if priority==3:
             active=self.db.execute("SELECT 1 FROM candidate_lifecycle WHERE family=? AND address=? AND state IN ('queued','warming','active')",(family,address)).fetchone()
             pinned=self.db.execute('SELECT 1 FROM service_interests s JOIN interests i ON i.owner=s.owner AND i.scope=s.scope WHERE i.active=1 AND s.address=? AND s.scope=? LIMIT 1',(address,FAMILIES[family])).fetchone()
             if active or pinned:priority=2
         self.db.execute('INSERT OR IGNORE INTO candidate_history_outbox(id,family,address,kind,body,hash,created,consumed,priority) VALUES(?,?,?,?,?,?,?,NULL,?)',
-            (identity,family,address,kind,canonical(body),digest(body),at,priority))
+            (identity,family,address,kind,raw,hashlib.sha256(raw.encode()).hexdigest(),at,priority))
         return identity
 
     def observe(self,family,address,*,slot,seen,fields,activity=False,signature=''):
@@ -205,10 +209,18 @@ class CandidateLifecycle:
             shared.db.execute('''CREATE TABLE IF NOT EXISTS source_receipts(
                 id TEXT PRIMARY KEY,family TEXT NOT NULL,address TEXT NOT NULL,kind TEXT NOT NULL,
                 at REAL NOT NULL,body TEXT NOT NULL,hash TEXT NOT NULL)''')
+            acknowledgements=[]
             with shared.transaction():
                 for identity,family,address,kind,raw,checksum,at in rows:
                     body=json.loads(raw)
                     if digest(body)!=checksum:raise EvidenceUnavailable('candidate_history_outbox_corrupt')
+                    compact_raw=compact_hash=None
+                    if kind=='canonical':
+                        compact=dict(source_hash=checksum,record=dict(identity=body['record']['identity'],
+                            slot=body['record']['slot']),available=body['available'])
+                        compact_raw=canonical(compact)
+                        compact_hash=hashlib.sha256(compact_raw.encode()).hexdigest()
+                    acknowledgements.append((identity,compact_raw,compact_hash))
                     lane='pump' if family in ('pump','pumpswap') else 'meteora'
                     bind=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
                     candidate=address if not bind else bind[0]
@@ -263,13 +275,10 @@ class CandidateLifecycle:
             # Coverage/ACK may advance only after the external FULL commit.
             # Failure here replays the identical receipt batch idempotently.
             with self.writer.transaction():
-                for identity,family,address,kind,raw,checksum,at in rows:
-                    body=json.loads(raw)
-                    if kind=='canonical':
-                        compact=dict(source_hash=checksum,record=dict(identity=body['record']['identity'],
-                            slot=body['record']['slot']),available=body['available'])
+                for identity,compact_raw,compact_hash in acknowledgements:
+                    if compact_raw is not None:
                         self.db.execute('UPDATE candidate_history_outbox SET consumed=?,body=?,hash=? WHERE id=?',
-                            (self.clock(),canonical(compact),digest(compact),identity))
+                            (self.clock(),compact_raw,compact_hash,identity))
                     else:self.db.execute('UPDATE candidate_history_outbox SET consumed=? WHERE id=?',(self.clock(),identity))
         return len(rows)
 

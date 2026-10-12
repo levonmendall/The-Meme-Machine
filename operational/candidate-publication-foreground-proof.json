@@ -1,0 +1,74 @@
+{
+  "schema": "candidate-publication-foreground-proof-v1",
+  "created_at": 1791815409.8699422,
+  "parent_source": "5ec6a2b6aae47c5c75039227e2b763c1bd9d10e1",
+  "files": {
+    "meme_machine/runtime/candidate_history.py": "063b4a2bee1eb3cf1da90944a8eac4145f1c7885ed8eb389f8b0a65faac2f7d2",
+    "meme_machine/solana_candidate_lifecycle.py": "bffc81dc2883d18234425090392e06fa108be040ab5c0171781974e13a850754",
+    "meme_machine/solana_selective_source.py": "a5d01faa47e47d6055c27add63cb4367d3a99e1383da13ffd860510f9c6b6873",
+    "meme_machine/lanes/pons/pons_selective_cohort.py": "57434b637fffffc66487efba6e86832868c3c7c75176fa7069c40a69fdd4490b",
+    "tests/test_candidate_history.py": "533897773bb2d528f6323c8bb59aea36e8668f11cac6dce78740f1cab3a92740",
+    "tests/test_candidate_commit_batches.py": "c92aa45a23442b0a75c3e12d678451b3038291faa553387bd1574c30657497dc",
+    "tests/test_pons_capacity_repair.py": "7d48c1d721833e9505abce24d1c36d25a8194c33d6ab366eb4b416e94aa8ebfc"
+  },
+  "tests": [
+    {
+      "path": "/tmp/candidate-publication-foreground-fast-final.log",
+      "sha256": "6201177cc5eeb85bddab8e9543cfed566f063c0e0151cd1b44fda3bc2c8aa4e3",
+      "passed": 36,
+      "level": "FAST"
+    },
+    {
+      "path": "/tmp/pons-candidate-usd-priority-fast.log",
+      "sha256": "9c2fdac79e396371a69879b50bb49d701b3c2e71b2befb0be206e98e8450df9a",
+      "passed": 7,
+      "level": "FAST"
+    },
+    {
+      "path": "/tmp/candidate-publication-foreground-operational-final.log",
+      "sha256": "a59db6a622ceb27064b39f6f92f73a5eb097004dfa395a88e2497058b869037b",
+      "passed": 71,
+      "level": "OPERATIONAL"
+    },
+    {
+      "path": "/tmp/pons-candidate-usd-priority-operational.log",
+      "sha256": "9c4412e9e5db3977b6b0483e157691613406d2ac70af40506e5ed806dcb45cfd",
+      "passed": 7,
+      "level": "OPERATIONAL"
+    }
+  ],
+  "repairs": [
+    "Exact canonical body and original receipt/checksum bytes reused rather than repeated rich serialization.",
+    "One compact validated ACK prepared per receipt; cross-database FULL commit remains before ACK and canonical coverage.",
+    "Per-mint observation coalescing within original 64-row atomic source batch; every economic event and original identity/order retained.",
+    "Live Pump/PumpSwap economic commit, linked control commit and canonical publication have foreground priority 1; existing positions/reservations stay 0; historical FIFO and bounded work remain unchanged.",
+    "Candidate USD sizing inherits original qualification priority 30 and retains mandatory financial freshness and refusal."
+  ],
+  "offline_equivalence": "Exact candidate histories, source identities, normalized events, checksums, replay, migration deadlines, corruption/rollback and publication ACK ordering covered. Original protection context remains highest priority.",
+  "authenticated_baseline": {
+    "receipt": "CONTINUOUS_ACTUAL_WORKERS_1791813188708.json",
+    "installed_source": "5ec6a2b6aae47c5c75039227e2b763c1bd9d10e1",
+    "control_slots_per_second": 3.729816,
+    "economic_slots_per_second": 1.851836,
+    "ending_lag_slots": 1577,
+    "recent_child_market_age_seconds": 541,
+    "native_commit_calls": 296,
+    "native_commit_queue_aggregate_seconds": 508.8012,
+    "native_commit_execution_aggregate_seconds": 179.1497,
+    "profile": "/var/lib/meme-machine-observer/native-critical-path-1791813204.json"
+  },
+  "not_proven": [
+    "Sustainable live publication throughput after this correction.",
+    "Repeated combined Pons quote/USD protection under both-market contention.",
+    "All-four funding readiness and 60 consecutive real-world minutes."
+  ],
+  "retained_failure": {
+    "test": "tests.test_pons_capacity_repair.PendingExitSharingTests.test_real_clock_twenty_pending_exits_complete_at_default_rate_and_reconcile",
+    "original_suite": "/tmp/candidate-publication-priority-fast.log",
+    "isolated_recheck": "/tmp/pons-pending-real-clock-recheck.log",
+    "reason": "20-owner default two-RPS real-clock pending partial recovery exceeded original three-second limit; retained without weakening assertion. This repair does not claim that capacity pass."
+  },
+  "additional_provider_acquisition": 0,
+  "strategy_thresholds_changed": false,
+  "funding": false
+}
