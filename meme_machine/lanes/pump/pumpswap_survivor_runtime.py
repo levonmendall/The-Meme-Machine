@@ -207,7 +207,12 @@ class Runtime:
         row=self.current;at=state['market_time'];self._increment(row,at,state['slot'])
         price=Fraction(state['state']['quote_reserve'],state['state']['base_reserve'])
         self.history.append(row['id'],through=at,events=[],points=[(at,str(price))],complete=True)
-        points,events=self.history.facts(row['id'],at)
+        if maintenance:
+            points,events=self.history.facts(row['id'],at);reset_prefix=self.history.prefix(row['id'])
+        else:
+            from .pumpswap_survivor import reduce_reset_history
+            points,events,reset_prefix=self.history.calculation_facts(row['id'],at,
+                reducer=reduce_reset_history,policy=POLICY_HASH)
         grad=row['graduation'];creator=self.confirmations.cluster(state['creator'])
         mayhem=state['state']['mayhem_mode']
         agents={self.confirmations.cluster(MAYHEM_AGENT_WALLET)} if mayhem else set()
@@ -244,7 +249,7 @@ class Runtime:
             # blocked, even though the disclosed agent flow can be excluded.
             mayhem=dict(status='unknown' if mayhem else 'never',agent_identity_proven=mayhem,
                         agent_groups=sorted(agents)),price_points=points,base_end=base_end,
-            reset_history_prefix=self.history.prefix(row['id']),qualification_evidence_complete=not maintenance,
+            reset_history_prefix=reset_prefix,qualification_evidence_complete=not maintenance,
             recovery_vwap=vwap,demand_events=organic,holder_concentration_bps=concentration)
         if vq.enabled() and not maintenance:facts['volume_quality']=row.get('volume_quality')
         self.facts=facts;return facts

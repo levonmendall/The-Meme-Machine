@@ -804,7 +804,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
     if source_driver is None:
         raise EvidenceUnavailable('legacy_startup_archived_model_b_driver_required')
     import asyncio
-    from concurrent.futures import ProcessPoolExecutor
+    from concurrent.futures import ProcessPoolExecutor,ThreadPoolExecutor
     import multiprocessing
     import os
     from pathlib import Path
@@ -823,9 +823,15 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
     decoder_pool=ProcessPoolExecutor(max_workers=STREAM_DECODE_WORKERS,mp_context=multiprocessing.get_context('spawn'))
     await asyncio.gather(*(asyncio.wrap_future(decoder_pool.submit(source_decoder_probe))
                            for _ in range(STREAM_DECODE_WORKERS)))
+    from .solana_history_work import HistoryExecutor,enabled as separated_history
+    historical_executor=HistoryExecutor() if separated_history() else None
+    delivery_executor=ThreadPoolExecutor(max_workers=1,thread_name_prefix='candidate-history') if historical_executor is not None else None
+    if historical_executor is not None:
+        source_driver.historical_executor=historical_executor
+        source_driver.delivery_executor=delivery_executor
     source_program_addresses=tuple(sorted({s.address for s in program_subscriptions()}))
     async def work(fn,priority=1,*,label=None,accepted=None,admit_before=None):
-        if label not in (None,'source_commit','archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish','maintenance_decision'):
+        if label not in (None,'source_commit','archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish','maintenance_decision','history_dispatch','history_apply','candidate_delivery_capture','candidate_delivery_ack'):
             raise EvidenceUnavailable('owner_stage_identity')
         submitted=time.monotonic();execution=[None,None]
         def timed(state):
@@ -1131,5 +1137,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
         scheduler['owner_admission']=admission.telemetry()
         await work(lambda state:state.fence.health('owner_scheduler',scheduler),0)
         await asyncio.to_thread(owner.close)
+        if delivery_executor is not None:await asyncio.to_thread(delivery_executor.shutdown,wait=True,cancel_futures=True)
+        if historical_executor is not None:await asyncio.to_thread(historical_executor.close)
         await asyncio.to_thread(decoder_pool.shutdown,wait=True,cancel_futures=True)
         Path(socket_path).unlink(missing_ok=True)

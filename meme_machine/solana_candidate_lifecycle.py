@@ -89,11 +89,14 @@ class CandidateLifecycle:
             WHERE kind='canonical' AND consumed IS NULL''')
 
     def emit(self,family,address,kind,body,*,at=None):
+        return self.emit_raw(family,address,kind,canonical(body),at=at)
+
+    def emit_raw(self,family,address,kind,raw,*,at=None):
+        """Reuse exact already-canonical bytes; event/receipt identities unchanged."""
         require_active(family)
         at=self.clock() if at is None else at
         # These are the exact original canonical bytes, including the entire
         # economic record. Serialize once for its body, checksum and receipt ID.
-        raw=canonical(body)
         identity=hashlib.sha256(('['+','.join(canonical(v) for v in (family,address,kind))+','+raw+']').encode()).hexdigest()
         priority=0 if kind=='canonical' else 1 if kind=='promotion' else 3
         if priority==3:
@@ -194,8 +197,15 @@ class CandidateLifecycle:
                 if market not in row.addresses:continue
                 # Preserve the original first availability on duplicate delivery.
                 stored=self.db.execute('SELECT body,first_seen FROM canonical_evidence WHERE identity=?',(row.identity,)).fetchone()
-                body=decode_body(stored[0],self.db)
-                self.emit(family,address,'canonical',dict(record=body,available=stored[1]))
+                if getattr(self,'delivery_separated',False) and hasattr(self.history,'rolling'):
+                    # RollingHistory.store already authenticated/normalized this
+                    # exact JSON. Do not decode and reserialize the same body
+                    # once for every downstream candidate on the live path.
+                    raw='{"available":'+canonical(stored[1])+',"record":'+stored[0]+'}'
+                    self.emit_raw(family,address,'canonical',raw)
+                else:
+                    body=decode_body(stored[0],self.db)
+                    self.emit(family,address,'canonical',dict(record=body,available=stored[1]))
 
     @defer_busy_consumer
     def flush(self,*,limit=64):
@@ -205,9 +215,27 @@ class CandidateLifecycle:
         observation, work item, decision, or funding disposition.
         """
         if self.db.in_transaction:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')
+        if getattr(self,'delivery_separated',False):return 0
         rows=self.db.execute('''SELECT id,family,address,kind,body,hash,created FROM candidate_history_outbox
             WHERE '''+active_sql('family',solana=True)+''' AND consumed IS NULL ORDER BY priority,created,rowid LIMIT ?''',(limit,)).fetchall()
         if not rows:return 0
+        bindings={(family,address):self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',
+            (family,address)).fetchone() for _,family,address,*_ in rows}
+        acknowledgements=self.deliver_rows(rows,bindings)
+        self.acknowledge_rows(acknowledgements)
+        return len(rows)
+
+    def acknowledge_rows(self,acknowledgements):
+        # Coverage/ACK follows the consumer's external FULL commit.
+        with self.writer.transaction():
+            for identity,compact_raw,compact_hash in acknowledgements:
+                if compact_raw is not None:
+                    self.db.execute('UPDATE candidate_history_outbox SET consumed=?,body=?,hash=? WHERE id=?',
+                        (self.clock(),compact_raw,compact_hash,identity))
+                else:self.db.execute('UPDATE candidate_history_outbox SET consumed=? WHERE id=?',(self.clock(),identity))
+
+    def deliver_rows(self,rows,bindings):
+        """Existing consumer transformations; no canonical database mutation."""
         with closing(CandidateHistory(self.path,clock=self.clock,write_wait_seconds=0)) as shared:
             shared.db.execute('''CREATE TABLE IF NOT EXISTS source_receipts(
                 id TEXT PRIMARY KEY,family TEXT NOT NULL,address TEXT NOT NULL,kind TEXT NOT NULL,
@@ -234,7 +262,7 @@ class CandidateLifecycle:
                         compact_hash=hashlib.sha256(compact_raw.encode()).hexdigest()
                     acknowledgements.append((identity,compact_raw,compact_hash))
                     lane='pump' if family in ('pump','pumpswap') else 'meteora'
-                    bind=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
+                    bind=bindings[(family,address)]
                     candidate=address if not bind else bind[0]
                     if kind=='scout':
                         shared.observe(lane,candidate,surface='meteora-dlmm' if family=='meteora' else family,
@@ -300,15 +328,7 @@ class CandidateLifecycle:
                         shared.db.execute('INSERT OR IGNORE INTO source_receipts VALUES(?,?,?,?,?,?,?)',
                             (identity,family,address,kind,at,receipt_raw,hashlib.sha256(receipt_raw.encode()).hexdigest()))
                 shared.observe_pump_source_groups(pump_observations)
-            # Coverage/ACK may advance only after the external FULL commit.
-            # Failure here replays the identical receipt batch idempotently.
-            with self.writer.transaction():
-                for identity,compact_raw,compact_hash in acknowledgements:
-                    if compact_raw is not None:
-                        self.db.execute('UPDATE candidate_history_outbox SET consumed=?,body=?,hash=? WHERE id=?',
-                            (self.clock(),compact_raw,compact_hash,identity))
-                    else:self.db.execute('UPDATE candidate_history_outbox SET consumed=? WHERE id=?',(self.clock(),identity))
-        return len(rows)
+        return acknowledgements
 
     def missing(self,scope,lo,hi):
         """Return exactly the unproved intervals, including unresolved gaps."""
@@ -410,6 +430,8 @@ class CandidateLifecycle:
         """Proofs become visible only after all source receipts are durable."""
         if self.db.in_transaction:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')
         self.flush()
+        separated=getattr(self,'delivery_separated',False)
+        if separated and (not self.path.exists() or not self.db.execute('SELECT 1 FROM candidate_pending_proofs LIMIT 1').fetchone()):return
         # A source turn must yield to ingestion and mandatory maintenance. Match
         # the existing 64-row external-receipt batch, without deleting or ACKing
         # any deferred proof. A fixed cycle horizon ensures new arrivals cannot
@@ -417,7 +439,10 @@ class CandidateLifecycle:
         # the durable pending rows; this cursor has no evidence authority.
         cursor=getattr(self,'_proof_publication_cursor',None)
         horizon=getattr(self,'_proof_publication_horizon',None)
-        with closing(CandidateHistory(self.path,clock=self.clock,write_wait_seconds=0)) as shared, self.writer.transaction():
+        if separated:
+            from .solana_history_delivery import readonly_history,verified_proof
+        opener=readonly_history(self.path) if separated else CandidateHistory(self.path,clock=self.clock,write_wait_seconds=0)
+        with closing(opener) as shared, self.writer.transaction():
             if horizon is None:
                 horizon=self.db.execute('SELECT lo,hi,rowid FROM candidate_pending_proofs WHERE '+
                     active_scope_sql('scope')+' ORDER BY lo DESC,hi DESC,rowid DESC LIMIT 1').fetchone()
@@ -432,10 +457,11 @@ class CandidateLifecycle:
             # Group fanout retains its independent interleaved writer behavior.
             from contextlib import nullcontext
             batch=bool(proofs) and all(row[2].split(':',2)[1] in ('pump','pumpswap') for row in proofs)
-            with shared.transaction() if batch else nullcontext():
+            with shared.transaction() if batch and not separated else nullcontext():
                 for rowid,identity,scope,lo,hi,source,endpoint,raw,at in proofs:
                     family,address=scope.split(':',2)[1:]
                     if self.unconsumed(scope,through=hi):continue
+                    if separated and not verified_proof(self,shared.db,(rowid,identity,scope,lo,hi,source,endpoint,raw,at)):continue
                     proof=IntervalProof(scope,lo,hi,source,endpoint,json.loads(raw),at)
                     proof.validate()
                     binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND coverage_scope=? LIMIT 1',
@@ -444,9 +470,10 @@ class CandidateLifecycle:
                     # Publish a scheduling receipt only after every canonical row's
                     # external consumer receipt is durable. The receipt proves this
                     # candidate interval, never program-wide market completeness.
-                    shared.commit_history_readiness('candidate:'+family+':'+candidate,lo,hi,
-                        proof_hash=identity,available=self.clock())
-                    if hasattr(self.history,'rolling') and address.startswith('group-'):
+                    if not separated:
+                        shared.commit_history_readiness('candidate:'+family+':'+candidate,lo,hi,
+                            proof_hash=identity,available=self.clock())
+                    if not separated and hasattr(self.history,'rolling') and address.startswith('group-'):
                         # Fan out scheduler readiness only for actual pending
                         # consumers, not one duplicate history per quiet pool.
                         # Finish the WAL read statement before opening a write
@@ -458,7 +485,7 @@ class CandidateLifecycle:
                             if member and member[0]<=hi:
                                 shared.commit_history_readiness('candidate:meteora:'+target,max(lo,member[0]),hi,
                                     proof_hash=identity,available=self.clock())
-                    if family in ('pump','pumpswap'):
+                    if family in ('pump','pumpswap') and not separated:
                         from .solana_selective_runtime import CONTROL
                         lower=(0,) if lo==0 else self.db.execute('SELECT market_time FROM stream_receipts WHERE scope=? AND slot=?',
                             (CONTROL,lo)).fetchone()
@@ -483,6 +510,11 @@ class CandidateLifecycle:
 
     def refresh(self):
         """Finish observation leases after native work; keep identities recoverable."""
+        if getattr(self,'delivery_separated',False):
+            # The durable lifecycle rows retain the obligation. Consumer work
+            # status/read/settlement runs in bounded slices off-owner.
+            self._consumer_refresh_requested=True
+            return
         rows=self.db.execute("SELECT family,address,deadline FROM candidate_lifecycle WHERE "+active_sql('family',solana=True)+" AND state IN ('queued','warming','active')").fetchall()
         if not rows:return
         with closing(CandidateHistory(self.path,clock=self.clock)) as shared,self.writer.transaction():

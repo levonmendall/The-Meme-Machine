@@ -311,6 +311,18 @@ class SelectiveHistory:
                 AND json_extract(error,'$.retry_after')>? ELSE 0 END''',(now,)))
             while True:
                 exclusion='' if not skipped else ' AND id NOT IN ('+','.join('?' for _ in skipped)+')'
+                historical=getattr(self,'historical_tasks',None)
+                if historical is not None:
+                    # Exact pending local preparation is a durable obligation,
+                    # not missing evidence or a reason to repurchase history.
+                    # Urgent protection retains its synchronous checks.
+                    exclusion+=''' AND NOT (priority>2 AND EXISTS(
+                        SELECT 1 FROM rolling_preparation_jobs h WHERE h.status IN ('pending','active')
+                        AND json_extract(h.body,'$.kind') IS NULL
+                        AND json_extract(h.body,'$.family')=acquisition_jobs.family
+                        AND json_extract(h.body,'$.address')=acquisition_jobs.address
+                        AND json_extract(h.body,'$.lo')=acquisition_jobs.lo
+                        AND json_extract(h.body,'$.hi')>=acquisition_jobs.hi AND h.deadline<=acquisition_jobs.deadline))'''
                 row=self.db.execute('''SELECT id,family,address,lo,hi,priority,deadline,token,pages,last_slot,last_index,lineage
                     FROM acquisition_jobs WHERE '''+live+''' AND status='pending'
                     '''+exclusion+''' ORDER BY CASE WHEN priority<=2 THEN priority ELSE 3 END,deadline,priority,created,id LIMIT 1''',tuple(skipped)).fetchone()
@@ -318,7 +330,11 @@ class SelectiveHistory:
                 job=dict(zip(('id','family','address','lo','hi','priority','deadline','token','pages','last_slot','last_index','lineage'),row))
                 if not hasattr(self,'rolling'):break
                 scope=self.scope_for(job['family'],job['address'])
-                missing=self.rolling.missing(job['family'],scope,job['lo'],job['hi'])
+                missing=(historical.missing_for_dispatch(job) if historical is not None and job['priority']>2
+                    else self.rolling.missing(job['family'],scope,job['lo'],job['hi']))
+                if missing is None:
+                    skipped.add(job['id'])
+                    continue
                 if not missing:
                     self.db.execute("UPDATE acquisition_jobs SET status='complete',updated=? WHERE id=?",(now,job['id']))
                     self._observation(job['id'],'shared_coverage_reused',dict(scope=scope,lo=job['lo'],hi=job['hi'],deadline_reset=False))

@@ -228,6 +228,12 @@ class RollingHistory:
             packed,checksum=rows[index];points=coverage_points(packed,checksum)
             spans=_subtract_intervals((*compact[0],*((a,b) for a,b,t in points)),())
             compact=(tuple(spans),max(compact[1],max(t for a,b,t in points)),compact[2]+len(points))
+            # Only the off-owner historical planner installs this CPU budget.
+            # Normal canonical verification and foreground readers never sleep.
+            budget=getattr(self,'_history_cpu_budget',None)
+            if budget is not None:
+                self._history_decoded_points=getattr(self,'_history_decoded_points',0)+len(points)
+                budget()
             # Keep the prefix before the mutable final fragment as well as the
             # whole cohort. Both share the original eight-entry / 512-KiB bound.
             if index not in (len(rows)-2,len(rows)-1):continue
@@ -241,8 +247,24 @@ class RollingHistory:
         return compact
 
     def missing(self,family,scope,lo,hi,*,as_of=None):
+        supplied=getattr(self,'_prepared_missing',None)
+        if supplied is not None and as_of is None:
+            key=(family,scope,lo,hi)
+            if key not in supplied:raise EvidenceUnavailable('historical_result_query_mismatch')
+            return supplied[key]
+        return self.missing_from_inputs(self.missing_inputs(family,scope,lo,hi,as_of=as_of))
+
+    def missing_inputs(self,family,scope,lo,hi,*,as_of=None):
+        """Committed immutable facts; no historical proof calculation here.
+
+        A worker copies these under a short read transaction, closes SQLite,
+        then performs the expensive compressed-proof/interval calculation.
+        Foreground callers retain the exact same calculation synchronously.
+        """
         at=self.clock() if as_of is None else as_of
-        if hi<lo:return []
+        requested=(family,scope,lo,hi)
+        branches=[]
+        if hi<lo:return dict(requested=requested,lo=lo,hi=hi,at=at,branches=branches)
         if family=='pump':
             # The scope includes its family. Use that same identity in the
             # existing indexed lookup: scanning every retained binding for each
@@ -253,13 +275,11 @@ class RollingHistory:
                 # No mint economics precede its authenticated creation. This is
                 # a creation proof, never an inference from a quiet interval.
                 lo=origin[0]
-                if hi<lo:return []
+                if hi<lo:return dict(requested=requested,lo=lo,hi=hi,at=at,branches=branches)
         scopes=self.scopes(family,scope)
         # Remove unsealed gaps from their own coverage branch. An independently
         # proved overlapping program/candidate branch may genuinely repair one.
-        valid=[]
         for source in scopes:
-            branch=[]
             floor=self.db.execute('SELECT lower_slot FROM rolling_group_members WHERE scope=? AND family=? AND address=?',
                 (source,family,scope.split(':',2)[2])).fetchone()
             # Every interval below is a subset of this exact immutable query
@@ -274,8 +294,24 @@ class RollingHistory:
                 SELECT lo,COALESCE(hi,?) FROM candidate_gaps INDEXED BY candidate_gap_availability
                 WHERE scope=? AND repaired>? AND created<=? AND lo<=? AND (hi IS NULL OR hi>=?)''',
                 (hi,source,at,hi,lo,hi,source,at,at,hi,lo)).fetchall()
-            rows=tuple(self.db.execute('SELECT points,hash FROM candidate_coverage WHERE scope=? AND hi>=? AND lo<=? ORDER BY lo,hi',
-                (source,lo,hi)))
+            rows=[];size=0;bound=getattr(self,'_history_input_byte_limit',None)
+            for row in self.db.execute('SELECT lo,hi,points,hash FROM candidate_coverage WHERE scope=? AND hi>=? AND lo<=? ORDER BY lo,hi',
+                    (source,lo,hi)):
+                size+=len(row[2])
+                if bound is not None and size>bound:raise EvidenceUnavailable('historical_input_capacity')
+                rows.append(row)
+            rows=tuple(rows)
+            branches.append(dict(scope=source,floor=floor,gaps=gaps,rows=rows))
+        return dict(requested=requested,lo=lo,hi=hi,at=at,branches=branches)
+
+    def missing_from_inputs(self,inputs):
+        """The original branch-local, point-in-time completeness predicate."""
+        lo,hi,at=inputs['lo'],inputs['hi'],inputs['at']
+        if hi<lo:return []
+        valid=[]
+        for item in inputs['branches']:
+            floor=item['floor'];gaps=item['gaps'];branch=[]
+            rows=tuple((packed,checksum) for _,_,packed,checksum in item['rows'])
             # Reuse only identical immutable proof bytes selected by this fresh
             # query. Gap/reorganization facts above are always read anew. The
             # compact union is valid only once ALL its observations are available
@@ -301,6 +337,10 @@ class RollingHistory:
         return result
 
     def prepare(self,family,address,lo,hi,*,deadline,priority=4,reason=None):
+        tasks=getattr(self.history,'historical_tasks',None)
+        if (tasks is not None and family in ('pump','pumpswap') and priority>2
+                and getattr(self,'_prepared_missing',None) is None):
+            return tasks.enqueue(family,address,lo,hi,deadline=deadline,priority=priority,reason=reason)
         scope=self.history.scope_for(family,address)
         binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
         market=address if not binding else binding[0]
@@ -381,6 +421,8 @@ class RollingHistory:
 
     def resume_boundaries(self,*,limit=None,after=0):
         """A sealed native observation resolves a first-sight publication race."""
+        tasks=getattr(self.history,'historical_tasks',None)
+        if tasks is not None:return tasks.resume_waits('rolling_boundary_waits',limit=limit,after=after)
         # These writes belong to one owner command. Per-row autocommits turn a
         # backlog of expired observations into hundreds of FULL fsyncs, blocking
         # native publication. Commit states and their diagnostics together;
@@ -416,6 +458,8 @@ class RollingHistory:
 
     def resume_publication(self,*,limit=None,after=0):
         """Release waits only on durable publication, preserving first deadline."""
+        tasks=getattr(self.history,'historical_tasks',None)
+        if tasks is not None:return tasks.resume_waits('rolling_publication_waits',limit=limit,after=after)
         with self.history.writer.transaction():
             rows=self.pending_slice('rolling_publication_waits',
                 'family,address,lo,hi,deadline,priority',limit=limit,after=after)

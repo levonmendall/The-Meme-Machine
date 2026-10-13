@@ -146,7 +146,7 @@ class ScopedRetirement:
         return [r[0] for r in self.db.execute(query,(*args,limit))]
 
     @defer_busy_consumer
-    def retire(self,*,limit=64,measure_hot_bytes=True):
+    def retire(self,*,limit=64,measure_hot_bytes=True,plan_only=False):
         if self.db.in_transaction:raise EvidenceUnavailable('retention_inside_source_transaction')
         if not 1<=limit<=1000:raise EvidenceUnavailable('retention_batch_bound')
         started=time.monotonic();selected={};pinned={};oldest=None
@@ -162,7 +162,10 @@ class ScopedRetirement:
         query='''SELECT DISTINCT family,coverage_scope FROM evidence_bindings WHERE '''+active_sql('family',solana=True)+''' AND coverage_scope>? ORDER BY coverage_scope LIMIT ?'''
         bindings=self.db.execute(query,(cursor,min(limit,64))).fetchall()
         if not bindings and cursor:bindings=self.db.execute(query,('',min(limit,64))).fetchall()
-        with closing(CandidateHistory(self.lifecycle.path,clock=self.clock,write_wait_seconds=0)) as shared:
+        if plan_only:
+            from .solana_history_delivery import readonly_history
+        opener=readonly_history(self.lifecycle.path) if plan_only else CandidateHistory(self.lifecycle.path,clock=self.clock,write_wait_seconds=0)
+        with closing(opener) as shared:
             for family,scope in bindings:
                 address=scope[len('candidate:'+family+':'):]
                 binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
@@ -206,6 +209,18 @@ class ScopedRetirement:
         # A canonical row shared with a pinned candidate remains pinned even if
         # a different candidate has no current consumer.
         for identity in pinned:selected.pop(identity,None)
+        if plan_only:
+            # Canonical pins/identity selection remain authoritative. All body
+            # expansion, serialization, compression and file I/O are separate.
+            from .solana_history_delivery import generation
+            bounded={};size=0
+            for identity,row in selected.items():
+                size+=len(row[9].encode() if isinstance(row[9],str) else row[9])
+                if size>16*1024*1024:break
+                bounded[identity]=row
+            return dict(selected=bounded,pinned=pinned,oldest=oldest,before=before,
+                bindings=bindings,started=started,canonical_path=str(self.writer.path.resolve()),
+                generation=generation(self.lifecycle),limit=limit)
         content=[];hot_bytes=0;bounded={}
         for row in selected.values():
             body=decode_body(row[9],self.db)

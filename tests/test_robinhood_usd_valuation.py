@@ -87,6 +87,12 @@ ATTENTION_DELTAS = {
 # graduation horizon and 8,192-entry cache. Pin only their exact changed nodes;
 # every other economic function and interface remains compared to the baseline.
 OPERATION_DELTAS = {
+    'meme_machine/lanes/pump/pumpswap_survivor_runtime.py': {
+        # Owner-authorized history separation: exact retained reset-prefix
+        # reuse and window reads. All economics and maintenance remain pinned;
+        # HistoryCalculationTests compares the two changed acquisition nodes.
+        'Runtime.reconstruct': 'debef54d753279920b6ec5c0619edd984bee44ad536a5897eea3be954e99f8d8',
+    },
     'meme_machine/lanes/pump/solana_evidence_health.py': {
         # Restore the maintained indexed and verified-volume health path in
         # the actual Pump worker; all freshness and coverage checks stay pinned.

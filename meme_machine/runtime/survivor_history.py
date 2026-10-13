@@ -164,15 +164,74 @@ class History:
         except (ValueError,KeyError,TypeError,ArithmeticError) as error:
             return vq.neutral_failure(error,at=row['through'],asset=getattr(self,'volume_quote_asset',None))
 
-    def facts(self,identity,now):
+    def facts(self,identity,now,*,since=None,events_since=None):
         prefix=self.get_meta('archive_prefix:'+identity)
         if prefix and now<prefix['through']:raise ValueError('survivor_archived_history_query')
-        events=[self._verified(r) for r in self.db.execute('SELECT body,hash FROM events WHERE candidate=? AND at<=? ORDER BY at,id',(identity,now))]
+        events=[self._verified(r) for r in self.db.execute('SELECT body,hash FROM events WHERE candidate=? AND at<=?'+
+            ('' if events_since is None else ' AND at>=?')+' ORDER BY at,id',
+            (identity,now) if events_since is None else (identity,now,events_since))]
         points=[]
-        for at,price,h in self.db.execute('SELECT at,price,hash FROM points WHERE candidate=? AND at<=? ORDER BY at',(identity,now)):
+        for at,price,h in self.db.execute('SELECT at,price,hash FROM points WHERE candidate=? AND at<=?'+
+                ('' if since is None else ' AND at>=?')+' ORDER BY at',
+                (identity,now) if since is None else (identity,now,since)):
             if digest([identity,at,price])!=h:raise ValueError('survivor_price_corruption')
             points.append(dict(at=at,**json.loads(price)))
         return points,events
+
+    def calculation_facts(self,identity,now,*,reducer,policy):
+        """Exact existing reset reducer, incrementally folded without deletion.
+
+        Only a demanded Pump qualification uses this path. Retain all prices,
+        original graduation anchor, exact prefix-boundary witness and last 24h.
+        The approved two/six-hour and completed-base windows stay unchanged.
+        Any rewrite inside the prefix invalidates it, including corrupt writes
+        that leave the old row hash unchanged. Pons never installs these triggers.
+        """
+        if self.get_meta('policy')!=policy:raise ValueError('survivor_history_policy_drift')
+        if not getattr(self,'_calculation_triggers',False):
+            self.db.execute('CREATE INDEX IF NOT EXISTS survivor_event_time ON events(candidate,at,id)')
+            for action in ('INSERT','UPDATE','DELETE'):
+                side='OLD' if action=='DELETE' else 'NEW'
+                self.db.execute('CREATE TRIGGER IF NOT EXISTS survivor_calculation_'+action+' AFTER '+action+''' ON points BEGIN
+                    DELETE FROM meta WHERE key='calculation_prefix:'||'''+side+'''.candidate
+                    AND json_extract(body,'$.through')>='''+side+'''.at;
+                    '''+("DELETE FROM meta WHERE key='calculation_prefix:'||OLD.candidate AND json_extract(body,'$.through')>=OLD.at;" if action=='UPDATE' else '')+' END')
+            self._calculation_triggers=True
+        row=self.get(identity);archive=self.get_meta('archive_prefix:'+identity)
+        if (row is None or not row.get('complete') or row.get('recovery')
+                or archive is not None and archive['reducer_state'] is None):
+            points,events=self.facts(identity,now);return points,events,self.prefix(identity)
+        source=digest([policy,row['graduation'],archive])
+        saved=self.get_meta('calculation_prefix:'+identity)
+        cut=now-86400
+        if saved and (saved['source']!=source or saved['through']>cut):saved=None
+        before=(None if archive is None else archive['reducer_state']) if saved is None else saved['state']
+        lower=None if before is None else before['through']
+        examined=0
+        inputs_hash=digest(archive) if saved is None else saved['inputs_hash']
+        def additions():
+            nonlocal examined,inputs_hash
+            query='SELECT at,price,hash FROM points WHERE candidate=? AND at<=?'+('' if lower is None else ' AND at>?')+' ORDER BY at'
+            for at,raw,checksum in self.db.execute(query,(identity,cut) if lower is None else (identity,cut,lower)):
+                examined+=1
+                if digest([identity,at,raw])!=checksum:raise ValueError('survivor_price_corruption')
+                inputs_hash=digest([inputs_hash,identity,at,checksum])
+                yield dict(at=at,**json.loads(raw))
+        state=reducer(additions(),before)
+        if state['through'] is None:
+            points,events=self.facts(identity,now);return points,events,self.prefix(identity)
+        value=dict(schema='survivor-calculation-prefix-v1',source=source,policy=policy,
+            through=state['through'],state=state,inputs_hash=inputs_hash,
+            records=examined+(0 if saved is None else saved['records']))
+        if value!=saved:self.set_meta('calculation_prefix:'+identity,value)
+        points,events=self.facts(identity,now,since=state['through'],events_since=now-3600)
+        first=self.db.execute('SELECT at,price,hash FROM points WHERE candidate=? AND at<=? ORDER BY at LIMIT 1',(identity,now)).fetchone()
+        if first and (not points or first[0]<points[0]['at']):
+            at,raw,checksum=first
+            if digest([identity,at,raw])!=checksum:raise ValueError('survivor_price_corruption')
+            points.insert(0,dict(at=at,**json.loads(raw)))
+        self.calculation_metrics=dict(prefix_records_decoded=examined,window_points=len(points),window_events=len(events))
+        return points,events,state
 
     def prefix(self,identity):
         value=self.get_meta('archive_prefix:'+identity)

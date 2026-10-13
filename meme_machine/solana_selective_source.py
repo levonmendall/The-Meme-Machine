@@ -10,6 +10,7 @@ import base64
 import hashlib
 import json
 import logging
+import sqlite3
 from inspect import getattr_static
 import time
 import uuid
@@ -99,6 +100,13 @@ def install(state):
         state.selective.rolling=RollingHistory(state.selective)
         from .solana_prewarm_startup import PrewarmStartup
         state.selective.startup=PrewarmStartup(state.selective)
+        from .solana_history_work import HistoricalTasks,enabled as separated_history
+        if separated_history():
+            state.selective.historical_tasks=HistoricalTasks(state.selective)
+            state.selective.lifecycle.delivery_separated=True
+        elif state.writer.db.execute("SELECT 1 FROM sqlite_master WHERE name='rolling_preparation_jobs'").fetchone():
+            # Flag rollback preserves newly queued, not-yet-applied obligations.
+            state.selective.historical_recovery=HistoricalTasks(state.selective)
         state.fence.selective=state.selective
         state.fence.health('topology','candidate_hybrid_v1')
     return state.selective
@@ -831,6 +839,11 @@ class SelectiveSource:
             if not position_only():h.startup.begin()
             return str(state.writer.path)
         self.canonical_path=await work(boot,0)
+        from .solana_history_work import enabled as separated_history
+        if separated_history() and not callable(getattr(getattr(self,'historical_executor',None),'submit',None)):
+            raise EvidenceUnavailable('historical_executor_required')
+        if separated_history() and not callable(getattr(getattr(self,'delivery_executor',None),'submit',None)):
+            raise EvidenceUnavailable('candidate_delivery_executor_required')
         tip=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',2)
         self.control_bootstrap_tip=tip
         async with grpc.aio.secure_channel(HOST,grpc.ssl_channel_credentials(),options=[
@@ -852,6 +865,9 @@ class SelectiveSource:
                    asyncio.create_task(self.publish_history()),
                    asyncio.create_task(self.control_commits(control_queue)),
                    stop_task]
+            if separated_history():
+                tasks.append(asyncio.create_task(self.historical_processing()))
+                tasks.append(asyncio.create_task(self.candidate_history_delivery()))
             if census is not None:tasks.append(census)
             if not operational():tasks.append(asyncio.create_task(self.activity_manager(channel)))
             try:
@@ -1011,17 +1027,46 @@ class SelectiveSource:
 
     async def cold_maintenance(self):
         from .solana_scoped_retirement import ScopedRetirement
+        from .solana_history_work import enabled as separated_history
+        from .solana_history_archive import prepare,apply
         # Retirement is not a prerequisite for initial evidence convergence.
         # Keep its telemetry and disk work out of the startup release barrier.
         await self.wait_startup()
+        failures=0
         while not self.stop.is_set():
             def retire(state):
                 h=install(state)
                 if not self.batched:h.lifecycle.publish()
-                return ScopedRetirement(h).retire(limit=64,measure_hot_bytes=False)
+                separated=separated_history()
+                if separated:
+                    from .solana_history_delivery import readonly_history
+                    from contextlib import closing
+                    if not h.lifecycle.path.exists():return None
+                    with closing(readonly_history(h.lifecycle.path)) as shared:
+                        if not shared.db.execute("SELECT 1 FROM sqlite_master WHERE name='work'").fetchone():return None
+                return ScopedRetirement(h).retire(limit=64,measure_hot_bytes=False,plan_only=separated)
             # The owner installs its existing urgent SQL interruption hook for
             # maintenance priority four. Interrupted slices retry durably.
-            await self.work(retire,4,label='retention')
+            plan=await self.work(retire,4,label='retention')
+            if separated_history() and plan is not None:
+                try:
+                    if plan['selected']:
+                        result=await asyncio.wrap_future(self.historical_executor.submit(prepare,plan))
+                    else:result=dict(selected={},addresses={},body_hashes={},receipt=None,worker=dict(cpu_seconds=0,wall_seconds=0))
+                    await self.work(lambda state:apply(install(state),plan,result),4,label='retention')
+                    failures=0
+                except asyncio.CancelledError:raise
+                except sqlite3.OperationalError as exc:
+                    if getattr(exc,'sqlite_errorcode',0)&255 not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):raise
+                    failures+=1
+                    await self.work(lambda state:install(state)._observation(None,'candidate_consumer_write_busy',
+                        dict(complete=False,operation='scoped_archive_verify',off_owner=True)),2)
+                    await asyncio.sleep(min(2,.1*2**min(failures-1,5)))
+                except (RuntimeError,MemoryError) as exc:
+                    failures+=1
+                    await self.work(lambda state:install(state)._observation(None,'historical_archival_unavailable',
+                        dict(complete=False,reason=type(exc).__name__,failures=failures)),2)
+                    await asyncio.sleep(min(30,.5*2**min(failures-1,6)))
             await asyncio.sleep(1)
 
     async def acquire_pool(self):
@@ -1030,6 +1075,70 @@ class SelectiveSource:
         finally:
             for task in tasks:task.cancel()
             await asyncio.gather(*tasks,return_exceptions=True)
+
+    async def historical_processing(self):
+        """One bounded off-owner result; archive workers do not run its CPU work."""
+        from .solana_history_work import prepare_history
+        await self.wait_startup()
+        while not self.stop.is_set():
+            job=await self.work(lambda state:install(state).historical_tasks.claim(),4,
+                label='history_dispatch')
+            if job is None:
+                await asyncio.sleep(.1);continue
+            try:
+                future=self.historical_executor.submit(prepare_history,self.canonical_path,job)
+                result=await asyncio.wrap_future(future)
+                # Keep a completed immutable result through cooperative owner
+                # SQL yields; do not restart the expensive calculation.
+                while not self.stop.is_set():
+                    try:
+                        await self.work(lambda state:install(state).historical_tasks.apply(job,result),
+                            0 if job['priority']<=2 else 4,label='history_apply')
+                        break
+                    except EvidenceUnavailable as exc:
+                        if str(exc)!='evidence_background_yield':raise
+                        await asyncio.sleep(0)
+                    except sqlite3.OperationalError as exc:
+                        if str(exc)!='interrupted':raise
+                        await asyncio.sleep(0)
+            except asyncio.CancelledError:
+                # An accepted bounded CPU task can finish without publishing.
+                # Its durable lease remains recoverable; canonical intake and
+                # accounting do not depend on a volatile result being retained.
+                raise
+            except Exception as exc:
+                if isinstance(exc,EvidenceUnavailable) and 'corrupt' in str(exc):raise
+                # No paid retry and no favourable coverage. Optional history
+                # failure retains candidates and backs off independently.
+                await self.work(lambda state:install(state).historical_tasks.defer(
+                    job,type(exc).__name__),2,label='history_apply')
+                await asyncio.sleep(.1)
+
+    async def candidate_history_delivery(self):
+        """Mandatory bounded consumer work, independent of optional history."""
+        from .solana_history_delivery import capture,deliver,acknowledge
+        failures=0
+        while not self.stop.is_set():
+            snapshot=await self.work(lambda state:capture(install(state).lifecycle),2,
+                label='candidate_delivery_capture')
+            if snapshot is None:
+                await asyncio.sleep(.1);continue
+            try:
+                result=await asyncio.wrap_future(self.delivery_executor.submit(deliver,snapshot))
+                await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
+                    label='candidate_delivery_ack')
+                failures=0
+            except sqlite3.OperationalError as exc:
+                if getattr(exc,'sqlite_errorcode',0)&255 not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):raise
+                failures+=1
+                await self.work(lambda state:install(state)._observation(None,'candidate_consumer_write_busy',
+                    dict(complete=False,failures=failures,off_owner=True)),2)
+                await asyncio.sleep(min(2,.1*2**min(failures-1,5)))
+            except (RuntimeError,MemoryError) as exc:
+                failures+=1
+                await self.work(lambda state:install(state)._observation(None,'candidate_delivery_unavailable',
+                    dict(complete=False,failures=failures,reason=type(exc).__name__)),2)
+                await asyncio.sleep(min(8,.5*2**min(failures-1,4)))
 
     async def acquire(self):
         from .operational.position_continuation import position_only
@@ -1040,6 +1149,7 @@ class SelectiveSource:
                 h=install(state);db=state.writer.db
                 if not hasattr(state,'acquisition_inflight'):state.acquisition_inflight=set()
                 if not h.startup.snapshot().get('released'):return None
+                if hasattr(h,'historical_recovery'):h.historical_recovery.resume_sync(limit=16)
                 frontier=db.execute('SELECT MAX(hi) FROM coverage WHERE scope=?',(CONTROL,)).fetchone()[0]
                 # Eight acquisition workers share one owner and one development
                 # queue. Coalesce their duplicate housekeeping at the existing
@@ -1060,14 +1170,17 @@ class SelectiveSource:
                         reactivated=db.execute(query,(cursors.get('reactivated',0),DEVELOPMENT_BATCH)).fetchall()
                         if not reactivated and cursors.get('reactivated',0):reactivated=db.execute(query,(0,DEVELOPMENT_BATCH)).fetchall()
                         for _,family,addr,lo in reactivated:
-                            from .solana_scoped_retirement import ScopedRetirement
-                            ScopedRetirement(h).restore(family,addr)
                             epoch=db.execute('SELECT epoch FROM candidate_lifecycle WHERE family=? AND address=?',(family,addr)).fetchone()[0]
                             first=db.execute("SELECT MIN(json_extract(body,'$.seen')) FROM candidate_history_outbox WHERE family=? AND address=? AND kind='reactivated' AND json_extract(body,'$.epoch')=?",(family,addr,epoch)).fetchone()[0]
                             deadline=(time.time() if first is None else first)+150
                             if deadline<=time.time():
                                 h._observation(None,'promotion_deadline_missed',dict(family=family,address=addr,deadline=deadline,deadline_reset=False))
                                 h.lifecycle.demote(family,addr,reason='original_promotion_deadline_expired');continue
+                            if hasattr(h,'historical_tasks') and family in ('pump','pumpswap'):
+                                if not h.historical_tasks.cold_ready(family,addr,epoch=epoch,deadline=deadline):continue
+                            else:
+                                from .solana_scoped_retirement import ScopedRetirement
+                                ScopedRetirement(h).restore(family,addr)
                             h.lifecycle.promote(family,addr,deadline=deadline,lower_slot=0 if family=='pump' else None if family=='meteora' else lo)
                         boundary=h.rolling.resume_boundaries(limit=DEVELOPMENT_BATCH,after=cursors.get('boundary',0))
                         publication=h.rolling.resume_publication(limit=DEVELOPMENT_BATCH,after=cursors.get('publication',0))

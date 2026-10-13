@@ -121,6 +121,7 @@ class CandidateHistory:
           PRIMARY KEY(lane,candidate,identity));
         CREATE INDEX IF NOT EXISTS candidate_events_order
           ON events(lane,candidate,slot,transaction_index,event_index,identity);
+        CREATE INDEX IF NOT EXISTS candidate_events_time ON events(lane,candidate,market_time);
 
         CREATE TABLE IF NOT EXISTS decisions(
           id TEXT PRIMARY KEY,lane TEXT NOT NULL,candidate TEXT NOT NULL,
@@ -164,6 +165,7 @@ class CandidateHistory:
           market_time INTEGER NOT NULL,kind TEXT NOT NULL,body TEXT NOT NULL,hash TEXT NOT NULL,
           PRIMARY KEY(lane,candidate,identity));
         CREATE INDEX IF NOT EXISTS canonical_ref_order ON canonical_event_refs(lane,candidate,slot,transaction_index,event_index);
+        CREATE INDEX IF NOT EXISTS canonical_ref_time ON canonical_event_refs(lane,candidate,market_time);
         CREATE TABLE IF NOT EXISTS state_checkpoints(
           id TEXT PRIMARY KEY,scope TEXT NOT NULL,candidate TEXT NOT NULL,slot INTEGER NOT NULL,
           market_time INTEGER NOT NULL,available REAL NOT NULL,frontier INTEGER NOT NULL,
@@ -384,9 +386,11 @@ class CandidateHistory:
                  market_time,kind,encoded,checksum))
         return body
 
-    def events(self,lane,candidate,*,through=None,kind=None):
+    def events(self,lane,candidate,*,since=None,through=None,kind=None):
         sql="""SELECT body,hash FROM events WHERE lane=? AND candidate=?"""
         args=[lane,candidate]
+        if since is not None:
+            sql+=" AND market_time>=?";args.append(int(since))
         if through is not None:
             sql+=" AND market_time<=?";args.append(int(through))
         if kind is not None:
@@ -400,6 +404,7 @@ class CandidateHistory:
             result.append(body)
         refs='SELECT identity,kind,body,hash FROM canonical_event_refs WHERE lane=? AND candidate=?'
         params=[lane,candidate]
+        if since is not None:refs+=' AND market_time>=?';params.append(int(since))
         if through is not None:refs+=' AND market_time<=?';params.append(int(through))
         if kind is not None:refs+=' AND kind=?';params.append(kind)
         for identity,kind,raw,checksum in self.db.execute(refs,params):

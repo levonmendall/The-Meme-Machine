@@ -1,0 +1,198 @@
+{
+  "status": "IMPLEMENTED_OFFLINE_VALIDATED_PAPER_PAUSED",
+  "baseline": "ea4f4f1bfb12ef0d3ce01d4df70a93f6d37e7605",
+  "branch": "engineering/pump-history-separation-20261013",
+  "files_sha256": {
+    "meme_machine/lanes/pump/pumpswap_survivor_runtime.py": "ade9b157ca2dccd5e12108e10291963c6d1eedb853e37b8bef76d33402c136ae",
+    "meme_machine/operational/supervisor.py": "5d8ad8a55d14c3c03b976483961e7b88d4a4c54fe7b6f0c0e1c8dad3a688bada",
+    "meme_machine/runtime/candidate_history.py": "1d5d3931d087fe06be2ed5763737cdaded76ada292f9bd5e4a649f99c5ab4302",
+    "meme_machine/runtime/survivor_history.py": "6cc06670ecc603f0cbefe8a2007340916fbc1b5b5aafec07893b5e75d75504e4",
+    "meme_machine/solana_candidate_lifecycle.py": "90287f34c7a3958b0867330aa798d3fdf525929d48ae966d7be0816946b57f06",
+    "meme_machine/solana_evidence_service.py": "a2efe049fcb1a8976b1c6f123a32aeec7705c0977dc2465eacde2dbab26dd735",
+    "meme_machine/solana_rolling_history.py": "4b26f094413118a96fc9c6ee81bff3738526cea10d760ffa936818502f982ab8",
+    "meme_machine/solana_scoped_retirement.py": "d46efe8e782608fc5dbfb711e64e535bd3a0fe9a5aecb6da2c8c0d47767380a6",
+    "meme_machine/solana_selective_history.py": "5092ed45cc6bf87af988175aca9728f0f4e77a5f5b651165b7167d9e2c618758",
+    "meme_machine/solana_selective_source.py": "6c77755b84df096e5c16ba0769b544dc9e6d1df6deb084d007a6085a5e21117c",
+    "operational/pump-first-release/deployment/paper-continuous.conf": "36354462caef7298e5e2612b3637dcdf9cb45f403a7f9af3291732f4c4209104",
+    "operational/tests.py": "3d6f17c2d93fa42043220da849749fa4e50de815d69fdd95eb8410342259391d",
+    "tests/test_robinhood_usd_valuation.py": "b0a9f46a4efcc424daca64d3b212f73b661f16773a11f2f9b9019f23a1e9549c",
+    "meme_machine/solana_history_work.py": "b66734d711f031d26248c6c9e2f932a051efb4835c0cdbe0448113d9cafe6423",
+    "meme_machine/solana_history_delivery.py": "045342e6c484bfaf7ca19f7b682aa720dbd020a2de44207a564f33e453c51ead",
+    "meme_machine/solana_history_restore.py": "58f5949a937cf62f25e646788a016016dc5facd5a11c3eb441dc24643d155b8a",
+    "meme_machine/solana_history_archive.py": "04fb936a593453f7a7e775f683a1dbf400cbd8fae3adb8bc6653faedddaf61ee",
+    "tests/test_solana_history_separation.py": "7596a5e02aeed76e3ddea1498644e3bfe528e44be7e85f7aab3de4267a78c0c0",
+    "engineering/solana_capacity/history_separation_replay.py": "20440cbda61430325f07bcb87b9ba7a4862829ea3c1a6cca159403987329bfe8"
+  },
+  "provider_requests": 0,
+  "deployment_performed": false,
+  "capital_modified": false,
+  "research_resumed": false,
+  "performance": {
+    "status": "OFFLINE_RETAINED_OWNER_PIPELINE_PARITY",
+    "provider_requests": 0,
+    "funding": false,
+    "workload": {
+      "events": 1024,
+      "event_identity_digest": "b570751e0257d9f44944966668dce1853d9770b3fd6687c6ccfa4bf83bf87a25",
+      "source_slots": [
+        456302275,
+        456302292
+      ],
+      "historical_fragments": 652,
+      "history_requests": 16,
+      "live_bindings": 52,
+      "retained_candidates": 44
+    },
+    "scope": "Retained event-store, durable candidate outbox, history planning and shared-owner scheduling replay. Excludes native transport/join, broad census, actual protective quotes, Pons and full machine acceptance. Imported historical proofs retain their original bytes, hashes, availability and lineage. No new live interval coverage is claimed.",
+    "measurements": [
+      {
+        "mode": "original",
+        "replayed_events": 1024,
+        "event_bearing_slots": 18,
+        "live_seconds": 13.166934649110772,
+        "total_drain_seconds": 13.16722964902874,
+        "completed_event_bearing_slots_per_second": 1.3670607836741735,
+        "parent_cpu_seconds": 14.070641042,
+        "verified_history_requests_reused": 0,
+        "sql_statements": {
+          "live": 19919,
+          "historical": 23806,
+          "other": 151
+        },
+        "live_cpu": 0.7435049390000035,
+        "history_owner_cpu": 10.105173810999997,
+        "history_worker_cpu": 0.0,
+        "history_worker_wall": 0.0,
+        "delivery_worker_cpu": 0.0,
+        "delivery_worker_wall": 0.0,
+        "history_points_decoded": 3893480,
+        "history_fragments_read": 0,
+        "live_publication_latency": {
+          "median": 0.6940488320542499,
+          "p95": 1.0606603369815275,
+          "maximum": 1.2767370051005855
+        },
+        "urgent_owner_read_latency": {
+          "median": 0.0002684965147636831,
+          "p95": 0.0003836839459836483,
+          "maximum": 0.002395288087427616
+        },
+        "owner": {
+          "queue_peak": 2,
+          "nonurgent_fifo_selections": 38,
+          "priority2.queue_peak_us": 1145603,
+          "priority2.queue_total_us": 12014121,
+          "priority2.execution_peak_us": 144244,
+          "priority2.execution_total_us": 1111531,
+          "priority2.completed": 20,
+          "priority4.queue_peak_us": 118,
+          "priority4.queue_total_us": 1438,
+          "priority4.execution_peak_us": 1145497,
+          "priority4.execution_total_us": 12012465,
+          "priority4.completed": 18,
+          "priority0.queue_peak_us": 2092,
+          "priority0.queue_total_us": 3348,
+          "priority0.execution_peak_us": 578399,
+          "priority0.execution_total_us": 584359,
+          "priority0.completed": 20,
+          "aged_selections": 2,
+          "queued": 0
+        },
+        "evidence_sha256": "db80b2a86614d15a56ff198fd9f78e0b363f6908b599bd121747f850e66cb070",
+        "raw_acquisition_jobs": 393
+      },
+      {
+        "mode": "separated",
+        "replayed_events": 1024,
+        "event_bearing_slots": 18,
+        "live_seconds": 1.0446783999213949,
+        "total_drain_seconds": 2.786464266013354,
+        "completed_event_bearing_slots_per_second": 17.230182993497692,
+        "parent_cpu_seconds": 2.202226685000001,
+        "verified_history_requests_reused": 1,
+        "sql_statements": {
+          "live": 19062,
+          "historical": 4667,
+          "other": 1833
+        },
+        "live_cpu": 0.5037788899999996,
+        "history_owner_cpu": 0.1479351440000003,
+        "history_worker_cpu": 0.565988614,
+        "history_worker_wall": 2.1225656785536557,
+        "delivery_worker_cpu": 0.26011486600000006,
+        "delivery_worker_wall": 0.5434036531951278,
+        "history_points_decoded": 165925,
+        "history_fragments_read": 2479,
+        "live_publication_latency": {
+          "median": 0.050719670951366425,
+          "p95": 0.09157737402711064,
+          "maximum": 0.20343545405194163
+        },
+        "urgent_owner_read_latency": {
+          "median": 0.0016495734453201294,
+          "p95": 0.008081892039626837,
+          "maximum": 0.011896467069163918
+        },
+        "owner": {
+          "queue_peak": 4,
+          "nonurgent_fifo_selections": 90,
+          "priority2.queue_peak_us": 52509,
+          "priority2.queue_total_us": 404119,
+          "priority2.execution_peak_us": 142444,
+          "priority2.execution_total_us": 804690,
+          "priority2.completed": 41,
+          "priority4.queue_peak_us": 34998,
+          "priority4.queue_total_us": 144051,
+          "priority4.execution_peak_us": 29865,
+          "priority4.execution_total_us": 191418,
+          "priority4.completed": 49,
+          "priority0.queue_peak_us": 10014,
+          "priority0.queue_total_us": 26346,
+          "priority0.execution_peak_us": 681421,
+          "priority0.execution_total_us": 690198,
+          "priority0.completed": 20,
+          "background_yields": 1,
+          "queued": 0
+        },
+        "evidence_sha256": "db80b2a86614d15a56ff198fd9f78e0b363f6908b599bd121747f850e66cb070",
+        "raw_acquisition_jobs": 392
+      }
+    ],
+    "calculation_regression": {
+      "scope": "Synthetic 7-day minute-price regression; includes first summary build and exact subsequent reset decisions. Not a market or portfolio return claim.",
+      "retained_points": 10081,
+      "provider_requests": 0,
+      "measurements": [
+        {
+          "mode": "original",
+          "turns": 20,
+          "cpu_seconds": 4.878717395000001,
+          "wall_seconds": 4.885854281950742,
+          "sql_statements": 60,
+          "records_decoded": 201620
+        },
+        {
+          "mode": "incremental",
+          "turns": 20,
+          "cpu_seconds": 1.009190813,
+          "wall_seconds": 1.013400811003521,
+          "sql_statements": 185,
+          "records_decoded": 37481
+        }
+      ]
+    }
+  },
+  "validation": {
+    "new_history_and_archival_cases": "41 cases; latest archival combined suite 108 passed",
+    "focused_acquisition_integrity": "124 passed before final archive split; source guard unchanged thereafter",
+    "relevant_operational": "186 passed, 1 existing local containment skip before final archive split; final follow-up pending",
+    "full_FAST": "final commit CI pending"
+  },
+  "external_evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011",
+  "limitations": [
+    "No authenticated throughput or protective test was authorized or performed",
+    "Owner-pipeline replay excludes native delivery/join, actual protective quotes/USD, Pons and broad-market workload",
+    "No full-machine two-CPU capacity or one-hour acceptance claim",
+    "Root/volume and backup prerequisites must be rechecked before any authorized deployment"
+  ]
+}

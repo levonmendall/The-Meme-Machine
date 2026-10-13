@@ -282,6 +282,10 @@ class Supervisor:
                 if os.environ.get('MM_BOUNDED_PROVIDER_ENVELOPE'):
                     env['MM_BOUNDED_PROVIDER_ENVELOPE']=os.environ['MM_BOUNDED_PROVIDER_ENVELOPE']
         if solana:
+            if lane=='solana':
+                value=os.environ.get('MM_SOLANA_HISTORY_SEPARATED','0')
+                if value not in ('0','1'):raise ValueError('historical_processing_configuration')
+                env['MM_SOLANA_HISTORY_SEPARATED']=value
             env.update(MM_PROVIDER_GOVERNOR_DB=str(self.root/'shared/solana-provider.sqlite'),
                 MM_SOLANA_EVIDENCE_PLANE_DB=str(self.root/'shared/solana-evidence.sqlite'),
                 MM_SOLANA_CANDIDATE_HISTORY_DB=str(self.root/'shared/solana-candidate-history.sqlite'),
