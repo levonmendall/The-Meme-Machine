@@ -1,0 +1,479 @@
+{
+  "authentic_successor_result": "pending",
+  "base_source": "07cb514c99f9b22da318f913b3c6217e393fe32f",
+  "baseline_authentic_result": {
+    "completed_slots_per_second": 1.5193163946777004,
+    "counter_delta": {
+      "http_attempts": 1569,
+      "native_bytes": 300470137,
+      "native_opens": 4,
+      "native_uncertain_bytes": 285212672,
+      "rpc_cu": 205652,
+      "rpc_elements": 5862
+    },
+    "cpu_cores": 1.7134241511330046,
+    "economic_state_unchanged": true,
+    "formal_acceptance_minutes": 0,
+    "four_regime_funding_ready": false,
+    "incoming_slots_per_second": 3.038632789355401,
+    "lag_end_slots": 695,
+    "lag_start_slots": 423,
+    "measured_seconds": 179.0278844833374,
+    "measurement": "Final 180-second interval; fresh control and native frontier updates only, excluding restored history cursor jumps",
+    "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CONTINUOUS_ACTUAL_WORKERS_1791859601363.json",
+    "source": "07cb514c99f9b22da318f913b3c6217e393fe32f",
+    "source_proof_cache_repair_established_sustainable_throughput": false,
+    "stop_reason": null
+  },
+  "cause": "Current gap lookup scanned 7500+ retained repaired outages per program; Pons namespace enumeration scanned 8993 cached rows for nine namespaces on changed-cache maintenance turns. Retained authenticated critical-path and family stacks identify these operations.",
+  "economic_strategy_or_capital_changed": false,
+  "files_sha256": {
+    "meme_machine/runtime/robinhood/plane.py": "0e60ca3baab24d5303afdf14c742d2e47e57473472b3a86a2b215086ce881834",
+    "meme_machine/solana_rolling_history.py": "532cbe1f5c04f3575de910c033fb3e48cd7fb2c057c48e1fb73828f43663ac41",
+    "meme_machine/solana_selective_history.py": "a74acedee66cac04f56ad561efa9b9cf75235c70d5c3fa630bdeb59a3334bc58",
+    "tests/test_pons_durable_receipt_obligations.py": "3410be1a2949d6ef47618a39aef3390aad834ee78bab3b2cec07a5a0630c64d3",
+    "tests/test_solana_rolling_prewarm.py": "7e97c520ccec322f1f4b80f34752f40da3ccd39cb5bccfa52f937d9a34701047"
+  },
+  "formal_acceptance_minutes": 0,
+  "gap_profile": {
+    "at": 1791861191.9283967,
+    "authoritative_state_modified": false,
+    "comparison": [
+      {
+        "as_of": 1791861191.9283967,
+        "family": "pump",
+        "result_count": 163,
+        "same_gaps": true,
+        "timings": {
+          "availability_seek": [
+            {
+              "cpu": 0.0002014680000000102,
+              "wall": 0.00020121806301176548
+            },
+            {
+              "cpu": 0.00015940600000000082,
+              "wall": 0.00015925196930766106
+            },
+            {
+              "cpu": 0.00010904200000000364,
+              "wall": 0.00010888301767408848
+            },
+            {
+              "cpu": 0.0001453250000000017,
+              "wall": 0.0001450029667466879
+            },
+            {
+              "cpu": 0.00011773700000000664,
+              "wall": 0.00011755398008972406
+            },
+            {
+              "cpu": 0.00011658700000000133,
+              "wall": 0.00011653895489871502
+            },
+            {
+              "cpu": 0.0001283169999999889,
+              "wall": 0.00012795196380466223
+            },
+            {
+              "cpu": 0.00011817699999999709,
+              "wall": 0.00011806597467511892
+            }
+          ],
+          "original": [
+            {
+              "cpu": 0.003598342999999976,
+              "wall": 0.00360594701487571
+            },
+            {
+              "cpu": 0.0034241450000000173,
+              "wall": 0.0034217999782413244
+            },
+            {
+              "cpu": 0.0029600010000000176,
+              "wall": 0.0029589219484478235
+            },
+            {
+              "cpu": 0.002901649000000006,
+              "wall": 0.0029006750555709004
+            },
+            {
+              "cpu": 0.002913711999999985,
+              "wall": 0.0029127129819244146
+            },
+            {
+              "cpu": 0.002905568000000025,
+              "wall": 0.002904489985667169
+            },
+            {
+              "cpu": 0.002857499999999985,
+              "wall": 0.0028565829852595925
+            },
+            {
+              "cpu": 0.0028569390000000028,
+              "wall": 0.002855621976777911
+            }
+          ]
+        }
+      },
+      {
+        "as_of": 1791771191.9283967,
+        "family": "pump",
+        "result_count": 55,
+        "same_gaps": true,
+        "timings": {
+          "availability_seek": [
+            {
+              "cpu": 0.0008065630000000101,
+              "wall": 0.0008062589913606644
+            },
+            {
+              "cpu": 0.0006871639999999901,
+              "wall": 0.0006869910284876823
+            },
+            {
+              "cpu": 0.0007281719999999992,
+              "wall": 0.0007272149669006467
+            },
+            {
+              "cpu": 0.0006973830000000236,
+              "wall": 0.0006967559456825256
+            },
+            {
+              "cpu": 0.0006869039999999882,
+              "wall": 0.0006865350296720862
+            },
+            {
+              "cpu": 0.0006636210000000031,
+              "wall": 0.0006634680321440101
+            },
+            {
+              "cpu": 0.0006623629999999991,
+              "wall": 0.0006621279753744602
+            },
+            {
+              "cpu": 0.000650615000000021,
+              "wall": 0.0006504169432446361
+            }
+          ],
+          "original": [
+            {
+              "cpu": 0.002541571999999992,
+              "wall": 0.0025405141059309244
+            },
+            {
+              "cpu": 0.0025391059999999854,
+              "wall": 0.0025380010483786464
+            },
+            {
+              "cpu": 0.002496313,
+              "wall": 0.002495493972674012
+            },
+            {
+              "cpu": 0.002579604000000013,
+              "wall": 0.0025785379111766815
+            },
+            {
+              "cpu": 0.0025688619999999773,
+              "wall": 0.0025675129145383835
+            },
+            {
+              "cpu": 0.0025022649999999758,
+              "wall": 0.0025015179999172688
+            },
+            {
+              "cpu": 0.002608691000000024,
+              "wall": 0.0026068349834531546
+            },
+            {
+              "cpu": 0.002507332000000001,
+              "wall": 0.002506777993403375
+            }
+          ]
+        }
+      },
+      {
+        "as_of": 1791861191.9283967,
+        "family": "pumpswap",
+        "result_count": 165,
+        "same_gaps": true,
+        "timings": {
+          "availability_seek": [
+            {
+              "cpu": 0.00012026900000000618,
+              "wall": 0.00012022897135466337
+            },
+            {
+              "cpu": 0.00013723599999998504,
+              "wall": 0.00013711804058402777
+            },
+            {
+              "cpu": 0.0001140170000000218,
+              "wall": 0.0001138410298153758
+            },
+            {
+              "cpu": 0.00011119400000003665,
+              "wall": 0.00011109199840575457
+            },
+            {
+              "cpu": 0.00014109600000000722,
+              "wall": 0.0001407880336046219
+            },
+            {
+              "cpu": 0.00011080900000004501,
+              "wall": 0.00011069490574300289
+            },
+            {
+              "cpu": 0.0001263329999999785,
+              "wall": 0.000126178958453238
+            },
+            {
+              "cpu": 0.00012608600000002523,
+              "wall": 0.00012592796701937914
+            }
+          ],
+          "original": [
+            {
+              "cpu": 0.0033292670000000246,
+              "wall": 0.0033287829719483852
+            },
+            {
+              "cpu": 0.0031816430000000118,
+              "wall": 0.003180065075866878
+            },
+            {
+              "cpu": 0.002993200999999973,
+              "wall": 0.0029914649203419685
+            },
+            {
+              "cpu": 0.0029389429999999717,
+              "wall": 0.0029372000135481358
+            },
+            {
+              "cpu": 0.0028608230000000123,
+              "wall": 0.002859588945284486
+            },
+            {
+              "cpu": 0.0028197180000000266,
+              "wall": 0.002818895038217306
+            },
+            {
+              "cpu": 0.0028613740000000276,
+              "wall": 0.0028601689264178276
+            },
+            {
+              "cpu": 0.0028511709999999857,
+              "wall": 0.0028499930631369352
+            }
+          ]
+        }
+      },
+      {
+        "as_of": 1791771191.9283967,
+        "family": "pumpswap",
+        "result_count": 55,
+        "same_gaps": true,
+        "timings": {
+          "availability_seek": [
+            {
+              "cpu": 0.0007937809999999934,
+              "wall": 0.000793603016063571
+            },
+            {
+              "cpu": 0.0006733369999999961,
+              "wall": 0.0006731519242748618
+            },
+            {
+              "cpu": 0.0006581629999999894,
+              "wall": 0.000657923985272646
+            },
+            {
+              "cpu": 0.0006387709999999824,
+              "wall": 0.0006385259330272675
+            },
+            {
+              "cpu": 0.0006481770000000275,
+              "wall": 0.0006478719878941774
+            },
+            {
+              "cpu": 0.0006712480000000132,
+              "wall": 0.0006708939326927066
+            },
+            {
+              "cpu": 0.0006393279999999946,
+              "wall": 0.0006390990456566215
+            },
+            {
+              "cpu": 0.0006773899999999999,
+              "wall": 0.0006772689521312714
+            }
+          ],
+          "original": [
+            {
+              "cpu": 0.0025176560000000348,
+              "wall": 0.002516668988391757
+            },
+            {
+              "cpu": 0.002537728000000017,
+              "wall": 0.002536261919885874
+            },
+            {
+              "cpu": 0.0024556669999999947,
+              "wall": 0.0024544679326936603
+            },
+            {
+              "cpu": 0.0024919509999999923,
+              "wall": 0.00249078799970448
+            },
+            {
+              "cpu": 0.0024637160000000047,
+              "wall": 0.0024623220087960362
+            },
+            {
+              "cpu": 0.002503623999999982,
+              "wall": 0.0025024539791047573
+            },
+            {
+              "cpu": 0.002461357999999969,
+              "wall": 0.0024606509832665324
+            },
+            {
+              "cpu": 0.0024750689999999964,
+              "wall": 0.002474359003826976
+            }
+          ]
+        }
+      }
+    ],
+    "provider_calls": 0,
+    "retained_real_gap_rows": 15127,
+    "source": "07cb514c99f9b22da318f913b3c6217e393fe32f"
+  },
+  "memory_or_protection_deadline_bounds_changed": false,
+  "pons_change": "Seek successive evidence namespaces within the same existing maintenance transaction instead of walking each namespace cached row. Every active namespace and all original eviction/pin policies are retained.",
+  "pons_profile": {
+    "at": 1791860280.5923505,
+    "authoritative_state_modified": false,
+    "evidence_rows": 8993,
+    "indexed": [
+      {
+        "cpu": 9.866900000000262e-05,
+        "seconds": 9.818898979574442e-05
+      },
+      {
+        "cpu": 8.014600000000316e-05,
+        "seconds": 8.025497663766146e-05
+      },
+      {
+        "cpu": 7.457400000000086e-05,
+        "seconds": 7.416005246341228e-05
+      },
+      {
+        "cpu": 7.751400000000075e-05,
+        "seconds": 7.742305751889944e-05
+      },
+      {
+        "cpu": 7.872999999999908e-05,
+        "seconds": 7.853598799556494e-05
+      },
+      {
+        "cpu": 8.943699999999777e-05,
+        "seconds": 0.00010201695840805769
+      },
+      {
+        "cpu": 9.174399999999777e-05,
+        "seconds": 9.156204760074615e-05
+      },
+      {
+        "cpu": 7.455099999999909e-05,
+        "seconds": 7.429905235767365e-05
+      },
+      {
+        "cpu": 7.766599999999707e-05,
+        "seconds": 7.746403571218252e-05
+      },
+      {
+        "cpu": 7.085600000000108e-05,
+        "seconds": 7.048598490655422e-05
+      },
+      {
+        "cpu": 7.095800000000291e-05,
+        "seconds": 7.06289429217577e-05
+      },
+      {
+        "cpu": 0.0001934019999999953,
+        "seconds": 0.00019310193601995707
+      }
+    ],
+    "indexed_cpu_total": 0.0010782469999999975,
+    "namespace_count": 9,
+    "ordered_namespaces_equal": true,
+    "original": [
+      {
+        "cpu": 0.003911769999999995,
+        "seconds": 0.003918041940778494
+      },
+      {
+        "cpu": 0.002601909999999999,
+        "seconds": 0.0026233429089188576
+      },
+      {
+        "cpu": 0.002509128999999999,
+        "seconds": 0.0026498689549043775
+      },
+      {
+        "cpu": 0.002536021999999999,
+        "seconds": 0.0026699750451371074
+      },
+      {
+        "cpu": 0.002516894999999998,
+        "seconds": 0.002850682009011507
+      },
+      {
+        "cpu": 0.0024873080000000006,
+        "seconds": 0.002653579111211002
+      },
+      {
+        "cpu": 0.0024899320000000003,
+        "seconds": 0.0027772849425673485
+      },
+      {
+        "cpu": 0.002465806000000001,
+        "seconds": 0.0024701820220798254
+      },
+      {
+        "cpu": 0.002393142000000001,
+        "seconds": 0.0024063970195129514
+      },
+      {
+        "cpu": 0.0024098550000000024,
+        "seconds": 0.0024153910344466567
+      },
+      {
+        "cpu": 0.002007654999999997,
+        "seconds": 0.0022377510322257876
+      },
+      {
+        "cpu": 0.0018717839999999944,
+        "seconds": 0.001889122067950666
+      }
+    ],
+    "original_cpu_total": 0.030201207999999986,
+    "provider_calls": 0,
+    "source": "07cb514c99f9b22da318f913b3c6217e393fe32f"
+  },
+  "provider_acquisition_or_pacing_changed": false,
+  "pump_change": "Retain all gap audit rows. Covering availability index and disjoint NULL/later-repair seeks preserve exact time, bounds and gap results; event/proof/history records unchanged.",
+  "schema": "market-maintenance-indexed-seeks-v1",
+  "tests": {
+    "FAST": {
+      "evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/market-availability-seeks-fast-20261013.log",
+      "passed": 54,
+      "seconds": 13.35
+    },
+    "OPERATIONAL": {
+      "evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/market-availability-seeks-operational-20261013.log",
+      "passed": 179,
+      "seconds": 29.151
+    }
+  }
+}

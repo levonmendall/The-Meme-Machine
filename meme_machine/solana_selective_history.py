@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS candidate_gaps(
  id INTEGER PRIMARY KEY,scope TEXT NOT NULL,lo INTEGER NOT NULL,hi INTEGER,
  created REAL NOT NULL,repaired REAL,reason TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS candidate_gap_scope_bounds ON candidate_gaps(scope,lo,hi);
+CREATE INDEX IF NOT EXISTS candidate_gap_availability ON candidate_gaps(scope,repaired,lo,hi,created);
 CREATE TABLE IF NOT EXISTS shared_history_cache(
  identity TEXT PRIMARY KEY,scope TEXT NOT NULL,slot INTEGER NOT NULL,signature TEXT NOT NULL,
  program TEXT NOT NULL,market_time INTEGER,event_index INTEGER NOT NULL,transaction_index INTEGER,

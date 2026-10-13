@@ -175,7 +175,7 @@ class Plane:
             rolling_present = self.db.execute('SELECT 1 FROM rolling LIMIT 1').fetchone() is not None
             if rolling_present:
                 self.db.execute('DELETE FROM rolling WHERE at<? AND candidate IN (SELECT id FROM candidates WHERE '+active_sql('lane')+')',(self.clock()-86400,))
-            for namespace, in self.db.execute('SELECT DISTINCT namespace FROM evidence WHERE '+active_scope_sql('namespace')).fetchall():
+            for namespace in self.evidence_namespaces():
                 limit=8192 if namespace.endswith(':receipt') else 4096
                 # Below the original retained-set bound there is no eligible
                 # eviction. Avoid rebuilding/sorting that entire set on every
@@ -233,6 +233,21 @@ class Plane:
             self._maintenance_at = now
             self._maintenance_due = min(deadlines)
             self._maintenance_stamp = (self.db.total_changes, version)
+
+    def evidence_namespaces(self):
+        """Seek each retained namespace without walking its cached bodies.
+
+        Maintenance owns the same serialized transaction while enumerating and
+        pruning. This cursor limits no namespace, candidate or retained record.
+        """
+        from meme_machine.runtime.operating_families import active_scope_sql
+        result=[];after=None
+        while True:
+            row=self.db.execute('SELECT namespace FROM evidence WHERE '+active_scope_sql('namespace')+
+                (' AND namespace>?' if after is not None else '')+' ORDER BY namespace LIMIT 1',
+                () if after is None else (after,)).fetchone()
+            if row is None:return result
+            after=row[0];result.append(after)
 
     def observe(self, key, lane, observation, payload, *, ordering, watermark,
                 interpretation, observed, deadline, priority, rank=0, needs_work=True):

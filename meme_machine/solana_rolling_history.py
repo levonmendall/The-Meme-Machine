@@ -265,8 +265,15 @@ class RollingHistory:
             # Every interval below is a subset of this exact immutable query
             # window. Read its unavailable intervals once, not once per
             # historical proof fragment. No result escapes this owner command.
-            gaps=self.db.execute('SELECT lo,COALESCE(hi,?) FROM candidate_gaps WHERE scope=? AND created<=? AND (repaired IS NULL OR repaired>?) AND lo<=? AND (hi IS NULL OR hi>=?)',
-                (hi,source,at,at,hi,lo)).fetchall()
+            # The disjoint NULL / later-repair branches seek availability, not
+            # every already repaired outage since genesis. Both retain the
+            # caller's exact time and interval predicates; no gap is removed.
+            gaps=self.db.execute('''SELECT lo,COALESCE(hi,?) FROM candidate_gaps INDEXED BY candidate_gap_availability
+                WHERE scope=? AND repaired IS NULL AND created<=? AND lo<=? AND (hi IS NULL OR hi>=?)
+                UNION ALL
+                SELECT lo,COALESCE(hi,?) FROM candidate_gaps INDEXED BY candidate_gap_availability
+                WHERE scope=? AND repaired>? AND created<=? AND lo<=? AND (hi IS NULL OR hi>=?)''',
+                (hi,source,at,hi,lo,hi,source,at,at,hi,lo)).fetchall()
             rows=tuple(self.db.execute('SELECT points,hash FROM candidate_coverage WHERE scope=? AND hi>=? AND lo<=? ORDER BY lo,hi',
                 (source,lo,hi)))
             # Reuse only identical immutable proof bytes selected by this fresh

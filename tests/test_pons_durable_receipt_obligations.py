@@ -16,6 +16,28 @@ from tests.test_pons_dense_v4_receipts import fixture,ENDPOINT
 
 
 class DurableReceiptTests(unittest.TestCase):
+    def test_namespace_seek_matches_original_population_and_retention_after_restart(self):
+        from meme_machine.runtime.operating_families import active_scope_sql
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'plane.sqlite';plane=Plane(path,clock=lambda:100)
+            try:
+                with plane.transaction():
+                    plane.db.executemany('INSERT INTO evidence VALUES(?,?,?,?,?)',
+                        [(ns,str(i),'{}','{}',100) for ns in
+                         ('pons:header_hash','pons:receipt','pons:shared:test:header_number',
+                          'meteora:history','ramses:history') for i in range(150)])
+                original=[row[0] for row in plane.db.execute('SELECT DISTINCT namespace FROM evidence WHERE '+active_scope_sql('namespace')+' ORDER BY namespace')]
+                self.assertEqual(plane.evidence_namespaces(),original)
+                before=[tuple(r) for r in plane.db.execute('SELECT * FROM evidence ORDER BY namespace,key')]
+                plane.maintain()
+                self.assertEqual([tuple(r) for r in plane.db.execute('SELECT * FROM evidence ORDER BY namespace,key')],before)
+                query='SELECT namespace FROM evidence WHERE '+active_scope_sql('namespace')+' AND namespace>? ORDER BY namespace LIMIT 1'
+                plan=plane.db.execute('EXPLAIN QUERY PLAN '+query,('pons:header_hash',)).fetchall()
+                self.assertTrue(any('SEARCH evidence' in row[3] and 'namespace>?' in row[3] for row in plan),plan)
+                plane.close();plane=Plane(path,clock=lambda:100)
+                self.assertEqual(plane.evidence_namespaces(),original)
+            finally:plane.close()
+
     def test_idle_retirement_does_not_decode_cohort_and_old_protected_candidates_remain(self):
         with tempfile.TemporaryDirectory() as td:
             plane=Plane(Path(td)/'plane.sqlite',clock=lambda:100000)

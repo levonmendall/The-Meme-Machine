@@ -176,6 +176,29 @@ class RollingPrewarmTests(unittest.TestCase):
         with self.assertRaisesRegex(EvidenceConflict,'candidate_coverage_corrupt'):
             self.h.rolling.missing('pump',candidate,100,104)
 
+    def test_gap_availability_seek_matches_original_at_repair_and_restart_boundaries(self):
+        scope=program_scope('pump');self.seal(scope,100,120)
+        rows=[(scope,0,90,NOW-20,NOW-10,'old-repaired') for _ in range(700)]
+        rows.extend(((scope,101,102,NOW-3,None,'open'),
+            (scope,104,105,NOW-2,NOW+1,'later-repair'),
+            (scope,108,109,NOW-1,NOW,'exact-repair'),
+            (scope,112,None,NOW+1,None,'future-gap')))
+        with self.state.writer.transaction():
+            self.h.db.executemany('INSERT INTO candidate_gaps(scope,lo,hi,created,repaired,reason) VALUES(?,?,?,?,?,?)',rows)
+        original='SELECT lo,COALESCE(hi,?) FROM candidate_gaps WHERE scope=? AND created<=? AND (repaired IS NULL OR repaired>?) AND lo<=? AND (hi IS NULL OR hi>=?)'
+        for at in (NOW-11,NOW-2,NOW-1,NOW,NOW+1,NOW+2):
+            gaps=self.h.db.execute(original,(120,scope,at,at,120,100)).fetchall()
+            covered=set(range(100,121)) if at>=NOW else set()
+            for lo,hi in gaps:covered.difference_update(range(max(100,lo),min(120,hi)+1))
+            missing=self.h.rolling.missing('pump',scope,100,120,as_of=at)
+            self.assertEqual({n for lo,hi in missing for n in range(lo,hi+1)},set(range(100,121))-covered)
+        query='SELECT lo,hi FROM candidate_gaps INDEXED BY candidate_gap_availability WHERE scope=? AND repaired IS NULL AND created<=? AND lo<=? AND (hi IS NULL OR hi>=?)'
+        plan=self.h.db.execute('EXPLAIN QUERY PLAN '+query,(scope,NOW,120,100)).fetchall()
+        self.assertTrue(any('candidate_gap_availability' in row[3] and 'repaired=?' in row[3] for row in plan),plan)
+        expected=self.h.rolling.missing('pump',scope,100,120,as_of=NOW)
+        self.state.writer.close();self.state,self.h=state_at(self.path,lambda:self.now[0])
+        self.assertEqual(self.h.rolling.missing('pump',scope,100,120,as_of=NOW),expected)
+
     def test_compact_proof_cache_is_bounded_and_restart_has_no_cached_verdict(self):
         scope=program_scope('pump')
         for n in range(12):
