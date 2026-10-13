@@ -179,11 +179,11 @@ class ExitCapacityRepairTests(unittest.TestCase):
                         self.assertEqual(len(rpc.starts),6 if factor==2.2 else 4)
                         self.assertTrue(all(b-a>=1/rate-1e-8 for a,b in zip(rpc.starts,rpc.starts[1:])))
                         duration=rpc.clock-100+rpc.local_wall_seconds
-                        if rate>=3:self.assertLess(duration,3)
                         print('NATIVE_RATE_ENVELOPE',json.dumps(dict(rps=rate,positions=n,
                             action=r[0]['last_action']['action'],starts=rpc.starts,responses=rpc.responses,
                             native_wall_seconds=rpc.local_wall_seconds,native_cpu_seconds=rpc.local_cpu_seconds,
                             modeled_completion_with_local_seconds=duration,within_three_seconds=duration<3)),flush=True)
+                        if rate>=3:self.assertLess(duration,3)
 
     def test_partial_exit_batch_does_not_infer_sender_or_reuse_a_changed_fork(self):
         for fault in ('sender','execution_fork','partial_execution'):
@@ -264,11 +264,13 @@ class ExitCapacityRepairTests(unittest.TestCase):
                         before_step=lambda runtime,rpc:setattr(rpc,'origin',time.perf_counter()))
                 self.assertTrue(result['accounting']['reconciled'])
                 self.assertTrue(all(x['realization_taken'] for x in r))
-                if rate==3:self.assertLess(transport.native_completed_at-100,3)
                 print('REAL_CLOCK_SURVIVOR_PARTIAL',json.dumps(dict(positions=n,rps=rate,
                     physical_starts=len(transport.starts),starts=transport.starts,responses=transport.responses,
                     queue_wait_seconds=sum(transport.waits),complete_native_seconds=transport.native_completed_at-100,
-                    within_three_seconds=transport.native_completed_at<103,native_accounting_verified=True)),flush=True)
+                    within_three_seconds=transport.native_completed_at<103,native_accounting_verified=True,
+                    shared_exit_boundary=getattr(f.native_runtime,'shared_exit_boundary',None),
+                    retained_shared_executions=len(getattr(f.native_runtime,'shared_held_executions',{})))),flush=True)
+                if rate==3:self.assertLess(transport.native_completed_at-100,3)
 
 
 class OfflineGovernorTests(unittest.TestCase):

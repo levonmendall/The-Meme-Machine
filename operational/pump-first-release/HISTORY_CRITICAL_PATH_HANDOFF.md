@@ -119,6 +119,22 @@ covered by `tests/test_solana_history_refinement.py` and the preserved separatio
 tests. Final CI and relevant OPERATIONAL results are in the implementation proof.
 One existing OPERATIONAL skip is archived Model A, **not** waived containment.
 
+Exact implementation `e8f7d2ec8ccc0d530c94171390e1966d5c42a70f` passed Pump
+offline CI (79 tests). Its full FAST run `38439291019` ran 1,907 tests and
+failed three original Pons protection-capacity cases: real partial exits at
+3 RPS, a modeled 3-RPS partial-exit turn, and mixed Current/Survivor native
+exits. One real 20-position case expanded to 72 physical starts and exceeded
+three seconds. The earlier passing baseline used six starts. The underlying
+cause is not established; neither Pump replay nor nonrecurrence repairs it.
+
+All three pass in two isolated local windows (78.594 / 78.527 seconds). Failure
+prints now precede the original timing assertions and include the shared-exit
+boundary/count so an unsuccessful variant cannot omit its necessary evidence.
+No deadline, assertion, source economics, provider rate or accounting behavior
+changed. Full CI of that test-diagnostic successor remains required. Preserve
+the failed CI log and its `/tmp/mm-engineering-ce1934e6` runner locator; do not
+present this CI attempt as PASS or infer a provider/permissions cause.
+
 Separate blockers remain:
 
 1. Current-market Pump throughput/freshness after this architecture is unmeasured.
