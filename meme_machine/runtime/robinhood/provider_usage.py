@@ -255,15 +255,80 @@ def snapshot(path, fingerprint):
     return result
 
 
+def _demand_failure(error, path, db, phase, opened_at):
+    """Retain bounded failure-time facts on the original error, without writes.
+
+    This extends the preserved demand-error wrapper while the failed connection
+    is still open. No request, endpoint, fingerprint or exception text is copied.
+    A failure-time snapshot cannot establish earlier file replacement/ownership.
+    """
+    import os
+    import threading
+
+    facts=dict(operation='logical_demand',phase=phase,
+        sqlite_errorcode=getattr(error,'sqlite_errorcode',None),
+        sqlite_errorname=getattr(error,'sqlite_errorname',None),
+        pid=os.getpid(),thread_id=threading.get_ident(),
+        native_thread_id=threading.get_native_id(),uid=os.geteuid(),gid=os.getegid(),
+        connection_requested_open_mode='readwrite_create',connection_uri=False,
+        connection_attempt_age_seconds=time.monotonic()-opened_at,state_path=os.path.abspath(path))
+    if db is not None:
+        facts['connection_id']=id(db)
+        facts['in_transaction']=db.in_transaction
+        # Diagnostic reads must not inherit the ten-second writer wait. This
+        # connection is closed immediately after attribution; no retry follows.
+        try:db.execute('PRAGMA busy_timeout=0')
+        except sqlite3.Error as observed:
+            facts['connection_probe_errorcode']=getattr(observed,'sqlite_errorcode',None)
+        else:
+            for name in ('database_list','journal_mode','query_only'):
+                try:
+                    rows=db.execute('PRAGMA '+name).fetchall()
+                    facts[name]=rows if name=='database_list' else rows[0][0]
+                except sqlite3.Error as observed:
+                    facts[name]=dict(sqlite_errorcode=getattr(observed,'sqlite_errorcode',None))
+        main=next((row[2] for row in facts.get('database_list',[])
+                   if isinstance(row,(tuple,list)) and row[1]=='main'),None)
+        if main:facts['state_path']=main
+    def metadata(value):
+        try:
+            st=os.stat(value)
+            return dict(uid=st.st_uid,gid=st.st_gid,mode=oct(st.st_mode&0o777),
+                device=st.st_dev,inode=st.st_ino,bytes=st.st_size,
+                mtime_ns=st.st_mtime_ns,ctime_ns=st.st_ctime_ns,
+                writable_by_actor=os.access(value,os.W_OK,effective_ids=True))
+        except OSError as observed:
+            return dict(errno=observed.errno)
+    raw=facts['state_path'];parent=os.path.dirname(raw)
+    facts['files']={suffix:metadata(raw+suffix) for suffix in ('','-wal','-shm','-journal')}
+    facts['parent']=metadata(parent)
+    try:
+        fs=os.statvfs(parent)
+        facts['filesystem']=dict(readonly=bool(fs.f_flag&os.ST_RDONLY),
+            available_bytes=fs.f_bavail*fs.f_frsize,available_inodes=fs.f_favail)
+    except OSError as observed:facts['filesystem']=dict(errno=observed.errno)
+    error.provider_demand_diagnostic=facts
+    error.add_note('provider_demand_diagnostic='+json.dumps(facts,sort_keys=True))
+
+
 def demand(path, fingerprint, methods):
     """Consumer demand includes exact-cache hits; wire calls remain separate."""
-    db=sqlite3.connect(path,timeout=10)
+    db=None;phase='connect';opened_at=time.monotonic()
     try:
+        db=sqlite3.connect(path,timeout=10)
+        phase='schema'
         db.execute('CREATE TABLE IF NOT EXISTS logical_demand(endpoint TEXT,method TEXT,n INTEGER,PRIMARY KEY(endpoint,method))')
+        phase='insert'
         db.executemany('INSERT INTO logical_demand VALUES(?,?,?) ON CONFLICT(endpoint,method) DO UPDATE SET n=n+excluded.n',
                        [(fingerprint,m,n) for m,n in Counter(methods).items()])
+        phase='commit'
         db.commit()
-    finally:db.close()
+    except sqlite3.Error as error:
+        try:_demand_failure(error,path,db,phase,opened_at)
+        except Exception:pass  # Attribution must never replace the accounting failure.
+        raise
+    finally:
+        if db is not None:db.close()
 
 
 def cache_snapshot(path, domain):
