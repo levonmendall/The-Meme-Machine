@@ -14,6 +14,123 @@ from meme_machine.solana_evidence_plane import EvidenceWriter,EvidenceReader
 from tests.test_solana_evidence_plane import record,proof
 
 
+class NativeComponentPerformance(unittest.TestCase):
+    def test_actual_paper_original_add_rounding_and_final_settlement(self):
+        from meme_machine.runtime.survivor_paper_book import PaperBook
+        from meme_machine.runtime.component_performance import paper_report
+        for lane in ('pump-acceleration','pumpswap-survivor-momentum-v1','pons-postgrad-survivor-momentum-v1'):
+            with self.subTest(lane=lane),tempfile.TemporaryDirectory() as td,closing(
+                    PaperBook(Path(td)/'native.sqlite',run_id='run',lane=lane,policy_hash='p',initial=10000)) as book:
+                identity='run:trade';book.reserve(identity,200,1,{})
+                book.transition(identity,'filled',2,amount=101,tokens=7,evidence={'execution':{'gas':1}})
+                book.transition(identity,'partial_harvest',3,amount=37,tokens=2)
+                book.transition(identity,'scale_add',4,amount=51,tokens=3,evidence={'request':'actual-add','execution':{'gas':1}})
+                book.transition(identity,'mark',5,amount=99999)
+                before=book.reconcile();marked=paper_report(book,identity)
+                self.assertEqual(book.reconcile(),before)
+                self.assertEqual(marked['totals']['booked_cost'],152)
+                self.assertEqual(marked['totals']['realized_pnl'],9)
+                self.assertIsNone(marked['component_unrealized_pnl'])
+                book.transition(identity,'partial_harvest',6,amount=65,tokens=3)
+                partial=paper_report(book,identity)
+                self.assertEqual(partial['events'][-1]['allocations']['original'],
+                    dict(quantity=1,basis_released=27,net_proceeds=21,realized_pnl=-6))
+                self.assertEqual(partial['events'][-1]['allocations']['add'],
+                    dict(quantity=2,basis_released=19,net_proceeds=44,realized_pnl=25))
+                book.transition(identity,'settled',7,amount=147)
+                report=paper_report(book,identity);p=book._load(identity)
+                self.assertEqual(report['state'],'AVAILABLE')
+                self.assertEqual(report['totals']['realized_pnl'],p['realized'])
+                self.assertEqual(report['totals']['realized_pnl'],97)
+                self.assertEqual(report['totals']['booked_cost'],152)
+                self.assertEqual(report['totals']['net_proceeds'],249)
+                self.assertEqual(report['totals']['remaining_quantity'],0)
+                self.assertEqual(report['totals']['remaining_basis'],0)
+                self.assertEqual(report['components']['original']['realized_pnl'],74)
+                self.assertEqual(report['components']['add']['realized_pnl'],23)
+                self.assertEqual([e['at'] for e in report['events']],[2,3,4,6,7])
+                self.assertIsNone(report['hypothetical_no_add'])
+                self.assertIsNone(report['causal_profit_from_add'])
+
+    def test_pons_prefix_restart_and_read_only_completed_adapter(self):
+        from tests.lanes.pons.test_pons_partial_accounting import PartialAccountingTests
+        from meme_machine.lanes.pons.pons_selective_ledger import SelectivePaper,STRATEGY_NAMESPACE
+        from meme_machine.lanes.pons.pons_selective_continuation import POLICY_HASH
+        from meme_machine.lanes.pons.evidence import Store
+        from meme_machine.runtime.component_performance import pons_report,pons_path_report
+        from meme_machine.runtime.storage import compact_pons
+        fixture=PartialAccountingTests()
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'native.sqlite';store=Store(path)
+            paper=SelectivePaper(store,STRATEGY_NAMESPACE,1000000,delay=1,natural_policy_hash=POLICY_HASH)
+            identity='actual-lifecycle'
+            paper.reserve(identity,market='m',amount=100,gas_budget=20,now=100,features=fixture.features(100))
+            paper.advance(identity,now=101,action='entry',quote=fixture.quote(101,'buy',100,7))
+            paper.advance(identity,now=102,action='exit_intent',exit_tokens=2)
+            paper.advance(identity,now=103,action='exit',quote=fixture.quote(103,'sell',2,37))
+            before=pons_report(paper,identity)
+            self.assertTrue(compact_pons(paper,limit=1))
+            self.assertEqual(pons_report(paper,identity),before)
+            store.close();store=Store(path)
+            paper=SelectivePaper(store,STRATEGY_NAMESPACE,1000000,delay=1,natural_policy_hash=POLICY_HASH)
+            paper.advance(identity,now=104,action='scale_add',quote=fixture.quote(104,'buy',50,3),cancel_reason='actual-add')
+            paper.advance(identity,now=105,action='exit_intent')
+            paper.advance(identity,now=106,action='exit',quote=fixture.quote(106,'sell',8,147))
+            expected=paper._get(identity);report=pons_report(paper,identity)
+            self.assertEqual(report['state'],'AVAILABLE')
+            self.assertEqual(report['totals']['booked_cost'],expected['cost'])
+            self.assertEqual(report['totals']['net_proceeds'],expected['realized_proceeds'])
+            self.assertEqual(report['totals']['realized_pnl'],expected['realized_pnl'])
+            store.close()
+            original=path.read_bytes()
+            self.assertEqual(pons_path_report(path,expected),report)
+            self.assertEqual(path.read_bytes(),original)
+            store=Store(path)
+            paper=SelectivePaper(store,STRATEGY_NAMESPACE,1000000,delay=1,natural_policy_hash=POLICY_HASH)
+            self.assertTrue(compact_pons(paper,limit=1))
+            from meme_machine.lanes.pons.evidence import canonical,digest
+            saved=json.loads(store.db.execute('SELECT body FROM pons_journal_checkpoint WHERE id=1').fetchone()[0])
+            saved['positions'][identity].pop('component_performance')
+            store.db.execute('UPDATE pons_journal_checkpoint SET body=?,hash=? WHERE id=1',(canonical(saved),digest(saved)))
+            missing=pons_report(paper,identity)
+            self.assertEqual(missing['state'],'UNAVAILABLE')
+            self.assertEqual(missing['reason'],'retired_component_detail')
+            self.assertEqual(missing['totals']['booked_cost'],expected['cost'])
+            store.close()
+
+    def test_duplicate_economic_event_and_missing_original_detail(self):
+        from meme_machine.runtime.component_performance import extend_native,coverage
+        reserve=dict(action='reserved',at=1,position=dict(id='x',status='reserved',tokens=0,basis=0,realized=0))
+        fill=dict(action='filled',at=2,position=dict(id='x',status='open',tokens=3,basis=101,realized=0))
+        report=extend_native([reserve,fill],adapter='paper',lifecycle_id='x')
+        self.assertEqual(extend_native([fill],report,adapter='paper',lifecycle_id='x'),report)
+        missing=extend_native([fill],adapter='paper',lifecycle_id='x')
+        self.assertEqual(missing['state'],'UNAVAILABLE')
+        self.assertIsNone(missing['components'])
+        self.assertEqual(missing['totals']['remaining_basis'],101)
+        counts=coverage([report,missing],missing_records=4)
+        self.assertEqual((counts['records'],counts['available'],counts['unavailable']),(6,1,5))
+        self.assertFalse(counts['complete_component_coverage'])
+
+    def test_native_rounding_zero_quantity_basis_allocation_is_reported_until_final_release(self):
+        from meme_machine.runtime.survivor_paper_book import PaperBook
+        from meme_machine.runtime.component_performance import paper_report
+        with tempfile.TemporaryDirectory() as td,closing(PaperBook(Path(td)/'native.sqlite',
+                run_id='run',lane='fixture',policy_hash='p',initial=10000)) as book:
+            identity='run:rounding';book.reserve(identity,100,1,{})
+            book.transition(identity,'filled',2,amount=1,tokens=99)
+            book.transition(identity,'scale_add',3,amount=99,tokens=1,evidence={'request':'native-add'})
+            book.transition(identity,'partial_harvest',4,amount=5,tokens=1)
+            report=paper_report(book,identity)
+            self.assertEqual(report['components']['add']['remaining_quantity'],0)
+            self.assertEqual(report['components']['add']['remaining_basis'],98)
+            self.assertEqual(report['totals']['remaining_basis'],book._load(identity)['basis'])
+            book.transition(identity,'settled',5,amount=99)
+            final=paper_report(book,identity)
+            self.assertEqual(final['components']['add']['remaining_basis'],0)
+            self.assertEqual(sum(c['realized_pnl'] for c in final['components'].values()),book._load(identity)['realized'])
+
+
 class LearningRetention(unittest.TestCase):
     def test_robinhood_empty_tape_maintenance_seeks_retirement_boundaries(self):
         from meme_machine.runtime.robinhood.plane import Plane

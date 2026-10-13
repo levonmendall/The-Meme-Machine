@@ -240,10 +240,17 @@ def compact_pons(paper,*,limit=64):
     try:
         before=paper.reconcile();rows=paper.positions();prefix=pons_prefix(paper)
         for position in rows:
+            prior=prefix.get(position['id']) or {}
             events=paper.events(position['id']);last=events[-1] if events else prefix[position['id']]['event']
             accounting=paper.accounting(position['id'])
             entry=next((e for e in events if e['action']=='entry'),prefix.get(position['id'],{}).get('entry'))
-            prefix[position['id']]=dict(event=last,accounting=accounting,entry=entry)
+            from meme_machine.runtime.component_performance import extend_native,unavailable
+            component_prior=prior.get('component_performance')
+            if prior and component_prior is None:component_prior=unavailable(position['id'],'retired_component_detail')
+            suffix=[event for event in events if not prior or event['position']['version']>prior['event']['position']['version']]
+            component_performance=extend_native(suffix,component_prior,adapter='pons',lifecycle_id=position['id'])
+            prefix[position['id']]=dict(event=last,accounting=accounting,entry=entry,
+                component_performance=component_performance)
         value=_pons_checkpoint(paper) or dict(experiment=paper.experiment)
         value['positions']=prefix
         db.execute('INSERT OR REPLACE INTO pons_journal_checkpoint VALUES(1,?,?)',(canonical(value),digest(value)))

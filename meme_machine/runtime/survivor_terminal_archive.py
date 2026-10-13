@@ -46,9 +46,22 @@ def _book_commit(book,plan):
             if book._load(identity)!=expected or anchor['positions'].get(identity)!=expected:
                 raise ValueError('retirement_native_changed')
             from meme_machine.runtime.learning import lifecycle
+            from meme_machine.runtime.component_performance import coverage,unavailable,accumulate
             controller=(anchor.get('controller_snapshots') or {}).get(identity)
+            component=anchor.get('component_performance',{}).get(identity) or unavailable(identity,'retired_component_detail')
             lifecycle(book.db,identity,book.identity.get('lane','survivor'),time.time(),
-                      dict(expected,controller=controller))
+                      dict(expected,controller=controller,component_performance=component))
+            prior=totals.get('component_coverage')
+            # Older folded terminals have authoritative totals but no split.
+            if prior is None:
+                prior=coverage([],missing_records=totals.get('settled',0))
+                if anchor.get('archived_entry_scope') or totals.get('settled',0):
+                    # Legacy folded state counts settled fills but does not
+                    # retain the count of retired never-filled cancellations.
+                    prior['historical_record_count_unavailable']=True
+            totals['component_coverage']=coverage([component],prior=prior)
+            totals['component_coverage']['evidence_scope']='NATIVE_RETIREMENT_CAPTURE'
+            totals['component_totals']=accumulate(component,totals.get('component_totals'))
             for key,value in metrics(anchor['journal_proofs'][identity],expected).items():
                 aggregate[key]=aggregate.get(key,0)+value
             for key in ('realized','capital_unit_seconds'):
@@ -56,6 +69,7 @@ def _book_commit(book,plan):
             totals['settled']=totals.get('settled',0)+int(expected['status']=='settled')
             anchor['positions'].pop(identity);anchor['risk_states'].pop(identity,None)
             anchor['journal_proofs'].pop(identity)
+            anchor.get('component_performance',{}).pop(identity,None)
             book.db.execute('DELETE FROM positions WHERE id=?',(identity,))
             book.db.execute('DELETE FROM runtime_state WHERE identity=?',(identity,))
         anchor['archived_entry_scope']=plan['scope'];anchor['retirement_receipt']=plan['hash']

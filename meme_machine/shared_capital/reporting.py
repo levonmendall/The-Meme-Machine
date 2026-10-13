@@ -82,6 +82,11 @@ def export(authority,*,at=None):
             exit_value=None,mark=value,lifecycle=native.get('lifecycle',[]),**identities['lanes'][family])
         native.update(regime=r,original_basis=p['original_basis'],partial_exits=p['partials'],scale_committed=p['scale_committed'],
             staged_add_basis=amount(money(p['capital_deployed'])-money(p['original_basis'])))
+        if not isinstance(native.get('component_performance'),dict):
+            from meme_machine.runtime.component_performance import unavailable
+            native['component_performance']=unavailable(life,'native_component_detail_not_in_shared_snapshot')
+            native['component_performance']['authoritative_totals']=dict(currency='USD',
+                capital_deployed=p['capital_deployed'],remaining_basis=p['basis'],realized_pnl=p['realized_pnl'])
         native['protection']=deepcopy(p.get('native_protection') or dict(state='UNKNOWN',evidence_current=False,pending_exit=False))
         if r=='pump_current':
             from meme_machine.lanes.pump.pump_acceleration_strategy import POLICY
@@ -160,6 +165,11 @@ def export(authority,*,at=None):
             'transaction_cost_floor':state['policy'].get('transaction_cost_floor','0')},authority_health='CURRENT',cutover_status='SHARED',
         paused_families={'meteora':'PAUSED','ramses':'PAUSED'},allocation_latency=state.get('runtime_latency',{'state':'UNMEASURED'}))
     details['policy_sha256']=digest(state['policy'])
+    from meme_machine.runtime.component_performance import coverage
+    details['component_performance_coverage']=coverage(
+        [p['component_performance'] for p in positions],
+        missing_records=sum(v['count'] for v in state['retired'].values()),
+        population='shared_positions_and_retired_native_lifecycles')
     details['new_risk_restrictions']=[]
     if not risk['valuation_ready']:details['new_risk_restrictions'].append('PORTFOLIO_VALUATION_UNAVAILABLE_OR_INVALID')
     if risk['drawdown_bps']>=state['policy']['drawdown_stop_bps']:details['new_risk_restrictions'].append('PORTFOLIO_DRAWDOWN_LIMIT')

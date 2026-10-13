@@ -160,11 +160,22 @@ def _summary_snapshot(result):
         rejection_counts=dict(sorted(rejection_counts.items())),
         realized_pnl_quote=realized,
         archived_realized_pnl_quote=result.get('archived_trials',{}).get('realized_pnl_quote',0),
+        component_performance_coverage=_component_coverage(result),
+        archived_component_performance=result.get('archived_trials',{}).get('component_totals'),
         graduated_lifecycles=result.get('archived_trials',{}).get('graduated_lifecycles',0)+sum(
             bool(x.get("carried_through_graduation"))
             for x in result["lifecycles"]
         ),
     )
+
+
+def _component_coverage(result):
+    from meme_machine.runtime.component_performance import coverage
+    archived=result.get('archived_trials',{})
+    prior=archived.get('component_coverage')
+    if prior is None:
+        prior=coverage([],missing_records=archived.get('qualifiers',0))
+    return coverage([life.get('component_performance') for life in result['lifecycles']],prior=prior)
 
 
 def _record_candidate_boundary(pipeline,identity,event,sequence,context,boundary,
@@ -694,6 +705,15 @@ def _attach_wallet_overlay(vector,skill_book):
 
 
 def _record_completed_lifecycle(result,life):
+    from meme_machine.runtime.component_performance import pons_path_report,unavailable
+    position=life.get('final_position') or {};index=life.get('index')
+    component=life.get('component_performance') or {}
+    joined=component.get('native_projection') or {}
+    if not (component.get('state')=='AVAILABLE' and joined.get('id')==position.get('id')
+            and joined.get('version')==position.get('version')):
+        life['component_performance']=(pons_path_report(ROOT/f'trial-{index:03d}.sqlite',position)
+            if type(index) is int and position.get('status')=='settled'
+            else unavailable(position.get('id'),'native_completed_detail_unavailable'))
     from meme_machine.runtime.robinhood.pons import coalesce_lifecycle_rows
     merged=coalesce_lifecycle_rows(result['lifecycles']+[life])
     _append_jsonl(ROOT/'completed-lifecycles.jsonl',life)
@@ -735,7 +755,7 @@ def persist_terminal(result):
         lifecycles=len(result['lifecycles']),provider_sessions=len(result['discovery_sessions']))
     compact['lifecycles']=[{k:v for k,v in life.items() if k in (
         'index','status','boundary','lifecycle_id','settlement_kind','final_position','reconciliation','realized_pnl_quote',
-        'carried_through_graduation','capital_reconciliation')} for life in result['lifecycles']]
+        'carried_through_graduation','capital_reconciliation','component_performance')} for life in result['lifecycles']]
     raw=json.dumps(compact,sort_keys=True,separators=(',',':')).encode()
     if len(raw)>12_000_000:raise BoundaryError('selective_cohort_report_capacity')
     temporary=REPORT.with_suffix(REPORT.suffix+'.tmp')
@@ -1390,6 +1410,8 @@ def run(endpoint,*,campaign=False):
         rejection_counts=dict(sorted(counts.items())),
         realized_pnl_quote=returns,
         archived_realized_pnl_quote=result.get("archived_trials",{}).get("realized_pnl_quote",0),
+        component_performance_coverage=_component_coverage(result),
+        archived_component_performance=result.get('archived_trials',{}).get('component_totals'),
         graduated_lifecycles=result.get('archived_trials',{}).get('graduated_lifecycles',0)+sum(
             bool(x.get("carried_through_graduation"))
             for x in result["lifecycles"]

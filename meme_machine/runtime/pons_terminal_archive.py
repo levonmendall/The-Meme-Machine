@@ -89,6 +89,12 @@ def retire_controller(result):
                 from meme_machine.runtime.portfolio import NativePortfolio
                 if any(n==p['id'] for n,_ in NativePortfolio(os.environ['MM_PORTFOLIO_ACCOUNTING_DB'],'pons').pending()):continue
             retired[p['id']]=row;drop.append(q['index'])
+            from meme_machine.runtime.component_performance import coverage,accumulate
+            prior=controller.get('component_coverage')
+            if prior is None:prior=coverage([],missing_records=controller.get('qualifiers',0))
+            controller['component_coverage']=coverage([life.get('component_performance')],prior=prior)
+            controller['component_coverage']['evidence_scope']='NATIVE_RETIREMENT_CAPTURE'
+            controller['component_totals']=accumulate(life.get('component_performance'),controller.get('component_totals'))
             for key,value in dict(positions=1,realized=row['pnl'],native_execution_cost=row['native_accounting']['native_execution_cost'],capital_at_risk_unit_nanoseconds=row['native_accounting']['capital_at_risk_unit_nanoseconds']).items():folded[key]=folded.get(key,0)+value
             controller['qualifiers']=controller.get('qualifiers',0)+1
             controller['wallet_converged']=controller.get('wallet_converged',0)+int(bool(q.get('wallet_convergence',{}).get('converged')))

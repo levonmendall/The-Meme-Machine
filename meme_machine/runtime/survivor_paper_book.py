@@ -338,13 +338,20 @@ class PaperBook:
             from meme_machine.runtime.journal_proof import extend
             risk={} if prior is None else json.loads(_json(prior['risk_states']))
             summaries={} if prior is None else json.loads(_json(prior['journal_proofs']))
+            from meme_machine.runtime.component_performance import extend_native,unavailable
+            components={} if prior is None else json.loads(_json(prior.get('component_performance',{})))
+            if prior:
+                for identity in prior['positions']:
+                    components.setdefault(identity,unavailable(identity,'retired_component_detail'))
             for raw, in source.db.execute('SELECT body FROM journal ORDER BY seq'):
                 event=json.loads(raw);identity=event['position']['id']
                 summaries[identity]=extend([event],summaries.get(identity))
+                components[identity]=extend_native([event],components.get(identity),adapter='paper',lifecycle_id=identity)
                 state=(risk_reader or risk_record)(risk.get(identity),event)
                 if state is not None:risk[identity]=state
             anchor=dict(identity=self.identity,seq=proof['events'],final_hash=proof['final_hash'],
                 cash=proof['cash'],positions=positions,risk_states=risk,journal_proofs=summaries,
+                component_performance=components,
                 execution_cost=(cost_reader or execution_cost)(source),authority=authority,
                 previous_archive_hash=_hash(prior) if prior else None)
             if prior:
@@ -368,7 +375,7 @@ class PaperBook:
             import time
             for identity,position in positions.items():
                 lifecycle(self.db,identity,self.identity['lane'],time.time(),
-                          dict(position,risk_state=risk.get(identity)),
+                          dict(position,risk_state=risk.get(identity),component_performance=components.get(identity)),
                           (json.loads(raw) for raw, in self.db.execute(
                            "SELECT body FROM journal WHERE seq<=? AND json_extract(body,'$.position.id')=? ORDER BY seq",(seq,identity))))
             self.db.execute('INSERT OR REPLACE INTO journal_archive VALUES(1,?,?)',(_json(anchor),_hash(anchor)))
