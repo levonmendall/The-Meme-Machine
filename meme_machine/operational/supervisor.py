@@ -1,5 +1,6 @@
 """Ordinary subprocess ownership, durable recovery and bounded publication."""
 from datetime import datetime,timezone,timedelta
+from dataclasses import dataclass
 import fcntl
 import json
 import os
@@ -14,6 +15,14 @@ from meme_machine.portfolio_accounting import PortfolioAccounting,inception_rece
 from meme_machine.runtime.usd_valuation import ValuationUnavailable,utc
 
 SOURCE_ROOT=Path(__file__).resolve().parents[2]
+
+
+@dataclass(frozen=True)
+class ProviderHealthSample:
+    collected_at: float
+    completed_at: float
+    providers: dict
+    error: str | None = None
 
 # Owner-directed reversible pause. Accounting identity/state remains four-lane so
 # historical paused-family evidence and future owner-directed reactivation stay
@@ -334,7 +343,7 @@ class Supervisor:
             if time.monotonic()>=deadline:raise RuntimeError('shared_evidence_start_timeout')
             time.sleep(.05)
 
-    def publish(self):
+    def publish(self,*,provider_sample=None):
         now=time.time()
         health={}
         for lane,proc in self.processes.items():
@@ -393,7 +402,8 @@ class Supervisor:
             self.learning_observation=owner_learning_observation(self.root)
         except (OSError,ValueError,RuntimeError):self.learning_observation=None
         try:
-            providers=self.provider_health()
+            sample=provider_sample if provider_sample is not None else self.collect_provider_health()
+            providers=self.providers_for_sample(sample)
             # Publish this cycle's already-reconciled facts. Publishing before
             # building them inserted a full extra cycle of age under load; a
             # healthy portfolio then failed the observer's unchanged 15s TTL.
@@ -403,13 +413,14 @@ class Supervisor:
                 continuation_resources=getattr(self,'resource_measurement',None),
                 portfolio_observation=getattr(self,'portfolio_observation',None),
                 shared_capital_projection_error=getattr(self,'shared_capital_projection_error',None),
+                provider_health_sample=dict(collected_at=sample.collected_at,completed_at=sample.completed_at,error=sample.error),
                 learning_observation=getattr(self,'learning_observation',None)))
         except OSError as error:
             print('health publication failed:',type(error).__name__,flush=True)
         self.last_publish=time.monotonic()
 
     def publish_shared_capital(self,health,now):
-        from meme_machine.shared_capital.reporting import export,summary
+        from meme_machine.shared_capital.reporting import reporting_snapshot,export_from_snapshot,summary_from_snapshot
         from meme_machine.portfolio_snapshot_transport import publish_snapshot
         for lane in ACTIVE_LANES:
             row=health.get(lane,{})
@@ -421,12 +432,15 @@ class Supervisor:
                     ready=ready and not self.stop_requested,at=int(now))
         if self.shared_capital.ledger()['inception'].get('sizing_basis')=='shared_realized_equity':
             self.shared_capital.command('portfolio-history:'+str(int(now)),'runtime_publish',{},int(now))
-        projection=export(self.shared_capital,at=int(now))
+        # All authority mutations finish first. Capture once, then project and
+        # write files after the read transaction has closed.
+        view=reporting_snapshot(self.shared_capital,at=int(now))
+        projection=export_from_snapshot(view)
         projection['shared_capital']['allocation_latency']={lane:health.get(lane,{}).get('shared_capital_metrics',
             {'state':'UNMEASURED'}) for lane in ACTIVE_LANES}
         self.portfolio_observation=dict(state='CURRENT',timestamp=now,valid_until=projection['valid_until'],
-            **summary(self.shared_capital,int(now)))
-        _atomic_json(self.root/'inception.json',self.shared_capital.snapshot()['ledger']['inception'])
+            **summary_from_snapshot(view))
+        _atomic_json(self.root/'inception.json',view.snapshot['ledger']['inception'])
         _atomic_json(self.root/'portfolio.json',projection)
         publish_snapshot(self.root/'inception.json',self.root/'portfolio.json',self.root/'dashboard-snapshot.json')
 
@@ -440,7 +454,8 @@ class Supervisor:
                 db=sqlite3.connect(path.as_uri()+'?mode=ro',uri=True,timeout=.1)
                 from .observation import provider_queue
                 depth,oldest=provider_queue(db,provider=='solana')
-                result[provider]=dict(state='CURRENT',queue_depth=depth,oldest_wait_seconds=max(0,time.monotonic()-oldest) if oldest is not None else 0)
+                result[provider]=dict(state='CURRENT',sampled_at=time.time(),queue_depth=depth,
+                    oldest_wait_seconds=max(0,time.monotonic()-oldest) if oldest is not None else 0)
                 if provider=='solana':
                     result[provider]['pressure']=[dict(provider=p,grants=g,rate_errors=e,cooldown_seconds=max(0,c-time.monotonic())) for p,_,c,g,e in db.execute('SELECT * FROM pressure')]
                 else:
@@ -453,6 +468,7 @@ class Supervisor:
             db=None
             try:
                 db=sqlite3.connect(path.as_uri()+'?mode=ro',uri=True,timeout=.1)
+                evidence_sampled_at=time.time()
                 db.execute('BEGIN') # One coherent read snapshot of proof and child.
                 result['evidence']=dict(state='CURRENT',hot_records=db.execute('SELECT COUNT(*) FROM records WHERE body IS NOT NULL').fetchone()[0],open_gaps=db.execute('SELECT COUNT(*) FROM gaps WHERE repaired IS NULL').fetchone()[0],frontiers=[dict(scope=s,slot=slot,updated=updated) for s,slot,updated in db.execute('SELECT * FROM cursors')])
                 from meme_machine.solana_prewarm_startup import released,published_program_frontiers
@@ -465,9 +481,35 @@ class Supervisor:
                     result['evidence']['program_checkpoints']=[dict(scope=s,slot=slot,updated=updated,market_time=market)
                         for s,slot,updated,market in db.execute('SELECT c.scope,c.slot,c.updated,b.market_time FROM candidate_checkpoints c JOIN candidate_blocks b ON b.scope=c.scope AND b.slot BETWEEN c.slot AND c.slot+1 WHERE c.scope IN (?,?)',
                             (program_scope('pump'),program_scope('pumpswap')))]
+                result['evidence']['sampled_at']=evidence_sampled_at
             except (OSError,sqlite3.Error,ValueError):result['evidence']={'state':'UNAVAILABLE'}
             finally:
                 if db:db.close()
+        return result
+
+    def collect_provider_health(self):
+        started=time.time()
+        try:
+            providers=self.provider_health()
+        except (OSError,ValueError,RuntimeError,sqlite3.Error) as error:
+            return ProviderHealthSample(started,time.time(),{},type(error).__name__)
+        return ProviderHealthSample(started,time.time(),providers)
+
+    @staticmethod
+    def providers_for_sample(sample):
+        """No persistent cache; freshness and queue age are checked at use."""
+        now=time.time()
+        if sample.error or not 0<=now-sample.completed_at<=15:
+            reason=sample.error or 'provider_health_sample_stale'
+            return {key:dict(state='UNAVAILABLE',reason=reason,
+                sampled_at=sample.collected_at) for key in ('solana','robinhood','evidence')}
+        result={key:dict(row) for key,row in sample.providers.items()}
+        for key,row in result.items():
+            observed=row.get('sampled_at',sample.collected_at)
+            if not 0<=now-observed<=15:
+                result[key]=dict(state='UNAVAILABLE',reason='provider_health_sample_stale',sampled_at=observed)
+            elif key in ('solana','robinhood') and row.get('state')=='CURRENT' and row.get('queue_depth',0)>0:
+                row['oldest_wait_seconds']=row.get('oldest_wait_seconds',0)+max(0,now-observed)
         return result
 
     def configure_admission(self):
@@ -623,11 +665,12 @@ class Supervisor:
             from .position_continuation import close_bootstrap
             close_bootstrap(self,'bootstrap_readiness_not_demonstrated')
 
-    def continuation_health(self):
+    def continuation_health(self,*,provider_sample=None):
         from .position_continuation import outstanding,provider_failure,provider_recovered
         budget=getattr(self,'provider_budget',None)
         if budget is None:return
-        providers=self.provider_health();now=time.time();reason=None
+        sample=provider_sample if provider_sample is not None else self.collect_provider_health()
+        providers=self.providers_for_sample(sample);now=time.time();reason=None
         for lane in self.runtime_lanes():
             provider='solana' if lane=='pump' else 'robinhood'
             row=providers.get(provider,{})
@@ -710,9 +753,10 @@ class Supervisor:
                 if not self.offline and self.evidence is not None and 'pump' not in self.runtime_lanes():
                     self.stop_process(self.evidence,45);self.evidence=None
                 if time.monotonic()-self.last_publish>=2:
+                    provider_sample=self.collect_provider_health()
                     if self.admission in ('BOOTSTRAP','CONTINUATION','NORMAL','AUTONOMY') and not self.offline:
-                        self.continuation_health()
-                    self.publish()
+                        self.continuation_health(provider_sample=provider_sample)
+                    self.publish(provider_sample=provider_sample)
                     if self.admission=='BOOTSTRAP' and not self.offline:self.bootstrap_tick()
                     if self.admission in ('NORMAL','AUTONOMY') and not self.offline:self.normal_tick()
                     if self.admission in ('BOOTSTRAP','CONTINUATION') and not self.offline:

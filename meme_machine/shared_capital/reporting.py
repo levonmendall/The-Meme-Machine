@@ -1,6 +1,8 @@
 """Read-only projections for the existing dashboard and acceptance observer."""
 from copy import deepcopy
+from collections import deque
 from contextlib import contextmanager
+from dataclasses import dataclass
 from decimal import Decimal
 from functools import wraps
 from meme_machine.exact_money import exact, money, amount
@@ -34,16 +36,37 @@ def coherent_read(fn):
     return read
 
 
+@dataclass(frozen=True)
+class ReportingSnapshot:
+    """One validated read, explicitly scoped to a reporting publication."""
+    snapshot: dict
+    event_count: int
+    journal_hash: str
+    at: int | None
+
+
 @coherent_read
-@exact
+def reporting_snapshot(authority,*,at=None):
+    snap=authority.snapshot(at=at)
+    if 'ledger' not in snap:raise KeyError('ledger')
+    count=authority.db.execute('SELECT count(*) FROM shared_capital_events').fetchone()[0]
+    head=authority.db.execute('SELECT hash FROM shared_capital_events ORDER BY sequence DESC LIMIT 1').fetchone()[0]
+    return ReportingSnapshot(snap,count,head,at)
+
+
 def summary(authority,at):
-    snap=authority.snapshot(at=at);state=snap['ledger'];risk=snap['risk'];capital=snap['capital']
+    return summary_from_snapshot(reporting_snapshot(authority,at=at))
+
+
+@exact
+def summary_from_snapshot(view):
+    snap=view.snapshot;state=snap['ledger'];risk=snap['risk'];capital=snap['capital']
     pending=[*state['pending_deliveries'],*state.get('runtime_pending',{}).values()]
     pnl=money(capital['realized_equity'])-money(state['initial_capital'])
     nav=risk['marked_equity']
     return dict(epoch_id=state['epoch_id'],inception_sha256=state['inception_sha256'],
-        sequence=state['migration_source']['sequence']+authority.db.execute('SELECT count(*) FROM shared_capital_events').fetchone()[0],
-        journal_hash=authority.db.execute('SELECT hash FROM shared_capital_events ORDER BY sequence DESC LIMIT 1').fetchone()[0],
+        sequence=state['migration_source']['sequence']+view.event_count,
+        journal_hash=view.journal_hash,
         reconciliation='PASS',checks={k:True for k in ('lane_realized_less_shared_costs','remaining_basis','cash_basis_conservation','cost_attribution')},
         reservations=len(state['reservations'])+len(state['commitments']),pending_deliveries=len(pending),
         open_positions=sum(p['status']=='OPEN' for p in state['positions'].values()),
@@ -55,11 +78,23 @@ def summary(authority,at):
         starting_capital=state['initial_capital'],sizing_basis=state['policy']['sizing_basis'],authority_health='CURRENT',cutover_status='SHARED')
 
 
-@coherent_read
-@exact
 def export(authority,*,at=None):
-    snap=authority.snapshot(at=at);state=snap['ledger'];at=max(state['at'],at or state['at']);c=snap['capital'];risk=snap['risk']
+    return export_from_snapshot(reporting_snapshot(authority,at=at))
+
+
+@exact
+def export_from_snapshot(view):
+    snap=view.snapshot;state=snap['ledger'];at=max(state['at'],view.at or state['at']);c=snap['capital'];risk=snap['risk']
     old=_decode_checkpoint(state['migration_source']['replayed_state']);identities=old['identities']
+    funding_decisions={}
+    for _,q in sorted(state['requests'].items()):
+        if not q.get('decision'):continue
+        life=q.get('bound_lifecycle_id',q['value'].get('lifecycle_id'))
+        # Explicit null never falls back to the request's lifecycle.
+        if life is None or life not in state['positions']:continue
+        funding_decisions.setdefault(life,deque(maxlen=8)).append(dict(
+            kind=q['value']['kind'],status=q['status'],requested_basis=q['value']['requested_basis'],
+            granted_basis=q['decision']['basis'],binding_constraints=q['decision'].get('binding_constraints',[])))
     positions=[]
     for life,p in sorted(state['positions'].items()):
         r=p['regime'];mark=p.get('mark');family=FAMILIES[r]
@@ -141,11 +176,7 @@ def export(authority,*,at=None):
             lineage_invested_basis=amount(invested),
             asset_invested_ceiling=amount(scaled(base,policy['asset_invested_bps'])) if policy.get('asset_invested_bps') is not None else None,
             reference_only=True,additional_funding_requires_native_decision=True)
-        native['funding_decisions']=[dict(kind=q['value']['kind'],status=q['status'],
-            requested_basis=q['value']['requested_basis'],granted_basis=q['decision']['basis'],
-            binding_constraints=q['decision'].get('binding_constraints',[]))
-            for _,q in sorted(state['requests'].items()) if q.get('decision') and
-                q.get('bound_lifecycle_id',q['value'].get('lifecycle_id'))==life][-8:]
+        native['funding_decisions']=list(funding_decisions.get(life,()))
         positions.append(native)
     reserved=sum((money(c[k]) for k in ('active_reservations','pending_authoritative_commitments','required_funding_obligations')),Decimal(0))
     pnl=money(c['realized_equity'])-money(state['initial_capital'])
@@ -186,7 +217,7 @@ def export(authority,*,at=None):
         details['new_risk_restrictions'].append('PORTFOLIO_EXPOSURE_HEADROOM')
     if state['policy']['sizing_basis']=='effective_family_equivalence':
         details['family_equivalent_equity']={f:amount(_size_equity(state,f+'_current' if f in ('pump','pons') else f)) for f in LANES}
-    sequence=old['sequence']+authority.db.execute('SELECT count(*) FROM shared_capital_events').fetchone()[0]
+    sequence=old['sequence']+view.event_count
     until=min([at+30]+[p['mark']['valuation']['valid_until'] for p in state['positions'].values()
         if p['status']=='OPEN' and p.get('mark') and p['mark']['valuation']['valid_until']>=at])
     return dict(schema='meme-machine-portfolio-export-v1',mode='canonical',epoch_id=state['epoch_id'],inception_sha256=state['inception_sha256'],

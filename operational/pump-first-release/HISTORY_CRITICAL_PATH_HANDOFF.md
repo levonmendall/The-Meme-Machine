@@ -29,11 +29,51 @@ scratch measurement within one guard cycle. **43 focused tests passed in
 and unchanged unique test IDs. Log:
 `E/TARGETED_SIMPLIFICATION_SMALL_FOCUSED_20261013.log`.
 
-Pending at this coherent source checkpoint: E, one coherent reporting view and
-one lifecycle grouping; F, an explicitly timestamped same-cycle provider-health
-sample; G, inspect monetary-history side effects separately and either implement
-a bounded safe follow-on or record its exact unresolved dependency. Do not
-reopen the Pump redesign or let optional simplification block operating work.
+Small-correction checkpoint: `13005cd6b528d8eedac72c01907818b9e4b40cd7`.
+E and F are now implemented at its successor: one validated reporting snapshot
+supplies export, summary and inception after all mutations; pure projection and
+file writes run after the read transaction closes. Requests are ordered/grouped
+once per publication, preserving explicit-null overrides and the last eight.
+One explicitly timestamped provider-health sample supplies both ordinary-cycle
+consumers. Standalone/startup/shutdown calls collect fresh samples; failed,
+future and stale samples remain unavailable. Queue age is measured before
+descriptive queries and advances at use without renewing the sample timestamp.
+
+**138 final focused regressions passed in 31.480 seconds**, including all nine
+economic-change and original source-integrity assertions. Complete outputs were
+compared against the exact reviewed `84463cf7` reporting source for empty,
+unmarked, marked, partial, add, settled and expired-mark fixtures. Concurrent
+commit and fresh-spending checks passed. An earlier 155-test run had two new
+fixture errors (missing mocked `evidence` initialization; expected `950` instead
+of preserved `950.00`); both are corrected, their two-case retest passed, and
+the failure remains in E with its scratch locator. Final combined-source FAST
+CI remains required before deploying the successor.
+
+Measured offline scope: one export/summary/inception publication with two
+positions uses **9→4 SELECTs**, **3→1 reporting snapshots**, and **2→1 request
+traversals**. Recovery verification is **4→2 replay calls** across the same two
+independent openings. An ordinary applicable cycle uses **2→1 provider-health
+collections**; shutdown still collects separately. The active scratch directory
+is walked once instead of twice per guard cycle; concurrent/failed scopes and
+all quotas remain counted. These are operation counts, not live throughput,
+monthly savings, hardware capacity or Pons-fault repair evidence.
+
+G is **specifically deferred**. `RuntimeCapital._apply` advances authoritative
+`state['at']` before `runtime_publish`, and default `CapitalAuthority.snapshot`
+evaluates valuation at that state time. Later native runtime actions clamp to
+the preserved authoritative time; capital accrual and valuation/risk checks use
+their resulting action time. Removing only history samples would change these
+semantics. No bounded replacement preserving that clock across fresh mutations
+and exact journal replay is established in this scoped patch. Existing entries,
+action replay, bounded 2,000-item history, sequences and risk behavior remain
+unchanged. Do not start a monetary-clock redesign to unblock deployment, and do
+not claim journal simplification would reclaim the Solana evidence database.
+
+No market provider request, deployment, PAPER restart or funding change occurred
+for simplification. The existing separately authorized staged operating sequence
+continues. Recovery failed at its paused 600-second full integrity query; the
+completed closed images and failure receipt are preserved. A bounded completion
+verification is recorded in `E/STAGED_RECOVERY_COMPLETION_20261013.json`.
 None of these changes identifies or repairs the unresolved Pons INSERT fault.
 
 **Engineering only. PAPER remains inactive, disabled and funding closed.**
