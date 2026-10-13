@@ -829,6 +829,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
     if historical_executor is not None:
         source_driver.historical_executor=historical_executor
         source_driver.delivery_executor=delivery_executor
+        source_driver.preparation_executor=decoder_pool
     source_program_addresses=tuple(sorted({s.address for s in program_subscriptions()}))
     async def work(fn,priority=1,*,label=None,accepted=None,admit_before=None):
         if label not in (None,'source_commit','archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish','maintenance_decision','history_dispatch','history_apply','candidate_delivery_capture','candidate_delivery_ack'):

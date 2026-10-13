@@ -324,6 +324,8 @@ class EvidenceWriter:
             self.db.execute('BEGIN IMMEDIATE')
             yield
             self.db.execute('COMMIT')
+            callback=getattr(self,'_history_committed',None)
+            if callback is not None:callback()
         except BaseException:
             # SQLite may already roll back an interrupted statement itself.
             # Preserve its original error when there is no transaction to undo.

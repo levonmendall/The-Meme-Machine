@@ -348,6 +348,66 @@ class ProviderDemandDiagnosticTests(unittest.TestCase):
             try:self.assertEqual(db.execute('SELECT n FROM logical_demand').fetchone()[0],2)
             finally:db.close()
 
+    def test_optional_probe_failure_keeps_original_error_and_essential_note(self):
+        from meme_machine.runtime.robinhood import provider_usage
+        with tempfile.TemporaryDirectory() as temp:
+            path=Path(temp)/'provider.sqlite';original=sqlite3.OperationalError('fixture_readonly')
+            original.sqlite_errorcode=sqlite3.SQLITE_READONLY;original.sqlite_errorname='SQLITE_READONLY'
+            connect=sqlite3.connect;connections=[]
+            class FailedInsert(sqlite3.Connection):
+                closed=False
+                def executemany(self,*a,**kw):raise original
+                def close(self):super().close();self.closed=True
+            def opened(*a,**kw):
+                db=connect(*a,factory=FailedInsert,**kw);connections.append(db);return db
+            with patch.object(provider_usage.sqlite3,'connect',opened),\
+                    patch.object(provider_usage,'_demand_failure_probes',side_effect=OSError('optional_probe_failure')):
+                with self.assertRaises(sqlite3.OperationalError) as caught:provider_usage.demand(path,'endpoint',['eth_call'])
+            self.assertIs(caught.exception,original);self.assertTrue(connections[0].closed)
+            facts=original.provider_demand_diagnostic
+            self.assertEqual((facts['sqlite_errorcode'],facts['sqlite_errorname'],facts['phase']),
+                (sqlite3.SQLITE_READONLY,'SQLITE_READONLY','insert'))
+            self.assertEqual(facts['requested_state_path'],str(path));self.assertEqual(facts['pid'],os.getpid())
+            self.assertEqual(json.loads(original.__notes__[0].split('=',1)[1]),facts)
+
+    def test_actual_lane_main_traceback_retains_demand_diagnostic_note(self):
+        # Run the actual worker entrypoint/error-reporting boundary. The native
+        # acquisition body is a tiny real SQLite readonly fixture, never a market
+        # call, portfolio initialization or invocation of a live strategy.
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);(root/'pons').mkdir();path=root/'provider.sqlite'
+            db=sqlite3.connect(path)
+            db.execute('CREATE TABLE logical_demand(endpoint TEXT,method TEXT,n INTEGER,PRIMARY KEY(endpoint,method))')
+            db.commit();db.close()
+            script='''
+import sys,sqlite3
+from pathlib import Path
+from unittest.mock import patch
+from operational.tests import network_guard
+network_guard()
+from meme_machine.operational import lane
+from meme_machine.runtime.robinhood import provider_usage
+root,path=sys.argv[1:];connect=sqlite3.connect
+def readonly(*args,**kwargs):return connect(Path(path).as_uri()+'?mode=ro',uri=True)
+def native(*args):
+    with patch.object(provider_usage.sqlite3,'connect',readonly):
+        provider_usage.demand(path,'SYNTHETIC_ENDPOINT_SECRET',['SYNTHETIC_METHOD_SECRET'])
+sys.argv=['lane','--lane','pons','--state-root',root]
+with patch.object(lane,'run_native',native),patch('meme_machine.operational.bounded_provider.install'):
+    lane.main()
+'''
+            result=subprocess.run([sys.executable,'-c',script,str(root),str(path)],capture_output=True,text=True,timeout=10)
+            self.assertNotEqual(result.returncode,0)
+            self.assertIn('attempt to write a readonly database',result.stderr)
+            notes=[r for r in result.stderr.splitlines() if r.startswith('provider_demand_diagnostic=')]
+            self.assertEqual(len(notes),1);facts=json.loads(notes[0].split('=',1)[1])
+            self.assertEqual((facts['sqlite_errorcode'],facts['sqlite_errorname'],facts['phase']),
+                (sqlite3.SQLITE_READONLY,'SQLITE_READONLY','insert'))
+            self.assertEqual(facts['requested_state_path'],str(path));self.assertGreater(facts['pid'],0)
+            self.assertNotIn('SYNTHETIC_ENDPOINT_SECRET',notes[0]);self.assertNotIn('SYNTHETIC_METHOD_SECRET',notes[0])
+            self.assertFalse((root/'pons'/'health.json').exists())
+            with sqlite3.connect(path) as db:self.assertEqual(db.execute('SELECT COUNT(*) FROM logical_demand').fetchone()[0],0)
+
 
 if __name__=='__main__':
     unittest.main()

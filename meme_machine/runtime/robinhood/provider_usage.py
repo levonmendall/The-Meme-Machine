@@ -271,7 +271,20 @@ def _demand_failure(error, path, db, phase, opened_at):
         pid=os.getpid(),thread_id=threading.get_ident(),
         native_thread_id=threading.get_native_id(),uid=os.geteuid(),gid=os.getegid(),
         connection_requested_open_mode='readwrite_create',connection_uri=False,
-        connection_attempt_age_seconds=time.monotonic()-opened_at,state_path=os.path.abspath(path))
+        connection_attempt_age_seconds=time.monotonic()-opened_at,state_path=os.path.abspath(path),
+        requested_state_path=os.path.abspath(path))
+    # Essential context must survive ANY optional SQL/filesystem probe failure.
+    # Keep one traceback note, updated in-place, on the original exception.
+    error.provider_demand_diagnostic=facts
+    note=len(getattr(error,'__notes__',()))
+    error.add_note('provider_demand_diagnostic='+json.dumps(facts,sort_keys=True))
+    try:_demand_failure_probes(facts,db)
+    finally:error.__notes__[note]='provider_demand_diagnostic='+json.dumps(facts,sort_keys=True)
+
+
+def _demand_failure_probes(facts,db):
+    """Optional, failure-only reads. Essential attribution is already retained."""
+    import os
     if db is not None:
         facts['connection_id']=id(db)
         facts['in_transaction']=db.in_transaction
@@ -307,8 +320,6 @@ def _demand_failure(error, path, db, phase, opened_at):
         facts['filesystem']=dict(readonly=bool(fs.f_flag&os.ST_RDONLY),
             available_bytes=fs.f_bavail*fs.f_frsize,available_inodes=fs.f_favail)
     except OSError as observed:facts['filesystem']=dict(errno=observed.errno)
-    error.provider_demand_diagnostic=facts
-    error.add_note('provider_demand_diagnostic='+json.dumps(facts,sort_keys=True))
 
 
 def demand(path, fingerprint, methods):

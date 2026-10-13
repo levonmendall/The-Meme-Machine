@@ -124,23 +124,31 @@ class RollingHistory:
         # Only the local ingest command supplies already validated body bytes.
         # Direct callers still run all shape and credential checks. No retained
         # snapshot is reused for another input or across an owner transaction.
-        original,raw=row.serialized_body() if serialized is None else serialized
+        from .solana_economic_preparation import PreparedEconomicRecord
+        product=serialized if isinstance(serialized,PreparedEconomicRecord) else None
+        if product is not None:
+            body=row._body();raw=product.encoded;checksum=product.checksum
+            original=None # Expand original raw lineage only for a legacy conflict/migration.
+        else:original,raw=row.serialized_body() if serialized is None else serialized
         prior=self.db.execute('SELECT hash,first_seen,body,transaction_index FROM rolling_economic_events WHERE identity=?',(row.identity,)).fetchone()
         legacy=None
         if prior is None:
             legacy=self.db.execute('SELECT body,hash,first_seen FROM canonical_evidence WHERE identity=?',(row.identity,)).fetchone()
-        body=original;payload=original['payload']
-        if 'raw_lineage' in payload:
-            row=replace(row,payload=dict(event=payload['event'],raw_lineage_hash=digest(payload['raw_lineage'])))
-            body=dict(original,payload=row.payload);raw=canonical(body)
-        checksum=hashlib.sha256(raw.encode()).hexdigest()
+        if product is None:
+            body=original;payload=original['payload']
+            if 'raw_lineage' in payload:
+                row=replace(row,payload=dict(event=payload['event'],raw_lineage_hash=digest(payload['raw_lineage'])))
+                body=dict(original,payload=row.payload);raw=canonical(body)
+            checksum=hashlib.sha256(raw.encode()).hexdigest()
         if legacy and legacy[0] is not None:
+            if original is None:original=json.loads(product.original_raw)
             old=decode_body(legacy[0],self.db)
             self.history._compatible(old,original)
             # Preserve the original immutable representation on migration.
             # Only newly acquired events omit raw logs from durable economics.
             body=old;raw=canonical(body);checksum=legacy[1]
         if prior and prior[0]!=checksum:
+            if original is None:original=json.loads(product.original_raw)
             original_body=dict(original,transaction_index=prior[3])
             if digest(original_body)!=prior[0]:raise EvidenceConflict('candidate_economic_content_conflict')
             body=original_body;raw=canonical(body);checksum=prior[0]
@@ -154,8 +162,10 @@ class RollingHistory:
             (row.identity,row.scope,row.slot,row.signature,row.program,row.market_time,row.event_index,body['transaction_index'],
              row.kind,raw,checksum,available)).rowcount
         for address in row.addresses:self.db.execute('INSERT OR IGNORE INTO rolling_economic_addresses VALUES(?,?)',(row.identity,address))
+        economic_hash=(product.economic_hash if product is not None and checksum==product.checksum
+                       else self.history.content_hash(body))
         self.db.execute('INSERT OR IGNORE INTO candidate_content_receipts VALUES(?,?,?,?)',
-            (row.identity,self.history.content_hash(body),row.transaction_index,available))
+            (row.identity,economic_hash,row.transaction_index,available))
         self.history.attest_order(row.scope,row.slot,row.signature,row.transaction_index)
         self.db.execute('INSERT OR IGNORE INTO rolling_event_lineage VALUES(?,?,?,?)',(row.identity,row.source,row.endpoint_identity,available))
         self.db.execute('INSERT INTO cursors VALUES(?,?,?) ON CONFLICT(scope) DO UPDATE SET slot=MAX(slot,excluded.slot),updated=excluded.updated',

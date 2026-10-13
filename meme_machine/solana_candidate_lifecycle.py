@@ -6,6 +6,7 @@ The cross-database outbox is committed in the canonical store first, consumed
 idempotently in CandidateHistory second, and checkpointed last.
 """
 from contextlib import closing
+from pathlib import Path
 import hashlib
 import json
 import os
@@ -59,6 +60,7 @@ def defer_busy_consumer(function):
             if (getattr(error,'sqlite_errorcode',0)&255) not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):raise
             if self.db.in_transaction:raise
             now=self.clock()
+            self._consumer_retry_at=time.monotonic()+.1
             if now-getattr(self,'_consumer_busy_observed_at',float('-inf'))>=5:
                 self.history._observation(None,'candidate_consumer_write_busy',
                     dict(operation=function.__name__,deferred=True,proof_advancement=False))
@@ -70,8 +72,8 @@ def defer_busy_consumer(function):
 class CandidateLifecycle:
     def __init__(self,history,*,candidate_path=None):
         self.history=history;self.writer=history.writer;self.db=history.db;self.clock=history.clock
-        self.path=candidate_path or os.environ.get('MM_SOLANA_CANDIDATE_HISTORY_DB') or (
-            self.writer.path.parent/'solana-candidate-history.sqlite')
+        self.path=Path(candidate_path or os.environ.get('MM_SOLANA_CANDIDATE_HISTORY_DB') or (
+            self.writer.path.parent/'solana-candidate-history.sqlite'))
         if str(self.path)==str(self.writer.path):raise EvidenceUnavailable('candidate_history_store_must_be_separate')
         self.db.executescript(SCHEMA)
         if 'priority' not in {r[1] for r in self.db.execute('PRAGMA table_info(candidate_history_outbox)')}:
@@ -103,8 +105,11 @@ class CandidateLifecycle:
             active=self.db.execute("SELECT 1 FROM candidate_lifecycle WHERE family=? AND address=? AND state IN ('queued','warming','active')",(family,address)).fetchone()
             pinned=self.db.execute('SELECT 1 FROM service_interests s JOIN interests i ON i.owner=s.owner AND i.scope=s.scope WHERE i.active=1 AND s.address=? AND s.scope=? LIMIT 1',(address,FAMILIES[family])).fetchone()
             if active or pinned:priority=2
-        self.db.execute('INSERT OR IGNORE INTO candidate_history_outbox(id,family,address,kind,body,hash,created,consumed,priority) VALUES(?,?,?,?,?,?,?,NULL,?)',
-            (identity,family,address,kind,raw,hashlib.sha256(raw.encode()).hexdigest(),at,priority))
+        inserted=self.db.execute('INSERT OR IGNORE INTO candidate_history_outbox(id,family,address,kind,body,hash,created,consumed,priority) VALUES(?,?,?,?,?,?,?,NULL,?)',
+            (identity,family,address,kind,raw,hashlib.sha256(raw.encode()).hexdigest(),at,priority)).rowcount
+        if inserted:
+            from .solana_history_notifications import changed
+            changed(self.history,publication=False,urgent_delivery=priority<=1)
         return identity
 
     def observe(self,family,address,*,slot,seen,fields,activity=False,signature=''):
@@ -233,6 +238,10 @@ class CandidateLifecycle:
                     self.db.execute('UPDATE candidate_history_outbox SET consumed=?,body=?,hash=? WHERE id=?',
                         (self.clock(),compact_raw,compact_hash,identity))
                 else:self.db.execute('UPDATE candidate_history_outbox SET consumed=? WHERE id=?',(self.clock(),identity))
+            if acknowledgements:
+                from .solana_history_notifications import changed
+                urgent=any(row[1] is not None for row in acknowledgements)
+                changed(self.history,publication=urgent,urgent_delivery=urgent)
 
     def deliver_rows(self,rows,bindings):
         """Existing consumer transformations; no canonical database mutation."""
@@ -421,14 +430,18 @@ class CandidateLifecycle:
     def defer_proof(self,proof):
         require_scope(proof.scope)
         identity=digest([proof.scope,proof.lower_slot,proof.upper_slot,proof.witness])
-        self.db.execute('INSERT OR IGNORE INTO candidate_pending_proofs VALUES(?,?,?,?,?,?,?,?)',
+        inserted=self.db.execute('INSERT OR IGNORE INTO candidate_pending_proofs VALUES(?,?,?,?,?,?,?,?)',
             (identity,proof.scope,proof.lower_slot,proof.upper_slot,proof.source,
-             proof.endpoint_identity,canonical(proof.witness),proof.observed_at))
+             proof.endpoint_identity,canonical(proof.witness),proof.observed_at)).rowcount
+        if inserted:
+            from .solana_history_notifications import changed
+            changed(self.history)
 
     @defer_busy_consumer
     def publish(self):
         """Proofs become visible only after all source receipts are durable."""
         if self.db.in_transaction:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')
+        self._consumer_retry_at=None;self._published_count=0
         self.flush()
         separated=getattr(self,'delivery_separated',False)
         if separated and (not self.path.exists() or not self.db.execute('SELECT 1 FROM candidate_pending_proofs LIMIT 1').fetchone()):return
@@ -501,6 +514,7 @@ class CandidateLifecycle:
                     unresolved=self.db.execute('SELECT 1 FROM candidate_gaps WHERE scope=? AND repaired IS NULL AND lo<=? LIMIT 1',(scope,hi)).fetchone()
                     if not unresolved and (old is None or lo<=old[0]+1):self.checkpoint(scope,hi,identity)
                     self.db.execute('DELETE FROM candidate_pending_proofs WHERE id=?',(identity,))
+                    self._published_count+=1
         # Both original commit fences have completed. Never skip failed work or
         # advance the round-robin cursor after a busy/failed canonical commit.
         last=None if not proofs else (proofs[-1][3],proofs[-1][4],proofs[-1][0])
@@ -513,7 +527,10 @@ class CandidateLifecycle:
         if getattr(self,'delivery_separated',False):
             # The durable lifecycle rows retain the obligation. Consumer work
             # status/read/settlement runs in bounded slices off-owner.
-            self._consumer_refresh_requested=True
+            if not getattr(self,'_consumer_refresh_requested',False):
+                self._consumer_refresh_requested=True
+                from .solana_history_notifications import changed
+                changed(self.history,publication=False,urgent_delivery=False)
             return
         rows=self.db.execute("SELECT family,address,deadline FROM candidate_lifecycle WHERE "+active_sql('family',solana=True)+" AND state IN ('queued','warming','active')").fetchall()
         if not rows:return

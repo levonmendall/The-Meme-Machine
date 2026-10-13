@@ -225,8 +225,11 @@ class SelectiveHistory:
                 old=self.db.execute('SELECT market_address,coverage_scope FROM evidence_bindings WHERE family=? AND address=?',(family,alias)).fetchone()
                 target=(market,scoped)
                 if old and tuple(old)!=target:raise EvidenceConflict('candidate_binding_conflict')
-                self.db.execute('INSERT OR IGNORE INTO evidence_bindings VALUES(?,?,?,?,?,?)',
-                    (family,alias,market,base,scoped,canonical(metadata or {})))
+                inserted=self.db.execute('INSERT OR IGNORE INTO evidence_bindings VALUES(?,?,?,?,?,?)',
+                    (family,alias,market,base,scoped,canonical(metadata or {}))).rowcount
+                if inserted:
+                    from .solana_history_notifications import changed
+                    changed(self)
         return scoped
 
     def scope_for(self,family,address):
@@ -436,6 +439,9 @@ class SelectiveHistory:
         neither their immutable content nor original availability is rewritten.
         """
         rows=tuple(rows);restored=restored or {}
+        from .solana_economic_preparation import PreparedEconomicRecord
+        prepared_rows=rows
+        rows=tuple(r.record if isinstance(r,PreparedEconomicRecord) else r for r in rows)
         from .runtime.operating_families import require_scope
         for row in rows:require_scope(row.scope)
         if len(rows)>2048:
@@ -444,8 +450,12 @@ class SelectiveHistory:
         # establish its physical bound and immutable rolling-store hash. This
         # is never a cache across calls, replay, blocks or mutable payloads.
         serialized=[];retained_bytes=0
-        for row in rows:
-            prepared=row.serialized_body();retained_bytes+=len(prepared[1].encode())
+        for row,product in zip(rows,prepared_rows):
+            if isinstance(product,PreparedEconomicRecord):
+                if not hasattr(self,'rolling'):raise EvidenceUnavailable('prepared_economic_store_required')
+                prepared=product;retained_bytes+=product.original_bytes
+            else:
+                prepared=row.serialized_body();retained_bytes+=len(prepared[1].encode())
             if retained_bytes>16*1024*1024:raise EvidenceUnavailable('ingestion_batch_bound')
             serialized.append(prepared)
         from .solana_evidence_plane import require_storage
@@ -615,6 +625,8 @@ class SelectiveHistory:
         with self.writer.transaction():
             self.db.execute('INSERT INTO candidate_gaps(scope,lo,hi,created,reason) VALUES(?,?,?,?,?)',
                 (scope,lo,hi,self.clock(),reason))
+            from .solana_history_notifications import changed
+            changed(self)
 
     def attest_order(self,scope,slot,signature,index):
         checksum=digest([scope,slot,signature,index])

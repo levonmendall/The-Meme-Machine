@@ -194,6 +194,13 @@ SAFE_EVIDENCE_REASONS=frozenset(('address_history_page_bound', 'address_history_
 
 SAFE_CANDIDATE_REASONS=frozenset(["activity_filter_identity","authoritative_subscription_rejected","bootstrap_optional_work_closed","candidate_activity_task_stopped","candidate_addresses_required","candidate_block_repair_economic_identity","candidate_block_repair_identity_or_completeness","candidate_block_repair_transaction_identity","candidate_content_scope","candidate_economic_content_conflict","candidate_join_wait_bound","candidate_late_log_content","candidate_live_task_stopped","candidate_log_buffer_pressure","candidate_log_content_conflict","candidate_log_status_conflict","candidate_native_eof","candidate_native_frame_bound","candidate_native_parent_gap","candidate_page_lease_stale","candidate_replay_floor_required","candidate_replay_receipt_conflict","candidate_required_content_missing","candidate_scout_census_shape","candidate_scout_fields_missing","candidate_scout_filter","candidate_scout_owner","candidate_source_task_stopped","candidate_websocket_ack_timeout","incomplete_finalized_logs","repair_pagination_stalled","rolling_delivery_frontier_unavailable","unknown_source_subscription","yellowstone_census_buffer_bound","yellowstone_conflicting_content","yellowstone_conflicting_status_census","yellowstone_content_census_mismatch","yellowstone_content_filter_identity","yellowstone_duplicate_signature","yellowstone_finalized_bank_mismatch","yellowstone_finalized_block_shape","yellowstone_frame_bound","yellowstone_incomplete_status_census","yellowstone_late_census_content","yellowstone_status_filter_identity","yellowstone_transaction_error_encoding","yellowstone_transaction_index_shape","yellowstone_transaction_plane_required","yellowstone_unfiltered_transaction"])
 
+SAFE_CANDIDATE_REASONS=SAFE_CANDIDATE_REASONS | frozenset((
+    'candidate_preparation_source_changed','candidate_preparation_batch_shape',
+    'candidate_preparation_result_bound','candidate_preparation_executor_required',
+    'prepared_economic_store_required','historical_executor_required',
+    'candidate_delivery_executor_required'))
+
+
 def failure_diagnostic(exc):
     from meme_machine.solana_evidence_plane import EvidenceUnavailable
     def classification(error):

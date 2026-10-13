@@ -1,0 +1,85 @@
+{
+  "status": "OFFLINE_FOCUSED_AND_OPERATIONAL_PASS_EXACT_SOURCE_CI_PENDING",
+  "comparison_baseline": "c3c753c3bdf8bf6e3dd5c253e21799fb52e8d743",
+  "original_design": "dc957c521b6d043a9d4a1bca3c47127bc2f51abb",
+  "branch": "engineering/pump-history-separation-20261013",
+  "files_sha256": {
+    "meme_machine/runtime/evidence_worker.py": "3c24dd6c9c5b005114106f28dae3b278a3958af8691b80aefb3476bb9f7d014d",
+    "meme_machine/runtime/robinhood/provider_usage.py": "f8d32ab48938f34ae5af8192dc55b4eaa94420649e7a98636b4996d4f516bc46",
+    "meme_machine/solana_candidate_lifecycle.py": "bf9685dea4b0814388732d13c574cba9cca3422d84c3700e56cd35b099d8367b",
+    "meme_machine/solana_evidence_plane.py": "da3b6ca2ef187c3dfb1e0f7fc6d9f1b0014f1b71ce3dc8de35fde5551fd47557",
+    "meme_machine/solana_evidence_service.py": "af6ea0e598e340546bf3b1dc48a00667404dadccb86b10b79831b8fd7cae4ce9",
+    "meme_machine/solana_history_delivery.py": "d4482b777ea38ec6f3bb782db34c69717114e5c15e3eedbebb579e59dbcaa29f",
+    "meme_machine/solana_rolling_history.py": "96cafd030579263a8e830346823d32d7e3b797b9f966d6521d1eb3acb7d310e4",
+    "meme_machine/solana_selective_history.py": "df688c5c727179a14b7d5dfe5ea4c4807150197dac1ced73f1f7c025a83ca109",
+    "meme_machine/solana_selective_source.py": "071f0be585abeb75a098f537d1ece39189d29c439abbcde6d7c2e82d14a85963",
+    "operational/tests.py": "89ec0a3686760faa35c83ddf4409b47deb9f1ab9b0e3c830c112841e3ed5bdec",
+    "tests/test_provider_usage_wal_race.py": "05ca98bf3464055601b4cd5fb52273f4165096e6d6dc06267ecb150ce2f2f208",
+    "tests/test_solana_shared_capacity.py": "f283b481b801fb1032cb03ef009f8c97e09343dcca0a0f26298fe23b9c05a4be",
+    "engineering/solana_capacity/history_refinement_replay.py": "07c91648722fdb5b2f5ffa76830379bb1cd2f80c7ceaf3e36a54cbe647ba90cb",
+    "meme_machine/solana_economic_preparation.py": "92eafe7b8309e1895ce8deb940d3fe81e01c6dc8adad0ec6ed32d750ecf7bd03",
+    "meme_machine/solana_history_notifications.py": "15e45839bff5984300b8c41af3fc0637d5e62677eba6142ced6c404844201df6",
+    "tests/test_solana_history_refinement.py": "57692ded0bc3a402e9d6706e2b7675348d04efc389dff0766d85120c1345ca16"
+  },
+  "provider_dispatches": 0,
+  "deployed": false,
+  "paper_state": "inactive/dead/disabled; funding closed",
+  "epoch": "paper-shared-1000-20261011T071207Z",
+  "capital_modified": false,
+  "research_resumed": false,
+  "validation": {
+    "focused": "85 PASS / 17.345 seconds",
+    "relevant_operational": "220 tests PASS / 68.546 seconds, one existing archived Model A skip",
+    "pons_diagnostic": "9 PASS, including essential-context optional-probe failure and actual lane.main traceback path",
+    "pons_regressions": "73 PASS; no overlap with Pump profiling",
+    "baseline_ci": "1886 PASS exact c3c753c3, run 38428869088",
+    "final_fast_ci": "pending exact implementation publication"
+  },
+  "raw_comparison": {
+    "status": "EXACT_RAW_PREFIX_ECONOMIC_AND_COVERAGE_PARITY",
+    "input_records": 40000,
+    "economic_records": 287,
+    "completed_program_slots": 3,
+    "baseline": {
+      "group_cpu_seconds": 10.564961199999999,
+      "full_path_seconds": 10.35485256195534,
+      "candidate_owner_cpu_seconds": 0.27212329200000007,
+      "publication_turns": 79,
+      "sql_statements": 23027,
+      "group_rss_peak_bytes": 206082048,
+      "required_history_max_seconds": 0.2858448940096423,
+      "urgent_probe_max_seconds": 0.3234167849877849
+    },
+    "candidate": {
+      "group_cpu_seconds": 9.598163644,
+      "full_path_seconds": 8.977881090948358,
+      "candidate_owner_cpu_seconds": 0.16752743000000003,
+      "publication_turns": 8,
+      "sql_statements": 23008,
+      "group_rss_peak_bytes": 186064896,
+      "required_history_max_seconds": 0.29339738900307566,
+      "urgent_probe_max_seconds": 0.7027295010630041
+    },
+    "economic_order_availability_population_coverage_checkpoint_receipt_and_history_verdict_parity": true,
+    "oldest_pending_required_history": [
+      null,
+      null,
+      0
+    ],
+    "interpretation": "Single offline prefix comparison, not sustainable market capacity. Required-history max 0.286 -> 0.293 seconds; urgent scheduling max 0.323 -> 0.703 seconds worsened. No native protection or deadline PASS inferred. Incomplete joins stay unavailable. Checkpoint updated timestamps are recorded separately, never rewritten."
+  },
+  "deferred": [
+    "Always-process preparation for small unfunded packets: transfer cost and usable latency lacked a consistent benefit",
+    "Reducing existing decoder/archive pool from two to one: no competing archive workload in the one-worker comparison",
+    "Additional optimizations, authenticated validation and deployment: outside this scope/authority"
+  ],
+  "operating_blockers": [
+    "Pump current-market sustainable throughput and freshness remain unmeasured after separation",
+    "Pons readonly logical-demand INSERT cause unresolved; only diagnostics integrated",
+    "Combined original native quotation/USD protective deadlines remain unproven",
+    "Backup ArtifactStorageFull and volume 85% warning remain separate",
+    "No owner authorization for deployment/provider workloads/PAPER restart or acceptance"
+  ],
+  "external_evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011",
+  "paired_comparison_sha256": "7e6e689e77ece78a30ceb9c1a3151c10f70cd51f621bcf0f4ad822d70a23e03f"
+}

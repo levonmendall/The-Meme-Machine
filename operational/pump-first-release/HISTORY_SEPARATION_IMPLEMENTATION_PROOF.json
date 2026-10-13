@@ -185,8 +185,9 @@
   "validation": {
     "new_history_and_archival_cases": "41 cases; latest archival combined suite 108 passed",
     "focused_acquisition_integrity": "124 passed before final archive split; source guard unchanged thereafter",
-    "relevant_operational": "186 passed, 1 existing local containment skip before final archive split; final follow-up pending",
-    "full_FAST": "final commit CI pending"
+    "relevant_operational": "206 tests PASS, one existing archived Model A skip; this is not a containment waiver",
+    "full_FAST": "final commit CI pending",
+    "exact_source_fast_ci": "c3c753c3: 1886 PASS, CI 38428869088; dc957c52 failed a stale calculation_facts test double; failed evidence preserved"
   },
   "external_evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011",
   "limitations": [
@@ -194,5 +195,8 @@
     "Owner-pipeline replay excludes native delivery/join, actual protective quotes/USD, Pons and broad-market workload",
     "No full-machine two-CPU capacity or one-hour acceptance claim",
     "Root/volume and backup prerequisites must be rechecked before any authorized deployment"
-  ]
+  ],
+  "original_published_source": "dc957c521b6d043a9d4a1bca3c47127bc2f51abb",
+  "validated_fixture_successor": "c3c753c3bdf8bf6e3dd5c253e21799fb52e8d743",
+  "evidence_scope": "Original historical redesign and frozen original source hashes. Further critical-path refinements are recorded separately."
 }

@@ -203,6 +203,11 @@ def commit_control(state,frame,*,active=True):
         # economic completeness. Candidate proofs live in a separate namespace.
         for scope in (FAMILIES[f] for f in install(state).active_families):
             state.fence._health('finalized_frontier:'+scope,dict(slot=b.slot,time=b.block_time.timestamp,seen=seen))
+        h=install(state)
+        startup=state.writer.db.execute('SELECT released FROM prewarm_startup WHERE id=1').fetchone()
+        if (startup and not startup[0]) or state.writer.db.execute('SELECT 1 FROM candidate_pending_proofs LIMIT 1').fetchone():
+            from .solana_history_notifications import changed
+            changed(h)
 
 def skipped_prefix(history,scope,frame):
     """A finalized parent below the replay floor proves skipped slots only."""
@@ -213,12 +218,19 @@ def skipped_prefix(history,scope,frame):
         method='native_finalized_parent_proves_no_block_in_replay_prefix',native_order=True)
     history.lifecycle.defer_proof(IntervalProof(scope,lo,b.slot-1,'alchemy_finalized_stream',history.endpoint_identity,witness,frame.seen))
 
-def commit_candidates(state,frame,addresses,session,*,publish=True):
+def commit_candidates(state,frame,addresses,session,*,publish=True,prepared=None):
     history=install(state);b=frame.update.block;seen=frame.seen
-    bodies={signature(tx.signature):economic_transaction(tx,slot=b.slot,
-        block_time=b.block_time.timestamp,rich=True) for tx in b.transactions}
-    bodies.update({tx['transaction']['signatures'][0]:tx for tx in frame.log_transactions})
-    rows={};censuses={scope:[] for scope in addresses.values()}
+    if prepared is not None:
+        from .solana_economic_preparation import PreparedCandidateFrame,coordinates
+        if (not isinstance(prepared,PreparedCandidateFrame) or prepared.coordinates!=
+                coordinates(frame,addresses,session,history.endpoint_identity)):
+            raise EvidenceUnavailable('candidate_preparation_source_changed')
+        rows=prepared.rows;censuses=prepared.censuses
+    else:
+        bodies={signature(tx.signature):economic_transaction(tx,slot=b.slot,
+            block_time=b.block_time.timestamp,rich=True) for tx in b.transactions}
+        bodies.update({tx['transaction']['signatures'][0]:tx for tx in frame.log_transactions})
+        rows={};censuses={scope:[] for scope in addresses.values()}
     reverse={scope:address for address,scope in addresses.items()}
     for scope in addresses.values():
         old=state.writer.db.execute('SELECT slot,hash,session FROM candidate_blocks WHERE scope=?',(scope,)).fetchone()
@@ -227,22 +239,24 @@ def commit_candidates(state,frame,addresses,session,*,publish=True):
             history.gap(scope,old[0],b.slot-1,'candidate_native_parent_gap')
             raise EvidenceUnavailable('candidate_native_parent_gap')
     with state.writer.source_frame():
-        for sig,index,scopes,error,available in frame.candidate_statuses:
-            for scope in scopes:
-                address=reverse[scope];family=scope.split(':',2)[1]
-                censuses[scope].append([sig,index,error])
-                if error is not None:continue # failed attempts have no committed economic events
-                tx=bodies.get(sig)
-                if tx is None:raise EvidenceUnavailable('candidate_required_content_missing')
-                for row in economic_records(family,address,tx,endpoint_identity=history.endpoint_identity,
-                                             seen=available,source='alchemy_finalized_stream'):
-                    previous=rows.get(row.identity)
-                    if previous and previous.body()!=row.body():raise EvidenceUnavailable('candidate_economic_content_conflict')
-                    rows[row.identity]=row
-        history.ingest(rows.values())
+        if prepared is None:
+            for sig,index,scopes,error,available in frame.candidate_statuses:
+                for scope in scopes:
+                    address=reverse[scope];family=scope.split(':',2)[1]
+                    censuses[scope].append([sig,index,error])
+                    if error is not None:continue # failed attempts have no committed economic events
+                    tx=bodies.get(sig)
+                    if tx is None:raise EvidenceUnavailable('candidate_required_content_missing')
+                    for row in economic_records(family,address,tx,endpoint_identity=history.endpoint_identity,
+                                                 seen=available,source='alchemy_finalized_stream'):
+                        previous=rows.get(row.identity)
+                        if previous and previous.body()!=row.body():raise EvidenceUnavailable('candidate_economic_content_conflict')
+                        rows[row.identity]=row
+        history.ingest(rows if prepared is not None else rows.values())
         for scope,census in censuses.items():
             old=state.writer.db.execute('SELECT slot,parent,hash,previous_hash,market_time,seen,session,census_hash FROM candidate_blocks WHERE scope=?',(scope,)).fetchone()
-            values=(b.slot,b.parent_slot,b.blockhash,b.parent_blockhash,b.block_time.timestamp,seen,session,digest(census))
+            census_hash=digest(census) if prepared is None else prepared.census_hashes[scope]
+            values=(b.slot,b.parent_slot,b.blockhash,b.parent_blockhash,b.block_time.timestamp,seen,session,census_hash)
             if old and b.slot<=old[0]:
                 if b.slot==old[0] and (old[1:5],old[7])!=(values[1:5],values[7]):raise EvidenceUnavailable('candidate_replay_receipt_conflict')
                 if old[6]==session:continue
@@ -261,16 +275,19 @@ def commit_candidates(state,frame,addresses,session,*,publish=True):
     if publish:history.lifecycle.publish()
 
 
-def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publish=True):
+def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publish=True,prepared=None):
     """The original ordered frames, under one atomic durable owner command."""
     if not 0<len(frames)<=CANDIDATE_COMMIT_BATCH:
         raise EvidenceUnavailable('candidate_commit_batch_bound')
     history=install(state)
+    if prepared is not None and (grouped or len(prepared)!=len(frames)):
+        raise EvidenceUnavailable('candidate_preparation_batch_shape')
     try:
         with state.writer.transaction():
-            for frame in frames:
-                (commit_rolling_group if grouped else commit_candidates)(
-                    state,frame,addresses,session,publish=False)
+            for index,frame in enumerate(frames):
+                if grouped:commit_rolling_group(state,frame,addresses,session,publish=False)
+                else:commit_candidates(state,frame,addresses,session,publish=False,
+                    prepared=None if prepared is None else prepared[index])
     except Exception:
         # A discontinuity inside the enclosing batch rolls back with it.
         # Retain its unavailable interval outside that rollback, before retry.
@@ -460,6 +477,15 @@ class SelectiveSource:
         self.control_bootstrap_tip=None;self.control_committed_slot=None
         self.control_committed_market_time=None
         self.acquisition_plan_lock=asyncio.Lock();self.acquisition_idle_until=0
+        self.preparation_lock=asyncio.Lock()
+        from .solana_history_notifications import WorkPulse
+        self.history_wakeup=WorkPulse();self.delivery_wakeup=WorkPulse()
+        self.delivery_urgent=WorkPulse()
+
+    def history_changed(self,*,publication=True,delivery=True,urgent_delivery=True):
+        if publication:self.history_wakeup.notify()
+        if delivery:self.delivery_wakeup.notify()
+        if delivery and urgent_delivery:self.delivery_urgent.notify()
 
     def observe_join(self,plane,join,session):
         now=time.monotonic()
@@ -568,29 +594,47 @@ class SelectiveSource:
                 else:del self.pending_delivery[key]
 
     async def publish_history(self):
+        seen=-1;retry_at=None
         try:
             while not self.stop.is_set():
-                await self.flush_delivery()
-                revision=self.native_revision;native=self.stream_telemetry()
-                diagnostics=list(self.pending_diagnostics)
+                seen=await self.history_wakeup.wait(seen,self.stop,
+                    delay=None if retry_at is None else max(0,retry_at-time.monotonic()))
+                if self.stop.is_set():break
+                await self.flush_delivery() # Preserve the original accounting-before-publication fence.
                 ready=time.monotonic();timing={}
                 def publish(s):
                     timing['owner_claim_monotonic']=time.monotonic()
-                    if revision!=self.native_published:s.fence._health('native_streams',native)
-                    self.commit_diagnostics(s,diagnostics)
                     h=install(s);timing['publication_started_monotonic']=time.monotonic()
                     h.lifecycle.publish()
                     timing['publication_finished_monotonic']=time.monotonic()
                     timing['publication_finished_wall']=time.time()
-                    return h.startup.advance()
-                await self.work(publish,2,label='source_commit')
-                del self.pending_diagnostics[:len(diagnostics)]
+                    startup=h.startup.advance()
+                    return (bool(getattr(h.lifecycle,'_proof_publication_cursor',None)),startup,
+                        getattr(h.lifecycle,'_consumer_retry_at',None),getattr(h.lifecycle,'_published_count',0))
+                more,startup,retry_at,published=await self.work(publish,2,label='source_commit')
                 self.observe('publication_timing',work_ready_monotonic=ready,
                     work_returned_monotonic=time.monotonic(),**timing)
-                self.native_published=revision
-                await asyncio.sleep(.1)
+                if more:self.history_wakeup.notify() # Drain one fixed durable horizon, then sleep.
+                if published:self.delivery_wakeup.notify() # Revalidate proof context changed by gap repair.
         finally:
             await self.flush_delivery()
+
+    async def source_reporting(self):
+        """Accounting and diagnostics keep their independent original cadence.
+
+        This timer never invokes historical publication. Idle reporting issues
+        no owner command; a diagnostic cannot wake its own publication loop.
+        """
+        while not self.stop.is_set():
+            await self.flush_delivery()
+            await self.flush_diagnostics()
+            revision=self.native_revision
+            if revision!=self.native_published:
+                native=self.stream_telemetry()
+                await self.work(lambda s:s.fence._health('native_streams',native),2,label='source_commit')
+                self.native_published=revision
+            try:await asyncio.wait_for(self.stop.wait(),.1)
+            except TimeoutError:pass
 
     async def control_commits(self,queue):
         while not self.stop.is_set():
@@ -616,11 +660,51 @@ class SelectiveSource:
         native_announced=False
         while not self.stop.is_set() or queue.count:
             rows=await queue.batch();frames=[r[0] for r in rows]
+            prepared=None;preparation={}
+            if getattr(self,'history_separated',False) and not grouped:
+                from .solana_economic_preparation import prepare_candidate_frames
+                # One bounded preparation batch, entirely BEFORE enqueueing any
+                # owner callback. Neither execution mode waits on the owner.
+                async with self.preparation_lock:
+                    started=time.monotonic()
+                    try:
+                        from .solana_evidence_service import STREAM_PROCESS_DECODE_MIN_BYTES
+                        if priority==0 or sum(r[1] for r in rows)>=STREAM_PROCESS_DECODE_MIN_BYTES:
+                            prepared,preparation=await asyncio.wrap_future(self.preparation_executor.submit(
+                                prepare_candidate_frames,frames,addresses,session,self.config.identity))
+                            preparation['mode']='existing_process_pool'
+                        else:
+                            # Reuse the already validated source-decode boundary.
+                            # Small packets cost more to transfer than prepare.
+                            # They still finish BEFORE owner admission, yielding
+                            # between frames. Large/protective packets use the
+                            # existing pool; no historian or delivery job is added.
+                            products=[];totals=dict(cpu_seconds=0,wall_seconds=0,prepared_bytes=0,records=0,mode='off_owner_inline')
+                            for frame in frames:
+                                product,timing=prepare_candidate_frames((frame,),addresses,session,self.config.identity)
+                                products.extend(product)
+                                for key in ('cpu_seconds','wall_seconds','prepared_bytes','records'):totals[key]+=timing[key]
+                                if totals['prepared_bytes']>CANDIDATE_COMMIT_BYTES:
+                                    raise EvidenceUnavailable('candidate_preparation_result_bound')
+                                await asyncio.sleep(0)
+                            prepared=tuple(products);preparation=totals
+                    except asyncio.CancelledError:raise
+                    except Exception as error:
+                        def failed(state):
+                            h=install(state)
+                            for scope in addresses.values():h.gap(scope,min(f.update.block.slot for f in frames),
+                                max(f.update.block.slot for f in frames),'candidate_economic_preparation_failed')
+                            from .runtime.evidence_worker import failure_diagnostic
+                            h._observation(None,'candidate_economic_preparation_failed',dict(
+                                error=failure_diagnostic(error),checkpoint_advanced=False))
+                        await self.work(failed,priority,label='source_commit')
+                        raise
+                    preparation['transfer_and_wait_seconds']=time.monotonic()-started
             claimed=[];finished_wall=[]
             def durable(state):
                 claimed.append(time.monotonic())
                 commit_candidate_batch(state,frames,addresses,session,
-                    grouped=grouped,publish=not self.batched)
+                    grouped=grouped,publish=not self.batched,prepared=prepared)
                 if rolling and not native_announced:
                     install(state).startup.native([s.split(':',2)[1] for s in addresses.values()])
                 claimed.append(time.monotonic());finished_wall.append(time.time())
@@ -632,7 +716,7 @@ class SelectiveSource:
                     join_ready_wall=ready_wall,durable_finished_wall=finished_wall[-1],
                     join_ready_monotonic=ready,owner_claim_monotonic=claimed[-2],
                     durable_finished_monotonic=claimed[-1],work_returned_monotonic=time.monotonic(),
-                    published_inline=not self.batched,durable_batch_frames=len(frames))
+                    published_inline=not self.batched,durable_batch_frames=len(frames),preparation=preparation)
             if rolling:
                 native_announced=True;self.rolling_publications+=len(frames)
             queue.done(rows)
@@ -833,17 +917,23 @@ class SelectiveSource:
         """
         work=source_work(work,stop,self.observe)
         self.work=work;self.stop=stop;self.batched=True
+        loop=asyncio.get_running_loop()
         def boot(state):
             from .operational.position_continuation import position_only
             h=install(state)
+            from .solana_history_notifications import install as notifications
+            notifications(h,loop,self.history_changed)
             if not position_only():h.startup.begin()
             return str(state.writer.path)
         self.canonical_path=await work(boot,0)
         from .solana_history_work import enabled as separated_history
+        self.history_separated=separated_history()
         if separated_history() and not callable(getattr(getattr(self,'historical_executor',None),'submit',None)):
             raise EvidenceUnavailable('historical_executor_required')
         if separated_history() and not callable(getattr(getattr(self,'delivery_executor',None),'submit',None)):
             raise EvidenceUnavailable('candidate_delivery_executor_required')
+        if separated_history() and not callable(getattr(getattr(self,'preparation_executor',None),'submit',None)):
+            raise EvidenceUnavailable('candidate_preparation_executor_required')
         tip=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',2)
         self.control_bootstrap_tip=tip
         async with grpc.aio.secure_channel(HOST,grpc.ssl_channel_credentials(),options=[
@@ -863,6 +953,7 @@ class SelectiveSource:
                    asyncio.create_task(self.rolling_programs(channel)),
                    asyncio.create_task(self.cold_maintenance()),
                    asyncio.create_task(self.publish_history()),
+                   asyncio.create_task(self.source_reporting()),
                    asyncio.create_task(self.control_commits(control_queue)),
                    stop_task]
             if separated_history():
@@ -1117,16 +1208,36 @@ class SelectiveSource:
     async def candidate_history_delivery(self):
         """Mandatory bounded consumer work, independent of optional history."""
         from .solana_history_delivery import capture,deliver,acknowledge
-        failures=0
+        failures=0;seen=-1;urgent_seen=0;not_before=0
         while not self.stop.is_set():
+            seen=await self.delivery_wakeup.wait(seen,self.stop)
+            if time.monotonic()<not_before:
+                await self.delivery_urgent.wait(urgent_seen,self.stop,delay=not_before-time.monotonic())
+            seen=self.delivery_wakeup.epoch;urgent_seen=self.delivery_urgent.epoch
+            if self.stop.is_set():break
             snapshot=await self.work(lambda state:capture(install(state).lifecycle),2,
                 label='candidate_delivery_capture')
             if snapshot is None:
-                await asyncio.sleep(.1);continue
+                continue
             try:
-                result=await asyncio.wrap_future(self.delivery_executor.submit(deliver,snapshot))
-                await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
+                future=asyncio.wrap_future(self.delivery_executor.submit(deliver,snapshot))
+                try:result=await asyncio.shield(future)
+                except asyncio.CancelledError:
+                    # Drain the single accepted consumer batch before the owner
+                    # closes. If the process dies instead, its durable receipts
+                    # and unacknowledged outbox retain the exact restart replay.
+                    result=await asyncio.shield(future)
+                    await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
+                        label='candidate_delivery_ack')
+                    raise
+                accepted=await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
                     label='candidate_delivery_ack')
+                # Noncritical short batches coalesce within the ORIGINAL 100-ms
+                # cadence. Canonical/proof work bypasses it; a full batch drains
+                # immediately. There is no idle polling or later trade deadline.
+                not_before=0 if len(snapshot['rows'])==64 else time.monotonic()+.1
+                self.history_changed(publication=bool(snapshot['proofs']) or not accepted,
+                    urgent_delivery=bool(snapshot['proofs']) or not accepted)
                 failures=0
             except sqlite3.OperationalError as exc:
                 if getattr(exc,'sqlite_errorcode',0)&255 not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):raise
@@ -1134,11 +1245,13 @@ class SelectiveSource:
                 await self.work(lambda state:install(state)._observation(None,'candidate_consumer_write_busy',
                     dict(complete=False,failures=failures,off_owner=True)),2)
                 await asyncio.sleep(min(2,.1*2**min(failures-1,5)))
+                self.delivery_wakeup.notify()
             except (RuntimeError,MemoryError) as exc:
                 failures+=1
                 await self.work(lambda state:install(state)._observation(None,'candidate_delivery_unavailable',
                     dict(complete=False,failures=failures,reason=type(exc).__name__)),2)
                 await asyncio.sleep(min(8,.5*2**min(failures-1,4)))
+                self.delivery_wakeup.notify()
 
     async def acquire(self):
         from .operational.position_continuation import position_only

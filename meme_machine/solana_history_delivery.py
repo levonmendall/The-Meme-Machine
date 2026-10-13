@@ -67,7 +67,17 @@ def capture(life):
     after='' if cursor is None else ' AND (lo,hi,rowid)>(?,?,?)'
     raw_proofs=life.db.execute('SELECT rowid,* FROM candidate_pending_proofs WHERE '+active_scope_sql('scope')+
         after+' ORDER BY lo,hi,rowid LIMIT 64',tuple(cursor or ())).fetchall()
-    proofs=[proof_receipt(life,row) for row in raw_proofs if not life.unconsumed(row[2],through=row[4])]
+    proofs=[]
+    if raw_proofs and life.path.exists():
+        with closing(sqlite3.connect(life.path.resolve().as_uri()+'?mode=ro',uri=True,timeout=0)) as consumer:
+            consumer.execute('PRAGMA query_only=ON')
+            for row in raw_proofs:
+                if life.unconsumed(row[2],through=row[4]):continue
+                # A completed unchanged proof need not be reserialized and
+                # FULL-committed on every turn while canonical control catches up.
+                if not verified_proof(life,consumer,row):proofs.append(proof_receipt(life,row))
+    elif raw_proofs:
+        proofs=[proof_receipt(life,row) for row in raw_proofs if not life.unconsumed(row[2],through=row[4])]
     refresh=[]
     if getattr(life,'_consumer_refresh_requested',False):
         cursor=getattr(life,'_consumer_refresh_cursor',0)
