@@ -72,6 +72,11 @@ class PumpReadTests(unittest.TestCase):
         events=[dict(id='buy',at=99,group='buyer',buy=True,quote=300,tokens=100,authenticated=True)]
         r.history=SimpleNamespace(get=lambda identity:dict(row,complete=True),
             append=lambda *a,**kw:None,facts=lambda *a:([dict(at=30,price='1')],events),prefix=lambda identity:None)
+        # This unchanged tiny fixture has no cold prefix to reduce. Expose the
+        # new acquisition interface while retaining the same points, demand and
+        # every before/after economic assertion below.
+        r.history.calculation_facts=lambda identity,at,**kw:(
+            *r.history.facts(identity,at),r.history.prefix(identity))
         return r,state
 
     def test_maintenance_omits_only_qualification_reads_and_preserves_risk_inputs(self):
