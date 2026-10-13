@@ -345,6 +345,30 @@ class EvidenceCase(unittest.TestCase):
             self.assertIsNone(row['rolling_10_seconds']['diagnostic_throughput_cu'])
             self.assertEqual(row['rolling_10_seconds']['unpriced_throughput_methods'],{'unknown_read':1})
 
+    def test_indexed_rate_snapshot_preserves_old_sample_floor_and_missing_clock_types(self):
+        from meme_machine.lanes.pons.provider_admission import Admission
+        from meme_machine.runtime.robinhood import provider_usage as usage
+        with tempfile.TemporaryDirectory() as tmp:
+            gate=Admission(Path(tmp)/'provider',ENDPOINT,lane='pons',clock=lambda:1000.)
+            with gate.connect() as db:
+                early=dict(endpoint_fingerprint=gate.endpoint,admitted_at=1000.,methods=['eth_call'],physical_requests=99)
+                db.execute('INSERT INTO transport_starts(body) VALUES(?)',(json.dumps(early),))
+                old=dict(early,admitted_at=100.,physical_requests=1)
+                db.executemany('INSERT INTO transport_starts(body) VALUES(?)',[(json.dumps(old),)]*4096)
+                for row in (dict(endpoint_fingerprint=gate.endpoint),dict(endpoint_fingerprint=gate.endpoint,admitted_at=None),
+                            dict(early,physical_requests=2),dict(early,admitted_at=1001.,physical_requests=100)):
+                    db.execute('INSERT INTO transport_starts(body) VALUES(?)',(json.dumps(row),))
+                old_admission=dict(endpoint_fingerprint=gate.endpoint,created=100.,ended=101.,granted=True)
+                db.executemany('INSERT INTO admissions(body) VALUES(?)',[(json.dumps(old_admission),)]*4096)
+                db.execute('INSERT INTO admissions(body) VALUES(?)',(json.dumps(dict(old_admission,created=999.,ended=1000.)),))
+            with patch.object(usage.time,'monotonic',return_value=1000.):result=gate.telemetry()
+            rate=result['rolling_10_seconds']
+            self.assertEqual(rate['physical_http_attempts'],2)
+            self.assertEqual(rate['records_without_start_clock'],1)
+            self.assertEqual(rate['admissions_arrived'],1)
+            self.assertEqual(rate['completed_admissions'],1)
+            self.assertEqual(rate['logical_calls_by_method'],{'eth_call':1})
+
     def test_rate_snapshot_filters_only_after_exact_retained_sample_boundary(self):
         from meme_machine.lanes.pons.provider_admission import Admission
         from meme_machine.runtime.robinhood import provider_usage as usage

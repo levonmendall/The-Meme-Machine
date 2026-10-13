@@ -301,6 +301,19 @@ class Admission:
                 BEGIN SELECT RAISE(ABORT,'append_only'); END;
             CREATE TRIGGER IF NOT EXISTS no_transport_delete BEFORE DELETE ON transports
                 BEGIN SELECT RAISE(ABORT,'append_only'); END;
+            CREATE INDEX IF NOT EXISTS usage_start_endpoint_seq
+                ON transport_starts(json_extract(body,'$.endpoint_fingerprint'),seq DESC);
+            CREATE INDEX IF NOT EXISTS usage_start_endpoint_time
+                ON transport_starts(json_extract(body,'$.endpoint_fingerprint'),json_extract(body,'$.admitted_at'),seq);
+            CREATE INDEX IF NOT EXISTS usage_start_without_clock
+                ON transport_starts(json_extract(body,'$.endpoint_fingerprint'),seq)
+                WHERE json_type(body,'$.admitted_at') IS NULL;
+            CREATE INDEX IF NOT EXISTS usage_admission_endpoint_seq
+                ON admissions(json_extract(body,'$.endpoint_fingerprint'),seq DESC);
+            CREATE INDEX IF NOT EXISTS usage_admission_created
+                ON admissions(json_extract(body,'$.endpoint_fingerprint'),json_extract(body,'$.created'),seq);
+            CREATE INDEX IF NOT EXISTS usage_admission_ended
+                ON admissions(json_extract(body,'$.endpoint_fingerprint'),json_extract(body,'$.ended'),seq);
         ''')
         # An explicitly installed operating profile replaces the development
         # pace, while preserving the next grant, cooldown and all usage records.

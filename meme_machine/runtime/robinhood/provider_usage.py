@@ -151,18 +151,24 @@ def snapshot(path, fingerprint):
         # of obsolete dictionaries on each RPC telemetry call delays native
         # work. SQLite selects the identical subset, without a cached verdict.
         starts=[];arrivals=[];without_clock=0
+        def retained_floor(table):
+            # The old last-4096 endpoint sample remains exact. Read only its
+            # indexed boundary, then seek current ten-second audit rows.
+            row=db.execute("SELECT seq FROM "+table+" WHERE json_extract(body,'$.endpoint_fingerprint')=? ORDER BY seq DESC LIMIT 1 OFFSET 4095",(fingerprint,)).fetchone()
+            return (' AND seq>=?',(row[0],)) if row else ('',())
         if 'transport_starts' in tables:
-            sample="SELECT body FROM transport_starts WHERE json_extract(body,'$.endpoint_fingerprint')=? ORDER BY seq DESC LIMIT 4096"
-            without_clock=db.execute('WITH sample AS MATERIALIZED ('+sample+
-                ") SELECT COUNT(*) FROM sample WHERE json_type(body,'$.admitted_at') IS NULL",(fingerprint,)).fetchone()[0]
-            starts=[json.loads(r[0]) for r in db.execute('WITH sample AS MATERIALIZED ('+sample+
-                ") SELECT body FROM sample WHERE json_extract(body,'$.admitted_at')>=? AND json_extract(body,'$.admitted_at')<=?",
-                (fingerprint,now-10,now))]
+            bound,tail=retained_floor('transport_starts')
+            without_clock=db.execute("SELECT COUNT(*) FROM transport_starts WHERE json_extract(body,'$.endpoint_fingerprint')=? AND json_type(body,'$.admitted_at') IS NULL"+bound,(fingerprint,*tail)).fetchone()[0]
+            starts=[json.loads(r[0]) for r in db.execute("SELECT body FROM transport_starts WHERE json_extract(body,'$.endpoint_fingerprint')=? AND json_extract(body,'$.admitted_at')>=? AND json_extract(body,'$.admitted_at')<=?"+bound+' ORDER BY seq DESC',
+                (fingerprint,now-10,now,*tail))]
         if 'admissions' in tables:
-            sample="SELECT body FROM admissions WHERE json_extract(body,'$.endpoint_fingerprint')=? ORDER BY seq DESC LIMIT 4096"
-            arrivals=[json.loads(r[0]) for r in db.execute('WITH sample AS MATERIALIZED ('+sample+
-                ") SELECT body FROM sample WHERE (json_extract(body,'$.created')>=? AND json_extract(body,'$.created')<=?) OR (json_extract(body,'$.ended')>=? AND json_extract(body,'$.ended')<=?)",
-                (fingerprint,now-10,now,now-10,now))]
+            bound,tail=retained_floor('admissions')
+            # UNION preserves one row when both arrival and completion fall in
+            # the window. Each branch keeps its own indexed time range.
+            branch="SELECT seq,body FROM admissions WHERE json_extract(body,'$.endpoint_fingerprint')=? AND json_extract(body,'$.{clock}')>=? AND json_extract(body,'$.{clock}')<=?"+bound
+            arrivals=[json.loads(r[1]) for r in db.execute(branch.format(clock='created')+' UNION '+branch.format(clock='ended')+' ORDER BY seq DESC',
+                (fingerprint,now-10,now,*tail,fingerprint,now-10,now,*tail))]
+
     finally:db.close()
     from meme_machine.runtime.cu import estimate
     by_lane={};totals=Counter()
@@ -251,6 +257,7 @@ def snapshot(path, fingerprint):
 def demand(path, fingerprint, methods):
     """Consumer demand includes exact-cache hits; wire calls remain separate."""
     db=sqlite3.connect(path,timeout=10)
+    db.execute('BEGIN')
     try:
         db.execute('CREATE TABLE IF NOT EXISTS logical_demand(endpoint TEXT,method TEXT,n INTEGER,PRIMARY KEY(endpoint,method))')
         db.executemany('INSERT INTO logical_demand VALUES(?,?,?) ON CONFLICT(endpoint,method) DO UPDATE SET n=n+excluded.n',
