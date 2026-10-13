@@ -202,6 +202,44 @@ class RollingHistory:
         address=scope.split(':',2)[2]
         return (scope,*[s for s, in self.db.execute('SELECT scope FROM rolling_group_members WHERE family=? AND address=?',(family,address))])
 
+    def _compact_proofs(self,rows):
+        """Reuse an authenticated immutable prefix when its final proof grows.
+
+        Native coverage appends to the latest compressed fragment. Hash every
+        freshly selected fragment before reuse, but do not decompress unchanged
+        older fragments again merely because that final fragment changed. No
+        gap, timestamp-filtered verdict or database row is cached here.
+        """
+        cache=getattr(self,'_coverage_span_cache',None)
+        if cache is None:cache=self._coverage_span_cache=OrderedDict()
+        fingerprint=hashlib.sha256();keys=[];prefix=0;compact=((),float('-inf'),0)
+        for index,(packed,checksum) in enumerate(rows):
+            actual=hashlib.sha256(packed).hexdigest()
+            if actual!=checksum:
+                from .solana_evidence_plane import EvidenceConflict
+                raise EvidenceConflict('candidate_coverage_corrupt')
+            fingerprint.update(actual.encode('ascii'));key=fingerprint.digest();keys.append(key)
+            found=cache.get(key)
+            if found is not None:
+                prefix=index+1;compact=found;cache.move_to_end(key)
+        if not rows:
+            keys=[fingerprint.digest()]
+        for index in range(prefix,len(rows)):
+            packed,checksum=rows[index];points=coverage_points(packed,checksum)
+            spans=_subtract_intervals((*compact[0],*((a,b) for a,b,t in points)),())
+            compact=(tuple(spans),max(compact[1],max(t for a,b,t in points)),compact[2]+len(points))
+            # Keep the prefix before the mutable final fragment as well as the
+            # whole cohort. Both share the original eight-entry / 512-KiB bound.
+            if index not in (len(rows)-2,len(rows)-1):continue
+            key=keys[index]
+            retained=(sys.getsizeof(key)+sys.getsizeof(compact)+sys.getsizeof(compact[0])+
+                sys.getsizeof(compact[1])+sys.getsizeof(compact[2])+
+                sum(sys.getsizeof(s)+sum(sys.getsizeof(n) for n in s) for s in compact[0]))
+            if retained<=64*1024 and compact[2]<=32768 and len(spans)<=4096:
+                cache[key]=compact;cache.move_to_end(key)
+                while len(cache)>8:cache.popitem(last=False)
+        return compact
+
     def missing(self,family,scope,lo,hi,*,as_of=None):
         at=self.clock() if as_of is None else as_of
         if hi<lo:return []
@@ -236,36 +274,7 @@ class RollingHistory:
             # compact union is valid only once ALL its observations are available
             # at this caller's timestamp; earlier point-in-time reads retain the
             # original timestamp filter. No cached missing/coverage verdict.
-            cache=getattr(self,'_coverage_span_cache',None)
-            if cache is None:cache=self._coverage_span_cache=OrderedDict()
-            fingerprint=hashlib.sha256()
-            for packed,checksum in rows:
-                # Hash the fresh bytes even on a cache hit. A stale stored hash
-                # must not turn corruption into a reused completeness witness.
-                actual=hashlib.sha256(packed).hexdigest()
-                if actual!=checksum:
-                    from .solana_evidence_plane import EvidenceConflict
-                    raise EvidenceConflict('candidate_coverage_corrupt')
-                fingerprint.update(actual.encode('ascii'))
-            key=fingerprint.digest()
-            compact=cache.get(key)
-            if compact is None:
-                points=[p for packed,checksum in rows for p in coverage_points(packed,checksum)]
-                spans=[]
-                for a,b,t in sorted(points):
-                    if spans and a<=spans[-1][1]+1:spans[-1]=(spans[-1][0],max(spans[-1][1],b))
-                    else:spans.append((a,b))
-                compact=(tuple(spans),max((t for a,b,t in points),default=float('-inf')))
-                # Retain compact spans, never the growing historical proof
-                # bodies or decoded timestamp points. The same eight-cohort,
-                # 512-KiB bound applies to the actual retained representation.
-                retained=(sys.getsizeof(key)+sys.getsizeof(compact)+sys.getsizeof(compact[0])+
-                    sys.getsizeof(compact[1])+sum(sys.getsizeof(s)+sum(sys.getsizeof(n) for n in s)
-                    for s in compact[0]))
-                if retained<=64*1024 and len(points)<=32768 and len(spans)<=4096:
-                    cache[key]=compact
-                    while len(cache)>8:cache.popitem(last=False)
-            else:cache.move_to_end(key)
+            compact=self._compact_proofs(rows)
             if compact[1]<=at:
                 branch.extend((max(lo,a,0 if floor is None else floor[0]),min(hi,b)) for a,b in compact[0])
             else:

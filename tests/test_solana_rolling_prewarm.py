@@ -187,6 +187,39 @@ class RollingPrewarmTests(unittest.TestCase):
         self.assertFalse(hasattr(self.h.rolling,'_coverage_span_cache'))
         self.assertEqual(self.h.rolling.missing('pump',scope,100,125),expected)
 
+    def test_mutable_tail_reuses_only_freshly_authenticated_immutable_prefix(self):
+        import hashlib
+        from meme_machine import solana_rolling_history as module
+        from meme_machine.solana_evidence_plane import EvidenceConflict
+        scope=program_scope('pump');candidate=self.h.bind('pump','growing-proof-mint')
+        def replace(lo,points):
+            packed=zlib.compress(json.dumps(points).encode())
+            with self.state.writer.transaction():
+                self.h.db.execute('INSERT OR REPLACE INTO candidate_coverage VALUES(?,?,?,?,?,?,?,?,?,?)',
+                    (scope,lo,max(p[1] for p in points),len(points),min(p[2] for p in points),
+                     max(p[2] for p in points),packed,hashlib.sha256(packed).hexdigest(),'offline-prefix','offline'))
+        replace(100,[[100,199,NOW]]);replace(200,[[200,299,NOW]]);replace(300,[[300,300,NOW]])
+        with patch.object(module,'coverage_points',wraps=module.coverage_points) as decoded:
+            self.assertEqual(self.h.rolling.missing('pump',candidate,100,303),[(301,303)])
+            self.assertEqual(decoded.call_count,3)
+            replace(300,[[300,300,NOW],[301,301,NOW+1]])
+            before=decoded.call_count
+            self.assertEqual(self.h.rolling.missing('pump',candidate,100,303,as_of=NOW+1),[(302,303)])
+            self.assertEqual(decoded.call_count-before,1)
+            # Appending a separate proof also reuses the exact verified prefix.
+            replace(302,[[302,302,NOW+1]])
+            before=decoded.call_count
+            self.assertEqual(self.h.rolling.missing('pump',candidate,100,303,as_of=NOW+1),[(303,303)])
+            self.assertEqual(decoded.call_count-before,1)
+        # A cached union never overrides availability, a new gap, or corruption.
+        self.assertEqual(self.h.rolling.missing('pump',candidate,100,303,as_of=NOW),[(301,303)])
+        self.h.gap(scope,150,160,'new-outage')
+        self.assertEqual(self.h.rolling.missing('pump',candidate,100,303,as_of=NOW+1),[(150,160),(303,303)])
+        with self.state.writer.transaction():
+            self.h.db.execute('UPDATE candidate_coverage SET points=? WHERE scope=? AND lo=100',(b'corrupt',scope))
+        with self.assertRaisesRegex(EvidenceConflict,'candidate_coverage_corrupt'):
+            self.h.rolling.missing('pump',candidate,100,303,as_of=NOW+1)
+
     def test_large_immutable_proof_cohort_retains_only_bounded_compact_spans(self):
         import hashlib,sys
         from meme_machine import solana_rolling_history as module
@@ -211,7 +244,7 @@ class RollingPrewarmTests(unittest.TestCase):
         for key,compact in self.h.rolling._coverage_span_cache.items():
             self.assertIsInstance(key,bytes);self.assertEqual(len(key),32)
             retained=(sys.getsizeof(key)+sys.getsizeof(compact)+sys.getsizeof(compact[0])+
-                sys.getsizeof(compact[1])+sum(sys.getsizeof(s)+sum(sys.getsizeof(n) for n in s)
+                sys.getsizeof(compact[1])+sys.getsizeof(compact[2])+sum(sys.getsizeof(s)+sum(sys.getsizeof(n) for n in s)
                 for s in compact[0]))
             self.assertLessEqual(retained,64*1024)
         self.h.gap(scope,103,106,'new-outage-after-cache-hit')
