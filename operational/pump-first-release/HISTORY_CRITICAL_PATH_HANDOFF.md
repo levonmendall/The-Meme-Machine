@@ -202,12 +202,45 @@ reset predicate, entry/exit thresholds and policy. No file is broadly exempted;
 all other strategy and nine-change guards remain unchanged. The initial failure
 and final two passing guard cases are retained in E.
 
-Combined correctness, recovery and performance verification remain pending on
-the coherent merged candidate. The package's 235 distinct passing regressions
-are prior package evidence, not combined-source validation. Missing legacy vector/
-time joins and unavailable original/add detail remain unavailable. They do not
-become blanket startup gates; decision-critical missing evidence still blocks
-that decision. Pons database fault, storage/backup failure and authenticated
+The coherent combined implementation is merge commit
+`a190fb07b16964d28dbfc643ceb5b89ddd013bd5`. On that exact source, **235 distinct
+package regressions pass**: 83 native/lifecycle/generation/component cases
+(14.235 seconds) and 152 policy/accounting/recovery cases (98.505 seconds).
+Another **112 history, volume-quality and provider-diagnostic tests pass**
+(15.331 seconds), including actual worker error-note reporting. The source guard
+and its new rejection regression pass; no protective or economic assertion was
+removed. Logs in E are `LIFECYCLE_INTEGRATED_NATIVE_FOCUSED_20261013.log`,
+`LIFECYCLE_INTEGRATED_POLICY_RECOVERY_20261013.log`,
+`LIFECYCLE_INTEGRATED_HISTORY_DIAGNOSTIC_20261013.log` and
+`LIFECYCLE_INTEGRATED_SOURCE_GUARD_FINAL_20261013.log`.
+
+A single sequential comparison against validated receiving source `60ffa9cd`
+uses the identical 40,000 retained raw records and identical starting fixtures.
+Both produce 287 economic records / three complete program slots, identical
+canonical projection, consumer counts, history verdicts, pending joins and no
+outstanding historical obligations. Full-path time is 8.221→8.068 seconds,
+process-group CPU 9.088→8.906 seconds and peak RSS 207.63→203.92 MB. SQL
+statements are 22,786→22,711. Required-history maximum is 0.258→0.263 seconds;
+worst urgent scheduling probe is **0.303→0.578 seconds**, and maximum join-to-
+durable latency is 0.605→0.618 seconds. Those worse maxima are retained.
+This small paired trial establishes economic parity and no aggregate workload
+increase in its scope, not statistical speedup, protective headroom or sustained
+market capacity. No correctness-suite duration is presented as throughput.
+Receipt: `LIFECYCLE_HISTORY_INTEGRATION_COMPARISON_20261013.json` in E.
+
+The package changes no Solana canonical/preparation/historian/consumer code.
+Pons nomination uses the checkpointed reference map; native historical reads
+remain at recovery, completion and known delayed-release boundaries. Component
+reducers reuse existing reporting/retirement passes. Fresh confirmation adds
+only the relevant canonical-history/frontier lookup; original protective
+acquisition and deadline checks remain mandatory. Full FAST on the stable final
+published candidate remains required; its exact identity/result is recorded in
+`HISTORY_CRITICAL_PATH_PUBLICATION_20261013.json` in E. No integration-readiness
+claim may omit that release result.
+
+Missing legacy vector/time joins and unavailable original/add detail remain
+unavailable. They do not become blanket startup gates; decision-critical missing
+evidence still blocks that decision. Pons database fault, storage/backup failure and authenticated
 four-regime capacity remain separate unresolved operating blockers.
 
 Operating authority remains offline-only. No deployment, provider acquisition,
