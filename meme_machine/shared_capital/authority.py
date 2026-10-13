@@ -5,12 +5,14 @@ may be owned by different processes; none may grant from a cached cash balance.
 Commands, results and resulting state hashes share one FULL-synchronous commit.
 """
 from contextlib import contextmanager
+from collections import OrderedDict
 from copy import deepcopy
 from decimal import Decimal
 from fractions import Fraction
 from pathlib import Path
 import hashlib
 import json
+import os
 import re
 import sqlite3
 import threading
@@ -239,6 +241,13 @@ def funding_decision(state, request, at):
                      total=fundable + overhead, limits=limits, binding_constraints=binding))
 
 
+# Process-local replay evidence only; no grants ever use a cached cash balance.
+# Every reuse authenticates the entire journal and reads the current projection
+# in one SQLite snapshot. Restarts lose this cache and replay every transition.
+_REPLAY_PREFIXES=OrderedDict()
+_REPLAY_PREFIX_LOCK=threading.RLock()
+_REPLAY_PREFIX_BYTES=4*1024*1024
+
 class CapitalAuthority:
     """Only capital-granting API of the feature; inert until migration is installed."""
 
@@ -332,26 +341,72 @@ class CapitalAuthority:
         finally:
             self._replaying = False
 
+    def _replay_prefix_key(self):
+        try:metadata=self.path.stat()
+        except OSError:return None
+        return (os.getpid(),str(self.path.resolve()),metadata.st_dev,metadata.st_ino,type(self),
+            getattr(self._apply,'__func__',self._apply),
+            getattr(self._reconcile,'__func__',self._reconcile))
+
+    def _authenticated_replay_prefix(self,key):
+        if key is None:return None
+        with _REPLAY_PREFIX_LOCK:cached=_REPLAY_PREFIXES.get(key)
+        if cached is None:return None
+        sequence,anchor,state_hash,raw_state=cached
+        # Authenticate all bytes/order, not only the last row. A modified past
+        # event, result or hash invalidates reuse and reaches the original full
+        # replay/error path below, including its original failure ordering.
+        previous='0'*64;count=0;found=sequence==0 and anchor==previous
+        try:
+            if hashlib.sha256(raw_state.encode()).hexdigest()!=state_hash:return None
+            for seq,op,raw,result_raw,record_state_hash,parent,hash_value in self.db.execute(
+                    'SELECT * FROM shared_capital_events ORDER BY sequence'):
+                expected=hashlib.sha256((parent+raw+result_raw+record_state_hash).encode()).hexdigest()
+                if (seq!=count+1 or previous!=parent or hash_value!=expected
+                        or json.loads(raw).get('operation_id')!=op):return None
+                if seq==sequence:
+                    found=hash_value==anchor and record_state_hash==state_hash
+                previous,count=hash_value,seq
+            if not found:return None
+            return sequence,anchor,json.loads(raw_state)
+        except (ValueError,TypeError,AttributeError):return None
+
+    def _remember_replay_prefix(self,key,count,previous,state):
+        if key is None:return
+        raw=canonical(state)
+        if len(raw.encode())>_REPLAY_PREFIX_BYTES:return
+        entry=(count,previous,hashlib.sha256(raw.encode()).hexdigest(),raw)
+        with _REPLAY_PREFIX_LOCK:
+            old=_REPLAY_PREFIXES.get(key)
+            if old and old[0]>count:return
+            _REPLAY_PREFIXES[key]=entry;_REPLAY_PREFIXES.move_to_end(key)
+            while (len(_REPLAY_PREFIXES)>32 or
+                    sum(len(value[3].encode()) for value in _REPLAY_PREFIXES.values())>_REPLAY_PREFIX_BYTES):
+                _REPLAY_PREFIXES.popitem(last=False)
+
     def _verify_replay(self):
         with self._transaction(write=False):
-            state = None
-            previous = "0" * 64
-            count = 0
+            key=self._replay_prefix_key()
+            prefix=self._authenticated_replay_prefix(key)
+            state,previous,count=(None,'0'*64,0) if prefix is None else (prefix[2],prefix[1],prefix[0])
+            if prefix is not None and state is not None:self._reconcile(state)
             for seq, op, raw, result_raw, state_hash, parent, hash_value in self.db.execute(
-                    "SELECT * FROM shared_capital_events ORDER BY sequence"):
+                    'SELECT * FROM shared_capital_events WHERE sequence>? ORDER BY sequence',(count,)):
                 event, result = json.loads(raw), json.loads(result_raw)
                 expected = hashlib.sha256((parent + raw + result_raw + state_hash).encode()).hexdigest()
-                if seq != count + 1 or previous != parent or hash_value != expected or event.get("operation_id") != op:
-                    raise CapitalError("capital_journal_integrity")
+                if seq != count + 1 or previous != parent or hash_value != expected or event.get('operation_id') != op:
+                    raise CapitalError('capital_journal_integrity')
                 state, actual = self._apply(state, event)
                 if wire(actual) != result or digest(state) != state_hash:
-                    raise CapitalError("nondeterministic_capital_replay")
+                    raise CapitalError('nondeterministic_capital_replay')
                 self._reconcile(state)
                 previous, count = hash_value, seq
             projection = self._read()
             if projection != state:
-                raise CapitalError("replayed_projection_mismatch")
-            return dict(events=count, journal_hash=previous, state_sha256=digest(state), conservation=True)
+                raise CapitalError('replayed_projection_mismatch')
+            summary=dict(events=count,journal_hash=previous,state_sha256=digest(state),conservation=True)
+            self._remember_replay_prefix(key,count,previous,state)
+            return summary
 
     @exact
     def _write(self, operation_id, action, at, data):

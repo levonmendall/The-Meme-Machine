@@ -1,0 +1,89 @@
+{
+  "all_four_funding_ready": false,
+  "authenticated_combined_throughput": "pending",
+  "base_source": "04df78cd2def4c9b9d76039e67df915d1f4298e2",
+  "behavior": {
+    "all_journal_records_retained": true,
+    "all_new_transitions_reapplied_and_reconciled": true,
+    "cache_bound_bytes": 4194304,
+    "cache_identity": "process PID, resolved database path/inode, authority class and transition/reconciliation implementations",
+    "cache_not_durable": true,
+    "cache_roots_maximum": 32,
+    "current_projection_read_and_compared_in_same_sqlite_snapshot": true,
+    "entire_journal_bytes_hashes_sequence_and_parent_reauthenticated_every_reuse": true,
+    "first_process_replay_is_full": true,
+    "grants_use_fresh_current_ledger": true,
+    "invalid_cache_or_changed_prefix": "original full replay with original economic/integrity assertions",
+    "new_database_or_schema": false,
+    "only_previous_verified_transition_prefix_reused": true
+  },
+  "capital_or_strategy_policy_changed": false,
+  "current_stack_receipts": [
+    "/var/lib/meme-machine-monitor/market-lane-pump-1791853980069-stacks.json",
+    "/var/lib/meme-machine-monitor/market-lane-pons-1791853980303-stacks.json"
+  ],
+  "diagnosed_failure": "Simultaneous family readers repeatedly replayed the complete unchanged shared journal; current Pons stacks attribute thousands of samples to constructor replay, competing with canonical intake.",
+  "files_sha256": {
+    "meme_machine/shared_capital/authority.py": "8bad413009a5f14aa91710b8051d9ae311044400edc12f7bbe6e9f7999c711ef",
+    "tests/test_shared_capital.py": "e9639f4f8fc361ab73f0b8f77e8b2f9820406c3db2324ab23ceb2357fb2cd0e5"
+  },
+  "formal_acceptance_minutes": 0,
+  "offline_retained_ledger_comparison": {
+    "all_journal_bytes_reauthenticated": true,
+    "at": 1791855336.8391125,
+    "cache_memory_bound": 4194304,
+    "cash": "1000.00",
+    "event_count": 6644,
+    "positions": 0,
+    "provider_requests": 0,
+    "replay_summary": {
+      "conservation": true,
+      "events": 6644,
+      "journal_hash": "31988b54b9d4125679de7c6a942637f2a3e1b73cfeb0913f3826df8a04c491dd",
+      "state_sha256": "96b965438712235d02fc440d0f6a93cdc16889d9c53f489c3d0e193f377995a9"
+    },
+    "same_replay_summaries": true,
+    "samples": [
+      {
+        "cpu_seconds": 32.465725905,
+        "mode": "full",
+        "open_seconds": 29.337850007927045,
+        "total_seconds": 29.405508733005263
+      },
+      {
+        "cpu_seconds": 0.1457748640000034,
+        "mode": "warm",
+        "open_seconds": 0.0705018249573186,
+        "total_seconds": 0.14059054001700133
+      },
+      {
+        "cpu_seconds": 0.4103126890000013,
+        "mode": "new-reader",
+        "open_seconds": 0.1584257569629699,
+        "total_seconds": 0.3357409070013091
+      }
+    ],
+    "scope": "offline coherent single-ledger copy only; no recovery-point or market-performance claim",
+    "source_bytes": 3371008,
+    "source_ledger": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared-capital.sqlite",
+    "source_ledger_unmodified": true
+  },
+  "schema": "verified-capital-prefix-reuse-v1",
+  "tests": {
+    "focused_fast": {
+      "evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/verified-capital-prefix-focused-20261013.log",
+      "passed": 3,
+      "seconds": "0.198"
+    },
+    "operational": {
+      "evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/verified-capital-prefix-operational-20261013.log",
+      "passed": 166,
+      "seconds": "65.030"
+    },
+    "relevant_fast": {
+      "evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/verified-capital-prefix-fast-20261013.log",
+      "passed": 85,
+      "seconds": "35.480"
+    }
+  }
+}

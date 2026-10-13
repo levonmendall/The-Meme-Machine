@@ -4,6 +4,9 @@ from decimal import localcontext
 import random
 import tempfile
 import unittest
+import json
+import hashlib
+from unittest.mock import patch
 
 from meme_machine.shared_capital import CapitalError, REGIMES, RiskPolicy, Valuation
 from meme_machine.shared_capital.adapter import directional_target, sizing_comparison
@@ -17,6 +20,58 @@ class SharedCapitalTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.h = Harness(self.temp.name)
         self.addCleanup(lambda: self.h.close())
+
+    def test_verified_prefix_reuses_transitions_but_authenticates_past_bytes(self):
+        from meme_machine.shared_capital.authority import CapitalAuthority,_REPLAY_PREFIXES,_REPLAY_PREFIX_LOCK
+        with _REPLAY_PREFIX_LOCK:_REPLAY_PREFIXES.clear()
+        authority=self.h.authority
+        original=CapitalAuthority._apply;calls=[]
+        def counted(owner,state,event):
+            calls.append(event['operation_id']);return original(owner,state,event)
+        with patch.object(CapitalAuthority,'_apply',counted):
+            first=authority.verify_replay();self.assertEqual(len(calls),first['events']);calls.clear()
+            self.assertEqual(authority.verify_replay(),first);self.assertEqual(calls,[])
+            # A process restart/fork cannot inherit another PID's reuse.
+            import os
+            with patch('meme_machine.shared_capital.authority.os.getpid',return_value=os.getpid()+100000):
+                self.assertEqual(authority.verify_replay(),first)
+            self.assertEqual(len(calls),first['events']);calls.clear()
+            # A new connection reauthenticates the complete same prefix too.
+            other=CapitalAuthority(authority.path)
+            try:self.assertEqual(other.verify_replay(),first);self.assertEqual(calls,[])
+            finally:other.close()
+            authority.db.execute('DROP TRIGGER shared_capital_no_update')
+            authority.db.execute("UPDATE shared_capital_events SET body=body||' ' WHERE sequence=1")
+            with self.assertRaisesRegex(CapitalError,'capital_journal_integrity'):authority.verify_replay()
+
+    def test_verified_prefix_replays_every_new_transition_and_matches_cold_replay(self):
+        from meme_machine.shared_capital.authority import CapitalAuthority,_REPLAY_PREFIXES,_REPLAY_PREFIX_LOCK
+        with _REPLAY_PREFIX_LOCK:_REPLAY_PREFIXES.clear()
+        first=self.h.authority.verify_replay()
+        requests,result=self.h.allocate([('pump_current',{})]);self.h.fill(requests[0])
+        warm=self.h.authority.verify_replay();self.assertGreater(warm['events'],first['events'])
+        state=self.h.authority.snapshot()
+        with _REPLAY_PREFIX_LOCK:_REPLAY_PREFIXES.clear()
+        self.assertEqual(self.h.authority.verify_replay(),warm)
+        self.assertEqual(self.h.authority.snapshot(),state)
+
+    def test_replay_prefix_projection_corruption_and_rehashed_history_still_fail(self):
+        from meme_machine.shared_capital.model import canonical
+        authority=self.h.authority;authority.verify_replay()
+        original=authority.db.execute('SELECT body,hash FROM shared_capital_projection WHERE id=1').fetchone()
+        changed=json.loads(original[0]);changed['cash']='501'
+        authority.db.execute('UPDATE shared_capital_projection SET body=?,hash=? WHERE id=1',(canonical(changed),digest(changed)))
+        with self.assertRaises(CapitalError):authority.verify_replay()
+        authority.db.execute('UPDATE shared_capital_projection SET body=?,hash=? WHERE id=1',original)
+        authority.verify_replay();authority.db.execute('DROP TRIGGER shared_capital_no_update')
+        rows=authority.db.execute('SELECT * FROM shared_capital_events ORDER BY sequence').fetchall()
+        previous='0'*64
+        for seq,op,raw,result,state_hash,parent,hash_value in rows:
+            if seq==rows[-1][0]:state_hash='f'*64
+            hash_value=hashlib.sha256((previous+raw+result+state_hash).encode()).hexdigest()
+            authority.db.execute('UPDATE shared_capital_events SET state_hash=?,previous=?,hash=? WHERE sequence=?',
+                (state_hash,previous,hash_value,seq));previous=hash_value
+        with self.assertRaisesRegex(CapitalError,'nondeterministic_capital_replay'):authority.verify_replay()
 
     def test_no_lane_owns_cash_and_idle_budgets_reserve_zero(self):
         s = self.h.check()
