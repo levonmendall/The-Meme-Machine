@@ -62,7 +62,7 @@ class CohortCapital:
         db.execute('PRAGMA synchronous=FULL')
         return db
 
-    def _reconcile(self,db):
+    def _reconcile(self,db,*,readonly=False,readonly_authority=None):
         from meme_machine.runtime.pons_terminal_archive import anchor
         prefix=anchor(db)
         replay=json.loads(canonical((prefix or {}).get('positions',{})))
@@ -101,7 +101,7 @@ class CohortCapital:
         realized=folded.get('realized',0)+sum(x['pnl'] for x in rows)
         available=self.capital+realized-reserved
         from meme_machine.shared_capital.native_sleeve import cohort_backing
-        shared=cohort_backing(db,rows)
+        shared=cohort_backing(db,rows,readonly=readonly,readonly_authority=readonly_authority)
         if available<0 and not shared:raise BoundaryError('selective_cohort_capital_invariant')
         observed=[x for x in rows if 'native_position' in x]
         complete=len(observed)==len(rows) and all(x['native_accounting']['replay_verified'] for x in observed)

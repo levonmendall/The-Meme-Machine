@@ -707,6 +707,7 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                 strategy_namespace=STRATEGY_NAMESPACE,shared_allocator=False,
                 source_transaction=evaluation["source_transaction"],
                 token=evaluation["token"],outcome_used_for_selection=False,
+                qualifying_vector_id=digest(vector),qualifying_vector_asof=vector.get('asof'),
             )
             identity=(
                 "pons-selective:"+(digest(dict(candidate=evaluation['candidate_broker_identity'],generation=evaluation['candidate_broker_generation']))

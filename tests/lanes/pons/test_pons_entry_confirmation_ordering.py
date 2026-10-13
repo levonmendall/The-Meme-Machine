@@ -14,7 +14,7 @@ from tests.lanes.pons.test_pons_execution_acquisition import FakeRPC,candidate,C
 from tests.lanes.pons import test_pons_position_provider_recovery as recovery
 
 class EntryOrderingTests(unittest.TestCase):
-    def lifecycle(self,*,delay=20,mutate=None,validation_delay=0,persistent=True,folder=None,broker=False,supersede=False):
+    def lifecycle(self,*,delay=20,mutate=None,validation_delay=0,persistent=True,folder=None,broker=False,supersede=False,db_name='paper.sqlite'):
         clock=[102.0];calls=[];rpc=FakeRPC();rpc.used=0
         rpc.verify_chain=lambda:None
         rpc.telemetry=lambda:dict(logical_calls=rpc.logical,physical_transports=rpc.transports)
@@ -27,7 +27,7 @@ class EntryOrderingTests(unittest.TestCase):
         evaluation=dict(vector=vector,candidate=c,token='t',curve=CURVE,source_transaction='tx',market_events=[])
         if folder is None:
             tmp=tempfile.TemporaryDirectory();self.addCleanup(tmp.cleanup);folder=tmp.name
-        db=Path(folder)/'paper.sqlite'
+        db=Path(folder)/db_name
         if broker:
             from meme_machine.runtime.robinhood.plane import Plane
             path=Path(folder)/'plane.sqlite'
@@ -159,6 +159,15 @@ class EntryOrderingTests(unittest.TestCase):
             r,events,_,_=self.lifecycle(broker=True,folder=folder)
             self.assertEqual(sum(e['action']=='entry' for e in events),1,r)
             self.assertEqual(sum(e['action']=='reserve' for e in events),1)
+
+    def test_same_generation_cannot_reserve_through_a_different_native_path(self):
+        with tempfile.TemporaryDirectory() as folder,patch.dict('os.environ',MM_PAPER_EPOCH='offline-generation-fence'):
+            first,events,_,_=self.lifecycle(broker=True,folder=folder)
+            self.assertEqual(sum(e['action']=='reserve' for e in events),1,first)
+            self.assertEqual(sum(e['action']=='entry' for e in events),1,first)
+            second,events,_,_=self.lifecycle(broker=True,folder=folder,db_name='other-trial.sqlite')
+            self.assertFalse(any(e['action'] in ('reserve','entry') for e in events),second)
+            self.assertEqual(second['boundary'],'candidate_generation_superseded_before_reservation')
 
     def test_current_delta_preserves_creator_and_net_demand_gates(self):
         def event(i,at,amount=10,side='buy',group=None):

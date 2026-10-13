@@ -521,3 +521,276 @@ class CurrentConfirmationEvidenceTests(unittest.TestCase):
                 trajectory=dict(complete=True,accelerating=None),demand=dict(current_net_quote=None,prior_net_quote=None))
             self.assertEqual(runner['reason'],reason)
             self.assertEqual(pregrad['reason'],'risk' if reason=='risk' else 'pregraduation_runner_trailing_stop')
+
+
+class ReentryNativeReferenceTests(unittest.TestCase):
+    """Actual native reservations, cancellations, fills and prefix recovery."""
+    def vector(self,at=100):
+        return dict(asof=at,evidence_available_at=at+1,policy_hash=POLICY_HASH,
+            current_threshold_pass=True,qualification='qualified',token_age_seconds=100,
+            trajectory=dict(graduation_eta_seconds=70,progress_15s_bps=400),
+            demand=dict(top3_buyer_flow_bps=3000,recent_buy_groups=['a','b']))
+
+    def trial(self,root,index,vector,*,cancel=True,ack=True,legacy=False,compact=False,legacy_pre_portfolio=False):
+        from contextlib import closing,nullcontext
+        import os
+        from meme_machine.lanes.pons.evidence import digest
+        from meme_machine.lanes.pons.pons_selective_ledger import STRATEGY_NAMESPACE
+        from meme_machine.runtime.storage import compact_pons
+        fixture=accounting_fixture.PartialAccountingTests();at=vector['evidence_available_at']
+        path=root/('trial-%03d.sqlite'%index);identity='native-'+str(index)
+        capital=CohortCapital(root/'pons-selective-cohort-capital.sqlite',1000)
+        features=dict(fixture.features(at),token='token',source_transaction='source-'+str(index))
+        if not legacy:features.update(qualifying_vector_id=digest(vector),qualifying_vector_asof=vector['asof'])
+        with closing(Store(path)) as store:
+            paper=SelectivePaper(store,STRATEGY_NAMESPACE,1000,delay=1,natural_policy_hash=POLICY_HASH,
+                on_commit=capital.observe)
+            # Legacy releases remain readable, but current production prohibits
+            # new legacy sleeve funding. Build the historical sleeve reservation
+            # before installing the portfolio binding, then use its actual native
+            # reserve/cancel delivery path with the legacy accountant present.
+            with patch.dict(os.environ,{'MM_PORTFOLIO_ACCOUNTING_DB':''}) if legacy_pre_portfolio else nullcontext():
+                capital.reserve(identity,120,at=at,decision_hash=digest(features),trial_path=path,
+                    native_reservation_intent=dict(market='m',amount=100,gas_budget=20,now=at,
+                        features=features,kind='natural'))
+            paper.reserve(identity,market='m',amount=100,gas_budget=20,now=at,features=features)
+            if cancel:
+                position=paper.advance(identity,now=at+1,action='cancel',cancel_reason='confirmed_no_fill')
+            else:
+                paper.advance(identity,now=at+1,action='entry',quote=fixture.quote(at+1,'buy',100,1000))
+                paper.advance(identity,now=at+2,action='exit_intent')
+                position=paper.advance(identity,now=at+3,action='exit',quote=fixture.quote(at+3,'sell',1000,110))
+            if ack:capital.settle(identity,position,at=position['last_at'])
+            if compact:self.assertTrue(compact_pons(paper,limit=0))
+            reconciliation=paper.reconcile()
+        qualifier=dict(index=index,curve='m',token='token',source_transaction='source-'+str(index),
+            vector=vector,wallet_convergence={})
+        life=dict(index=index,curve='m',token='token',lifecycle_id=identity,final_position=position,
+            status='entry_failed' if cancel else 'settled',reconciliation=reconciliation,
+            realized_pnl_quote=position['pnl'])
+        return qualifier,life,capital
+
+    def test_verified_zero_fill_has_no_reset_and_delayed_capital_ack_stays_blocked(self):
+        from meme_machine.lanes.pons.pons_reentry import refresh_reference,reentry_decision
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);q,life,capital=self.trial(root,0,self.vector(),ack=False)
+            result={};state=refresh_reference(root,result,q,life)
+            self.assertEqual(state['last_attempt']['outcome'],'never_filled_cancellation')
+            self.assertFalse(state['last_attempt']['terminal_ready'])
+            self.assertEqual(reentry_decision(state,self.vector())[0],'prior_curve_lifecycle_not_flat')
+            capital.settle(life['lifecycle_id'],life['final_position'],at=life['final_position']['last_at'])
+            state=refresh_reference(root,result,q,life)
+            self.assertTrue(state['last_attempt']['terminal_ready'])
+            self.assertNotIn('last_filled_trade',state)
+            reason,explanation=reentry_decision(state,self.vector())
+            self.assertIsNone(reason);self.assertFalse(explanation['reset_required'])
+            self.assertEqual(capital.reconcile()['reserved'],0)
+
+    def test_filled_closed_retry_cancel_new_candidate_keeps_original_reference(self):
+        from copy import deepcopy
+        from meme_machine.lanes.pons.pons_reentry import refresh_reference,reentry_decision,recover_references
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);base=self.vector();q,life,_=self.trial(root,0,base,cancel=False,compact=True)
+            result=dict(qualifiers=[q],lifecycles=[life]);state=refresh_reference(root,result,q,life)
+            retry=deepcopy(base);retry['asof']+=20;retry['evidence_available_at']+=20
+            retry['trajectory']['graduation_eta_seconds']+=20;retry['trajectory']['progress_15s_bps']-=300
+            self.assertIsNone(reentry_decision(state,retry)[0])
+            canceled,cancel_life,_=self.trial(root,1,retry,compact=True)
+            result['qualifiers'].append(canceled);result['lifecycles'].append(cancel_life)
+            state=refresh_reference(root,result,canceled,cancel_life)
+            self.assertEqual(state['last_attempt']['lifecycle_id'],cancel_life['lifecycle_id'])
+            self.assertEqual(state['last_filled_trade']['lifecycle_id'],life['lifecycle_id'])
+            self.assertEqual(state['last_filled_trade']['original_at'],100)
+            new=deepcopy(base);new['asof']+=40;new['evidence_available_at']+=40
+            self.assertEqual(reentry_decision(state,new)[0],'reentry_regime_not_reset')
+            resumed=json.loads(json.dumps(result));recovered=recover_references(root,resumed)['m']
+            self.assertEqual(recovered['last_filled_trade']['vector'],base)
+            self.assertEqual(reentry_decision(recovered,new)[0],'reentry_regime_not_reset')
+
+    def test_missing_or_conflicting_original_join_survives_later_cancellation(self):
+        from copy import deepcopy
+        from meme_machine.lanes.pons.pons_reentry import refresh_reference,reentry_decision
+        for legacy in (False,True):
+            with self.subTest(legacy=legacy),tempfile.TemporaryDirectory() as td:
+                root=Path(td);q,life,_=self.trial(root,0,self.vector(),cancel=False,legacy=legacy)
+                if not legacy:
+                    q=deepcopy(q);q['vector']['asof']+=1
+                result={};state=refresh_reference(root,result,q,life)
+                self.assertFalse(state['last_attempt']['terminal_ready'])
+                self.assertTrue(state['unresolved_lifecycles'])
+                canceled,cancel_life,_=self.trial(root,1,self.vector(130))
+                state=refresh_reference(root,result,canceled,cancel_life)
+                self.assertTrue(state['last_attempt']['terminal_ready'])
+                self.assertEqual(reentry_decision(state,self.vector(160))[0],'prior_curve_reset_reference_unresolved')
+
+    def test_retirement_checkpoint_preserves_original_vector_identity_and_time(self):
+        from copy import deepcopy
+        import os
+        from meme_machine.lanes.pons import pons_selective_cohort as cohort
+        from meme_machine.lanes.pons.pons_reentry import refresh_reference,recover_references
+        from meme_machine.runtime.pons_terminal_archive import retire_controller
+        from meme_machine.runtime.robinhood.plane import Plane
+        from meme_machine.runtime.learning import get
+        import sqlite3
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);q,life,_=self.trial(root,0,self.vector(),cancel=False)
+            result=dict(qualifiers=[q],lifecycles=[life],candidate_plane_path=str(root/'plane.sqlite'))
+            state=deepcopy(refresh_reference(root,result,q,life))
+            with closing(Plane(root/'plane.sqlite')) as plane:
+                plane.checkpoint('pons_cohort',dict(result=result,cursor=1,phase='running'))
+            with patch.dict(os.environ,{'MM_PAPER_EPOCH':'offline-reentry-retention'}),\
+                    patch.multiple(cohort,ROOT=root,STRATEGY_CAPITAL_QUOTE=1000),\
+                    patch('meme_machine.runtime.pons_terminal_archive.time.time',return_value=2000):
+                retire_controller(result)
+            self.assertFalse((root/'trial-000.sqlite').exists())
+            self.assertEqual(result['qualifiers'],[])
+            self.assertEqual(recover_references(root,result),{})
+            with closing(sqlite3.connect(root/'pons-selective-cohort-capital.sqlite')) as db:
+                facts=get(db,'lifecycle:'+life['lifecycle_id'])['facts']['terminal_position']['lifecycle']['reentry_reference']
+            self.assertEqual(facts,state)
+            with closing(Plane(root/'plane.sqlite')) as plane:
+                saved=plane.checkpoint_read('pons_cohort')['result']
+            self.assertEqual(saved['reentry_references'],{})
+            self.assertEqual(facts['last_filled_trade']['original_at'],100)
+
+    def test_signed_worsening_changes_preserve_existing_reset_predicate(self):
+        from copy import deepcopy
+        from meme_machine.lanes.pons.evidence import digest
+        from meme_machine.lanes.pons.pons_reentry import reset_explanation,reentry_decision
+        from meme_machine.lanes.pons.pons_selective_continuation import reentry_regime_reset
+        base=self.vector();reference=dict(lifecycle_id='filled',vector=base,vector_id=digest(base),original_at=100)
+        current=deepcopy(base);current['asof']+=15
+        current['trajectory']['graduation_eta_seconds']+=15
+        current['trajectory']['progress_15s_bps']-=200
+        current['demand']['top3_buyer_flow_bps']+=750
+        explanation=reset_explanation(reference,current)
+        self.assertEqual((explanation['eta_change_seconds'],explanation['progress_15s_change_bps'],
+            explanation['top3_concentration_change_bps']),(15,-200,750))
+        self.assertEqual(set(explanation['changed_dimensions']),{'eta','progress','concentration'})
+        self.assertTrue(explanation['reset_result']);self.assertTrue(reentry_regime_reset(base,current))
+        current['asof']-=1;self.assertFalse(reset_explanation(reference,current)['reset_result'])
+        self.assertEqual(reentry_decision({'last_filled_trade':reference},current,active=True)[0],'same_curve_lifecycle_active')
+
+    def test_legacy_prefix_without_negative_execution_proof_does_not_grant_zero_fill(self):
+        from meme_machine.lanes.pons.evidence import canonical,digest
+        from meme_machine.lanes.pons.pons_reentry import verify_lifecycle
+        from meme_machine.runtime.storage import pons_prefix
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td);q,life,_=self.trial(root,0,self.vector(),compact=True)
+            with StoreForTest(root/'trial-000.sqlite') as store:
+                paper=object.__new__(SelectivePaper);paper.store=store;paper.experiment=runtime.STRATEGY_NAMESPACE
+                prefix=pons_prefix(paper)
+                del prefix[life['lifecycle_id']]['lifecycle_evidence']
+                value=dict(experiment=runtime.STRATEGY_NAMESPACE,positions=prefix)
+                store.db.execute('UPDATE pons_journal_checkpoint SET body=?,hash=? WHERE id=1',(canonical(value),digest(value)))
+            fact=verify_lifecycle(root,q,life)
+            self.assertEqual(fact['outcome'],'active_or_unresolved');self.assertFalse(fact['terminal_ready'])
+
+    def test_actual_legacy_and_shared_sleeve_ack_and_readonly_reference_verification(self):
+        import os,time
+        from decimal import Decimal
+        from meme_machine.lanes.pons.pons_reentry import verify_lifecycle,refresh_reference,_portfolio_ack
+        from meme_machine.lanes.pons import pons_selective_cohort as cohort
+        from meme_machine.runtime.robinhood.plane import Plane
+        from meme_machine.runtime.usd_valuation import USDValue
+        from meme_machine.runtime.portfolio import NativePortfolio
+        from meme_machine.portfolio_accounting import PortfolioAccounting
+        from meme_machine.runtime.sleeve_reservations import SleeveReservations
+        from meme_machine.shared_capital.runtime import RuntimeCapital
+        from tests.shared_capital_support import legacy_fixture
+        from tests.test_pump_pons_capital_preparation import RuntimeIntegrationTests
+        for shared in (False,True):
+            with self.subTest(shared=shared),ExitStack() as stack:
+                if shared:
+                    fixture=RuntimeIntegrationTests(methodName='runTest');stack.callback(fixture.doCleanups)
+                    parent,authority,now,_=fixture.fixture()
+                    root=parent/'pons';root.mkdir(exist_ok=True)
+                    stack.enter_context(patch.dict(os.environ,{'MM_DIRECTIONAL_SLEEVE_DB':str(root/'directional-sleeve.sqlite')}))
+                else:
+                    root=Path(stack.enter_context(tempfile.TemporaryDirectory()));now=int(time.time())
+                    with closing(legacy_fixture(root/'portfolio.sqlite')):pass
+                    value=USDValue('offline-native',3,Decimal('1'),now-1,now+1000,'fixture-value','e'*64)
+                    stack.enter_context(patch.dict(os.environ,{
+                        'MM_PORTFOLIO_ACCOUNTING_DB':str(root/'portfolio.sqlite'),
+                        'MM_DIRECTIONAL_SLEEVE_DB':str(root/'directional-sleeve.sqlite'),
+                        'MM_DIRECTIONAL_COHORT_ID':'offline-native-reentry'}))
+                    stack.enter_context(patch('meme_machine.runtime.usd_valuation.NativeValueReader',
+                        side_effect=lambda *a,**k:lambda at:value))
+                q,life,capital=self.trial(root,0,self.vector(now),ack=False,legacy_pre_portfolio=not shared)
+                with patch('meme_machine.runtime.directional_sleeve.native_terminal',side_effect=RuntimeError('delayed_sleeve_ack')):
+                    with self.assertRaisesRegex(RuntimeError,'delayed_sleeve_ack'):
+                        capital.settle(life['lifecycle_id'],life['final_position'],at=life['final_position']['last_at'])
+                self.assertFalse(verify_lifecycle(root,q,life)['terminal_ready'])
+                result=dict(qualifiers=[q],lifecycles=[life],rows=[],discovery_sessions=[],
+                    sequencer_recoveries=[],started_at=now,candidate_plane_path=str(root/'plane.sqlite'))
+                refresh_reference(root,result,q,life)
+                self.assertFalse(result['reentry_references']['m']['last_attempt']['terminal_ready'])
+                feed=MagicMock();feed.status.return_value={}
+                with patch.multiple(cohort,ROOT=root,PROGRESS=root/'progress.json',STRATEGY_CAPITAL_QUOTE=1000):
+                    cohort._checkpoint(result,cursor=1,feed=feed,rpc=None,phase='late_ack_repaired')
+                self.assertTrue(result['reentry_references']['m']['last_attempt']['terminal_ready'])
+                with closing(Plane(root/'plane.sqlite')) as plane:
+                    saved=plane.checkpoint_read('pons_cohort')['result']
+                self.assertTrue(saved['reentry_references']['m']['last_attempt']['terminal_ready'])
+                with patch.object(CohortCapital,'__init__',side_effect=AssertionError('new cohort writer')),\
+                        patch.object(SleeveReservations,'__init__',side_effect=AssertionError('new sleeve writer')),\
+                        patch.object(PortfolioAccounting,'__init__',side_effect=AssertionError('new portfolio writer')),\
+                        patch.object(RuntimeCapital,'__init__',side_effect=AssertionError('new shared writer')),\
+                        patch.object(NativePortfolio,'writer',side_effect=AssertionError('portfolio writer')):
+                    fact=verify_lifecycle(root,q,life)
+                self.assertTrue(fact['terminal_ready']);self.assertEqual(fact['outcome'],'never_filled_cancellation')
+                if shared:
+                    from copy import deepcopy
+                    with StoreForTest(root/'trial-000.sqlite') as store:
+                        event_hash=store.db.execute('SELECT hash FROM records WHERE category=? AND id=?',
+                            (JOURNAL_CATEGORY,life['lifecycle_id']+':1')).fetchone()[0]
+                    financial=authority.ledger();native_key='pons:'+life['lifecycle_id']
+                    native_life=financial['native_aliases'][native_key]
+                    for category in ('reservations','commitments','runtime_inbox'):
+                        blocked=deepcopy(financial)
+                        blocked['runtime_native_requests'][native_key+':scale']='delayed-scale'
+                        blocked.setdefault(category,{})['delayed-scale']=dict(lifecycle_id=native_life,request_id='delayed-scale')
+                        with patch.object(RuntimeCapital,'_read',return_value=blocked):
+                            self.assertFalse(_portfolio_ack(life['final_position'],event_hash))
+
+    def test_actual_pending_portfolio_release_is_not_zero_fill_retry_authority(self):
+        import os,time
+        from decimal import Decimal
+        from meme_machine.lanes.pons.evidence import digest
+        from meme_machine.lanes.pons.pons_reentry import verify_lifecycle
+        from meme_machine.lanes.pons.pons_selective_ledger import STRATEGY_NAMESPACE
+        from meme_machine.runtime.usd_valuation import USDValue
+        from tests.shared_capital_support import legacy_fixture
+        with tempfile.TemporaryDirectory() as td,ExitStack() as stack:
+            root=Path(td);now=int(time.time());vector=self.vector(now)
+            with closing(legacy_fixture(root/'portfolio.sqlite')):pass
+            value=USDValue('offline-native',3,Decimal('1'),now-1,now+1000,'fixture-value','e'*64)
+            stack.enter_context(patch.dict(os.environ,{'MM_PORTFOLIO_ACCOUNTING_DB':str(root/'portfolio.sqlite')}))
+            stack.enter_context(patch('meme_machine.runtime.usd_valuation.NativeValueReader',side_effect=lambda *a,**k:lambda at:value))
+            store=stack.enter_context(StoreForTest(root/'trial-000.sqlite'))
+            capital=CohortCapital(root/'pons-selective-cohort-capital.sqlite',1000)
+            paper=SelectivePaper(store,STRATEGY_NAMESPACE,1000,delay=1,natural_policy_hash=POLICY_HASH,on_commit=capital.observe)
+            features=dict(accounting_fixture.PartialAccountingTests().features(now+1),token='token',source_transaction='source',
+                qualifying_vector_id=digest(vector),qualifying_vector_asof=now)
+            capital.reserve('pending-release',120,at=now+1,decision_hash=digest(features),trial_path=root/'trial-000.sqlite')
+            paper.reserve('pending-release',market='m',amount=100,gas_budget=20,now=now+1,features=features)
+            with patch.object(paper.portfolio,'flush',side_effect=RuntimeError('delayed_portfolio_ack')):
+                with self.assertRaisesRegex(RuntimeError,'delayed_portfolio_ack'):
+                    paper.advance('pending-release',now=now+2,action='cancel',cancel_reason='zero_fill')
+            position=paper._get('pending-release');capital.observe(paper,position)
+            capital.settle('pending-release',position,at=now+2)
+            q=dict(index=0,curve='m',token='token',source_transaction='source',vector=vector)
+            life=dict(lifecycle_id='pending-release',final_position=position)
+            fact=verify_lifecycle(root,q,life)
+            self.assertEqual(fact['outcome'],'never_filled_cancellation');self.assertFalse(fact['terminal_ready'])
+            paper.portfolio.flush()
+            self.assertTrue(verify_lifecycle(root,q,life)['terminal_ready'])
+            # A separately booked add reservation still belongs to this exact
+            # lifecycle even when the original release was acknowledged.
+            from meme_machine.runtime.portfolio import NativePortfolio
+            from meme_machine.runtime.usd_valuation import utc
+            native=NativePortfolio(root/'portfolio.sqlite','pons')
+            native.deliver('pending-release',event_key='orphan-add',journal_hash='f'*64,
+                kind='rebalance_reserve',at=utc(now+3),
+                data=dict(amount='0.001',native_reservation_id='orphan-add'))
+            self.assertFalse(verify_lifecycle(root,q,life)['terminal_ready'])

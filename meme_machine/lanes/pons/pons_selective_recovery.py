@@ -51,6 +51,10 @@ class LifecycleState(SimpleNamespace):
             source_transaction=evaluation['source_transaction'],
             candidate={k:candidate[k] for k in ('curve','token','auth','record') if k in candidate},
             vector={k:vector[k] for k in ('current_threshold_pass','policy_hash','trajectory','demand')})
+        # The nomination clock differs from the later executable entry clock.
+        # Retain it and its exact identity; recovery must never make it fresh.
+        saved['qualifying_vector_id']=digest(vector)
+        if 'asof' in vector:saved['vector']['asof']=vector['asof']
         saved['candidate']['report']={}
         for k in ('candidate_plane_path','candidate_broker_identity','candidate_broker_generation'):
             if k in evaluation:saved[k]=evaluation[k]

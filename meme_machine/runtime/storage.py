@@ -244,13 +244,19 @@ def compact_pons(paper,*,limit=64):
             events=paper.events(position['id']);last=events[-1] if events else prefix[position['id']]['event']
             accounting=paper.accounting(position['id'])
             entry=next((e for e in events if e['action']=='entry'),prefix.get(position['id'],{}).get('entry'))
+            from meme_machine.lanes.pons.pons_reentry import native_history
+            lifecycle_evidence=native_history(paper,position['id'],events=events,prefix=prior)
+            # The exact entry is already retained above; bind its identity in
+            # the action proof without copying its controller/quote payload.
+            entry_evidence=lifecycle_evidence.pop('entry')
+            lifecycle_evidence['entry_hash']=digest(entry_evidence) if entry_evidence else None
             from meme_machine.runtime.component_performance import extend_native,unavailable
             component_prior=prior.get('component_performance')
             if prior and component_prior is None:component_prior=unavailable(position['id'],'retired_component_detail')
             suffix=[event for event in events if not prior or event['position']['version']>prior['event']['position']['version']]
             component_performance=extend_native(suffix,component_prior,adapter='pons',lifecycle_id=position['id'])
             prefix[position['id']]=dict(event=last,accounting=accounting,entry=entry,
-                component_performance=component_performance)
+                lifecycle_evidence=lifecycle_evidence,component_performance=component_performance)
         value=_pons_checkpoint(paper) or dict(experiment=paper.experiment)
         value['positions']=prefix
         db.execute('INSERT OR REPLACE INTO pons_journal_checkpoint VALUES(1,?,?)',(canonical(value),digest(value)))

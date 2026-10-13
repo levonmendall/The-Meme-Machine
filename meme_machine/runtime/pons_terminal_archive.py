@@ -124,7 +124,9 @@ def retire_controller(result):
                     for identity in plan['retired']:
                         from meme_machine.runtime.learning import lifecycle
                         life=next((r for r in result['lifecycles'] if (r.get('final_position') or {}).get('id')==identity),{})
-                        lifecycle(db,identity,'pons-current',time.time(),dict(plan['retired'][identity],lifecycle=life))
+                        reference=result.get('reentry_references',{}).get(life.get('curve'))
+                        retained_life=dict(life,reentry_reference=reference) if reference else life
+                        lifecycle(db,identity,'pons-current',time.time(),dict(plan['retired'][identity],lifecycle=retained_life))
                         current.get('positions',{}).pop(identity,None)
                         db.execute('DELETE FROM capital_positions WHERE id=?',(identity,))
                     sql=db.execute("SELECT sql FROM sqlite_master WHERE name='journal_no_delete'").fetchone()[0]
@@ -144,6 +146,8 @@ def retire_controller(result):
         controller=plan['controller'];controller['hash']=digest({k:v for k,v in controller.items() if k!='hash'})
         result['archived_trials']=controller
         for kind in ('qualifiers','lifecycles'):result[kind]=[r for r in result[kind] if r.get('index') not in plan['drop']]
+        from meme_machine.lanes.pons.pons_reentry import retire_expired_references
+        retire_expired_references(result,set(plan['drop']),now=time.time())
         # A checkpoint of the new controller precedes removing native files.
         from meme_machine.runtime.robinhood.plane import Plane
         plane=Plane(result['candidate_plane_path'])
