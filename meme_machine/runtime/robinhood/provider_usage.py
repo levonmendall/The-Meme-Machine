@@ -133,6 +133,7 @@ def record(db, row, *, wire=True):
 
 def snapshot(path, fingerprint):
     db=sqlite3.connect(path)
+    db.execute('BEGIN')
     try:
         rows=db.execute('SELECT lane,metric,value FROM provider_usage WHERE endpoint=?',(fingerprint,)).fetchall()
         priorities=dict(db.execute('SELECT priority,COUNT(*) FROM queue WHERE endpoint=? GROUP BY priority',(fingerprint,)))
@@ -257,7 +258,6 @@ def snapshot(path, fingerprint):
 def demand(path, fingerprint, methods):
     """Consumer demand includes exact-cache hits; wire calls remain separate."""
     db=sqlite3.connect(path,timeout=10)
-    db.execute('BEGIN')
     try:
         db.execute('CREATE TABLE IF NOT EXISTS logical_demand(endpoint TEXT,method TEXT,n INTEGER,PRIMARY KEY(endpoint,method))')
         db.executemany('INSERT INTO logical_demand VALUES(?,?,?) ON CONFLICT(endpoint,method) DO UPDATE SET n=n+excluded.n',

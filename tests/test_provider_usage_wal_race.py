@@ -8,6 +8,32 @@ from meme_machine.runtime.robinhood.provider_usage import snapshot
 
 
 class ProviderUsageWalRaceTests(unittest.TestCase):
+    def test_demand_writer_does_not_upgrade_a_deferred_read_transaction(self):
+        import json
+        from meme_machine.runtime.robinhood import provider_usage
+        with tempfile.TemporaryDirectory() as temp:
+            path=Path(temp)/'provider.sqlite'
+            db=sqlite3.connect(path);db.execute('PRAGMA journal_mode=WAL')
+            db.execute('CREATE TABLE logical_demand(endpoint TEXT,method TEXT,n INTEGER,PRIMARY KEY(endpoint,method))')
+            db.commit();db.close()
+            connect=sqlite3.connect;injected=[]
+            class ConcurrentDDL(sqlite3.Connection):
+                def execute(self,statement,*args,**kwargs):
+                    value=super().execute(statement,*args,**kwargs)
+                    if statement.startswith('CREATE TABLE IF NOT EXISTS logical_demand'):
+                        # Reproduce a completion committed after schema read and
+                        # before demand insertion. A deferred BEGIN upgrades its
+                        # obsolete snapshot and raises SQLITE_BUSY immediately.
+                        other=connect(path);other.execute('INSERT INTO logical_demand VALUES(?,?,?)',('other','eth_call',1));other.commit();other.close()
+                        injected.append(True)
+                    return value
+            def opened(*args,**kwargs):return connect(*args,factory=ConcurrentDDL,**kwargs)
+            with patch.object(provider_usage.sqlite3,'connect',opened):provider_usage.demand(path,'endpoint',['eth_call'])
+            self.assertEqual(injected,[True])
+            db=connect(path)
+            try:self.assertEqual(db.execute("SELECT n FROM logical_demand WHERE endpoint='endpoint'").fetchone()[0],1)
+            finally:db.close()
+
     def test_checkpointed_wal_disappearing_during_snapshot_is_zero_bytes(self):
         with tempfile.TemporaryDirectory() as temp:
             path=Path(temp)/'shared-robinhood-admission.sqlite'

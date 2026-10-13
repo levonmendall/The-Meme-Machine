@@ -6,7 +6,8 @@
   "changes": "Existing provider ledger expression indexes and exact retained-sample boundary lookup, followed by indexed ten-second rows; counters and sample semantics unchanged.",
   "files_sha256": {
     "meme_machine/lanes/pons/provider_admission.py": "ed5fa6c117c461b655758be96d91ac8c1876f4fe6de9f7c2063baab2454f8853",
-    "meme_machine/runtime/robinhood/provider_usage.py": "b73847a967dcd00900d99a432a2fb8a15722065781d3b99e7c27d6ed9b9f103f",
+    "meme_machine/runtime/robinhood/provider_usage.py": "22bd4deb4fbbc446ef065960a5163bc3830980b2732b7ac353c2e0af1620e4c8",
+    "tests/test_provider_usage_wal_race.py": "a6a98f37aec8cd2101f7ab69ebca0db39b9a6b7f6c1db58550a0788ff8144022",
     "tests/test_robinhood_payg.py": "8a4a2b63ab144ebc84a4385488fe0ac1585ef686811cd0d898213d98b007a165"
   },
   "formal_acceptance_minutes": 0,
@@ -90,6 +91,20 @@
   "same_read_snapshot_for_queue_counters_and_sample": true,
   "sample_capacity": 4096,
   "schema": "pons-indexed-audit-repair-v1",
+  "snapshot_transaction_correction": {
+    "cause": "BEGIN had been placed in demand writer instead of snapshot reader, causing WAL lock upgrade failure",
+    "failed_observation": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CONTINUOUS_ACTUAL_WORKERS_1791857980492.json",
+    "failure_evidence_preserved": true,
+    "read_begin_placed_in_snapshot": true,
+    "regression_reproduces_concurrent_commit_between_schema_read_and_write": true,
+    "source_cash_unchanged": true,
+    "tests": {
+      "fast": 65,
+      "operational": 130,
+      "operational_seconds": "63.502"
+    },
+    "writer_original_behavior_restored": true
+  },
   "source_bottleneck": "Survivor and Current batch paths synchronously reconstruct the 4096-record provider-rate audit sample on each telemetry call; retained current stacks attribute repeated CPU to provider_usage.snapshot.",
   "strategies_or_capital_changed": false,
   "tests": {
