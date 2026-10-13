@@ -1,5 +1,51 @@
 # History separation: final critical-path refinements
 
+## Latest authenticated checkpoint and diagnostic successor
+
+The owner has superseded the $2 aggregate and two-attempt limits for the
+one-hour operating mission. Costs and cumulative CU/request/byte counters are
+reporting only. Use the existing continuous ledger and reviewed 2-RPS Solana /
+10-RPS Robinhood profile; retain physical bounds, failure backoff, original
+readiness/protection requirements and closed funding during diagnostics.
+Authority receipt: `E/STAGED_PROVIDER_AUTHORITY_UPDATED_20261013.json`.
+
+`075bacf02bc54a36a2a132c5e95053a2d5c85b6c` passed 1,933 FAST tests plus
+28 final reporting/storage OPERATIONAL tests and was deployed while stopped.
+The initial installation helper failed on 54 intentionally sparse retained
+capture files; its corrected completion preserved those exclusions and both
+portfolio identities. Both receipts remain in E. The 80-GiB volume has a current
+verified recovery point and off-host snapshot. All 151 isolated restored
+databases passed full integrity, and both independent replay openings passed.
+See `E/STAGED_RECOVERY_FINAL_20261013.json`; no integrity retry is queued.
+
+The first unfunded market attempt ran 2026-10-13 23:17:57–23:23:12 UTC.
+The evidence worker exited at 23:22:37; bounded recovery then replaced workers.
+The harness stopped. New risk stayed closed; economic state stayed unchanged.
+At sampled elapsed times 80.624–278.610 seconds, control progressed at 4.132
+slots/sec versus 1.758 durable program-frontier slots/sec; their gap grew
+90→560 slots. These are not strategy-usable checkpoints, which remained absent.
+The retained native join reached its 32-MiB early-log boundary, but this does
+not establish the terminating exception. The original diagnostic retained only
+`EvidenceUnavailable`. Do not claim the backlog caused the exit.
+
+Pons restored flat state and entered discovery. No held lifecycle or concurrent
+protective-deadline proof was observed; the earlier Pons database fault remains
+unresolved. Volume-quality flags reached both family workers, but all-four live
+signal influence is unproven. No qualifying acceptance time was credited.
+Actual attempt counters: 603 physical starts, 2,816 logical elements, 106,764
+modeled RPC CU, 234,740,597 delivered native bytes plus 419,430,400 uncertain
+bytes, six native openings. Modeled public upper cost: $0.124739054685; invoice
+charges remain unavailable. Full attempt and original failure evidence stay in E.
+
+The narrow successor changes only the evidence-worker diagnostic path: reviewed
+fixed history/startup failure codes and a bounded owned code location when an
+unknown reason is redacted. Its actual worker-entrypoint and redaction tests are
+included. Forty-seven focused tests passed in 8.047 seconds. This is diagnostic
+integration, not a throughput repair or cause identification. Use its published
+receipt for the exact source. Capture the precise next failure before any causal
+repair. The separate active-backup freeze/protection conflict is still tracked;
+paused recovery tests do not resolve it. PAPER remains stopped and funding closed.
+
 ## Current staged authority and targeted simplification checkpoint
 
 The subsequent owner directive authorizes recovery preparation, controlled

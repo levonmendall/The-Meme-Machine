@@ -229,6 +229,49 @@ class EvidenceWorkerDiagnosticTests(unittest.TestCase):
             self.assertEqual(failure_diagnostic(EvidenceUnavailable(reason)),
                 'evidence_worker_failed:EvidenceUnavailable:'+reason)
 
+    def test_separated_history_fixed_failure_codes_are_retained(self):
+        import ast
+        from meme_machine.runtime.evidence_worker import failure_diagnostic
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        source=Path(__file__).resolve().parents[1]/'meme_machine'
+        for name in ('solana_history_delivery.py','solana_history_work.py',
+                'solana_prewarm_startup.py','solana_rolling_history.py',
+                'solana_candidate_lifecycle.py'):
+            tree=ast.parse((source/name).read_text())
+            reasons={node.args[0].value for node in ast.walk(tree)
+                if isinstance(node,ast.Call) and isinstance(node.func,ast.Name)
+                and node.func.id=='EvidenceUnavailable' and len(node.args)==1
+                and isinstance(node.args[0],ast.Constant) and isinstance(node.args[0].value,str)}
+            for reason in reasons:
+                with self.subTest(module=name,reason=reason):
+                    self.assertEqual(failure_diagnostic(EvidenceUnavailable(reason)),
+                        'evidence_worker_failed:EvidenceUnavailable:'+reason)
+
+    def test_worker_entrypoint_retains_history_failure_without_provider_start(self):
+        from meme_machine.runtime import evidence_worker as worker
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        async def failed():raise EvidenceUnavailable('historical_metric_corrupt')
+        with patch.object(worker,'main_async',failed),patch.object(worker,'serve') as serve:
+            with self.assertRaises(SystemExit) as raised:worker.main()
+        self.assertEqual(raised.exception.code,
+            'evidence_worker_failed:EvidenceUnavailable:historical_metric_corrupt')
+        serve.assert_not_called()
+
+    def test_unknown_worker_failure_retains_owned_location_without_message(self):
+        import asyncio
+        from meme_machine.runtime import evidence_worker as worker
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        from meme_machine.solana_selective_source import source_work
+        secret='https://provider.invalid/v2/private-secret'
+        async def work(*args,**kwargs):raise EvidenceUnavailable(secret)
+        async def failed():await source_work(work,asyncio.Event())(lambda state:None,1)
+        with patch.object(worker,'main_async',failed),patch.object(worker,'serve') as serve:
+            with self.assertRaises(SystemExit) as raised:worker.main()
+        self.assertIn('origin=meme_machine.solana_selective_source.resumable:',raised.exception.code)
+        self.assertNotIn('private-secret',raised.exception.code)
+        self.assertNotIn('https',raised.exception.code)
+        serve.assert_not_called()
+
     def test_native_writer_failure_keeps_safe_causal_reason(self):
         from meme_machine.runtime.evidence_worker import failure_diagnostic
         from meme_machine.solana_evidence_plane import EvidenceUnavailable,IngestionService

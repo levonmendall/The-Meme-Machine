@@ -200,6 +200,23 @@ SAFE_CANDIDATE_REASONS=SAFE_CANDIDATE_REASONS | frozenset((
     'prepared_economic_store_required','historical_executor_required',
     'candidate_delivery_executor_required'))
 
+# Fixed failure codes from the separated history, delivery and startup paths.
+# Retaining these codes changes diagnostics only, never evidence admission.
+SAFE_CANDIDATE_REASONS=SAFE_CANDIDATE_REASONS | frozenset((
+    'candidate_consumer_before_canonical_commit','candidate_delivery_ack_content',
+    'candidate_delivery_ack_order','candidate_delivery_input_capacity',
+    'candidate_delivery_receipt_corrupt','candidate_delivery_receipt_missing_or_corrupt',
+    'candidate_refresh_ack_order','candidate_refresh_state',
+    'candidate_history_request_shape','historical_current_proof_corrupt',
+    'historical_family','historical_input_capacity','historical_job_corrupt',
+    'historical_metric_corrupt','historical_processing_configuration',
+    'historical_result_identity','historical_result_intervals','historical_result_queries',
+    'historical_worker_deadline','historical_result_query_mismatch',
+    'prewarm_startup_corrupt','prewarm_startup_feed_boundary',
+    'prewarm_startup_transition_order','rolling_publication_pending',
+    'candidate_checkpoint_ahead_of_history','candidate_decision_deadline_missed',
+    'candidate_history_outbox_corrupt','candidate_history_store_must_be_separate'))
+
 
 def failure_diagnostic(exc):
     from meme_machine.solana_evidence_plane import EvidenceUnavailable
@@ -235,6 +252,23 @@ def failure_diagnostic(exc):
                     if diagnostic.get('side') in ('archive','retirement'):
                         safe['side']=diagnostic['side']
                     result+=':'+json.dumps(safe,sort_keys=True,allow_nan=False)
+            else:
+                # Unknown messages remain redacted. Preserve only the last
+                # owned code location, without locals or filesystem probes.
+                # This also works when a newly added fixed code was omitted.
+                import re
+                location=None;trace=error.__traceback__
+                for _ in range(32):
+                    if trace is None:break
+                    frame=trace.tb_frame;module=frame.f_globals.get('__name__','')
+                    function=frame.f_code.co_name
+                    if (isinstance(module,str) and len(module)<=200
+                            and re.fullmatch(r'meme_machine\.[a-zA-Z0-9_.]+',module)
+                            and len(function)<=64 and re.fullmatch(r'[a-zA-Z_][a-zA-Z0-9_]*',function)
+                            and 0<trace.tb_lineno<=1000000):
+                        location=module+'.'+function+':'+str(trace.tb_lineno)
+                    trace=trace.tb_next
+                if location is not None:result+=':origin='+location
         return result
     result='evidence_worker_failed:'+classification(exc)
     seen={id(exc)}
@@ -246,8 +280,11 @@ def failure_diagnostic(exc):
         seen.add(id(cause));result+=':caused_by:'+classification(cause);exc=cause
     return result
 
-if __name__=='__main__':
+def main():
     # Final process diagnostic never formats third-party exceptions/URLs.
     try:asyncio.run(main_async())
     except Exception as exc:
         raise SystemExit(failure_diagnostic(exc)) from None
+
+
+if __name__=='__main__':main()
