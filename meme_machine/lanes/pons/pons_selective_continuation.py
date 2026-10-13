@@ -652,6 +652,8 @@ def entry_signal_persistence(original_vector, trajectory, demand):
 
 def pregraduation_soft_deterioration(trajectory, demand):
     """Soft momentum decay requires curve *and* flow deterioration together."""
+    if any(value is None for value in (trajectory.get('accelerating'),
+            demand.get('current_net_quote'),demand.get('prior_net_quote'))):return False
     return bool(
         trajectory.get("complete")
         and not trajectory.get("accelerating")
@@ -838,7 +840,8 @@ def runner_action(
                   drawdown >= EXIT_POLICY["runner_trailing_drawdown_bps"])
         if tail or ordinary:
             return dict(action="full_exit",reason="runner_trailing_stop",exit_tokens=tokens)
-        if (int(sell_quote)>0 and int(sell_quote)*10000 >=
+        if (buy_quote is not None and sell_quote is not None
+                and int(sell_quote)>0 and int(sell_quote)*10000 >=
                 max(1,int(buy_quote))*EXIT_POLICY["min_adverse_sell_buy_ratio_bps"]):
             return dict(action="full_exit",reason="demand_failure",exit_tokens=tokens)
         soft=runner_soft_deterioration(

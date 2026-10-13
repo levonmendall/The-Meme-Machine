@@ -1,6 +1,6 @@
 """Crash cuts in the actual current-Pons production lifecycle, with virtual evidence."""
 import json,tempfile,unittest
-from contextlib import ExitStack
+from contextlib import ExitStack,closing
 from pathlib import Path
 from unittest.mock import MagicMock,patch
 from meme_machine.lanes.pons import BoundaryError, pons_selective_paper as runtime
@@ -282,6 +282,9 @@ class CurrentRecoveryTests(unittest.TestCase):
             paper.controller_context=state.checkpoint
             before=paper.advance('x',now=11,action='entry',quote=f.quote(11,'buy',100,1000))
             state.seen_v4_buyers.add('new');state.high_water=2000
+            observation=runtime._soft_confirmation_evidence(
+                dict(block=12,block_hash='h12',event_at=12),'m',60,complete=True)
+            state.consume_soft_evidence('pregrad',observation,adverse=True)
             store.db.execute(f"""CREATE TRIGGER interrupt_checkpoint BEFORE INSERT ON records
                 WHEN NEW.category='{JOURNAL_CATEGORY}'
                 BEGIN SELECT RAISE(ABORT,'checkpoint_cut'); END""")
@@ -292,11 +295,15 @@ class CurrentRecoveryTests(unittest.TestCase):
             self.assertEqual(restored.seen_v4_buyers,set())
             self.assertEqual(restored.preholders,{'prior'})
             self.assertEqual(restored.high_water,-10**9)
+            self.assertIsNone(restored.pregrad_soft_evidence)
+            self.assertEqual(restored.pregrad_soft_deterioration_streak,0)
             store.db.execute('DROP TRIGGER interrupt_checkpoint')
             paper.advance('x',now=12,action='mark',quote=f.quote(12,'sell',1000,125))
             restored=LifecycleState.restore(paper,'x')
             self.assertEqual(restored.seen_v4_buyers,{'new'})
             self.assertEqual(restored.high_water,2000)
+            self.assertEqual(restored.pregrad_soft_evidence,observation)
+            self.assertEqual(restored.pregrad_soft_deterioration_streak,1)
 
     def test_unexecuted_quote_cannot_be_reported_as_a_completed_exit(self):
         from dataclasses import replace
@@ -325,3 +332,192 @@ class CurrentRecoveryTests(unittest.TestCase):
 class StoreForTest(Store):
     def __enter__(self):return self
     def __exit__(self,*args):self.close()
+
+
+class CurrentConfirmationEvidenceTests(unittest.TestCase):
+    def native_runner(self,folder,phase):
+        from meme_machine.lanes.pons.pons_selective_recovery import LifecycleState
+        from meme_machine.lanes.pons.protocols import PoolKey
+        f=accounting_fixture.PartialAccountingTests();path=Path(folder)/'trial-000.sqlite'
+        evaluation=dict(token='token',curve='m',source_transaction='source',market_events=[],
+            candidate=dict(curve='m',record={},auth={},report={}),
+            vector=dict(current_threshold_pass=True,policy_hash=POLICY_HASH,
+                trajectory=dict(graduation_eta_seconds=100),demand=dict(largest_buyer_flow_bps=100)))
+        with StoreForTest(path) as store:
+            paper=SelectivePaper(store,runtime.STRATEGY_NAMESPACE,1000,
+                delay=EXIT_POLICY['entry_delay_seconds'],natural_policy_hash=POLICY_HASH)
+            paper.reserve('x',market='m',amount=100,gas_budget=20,now=9,features=f.features(9))
+            state=LifecycleState.create(store,'x',evaluation,1000,21000,opened_at=11,last_block=11)
+            paper.controller_context=state.checkpoint
+            paper.advance('x',now=11,action='entry',quote=f.quote(11,'buy',100,1000))
+            paper.advance('x',now=12,action='exit_intent',exit_tokens=250)
+            paper.advance('x',now=14,action='exit',quote=f.quote(14,'sell',250,30))
+            state.partial_taken=True;state.high_water=500;state.high_at=11
+            if phase=='runner':
+                key=PoolKey('0x'+'1'*40,'0x'+'2'*40,3000,60,'0x'+'3'*40)
+                state.transition=dict(previous_market='m',market=key.pool_id(),proof_hash='native-fixture-transition')
+                state.v4_key=key;state.graduation_at=100;state.graduation_block=100
+                state.post_grad_checked=True;state.seen_v4_buyers={'a'}
+                store.put('graduation',state.transition['proof_hash'],state.transition)
+                paper.advance('x',now=15,action='transition',transition=state.transition)
+            else:paper.advance('x',now=15,action='mark',quote=f.quote(15,'sell',750,81))
+        return path,evaluation
+
+    def test_actual_current_paths_consume_once_and_restore_before_next_confirmation(self):
+        from dataclasses import replace
+        from meme_machine.lanes.pons.pons_selective_recovery import LifecycleState
+        f=accounting_fixture.PartialAccountingTests()
+        for phase in ('pregrad','runner'):
+            with self.subTest(phase=phase),tempfile.TemporaryDirectory() as td:
+                path,evaluation=self.native_runner(td,phase)
+                now=[200];frontier=[200];health=[False];missing=[None]
+                rpc=MagicMock();rpc.used=0;rpc.telemetry.return_value={}
+                def quote(*args,**kwargs):
+                    with StoreForTest(path) as store:
+                        market=json.loads(store.db.execute('SELECT body FROM pons_selective_paper').fetchone()[0])['market']
+                    q=f.quote(now[0],'sell',750,81)
+                    q=replace(q,market=market,stamp=replace(q.stamp,block=frontier[0],
+                        block_hash='h'+str(frontier[0]),event_at=frontier[0]))
+                    return q,dict(block=frontier[0],block_hash=q.stamp.block_hash,event_at=frontier[0])
+                def signal(*args):
+                    trajectory=dict(complete=True,accelerating=health[0],recent_progress_bps=100)
+                    demand=dict(current_net_quote=20 if health[0] else 10,prior_net_quote=15,
+                        current_buy_quote=20,current_sell_quote=0,creator_sell_quote_15s=0)
+                    if missing[0]=='key':demand.pop('prior_net_quote')
+                    if missing[0]=='none':demand['prior_net_quote']=None
+                    return trajectory,demand,[]
+                def activity(*args,**kwargs):
+                    tape=dict(provider_sessions=[],buyer_groups=['b'] if health[0] else ['a'],
+                        buy_quote=20,sell_quote=0,largest_buyer_flow_bps=100)
+                    if missing[0]=='key':tape.pop('buy_quote')
+                    if missing[0]=='none':tape['buy_quote']=None
+                    return tape
+                def v4_quote(*args,**kwargs):
+                    q,meta=quote(*args,**kwargs)
+                    meta.pop('event_at') # Actual native V4 metadata uses the quote stamp.
+                    return q,meta,None
+                patches=dict(paper_rpc=lambda *a:rpc,_curve_quote=quote,
+                    _v4_quote=v4_quote,
+                    _refresh_curve_signal=signal,_graduation_transition=lambda *a:None,
+                    collect_v4_activity=activity,evidence_rpc=lambda *a:rpc,
+                    _header_search=lambda *a:dict(number=hex(frontier[0]-10)),
+                    _latest_header=lambda *a:dict(number=hex(frontier[0]),hash='h'+str(frontier[0]),timestamp=hex(frontier[0])),
+                    _attempt_current_scale=lambda *a,**kw:None)
+                with ExitStack() as stack:
+                    stack.enter_context(patch.object(runtime.time,'time',side_effect=lambda:now[0]))
+                    for name,value in patches.items():stack.enter_context(patch.object(runtime,name,side_effect=value))
+                    def start():
+                        steps=runtime._lifecycle_steps('unused',evaluation,db_path=path,
+                            _recovery=dict(capital=1000,identity='x',gas_units=21000))
+                        self.assertEqual(next(steps)['kind'],'monitor_wait');return steps
+                    def checkpoint():
+                        with StoreForTest(path) as store:
+                            book=SelectivePaper(store,runtime.STRATEGY_NAMESPACE,1000,
+                                delay=EXIT_POLICY['entry_delay_seconds'],natural_policy_hash=POLICY_HASH)
+                            return book._get('x'),LifecycleState.restore(book,'x')
+                    steps=start()
+                    try:
+                        self.assertEqual(next(steps)['kind'],'monitor_wait')
+                        self.assertEqual(getattr(checkpoint()[1],phase+'_soft_deterioration_streak'),1)
+                        # The same canonical market time cannot add a confirmation.
+                        now[0]=201
+                        if phase=='pregrad':health[0]=True
+                        self.assertEqual(next(steps)['kind'],'monitor_wait')
+                        self.assertEqual(getattr(checkpoint()[1],phase+'_soft_deterioration_streak'),1)
+                        health[0]=True;frontier[0]=201
+                        self.assertEqual(next(steps)['kind'],'monitor_wait')
+                        self.assertEqual(getattr(checkpoint()[1],phase+'_soft_deterioration_streak'),0)
+                        health[0]=False;now[0]=frontier[0]=202
+                        self.assertEqual(next(steps)['kind'],'monitor_wait')
+                        self.assertEqual(getattr(checkpoint()[1],phase+'_soft_deterioration_streak'),1)
+                        now[0]=frontier[0]=203
+                        for value in ('key','none'):
+                            missing[0]=value
+                            self.assertEqual(next(steps)['kind'],'monitor_wait')
+                            self.assertEqual(getattr(checkpoint()[1],phase+'_soft_deterioration_streak'),1)
+                        with self.assertRaises(StopIteration) as done:steps.send('handoff')
+                        if phase=='runner':
+                            report=done.exception.value['monitor'][0]['activity']
+                            self.assertEqual(report['lifetime_new_buyer_growth'],0)
+                            self.assertEqual(report['new_buyer_growth_semantics'],'buyers_never_previously_seen_during_position')
+                            self.assertEqual(report['rolling_active_buyer_groups'],1)
+                            self.assertEqual(report['rolling_active_breadth_window_seconds'],15)
+                    finally:steps.close()
+                    # A restart and an old frontier preserve the consumed identity.
+                    missing[0]=None;frontier[0]=202;steps=start()
+                    try:
+                        self.assertEqual(next(steps)['kind'],'monitor_wait')
+                        self.assertEqual(getattr(checkpoint()[1],phase+'_soft_deterioration_streak'),1)
+                        frontier[0]=203
+                        self.assertEqual(next(steps)['kind'],'exit_wait')
+                        before,state=checkpoint()
+                        self.assertEqual(getattr(state,phase+'_soft_deterioration_streak'),2)
+                        self.assertEqual(before['status'],'exit_pending')
+                        self.assertEqual(before['pending_exit_tokens'],750)
+                        self.assertEqual(before['due'],205)
+                        with self.assertRaises(StopIteration):steps.send('handoff')
+                        self.assertEqual(checkpoint()[0],before)
+                    finally:steps.close()
+
+    def test_gap_fork_and_missing_evidence_never_stitch_confirmations(self):
+        from meme_machine.lanes.pons.pons_selective_recovery import LifecycleState
+        state=LifecycleState(pregrad_soft_deterioration_streak=0,pending_action={'exit_tokens':7})
+        def evidence(at,epoch=None,block_hash=None):
+            meta=dict(block=at,block_hash=block_hash or 'h'+str(at),event_at=at)
+            value=runtime._soft_confirmation_evidence(meta,'m',60,complete=True)
+            value['continuity_epoch']=epoch;value['identity']=str((at,epoch,block_hash));return value
+        state.consume_soft_evidence('pregrad',evidence(100),adverse=True)
+        self.assertFalse(state.consume_soft_evidence('pregrad',evidence(100),adverse=False)['consumed'])
+        self.assertEqual(state.pregrad_soft_deterioration_streak,1)
+        state.consume_soft_evidence('pregrad',None,adverse=False)
+        self.assertEqual(state.pregrad_soft_deterioration_streak,1)
+        state.consume_soft_evidence('pregrad',evidence(200),adverse=True)
+        self.assertEqual(state.pregrad_soft_deterioration_streak,1)
+        state.consume_soft_evidence('pregrad',evidence(201,'fork-1'),adverse=True)
+        self.assertEqual(state.pregrad_soft_deterioration_streak,1)
+        state.consume_soft_evidence('pregrad',evidence(201,'fork-1','forked'),adverse=False)
+        self.assertEqual(state.pregrad_soft_deterioration_streak,1)
+        state.consume_soft_evidence('pregrad',evidence(202,'fork-1'),adverse=True)
+        self.assertEqual(state.pregrad_soft_deterioration_streak,1)
+        state.consume_soft_evidence('pregrad',evidence(203,'fork-1'),adverse=True)
+        self.assertEqual(state.pregrad_soft_deterioration_streak,2)
+        state.consume_soft_evidence('pregrad',evidence(204,'fork-1'),adverse=False)
+        self.assertEqual(state.pregrad_soft_deterioration_streak,0)
+        self.assertEqual(state.pending_action,{'exit_tokens':7})
+
+    def test_existing_native_history_invalidation_breaks_confirmation_continuity(self):
+        from meme_machine.lanes.pons.pons_current_history import CurrentHistory,_active
+        from meme_machine.lanes.pons.pons_selective_recovery import LifecycleState
+        from meme_machine.runtime.robinhood.plane import Plane
+        with tempfile.TemporaryDirectory() as td:
+            plane=Plane(Path(td)/'candidate-evidence.sqlite');history=CurrentHistory(plane,'unused')
+            token=_active.set(history)
+            state=LifecycleState(pregrad_soft_deterioration_streak=0)
+            try:
+                def observe(at):
+                    header=dict(number=hex(at),hash='h'+str(at),timestamp=hex(at))
+                    history.remember('m',header,[],from_time=max(0,at-60))
+                    value=runtime._soft_confirmation_evidence(
+                        dict(block=at,block_hash=header['hash'],event_at=at),'m',60,complete=True)
+                    self.assertIsNotNone(value)
+                    state.consume_soft_evidence('pregrad',value,adverse=True)
+                    return value
+                first=observe(100)
+                history.invalidate('m','pons_current_history_reorg')
+                after_fork=observe(101)
+                self.assertNotEqual(first['continuity_epoch'],after_fork['continuity_epoch'])
+                self.assertEqual(state.pregrad_soft_deterioration_streak,1)
+                observe(102);self.assertEqual(state.pregrad_soft_deterioration_streak,2)
+                observe(220);self.assertEqual(state.pregrad_soft_deterioration_streak,1)
+            finally:_active.reset(token);plane.close()
+
+    def test_optional_missing_flow_preserves_hard_stop_and_trail_decisions(self):
+        from meme_machine.lanes.pons.pons_selective_continuation import runner_action,pregraduation_action
+        for current,reason in ((EXIT_POLICY['risk_bps'],'risk'),(500,'runner_trailing_stop')):
+            common=dict(tokens=750,partial_taken=True,after_cost_return_bps=current,
+                high_water_return_bps=3000,soft_deterioration_streak=1)
+            runner=runner_action(**common,seconds_since_high=200,new_buyer_growth=0,buy_quote=None,sell_quote=None)
+            pregrad=pregraduation_action(**common,elapsed_seconds=200,frozen_eta_seconds=100,
+                trajectory=dict(complete=True,accelerating=None),demand=dict(current_net_quote=None,prior_net_quote=None))
+            self.assertEqual(runner['reason'],reason)
+            self.assertEqual(pregrad['reason'],'risk' if reason=='risk' else 'pregraduation_runner_trailing_stop')

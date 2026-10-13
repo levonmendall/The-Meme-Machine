@@ -389,6 +389,45 @@ def _refresh_curve_signal(endpoint,candidate,mark_meta,*,entry_evidence=None):
     return trajectory,demand,[trajectory_session]+sessions
 
 
+def _soft_confirmation_evidence(meta,market,seconds,*,complete):
+    """Describe the already-authenticated observation, without another purchase.
+
+    CurrentHistory's existing invalidation identity breaks confirmation continuity
+    after a gap, source change or fork. Its acquisition timestamps are deliberately
+    excluded: a fresh local timestamp cannot turn the same market frontier new.
+    """
+    if not complete:return None
+    try:
+        block=int(meta['block']);through=int(meta['event_at']);block_hash=meta['block_hash']
+        if not block_hash:return None
+        lower=max(0,through-int(seconds));epoch=None
+        from .pons_current_history import active_history
+        history=active_history()
+        if history is not None:
+            frontier=history.get(market)
+            if (frontier is None or frontier['block']!=block or frontier['block_hash']!=block_hash
+                    or frontier['through']!=through or frontier['from_time']>lower):return None
+            invalidation=history.plane.checkpoint_read(
+                'pons_current_history_invalidated:'+history.domain+':'+market.lower())
+            epoch=digest([frontier['source_generation'],invalidation])
+        evidence=dict(market=market.lower(),block=block,block_hash=block_hash,
+            from_time=lower,through=through,continuity_epoch=epoch)
+        return dict(evidence,identity=digest(evidence))
+    except (BoundaryError,KeyError,TypeError,ValueError):
+        # Soft evidence is optional. Existing stop/flow/intent evaluation still
+        # runs on the native quote even when this continuity join is unavailable.
+        return None
+
+
+def _current_breadth_reporting(activity,growth,window_seconds,*,available):
+    """Names only; the lifetime-new count remains the runner policy input."""
+    activity.update(new_buyer_growth=growth,lifetime_new_buyer_growth=growth,
+        new_buyer_growth_semantics='buyers_never_previously_seen_during_position',
+        rolling_active_breadth_available=bool(available),
+        rolling_active_buyer_groups=(len(set(activity['buyer_groups'])) if available else None),
+        rolling_active_breadth_window_seconds=(int(window_seconds) if available else None))
+
+
 @attributed_work('pons_current_qualification')
 def _refresh_entry_persistence_signal(endpoint,candidate,entry_meta):
     """Dedicated fill-time thesis revalidation hook.
@@ -1063,9 +1102,11 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                     if state.high_water>=10000 and getattr(state,'first_tail_crossed_at',None) is None:
                         state.first_tail_crossed_at=int(time.time())
                     soft=pregraduation_soft_deterioration(trajectory,demand)
-                    state.pregrad_soft_deterioration_streak=(
-                        state.pregrad_soft_deterioration_streak+1 if soft else 0
-                    )
+                    confirmation=state.consume_soft_evidence('pregrad',
+                        _soft_confirmation_evidence(meta,position['market'],60,
+                            complete=bool(trajectory.get('complete') and trajectory.get('accelerating') is not None
+                                and all(demand.get(k) is not None for k in ('current_net_quote','prior_net_quote')))),
+                        adverse=soft)
                     action=pregraduation_action(
                         tokens=position["tokens"],partial_taken=state.partial_taken,
                         elapsed_seconds=elapsed,frozen_eta_seconds=state.frozen_eta,
@@ -1088,6 +1129,7 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                         return_bps=rbps,trajectory=trajectory,demand=demand,
                         action=action,
                         soft_deterioration_streak=state.pregrad_soft_deterioration_streak,
+                        soft_confirmation=confirmation,
                         quote=meta,pregraduation_profit_harvest_enabled=True,
                     ))
                     if action["action"] in ("partial_exit","full_exit"):
@@ -1218,9 +1260,15 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                         seconds=min(15,max(0,mark.stamp.event_at-state.graduation_at)),preholder_groups=state.preholders,
                         prepared=acquisition['history'] if acquisition is not None else None)
                 result["provider_sessions"].extend(activity.pop("provider_sessions"))
-                buyers=set(activity["buyer_groups"])
-                growth=len(buyers-state.seen_v4_buyers)
-                state.seen_v4_buyers.update(buyers)
+                buyers=set(activity['buyer_groups']) if activity.get('buyer_groups') is not None else None
+                growth=len(buyers-state.seen_v4_buyers) if buyers is not None else None
+                if buyers is not None:state.seen_v4_buyers.update(buyers)
+                activity_window=min(15,max(0,mark.stamp.event_at-state.graduation_at))
+                breadth_evidence=_soft_confirmation_evidence(dict(meta,event_at=mark.stamp.event_at),position['market'],activity_window,
+                    complete=buyers is not None)
+                confirmation_evidence=(breadth_evidence if all(activity.get(k) is not None
+                    for k in ('buy_quote','sell_quote')) else None)
+                _current_breadth_reporting(activity,growth,activity_window,available=breadth_evidence is not None)
                 if rbps>state.high_water:
                     state.high_water=rbps;state.high_at=int(time.time())
                 if state.high_water>=10000 and getattr(state,'first_tail_crossed_at',None) is None:
@@ -1228,17 +1276,15 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                 seconds_since_high=max(0,int(time.time())-state.high_at)
                 soft=runner_soft_deterioration(
                     seconds_since_high=seconds_since_high,
-                    new_buyer_growth=growth,
+                    new_buyer_growth=0 if growth is None else growth,
                 )
-                state.runner_soft_deterioration_streak=(
-                    state.runner_soft_deterioration_streak+1 if soft else 0
-                )
+                confirmation=state.consume_soft_evidence('runner',confirmation_evidence,adverse=soft)
                 action=runner_action(
                     tokens=position["tokens"],partial_taken=state.partial_taken,
                     after_cost_return_bps=rbps,high_water_return_bps=state.high_water,
                     seconds_since_high=seconds_since_high,
-                    new_buyer_growth=growth,buy_quote=activity["buy_quote"],
-                    sell_quote=activity["sell_quote"],
+                    new_buyer_growth=0 if growth is None else growth,buy_quote=activity.get('buy_quote'),
+                    sell_quote=activity.get('sell_quote'),
                     soft_deterioration_streak=state.runner_soft_deterioration_streak,
                 )
                 facts=_continuation_facts(position,mark,meta,candidate,rbps,
@@ -1253,6 +1299,7 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                     at=mark.stamp.observed_at,market="v4",available=True,
                     return_bps=rbps,activity=activity,action=action,quote=meta,
                     soft_deterioration_streak=state.runner_soft_deterioration_streak,
+                    soft_confirmation=confirmation,
                 ))
                 if action["action"] in ("partial_exit","full_exit"):
                     state.recovery_exit_reason=action["reason"]

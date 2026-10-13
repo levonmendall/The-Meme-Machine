@@ -66,6 +66,8 @@ class LifecycleState(SimpleNamespace):
             entry_largest=int(vector['demand']['largest_buyer_flow_bps']),seen_v4_buyers=set(),
             pending_transition_exit_reason=None,recovery_exit_reason=None,recovery_streak=0,
             pregrad_soft_deterioration_streak=0,runner_soft_deterioration_streak=0,
+            pregrad_soft_evidence=None,runner_soft_evidence=None,
+            pregrad_soft_discontinuous=False,runner_soft_discontinuous=False,
             pending_action=None,bridged=False,bridged_at=None,bridge_deadline=None,
             first_tail_crossed_at=None,scale_committed=False,bridge_probe_failed=False)
         cls._table(store)
@@ -89,6 +91,39 @@ class LifecycleState(SimpleNamespace):
                 before_tokens=position['tokens'])
             self.recovery_exit_reason=action['reason']
         else:self.pending_action=None
+
+    def consume_soft_evidence(self,phase,evidence,*,adverse):
+        """Consume one complete canonical observation on the existing checkpoint.
+
+        Acquisition already proves range completeness and canonical membership.
+        Re-reading that frontier (including after restart) adds no confirmation.
+        A fresh observation after a gap/fork begins a new confirmation sequence.
+        Missing evidence leaves the previous streak and committed intent intact.
+        """
+        streak_name=phase+'_soft_deterioration_streak'
+        evidence_name=phase+'_soft_evidence'
+        discontinuous_name=phase+'_soft_discontinuous'
+        previous=getattr(self,evidence_name,None)
+        if not evidence:
+            return dict(consumed=False,reason='evidence_unavailable')
+        if previous is not None and (evidence['identity']==previous['identity']
+                or evidence['through']<=previous['through'] or evidence['block']<=previous['block']):
+            # A conflicting fork at an old frontier is not a healthy reading.
+            # Remember only the continuity break until genuinely new time arrives.
+            if (evidence['continuity_epoch']!=previous['continuity_epoch']
+                    or evidence['block']==previous['block'] and evidence['block_hash']!=previous['block_hash']):
+                setattr(self,discontinuous_name,True)
+            return dict(consumed=False,reason='duplicate_or_replayed_evidence',identity=evidence['identity'])
+        continuous=bool(previous is not None
+            and not getattr(self,discontinuous_name,False)
+            and evidence['market']==previous['market']
+            and evidence['continuity_epoch']==previous['continuity_epoch']
+            and evidence['from_time']<=previous['through'])
+        streak=getattr(self,streak_name,0)
+        setattr(self,streak_name,(streak+1 if continuous else 1) if adverse else 0)
+        setattr(self,evidence_name,dict(evidence))
+        setattr(self,discontinuous_name,False)
+        return dict(consumed=True,reason='new_evidence',identity=evidence['identity'],continuous=continuous)
 
     def checkpoint(self,paper,position,action,now):
         if not paper.store.db.in_transaction:
@@ -131,6 +166,11 @@ class LifecycleState(SimpleNamespace):
         if len(entries)!=1 or entries[0]['at']!=raw['opened_at'] or raw['opened_at']!=base['opened_at']:
             raise BoundaryError('selective_controller_original_hold_clock')
         data=dict(raw);data.pop('schema');data.pop('policy_hash')
+        # Older native checkpoints retain their streak. Without its consumed
+        # frontier a new observation cannot extend that unproved sequence.
+        for phase in ('pregrad','runner'):
+            data.setdefault(phase+'_soft_evidence',None)
+            data.setdefault(phase+'_soft_discontinuous',False)
         for kind in ('preholders','seen_v4_buyers'):
             values=[r[0] for r in paper.store.db.execute(
                 f'SELECT value FROM {GROUPS} WHERE identity=? AND kind=? ORDER BY value',(identity,kind))]
