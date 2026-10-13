@@ -104,6 +104,19 @@ class SurvivorTerminalArchiveTests(unittest.TestCase):
                 owner.db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
             sizes.append(sum(native_bytes(owner.db) for owner in (self.book,self.sleeve,self.history)))
         self.assertEqual(self.book.reconcile()['settled'], 96)
+        coverage=self.book._archive()['folded']['component_coverage']
+        self.assertEqual((coverage['records'],coverage['available'],coverage['unavailable']),(96,96,0))
+        self.assertTrue(coverage['complete_component_coverage'])
+        self.assertEqual(self.book._archive()['folded']['component_totals']['original']['booked_cost'],9600)
+        self.assertEqual(self.book._archive()['folded']['component_totals']['original']['net_proceeds'],9600)
+        self.assertEqual(self.book._archive()['folded']['component_totals']['add']['booked_cost'],0)
+        from meme_machine.runtime.learning import get
+        facts=get(self.book.db,'lifecycle:'+ids[-1])['facts']
+        self.assertEqual(facts['component_performance']['state'],'AVAILABLE')
+        self.assertEqual(facts['component_performance']['totals']['net_proceeds'],100)
+        self.assertFalse(facts['complete_trade_population'])
+        from meme_machine.runtime.component_performance import paper_report
+        self.assertEqual(paper_report(self.book,ids[-1]),facts['component_performance'])
         self.assertLessEqual(max(sizes[3:]) - min(sizes[3:]), 65536, sizes)
         print('Survivor economic churn: 12 windows, 96 settlements; hot bytes', sizes)
 

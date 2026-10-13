@@ -62,6 +62,28 @@ class PlaneTests(unittest.TestCase):
     def test_decision_fence_after_new_observation(self):
         self.observe();self.p.finish(self.p.claim(),result={});self.observe(2)
         self.assertFalse(self.p.decision('curve',1,'qualified'))
+    def test_concurrent_native_paths_claim_one_entry_per_generation_across_restart(self):
+        from concurrent.futures import ThreadPoolExecutor
+        self.observe();self.p.finish(self.p.claim(),result={})
+        barrier=threading.Barrier(2)
+        def reserve(index):
+            other=Plane(self.path,clock=lambda:self.now)
+            try:
+                barrier.wait()
+                return other.decision('curve',1,'entry_reserved',
+                    native_reservation_intent='native-'+str(index),native_ledger='trial-'+str(index))
+            finally:other.close()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            self.assertEqual(sorted(pool.map(reserve,range(2))),[False,True])
+        before=self.p.checkpoint_read('native_entry_generation:pons:curve')
+        self.p.close();self.p=Plane(self.path,clock=lambda:self.now)
+        self.assertFalse(self.p.decision('curve',1,'entry_reserved',native_reservation_intent='replay'))
+        self.assertEqual(self.p.checkpoint_read('native_entry_generation:pons:curve'),before)
+        self.observe(2);self.p.finish(self.p.claim(),result={})
+        self.assertTrue(self.p.decision('curve',2,'entry_reserved',native_reservation_intent='fresh'))
+        self.assertEqual(self.p.get('curve')['deadline'],105)
+        self.p.consume('curve',2);self.now+=86401;self.p.maintain()
+        self.assertIsNone(self.p.checkpoint_read('native_entry_generation:pons:curve'))
     def test_capacity_defer_keeps_candidate_in_denominator(self):
         self.observe();self.assertIsNone(self.p.claim(estimate_seconds=6))
         self.assertEqual(self.p.snapshot()['candidate_states'],{'provider_capacity_defer':1})

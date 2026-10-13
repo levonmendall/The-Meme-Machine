@@ -89,6 +89,12 @@ def retire_controller(result):
                 from meme_machine.runtime.portfolio import NativePortfolio
                 if any(n==p['id'] for n,_ in NativePortfolio(os.environ['MM_PORTFOLIO_ACCOUNTING_DB'],'pons').pending()):continue
             retired[p['id']]=row;drop.append(q['index'])
+            from meme_machine.runtime.component_performance import coverage,accumulate
+            prior=controller.get('component_coverage')
+            if prior is None:prior=coverage([],missing_records=controller.get('qualifiers',0))
+            controller['component_coverage']=coverage([life.get('component_performance')],prior=prior)
+            controller['component_coverage']['evidence_scope']='NATIVE_RETIREMENT_CAPTURE'
+            controller['component_totals']=accumulate(life.get('component_performance'),controller.get('component_totals'))
             for key,value in dict(positions=1,realized=row['pnl'],native_execution_cost=row['native_accounting']['native_execution_cost'],capital_at_risk_unit_nanoseconds=row['native_accounting']['capital_at_risk_unit_nanoseconds']).items():folded[key]=folded.get(key,0)+value
             controller['qualifiers']=controller.get('qualifiers',0)+1
             controller['wallet_converged']=controller.get('wallet_converged',0)+int(bool(q.get('wallet_convergence',{}).get('converged')))
@@ -118,7 +124,9 @@ def retire_controller(result):
                     for identity in plan['retired']:
                         from meme_machine.runtime.learning import lifecycle
                         life=next((r for r in result['lifecycles'] if (r.get('final_position') or {}).get('id')==identity),{})
-                        lifecycle(db,identity,'pons-current',time.time(),dict(plan['retired'][identity],lifecycle=life))
+                        reference=result.get('reentry_references',{}).get(life.get('curve'))
+                        retained_life=dict(life,reentry_reference=reference) if reference else life
+                        lifecycle(db,identity,'pons-current',time.time(),dict(plan['retired'][identity],lifecycle=retained_life))
                         current.get('positions',{}).pop(identity,None)
                         db.execute('DELETE FROM capital_positions WHERE id=?',(identity,))
                     sql=db.execute("SELECT sql FROM sqlite_master WHERE name='journal_no_delete'").fetchone()[0]
@@ -138,6 +146,8 @@ def retire_controller(result):
         controller=plan['controller'];controller['hash']=digest({k:v for k,v in controller.items() if k!='hash'})
         result['archived_trials']=controller
         for kind in ('qualifiers','lifecycles'):result[kind]=[r for r in result[kind] if r.get('index') not in plan['drop']]
+        from meme_machine.lanes.pons.pons_reentry import retire_expired_references
+        retire_expired_references(result,set(plan['drop']),now=time.time())
         # A checkpoint of the new controller precedes removing native files.
         from meme_machine.runtime.robinhood.plane import Plane
         plane=Plane(result['candidate_plane_path'])

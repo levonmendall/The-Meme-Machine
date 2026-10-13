@@ -1,5 +1,5 @@
 {
-  "status": "OFFLINE_SCOPED_PASS_FULL_FAST_FAILED_PROTECTION_CAPACITY",
+  "status": "REFINEMENT_FAST_PASS_LIFECYCLE_COMBINED_VALIDATION_PENDING",
   "comparison_baseline": "c3c753c3bdf8bf6e3dd5c253e21799fb52e8d743",
   "original_design": "dc957c521b6d043a9d4a1bca3c47127bc2f51abb",
   "branch": "engineering/pump-history-separation-20261013",
@@ -19,7 +19,9 @@
     "engineering/solana_capacity/history_refinement_replay.py": "07c91648722fdb5b2f5ffa76830379bb1cd2f80c7ceaf3e36a54cbe647ba90cb",
     "meme_machine/solana_economic_preparation.py": "92eafe7b8309e1895ce8deb940d3fe81e01c6dc8adad0ec6ed32d750ecf7bd03",
     "meme_machine/solana_history_notifications.py": "15e45839bff5984300b8c41af3fc0637d5e62677eba6142ced6c404844201df6",
-    "tests/test_solana_history_refinement.py": "57692ded0bc3a402e9d6706e2b7675348d04efc389dff0766d85120c1345ca16"
+    "tests/test_solana_history_refinement.py": "57692ded0bc3a402e9d6706e2b7675348d04efc389dff0766d85120c1345ca16",
+    "tests/test_robinhood_usd_valuation.py": "a9d9f2810eeeb5a2ec0f9325d7e04bf0b486570070c3397a24e2106caa2127fa",
+    "tests/test_pons_capacity_repair.py": "c4a04dfd72c54fd3e8531b718f94e8ec1e8a6fb9a9ec51943225f14ca44d9c5a"
   },
   "provider_dispatches": 0,
   "deployed": false,
@@ -33,8 +35,11 @@
     "pons_diagnostic": "9 PASS, including essential-context optional-probe failure and actual lane.main traceback path",
     "pons_regressions": "73 PASS; no overlap with Pump profiling",
     "baseline_ci": "1886 PASS exact c3c753c3, run 38428869088",
-    "final_fast_ci": "e8f7d2ec: 1907 ran / 3 failures in original Pons real-clock/combined deadline tests. Assertions intact; failed evidence retained. Isolated same-source 3 cases PASS / 78.594 seconds.",
-    "ci_failure_record": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/HISTORY_REFINEMENT_FAST_CI_FAILED_20261013.log"
+    "final_fast_ci": "Combined lifecycle/reporting source validation pending",
+    "ci_failure_record": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/HISTORY_REFINEMENT_FAST_CI_FAILED_20261013.log",
+    "failed_prior_fast_ci": "e8f7d2ec: 1907 ran / 3 failures in original Pons real-clock/combined deadline tests. Assertions intact; failed evidence retained. Isolated same-source 3 cases PASS / 78.594 seconds.",
+    "refinement_fast_ci": "1907 PASS / 1500.963 seconds exact 60ffa9cd, run 38446154537 completed 2026-10-13T18:47:36Z; prior failure retained, cause unresolved",
+    "lifecycle_source_guard": "2 PASS / 5.760 seconds, exact reviewed package file pins and original economic guard"
   },
   "raw_comparison": {
     "status": "EXACT_RAW_PREFIX_ECONOMIC_AND_COVERAGE_PARITY",
@@ -82,5 +87,38 @@
     "No owner authorization for deployment/provider workloads/PAPER restart or acceptance"
   ],
   "external_evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011",
-  "paired_comparison_sha256": "7e6e689e77ece78a30ceb9c1a3151c10f70cd51f621bcf0f4ad822d70a23e03f"
+  "paired_comparison_sha256": "7e6e689e77ece78a30ceb9c1a3151c10f70cd51f621bcf0f4ad822d70a23e03f",
+  "lifecycle_reporting_integration": {
+    "receiving_commit": "60ffa9cdcd7d0e2de257620fb3d8bc4e1b331c1f",
+    "package_commit": "9cdc1b5428f8ebf0bfcc6206cb8122b354654d9d",
+    "package_base": "e8f7d2ec8ccc0d530c94171390e1966d5c42a70f",
+    "method": "normal non-fast-forward merge",
+    "conflicts": [],
+    "status": "SOURCE_MERGED_COMBINED_VALIDATION_PENDING",
+    "source_guard": "Three exact published file pins; prior versions still pass original economic guard; all other assertions retained",
+    "files_sha256": {
+      "meme_machine/lanes/pons/pons_reentry.py": "3c1ddc3d750d02d0ac24f62c15e38abe69ede3901448a7d2108b118fc952a4eb",
+      "meme_machine/lanes/pons/pons_selective_capital.py": "54f9621fed567b8e68b2e18dddc10eb0f0e7db5b4bfb243d434f173d8a5d5716",
+      "meme_machine/lanes/pons/pons_selective_cohort.py": "893a7ec3aa54688d69ce5174605229b3c4b448a79c9ceb8f202e163ec857c083",
+      "meme_machine/lanes/pons/pons_selective_continuation.py": "e25cd6074cb283dd0924c942094877ff79ed0a21f613ea0974fe16424007e145",
+      "meme_machine/lanes/pons/pons_selective_paper.py": "1613220acd652d03ba3030008bd474b9eb0f95f7712576c6237ebda393ea7a9a",
+      "meme_machine/lanes/pons/pons_selective_recovery.py": "700a09510f2e1eda0f9ea5ef552561d3b13827078c6797dd5ba765e08ec06226",
+      "meme_machine/runtime/component_performance.py": "8febd9daa2aeccddf10f85579e837e2e55fc3eed353dcc2d3074f4d4b5c838b4",
+      "meme_machine/runtime/learning.py": "10bc622abecc29422930302151a19389eaff3eacd52b48af07a516e35871230a",
+      "meme_machine/runtime/pons_terminal_archive.py": "ad6853bd29269823701a3c3120cf040b19428b3451f45cf770345c392e37d942",
+      "meme_machine/runtime/robinhood/plane.py": "f3a3175a71b4cc0be77e2896f71bc98640f9fa8a9c86bed1ae2f266d0286d978",
+      "meme_machine/runtime/storage.py": "4cfaf6e951b3c86b1ff9bcaa251efa9fa049aab83c992c55f50164c61a8116fc",
+      "meme_machine/runtime/survivor_paper_book.py": "32faaab1e8475e082f621ed2df62a29626414110dd58369ef4877c24447a34ea",
+      "meme_machine/runtime/survivor_terminal_archive.py": "6ac94d4a6d6bf6cb9abe800a2981773360110bad1ad705ceab1447e068c7a8f4",
+      "meme_machine/shared_capital/native_sleeve.py": "016e437b7d9b371cf8634f2469d0b568ab98d87169a82bb335d47d76c6abaa71",
+      "meme_machine/shared_capital/reporting.py": "64a8a8d99f8440ef2bf638f0d19cabbc52844fe47c24ba79a66cfde61d0bf207",
+      "operational/pump-first-release/COMPONENT_PERFORMANCE_REPORTING.md": "a1ee535c6f104b23bf320014d2d84c69fcab3e057f2e76f0a0b0cf39b07ca99a",
+      "operational/pump-first-release/READY_LIFECYCLE_REPORTING_HANDOFF.md": "dffa6868252fd9e795f9223e4622014f0ea6d408ed1279bbe1c843aa0a272ec2",
+      "tests/lanes/pons/test_pons_current_recovery.py": "22ccdd2ed206c699ac6899db8b1346b0acfc5d97f62d25aa468b87e9d4050e09",
+      "tests/lanes/pons/test_pons_entry_confirmation_ordering.py": "ac397ebb2ee20589caaaa93377b3703d0b4695d1605182ad4b164c41da5bf588",
+      "tests/test_learning_retention.py": "eaaf536b427b8f9cbbf1daaf773ff4476334be75592891459fe61d424fb0c897",
+      "tests/test_robinhood_plane.py": "d307eb62562995a0d810237c1ff638a948f1bec63f2de00758e0e238d1a6bd4b",
+      "tests/test_survivor_terminal_retirement.py": "f0d10d8050102c9ffdb7fc740a93fe0e1866eea8c9acace4869bfc6d1ccc9f98"
+    }
+  }
 }

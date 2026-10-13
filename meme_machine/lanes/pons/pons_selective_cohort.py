@@ -36,6 +36,7 @@ from .pons_selective_paper import (
 )
 from .pons_selective_wallets import WalletSkillBook
 from .pons_attempts import Attempts, decision_category, failure_category
+from .pons_reentry import recover_references, refresh_pending_ack, note_attempt, reentry_decision
 
 REPORT=Path(os.environ.get(
     "MM_PONS_SELECTIVE_COHORT_REPORT","pons-selective-continuation-v1-cohort.json"
@@ -160,11 +161,22 @@ def _summary_snapshot(result):
         rejection_counts=dict(sorted(rejection_counts.items())),
         realized_pnl_quote=realized,
         archived_realized_pnl_quote=result.get('archived_trials',{}).get('realized_pnl_quote',0),
+        component_performance_coverage=_component_coverage(result),
+        archived_component_performance=result.get('archived_trials',{}).get('component_totals'),
         graduated_lifecycles=result.get('archived_trials',{}).get('graduated_lifecycles',0)+sum(
             bool(x.get("carried_through_graduation"))
             for x in result["lifecycles"]
         ),
     )
+
+
+def _component_coverage(result):
+    from meme_machine.runtime.component_performance import coverage
+    archived=result.get('archived_trials',{})
+    prior=archived.get('component_coverage')
+    if prior is None:
+        prior=coverage([],missing_records=archived.get('qualifiers',0))
+    return coverage([life.get('component_performance') for life in result['lifecycles']],prior=prior)
 
 
 def _record_candidate_boundary(pipeline,identity,event,sequence,context,boundary,
@@ -205,6 +217,10 @@ def _record_candidate_boundary(pipeline,identity,event,sequence,context,boundary
 def _checkpoint(result,*,cursor,feed,rpc,phase):
     active_provider=rpc.telemetry() if rpc is not None else dict(state='CLOSED',reason='bootstrap_discovery_closed')
     from meme_machine.runtime.pons_terminal_archive import retire_controller
+    # The existing capital reader repairs lost release ACKs. Refresh only the
+    # corresponding known terminal references before normal retirement/checkpoint.
+    cohort_accounting=_cohort_accounting() if (ROOT/'pons-selective-cohort-capital.sqlite').exists() else result.get('cohort_accounting')
+    refresh_pending_ack(ROOT,result)
     retire_controller(result)
     save_cohort_checkpoint(result,cursor,phase)
     snapshot=dict(
@@ -228,7 +244,7 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
         sequencer_recoveries=list((result.get("sequencer_recoveries") or [])[-16:]),
         sequencer_recovery_count=len(result.get('sequencer_recoveries') or []),
         sequencer_recovery_archive=str(RECOVERY_LOG),
-        cohort_accounting=_cohort_accounting() if (ROOT/'pons-selective-cohort-capital.sqlite').exists() else result.get('cohort_accounting'),
+        cohort_accounting=cohort_accounting,
         sequencer_discovery=feed.status(),
         warmup=result.get("warmup"),
         target_reached=result.get("target_reached"),
@@ -694,6 +710,18 @@ def _attach_wallet_overlay(vector,skill_book):
 
 
 def _record_completed_lifecycle(result,life):
+    from .pons_reentry import refresh_reference
+    qualifier=next((q for q in result.get('qualifiers',[]) if q.get('index')==life.get('index')),None)
+    if qualifier is not None:refresh_reference(ROOT,result,qualifier,life)
+    from meme_machine.runtime.component_performance import pons_path_report,unavailable
+    position=life.get('final_position') or {};index=life.get('index')
+    component=life.get('component_performance') or {}
+    joined=component.get('native_projection') or {}
+    if not (component.get('state')=='AVAILABLE' and joined.get('id')==position.get('id')
+            and joined.get('version')==position.get('version')):
+        life['component_performance']=(pons_path_report(ROOT/f'trial-{index:03d}.sqlite',position)
+            if type(index) is int and position.get('status')=='settled'
+            else unavailable(position.get('id'),'native_completed_detail_unavailable'))
     from meme_machine.runtime.robinhood.pons import coalesce_lifecycle_rows
     merged=coalesce_lifecycle_rows(result['lifecycles']+[life])
     _append_jsonl(ROOT/'completed-lifecycles.jsonl',life)
@@ -735,7 +763,7 @@ def persist_terminal(result):
         lifecycles=len(result['lifecycles']),provider_sessions=len(result['discovery_sessions']))
     compact['lifecycles']=[{k:v for k,v in life.items() if k in (
         'index','status','boundary','lifecycle_id','settlement_kind','final_position','reconciliation','realized_pnl_quote',
-        'carried_through_graduation','capital_reconciliation')} for life in result['lifecycles']]
+        'carried_through_graduation','capital_reconciliation','component_performance')} for life in result['lifecycles']]
     raw=json.dumps(compact,sort_keys=True,separators=(',',':')).encode()
     if len(raw)>12_000_000:raise BoundaryError('selective_cohort_report_capacity')
     temporary=REPORT.with_suffix(REPORT.suffix+'.tmp')
@@ -886,8 +914,7 @@ def run(endpoint,*,campaign=False):
         pool=LifecyclePool(max_workers=MAX_CONCURRENT_LIFECYCLES)
         futures=[]
         active_curve_futures={}
-        last_authorized_vector={r['curve']:r['vector'] for r in result['qualifiers']}
-        last_terminal_by_curve={r['curve']:r for r in result['lifecycles'] if r.get('curve')}
+        references=recover_references(ROOT,result)
         collected_futures=set()
 
         def collect_curve_future(curve):
@@ -906,7 +933,6 @@ def run(endpoint,*,campaign=False):
                 )
             life["index"]=qindex
             _record_completed_lifecycle(result,life)
-            last_terminal_by_curve[curve]=life
             queue.release_entry_guard(curve)
             collected_futures.add(id(future))
             active_curve_futures.pop(curve,None)
@@ -1144,8 +1170,6 @@ def run(endpoint,*,campaign=False):
                 if not replayed and not queue.finish(scheduled,evaluation,time.monotonic()-hydration_started,logical=delta[0],physical=delta[1]):
                     continue
                 category=decision_category(evaluation)
-                attempts.record(identity,scheduled['work']['generation'],'qualification',category,
-                    at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),decision=evaluation['vector'])
                 for stage in hydration_stages:record_work(identity,stage)
                 if evaluation.get("screened_out"):
                     screen=(evaluation.get("trajectory_preflight")
@@ -1167,6 +1191,11 @@ def run(endpoint,*,campaign=False):
                     public["candidate_generation"]=scheduled["work"]["generation"]
                     public["sequence"]=sequence
                     public["wallet_convergence"]=None
+                    _,explanation=reentry_decision(references.get(evaluation.get('curve')),evaluation['vector'])
+                    public['reentry_explanation']=explanation
+                    attempts.record(identity,scheduled['work']['generation'],'qualification',category,
+                        at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),
+                        decision=dict(evaluation['vector'],reentry_explanation=explanation))
                     result["rows"].append(public)
                     result["evidence_acquisition"]=evidence_context.telemetry()
                     _append_jsonl(ROWS_LOG,public)
@@ -1190,31 +1219,24 @@ def run(endpoint,*,campaign=False):
                 public["wallet_convergence"]=overlay
                 authorization_rejection=None
                 curve=evaluation["curve"]
+                active=None
+                _,explanation=reentry_decision(references.get(curve),evaluation['vector'])
                 if evaluation["vector"].get("current_threshold_pass"):
                     completed=collect_curve_future(curve)
                     active=active_curve_futures.get(curve)
-                    if active is not None and not active[1].done():
-                        authorization_rejection="same_curve_lifecycle_active"
-                    elif curve in last_authorized_vector:
-                        terminal=last_terminal_by_curve.get(curve)
-                        terminal_status=(terminal or {}).get("status")
-                        terminal_reconciliation=(terminal or {}).get("reconciliation") or {}
-                        terminal_flat=bool(
-                            terminal_status in ("settled","entry_failed")
-                            and int(terminal_reconciliation.get("open_exposure",0) or 0)==0
-                        )
-                        if not terminal_flat:
-                            authorization_rejection="prior_curve_lifecycle_not_flat"
-                        elif not reentry_regime_reset(
-                            last_authorized_vector[curve],evaluation["vector"]
-                        ):
-                            authorization_rejection="reentry_regime_not_reset"
+                    authorization_rejection,explanation=reentry_decision(
+                        references.get(curve),evaluation['vector'],
+                        active=active is not None and not active[1].done())
+                public['reentry_explanation']=explanation
+                attempts.record(identity,scheduled['work']['generation'],'qualification',category,
+                    at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),
+                    decision=dict(evaluation['vector'],reentry_explanation=explanation))
                 if authorization_rejection is not None:
                     blocking=dict(curve=curve)
                     if active is not None:
                         blocking.update(index=active[0],trial_path=str(ROOT/f"trial-{active[0]:03d}.sqlite"))
                     else:
-                        terminal=last_terminal_by_curve.get(curve) or {}
+                        terminal=(references.get(curve) or {}).get('last_attempt') or {}
                         blocking.update(index=terminal.get('index'),lifecycle_id=terminal.get('lifecycle_id'))
                     attempts.record(identity,scheduled['work']['generation'],'funding','OTHER_EXPLICIT_REASON',
                         at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),
@@ -1242,6 +1264,8 @@ def run(endpoint,*,campaign=False):
                     and authorization_rejection is None
                 ):
                     if public.get('live_authorization')=='worker_deferred':continue
+                    if not queue.plane.decision(identity,scheduled['work']['generation'],'entry_confirmation'):
+                        continue
                     qindex=_next_trial_index(result)
                     qualifier=dict(
                         index=qindex,sequence=sequence,token=evaluation["token"],
@@ -1258,11 +1282,10 @@ def run(endpoint,*,campaign=False):
                         phase="qualifier_persisted",
                     )
                     next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
-                    if not queue.plane.decision(identity,scheduled['work']['generation'],'entry_confirmation'):
-                        continue
                     evaluation["candidate_plane_path"]=result["candidate_plane_path"]
                     evaluation["candidate_broker_identity"]=identity
                     evaluation["candidate_broker_generation"]=scheduled["work"]["generation"]
+                    note_attempt(result,qualifier)
                     future=pool.submit(
                         run_lifecycle,endpoint,evaluation,
                         db_path=ROOT/f"trial-{qindex:03d}.sqlite",
@@ -1270,7 +1293,6 @@ def run(endpoint,*,campaign=False):
                     )
                     futures.append((qindex,future))
                     active_curve_futures[curve]=(qindex,future)
-                    last_authorized_vector[curve]=evaluation["vector"]
             except BoundaryError as exc:
                 screen=authenticated_early_rejection(str(exc),getattr(evidence_context,'boundary_evidence',None))
                 queue.failure(scheduled,str(exc),screen=screen,evidence=getattr(evidence_context,'boundary_evidence',None))
@@ -1390,6 +1412,8 @@ def run(endpoint,*,campaign=False):
         rejection_counts=dict(sorted(counts.items())),
         realized_pnl_quote=returns,
         archived_realized_pnl_quote=result.get("archived_trials",{}).get("realized_pnl_quote",0),
+        component_performance_coverage=_component_coverage(result),
+        archived_component_performance=result.get('archived_trials',{}).get('component_totals'),
         graduated_lifecycles=result.get('archived_trials',{}).get('graduated_lifecycles',0)+sum(
             bool(x.get("carried_through_graduation"))
             for x in result["lifecycles"]

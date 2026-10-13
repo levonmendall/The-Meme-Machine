@@ -133,12 +133,42 @@ ACQUISITION_SOURCE_DELTAS = {
     },
 }
 
+# The owner explicitly approved the completed lifecycle/reporting package at
+# 9cdc1b54. Its three previously protected files remain pinned byte-for-byte;
+# first validate the exact prior source with the original economic guard. This
+# permits only that published package, including the reviewed readonly keyword
+# interface and canonical confirmation fields, rather than exempting Pons code.
+LIFECYCLE_PACKAGE_BASE = 'e8f7d2ec8ccc0d530c94171390e1966d5c42a70f'
+LIFECYCLE_PACKAGE_REFERENCE = '9cdc1b5428f8ebf0bfcc6206cb8122b354654d9d'
+LIFECYCLE_SOURCE_DELTAS = {
+    'meme_machine/lanes/pons/pons_selective_continuation.py': {
+        'before_sha256': '1461b456fba76e3e27674eb3cd626f856176d4ba9fdc00c3907fc75b350da0ed',
+        'reviewed_sha256': 'e25cd6074cb283dd0924c942094877ff79ed0a21f613ea0974fe16424007e145',
+    },
+    'meme_machine/lanes/pons/pons_selective_capital.py': {
+        'before_sha256': 'c16fc1d787692997222e1fa7003f04d52242d31385efa707d91ee98edefec2f2',
+        'reviewed_sha256': '54f9621fed567b8e68b2e18dddc10eb0f0e7db5b4bfb243d434f173d8a5d5716',
+    },
+    'meme_machine/lanes/pons/pons_selective_recovery.py': {
+        'before_sha256': '037a5c21aead51273bbe6d150ed6f2b608d7cee92bd0c8919c3f08374e03c753',
+        'reviewed_sha256': '700a09510f2e1eda0f9ea5ef552561d3b13827078c6797dd5ba765e08ec06226',
+    },
+}
+
 def assert_attention_node(test,relative,name,node):
     expected={**ATTENTION_DELTAS.get(relative,{}),**OPERATION_DELTAS.get(relative,{})}[name]
     test.assertEqual(__import__('hashlib').sha256(ast.dump(node).encode()).hexdigest(),expected,relative+':'+name)
 
 
-def assert_holding_delta(test, relative, original, current):
+def assert_holding_delta(test, relative, original, current, *, reviewed_lifecycle=True):
+    if reviewed_lifecycle and relative in LIFECYCLE_SOURCE_DELTAS:
+        reviewed=LIFECYCLE_SOURCE_DELTAS[relative]
+        prior=subprocess.check_output(['git','show',LIFECYCLE_PACKAGE_BASE+':'+relative],cwd=ROOT)
+        sha256=__import__('hashlib').sha256
+        test.assertEqual(sha256(prior).hexdigest(),reviewed['before_sha256'],relative+':prior lifecycle source')
+        test.assertEqual(sha256(current).hexdigest(),reviewed['reviewed_sha256'],relative+':reviewed lifecycle source')
+        assert_holding_delta(test,relative,original,prior,reviewed_lifecycle=False)
+        return
     if relative in ACQUISITION_SOURCE_DELTAS:
         reviewed=ACQUISITION_SOURCE_DELTAS[relative]
         sha256=__import__('hashlib').sha256
@@ -815,6 +845,31 @@ class RobinhoodUSDTests(unittest.TestCase):
                 self.assertNotEqual(changed,approved)
                 with self.assertRaises(AssertionError):assert_holding_delta(self,relative,original,changed)
             with self.assertRaises(AssertionError):assert_holding_delta(self,relative,original+b'\n',approved)
+
+    def test_reviewed_lifecycle_sources_reject_unapproved_changes_and_preserve_economics(self):
+        for relative in LIFECYCLE_SOURCE_DELTAS:
+            original=subprocess.check_output(['git','show','e1070404849dfa86eb3e47d57cf24263b2fefc25:'+relative],cwd=ROOT)
+            published=subprocess.check_output(['git','show',LIFECYCLE_PACKAGE_REFERENCE+':'+relative],cwd=ROOT)
+            self.assertEqual(published,(ROOT/relative).read_bytes())
+            assert_holding_delta(self,relative,original,published)
+            for changed in (published+b'\n# unreviewed change\n',published.replace(b'False',b'True',1)):
+                self.assertNotEqual(changed,published)
+                with self.assertRaises(AssertionError):assert_holding_delta(self,relative,original,changed)
+        relative='meme_machine/lanes/pons/pons_selective_continuation.py'
+        def economic_nodes(content):
+            nodes={}
+            for node in ast.parse(content).body:
+                if isinstance(node,ast.FunctionDef) and node.name=='reentry_regime_reset':
+                    nodes[node.name]=ast.dump(node)
+                elif isinstance(node,ast.Assign):
+                    for target in node.targets:
+                        if isinstance(target,ast.Name) and target.id in ('REENTRY_POLICY','ENTRY_THRESHOLDS','EXIT_POLICY','POLICY'):
+                            nodes[target.id]=ast.dump(node)
+            return nodes
+        prior=subprocess.check_output(['git','show',LIFECYCLE_PACKAGE_BASE+':'+relative],cwd=ROOT)
+        before=economic_nodes(prior);after=economic_nodes((ROOT/relative).read_bytes())
+        self.assertEqual(set(before),{'reentry_regime_reset','REENTRY_POLICY','ENTRY_THRESHOLDS','EXIT_POLICY','POLICY'})
+        self.assertEqual(before,after)
 
     def test_resolved_startup_check_uses_config_only_no_oracle_calls_or_state(self):
         from meme_machine.operational.supervisor import validate_environment

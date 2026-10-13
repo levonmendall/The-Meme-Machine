@@ -131,9 +131,11 @@ All three pass in two isolated local windows (78.594 / 78.527 seconds). Failure
 prints now precede the original timing assertions and include the shared-exit
 boundary/count so an unsuccessful variant cannot omit its necessary evidence.
 No deadline, assertion, source economics, provider rate or accounting behavior
-changed. Full CI of that test-diagnostic successor remains required. Preserve
-the failed CI log and its `/tmp/mm-engineering-ce1934e6` runner locator; do not
-present this CI attempt as PASS or infer a provider/permissions cause.
+changed. The evidence-only successor `60ffa9cdcd7d0e2de257620fb3d8bc4e1b331c1f`
+passed **1,907 FAST tests** in run `38446154537` (1,500.963 seconds), finishing
+2026-10-13 18:47:36 UTC. This pass does not identify or repair the failed run's
+root cause. Preserve both full logs and the failed runner locator
+`/tmp/mm-engineering-ce1934e6`; do not infer a provider/permissions cause.
 
 Separate blockers remain:
 
@@ -180,3 +182,33 @@ original archive formats remain compatible. Never reset counters, restore old
 $500 sizing, recreate the epoch or delete failed evidence.
 
 E: `/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011`.
+
+## Coordinated lifecycle/reporting integration
+
+Receiving source: `60ffa9cdcd7d0e2de257620fb3d8bc4e1b331c1f`, with its full
+FAST result preserved before integration. Package:
+`9cdc1b5428f8ebf0bfcc6206cb8122b354654d9d`, branch
+`implementation/ready-lifecycle-reporting-20261013`, base `e8f7d2ec`.
+The four published commits are incorporated through a normal non-fast-forward
+merge, preserving ancestry and all newer receiving changes. No merge conflict
+occurred. Package handoff and component conventions are retained in
+`READY_LIFECYCLE_REPORTING_HANDOFF.md` and `COMPONENT_PERFORMANCE_REPORTING.md`.
+
+The original source guard correctly rejected the package's explicit approved
+changes. Three previously protected files are now pinned byte-for-byte to the
+published package, after verifying their exact prior source through the original
+economic guard. A new regression rejects further edits and compares the original
+reset predicate, entry/exit thresholds and policy. No file is broadly exempted;
+all other strategy and nine-change guards remain unchanged. The initial failure
+and final two passing guard cases are retained in E.
+
+Combined correctness, recovery and performance verification remain pending on
+the coherent merged candidate. The package's 235 distinct passing regressions
+are prior package evidence, not combined-source validation. Missing legacy vector/
+time joins and unavailable original/add detail remain unavailable. They do not
+become blanket startup gates; decision-critical missing evidence still blocks
+that decision. Pons database fault, storage/backup failure and authenticated
+four-regime capacity remain separate unresolved operating blockers.
+
+Operating authority remains offline-only. No deployment, provider acquisition,
+PAPER restart, funding or acceptance is authorized by integration.

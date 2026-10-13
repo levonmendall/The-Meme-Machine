@@ -211,6 +211,7 @@ class Plane:
                 self.db.execute('DELETE FROM observation_archive WHERE candidate=?',(row['id'],))
                 self.db.execute('DELETE FROM result_consumption WHERE candidate=?',(row['id'],))
                 self.db.execute('DELETE FROM rolling WHERE candidate=?',(row['id'],))
+                self.db.execute('DELETE FROM runtime WHERE key=?',('native_entry_generation:pons:'+row['id'],))
             for key,raw in native_rows:
                 value=json.loads(raw)
                 if value['position']['status']=='settled' and value['candidate'] not in protected:
@@ -393,6 +394,17 @@ class Plane:
             row=self._row(key)
             if not row or row['generation']!=generation or row['completed']!=row['desired']:return False
             if state in ('qualified','entry_confirmation','entry_reserved') and self.clock()>=row['deadline']:return False
+            if row['lane']=='pons' and state=='entry_reserved':
+                # The same canonical generation may be delivered to two native
+                # controller paths. Claim it once in this existing transaction;
+                # per-file controller locks cannot fence those distinct paths.
+                fence='native_entry_generation:pons:'+key
+                prior=self.db.execute('SELECT body FROM runtime WHERE key=?',(fence,)).fetchone()
+                if prior and json.loads(prior[0])['generation']>=generation:return False
+                self.db.execute('INSERT INTO runtime VALUES(?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body',
+                    (fence,canonical(dict(candidate=key,generation=generation,
+                        native_reservation_intent=details.get('native_reservation_intent'),
+                        native_ledger=details.get('native_ledger')))))
             self.db.execute('UPDATE candidates SET state=?,reason=?,priority=? WHERE id=?',(state,reason,1 if state=='entry_confirmation' else row['priority'],key))
             self._audit(row,state,reason,**details)
             return True

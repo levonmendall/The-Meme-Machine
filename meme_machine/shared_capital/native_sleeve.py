@@ -41,6 +41,9 @@ def measured_grant(fn):
 
 
 def authority_for(book):
+    # A diagnostic read may explicitly prove that no shared authority is
+    # selected. That is distinct from an ordinary native caller discovering it.
+    if hasattr(book,'_readonly_shared_authority'):return book._readonly_shared_authority
     if getattr(book,'_shared_authority',None):return book._shared_authority
     path=Path(book.db.execute('PRAGMA database_list').fetchone()[2]).resolve()
     for root in path.parents:
@@ -292,14 +295,16 @@ def cohort_receipt(db,identity,units):
     return dict(epoch_id=state['epoch_id'],request_id=req_id,maximum_native_units=req['value']['native_requested_units'])
 
 
-def cohort_backing(db,rows):
+def cohort_backing(db,rows,*,readonly=False,readonly_authority=None):
     from types import SimpleNamespace
     active=[r for r in rows if r['reserved']]
     if not active:return False
     for row in active:
+        reader=SimpleNamespace(db=db,identity=dict(lane='pons'))
+        if readonly:reader._readonly_shared_authority=readonly_authority
         value=row.get('shared_funding')
         if value is None:
-            if not legacy_backing(SimpleNamespace(db=db,identity=dict(lane='pons')),row['id'],row['reserved']):return False
+            if not legacy_backing(reader,row['id'],row['reserved']):return False
             continue
-        verify_receipt(SimpleNamespace(db=db),value,row['reserved'])
+        verify_receipt(reader,value,row['reserved'])
     return True

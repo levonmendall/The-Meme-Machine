@@ -251,5 +251,12 @@ def lifecycle(db, identity, regime, at, position, events=()):
                  economic_actions=list(actions.values()),mark_extrema=marks,
                  exit_observations=exits,exit_observation_limit=8,
                  outcome_observability='NATIVE_PERSISTED_FACTS')
+    # Reporting/retention owns this already-derived native component projection;
+    # this selectively retained learning table is not the full trade population.
+    component=position.get('component_performance') or (position.get('lifecycle') or {}).get('component_performance')
+    if component is None and prior:component=prior['facts'].get('component_performance')
+    if component is not None:facts['component_performance']=component
+    facts['population_scope']='SELECTIVELY_RETAINED_LIFECYCLE_FACTS'
+    facts['complete_trade_population']=False
     save(db, 'lifecycle:'+identity, position.get('candidate', position.get('market', identity)),
          regime, at, facts, priority=2)
