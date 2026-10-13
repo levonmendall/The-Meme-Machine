@@ -2,6 +2,7 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+ 'tests.test_operational_simplification',
  'tests.test_solana_history_refinement',
  'tests.test_solana_history_separation',
  'tests.test_operational_evidence_storage',
@@ -92,7 +93,7 @@ OPERATIONAL=FAST+[
  'tests.test_maintenance_batch_fairness','tests.test_maintenance_integrity',
  'tests.test_maintenance_overlap',
  'tests.test_run376_dispatch_pressure', 'tests.test_run381_subscription_progress',
- 'tests.test_meteora_host_fee','tests.test_meteora_discovery_scheduler','tests.test_meteora_safe_token2022','tests.test_meteora_missing_fee_context','tests.test_meteora_mint_supply','tests.test_meteora_evidence_recovery_isolated','tests.test_meteora_market_scope_efficiency',
+ 'tests.test_meteora_host_fee','tests.test_meteora_safe_token2022','tests.test_meteora_missing_fee_context','tests.test_meteora_mint_supply','tests.test_meteora_evidence_recovery_isolated','tests.test_meteora_market_scope_efficiency',
  'tests.test_meteora_tape',
  'tests.test_meteora_bin_array_neutral','tests.test_meteora_pool_neutral',
  'tests.test_run377_persistence', 'tests.test_run380_atomic_frame', 'tests.test_run380_production_pressure',

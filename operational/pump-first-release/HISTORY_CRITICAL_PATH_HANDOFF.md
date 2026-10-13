@@ -1,5 +1,41 @@
 # History separation: final critical-path refinements
 
+## Current staged authority and targeted simplification checkpoint
+
+The subsequent owner directive authorizes recovery preparation, controlled
+deployment, bounded unfunded combined observation, conditional normal PAPER
+admission, and uninterrupted one-hour acceptance. The original pause receipts
+below remain historical evidence. No new provider plan, 12-RPS test, CPU/RAM
+resize, capital-policy change or new epoch is authorized.
+
+Integrated candidate `84463cf78ee53b8117473f4a04b90832a8942a92` passed
+**1,912 FAST tests** in run `38451658518`, finishing 2026-10-13 19:28:05 UTC.
+Its full log is `E/LIFECYCLE_INTEGRATED_FINAL_FAST_CI_PASS_20261013.log`.
+The installed source is still `ea4f4f1b`; deployment has not occurred.
+
+The owner separately authorized the existing trading volume's expansion from
+50 to **80 GiB**. It completed with unchanged filesystem UUID and both portfolio
+replay identities. PAPER remains stopped and funding closed. The current
+coherent backup and isolated restore verification are in progress; exact
+receipts are `E/STAGED_VOLUME_RESIZE_20261013.json` and
+`E/STAGED_RECOVERY_PREFLIGHT_20261013.json`. No old point or failed evidence was
+deleted. The expansion does not establish market capacity.
+
+Targeted audit findings A–D are implemented: close only temporary `selected()`
+readers; preserve two independently constructor-verified recovery openings;
+remove only the duplicate operational Meteora test entry; reuse the active
+scratch measurement within one guard cycle. **43 focused tests passed in
+3.908 seconds**, including exceptions, recovery, concurrent scope containment
+and unchanged unique test IDs. Log:
+`E/TARGETED_SIMPLIFICATION_SMALL_FOCUSED_20261013.log`.
+
+Pending at this coherent source checkpoint: E, one coherent reporting view and
+one lifecycle grouping; F, an explicitly timestamped same-cycle provider-health
+sample; G, inspect monetary-history side effects separately and either implement
+a bounded safe follow-on or record its exact unresolved dependency. Do not
+reopen the Pump redesign or let optional simplification block operating work.
+None of these changes identifies or repairs the unresolved Pons INSERT fault.
+
 **Engineering only. PAPER remains inactive, disabled and funding closed.**
 No deployment, provider acquisition, hardware change, capital initialization or
 acceptance was performed. Installed source remains

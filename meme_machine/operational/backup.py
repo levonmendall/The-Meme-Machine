@@ -224,7 +224,10 @@ def prove_replay(root):
     if before.get('funding_authority')=='SHARED':
         from meme_machine.shared_capital.runtime import RuntimeCapital
         for _ in range(2):
-            with closing(RuntimeCapital(root/'shared-capital.sqlite')) as authority:authority.verify_replay()
+            # Construction verifies the complete replay and projection. Keep
+            # two independently opened and closed restored connections.
+            with closing(RuntimeCapital(root/'shared-capital.sqlite')):
+                pass
         try:PortfolioAccounting(root/'portfolio.sqlite')
         except RuntimeError as error:
             if str(error)!='legacy_funding_authority_retired':raise

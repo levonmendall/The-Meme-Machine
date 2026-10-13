@@ -4,7 +4,7 @@ Owner manifests describe durable producer inboxes, including explicit empties.
 Only actual native requests enter an allocation round. Safety delivery does not
 wait for owners, candidates or round completion. No provider I/O occurs here.
 """
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime
@@ -44,7 +44,7 @@ def selected(database):
     """Read the durable authority selection; no environment switch can reseed it."""
     path=Path(database).resolve()
     if not path.is_file():return None
-    with sqlite3.connect(path.as_uri()+'?mode=ro',uri=True) as db:
+    with closing(sqlite3.connect(path.as_uri()+'?mode=ro',uri=True)) as db, db:
         if not db.execute("SELECT 1 FROM sqlite_master WHERE name='portfolio_funding_authority'").fetchone():return None
         row=db.execute('SELECT body FROM portfolio_funding_authority WHERE id=1').fetchone()
         if row is None:raise CapitalError('incomplete_authority_cutover')
@@ -52,7 +52,7 @@ def selected(database):
         if value['state']!='SHARED':raise CapitalError('incomplete_authority_cutover')
         shared=path.parent/'shared-capital.sqlite'
         if not shared.is_file() or shared.is_symlink():raise CapitalError('selected_shared_authority_missing')
-        with sqlite3.connect(shared.as_uri()+'?mode=ro',uri=True) as ledger:
+        with closing(sqlite3.connect(shared.as_uri()+'?mode=ro',uri=True)) as ledger, ledger:
             row=ledger.execute('SELECT body,hash FROM shared_capital_projection WHERE id=1').fetchone()
             if row is None:raise CapitalError('selected_shared_authority_incomplete')
             state=json.loads(row[0])

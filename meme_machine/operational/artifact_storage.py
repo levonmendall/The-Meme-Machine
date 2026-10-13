@@ -140,13 +140,16 @@ class Scratch:
         self.path = None
         self.success = False
 
-    def retained_bytes(self):
+    def retained_bytes(self, *, measured=None):
         retained = 0
         for folder in self.parent.glob('mm-engineering-*'):
             if folder.is_symlink() or not folder.is_dir():
                 continue
             # Unknown prefix matches are preserved and still count against quota.
-            retained += tree_bytes(folder, limit=self.policy.scratch_total_bytes, tolerate_missing=True)
+            # Reuse only this cycle's active-scope measurement. Every other
+            # scope, including retained failures, is still measured afresh.
+            retained += (measured[1] if measured is not None and folder == measured[0]
+                         else tree_bytes(folder, limit=self.policy.scratch_total_bytes, tolerate_missing=True))
             if retained > self.policy.scratch_total_bytes:
                 raise ArtifactStorageFull('engineering_scratch_retained_quota')
         return retained
@@ -172,7 +175,7 @@ class Scratch:
 
     def check(self):
         used=tree_bytes(self.path, limit=self.policy.scratch_max_bytes, tolerate_missing=True)
-        self.retained_bytes()  # Also bound simultaneous scopes and retained failures.
+        self.retained_bytes(measured=(self.path,used))  # Also bound simultaneous scopes and retained failures.
         headroom(self.path,max(0,self.policy.scratch_max_bytes-used),policy=self.policy,warn=False)
 
     def __exit__(self, kind, value, traceback):
