@@ -49,6 +49,71 @@ class ClosureTests(unittest.TestCase):
         while self.life.flush():pass
         self.life.publish()
 
+    def test_source_worker_fairness_restores_on_success_and_failure(self):
+        from meme_machine.runtime import evidence_worker
+        from types import SimpleNamespace
+        previous=sys.getswitchinterval();observed=[]
+        class RPC:
+            def __init__(self,endpoint,governor):self.config=SimpleNamespace(credential='offline')
+            def validate_network(self):observed.append(('identity',sys.getswitchinterval()))
+        async def serve(path,endpoint,**kwargs):
+            self.assertEqual(path,Path(self.tmp.name)/'source.sqlite')
+            self.assertTrue(kwargs['source_driver'])
+            observed.append(('source',sys.getswitchinterval()))
+            if fail:raise RuntimeError('original_source_failure')
+        for fail in (False,True):
+            with (patch.dict(os.environ,MM_SOLANA_READ_RPC_URL='https://provider.invalid/rpc',
+                    MM_SOLANA_EVIDENCE_PLANE_DB=str(Path(self.tmp.name)/'source.sqlite'),
+                    MM_PROVIDER_GOVERNOR_DB=str(Path(self.tmp.name)/'governor.sqlite')),
+                    patch('meme_machine.operational.bounded_provider.install'),
+                    patch('meme_machine.solana_selective_source.SelectiveSource',return_value=object()),
+                    patch.object(evidence_worker,'Governor'),patch.object(evidence_worker,'RepairRPC',RPC),
+                    patch.object(evidence_worker,'serve',serve)):
+                if fail:
+                    with self.assertRaisesRegex(RuntimeError,'original_source_failure'):asyncio.run(evidence_worker.main_async())
+                else:asyncio.run(evidence_worker.main_async())
+            self.assertEqual(sys.getswitchinterval(),previous)
+        self.assertEqual(observed,[('identity',previous),('source',.0005)]*2)
+
+    def test_native_owner_durability_under_busy_intake_thread(self):
+        """Reproduce intake/SQLite interpreter contention without provider work."""
+        from meme_machine.solana_evidence_plane import FinalizedRecord
+        import threading,time
+        outputs=[];measurements=[]
+        original=sys.getswitchinterval()
+        payload=json.dumps(dict(logs=['Program log: '+str(n)*30 for n in range(80)],values=list(range(80))))
+        try:
+            for interval in (.005,.001,.0005):
+                stop=threading.Event();ready=threading.Event()
+                def intake():
+                    ready.set()
+                    while not stop.is_set():
+                        value=json.loads(payload)
+                        sum(value['values'])
+                state,h=state_at(Path(self.tmp.name)/('busy-'+str(interval)+'.sqlite'))
+                producer=threading.Thread(target=intake,name='offline-native-intake')
+                try:
+                    sys.setswitchinterval(interval);producer.start();self.assertTrue(ready.wait(2))
+                    rows=[FinalizedRecord('owner-'+str(n),'program:pump',100+n,'signature-'+str(n),
+                        'program',('mint','wallet-'+str(n)),int(NOW),
+                        dict(event=dict(mint='mint',event_type='trade',market_time=int(NOW),native_buy=n),
+                             raw_lineage=dict(logs=['Program log: authenticated fixture'],err=None)),
+                        'alchemy_finalized_stream','a'*64,NOW,transaction_index=n,event_index=0)
+                        for n in range(64)]
+                    started=time.perf_counter();cpu=time.thread_time();h.ingest(rows)
+                    measurements.append(dict(switch_seconds=interval,wall_seconds=time.perf_counter()-started,
+                        owner_cpu_seconds=time.thread_time()-cpu,records=len(rows)))
+                    outputs.append(dict(records=state.writer.db.execute('SELECT * FROM rolling_economic_events ORDER BY slot,identity').fetchall(),
+                        ordering=state.writer.db.execute('SELECT * FROM native_order_attestations ORDER BY slot,signature').fetchall(),
+                        outbox=state.writer.db.execute('SELECT * FROM candidate_outbox ORDER BY sequence').fetchall()))
+                finally:
+                    stop.set();producer.join(2);self.assertFalse(producer.is_alive());state.writer.close()
+            self.assertEqual(outputs[0],outputs[1])
+            self.assertEqual(outputs[0],outputs[2])
+            self.assertEqual(len(outputs[0]['records']),64)
+            print('NATIVE_OWNER_BUSY_INTAKE_DIAGNOSTIC '+json.dumps(measurements),flush=True)
+        finally:sys.setswitchinterval(original)
+
     def test_native_reference_batch_reuses_metadata_fold_with_identical_economics(self):
         from meme_machine.solana_evidence_plane import FinalizedRecord
         paths=[Path(self.tmp.name)/'sequential.sqlite',self.life.path]

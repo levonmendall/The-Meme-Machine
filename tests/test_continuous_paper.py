@@ -52,6 +52,19 @@ class UsageTests(unittest.TestCase):
         with resumed.db() as db:
             self.assertEqual(db.execute('SELECT SUM(rpc_cu) FROM usage_hours').fetchone()[0],32*900000)
 
+    def test_normal_deployment_selects_all_four_regimes_and_verified_pacing(self):
+        folder=PROFILE.parent
+        profile=json.loads((folder/'paper-continuous.four-regime.json').read_text())
+        from meme_machine.operational.position_continuation import validate_continuous
+        validate_continuous(profile)
+        self.assertEqual(set(profile['funding_regimes']),{'pump_current','pump_survivor','pons_current','pons_survivor'})
+        self.assertEqual(profile['physical_http_start_interval_seconds'],'0.5')
+        self.assertEqual(profile['robinhood_http_start_interval_seconds'],'0.1')
+        command=(folder/'paper-continuous.conf').read_text()
+        self.assertIn('MM_CONTINUOUS_PROVIDER_ENVELOPE=/etc/meme-machine/paper-continuous.four-regime.json',command)
+        self.assertIn('RuntimeMaxSec=infinity',command)
+        self.assertIn('MM_VOLUME_QUALITY_ENABLED=1',command)
+
     def test_spend_warnings_do_not_close_admission_or_mutate_provider_health(self):
         b=self.budget;b.change(dict(rpc_cu=200000000))
         before=b.snapshot();r=b.usage();b.admission()
