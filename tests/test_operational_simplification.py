@@ -123,7 +123,12 @@ class RecoveryVerification(unittest.TestCase):
             install(root, plan, approved_policy=plan['policy'], prerequisites={key: True for key in
                 ('writers_stopped','coherent_backup_verified','native_mapping_verified','recovery_verified','provider_proof_verified')})
             target = Path(directory) / 'restored'
-            backup.copy_state(root, target)
+            # This unit proves replay/closure counts, not host-wide syncfs
+            # latency. Real copying, state checks and the separate backup suite
+            # remain intact; preserve the exact production flush contract here.
+            with patch.object(backup.subprocess, 'run') as flush:
+                backup.copy_state(root, target)
+            flush.assert_called_once_with(['sync','-f',str(target)],check=True,timeout=5)
             original_verify = runtime.RuntimeCapital.verify_replay
             original_close = runtime.RuntimeCapital.close
             openings, closures = [], []
