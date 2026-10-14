@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from .solana_evidence_plane import EvidenceUnavailable,EvidenceConflict,canonical,digest
 from .solana_selective_history import FAMILIES
 from .solana_history_delivery import generation
+from .runtime.sqlite_failure import connect as diagnostic_connect
 
 ROWS=64
 RAW_BYTES=32*1024*1024 # Existing ScopedRetirement.contents decoded limit.
@@ -38,7 +39,8 @@ def metadata(history,family,address):
 def prepare(path,job):
     from .solana_history_work import CPUBudget,READ_SECONDS,INPUT_BYTES
     started=time.monotonic();cpu=time.process_time();spec=job['spec']
-    with closing(sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True,timeout=.1)) as db:
+    with closing(diagnostic_connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True,
+            diagnostic_role='historian.cold_restore_read',timeout=.1)) as db:
         db.execute('PRAGMA query_only=ON');until=time.monotonic()+READ_SECONDS
         db.set_progress_handler(lambda:int(time.monotonic()>until),1000);db.execute('BEGIN')
         history=SimpleNamespace(db=db)

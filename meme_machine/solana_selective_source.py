@@ -1248,8 +1248,21 @@ class SelectiveSource:
                 if isinstance(exc,EvidenceUnavailable) and 'corrupt' in str(exc):raise
                 # No paid retry and no favourable coverage. Optional history
                 # failure retains candidates and backs off independently.
+                import os
+                diagnostic={}
+                if os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1':
+                    from concurrent.futures.process import BrokenProcessPool
+                    from .runtime.sqlite_failure import payload
+                    context=payload(exc)
+                    if isinstance(exc,BrokenProcessPool):raise
+                    if isinstance(exc,sqlite3.Error) and (
+                            context is None or context.get('recorder_valid') is not True):raise
+                    if context is not None:
+                        from .runtime.evidence_worker import failure_diagnostic
+                        diagnostic['diagnostic']=failure_diagnostic(exc)
+                reason=type(exc).__name__
                 await self.work(lambda state:install(state).historical_tasks.defer(
-                    job,type(exc).__name__),2,label='history_apply')
+                    job,reason,**diagnostic),2,label='history_apply')
                 await asyncio.sleep(.1)
 
     async def candidate_history_delivery(self):

@@ -1,7 +1,8 @@
 """Recording tests only: disposable real errors do not attribute the host fault."""
-from concurrent.futures import ProcessPoolExecutor,ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor,ThreadPoolExecutor,Future
 from contextlib import closing,nullcontext
 import json
+import asyncio
 import multiprocessing
 import os
 from pathlib import Path
@@ -58,6 +59,24 @@ def child_terminal_failure(path,terminal):
     async def fails():readonly_failure(path)
     evidence_worker.main_async=fails
     evidence_worker.main()
+
+
+def historian_child_failure(path,cold,write_attempt):
+    """Invoke the real worker boundary; only the forbidden-write probe is synthetic."""
+    from meme_machine import solana_history_work,solana_history_restore
+    job=dict(id='offline-job',token='offline-token',as_of=1000,priority=4,
+        endpoint_identity='offline-endpoint',spec=dict(family='pump',address='offline-address',lo=0,hi=1))
+    if cold:job['spec']['kind']='cold_restore'
+    if write_attempt:
+        if cold:
+            module=solana_history_restore;name='metadata'
+            def forbidden(history,*args):history.db.execute('INSERT INTO retained VALUES(?)',('secret-binding',))
+        else:
+            module=solana_history_work;name='capture'
+            def forbidden(rolling,*args):rolling.db.execute('INSERT INTO retained VALUES(?)',('secret-binding',))
+        with patch.object(module,name,forbidden):
+            return solana_history_work.prepare_history(path,job)
+    return solana_history_work.prepare_history(path,job)
 
 
 class SQLiteFailureAttributionTests(unittest.TestCase):
@@ -345,6 +364,127 @@ class SQLiteFailureAttributionTests(unittest.TestCase):
         self.assertEqual(payload(wrapped)['sqlite_errorcode'],sqlite3.SQLITE_READONLY)
         self.assertIn('sqlite_failure=',failure_diagnostic(wrapped))
         self.assertNotIn('secret-binding',failure_diagnostic(wrapped))
+
+    def test_real_historian_child_busy_preserves_executor_and_read_context(self):
+        with closing(sqlite3.connect(self.path,isolation_level=None)) as blocker:
+            blocker.execute('BEGIN EXCLUSIVE')
+            with ProcessPoolExecutor(max_workers=1,mp_context=multiprocessing.get_context('spawn')) as executor:
+                for cold,role in ((False,'historian.prepare_read'),(True,'historian.cold_restore_read')):
+                    with self.subTest(cold=cold):
+                        with self.assertRaises(sqlite3.OperationalError) as caught:
+                            executor.submit(historian_child_failure,str(self.path),cold,False).result(timeout=10)
+                        facts=payload(caught.exception)
+                        self.assertEqual(facts['sqlite_errorcode'],sqlite3.SQLITE_BUSY)
+                        self.assertEqual(facts['opening_mode'],'ro')
+                        self.assertEqual(facts['timeout_seconds'],.1)
+                        self.assertEqual(facts['database'],str(self.path))
+                        self.assertEqual(facts['connection_role'],role)
+                        self.assertNotEqual(facts['pid'],os.getpid())
+                        self.assertIsInstance(facts['native_thread_id'],int)
+                        self.assertIn('sqlite_failure=',failure_diagnostic(caught.exception))
+
+    def test_real_historian_child_readonly_preserves_forbidden_write_context(self):
+        with ProcessPoolExecutor(max_workers=1,mp_context=multiprocessing.get_context('spawn')) as executor:
+            for cold,role in ((False,'historian.prepare_read'),(True,'historian.cold_restore_read')):
+                with self.subTest(cold=cold):
+                    with self.assertRaises(sqlite3.OperationalError) as caught:
+                        executor.submit(historian_child_failure,str(self.path),cold,True).result(timeout=10)
+                    facts=payload(caught.exception)
+                    self.assertEqual(facts['sqlite_errorcode'],sqlite3.SQLITE_READONLY)
+                    self.assertEqual(facts['operation'],'INSERT')
+                    self.assertEqual(facts['opening_mode'],'ro')
+                    self.assertEqual(facts['connection_role'],role)
+                    self.assertNotEqual(facts['pid'],os.getpid())
+                    self.assertNotIn('secret-binding',failure_diagnostic(caught.exception))
+
+    def test_actual_parent_historian_error_path_adds_context_only_when_required(self):
+        from meme_machine.solana_selective_source import SelectiveSource
+        with self.assertRaises(sqlite3.OperationalError) as caught:readonly_failure(str(self.path))
+        error=caught.exception
+        async def run(required):
+            source=SelectiveSource.__new__(SelectiveSource)
+            source.stop=asyncio.Event();source.canonical_path=self.path
+            job={'id':'offline-job','token':'offline-token'}
+            deferred=[]
+            def defer(*args,**kwargs):deferred.append((args,kwargs));source.stop.set()
+            tasks=SimpleNamespace(claim=lambda:job,defer=defer)
+            state=SimpleNamespace(historical_tasks=tasks)
+            async def ready():return None
+            async def work(callback,*args,**kwargs):return callback(state)
+            future=Future();future.set_exception(error)
+            source.wait_startup=ready;source.work=work
+            source.historical_executor=SimpleNamespace(submit=lambda *args:future)
+            with patch.dict(os.environ,{'MM_SQLITE_DIAGNOSTIC_REQUIRED':required}), \
+                    patch('meme_machine.solana_selective_source.install',return_value=state):
+                await source.historical_processing()
+            return deferred
+        normal=asyncio.run(run('0'));required=asyncio.run(run('1'))
+        self.assertEqual(len(normal),1);self.assertEqual(len(required),1)
+        self.assertEqual(normal[0][1],{})
+        self.assertEqual(required[0][0],normal[0][0])
+        report=required[0][1]['diagnostic']
+        self.assertIn('SQLITE_READONLY:8',report)
+        self.assertIn('sqlite_failure=',report)
+        self.assertLessEqual(len(report.encode()),sqlite_failure.MAX_TERMINAL_BYTES)
+        self.assertNotIn('secret-binding',report)
+
+    def test_historian_defer_reuses_existing_observation_with_bounded_context(self):
+        from meme_machine.solana_history_work import HistoricalTasks
+        with sqlite3.connect(self.path) as db:
+            db.execute('''CREATE TABLE rolling_preparation_jobs(id TEXT PRIMARY KEY,token TEXT,
+                status TEXT,attempts INTEGER,lease_until REAL,retry_at REAL,updated REAL)''')
+            db.execute("INSERT INTO rolling_preparation_jobs VALUES('job','token','active',0,10,0,0)")
+        with closing(sqlite3.connect(self.path,isolation_level=None)) as db:
+            tasks=HistoricalTasks.__new__(HistoricalTasks);tasks.db=db
+            tasks.writer=SimpleNamespace(transaction=nullcontext)
+            observations=[]
+            tasks.history=SimpleNamespace(clock=lambda:1000,_observation=lambda *args:observations.append(args))
+            statements=[];db.set_trace_callback(lambda sql:statements.append(sql.split(None,1)[0]))
+            report='evidence_worker_failed:OperationalError:SQLITE_BUSY:5'
+            tasks.defer({'id':'job','token':'token'},'OperationalError',diagnostic=report)
+            self.assertEqual(len(observations),1)
+            self.assertEqual(observations[0][2]['failure_diagnostic'],report)
+            self.assertEqual(statements,['SELECT','UPDATE'])
+            self.assertEqual(db.execute('SELECT status,attempts,retry_at FROM rolling_preparation_jobs').fetchone(),('pending',1,1000.5))
+
+    def test_required_parent_historian_stops_on_lost_context_and_broken_pool(self):
+        from meme_machine.solana_selective_source import SelectiveSource
+        from concurrent.futures.process import BrokenProcessPool
+        absent=sqlite3.OperationalError('private-missing-attribution')
+        absent.sqlite_errorcode=sqlite3.SQLITE_BUSY;absent.sqlite_errorname='SQLITE_BUSY'
+        invalid=sqlite3.OperationalError('private-invalid-attribution')
+        invalid.sqlite_errorcode=sqlite3.SQLITE_BUSY;invalid.sqlite_errorname='SQLITE_BUSY'
+        invalid.sqlite_failure={'recorder_valid':False,'sqlite_errorcode':sqlite3.SQLITE_BUSY,
+            'sqlite_errorname':'SQLITE_BUSY'}
+        broken=BrokenProcessPool('private-pool-error')
+        async def run(error,required):
+            source=SelectiveSource.__new__(SelectiveSource)
+            source.stop=asyncio.Event();source.canonical_path=self.path
+            job={'id':'offline-job','token':'offline-token'}
+            deferred=[]
+            def defer(*args,**kwargs):deferred.append((args,kwargs));source.stop.set()
+            tasks=SimpleNamespace(claim=lambda:job,defer=defer)
+            state=SimpleNamespace(historical_tasks=tasks)
+            async def ready():return None
+            async def work(callback,*args,**kwargs):return callback(state)
+            future=Future();future.set_exception(error)
+            source.wait_startup=ready;source.work=work
+            source.historical_executor=SimpleNamespace(submit=lambda *args:future)
+            with patch.dict(os.environ,{'MM_SQLITE_DIAGNOSTIC_REQUIRED':required}), \
+                    patch('meme_machine.solana_selective_source.install',return_value=state):
+                if required=='1':
+                    with self.assertRaises(type(error)) as caught:await source.historical_processing()
+                    self.assertIs(caught.exception,error)
+                else:await source.historical_processing()
+            return deferred
+        for error in (absent,invalid,broken):
+            with self.subTest(error=type(error).__name__,required=True):
+                self.assertEqual(asyncio.run(run(error,'1')),[])
+            with self.subTest(error=type(error).__name__,required=False):
+                deferred=asyncio.run(run(error,'0'))
+                self.assertEqual(len(deferred),1)
+                self.assertEqual(deferred[0][0][1],type(error).__name__)
+                self.assertEqual(deferred[0][1],{})
 
     def test_candidate_transaction_cleanup_cannot_replace_first_error(self):
         from meme_machine.runtime.candidate_history import CandidateHistory

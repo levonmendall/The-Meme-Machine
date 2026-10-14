@@ -18,6 +18,7 @@ import multiprocessing
 from .solana_evidence_plane import EvidenceUnavailable,canonical,digest
 from .solana_selective_history import SelectiveHistory,coverage_points
 from .solana_rolling_history import RollingHistory,MODEL_B,program_scope
+from .runtime.sqlite_failure import connect as diagnostic_connect
 
 INPUT_BYTES=16*1024*1024
 READ_SECONDS=.1
@@ -138,8 +139,8 @@ def prepare_history(path,job):
     rolling.history=history;history.rolling=rolling;history.clock=lambda:at
     rolling._history_input_byte_limit=INPUT_BYTES
     rolling._coverage_span_cache=_PROOF_CACHE
-    with closing(sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True,
-            timeout=.1,isolation_level=None)) as db:
+    with closing(diagnostic_connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True,
+            diagnostic_role='historian.prepare_read',timeout=.1,isolation_level=None)) as db:
         history.db=rolling.db=db
         db.execute('PRAGMA query_only=ON')
         until=time.monotonic()+READ_SECONDS
@@ -385,7 +386,7 @@ class HistoricalTasks:
                 self.db.execute("UPDATE rolling_preparation_jobs SET status='complete',token=NULL,lease_until=NULL,updated=? WHERE id=? AND token=?",
                     (self.clock(),job['id'],job['token']))
 
-    def defer(self,job,reason,*,stale=False):
+    def defer(self,job,reason,*,stale=False,diagnostic=None):
         with self.writer.transaction():
             row=self.db.execute("SELECT attempts FROM rolling_preparation_jobs WHERE id=? AND token=? AND status='active'",(job['id'],job['token'])).fetchone()
             if row is None:return False
@@ -394,8 +395,13 @@ class HistoricalTasks:
             self.db.execute("""UPDATE rolling_preparation_jobs SET status='pending',token=NULL,
                 lease_until=NULL,retry_at=?,attempts=?,updated=? WHERE id=?""",
                 (now+delay,attempts,now,job['id']))
-            self.history._observation(job['id'],'historical_result_stale' if stale else 'historical_worker_unavailable',
-                dict(reason=reason,complete=False,candidate_retained=True,deadline_reset=False))
+            body=dict(reason=reason,complete=False,candidate_retained=True,deadline_reset=False)
+            if diagnostic is not None:
+                from .runtime.sqlite_failure import MAX_TERMINAL_BYTES
+                if type(diagnostic) is str and len(diagnostic.encode())<=MAX_TERMINAL_BYTES:
+                    body['failure_diagnostic']=diagnostic
+                else:body['failure_diagnostic']='recorder_valid=false:historical_diagnostic_bound'
+            self.history._observation(job['id'],'historical_result_stale' if stale else 'historical_worker_unavailable',body)
         return False
 
     def apply(self,job,result):
