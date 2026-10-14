@@ -199,8 +199,17 @@ def require_isolated(root):
     return root
 
 
+def require_complete_restore(root):
+    # A complete manifest can precede a failed final filesystem flush. Retain
+    # those records; neither verification nor writer replay may authorize them.
+    if any((root/name).exists() or (root/name).is_symlink()
+           for name in ('backup-incomplete.json','backup-failed.json')):
+        raise RuntimeError('backup_point_incomplete_or_failed')
+
+
 def verify_copy(root):
-    root=require_isolated(root);index=read_json(root/'backup.json')
+    root=require_isolated(root);require_complete_restore(root)
+    index=read_json(root/'backup.json')
     for relative,row in index['inventory'].items():
         p=root/relative
         if p.is_symlink() or root not in p.resolve().parents:
@@ -219,6 +228,7 @@ def verify_copy(root):
 def prove_replay(root):
     """Open only an isolated restored writer, replay twice, and test its fence."""
     root=require_isolated(root)
+    require_complete_restore(root)
     from meme_machine.portfolio_accounting import PortfolioAccounting
     before=state_identity(root)
     if before.get('funding_authority')=='SHARED':

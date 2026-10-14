@@ -101,6 +101,38 @@ class BackupRestore(unittest.TestCase):
         self.assertFalse((target/'backup.json').exists())
         self.assertFalse(json.loads((target/'backup-failed.json').read_text())['usable'])
 
+    def test_late_flush_failure_cannot_authorize_verification_replay_or_reuse(self):
+        before=backup.state_identity(self.root)
+        for number,error in enumerate((
+            subprocess.TimeoutExpired(['sync'],5),
+            subprocess.CalledProcessError(1,['sync']))):
+            with self.subTest(error=type(error).__name__):
+                target=self.base/('flush-failed-'+str(number))
+                with patch.object(backup.subprocess,'run',side_effect=error) as flush:
+                    with self.assertRaises(type(error)) as raised:
+                        backup.copy_state(self.root,target)
+                self.assertIs(raised.exception,error)
+                flush.assert_called_once_with(['sync','-f',str(target)],check=True,timeout=5)
+                # The manifest existed before the final flush failed. Its
+                # presence must not turn a failed point into restore authority.
+                self.assertTrue((target/'backup.json').exists())
+                self.assertFalse(json.loads((target/'backup-failed.json').read_text())['usable'])
+                self.assertEqual(backup.state_identity(self.root),before)
+                self.assertIsNone(backup.reusable_point(self.root,target))
+                for verify in (backup.verify_copy,backup.prove_replay):
+                    with self.assertRaisesRegex(RuntimeError,'backup_point_incomplete_or_failed'):
+                        verify(target)
+
+    def test_failed_or_incomplete_point_is_rejected_before_database_open(self):
+        for name in ('backup-incomplete.json','backup-failed.json'):
+            with self.subTest(marker=name):
+                target=self.base/name.replace('.json','');target.mkdir()
+                (target/name).write_text('{"usable":false}')
+                with patch.object(backup.sqlite3,'connect',side_effect=AssertionError('invalid point opened')):
+                    for verify in (backup.verify_copy,backup.prove_replay):
+                        with self.assertRaisesRegex(RuntimeError,'backup_point_incomplete_or_failed'):
+                            verify(target)
+
     def test_verified_exact_snapshot_reuse_makes_no_new_copy(self):
         point=self.base/'point';backup.copy_state(self.root,point)
         target=self.base/'unnecessary-copy'
