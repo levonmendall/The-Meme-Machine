@@ -1,0 +1,622 @@
+"""One funding-closed diagnostic; install/preflight/authorization happen separately.
+
+The prepared PAPER unit must invoke this module's ``supervise`` command with the
+same output directory, RuntimeMaxSec=1800, TimeoutStopSec=65 and Restart=no.
+``observe`` requests one start and collects existing local facts. Neither command
+installs configuration, changes provider controls, retries, or rewinds state.
+An overdue drain is a failure requiring recovery, never a promised safe deadline.
+"""
+import argparse
+from contextlib import closing
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import signal
+import sqlite3
+import subprocess
+import sys
+import time
+
+from meme_machine.operational.observation import atomic_json, numeric
+from meme_machine.operational.supervisor import Supervisor
+from meme_machine.solana_selective_runtime import CONTROL
+from meme_machine.solana_rolling_history import program_scope
+
+UNIT = 'meme-machine-paper.service'
+OUTPUT_BYTES = 32 * 1024**2
+TERMINAL_BYTES = 64 * 1024
+INPUT_BYTES = 1024 * 1024
+GUARD_BYTES = 1024
+FULL_SAMPLE_SECONDS = 5
+RESERVE_BYTES = 5 * 1024**3
+MISSING_EDGES = ('per_event_precommit_timing', 'proof_eligibility_reason', 'oldest_missing_join_component',
+                 'pons_request_ancestry', 'sql_wait_actor')
+
+
+def validate_revision(expected, actual):
+    if not re.fullmatch(r'[0-9a-f]{40}', expected) or expected != actual:
+        raise ValueError('diagnostic_revision_mismatch')
+
+
+def duration_seconds(value):
+    value = value.replace(' ', '')
+    parts = list(re.finditer(r'(\d+(?:\.\d+)?)(us|ms|min|s|h)', value))
+    if ''.join(part.group() for part in parts) != value or not parts:
+        raise ValueError('unit_duration_unavailable')
+    factors = dict(us=.000001, ms=.001, s=1, min=60, h=3600)
+    return sum(float(part[1]) * factors[part[2]] for part in parts)
+
+
+def verify_unit_properties(properties):
+    if (properties.get('Restart') != 'no' or properties.get('KillMode') != 'control-group' or
+            duration_seconds(properties.get('RuntimeMaxUSec', '')) != 1800 or
+            duration_seconds(properties.get('TimeoutStopUSec', '')) != 65):
+        raise ValueError('diagnostic_unit_stop_or_restart_settings')
+
+
+def selected_frontiers(providers):
+    allowed = {CONTROL, 'program:pump', 'program:pumpswap', program_scope('pump'), program_scope('pumpswap')}
+    evidence = providers.get('evidence', {})
+    return {kind: [dict(scope=row['scope'], **{key: row[key] for key in
+        ('slot', 'updated', 'market_time', 'linked_child_slot') if type(row.get(key)) in (int, float)})
+        for row in evidence.get(kind, []) if isinstance(row, dict) and row.get('scope') in allowed]
+        for kind in ('frontiers', 'program_frontiers')}
+
+
+def write_metadata(output, name, value):
+    body_bytes = len(json.dumps(value, sort_keys=True, allow_nan=False).encode()) + 1
+    other_bytes = sum((output / item).stat().st_size for item in
+        ('clock.json', 'result.json', 'supervisor-fatal.json') if item != name and (output / item).exists())
+    if other_bytes + body_bytes > TERMINAL_BYTES:
+        raise ValueError('diagnostic_metadata_reserve')
+    atomic_json(output / name, value)
+
+
+def read_json(path):
+    with Path(path).open('rb') as stream:
+        body = stream.read(INPUT_BYTES + 1)
+    if len(body) > INPUT_BYTES:
+        raise ValueError('diagnostic_input_bound')
+    return json.loads(body)
+
+
+class Window:
+    """One outer clock; a late restoration never repairs the original verdict."""
+    def __init__(self, origin):
+        self.origin = origin
+        self.restored = None
+        self.original_readiness = None
+
+    def decision(self, now, ready):
+        elapsed = now - self.origin
+        if self.original_readiness is None and elapsed >= 300:
+            self.original_readiness = 'PASS' if self.restored is not None else 'FAIL'
+        if elapsed >= 1800:
+            return 'WORK_DEADLINE'
+        if self.restored is None:
+            if elapsed >= 900:
+                return 'STARTUP_LIMITATION'
+            if ready:
+                self.restored = now
+        elif not ready:
+            return 'REQUIRED_READINESS_LOST'
+        elif now - self.restored >= 900:
+            return 'POST_STARTUP_COMPLETE'
+        return None
+
+
+class FiveSecondSampler:
+    """Retain one local observation without renewing its collection clocks."""
+    def __init__(self):
+        self.last = None
+        self.next_sample = 0
+
+    def read(self, now, collect):
+        due = self.last is None or now >= self.next_sample
+        if due:
+            self.last = collect()
+            self.next_sample = now + FULL_SAMPLE_SECONDS
+        return self.last, due
+
+
+class SingleAttemptSupervisor(Supervisor):
+    """Reuse native ownership/drain; reject a retry before it can spawn."""
+    def __init__(self, root, *, output, **kwargs):
+        if kwargs.get('admission', 'OBSERVATION') != 'OBSERVATION':
+            raise ValueError('diagnostic_requires_observation')
+        kwargs['admission'] = 'OBSERVATION'
+        super().__init__(root, **kwargs)
+        self.output = Path(output)
+        self.attempted_lanes = set()
+        self.source_attempted = False
+
+    def fatal(self, actor, proc):
+        self.stop_requested = True
+        facts = dict(
+            actor=actor, pid=getattr(proc, 'pid', None),
+            exit_code=None if proc is None else proc.poll(),
+            retry_dispatched=False, at=time.time())
+        try:
+            write_metadata(self.output, 'supervisor-fatal.json', facts)
+        except BaseException:
+            # Essential fixed fields survive optional-file failure in systemd's
+            # existing stderr channel. Never print exception text or argv.
+            print('diagnostic_fatal_file_unavailable:' + json.dumps(facts), file=sys.stderr, flush=True)
+        raise RuntimeError('diagnostic_first_worker_exit:' + actor)
+
+    def start_lane(self, lane):
+        if lane in self.attempted_lanes:
+            self.fatal(lane, self.processes.get(lane))
+        self.attempted_lanes.add(lane)
+        return super().start_lane(lane)
+
+    def start_services(self):
+        if self.source_attempted:
+            self.fatal('solana', getattr(self, 'evidence', None))
+        super().start_services()
+        # An existing provider backoff may defer the first source admission.
+        if getattr(self, 'evidence', None) is not None:
+            self.source_attempted = True
+
+    def recover_evidence(self):
+        self.fatal('solana', self.evidence)
+
+
+def pipeline_sample(root, expected_pid):
+    """PK/indexed reads only; no counts, population scans, payloads or SQL trace."""
+    started = time.monotonic()
+    result = dict(available=False, collected_at=time.time(), collected_at_monotonic=started,
+                  missing_edges={k: 'UNAVAILABLE' for k in MISSING_EDGES})
+    try:
+        path = Path(root) / 'shared/solana-evidence.sqlite'
+        with closing(sqlite3.connect(path.absolute().as_uri() + '?mode=ro', uri=True,
+                                     timeout=0, isolation_level=None)) as db:
+            db.execute('PRAGMA query_only=ON')
+            db.set_progress_handler(lambda: int(time.monotonic() - started >= .25), 1000)
+            db.execute('BEGIN')
+            keys = ('pid', 'heartbeat', 'phase', 'ipc', 'owner_scheduler',
+                    'storage_maintenance', 'sqlite_failure_recorder', 'native_streams')
+            health = {}; retained = 0
+            for key, value in db.execute('SELECT key,value FROM service_health WHERE key IN (' +
+                                        ','.join('?' for _ in keys) + ')', keys):
+                retained += len(value.encode())
+                if retained > INPUT_BYTES:
+                    raise ValueError('service_health_input_bound')
+                health[key] = json.loads(value)
+            if expected_pid is None or health.get('pid') != expected_pid:
+                result['unavailable_reason'] = 'SOURCE_PID_MISMATCH'
+                return result
+            generation = health.get('owner_scheduler', {}).get('owner_admission', {}).get('generation')
+            result.update(available=True, source_pid=expected_pid, generation=generation,
+                          generation_state='CURRENT' if generation is not None else 'UNAVAILABLE',
+                          service_health=numeric(health))
+            # Each sample is bounded independently of retained historical stock.
+            result['pending_outbox_head'] = db.execute(
+                'SELECT id,family,kind,created FROM candidate_history_outbox '
+                'INDEXED BY candidate_history_pending WHERE consumed IS NULL '
+                'ORDER BY created LIMIT 32').fetchall()
+            result['pending_outbox_depth'] = 'UNAVAILABLE_NO_POPULATION_SCAN'
+            result['outbox_head_scope'] = 'INDEX_PREFIX_ALL_RETAINED_FAMILIES'
+            try:
+                result['pending_canonical_heads'] = [row for family in ('pump', 'pumpswap')
+                    for row in db.execute("SELECT id,family,kind,created FROM candidate_history_outbox "
+                        "INDEXED BY candidate_history_canonical_pending WHERE family=? "
+                        "AND kind='canonical' AND consumed IS NULL "
+                        "ORDER BY json_extract(body,'$.record.slot') LIMIT 16", (family,))]
+            except sqlite3.Error:
+                result['pending_canonical_heads'] = []
+            result['history_deadline_heads'] = {status: db.execute(
+                'SELECT id,deadline,created FROM rolling_preparation_jobs '
+                'INDEXED BY rolling_preparation_expiry WHERE status=? '
+                'ORDER BY deadline LIMIT 1', (status,)).fetchone()
+                for status in ('pending', 'active')}
+            result['history_heads_scope'] = 'STATUS_INDEX_PREFIX_NOT_OLDEST_REQUIRED_PUMP'
+            result['stored_economics'] = {scope: db.execute(
+                'SELECT slot,market_time,first_seen FROM rolling_economic_events '
+                'INDEXED BY rolling_event_order WHERE scope=? ORDER BY slot DESC LIMIT 1',
+                (scope,)).fetchone() for scope in ('program:pump', 'program:pumpswap')}
+            try:
+                session = db.execute('SELECT session FROM prewarm_startup WHERE id=1').fetchone()
+                result['source_session'] = None if session is None else session[0]
+                result['pending_proof_heads'] = db.execute(
+                    'SELECT id,scope,lo,hi,available FROM candidate_pending_proofs '
+                    'INDEXED BY candidate_proof_publication ORDER BY lo,hi LIMIT 2').fetchall()
+                result['proof_control_bounds'] = {identity: [db.execute(
+                    'SELECT slot,parent,hash,previous_hash,session,sealed FROM stream_receipts '
+                    'WHERE scope=? AND slot=?', (CONTROL, slot)).fetchone()
+                    for slot in (lo, hi)] for identity, _, lo, hi, _ in result['pending_proof_heads']}
+                result['proof_checkpoints'] = {scope: db.execute(
+                    'SELECT slot,updated FROM candidate_checkpoints WHERE scope=?', (scope,)).fetchone()
+                    for _, scope, _, _, _ in result['pending_proof_heads']}
+                result['proof_eligibility'] = 'UNAVAILABLE_NOT_REEVALUATED'
+            except sqlite3.Error:
+                result['pending_proof_heads'] = 'UNAVAILABLE'
+                result['proof_control_bounds'] = 'UNAVAILABLE'
+    except (OSError, sqlite3.Error, ValueError, TypeError) as error:
+        result.update(available=False, unavailable_reason=type(error).__name__)
+    finally:
+        result['collection_seconds'] = time.monotonic() - started
+    return result
+
+
+class ReceiptCohort:
+    """Track at most 32 original outbox identities through consumer commit/ACK."""
+    def __init__(self, origin_wall=0):
+        self.identities = []
+        self.origin_wall = origin_wall
+
+    def sample(self, root, pipeline):
+        if not self.identities and pipeline.get('available'):
+            heads = pipeline.get('pending_canonical_heads') or pipeline.get('pending_outbox_head', [])
+            self.identities = [row[0] for row in heads if row[1] in ('pump', 'pumpswap')][:32]
+        if not self.identities:
+            return dict(available=False, reason='NO_PENDING_COHORT_CAPTURED')
+        started = time.monotonic(); rows = []
+        try:
+            paths = [Path(root) / 'shared' / name for name in
+                     ('solana-evidence.sqlite', 'solana-candidate-history.sqlite')]
+            with closing(sqlite3.connect(paths[0].absolute().as_uri() + '?mode=ro', uri=True,
+                                         timeout=0, isolation_level=None)) as source, \
+                 closing(sqlite3.connect(paths[1].absolute().as_uri() + '?mode=ro', uri=True,
+                                         timeout=0, isolation_level=None)) as consumer:
+                for db in (source, consumer):
+                    db.execute('PRAGMA query_only=ON')
+                    db.set_progress_handler(lambda: int(time.monotonic() - started >= .25), 1000)
+                    db.execute('BEGIN')
+                for identity in self.identities:
+                    row = source.execute("SELECT family,address,kind,created,consumed,hash,"
+                        "body -> '$.record.identity',body -> '$.record.slot',body -> '$.available',"
+                        "body -> '$.source_hash' FROM candidate_history_outbox WHERE id=?",
+                        (identity,)).fetchone()
+                    if row is None:
+                        rows.append(dict(outbox_identity=identity, state='OUTBOX_UNAVAILABLE')); continue
+                    family,address,kind,created,consumed,checksum,record,slot,available,original_hash = row
+                    # ``at`` is the original source receipt time in the existing
+                    # schema, not an observed consumer COMMIT completion time.
+                    receipt = consumer.execute('SELECT at,body,hash FROM source_receipts WHERE id=?',
+                                               (identity,)).fetchone()
+                    valid = False
+                    if receipt is not None:
+                        if len(receipt[1].encode()) > 4096:
+                            raise ValueError('consumer_receipt_bound')
+                        facts = json.loads(receipt[1])
+                        expected_hash = json.loads(original_hash) if original_hash is not None else checksum
+                        valid = (hashlib.sha256(receipt[1].encode()).hexdigest() == receipt[2] and
+                            facts.get('source_hash') == expected_hash and
+                            facts.get('scope') == 'candidate:' + family + ':' + address and
+                            facts.get('canonical_identity') == (None if record is None else json.loads(record)))
+                    state = ('RECEIPT_AUTHENTICATION_UNAVAILABLE_OR_SKEW' if receipt is not None and not valid else
+                             'ACK_MARKER_OBSERVED' if consumed is not None and valid else
+                             'CONSUMER_RECEIPT_OBSERVED_ACK_PENDING' if valid else 'DELIVERY_PENDING')
+                    rows.append(dict(outbox_identity=identity, family=family, kind=kind,
+                        created=created, canonical_identity=None if record is None else json.loads(record),
+                        slot=None if slot is None else json.loads(slot),
+                        original_available=None if available is None else json.loads(available),
+                        consumer_receipt_authenticated=valid, consumer_commit_receipt_present=receipt is not None,
+                        consumer_receipt_at=None if receipt is None else receipt[0],
+                        exact_ack_consumed_at=consumed, state=state,
+                        arrival_class='PREEXISTING_OR_REPLAY' if created < self.origin_wall else
+                            'AVAILABLE_DURING_ATTEMPT_PHYSICAL_ARRIVAL_UNVERIFIED'))
+            return dict(available=True, source_pid=pipeline.get('source_pid'),
+                        generation=pipeline.get('generation'), identities=rows,
+                        snapshots='INDEPENDENT_READ_SNAPSHOTS_NO_ATOMIC_CROSS_DATABASE_CLAIM')
+        except (OSError, sqlite3.Error, ValueError, TypeError) as error:
+            return dict(available=False, reason=type(error).__name__)
+
+
+class RecorderCoverage:
+    def __init__(self):
+        self.first_source_seen = None
+        self.registered = False
+
+    def check(self, pipeline, source_pid, now):
+        if source_pid is None:
+            return None
+        if self.first_source_seen is None:
+            self.first_source_seen = now
+        row = pipeline.get('service_health', {}).get('sqlite_failure_recorder')
+        if row is None:
+            return ('REQUIRED_RECORDER_MISSING' if self.registered or
+                    now - self.first_source_seen >= 30 else None)
+        if row.get('pid') != source_pid or row.get('recorder_valid') is not True:
+            return 'REQUIRED_RECORDER_INVALID_OR_WRONG_PID'
+        self.registered = True
+        return None
+
+
+def readiness(root, main_pid):
+    # The original gate uses local projections and /proc; it dispatches no RPC.
+    from meme_machine.operational.acceptance import observe
+    try:
+        health, _, _ = observe(Path(root))
+        if health.get('pid') != main_pid:
+            return False
+        for lane in ('pump', 'pons'):
+            proof = health['lanes'][lane].get('native_continuation', {})
+            if not all(proof.get(k) is True for k in ('current_restored',
+                    'survivor_replay_verified', 'survivor_handoff_ready', 'exit_path_bound')):
+                return False
+        if any(health['providers'].get(k, {}).get('state') != 'CURRENT'
+               for k in ('solana', 'robinhood')):
+            return False
+        rows = health['providers']['evidence'].get('program_frontiers', [])
+        return len(rows) == 2 and all(0 <= time.time() - row['updated'] <= 5 and
+            0 <= time.time() - row['market_time'] <= 15 for row in rows)
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+
+
+def bounded_text(path, limit=8192):
+    with path.open() as stream:
+        value = stream.read(limit + 1)
+    if len(value) > limit:
+        raise ValueError('kernel_counter_input_bound')
+    return value
+
+
+def counters(group, pids):
+    result = {}
+    for name, path in [('cpu_stat', group / 'cpu.stat'), ('io_stat', group / 'io.stat'),
+                       ('cpu_pressure', group / 'cpu.pressure'), ('io_pressure', group / 'io.pressure'),
+                       ('memory_pressure', group / 'memory.pressure'),
+                       ('device_stat', Path('/sys/block/sda/stat'))]:
+        try:
+            result[name] = bounded_text(path)
+        except (OSError, ValueError):
+            result[name] = 'UNAVAILABLE'
+    result.update(pressure_scope='SERVICE_CGROUP_AGGREGATE',
+                  device_scope='DEVICE_AGGREGATE_NOT_ACTOR_WAIT',
+                  owner_thread_schedstat='UNAVAILABLE_NO_EXPORTED_NATIVE_TID')
+    try:
+        owned = [int(pid) for pid in bounded_text(group / 'cgroup.procs').split()]
+        result['process_scope_truncated'] = len(owned) > 64
+        owned = owned[:64]
+    except (OSError, ValueError):
+        result['process_scope'] = 'UNAVAILABLE'
+        return result
+    result['workers'] = {}
+    names = {pid: name for name, pid in pids.items()}
+    for pid in owned:
+        name = names.get(pid, 'cgroup_pid_' + str(pid))
+        try:
+            folder = Path('/proc/' + str(pid))
+            fields = bounded_text(folder / 'stat').rsplit(')', 1)[1].split()
+            schedstat = [int(value) for value in bounded_text(folder / 'schedstat').split()]
+            result['workers'][name] = dict(pid=pid, state=fields[0], user_ticks=int(fields[11]),
+                system_ticks=int(fields[12]), rss_pages=int(fields[21]),
+                io=bounded_text(folder / 'io'), schedstat_scope='PROCESS_MAIN_THREAD_ONLY',
+                runtime_ns=schedstat[0], runnable_wait_ns=schedstat[1], timeslices=schedstat[2],
+                delayacct_blkio_ticks=int(fields[39]) if len(fields) > 39 else 'UNAVAILABLE',
+                delayacct_scope='KERNEL_ACCOUNTING_AVAILABILITY_UNVERIFIED')
+        except (OSError, ValueError, IndexError):
+            result['workers'][name] = dict(pid=pid, state='UNAVAILABLE')
+    return result
+
+
+def append_sample(path, sample):
+    body = json.dumps(sample, sort_keys=True, allow_nan=False).encode() + b'\n'
+    size = path.stat().st_size if path.exists() else 0
+    if len(body) > INPUT_BYTES or size + len(body) > OUTPUT_BYTES - 2 * TERMINAL_BYTES:
+        raise ValueError('diagnostic_output_limit')
+    with path.open('ab') as stream:
+        stream.write(body)
+
+
+def append_guard(path, sample):
+    if len(json.dumps(sample, sort_keys=True, allow_nan=False).encode()) + 1 > GUARD_BYTES:
+        raise ValueError('diagnostic_guard_record_bound')
+    append_sample(path, sample)
+
+
+def economic(root):
+    from meme_machine.operational.backup import state_identity
+    identity = state_identity(root)
+    state = identity['replayed_state']
+    if any(state.get(k) for k in ('positions', 'reservations', 'commitments',
+            'obligations', 'pending_deliveries', 'pending_backing', 'runtime_pending', 'runtime_inbox')):
+        raise ValueError('existing_obligations_require_safe_handoff')
+    return dict(epoch_id=identity['epoch_id'], inception_sha256=identity['inception_sha256'],
+                cash=state.get('cash'), policy_sha256=hashlib.sha256(
+                    json.dumps(state.get('policy'), sort_keys=True).encode()).hexdigest(),
+                realized=state.get('realized'))
+
+
+def control(*args, timeout=5):
+    return subprocess.check_output(['systemctl', *args], text=True, timeout=timeout).strip()
+
+
+def live_children():
+    try:
+        return (Path('/sys/fs/cgroup/system.slice') / UNIT / 'cgroup.procs').read_text().split()
+    except FileNotFoundError:
+        return []  # systemd removes the empty stopped unit's cgroup.
+    except OSError:
+        return None
+
+
+def drain(origin, *, ctl=control, clock=time.monotonic, children=live_children):
+    """Request existing graceful drain; never hide timeout or force recovery."""
+    remaining = origin + 1865 - clock()
+    if remaining <= 0:
+        return dict(drained=False, recovery_required=True, reason='ABSOLUTE_DEADLINE_EXHAUSTED')
+    try:
+        ctl('stop', UNIT, timeout=remaining)
+        remaining = origin + 1865 - clock()
+        if remaining <= 0:
+            raise TimeoutError
+        state = ctl('show', UNIT, '-p', 'MainPID', '-p', 'ActiveState', '-p', 'SubState',
+                    timeout=min(5, remaining))
+        drained = ('MainPID=0' in state and children() == [] and
+                   ('ActiveState=inactive' in state or 'ActiveState=failed' in state))
+        return dict(drained=drained, recovery_required=not drained or 'ActiveState=failed' in state,
+                    service_state=state, native_drain='UNVERIFIED_TIMEOUT_ESCALATION_POSSIBLE')
+    except (OSError, subprocess.SubprocessError, TimeoutError):
+        return dict(drained=False, recovery_required=True, reason='DRAIN_TIMEOUT_OR_UNAVAILABLE')
+
+
+def observe_once(root, output, source_revision):
+    """Execute only after the separately authorized spec preflight and install."""
+    from meme_machine.operational.supervisor import SOURCE_ROOT
+    validate_revision(source_revision, subprocess.check_output(['git', 'rev-parse', 'HEAD'],
+                      cwd=SOURCE_ROOT, text=True, timeout=5).strip())
+    if control('show', UNIT, '-p', 'MainPID', '--value') != '0':
+        raise ValueError('existing_service_must_be_stopped')
+    if control('show', UNIT, '-p', 'UnitFileState', '--value') != 'disabled':
+        raise ValueError('existing_service_must_remain_disabled')
+    command = control('show', UNIT, '-p', 'ExecStart', '--value')
+    if ('current_combined_observation_20261014' not in command or 'supervise' not in command or
+            str(root) not in command or str(output) not in command or source_revision not in command):
+        raise ValueError('single_attempt_supervisor_overlay_required')
+    properties = dict(line.split('=', 1) for line in control('show', UNIT, '-p', 'Restart',
+        '-p', 'RuntimeMaxUSec', '-p', 'TimeoutStopUSec', '-p', 'KillMode').splitlines())
+    verify_unit_properties(properties)
+    before = economic(root)
+    if any(output.iterdir()):
+        raise ValueError('new_private_output_directory_required')
+    record = dict(revision=source_revision, funding=False, acceptance_minutes=0,
+                  status='STARTING', before=before, recovery_required=True, unit_properties=properties)
+    origin = time.monotonic()
+    window = Window(origin)
+    write_metadata(output, 'clock.json', dict(origin_monotonic=origin, revision=source_revision))
+    stopped = [False]
+    prior = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
+    for sig in prior:
+        signal.signal(sig, lambda *_: stopped.__setitem__(0, True))
+    known = {}; covered = False; generation = None
+    sampler = FiveSecondSampler()
+    cohort = ReceiptCohort(time.time())
+    coverage = RecorderCoverage()
+    try:
+        control('--no-block', 'start', UNIT)
+        while True:
+            now = time.monotonic()
+            if stopped[0] or now >= origin + 1800:
+                record['stop_reason'] = 'INTERRUPTED' if stopped[0] else 'WORK_DEADLINE'
+                break
+            main_pid = int(control('show', UNIT, '-p', 'MainPID', '--value',
+                                   timeout=min(5, origin + 1800 - now)))
+            if (output / 'supervisor-fatal.json').exists() or (output / 'source-sqlite-terminal.txt').exists():
+                record.update(stop_reason='FIRST_FATAL_WORKER', failure=True); break
+            if not main_pid:
+                # A --no-block start may not have published MainPID yet.
+                if now - origin < 20:
+                    time.sleep(min(1, origin + 1800 - now)); continue
+                record.update(stop_reason='SUPERVISOR_ENDED', failure=True); break
+            try:
+                health = read_json(root / 'health.json')
+            except (OSError, ValueError):
+                health = {}
+            if health.get('pid') != main_pid:
+                health = {}
+            lanes = health.get('lanes', {})
+            providers = health.get('providers', {})
+            source_pid = providers.get('evidence', {}).get('pid')
+            pids = {k: lanes[k]['pid'] for k in ('pump', 'pons') if lanes.get(k, {}).get('pid')}
+            if source_pid:
+                pids['solana'] = source_pid
+            if any(k in known and known[k] != v for k, v in pids.items()):
+                raise ValueError('unexpected_worker_restart')
+            known.update(pids)
+            group = Path('/sys/fs/cgroup/system.slice') / UNIT
+            memory = int((group / 'memory.current').read_text())
+            if memory >= 6 * 1024**3:
+                raise ValueError('observation_memory_limit')
+            free = {str(p): os.statvfs(p).f_bavail * os.statvfs(p).f_frsize for p in (Path('/'), root)}
+            if min(free.values()) < RESERVE_BYTES:
+                raise ValueError('observation_disk_reserve')
+            for name in ('solana', 'robinhood'):
+                row = providers.get(name, {})
+                if row.get('queue_depth', 0) > 64 or row.get('oldest_wait_seconds', 0) > 5:
+                    raise ValueError('provider_queue_limit:' + name)
+            pipeline, full_sample_due = sampler.read(now, lambda: pipeline_sample(root, source_pid))
+            if covered and not pipeline['available']:
+                raise ValueError('required_pipeline_coverage_lost')
+            covered |= pipeline['available']
+            recorder_failure = coverage.check(pipeline, source_pid, time.monotonic())
+            if recorder_failure:
+                record['sqlite_attribution_valid'] = False
+                raise ValueError(recorder_failure)
+            observed_generation = pipeline.get('generation')
+            if generation is not None and observed_generation != generation:
+                raise ValueError('source_generation_changed_or_lost')
+            if observed_generation is not None:
+                generation = observed_generation
+            ready = readiness(root, main_pid)
+            decision = window.decision(time.monotonic(), ready)
+            # The 1-Hz checks above use current atomic health/resource facts.
+            # Reused SQL recorder/generation facts keep their original clocks.
+            guard = dict(sample_kind='guard', elapsed_seconds=time.monotonic() - origin,
+                at=time.time(), main_pid=main_pid, source_pid=source_pid, ready=ready,
+                original_readiness=window.original_readiness, memory_bytes=memory,
+                root_free_bytes=free[str(Path('/'))], state_free_bytes=free[str(root)],
+                pipeline_collected_at=pipeline['collected_at'],
+                pipeline_collected_at_monotonic=pipeline['collected_at_monotonic'],
+                pipeline_observed_source_pid=pipeline.get('source_pid'),
+                pipeline_observation_age_seconds=max(0, time.monotonic() - pipeline['collected_at_monotonic']),
+                pipeline_observation='NEW_READ' if full_sample_due else 'CACHED_READ',
+                pipeline_observed_available=pipeline['available'])
+            if full_sample_due:
+                sample = dict(guard, sample_kind='full', lanes=numeric(lanes), providers=numeric(providers),
+                    fixed_scope_frontiers=selected_frontiers(providers), pipeline=pipeline,
+                    sqlite_coverage_scope='CANONICAL_PARENT_ONLY_CHILD_HEALTH_UNAVAILABLE')
+                sample['counters'] = counters(group, dict(pids, supervisor=main_pid))
+                sample['receipt_cohort'] = cohort.sample(root, pipeline)
+                append_sample(output / 'metrics.jsonl', sample)
+            else:
+                append_guard(output / 'metrics.jsonl', guard)
+            if decision:
+                record['stop_reason'] = decision; break
+            time.sleep(min(1, max(0, origin + 1800 - time.monotonic())))
+    except BaseException as error:
+        record.update(stop_reason=str(error) if type(error) is ValueError else type(error).__name__, failure=True)
+    finally:
+        record.update(drain(origin), original_readiness=window.original_readiness,
+                      restored_at_monotonic=window.restored, elapsed_to_drain_seconds=time.monotonic() - origin)
+        if record['drained']:
+            try:
+                record['economic_continuity'] = economic(root) == before
+            except (OSError, ValueError, sqlite3.Error):
+                record['economic_continuity'] = False
+            record['recovery_required'] |= not record['economic_continuity']
+        record['recovery_required'] |= record.get('failure', False)
+        record['status'] = 'STOPPED_REVIEW_REQUIRED' if not record['recovery_required'] else 'RECOVERY_REQUIRED'
+        write_metadata(output, 'result.json', record)
+        for sig, handler in prior.items():
+            signal.signal(sig, handler)
+    return 0 if not record['recovery_required'] else 2
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('command', choices=('observe', 'supervise'))
+    parser.add_argument('--state-root', required=True, type=Path)
+    parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--source-revision', required=True)
+    args = parser.parse_args()
+    validate_revision(args.source_revision, args.source_revision)
+    if (not args.output.is_absolute() or not args.state_root.is_absolute() or
+            not args.output.is_dir() or args.output.is_symlink() or args.output.stat().st_mode & 0o077):
+        parser.error('output must be an existing private directory')
+    if args.output.resolve() == args.state_root.resolve() or args.state_root.resolve() in args.output.resolve().parents:
+        parser.error('output must be outside economic state')
+    if args.command == 'observe':
+        return observe_once(args.state_root, args.output, args.source_revision)
+    clock = read_json(args.output / 'clock.json')
+    if clock['revision'] != args.source_revision:
+        parser.error('clock revision mismatch')
+    from meme_machine.operational.supervisor import SOURCE_ROOT
+    validate_revision(args.source_revision, subprocess.check_output(['git', 'rev-parse', 'HEAD'],
+                      cwd=SOURCE_ROOT, text=True, timeout=5).strip())
+    remaining = clock['origin_monotonic'] + 1800 - time.monotonic()
+    if not 0 < remaining <= 1800:
+        parser.error('outer work clock exhausted or invalid')
+    os.environ['MM_SQLITE_DIAGNOSTIC_REQUIRED'] = '1'
+    os.environ['MM_SQLITE_TERMINAL_RECORD_PATH'] = str(args.output / 'source-sqlite-terminal.txt')
+    SingleAttemptSupervisor(args.state_root, output=args.output).run(seconds=remaining)
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())
