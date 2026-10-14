@@ -2,6 +2,8 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+    'tests.lanes.pons.test_public_dispatch_spacing',
+    'tests.test_pons_http_failure_context',
     'tests.test_sqlite_failure_attribution',
  'tests.test_operational_simplification',
  'tests.test_solana_history_refinement',

@@ -1,4 +1,4 @@
-"""One offline diagnostic of existing public pacing, not a production repair.
+"""Original offline public-pacing workload, now checking its reviewed correction.
 
 Run with the pinned interpreter from the repository root using -m. Actual
 PacedRpc/Admission execute against tiny disposable ledgers. HTTP is synthetic;
@@ -98,15 +98,15 @@ def main():
         fixture_bytes = tree_bytes(scratch.path)
         assert control['minimum_gap_seconds'] >= .5
         assert cooldown['statuses'] == [429, 200, 200, 200, 200]
-        assert cooldown['inter_start_seconds'][1] < .5
+        assert cooldown['minimum_gap_seconds'] >= .5
         from meme_machine.lanes.pons import provider_topology, provider_admission
         sources = {str(Path(module.__file__).relative_to(Path.cwd())):
                    hashlib.sha256(Path(module.__file__).read_bytes()).hexdigest()
                    for module in (provider_topology, provider_admission)}
         result = dict(
-            status='OFFLINE_DISPATCH_SPACING_DEFECT_REPRODUCED',
+            status='OFFLINE_DISPATCH_SPACING_CORRECTION_PASS',
             at=datetime.now(timezone.utc).isoformat(), source_sha256=sources,
-            question='Does pre-admission role pacing expire while the shared cooldown waits?',
+            question='Does shared dispatch retain the adaptive interval after cooldown?',
             control=control, cooldown=cooldown,
             fixture_bytes=fixture_bytes, wall_seconds=time.monotonic()-wall,
             process_cpu_seconds=time.process_time()-cpu,

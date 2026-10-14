@@ -22,6 +22,51 @@ FOREGROUND_AGE_SECONDS = 3
 _decision_priority = ContextVar('candidate_decision_priority',default=None)
 _position_work = ContextVar('provider_position_work',default=False)
 _foreground_work = ContextVar('provider_foreground_work',default=False)
+_transport_dispatch = ContextVar('provider_transport_dispatch', default=None)
+
+
+def transport_ready(*, final=False):
+    """Revalidate public admission at the existing physical transport boundary.
+
+    Request serialization and durable start accounting can delay dispatch.
+    This hook uses the same queue, priority and absolute deadline if a grant
+    becomes stale. It neither creates another transport nor paces canonical
+    protection behind the public endpoint's cooldown.
+    """
+    context = _transport_dispatch.get()
+    revalidate = context.get('revalidate') if context is not None else None
+    if revalidate is not None:
+        revalidate(final)
+
+
+def transport_clock():
+    """Use the admission clock for comparable dispatch/timing observations."""
+    context = _transport_dispatch.get()
+    return context['clock']() if context is not None else time.monotonic()
+
+
+def _retain_transport_failure(accounting_error, boundary, attempt):
+    """Accounting remains fail-closed; its error retains the preceding HTTP facts.
+
+    Only fixed classifications and already sanitized, bounded context are
+    attached. Optional note/attribute failures cannot replace the ledger error.
+    """
+    if boundary is None:
+        return
+    try:
+        accounting_error.provider_original_boundary = boundary
+        accounting_error.add_note('original_transport_boundary=' + boundary)
+    except BaseException:
+        pass
+    facts = attempt.get('http_error_context')
+    if isinstance(facts, dict):
+        try:
+            accounting_error.provider_http_context = facts
+            if not any(note.startswith('provider_http_context=')
+                       for note in getattr(accounting_error, '__notes__', ())):
+                accounting_error.add_note('provider_http_context=' + json.dumps(facts, sort_keys=True))
+        except BaseException:
+            pass
 
 
 def position_work(function):
@@ -289,6 +334,8 @@ class Admission:
             CREATE TABLE IF NOT EXISTS provider_usage(endpoint TEXT,lane TEXT,metric TEXT,value REAL,PRIMARY KEY(endpoint,lane,metric));
             CREATE TABLE IF NOT EXISTS limits(endpoint TEXT PRIMARY KEY,next_at REAL NOT NULL,
                 cooldown REAL NOT NULL,interval REAL NOT NULL);
+            CREATE TABLE IF NOT EXISTS public_pacing(endpoint TEXT PRIMARY KEY,
+                interval REAL NOT NULL,last_dispatch REAL NOT NULL);
             CREATE TABLE IF NOT EXISTS queue(id TEXT PRIMARY KEY,endpoint TEXT NOT NULL,
                 priority INTEGER NOT NULL,created REAL NOT NULL,deadline REAL NOT NULL);
             CREATE TABLE IF NOT EXISTS queue_meta(id TEXT PRIMARY KEY,lane TEXT NOT NULL);
@@ -321,6 +368,43 @@ class Admission:
         db.execute('INSERT INTO limits VALUES(?,0,0,?) ON CONFLICT(endpoint) DO UPDATE SET interval='+expression,(self.endpoint,interval))
         if offline_profile is not None:offline_profile.initialize(db,self.endpoint,self.clock())
         db.close()
+
+    def public_interval(self, initial_interval=None):
+        """Initialize once; new public sessions inherit endpoint backpressure."""
+        interval = None if initial_interval is None else float(initial_interval)
+        if interval is not None and not .04 <= interval <= 5:
+            raise BoundaryError('invalid_provider_rps')
+        db = self.connect()
+        try:
+            if interval is not None:
+                db.execute('INSERT OR IGNORE INTO public_pacing VALUES(?,?,-1e30)',
+                           (self.endpoint, interval))
+            return db.execute('SELECT interval FROM public_pacing WHERE endpoint=?',
+                              (self.endpoint,)).fetchone()[0]
+        finally:
+            db.close()
+
+    def public_rate_change(self, interval, *, recover, ceiling_interval=.04):
+        """Explicit adaptive changes are serialized with queued dispatches."""
+        interval = max(float(interval), float(ceiling_interval))
+        if not .04 <= interval <= 5:
+            raise BoundaryError('invalid_provider_rps')
+        db = self.connect()
+        try:
+            db.execute('BEGIN IMMEDIATE')
+            current = db.execute('SELECT interval FROM public_pacing WHERE endpoint=?',
+                                 (self.endpoint,)).fetchone()[0]
+            changed = interval < current if recover else interval > current
+            if changed:
+                db.execute('UPDATE public_pacing SET interval=? WHERE endpoint=?',
+                           (interval, self.endpoint))
+                current = interval
+            db.execute('COMMIT')
+            return current, changed
+        finally:
+            if db.in_transaction:
+                db.execute('ROLLBACK')
+            db.close()
     def connect(self):
         db=sqlite3.connect(self.path,timeout=10,isolation_level=None)
         try:
@@ -383,14 +467,14 @@ class Admission:
             if claimed:db.execute('DELETE FROM offline_protective_phases WHERE account=? AND owner=?',
                 (resources.account,self.session))
             db.close()
-    def acquire(self,scope,deadline=None,*,methods=None):
+    def acquire(self,scope,deadline=None,*,methods=None,public=False,reuse_reservation=None):
         from meme_machine.operational.position_continuation import position_only
         if (_decision_priority.get() or 0)>=20 and not _position_work.get() and position_only():
             raise BoundaryError('bootstrap_optional_work_closed')
         from meme_machine.runtime.operating_families import active_scope_sql
         live="id IN (SELECT q.id FROM queue q LEFT JOIN queue_meta m ON m.id=q.id WHERE "+active_scope_sql("COALESCE(m.lane,'shared')")+")"
         resources=self.offline_profile
-        ticket=(self.session+':' if resources is not None else '')+uuid.uuid4().hex
+        ticket=reuse_reservation or ((self.session+':' if resources is not None else '')+uuid.uuid4().hex)
         started=self.clock();deadline=min(started+30,deadline) if deadline is not None else started+30
         cost=resources.cost(methods) if resources is not None else None
         granted=False;failure=None
@@ -415,17 +499,24 @@ class Admission:
                 db.execute('BEGIN IMMEDIATE')
                 db.execute('DELETE FROM queue WHERE '+live+' AND deadline<=?',(now,))
                 next_at,cooldown,interval=db.execute('SELECT next_at,cooldown,interval FROM limits WHERE endpoint=?',(self.endpoint,)).fetchone()
+                if public:
+                    adaptive,last_dispatch = db.execute(
+                        'SELECT interval,last_dispatch FROM public_pacing WHERE endpoint=?',
+                        (self.endpoint,)).fetchone()
+                    interval = max(interval, adaptive)
+                    next_at = max(next_at, last_dispatch + interval)
                 first=next_ticket(db,self.endpoint,now,interval)
                 if resources is not None:first=resources.first(db,now)
                 resource_wait=(resources.wait(db,ticket,now,cost,priority(scope)==0)
-                    if resources is not None and first and first[0]==ticket else 0)
+                    if resources is not None and reuse_reservation is None and first and first[0]==ticket else 0)
                 if first and first[0]==ticket and now>=max(next_at,cooldown) and resource_wait<=0:
-                    if resources is not None:resources.reserve(db,ticket,now,cost)
+                    if resources is not None and reuse_reservation is None:resources.reserve(db,ticket,now,cost)
                     db.execute('UPDATE limits SET next_at=? WHERE endpoint=?',(now+interval,self.endpoint))
                     record_service(db,self.endpoint,self.lane,first[1]==0)
                     db.execute('DELETE FROM queue WHERE id=?',(ticket,));db.execute('COMMIT')
                     granted=True
                     result=dict(wait_seconds=now-started,queue_depth=depth,admitted_at=now)
+                    if public:result['absolute_deadline']=deadline
                     if resources is not None:result['resource_reservation']=ticket
                     return result
                 db.execute('COMMIT')
@@ -459,6 +550,56 @@ class Admission:
                 raise
             finally:db.close()
 
+    def public_dispatch(self, admitted, scope, methods, *, final):
+        """Validate a grant after local work; only final dispatch advances time.
+
+        An intervening physical start, cooldown or adaptive slowdown sends the
+        request back through ordinary admission. The first admission's absolute
+        deadline survives every revalidation; there is no post-grant role sleep.
+        """
+        deadline = admitted['absolute_deadline']
+        revalidations = 0
+        extra_wait = 0.0
+        while True:
+            db = self.connect()
+            try:
+                db.execute('BEGIN IMMEDIATE')
+                now = self.clock()
+                if now >= deadline:
+                    raise BoundaryError('provider_shared_admission_deadline')
+                next_at,cooldown,shared = db.execute(
+                    'SELECT next_at,cooldown,interval FROM limits WHERE endpoint=?',
+                    (self.endpoint,)).fetchone()
+                adaptive,last_dispatch = db.execute(
+                    'SELECT interval,last_dispatch FROM public_pacing WHERE endpoint=?',
+                    (self.endpoint,)).fetchone()
+                interval = max(shared, adaptive)
+                # A slot whose interval elapsed during local preparation is
+                # stale even if no peer has dispatched. Requeue it so newly
+                # waiting higher-priority work retains ordinary precedence.
+                grant_current = now < admitted['admitted_at'] + interval
+                ready = grant_current and now >= max(cooldown, last_dispatch + interval)
+                if ready and final:
+                    db.execute('UPDATE public_pacing SET last_dispatch=? WHERE endpoint=?',
+                               (now, self.endpoint))
+                    db.execute('UPDATE limits SET next_at=MAX(next_at,?) WHERE endpoint=?',
+                               (now + interval, self.endpoint))
+                db.execute('COMMIT')
+            finally:
+                if db.in_transaction:
+                    db.execute('ROLLBACK')
+                db.close()
+            if ready:
+                admitted['dispatch_revalidations'] = admitted.get('dispatch_revalidations', 0) + revalidations
+                return extra_wait
+            replacement = self.acquire(scope, deadline, methods=methods, public=True,
+                                       reuse_reservation=admitted.get('resource_reservation'))
+            revalidations += 1
+            extra_wait += replacement['wait_seconds']
+            admitted['wait_seconds'] += replacement['wait_seconds']
+            admitted['queue_depth'] = max(admitted['queue_depth'], replacement['queue_depth'])
+            admitted['admitted_at'] = replacement['admitted_at']
+
     def complete(self,reservation):
         if self.offline_profile is None:return
         db=self.connect()
@@ -482,22 +623,36 @@ class Admission:
             return tuple(rows[k] for k in ('physical_http_requests','completed_transport_attempts')) if len(rows)==2 else None
         finally:db.close()
 
-    def invoke(self,call,methods,scope,retry_count=0,deadline=None,timing=None,batch=False,role=None):
+    def invoke(self,call,methods,scope,retry_count=0,deadline=None,timing=None,batch=False,role=None,public=False):
         from meme_machine.runtime.robinhood.provider_usage import _active
-        from meme_machine.runtime.robinhood.provider_authority import failure_class
+        from meme_machine.runtime.robinhood.provider_authority import failure_class, safe_label
         attempt=dict(physical_requests=0,path=str(self.path),endpoint_fingerprint=self.endpoint,
-            lane=self.lane,session=self.session,methods=methods,scope=scope,retry_attempt=retry_count,batch=batch)
+            lane=self.lane,session=self.session,methods=methods,scope=scope,retry_attempt=retry_count,batch=batch,
+            role=safe_label(role) if role is not None else None)
         from meme_machine.runtime.robinhood.provider_usage import category
         attempt['category']=category(scope,role)
         from meme_machine.runtime.provider_purchases import work_label
         attempt['purchase_work']=work_label(family='pons')
         token=_active.set(attempt)
-        try:admitted=self.acquire(scope,deadline,methods=methods)
+        try:admitted=self.acquire(scope,deadline,methods=methods,public=public)
         except BaseException:
             _active.reset(token)
             raise
         started=self.clock();boundary=None;http_status=None;rpc_code=None
         attempt['admitted_at']=admitted['admitted_at']
+        dispatch_context = dict(clock=self.clock, revalidate=None, dispatched=False)
+        if public:
+            def revalidate(final):
+                if dispatch_context['dispatched']:
+                    return
+                extra_wait = self.public_dispatch(admitted, scope, methods, final=final)
+                attempt['admitted_at'] = admitted['admitted_at']
+                if timing is not None:
+                    timing['shared_provider_queue_wait_seconds'] = timing.get('shared_provider_queue_wait_seconds', 0) + extra_wait
+                if final:
+                    dispatch_context['dispatched'] = True
+            dispatch_context['revalidate'] = revalidate
+        dispatch_token = _transport_dispatch.set(dispatch_context)
         if timing is not None:
             timing.setdefault("first_transport_monotonic",started)
             timing["shared_provider_queue_wait_seconds"]=timing.get("shared_provider_queue_wait_seconds",0)+admitted["wait_seconds"]
@@ -511,10 +666,16 @@ class Admission:
             http_status=int(match[1]) if match else None
             match=re.fullmatch(r'provider_rpc_(-?\d+)',boundary)
             rpc_code=int(match[1]) if match else None
-            raise BoundaryError(boundary) from None
+            from .provider import error_with_context
+            raise error_with_context(exc, boundary) from None
         finally:
             if self.offline_profile is not None:self.complete(admitted['resource_reservation'])
-            if timing is not None:timing["provider_transport_seconds"]=timing.get("provider_transport_seconds",0)+self.clock()-started
+            if timing is not None:
+                transport_started = attempt.get('transport_dispatch_monotonic', started)
+                elapsed = self.clock()-transport_started
+                if public and not dispatch_context['dispatched']:elapsed=0
+                timing["provider_transport_seconds"]=timing.get("provider_transport_seconds",0)+elapsed
+            _transport_dispatch.reset(dispatch_token)
             _active.reset(token)
             row=dict(lane=self.lane,endpoint_fingerprint=self.endpoint,session=self.session,
                      category=attempt['category'],response_bytes=attempt.get('response_bytes',0),
@@ -523,8 +684,13 @@ class Admission:
                      boundary=boundary,retry_count=retry_count,
                      retry_attempt=retry_count,physical_requests=attempt["physical_requests"],batch=batch,
                      latency_seconds=self.clock()-started,**admitted)
-            db=self.connect()
+            for key in ('http_error_context','transport_dispatch_monotonic',
+                        'transport_complete_monotonic','transport_inflight_at_dispatch',
+                        'transport_inflight_scope'):
+                if key in attempt:row[key]=attempt[key]
+            db=None
             try:
+                db=self.connect()
                 db.execute('BEGIN IMMEDIATE')
                 if http_status==429 or rpc_code==429:
                     db.execute('UPDATE limits SET cooldown=MAX(cooldown,?) WHERE endpoint=?',(self.clock()+8,self.endpoint))
@@ -534,7 +700,23 @@ class Admission:
                 from meme_machine.runtime.storage import audit_ring
                 audit_ring(db,'transports','no_transport_delete')
                 db.execute('COMMIT')
-            finally:db.close()
+            except BaseException as accounting_error:
+                _retain_transport_failure(accounting_error, boundary, attempt)
+                if db is not None:
+                    try:db.close()
+                    except BaseException as cleanup_error:
+                        # Preserve the first accounting failure too; a close
+                        # failure is secondary and must not replace its identity.
+                        try:
+                            accounting_error.add_note('provider_transport_ledger_close_failed:' +
+                                                      type(cleanup_error).__name__)
+                        except BaseException:pass
+                raise
+            else:
+                try:db.close()
+                except BaseException as accounting_error:
+                    _retain_transport_failure(accounting_error, boundary, attempt)
+                    raise
 
 
 def configured(endpoint, mandatory=False):

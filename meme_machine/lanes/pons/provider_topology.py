@@ -128,6 +128,27 @@ class ProviderPacer:
         self.sleep_seconds = 0.0
         self.backpressure_events = 0
         self.recovery_events = 0
+        self.shared_public_admission = None
+
+    def bind_public_admission(self, admission):
+        """Keep adaptive public backpressure with the existing endpoint owner.
+
+        A new client adopts the retained rate rather than resetting a slower
+        peer's rate. Only explicit recovery can reduce the retained interval.
+        """
+        interval = admission.public_interval(self.minimum_interval_seconds)
+        with self._lock:
+            self.shared_public_admission = admission
+            self.minimum_interval_seconds = interval
+            self.requests_per_second = 1.0 / interval
+
+    def current_requests_per_second(self):
+        if self.shared_public_admission is not None:
+            interval = self.shared_public_admission.public_interval()
+            with self._lock:
+                self.minimum_interval_seconds = interval
+                self.requests_per_second = 1.0 / interval
+        return self.requests_per_second
 
     def slow_to(self, requests_per_second):
         """Apply run-time provider backpressure without ever increasing rate."""
@@ -135,6 +156,13 @@ class ProviderPacer:
         if not 0.2 <= rps <= 25.0:
             raise BoundaryError("invalid_provider_rps")
         with self._lock:
+            if self.shared_public_admission is not None:
+                interval, changed = self.shared_public_admission.public_rate_change(
+                    1.0 / rps, recover=False)
+                self.minimum_interval_seconds = interval
+                self.requests_per_second = 1.0 / interval
+                self.backpressure_events += int(changed)
+                return changed
             if rps >= self.requests_per_second:
                 return False
             self.requests_per_second=rps
@@ -150,6 +178,14 @@ class ProviderPacer:
         if not 0.2 <= rps <= 25.0:
             raise BoundaryError("invalid_provider_rps")
         with self._lock:
+            if self.shared_public_admission is not None:
+                interval, changed = self.shared_public_admission.public_rate_change(
+                    1.0 / rps, recover=True,
+                    ceiling_interval=1.0 / self.maximum_requests_per_second)
+                self.minimum_interval_seconds = interval
+                self.requests_per_second = 1.0 / interval
+                self.recovery_events += int(changed)
+                return changed
             if rps <= self.requests_per_second:
                 return False
             self.requests_per_second=rps
@@ -172,6 +208,7 @@ class ProviderPacer:
             return wait
 
     def telemetry(self):
+        self.current_requests_per_second()
         return dict(
             requests_per_second=self.requests_per_second,
             minimum_interval_seconds=self.minimum_interval_seconds,
@@ -258,6 +295,8 @@ class PacedRpc(Rpc):
                     self.shared_quote_resources.update(validated=True,provider_fingerprint=self.provider_fingerprint)
             except (OSError,ValueError,KeyError,TypeError,AttributeError):pass
         self.pacer = pacer or ProviderPacer(requests_per_second)
+        if self.provider_kind == 'robinhood_public' and self.shared_admission is not None:
+            self.pacer.bind_public_admission(self.shared_admission)
         self._injected_transport = transport
         if transport is None:
             super().__init__(endpoint, transport=None, **kwargs)
@@ -273,9 +312,13 @@ class PacedRpc(Rpc):
     def _http(self, method, params):
         # Canonical starts already have one durable, deadline/priority-aware
         # account governor. Waiting on a second role clock before enqueueing
-        # hides exits from that queue and charges the deadline twice. Public
-        # observation still uses its own adaptive pacer.
-        paced=0 if self.canonical_authority and self.shared_admission is not None else self.pacer.pace()
+        # hides exits from that queue and charges the deadline twice.
+        # Shared admission paces public starts at their current adaptive rate,
+        # after cooldown and serialization. A pre-queue role reservation can
+        # expire while admission waits and release consecutive starts in a burst.
+        shared_paced = self.shared_admission is not None and (
+            self.canonical_authority or self.provider_kind == 'robinhood_public')
+        paced=0 if shared_paced else self.pacer.pace()
         timing=getattr(self,"evidence_timing",None)
         if timing is not None:timing["local_pacer_wait_seconds"]=timing.get("local_pacer_wait_seconds",0)+paced
         if self.shared_admission is not None:
@@ -283,11 +326,14 @@ class PacedRpc(Rpc):
             return self.shared_admission.invoke(
                 lambda: parent._http(method,params),[method],
                 getattr(self.admission_scope,"value","connectivity"),getattr(self,"retry_attempt",0),
-                deadline=getattr(self,"evidence_deadline",None),timing=timing,role=self.role)
+                deadline=getattr(self,"evidence_deadline",None),timing=timing,role=self.role,
+                public=self.provider_kind == 'robinhood_public')
         return super()._http(method, params)
 
     def _http_batch(self, calls):
-        paced=0 if self.canonical_authority and self.shared_admission is not None else self.pacer.pace()
+        shared_paced = self.shared_admission is not None and (
+            self.canonical_authority or self.provider_kind == 'robinhood_public')
+        paced=0 if shared_paced else self.pacer.pace()
         timing=getattr(self,"evidence_timing",None)
         if timing is not None:timing["local_pacer_wait_seconds"]=timing.get("local_pacer_wait_seconds",0)+paced
         if self.shared_admission is not None:
@@ -295,7 +341,8 @@ class PacedRpc(Rpc):
             return self.shared_admission.invoke(
                 lambda: parent._http_batch(calls),[x[0] for x in calls],
                 getattr(self.admission_scope,"value","connectivity"),getattr(self,"retry_attempt",0),
-                deadline=getattr(self,"evidence_deadline",None),timing=timing,batch=True,role=self.role)
+                deadline=getattr(self,"evidence_deadline",None),timing=timing,batch=True,role=self.role,
+                public=self.provider_kind == 'robinhood_public')
         return super()._http_batch(calls)
 
     def _record_demand(self, methods):
@@ -492,12 +539,12 @@ class ObservationFallbackRpc(PacedRpc):
         if self.public_log_success_streak < 20:
             return
         self.public_log_success_streak = 0
-        current=float(self.pacer.requests_per_second)
+        current=float(self.pacer.current_requests_per_second())
         self.pacer.recover_to(min(PUBLIC_DISCOVERY_RPS,current+0.1))
 
     def _public_log_cooldown(self):
         self.public_log_success_streak = 0
-        current=float(self.pacer.requests_per_second)
+        current=float(self.pacer.current_requests_per_second())
         self.pacer.slow_to(max(1.0,current*0.75))
         delay=getattr(self,"last_retry_after_seconds",None)
         if delay is None or not 0.0 <= float(delay) <= 1.0:
@@ -524,7 +571,9 @@ class ObservationFallbackRpc(PacedRpc):
                 self.public_log_429s += 1
                 if self._public_log_cooldown():
                     try:
-                        result=super().call(method,params,scope=scope)
+                        from .provider import http_retry_context
+                        with http_retry_context('public_same_endpoint_retry', exc):
+                            result=super().call(method,params,scope=scope)
                         self.public_log_retry_successes += 1
                         self._public_log_success()
                         return result
@@ -541,7 +590,9 @@ class ObservationFallbackRpc(PacedRpc):
             if exact_log:
                 self.alchemy_exact_log_recoveries += 1
             try:
-                return self.recovery_rpc.call(method, params, scope=scope)
+                from .provider import http_retry_context
+                with http_retry_context('canonical_exact_fallback', exc):
+                    return self.recovery_rpc.call(method, params, scope=scope)
             except BoundaryError:
                 self.recovery_failures += 1
                 if exact_log:
@@ -559,7 +610,9 @@ class ObservationFallbackRpc(PacedRpc):
                 raise
             self.recovery_requests += 1
             try:
-                return self.recovery_rpc.batch(calls, scope=scope)
+                from .provider import http_retry_context
+                with http_retry_context('canonical_exact_fallback', exc):
+                    return self.recovery_rpc.batch(calls, scope=scope)
             except BoundaryError:
                 self.recovery_failures += 1
                 raise
