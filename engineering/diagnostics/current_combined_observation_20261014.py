@@ -10,6 +10,7 @@ import argparse
 from contextlib import closing
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -34,6 +35,153 @@ FULL_SAMPLE_SECONDS = 5
 RESERVE_BYTES = 5 * 1024**3
 MISSING_EDGES = ('per_event_precommit_timing', 'proof_eligibility_reason', 'oldest_missing_join_component',
                  'pons_request_ancestry', 'sql_wait_actor')
+UNAVAILABLE = 'UNAVAILABLE'
+COUNTER_BYTES = 64 * 1024
+COHORT_SIZE = 32
+NATIVE_OPERATIONS = frozenset('pump.' + name for name in (
+    'candidate_history_open', 'confirmation_restore', 'accounting_genesis_read', 'accounting_restore',
+    'terminal_recovery', 'pipeline_open', 'initial_report', 'runtime_evidence_open', 'evidence_broker_open',
+    'sessions_open', 'survivor_worker_open', 'survivor_recovery_submit', 'survivor_recovery_wait',
+    'current_runtime_restore', 'observed_candidates_restore', 'observed_candidate_events'))
+
+
+def native_lifecycle(lanes):
+    """Essential native startup/cancellation facts before descriptive clipping."""
+    def operation(row):
+        if not isinstance(row, dict) or row.get('operation') not in NATIVE_OPERATIONS:
+            return UNAVAILABLE
+        result = {key: row.get(key) if finite_number(row.get(key)) else UNAVAILABLE for key in
+                  ('at', 'monotonic', 'pid', 'native_thread_id', 'completed_at', 'elapsed_seconds')}
+        result.update(operation=row['operation'], state=row.get('state') if row.get('state') in
+                      ('ACTIVE', 'COMPLETE', 'ERROR', 'CANCELLED') else UNAVAILABLE)
+        error = row.get('error_type')
+        if isinstance(error, str) and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,79}', error):
+            result['error_type'] = error
+        return result
+    result = {}
+    for name in ('pump', 'pons'):
+        lane = lanes.get(name, {})
+        lane = lane if isinstance(lane, dict) else {}
+        signal_row = lane.get('cancellation_signal')
+        signal_facts = {key: signal_row.get(key) if finite_number(signal_row.get(key)) else UNAVAILABLE
+                        for key in ('signal', 'at', 'monotonic', 'pid', 'native_thread_id')
+                        } if isinstance(signal_row, dict) else UNAVAILABLE
+        recent = lane.get('native_recent_operations')
+        result[name] = dict(phase=numeric(lane.get('phase')) or UNAVAILABLE,
+            reconciled=lane['reconciled'] if type(lane.get('reconciled')) is bool else 'UNKNOWN',
+            native_operation=operation(lane.get('native_operation')),
+            native_recent_operations=[operation(row) for row in recent[:8]] if isinstance(recent, list) else UNAVAILABLE,
+            cancellation_signal=signal_facts)
+    return result
+
+
+def final_native_health(root, expected_pid, origin):
+    """Bounded final projection, not a graceful-drain or reconciliation verdict."""
+    if time.monotonic() >= origin + 1865 or expected_pid is None:
+        return dict(available=False, reason='FINAL_HEALTH_DEADLINE_OR_PID_UNAVAILABLE')
+    try:
+        health = read_json(Path(root) / 'health.json')
+        if health.get('pid') != expected_pid:
+            return dict(available=False, reason='FINAL_HEALTH_SUPERVISOR_PID_MISMATCH')
+        shutdown = health.get('native_shutdown')
+        rows = []
+        if isinstance(shutdown, list):
+            for row in shutdown[:48]:
+                if not isinstance(row, dict) or row.get('operation') not in (
+                    'signal_requested', 'signal_sent', 'wait_started', 'wait_timeout', 'wait_completed', 'already_exited'):
+                    continue
+                facts = {key: row.get(key) if finite_number(row.get(key)) else UNAVAILABLE for key in
+                    ('at', 'monotonic', 'caller_pid', 'caller_native_thread_id', 'target_pid', 'signal',
+                     'timeout_seconds', 'exit_code')}
+                facts.update(operation=row['operation'], lane=row.get('lane') if row.get('lane') in ('pump','pons') else UNAVAILABLE)
+                run = row.get('run_id')
+                facts['run_id'] = run if isinstance(run, str) and re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}', run) else UNAVAILABLE
+                rows.append(facts)
+        return dict(available=True, supervisor_pid=expected_pid,
+            health_at=health.get('at') if isinstance(health.get('at'), str) and re.fullmatch(r'[0-9T:.+Z-]{1,40}', health['at']) else UNAVAILABLE,
+            native_lifecycle=native_lifecycle(health.get('lanes', {})),
+            native_shutdown=rows if isinstance(shutdown, list) else UNAVAILABLE,
+            native_shutdown_truncated=isinstance(shutdown, list) and len(shutdown) > 48,
+            scope='FINAL_PROJECTION_NOT_PROOF_OF_DRAIN_OR_COMPLETED_RECONCILIATION')
+    except (OSError, ValueError, TypeError, AttributeError):
+        return dict(available=False, reason='FINAL_NATIVE_HEALTH_UNAVAILABLE')
+
+
+def finite_number(value):
+    return type(value) is int or type(value) is float and math.isfinite(value)
+
+
+def required_counters(health):
+    """Select fixed diagnostic schemas before the descriptive 128-key clip.
+
+    This is not an arbitrary dictionary copier. Unrecognized keys and all text
+    values are excluded; overflow makes the section unavailable, never complete.
+    Missing counters are not zero and collection clocks are supplied by caller.
+    """
+    ipc = health.get('ipc', {})
+    storage = health.get('storage_maintenance', {})
+    if not isinstance(ipc, dict):
+        ipc = {}
+    if not isinstance(storage, dict):
+        storage = {}
+    stages = ('source_commit', 'candidate_development', 'archive_plan', 'archive_commit_plan',
+              'retention', 'maintenance_health', 'health_ipc', 'health_scheduler',
+              'checkpoint_prepare', 'checkpoint_finish', 'maintenance_decision',
+              'history_dispatch', 'history_apply', 'candidate_delivery_capture', 'candidate_delivery_ack')
+    components = ('control', 'candidate', 'scout', 'history_publication', 'delivery_accounting')
+    stages_re = '|'.join(stages)
+    components_re = '|'.join(components)
+    aggregate_pattern = re.compile(
+        r'(?:owner\.stage\.(?:' + stages_re + r')(?:\.component\.(?:' + components_re + r'))?\.'
+        r'(?:calls|(?:queue|execution|execution_cpu)_(?:total|peak)_microseconds)|'
+        r'owner\.priority[0-6]\.(?:queue|execution)_(?:total|peak)_microseconds|'
+        r'checkpoint\.(?:calls|total_microseconds|peak_microseconds|busy|bulk_incomplete|tail_deferred|'
+        r'boundary_calls|boundary_total_microseconds|boundary_peak_microseconds|boundary_reclaimed|'
+        r'incomplete|reclaimed|yielded))')
+    aggregate = {key: value for key, value in ipc.items()
+                 if isinstance(key, str) and aggregate_pattern.fullmatch(key) and finite_number(value)}
+    pipeline_pattern = re.compile(
+        r'(?:(?:joined_frame|economic_prepared|evidence_timing|publication_timing|history_delivery_timing|'
+        r'decode_timing):(?:shared|rolling|candidate)|native_frame:'
+        r'(?:shared|pump|pumpswap|discovery|replay|candidate|rolling):'
+        r'(?:slot|block_meta|transaction_status|transaction|account|ping|pong|unknown))')
+    metric_pattern = re.compile(
+        r'(?:calls|records|bytes|latest_slot|latest_durable_wall|latest_joined_wall|latest_received_wall|'
+        r'latest_provider_created_wall|unmeasured_calls|unmeasured_bytes_frames|'
+        r'(?:decode|decode_cpu|cpu_seconds|transfer_and_wait_seconds|wall_seconds|owner_queue|execution)'
+        r'_(?:total|peak)_microseconds)')
+    pipeline = {}
+    source_pipeline = ipc.get('pipeline', {})
+    if isinstance(source_pipeline, dict):
+        for key, values in source_pipeline.items():
+            if not isinstance(key, str) or not pipeline_pattern.fullmatch(key) or not isinstance(values, dict):
+                continue
+            pipeline[key] = {name: value for name, value in values.items()
+                             if isinstance(name, str) and metric_pattern.fullmatch(name) and finite_number(value)}
+    transaction_pattern = re.compile(r'(?:begin|commit)\.(?:calls|(?:wall|cpu)_(?:total|peak)_microseconds)')
+    transactions = storage.get('owner_sql_transactions', {})
+    transactions = {key: value for key, value in transactions.items()
+                    if isinstance(key, str) and transaction_pattern.fullmatch(key) and finite_number(value)
+                    } if isinstance(transactions, dict) else {}
+    storage_pattern = re.compile(r'(?:source_commit|archive_plan|archive_commit|retention|repair_apply)\.'
+                                 r'(?:calls|failed|yielded|total_microseconds|peak_microseconds)')
+    storage_stages = {key: value for key, value in storage.items()
+                      if isinstance(key, str) and storage_pattern.fullmatch(key) and finite_number(value)}
+    owner = health.get('owner_scheduler', {})
+    owner_pattern = re.compile(r'(?:queued|queue_peak|rejected|admission_waited|aged_selections|'
+        r'nonurgent_fifo_selections|background_yields|checkpoint_handoffs|checkpoint_handoff_(?:total|peak)_us|'
+        r'priority[0-6]\.(?:completed|(?:queue|execution)_(?:total|peak)_us))')
+    owner_counters = {key: value for key, value in owner.items()
+        if isinstance(key, str) and owner_pattern.fullmatch(key) and finite_number(value)
+        } if isinstance(owner, dict) else {}
+    result = dict(ipc_pipeline=pipeline or UNAVAILABLE, ipc_aggregate=aggregate or UNAVAILABLE,
+                  owner_sql_transactions=transactions or UNAVAILABLE,
+                  owner_scheduler=owner_counters or UNAVAILABLE,
+                  storage_stages=storage_stages or UNAVAILABLE,
+                  scope='EXPLICIT_FIXED_COUNTER_SCHEMAS_NOT_OVERLAPPING_STAGE_TOTAL')
+    if len(json.dumps(result, sort_keys=True, allow_nan=False).encode()) > COUNTER_BYTES:
+        return dict(available=False, reason='REQUIRED_COUNTER_BOUND')
+    return dict(available=True, **result)
 
 
 def validate_revision(expected, actual):
@@ -69,7 +217,8 @@ def selected_frontiers(providers):
 def write_metadata(output, name, value):
     body_bytes = len(json.dumps(value, sort_keys=True, allow_nan=False).encode()) + 1
     other_bytes = sum((output / item).stat().st_size for item in
-        ('clock.json', 'result.json', 'supervisor-fatal.json') if item != name and (output / item).exists())
+        ('clock.json', 'result.json', 'supervisor-fatal.json', 'guard-failure.json')
+        if item != name and (output / item).exists())
     if other_bytes + body_bytes > TERMINAL_BYTES:
         raise ValueError('diagnostic_metadata_reserve')
     atomic_json(output / name, value)
@@ -192,7 +341,7 @@ def pipeline_sample(root, expected_pid):
             generation = health.get('owner_scheduler', {}).get('owner_admission', {}).get('generation')
             result.update(available=True, source_pid=expected_pid, generation=generation,
                           generation_state='CURRENT' if generation is not None else 'UNAVAILABLE',
-                          service_health=numeric(health))
+                          required_counters=required_counters(health), service_health=numeric(health))
             # Each sample is bounded independently of retained historical stock.
             result['pending_outbox_head'] = db.execute(
                 'SELECT id,family,kind,created FROM candidate_history_outbox '
@@ -201,13 +350,20 @@ def pipeline_sample(root, expected_pid):
             result['pending_outbox_depth'] = 'UNAVAILABLE_NO_POPULATION_SCAN'
             result['outbox_head_scope'] = 'INDEX_PREFIX_ALL_RETAINED_FAMILIES'
             try:
+                # Newest canonical heads prevent old unrelated retained activity
+                # from consuming the whole diagnostic cohort. This existing index
+                # bounds the read even when old canonical work is still pending.
                 result['pending_canonical_heads'] = [row for family in ('pump', 'pumpswap')
-                    for row in db.execute("SELECT id,family,kind,created FROM candidate_history_outbox "
+                    for row in db.execute("SELECT id,family,kind,created,"
+                        "body -> '$.record.identity',body -> '$.record.slot',"
+                        "body -> '$.record.observed_at',body -> '$.record.market_time',"
+                        "body -> '$.available',hash FROM candidate_history_outbox "
                         "INDEXED BY candidate_history_canonical_pending WHERE family=? "
                         "AND kind='canonical' AND consumed IS NULL "
-                        "ORDER BY json_extract(body,'$.record.slot') LIMIT 16", (family,))]
+                        "ORDER BY json_extract(body,'$.record.slot') DESC LIMIT 16", (family,))]
             except sqlite3.Error:
-                result['pending_canonical_heads'] = []
+                result['pending_canonical_heads'] = UNAVAILABLE
+            result['canonical_heads_scope'] = 'NEWEST_PENDING_SLOT_INDEX_PREFIX_PER_PROGRAM_NOT_POPULATION'
             result['history_deadline_heads'] = {status: db.execute(
                 'SELECT id,deadline,created FROM rolling_preparation_jobs '
                 'INDEXED BY rolling_preparation_expiry WHERE status=? '
@@ -243,17 +399,58 @@ def pipeline_sample(root, expected_pid):
 
 
 class ReceiptCohort:
-    """Track at most 32 original outbox identities through consumer commit/ACK."""
+    """Keep pending canonical identities; fill free slots with current work.
+
+    The sampled process generation is a capture fence, not invented per-event
+    provenance. Original availability/market times keep replay stock distinct.
+    Cross-database reads never claim an atomic consumer/owner snapshot.
+    """
     def __init__(self, origin_wall=0):
         self.identities = []
         self.origin_wall = origin_wall
+        self.generation = None
+        self.references = {}
+        self.source_hashes = {}
 
     def sample(self, root, pipeline):
-        if not self.identities and pipeline.get('available'):
-            heads = pipeline.get('pending_canonical_heads') or pipeline.get('pending_outbox_head', [])
-            self.identities = [row[0] for row in heads if row[1] in ('pump', 'pumpswap')][:32]
+        fence = (pipeline.get('source_pid'), pipeline.get('generation'), pipeline.get('source_session'))
+        if not pipeline.get('available') or any(value is None for value in fence):
+            return dict(available=False, reason='CURRENT_SOURCE_PROVENANCE_UNAVAILABLE',
+                        retained_pending_identities=list(self.identities))
+        if self.generation is not None and self.generation != fence:
+            return dict(available=False, reason='SOURCE_GENERATION_INVALIDATED',
+                        retained_pending_identities=list(self.identities))
+        self.generation = fence
+        heads = pipeline.get('pending_canonical_heads')
+        if isinstance(heads, list):
+            safe_heads = [row for row in heads if isinstance(row, (list, tuple)) and len(row) >= 10
+                          and isinstance(row[0], str) and finite_number(row[3])]
+            for row in sorted(safe_heads, key=lambda row: (row[3], row[0])):
+                # No fallback to scout/activity or old rows that merely remain
+                # pending. Market-time replay classification is independent.
+                if (len(self.identities) >= COHORT_SIZE or row[0] in self.identities or
+                        row[1] not in ('pump', 'pumpswap') or row[2] != 'canonical' or
+                        row[3] < self.origin_wall):
+                    continue
+                try:
+                    if any(isinstance(value, str) and len(value) > 4096 for value in row[4:9]):
+                        return dict(available=False, reason='CANONICAL_HEAD_SCALAR_BOUND',
+                                    retained_pending_identities=list(self.identities))
+                    references = [None if value is None else json.loads(value) for value in row[4:9]]
+                except (ValueError, TypeError):
+                    return dict(available=False, reason='CANONICAL_HEAD_SCALARS_UNAVAILABLE',
+                                retained_pending_identities=list(self.identities))
+                if not isinstance(references[0], str) or type(references[1]) is not int:
+                    continue
+                if not isinstance(row[9], str) or not re.fullmatch(r'[0-9a-f]{64}', row[9]):
+                    return dict(available=False, reason='CANONICAL_SOURCE_HASH_UNAVAILABLE',
+                                retained_pending_identities=list(self.identities))
+                self.identities.append(row[0])
+                self.references[row[0]] = references
+                self.source_hashes[row[0]] = row[9]
         if not self.identities:
-            return dict(available=False, reason='NO_PENDING_COHORT_CAPTURED')
+            return dict(available=False, reason='NO_CURRENT_CANONICAL_COHORT_CAPTURED',
+                        sampling_scope=pipeline.get('canonical_heads_scope', UNAVAILABLE))
         started = time.monotonic(); rows = []
         try:
             paths = [Path(root) / 'shared' / name for name in
@@ -266,42 +463,92 @@ class ReceiptCohort:
                     db.execute('PRAGMA query_only=ON')
                     db.set_progress_handler(lambda: int(time.monotonic() - started >= .25), 1000)
                     db.execute('BEGIN')
+                actual = dict(source.execute("SELECT key,value FROM service_health WHERE key IN ('pid','owner_scheduler')"))
+                actual_pid = json.loads(actual.get('pid', 'null'))
+                actual_generation = json.loads(actual.get('owner_scheduler', '{}')).get('owner_admission', {}).get('generation')
+                actual_session = source.execute('SELECT session FROM prewarm_startup WHERE id=1').fetchone()
+                if (actual_pid, actual_generation, None if actual_session is None else actual_session[0]) != self.generation:
+                    return dict(available=False, reason='SOURCE_GENERATION_CHANGED_DURING_CAPTURE',
+                                retained_pending_identities=list(self.identities))
                 for identity in self.identities:
                     row = source.execute("SELECT family,address,kind,created,consumed,hash,"
                         "body -> '$.record.identity',body -> '$.record.slot',body -> '$.available',"
-                        "body -> '$.source_hash' FROM candidate_history_outbox WHERE id=?",
+                        "body -> '$.source_hash',body -> '$.record.market_time' "
+                        "FROM candidate_history_outbox WHERE id=?",
                         (identity,)).fetchone()
                     if row is None:
                         rows.append(dict(outbox_identity=identity, state='OUTBOX_UNAVAILABLE')); continue
-                    family,address,kind,created,consumed,checksum,record,slot,available,original_hash = row
+                    family,address,kind,created,consumed,checksum,record,slot,available,original_hash,market = row
+                    record_id = None if record is None else json.loads(record)
+                    record_slot = None if slot is None else json.loads(slot)
+                    original_available = None if available is None else json.loads(available)
+                    observed_market = None if market is None else json.loads(market)
+                    expected_hash = json.loads(original_hash) if original_hash is not None else checksum
+                    captured_hash = self.source_hashes.get(identity)
+                    if captured_hash is not None and expected_hash != captured_hash:
+                        rows.append(dict(outbox_identity=identity, state='SOURCE_CONTENT_CHANGED'))
+                        continue
+                    captured = self.references.get(identity)
+                    if captured is not None:
+                        # ACK compaction drops market detail; preserve the exact
+                        # original scalar captured before compaction.
+                        if (record_id, record_slot, original_available) != (captured[0], captured[1], captured[4]):
+                            rows.append(dict(outbox_identity=identity, state='SOURCE_CONTENT_CHANGED'))
+                            continue
+                        observed_market = captured[3]
                     # ``at`` is the original source receipt time in the existing
                     # schema, not an observed consumer COMMIT completion time.
                     receipt = consumer.execute('SELECT at,body,hash FROM source_receipts WHERE id=?',
                                                (identity,)).fetchone()
-                    valid = False
+                    valid = False; ack_exact = False
                     if receipt is not None:
                         if len(receipt[1].encode()) > 4096:
                             raise ValueError('consumer_receipt_bound')
                         facts = json.loads(receipt[1])
-                        expected_hash = json.loads(original_hash) if original_hash is not None else checksum
                         valid = (hashlib.sha256(receipt[1].encode()).hexdigest() == receipt[2] and
-                            facts.get('source_hash') == expected_hash and
-                            facts.get('scope') == 'candidate:' + family + ':' + address and
-                            facts.get('canonical_identity') == (None if record is None else json.loads(record)))
+                            facts == dict(source_hash=expected_hash, scope='candidate:' + family + ':' + address,
+                                          canonical_identity=record_id) and kind == 'canonical' and
+                            isinstance(record_id, str) and type(record_slot) is int and finite_number(original_available))
+                        if valid and consumed is not None and original_hash is not None:
+                            from meme_machine.solana_evidence_plane import canonical
+                            compact = canonical(dict(source_hash=expected_hash,
+                                record=dict(identity=record_id, slot=record_slot), available=original_available))
+                            ack_exact = hashlib.sha256(compact.encode()).hexdigest() == checksum
                     state = ('RECEIPT_AUTHENTICATION_UNAVAILABLE_OR_SKEW' if receipt is not None and not valid else
-                             'ACK_MARKER_OBSERVED' if consumed is not None and valid else
+                             'EXACT_ACK_CONTENT_UNAVAILABLE_OR_SKEW' if consumed is not None and not ack_exact else
+                             'ACK_MARKER_OBSERVED' if ack_exact else
                              'CONSUMER_RECEIPT_OBSERVED_ACK_PENDING' if valid else 'DELIVERY_PENDING')
+                    arrival_class = ('PREEXISTING_OR_REPLAY' if created < self.origin_wall or
+                        finite_number(original_available) and original_available < self.origin_wall else
+                        'RETAINED_OR_REPLAYED_MARKET_AVAILABLE_DURING_ATTEMPT' if
+                        finite_number(observed_market) and observed_market < self.origin_wall else
+                        'CURRENT_MARKET_EVIDENCE_PHYSICAL_ARRIVAL_UNVERIFIED' if
+                        finite_number(observed_market) and finite_number(original_available) else
+                        'CURRENT_GENERATION_CAPTURE_MARKET_ARRIVAL_UNAVAILABLE')
                     rows.append(dict(outbox_identity=identity, family=family, kind=kind,
-                        created=created, canonical_identity=None if record is None else json.loads(record),
-                        slot=None if slot is None else json.loads(slot),
-                        original_available=None if available is None else json.loads(available),
+                        created=created, canonical_identity=record_id, slot=record_slot,
+                        original_available=original_available if original_available is not None else UNAVAILABLE,
+                        original_market_time=observed_market if observed_market is not None else UNAVAILABLE,
+                        captured_source_pid=self.generation[0], captured_generation=self.generation[1],
+                        captured_source_session=self.generation[2],
                         consumer_receipt_authenticated=valid, consumer_commit_receipt_present=receipt is not None,
                         consumer_receipt_at=None if receipt is None else receipt[0],
-                        exact_ack_consumed_at=consumed, state=state,
-                        arrival_class='PREEXISTING_OR_REPLAY' if created < self.origin_wall else
-                            'AVAILABLE_DURING_ATTEMPT_PHYSICAL_ARRIVAL_UNVERIFIED'))
+                        exact_ack_consumed_at=consumed if ack_exact else UNAVAILABLE,
+                        owner_consumed_marker=consumed if consumed is not None else UNAVAILABLE,
+                        state=state, arrival_class=arrival_class))
+            completed = {row['outbox_identity'] for row in rows if row['state'] == 'ACK_MARKER_OBSERVED'}
+            # Only authenticated exact completion frees diagnostic slots. A slow
+            # or missing pending item remains tracked while other slots fill.
+            self.identities = [identity for identity in self.identities if identity not in completed]
+            for identity in completed:
+                self.references.pop(identity, None)
+                self.source_hashes.pop(identity, None)
             return dict(available=True, source_pid=pipeline.get('source_pid'),
                         generation=pipeline.get('generation'), identities=rows,
+                        source_generation_scope='CAPTURE_FENCE_NOT_PER_EVENT_GENERATION_PROOF',
+                        sampling_scope=pipeline.get('canonical_heads_scope', UNAVAILABLE),
+                        progress_scope='OUTBOX_OBLIGATIONS_NOT_DISTINCT_ECONOMIC_EVENTS_OR_SLOTS',
+                        cohort_limit=COHORT_SIZE, retained_pending_count=len(self.identities),
                         snapshots='INDEPENDENT_READ_SNAPSHOTS_NO_ATOMIC_CROSS_DATABASE_CLAIM')
         except (OSError, sqlite3.Error, ValueError, TypeError) as error:
             return dict(available=False, reason=type(error).__name__)
@@ -411,6 +658,51 @@ def append_guard(path, sample):
     append_sample(path, sample)
 
 
+def provider_queue_guard(providers, output, record, *, now=None, wall=None):
+    """Persist only the triggering fixed facts; never replace or retry the stop.
+
+    The small record shares the existing metadata reserve, independently of
+    metrics and the source SQLite terminal channel. No DB probe, provider call,
+    sleep or retry occurs on this failure path.
+    """
+    now = time.monotonic() if now is None else now
+    wall = time.time() if wall is None else wall
+    for name in ('solana', 'robinhood'):
+        row = providers.get(name, {})
+        row = row if isinstance(row, dict) else {}
+        depth = row.get('queue_depth')
+        oldest = row.get('oldest_wait_seconds')
+        # Preserve the existing guard's exact limits and greater-than boundary.
+        if not (row.get('queue_depth', 0) > 64 or row.get('oldest_wait_seconds', 0) > 5):
+            continue
+        facts = dict(failure='provider_queue_limit', provider=name,
+            observed_at=wall, observed_at_monotonic=now,
+            provider_sampled_at=row.get('sampled_at') if finite_number(row.get('sampled_at')) else UNAVAILABLE,
+            queue_depth=depth if finite_number(depth) else UNAVAILABLE,
+            oldest_wait_seconds=oldest if finite_number(oldest) else UNAVAILABLE,
+            maximum_queue_depth=64, maximum_queue_wait_seconds=5,
+            crossed='DEPTH' if finite_number(depth) and depth > 64 else 'WAIT',
+            endpoint_identity=UNAVAILABLE, role=UNAVAILABLE,
+            cooldown_seconds=row.get('cooldown_seconds') if finite_number(row.get('cooldown_seconds')) else UNAVAILABLE,
+            adaptive_interval_seconds=row.get('adaptive_interval_seconds') if finite_number(row.get('adaptive_interval_seconds')) else UNAVAILABLE,
+            admission_state=row.get('state') if row.get('state') in ('CURRENT','UNAVAILABLE','STALE','FAIL_CLOSED') else UNAVAILABLE)
+        # Only fingerprints/known roles qualify, never URLs or arbitrary text.
+        endpoint = row.get('endpoint_identity')
+        if isinstance(endpoint, str) and re.fullmatch(r'[0-9a-f]{64}', endpoint):
+            facts['endpoint_identity'] = endpoint
+        if row.get('role') in ('discovery', 'position_monitor', 'conversion', 'historical', 'protective'):
+            facts['role'] = row['role']
+        record['triggering_guard'] = facts
+        try:
+            write_metadata(output, 'guard-failure.json', facts)
+            record['triggering_guard_recorded'] = True
+        except BaseException:
+            record['triggering_guard_recorded'] = False
+            # Fixed facts remain in the final reserved result even when the
+            # optional immediate record cannot be written. Original failure wins.
+        raise ValueError('provider_queue_limit:' + name)
+
+
 def economic(root):
     from meme_machine.operational.backup import state_identity
     identity = state_identity(root)
@@ -488,7 +780,7 @@ def observe_once(root, output, source_revision):
     prior = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
     for sig in prior:
         signal.signal(sig, lambda *_: stopped.__setitem__(0, True))
-    known = {}; covered = False; generation = None
+    known = {}; covered = False; generation = None; observed_supervisor_pid = None
     sampler = FiveSecondSampler()
     cohort = ReceiptCohort(time.time())
     coverage = RecorderCoverage()
@@ -508,6 +800,7 @@ def observe_once(root, output, source_revision):
                 if now - origin < 20:
                     time.sleep(min(1, origin + 1800 - now)); continue
                 record.update(stop_reason='SUPERVISOR_ENDED', failure=True); break
+            observed_supervisor_pid = main_pid
             try:
                 health = read_json(root / 'health.json')
             except (OSError, ValueError):
@@ -530,10 +823,7 @@ def observe_once(root, output, source_revision):
             free = {str(p): os.statvfs(p).f_bavail * os.statvfs(p).f_frsize for p in (Path('/'), root)}
             if min(free.values()) < RESERVE_BYTES:
                 raise ValueError('observation_disk_reserve')
-            for name in ('solana', 'robinhood'):
-                row = providers.get(name, {})
-                if row.get('queue_depth', 0) > 64 or row.get('oldest_wait_seconds', 0) > 5:
-                    raise ValueError('provider_queue_limit:' + name)
+            provider_queue_guard(providers, output, record)
             pipeline, full_sample_due = sampler.read(now, lambda: pipeline_sample(root, source_pid))
             if covered and not pipeline['available']:
                 raise ValueError('required_pipeline_coverage_lost')
@@ -563,6 +853,7 @@ def observe_once(root, output, source_revision):
                 pipeline_observed_available=pipeline['available'])
             if full_sample_due:
                 sample = dict(guard, sample_kind='full', lanes=numeric(lanes), providers=numeric(providers),
+                    native_lifecycle=native_lifecycle(lanes),
                     fixed_scope_frontiers=selected_frontiers(providers), pipeline=pipeline,
                     sqlite_coverage_scope='CANONICAL_PARENT_ONLY_CHILD_HEALTH_UNAVAILABLE')
                 sample['counters'] = counters(group, dict(pids, supervisor=main_pid))
@@ -578,6 +869,7 @@ def observe_once(root, output, source_revision):
     finally:
         record.update(drain(origin), original_readiness=window.original_readiness,
                       restored_at_monotonic=window.restored, elapsed_to_drain_seconds=time.monotonic() - origin)
+        record['final_native_health'] = final_native_health(root, observed_supervisor_pid, origin)
         if record['drained']:
             try:
                 record['economic_continuity'] = economic(root) == before
