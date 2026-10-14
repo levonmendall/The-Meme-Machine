@@ -806,6 +806,14 @@ class ServiceState:
         finally:self.writer.close()
 
 
+def source_join_snapshot(source_driver):
+    """Copy two existing samples without renewing their clocks or provenance."""
+    joins=getattr(source_driver,'join_state',{})
+    return {plane:dict(joins[plane],join=dict(joins[plane]['join']),
+        commit_queue=dict(joins[plane]['commit_queue']))
+        for plane in ('rolling','candidate') if plane in joins}
+
+
 async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
     """Model B startup, bounded socket handling and one canonical owner."""
     if source_driver is None:
@@ -890,6 +898,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
     clients=set();counts={}
     from .solana_owner_admission import OwnerAdmission,SourceState
     admission=OwnerAdmission(owner,clock=time.monotonic)
+    if source_driver is not None:source_driver.diagnostic_generation=lambda:admission.generation
     loop=asyncio.get_running_loop()
     owner.admission_notify=lambda:loop.call_soon_threadsafe(admission.recheck)
     # A prepared archive receipt is already durable outside SQLite. While its
@@ -951,6 +960,9 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
                     snapshot=dict(counts)
                     if source_driver is not None:
                         snapshot['pipeline']={k:dict(v) for k,v in getattr(source_driver,'pipeline_metrics',{}).items()}
+                        # Two bounded existing join samples; copy their original
+                        # clocks/generation instead of refreshing stale facts.
+                        snapshot['join_state']=source_join_snapshot(source_driver)
                     scheduler=owner.telemetry()
                     scheduler['owner_admission']=admission.telemetry()
                     await work(lambda state:state.publish_health(http,snapshot,scheduler),4,label='maintenance_health')

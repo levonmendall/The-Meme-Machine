@@ -6,6 +6,7 @@ independent native signature/index witnesses. Only selected Meteora candidates
 receive rich native bodies. A linked finality stream is acquired once for control.
 """
 import asyncio
+import os
 import base64
 import hashlib
 import json
@@ -473,6 +474,7 @@ class SelectiveSource:
         self.native_peak=0;self.native_revision=0;self.native_published=-1
         self.pending_diagnostics=[]
         self.join_observed={}
+        self.join_state={};self.diagnostic_generation=None
         self.pipeline_metrics={}
         self.rolling_publications=0
         self.control_bootstrap_tip=None;self.control_committed_slot=None
@@ -488,11 +490,33 @@ class SelectiveSource:
         if delivery:self.delivery_wakeup.notify()
         if delivery and urgent_delivery:self.delivery_urgent.notify()
 
-    def observe_join(self,plane,join,session):
+    def retain_join_state(self,plane,session,body,queue,*,state,monotonic):
+        # Reuse the existing join sample; no second pending-state walk, timer,
+        # DB observation or retained join/queue object. Candidate streams share
+        # one last-sampled slot, explicitly not a population aggregate.
+        if plane not in ('rolling','candidate'):return
+        previous=self.join_state.get(plane)
+        if state=='CLOSED' and previous is not None and previous['session']!=session:return
+        try:generation=self.diagnostic_generation() if callable(self.diagnostic_generation) else None
+        except Exception:generation=None
+        fields=('filtered_from_slot','completed','pending_slots','pending_bytes',
+            'early_log_count','early_log_bytes','early_log_min_slot','early_log_max_slot',
+            'oldest_slot','oldest_age','oldest_meta','oldest_finality','oldest_statuses',
+            'oldest_bodies','oldest_missing_logs','replay_prefix_bytes')
+        self.join_state[plane]=dict(plane=plane,session=session,source_pid=os.getpid(),
+            source_generation=generation,sampled_at=time.time(),sampled_at_monotonic=monotonic,
+            state=state,join={key:body.get(key) for key in fields},
+            commit_queue=dict(count=None if queue is None else queue.count,
+                              bytes=None if queue is None else queue.bytes),
+            scope='LAST_SAMPLED_SESSION_NOT_POPULATION_OWNER_HELD_BATCH_INCLUDED')
+
+    def observe_join(self,plane,join,session,queue=None):
         now=time.monotonic()
         if now-self.join_observed.get(plane,-5)>=5:
             self.join_observed[plane]=now
-            self.diagnostic('native_join_state',dict(plane=plane,session=session,**join.diagnostic()))
+            body=dict(plane=plane,session=session,**join.diagnostic())
+            self.retain_join_state(plane,session,body,queue,state='ACTIVE',monotonic=now)
+            self.diagnostic('native_join_state',body)
 
     def diagnostic(self,kind,body):
         # Reuse canonical acquisition observations, without bodies, new files
@@ -1588,7 +1612,7 @@ class SelectiveSource:
             try:
                 frame=join.feed(update,size,seen)
                 join_progress.set()
-                self.observe_join('rolling' if rolling else 'candidate',join,session)
+                self.observe_join('rolling' if rolling else 'candidate',join,session,candidate_queue)
                 await commit(frame)
             except EvidenceUnavailable as exc:
                 diagnostic=dict(reason=str(exc),addresses=len(addresses),pending_slots=len(join.pending),
@@ -1778,8 +1802,10 @@ class SelectiveSource:
             for task in done:task.result()
             await candidate_queue.join()
         finally:
-            self.diagnostic('native_join_closed',dict(plane='rolling' if rolling else 'candidate',
-                session=session,**join.diagnostic()))
+            plane='rolling' if rolling else 'candidate'
+            body=dict(plane=plane,session=session,**join.diagnostic())
+            self.retain_join_state(plane,session,body,candidate_queue,state='CLOSED',monotonic=time.monotonic())
+            self.diagnostic('native_join_closed',body)
             if waiter is not None:waiter.cancel()
             for task in tasks:task.cancel()
             await asyncio.gather(*tasks,*([waiter] if waiter is not None else []),return_exceptions=True)

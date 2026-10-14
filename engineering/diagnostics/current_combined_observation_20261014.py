@@ -111,7 +111,54 @@ def finite_number(value):
     return type(value) is int or type(value) is float and math.isfinite(value)
 
 
-def required_counters(health):
+def required_join_state(health, now_monotonic):
+    """Two already-computed samples, never a coverage/readiness assertion."""
+    ipc=health.get('ipc', {})
+    source=ipc.get('join_state', {}) if isinstance(ipc, dict) else {}
+    owner=health.get('owner_scheduler', {})
+    admission=owner.get('owner_admission', {}) if isinstance(owner, dict) else {}
+    generation=admission.get('generation') if isinstance(admission, dict) else None
+    result={}
+    fields=('filtered_from_slot','completed','pending_slots','pending_bytes',
+        'early_log_count','early_log_bytes','early_log_min_slot','early_log_max_slot',
+        'oldest_slot','oldest_age','oldest_finality','oldest_statuses','oldest_bodies',
+        'oldest_missing_logs','replay_prefix_bytes')
+    for plane in ('rolling','candidate'):
+        row=source.get(plane) if isinstance(source, dict) else None
+        if not isinstance(row, dict):
+            result[plane]=UNAVAILABLE;continue
+        numbers={key:row.get(key) if finite_number(row.get(key)) else UNAVAILABLE
+                 for key in ('source_pid','sampled_at','sampled_at_monotonic')}
+        session=row.get('session');captured=row.get('source_generation')
+        session=session if isinstance(session,str) and re.fullmatch(r'[0-9a-f]{32}',session) else UNAVAILABLE
+        captured=captured if isinstance(captured,str) and re.fullmatch(r'[0-9a-f]{32}',captured) else UNAVAILABLE
+        sampled=row.get('sampled_at_monotonic')
+        age=(now_monotonic-sampled if finite_number(now_monotonic) and finite_number(sampled)
+             and now_monotonic>=sampled else UNAVAILABLE)
+        state=row.get('state') if row.get('state') in ('ACTIVE','CLOSED') else UNAVAILABLE
+        if row.get('plane')!=plane:status='PLANE_MISMATCH'
+        elif type(row.get('source_pid')) is not int or row.get('source_pid')!=health.get('pid'):status='SOURCE_PID_MISMATCH'
+        elif captured==UNAVAILABLE or session==UNAVAILABLE:status='PROVENANCE_UNAVAILABLE'
+        elif captured!=generation:status='SOURCE_GENERATION_MISMATCH'
+        elif age==UNAVAILABLE:status='SAMPLE_TIME_UNAVAILABLE'
+        elif state=='CLOSED':status='CLOSED'
+        elif state!= 'ACTIVE':status='STATE_UNAVAILABLE'
+        elif age>FULL_SAMPLE_SECONDS:status='STALE'
+        else:status='SAMPLED_CURRENT_NOT_COVERAGE'
+        join=row.get('join', {});queue=row.get('commit_queue', {})
+        join=join if isinstance(join,dict) else {}
+        queue=queue if isinstance(queue,dict) else {}
+        facts={key:join.get(key) if finite_number(join.get(key)) else UNAVAILABLE for key in fields}
+        facts['oldest_meta']=join.get('oldest_meta') if type(join.get('oldest_meta')) is bool else UNAVAILABLE
+        result[plane]=dict(numbers,plane=plane,session=session,source_generation=captured,
+            sample_state=state,status=status,observation_age_seconds=age,join=facts,
+            commit_queue={key:queue.get(key) if type(queue.get(key)) is int and queue[key]>=0
+                          else UNAVAILABLE for key in ('count','bytes')},
+            scope='LAST_SAMPLED_SESSION_NOT_POPULATION_OWNER_HELD_BATCH_INCLUDED')
+    return result
+
+
+def required_counters(health, *, now_monotonic=None):
     """Select fixed diagnostic schemas before the descriptive 128-key clip.
 
     This is not an arbitrary dictionary copier. Unrecognized keys and all text
@@ -175,6 +222,8 @@ def required_counters(health):
         if isinstance(key, str) and owner_pattern.fullmatch(key) and finite_number(value)
         } if isinstance(owner, dict) else {}
     result = dict(ipc_pipeline=pipeline or UNAVAILABLE, ipc_aggregate=aggregate or UNAVAILABLE,
+                  native_join_state=required_join_state(health,
+                      time.monotonic() if now_monotonic is None else now_monotonic),
                   owner_sql_transactions=transactions or UNAVAILABLE,
                   owner_scheduler=owner_counters or UNAVAILABLE,
                   storage_stages=storage_stages or UNAVAILABLE,
@@ -341,7 +390,7 @@ def pipeline_sample(root, expected_pid):
             generation = health.get('owner_scheduler', {}).get('owner_admission', {}).get('generation')
             result.update(available=True, source_pid=expected_pid, generation=generation,
                           generation_state='CURRENT' if generation is not None else 'UNAVAILABLE',
-                          required_counters=required_counters(health), service_health=numeric(health))
+                          required_counters=required_counters(health,now_monotonic=started), service_health=numeric(health))
             # Each sample is bounded independently of retained historical stock.
             result['pending_outbox_head'] = db.execute(
                 'SELECT id,family,kind,created FROM candidate_history_outbox '

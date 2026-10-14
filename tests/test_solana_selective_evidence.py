@@ -496,6 +496,70 @@ class SourceIntegrationTests(SelectiveEvidenceTests):
         self.assertEqual(row['plane'],'rolling');self.assertEqual(row['filtered_from_slot'],300)
         self.assertEqual(self.writer.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
 
+    def test_process_local_join_sample_reuses_existing_walk_and_queue_counts(self):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock,patch
+        from meme_machine.solana_selective_source import SelectiveSource,PROGRAMS
+        from meme_machine.solana_evidence_service import source_join_snapshot
+        source=SelectiveSource(SimpleNamespace(credential='offline'),MagicMock(),token='offline')
+        source.diagnostic_generation=lambda:'a'*32
+        join=CandidateTransactionJoin({PROGRAMS['pump']:'program:pump'},set(),filtered_from_slot=300)
+        join.diagnostic=MagicMock(wraps=join.diagnostic)
+        queue=SimpleNamespace(count=3,bytes=1234)
+        before=self.writer.db.total_changes
+        with patch('meme_machine.solana_selective_source.time.monotonic',return_value=10),\
+             patch('meme_machine.solana_selective_source.time.time',return_value=100):
+            for _ in range(50):source.observe_join('rolling',join,'b'*32,queue)
+        join.diagnostic.assert_called_once()
+        self.assertEqual(len(source.pending_diagnostics),1)
+        sample=source.join_state['rolling']
+        self.assertEqual(sample['sampled_at'],100);self.assertEqual(sample['sampled_at_monotonic'],10)
+        self.assertEqual(sample['source_generation'],'a'*32);self.assertEqual(sample['session'],'b'*32)
+        self.assertEqual(sample['commit_queue'],dict(count=3,bytes=1234))
+        queue.count=1;queue.bytes=50
+        copy1=source_join_snapshot(source);copy2=source_join_snapshot(source)
+        self.assertEqual(copy1,copy2);self.assertEqual(copy1['rolling']['commit_queue'],dict(count=3,bytes=1234))
+        copy1['rolling']['join']['pending_slots']=999
+        self.assertEqual(source.join_state['rolling']['join']['pending_slots'],0)
+        self.assertEqual(self.writer.db.total_changes,before)
+
+    def test_join_close_retains_pending_counts_and_cannot_close_newer_session(self):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock,patch
+        from meme_machine.solana_selective_source import SelectiveSource,PROGRAMS
+        source=SelectiveSource(SimpleNamespace(credential='offline'),MagicMock(),token='offline')
+        source.diagnostic_generation=lambda:'a'*32
+        join=CandidateTransactionJoin({PROGRAMS['pump']:'program:pump'},set(),filtered_from_slot=300)
+        queue=SimpleNamespace(count=4,bytes=2000)
+        with patch('meme_machine.solana_selective_source.time.monotonic',return_value=10):
+            source.observe_join('rolling',join,'b'*32,queue)
+        old=dict(source.pending_diagnostics[-1][1])
+        with patch('meme_machine.solana_selective_source.time.monotonic',return_value=15):
+            source.observe_join('rolling',join,'c'*32,queue)
+        source.retain_join_state('rolling','b'*32,old,queue,state='CLOSED',monotonic=16)
+        self.assertEqual(source.join_state['rolling']['session'],'c'*32)
+        self.assertEqual(source.join_state['rolling']['state'],'ACTIVE')
+        body=source.pending_diagnostics[-1][1]
+        source.retain_join_state('rolling','c'*32,body,queue,state='CLOSED',monotonic=17)
+        self.assertEqual(source.join_state['rolling']['state'],'CLOSED')
+        self.assertEqual(source.join_state['rolling']['commit_queue'],dict(count=4,bytes=2000))
+
+    def test_join_samples_bound_planes_and_keep_original_generation(self):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock,patch
+        from meme_machine.solana_selective_source import SelectiveSource,PROGRAMS
+        source=SelectiveSource(SimpleNamespace(credential='offline'),MagicMock(),token='offline')
+        generation=['a'*32];source.diagnostic_generation=lambda:generation[0]
+        join=CandidateTransactionJoin({PROGRAMS['pump']:'program:pump'},set(),filtered_from_slot=300)
+        with patch('meme_machine.solana_selective_source.time.monotonic',return_value=10):
+            source.observe_join('rolling',join,'b'*32)
+            source.observe_join('candidate',join,'c'*32)
+            for i in range(10):source.retain_join_state(str(i),'d'*32,{},None,state='ACTIVE',monotonic=10)
+        generation[0]='e'*32
+        self.assertEqual(set(source.join_state),{'rolling','candidate'})
+        self.assertEqual(source.join_state['rolling']['source_generation'],'a'*32)
+        self.assertEqual(source.join_state['rolling']['commit_queue'],dict(count=None,bytes=None))
+
     def test_rolling_failures_back_off_without_reconnect_lifetime_exhaustion(self):
         import asyncio
         from types import SimpleNamespace

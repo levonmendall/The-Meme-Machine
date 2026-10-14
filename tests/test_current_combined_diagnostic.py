@@ -353,6 +353,72 @@ class DiagnosticCollectionTests(unittest.TestCase):
             self.assertEqual(diagnostic.required_counters({}),
                              {'available': False, 'reason': 'REQUIRED_COUNTER_BOUND'})
 
+    def join_sample(self):
+        return dict(plane='rolling',session='b'*32,source_pid=44,source_generation='a'*32,
+            sampled_at=100,sampled_at_monotonic=10,state='ACTIVE',
+            join=dict(completed=200,pending_slots=3,pending_bytes=1234,oldest_slot=201,
+                      oldest_age=2,oldest_meta=False,oldest_missing_logs=1),
+            commit_queue=dict(count=4,bytes=5678))
+
+    def test_existing_join_health_survives_full_sql_and_serialization_path(self):
+        from types import SimpleNamespace
+        from meme_machine.solana_evidence_service import source_join_snapshot
+        sample=self.join_sample()
+        sample['join']['secret_url']='https://secret.invalid/?apikey=never-copy'
+        source=SimpleNamespace(join_state={'rolling':sample})
+        ipc={f'unrelated_{i}':i for i in range(160)}
+        ipc['join_state']=source_join_snapshot(source)
+        with sqlite3.connect(self.path) as db:
+            db.execute("UPDATE service_health SET value=? WHERE key='ipc'",(json.dumps(ipc),))
+            db.execute("UPDATE service_health SET value=? WHERE key='owner_scheduler'",
+                (json.dumps({'owner_admission':{'generation':'a'*32}}),))
+        with patch.object(diagnostic.time,'monotonic',return_value=12):
+            result=diagnostic.pipeline_sample(self.root,44)
+        self.assertNotIn('join_state',result['service_health']['ipc'])
+        output=self.root/'join-metrics.jsonl';diagnostic.append_sample(output,result)
+        row=json.loads(output.read_text())['required_counters']['native_join_state']['rolling']
+        self.assertEqual(row['status'],'SAMPLED_CURRENT_NOT_COVERAGE')
+        self.assertEqual(row['sampled_at'],100);self.assertEqual(row['sampled_at_monotonic'],10)
+        self.assertEqual(row['observation_age_seconds'],2)
+        self.assertEqual(row['commit_queue'],dict(count=4,bytes=5678))
+        self.assertFalse(row['join']['oldest_meta']);self.assertEqual(row['join']['oldest_missing_logs'],1)
+        self.assertNotIn('secret.invalid',output.read_text())
+
+    def test_join_stale_closed_and_missing_samples_never_refresh_or_zero(self):
+        raw=self.join_sample()
+        health=dict(pid=44,ipc={'join_state':{'rolling':raw}},
+                    owner_scheduler={'owner_admission':{'generation':'a'*32}})
+        first=diagnostic.required_counters(health,now_monotonic=15)['native_join_state']
+        stale=diagnostic.required_counters(health,now_monotonic=16)['native_join_state']
+        self.assertEqual(first['rolling']['status'],'SAMPLED_CURRENT_NOT_COVERAGE')
+        self.assertEqual(stale['rolling']['status'],'STALE')
+        self.assertEqual(stale['rolling']['sampled_at_monotonic'],10)
+        self.assertEqual(stale['rolling']['observation_age_seconds'],6)
+        self.assertEqual(stale['candidate'],'UNAVAILABLE')
+        raw['state']='CLOSED';raw['commit_queue']['bytes']=None
+        closed=diagnostic.required_counters(health,now_monotonic=20)['native_join_state']['rolling']
+        self.assertEqual(closed['status'],'CLOSED');self.assertEqual(closed['commit_queue']['count'],4)
+        self.assertEqual(closed['commit_queue']['bytes'],'UNAVAILABLE')
+        self.assertEqual(closed['join']['oldest_finality'],'UNAVAILABLE')
+        self.assertEqual(closed['sampled_at'],100)
+
+    def test_join_context_fences_and_fixed_schema_remain_bounded(self):
+        raw=self.join_sample()
+        health=dict(pid=44,ipc={'join_state':{'rolling':raw}},
+                    owner_scheduler={'owner_admission':{'generation':'a'*32}})
+        for key,value,status in [('source_generation','c'*32,'SOURCE_GENERATION_MISMATCH'),
+            ('source_pid',45,'SOURCE_PID_MISMATCH'),('plane','candidate','PLANE_MISMATCH'),
+            ('session','untrusted://secret','PROVENANCE_UNAVAILABLE'),
+            ('sampled_at_monotonic',30,'SAMPLE_TIME_UNAVAILABLE')]:
+            with self.subTest(key=key):
+                sample=dict(raw,**{key:value})
+                health['ipc']['join_state']={'rolling':sample,**{str(i):sample for i in range(160)}}
+                rows=diagnostic.required_counters(health,now_monotonic=12)['native_join_state']
+                self.assertEqual(set(rows),{'rolling','candidate'})
+                self.assertEqual(rows['rolling']['status'],status)
+                self.assertEqual(rows['rolling']['commit_queue']['count'],4)
+                self.assertNotIn('untrusted://secret',json.dumps(rows))
+
     def consumer(self):
         path = self.root / 'shared/solana-candidate-history.sqlite'
         with sqlite3.connect(path) as db:
