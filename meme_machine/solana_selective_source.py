@@ -1320,7 +1320,7 @@ class SelectiveSource:
             async with self.acquisition_plan_lock:
                 if time.monotonic()<self.acquisition_idle_until:plan=None
                 else:
-                    plan=await self.work(request_development,4)
+                    plan=await self.work(request_development,4,label='candidate_development')
                     if not plan:self.acquisition_idle_until=time.monotonic()+.1
             if not plan:await asyncio.sleep(.1);continue
             job,config=plan

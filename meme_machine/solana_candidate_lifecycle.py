@@ -83,6 +83,11 @@ class CandidateLifecycle:
         self.db.execute('CREATE INDEX IF NOT EXISTS candidate_history_identity_pending ON candidate_history_outbox(family,address,consumed)')
         self.db.execute('''CREATE INDEX IF NOT EXISTS candidate_history_latest_promotion
             ON candidate_history_outbox(family,address,created) WHERE kind='promotion' ''')
+        # Development needs the original reactivation time in this exact
+        # epoch, not every retained canonical receipt for a popular identity.
+        self.db.execute('''CREATE INDEX IF NOT EXISTS candidate_history_reactivation_time
+            ON candidate_history_outbox(family,address,json_extract(body,'$.epoch'),json_extract(body,'$.seen'))
+            WHERE kind='reactivated' ''')
         # Program publication asks only about current canonical obligations.
         # Repeatedly scanning every consumed historical receipt delayed the
         # native feed; retain that history and index the exact pending subset.

@@ -33,6 +33,34 @@ class HistorySeparationTests(unittest.TestCase):
         self.h.prove(IntervalProof(scope,lo,hi,'alchemy_finalized_stream','a'*64,
             dict(finalized=True,complete=True,scope=scope,lower_slot=lo,upper_slot=hi,
                  lineage_hash=digest([scope,lo,hi])),self.now[0]))
+
+    def test_reactivation_time_index_preserves_exact_epoch_minimum_and_all_outbox_rows(self):
+        life=self.h.lifecycle
+        for i in range(64):
+            life.emit('pump','candidate','canonical',dict(record=dict(identity=str(i),slot=i)),at=NOW+i)
+        for family,address,epoch,seen in (
+            ('pump','candidate',1,12.125),('pump','candidate',1,10.125),
+            ('pump','candidate',2,8.5),('pump','candidate','1',4),
+            ('pump','other',1,3),('pumpswap','candidate',1,2),
+            ('pump','candidate',1,None)):
+            life.emit(family,address,'reactivated',dict(epoch=epoch,seen=seen),at=NOW)
+        life.emit('pump','candidate','promotion',dict(epoch=1,seen=1),at=NOW)
+        rows=self.h.db.execute('SELECT * FROM candidate_history_outbox ORDER BY rowid').fetchall()
+        query="SELECT MIN(json_extract(body,'$.seen')) FROM candidate_history_outbox {index} WHERE family=? AND address=? AND kind='reactivated' AND json_extract(body,'$.epoch')=?"
+        for params,expected in ((('pump','candidate',1),10.125),(('pump','candidate',2),8.5),
+                                (('pump','candidate','1'),4),(('pump','candidate',99),None)):
+            old=self.h.db.execute(query.format(index='INDEXED BY candidate_history_identity_pending'),params).fetchone()
+            new=self.h.db.execute(query.format(index=''),params).fetchone()
+            self.assertEqual(new,old);self.assertEqual(new,(expected,))
+            plan=self.h.db.execute('EXPLAIN QUERY PLAN '+query.format(index=''),params).fetchall()
+            self.assertTrue(any('candidate_history_reactivation_time' in r[3] for r in plan))
+        self.assertEqual(rows,self.h.db.execute('SELECT * FROM candidate_history_outbox ORDER BY rowid').fetchall())
+        # Reinstalling the existing owner schema does not duplicate or consume
+        # a pending row; restart still sees every original obligation.
+        from meme_machine.solana_candidate_lifecycle import CandidateLifecycle
+        CandidateLifecycle(self.h)
+        self.assertEqual(rows,self.h.db.execute('SELECT * FROM candidate_history_outbox ORDER BY rowid').fetchall())
+
     def pump(self):
         rows=[]
         for tx in FIXTURE['pump']:

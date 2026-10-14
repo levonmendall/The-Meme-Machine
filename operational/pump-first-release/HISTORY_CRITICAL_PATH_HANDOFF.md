@@ -1,5 +1,59 @@
 # History separation: final critical-path refinements
 
+## Retained source-owner reactivation lookup: 2026-10-14
+
+`08e1770c447e7941532424daefccd81a1caaa093` passed 1,943 FAST tests in
+1,251.429 seconds, without skips, errors or failures, and was deployed. The
+complete verdict is in `E/STAGED_PUMP_RESTORE_JOB_DIRECT_20261014.log`; the
+initial `gh run view --log` download was cached/incomplete and remains retained.
+Do not interpret that partial console download as another test failure.
+
+The changed-source unfunded attempt ran 02:04:39–02:09:59 UTC. The evidence
+worker remained active without ACK failure/replacement. It stopped at the
+original 300-second startup limit: Pump remained RECONCILING, Pons entered
+DISCOVERING. Current-generation control progression was 3.943 slots/sec versus
+1.751 durable program-frontier slots/sec; the gap increased 63→566 slots.
+Group CPU averaged 1.617 cores. Economic state was unchanged; modeled incremental
+cost was $0.10500962556, not an invoice. Formal acceptance remains zero.
+See `E/STAGED_PUMP_RESTORE_LIVE_RESULT_20261014.json` and the complete attempt
+referenced by `E/STAGED_CONTINUOUS_USAGE_OBSERVATION_PLAN_20261013.json`.
+
+Bounded nonblocking stack dumps identify startup capital replay, subsequent
+Current candidate restoration and canonical-owner `request_development()`.
+The latter was executing the original reactivation-time MIN query at source
+line 1287. Its existing family/address index scans unrelated canonical receipts
+for a popular identity. A retained read-only query took 86.844 milliseconds.
+The successor adds only an exact partial expression index over family, address,
+epoch and seen for reactivation rows. The query, original deadlines, mutation
+transactions, candidate population, source ordering and priorities are unchanged.
+Its existing owner timing label now distinguishes candidate development from
+source commits; no new scheduler or worker is introduced.
+
+The bounded offline projection contains all 260 rows for one retained identity,
+including its 39 authentic reactivation rows. Nonreactivation bodies are projected
+to `{}` because the unchanged kind predicate excludes them. For 100 identical
+queries, SQLite VM operations decrease 144,009→3,019 and CPU seconds
+0.035239→0.001119, with the exact same timestamp `1791943779.1308594`.
+This is query-level evidence, not whole-machine throughput. Record:
+`E/STAGED_REACTIVATION_INDEX_QUERY_COMPARISON_20261014.json`. Focused tests cover
+mixed/null epoch/time values, original MIN equality, unchanged outbox rows and
+idempotent schema installation. Complete applicable final validation before
+the next controlled cutover and changed-source observation.
+
+The eager `runtime_publish` migration-decoder default was also tested and
+**deferred for lack of material benefit**. Full retained replay covers 8,111
+events, including 7,459 publications (7,458 already initialized), with identical
+journal and final-state hashes. CPU was 35.963→35.680 seconds, below 1% and
+not evidence of a readiness fix. The monetary reducer remains byte-identical
+to 08e. Preserve `E/STAGED_CAPITAL_LAZY_INIT_DEFERRED_20261014.patch` and both
+`E/STAGED_CAPITAL_REPLAY_*_20261014.json` receipts. This does not implement the
+separately deferred reporting-journal separation or weaken replay verification.
+
+PAPER is stopped/disabled, funding closed, the $1,000 epoch and provider counters
+preserved. Pons full protection, its distinct demand-writer fault, and the
+active-backup freeze/protection conflict remain independently tracked. No new
+provider account, 12-RPS test, hardware change or strategy change is authorized.
+
 ## ACK repair live proof and bounded restart-read correction: 2026-10-14
 
 `e398ffef5aa351c727c6619ee057bf9ea527781d` is installed. Its FAST run
