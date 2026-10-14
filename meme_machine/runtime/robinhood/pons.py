@@ -616,11 +616,14 @@ def normalized_cached(ctx,event,build):
     return row
 
 
-def save_cohort_checkpoint(result,cursor,phase):
+def save_cohort_checkpoint(result,cursor,phase,*,plane=None):
     path=result.get('candidate_plane_path')
     if not path:return
     from .plane import process_identity
-    plane=Plane(path)
+    owned=plane is None
+    if owned:plane=Plane(path)
+    elif Path(plane.path).resolve()!=Path(path).resolve():
+        raise ValueError('cohort_checkpoint_plane_identity')
     try:
         # Recovery authority is this atomic SQLite checkpoint. Old observer
         # JSONL is a bounded projection and cannot suppress fresh evaluation.
@@ -638,7 +641,8 @@ def save_cohort_checkpoint(result,cursor,phase):
         result.pop('native_archive_paths',None)
         plane.checkpoint('pons_cohort',dict(result=result,cursor=cursor,phase=phase,
             owner=process_identity(),checkpoint_at=time.time()))
-    finally:plane.close()
+    finally:
+        if owned:plane.close()
 
 
 def coalesce_lifecycle_rows(rows):

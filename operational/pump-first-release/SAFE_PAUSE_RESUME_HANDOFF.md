@@ -1,3 +1,189 @@
+# Sustained-throughput blocker — safe stop, 2026-10-14 UTC
+
+This latest checkpoint takes precedence over the earlier dated pause preserved
+below. The staged operating authorization superseded that earlier pause; the
+owner's latest conditional stop now applies because sustained improvement is
+unproved and current evidence does not justify another specific throughput
+repair. **SAFE_PAUSED: no further engineering, tests or provider dispatch.**
+No automatic restart or acceptance is queued. Research remains suspended.
+
+## Exact source and preserved work
+
+- Engineering baseline and remote branch:
+  `engineering/pump-history-separation-20261013`,
+  `a70e2610743d8595b3d1a36ed25821a6689c29f3`.
+- That exact source is clean and deployed in `/opt/meme-machine`. FAST completed
+  on it at `2026-10-14T05:44:40Z`: **1,949 tests, zero failures/errors/skips**,
+  1,486.722 seconds. Run `38516007907`, job `115694851196`.
+- Development checkout:
+  `/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-history-separation-20261013`.
+- WIP preservation branch:
+  `preservation/sustained-throughput-blocker-20261014`, based on the tested
+  source above. Its only production-source differences are the deferred
+  Pons checkpoint connection-reuse changes in
+  `meme_machine/runtime/robinhood/pons.py` and
+  `meme_machine/lanes/pons/pons_selective_cohort.py`.
+  They are **untested, not deployed and not an accepted operating successor**.
+  The patch is also preserved externally as
+  `E/STAGED_PONS_CHECKPOINT_REUSE_WIP_20261014.patch`. The preservation commit
+  and confirmed remote identity are in
+  `E/STAGED_THROUGHPUT_SAFE_PAUSE_PUBLICATION_20261014.json`.
+- The preservation push uses normal non-force publication and `[skip ci]`;
+  it deliberately starts no new test campaign. Do not interpret a WIP commit
+  as a release verdict. No other session's changes were modified or reset.
+
+E remains:
+`/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011`.
+
+## Completed work and honest result
+
+All history/live separation, prepared economic records, independent durable
+history delivery, event-driven publication, incremental reuse, lifecycle/reporting,
+volume-quality integration and verified Pons factory 40-block capability remain
+intact. No strategy, capital, quote or protection threshold was changed.
+
+The `a70e2610` candidate adds bounded stage diagnostics: raw native receipt,
+joined/prepared/durable progress, history completion, owner thread CPU versus
+wall/queue time, and SQLite BEGIN/COMMIT timing. This is instrumentation,
+**not a demonstrated throughput improvement**. The prior `80542794` full FAST
+failure in the unchanged source-lifetime test is preserved. Its successor
+corrects optional timing for legitimate no-owner publishers without weakening
+that assertion. Relevant successor focused tests: 72 pass (10.425 seconds);
+health/owner compatibility retest: 37 pass (13.642 seconds). Full logs are in E.
+
+The completed exact reactivation index (`3ef0a662`) and restoration filter
+(`08e1770c`) remain. Their localized benefits did not prove whole-machine
+capacity. The exact ACK-availability repair (`e398ffef`) remains, and the worker
+exit did not recur in subsequent observations; growing backlog was not the
+cause of that original ACK-content failure.
+
+Old startup comparison is preserved in
+`E/STAGED_EARLIER_STARTUP_SCOPE_COMPARISON_20261014.json`. The October 7
+16.2-second Model B result was a source-release proof; its mixed-capacity
+continuation was incomplete, not a sustained four-regime pass. Current retained
+historical restoration itself took milliseconds; control acquisition/publication
+and later strategy restoration took longer. Do not assume more startup edits
+will cure the measured steady processing deficit. No blind revert was made.
+
+## Last authentic observation and unresolved blockers
+
+- Exact source: `a70e2610`; unfunded simultaneous observation, attempt 8,
+  `2026-10-14T05:45:33.936402Z` to graceful completion at
+  `2026-10-14T05:49:50.068954Z`.
+- Driver stopped on `provider_queue_limit:robinhood`. The transport audit
+  establishes **four HTTP 429 responses to four-element eth_getLogs batches**
+  in the exact discovery admission session. The existing eight-second cooldown
+  then produced completed waits of 6.69, 7.24 and 7.62 seconds. The original
+  five-second queue bound remains unchanged. The provider's error body was not
+  retained, so the precise quota/rejection cause is **unknown**.
+- Last comparable 117.894-second startup interval: control cursor
+  **4.5719 slots/s**, Pump/PumpSwap durable cursor **2.3920 slots/s**.
+  Overall sampled gap grew **61 to 426 slots**; last stored economic market
+  age was **101.53 seconds**. These control cursors are an arrival proxy,
+  not an independent current-network measurement. Pump was still RECONCILING;
+  Pons was DISCOVERING. This is not a controlled steady before/after result.
+- Process group used **1.7211 CPU cores** over that interval; last sampled
+  accounted memory was **1.0175 GiB**. Owner wall time greatly exceeded owner
+  thread CPU. COMMIT took **9.376 seconds** of the interval; it cannot alone
+  explain the entire elapsed cost. New raw Pump status progress and durability
+  both trail control; a published-frontier-only block does not explain all lag.
+  Exact dominant sustained owner/native operation and hardware minimum remain
+  unestablished. Do not label the entire pipeline CPU-bound or SQLite-bound.
+- Pending canonical consumer count reached **4,185** while draining old work;
+  501 pending historical jobs, including retained overdue obligations, remained.
+  None is silently complete. Required program frontiers never became current.
+- No repeated combined Pons quote/USD protection result was collected in this
+  interrupted observation. Original three/five-second deadlines remain.
+  The earlier Pons demand INSERT fault and request expansion are still distinct
+  unresolved risks; checkpoint reuse has not been proved to fix either.
+- Provider increments: **237 physical starts, 1,126 logical elements,
+  41,722 modeled CU, four native openings**, 179,187,560 accounted native bytes
+  plus 285,212,672 uncertain bytes, 1,683,351 HTTP bytes plus 67,108,864 uncertain.
+  Modeled upper incremental cost **$0.07066607436**; invoice charges unverified.
+  Lifetime counters and old finite ledgers were not reset.
+- **Formal qualifying acceptance: zero minutes.** No part of any unfunded
+  attempt, restoration or drainage counts. All-four live volume-quality
+  influence/funding readiness remains unproved, despite enabled worker flags.
+
+Primary evidence:
+`E/STAGED_SUSTAINED_THROUGHPUT_SAFE_PAUSE_20261014.json`,
+`E/STAGED_PIPELINE_CURRENT_SUMMARY_20261014.json`,
+`E/STAGED_UNFUNDED_CONTINUOUS_USAGE_ATTEMPT_8_1791956733443.json`,
+`E/staged-unfunded-continuous-usage-1791956733443.log`,
+`E/STAGED_PIPELINE_ATTRIBUTION_SUCCESSOR_CI_FINAL_20261014.log`,
+`E/STAGED_PIPELINE_ATTRIBUTION_DEPLOYMENT_20261014.json`.
+
+Preserved earlier sustained baseline:
+`E/STAGED_SUSTAINED_PIPELINE_BASELINE_20261014.json`: 391.186 seconds after
+both workers restored, control 4.3892 versus durable 1.8687 slots/s, process
+CPU 1.6549 cores. Do not combine this with the interrupted startup interval
+or call their different ratios a verified improvement.
+
+## Safe operating and recovery state
+
+`meme-machine-paper.service` is **inactive/dead, disabled, MainPID 0**. Both
+strategy workers, the evidence worker and observation driver exited. Funding
+is closed. At `2026-10-14T05:59:07.643398Z`, independent read-only reconciliation
+passed: existing epoch `paper-shared-1000-20261011T071207Z`, cash **$1,000.00**,
+zero positions, reservations, commitments, obligations or pending deliveries,
+zero realized P&L. Historical $500 epoch separately reconciles. No force-sale,
+epoch reset, counter reset, economic policy change or unsafe obligation handoff
+occurred. Receipt: `E/STAGED_THROUGHPUT_BLOCKER_SAFE_STATE_20261014.json`.
+
+All operating databases, WAL/journals, canonical and candidate histories,
+provider ledgers, failed artifacts and uncommitted-code patches remain in their
+original persistent locations. No large active database was copied, purged or
+replaced. Read-only observer/monitor/metrics/dashboard services remain; another
+Codex session was not terminated or altered. No active protection process needs
+to be retained because positions and obligations are zero.
+
+Volume remains the authorized 80-GiB ext4 trading volume with approximately
+20 GiB available and the original 5-GiB reserve. The latest scheduled backup
+failed on October 14; it is **not repaired** by passing source tests. Its
+partial point is retained. The earlier completed recovery and isolated restore
+integrity verdict remains `E/STAGED_RECOVERY_FINAL_20261013.json`, with point
+`/mnt/volume_nyc1_1790918115030/meme-machine-backups/meme-machine-paper-20261013T221423-5891a20c`
+and off-host snapshot `b1aeaf86-c753-11f1-8b51-768aef1620f0`.
+Do not retry the full failed integrity check blindly or treat an older point
+as a successful latest backup. The active-service freeze/protection conflict
+also remains tracked independently; the prepared safety-guard patch in E is
+not deployed and is not a complete active-backup solution.
+
+Installed diagnostic unit is still finite: `observe --seconds 1200`,
+`RuntimeMaxSec=1265`, `Restart=no`, stop timeout 65 seconds. **Do not start it
+as normal continuous PAPER.** The normal-service configuration is prepared in
+`E/STAGED_NORMAL_SERVICE_PREPARED_20261013.conf`, not installed. No automated
+restart, test, provider experiment or one-hour run has been queued by this stop.
+
+## Minimum resume sequence — do not execute automatically
+
+1. Obtain the owner's decision whether to resume the specifically bounded
+   provider-rejection and owner-wait diagnosis or retain this pause. No
+   hardware increase, rate increase, strategy relaxation or new architecture
+   is justified by current evidence. Removed fixed-dollar/attempt limits remain
+   removed; they were not the reason for this stop.
+2. Verify the published baseline, WIP preservation and exact current services,
+   positions/obligations, epoch and available storage. Keep untested Pons WIP
+   separate. Do not repeat completed history redesign or factory capability work.
+3. Before another combined provider run, establish the supported explanation
+   and smallest response for the recurring four-element log-batch 429. Capture
+   only the missing bounded rejection context; do not blindly raise pacing,
+   repeatedly replay the same workload or invent account metadata.
+4. If safe diagnostic continuation is chosen, use the existing attribution to
+   separate owner SQL/I/O/GIL/CPU waiting under fully restored concurrent load.
+   Reuse retained data first. Implement only an evidence-backed correction and
+   compare the complete path to usable evidence on equivalent workloads.
+5. Before any funding, resolve backup/active-recovery safety, demonstrate actual
+   simultaneous canonical/history freshness and combined native quote/USD
+   protection, reconcile capital, then install the normal continuous profile.
+   Only original all-four gates start the 60-minute clock. Keep existing safety,
+   rate/resource controls and source/state rollback; never overwrite current
+   obligations with an older recovery point.
+
+---
+
+## Earlier checkpoint retained for provenance (superseded)
+
 # Owner-directed safe pause — 2026-10-13 UTC
 
 **Status: SAFE_PAUSED. No automatic resumption.** The owner superseded the

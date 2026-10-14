@@ -214,7 +214,7 @@ def _record_candidate_boundary(pipeline,identity,event,sequence,context,boundary
     return row
 
 
-def _checkpoint(result,*,cursor,feed,rpc,phase):
+def _checkpoint(result,*,cursor,feed,rpc,phase,plane=None):
     active_provider=rpc.telemetry() if rpc is not None else dict(state='CLOSED',reason='bootstrap_discovery_closed')
     from meme_machine.runtime.pons_terminal_archive import retire_controller
     # The existing capital reader repairs lost release ACKs. Refresh only the
@@ -222,7 +222,7 @@ def _checkpoint(result,*,cursor,feed,rpc,phase):
     cohort_accounting=_cohort_accounting() if (ROOT/'pons-selective-cohort-capital.sqlite').exists() else result.get('cohort_accounting')
     refresh_pending_ack(ROOT,result)
     retire_controller(result)
-    save_cohort_checkpoint(result,cursor,phase)
+    save_cohort_checkpoint(result,cursor,phase,plane=plane)
     snapshot=dict(
         kind="pons-selective-continuation-v1-checkpoint",
         namespace=STRATEGY_NAMESPACE,
@@ -895,7 +895,7 @@ def run(endpoint,*,campaign=False):
         result["last_transient_provider_boundary"]=str(boundary)
         _checkpoint(
             result,cursor=current_cursor,feed=feed,rpc=failed_rpc,
-            phase="provider_recovery",
+            phase="provider_recovery",plane=queue.plane,
         )
 
     def _discover_observations(*args,**kwargs):
@@ -1008,7 +1008,7 @@ def run(endpoint,*,campaign=False):
             ready=warm_state["ready"],exhausted=warm_state["exhausted"],
             qualification_coverage='canonical_selected_curve_windows' if campaign else 'public_nomination_warmup',
         )
-        _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase="warmup_complete")
+        _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase="warmup_complete",plane=queue.plane)
         if not campaign and covered<TAPE_WARM_REQUIRED_CHAIN_SECONDS:
             raise BoundaryError("selective_tape_warmup_incomplete")
 
@@ -1016,7 +1016,7 @@ def run(endpoint,*,campaign=False):
         elif not isinstance(result.get('discovery_ends_at'),(int,float)):
             result['discovery_ends_at']=time.time()+DISCOVERY_SECONDS
         deadline=None if continuous else time.monotonic()+max(0,result['discovery_ends_at']-time.time())
-        save_cohort_checkpoint(result,cursor,'discovery_ready')
+        save_cohort_checkpoint(result,cursor,'discovery_ready',plane=queue.plane)
         next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
         while (
             (continuous or time.monotonic()<deadline or (campaign and position_only()))
@@ -1039,7 +1039,7 @@ def run(endpoint,*,campaign=False):
                             for k in ('open_positions','reserved'))))
                 feed.close()
                 if time.monotonic()>=next_checkpoint:
-                    _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase='position_continuation')
+                    _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase='position_continuation',plane=queue.plane)
                     next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
                 _stop_sleep(.25);continue
             if discovery_future is None:
@@ -1098,7 +1098,7 @@ def run(endpoint,*,campaign=False):
                 result['evidence_queue']=queue.telemetry()
             if time.monotonic()>=next_checkpoint:
                 _checkpoint(
-                    result,cursor=cursor,feed=feed,rpc=rpc,phase="discovery"
+                    result,cursor=cursor,feed=feed,rpc=rpc,phase="discovery",plane=queue.plane
                 )
                 next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
             replayed=False
@@ -1279,7 +1279,7 @@ def run(endpoint,*,campaign=False):
                     _append_jsonl(QUALIFIERS_LOG,qualifier)
                     _checkpoint(
                         result,cursor=cursor,feed=feed,rpc=rpc,
-                        phase="qualifier_persisted",
+                        phase="qualifier_persisted",plane=queue.plane,
                     )
                     next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
                     evaluation["candidate_plane_path"]=result["candidate_plane_path"]
@@ -1313,7 +1313,7 @@ def run(endpoint,*,campaign=False):
                 _append_jsonl(ROWS_LOG,incomplete)
             finally:
                 if queue.plane.get(scheduled['key']).get('result') is not None:
-                    save_cohort_checkpoint(result,cursor,'candidate_consumed')
+                    save_cohort_checkpoint(result,cursor,'candidate_consumed',plane=queue.plane)
                     queue.acknowledge(scheduled)
 
         terminal_provider=rpc.telemetry()
@@ -1372,7 +1372,7 @@ def run(endpoint,*,campaign=False):
                     life['index']=qindex
                     _record_completed_lifecycle(result,life)
                     collected_futures.add(id(future))
-                    _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase='position_drain')
+                    _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase='position_drain',plane=queue.plane)
             finally:pool.shutdown(wait=True)
         # Remaining queued observations retain their original clocks and an
         # explicit shutdown terminal, never a synthetic fresh evaluation.
@@ -1384,7 +1384,7 @@ def run(endpoint,*,campaign=False):
         result["sequencer_discovery"]=feed.status()
         coverage(drain=True)
         if rpc is not None:
-            _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase="finalizing")
+            _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase="finalizing",plane=queue.plane)
         pipeline.close()
         feed.close();skill.close();queue.close()
 
