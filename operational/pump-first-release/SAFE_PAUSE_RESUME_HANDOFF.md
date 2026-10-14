@@ -1,3 +1,57 @@
+# Combined strategy / operational engineering — 2026-10-14
+
+**READY_FOR_BOUNDED_OBSERVATION_AUTHORIZATION. Offline validation complete; no runtime authority.**
+Read [COMBINED_STRATEGY_OPERATIONAL_RELEASE_20261014.md](COMBINED_STRATEGY_OPERATIONAL_RELEASE_20261014.md)
+and [INTEGRATED_OPERATIONAL_NEXT_OBSERVATION_SPEC_20261014.json](INTEGRATED_OPERATIONAL_NEXT_OBSERVATION_SPEC_20261014.json)
+before older checkpoints. Receiving branch is `engineering/targeted-resolution-20261014`.
+Exact published executable `66f85d61bf4d3ba9a01efdc0e9eb68949419bda8` contains
+all six active `paper-opportunity-access-v1` changes, all nine previous economics,
+volume attention and the latest operational repairs. Original packages and failed
+results remain reachable. Preserved WIP `66a87ac3` is separate and unmerged.
+
+Integrated predecessor `4cfe994f` passed FAST2130 tests/1551.912s with one disclosed
+hosted service-identity skip; no errors/failures. Exact successor125 affected
+network-blocked tests pass. It repairs the dropped native Pons observation-route
+switch only; public remains default and no installed route changed. Exact
+byte/AST guards recognize only that six-line insertion and preserve the original
+combined strategy manifest. Final uninterrupted FAST38631745916 passes2131 tests/1542.852s, zero failures/errors
+and one disclosed unavailable-service-identity skip on the hosted runner. The
+actual-host private access guard must freshly pass before an authorized start.
+The exact-source held workflow passes79 tests/3.507s; no live capacity is proved.
+
+Installed clean source remains `a70e2610743d8595b3d1a36ed25821a6689c29f3`.
+PAPER inactive/disabled, MainPID0, Restart=no, funding closed; cash$1,000.00,
+zero monetary positions/reservations/commitments/obligations/pending deliveries.
+Actual stored journal is one-based:8895 records/latest sequence8895, next8896;
+earlier receipts mislabelled next-sequence as count and remain preserved.
+Projection/head and historical$500/failed-attempt receipts are unchanged. This
+short read-only check is not a new replay/integrity or native-drain proof.
+No deployment, start, provider request, authoritative write or acceptance minute.
+
+Offline continuation found a bounded existing join/queue diagnostic exposure
+gap and failed/incomplete backup-point verification gap; both are fixed/tested.
+Neither establishes sustained capacity, a SQLite repair or a usable new backup.
+The existing Pons native fixture also demonstrates shared-exit precomputation
+consuming quote freshness before use. Its bounded suppression comparison still
+fails complete deadlines, uses stub USD/2RPS and changes economic timestamps;
+no production phase-ordering change is justified or applied.
+
+Remaining: Pump dominant processing dependency, interrupted native recovery/-9,
+original BUSY connection; Pons public cooldown/queue conflict, managed method/shared
+capacity/full quote+USD suitability and READONLY INSERT; later failed backup and
+active-backup/protection conflict. Owner reports Alchemy10000CU/s; it does not
+prove concurrency, per-app entitlement, history/filter coverage or protection.
+Historical faithful-replay search remains closed.
+
+Next single decision: explicitly authorize the
+linked one-attempt funding-closed current-system observation with the existing
+canonical_primary Pons route and supported safe-flat policy selection. Original
+300s readiness and1865s absolute boundary/resources/drain remain; no normal
+allocations, retry or acceptance. No runtime action is authorized by this handoff.
+If preflight or attribution cannot discriminate safely, preserve and stop.
+
+---
+
 # Targeted offline repairs — 2026-10-14 17:51 UTC
 
 **STOPPED_FOR_REVIEW.** Read

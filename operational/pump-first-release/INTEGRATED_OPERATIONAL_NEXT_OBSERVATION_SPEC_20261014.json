@@ -1,0 +1,307 @@
+{
+  "actors": [
+    "Existing supervisor in OBSERVATION mode, exact epoch/capital authority and durable reporting/admission accounting.",
+    "Single canonical Solana evidence owner; existing native decoder/preparation pool, join/control paths, historian and one durable CandidateHistory delivery batch.",
+    "Pump worker: Current and Survivor discovery, qualification/recovery and volume-quality attention.",
+    "Pons worker: Current and Survivor discovery, qualification/recovery, canonical evidence, native quote/USD paths where genuine work requires them.",
+    "Existing mandatory maintenance/checkpoint/recovery, read-only monitoring/dashboard; protection/settlement retains priority if any actual obligation exists."
+  ],
+  "approval_required": [
+    "Install this exact validated executable, fresh access/recovery/obligation preflight and one funding-closed start through the existing controller.",
+    "Select only the existing canonical_primary observation route on the same bound Robinhood Alchemy application for this diagnostic. No new provider, routing fallback, quota increase or normal-PAPER admission.",
+    "Existing enumerated operational writes plus the supported paper-policy selection checkpoint only if fresh flat/terminal/native capital and delivery checks permit it; no relabeling exposure, epoch reset or journal rewrite."
+  ],
+  "candidate_revision": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+  "comparison_limit": "Current integrated strategy workload only; no comparison to historical combined/isolated runs as a causal speedup. No diagnostic/held-position/full-capacity/one-hour PASS from a flat funding-closed run.",
+  "controller_invocation": {
+    "actor": "root controller only; service/native children remain existing meme-machine UID/groups",
+    "cwd": "/opt/meme-machine",
+    "observe_command": [
+      "/opt/meme-machine/.venv/bin/python",
+      "-m",
+      "engineering.diagnostics.current_combined_observation_20261014",
+      "observe",
+      "--state-root",
+      "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000",
+      "--output",
+      "/var/lib/meme-machine-diagnostics/20261014-integrated-combined-<unique-run-id>",
+      "--source-revision",
+      "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8"
+    ],
+    "one_start": "observe issues one start only after fresh installed-identity/access preflight; same exact revision/directory in service supervise command. No old staged driver."
+  },
+  "currently_deployed_revision": "a70e2610743d8595b3d1a36ed25821a6689c29f3",
+  "engineering_branch": "engineering/targeted-resolution-20261014",
+  "executable_controller": "engineering.diagnostics.current_combined_observation_20261014; existing SingleAttemptSupervisor, access guard and one-attempt Window unchanged",
+  "focused_results_overlap": "Affected selections overlap; counts are not additive. Final uninterrupted exact-sourceFAST passed with the single disclosed hosted service-identity skip; actual host probe is required freshly before start.",
+  "focused_test_results": [
+    "Original combined affected selection829:828pass,1source-test naming failure, preserved; successor complete53source guardsPASS.",
+    "44history-separationPASS13.249s,53USD/source guardsPASS21.231s,4Pons-owner guardsPASS0.832s,3remaining invalidated guard/vector casesPASS0.296s; legacy pins and exact approved v1 vectors both retained.",
+    "57diagnostic testsPASS1.025s and6source/owner-held-queue casesPASS0.693s; missing import RED and corrected successor retained.",
+    "Unchanged held79-case exact40c workflowPASS; source-equivalent protection/economic paths, not new live proof.",
+    "An overly broad local guard selection was interrupted at unchanged dense-retention work; not a pass. No unchanged full retry.",
+    "36backup/replay/simplification testsPASS2.433s: exactfixtureflush contract retained; actualbackup suite synchronization unchanged; failed/incomplete markers now reject directverification/replay before DB open, reuseNone behavior preserved. LateflushnegativeRED and intermediateguard-placement regression retained; no productiontimeout change.",
+    "Two sequential20-owner Ponsnative-core ordering cases completed6.426s under120s bound: optionalprefetch contributes modeled firstmark5.409\u21922.404s/fanout126\u2192120, but complete turnstillfails3s, USDstubbed, RPS2notproduction10. No productionordering change, throughput/provider/held-capacity claim.",
+    "125affected supervisor/USDguard/provider-topology/capacity/lane-integration testsPASS33.978s on66f85d61; actual native child route selection now receives canonical_primary, public default unchanged, offline/other lanes isolated and invalidroute rejected. Original3caseRED2failures preserved. Exactsix-line acquisition normalization retains all manifest/economic pins."
+  ],
+  "historical_baseline_receipt_source": "3ef0a6628780ff73dab68d933ca82851f61ea1f4",
+  "historical_replay_route": "CLOSED: current retained inputs, state, Pons responses and actor timing are not faithful. No further directory search or replica request.",
+  "integrated_policy": "paper-opportunity-access-v1; all six changes active; nine prior changes and volume attention preserved",
+  "local_full_fast": "Exactsuccessor66f85d61 fullFAST2131/1542.852s:PASS,zero failures/errors,1 hosted-service-identity skip. Run38631745916. Exactpredecessor4cfe FAST2130/1551.912s alsoPASS. Prior failures retained. No interrupted/fragmented suite labelled uninterruptedPASS.",
+  "measurements": {
+    "cohort_identity": "Current source PID, owner generation/session and fixed scope; up to32 scoped canonical outbox identities, original economic identity/slot/availability, authenticated consumer receipt and exact consumed ACK marker. Independent read snapshots may skew; presence is an observation, not a new readiness grant. Retained/replay records are labelled separately from availability during the attempt; availability does not itself prove physical arrival.",
+    "cohort_loss_semantics": "Current collector retains ReceiptCohort.available=false/unknown as diagnostic data and continues; absence itself is not an automatic stop or invented zero. Existing pipeline/recorder loss still stops. If cohort absence prevents stage discrimination, final result is INCONCLUSIVE/limitation and no capacity/readiness/acceptance inference; no unchanged retry.",
+    "concrete_sources": [
+      "state_root/health.json: current supervisor PID, fixed-scope control/program frontiers, native restored/coverage status and provider queues",
+      "shared/solana-evidence.sqlite: existing service_health IPC pipeline metrics/owner_scheduler/storage_maintenance/recorder, indexed canonical pending heads, history deadline heads, latest economic slot/time, source session, pending proof/control/checkpoint bounds",
+      "shared/solana-candidate-history.sqlite: primary-key consumer source_receipts for fixed32-ID cohort; original source checksum/identity authentication and independent-snapshot labels",
+      "Existing cgroup cpu.stat/io.stat/*pressure/cgroup.procs, <=64 owned PID stat/io/main-thread schedstat, trading-device stat; no argv, environment, stack dump or expanded SQL",
+      "source-sqlite-terminal.txt and supervisor-fatal.json: protected first error; existing Pons rejection ledger/worker context retained for targeted post-stop review",
+      "Existing five-second native join-state and commit-queue counts/bytes carried by normal IPC health; two sampled planes with original session/PID/generation and stale/closed states, not population aggregates or new coverage."
+    ],
+    "coverage": "Required canonical-parent recorder PID/valid health must register within30s and remain valid. Fatal channel is independent of metrics. Historian child failures now preserve bounded actual executor facts through the existing defer record. Healthy child coverage is not independently polled; diagnostic mode rethrows missing/invalid SQLite attribution and BrokenProcessPool rather than replacing it. Loss stops the diagnostic and invalidates attribution.",
+    "frequency": "One-second guard reads current atomic health, PID, resource and fatal-channel state; full short indexed SQL/pipeline/receipt cohort and kernel counters every5s. Reused SQL sample keeps its original wall/monotonic timestamps and explicit age. No provider call, profiler, population scan or SQL trace.",
+    "limitations": "Parsed native arrival is not wire receipt/decode-queue progress. Existing evidence_timing owner_queue includes pre-admission preparation/transfer; use separate owner-stage counters, never overlapping sums. Join sample is last session per plane and may stale while owner publication waits. Exact per-event precommit timing, proof eligibility reason, strategy consumption and owner executor runnable delay remain unavailable where not supplied. Pending missing-component samples/receipt/ACK/proof bounds distinguish stages only when current/fenced; missing values never zero. Flat portfolio proves no held-position management.",
+    "pons": "Actual accepted/rejected methods, normalized endpoint, request fingerprints, wrapper ancestry, real dispatch/completion, labeled process-local inflight, safe headers/error fields/known bytes, quote/USD full-turn timing where actually exercised.",
+    "queues": "Incoming/native/join pending bytes and oldest missing component; preparation/owner backlog; unconsumed outbox and oldest required history; ACK/proof gaps and reason; strategy backlog. Report latest completed/persisted/published separately.",
+    "rates": "Actual concurrent arrivals, processed and committed/proof-published progress for identical scope/time cohorts; never add Pump/PumpSwap overlapping slot progress or count replay stock as arrivals.",
+    "stages": [
+      "arrival",
+      "acquisition/join",
+      "preparation/transfer",
+      "owner admission",
+      "canonical commit",
+      "history commit",
+      "exact ACK",
+      "proof eligibility",
+      "published frontier",
+      "strategy consumption"
+    ],
+    "timing": "Existing pipeline decode/preparation CPU and transfer/wait; owner queue/execution; source transaction totals/peaks; history delivery CPU/wall; publication timings and actual checkpoint-handoff metrics where already published. Cgroup CPU/throttle/PSI/I/O and bounded owned-PID stat/io/main-thread schedstat identify resource or runnable pressure with stated scope. Per-stage distributions/owner thread scheduling are unavailable unless existing metrics supply them; wall-minusCPU is not GIL or lock proof. No overlapping timing sums."
+  },
+  "operational_writes": {
+    "accounting_limit": "Routine original journal advancement is an operational write, not an accounting reset; balances/policy/identities must reconcile before and after.",
+    "databases": [
+      "shared/solana-evidence.sqlite: canonical records, gaps, source/checkpoints, acquisition/history jobs, outbox, ACK/proofs; one authoritative writer.",
+      "shared/solana-candidate-history.sqlite: authenticated consumer events/receipts/readiness.",
+      "shared/solana-provider.sqlite and shared/provider-usage.continuous.sqlite: admission, attempts, CU/bytes/errors and existing counters.",
+      "shared/robinhood-provider.sqlite: existing usage/admission/audit plus additive endpoint public_pacing state.",
+      "shared/robinhood-evidence.sqlite and its candidates database: existing verified cache, discovery/broker/history/checkpoints.",
+      "pump/solana-evidence-broker.sqlite3, existing Pump/Pons lane journals/history, directional sleeve and recovery stores.",
+      "portfolio.sqlite and selected shared-capital.sqlite: original recovery/reconciliation/reporting/admission journal updates. No new reservation/allocation/fill permitted under OBSERVATION. No reseeding or history rewrite."
+    ],
+    "files": "Corresponding WAL/SHM/journals, existing archive/checkpoint/health/provider projection files, portfolio/inception/dashboard projections, supervisor lock/socket and private diagnostic output.",
+    "historical_500_root": "Preserve untouched; do not launch its service or migrate capital.",
+    "policy_selection": "Only existing supported v1 selection/recovery metadata at a freshly verified safe boundary. Monetary genesis, epoch, capital policy and existing lifecycle records remain immutable; any unresolved incompatible exposure/ack blocks preflight.",
+    "state_root": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000"
+  },
+  "original_specification_revision": "282d38946955b46422a34348062ac572777d8473",
+  "outcome_decisions": [
+    "Natural SQLite failure: preserve exact DB/connection/operation/executor and first error; identify supported mechanism and smallest disposable reproduction, do not assume lock holder.",
+    "Growing native/join/preparation queue before commit: use component counters/oldest missing witnesses to identify one processing or acquisition dependency only if current data supports it.",
+    "Durable records progress but history/receipt/exactACK/proof/publication lag: isolate that measured dependency; no skips/fabricated completion.",
+    "Both accumulate: quantify nonoverlapping contributions; no wholesale CPU/SQLite verdict from gap alone.",
+    "Managed method/range/capacity/429/deadline failure: preserve exact context; retain inactive-route disposition after rollback and stop. No public fallback/retry loop or raised deadline.",
+    "Startup or prior native recovery prevents useful interval: report startup limitation/readinessFAIL, not sustained capacity. Capture active operation/signal/escalation and native drain status.",
+    "No meaningful discriminator: preserve and STOP; no unchanged second attempt."
+  ],
+  "paused_families": [
+    "meteora",
+    "ramses"
+  ],
+  "preflight": [
+    "Verify exact source/runtime/configuration, no concurrent tests/profilers/market diagnostic, service stopped/disabled, existing volume identity/mount and source credentials/provider fingerprints without exposing them.",
+    "Read-only verify current selected1000 and historical500 identities, cash/equity, positions, reservations, pending executions/deliveries, obligations and reconciled journal heads. Historical flat receipts do not replace this check.",
+    "If actual positions/obligations exist, preserve required protection/settlement and use established safe handoff; do not force sell, kill protection or proceed with a flat-only assumption.",
+    "Reference completed recovery/integrity evidence, preserve journals/current state and failed backup point. Do not repeat bulk copies/integrity or claim latest failed backup is successful.",
+    "Verify no backup is active and scheduled backup will not overlap1865s plus stop margin. Existing timer remains unchanged; choose another natural window if needed.",
+    "Admit32MiB diagnostic output and separate64KiB terminal record in a new private directory owned by existing service user; root/state volume must each retain5GiB reserve. No large state replica.",
+    "After separately authorized controlled installation, verify source/config hashes and systemd configuration before the single start; keep allocation admission OBSERVATION throughout.",
+    "Reject unexpected flat-state obligations in the controller before start; a separate supported protection handoff is needed if any arise. Validate existing recovery locator and correct journals without treating the later failed backup as complete. No backup timer modification is proposed.",
+    "Full successor FAST and affected focused checks must have supported verdicts; preserve prior failure/skip dispositions.",
+    "Review native pending/recovery state separately from monetary replay and verify safe resumability of retained work. Pump prior-9 is unresolved; prior portfolio equality is not a native-drain proof. No unexplained authoritative-state changes or unverified recovery point.",
+    "Verify actual canonical app/credential fingerprint and original10RPS Robinhood/2RPS Solana profiles. Derive proposed unique demand from actual missing work/reuse, compare observed shared load with owner-reported account limit without inventing quota entitlement; fail before dispatch if installed controls conflict.",
+    "Fresh service UID/group access probe and controller clock-path atomic-write guard must pass in the fresh private run directory. Simulated probe clock is discarded; actual1865s clock starts immediately before single start.",
+    "Direct restore/replay now rejects failed/incomplete points. Preserve the laterfailedbackup; this guard does not identify its cause or resolve active-backup/protection conflict. Never use a failure marker as a completed recovery reference."
+  ],
+  "previous_replacement_result": "ddcee53eb2498b7281820793408abbea71f2e88a; unchanged RECOVERY_REQUIRED",
+  "primary_question": "On this pinned implementation, where does required evidence accumulate, and which operation or wait prevents durable processing/publication keeping pace?",
+  "provider_plan": {
+    "capabilities": "Only exact verified factory filter receives40-block windows; broader curve/V4/pool filters retain existing10-block fallback.",
+    "capability_scope": "Use only existing required methods and original exact10-block broad curve/V4/indexed filters; factory40 remains exact capability-bound. Previously authenticated canonical fallback is prior evidence, not a blanket completeness/capacity proof. No deliberately429-provoking calls or reference subscription.",
+    "diagnostic_route_authority": "Temporary funding-closed route selection is specifically requested to collect missing provider/readiness evidence. It does not presume or prove normal-provider suitability. Do not require already completed full suitability proof before this diagnostic; actual safety/provider/account incompatibility still blocks dispatch.",
+    "owner_reported_capacity": {
+      "does_not_prove": "Account concurrency/other-app utilization, method/filter/history capability, actual net demand or original complete protection deadlines.",
+      "independently_verified": false,
+      "reported_cu_per_second": 10000,
+      "source": "Owner reply2026-10-14: Throughput is10000cu/s"
+    },
+    "pons_canonical": "Existing Robinhood Alchemy application v5h0vqr0wpp9zscj, chain4663, deployed credential binding; no credential changes or migration.",
+    "pons_public_observation": "No mandatory public observation traffic in this proposed run; existing canonical_primary route reuses bound primary admission/cache/evidence. No public failover. Original public cooldown remains unchanged in source.",
+    "shared_profiles": "Solana 2 RPS, Robinhood 10 RPS; retain installed account/provider safety controls and stop on rejection/capacity boundaries as existing controls require.",
+    "solana": "Existing configured authenticated RPC plus existing Yellowstone/native and filtered log feeds; no second/reference subscription.",
+    "spending": "No resurrected dollar, CU, request or byte stop solely enforcing obsolete$2 allowance. Durable actual/model usage reporting and provider-enforced/resource protections remain. No purchased services.",
+    "unknown_account_information": "Retained tools expose no account concurrency/contract fields. Owner-reported10000CU/s supersedes missing throughput metadata only; do not invent individual app entitlement or invoice pricing. Retain available actual account/provider guards and stop on incompatibility."
+  },
+  "resource_limits": {
+    "cpu_quota_cores": "1.8",
+    "diagnostic_output_accounting": "Metrics/guards share32MiB minus separate64KiB terminal and64KiB metadata reserve. Clock/fatal/result use bounded metadata slots. Existing ordinary service journals retain existing guards; do not claim their lifetime stock is included in this new diagnostic-channel cap. Disk reserve watches all state/WAL/journal growth.",
+    "diagnostic_output_max_bytes": 33554432,
+    "diagnostic_shape_check": {
+      "corrected_cadence_projected_bytes": 16619040,
+      "limitation": "Kernel counters/future shape can add bytes; actual total admission remains32MiB. No large copy or output deletion.",
+      "old_cadence_projected_bytes": 47437920,
+      "scope": "Read-only retained late-shutdown shape; not active-load/size guarantee"
+    },
+    "disk_minimum_free_bytes_each": 5368709120,
+    "http_inflight_bytes": 134217728,
+    "last_inspected_available_bytes": {
+      "inspected_at": "2026-10-14T20:25:42.754181+00:00",
+      "root": 12323368960,
+      "state_volume": 21384511488,
+      "scope": "Read-only df during final source validation; freshly recheck before any eventual dispatch."
+    },
+    "maximum_provider_admission_queue_depth": 64,
+    "maximum_provider_queue_wait_seconds": 5,
+    "metadata_reserved_bytes": 65536,
+    "native_inflight_bytes": 536870912,
+    "physical_host": "Existing2-vCPU8-GiB droplet and existing80-GiB volume; no resize.",
+    "provider_starts": "Existing physical pacing/account guards, native connection admission and failure backoff; no lifetime allowance solely enforcing old dollars/attempts. No restart/reconnect storm.",
+    "rss_bytes": 6442450944,
+    "sqlite_operation_ring_bytes_ceiling": 1048576,
+    "storage_growth": "Check actual live WAL/evidence/output growth; physical IO writes are not database growth. Stop before reserve/output exhaustion; never purge evidence or inflate buffers.",
+    "systemd_memory_high_bytes": 6442450944,
+    "systemd_memory_max_bytes": 7516192768,
+    "terminal_reserved_bytes": 65536
+  },
+  "runtime_ancestry": {
+    "historian_child_attribution": "f69ffcf0240a7563276d9a0ea7f385b84c884228",
+    "pacing_http": "2fa0b59fa8038275676e72fb3c1e7f9380f7724d",
+    "sqlite_recorder": "e443005edfb23fb169826717ddb6196847fb3ece"
+  },
+  "schema": "integrated-operational-next-observation-spec-v1",
+  "secondary_question": "If a fatal SQLite exception naturally occurs, identify its actual database/connection/operation/executor; no recurrence is not a repair.",
+  "shutdown_and_rollback": [
+    "Keep new admission closed; request original graceful drain and preserve all accepted/pending work, accounting and latest trustworthy checkpoint. Native existing bounded TERM/KILL escalation is unchanged; failed or unverified drainage requires recovery inspection and no automatic restart.",
+    "Verify all diagnostic children stopped and unit disabled. If unexpected obligations exist, preserve necessary protection/recovery rather than force-selling or indiscriminately terminating it.",
+    "Retain terminal/context/metrics/failure files and exact source/config identities; no database rewind, deletion, counter reset or epoch change.",
+    "Restore saved small unit/environment overlays and previous sourcea70 only when obligations/schema compatibility permit. No automatic restart. Preserve additive public_pacing table and usage rather than reverting state.",
+    "Restore saved route/policy environment overlays only with actual obligation/schema compatibility. Additive approved policy-selection history and pending evidence are retained; never rewind state or relabel existing positions. Leave service disabled/Restart=no/funding closed. Unverified drain remains RECOVERY_REQUIRED.",
+    "Controller drained=true proves empty process/unit scope only and native_drain remains UNVERIFIED. Preserve final native-operation/phase/reconciled/exit/signal evidence and perform targeted post-stop native recovery/drain review. Unverified or failed native shutdown requires recovery review, regardless of cash equality or controller STOPPED_REVIEW_REQUIRED. Do not rewrite the original controller result or declare SAFE_PAUSED/PASS from empty children.",
+    "If a70 cannot interpret the retained v1 policy metadata/schema, keep the tested candidate installed but stopped and restore only compatible small overlays. Return for review; never erase the selection checkpoint or rewrite records to force older-source compatibility."
+  ],
+  "single_decision_enabled": "Choose one causally supported Pump stage intervention, or establish a specific managed-provider/startup limitation; no automatic engineering/live retry after this proposal.",
+  "status": "READY_FOR_BOUNDED_OBSERVATION_AUTHORIZATION_NO_OPERATIONAL_AUTHORIZATION",
+  "stop_conditions": [
+    "First fatal worker/SQLite error, mandatory protection/evidence/accounting/resource failure, unsafe provider boundary or uncontrolled reconnect/retry pattern.",
+    "Lost required pipeline/recorder coverage, terminal channel unavailable,32MiB output allowance or5GiB reserve threatened.",
+    "Existing memory/queue/provider/maintenance limits; preserve all native deadlines and fail-closed qualification.",
+    "Unexpected backup/profiler/test overlap: retain evidence and identify exogenous interference, do not claim a capacity verdict.",
+    "Startup collection900s exhausted without required restoration; post-startup900s complete; or work deadline1800s.",
+    "Required-mode historian SQLite exception without valid attribution or broken historian process pool; preserve original rather than silently replacing it during this one diagnostic."
+  ],
+  "temporary_configuration": {
+    "KillMode": "control-group",
+    "MM_CONTINUOUS_PROVIDER_ENVELOPE": "/etc/meme-machine/paper-continuous.four-regime.json",
+    "MM_PAPER_POLICY_REVISION": "paper-opportunity-access-v1",
+    "MM_PONS_OBSERVATION_ROUTE": "canonical_primary",
+    "MM_PONS_USD_ACQUISITION_OVERLAP": "1",
+    "MM_PONS_USD_BRIDGE_ROUTES": "verified_two_hop_v1",
+    "MM_PROVIDER_OPERATION_MODE": "CONTINUOUS",
+    "MM_PROVIDER_USAGE_DB": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/provider-usage.continuous.sqlite",
+    "MM_SOLANA_HISTORY_SEPARATED": "1",
+    "MM_SQLITE_DIAGNOSTIC_REQUIRED": "1",
+    "MM_SQLITE_TERMINAL_RECORD_PATH": "/var/lib/meme-machine-diagnostics/20261014-integrated-combined-<unique-run-id>/source-sqlite-terminal.txt",
+    "MM_VOLUME_QUALITY_ENABLED": "1",
+    "Restart": "no",
+    "RuntimeMaxSec": 1800,
+    "TimeoutStopSec": 65,
+    "enabled": false,
+    "environment_handling": "Use existing protected credential EnvironmentFile. Forward recorder switches only to canonical source, as tested. Remove old dropin UnsetEnvironment entries that would erase continuous usage/envelope; unset obsolete finite-budget variables. Never print credentials.",
+    "exec_start": [
+      "/opt/meme-machine/.venv/bin/python",
+      "-m",
+      "engineering.diagnostics.current_combined_observation_20261014",
+      "supervise",
+      "--state-root",
+      "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000",
+      "--output",
+      "/var/lib/meme-machine-diagnostics/20261014-integrated-combined-<unique-run-id>",
+      "--source-revision",
+      "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8"
+    ],
+    "mode": "OBSERVATION, never NORMAL/AUTONOMY/funded",
+    "profile_scope": "Only source revision, active approved v1 policy selection and existing inactive canonical_primary observation route change. Original role/account pacing, deadlines, workers, service/backup timers and resource guards stay intact.",
+    "unit": "meme-machine-paper.service",
+    "verified_properties": "Before start: actual installed source/clean worktree, explicit source revision in both commands/clock, disabled unit, MainPID0, Restart=no, RuntimeMaxUSec1800s, TimeoutStopUSec65s and KillMode=control-group. Source configuration cannot differ from the recorded overlay."
+  },
+  "timing": {
+    "absolute_clock_origin": "Immediately before the single systemctl start request; installation/preflight must already be complete.",
+    "absolute_deadline_seconds": 1865,
+    "acceptance_minutes": 0,
+    "allocation_justification": "Retained baseline begins its post-restoration measurement about351s after attempt start; a repeat300s outer timeout would predictably preclude comparable-stage collection.900s diagnostic startup leaves room for current restoration uncertainty;900s post-startup can discriminate sustained queue growth across several publication/maintenance cycles.",
+    "diagnostic_startup_collection_max_seconds": 900,
+    "measurement_origin": "Actual original observe gate plus native Current restored/Survivor replay+handoff/exit binding, current providers and original Pump freshness. No substitution of process startup or optional actor presence for readiness.",
+    "original_readiness_deadline_seconds": 300,
+    "post_startup_measurement_max_seconds": 900,
+    "shutdown_reservation_seconds": 65,
+    "shutdown_semantics": "The outer clock begins before single no-block systemctl start and includes initialization. Work stops by1800s; graceful shutdown has65s reserved. Unit runtime fallback is1800s with65s native TERM/KILL timeout. A drain that does not finish by1865s, failed unit, recorder loss or fatal error is RECOVERY_REQUIRED, never safe completion/PASS. Zero live children alone does not prove native graceful drainage; review exact source shutdown boundary. No additional test starts after timeout.",
+    "startup_failure_handling": "At300s record original readiness FAIL if missing. Continue only passive/normal funding-closed diagnostic collection under this separately approved allocation; do not reset readiness clocks or suppress any native safety stop. If not restored by900s, stop as STARTUP_LIMITATION, not steady-state capacity.",
+    "stop_work_by_seconds": 1800
+  },
+  "recovery_reference": {
+    "retained_point": "/mnt/volume_nyc1_1790918115030/meme-machine-backups/meme-machine-paper-20261013T221423-5891a20c",
+    "point_directory_present": true,
+    "manifest_present": true,
+    "failed_marker_present": false,
+    "incomplete_marker_present": false,
+    "retained_completed_receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STAGED_RECOVERY_FINAL_20261013.json",
+    "completed_receipt_sha256": "c56e8669036b644e93a18bfcf463b98b8d0e428a95927267a4c92fc3c516dc99",
+    "completed_restore_at": "2026-10-13T23:14:42.480828+00:00",
+    "retained_replay": {
+      "epoch_id": "paper-shared-1000-20261011T071207Z",
+      "legacy_funding_fenced": true,
+      "passed": true,
+      "reconciliation": "PASS",
+      "replay_idempotent": true,
+      "single_funding_authority": true
+    },
+    "limitation": "Existing completed point precedes later diagnostic writes. Locator presence is not a new hash/integrity verification or permission to rewind current journals. Original later backup failure and interrupted native reconciliation remain open; preflight must freshly establish applicability before dispatch.",
+    "manifest_sha256": "f3a6b3f8d0b69a86c470cda0b307491d03ea05dff4959729f4c9d168a608adf0"
+  },
+  "backup_window_last_inspection": {
+    "at": "2026-10-14T20:28:16.941830+00:00",
+    "next_scheduled_backup_utc": "2026-10-15T04:03:35Z",
+    "source": "read-only systemctl list-timers meme-machine*",
+    "timers_modified": false,
+    "freshly_recheck": true
+  },
+  "final_validation": {
+    "candidate": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "workflow": ".github/workflows/ci.yml",
+    "run_id": 38631745916,
+    "job_id": 116084833013,
+    "url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/38631745916",
+    "tests": 2131,
+    "seconds": 1542.852,
+    "failures": 0,
+    "errors": 0,
+    "skips": 1,
+    "skip": "Actual configured service identity unavailable on hosted runner; fresh actual-host access guard remains mandatory before dispatch. Earlier local affected diagnostic module passed this guard. No filesystem restriction weakened.",
+    "verdict": "PASS_WITH_DISCLOSED_SKIP",
+    "log": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COMBINED_ROUTE_SUCCESSOR_FAST_CI_DIRECT_20261014.log",
+    "log_sha256": "a48de87aafb889a0b33b6b525b9912f4cd3f39034cbd45747857bea416027630",
+    "affected_operational_tests": 125,
+    "affected_seconds": 33.978,
+    "held_ci": {
+      "run_id": 38631745907,
+      "tests": 79,
+      "seconds": 3.507,
+      "conclusion": "PASS"
+    },
+    "runtime": "Pinned CPython3.12.14; local linkedSQLite3.45.1; CI linkedSQLite unavailable in log and not inferred",
+    "scope": "Network-blocked offline combined source; no live throughput/provider/held-capacity or acceptance proof",
+    "provider_requests_this_phase": 0,
+    "authoritative_writes_this_phase": false
+  }
+}
