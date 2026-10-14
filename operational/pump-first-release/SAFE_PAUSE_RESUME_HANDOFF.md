@@ -1,3 +1,13 @@
+# Latest continuation — consolidated startup repair, 2026-10-14
+
+Read [CONSOLIDATED_STARTUP_REPAIR_HANDOFF_20261014.md](CONSOLIDATED_STARTUP_REPAIR_HANDOFF_20261014.md)
+first. Implementation `1fe5a6f62d37f84ad24f0b7413279c080e3424e5` is offline only;
+installed `66f85d61` remains stopped/disabled, Restart=no, funding closed. The
+21:20:29 UTC one-start attempt is consumed and its original RECOVERY_REQUIRED
+result is unchanged. Follow the consolidated handoff for exact tests/CI, original
+evidence, supported Pons/cancellation fixes and the unexecuted successor proposal.
+Earlier sections below remain retained history, not current workload authority.
+
 # Combined strategy / operational engineering — 2026-10-14
 
 **READY_FOR_BOUNDED_OBSERVATION_AUTHORIZATION. Offline validation complete; no runtime authority.**
