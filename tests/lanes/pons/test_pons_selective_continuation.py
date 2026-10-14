@@ -28,6 +28,7 @@ from meme_machine.lanes.pons.sequencer_feed import (
 from meme_machine.lanes.pons.pons import CurveState
 from meme_machine.lanes.pons.pons_selective_continuation import (
     POLICY, POLICY_HASH, ENTRY_THRESHOLDS, POST_GRAD_THRESHOLDS, EXIT_POLICY,
+    POLICY_REVISION,
     REENTRY_POLICY, breakout_vector, demand_metrics, entry_signal_persistence,
     post_graduation_vector, pregraduation_action, pregraduation_exit_reason,
     qualification_vector, reentry_regime_reset, relative_strength_bps,
@@ -94,9 +95,12 @@ def vector(**overrides):
 
 
 class PonsSelectivePolicyTests(unittest.TestCase):
-    def test_policy_is_distinct_and_frozen(self):
+    def test_policy_is_distinct_and_versioned(self):
         self.assertEqual(POLICY,"pons-selective-continuation-v1")
-        self.assertEqual(POLICY_HASH,"888904d0e58865f1a701560a5be8386f57d88f66a0c25d7094c994cafa7f448f")
+        self.assertEqual(POLICY_REVISION,'paper-opportunity-access-v1')
+        from meme_machine.paper_policy_revision import previous_hash
+        self.assertEqual(previous_hash('pons_current'),'888904d0e58865f1a701560a5be8386f57d88f66a0c25d7094c994cafa7f448f')
+        self.assertNotEqual(POLICY_HASH,previous_hash('pons_current'))
         self.assertEqual(ENTRY_THRESHOLDS["min_curve_progress_bps"],4500)
         self.assertEqual(ENTRY_THRESHOLDS["max_curve_progress_bps"],8800)
         self.assertEqual(ENTRY_THRESHOLDS["min_token_age_seconds"],90)
@@ -104,8 +108,8 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         self.assertEqual(ENTRY_THRESHOLDS["min_graduation_eta_seconds"],15)
         self.assertEqual(ENTRY_THRESHOLDS["max_graduation_eta_seconds"],120)
         self.assertEqual(ENTRY_THRESHOLDS["max_roundtrip_loss_bps"],600)
-        self.assertTrue(ENTRY_THRESHOLDS["require_curve_acceleration"])
-        self.assertTrue(ENTRY_THRESHOLDS["require_flow_acceleration"])
+        self.assertFalse(ENTRY_THRESHOLDS["require_curve_acceleration"])
+        self.assertFalse(ENTRY_THRESHOLDS["require_flow_acceleration"])
         self.assertEqual(ENTRY_THRESHOLDS["min_fill_breadth_retention_bps"],5000)
         self.assertEqual(ENTRY_THRESHOLDS["capital_size_bps"],500)
         self.assertEqual(EXIT_POLICY["risk_bps"],-800)
@@ -162,7 +166,7 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         v=vector(snapshots=flat)
         self.assertIn("curve_velocity",v["all_rejections"])
 
-    def test_execution_policy_requires_positive_acceleration(self):
+    def test_progressing_deceleration_can_qualify_without_fabricating_acceleration(self):
         decelerating=[
             dict(at=185,progress_bps=7000),
             dict(at=195,progress_bps=7400),
@@ -174,8 +178,10 @@ class PonsSelectivePolicyTests(unittest.TestCase):
             v["trajectory"]["progress_15s_bps"],
             ENTRY_THRESHOLDS["min_progress_15s_bps"],
         )
-        self.assertFalse(v["current_threshold_pass"])
-        self.assertIn("curve_deceleration",v["all_rejections"])
+        self.assertTrue(v["current_threshold_pass"],v['all_rejections'])
+        self.assertNotIn("curve_deceleration",v["all_rejections"])
+        self.assertIn('curve_deceleration',v['confirmation_context']['previous_policy_would_reject'])
+        self.assertTrue(v['newly_admitted_by_revision'])
 
     def test_non_native_pair_is_research_only(self):
         v=vector(pair_token="0x"+"99"*20,quote_relative_strength_bps=321)
@@ -197,21 +203,25 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         v=vector(snapshots=blowoff)
         self.assertIn("graduation_eta",v["all_rejections"])
 
-    def test_profitability_v1_requires_curve_and_flow_acceleration(self):
+    def test_positive_demand_needs_no_curve_or_flow_acceleration(self):
         decelerating=[
             dict(at=185,progress_bps=6800),
             dict(at=195,progress_bps=7600),
             dict(at=200,progress_bps=7800),
         ]
         v=vector(snapshots=decelerating)
-        self.assertIn("curve_deceleration",v["all_rejections"])
+        self.assertTrue(v['current_threshold_pass'],v['all_rejections'])
+        self.assertIn('curve_deceleration',v['confirmation_context']['nonblocking_reasons'])
 
         rows=events()
         # Make the prior 15-second window stronger than the current window while
         # retaining positive current demand.
-        rows.append(trade("prior-heavy","0x"+"aa"*20,8*10**15,180))
+        for i in range(6):rows.append(trade('prior-heavy'+str(i),'0x'+f'{30+i:040x}',2*10**15,180))
         v2=vector(events=rows)
-        self.assertIn("flow_deceleration",v2["all_rejections"])
+        self.assertTrue(v2['current_threshold_pass'],v2['all_rejections'])
+        self.assertNotIn('flow_deceleration',v2['all_rejections'])
+        self.assertFalse(v2['demand']['net_flow_accelerating'])
+        self.assertIn('flow_deceleration',v2['confirmation_context']['previous_policy_would_reject'])
 
     def test_fill_time_persistence_rejects_decayed_continuation(self):
         original=vector()
@@ -233,11 +243,12 @@ class PonsSelectivePolicyTests(unittest.TestCase):
             original,decayed_traj,decayed_demand
         )
         self.assertFalse(rejected["persistent"])
-        self.assertIn("fill_curve_deceleration",rejected["reasons"])
-        self.assertIn("fill_flow_deceleration",rejected["reasons"])
+        self.assertIn('fill_curve_velocity',rejected['reasons'])
+        self.assertNotIn("fill_curve_deceleration",rejected["reasons"])
+        self.assertNotIn("fill_flow_deceleration",rejected["reasons"])
         self.assertIn("fill_buyer_breadth_decay",rejected["reasons"])
 
-    def test_pregraduation_profit_harvest_then_persistent_soft_exit(self):
+    def test_pregraduation_profit_harvest_then_positive_slowing_management(self):
         trajectory=dict(
             complete=True,accelerating=False,recent_progress_bps=50
         )
@@ -274,8 +285,25 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         )
         self.assertEqual(
             (two["action"],two["reason"]),
-            ("full_exit","persistent_pregraduation_deterioration"),
+            ("hold","pregraduation_soft_deterioration"),
         )
+        self.assertTrue(two['management_context']['previous_policy_would_exit'])
+
+    def test_confirmed_nonpositive_demand_and_adverse_flow_retain_exit_authority(self):
+        common=dict(tokens=667,partial_taken=True,elapsed_seconds=50,frozen_eta_seconds=60,
+            trajectory=dict(complete=True,accelerating=False,recent_progress_bps=50),
+            after_cost_return_bps=1700,high_water_return_bps=1900,soft_deterioration_streak=2)
+        zero=pregraduation_action(**common,demand=dict(current_buy_quote=10,current_sell_quote=10,
+            current_net_quote=0,prior_net_quote=9,creator_sell_quote_15s=0))
+        self.assertEqual((zero['action'],zero['reason']),('full_exit','persistent_pregraduation_deterioration'))
+        adverse=pregraduation_action(**common,demand=dict(current_buy_quote=10,current_sell_quote=12,
+            current_net_quote=-2,prior_net_quote=9,creator_sell_quote_15s=0))
+        self.assertEqual(adverse['reason'],'flow_reversal')
+        stopped=dict(common,trajectory=dict(complete=True,accelerating=False,recent_progress_bps=0))
+        structure=pregraduation_action(**stopped,demand=dict(current_buy_quote=10,current_sell_quote=2,
+            current_net_quote=8,prior_net_quote=9,creator_sell_quote_15s=0))
+        self.assertEqual(structure['action'],'full_exit')
+        self.assertTrue(structure['exit_evidence']['nonprogressing_curve'])
 
     def test_pregraduation_single_deceleration_does_not_kill_profitable_runner(self):
         trajectory=dict(
@@ -383,8 +411,9 @@ class PonsSelectivePolicyTests(unittest.TestCase):
         )
         self.assertEqual(
             (stale_twice["action"],stale_twice["reason"]),
-            ("full_exit","persistent_runner_deterioration"),
+            ("hold","runner_management_stale_high"),
         )
+        self.assertTrue(stale_twice['management_context']['previous_policy_would_exit'])
         adverse=runner_action(
             tokens=500,partial_taken=True,after_cost_return_bps=2500,
             high_water_return_bps=2600,seconds_since_high=20,new_buyer_growth=1,

@@ -76,6 +76,40 @@ class OpportunityTelemetryTests(unittest.TestCase):
         self.reject(at=101,decision=bad);self.assertFalse(self.bodies('receipt')[-1]['marginal_alpha_reject'])
         unknown=self.decision();unknown['context'].pop('evidence_complete')
         self.reject(at=102,decision=unknown);self.assertFalse(self.bodies('receipt')[-1]['marginal_alpha_reject'])
+
+    def test_demoted_acceleration_is_honest_optional_context(self):
+        from meme_machine.paper_policy_revision import ACTIVE_REVISION
+        decision=self.decision();vector=decision['vector']
+        vector.update(policy_revision=ACTIVE_REVISION,current_threshold_pass=True,all_rejections=[])
+        vector['trajectory'].update(progress_15s_bps=201,accelerating=False)
+        vector['demand']['net_flow_accelerating']=False
+        self.reject(decision=decision);body=self.bodies('receipt')[-1]
+        self.assertTrue(body['aggregate_pass']['alpha'])
+        self.assertTrue(body['newly_qualified_by_revision'])
+        self.assertEqual(body['previous_predicate_failures'],['curve_deceleration','flow_deceleration'])
+        for row in body['gates']:
+            if row['name'] in ('curve_acceleration','flow_acceleration'):
+                self.assertFalse(row['blocking']);self.assertFalse(row['observed']);self.assertTrue(row['threshold'])
+        vector['trajectory']['accelerating']=None;vector['demand']['net_flow_accelerating']=None
+        self.reject(at=101,decision=decision);body=self.bodies('receipt')[-1]
+        self.assertTrue(body['aggregate_pass']['alpha'])
+        self.assertFalse(body['newly_qualified_by_revision'])
+        self.assertEqual(body['optional_diagnostics_unavailable'],['curve_acceleration','flow_acceleration'])
+
+    def test_pump_repeat_context_and_old_policy_receipt_keep_distinct_authority(self):
+        from dataclasses import asdict
+        from meme_machine.lanes.pump.pump_acceleration_strategy import POLICY
+        from meme_machine.paper_policy_revision import ACTIVE_REVISION,PREVIOUS_REVISION
+        decision=dict(policy=asdict(POLICY),qualification=dict(policy_revision=ACTIVE_REVISION),
+            vector=dict(phase='late_curve_acceleration',repeat_buyer_clusters=0,repeat_buy_share_bps=None))
+        gates={g['name']:g for g in telemetry.measurable_gates('pump',decision)}
+        self.assertEqual(gates['repeat_buyers']['category'],'confirmation')
+        self.assertFalse(gates['repeat_buyers']['blocking'])
+        self.assertIsNone(gates['repeat_share']['passed'])
+        decision['qualification']['policy_revision']=PREVIOUS_REVISION
+        gates={g['name']:g for g in telemetry.measurable_gates('pump',decision)}
+        self.assertEqual(gates['repeat_buyers']['category'],'alpha')
+        self.assertTrue(gates['repeat_buyers']['blocking'])
     def test_replay_conflicting_duplicate_and_immutable_hash_chain(self):
         self.reject();before=telemetry.verify(self.sleeve.db)
         self.reject();self.assertEqual(before,telemetry.verify(self.sleeve.db))

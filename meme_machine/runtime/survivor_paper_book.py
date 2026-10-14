@@ -64,8 +64,26 @@ class PaperBook:
             BEGIN SELECT RAISE(ABORT,'immutable_genesis'); END;
         ''')
         self.db.execute('INSERT OR IGNORE INTO genesis VALUES(1,?)', (_json(self.identity),))
-        if json.loads(self.db.execute('SELECT body FROM genesis').fetchone()[0]) != self.identity:
-            raise ValueError('paper_book_namespace_or_genesis_mismatch')
+        requested=dict(self.identity)
+        stored=json.loads(self.db.execute('SELECT body FROM genesis').fetchone()[0])
+        self.decision_policy_hash=requested['policy_hash']
+        if stored!=requested:
+            from meme_machine.runtime.policy_compatibility import (regime_for,compatible_identity,
+                selection,runtime_selection,save_runtime_selection,require_flat_rows,require_external_flat)
+            if not compatible_identity(stored,requested,regime=regime_for(requested['lane'])):
+                raise ValueError('paper_book_namespace_or_genesis_mismatch')
+            self.identity=stored
+            expected=selection(stored,requested)
+            self.db.execute('BEGIN IMMEDIATE')
+            try:
+                self.replay()
+                if not runtime_selection(self.db,expected):
+                    require_flat_rows([json.loads(raw) for raw, in self.db.execute('SELECT body FROM positions')],kind='pump')
+                    require_external_flat()
+                    save_runtime_selection(self.db,expected)
+                self.db.execute('COMMIT')
+            except BaseException:
+                self.db.execute('ROLLBACK');self.db.close();raise
         self.replay()
         from meme_machine.runtime.native_boundary import attach
         self.portfolio=attach(self,'pump' if 'pump' in self.identity['lane'] else 'pons')
@@ -96,6 +114,11 @@ class PaperBook:
         position['last_at'] = at
         body = dict(identity=self.identity, action=action, at=at, position=position,
                     evidence=evidence, evidence_hash=_hash(evidence))
+        if hasattr(self,'decision_policy_hash'):
+            body['decision_policy_hash']=self.decision_policy_hash
+            from meme_machine.paper_policy_revision import revision_for_hash
+            revision=revision_for_hash(self.decision_policy_hash)
+            if revision is not None:body['policy_revision']=revision
         row = self.db.execute('SELECT seq,hash FROM journal ORDER BY seq DESC LIMIT 1').fetchone()
         if row:seq,previous=row[0]+1,row[1]
         else:
@@ -340,13 +363,18 @@ class PaperBook:
             summaries={} if prior is None else json.loads(_json(prior['journal_proofs']))
             from meme_machine.runtime.component_performance import extend_native,unavailable
             components={} if prior is None else json.loads(_json(prior.get('component_performance',{})))
+            from meme_machine.lanes.pump.pump_acceleration_strategy import STRATEGY_ID as pump_current
+            frontiers={} if prior is None else json.loads(_json(prior.get('current_attempt_frontiers',{})))
             if prior:
                 for identity in prior['positions']:
                     components.setdefault(identity,unavailable(identity,'retired_component_detail'))
-            for raw, in source.db.execute('SELECT body FROM journal ORDER BY seq'):
+            for raw,event_hash in source.db.execute('SELECT body,hash FROM journal ORDER BY seq'):
                 event=json.loads(raw);identity=event['position']['id']
                 summaries[identity]=extend([event],summaries.get(identity))
                 components[identity]=extend_native([event],components.get(identity),adapter='paper',lifecycle_id=identity)
+                if self.identity['lane']==pump_current:
+                    from meme_machine.lanes.pump.pump_attempt_reference import fold_terminal_attempt
+                    fold_terminal_attempt(frontiers,event,event_hash,summaries[identity],components[identity],self.identity)
                 state=(risk_reader or risk_record)(risk.get(identity),event)
                 if state is not None:risk[identity]=state
             anchor=dict(identity=self.identity,seq=proof['events'],final_hash=proof['final_hash'],
@@ -354,6 +382,7 @@ class PaperBook:
                 component_performance=components,
                 execution_cost=(cost_reader or execution_cost)(source),authority=authority,
                 previous_archive_hash=_hash(prior) if prior else None)
+            if self.identity['lane']==pump_current:anchor['current_attempt_frontiers']=frontiers
             if prior:
                 for key in ('folded','archived_entry_scope'):
                     if key in prior:anchor[key]=prior[key]

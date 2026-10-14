@@ -36,10 +36,61 @@ class History:
         # operational storage guard and terminal-history compaction.
         self.maximum_candidates=maximum_candidates;self.maximum_points=maximum_points
         old=self.get_meta('policy')
-        if old is not None and old!=policy:raise ValueError('survivor_history_policy_drift')
+        if old is not None and old!=policy:self._select_policy(old,policy)
         if old is None:self.set_meta('policy',policy)
         self.initial_changes=self.db.total_changes
         self.initial_data_version=self.db.execute('PRAGMA data_version').fetchone()[0]
+
+    def _select_policy(self,old,policy):
+        """Invalidate only derived candidate decisions at a verified flat boundary.
+
+        Raw observations and original archives are never relabeled. The old
+        Pump reset prefix cannot prove a new 3% reset after its detail retired.
+        """
+        from meme_machine.runtime.policy_compatibility import (active_hash,selection,
+            require_flat_rows,require_external_flat,SELECTION_KEY)
+        from meme_machine.paper_policy_revision import previous_hash
+        regimes=('pump_survivor','pons_survivor')
+        regime=next((r for r in regimes if old==previous_hash(r) and policy==active_hash(r)),None)
+        if regime is None:raise ValueError('survivor_history_policy_drift')
+        with self.transaction():
+            rows=self.rows(include_retired=True)
+            for row in rows:
+                if (row.get('position') or row.get('pending_action')
+                        or row.get('state') in ('reserved','filled','runner','exit_pending')):
+                    raise ValueError('paper_policy_transition_unresolved_survivor_history:'+row['id'])
+            # History precedes book construction in the native adapter. Verify
+            # its sibling native projection and chain before selecting a revision.
+            sibling=self.path.with_name('paper.sqlite')
+            if sibling.is_file():
+                from contextlib import closing
+                from meme_machine.runtime.survivor_paper_book import PaperBook
+                with closing(sqlite3.connect(sibling.resolve().as_uri()+'?mode=ro',uri=True)) as db:
+                    book=PaperBook.__new__(PaperBook);book.db=db
+                    import threading
+                    book.lock=threading.RLock()
+                    book.identity=json.loads(db.execute('SELECT body FROM genesis WHERE id=1').fetchone()[0])
+                    book.replay()
+                    require_flat_rows([json.loads(raw) for raw, in db.execute('SELECT body FROM positions')],kind='pump')
+            require_external_flat()
+            expected=selection(dict(policy_hash=old),dict(policy_hash=policy))
+            self.set_meta(SELECTION_KEY,expected)
+            self.set_meta('previous_policy:'+old,dict(policy_hash=old,revision='pre-paper-opportunity-access-v1'))
+            for row in rows:
+                identity=row['id'];saved=self.get_meta('calculation_prefix:'+identity)
+                if saved is not None:
+                    self.set_meta('previous_calculation_prefix:'+old+':'+identity,saved)
+                    self.db.execute('DELETE FROM meta WHERE key=?',('calculation_prefix:'+identity,))
+                archive=self.get_meta('archive_prefix:'+identity)
+                if regime=='pump_survivor' and archive is not None and archive.get('reducer_state') is not None:
+                    row['policy_recomputation_blocker']='reset_history_revision_detail_unavailable'
+                    row['policy_recomputation_source_policy']=old
+                if row.get('decision') is not None:
+                    self.set_meta('previous_candidate_decision:'+old+':'+identity,row['decision'])
+                row['last_checked']=0
+                row['decision_policy_hash']=policy
+                self.save(row)
+            self.set_meta('policy',policy)
 
     @contextmanager
     def transaction(self):
@@ -198,7 +249,7 @@ class History:
                     '''+("DELETE FROM meta WHERE key='calculation_prefix:'||OLD.candidate AND json_extract(body,'$.through')>=OLD.at;" if action=='UPDATE' else '')+' END')
             self._calculation_triggers=True
         row=self.get(identity);archive=self.get_meta('archive_prefix:'+identity)
-        if (row is None or not row.get('complete') or row.get('recovery')
+        if (row is None or not row.get('complete') or row.get('recovery') or row.get('policy_recomputation_blocker')
                 or archive is not None and archive['reducer_state'] is None):
             points,events=self.facts(identity,now);return points,events,self.prefix(identity)
         source=digest([policy,row['graduation'],archive])
@@ -250,6 +301,7 @@ class History:
         # point is verified and folded under the same transaction below.
         with self.transaction():
             for row in self.rows():
+                if row.get('policy_recomputation_blocker'):continue
                 identity=row['id'];cut=row['through']-86400
                 older=[]
                 for at,price,checksum in self.db.execute(

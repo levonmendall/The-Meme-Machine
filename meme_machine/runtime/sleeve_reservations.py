@@ -46,6 +46,7 @@ class SleeveReservations:
         Path(path).parent.mkdir(parents=True,exist_ok=True)
         self.lock=threading.RLock()
         self.identity=dict(lane=lane,capital=capital,policies=policies,cohort=cohort,paper_only=True)
+        self.decision_policies=dict(policies)
         from meme_machine.runtime.preserved_checkpoint import snapshot
         with snapshot(path,name=lane+'/directional-sleeve.sqlite',lane=lane) as preserved:
             try:
@@ -74,8 +75,32 @@ class SleeveReservations:
         ''')
         with self.transaction():
             self.db.execute('INSERT OR IGNORE INTO sleeve_genesis VALUES(1,?)',(canonical(self.identity),))
-            if self.db.execute('SELECT body FROM sleeve_genesis').fetchone()[0]!=canonical(self.identity):
-                raise ValueError('sleeve_genesis_drift')
+            stored=json.loads(self.db.execute('SELECT body FROM sleeve_genesis').fetchone()[0])
+            if stored!=self.identity:
+                from meme_machine.runtime.policy_compatibility import (compatible_identity,regime_for,
+                    selection,require_flat_rows,require_external_flat,SELECTION_KEY)
+                requested=dict(self.identity)
+                if (dict(stored,policies=requested['policies'])!=requested
+                        or set(stored['policies'])!=set(requested['policies'])
+                        or not all(compatible_identity(dict(policy_hash=stored['policies'][strategy]),
+                            dict(policy_hash=value),regime=regime_for(strategy))
+                            for strategy,value in requested['policies'].items())):
+                    raise ValueError('sleeve_genesis_drift')
+                self.identity=stored
+                self.reconcile()
+                # This existing nonfinancial metadata table also retains the
+                # opportunity journal prefix. Financial genesis stays immutable.
+                self.db.execute('CREATE TABLE IF NOT EXISTS opportunity_meta_v1(key TEXT PRIMARY KEY,value TEXT NOT NULL)')
+                expected=selection(stored,requested)
+                selected=self.db.execute('SELECT value FROM opportunity_meta_v1 WHERE key=?',(SELECTION_KEY,)).fetchone()
+                if selected:
+                    saved=json.loads(selected[0]);checksum=saved.pop('checksum',None)
+                    if checksum!=digest(saved) or saved!=expected:raise ValueError('paper_policy_selection_checkpoint_conflict')
+                else:
+                    require_flat_rows([json.loads(raw) for raw, in self.db.execute('SELECT body FROM sleeve_positions')],kind='sleeve')
+                    require_external_flat()
+                    self.db.execute('INSERT INTO opportunity_meta_v1 VALUES(?,?)',
+                        (SELECTION_KEY,canonical(dict(expected,checksum=digest(expected)))))
             self.reconcile()
         self.opportunity_ready=False;self.opportunity_error=None
         try:
@@ -243,6 +268,10 @@ class SleeveReservations:
             row=dict(id=identity,strategy=strategy,amount=amount,held=amount,at=at,
                      candidate=candidate,generation=generation,regime=regime,status='reserved',pnl=0,
                      asset=key,scale_committed=False)
+            row['decision_policy_hash']=self.decision_policies[strategy]
+            from meme_machine.paper_policy_revision import revision_for_hash
+            revision=revision_for_hash(self.decision_policies[strategy])
+            if revision is not None:row['policy_revision']=revision
             if getattr(self,'_grant_receipt',None):row['shared_funding']=dict(self._grant_receipt)
             self._event('reserve',row)
             return row

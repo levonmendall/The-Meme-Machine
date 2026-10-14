@@ -67,7 +67,8 @@ class PumpAccelerationPaperLifecycle:
     def reserve(self, qualification: Qualification, budget_quote_units: int, now: int):
         if qualification.strategy_id != STRATEGY_ID:
             raise ValueError("foreign_strategy_qualification")
-        if qualification.policy_hash != policy_hash():
+        recovery_hash=getattr(self,'_recovery_policy_hash',None) if self.book is None else None
+        if qualification.policy_hash != policy_hash() and qualification.policy_hash != recovery_hash:
             raise ValueError("stale_strategy_policy_qualification")
         if not qualification.qualified:
             raise ValueError("unqualified_strategy_signal")
@@ -139,8 +140,9 @@ class PumpAccelerationPaperLifecycle:
         if self.reservation is None:
             raise ValueError("no_active_reservation")
         if self.book is not None:
+            from .pump_attempt_reference import terminal_attempt_evidence
             self.book.transition(self.lifecycle_id,"cancelled",int(now),
-                                 evidence=dict(reason=str(reason)))
+                                 evidence=dict(reason=str(reason),attempt=terminal_attempt_evidence(self)))
             if self.sleeve is not None:
                 from meme_machine.runtime.directional_sleeve import native_terminal
                 self.book.replay()
@@ -358,9 +360,11 @@ class PumpAccelerationPaperLifecycle:
         if executable_proceeds_quote_units < 0:
             raise ValueError("invalid_settlement")
         if self.book is not None:
+            from .pump_attempt_reference import terminal_attempt_evidence
             self.book.transition(self.lifecycle_id,"settled",int(now),
                                  amount=int(executable_proceeds_quote_units),
-                                 evidence=dict(exit_reason=self.position.exit_reason,execution=evidence))
+                                 evidence=dict(exit_reason=self.position.exit_reason,execution=evidence,
+                                               attempt=terminal_attempt_evidence(self)))
         self.position.realized_quote_units+=(
             int(executable_proceeds_quote_units)-self.position.basis_quote_units
         )
@@ -404,6 +408,10 @@ class PumpAccelerationPaperLifecycle:
             first=records[0]['evidence']
             life=cls(lifecycle_id=lifecycle_id,entry_evidence=first.get('snapshot') or {})
             prior=None
+        # Native replay can retain a preceding decision in the immutable old
+        # financial namespace. This allowance exists only on the replay object;
+        # an actual reservation still requires the selected admission policy.
+        life._recovery_policy_hash=book.identity['policy_hash']
         pending=book.runtime_state(lifecycle_id,'exceptional-exit-intent')
         for row in records:
             action=row['action'];at=row['at'];position=row['position'];evidence=row['evidence']
@@ -413,6 +421,9 @@ class PumpAccelerationPaperLifecycle:
             if action=='reserved':
                 q=dict(evidence['qualification'])
                 q['reasons']=tuple(q['reasons']);q['confirmations']=tuple(q['confirmations'])
+                if 'policy_revision' not in q:
+                    from meme_machine.paper_policy_revision import revision_for_hash
+                    q['policy_revision']=revision_for_hash(q['policy_hash']) or 'unavailable'
                 life.reserve(Qualification(**q),position['reserved'],at)
             elif action=='filled':
                 life.fill(position['tokens'],position['basis'],at,evidence['surface'],

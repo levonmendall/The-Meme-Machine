@@ -30,7 +30,7 @@ def winner_points():
 
 def facts(**changes):
     d=dict(
-        now=NOW,graduation_at=NOW-30*60*60,lineage_proven=True,native_quote=True,
+        now=NOW,graduation_at=NOW-30*60*60,lineage_proven=True,native_quote=True,continuity_complete=True,
         price_points=winner_points(),capital_quote=10**18,
         flow_30m=dict(
             buy_quote=10**17,sell_quote=5*10**16,
@@ -38,13 +38,100 @@ def facts(**changes):
             new_buyer_groups=["0x"+f"{i:040x}" for i in range(5,8)],
             largest_buyer_flow_bps=2500,creator_sell_quote=0,
         ),
-        flow_previous_30m=dict(buy_quote=6*10**16),
+        flow_previous_30m=dict(buy_quote=6*10**16,
+            buyer_groups=['0x'+f'{i:040x}' for i in range(1,5)]),
         execution=dict(roundtrip_loss_bps=180,double_size_roundtrip_loss_bps=260),
     )
     d.update(changes);return d
 
 
 class PonsPostgradSurvivorTests(unittest.TestCase):
+    def young_facts(self,age=4*3600):
+        return facts(graduation_at=NOW-age,price_points=[
+            (NOW-age,10000),(NOW-150*60,12000),(NOW-2*3600,11400),
+            (NOW-90*60,11500),(NOW-16*60,11700),(NOW-5*60,12500),(NOW,12600)])
+
+    def test_four_to_six_hour_histories_are_complete_effective_windows(self):
+        from meme_machine.lanes.pons.pons_survivor_runtime import Runtime
+        adapter=object.__new__(Runtime)
+        for age in (4*3600,5*3600,6*3600,6*3600+1):
+            f=self.young_facts(age);out=adapter.qualify(f)
+            self.assertTrue(out['candidate'],out['all_rejections'])
+            w=out['features']['medium_window']
+            self.assertEqual(w['nominal_duration_seconds'],21600)
+            self.assertEqual(w['effective_duration_seconds'],min(age,21600))
+            self.assertEqual(w['window_start'],NOW-min(age,21600))
+            self.assertEqual(w['covered_duration_seconds'],min(age,21600))
+            self.assertTrue(w['complete'])
+
+    def test_missing_boundary_or_native_continuity_does_not_shorten_window(self):
+        for remove_anchor,continuity in ((True,True),(False,False)):
+            f=self.young_facts()
+            if remove_anchor:f['price_points']=f['price_points'][1:]
+            f['continuity_complete']=continuity
+            out=evaluate_entry(f)
+            self.assertFalse(out['candidate'])
+            self.assertIn('incomplete_medium_window',out['all_rejections'])
+            self.assertEqual(out['features']['medium_window']['effective_duration_seconds'],14400)
+            self.assertFalse(out['features']['medium_window']['complete'])
+
+    def test_four_hour_and_seven_day_entry_boundaries_are_inclusive(self):
+        early=evaluate_entry(self.young_facts(4*3600-1))
+        self.assertIn('too_early',early['all_rejections'])
+        self.assertTrue(evaluate_entry(self.young_facts())['candidate'])
+        at_limit=facts(graduation_at=NOW-7*86400,
+            price_points=[(NOW-7*86400,10000)]+winner_points()[1:])
+        self.assertTrue(evaluate_entry(at_limit)['candidate'])
+        beyond=dict(at_limit,graduation_at=NOW-7*86400-1,
+            price_points=[(NOW-7*86400-1,10000)]+winner_points()[1:])
+        self.assertIn('too_old',evaluate_entry(beyond)['all_rejections'])
+        ongoing=evaluate_entry(dict(beyond,qualification_scope='existing_position_add'))
+        self.assertTrue(ongoing['candidate'],ongoing['all_rejections'])
+        self.assertEqual(ongoing['qualification_scope'],'existing_position_add')
+
+    def test_sustained_buying_and_missing_optional_acceleration_can_qualify(self):
+        from meme_machine.lanes.pons.pons_survivor_runtime import Runtime
+        adapter=object.__new__(Runtime)
+        for previous in ({'buy_quote':10**17,'buyer_groups':[]},
+                {'buy_quote':12*10**16,'buyer_groups':[]},{'buyer_groups':[]}):
+            f=facts(flow_previous_30m=previous);out=adapter.qualify(f)
+            self.assertTrue(out['candidate'],out['all_rejections'])
+            self.assertNotIn('no_demand_acceleration',out['all_rejections'])
+            if 'buy_quote' not in previous:
+                self.assertIsNone(out['features']['buy_acceleration_bps'])
+                self.assertIn('buy_acceleration_bps',out['confirmation_context']['unavailable_fields'])
+            else:
+                self.assertIn('no_demand_acceleration',out['confirmation_context']['previous_policy_would_reject'])
+                self.assertTrue(out['newly_admitted_by_revision'])
+        f=facts(flow_previous_30m={'buy_quote':12*10**16,'buyer_groups':[]})
+        f['flow_30m']=dict(f['flow_30m'],sell_quote=10**17)
+        self.assertIn('weak_buy_sell_flow',adapter.qualify(f)['all_rejections'])
+
+    def test_current_newcomers_are_independent_of_optional_previous_population(self):
+        from meme_machine.lanes.pons.pons_survivor_runtime import Runtime
+        adapter=object.__new__(Runtime)
+        for previous in ({},{'buy_quote':10**17},{'buy_quote':10**17,'buyer_groups':None}):
+            out=adapter.qualify(facts(flow_previous_30m=previous))
+            self.assertTrue(out['candidate'],out['all_rejections'])
+            self.assertEqual(out['features']['new_independent_buyers_30m'],3)
+            self.assertIsNone(out['features']['total_buyer_population_change'])
+            self.assertIsNone(out['features']['repeat_independent_buyers_30m'])
+        available=adapter.qualify(facts(flow_previous_30m={'buyer_groups':[]}))
+        self.assertTrue(available['candidate'],available['all_rejections'])
+        self.assertIsNone(available['features']['buy_acceleration_bps'])
+
+    def test_missing_actual_newcomer_population_is_unavailable_required_evidence(self):
+        from meme_machine.lanes.pons.pons_survivor_runtime import Runtime
+        adapter=object.__new__(Runtime)
+        for absent in (True,None,'unavailable',[None],['']):
+            f=facts();f['flow_30m']=dict(f['flow_30m'])
+            if absent is True:f['flow_30m'].pop('new_buyer_groups')
+            else:f['flow_30m']['new_buyer_groups']=absent
+            out=adapter.qualify(f)
+            self.assertFalse(out['candidate'])
+            self.assertIn('missing_new_buyer_population',out['all_rejections'])
+            self.assertIsNone(out['features']['new_independent_buyers_30m'])
+
     def test_open_market_style_survivor_breakout_qualifies(self):
         out=evaluate_entry(facts())
         self.assertTrue(out["candidate"],out["all_rejections"])

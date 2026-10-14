@@ -6,6 +6,7 @@ unknown; this module never obtains a provider quote or changes a qualification.
 from fractions import Fraction
 import json
 from meme_machine.runtime.journal import canonical,digest
+from meme_machine.paper_policy_revision import ACTIVE_REVISION,revision_for_hash
 
 SCHEMA='directional-opportunity-telemetry-v1'
 WINDOWS=(300,900,3600,21600,86400)
@@ -82,7 +83,8 @@ def gate(name,observed,threshold,comparator,category,*,reason=None):
     return dict(name=name,observed=observed,threshold=threshold,comparator=comparator,
         signed_distance=None if distance is None else str(distance),
         normalized_signed_distance=None if normalized is None else str(normalized),
-        category=category,passed=passed,reason=reason)
+        category=category,passed=passed,reason=reason,
+        blocking=category not in ('confirmation','context'))
 
 def measurable_gates(lane,decision):
     vector=decision.get('vector') or {};context=decision.get('context') or {}
@@ -110,7 +112,13 @@ def measurable_gates(lane,decision):
             ('roundtrip_loss','roundtrip_loss_bps','max_roundtrip_loss_bps','<=','execution','roundtrip_cost'),
             ('stress_loss','proposed_size.execution_capacity.double_loss_bps','max_roundtrip_loss_bps','<=','execution','position_size_zero'),
         )
-        for name,path,key,op,category,reason in rows:add(name,path,thresholds.get(key),op,category,reason)
+        for name,path,key,op,category,reason in rows:
+            threshold=thresholds.get(key)
+            if name in ('curve_acceleration','flow_acceleration') and threshold is False:
+                # False selects optional context; it does not require a false
+                # measurement. Compare to the former predicate for reporting.
+                threshold=True;category='confirmation'
+            add(name,path,threshold,op,category,reason)
         add('state_freshness_lower','decision_state_age_seconds',0,'>=','evidence','stale_state_after_evidence')
         add('trajectory_complete','trajectory.complete',True,'==','evidence','trajectory_history')
         add('net_demand','demand.current_net_quote',0,'>','alpha','net_demand_nonpositive')
@@ -167,7 +175,14 @@ def measurable_gates(lane,decision):
                     ('breakout','breakout_bps','min_breakout_bps','>=','alpha','breakout'),
                     ('growth','buyer_growth','min_second_leg_buyer_growth','>=','alpha','buyer_growth'),
                 ]
-        for name,path,key,op,category,reason in rows:add(name,path,policy.get(key),op,category,reason)
+        qualification=decision.get('qualification') or {}
+        revision=qualification.get('policy_revision',policy.get('revision'))
+        for name,path,key,op,category,reason in rows:
+            if revision==ACTIVE_REVISION and name in ('repeat_buyers','repeat_share'):
+                category='confirmation'
+            if name=='age_max' and qualification.get('qualification_purpose')=='ongoing':
+                category='context'
+            add(name,path,policy.get(key),op,category,reason)
         add('point_in_time','point_in_time',True,'==','evidence','non_point_in_time_signal')
         add('future_data_used','future_data_used',False,'==','evidence','non_point_in_time_signal')
         add('native_quote','quote_asset','SOL','==','hard_safety','unsupported_quote_asset')
@@ -190,6 +205,11 @@ def current_receipt(identity,asset,decision_id,status,at,decision):
     reasons=list(qualification.get('reasons',vector.get('all_rejections',[])))
     if not reasons and decision.get('reason'):reasons=[decision['reason']]
     gates=measurable_gates(identity['lane'],decision)
+    effective_hash=qualification.get('policy_hash',vector.get('policy_hash'))
+    effective_revision=qualification.get('policy_revision',vector.get('policy_revision'))
+    if effective_revision is None and effective_hash is not None:
+        effective_revision=revision_for_hash(effective_hash)
+    demoted=[g['reason'] for g in gates if g['category']=='confirmation' and g['passed'] is False]
     known={g['reason'] for g in gates}
     unknown=[r for r in reasons if r not in known]
     aggregates={category:bool([g for g in gates if g['category']==category]) and
@@ -203,7 +223,13 @@ def current_receipt(identity,asset,decision_id,status,at,decision):
         opportunity_id=asset,current_decision_id=decision_id,
         native_lifecycle_identity=decision.get('native_identity'),
         current_strategy=qualification.get('strategy_id',vector.get('policy')),
-        policy_hash=qualification.get('policy_hash',vector.get('policy_hash')),
+        policy_hash=effective_hash,policy_revision=effective_revision,
+        previous_predicate_failures=demoted,
+        optional_diagnostics_unavailable=[g['name'] for g in gates
+            if g['category']=='confirmation' and g['passed'] is None],
+        newly_qualified_by_revision=bool(effective_revision==ACTIVE_REVISION and demoted and
+            (qualification.get('qualified') is True or vector.get('current_threshold_pass') is True)),
+        predicate_comparison_scope='decision_only_no_counterfactual_execution',
         policy_epoch=identity['cohort'],decision_timestamp=int(at),status=status,
         source_cursor=context.get('source_cursor'),freshness_generation=context.get('freshness_generation'),
         rejection_reasons=reasons,gates=gates,aggregate_pass=aggregates,

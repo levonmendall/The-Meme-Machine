@@ -13,11 +13,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+from meme_machine.paper_policy_revision import ACTIVE_REVISION
 
 
 STRATEGY_VERSION="pons-postgrad-survivor-momentum-v1"
 
 POLICY=dict(
+    revision=ACTIVE_REVISION,
     authority=dict(
         paper_only=True,
         live_money=False,
@@ -51,6 +53,7 @@ POLICY=dict(
         min_new_independent_buyers_30m=1,
         min_buy_sell_ratio_bps=12_500,
         min_buy_acceleration_bps=11_000,
+        require_buy_acceleration=False,
         max_largest_buyer_share_bps=4000,
         max_creator_sell_quote=0,
     ),
@@ -110,6 +113,30 @@ def _window(points,now,seconds):
     return rows
 
 
+def _bounded_window(points,now,nominal_seconds,graduation_at,continuity_complete):
+    """Use a proven pre-boundary price, never the first accidentally loaded row.
+
+    An authenticated complete event history establishes that the last price at
+    or before the boundary held until the next observed change. This carries an
+    existing witness into a quiet interval; it invents no price or observation.
+    """
+    effective=min(max(0,now-graduation_at),int(nominal_seconds))
+    start=now-effective
+    eligible=[p for p in points if graduation_at<=p[0]<=now]
+    before=[p for p in eligible if p[0]<=start]
+    witness=before[-1] if before else None
+    rows=([witness] if witness is not None else [])+[p for p in eligible if p[0]>start]
+    covered=max(0,min(effective,now-max(start,eligible[0][0]))) if eligible else 0
+    complete=bool(continuity_complete and witness is not None and
+        rows and rows[-1][0]==now and effective>0)
+    return rows,dict(nominal_duration_seconds=int(nominal_seconds),
+        effective_duration_seconds=effective,covered_duration_seconds=covered,
+        window_start=start,window_end=now,complete=complete,
+        boundary_witness_at=None if witness is None else witness[0],
+        boundary_witness_price_index=None if witness is None else witness[1],
+        continuity_complete=bool(continuity_complete))
+
+
 def return_bps(start,end):
     start=int(start);end=int(end)
     if start<=0 or end<=0:
@@ -152,20 +179,21 @@ def _feature_set(facts):
     current=points[-1][1]
     age=max(0,now-graduation_at)
 
-    since_grad=[row for row in points if row[0]>=graduation_at]
-    first_grad=since_grad[0][1] if since_grad else None
+    first_grad=facts.get('graduation_price_index')
+    if first_grad is None:
+        first_grad=next((price for at,price in points if at==graduation_at),None)
+    continuity=facts.get('continuity_complete') is True
+    w2,short_window=_bounded_window(points,now,POLICY['trend']['short_window_seconds'],graduation_at,continuity)
+    # Six hours is nominal. A four-to-six-hour token requires its entire
+    # continuous post-graduation history, without relabeling it as six hours.
+    w6,medium_window=_bounded_window(points,now,21600,graduation_at,continuity)
+    wlong,long_window=_bounded_window(points,now,POLICY['trend']['long_window_seconds'],graduation_at,continuity)
 
-    w2=_window(points,now,POLICY["trend"]["short_window_seconds"])
-    w6=_window(points,now,POLICY["trend"]["medium_window_seconds"])
-    wlong=_window(points,now,min(
-        POLICY["trend"]["long_window_seconds"],max(1,age)
-    ))
-
-    r2=(None if len(w2)<2 else return_bps(w2[0][1],current))
-    r6=(None if len(w6)<2 else return_bps(w6[0][1],current))
-    rlong=(None if len(wlong)<2 else return_bps(wlong[0][1],current))
+    r2=(None if not short_window['complete'] else return_bps(w2[0][1],current))
+    r6=(None if not medium_window['complete'] else return_bps(w6[0][1],current))
+    rlong=(None if not long_window['complete'] else return_bps(wlong[0][1],current))
     rsince=(None if first_grad is None else return_bps(first_grad,current))
-    efficiency=(0 if len(w6)<2 else trend_efficiency_bps([p for _,p in w6]))
+    efficiency=(0 if not medium_window['complete'] else trend_efficiency_bps([p for _,p in w6]))
 
     base_seconds=POLICY["trend"]["base_seconds"]
     exclude=POLICY["trend"]["breakout_exclusion_seconds"]
@@ -190,20 +218,26 @@ def _feature_set(facts):
     flow=facts.get("flow_30m") or {}
     prev=facts.get("flow_previous_30m") or {}
     buy=int(flow.get("buy_quote",0));sell=int(flow.get("sell_quote",0))
-    prev_buy=int(prev.get("buy_quote",0))
+    prev_buy=None if prev.get('buy_quote') is None else int(prev['buy_quote'])
     ratio=buy_sell_ratio_bps(buy,sell)
     acceleration=(
-        100_000 if prev_buy==0 and buy>0
+        None if prev_buy is None else 100_000 if prev_buy==0 and buy>0
         else 0 if prev_buy<=0
         else buy*10_000//prev_buy
     )
     buyers={str(x).lower() for x in flow.get("buyer_groups",())}
-    new_buyers={str(x).lower() for x in flow.get("new_buyer_groups",())}
-    previous_buyers={str(x).lower() for x in prev.get("buyer_groups",())}
-    repeat_buyers=buyers & previous_buyers
+    new_population=flow.get('new_buyer_groups')
+    new_population_available=(isinstance(new_population,(list,tuple,set,frozenset)) and
+        all(isinstance(group,str) and bool(group) for group in new_population))
+    new_buyers={str(x).lower() for x in new_population} if new_population_available else None
+    previous_population=prev.get('buyer_groups')
+    previous_population_available=(isinstance(previous_population,(list,tuple,set,frozenset)) and
+        all(isinstance(group,str) and bool(group) for group in previous_population))
+    previous_buyers={str(x).lower() for x in previous_population} if previous_population_available else None
+    repeat_buyers=None if previous_buyers is None else buyers & previous_buyers
     group_flow=flow.get("buy_quote_by_group",{})
-    repeat_quote=sum(int(v) for g,v in group_flow.items() if str(g).lower() in repeat_buyers)
-    repeat_share=None if sum(int(v) for v in group_flow.values())!=buy else (0 if buy==0 else repeat_quote*10000//buy)
+    repeat_quote=None if repeat_buyers is None else sum(int(v) for g,v in group_flow.items() if str(g).lower() in repeat_buyers)
+    repeat_share=None if repeat_quote is None or sum(int(v) for v in group_flow.values())!=buy else (0 if buy==0 else repeat_quote*10000//buy)
     turnover=buy+sell
 
     execution=facts.get("execution") or {}
@@ -220,15 +254,25 @@ def _feature_set(facts):
         age_seconds=age,current_price_index=current,
         since_graduation_return_bps=rsince,long_return_bps=rlong,
         return_6h_bps=r6,return_2h_bps=r2,efficiency_6h_bps=efficiency,
+        medium_window_return_bps=r6,medium_window_efficiency_bps=efficiency,
+        return_6h_bps_semantics='return_over_effective_maturity_aware_medium_window',
+        effective_long_window_seconds=medium_window['effective_duration_seconds'],
+        short_window=short_window,medium_window=medium_window,long_window=long_window,
         reset_pullback_bps=pullback,breakout_bps=breakout,
         base_low=base_low,base_high=prior_high,older_peak=older_peak,
         buy_quote_30m=buy,sell_quote_30m=sell,buy_sell_ratio_bps=ratio,
         buy_acceleration_bps=acceleration,
+        previous_buyer_population_available=previous_population_available,
+        new_buyer_population_available=new_population_available,
+        previous_independent_buyers_30m=None if previous_buyers is None else len(previous_buyers),
+        total_buyer_population_change=(None if previous_buyers is None else len(buyers)-len(previous_buyers)),
+        net_flow_change_quote=(None if prev_buy is None or prev.get('sell_quote') is None
+            else (buy-sell)-(prev_buy-int(prev['sell_quote']))),
         independent_buyers_30m=len(buyers),
-        repeat_independent_buyers_30m=len(repeat_buyers),
+        repeat_independent_buyers_30m=None if repeat_buyers is None else len(repeat_buyers),
         repeat_buyer_share_bps=repeat_share,
-        persistent_buyer_groups=sorted(repeat_buyers),
-        new_independent_buyers_30m=len(new_buyers),
+        persistent_buyer_groups=None if repeat_buyers is None else sorted(repeat_buyers),
+        new_independent_buyers_30m=None if new_buyers is None else len(new_buyers),
         largest_buyer_share_bps=int(flow.get("largest_buyer_flow_bps",10_000)),
         creator_sell_quote=int(flow.get("creator_sell_quote",0)),
         turnover_quote_30m=turnover,
@@ -250,8 +294,14 @@ def evaluate_entry(facts):
     reject("non_native_quote",facts.get("native_quote") is not True)
 
     u=POLICY["universe"];t=POLICY["trend"];d=POLICY["demand"];e=POLICY["execution"]
-    reject("too_early",f["age_seconds"]<u["min_seconds_after_graduation"])
-    reject("too_old",f["age_seconds"]>u["max_seconds_after_graduation"])
+    ongoing=facts.get('qualification_scope')=='existing_position_add'
+    if not ongoing:
+        reject("too_early",f["age_seconds"]<u["min_seconds_after_graduation"])
+        reject("too_old",f["age_seconds"]>u["max_seconds_after_graduation"])
+    reject('incomplete_medium_window',not f['medium_window']['complete'])
+    reject('incomplete_long_window',not f['long_window']['complete'])
+    reject('incomplete_short_window',not f['short_window']['complete'])
+    reject('missing_new_buyer_population',not f['new_buyer_population_available'])
 
     for name in (
         "since_graduation_return_bps","long_return_bps","return_6h_bps",
@@ -279,10 +329,13 @@ def evaluate_entry(facts):
 
     reject("insufficient_buyer_breadth",
            f["independent_buyers_30m"]<d["min_independent_buyers_30m"])
-    reject("insufficient_new_breadth",
-           f["new_independent_buyers_30m"]<d["min_new_independent_buyers_30m"])
+    if f['new_independent_buyers_30m'] is not None:
+        reject("insufficient_new_breadth",
+               f["new_independent_buyers_30m"]<d["min_new_independent_buyers_30m"])
     reject("weak_buy_sell_flow",f["buy_sell_ratio_bps"]<d["min_buy_sell_ratio_bps"])
-    reject("no_demand_acceleration",f["buy_acceleration_bps"]<d["min_buy_acceleration_bps"])
+    acceleration=f['buy_acceleration_bps']
+    warnings=(['no_demand_acceleration'] if acceleration is not None and
+        acceleration<d['min_buy_acceleration_bps'] else [])
     reject("buyer_concentration",
            f["largest_buyer_share_bps"]>d["max_largest_buyer_share_bps"])
     reject("creator_distribution",
@@ -304,7 +357,7 @@ def evaluate_entry(facts):
         int(f["independent_buyers_30m"]),
         int(f["buy_sell_ratio_bps"]),
         -int(f["roundtrip_loss_bps"] or 10**9),
-        int(f["repeat_independent_buyers_30m"]),
+        int(f["repeat_independent_buyers_30m"] or 0),
         int(f["repeat_buyer_share_bps"] or 0),
     )
     blocked=set(reasons)
@@ -315,6 +368,13 @@ def evaluate_entry(facts):
     if blocked & {'too_early','too_old'}:stage='aging'
     return dict(
         strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,
+        policy_revision=ACTIVE_REVISION,qualification_scope=(
+            'existing_position_add' if ongoing else 'initial_entry'),
+        initial_entry_authority=not ongoing,
+        confirmation_context=dict(authority='confirmation_only',buy_acceleration_bps=acceleration,
+            nonblocking_reasons=warnings,previous_policy_would_reject=warnings,
+            unavailable_fields=[] if acceleration is not None else ['buy_acceleration_bps']),
+        newly_admitted_by_revision=bool(not reasons and warnings),
         paper_only=True,live_money=False,
         candidate=not reasons,all_rejections=reasons,
         proposed_quote_amount=(f["proposed_quote_amount"] if not reasons else 0),

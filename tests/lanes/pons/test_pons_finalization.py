@@ -538,7 +538,8 @@ class SurvivorSchedulingTests(RuntimeCase):
             self.assertIsNone(broker.plane.get(broker.identity(observation(1))))
             self.assertIsNotNone(self.runtime.history.get(candidate))
             self.assertTrue(self.runtime.qualify(facts(now=NOW+86401,continuity_complete=True,
-                graduation_at=NOW-30*3600,price_points=[(at+86401,p) for at,p in winner_points()]))['candidate'])
+                graduation_at=NOW-30*3600,price_points=[(NOW-30*3600,10000)]+
+                [(at+86401,p) for at,p in winner_points()]))['candidate'])
         finally:broker.close()
 
 
@@ -551,8 +552,13 @@ class CapitalIndependenceTests(RuntimeCase):
             trades.append(dict(id=f'buy{n}',at=NOW-100,group=address(n+100),buy=True,quote=10**17//7,tokens=1,authenticated=True))
             if n<=4:trades.append(dict(id=f'old{n}',at=NOW-2000,group=address(n+100),buy=True,quote=6*10**16//4,tokens=1,authenticated=True))
         trades.append(dict(id='sell',at=NOW-90,group=address(200),buy=False,quote=5*10**16,tokens=1,authenticated=True))
-        self.runtime.history.append(address(1),through=NOW,events=trades,points=winner_points(),complete=True)
-        return dict(block=100,block_hash=block_header(100)['hash'],at=NOW,price_index=12900,acquired=time.monotonic())
+        from meme_machine.lanes.pons.pons_survivor_runtime import price_index
+        original=price_index(row['graduation']['transition']['initialization_sqrt_price_x96'],
+            row['id'],PoolKey(**row['graduation']['key']))
+        points=[(at,original*price//10000) for at,price in winner_points()]
+        self.runtime.history.append(address(1),through=NOW,events=trades,points=points,complete=True)
+        return dict(block=100,block_hash=block_header(100)['hash'],at=NOW,
+            price_index=original*12900//10000,acquired=time.monotonic())
 
     def test_current_and_survivor_vectors_are_identical_across_four_cash_states(self):
         from meme_machine.lanes.pons.pons_selective_cohort import _current_pons_realized_equity

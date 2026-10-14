@@ -1,0 +1,263 @@
+{
+  "regimes": {
+    "pons_current": {
+      "policy": {
+        "breakout": {
+          "allocation_authority": false,
+          "max_seconds_after_graduation": 900,
+          "min_buy_sell_ratio_bps": 13000,
+          "min_new_independent_buyers_15s": 2,
+          "min_pullback_bps": 300,
+          "min_seconds_after_graduation": 30
+        },
+        "entry": {
+          "capital_size_bps": 500,
+          "execution_stress_multiple": 2,
+          "independent_net_size_bps": 1000,
+          "max_creator_tax_bps": 200,
+          "max_curve_progress_bps": 8800,
+          "max_entry_impact_bps": 400,
+          "max_graduation_eta_seconds": 120,
+          "max_largest_buyer_flow_bps": 4500,
+          "max_market_events": 512,
+          "max_roundtrip_loss_bps": 600,
+          "max_state_age_seconds": 5,
+          "max_token_age_seconds": 900,
+          "max_top3_buyer_flow_bps": 6500,
+          "min_buy_sell_ratio_bps": 11000,
+          "min_curve_progress_bps": 4500,
+          "min_fill_breadth_retention_bps": 5000,
+          "min_graduation_eta_seconds": 15,
+          "min_independent_groups": 3,
+          "min_new_independent_groups_15s": 1,
+          "min_progress_15s_bps": 200,
+          "min_token_age_seconds": 90,
+          "real_quote_size_bps": 200,
+          "repeat_buyer_diagnostics_only": true,
+          "require_curve_acceleration": true,
+          "require_flow_acceleration": true,
+          "sizing_search_steps": 32
+        },
+        "exits": {
+          "entry_delay_seconds": 2,
+          "first_profit_bps": 1800,
+          "first_profit_sell_bps": 2500,
+          "max_pregraduation_thesis_seconds": 180,
+          "max_total_hold_seconds": 900,
+          "min_adverse_sell_buy_ratio_bps": 12000,
+          "monitor_seconds": 5,
+          "no_new_high_seconds": 120,
+          "risk_bps": -800,
+          "runner_trailing_drawdown_bps": 1200,
+          "soft_deterioration_confirmations": 2,
+          "tail_arm_bps": 10000,
+          "tail_gain_giveback_bps": 4000
+        },
+        "policy": "pons-selective-continuation-v1",
+        "post_graduation": {
+          "max_observation_seconds": 45,
+          "max_preholder_sell_share_bps": 6000,
+          "min_buy_sell_ratio_bps": 13000,
+          "min_new_independent_buyers": 2,
+          "min_observation_seconds": 5,
+          "min_price_retention_bps": 9000
+        },
+        "reentry": {
+          "min_changed_dimensions": 2,
+          "min_eta_change_seconds": 15,
+          "min_new_buyer_groups": 2,
+          "min_progress_15s_change_bps": 200,
+          "min_seconds": 15,
+          "min_top3_concentration_change_bps": 750
+        },
+        "revision": "profitability-v1-profit-protection-v2-execution-capacity-v1-moderate-admission-v1-operational-nine-v1"
+      },
+      "policy_hash": "888904d0e58865f1a701560a5be8386f57d88f66a0c25d7094c994cafa7f448f"
+    },
+    "pons_survivor": {
+      "policy": {
+        "authority": {
+          "independent_of_pregraduation": true,
+          "live_money": false,
+          "paper_only": true,
+          "signing": false,
+          "submission": false
+        },
+        "confirmation": {
+          "hard_repeat_threshold": null,
+          "ranking_tiebreak": [
+            "repeat_independent_buyers_30m",
+            "repeat_buyer_share_bps"
+          ],
+          "repeat_window_seconds": 1800
+        },
+        "demand": {
+          "max_creator_sell_quote": 0,
+          "max_largest_buyer_share_bps": 4000,
+          "min_buy_acceleration_bps": 11000,
+          "min_buy_sell_ratio_bps": 12500,
+          "min_independent_buyers_30m": 4,
+          "min_new_independent_buyers_30m": 1
+        },
+        "execution": {
+          "max_double_size_roundtrip_loss_bps": 650,
+          "max_immediate_roundtrip_loss_bps": 450,
+          "max_open_positions": 2,
+          "min_turnover_multiple": 30,
+          "minimum_capital_bps": 5,
+          "minimum_fill_breadth_bps": 5000,
+          "sizing_search_steps": 32,
+          "target_capital_bps": 500
+        },
+        "exit": {
+          "demand_failure_confirmations": 2,
+          "demand_failure_ratio_bps": 8000,
+          "first_profit_bps": 2000,
+          "first_sell_bps": 2500,
+          "hard_stop_bps": -1000,
+          "max_hold_seconds": 259200,
+          "no_new_high_return_ceiling_bps": 500,
+          "no_new_high_seconds": 21600,
+          "tighter_trailing_arm_bps": 4000,
+          "tighter_trailing_drawdown_bps": 1000,
+          "trailing_arm_bps": 2000,
+          "trailing_drawdown_bps": 1200
+        },
+        "reentry": {
+          "minimum_changed_dimensions": 2,
+          "minimum_seconds": 3600
+        },
+        "trend": {
+          "base_seconds": 7200,
+          "breakout_exclusion_seconds": 900,
+          "long_window_seconds": 86400,
+          "max_breakout_extension_bps": 1500,
+          "max_reset_pullback_bps": 4000,
+          "medium_window_seconds": 21600,
+          "min_2h_return_bps": 100,
+          "min_6h_efficiency_bps": 2000,
+          "min_6h_return_bps": 300,
+          "min_breakout_bps": 50,
+          "min_long_return_bps": 750,
+          "min_reset_pullback_bps": 300,
+          "min_since_graduation_return_bps": 300,
+          "short_window_seconds": 7200
+        },
+        "universe": {
+          "max_seconds_after_graduation": 604800,
+          "min_seconds_after_graduation": 14400,
+          "native_quote_only": true
+        }
+      },
+      "policy_hash": "ed17402a75470801fda47877b6b1f3b1266793b7e0750b7a7cd821f327541e5f"
+    },
+    "pump_current": {
+      "policy": {
+        "creator_min_history_launches": 5,
+        "demand_exit_confirmations": 2,
+        "demand_exit_score": 50,
+        "entry_fraction_bps": 500,
+        "execution_stress_multiple": 2,
+        "first_profit_bps": 1500,
+        "first_profit_sell_bps": 2500,
+        "hard_stop_bps": -800,
+        "late_curve_max_hold_s": 900,
+        "max_concentration_bps": 3000,
+        "max_curve_progress_bps": 8500,
+        "max_early_holder_sell_share_bps": 4500,
+        "max_extension_bps": 16000,
+        "max_hold_extensions": 1,
+        "max_immediate_roundtrip_loss_bps": 600,
+        "max_postgrad_concentration_bps": 4000,
+        "max_postgrad_entry_age_s": 180,
+        "max_pullback_depth_bps": 3500,
+        "min_breakout_bps": 150,
+        "min_buyer_growth": 3,
+        "min_consolidation_s": 8,
+        "min_curve_acceleration_bps_per_s2": -10,
+        "min_curve_progress_bps": 6000,
+        "min_curve_velocity_bps_per_s": 10,
+        "min_fill_breadth_retention_bps": 5000,
+        "min_independent_clusters": 14,
+        "min_late_curve_score": 0,
+        "min_net_buy_share_bps": 5200,
+        "min_postgrad_age_s": 5,
+        "min_postgrad_buyer_growth": 1,
+        "min_postgrad_independent_clusters": 6,
+        "min_postgrad_price_vs_graduation_bps": 1,
+        "min_postgrad_score": 0,
+        "min_postgrad_volume_acceleration_bps": 0,
+        "min_pullback_depth_bps": 100,
+        "min_repeat_buy_share_bps": 800,
+        "min_repeat_buyer_clusters": 2,
+        "min_second_leg_age_s": 30,
+        "min_second_leg_buyer_growth": 1,
+        "min_second_leg_score": 0,
+        "postgrad_confirmation_grace_s": 30,
+        "postgrad_max_hold_s": 300,
+        "postgrad_price_retention_hard_gate": false,
+        "second_leg_max_hold_s": 600,
+        "sizing_search_steps": 32,
+        "tail_arm_bps": 10000,
+        "tail_gain_giveback_bps": 4000,
+        "trailing_drawdown_bps": 1400,
+        "turnover_divisor": 40,
+        "version": "pump-acceleration-independent-v1-profitability-v1-profit-protection-v2-counterfactual-replay-v1-moderate-admission-v1-operational-nine-v1",
+        "wallet_min_history_trades": 5,
+        "wallet_min_realized_return_bps": 1,
+        "wallet_min_win_rate_bps": 5500
+      },
+      "policy_hash": "89d2e6ac286e82f3d645feecc4de4193687cd9ba4e4f9006b7d57f1357c5b972"
+    },
+    "pump_survivor": {
+      "policy": {
+        "base_seconds": 3600,
+        "compression_bps": 6000,
+        "demand_window_seconds": 1800,
+        "exits": {
+          "first_profit_bps": 2500,
+          "first_sell_bps": 2500,
+          "hard_stop_bps": -1200,
+          "maximum_hold_seconds": 259200,
+          "soft_confirmations": 2,
+          "tight_arm_bps": 6000,
+          "tight_trail_bps": 1500,
+          "trail_bps": 2000
+        },
+        "long_structure_seconds": 21600,
+        "maximum_age_seconds": 604800,
+        "maximum_base_range_extension_bps": 15000,
+        "maximum_double_loss_bps": 600,
+        "maximum_extension_bps": 1500,
+        "maximum_holder_concentration_bps": 3000,
+        "maximum_roundtrip_loss_bps": 600,
+        "mayhem_clean_seconds": 3600,
+        "mayhem_completion_required": true,
+        "minimum_age_seconds": 14400,
+        "minimum_fill_breadth_bps": 5000,
+        "minimum_liquidity_usd_micros": 20000000000,
+        "minimum_reset_bps": 1800,
+        "minimum_size_units": 1,
+        "paper_only": true,
+        "quote": "SOL",
+        "ranking_tiebreak": [
+          "independent_buyers",
+          "repeat_buyers",
+          "repeat_buyer_share_bps"
+        ],
+        "reentry": {
+          "minimum_changed_dimensions": 2,
+          "minimum_seconds": 3600
+        },
+        "short_structure_seconds": 7200,
+        "strategy": "pumpswap-survivor-momentum-v1",
+        "target_sleeve_bps": 500,
+        "turnover_divisor": 40
+      },
+      "policy_hash": "0d65e1023b5e7b586e9a71d060fe9da7954c964bfcc3fc986977b80979ea44a5"
+    }
+  },
+  "revision": "pre-paper-opportunity-access-v1",
+  "schema": "paper-policy-history-v1",
+  "source_commit": "a048ee8cbeb87bff9c589a0b6f587fd909c23ed5"
+}

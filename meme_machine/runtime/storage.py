@@ -152,7 +152,8 @@ def compact_pump(book):
                     plan=dict(schema='current-sleeve-terminal-retirement-v1',scope=archived_scope(preserved[1]),
                         strategy=book.identity['lane'],positions=positions,sleeve_positions=shared,candidates={})
                     plan['hash']=digest(plan)
-                _book_commit(book,plan);_sleeve_commit(sleeve,plan)
+                if _book_commit(book,plan) is False:return
+                _sleeve_commit(sleeve,plan)
                 with book.transaction():
                     anchor=book._archive();anchor.pop('retirement_pending',None)
                     for identity in plan['positions']:anchor['controller_snapshots'].pop(identity,None)

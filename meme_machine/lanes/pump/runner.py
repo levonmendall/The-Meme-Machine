@@ -69,7 +69,7 @@ def _current_pump_sizing():
     finally:sleeve.close()
 ENTRY_DELAY_SECONDS=2
 ENTRY_FILL_TIMEOUT_SECONDS=20
-FROZEN_POLICY_HASH="89d2e6ac286e82f3d645feecc4de4193687cd9ba4e4f9006b7d57f1357c5b972"
+FROZEN_POLICY_HASH="d67d5560ea6738094c2cf32bc003ceba8918a93bb440f9e82236e60dcc9d8251"
 FILL_PERSISTENCE_CONTEXT=None
 ACCOUNTING=None
 PIPELINE=None
@@ -593,7 +593,8 @@ def _reserve_position(
     key=(qualification.mint,mode)
     if key in pending or key in active:
         return False
-    if any(x["mint"]==qualification.mint and x["mode"]==mode for x in report["qualifiers"]):
+    from .pump_attempt_reference import prior_attempt_blocks
+    if prior_attempt_blocks(ACCOUNTING,report['qualifiers'],signal,snapshot):
         return False
     # Qualification is already final and durable at this point.  Capital is an
     # execution admission input only; it must never change the qualification.
@@ -707,8 +708,11 @@ def _reserve_position(
         decision_evidence_available_at=int(snapshot["available_time"]),
         fill_due=reserved_at+ENTRY_DELAY_SECONDS,
         decision_slot=int(snapshot["slot"]),
-        decision_repeat_buyer_clusters=int(signal.repeat_buyer_clusters),
-        decision_repeat_buy_share_bps=int(signal.repeat_buy_share_bps),
+        decision_repeat_buyer_clusters=signal.repeat_buyer_clusters,
+        decision_repeat_buy_share_bps=signal.repeat_buy_share_bps,
+        policy_revision=getattr(qualification,'policy_revision',POLICY.revision),
+        demoted_conditions=list(getattr(qualification,'demoted_conditions',())),
+        unavailable_diagnostics=list(getattr(qualification,'unavailable_diagnostics',())),
     )
     report["qualifiers"].append(qrow)
     pending[key]=dict(
@@ -880,6 +884,11 @@ def _fill_pending(
                     _progress(mint,"entry_cancelled",reason,lifecycle_id=getattr(life,"lifecycle_id",None))
                 except ValueError:
                     pass
+                if getattr(life,'book',None) is not None and row.get('decision_signal') is not None:
+                    from .pump_attempt_reference import checkpoint_cancelled_attempt
+                    proof=checkpoint_cancelled_attempt(life.book,life.lifecycle_id,
+                        row['decision_signal'],life.entry_evidence)
+                    if proof is not None:row['qualifier_row']['verified_zero_fill_attempt']=proof
                 row["qualifier_row"].update(
                     entry_status="cancelled",cancelled_at=decision_now,entry_limitation=reason)
                 plane=getattr(base_sessions,'plane',None)
@@ -919,6 +928,10 @@ def _record_attempt(report,signal,q,stage,extra=None,*,snapshot=None):
     row=dict(
         mint=signal.mint,mode=signal.phase,observed_at=signal.observed_at,
         stage=stage,score=q.score,qualified=q.qualified,reasons=list(q.reasons),
+        policy_revision=q.policy_revision,demoted_conditions=list(q.demoted_conditions),
+        unavailable_diagnostics=list(q.unavailable_diagnostics),
+        qualification_purpose=q.qualification_purpose,
+        newly_qualified_by_revision=bool(q.qualified and q.demoted_conditions),
         confirmations=list(q.confirmations),
         curve_progress_bps=signal.curve_progress_bps,
         velocity=signal.curve_velocity_bps_per_s,
@@ -1035,7 +1048,7 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                         if continuation_due:
                             concentration,_=sessions.reader.read(mint,snapshot,priority=True)
                             current,_trajectory,_confirmation=_late_signal(creation,ev,snapshot,concentration,confirmations)
-                        cq=qualify(current);demand_score=cq.score
+                        cq=qualify(current,purpose='ongoing');demand_score=cq.score
                     except Exception:
                         demand_score=0
             else:
@@ -1064,7 +1077,7 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
                 sessions.record_holder_probe(mint,snapshot,concentration)
                 current,_confirmation=_volume_price_signal(
                     state,snapshot,events,MODE_POSTGRAD,concentration,confirmations)
-                cq=qualify(current);demand_score=cq.score;confirmed=cq.qualified
+                cq=qualify(current,purpose='ongoing');demand_score=cq.score;confirmed=cq.qualified
 
             facts=_pump_continuation_facts(life,current,cq,snapshot,proceeds,now)
             mark_evidence=dict(snapshot=snapshot,net_proceeds=proceeds,
@@ -1110,6 +1123,11 @@ def _monitor_positions(report,active,sessions,created,postgrad,tape,confirmation
             if mark["exit_reason"] is not None:
                 _progress(mint,"unwind",lifecycle_id=life.lifecycle_id)
                 closed=life.settle(proceeds,now,evidence=mark_evidence)
+                if (life.book is not None and
+                        (life.entry_evidence.get('_runtime_recovery') or {}).get('signal') is not None):
+                    from .pump_attempt_reference import checkpoint_terminal_attempt
+                    original_signal=SignalVector(**life.entry_evidence['_runtime_recovery']['signal'])
+                    checkpoint_terminal_attempt(life.book,life.lifecycle_id,original_signal,life.entry_evidence)
                 _progress(mint,"settled",lifecycle_id=life.lifecycle_id)
                 report["settled"].append(dict(
                     lifecycle_id=life.lifecycle_id,
@@ -1137,11 +1155,17 @@ def _pump_continuation_facts(life,current,qualification,snapshot,proceeds,now):
     valid=current is not None and qualification is not None
     basis=p.basis_quote_units
     fresh=0<=now-int(snapshot['available_time'])<=5
+    distribution=(None if not valid or p.surface=='pump.fun' else
+        None if current.early_holder_sell_share_bps is None else
+        current.early_holder_sell_share_bps<=POLICY.max_early_holder_sell_share_bps)
     return dict(current_after_cost_return_positive=proceeds>basis,
         after_cost_return_bps=(proceeds-basis)*10000//basis,
         fresh_generation_state=fresh,fresh_executable_exit_quote=fresh,
         canonical_lineage_and_venue=bool(snapshot.get('mint')==p.mint),
-        creator_distribution_safe=valid and current.creator_quality_bps is not None and current.creator_quality_bps>=0,
+        creator_distribution_safe=distribution,
+        distribution_evidence=dict(source='early_holder_sell_share_bps' if p.surface=='pumpswap' else 'unavailable',
+            measured=None if current is None else current.early_holder_sell_share_bps,
+            creator_launch_history_is_distribution_evidence=False),
         hard_concentration_safe=valid and current.concentration_bps<=(POLICY.max_concentration_bps if p.surface=="pump.fun" else POLICY.max_postgrad_concentration_bps),
         executable_exit_liquidity=proceeds>0,
         no_persistent_confirmed_demand_failure=valid and p.demand_deterioration_streak<POLICY.demand_exit_confirmations,
@@ -1223,6 +1247,8 @@ def _retire_postgrad(report,postgrad,pending,active,stream,now):
         row=dict(mint=mint,observed_at=now,terminal_reason='postgrad_entry_horizon_expired',
                  history_status=state['history'].status(now))
         _terminal(report,row)
+        from .pump_attempt_reference import retire_entry_universe
+        retire_entry_universe(ACCOUNTING,mint,state['graduation_time'],now)
         stream.remove_address(state['pool'])
         del postgrad[mint]
         report['retired_postgrad_candidates']=report.get('retired_postgrad_candidates',0)+1
@@ -1258,8 +1284,16 @@ def restore_runtime(book,plane,confirmations,*,bind_allocation=True):
         signal=SignalVector(**state['signal']);mode=state['mode'];mint=signal.mint;key=(mint,mode)
         original=life.entry_evidence
         q=life.history[0]
+        from meme_machine.paper_policy_revision import revision_for_hash
+        original_policy=q.get('policy_hash') or book.identity['policy_hash']
         qrow=dict(lifecycle_id=identity,mint=mint,mode=mode,entry_status=projection['status'],
-            reserved_at=q['reserved_at'],policy_hash=policy_hash())
+            reserved_at=q['reserved_at'],qualified_at=signal.observed_at,
+            decision_slot=original['slot'],policy_hash=original_policy,
+            policy_revision=revision_for_hash(original_policy) or 'unavailable')
+        if projection['status'] in ('cancelled','settled'):
+            from .pump_attempt_reference import checkpoint_terminal_attempt
+            proof=checkpoint_terminal_attempt(book,identity,signal,original)
+            if proof is not None:qrow['verified_terminal_attempt']=proof
         qualifiers.append(qrow)
         saved=state.get('confirmation_state') or {}
         for creator,launches in saved.get('creator_launches',{}).items():
@@ -1612,9 +1646,7 @@ def main(*,campaign=False,discovery_seconds=None):
                             {"concentration_source":meta.get("source"),
                              "trajectory":trajectory,
                              "confirmation_evidence":_confirmation_meta(confirmation)},snapshot=snapshot)
-                        if q.qualified and not any(
-                                x["mint"]==mint and x["mode"]==MODE_LATE_CURVE
-                                for x in report["qualifiers"]):
+                        if q.qualified:
                             _reserve_position(
                                 report,pending,active,signal,q,snapshot,
                                 MODE_LATE_CURVE,concentration,
@@ -1749,9 +1781,7 @@ def main(*,campaign=False,discovery_seconds=None):
                             report,signal,q,"full_point_in_time",
                             {"history_status":state["history"].status(now),
                              "confirmation_evidence":_confirmation_meta(confirmation)},snapshot=snapshot)
-                        if q.qualified and not any(
-                                x["mint"]==mint and x["mode"]==MODE_POSTGRAD
-                                for x in report["qualifiers"]):
+                        if q.qualified:
                             _reserve_position(
                                 report,pending,active,signal,q,snapshot,
                                 MODE_POSTGRAD,concentration,
@@ -1765,9 +1795,7 @@ def main(*,campaign=False,discovery_seconds=None):
                             report,second,q2,"full_point_in_time",
                             {"history_status":state["history"].status(now),
                              "confirmation_evidence":_confirmation_meta(confirmation2)},snapshot=snapshot)
-                        if q2.qualified and not any(
-                                x["mint"]==mint and x["mode"]==MODE_SECOND_LEG
-                                for x in report["qualifiers"]):
+                        if q2.qualified:
                             _reserve_position(
                                 report,pending,active,second,q2,snapshot,
                                 MODE_SECOND_LEG,concentration,

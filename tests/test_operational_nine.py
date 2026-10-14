@@ -77,9 +77,9 @@ class NineChanges(unittest.TestCase):
                 seconds_since_high=0,new_buyer_growth=1,buy_quote=100,sell_quote=sell)
             self.assertEqual(action['action'],expected)
 
-    def test_two_confirmation_deterioration_survives(self):
+    def test_pump_confirmation_remains_pons_stale_high_is_context(self):
         self.assertIsNone(self.pump_exit(100,100,demand_deterioration_streak=1))
-        for streak,expected in ((1,'hold'),(2,'full_exit')):
+        for streak,expected in ((1,'hold'),(2,'hold')):
             action=runner_action(tokens=100,partial_taken=True,after_cost_return_bps=2000,high_water_return_bps=2000,
                 seconds_since_high=120,new_buyer_growth=0,buy_quote=100,sell_quote=100,soft_deterioration_streak=streak)
             self.assertEqual(action['action'],expected)

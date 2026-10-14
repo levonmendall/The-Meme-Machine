@@ -37,6 +37,25 @@ class OngoingScaleTests(unittest.TestCase):
         self.assertFalse(result['initial_entry_authority'])
         self.assertGreater(2000-self.position['opened_at'],ENTRY_THRESHOLDS['max_token_age_seconds'])
 
+    def test_progressing_positive_demand_add_needs_no_acceleration(self):
+        self.fixture()
+        self.evidence['trajectory']['accelerating']=False
+        self.evidence['demand'].update(net_flow_accelerating=False,prior_net_quote=2000)
+        result=self.evaluate()
+        self.assertTrue(result['scale_qualified'],result)
+        self.assertEqual(result['confirmation_context']['previous_policy_would_reject'],
+            ['curve_deceleration','flow_deceleration'])
+        self.evidence['trajectory'].pop('accelerating')
+        self.evidence['demand'].pop('net_flow_accelerating')
+        result=self.evaluate()
+        self.assertTrue(result['scale_qualified'],result)
+        self.assertIsNone(result['confirmation_context']['curve_accelerating'])
+        self.evidence['trajectory']['recent_progress_bps']=0
+        self.assertIn('fill_curve_nonprogressing',self.evaluate()['all_rejections'])
+        self.evidence['trajectory']['recent_progress_bps']=100
+        self.evidence['demand']['current_net_quote']=0
+        self.assertFalse(self.evaluate()['scale_qualified'])
+
     def test_carried_winner_is_independent_of_expired_graduation_window(self):
         self.fixture('postgraduation');self.assertTrue(self.evaluate()['scale_qualified'])
         d=self.evidence['demand']
@@ -136,7 +155,14 @@ class ScaleIntegrationTests(unittest.TestCase):
             self.state.v4_key=PoolKey('0x'+'1'*40,'0x'+'2'*40,3000,60,'0x'+'3'*40)
         evidence['acquisition_started_at']=2000
         evidence['demand']['current_net_quote']=100000
-        if postgraduation:evidence['demand']['net_quote']=100000
+        # Match the native demand reducer's measured quantities as well as its
+        # ratio/net fields. Continuation cannot prove absence of adverse flow
+        # from a fixture omitting the actual buy/sell population.
+        evidence['horizon'].update(buy_quote=200000,sell_quote=100000,net_quote=100000)
+        if postgraduation:
+            evidence['demand'].update(buy_quote=200000,sell_quote=100000,net_quote=100000)
+        else:
+            evidence['demand'].update(current_buy_quote=200000,current_sell_quote=100000)
         if bad_demand:evidence['demand']['independent_groups']=0
         mark=self.native_quote(2000,'sell',self.before['tokens'],self.before['remaining_cost']*2)
         meta=dict(block_hash='h2000')
@@ -264,4 +290,3 @@ class ScaleIntegrationTests(unittest.TestCase):
         self.sleeve.close()
 
 if __name__=='__main__':unittest.main()
-

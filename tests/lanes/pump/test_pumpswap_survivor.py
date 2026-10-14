@@ -153,10 +153,10 @@ class SurvivorTests(unittest.TestCase):
         f=facts();f['price_points'][5]['price']='163'
         self.assertIn('two_hour_structure',evaluate_entry(f)['all_rejections'])
 
-    def test_compression_exact_sixty_percent_and_one_tick_above(self):
-        f=facts();f['price_points'][-2]['price']='186';f['price_points'][-1]['price']='188'
+    def test_compression_exact_nonexpansion_and_one_tick_above(self):
+        f=facts();f['price_points'][-2]['price']='210';f['price_points'][-1]['price']='212'
         self.assertNotIn('base_compression',evaluate_entry(f)['all_rejections'])
-        f['price_points'][-2]['price']='186.0001'
+        f['price_points'][-2]['price']='210.0001'
         self.assertIn('base_compression',evaluate_entry(f)['all_rejections'])
 
     def test_both_extension_limits_exactly_equal(self):
@@ -183,14 +183,12 @@ class SurvivorTests(unittest.TestCase):
         f['migration_price']='162.0001'
         self.assertIn('migration_price_survival',evaluate_entry(f)['all_rejections'])
 
-    def test_reset_exact_eighteen_percent_and_one_fraction_below(self):
-        f=facts()
-        for row in f['price_points']:
-            if row['at'] in (17800,20000,20799,20800):row['price']='164'
-        self.assertNotIn('meaningful_reset',evaluate_entry(f)['all_rejections'])
-        for row in f['price_points']:
-            if row['at'] in (17800,20000,20799,20800):row['price']='164.0001'
-        self.assertIn('meaningful_reset',evaluate_entry(f)['all_rejections'])
+    def test_reset_exact_three_percent_and_one_fraction_below(self):
+        from meme_machine.lanes.pump.pumpswap_survivor import reduce_reset_history
+        rows=[dict(at=0,price='100'),dict(at=1,price='97')]
+        self.assertEqual(reduce_reset_history(rows)['reset_at'],1)
+        rows[-1]['price']='97.0001'
+        self.assertIsNone(reduce_reset_history(rows)['reset_at'])
 
     def test_missing_full_base_and_active_lower_low_sequence(self):
         f=facts();f['price_points']=[r for r in f['price_points'] if r['at']>20800]
@@ -201,7 +199,7 @@ class SurvivorTests(unittest.TestCase):
         self.assertIn('lower_low_sequence',evaluate_entry(f)['all_rejections'])
 
     def test_intrasecond_extrema_cannot_hide_base_expansion_or_breakdown(self):
-        f=facts();f['price_points'][10]['high']='190'
+        f=facts();f['price_points'][10]['high']='211'
         self.assertIn('base_compression',evaluate_entry(f)['all_rejections'])
         f=facts();f['price_points'][10]['low']='139'
         self.assertIn('reset_low_breakdown',evaluate_entry(f)['all_rejections'])

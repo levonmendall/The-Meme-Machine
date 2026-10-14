@@ -14,6 +14,8 @@ from dataclasses import asdict, dataclass
 import hashlib
 import json
 
+from meme_machine.paper_policy_revision import ACTIVE_REVISION
+
 
 STRATEGY_ID = "pump-acceleration-independent-v1"
 MODE_LATE_CURVE = "late_curve_acceleration"
@@ -40,7 +42,8 @@ def _points(value, low, high, maximum):
 
 @dataclass(frozen=True)
 class FrozenPolicy:
-    version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1-moderate-admission-v1-operational-nine-v1"
+    version: str = STRATEGY_ID + "-profitability-v1-profit-protection-v2-counterfactual-replay-v1-moderate-admission-v1-operational-nine-v1-" + ACTIVE_REVISION
+    revision: str = ACTIVE_REVISION
     entry_fraction_bps: int = 500
     turnover_divisor: int = 40
     execution_stress_multiple: int = 2
@@ -57,7 +60,8 @@ class FrozenPolicy:
     max_concentration_bps: int = 3000
     max_extension_bps: int = 16000
     max_immediate_roundtrip_loss_bps: int = 600
-    # Demand quality must include repeat participation rather than one-shot breadth.
+    # Repeat participation remains measured ranking/confirmation context. The
+    # old thresholds label decisions the preceding policy would have rejected.
     min_repeat_buyer_clusters: int = 2
     min_repeat_buy_share_bps: int = 800
     # A delayed fill must retain at least 50% of the decision-time buyer breadth.
@@ -166,8 +170,8 @@ class SignalVector:
 
     independent_buyer_clusters: int = 0
     buyer_growth: int = 0
-    repeat_buyer_clusters: int = 0
-    repeat_buy_share_bps: int = 0
+    repeat_buyer_clusters: int | None = 0
+    repeat_buy_share_bps: int | None = 0
     net_buy_share_bps: int = 0
     concentration_bps: int = 10_000
     extension_bps: int = 0
@@ -203,6 +207,8 @@ class SignalVector:
         if not self.point_in_time or self.future_data_used:
             raise ValueError("non_point_in_time_signal")
         for name in ("net_buy_share_bps","repeat_buy_share_bps","concentration_bps"):
+            if name == "repeat_buy_share_bps" and getattr(self,name) is None:
+                continue
             value=int(getattr(self,name))
             if not 0 <= value <= 10_000:
                 raise ValueError("invalid_bps")
@@ -227,6 +233,10 @@ class Qualification:
     confirmations: tuple[str, ...]
     entry_fraction_bps: int
     policy_hash: str
+    policy_revision: str = ACTIVE_REVISION
+    demoted_conditions: tuple[str, ...] = ()
+    unavailable_diagnostics: tuple[str, ...] = ()
+    qualification_purpose: str = "entry"
 
 
 @dataclass(frozen=True)
@@ -378,8 +388,8 @@ def _late_score(s):
     score+=_points(int(s.curve_acceleration_bps_per_s2 or -10),-10,5,5)
     score+=_points(int(s.independent_buyer_clusters),10,30,25)
     score+=_points(int(s.buyer_growth),2,10,20)
-    score+=_points(int(s.repeat_buyer_clusters),2,8,5)
-    score+=_points(int(s.repeat_buy_share_bps),1000,5000,5)
+    score+=_points(int(s.repeat_buyer_clusters or 0),2,8,5)
+    score+=_points(int(s.repeat_buy_share_bps or 0),1000,5000,5)
     score+=_points(int(s.net_buy_share_bps),5500,8000,5)
     score+=20-_points(int(s.concentration_bps),1000,2500,20)
     score+=_points(int(s.skilled_wallet_clusters),0,3,3)
@@ -426,10 +436,14 @@ def _second_leg_score(s):
     return _clamp(score,0,100)
 
 
-def qualify(signal, policy=POLICY):
+def qualify(signal, policy=POLICY, *, purpose="entry"):
     signal.validate()
+    if purpose not in ("entry","ongoing"):
+        raise ValueError("invalid_qualification_purpose")
     reasons=[]
     confirmations=[]
+    demoted=[]
+    unavailable=[]
 
     if signal.skilled_wallet_clusters >= 2:
         confirmations.append("skilled_wallet_convergence")
@@ -453,10 +467,18 @@ def qualify(signal, policy=POLICY):
             reasons.append("independent_buyers")
         if signal.buyer_growth < policy.min_buyer_growth:
             reasons.append("buyer_growth")
-        if signal.repeat_buyer_clusters < policy.min_repeat_buyer_clusters:
-            reasons.append("repeat_buyers")
-        if signal.repeat_buy_share_bps < policy.min_repeat_buy_share_bps:
-            reasons.append("repeat_buy_share")
+        for reason,value,threshold in (
+            ("repeat_buyers",signal.repeat_buyer_clusters,policy.min_repeat_buyer_clusters),
+            ("repeat_buy_share",signal.repeat_buy_share_bps,policy.min_repeat_buy_share_bps),
+        ):
+            if value is None:
+                unavailable.append(reason)
+            elif value >= threshold:
+                confirmations.append(reason)
+            else:
+                demoted.append(reason)
+            if not policy.version.endswith(ACTIVE_REVISION) and (value is None or value < threshold):
+                reasons.append(reason)
         if signal.net_buy_share_bps < policy.min_net_buy_share_bps:
             reasons.append("net_demand")
         if signal.concentration_bps > policy.max_concentration_bps:
@@ -474,7 +496,7 @@ def qualify(signal, policy=POLICY):
         age=int(_value_or(signal.seconds_since_graduation,-1))
         if not signal.graduated:
             reasons.append("not_graduated")
-        if age < policy.min_postgrad_age_s or age > policy.max_postgrad_entry_age_s:
+        if age < policy.min_postgrad_age_s or (purpose == "entry" and age > policy.max_postgrad_entry_age_s):
             reasons.append("postgrad_age")
         if signal.independent_buyer_clusters < policy.min_postgrad_independent_clusters:
             reasons.append("independent_buyers")
@@ -536,6 +558,10 @@ def qualify(signal, policy=POLICY):
         confirmations=tuple(confirmations),
         entry_fraction_bps=policy.entry_fraction_bps,
         policy_hash=policy_hash(policy),
+        policy_revision=policy.revision,
+        demoted_conditions=tuple(demoted),
+        unavailable_diagnostics=tuple(unavailable),
+        qualification_purpose=purpose,
     )
 
 
@@ -577,13 +603,16 @@ def entry_signal_persistence(decision_signal, fill_signal, policy=POLICY):
         fill_independent_buyers=int(fill_signal.independent_buyer_clusters),
         decision_buyer_growth=int(decision_signal.buyer_growth),
         fill_buyer_growth=int(fill_signal.buyer_growth),
-        decision_repeat_buyer_clusters=int(decision_signal.repeat_buyer_clusters),
-        fill_repeat_buyer_clusters=int(fill_signal.repeat_buyer_clusters),
-        decision_repeat_buy_share_bps=int(decision_signal.repeat_buy_share_bps),
-        fill_repeat_buy_share_bps=int(fill_signal.repeat_buy_share_bps),
+        decision_repeat_buyer_clusters=decision_signal.repeat_buyer_clusters,
+        fill_repeat_buyer_clusters=fill_signal.repeat_buyer_clusters,
+        decision_repeat_buy_share_bps=decision_signal.repeat_buy_share_bps,
+        fill_repeat_buy_share_bps=fill_signal.repeat_buy_share_bps,
         decision_net_buy_share_bps=int(decision_signal.net_buy_share_bps),
         fill_net_buy_share_bps=int(fill_signal.net_buy_share_bps),
         fill_qualification_reasons=tuple(fill_qualification.reasons),
+        policy_revision=policy.revision,
+        fill_demoted_conditions=fill_qualification.demoted_conditions,
+        fill_unavailable_diagnostics=fill_qualification.unavailable_diagnostics,
     )
 
 

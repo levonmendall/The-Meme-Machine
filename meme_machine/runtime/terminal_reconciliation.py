@@ -153,7 +153,8 @@ def reconcile(lane,root):
         with closing(connect(root/'pump-acceleration-natural-prospective.accounting.sqlite3')) as db:
             book=PaperBook.__new__(PaperBook);book.db=db;book.lock=threading.RLock()
             book.identity=json.loads(db.execute('SELECT body FROM genesis WHERE id=1').fetchone()[0])
-            if book.identity['policy_hash']!=policy_hash():raise ValueError('terminal_policy_identity')
+            from meme_machine.runtime.policy_compatibility import known_hash
+            if not known_hash('pump_current',book.identity['policy_hash']):raise ValueError('terminal_policy_identity')
             replay=book.replay();accounting=book.reconcile()
             handoff=pump_current_handoff(book) if accounting['open_positions'] else None
         from meme_machine.runtime.directional_accounting import terminal
@@ -166,7 +167,8 @@ def reconcile(lane,root):
         path=root/'pons-selective-continuation-v1-cohort/pons-selective-cohort-capital.sqlite'
         with closing(connect(path)) as db:
             genesis=json.loads(db.execute('SELECT body FROM capital_genesis WHERE id=1').fetchone()[0])
-        if genesis['policy_hash']!=POLICY_HASH:raise ValueError('terminal_policy_identity')
+        from meme_machine.runtime.policy_compatibility import known_hash
+        if not known_hash('pons_current',genesis['policy_hash']):raise ValueError('terminal_policy_identity')
         book=CohortCapital.__new__(CohortCapital);book.path=str(path);book.capital=genesis['capital']
         book._connect=lambda:connect(path)
         # Native trial paths are relative to the lane directory. A downloaded
@@ -246,5 +248,4 @@ def reconcile(lane,root):
         return dict(verified=verified,accounting=accounting,open_positions=accounting['open_positions'],
                     durable_handoff=handoff is not None,continuation_state=handoff)
     raise ValueError('unknown_lane')
-
 

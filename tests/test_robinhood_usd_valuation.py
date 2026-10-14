@@ -159,11 +159,123 @@ LIFECYCLE_SOURCE_DELTAS = {
     },
 }
 
+# Explicit owner-selected PAPER opportunity revision. Every changed node is
+# pinned against the latest engineering predecessor; historical protections are
+# still checked on that predecessor rather than exempting entire strategy files.
+OPPORTUNITY_BASE='b1ece095231f156eaf1d9d61bfd2f9d959558c54'
+OPPORTUNITY_STRATEGY_BASE='a048ee8cbeb87bff9c589a0b6f587fd909c23ed5'
+OPPORTUNITY_REFERENCE='5f94eb0b7c286ec2d763ab274784ebbb89b2baaa'
+OPPORTUNITY_ORIGINAL_MANIFEST_SHA256='80ccc48ff5bedf7fb7612c9a586b1533fa3f93e5df745e13af324293d9c60210'
+OPPORTUNITY_MANIFEST=ROOT/'tests/fixtures/paper_opportunity_access_source_delta.json'
+OPPORTUNITY_ADDED_SOURCES=(
+    'meme_machine/paper_policy_revision.py',
+    'meme_machine/lanes/pump/pump_attempt_reference.py',
+    'meme_machine/runtime/policy_compatibility.py',
+    'meme_machine/policy_history/pre_opportunity_access_v1.json',
+)
+
+
+def assert_opportunity_added_source(test,relative,current):
+    import hashlib,json
+    if isinstance(current,str):current=current.encode()
+    manifest=json.loads(OPPORTUNITY_MANIFEST.read_text())
+    test.assertEqual(manifest['strategy_implementation'],OPPORTUNITY_REFERENCE)
+    test.assertEqual(set(manifest['added_sources']),set(OPPORTUNITY_ADDED_SOURCES))
+    test.assertIn(relative,OPPORTUNITY_ADDED_SOURCES)
+    published=subprocess.check_output(['git','show',OPPORTUNITY_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(published).hexdigest(),manifest['added_sources'][relative]['sha256'],relative+':published added source')
+    test.assertEqual(current,published,relative+':exact approved added source')
+    for predecessor in (OPPORTUNITY_BASE,OPPORTUNITY_STRATEGY_BASE):
+        test.assertNotEqual(subprocess.run(['git','cat-file','-e',predecessor+':'+relative],cwd=ROOT,
+            stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=False).returncode,0,
+            relative+':must remain an explicit package addition')
+
+
+def opportunity_predecessor(test,relative,current):
+    import hashlib,json
+    if isinstance(current,str):current=current.encode()
+    manifest=json.loads(OPPORTUNITY_MANIFEST.read_text())
+    test.assertEqual(manifest['base'],OPPORTUNITY_BASE)
+    test.assertEqual(manifest['strategy_base'],OPPORTUNITY_STRATEGY_BASE)
+    test.assertEqual(manifest['strategy_implementation'],OPPORTUNITY_REFERENCE)
+    test.assertEqual(manifest['original_manifest_sha256'],OPPORTUNITY_ORIGINAL_MANIFEST_SHA256)
+    record=manifest['files'].get(relative)
+    if record is None:return current
+    try:prior=subprocess.check_output(['git','show',OPPORTUNITY_BASE+':'+relative],cwd=ROOT,stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        raise unittest.SkipTest('Historical source comparison needs the existing baseline commit') from None
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),record['before_sha256'],relative+':opportunity predecessor')
+    if current==prior:return current
+    test.assertEqual(hashlib.sha256(current).hexdigest(),record['after_sha256'],relative+':approved opportunity source')
+    def nodes(content):
+        result={}
+        for node in ast.parse(content).body:
+            if isinstance(node,(ast.FunctionDef,ast.ClassDef)):key=type(node).__name__+':'+node.name
+            elif isinstance(node,ast.Assign):key='Assign:'+','.join(ast.dump(t) for t in node.targets)
+            elif isinstance(node,ast.AnnAssign):key='AnnAssign:'+ast.dump(node.target)
+            elif isinstance(node,ast.ImportFrom):key='ImportFrom:'+str(node.level)+':'+str(node.module)
+            elif isinstance(node,ast.Import):key='Import:'+node.names[0].name
+            elif isinstance(node,ast.Expr) and isinstance(node.value,ast.Constant) and isinstance(node.value.value,str):key='module_docstring'
+            else:key=type(node).__name__+':'+ast.dump(node)
+            test.assertNotIn(key,result,relative+':duplicate protected node')
+            result[key]=hashlib.sha256(ast.dump(node).encode()).hexdigest()
+        return result
+    before=nodes(prior);after=nodes(current)
+    actual={key:dict(before=before.get(key),after=after.get(key))
+        for key in before.keys()|after.keys() if before.get(key)!=after.get(key)}
+    test.assertEqual(actual,record['nodes'],relative+':exact authorized node changes')
+    def dictionary(content,name):
+        assignment=next(n for n in ast.parse(content).body if isinstance(n,ast.Assign)
+            and any(isinstance(t,ast.Name) and t.id==name for t in n.targets))
+        return eval(compile(ast.Expression(assignment.value),'<reviewed-policy>','eval'),
+            {'dict':dict,'ACTIVE_REVISION':'paper-opportunity-access-v1',
+             'STRATEGY_ID':'pumpswap-survivor-momentum-v1'})
+    if relative.endswith('pons_selective_continuation.py'):
+        for name in ('ENTRY_THRESHOLDS','EXIT_POLICY','POST_GRAD_THRESHOLDS','REENTRY_POLICY','BREAKOUT_THRESHOLDS'):
+            expected=dictionary(prior,name)
+            if name=='ENTRY_THRESHOLDS':expected.update(require_curve_acceleration=False,require_flow_acceleration=False)
+            if name=='EXIT_POLICY':expected.update(positive_demand_slowing_exit_authority=False,stale_high_breadth_exit_authority=False)
+            test.assertEqual(dictionary(current,name),expected,name+':only C1/C6 metadata deltas')
+    elif relative.endswith('pons_postgrad_survivor.py'):
+        expected=dictionary(prior,'POLICY');expected['revision']='paper-opportunity-access-v1'
+        expected['demand']['require_buy_acceleration']=False
+        test.assertEqual(dictionary(current,'POLICY'),expected,'only C5/revision scalar deltas')
+    elif relative.endswith('pumpswap_survivor.py'):
+        expected=dictionary(prior,'POLICY')
+        expected.update(revision='paper-opportunity-access-v1',minimum_reset_bps=300,compression_bps=10000)
+        test.assertEqual(dictionary(current,'POLICY'),expected,'only C4/revision scalar deltas')
+    elif relative.endswith('pump_acceleration_strategy.py'):
+        def scalars(content):
+            cls=next(n for n in ast.parse(content).body if isinstance(n,ast.ClassDef) and n.name=='FrozenPolicy')
+            return {n.target.id:ast.dump(n.value) for n in cls.body if isinstance(n,ast.AnnAssign)}
+        before_scalars=scalars(prior);after_scalars=scalars(current)
+        changed={k for k in before_scalars.keys()|after_scalars.keys() if before_scalars.get(k)!=after_scalars.get(k)}
+        test.assertEqual(changed,{'version','revision'},'C2 changes no retained numerical threshold')
+        test.assertEqual(after_scalars['revision'],ast.dump(ast.Name(id='ACTIVE_REVISION',ctx=ast.Load())))
+        def version(content):
+            cls=next(n for n in ast.parse(content).body if isinstance(n,ast.ClassDef) and n.name=='FrozenPolicy')
+            node=next(n for n in cls.body if isinstance(n,ast.AnnAssign) and n.target.id=='version')
+            return eval(compile(ast.Expression(node.value),'<reviewed-version>','eval'),
+                {'STRATEGY_ID':'pump-acceleration-independent-v1','ACTIVE_REVISION':'paper-opportunity-access-v1'})
+        test.assertEqual(version(current),version(prior)+'-paper-opportunity-access-v1')
+        test.assertEqual({k:dict(before=before_scalars.get(k),after=after_scalars.get(k)) for k in before_scalars.keys()|after_scalars.keys()
+            if before_scalars.get(k)!=after_scalars.get(k)},record['policy_scalar_deltas'])
+    return prior
+
+
 PUMP_DIAGNOSTIC_REFERENCE = 'ddcee53eb2498b7281820793408abbea71f2e88a'
 PUMP_DIAGNOSTIC_NODES = {
     '_startup_work': '40d75f326ff37e06a4bd89390c5f833526ab601cd15aad918841a16e7d90496a',
     '_restore_observed_pump_candidates': '733e3f925b85924f7ec3b98197e41561ca59e93ff854e8cd66a63cb03e59e0ac',
     'main': '985426c540e43cb439a068e52ee3f9b0a7744abd22625cf4d0f99b7a2754de69',
+}
+
+# These are exact combined nodes, not broader infrastructure exemptions. The
+# reviewed diagnostic layer must strip to the published strategy implementation,
+# while its operational predecessor still strips to the original ddcee source.
+COMBINED_PUMP_DIAGNOSTIC_NODES = {
+    **PUMP_DIAGNOSTIC_NODES,
+    'main': '5f27be1968411202d86f00c20d109423ac6399acfbfdd21ab1d457e88d0f423a',
 }
 
 class _RemoveReviewedPumpDiagnostics(ast.NodeTransformer):
@@ -187,21 +299,32 @@ class _RemoveReviewedPumpDiagnostics(ast.NodeTransformer):
                 node.items[0].context_expr.func.id=='operation'):return node.body
         return node
 
-def pump_economic_tree(test,content):
+def pump_economic_tree(test,content,*,combined=False):
     tree=ast.parse(content)
     nodes={n.name:n for n in tree.body if isinstance(n,ast.FunctionDef)}
     if '_startup_work' not in nodes:return tree
     # Owner-authorized startup attribution only. Every wrapped call, argument,
     # fixed identifier and wrapper body pins before removing passive diagnostics.
     # The resulting entire source must equal the published pre-repair source.
-    for name,pinned in PUMP_DIAGNOSTIC_NODES.items():
+    pins=COMBINED_PUMP_DIAGNOSTIC_NODES if combined else PUMP_DIAGNOSTIC_NODES
+    for name,pinned in pins.items():
         test.assertEqual(__import__('hashlib').sha256(ast.dump(nodes[name]).encode()).hexdigest(),pinned,name)
     stripped=_RemoveReviewedPumpDiagnostics().visit(tree)
-    prior=subprocess.check_output(['git','show',PUMP_DIAGNOSTIC_REFERENCE+':meme_machine/lanes/pump/runner.py'],cwd=ROOT)
+    reference=OPPORTUNITY_REFERENCE if combined else PUMP_DIAGNOSTIC_REFERENCE
+    prior=subprocess.check_output(['git','show',reference+':meme_machine/lanes/pump/runner.py'],cwd=ROOT)
     test.assertEqual(ast.dump(stripped),ast.dump(ast.parse(prior)),'diagnostics cannot change any runtime economics')
     return stripped
 
 def assert_attention_node(test,relative,name,node):
+    current=(ROOT/relative).read_bytes()
+    prior=opportunity_predecessor(test,relative,current)
+    if prior!=current:
+        selected=ast.parse(current);previous=ast.parse(prior)
+        for part in name.split('.'):
+            selected=next(n for n in selected.body if isinstance(n,(ast.ClassDef,ast.FunctionDef)) and n.name==part)
+            previous=next(n for n in previous.body if isinstance(n,(ast.ClassDef,ast.FunctionDef)) and n.name==part)
+        test.assertIn(ast.dump(node),(ast.dump(selected),ast.dump(previous)),relative+':'+name+':reviewed current node')
+        node=previous
     if relative=='meme_machine/lanes/pump/runner.py' and name in PUMP_DIAGNOSTIC_NODES:
         from copy import deepcopy
         test.assertEqual(__import__('hashlib').sha256(ast.dump(node).encode()).hexdigest(),PUMP_DIAGNOSTIC_NODES[name],name)
@@ -210,14 +333,15 @@ def assert_attention_node(test,relative,name,node):
     test.assertEqual(__import__('hashlib').sha256(ast.dump(node).encode()).hexdigest(),expected,relative+':'+name)
 
 
-def assert_holding_delta(test, relative, original, current, *, reviewed_lifecycle=True):
+def assert_holding_delta(test, relative, original, current, *, reviewed_lifecycle=True,reviewed_opportunity=True):
+    if reviewed_opportunity:current=opportunity_predecessor(test,relative,current)
     if reviewed_lifecycle and relative in LIFECYCLE_SOURCE_DELTAS:
         reviewed=LIFECYCLE_SOURCE_DELTAS[relative]
         prior=subprocess.check_output(['git','show',LIFECYCLE_PACKAGE_BASE+':'+relative],cwd=ROOT)
         sha256=__import__('hashlib').sha256
         test.assertEqual(sha256(prior).hexdigest(),reviewed['before_sha256'],relative+':prior lifecycle source')
         test.assertEqual(sha256(current).hexdigest(),reviewed['reviewed_sha256'],relative+':reviewed lifecycle source')
-        assert_holding_delta(test,relative,original,prior,reviewed_lifecycle=False)
+        assert_holding_delta(test,relative,original,prior,reviewed_lifecycle=False,reviewed_opportunity=False)
         return
     if relative in ACQUISITION_SOURCE_DELTAS:
         reviewed=ACQUISITION_SOURCE_DELTAS[relative]
@@ -330,6 +454,68 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_added_opportunity_policy_and_recovery_sources_reject_unapproved_changes(self):
+        for relative in OPPORTUNITY_ADDED_SOURCES:
+            source=(ROOT/relative).read_bytes()
+            assert_opportunity_added_source(self,relative,source)
+            with self.assertRaises(AssertionError):
+                assert_opportunity_added_source(self,relative,source+b'\n')
+            with self.assertRaises(AssertionError):
+                assert_opportunity_added_source(self,relative,b'')
+
+    def test_combined_manifest_preserves_exact_published_strategy_and_operational_layers(self):
+        from copy import deepcopy
+        import hashlib,json
+        manifest=json.loads(OPPORTUNITY_MANIFEST.read_text())
+        original_bytes=subprocess.check_output(['git','show',
+            OPPORTUNITY_REFERENCE+':tests/fixtures/paper_opportunity_access_source_delta.json'],cwd=ROOT)
+        self.assertEqual(hashlib.sha256(original_bytes).hexdigest(),OPPORTUNITY_ORIGINAL_MANIFEST_SHA256)
+        original=json.loads(original_bytes)
+        self.assertEqual(original['base'],OPPORTUNITY_STRATEGY_BASE)
+        self.assertEqual(set(manifest['files']),set(original['files']))
+        overlaps=set()
+        for relative in manifest['files']:
+            operational=subprocess.check_output(['git','show',OPPORTUNITY_BASE+':'+relative],cwd=ROOT)
+            strategy_before=subprocess.check_output(['git','show',OPPORTUNITY_STRATEGY_BASE+':'+relative],cwd=ROOT)
+            strategy_after=subprocess.check_output(['git','show',OPPORTUNITY_REFERENCE+':'+relative],cwd=ROOT)
+            combined=(ROOT/relative).read_bytes()
+            if operational==strategy_before:
+                self.assertEqual(combined,strategy_after,relative+':unchanged published strategy package')
+                continue
+            overlaps.add(relative)
+            if relative=='meme_machine/lanes/pump/runner.py':
+                self.assertEqual(ast.dump(pump_economic_tree(self,combined,combined=True)),
+                    ast.dump(ast.parse(strategy_after)),relative+':exact strategy under diagnostic wrappers')
+            elif relative=='meme_machine/operational/supervisor.py':
+                # The package changed only these three already reviewed methods.
+                # Their complete bodies/interfaces must equal the strategy source;
+                # replacing them with the operational predecessor must recover the
+                # entire operational AST, including shutdown and guard diagnostics.
+                current=ast.parse(combined);previous=ast.parse(operational);published=ast.parse(strategy_after)
+                for name in ('validate_environment','Supervisor.__init__','Supervisor.environment'):
+                    parent=current;before=previous;after=published
+                    for part in name.split('.')[:-1]:
+                        parent=next(n for n in parent.body if isinstance(n,ast.ClassDef) and n.name==part)
+                        before=next(n for n in before.body if isinstance(n,ast.ClassDef) and n.name==part)
+                        after=next(n for n in after.body if isinstance(n,ast.ClassDef) and n.name==part)
+                    selected=next(n for n in parent.body if isinstance(n,ast.FunctionDef) and n.name==name.split('.')[-1])
+                    old=next(n for n in before.body if isinstance(n,ast.FunctionDef) and n.name==name.split('.')[-1])
+                    approved=next(n for n in after.body if isinstance(n,ast.FunctionDef) and n.name==name.split('.')[-1])
+                    self.assertEqual(ast.dump(selected),ast.dump(approved),relative+':'+name+':published strategy')
+                    parent.body[parent.body.index(selected)]=deepcopy(old)
+                self.assertEqual(ast.dump(current),ast.dump(previous),relative+':all operational siblings preserved')
+            else:self.fail(relative+':unreviewed package overlap')
+        self.assertEqual(overlaps,{'meme_machine/lanes/pump/runner.py','meme_machine/operational/supervisor.py'})
+
+    def test_opportunity_revision_exact_nodes_and_retained_scalar_protections(self):
+        import json
+        manifest=json.loads(OPPORTUNITY_MANIFEST.read_text())
+        for relative in manifest['files']:
+            source=(ROOT/relative).read_bytes()
+            opportunity_predecessor(self,relative,source)
+            with self.assertRaises(AssertionError):
+                opportunity_predecessor(self,relative,source+b'\n# unapproved source mutation\n')
+
     def test_pump_restore_delta_only_pushes_existing_literal_read_filter_into_sql(self):
         import hashlib
         relative='meme_machine/lanes/pump/runner.py'
@@ -350,26 +536,30 @@ class RobinhoodUSDTests(unittest.TestCase):
         economic.value=exact_read
         # All other functions, interfaces, constants, ordering and restoration
         # predicates must be byte-independent AST equivalents to e398.
-        self.assertEqual(ast.dump(expected),ast.dump(pump_economic_tree(self,(ROOT/relative).read_bytes())))
+        self.assertEqual(ast.dump(expected),ast.dump(pump_economic_tree(self,
+            opportunity_predecessor(self,relative,(ROOT/relative).read_bytes()))))
 
     def test_reviewed_pump_startup_diagnostics_preserve_all_original_calls_and_reject_changes(self):
         from copy import deepcopy
         relative='meme_machine/lanes/pump/runner.py'
         content=(ROOT/relative).read_bytes()
-        original=subprocess.check_output(['git','show',PUMP_DIAGNOSTIC_REFERENCE+':'+relative],cwd=ROOT)
-        self.assertEqual(ast.dump(pump_economic_tree(self,content)),ast.dump(ast.parse(original)))
+        original=subprocess.check_output(['git','show',OPPORTUNITY_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(ast.dump(pump_economic_tree(self,content,combined=True)),ast.dump(ast.parse(original)))
+        predecessor=opportunity_predecessor(self,relative,content)
+        original_operational=subprocess.check_output(['git','show',PUMP_DIAGNOSTIC_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(ast.dump(pump_economic_tree(self,predecessor)),ast.dump(ast.parse(original_operational)))
         for name in PUMP_DIAGNOSTIC_NODES:
             changed=ast.parse(content)
             node=next(n for n in changed.body if isinstance(n,ast.FunctionDef) and n.name==name)
             node.body.append(ast.Expr(ast.Constant('unreviewed change')))
-            with self.assertRaises(AssertionError):pump_economic_tree(self,ast.unparse(changed))
+            with self.assertRaises(AssertionError):pump_economic_tree(self,ast.unparse(changed),combined=True)
         # Changing a wrapped acquisition argument or callable is not a permitted
         # instrumentation change, even though the wrapper itself remains intact.
         changed=ast.parse(content)
         call=next(n for n in ast.walk(changed) if isinstance(n,ast.Call) and
             isinstance(n.func,ast.Name) and n.func.id=='_startup_work')
         call.args[1]=ast.Name(id='unreviewed_reconciliation',ctx=ast.Load())
-        with self.assertRaises(AssertionError):pump_economic_tree(self,ast.unparse(changed))
+        with self.assertRaises(AssertionError):pump_economic_tree(self,ast.unparse(changed),combined=True)
 
     def setUp(self):
         self.rpc=ReadRPC()
@@ -813,7 +1003,7 @@ class RobinhoodUSDTests(unittest.TestCase):
             # holding-age exit removal is separately pinned below.
             return [ast.dump(n) for n in ast.parse(content).body
                 if not isinstance(n,ast.FunctionDef) or n.name not in ('select_entries','exit_action')]
-        self.assertEqual(survivor_economics(original),survivor_economics((ROOT/rel).read_bytes()))
+        self.assertEqual(survivor_economics(original),survivor_economics(opportunity_predecessor(self,rel,(ROOT/rel).read_bytes())))
         approved=ast.parse((ROOT/rel).read_bytes())
         node=next(n for n in approved.body if isinstance(n,ast.FunctionDef) and n.name=='exit_action')
         self.assertEqual(__import__('hashlib').sha256(ast.dump(node).encode()).hexdigest(),HOLDING_DELTAS[rel]['exit_action'])
@@ -856,7 +1046,7 @@ class RobinhoodUSDTests(unittest.TestCase):
                     and n.name not in ('qualification_turn','_quality_rank')}
         self.assertEqual(history_methods((ROOT/rel).read_bytes(),reviewed=True),history_methods(source(rel)))
         rel='meme_machine/lanes/pons/pons_survivor_runtime.py'
-        original=ast.parse(source(rel));current=ast.parse((ROOT/rel).read_bytes())
+        original=ast.parse(source(rel));current=ast.parse(opportunity_predecessor(self,rel,(ROOT/rel).read_bytes()))
         def functions(tree):
             return {n.name:n for n in tree.body if isinstance(n,(ast.FunctionDef,ast.ClassDef))}
         old=functions(original);new=functions(current)
@@ -942,8 +1132,8 @@ class RobinhoodUSDTests(unittest.TestCase):
         for relative in LIFECYCLE_SOURCE_DELTAS:
             original=subprocess.check_output(['git','show','e1070404849dfa86eb3e47d57cf24263b2fefc25:'+relative],cwd=ROOT)
             published=subprocess.check_output(['git','show',LIFECYCLE_PACKAGE_REFERENCE+':'+relative],cwd=ROOT)
-            self.assertEqual(published,(ROOT/relative).read_bytes())
-            assert_holding_delta(self,relative,original,published)
+            self.assertEqual(published,opportunity_predecessor(self,relative,(ROOT/relative).read_bytes()))
+            assert_holding_delta(self,relative,original,(ROOT/relative).read_bytes())
             for changed in (published+b'\n# unreviewed change\n',published.replace(b'False',b'True',1)):
                 self.assertNotEqual(changed,published)
                 with self.assertRaises(AssertionError):assert_holding_delta(self,relative,original,changed)
@@ -959,7 +1149,7 @@ class RobinhoodUSDTests(unittest.TestCase):
                             nodes[target.id]=ast.dump(node)
             return nodes
         prior=subprocess.check_output(['git','show',LIFECYCLE_PACKAGE_BASE+':'+relative],cwd=ROOT)
-        before=economic_nodes(prior);after=economic_nodes((ROOT/relative).read_bytes())
+        before=economic_nodes(prior);after=economic_nodes(opportunity_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(set(before),{'reentry_regime_reset','REENTRY_POLICY','ENTRY_THRESHOLDS','EXIT_POLICY','POLICY'})
         self.assertEqual(before,after)
 

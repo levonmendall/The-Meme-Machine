@@ -14,7 +14,7 @@ from tests.lanes.pons.test_pons_execution_acquisition import FakeRPC,candidate,C
 from tests.lanes.pons import test_pons_position_provider_recovery as recovery
 
 class EntryOrderingTests(unittest.TestCase):
-    def lifecycle(self,*,delay=20,mutate=None,validation_delay=0,persistent=True,folder=None,broker=False,supersede=False,db_name='paper.sqlite'):
+    def lifecycle(self,*,delay=20,mutate=None,validation_delay=0,persistent=True,folder=None,broker=False,supersede=False,db_name='paper.sqlite',demoted=False):
         clock=[102.0];calls=[];rpc=FakeRPC();rpc.used=0
         rpc.verify_chain=lambda:None
         rpc.telemetry=lambda:dict(logical_calls=rpc.logical,physical_transports=rpc.transports)
@@ -24,6 +24,16 @@ class EntryOrderingTests(unittest.TestCase):
         vector=dict(current_threshold_pass=True,policy_hash=POLICY_HASH,
             proposed_size={'amount_quote':10**15},evidence_available_at=100,
             trajectory={'graduation_eta_seconds':60},demand={'largest_buyer_flow_bps':1000})
+        if demoted:
+            from tests.lanes.pons.test_pons_selective_continuation import vector as qualify,events,trade
+            tape=[dict(e,event_at=e['event_at']-100) for e in events()]
+            tape += [trade('prior-heavy'+str(i),'0x'+f'{30+i:040x}',2*10**15,80) for i in range(6)]
+            vector=qualify(state=c['state'],launch_at=-50,asof=100,evidence_available_at=100,
+                snapshots=[dict(at=85,progress_bps=6800),dict(at=95,progress_bps=7600),dict(at=100,progress_bps=7800)],
+                events=tape)
+            self.assertTrue(vector['current_threshold_pass'],vector['all_rejections'])
+            self.assertEqual(vector['confirmation_context']['previous_policy_would_reject'],
+                ['curve_deceleration','flow_deceleration'])
         evaluation=dict(vector=vector,candidate=c,token='t',curve=CURVE,source_transaction='tx',market_events=[])
         if folder is None:
             tmp=tempfile.TemporaryDirectory();self.addCleanup(tmp.cleanup);folder=tmp.name
@@ -60,6 +70,7 @@ class EntryOrderingTests(unittest.TestCase):
                     interpretation={'policy':POLICY_HASH},observed=clock[0],deadline=200,priority=1)
                 plane.close()
             t,d,s=recovery.PositionRecoveryTests.persistent_entry_signal()
+            if demoted:t=dict(vector['trajectory']);d=dict(vector['demand'])
             if not persistent:d['current_net_quote']=0
             return t,d,s
         def validate(*a):
@@ -89,6 +100,17 @@ class EntryOrderingTests(unittest.TestCase):
         self.assertLessEqual(metrics['quote_age_at_decision_seconds'],5)
         self.assertEqual(metrics['broad_reconstruction_after_final_quote'],0)
         self.assertEqual((rpc.logical,rpc.transports),(16,6))
+
+    def test_demoted_acceleration_reaches_actual_funded_native_fill_and_restart(self):
+        with tempfile.TemporaryDirectory() as folder:
+            result,events,_,_=self.lifecycle(demoted=True,folder=folder,broker=True)
+            self.assertEqual(sum(e['action']=='entry' for e in events),1,result)
+            self.assertTrue(result['entry_persistence']['persistent'])
+            self.assertFalse(result['entry_persistence']['fill_accelerating'])
+            self.assertFalse(result['entry_persistence']['fill_flow_accelerating'])
+            result,events,_,_=self.lifecycle(demoted=True,folder=folder,broker=True)
+            self.assertEqual(sum(e['action']=='entry' for e in events),1,result)
+            self.assertEqual(sum(e['action']=='reserve' for e in events),1)
 
     def test_real_time_after_final_quote_still_cancels(self):
         r,events,_,_=self.lifecycle(validation_delay=6)
