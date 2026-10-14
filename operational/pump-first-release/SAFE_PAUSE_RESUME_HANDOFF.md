@@ -1,3 +1,33 @@
+# Targeted diagnostic checkpoint — 2026-10-14 13:00 UTC
+
+The owner's narrow SQLite/public-RPC diagnostic resumption is complete. **Stop
+for owner direction; no automatic behavioral repair or runtime resumption.**
+Read [SQLITE_PUBLIC_RPC_DIAGNOSIS_HANDOFF.md](SQLITE_PUBLIC_RPC_DIAGNOSIS_HANDOFF.md)
+and its small published evidence record before the older stop retained below.
+
+Reviewed baseline `e6aab04871a1f1c03d36905993cd3bdcf5c77ee7`; diagnostic publication
+branch `diagnostics/sqlite-public-rpc-20261014`. Tested/deployed source remains
+`a70e2610743d8595b3d1a36ed25821a6689c29f3`. Untested WIP remains separately saved
+at `66a87ac32f969195352ade7d35150dd2be53b81b`. No production source/configuration,
+database contents, provider counters or capital policy changed.
+
+Pump's fatal SQLite operation/actor and causal contribution to combined throughput
+remain unidentified: **STOPPED — INSUFFICIENT EVIDENCE**. Pons's original public
+throttling mechanism also remains insufficiently evidenced. A separate public
+dispatch-spacing defect was confirmed by one 0.30-second offline fake-clock
+experiment: 500-ms control spacing versus 125 ms after cooldown. That narrow
+defect is **READY_FOR_TARGETED_CORRECTION**, with approval pending; it is not a
+proven remedy for the initial 429 or a four-regime readiness result.
+
+At `12:59:42.705147Z`, PAPER remained inactive/dead, disabled, MainPID 0, funding
+closed; $1,000 cash reconciled with zero positions/reservations/obligations or
+pending delivery. Historical $500 reconciliation and both state hashes match
+the preserved checkpoint. Zero new provider requests, zero one-hour minutes.
+All diagnostics ended; existing read-only monitor/observer remain. Exact source
+publication is recorded in `E/SQLITE_PUBLIC_RPC_DIAGNOSIS_PUBLICATION_20261014.json`.
+
+---
+
 # Mandatory two-blocker stop — 2026-10-14 06:35 UTC
 
 **STOPPED — INSUFFICIENT EVIDENCE FOR A JUSTIFIED SOLUTION OR DECISIVE TEST.**
