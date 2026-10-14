@@ -16,6 +16,7 @@ import sqlite3
 import time
 
 from meme_machine.runtime.journal import canonical,digest
+from meme_machine.runtime.sqlite_failure import connect as diagnostic_connect,preserving_cleanup
 
 
 class CandidateDeadlineMissed(RuntimeError):
@@ -80,7 +81,7 @@ def _enable_wal(db,*,seconds=30.0,monotonic=time.monotonic,sleeper=time.sleep):
                 if remaining<=0:raise
                 sleeper(min(.05,remaining))
     finally:
-        db.execute("PRAGMA busy_timeout="+str(int(seconds*1000)))
+        with preserving_cleanup():db.execute("PRAGMA busy_timeout="+str(int(seconds*1000)))
 
 
 class CandidateHistory:
@@ -94,13 +95,15 @@ class CandidateHistory:
         if not 1<=self.worker_capacity<=32:raise ValueError("candidate_history_worker_capacity")
         if type(write_wait_seconds) not in (int,float) or not 0<=write_wait_seconds<=30:
             raise ValueError('candidate_history_write_wait')
-        self.db=sqlite3.connect(str(self.path),timeout=write_wait_seconds,isolation_level=None,check_same_thread=False)
+        self.db=diagnostic_connect(str(self.path),diagnostic_role='candidate_history',timeout=write_wait_seconds,isolation_level=None,check_same_thread=False)
         try:
             _enable_wal(self.db,seconds=write_wait_seconds)
             self.db.execute("PRAGMA synchronous=FULL")
             self._install_schema()
         except BaseException:
-            self.db.close()
+            # Cleanup must not replace the first recorded database failure.
+            try:self.db.close()
+            except BaseException:pass
             raise
 
     def _install_schema(self):
@@ -185,8 +188,10 @@ class CandidateHistory:
                 yield
                 self.db.execute('RELEASE '+name)
             except BaseException:
-                if self.db.in_transaction:
-                    self.db.execute('ROLLBACK TO '+name);self.db.execute('RELEASE '+name)
+                try:
+                    if self.db.in_transaction:
+                        self.db.execute('ROLLBACK TO '+name);self.db.execute('RELEASE '+name)
+                except BaseException:pass
                 raise
             return
         self.db.execute("BEGIN IMMEDIATE")
@@ -194,7 +199,9 @@ class CandidateHistory:
             yield
             self.db.execute("COMMIT")
         except BaseException:
-            if self.db.in_transaction:self.db.execute("ROLLBACK")
+            try:
+                if self.db.in_transaction:self.db.execute("ROLLBACK")
+            except BaseException:pass
             raise
 
     def close(self):
@@ -224,7 +231,7 @@ class CandidateHistory:
         from meme_machine.solana_evidence_plane import decode_body
         self._source_readers=getattr(self,'_source_readers',{})
         if ref['path'] not in self._source_readers:
-            self._source_readers[ref['path']]=sqlite3.connect(Path(ref['path']).as_uri()+'?mode=ro',uri=True,timeout=30)
+            self._source_readers[ref['path']]=diagnostic_connect(Path(ref['path']).as_uri()+'?mode=ro',diagnostic_role='candidate_reference',uri=True,timeout=30)
         db=self._source_readers[ref['path']]
         row=db.execute('SELECT body,hash,archive FROM canonical_evidence WHERE identity=?',(ref['canonical_identity'],)).fetchone()
         if row is None:raise ValueError('candidate_canonical_reference_missing')

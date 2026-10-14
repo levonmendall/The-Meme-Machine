@@ -2,6 +2,7 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+    'tests.test_sqlite_failure_attribution',
  'tests.test_operational_simplification',
  'tests.test_solana_history_refinement',
  'tests.test_solana_history_separation',

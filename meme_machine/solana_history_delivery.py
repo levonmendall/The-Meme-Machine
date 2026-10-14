@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from .solana_evidence_plane import EvidenceUnavailable,IntervalProof,canonical,digest
 from .solana_selective_runtime import CONTROL
 from .runtime.operating_families import active_sql,active_scope_sql
+from .runtime.sqlite_failure import connect as diagnostic_connect,boundary
 from .solana_selective_history import coverage_scope
 
 MAX_BYTES=16*1024*1024
@@ -46,6 +47,7 @@ def proof_receipt(life,row):
         gap_state=gap_state,members=members,generation=generation(life))
 
 
+@boundary('candidate_delivery.capture',lambda life:life.writer.path)
 def capture(life):
     if life.db.in_transaction:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')
     rows=[];size=0;references={}
@@ -73,7 +75,7 @@ def capture(life):
         after+' ORDER BY lo,hi,rowid LIMIT 64',tuple(cursor or ())).fetchall()
     proofs=[]
     if raw_proofs and life.path.exists():
-        with closing(sqlite3.connect(life.path.resolve().as_uri()+'?mode=ro',uri=True,timeout=0)) as consumer:
+        with closing(diagnostic_connect(life.path.resolve().as_uri()+'?mode=ro',diagnostic_role='candidate_delivery.capture_read',uri=True,timeout=0)) as consumer:
             consumer.execute('PRAGMA query_only=ON')
             for row in raw_proofs:
                 if life.unconsumed(row[2],through=row[4]):continue
@@ -95,6 +97,7 @@ def capture(life):
         refresh=refresh,at=life.clock(),canonical_path=str(life.writer.path.resolve()),candidate_path=str(life.path.resolve()))
 
 
+@boundary('candidate_delivery.deliver',lambda snapshot:snapshot['candidate_path'])
 def deliver(snapshot):
     """Only the existing nonauthoritative CandidateHistory DB is writable."""
     from .solana_candidate_lifecycle import CandidateLifecycle
@@ -152,12 +155,13 @@ def verified_proof(life,db,row):
     return digest(json.loads(receipt[0]))==digest(expected)
 
 
+@boundary('candidate_delivery.acknowledge',lambda life,snapshot,result:life.writer.path)
 def acknowledge(life,snapshot,result):
     if digest(generation(life))!=digest(snapshot['generation']):return False
     # Verify durable consumer receipts and unchanged outbox obligations before
     # the canonical owner marks even one delivery consumed. A crash repeats the
     # exact batch; CandidateHistory identities retain their old idempotency.
-    with closing(sqlite3.connect(life.path.resolve().as_uri()+'?mode=ro',uri=True,timeout=0)) as db:
+    with closing(diagnostic_connect(life.path.resolve().as_uri()+'?mode=ro',diagnostic_role='candidate_delivery.ack_read',uri=True,timeout=0)) as db:
         db.execute('PRAGMA query_only=ON')
         for identity,family,address,kind,raw,checksum,at in snapshot['rows']:
             current=life.db.execute('SELECT body,hash,consumed FROM candidate_history_outbox WHERE id=?',(identity,)).fetchone()
@@ -201,6 +205,8 @@ def acknowledge(life,snapshot,result):
 
 
 def readonly_history(path):
-    db=sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True,timeout=0)
-    db.execute('PRAGMA query_only=ON')
+    db=diagnostic_connect(Path(path).resolve().as_uri()+'?mode=ro',diagnostic_role='candidate_delivery.history_read',uri=True,timeout=0)
+    try:db.execute('PRAGMA query_only=ON')
+    except BaseException:
+        db.close();raise
     return SimpleNamespace(db=db,close=db.close)

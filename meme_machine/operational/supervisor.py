@@ -295,6 +295,12 @@ class Supervisor:
                 value=os.environ.get('MM_SOLANA_HISTORY_SEPARATED','0')
                 if value not in ('0','1'):raise ValueError('historical_processing_configuration')
                 env['MM_SOLANA_HISTORY_SEPARATED']=value
+                # The opt-in diagnostic belongs to the canonical source only.
+                # Normal protection does not depend on recorder availability.
+                if not self.offline:
+                    for key in ('MM_SQLITE_DIAGNOSTIC_REQUIRED',
+                                'MM_SQLITE_TERMINAL_RECORD_PATH'):
+                        if os.environ.get(key):env[key]=os.environ[key]
             env.update(MM_PROVIDER_GOVERNOR_DB=str(self.root/'shared/solana-provider.sqlite'),
                 MM_SOLANA_EVIDENCE_PLANE_DB=str(self.root/'shared/solana-evidence.sqlite'),
                 MM_SOLANA_CANDIDATE_HISTORY_DB=str(self.root/'shared/solana-candidate-history.sqlite'),

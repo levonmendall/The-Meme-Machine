@@ -694,6 +694,12 @@ class ServiceState:
             self.maintenance_health(http)
             self.fence.health('ipc',ipc)
             self.fence.health('owner_scheduler',scheduler)
+            if os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1':
+                from .runtime.sqlite_failure import coverage_status
+                # The bounded diagnostic driver treats lost coverage as invalid
+                # and drains safely. Optional recorder loss never closes normal
+                # position protection or changes evidence/readiness policy.
+                self.fence.health('sqlite_failure_recorder',coverage_status())
 
     def archive_plan(self):
         snapshot=self._storage_stage('archive_plan',lambda:self.writer.archive_snapshot(time.time()-180,max_records=1000))

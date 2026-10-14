@@ -88,9 +88,10 @@ class RepairRPC:
                     from copy import deepcopy
                     return deepcopy(value),dict(bytes=0,cu=0,calls=0)
                 except DeliveredRPCError as exc:
-                    raise DeliveredRPCError(str(exc),dict(bytes=0,cu=0,calls=0),
+                    from meme_machine.runtime.sqlite_failure import carry
+                    raise carry(exc,DeliveredRPCError(str(exc),dict(bytes=0,cu=0,calls=0),
                         retryable=exc.retryable,cause_kind=exc.cause_kind,method=exc.method,
-                        rpc_code=exc.rpc_code,http_status=exc.http_status) from None
+                        rpc_code=exc.rpc_code,http_status=exc.http_status)) from None
             try:
                 result=self._call_delivered(method,params,priority)
                 from copy import deepcopy
@@ -147,8 +148,9 @@ class RepairRPC:
         except Exception as exc:
             self._count('failures')
             retryable=isinstance(exc,(TimeoutError,urllib.error.URLError,json.JSONDecodeError)) or code in (429,-32603,-32005,-32016)
-            raise DeliveredRPCError('repair_response_unavailable',dict(bytes=received,cu=charged),
-                retryable=retryable,cause_kind=type(exc).__name__,method=method,rpc_code=code) from None
+            from meme_machine.runtime.sqlite_failure import carry
+            raise carry(exc,DeliveredRPCError('repair_response_unavailable',dict(bytes=received,cu=charged),
+                retryable=retryable,cause_kind=type(exc).__name__,method=method,rpc_code=code)) from None
         finally:
             if purchased:purchases.completed(label,received,failed=failed)
             if transport is not None:self._count('transport_microseconds',int((time.monotonic()-transport)*1e6))
@@ -220,6 +222,21 @@ SAFE_CANDIDATE_REASONS=SAFE_CANDIDATE_REASONS | frozenset((
 
 def failure_diagnostic(exc):
     from meme_machine.solana_evidence_plane import EvidenceUnavailable
+    terminal_error=exc
+    def essential(error):
+        import re,sqlite3
+        name=type(error).__name__
+        result=name if re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,63}',name) else 'Exception'
+        from meme_machine.runtime.sqlite_failure import payload
+        owned=payload(error)
+        if isinstance(error,sqlite3.Error) or owned is not None:
+            code=getattr(error,'sqlite_errorcode',None);name=getattr(error,'sqlite_errorname',None)
+            if owned is not None:
+                code=owned.get('sqlite_errorcode',code);name=owned.get('sqlite_errorname',name)
+            if (type(code) is int and isinstance(name,str) and name.startswith('SQLITE_')
+                    and getattr(sqlite3,name,None)==code):result+=':'+name+':'+str(code)
+        return result
+    essentials=[essential(exc)]
     def classification(error):
         result=type(error).__name__
         if isinstance(error,DeliveredRPCError):
@@ -237,6 +254,13 @@ def failure_diagnostic(exc):
             code=getattr(error,'sqlite_errorcode',None);name=getattr(error,'sqlite_errorname',None)
             if (type(code) is int and isinstance(name,str) and name.startswith('SQLITE_')
                     and getattr(sqlite3,name,None)==code):result+=':'+name+':'+str(code)
+        from meme_machine.runtime.sqlite_failure import payload
+        diagnostic=payload(error)
+        if diagnostic is not None:
+            import threading
+            diagnostic=dict(diagnostic,reporter_pid=os.getpid(),
+                reporter_native_thread_id=threading.get_native_id())
+            result+=':sqlite_failure='+json.dumps(diagnostic,sort_keys=True,separators=(',',':'),allow_nan=False)
         if type(error) is EvidenceUnavailable and len(error.args)==1:
             reason=error.args[0]
             if isinstance(reason,str) and reason in SAFE_EVIDENCE_REASONS | SAFE_CANDIDATE_REASONS | {'solana_candidate_topology_not_certified',
@@ -277,14 +301,31 @@ def failure_diagnostic(exc):
         cause=exc.__cause__
         if cause is None and not exc.__suppress_context__:cause=exc.__context__
         if cause is None or id(cause) in seen:break
-        seen.add(id(cause));result+=':caused_by:'+classification(cause);exc=cause
+        seen.add(id(cause));essentials.append(essential(cause))
+        result+=':caused_by:'+classification(cause);exc=cause
+    if getattr(terminal_error,'sqlite_terminal_record_failed',False):
+        result+=':terminal_record_write_failed:recorder_valid=false'
+    # Reserve the existing terminal stderr/journal channel independently of
+    # any capped diagnostic trace. Never emit a partial JSON attribution.
+    from meme_machine.runtime.sqlite_failure import MAX_TERMINAL_BYTES
+    if len(result.encode())>MAX_TERMINAL_BYTES:
+        return ('evidence_worker_failed:'+':caused_by:'.join(essentials)+
+            ':terminal_record_bound:recorder_valid=false')
     return result
 
 def main():
     # Final process diagnostic never formats third-party exceptions/URLs.
     try:asyncio.run(main_async())
     except Exception as exc:
-        raise SystemExit(failure_diagnostic(exc)) from None
+        report=failure_diagnostic(exc)
+        terminal=os.environ.get('MM_SQLITE_TERMINAL_RECORD_PATH')
+        if terminal:
+            from meme_machine.runtime.sqlite_failure import write_terminal_record
+            try:write_terminal_record(terminal,report)
+            except BaseException:
+                exc.sqlite_terminal_record_failed=True
+                report=failure_diagnostic(exc)
+        raise SystemExit(report) from None
 
 
 if __name__=='__main__':main()

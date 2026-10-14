@@ -15,6 +15,7 @@ import json
 import os
 from pathlib import Path
 from meme_machine.runtime.sqlite_files import transient_file_size
+from meme_machine.runtime.sqlite_failure import connect as diagnostic_connect,preserving_cleanup,checkpoint_result
 import queue
 import sqlite3
 import threading
@@ -257,7 +258,7 @@ class EvidenceWriter:
             self._lock.close()
             raise EvidenceUnavailable('evidence_writer_already_running') from None
         try:
-            self.db = sqlite3.connect(self.path, isolation_level=None, timeout=5)
+            self.db = diagnostic_connect(self.path,diagnostic_role='canonical_evidence_owner', isolation_level=None, timeout=5)
             self.db.execute('PRAGMA auto_vacuum=INCREMENTAL')
             self.db.execute('PRAGMA journal_mode=WAL')
             self.db.execute('PRAGMA synchronous=FULL')
@@ -280,8 +281,10 @@ class EvidenceWriter:
                 self.db.execute("INSERT OR IGNORE INTO meta VALUES('initialized','1')")
         except BaseException:
             if hasattr(self, 'db'):
-                self.db.close()
-            self._lock.close()
+                try:self.db.close()
+                except BaseException:pass
+            try:self._lock.close()
+            except BaseException:pass
             raise
 
     def _check(self):
@@ -313,8 +316,10 @@ class EvidenceWriter:
                 yield
                 self.db.execute('RELEASE '+name)
             except BaseException:
-                self.db.execute('ROLLBACK TO '+name)
-                self.db.execute('RELEASE '+name)
+                try:
+                    self.db.execute('ROLLBACK TO '+name)
+                    self.db.execute('RELEASE '+name)
+                except BaseException:pass
                 raise
             return
         try:
@@ -329,7 +334,9 @@ class EvidenceWriter:
         except BaseException:
             # SQLite may already roll back an interrupted statement itself.
             # Preserve its original error when there is no transaction to undo.
-            if self.db.in_transaction:self.db.execute('ROLLBACK')
+            try:
+                if self.db.in_transaction:self.db.execute('ROLLBACK')
+            except BaseException:pass
             raise
 
     def _transaction_statement(self,sql,stage):
@@ -925,9 +932,9 @@ class EvidenceWriter:
         any concurrently appended tail at its next scheduled transaction boundary.
         """
         from contextlib import closing
-        with closing(sqlite3.connect(Path(path).resolve().as_uri()+'?mode=rw',
-                                     uri=True,isolation_level=None,timeout=0)) as db:
-            return db.execute('PRAGMA wal_checkpoint(PASSIVE)').fetchone()
+        with closing(diagnostic_connect(Path(path).resolve().as_uri()+'?mode=rw',
+                                     diagnostic_role='canonical_checkpoint.passive',uri=True,isolation_level=None,timeout=0)) as db:
+            return checkpoint_result(db,db.execute('PRAGMA wal_checkpoint(PASSIVE)').fetchone())
 
     def finish_checkpoint(self):
         """Reclaim the completed WAL tail at the sole writer boundary.
@@ -943,9 +950,9 @@ class EvidenceWriter:
         prior=self.db.execute('PRAGMA busy_timeout').fetchone()[0]
         try:
             self.db.execute('PRAGMA busy_timeout=0')
-            return self.db.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone()
+            return checkpoint_result(self.db,self.db.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone())
         finally:
-            self.db.execute('PRAGMA busy_timeout='+str(int(prior)))
+            with preserving_cleanup():self.db.execute('PRAGMA busy_timeout='+str(int(prior)))
 
     @contextmanager
     def _retention_transaction(self,*,next_scope=None,urgent_next_scope=None,source_yield_budget=None,after_commit=None):
@@ -1001,7 +1008,7 @@ class EvidenceReader:
     def __init__(self, path):
         self.path = Path(path).resolve()
         self.queries = 0
-        self.db = sqlite3.connect(self.path.as_uri() + '?mode=ro', uri=True,
+        self.db = diagnostic_connect(self.path.as_uri() + '?mode=ro',diagnostic_role='canonical_evidence_reader', uri=True,
                                   isolation_level=None, timeout=2)
         self.db.execute('PRAGMA query_only=ON')
 

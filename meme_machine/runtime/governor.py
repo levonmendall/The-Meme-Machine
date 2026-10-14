@@ -10,6 +10,7 @@ import sqlite3
 import os
 import time
 import uuid
+from .sqlite_failure import connect as diagnostic_connect,preserving_cleanup
 
 class Governor:
     def __init__(self,path,*,interval=.5):
@@ -26,7 +27,7 @@ class Governor:
         from meme_machine.operational.position_continuation import provider_interval
         operating_interval=provider_interval('solana')
         if operating_interval is not None:self.solana_interval=operating_interval
-        with closing(sqlite3.connect(self.path,timeout=30,isolation_level=None)) as db:
+        with closing(diagnostic_connect(self.path,diagnostic_role='source_governor.initialize',timeout=30,isolation_level=None)) as db:
             db.execute('PRAGMA journal_mode=WAL')
             db.executescript('''CREATE TABLE IF NOT EXISTS pressure(
                 provider TEXT PRIMARY KEY,next_at REAL NOT NULL,cooldown REAL NOT NULL,grants INTEGER NOT NULL,rate_errors INTEGER NOT NULL);
@@ -64,7 +65,7 @@ class Governor:
         if not 0<deadline_seconds<=30:raise ValueError('provider_deadline_bound')
         methods=self._methods(methods)
         identity=str(uuid.uuid4());started=time.monotonic()
-        db=sqlite3.connect(self.path,timeout=30,isolation_level=None)
+        db=diagnostic_connect(self.path,diagnostic_role='source_governor.acquire',timeout=30,isolation_level=None)
         granted=False;reason='queue_deadline'
         try:
             db.execute('INSERT OR IGNORE INTO pressure VALUES(?,0,0,0,0)',(provider,))
@@ -117,17 +118,20 @@ class Governor:
                         return now-started
                     db.execute('COMMIT')
                 except BaseException:
-                    if db.in_transaction:db.execute('ROLLBACK')
+                    with preserving_cleanup():
+                        if db.in_transaction:db.execute('ROLLBACK')
                     raise
                 _stop_sleep(min(.05,max(.005,ready-now)))
         finally:
-            if db.in_transaction:db.execute('ROLLBACK')
-            ended=time.monotonic()
-            db.execute('INSERT INTO grants(provider,lane,priority,requested,ended,wait,granted,reason) VALUES(?,?,?,?,?,?,?,?)',(provider,lane,priority,started,ended,ended-started,int(granted),reason))
-            db.execute('DELETE FROM queue WHERE id=?',(identity,))
-            db.execute('DROP TRIGGER IF EXISTS grants_no_delete')
-            db.execute('DELETE FROM grants WHERE id < (SELECT COALESCE(MAX(id),0)-4096 FROM grants)')
-            db.close()
+            try:
+                with preserving_cleanup():
+                    if db.in_transaction:db.execute('ROLLBACK')
+                    ended=time.monotonic()
+                    db.execute('INSERT INTO grants(provider,lane,priority,requested,ended,wait,granted,reason) VALUES(?,?,?,?,?,?,?,?)',(provider,lane,priority,started,ended,ended-started,int(granted),reason))
+                    db.execute('DELETE FROM queue WHERE id=?',(identity,))
+                    db.execute('DROP TRIGGER IF EXISTS grants_no_delete')
+                    db.execute('DELETE FROM grants WHERE id < (SELECT COALESCE(MAX(id),0)-4096 FROM grants)')
+            finally:db.close()
 
     @staticmethod
     def _head(db,provider,now):
@@ -144,7 +148,7 @@ class Governor:
 
     def rate_limited(self,provider,methods=()):
         methods=self._methods(methods);now=time.monotonic()
-        with closing(sqlite3.connect(self.path,timeout=30,isolation_level=None)) as db:
+        with closing(diagnostic_connect(self.path,diagnostic_role='source_governor.rate_limited',timeout=30,isolation_level=None)) as db:
             db.execute('INSERT OR IGNORE INTO pressure VALUES(?,0,0,0,0)',(provider,))
             # The accepted v10 hour showed all Solana rate errors isolated to
             # getSignaturesForAddress while unrelated methods remained healthy.
@@ -169,7 +173,7 @@ class Governor:
     def succeeded(self,provider,methods=()):
         methods=self._methods(methods)
         if not methods:return
-        with closing(sqlite3.connect(self.path,timeout=30,isolation_level=None)) as db:
+        with closing(diagnostic_connect(self.path,diagnostic_role='source_governor.succeeded',timeout=30,isolation_level=None)) as db:
             for method in methods:
                 row=db.execute('SELECT cooldown,rate_errors,rate_streak,success_streak FROM method_pressure WHERE provider=? AND method=?',
                                (provider,method)).fetchone()
@@ -181,7 +185,7 @@ class Governor:
                            (streak,success,provider,method))
 
     def status(self):
-        with closing(sqlite3.connect(self.path,timeout=30,isolation_level=None)) as db:
+        with closing(diagnostic_connect(self.path,diagnostic_role='source_governor.status',timeout=30,isolation_level=None)) as db:
             now=time.monotonic()
             return dict(providers=[dict(provider=p,next_at=n,cooldown=c,grants=g,rate_errors=r) for p,n,c,g,r in db.execute('SELECT * FROM pressure')],
                         method_pressure=[dict(provider=p,method=m,cooldown_remaining_seconds=max(0,float(c)-now),

@@ -14,20 +14,21 @@ import asyncio
 from contextlib import closing
 from pathlib import Path
 import sqlite3
+from .runtime.sqlite_failure import connect as diagnostic_connect,checkpoint_result
 
 
 def checkpoint_and_reclaim(path):
     """Caller holds the logical owner boundary; this connection owns no records."""
-    with closing(sqlite3.connect(Path(path).resolve().as_uri()+'?mode=rw',
-                                 uri=True,isolation_level=None,timeout=0)) as db:
+    with closing(diagnostic_connect(Path(path).resolve().as_uri()+'?mode=rw',
+                                 diagnostic_role='canonical_checkpoint.handoff',uri=True,isolation_level=None,timeout=0)) as db:
         # The fresh PASSIVE includes every write preceding the handoff. It must
         # complete before TRUNCATE; a pinned old reader releases us immediately.
-        result=db.execute('PRAGMA wal_checkpoint(PASSIVE)').fetchone()
+        result=checkpoint_result(db,db.execute('PRAGMA wal_checkpoint(PASSIVE)').fetchone())
         if result[0]!=0 or result[1]!=result[2]:return result
         # No new source, metadata, or retention transaction can append a tail
         # while the handoff is held. New readers remain valid; a reader that
         # prevents reset yields BUSY rather than being waited out or invalidated.
-        return db.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone()
+        return checkpoint_result(db,db.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone())
 
 
 async def reclaim_at_boundary(owner,path):

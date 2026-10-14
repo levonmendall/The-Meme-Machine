@@ -15,6 +15,7 @@ from decimal import Decimal
 import asyncio
 from collections import deque
 from meme_machine.exact_money import exact
+from meme_machine.runtime.sqlite_failure import connect as diagnostic_connect
 
 from engineering.solana_capacity.proof_limits import (
     CeilingReached,MAX_FRAME,PUBLISHED,STREAM_HOST,endpoint_family)
@@ -236,8 +237,10 @@ class Budget:
             db.executemany('INSERT INTO run VALUES(?,?)',[(phase+'.'+k,v) for k,v in values.items()])
 
     def db(self):
-        db=sqlite3.connect(self.path.as_uri()+'?mode=rw',uri=True,timeout=5,isolation_level=None)
-        db.execute('PRAGMA synchronous=FULL')
+        db=diagnostic_connect(self.path.as_uri()+'?mode=rw',diagnostic_role='provider_budget',uri=True,timeout=5,isolation_level=None)
+        try:db.execute('PRAGMA synchronous=FULL')
+        except BaseException:
+            db.close();raise
         return db
 
     @classmethod
@@ -264,7 +267,7 @@ class Budget:
         path.parent.mkdir(parents=True,exist_ok=True)
         # Existing consumption must never become a fresh allowance on restart.
         descriptor=os.open(path,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600);os.close(descriptor)
-        with closing(sqlite3.connect(path)) as db:
+        with closing(diagnostic_connect(path,diagnostic_role='provider_budget.create')) as db:
             # New ledgers use SQLite's existing WAL mechanism with FULL
             # durability. Historical run ledgers are never migrated or reset.
             if db.execute('PRAGMA journal_mode=WAL').fetchone()[0]!='wal':
@@ -744,7 +747,7 @@ def native_ledger_reader(budget):
     """
     path=getattr(budget,'path',None)
     if path is None:return None
-    db=sqlite3.connect(Path(path).as_uri()+'?mode=ro',uri=True,isolation_level=None,check_same_thread=False)
+    db=diagnostic_connect(Path(path).as_uri()+'?mode=ro',diagnostic_role='provider_budget.native_reader',uri=True,isolation_level=None,check_same_thread=False)
     try:
         db.execute('PRAGMA query_only=ON')
         if db.execute('PRAGMA journal_mode').fetchone()[0]!='wal':
