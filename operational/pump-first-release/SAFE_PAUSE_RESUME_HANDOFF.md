@@ -1,3 +1,25 @@
+# Targeted offline repairs — 2026-10-14 17:51 UTC
+
+**STOPPED_FOR_REVIEW.** Read
+[POST_REPLACEMENT_OFFLINE_REPAIR_HANDOFF_20261014.md](POST_REPLACEMENT_OFFLINE_REPAIR_HANDOFF_20261014.md)
+before the preserved earlier checkpoints. Exact combined tested candidate
+`ccc0cb3d52741b382d8680d717e0a226cf04f0b5` passes171 focused network-blocked
+tests. Batch feedback/fallback deadlines, honest interrupted reconciliation and
+bounded canonical/guard/lifecycle diagnostics are repaired offline. The managed
+observation route is inactive. No sustained-throughput or historical-kill repair
+is claimed. Original failed results remain RECOVERY_REQUIRED and unchanged.
+
+Installed clean source remains `a70e2610743d8595b3d1a36ed25821a6689c29f3`;
+PAPER inactive/disabled, MainPID0, Restart=no, funding closed. Fresh bounded
+read-only preservation checks match the reconciled$1,000 projection/head,
+historical$500 head and all post-attempt provider counters. Pending canonical
+work remains retained; native Pump recovery/graceful drain remain unresolved.
+No deployment, service start, provider request, database write or acceptance
+occurred in this engineering phase. Further runtime actions need separately
+scoped authorization. Separate WIP66a87ac3 remains untouched.
+
+---
+
 # Replacement completed — 2026-10-14 17:09 UTC
 
 **STOPPED_FOR_REVIEW — RECOVERY_REQUIRED.** Read
