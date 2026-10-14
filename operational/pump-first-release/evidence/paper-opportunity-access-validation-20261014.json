@@ -180,7 +180,32 @@
       "Previous-policy nonterminal exposure cannot transition to revised governing rules. Initial transition requires verified flat and ACKed boundary; revised positions restart under their saved selection.",
       "Retired Pump reset raw detail and legacy native attempt detail remain unavailable where proof cannot be recovered; no provider backfill or fabricated reference.",
       "Pump failed native drain and independent operating blockers remain owned by integration; publication provides no restart, readiness or acceptance authorization."
-    ]
+    ],
+    "final_owner_check": {
+      "at": "2026-10-14 17:49:43 UTC",
+      "head": "ccc0cb3d52741b382d8680d717e0a226cf04f0b5",
+      "worktree_clean": true,
+      "newer_completed_commits": [
+        "81d60d5ecd2edbdb779c9ba533c0cd8fd11c6a82",
+        "e281769722d05f5646990054baa77729f529a251",
+        "ccc0cb3d52741b382d8680d717e0a226cf04f0b5"
+      ],
+      "left_separate_and_untouched": true
+    },
+    "merge_preview": {
+      "command": "git merge-tree --write-tree ccc0cb3d52741b382d8680d717e0a226cf04f0b5 a56b039d2800bb4e352ed0b44979ce2b170265dd",
+      "exit_code": 1,
+      "conflicts": [
+        "operational/tests.py",
+        "tests/test_robinhood_usd_valuation.py"
+      ],
+      "runtime_auto_merges": [
+        "meme_machine/lanes/pump/runner.py",
+        "meme_machine/operational/supervisor.py"
+      ],
+      "checkout_or_refs_changed": false,
+      "required_resolution": "Preserve both registration sets and reviewed guard deltas; regenerate exact combined manifest and run invalidated checks through existing integration workflow."
+    }
   },
   "source_changed_files": [
     "meme_machine/lanes/pons/pipeline.py",

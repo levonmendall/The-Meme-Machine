@@ -183,11 +183,26 @@ RECOVERY_REQUIRED with a failed native Pump drain; its authorization is
 consumed. This publication provides no restart authority and no readiness or
 acceptance credit. Do not assume its retained flat receipt is current.
 
-The integration checkout now also contains ongoing independent provider,
-diagnostic and cancellation repairs. This task left them untouched, including
-overlapping `runner.py`, `supervisor.py` and `operational/tests.py` edits. The
-owner must combine that work with this separate candidate and validate affected
-dependencies; no release from an older source is proposed. Pump recovery/drain,
+At17:45UTC the integration checkout also contained ongoing independent provider,
+diagnostic and cancellation repairs. This task left them untouched. By the final
+17:49UTC check the owner had committed them and its checkout was clean at
+`ccc0cb3d52741b382d8680d717e0a226cf04f0b5`: provider feedback/fallback
+`81d60d5ecd2edbdb779c9ba533c0cd8fd11c6a82`, Pump recovery/cancellation
+`e281769722d05f5646990054baa77729f529a251`, and diagnostic counter/ACK/guard
+facts `ccc0cb3d52741b382d8680d717e0a226cf04f0b5`. These newer independent
+commits remain separate and must be retained by the integration owner.
+
+A checkout-free `git merge-tree` preview against that exact owner head found
+two content conflicts: `operational/tests.py` and
+`tests/test_robinhood_usd_valuation.py`. Runtime `runner.py` and `supervisor.py`
+edits merge cleanly. The concrete integration work is to keep both sets of test
+registrations and both reviewed source-protection deltas, regenerate the exact
+combined revision manifest without weakening the protected economic assertions,
+then run invalidated checks and applicable existing release checks. No checkout
+merge, installation or overlapping owner test run was performed here. This is
+the specific outstanding source-integration issue, not a strategy rejection or
+reason to discard either completed package. No release from an older source is
+proposed. Pump recovery/drain,
 sustained capacity, original SQLite failure, Pons provider suitability/READONLY
 failure, and backup/protection issues remain independently owned operating
 blockers. These policy changes claim none repaired.
