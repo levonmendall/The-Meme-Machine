@@ -1,0 +1,51 @@
+{
+  "astra_files_available_in_named_project_locations": false,
+  "at": "2026-10-14T14:18:47.187081+00:00",
+  "canonical_database_bytes": 13851983872,
+  "capacity_replay_executed": false,
+  "copy_permission_alone_sufficient": false,
+  "faithful_full_machine_fixture_available": false,
+  "historical_baseline_declared_source": "3ef0a6628780ff73dab68d933ca82851f61ea1f4",
+  "historical_replay_route": "CLOSED_CURRENT_MATERIAL_INSUFFICIENT",
+  "missing_inputs": [
+    "Complete rawPump joins/finality/status/body availability and identical initialstate",
+    "Pons acquisition responses/history",
+    "Equivalent actualdecision/held-state actor schedule and timing"
+  ],
+  "new_artifact_required_to_reopen": "Concrete matched authentic input, faithful state and actor schedule under admitted storage",
+  "next_route": "One separately authorized currentinstrumented combined fundingclosed observation; no repeatedhistoricalsearch",
+  "optional_copy_policy_bytes": 2147483648,
+  "physical_host_cpus": 2,
+  "production_cpu_quota_cores": "1.8",
+  "production_memory_high_bytes": 6442450944,
+  "production_memory_max_bytes": 7516192768,
+  "provenance_support": "Both baseline and linked attempt7 receipts declare the same fullrevision; does not make observationscontrolled/comparable.",
+  "references": [
+    {
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STAGED_SUSTAINED_PIPELINE_BASELINE_20261014.json",
+      "sha256": "0b63191d75d8080c527d831c7b65fa1ffda1bca6858551a6c8778df7931b176b"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STAGED_UNFUNDED_CONTINUOUS_USAGE_ATTEMPT_7_1791949294823.json",
+      "sha256": "ac3027e35e28ee53c0d007fc1b68b24e12b8f484a079aff7ec26c53d2da8d309"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PUMP_OWNER_WAIT_ISOLATION_20261014.json",
+      "sha256": "56a516bf2937b81591cccda80f566cd4dac8e8b9061427f96be02ca9792dc4a2"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PUMP_OWNER_WAIT_DIAGNOSTIC_ANALYSIS_20261014.json",
+      "sha256": "3b50749411f78b58bb88cb077ef366d90fb108df7536b4d53a712dff48b1460c"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STAGED_UNFUNDED_CONTINUOUS_USAGE_ATTEMPT_8_1791956733443.json",
+      "sha256": "0499e4a0e42765ac7c540e1596c4909f9ec469555152abade825290adb7a5350"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/HISTORY_REFINEMENT_RAW_BASELINE_20261013.json",
+      "sha256": "76e7033b88930e447baedebd4221f6f1020e5960075c5f64db8cabe3c29f69dc"
+    }
+  ],
+  "runtime": "CPython3.12.14 SQLite3.45.1",
+  "synthetic_recorder_tests_claim_historical_cause": false
+}

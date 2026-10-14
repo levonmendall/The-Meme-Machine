@@ -1,0 +1,139 @@
+{
+  "acceptance_minutes": 0,
+  "additional_focused_results": [
+    {
+      "log": "TARGETED_HISTORIAN_ATTRIBUTION_FINAL_20261014.log",
+      "seconds": 17.239,
+      "status": "PASS",
+      "tests": 90
+    },
+    {
+      "log": "TARGETED_COMBINED_DIAGNOSTIC_FINAL_20261014.log",
+      "seconds": 0.314,
+      "status": "PASS",
+      "tests": 30
+    },
+    {
+      "log": "TARGETED_COMBINED_DIAGNOSTIC_LAUNCHER_20261014.log",
+      "seconds": 11.387,
+      "status": "PASS_BEFORE_CADENCE_REFINEMENT_OVERLAPS_FINAL30",
+      "tests": 51
+    }
+  ],
+  "artifacts": [
+    {
+      "bytes": 950387,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/TARGETED_RESOLUTION_FINAL_FAST_2fa0b59f_20261014.log",
+      "sha256": "ab7bd2fb711fc2aa3693ade985f169baa3f7f494190c02398c778b752b3164e1"
+    },
+    {
+      "bytes": 653,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/TARGETED_RESOLUTION_CONTAINMENT_CASES_20261014.log",
+      "sha256": "56a6ad9fc055b290ff0b090196e90214a998c90540ade5fcb1c3b8f5c6510642"
+    },
+    {
+      "bytes": 361,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/TARGETED_RESOLUTION_CONTAINMENT_HOST_20261014.json",
+      "sha256": "3a8b1c7ee0c8076be908e7a49b5d03470064f1d6535b12f4d71159604cc625bf"
+    },
+    {
+      "bytes": 1688,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/TARGETED_RESOLUTION_SAFE_STATE_20261014.json",
+      "sha256": "46862312037979f4d5b9f7b6ef0bafb870ea480ecee4310cc85fdd6bb5e0671f"
+    },
+    {
+      "bytes": 30276,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/TARGETED_FINAL_PONS_ECONOMIC_GUARDS_20261014.log",
+      "sha256": "143fdb6bd15547e57bb0e3186b36de63cd830fb8f5ec622dff2852358fc65e14"
+    },
+    {
+      "bytes": 9693,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/TARGETED_TERMINAL_WORKER_FORWARDING_20261014.log",
+      "sha256": "16a4e34f9f8c6560f755bfc56d5d4717f4b92580062d46f3e9ef69107260b9f4"
+    },
+    {
+      "bytes": 12404,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/TARGETED_PONS_INTEGRATED_OPERATIONAL_20261014.log",
+      "sha256": "556dda498268ea62dedc32f379b41c34bd2901e35a5a1189c5c90e693198b85d"
+    },
+    {
+      "bytes": 36407,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/TARGETED_SQLITE_INTEGRATED_OPERATIONAL_20261014.log",
+      "sha256": "41eb8ec1bdc5b96f02156096fa772aaf334eba15a64189a1eb1541103f2d37c6"
+    },
+    {
+      "bytes": 208,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/TARGETED_PONS_INTEGRATED_20261014.log",
+      "sha256": "e37d90fb6f03420ea8b59efa6ae4fbf98654534b632d1aa3fdd33bdb57b09a5f"
+    },
+    {
+      "bytes": 2944,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/TARGETED_PONS_CORRECTED_REPRODUCTION_20261014.json",
+      "sha256": "d5168d001d2cf5e8b4edc98709b890b84778c14279c036e3cb419421fdae4552"
+    },
+    {
+      "bytes": 608,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/TARGETED_SQLITE_RECORDER_OVERHEAD_20261014.json",
+      "sha256": "e345d213f4f6b1fda39a16e8ba0d855982e223957f2368b796c645850c516cbb"
+    },
+    {
+      "bytes": 20864,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/TARGETED_HISTORIAN_ATTRIBUTION_FINAL_20261014.log",
+      "sha256": "6a8f0d605691df2c51ca4d87e1a050d5e0e34e5c50d693914c717d9e744d6134"
+    },
+    {
+      "bytes": 5644,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/TARGETED_COMBINED_DIAGNOSTIC_FINAL_20261014.log",
+      "sha256": "cdbe065770cf8e2f6603c9943ea3509ff9de3bc0d861a99725397b92c7d648b3"
+    },
+    {
+      "bytes": 9726,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/TARGETED_COMBINED_DIAGNOSTIC_LAUNCHER_20261014.log",
+      "sha256": "c565ad74b65114108c1e91f6665bc7de801da0bb661b6e0a347b55bf10b6606b"
+    },
+    {
+      "bytes": 361,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/TARGETED_DIAGNOSTIC_RETAINED_SAMPLE_SHAPE_20261014.json",
+      "sha256": "90390b373ff566975d955fa12726fc7cd060f227be12ab4e20663f45d4e90227"
+    }
+  ],
+  "engineering_branch": "engineering/targeted-resolution-20261014",
+  "failed_case_disposition": {
+    "limitation": "Does not convert fragmented results to an uninterrupted FAST PASS",
+    "original_ancestor_controller_configuration_restored": true,
+    "seconds": 4.699,
+    "status": "PASS_EXISTING_TEMPORARY_CGROUP_IO_FIXTURE",
+    "tests": 2
+  },
+  "final_focused_tested_revision": "5f03b0599af6af05c796e27c867a545f2abb188c",
+  "focused_tested_files": {
+    "engineering/diagnostics/current_combined_observation_20261014.py": "ee909d90c0d0052f0fdb3736761fd1b7d0ccb613cde8f8ba914c2633023fdddf",
+    "meme_machine/solana_history_restore.py": "839f2422a077c69bdbc6ee2de6acf08967a2b459bdada50b39087c076f41c71e",
+    "meme_machine/solana_history_work.py": "6d4c829bb4a98c914958ee5d25777ed05f8b09d85ec596a80dd1829ca078cc6a",
+    "meme_machine/solana_selective_source.py": "5856eee4d9e2e22af475fc890679e2a8d880266e08db1a26d81c8bfeb3824f39",
+    "operational/tests.py": "0bc7297bc0bd03c080e895e73765f3ccc74313750f7b51896fce44662805ad67",
+    "tests/test_current_combined_diagnostic.py": "9e648986b96340313f9bda1e4c437bd1ad579f20f01ad7fef454be372ba222f2",
+    "tests/test_sqlite_failure_attribution.py": "1ce5bfdb200b2b0a3bf97b4c25aec0994fb672c7a08458d04034660c0954f549"
+  },
+  "funding_open": false,
+  "historical_baseline_source": "3ef0a6628780ff73dab68d933ca82851f61ea1f4",
+  "historical_replay_route": "CLOSED_INSUFFICIENT_AUTHENTIC_INPUT_STATE_AND_ACTOR_TIMING",
+  "http_context": "BOUNDED_SANITIZED_CAPTURE_TESTED_ORIGINAL_REJECTION_CAUSE_UNRESOLVED",
+  "local_full_fast": {
+    "errors": 1,
+    "failure_evidence": "/tmp/mm-engineering-6q7snrxt",
+    "failures": 1,
+    "passed": 2000,
+    "seconds": 2252.098,
+    "status": "FAIL_ENVIRONMENT_DEPENDENT_CONTAINMENT_CASES",
+    "tests": 2002
+  },
+  "new_market_provider_requests": 0,
+  "new_production_database_writes": 0,
+  "pacing": "CORRECTED_OFFLINE_MOCK_PHYSICAL_STARTS",
+  "production_installation": false,
+  "source": "2fa0b59fa8038275676e72fb3c1e7f9380f7724d",
+  "sqlite": "RECORDER_TESTED_HISTORICAL_FATAL_MECHANISM_UNRESOLVED",
+  "status": "READY_FOR_BOUNDED_OBSERVATION_AUTHORIZATION_NOT_DISPATCHED",
+  "whole_machine_throughput_improvement": "NOT_ESTABLISHED"
+}

@@ -1,3 +1,34 @@
+# Targeted engineering / observation preparation — 2026-10-14
+
+Read [TARGETED_RESOLUTION_HANDOFF_20261014.md](TARGETED_RESOLUTION_HANDOFF_20261014.md)
+and [CURRENT_COMBINED_OBSERVATION_SPEC_20261014.json](CURRENT_COMBINED_OBSERVATION_SPEC_20261014.json)
+before the retained older checkpoints below. The owner's later instructions
+authorize isolated engineering, offline validation and publication. Installation,
+service starts, market-provider workloads, operational writes, routing changes,
+funding and acceptance still require their separately scoped authorization.
+
+Receiving branch: `engineering/targeted-resolution-20261014`. Final focused-tested
+candidate: `5f03b0599af6af05c796e27c867a545f2abb188c`; installed source remains
+`a70e2610743d8595b3d1a36ed25821a6689c29f3`. Separate untested WIP remains at
+`66a87ac32f969195352ade7d35150dd2be53b81b`. No production source/configuration,
+database, provider counter, epoch or funding state was changed. At 15:07:05 UTC,
+PAPER was inactive/dead, disabled, MainPID 0; the $1,000 epoch and historical
+$500 journal heads reconciled unchanged, with zero current obligations.
+
+The public post-cooldown dispatch defect is corrected offline. SQLite terminal
+attribution and bounded HTTP context are tested; neither original fault is
+claimed repaired. Sustainable combined throughput remains unproved. Current
+historical replay is closed because authentic input/state/response/schedule
+material is incomplete. Its recovered baseline source is
+`3ef0a6628780ff73dab68d933ca82851f61ea1f4`, without a controlled comparison claim.
+
+Use only the new bounded combined-observation proposal after its exact scope is
+authorized. Do not execute the old driver unchanged or restart PAPER from this
+handoff. No one-hour minutes have been credited. The removed dollar/attempt cap
+is not reinstated; provider/resource and all economic safety controls remain.
+
+---
+
 # Targeted diagnostic checkpoint — 2026-10-14 13:00 UTC
 
 The owner's narrow SQLite/public-RPC diagnostic resumption is complete. **Stop
