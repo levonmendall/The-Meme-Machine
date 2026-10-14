@@ -1,3 +1,18 @@
+# Authorized observation outcome — 2026-10-14
+
+The single start authorized against this candidate failed before supervisor
+construction because the service user could not traverse the root-owned0700
+diagnostic parent. Read
+[CURRENT_COMBINED_OBSERVATION_RESULT_20261014.md](CURRENT_COMBINED_OBSERVATION_RESULT_20261014.md)
+for the exact journal, reconciliation and completed rollback. Installation was
+temporarily changed only for that attempt and restored to clean `a70e261`.
+PAPER is stopped/disabled, funding closed; no provider usage increment or
+qualifying minute occurred. Original controller RECOVERY_REQUIRED is preserved.
+No retry or further live change is authorized. All older prepared/awaiting-
+approval statuses below are historical checkpoints, not current authority.
+
+---
+
 # Targeted resolution checkpoint — 2026-10-14
 
 Engineering branch: `engineering/targeted-resolution-20261014`.

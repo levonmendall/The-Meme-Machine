@@ -1,3 +1,29 @@
+# Authorized observation ended — 2026-10-14 16:25 UTC
+
+**OBSERVATION_FAILED_BEFORE_WORKER_START — STOPPED_FOR_REVIEW.** Read
+[CURRENT_COMBINED_OBSERVATION_RESULT_20261014.md](CURRENT_COMBINED_OBSERVATION_RESULT_20261014.md)
+before the older checkpoints below. The owner's single authorized start of
+exact executable `5f03b0599af6af05c796e27c867a545f2abb188c` was consumed at
+16:18:25 UTC. A root-only diagnostic parent prevented launcher access before
+supervisor construction. No market actor or provider request started; no Pump
+throughput, SQLite recurrence, Pons protection or acceptance result exists.
+The unchanged controller result remains RECOVERY_REQUIRED, not a drain PASS.
+
+Rollback to clean installed `a70e2610743d8595b3d1a36ed25821a6689c29f3` and saved
+overlays completed at 16:25:12 UTC. PAPER remains stopped (failed/exit-code),
+disabled and Restart=no; funding is closed. Fresh complete $1,000/historical
+$500 identities and all existing bootstrap provider snapshot fields match
+preflight exactly; cash is $1,000.00 and current obligations are zero. No state
+rewind, counter reset, evidence deletion or automatic retry occurred. Separate
+WIP `66a87ac32f969195352ade7d35150dd2be53b81b` remains untouched.
+
+First next step, only after separately scoped authorization: a narrow diagnostic
+parent-access/preflight correction with actual service-identity validation.
+Another observation is not authorized by this exhausted one-attempt instruction.
+All independent operating blockers remain open; zero acceptance minutes.
+
+---
+
 # Targeted engineering / observation preparation — 2026-10-14
 
 Read [TARGETED_RESOLUTION_HANDOFF_20261014.md](TARGETED_RESOLUTION_HANDOFF_20261014.md)
