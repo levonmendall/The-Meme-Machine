@@ -159,7 +159,53 @@ LIFECYCLE_SOURCE_DELTAS = {
     },
 }
 
+PUMP_DIAGNOSTIC_REFERENCE = 'ddcee53eb2498b7281820793408abbea71f2e88a'
+PUMP_DIAGNOSTIC_NODES = {
+    '_startup_work': '40d75f326ff37e06a4bd89390c5f833526ab601cd15aad918841a16e7d90496a',
+    '_restore_observed_pump_candidates': '733e3f925b85924f7ec3b98197e41561ca59e93ff854e8cd66a63cb03e59e0ac',
+    'main': '985426c540e43cb439a068e52ee3f9b0a7744abd22625cf4d0f99b7a2754de69',
+}
+
+class _RemoveReviewedPumpDiagnostics(ast.NodeTransformer):
+    """Only used after the complete changed nodes pass their exact AST pins."""
+    def visit_FunctionDef(self,node):
+        if node.name=='_startup_work':return None
+        return self.generic_visit(node)
+    def visit_Call(self,node):
+        self.generic_visit(node)
+        if isinstance(node.func,ast.Name) and node.func.id=='_startup_work':
+            return ast.copy_location(ast.Call(func=node.args[1],args=node.args[2:],keywords=node.keywords),node)
+        return node
+    def visit_ImportFrom(self,node):
+        if (node.module=='meme_machine.runtime.status' and
+                [(a.name,a.asname) for a in node.names]==[('operation',None)]):return None
+        return node
+    def visit_With(self,node):
+        self.generic_visit(node)
+        if (len(node.items)==1 and isinstance(node.items[0].context_expr,ast.Call) and
+                isinstance(node.items[0].context_expr.func,ast.Name) and
+                node.items[0].context_expr.func.id=='operation'):return node.body
+        return node
+
+def pump_economic_tree(test,content):
+    tree=ast.parse(content)
+    nodes={n.name:n for n in tree.body if isinstance(n,ast.FunctionDef)}
+    if '_startup_work' not in nodes:return tree
+    # Owner-authorized startup attribution only. Every wrapped call, argument,
+    # fixed identifier and wrapper body pins before removing passive diagnostics.
+    # The resulting entire source must equal the published pre-repair source.
+    for name,pinned in PUMP_DIAGNOSTIC_NODES.items():
+        test.assertEqual(__import__('hashlib').sha256(ast.dump(nodes[name]).encode()).hexdigest(),pinned,name)
+    stripped=_RemoveReviewedPumpDiagnostics().visit(tree)
+    prior=subprocess.check_output(['git','show',PUMP_DIAGNOSTIC_REFERENCE+':meme_machine/lanes/pump/runner.py'],cwd=ROOT)
+    test.assertEqual(ast.dump(stripped),ast.dump(ast.parse(prior)),'diagnostics cannot change any runtime economics')
+    return stripped
+
 def assert_attention_node(test,relative,name,node):
+    if relative=='meme_machine/lanes/pump/runner.py' and name in PUMP_DIAGNOSTIC_NODES:
+        from copy import deepcopy
+        test.assertEqual(__import__('hashlib').sha256(ast.dump(node).encode()).hexdigest(),PUMP_DIAGNOSTIC_NODES[name],name)
+        node=_RemoveReviewedPumpDiagnostics().visit(deepcopy(node))
     expected={**ATTENTION_DELTAS.get(relative,{}),**OPERATION_DELTAS.get(relative,{})}[name]
     test.assertEqual(__import__('hashlib').sha256(ast.dump(node).encode()).hexdigest(),expected,relative+':'+name)
 
@@ -182,7 +228,8 @@ def assert_holding_delta(test, relative, original, current, *, reviewed_lifecycl
     expected=dict(HOLDING_DELTAS.get(relative,{}))
     expected.update(ATTENTION_DELTAS.get(relative,{}))
     expected.update(OPERATION_DELTAS.get(relative,{}))
-    old=ast.parse(original);new=ast.parse(current)
+    old=ast.parse(original)
+    new=pump_economic_tree(test,current) if relative=='meme_machine/lanes/pump/runner.py' else ast.parse(current)
     for name,pinned in expected.items():
         before=old;after=new
         for part in name.split('.'):
@@ -303,7 +350,26 @@ class RobinhoodUSDTests(unittest.TestCase):
         economic.value=exact_read
         # All other functions, interfaces, constants, ordering and restoration
         # predicates must be byte-independent AST equivalents to e398.
-        self.assertEqual(ast.dump(expected),ast.dump(ast.parse((ROOT/relative).read_bytes())))
+        self.assertEqual(ast.dump(expected),ast.dump(pump_economic_tree(self,(ROOT/relative).read_bytes())))
+
+    def test_reviewed_pump_startup_diagnostics_preserve_all_original_calls_and_reject_changes(self):
+        from copy import deepcopy
+        relative='meme_machine/lanes/pump/runner.py'
+        content=(ROOT/relative).read_bytes()
+        original=subprocess.check_output(['git','show',PUMP_DIAGNOSTIC_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(ast.dump(pump_economic_tree(self,content)),ast.dump(ast.parse(original)))
+        for name in PUMP_DIAGNOSTIC_NODES:
+            changed=ast.parse(content)
+            node=next(n for n in changed.body if isinstance(n,ast.FunctionDef) and n.name==name)
+            node.body.append(ast.Expr(ast.Constant('unreviewed change')))
+            with self.assertRaises(AssertionError):pump_economic_tree(self,ast.unparse(changed))
+        # Changing a wrapped acquisition argument or callable is not a permitted
+        # instrumentation change, even though the wrapper itself remains intact.
+        changed=ast.parse(content)
+        call=next(n for n in ast.walk(changed) if isinstance(n,ast.Call) and
+            isinstance(n.func,ast.Name) and n.func.id=='_startup_work')
+        call.args[1]=ast.Name(id='unreviewed_reconciliation',ctx=ast.Load())
+        with self.assertRaises(AssertionError):pump_economic_tree(self,ast.unparse(changed))
 
     def setUp(self):
         self.rpc=ReadRPC()

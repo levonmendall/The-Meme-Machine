@@ -75,6 +75,10 @@ ACCOUNTING=None
 PIPELINE=None
 CANDIDATE_HISTORY=None
 
+def _startup_work(identity,call,*args,**kwargs):
+    from meme_machine.runtime.status import operation
+    with operation(identity):return call(*args,**kwargs)
+
 def _progress(candidate,stage,reason=None,**details):
     if PIPELINE is not None:
         if stage in ("prospect_screened","rejected","evidence_not_required"):
@@ -493,7 +497,8 @@ def _restore_observed_pump_candidates(created,postgrad,pumpswap_stream,plane,con
     for candidate in CANDIDATE_HISTORY.candidates(lane='pump',event_prefix='pump_'):
         mint=candidate['candidate']
         if mint in created:continue
-        economic=CANDIDATE_HISTORY.events('pump',mint,kind_prefix='pump_')
+        economic=_startup_work('pump.observed_candidate_events',
+            CANDIDATE_HISTORY.events,'pump',mint,kind_prefix='pump_')
         if not economic:continue
         events=[dict(row['payload']) for row in economic]
         creation=next((row for row in events if row.get('event_type')=='create'),None)
@@ -1299,25 +1304,27 @@ def main(*,campaign=False,discovery_seconds=None):
     smoke_flat_tail=bool(campaign and os.environ.get('MM_OPERATIONAL_PHASE')=='smoke')
     actual_policy_hash=policy_hash()
     from meme_machine.runtime.candidate_history import open_candidate_history
-    CANDIDATE_HISTORY=open_candidate_history()
+    CANDIDATE_HISTORY=_startup_work('pump.candidate_history_open',open_candidate_history)
     if actual_policy_hash!=FROZEN_POLICY_HASH:
         raise RuntimeError("frozen_policy_hash_changed")
-    confirmations=ConfirmationBook.from_files()
+    confirmations=_startup_work('pump.confirmation_restore',ConfirmationBook.from_files)
     run_id=os.environ.get("MM_PAPER_EPOCH") or uuid.uuid4().hex
     accounting_path=REPORT.with_suffix(".accounting.sqlite3")
     if accounting_path.exists():
         import sqlite3
         from contextlib import closing
-        with closing(sqlite3.connect(accounting_path.resolve().as_uri()+'?mode=ro',uri=True)) as prior:
-            genesis=json.loads(prior.execute('SELECT body FROM genesis').fetchone()[0])
+        from meme_machine.runtime.status import operation
+        with operation('pump.accounting_genesis_read'):
+            with closing(sqlite3.connect(accounting_path.resolve().as_uri()+'?mode=ro',uri=True)) as prior:
+                genesis=json.loads(prior.execute('SELECT body FROM genesis').fetchone()[0])
         if os.environ.get('MM_PAPER_EPOCH') not in (None,genesis['run_id']):
             raise RuntimeError('paper_recovery_run_identity_mismatch')
         run_id=genesis['run_id']
-    ACCOUNTING=PaperBook(str(accounting_path),run_id=run_id,lane=STRATEGY_ID,
+    ACCOUNTING=_startup_work('pump.accounting_restore',PaperBook,str(accounting_path),run_id=run_id,lane=STRATEGY_ID,
                          policy_hash=actual_policy_hash,initial=INITIAL_LAMPORTS)
     from meme_machine.runtime.directional_sleeve import recover_pump_terminals
-    recover_pump_terminals(ACCOUNTING)
-    PIPELINE=Pipeline(REPORT.with_suffix(".pipeline.sqlite"),"pump",actual_policy_hash)
+    _startup_work('pump.terminal_recovery',recover_pump_terminals,ACCOUNTING)
+    PIPELINE=_startup_work('pump.pipeline_open',Pipeline,REPORT.with_suffix(".pipeline.sqlite"),"pump",actual_policy_hash)
     report=dict(
         kind="pump_acceleration_natural_prospective",
         strategy_id=STRATEGY_ID,policy_hash=actual_policy_hash,
@@ -1357,15 +1364,15 @@ def main(*,campaign=False,discovery_seconds=None):
     import hashlib
     report['operational_configuration_hash']=hashlib.sha256(json.dumps(
         report['operational_configuration'],sort_keys=True,separators=(',',':')).encode()).hexdigest()
-    _save(report)
+    _startup_work('pump.initial_report',_save,report)
 
     from meme_machine.lanes.pump.solana_evidence_health import HealthWatch
     evidence_watch=HealthWatch(time.monotonic())
-    plane=RuntimeEvidence(owner='pump')
+    plane=_startup_work('pump.runtime_evidence_open',RuntimeEvidence,owner='pump')
     tape=LocalPumpTape(plane)
     tape.candidate_history_graduation_horizon=max(POLICY.max_postgrad_entry_age_s,600)
     broker_path=os.environ.get("MM_SOLANA_EVIDENCE_BROKER_DB",DEFAULT_BROKER_DB)
-    broker=EvidenceBroker(broker_path)
+    broker=_startup_work('pump.evidence_broker_open',EvidenceBroker,broker_path)
     pumpswap_stream=LocalInterestRegistry(plane)
     from meme_machine.operational.position_continuation import position_only
     # LocalPumpTape consumes the canonical evidence service. The separate
@@ -1373,24 +1380,27 @@ def main(*,campaign=False,discovery_seconds=None):
     # its duplicate logs subscription only decoded an unused observation tape.
     # Keep the service's required Pump/PumpSwap feeds and all continuity guards.
 
-    sessions=Sessions();sessions.plane=plane
+    sessions=_startup_work('pump.sessions_open',Sessions);sessions.plane=plane
     survivor=None
     if os.environ.get('MM_DIRECTIONAL_COMPOSITE_REQUIRED')=='1':
         from meme_machine.runtime.survivor_history import Worker
         from meme_machine.lanes.pump.pumpswap_survivor_runtime import Runtime
-        survivor=Worker(lambda:Runtime(REPORT.parent/'pump-survivor',INITIAL_LAMPORTS,run_id,confirmations))
+        survivor=_startup_work('pump.survivor_worker_open',Worker,
+            lambda:Runtime(REPORT.parent/'pump-survivor',INITIAL_LAMPORTS,run_id,confirmations))
         report['active_regimes']=[STRATEGY_ID,'pumpswap-survivor-momentum-v1']
     cursor=0;full_attempts=0
     attempt_budget=RollingAttemptBudget()
-    created,postgrad,pending,active,recovered=restore_runtime(ACCOUNTING,plane,confirmations)
-    report['restored_observed_candidates']=0 if position_only() else _restore_observed_pump_candidates(
+    created,postgrad,pending,active,recovered=_startup_work('pump.current_runtime_restore',
+        restore_runtime,ACCOUNTING,plane,confirmations)
+    report['restored_observed_candidates']=0 if position_only() else _startup_work(
+        'pump.observed_candidates_restore',_restore_observed_pump_candidates,
         created,postgrad,pumpswap_stream,plane,confirmations,int(time.time()))
     if survivor is not None:
         # Continuous recovery stays on the existing owned executor. Its real
         # replay/handoff flags remain unavailable until the step completes;
         # a synchronous bootstrap wait must not stop the Current manager.
-        if continuous:survivor.tick(time.time(),admit=False)
-        else:survivor.prime()
+        if continuous:_startup_work('pump.survivor_recovery_submit',survivor.tick,time.time(),admit=False)
+        else:_startup_work('pump.survivor_recovery_wait',survivor.prime)
     from meme_machine.runtime.status import update
     update('MANAGING' if active or pending else 'DISCOVERING',reconciled=True,restored_positions=len(active)+len(pending))
     report["qualifiers"].extend(recovered)

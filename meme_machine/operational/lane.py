@@ -204,7 +204,9 @@ def main():
     require_active(args.lane,production=True)
     stop=[False]
     from meme_machine.runtime.stop import requested,Shutdown
+    from meme_machine.runtime import status
     def shutdown(*_):
+        status.cancellation_signal(_[0])
         stop[0]=True
         requested.set()
     for sig in (signal.SIGTERM,signal.SIGINT):signal.signal(sig,shutdown)
@@ -216,7 +218,12 @@ def main():
             from .bounded_provider import install
             install()
             try:run_native(args.state_root,args.lane)
-            except Shutdown:health(args.state_root,args.lane,'STOPPED',reconciled=True)
+            except Shutdown:
+                from meme_machine.runtime import status
+                facts=status.snapshot();facts.pop('phase',None)
+                # Cooperative cancellation can arrive before native restoration.
+                # A stopped process is not proof that its reconciliation finished.
+                health(args.state_root,args.lane,'STOPPED',**facts)
             except ValuationUnavailable as error:
                 health(args.state_root,args.lane,'VALUATION_UNAVAILABLE',reason=str(error))
                 raise

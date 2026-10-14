@@ -9,6 +9,7 @@ import signal
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 
 from meme_machine.portfolio_accounting import PortfolioAccounting,inception_receipt,digest,LANES,_atomic_json
@@ -420,7 +421,8 @@ class Supervisor:
                 portfolio_observation=getattr(self,'portfolio_observation',None),
                 shared_capital_projection_error=getattr(self,'shared_capital_projection_error',None),
                 provider_health_sample=dict(collected_at=sample.collected_at,completed_at=sample.completed_at,error=sample.error),
-                learning_observation=getattr(self,'learning_observation',None)))
+                learning_observation=getattr(self,'learning_observation',None),
+                native_shutdown=getattr(self,'native_shutdown',None)))
         except OSError as error:
             print('health publication failed:',type(error).__name__,flush=True)
         self.last_publish=time.monotonic()
@@ -785,15 +787,47 @@ class Supervisor:
             if self.lock:self.lock.close();self.lock=None
 
     @staticmethod
-    def stop_process(proc,timeout=15,*,signal_sent=False):
-        if proc.poll() is not None:return
-        if not signal_sent:os.killpg(proc.pid,signal.SIGTERM)
-        try:proc.wait(timeout=timeout)
+    def stop_process(proc,timeout=15,*,signal_sent=False,observe=None):
+        def note(operation,**fields):
+            if observe is not None:
+                try:observe(dict(operation=operation,at=time.time(),monotonic=time.monotonic(),
+                    caller_pid=os.getpid(),caller_native_thread_id=threading.get_native_id(),
+                    target_pid=proc.pid,**fields))
+                except Exception:pass
+        code=proc.poll()
+        if code is not None:
+            note('already_exited',exit_code=code);return
+        if not signal_sent:
+            note('signal_requested',signal=int(signal.SIGTERM))
+            os.killpg(proc.pid,signal.SIGTERM)
+            note('signal_sent',signal=int(signal.SIGTERM))
+        note('wait_started',timeout_seconds=timeout)
+        try:code=proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
-            os.killpg(proc.pid,signal.SIGKILL);proc.wait(timeout=5)
+            note('wait_timeout',timeout_seconds=timeout)
+            note('signal_requested',signal=int(signal.SIGKILL))
+            os.killpg(proc.pid,signal.SIGKILL)
+            note('signal_sent',signal=int(signal.SIGKILL))
+            code=proc.wait(timeout=5)
+        note('wait_completed',exit_code=code)
 
     def stop_lanes(self):
-        for proc in self.processes.values():
-            if proc.poll() is None:os.killpg(proc.pid,signal.SIGTERM)
+        self.native_shutdown=[]
+        def record(lane,row):
+            try:
+                if len(self.native_shutdown)<48:
+                    self.native_shutdown.append(dict(row,lane=lane,run_id=getattr(self,'run_id',None)))
+            except Exception:pass
+        for lane,proc in self.processes.items():
+            if proc.poll() is None:
+                record(lane,dict(operation='signal_requested',signal=int(signal.SIGTERM),
+                    at=time.time(),monotonic=time.monotonic(),caller_pid=os.getpid(),
+                    caller_native_thread_id=threading.get_native_id(),target_pid=proc.pid))
+                os.killpg(proc.pid,signal.SIGTERM)
+                record(lane,dict(operation='signal_sent',signal=int(signal.SIGTERM),
+                    at=time.time(),monotonic=time.monotonic(),caller_pid=os.getpid(),
+                    caller_native_thread_id=threading.get_native_id(),target_pid=proc.pid))
         deadline=time.monotonic()+15
-        for proc in self.processes.values():self.stop_process(proc,max(.1,deadline-time.monotonic()),signal_sent=True)
+        for lane,proc in self.processes.items():
+            self.stop_process(proc,max(.1,deadline-time.monotonic()),signal_sent=True,
+                observe=lambda row,lane=lane:record(lane,row))
