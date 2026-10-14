@@ -339,11 +339,27 @@ class CandidateHistory:
             self.db.execute('UPDATE candidates SET body=?,hash=? WHERE lane=? AND candidate=?',
                 (canonical(row),digest(row),lane,candidate))
 
-    def candidates(self,*,lane=None):
-        sql="SELECT body,hash FROM candidates"
-        args=()
+    @staticmethod
+    def _event_prefix(value):
+        value=CandidateHistory._required(value,'kind_prefix')
+        # GLOB is case-sensitive and treats '_' literally. Permit only a
+        # literal prefix; caller text must never introduce wildcard semantics.
+        if any(c in value for c in '*?[]'):raise ValueError('candidate_history_kind_prefix')
+        return value+'*'
+
+    def candidates(self,*,lane=None,event_prefix=None):
+        sql="SELECT body,hash FROM candidates AS c"
+        args=[];where=[]
         if lane is not None:
-            sql+=" WHERE lane=?";args=(str(lane),)
+            where.append("lane=?");args.append(str(lane))
+        if event_prefix is not None:
+            pattern=self._event_prefix(event_prefix)
+            where.append("""(EXISTS(SELECT 1 FROM events e WHERE e.lane=c.lane
+                AND e.candidate=c.candidate AND e.kind GLOB ?)
+                OR EXISTS(SELECT 1 FROM canonical_event_refs r WHERE r.lane=c.lane
+                AND r.candidate=c.candidate AND r.kind GLOB ?))""")
+            args.extend((pattern,pattern))
+        if where:sql+=' WHERE '+' AND '.join(where)
         sql+=" ORDER BY first_observed,lane,candidate"
         result=[]
         for raw,checksum in self.db.execute(sql,args):
@@ -386,7 +402,7 @@ class CandidateHistory:
                  market_time,kind,encoded,checksum))
         return body
 
-    def events(self,lane,candidate,*,since=None,through=None,kind=None):
+    def events(self,lane,candidate,*,since=None,through=None,kind=None,kind_prefix=None):
         sql="""SELECT body,hash FROM events WHERE lane=? AND candidate=?"""
         args=[lane,candidate]
         if since is not None:
@@ -395,6 +411,8 @@ class CandidateHistory:
             sql+=" AND market_time<=?";args.append(int(through))
         if kind is not None:
             sql+=" AND kind=?";args.append(self._required(kind,'kind'))
+        if kind_prefix is not None:
+            sql+=' AND kind GLOB ?';args.append(self._event_prefix(kind_prefix))
         # Unknown transaction order sorts after proven order in the same slot.
         sql+=" ORDER BY slot,(COALESCE(json_extract(body,'$.payload._economic_order'),transaction_index) IS NULL),COALESCE(json_extract(body,'$.payload._economic_order'),transaction_index),event_index,identity"
         result=[]
@@ -407,6 +425,7 @@ class CandidateHistory:
         if since is not None:refs+=' AND market_time>=?';params.append(int(since))
         if through is not None:refs+=' AND market_time<=?';params.append(int(through))
         if kind is not None:refs+=' AND kind=?';params.append(kind)
+        if kind_prefix is not None:refs+=' AND kind GLOB ?';params.append(self._event_prefix(kind_prefix))
         for identity,kind,raw,checksum in self.db.execute(refs,params):
             ref=json.loads(raw)
             if digest(ref)!=checksum:raise ValueError('candidate_history_corruption')

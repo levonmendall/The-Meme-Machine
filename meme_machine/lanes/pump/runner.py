@@ -487,14 +487,13 @@ def _restore_observed_pump_candidates(created,postgrad,pumpswap_stream,plane,con
     """Rebuild cheap observation state from the shared ordered history after restart."""
     if CANDIDATE_HISTORY is None:return 0
     restored=0
-    for candidate in CANDIDATE_HISTORY.candidates(lane='pump'):
+    # Restoration consumes Pump observations only. Pool-only candidates and
+    # their complete retained Swap histories remain available to Survivor;
+    # decoding them here cannot produce a Current creation or graduation.
+    for candidate in CANDIDATE_HISTORY.candidates(lane='pump',event_prefix='pump_'):
         mint=candidate['candidate']
         if mint in created:continue
-        economic=[
-            row for row in CANDIDATE_HISTORY.events('pump',mint)
-            if str(row.get('kind','')).startswith('pump_')
-            and not str(row.get('kind','')).startswith('pumpswap_')
-        ]
+        economic=CANDIDATE_HISTORY.events('pump',mint,kind_prefix='pump_')
         if not economic:continue
         events=[dict(row['payload']) for row in economic]
         creation=next((row for row in events if row.get('event_type')=='create'),None)

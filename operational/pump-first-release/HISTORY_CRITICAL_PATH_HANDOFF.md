@@ -1,5 +1,63 @@
 # History separation: final critical-path refinements
 
+## ACK repair live proof and bounded restart-read correction: 2026-10-14
+
+`e398ffef5aa351c727c6619ee057bf9ea527781d` is installed. Its FAST run
+`38490026867` passed 1,937 tests and had one unchanged recovery-fixture
+`sync -f` timeout. The exact failing test passed independently in 0.104 seconds
+on the pinned runtime; no assertion or timeout was modified. The full CI
+conclusion remains FAILED, with original log and the separate passing evidence
+retained in `E/STAGED_ACK_PRECISION_PUBLICATION_20261014.json`.
+
+The subsequent unfunded observation ran 00:59:07–01:04:27 UTC. The repaired
+evidence worker stayed active without an ACK-content failure or replacement.
+The run stopped at its original 300-second startup bound: Pump remained
+RECONCILING. In the current-generation sampled interval 80.675–304.443 seconds,
+control arrivals advanced at 4.210 slots/sec and durable program frontiers at
+1.743 slots/sec; the gap increased 95→647 slots. Strategy-usable checkpoints
+remained absent. Group CPU averaged 1.706 cores in that interval. Do not call
+these frontiers qualification readiness or count this time toward acceptance.
+
+Retained owner metrics separately identify 152.175 seconds of source-commit
+execution, 71.934 seconds of checkpoint-boundary elapsed time and peak source
+queue waiting of 4.619 seconds. They are overlapping wall-time categories,
+not additive CPU measurements. Pump's initial report reached disk, but startup
+candidate restoration did not finish during the observation.
+
+The narrow successor applies the existing restoration's literal `pump_`
+predicate in SQLite before candidate/event expansion. Pool-only candidates and
+all PumpSwap records stay retained for independent Survivor and later recovery;
+the default readers are unchanged. Unknown `pump_` event kinds remain included,
+and no new economic threshold or candidate-count limit is introduced.
+
+Complete read-only retained-data comparison:
+
+| Metric | e398 baseline | Filtered successor |
+| --- | ---: | ---: |
+| Candidate restoration queries | 40,217 | 10,656 |
+| Candidate-database statements | 80,436 | 21,314 |
+| Decoded records | 415,444 | 317,822 |
+| CPU seconds | 40.409 | 26.245 |
+| Wall seconds | 89.153 | 36.539 |
+| Maximum RSS KiB | 400,724 | 400,724 |
+| Restored Current observation states | 4,009 | 4,009 |
+
+Both complete outputs have identical state/creator-history SHA256
+`3ad544ab255bffc7ed76e39eb9d206d7853c7ba5b089fdc5dd52d53f0ef03f35` and
+unchanged candidate data versions. There were zero provider calls or writes.
+Runs were sequential on identical retained data, without cold-cache resets;
+wall time has a cache-order limitation. This is a restart-read comparison, not
+whole-machine throughput or live qualification proof. Exact records:
+`E/STAGED_PUMP_RESTORE_BASELINE_E398_20261014.json` and
+`E/STAGED_PUMP_RESTORE_FILTERED_20261014.json`.
+
+Run final affected/release checks, publish, and cut over while flat before the
+next causally changed market observation. Do not repeat the same unchanged
+300-second failed attempt. Preserve the original continuous usage ledger and
+2/10-RPS limits. Pons full protective capacity, the separate demand-writer
+fault, and the active-backup freeze/protection conflict remain independently
+unproven. PAPER is stopped/disabled, allocations closed, qualifying minutes zero.
+
 ## Reproduced acknowledgement precision defect: 2026-10-14
 
 Diagnostic source `a063bab37d65d9eecc36e879787f892bbab5e4cc` passed

@@ -106,6 +106,61 @@ class CandidateHistoryTests(unittest.TestCase):
         self.assertEqual(self.history.telemetry()["candidates"],256)
         self.assertEqual(self.history.candidate("pump","mint-255")["metadata"]["rank"],255)
 
+    def test_literal_prefix_read_matches_old_filter_without_expanding_other_records(self):
+        import sqlite3
+        from meme_machine.runtime.journal import canonical,digest
+        source=Path(self.tmp.name)/'prefix-source.sqlite'
+        kinds=('pump_create','pumpswap_trade','pump_trade','pumpXtrade','Pump_trade','pump_unusual')
+        with sqlite3.connect(source) as db:
+            db.execute('CREATE TABLE canonical_evidence(identity TEXT PRIMARY KEY,body TEXT,hash TEXT,archive TEXT)')
+            for i,kind in enumerate(kinds):
+                record=dict(identity=str(i),kind='event',slot=10,transaction_index=None,
+                    event_index=i,market_time=1000,payload={'event':{'mint':'mint','_economic_order':i}})
+                db.execute('INSERT INTO canonical_evidence VALUES(?,?,?,NULL)',
+                    (str(i),canonical(record),digest(record)));db.commit()
+                self.history.append_reference('pump','mint',record,path=source,identity=str(i),kind=kind)
+        self.history.append_event('pump','mint',identity='legacy',slot=9,transaction_index=0,
+            event_index=0,market_time=999,kind='pump_trade',payload={'mint':'mint'})
+        expected=[r for r in self.history.events('pump','mint') if r['kind'].startswith('pump_')]
+        with patch.object(self.history,'_reference_body',wraps=self.history._reference_body) as expand:
+            self.assertEqual(self.history.events('pump','mint',kind_prefix='pump_'),expected)
+            self.assertEqual(expand.call_count,3)
+        self.assertEqual(self.history.events('pump','mint',kind_prefix='pump_',through=999),expected[:1])
+        self.history.close();self.history=CandidateHistory(self.path,clock=lambda:self.now[0])
+        self.assertEqual(self.history.events('pump','mint',kind_prefix='pump_'),expected)
+        with sqlite3.connect(source) as db:db.execute("UPDATE canonical_evidence SET hash=? WHERE identity='2'",('f'*64,))
+        with self.assertRaisesRegex(ValueError,'candidate_history_corruption'):
+            self.history.events('pump','mint',kind_prefix='pump_')
+
+    def test_candidate_prefix_selection_retains_pool_only_population_and_late_reactivation(self):
+        for mint,kind in (('pool-only','pumpswap_trade'),('current','pump_trade'),('unusual','pump_unusual')):
+            self.history.observe('pump',mint,surface='pumpswap',observed_at=1000)
+            self.history.append_event('pump',mint,identity=mint,slot=10,transaction_index=0,
+                event_index=0,market_time=1000,kind=kind,payload={'mint':mint})
+        self.history.observe('pump','quiet',surface='pump.fun',observed_at=999)
+        all_candidates=self.history.candidates(lane='pump')
+        expected=[r for r in all_candidates if any(e['kind'].startswith('pump_')
+            for e in self.history.events('pump',r['candidate']))]
+        self.assertEqual(self.history.candidates(lane='pump',event_prefix='pump_'),expected)
+        self.assertEqual(self.history.candidates(lane='pump'),all_candidates)
+        self.assertEqual(len(self.history.events('pump','pool-only')),1)
+        self.history.append_event('pump','quiet',identity='later-create',slot=20,transaction_index=0,
+            event_index=0,market_time=2000,kind='pump_create',payload={'mint':'quiet','event_type':'create'})
+        self.assertEqual([r['candidate'] for r in self.history.candidates(lane='pump',event_prefix='pump_')],
+                         ['quiet','current','unusual'])
+        self.assertEqual(len(self.history.candidates(lane='pump')),4)
+
+    def test_prefix_selection_rejects_wildcards_and_validates_selected_metadata(self):
+        for prefix in ('','pump_*','pump_?','pump_[a]'):
+            with self.assertRaises(ValueError):self.history.events('pump','mint',kind_prefix=prefix)
+            with self.assertRaises(ValueError):self.history.candidates(lane='pump',event_prefix=prefix)
+        self.history.observe('pump','mint',surface='pump.fun',observed_at=1000)
+        self.history.append_event('pump','mint',identity='event',slot=10,transaction_index=0,
+            event_index=0,market_time=1000,kind='pump_create',payload={'mint':'mint'})
+        self.history.db.execute("UPDATE candidates SET hash=? WHERE candidate='mint'",('f'*64,))
+        with self.assertRaisesRegex(ValueError,'candidate_history_corruption'):
+            self.history.candidates(lane='pump',event_prefix='pump_')
+
     def test_reference_reuses_exact_fresh_source_bytes_but_rechecks_reads_and_replay(self):
         import sqlite3
         from meme_machine.runtime.journal import canonical,digest
@@ -455,6 +510,39 @@ class CandidateHistoryTests(unittest.TestCase):
             self.assertEqual(confirm.graduated,[("mint",1010)])
         finally:
             runner.CANDIDATE_HISTORY=prior
+
+    def test_actual_pump_restore_excludes_unconsumed_swap_reads_preserving_later_eligibility(self):
+        from meme_machine.lanes.pump import runner
+        from meme_machine.lanes.pump.pump_acceleration_confirmations import ConfirmationBook
+        from unittest.mock import Mock
+        for mint,kind,payload,slot in (
+            ('current','pump_other_create',{'event_type':'create','mint':'current','creator':'creator','market_time':1000},10),
+            ('current','pump_trade',{'event_type':'trade','mint':'current','wallet':'buyer','market_time':1001,'real_token_reserves':4},11),
+            ('current','pumpswap_trade',{'event_type':'trade','mint':'current','wallet':'swap-only','market_time':1002},12),
+            ('future-survivor','pumpswap_trade',{'mint':'future-survivor','market_time':1002},12),
+        ):
+            self.history.observe('pump',mint,surface='pumpswap',observed_at=1000)
+            self.history.append_event('pump',mint,identity=mint+kind,slot=slot,
+                transaction_index=0,event_index=0,market_time=payload['market_time'],kind=kind,payload=payload)
+        prior=runner.CANDIDATE_HISTORY;runner.CANDIDATE_HISTORY=self.history
+        try:
+            created={};postgrad={};confirm=ConfirmationBook({'cohort':[]},1);stream=Mock()
+            with patch.object(self.history,'events',wraps=self.history.events) as reads:
+                self.assertEqual(runner._restore_observed_pump_candidates(
+                    created,postgrad,stream,object(),confirm,1020),1)
+                self.assertEqual(reads.call_args_list[0].args,('pump','current'))
+                self.assertEqual(reads.call_count,1)
+                self.assertEqual(reads.call_args.kwargs,{'kind_prefix':'pump_'})
+            self.assertEqual(created['current']['pregrad_wallets'],{'buyer'})
+            self.assertEqual(len(self.history.candidates(lane='pump')),2)
+            self.assertEqual(len(self.history.events('pump','future-survivor')),1)
+            self.history.append_event('pump','future-survivor',identity='later',slot=20,
+                transaction_index=0,event_index=0,market_time=2000,kind='pump_create',
+                payload={'event_type':'create','mint':'future-survivor','creator':'creator','market_time':2000})
+            self.assertEqual(runner._restore_observed_pump_candidates(
+                created,postgrad,stream,object(),confirm,2010),1)
+            self.assertIn('future-survivor',created)
+        finally:runner.CANDIDATE_HISTORY=prior
 
 
 if __name__=="__main__":

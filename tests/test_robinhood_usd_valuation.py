@@ -106,6 +106,10 @@ OPERATION_DELTAS = {
     'meme_machine/lanes/pump/runner.py': {
         '_retain_tape_history': '7e2546ac6ea91029b22809fd3b95fa3ff20a891ad1095a1fd1a39f853e3a6cbd',
         '_observed_creation': '45a63d1aec238ecd9c13498b4bace0ccf532d757b2866fd215c2c1fa1940f5ec',
+        # The retained-data comparison proves identical restoration outputs.
+        # Pin this exact read-only predicate pushdown; the regression below
+        # derives its only two AST changes from the reviewed e398 source.
+        '_restore_observed_pump_candidates': '5d3e675caf380ccf2743e3e2bcaa3eb37dbc14f7555210eec14db84ab20482b6',
     },
     'meme_machine/lanes/pons/immutable_rpc.py': {
         'EvidenceStore.__init__': 'e6558c2232a88f43b6ac74805395343768cfbbfdd453390ba28cf6f4fb16aa3e',
@@ -279,6 +283,28 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_pump_restore_delta_only_pushes_existing_literal_read_filter_into_sql(self):
+        import hashlib
+        relative='meme_machine/lanes/pump/runner.py'
+        prior=subprocess.check_output(['git','show',
+            'e398ffef5aa351c727c6619ee057bf9ea527781d:'+relative],cwd=ROOT)
+        expected=ast.parse(prior)
+        function=next(n for n in expected.body if isinstance(n,ast.FunctionDef)
+            and n.name=='_restore_observed_pump_candidates')
+        self.assertEqual(hashlib.sha256(ast.dump(function).encode()).hexdigest(),
+            '55ae523f5cf1e8b49c5f83a0349680ac1f93b75f3a8dbfd1b2b009f94721896e')
+        loop=next(n for n in function.body if isinstance(n,ast.For))
+        loop.iter.keywords.append(ast.keyword(arg='event_prefix',value=ast.Constant('pump_')))
+        economic=next(n for n in loop.body if isinstance(n,ast.Assign)
+            and isinstance(n.targets[0],ast.Name) and n.targets[0].id=='economic')
+        self.assertIsInstance(economic.value,ast.ListComp)
+        exact_read=economic.value.generators[0].iter
+        exact_read.keywords.append(ast.keyword(arg='kind_prefix',value=ast.Constant('pump_')))
+        economic.value=exact_read
+        # All other functions, interfaces, constants, ordering and restoration
+        # predicates must be byte-independent AST equivalents to e398.
+        self.assertEqual(ast.dump(expected),ast.dump(ast.parse((ROOT/relative).read_bytes())))
+
     def setUp(self):
         self.rpc=ReadRPC()
         clock=patch('meme_machine.runtime.usd_valuation.time.time',side_effect=lambda:self.rpc.now)
