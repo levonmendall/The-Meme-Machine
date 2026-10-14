@@ -34,6 +34,19 @@ its original single-COMMIT assertion. Final release validation is still required
 before a changed-source observation. Compare stage CPU versus wall and actual
 durability waiting before selecting the next causal correction.
 
+`80542794522c454caea690f3aba51f2e640391e7` was published but **not deployed**.
+Its final FAST run 38512957534 completed 1,948 cases in 1,510.960 seconds:
+1,947 passed, one source-lifetime assertion failed, no skips/errors. The exact
+unchanged assertion reproduced locally. Its no-database-owner publisher validly
+returns a scheduling result without invoking the callback that records timing;
+the optional diagnostic assumed those timing fields existed and ended the
+source. The narrow successor treats missing timing as explicitly unmeasured,
+with no fabricated zero latency. The original source-lifetime assertion and a
+focused unavailable-timing regression pass (two tests, 0.215 seconds). Original
+CI and local failure logs are retained as `E/STAGED_PIPELINE_ATTRIBUTION_CI_FAILED_20261014.log`
+and `E/STAGED_PIPELINE_SOURCE_LIFETIME_REPRO_20261014.log`. Complete successor
+validation before deployment; this diagnostic correction is not a throughput fix.
+
 The September 20 bounded-hydration changes are retained in commits 110dbf34,
 a0ce2441 and 690320f8 (the latter two contain qualification-build patches).
 The October 7 Model B report remains `engineering/solana_prewarm/REPORT.md`:

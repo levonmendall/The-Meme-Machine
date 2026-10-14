@@ -118,6 +118,15 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(unavailable['unmeasured_bytes_frames'],1)
         self.assertEqual(source.pending_diagnostics,[])
 
+    async def test_no_owner_publication_timing_stays_unavailable_without_zero_latency(self):
+        source=SelectiveSource(SimpleNamespace(credential='offline'),None)
+        source.observe('publication_timing',work_ready_monotonic=100,work_returned_monotonic=101)
+        metric=source.pipeline_metrics['publication_timing:shared']
+        self.assertEqual(metric['unmeasured_calls'],1)
+        self.assertNotIn('owner_queue_total_microseconds',metric)
+        self.assertNotIn('execution_total_microseconds',metric)
+        self.assertEqual(source.pending_diagnostics,[])
+
     async def test_publication_serializes_once_with_original_receipt_and_checksum(self):
         import meme_machine.solana_candidate_lifecycle as module
         body=dict(record=dict(identity='economic',slot=100,logs=['escaped-\\-é']*100),available=NOW)

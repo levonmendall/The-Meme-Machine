@@ -524,23 +524,28 @@ class SelectiveSource:
             metric['calls']+=1
             slot=values.get('slot')
             if type(slot) is int:metric['latest_slot']=max(metric.get('latest_slot',0),slot)
+            def interval(start,finish):
+                a,b=values.get(start),values.get(finish)
+                return b-a if type(a) in (int,float) and type(b) in (int,float) else None
             durations={}
             if kind=='decode_timing':durations={'decode':values.get('seconds'),'decode_cpu':values.get('cpu_seconds')}
             elif kind=='economic_prepared':durations={k:values.get(k) for k in ('cpu_seconds','transfer_and_wait_seconds')}
             elif kind=='history_delivery_timing':durations={k:values.get(k) for k in ('wall_seconds','cpu_seconds')}
             elif kind=='publication_timing':
-                durations={'owner_queue':values['owner_claim_monotonic']-values['work_ready_monotonic'],
-                    'execution':values['publication_finished_monotonic']-values['publication_started_monotonic']}
+                durations={'owner_queue':interval('work_ready_monotonic','owner_claim_monotonic'),
+                    'execution':interval('publication_started_monotonic','publication_finished_monotonic')}
             elif kind=='evidence_timing':
-                durations={'owner_queue':values['owner_claim_monotonic']-values['join_ready_monotonic'],
-                    'execution':values['durable_finished_monotonic']-values['owner_claim_monotonic']}
+                durations={'owner_queue':interval('join_ready_monotonic','owner_claim_monotonic'),
+                    'execution':interval('owner_claim_monotonic','durable_finished_monotonic')}
+            if durations and all(d is None for d in durations.values()):
+                metric['unmeasured_calls']=metric.get('unmeasured_calls',0)+1
             for name,duration in durations.items():
                 if duration is None:continue
                 micros=int(max(0,duration)*1_000_000)
                 metric[name+'_total_microseconds']=metric.get(name+'_total_microseconds',0)+micros
                 metric[name+'_peak_microseconds']=max(metric.get(name+'_peak_microseconds',0),micros)
             if kind=='economic_prepared':metric['records']=metric.get('records',0)+values.get('records',0)
-            if kind=='evidence_timing':metric['latest_durable_wall']=values['durable_finished_wall']
+            if kind=='evidence_timing' and 'durable_finished_wall' in values:metric['latest_durable_wall']=values['durable_finished_wall']
             if kind=='joined_frame':metric['latest_joined_wall']=values['joined_wall']
         identity=values.get('stream_id');family=values.get('family','shared')
         if kind=='subscribe':
