@@ -175,6 +175,41 @@ OPPORTUNITY_ADDED_SOURCES=(
 )
 
 
+# Reviewed acquisition forwarding after the combined strategy release. Pin the
+# complete predecessor and successor, then remove only this exact Pons-only
+# environment block before applying the unchanged opportunity/economic guards.
+# Neither an arbitrary Supervisor.environment body nor another infrastructure
+# edit is exempted. The active-source regression also requires the successor.
+OBSERVATION_ROUTE_REFERENCE='4cfe994fdface99e61c33dc534397eff85b5a74b'
+OBSERVATION_ROUTE_SOURCE='meme_machine/operational/supervisor.py'
+OBSERVATION_ROUTE_BEFORE_SHA256='8c6fc561bbe5dc82bb09d90fc73f8700d01c3dab6e3e9fa007d94c5594961b14'
+OBSERVATION_ROUTE_AFTER_SHA256='a010ee1daf2e34ab99d371085f674d3984933e8953e430770acfd4697de983a9'
+OBSERVATION_ROUTE_BLOCK=(
+    b"            # Forward the existing explicit observation choice to its native\n"
+    b"            # consumer only. This grants no provider capability or funding.\n"
+    b"            observation_route=os.environ.get('MM_PONS_OBSERVATION_ROUTE') or 'public_existing'\n"
+    b"            if observation_route not in ('public_existing','canonical_primary'):\n"
+    b"                raise ValueError('invalid_pons_observation_route')\n"
+    b"            if not self.offline:env['MM_PONS_OBSERVATION_ROUTE']=observation_route\n"
+)
+
+
+def observation_route_predecessor(test,relative,current):
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=OBSERVATION_ROUTE_SOURCE:return current
+    prior=subprocess.check_output(['git','show',OBSERVATION_ROUTE_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),OBSERVATION_ROUTE_BEFORE_SHA256,
+        relative+':reviewed observation-route predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),OBSERVATION_ROUTE_AFTER_SHA256,
+        relative+':exact reviewed observation-route successor')
+    test.assertEqual(current.count(OBSERVATION_ROUTE_BLOCK),1,relative+':one exact acquisition forwarding block')
+    stripped=current.replace(OBSERVATION_ROUTE_BLOCK,b'',1)
+    test.assertEqual(stripped,prior,relative+':all strategy and operational bytes preserved')
+    return stripped
+
+
 def assert_opportunity_added_source(test,relative,current):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
@@ -206,6 +241,7 @@ def opportunity_predecessor(test,relative,current):
         raise unittest.SkipTest('Historical source comparison needs the existing baseline commit') from None
     test.assertEqual(hashlib.sha256(prior).hexdigest(),record['before_sha256'],relative+':opportunity predecessor')
     if current==prior:return current
+    current=observation_route_predecessor(test,relative,current)
     test.assertEqual(hashlib.sha256(current).hexdigest(),record['after_sha256'],relative+':approved opportunity source')
     def nodes(content):
         result={}
@@ -454,6 +490,29 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_reviewed_observation_route_forwarding_preserves_exact_combined_source(self):
+        import hashlib
+        relative=OBSERVATION_ROUTE_SOURCE
+        current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),OBSERVATION_ROUTE_AFTER_SHA256,
+            'the active source must contain the reviewed forwarding correction')
+        prior=subprocess.check_output(['git','show',OBSERVATION_ROUTE_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(observation_route_predecessor(self,relative,current),prior)
+        self.assertEqual(opportunity_predecessor(self,relative,current),
+            opportunity_predecessor(self,relative,prior))
+        for changed in (
+                current+b'\n# unreviewed source change\n',
+                current.replace(b"('public_existing','canonical_primary')",b"('public_existing','unverified_route')"),
+                current.replace(b"if not self.offline:env['MM_PONS_OBSERVATION_ROUTE']",b"if True:env['MM_PONS_OBSERVATION_ROUTE']"),
+                current.replace(b"raise ValueError('invalid_pons_observation_route')",b"pass"),
+                current.replace(b"env['MM_PAPER_POLICY_REVISION']=ACTIVE_REVISION",b"env['MM_PAPER_POLICY_REVISION']='unreviewed-policy'"),
+        ):
+            self.assertNotEqual(changed,current)
+            with self.assertRaises(AssertionError):
+                observation_route_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):
+                opportunity_predecessor(self,relative,changed)
+
     def test_added_opportunity_policy_and_recovery_sources_reject_unapproved_changes(self):
         for relative in OPPORTUNITY_ADDED_SOURCES:
             source=(ROOT/relative).read_bytes()
@@ -478,7 +537,7 @@ class RobinhoodUSDTests(unittest.TestCase):
             operational=subprocess.check_output(['git','show',OPPORTUNITY_BASE+':'+relative],cwd=ROOT)
             strategy_before=subprocess.check_output(['git','show',OPPORTUNITY_STRATEGY_BASE+':'+relative],cwd=ROOT)
             strategy_after=subprocess.check_output(['git','show',OPPORTUNITY_REFERENCE+':'+relative],cwd=ROOT)
-            combined=(ROOT/relative).read_bytes()
+            combined=observation_route_predecessor(self,relative,(ROOT/relative).read_bytes())
             if operational==strategy_before:
                 self.assertEqual(combined,strategy_after,relative+':unchanged published strategy package')
                 continue

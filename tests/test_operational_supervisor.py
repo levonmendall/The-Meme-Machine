@@ -32,6 +32,37 @@ class NativeDeliveryRecovery(unittest.TestCase):
             self.service.offline=True
             self.assertNotIn('MM_PONS_USD_BRIDGE_ROUTES',self.service.environment('pons'))
 
+    def test_managed_observation_route_reaches_actual_pons_endpoint_selection_only(self):
+        from meme_machine.lanes.pons.provider_topology import discovery_endpoint
+        endpoint='https://robinhood-mainnet.g.alchemy.com/v2/offline-fixture'
+        self.service.offline=False
+        with patch.dict(os.environ,MM_PONS_OBSERVATION_ROUTE='canonical_primary',
+                MM_ROBINHOOD_READ_RPC_URL=endpoint):
+            child=self.service.environment('pons')
+            self.assertEqual(child.get('MM_PONS_OBSERVATION_ROUTE'),'canonical_primary')
+            self.assertEqual(discovery_endpoint(environ=child),(endpoint,True))
+            for lane in ('pump','solana'):
+                self.assertNotIn('MM_PONS_OBSERVATION_ROUTE',self.service.environment(lane))
+            self.service.offline=True
+            self.assertNotIn('MM_PONS_OBSERVATION_ROUTE',self.service.environment('pons'))
+
+    def test_observation_route_default_preserves_public_selection(self):
+        from meme_machine.lanes.pons.provider_topology import discovery_endpoint,PUBLIC_DIAGNOSTIC_RPC_URL
+        self.service.offline=False
+        with patch.dict(os.environ,{},clear=True):
+            child=self.service.environment('pons')
+            self.assertEqual(discovery_endpoint(environ=child),(PUBLIC_DIAGNOSTIC_RPC_URL,False))
+        with patch.dict(os.environ,MM_PONS_OBSERVATION_ROUTE='public_existing'):
+            child=self.service.environment('pons')
+            self.assertEqual(discovery_endpoint(environ=child),(PUBLIC_DIAGNOSTIC_RPC_URL,False))
+
+    def test_invalid_observation_route_fails_before_worker_launch(self):
+        for offline in (False,True):
+            self.service.offline=offline
+            with patch.dict(os.environ,MM_PONS_OBSERVATION_ROUTE='unreviewed-provider'):
+                with self.assertRaisesRegex(ValueError,'invalid_pons_observation_route'):
+                    self.service.environment('pons')
+
     def test_existing_endpoint_capability_path_reaches_only_live_pons(self):
         self.service.offline=False
         from meme_machine.runtime.robinhood.provider_authority import fingerprint

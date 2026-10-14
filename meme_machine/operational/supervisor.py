@@ -277,6 +277,12 @@ class Supervisor:
                 raise ValueError('invalid_pump_held_rpc_mode')
             env['MM_PUMP_HELD_RPC_MODE']=held_mode
         if lane=='pons':
+            # Forward the existing explicit observation choice to its native
+            # consumer only. This grants no provider capability or funding.
+            observation_route=os.environ.get('MM_PONS_OBSERVATION_ROUTE') or 'public_existing'
+            if observation_route not in ('public_existing','canonical_primary'):
+                raise ValueError('invalid_pons_observation_route')
+            if not self.offline:env['MM_PONS_OBSERVATION_ROUTE']=observation_route
             # Native USD acquisition may use the separately verified two-hop
             # route. Keep this opt-in confined to the actual Pons worker;
             # dropping it here would silently restore an unavailable direct
