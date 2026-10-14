@@ -1,11 +1,22 @@
 name: CI — fast deterministic tests
+# Development branches use focused offline tests; run the expensive complete FAST
+# suite at the final PR review/release gate, on main, or when dispatched explicitly.
+# Retain the existing full FAST job unchanged: a skipped/draft job is NOT a PASS.
 on:
   push:
+    branches: [main]
   pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+  workflow_dispatch:
 permissions:
   contents: read
+# New commits cancel obsolete runs for the same PR/ref; the final revision must pass.
+concurrency:
+  group: fast-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   fast:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
