@@ -1,11 +1,59 @@
 # Consolidated startup repair — 2026-10-14
 
 Implementation: `1fe5a6f62d37f84ad24f0b7413279c080e3424e5`, branch
-`engineering/targeted-resolution-20261014`. Its documentation publication is a
-descendant containing no executable changes. Required final FAST evidence belongs
-to that publication's exact implementation; obtain its terminal Actions verdict
-and `blocker-repair-20261011/CONSOLIDATED_STARTUP_FINAL_VALIDATION_20261014.json`.
-Do not inherit a PASS from the predecessor.
+`engineering/targeted-resolution-20261014`. Final FAST on publication
+`36ed4d94c4366d84041ff991d76f97b1b6590fa2` completed: **2,155 tests / 1,356.754 s,
+zero failures/errors, one disclosed skip** (configured service identity unavailable
+on the hosted runner). Its executable and tests are identical to the implementation.
+The complete terminal log and receipt are retained in
+`blocker-repair-20261011/CONSOLIDATED_STARTUP_FINAL_VALIDATION_20261014.json` and
+[Actions run 38644441056](https://github.com/levonmendall/The-Meme-Machine/actions/runs/38644441056).
+
+## Workflow continuation — 2026-10-14
+
+The owned branch fast-forwarded cleanly through workflow merge
+`893640f2fbf323e64e943cced9976f65766e420e`. Read root `AGENTS.md` and
+[the operational-resolution skill](../../.agents/skills/meme-machine-operational-resolution/SKILL.md).
+They are materialized in this sparse checkout. The merge changes instructions,
+CI triggers and oversight documentation only; no application, fixture or test
+source changed. It has no separate FAST result, and is not represented as a new
+tested executable. The existing exact-executable results above remain applicable.
+
+The owner's latest instruction authorizes continued **offline engineering only**.
+The earlier observation preparation stopped before any installation, configuration
+change, service start, provider request or authoritative write. No observation
+was dispatched. Completed small read-only preflight notes remain in the evidence
+root as `CONSOLIDATED_OBSERVATION_*_PREFLIGHT_20261014.json` and
+`CONSOLIDATED_OBSERVATION_NATIVE_PREFLIGHT_STOPPED_20261014.json`; they do not
+establish fresh native recovery or confer runtime authority.
+
+Use one integration/test owner, affected network-blocked tests during development,
+the existing integrated startup rehearsal for lifecycle changes, and one complete
+FAST on a finalized changed executable. Run the applicable OPERATIONAL gate before
+any separately authorized deployment. Do not repeat full suites for this
+documentation/workflow continuation or restart the closed historical-replay search.
+Preserve the existing failure register below; select a further source correction
+only when a causal mechanism is demonstrated. No new live start is authorized.
+
+The existing native and provider agents completed a narrow source-only review
+under this workflow; neither found another causally demonstrated, unfixed defect
+that supports an additional offline correction. They ran no tests or operational
+probes. The completed cancellation, explicit Pons recovery path, provider feedback
+and recording repairs remain intact. The public cooldown/queue conflict is still
+reproducible by the retained offline regression; it is an intentional safety
+boundary, not permission to bypass cooldown or increase the queue allowance.
+
+One lifecycle coverage limitation remains explicit: Pump initialization precedes
+the runner's loop-level `finally`. The missing-evidence startup rehearsal closes
+its own fixture resources and does not prove graceful production cleanup for
+every early startup exception. This review did not establish that boundary as a
+new production failure or justify a broader cleanup change. See
+`tests/test_integrated_startup_rehearsal.py` and
+`tests/test_pump_cancellation_diagnostics.py`. Current-generation accumulation,
+complete native recovery/drain, historical SQLite attribution and managed-provider
+capacity still require the already specified runtime evidence or new causal
+artifacts; no such evidence was generated in this continuation. Preserve the
+prepared observation specification without executing it under offline authority.
 
 PAPER remains stopped/disabled, `Restart=no`, funding closed. Installed source is
 still `66f85d61bf4d3ba9a01efdc0e9eb68949419bda8`. No new deployment, PAPER start,
@@ -86,8 +134,10 @@ partial exits and scaling are unchanged. Meteora/Ramses remain paused.
   Exact successor normalization was added without changing its economic pins or
   negative assertions. Initial rehearsal API/fixture/timestamp errors and a new
   SETTLED expectation error are preserved, not relabeled passing.
-- Final required FAST: one exact-source CI campaign; use its actual terminal
-  result, including any skips, from the publication/retained receipt above.
+- Final required FAST: **2,155 tests / 1,356.754 s**, zero failures/errors and
+  one disclosed hosted service-identity skip; complete direct job log and
+  exact-source receipt retained above. The actual-host access guard remains
+  mandatory before any separately authorized service start.
 
 Pinned local CPython is **3.12.14**, linked SQLite **3.45.1**, two host CPUs.
 Hosted CI pins CPython 3.12.14 and two-CPU containment; its linked SQLite build is

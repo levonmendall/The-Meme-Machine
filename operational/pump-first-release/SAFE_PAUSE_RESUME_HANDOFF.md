@@ -1,5 +1,15 @@
 # Latest continuation — consolidated startup repair, 2026-10-14
 
+Workflow merge `893640f2fbf323e64e943cced9976f65766e420e` is incorporated without
+application/test changes. Follow root `AGENTS.md` and
+`.agents/skills/meme-machine-operational-resolution/SKILL.md` for ongoing work.
+The latest owner instruction retains **offline-only** engineering authority;
+observation preparation stopped before installation/start/provider dispatch.
+Final exact-executable FAST completed: 2,155 tests, zero failures/errors, one
+disclosed hosted service-identity skip. Targeted OPERATIONAL passed 293 cases,
+including the nine-case startup rehearsal. Reuse these proofs while executable
+source is unchanged; no operating or acceptance PASS is established.
+
 Read [CONSOLIDATED_STARTUP_REPAIR_HANDOFF_20261014.md](CONSOLIDATED_STARTUP_REPAIR_HANDOFF_20261014.md)
 first. Implementation `1fe5a6f62d37f84ad24f0b7413279c080e3424e5` is offline only;
 installed `66f85d61` remains stopped/disabled, Restart=no, funding closed. The
