@@ -1,5 +1,39 @@
 # History separation: final critical-path refinements
 
+## Reproduced acknowledgement precision defect: 2026-10-14
+
+Diagnostic source `a063bab37d65d9eecc36e879787f892bbab5e4cc` passed
+1,936 FAST tests (run `38485511347`) and is installed. The subsequent unfunded
+attempt captured `candidate_delivery_ack_content` at 00:11:39 UTC, after only
+one logical RPC and two native openings. This is the demonstrated recurrent
+exit; do not infer that a growing backlog terminated the worker.
+
+The retained unacknowledged outbox contains availability `1791933736.556373`.
+SQLite 3.45.1 `json_extract` returns `1791933736.5563731`, a one-step binary
+rounding difference. The consumer correctly preserves the original JSON value;
+the canonical owner therefore correctly rejects its mismatching expected ACK.
+The exact retained 64-row comparison has one old byte mismatch and zero with
+the correction. See `E/STAGED_ACK_CONTENT_RAW_FIXTURE_20261014.json` and
+`E/STAGED_ACK_CONTENT_EXACT_REPLAY_20261014.json`. No production row was changed.
+
+The narrow successor uses SQLite JSON-text extraction and Python decoding of
+only the three scalar references. Full economic bodies remain off-owner; exact
+ACK/hash, source-generation and commit-before-ACK checks are unchanged. The
+original failing crash/restart regression is retained in E; its corrected
+104-test focused suite passed in 22.101 seconds. New tests cover the authentic
+fraction, restart replay, integer/real types and large integer slot fidelity.
+Publish and validate this exact successor before its controlled market retest.
+Do not repeat unrelated history redesign or relax acknowledgement checks.
+
+The spending-free observation uses the original continuous ledger, not another
+finite allowance. Its first driver run stopped before any provider traffic on
+an optional unavailable cgroup `io.stat`; the probe now reports unavailable and
+all mandatory resource checks remain. Both original receipts are retained.
+The actual worker failure attempt ended 00:11:55 with unchanged economic state.
+PAPER is stopped and disabled, funding closed, qualifying minutes zero. Pump's
+sustainable throughput and Pons full protection still require live proof; the
+separate Pons database fault and active-backup conflict are not resolved here.
+
 ## Latest authenticated checkpoint and diagnostic successor
 
 The owner has superseded the $2 aggregate and two-attempt limits for the

@@ -288,6 +288,51 @@ class DeliverySeparationTests(unittest.TestCase):
         with __import__('contextlib').closing(CandidateHistory(self.h.lifecycle.path,clock=lambda:NOW)) as shared:
             self.assertEqual(shared.events('pump',mint),before)
         self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0],0)
+
+    def test_retained_epoch_fraction_survives_delivery_ack_and_crash_replay(self):
+        from contextlib import closing
+        from meme_machine.solana_history_delivery import capture,deliver,acknowledge
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        # Actual scalar from the retained 2026-10-14 failing outbox batch.
+        # SQLite 3.45.1 json_extract rounds this by one binary floating step.
+        available=1791933736.556373
+        self.now[0]=available;self.h.lifecycle.delivery_separated=True
+        rows=[r for tx in FIXTURE['pump'] for r in economic_records('pump',PROGRAMS['pump'],
+            copy.deepcopy(tx),endpoint_identity='a'*64,seen=available,source='alchemy_finalized_stream')]
+        self.h.ingest(rows)
+        mint=next(r.payload['event']['mint'] for r in rows if r.payload['event']['event_type']=='create')
+        original=self.h.db.execute('SELECT id,body,hash,created FROM candidate_history_outbox ORDER BY rowid').fetchall()
+        snapshot=capture(self.h.lifecycle);result=deliver(snapshot)
+        with closing(CandidateHistory(self.h.lifecycle.path,clock=lambda:available)) as shared:
+            before=shared.events('pump',mint)
+        # Simulate consumer commit followed by process loss before canonical ACK.
+        self.state.writer.close();self.state,self.h=state_at(self.path,lambda:self.now[0]+10)
+        self.h.lifecycle.delivery_separated=True
+        repeated=capture(self.h.lifecycle)
+        self.assertTrue(acknowledge(self.h.lifecycle,repeated,deliver(repeated)))
+        with closing(CandidateHistory(self.h.lifecycle.path,clock=lambda:available+10)) as shared:
+            self.assertEqual(shared.events('pump',mint),before)
+        for identity,raw,checksum,created in original:
+            record=json.loads(raw).get('record')
+            if record:
+                self.assertEqual(repeated['references'][identity],
+                    (record['identity'],record['slot'],available))
+                compact=next(r for r in result['acknowledgements'] if r[0]==identity)
+                self.assertEqual(json.loads(compact[1])['available'],available)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0],0)
+
+    def test_capture_preserves_integer_and_real_scalar_types_and_large_native_slots(self):
+        from meme_machine.solana_history_delivery import capture
+        self.h.lifecycle.delivery_separated=True
+        for index,(available,slot) in enumerate(((1791933736.556373,100),(0,101),
+                (0.0,102),(1e-10,103),(1791933736.5563732,2**63+1))):
+            with self.subTest(available=available,slot=slot):
+                identity=self.h.lifecycle.emit('pump','candidate','canonical',
+                    dict(record=dict(identity='event-'+str(index),slot=slot),available=available))
+                snapshot=capture(self.h.lifecycle);reference=snapshot['references'][identity]
+                self.assertEqual(reference,('event-'+str(index),slot,available))
+                self.assertIs(type(reference[1]),int)
+                self.assertIs(type(reference[2]),type(available))
     def test_missing_tampered_receipt_and_changed_generation_cannot_ack(self):
         from meme_machine.solana_history_delivery import capture,deliver,acknowledge
         self.h.lifecycle.delivery_separated=True;self.pump()

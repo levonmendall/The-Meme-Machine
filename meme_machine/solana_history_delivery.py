@@ -50,7 +50,7 @@ def capture(life):
     if life.db.in_transaction:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')
     rows=[];size=0;references={}
     for full in life.db.execute('''SELECT id,family,address,kind,body,hash,created,
-        json_extract(body,'$.record.identity'),json_extract(body,'$.record.slot'),json_extract(body,'$.available') FROM candidate_history_outbox
+        body -> '$.record.identity',body -> '$.record.slot',body -> '$.available' FROM candidate_history_outbox
         WHERE '''+active_sql('family',solana=True)+''' AND consumed IS NULL ORDER BY priority,created,rowid LIMIT 64'''):
         row=full[:7]
         size+=len(row[4].encode())
@@ -58,7 +58,11 @@ def capture(life):
             if not rows:raise EvidenceUnavailable('candidate_delivery_input_capacity')
             break
         rows.append(row)
-        references[row[0]]=full[7:]
+        # JSON text extraction preserves the original numeric lexeme. SQLite's
+        # json_extract can round a real epoch timestamp or coerce a large
+        # integer; either changes the exact consumer acknowledgement bytes.
+        # Decode only these bounded scalars, never the full economic payload.
+        references[row[0]]=tuple(None if value is None else json.loads(value) for value in full[7:])
     bindings={(family,address):life.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',
         (family,address)).fetchone() for _,family,address,*_ in rows}
     # Reuse the original proof publication cursor. Blocked old proofs cannot
