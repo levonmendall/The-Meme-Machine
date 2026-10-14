@@ -278,15 +278,32 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual(len(result['buyer_groups']),1001)
 
     def test_current_complete_vectors_match_frozen_reference(self):
+        import hashlib
         from engineering.robinhood_scout.replay import reference_module
         from tests.lanes.pons import test_pons_selective_continuation as fixture
+        from tests.test_robinhood_usd_valuation import OPPORTUNITY_BASE,OPPORTUNITY_REFERENCE,opportunity_predecessor
+        from meme_machine.paper_policy_revision import ACTIVE_REVISION
         reference=reference_module('pons_selective_continuation.py')
+        with patch('engineering.robinhood_scout.replay.REFERENCE',OPPORTUNITY_BASE):
+            predecessor=reference_module('pons_selective_continuation.py')
+        with patch('engineering.robinhood_scout.replay.REFERENCE',OPPORTUNITY_REFERENCE):
+            approved=reference_module('pons_selective_continuation.py')
+        path='meme_machine/lanes/pons/pons_selective_continuation.py'
+        current_source=(Path(__file__).resolve().parents[1]/path).read_bytes()
+        self.assertEqual(hashlib.sha256(opportunity_predecessor(self,path,current_source)).hexdigest(),
+                         predecessor.source_sha256)
         for override in ({},dict(current_snipe_bps=1),dict(launch_at=111),
                          dict(pair_token='0x'+'99'*20),dict(events=[])):
             actual=fixture.vector(**override)
+            with patch.object(fixture,'qualification_vector',approved.qualification_vector):
+                revised=fixture.vector(**override)
+            self.assertEqual(actual,revised)
+            self.assertEqual(actual['policy_revision'],ACTIVE_REVISION)
+            with patch.object(fixture,'qualification_vector',predecessor.qualification_vector):
+                legacy=fixture.vector(**override)
             with patch.object(fixture,'qualification_vector',reference.qualification_vector):
                 expected=fixture.vector(**override)
-            self.assertEqual(actual,expected)
+            self.assertEqual(legacy,expected)
 
     def test_authenticated_receipt_sender_preserves_exact_v4_buyer_flow(self):
         from meme_machine.lanes.pons.pons_selective_v4 import collect_v4_activity

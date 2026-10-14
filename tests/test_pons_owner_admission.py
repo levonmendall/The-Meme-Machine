@@ -30,12 +30,19 @@ class OwnerAdmissionTests(unittest.TestCase):
     def test_existing_economic_policy_and_native_exit_functions_are_exact(self):
         path='meme_machine/lanes/pons/pons_postgrad_survivor.py'
         old=subprocess.check_output(['git','show','cbfcb4137f10474ffc7fe0e19f0b8772f25c1563:'+path],text=True)
-        before=ast.parse(old);after=ast.parse(Path(path).read_text())
+        from tests.test_robinhood_usd_valuation import assert_holding_delta,opportunity_predecessor
+        current=Path(path).read_bytes()
+        # Verify the entire exact approved package before excluding the already
+        # reviewed admission helper from the original economic comparison.
+        prior=opportunity_predecessor(self,path,current)
+        before=ast.parse(old);after=ast.parse(prior)
         def economic(tree):
             tree.body=[n for n in tree.body if not isinstance(n,ast.FunctionDef) or n.name!='select_entries']
             return ast.unparse(tree)
-        from tests.test_robinhood_usd_valuation import assert_holding_delta
-        assert_holding_delta(self,path,economic(before),economic(after))
+        assert_holding_delta(self,path,economic(before),economic(after),reviewed_opportunity=False)
+        changed=current.replace(b'hard_stop_bps=-1000',b'hard_stop_bps=-999')
+        self.assertNotEqual(changed,current)
+        with self.assertRaises(AssertionError):opportunity_predecessor(self,path,changed)
         # The frozen legacy receipt hash remains usable by restart reconciliation.
         self.assertEqual(strategy.POLICY['execution']['max_open_positions'],2)
 

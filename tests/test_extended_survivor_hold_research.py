@@ -54,11 +54,15 @@ class ResearchModelTests(unittest.TestCase):
             self.assertFalse(row['continuous_protection_proven']);self.assertFalse(row['live_memory_cpu_proven'])
             self.assertIsNone(row['storage_growth_bytes'])
     def test_no_production_policy_service_or_allowance_changes(self):
+        from tests.test_robinhood_usd_valuation import opportunity_predecessor
         for relative in ('meme_machine/lanes/pump/pumpswap_survivor.py',
                          'operational/position-continuation/RESOURCE_ENVELOPE.example.json',
                          'deployment/meme-machine-paper.service'):
             original=subprocess.check_output(['git','show',PRIMARY_COMMIT+':'+relative],cwd=ROOT)
-            self.assertEqual((ROOT/relative).read_bytes(),original,relative)
+            # Exact approved v1 changes are independent of this research model;
+            # its original no-policy/service/allowance-change proof still holds.
+            current=opportunity_predecessor(self,relative,(ROOT/relative).read_bytes())
+            self.assertEqual(current,original,relative)
         model = build()
         self.assertEqual(model['baseline']['current_bridge_seconds'], 129600)
         self.assertEqual(model['baseline']['operational_maximum_seconds'], 264065)

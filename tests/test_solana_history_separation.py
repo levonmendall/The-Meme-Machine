@@ -554,10 +554,20 @@ class HistoryCalculationTests(unittest.TestCase):
         self.assertEqual(evaluate_entry(dict(original,price_points=points,demand_events=events,reset_history_prefix=prefix)),expected)
     def test_only_acquisition_nodes_changed_in_runtime_and_original_economics_pin(self):
         import ast,subprocess
+        from tests.test_robinhood_usd_valuation import opportunity_predecessor
         relative='meme_machine/lanes/pump/pumpswap_survivor_runtime.py'
         root=Path(__file__).resolve().parents[1]
         previous=ast.parse(subprocess.check_output(['git','show','ea4f4f1bfb12ef0d3ce01d4df70a93f6d37e7605:'+relative],cwd=root))
-        current=ast.parse((root/relative).read_bytes())
+        source=(root/relative).read_bytes()
+        # First verify the exact approved opportunity-access layer against the
+        # combined manifest, then retain this original acquisition/economics
+        # comparison on its operational predecessor. No runtime node is exempt.
+        current=ast.parse(opportunity_predecessor(self,relative,source))
+        changed=source.replace(b'qualification_evidence_complete=not maintenance',
+                               b'qualification_evidence_complete=True',1)
+        self.assertNotEqual(changed,source)
+        with self.assertRaises(AssertionError):
+            opportunity_predecessor(self,relative,changed)
         def method(tree):return next(n for c in tree.body if isinstance(c,ast.ClassDef) and c.name=='Runtime' for n in c.body if isinstance(n,ast.FunctionDef) and n.name=='reconstruct')
         old=method(previous);new=method(current)
         branch=next(n for n in new.body if isinstance(n,ast.If) and isinstance(n.test,ast.Name) and n.test.id=='maintenance' and any(isinstance(x,ast.ImportFrom) and x.module=='pumpswap_survivor' for x in n.orelse))
