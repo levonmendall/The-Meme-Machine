@@ -19,7 +19,12 @@ class Pipeline:
             CREATE TRIGGER IF NOT EXISTS progress_no_delete BEFORE DELETE ON progress
             BEGIN SELECT RAISE(ABORT,'append_only'); END;''')
         foreign=self.db.execute('SELECT 1 FROM progress WHERE lane!=? OR policy_hash!=? LIMIT 1',(lane,policy_hash)).fetchone()
-        if foreign:raise ValueError('foreign_pipeline_namespace')
+        if foreign:
+            from meme_machine.runtime.policy_compatibility import active_hash,known_hash
+            if policy_hash!=active_hash('pump_current') or any(
+                stored_lane!=lane or not known_hash('pump_current',stored_hash)
+                for stored_lane,stored_hash in self.db.execute('SELECT DISTINCT lane,policy_hash FROM progress')):
+                self.db.close();raise ValueError('foreign_pipeline_namespace')
         self.stages=defaultdict(set);self.classes=defaultdict(set);self.reasons=defaultdict(set)
         self.last=None;self.write_seconds=0.;self.records=0
         for c,s,r,k,at,mono in self.db.execute('SELECT candidate,stage,reason,classification,at,monotonic FROM progress ORDER BY sequence'):
@@ -34,6 +39,11 @@ class Pipeline:
 
     def record(self,candidate,stage,reason=None,classification=None,**details):
         c=str(candidate);at=time.time();mono=time.monotonic()
+        from meme_machine.paper_policy_revision import revision_for_hash
+        revision=revision_for_hash(self.policy_hash)
+        if revision is not None:
+            details.setdefault('policy_revision',revision)
+            details.setdefault('effective_decision_policy_hash',self.policy_hash)
         with self.lock,self.db:
             self.db.execute('INSERT INTO progress(lane,policy_hash,candidate,stage,reason,classification,at,monotonic,details) VALUES(?,?,?,?,?,?,?,?,?)',
                 (self.lane,self.policy_hash,c,stage,reason,classification,at,mono,json.dumps(details,sort_keys=True)))
@@ -58,6 +68,9 @@ class Pipeline:
                      'stale_after_complete_evidence','reconstruction_incomplete','strategy_rejection',
                      'no_authentic_activity','local_budget_exhausted','consumer_deadline')
             return dict(schema='lane-opportunity-coverage-v1',lane=self.lane,
+                effective_policy_hash=self.policy_hash,
+                retained_policy_record_counts=dict(self.db.execute('SELECT policy_hash,COUNT(*) FROM progress GROUP BY policy_hash')),
+                policy_coverage_scope='retained_debug_ring; historical policy identities preserved',
                 identity_scope='native_candidate_identity; stages and classes overlap; never sum as losses',
                 raw_records=self.records,retention='latest 4096-8192 debug transitions',
                 authenticated_triggers=len(self.stages['trigger_started']),

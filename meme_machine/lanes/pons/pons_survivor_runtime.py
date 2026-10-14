@@ -507,14 +507,28 @@ class Runtime:
         # Available cash is tested only after the durable decision. Identical
         # market evidence is qualified against the same realized-equity target.
         cap=min(sizing['target'],flow['turnover']//POLICY['execution']['min_turnover_multiple'])
+        readiness=self.candidate_readiness(row['id'],through_block=state['block'],through_hash=state['block_hash'])
+        current_row=self.history.get(row['id'])
         self.facts=dict(now=now,graduation_at=row['graduation']['at'],lineage_proven=True,native_quote=True,
             evidence_acquired_monotonic=state['acquired'],
             price_points=[dict(at=p['at'],price_index=int(p['price'])) for p in points],
             flow_30m=window(now-1800,now+1),flow_previous_30m=window(now-3600,now-1800),
-            capital_quote=sizing['realized_equity'],continuity_complete=self.candidate_readiness(row['id'],
-                through_block=state['block'],through_hash=state['block_hash'])['ready'],
+            capital_quote=sizing['realized_equity'],continuity_complete=readiness['ready'],
+            history_coverage=dict(from_at=row['graduation']['at'],through_at=current_row['through'],
+                complete=readiness['ready'],source='native_contiguous_graduation_checkpoint'),
             execution={},
             organic_flow=flow)
+        initial_sqrt=row['graduation']['transition'].get('initialization_sqrt_price_x96')
+        if initial_sqrt is not None:
+            self.facts['graduation_price_index']=price_index(initial_sqrt,row['id'],PoolKey(**row['graduation']['key']))
+        # The native open position establishes this scope. An unfunded or
+        # cancelled attempt receives initial-entry timing and fresh re-entry.
+        position_identity=row.get('position')
+        if position_identity is not None:
+            try:held=self.book._load(position_identity)
+            except ValueError:held=None
+            if held is not None and held['status']=='open':
+                self.facts['qualification_scope']='existing_position_add'
         preview=evaluate_entry(self.facts)
         missing_execution={'missing_roundtrip_loss_bps','missing_double_size_roundtrip_loss_bps'}
         market_ready=(self.facts['continuity_complete'] and

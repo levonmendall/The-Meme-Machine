@@ -1,7 +1,7 @@
-"""Frozen Robinhood-native Pons selective continuation research policy.
+"""Robinhood-native Pons Current PAPER continuation policy.
 
-This policy is intentionally separate from continuation-v1-robinhood.  It studies
-late-curve acceleration, independent demand, an optional point-in-time skilled-wallet
+This policy is intentionally separate from continuation-v1-robinhood. It requires
+late-curve progress and independent demand, an optional point-in-time skilled-wallet
 overlay, an authenticated Pons V2 -> Uniswap V4 continuation gate, asymmetric exits,
 and a separate post-graduation breakout research signal.
 
@@ -13,9 +13,10 @@ from collections import defaultdict
 
 from . import BoundaryError
 from .evidence import digest
+from meme_machine.paper_policy_revision import ACTIVE_REVISION
 
 POLICY = "pons-selective-continuation-v1"
-POLICY_REVISION = "profitability-v1-profit-protection-v2-execution-capacity-v1-moderate-admission-v1-operational-nine-v1"
+POLICY_REVISION = ACTIVE_REVISION
 from meme_machine.runtime.execution_capacity import resize, buyer_persistence
 ZERO = "0x0000000000000000000000000000000000000000"
 
@@ -27,8 +28,8 @@ ENTRY_THRESHOLDS = dict(
     min_graduation_eta_seconds=15,
     max_graduation_eta_seconds=120,
     min_progress_15s_bps=200,
-    require_curve_acceleration=True,
-    require_flow_acceleration=True,
+    require_curve_acceleration=False,
+    require_flow_acceleration=False,
     min_independent_groups=3,
     min_new_independent_groups_15s=1,
     min_buy_sell_ratio_bps=11_000,
@@ -65,6 +66,8 @@ EXIT_POLICY = dict(
     tail_gain_giveback_bps=4000,
     no_new_high_seconds=120,
     soft_deterioration_confirmations=2,
+    positive_demand_slowing_exit_authority=False,
+    stale_high_breadth_exit_authority=False,
     entry_delay_seconds=2,
     monitor_seconds=5,
     max_pregraduation_thesis_seconds=180,
@@ -545,8 +548,10 @@ def qualification_vector(
         and friction is not None
         and size["amount_quote"] > 0
     )
+    confirmation_context=acceleration_context(traj,demand)
     return dict(
         policy=POLICY,
+        policy_revision=POLICY_REVISION,
         policy_hash=POLICY_HASH,
         authority="frozen_policy_paper",
         qualification_authority=True,
@@ -563,8 +568,11 @@ def qualification_vector(
         token_age_seconds=token_age,
         trajectory=traj,
         demand=demand,
-        confirmation_context=dict(repeat_independent_groups=demand['repeat_independent_groups'],
+        confirmation_context=dict(confirmation_context,
+            repeat_independent_groups=demand['repeat_independent_groups'],
             repeat_buyer_share_bps=demand['repeat_buyer_share_bps'],persistent_buyer_groups=demand['persistent_buyer_groups']),
+        newly_admitted_by_revision=bool(complete and not rejections and
+            confirmation_context['previous_policy_would_reject']),
         ranking_context=dict(qualified=bool(complete and not rejections),
             repeat_buyer_tiebreak=[demand['repeat_independent_groups'],demand['repeat_buyer_share_bps']],
             execution_stress_alpha_weight=0),
@@ -581,6 +589,22 @@ def qualification_vector(
         qualification=("qualified" if complete and not rejections else
                        (rejections[0] if rejections else "incomplete")),
     )
+
+
+def acceleration_context(trajectory,demand):
+    """Measured removed predicates, without changing mandatory rejection lists."""
+    warnings=[]
+    if trajectory.get('complete') and trajectory.get('accelerating') is False:
+        warnings.append('curve_deceleration')
+    if demand.get('net_flow_accelerating') is False:
+        warnings.append('flow_deceleration')
+    return dict(curve_accelerating=trajectory.get('accelerating'),
+        net_flow_accelerating=demand.get('net_flow_accelerating'),
+        nonblocking_reasons=warnings,previous_policy_would_reject=warnings,
+        unavailable_fields=[name for name,value in (
+            ('curve_accelerating',trajectory.get('accelerating')),
+            ('net_flow_accelerating',demand.get('net_flow_accelerating'))) if value is None],
+        authority='confirmation_only')
 
 
 def entry_signal_persistence(original_vector, trajectory, demand):
@@ -633,8 +657,10 @@ def entry_signal_persistence(original_vector, trajectory, demand):
         reasons.append("fill_buyer_breadth_decay")
 
     return dict(
+        policy_revision=POLICY_REVISION,
         persistent=not reasons,
         reasons=tuple(dict.fromkeys(reasons)),
+        confirmation_context=acceleration_context(trajectory,demand),
         breadth_retention_bps=int(breadth_retention),
         original_independent_groups=int(original_demand.get("independent_groups",0)),
         fill_independent_groups=int(demand.get("independent_groups",0)),
@@ -642,11 +668,11 @@ def entry_signal_persistence(original_vector, trajectory, demand):
             ((original_vector or {}).get("trajectory") or {}).get("progress_15s_bps",0)
         ),
         fill_progress_15s_bps=int(trajectory.get("progress_15s_bps",0) or 0),
-        fill_accelerating=bool(trajectory.get("accelerating")),
+        fill_accelerating=trajectory.get("accelerating"),
         original_current_net_quote=int(original_demand.get("current_net_quote",0)),
         fill_current_net_quote=int(demand.get("current_net_quote",0)),
-        fill_prior_net_quote=int(demand.get("prior_net_quote",0)),
-        fill_flow_accelerating=bool(demand.get("net_flow_accelerating")),
+        fill_prior_net_quote=demand.get('prior_net_quote'),
+        fill_flow_accelerating=demand.get("net_flow_accelerating"),
     )
 
 
@@ -707,6 +733,9 @@ def pregraduation_action(
         if (
             current > 0
             and pregraduation_soft_deterioration(trajectory,demand)
+            and (int(demand['current_net_quote']) <= 0 or
+                trajectory.get('recent_progress_bps') is not None and
+                int(trajectory['recent_progress_bps']) <= 0)
             and int(soft_deterioration_streak)
                 >= EXIT_POLICY["soft_deterioration_confirmations"]
         ):
@@ -714,6 +743,9 @@ def pregraduation_action(
                 action="full_exit",
                 reason="persistent_pregraduation_deterioration",
                 exit_tokens=tokens,
+                exit_evidence=dict(nonpositive_net_demand=int(demand['current_net_quote'])<=0,
+                    nonprogressing_curve=trajectory.get('recent_progress_bps') is not None and
+                        int(trajectory['recent_progress_bps'])<=0),
             )
         # Once profit has been harvested, a stale graduation ETA or one soft
         # momentum observation is management telemetry, not a binary liquidation.
@@ -725,6 +757,13 @@ def pregraduation_action(
                 else None
             ),
             exit_tokens=0,
+            policy_revision=POLICY_REVISION,
+            management_context=dict(authority='nonblocking',
+                previous_policy_would_exit=bool(current>0 and
+                    pregraduation_soft_deterioration(trajectory,demand) and
+                    int(soft_deterioration_streak)>=EXIT_POLICY['soft_deterioration_confirmations']),
+                previous_exit_reason='persistent_pregraduation_deterioration',
+                current_net_quote=demand.get('current_net_quote')),
         )
 
     if trajectory.get("complete") and int(trajectory.get("recent_progress_bps",0)) <= 0:
@@ -848,19 +887,17 @@ def runner_action(
             seconds_since_high=seconds_since_high,
             new_buyer_growth=new_buyer_growth,
         )
-        if (
-            soft
-            and int(soft_deterioration_streak)
-                >= EXIT_POLICY["soft_deterioration_confirmations"]
-        ):
-            return dict(
-                action="full_exit",reason="persistent_runner_deterioration",
-                exit_tokens=tokens,
-            )
         if soft:
             return dict(
                 action="hold",reason="runner_management_stale_high",
                 exit_tokens=0,
+                policy_revision=POLICY_REVISION,
+                management_context=dict(authority='nonblocking',
+                    previous_predicate_evidence_complete=True,
+                    previous_policy_would_exit=int(soft_deterioration_streak)>=EXIT_POLICY['soft_deterioration_confirmations'],
+                    previous_exit_reason='persistent_runner_deterioration',
+                    seconds_since_high=int(seconds_since_high),
+                    lifetime_new_buyer_growth=int(new_buyer_growth)),
             )
     return dict(action="hold",reason=None,exit_tokens=0)
 
@@ -910,6 +947,12 @@ def _ongoing_pregraduation_quality(original_vector, trajectory, demand):
     else:
         if int(trajectory.get("progress_15s_bps",0)) < ENTRY_THRESHOLDS["min_progress_15s_bps"]:
             reasons.append("fill_curve_velocity")
+        # Removing acceleration must not permit a currently stopped/reversing
+        # curve to scale. Initial ETA already protects entry; this ongoing path
+        # intentionally omits that encounter-time gate and keeps core progress.
+        recent=trajectory.get('recent_progress_bps')
+        if recent is not None and int(recent)<=0:
+            reasons.append('fill_curve_nonprogressing')
         if (
             ENTRY_THRESHOLDS["require_curve_acceleration"]
             and not bool(trajectory.get("accelerating"))
@@ -945,8 +988,10 @@ def _ongoing_pregraduation_quality(original_vector, trajectory, demand):
         reasons.append("fill_buyer_breadth_decay")
 
     return dict(
+        policy_revision=POLICY_REVISION,
         persistent=not reasons,
         reasons=tuple(dict.fromkeys(reasons)),
+        confirmation_context=acceleration_context(trajectory,demand),
         breadth_retention_bps=int(breadth_retention),
         original_independent_groups=int(original_demand.get("independent_groups",0)),
         fill_independent_groups=int(demand.get("independent_groups",0)),
@@ -954,11 +999,11 @@ def _ongoing_pregraduation_quality(original_vector, trajectory, demand):
             ((original_vector or {}).get("trajectory") or {}).get("progress_15s_bps",0)
         ),
         fill_progress_15s_bps=int(trajectory.get("progress_15s_bps",0) or 0),
-        fill_accelerating=bool(trajectory.get("accelerating")),
+        fill_accelerating=trajectory.get("accelerating"),
         original_current_net_quote=int(original_demand.get("current_net_quote",0)),
         fill_current_net_quote=int(demand.get("current_net_quote",0)),
-        fill_prior_net_quote=int(demand.get("prior_net_quote",0)),
-        fill_flow_accelerating=bool(demand.get("net_flow_accelerating")),
+        fill_prior_net_quote=demand.get('prior_net_quote'),
+        fill_flow_accelerating=demand.get("net_flow_accelerating"),
     )
 
 
@@ -1033,6 +1078,8 @@ def ongoing_scale_requalification(*, position, controller, evidence, now):
         reject('scale_top3_buyer_concentration')
     if not evidence.get('creator_safe'):reject('scale_creator_distribution')
     return dict(authority=PONS_ONGOING_SCALE_REQUALIFICATION,
+        policy_revision=POLICY_REVISION,policy_hash=POLICY_HASH,
+        confirmation_context=acceleration_context(evidence.get('trajectory') or {},demand),
         qualification_authority=False,initial_entry_authority=False,
         scale_qualified=not reasons,all_rejections=list(dict.fromkeys(reasons)),
         window_seconds=900,asof=int(now),block_hash=evidence.get('block_hash'))

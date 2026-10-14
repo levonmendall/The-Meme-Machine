@@ -23,6 +23,7 @@ from .pons_natural_observation import (
 from .provider_topology import configured_rpc
 from .provider_admission import foreground_work, decision_work
 from .pons_selective_continuation import (
+    POLICY, POLICY_HASH, POLICY_REVISION,
     ENTRY_THRESHOLDS, curve_progress_bps, normalized_trade, qualification_vector,
     trajectory_metrics,
 )
@@ -1062,6 +1063,10 @@ def strategy_trajectory_preflight(candidate,snapshots,launch_at):
     return dict(
         eligible=not reasons,reasons=reasons,token_age_seconds=token_age,
         trajectory=trajectory,screen_authority="strategy_trajectory_admission_only",
+        confirmation_context=dict(curve_accelerating=trajectory.get('accelerating'),
+            authority='confirmation_only',previous_policy_would_reject=(
+                ['curve_deceleration'] if trajectory.get('complete') and
+                trajectory.get('accelerating') is False else [])),
         full_qualification_required=True,
         full_evidence_required_for_decision=not reasons,
     )
@@ -1211,6 +1216,7 @@ def evaluate_candidate(
             ),
         )
         vector=dict(
+            policy=POLICY,policy_hash=POLICY_HASH,policy_revision=POLICY_REVISION,
             complete=False,
             current_threshold_pass=False,
             qualification="strategy_prospect_screen",
@@ -1287,12 +1293,16 @@ def evaluate_candidate(
             ),
         )
         vector=dict(
+            policy=POLICY,policy_hash=POLICY_HASH,policy_revision=POLICY_REVISION,
             complete=False,current_threshold_pass=False,
             qualification="strategy_trajectory_screen",
             all_rejections=list(trajectory_prospect["reasons"]),
             progress_bps=int(prospect["progress_bps"]),
             token_age_seconds=int(trajectory_prospect["token_age_seconds"]),
             trajectory=trajectory_prospect["trajectory"],
+            confirmation_context=trajectory_prospect.get('confirmation_context',
+                dict(authority='confirmation_only',previous_policy_would_reject=[],
+                    unavailable_fields=['curve_accelerating','net_flow_accelerating'])),
             asof=int(candidate["stamp"].event_at),
             demand={"recent_buy_groups":[]},thresholds=dict(ENTRY_THRESHOLDS),
             prospect_screen_only=False,trajectory_screen_only=True,

@@ -54,6 +54,16 @@ class Configuration(unittest.TestCase):
         self.assertNotIn('private-key',json.dumps(new))
         self.assertNotIn('private-admin-token',json.dumps(new))
         self.assertNotEqual(old['configuration_files'],new['configuration_files'])
+        self.assertEqual(new['paper_policy']['policy_revision'],'paper-opportunity-access-v1')
+        self.assertFalse(new['paper_policy']['portfolio_epoch_changed'])
+        self.assertFalse(new['paper_policy']['financial_policy_changed'])
+        self.assertEqual(set(new['paper_policy']['regime_policy_hashes']),
+            {'pump_current','pump_survivor','pons_current','pons_survivor'})
+
+    def test_unsupported_policy_selection_cannot_masquerade_as_the_active_revision(self):
+        source,config,units=self.fixture()
+        with self.assertRaisesRegex(ValueError,'unsupported_paper_policy_revision'):
+            self.inspect(source,config,units,{'MM_PAPER_POLICY_REVISION':'research-only-policy'})
 
     def test_new_epoch_capture_cannot_fall_back_to_old_guard_or_missing_environment(self):
         source,config,units=self.fixture()

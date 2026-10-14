@@ -29,7 +29,7 @@ from .pons_selective_acquisition import (
     evaluate_candidate, public_evaluation,
 )
 from .pons_selective_continuation import (
-    POLICY, POLICY_HASH, REENTRY_POLICY, ENTRY_THRESHOLDS, reentry_regime_reset, wallet_convergence,
+    POLICY, POLICY_HASH, POLICY_REVISION, REENTRY_POLICY, ENTRY_THRESHOLDS, reentry_regime_reset, wallet_convergence,
 )
 from .pons_selective_paper import (
     STRATEGY_CAPITAL_QUOTE, STRATEGY_NAMESPACE, run_lifecycle,
@@ -795,6 +795,7 @@ def run(endpoint,*,campaign=False):
     result=dict(
         kind="pons-selective-continuation-v1-independent-cohort",
         namespace=STRATEGY_NAMESPACE,policy=POLICY,policy_hash=POLICY_HASH,
+        policy_revision=POLICY_REVISION,
         independent_strategy=True,shared_allocator=False,live_money=False,
         cohort_target=COHORT_TARGET,max_enrolled=MAX_ENROLLED,continuous_campaign=campaign,
         cohort_accounting=initial_accounting,
@@ -808,10 +809,13 @@ def run(endpoint,*,campaign=False):
             "distinct Pons V2 buys receive minimal current-state authentication; "
             "trajectory evaluation is admitted only when current ungraduated native-quote "
             "state satisfies profitability-v1 progress, snipe-tax and creator-tax; receipt-window "
-            "reconstruction is admitted only after token-age, velocity, acceleration and ETA "
+            "reconstruction is admitted only after token-age, velocity and ETA "
             "trajectory gates pass; friction and demand remain full qualification evidence; "
+            "curve and flow acceleration are nonblocking confirmation context; "
             "paper entry additionally requires a terminal/flat prior same-curve "
-            "lifecycle plus a point-in-time regime reset; at most one screen per "
+            "attempt with acknowledged releases; a prior genuinely filled trade retains "
+            "its point-in-time regime reset reference; proven zero-fill cancellation "
+            "alone adds no post-trade reset; at most one screen per "
             "curve generation; repeated observations coalesce; no outcome reranking"
         ),
         reentry_policy=dict(REENTRY_POLICY),
@@ -823,11 +827,15 @@ def run(endpoint,*,campaign=False):
     )
 
     from .pons_selective_recovery import submit_existing_lifecycles
+    selected_rule=result['selection_rule']
     if recovered:
         result=recovered
         from meme_machine.runtime.robinhood.pons import restore_position_needs
         restore_position_needs(plane_path(ROOT/'candidate-evidence.sqlite'),ROOT/'pons-selective-cohort-capital.sqlite')
         result['cohort_accounting']=_cohort_accounting()
+    if result.get('selection_rule') is not None and result['selection_rule']!=selected_rule:
+        result.setdefault('previous_selection_rule',result['selection_rule'])
+    result.update(selection_rule=selected_rule,policy_revision=POLICY_REVISION)
     result['candidate_plane_path']=str(plane_path(ROOT/'candidate-evidence.sqlite'))
     result['native_archive_paths']=dict(rows=str(ROWS_LOG),qualifiers=str(QUALIFIERS_LOG),
         lifecycles=str(ROOT/'completed-lifecycles.jsonl'),discovery_sessions=str(PROVIDER_LOG),

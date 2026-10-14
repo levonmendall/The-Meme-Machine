@@ -370,12 +370,12 @@ class CurrentConfirmationEvidenceTests(unittest.TestCase):
         for phase in ('pregrad','runner'):
             with self.subTest(phase=phase),tempfile.TemporaryDirectory() as td:
                 path,evaluation=self.native_runner(td,phase)
-                now=[200];frontier=[200];health=[False];missing=[None]
+                now=[200];frontier=[200];health=[False];missing=[None];proceeds=[81]
                 rpc=MagicMock();rpc.used=0;rpc.telemetry.return_value={}
                 def quote(*args,**kwargs):
                     with StoreForTest(path) as store:
                         market=json.loads(store.db.execute('SELECT body FROM pons_selective_paper').fetchone()[0])['market']
-                    q=f.quote(now[0],'sell',750,81)
+                    q=f.quote(now[0],'sell',750,proceeds[0])
                     q=replace(q,market=market,stamp=replace(q.stamp,block=frontier[0],
                         block_hash='h'+str(frontier[0]),event_at=frontier[0]))
                     return q,dict(block=frontier[0],block_hash=q.stamp.block_hash,event_at=frontier[0])
@@ -391,6 +391,7 @@ class CurrentConfirmationEvidenceTests(unittest.TestCase):
                         buy_quote=20,sell_quote=0,largest_buyer_flow_bps=100)
                     if missing[0]=='key':tape.pop('buy_quote')
                     if missing[0]=='none':tape['buy_quote']=None
+                    if missing[0]=='buyers':tape['buyer_groups']=None
                     return tape
                 def v4_quote(*args,**kwargs):
                     q,meta=quote(*args,**kwargs)
@@ -431,7 +432,7 @@ class CurrentConfirmationEvidenceTests(unittest.TestCase):
                         self.assertEqual(next(steps)['kind'],'monitor_wait')
                         self.assertEqual(getattr(checkpoint()[1],phase+'_soft_deterioration_streak'),1)
                         now[0]=frontier[0]=203
-                        for value in ('key','none'):
+                        for value in (('key','none','buyers') if phase=='runner' else ('key','none')):
                             missing[0]=value
                             self.assertEqual(next(steps)['kind'],'monitor_wait')
                             self.assertEqual(getattr(checkpoint()[1],phase+'_soft_deterioration_streak'),1)
@@ -442,6 +443,14 @@ class CurrentConfirmationEvidenceTests(unittest.TestCase):
                             self.assertEqual(report['new_buyer_growth_semantics'],'buyers_never_previously_seen_during_position')
                             self.assertEqual(report['rolling_active_buyer_groups'],1)
                             self.assertEqual(report['rolling_active_breadth_window_seconds'],15)
+                            missing_breadth=done.exception.value['monitor'][-1]
+                            self.assertEqual(missing_breadth['action']['action'],'hold')
+                            self.assertIsNone(missing_breadth['activity']['lifetime_new_buyer_growth'])
+                            context=missing_breadth['action']['management_context']
+                            self.assertIsNone(context['lifetime_new_buyer_growth'])
+                            self.assertIsNone(context['previous_policy_would_exit'])
+                            self.assertFalse(context['previous_predicate_evidence_complete'])
+                            self.assertEqual(context['unavailable_fields'],['lifetime_new_buyer_growth'])
                     finally:steps.close()
                     # A restart and an old frontier preserve the consumed identity.
                     missing[0]=None;frontier[0]=202;steps=start()
@@ -449,15 +458,55 @@ class CurrentConfirmationEvidenceTests(unittest.TestCase):
                         self.assertEqual(next(steps)['kind'],'monitor_wait')
                         self.assertEqual(getattr(checkpoint()[1],phase+'_soft_deterioration_streak'),1)
                         frontier[0]=203
+                        self.assertEqual(next(steps)['kind'],'monitor_wait')
+                        held,state=checkpoint()
+                        self.assertEqual(getattr(state,phase+'_soft_deterioration_streak'),2)
+                        self.assertEqual(held['status'],'open')
+                        self.assertFalse(held.get('pending_exit_tokens'))
+                        # Demoted confirmations survive restart as diagnostics.
+                        # A retained risk stop still commits its original exit.
+                        now[0]=frontier[0]=204;proceeds[0]=60
                         self.assertEqual(next(steps)['kind'],'exit_wait')
                         before,state=checkpoint()
-                        self.assertEqual(getattr(state,phase+'_soft_deterioration_streak'),2)
+                        self.assertGreaterEqual(getattr(state,phase+'_soft_deterioration_streak'),2)
                         self.assertEqual(before['status'],'exit_pending')
                         self.assertEqual(before['pending_exit_tokens'],750)
-                        self.assertEqual(before['due'],205)
+                        self.assertEqual(before['due'],206)
                         with self.assertRaises(StopIteration):steps.send('handoff')
                         self.assertEqual(checkpoint()[0],before)
                     finally:steps.close()
+
+    def test_soft_streak_cannot_recreate_bridge_or_add_demand_veto(self):
+        from types import SimpleNamespace
+        mark=SimpleNamespace(stamp=SimpleNamespace(observed_at=200),amount_out=100,gas_quote=1)
+        candidate=dict(auth={'verified':True},record={'deployer':'creator'})
+        common=dict(position=dict(status='open'),mark=mark,meta=dict(block_hash='h'),
+            candidate=candidate,rbps=2000,soft_streak=2,action={'action':'hold'})
+        with patch.object(runtime.time,'time',return_value=200):
+            safe=runtime._continuation_facts(**common,demand=dict(current_buy_quote=20,
+                current_sell_quote=10,largest_buyer_flow_bps=2000,top3_buyer_flow_bps=6000))
+            unsafe=runtime._continuation_facts(**common,demand=dict(current_buy_quote=10,
+                current_sell_quote=12,largest_buyer_flow_bps=2000,top3_buyer_flow_bps=6000))
+        self.assertTrue(safe['no_persistent_confirmed_demand_failure'])
+        self.assertFalse(unsafe['no_persistent_confirmed_demand_failure'])
+
+    def test_native_bridge_wrapper_retains_both_soft_only_holds(self):
+        from types import SimpleNamespace
+        from meme_machine.lanes.pons.pons_selective_continuation import pregraduation_action,runner_action
+        common=dict(tokens=750,partial_taken=True,after_cost_return_bps=9000,
+            high_water_return_bps=10000,soft_deterioration_streak=2)
+        actions=[pregraduation_action(**common,elapsed_seconds=2000,frozen_eta_seconds=60,
+            trajectory=dict(complete=True,accelerating=False,recent_progress_bps=50),
+            demand=dict(current_net_quote=8,prior_net_quote=9,current_buy_quote=10,current_sell_quote=2)),
+            runner_action(**common,seconds_since_high=200,new_buyer_growth=0,buy_quote=10,sell_quote=2)]
+        for action in actions:
+            state=SimpleNamespace(opened_at=1,partial_taken=True,high_water=10000,
+                bridged=True,bridged_at=900,bridge_deadline=129601)
+            before=vars(state).copy()
+            result=runtime._bridge_action(state,{},action,dict(status='open',tokens=750),now=2000)
+            self.assertEqual(result['action'],'hold')
+            self.assertTrue(result['management_context']['previous_policy_would_exit'])
+            self.assertEqual({k:getattr(state,k) for k in before},before)
 
     def test_gap_fork_and_missing_evidence_never_stitch_confirmations(self):
         from meme_machine.lanes.pons.pons_selective_recovery import LifecycleState

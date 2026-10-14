@@ -8,13 +8,16 @@ from meme_machine.lanes.pump import pump_acceleration_strategy as strategy
 from meme_machine.lanes.pump.provider import Unavailable
 
 class CurrentPumpCapacity(unittest.TestCase):
- def test_entry_alpha_functions_unchanged_from_preserved_source(self):
+ def test_retained_economic_functions_unchanged_from_preserved_source(self):
   old=subprocess.check_output(['git','show','3c9553afb3caa92ab5f3db769f870df033a9630f:meme_machine/pump_acceleration_strategy.py']).decode()
   before=ast.parse(old);after=ast.parse(Path(strategy.__file__).read_text())
   functions=lambda tree:{n.name:ast.dump(n,include_attributes=False) for n in tree.body if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))}
   original=functions(before);current=functions(after)
-  # Approved rule 3 changes Current exits; entry and quote primitives stay exact.
-  original.pop('exit_decision');current.pop('exit_decision')
+  # Exact owner-authorized changes: Current exit rule 3, C2 repeat diagnostics,
+  # and Section 8G's separation of entry age from ongoing qualification.
+  # Every remaining score, quote, trajectory and protective helper stays pinned.
+  for name in ('exit_decision','qualify','entry_signal_persistence','_late_score'):
+   original.pop(name);current.pop(name)
   self.assertEqual(original,current)
  def test_authentic_captured_curve_capacity(self):
   fixture=json.loads((Path(__file__).parent/'fixtures/mainnet_candidate_accounts.json').read_text())

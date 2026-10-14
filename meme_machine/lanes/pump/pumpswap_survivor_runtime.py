@@ -207,7 +207,9 @@ class Runtime:
         row=self.current;at=state['market_time'];self._increment(row,at,state['slot'])
         price=Fraction(state['state']['quote_reserve'],state['state']['base_reserve'])
         self.history.append(row['id'],through=at,events=[],points=[(at,str(price))],complete=True)
-        if maintenance:
+        row=self.history.get(row['id'])
+        recomputation_blocker=row.get('policy_recomputation_blocker')
+        if maintenance or recomputation_blocker:
             points,events=self.history.facts(row['id'],at);reset_prefix=self.history.prefix(row['id'])
         else:
             from .pumpswap_survivor import reduce_reset_history
@@ -250,9 +252,23 @@ class Runtime:
             mayhem=dict(status='unknown' if mayhem else 'never',agent_identity_proven=mayhem,
                         agent_groups=sorted(agents)),price_points=points,base_end=base_end,
             reset_history_prefix=reset_prefix,qualification_evidence_complete=not maintenance,
+            reset_history_revision_detail_unavailable=recomputation_blocker,
+            qualification_purpose=self._qualification_purpose(row),
             recovery_vwap=vwap,demand_events=organic,holder_concentration_bps=concentration)
         if vq.enabled() and not maintenance:facts['volume_quality']=row.get('volume_quality')
         self.facts=facts;return facts
+
+    def _qualification_purpose(self,row):
+        """Only an actually filled, still open position gets ongoing rules.
+
+        A controller row persisted before reservation/fill retains every initial
+        entry-age check. Restart never turns pending entry into an addition.
+        """
+        if row.get('position'):
+            try:
+                if self.book._load(row['position'])['status']=='open':return 'ongoing'
+            except ValueError:pass
+        return 'entry'
 
     def turnover_cap(self,facts,decision):return decision['features']['turnover_cap']
     def generation_fence(self,candidate,generation):return nullcontext() # sleeve is the Pump generation authority

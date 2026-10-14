@@ -68,7 +68,7 @@ class ForwardSurvivorTests(unittest.TestCase):
         return token,dict(block=self.tape.top,block_hash=self.tape.header(self.tape.top)['hash'],
                           at=now,price_index=anchor*13500//10000,acquired=time.monotonic())
 
-    def run_winner(self,token,state,*,discovery_failure=False):
+    def run_winner(self,token,state,*,discovery_failure=False,funded=False):
         def fresh(candidate):
             self.assertEqual(candidate,token);self.runtime.current=self.runtime.history.get(candidate)
             return dict(state,acquired=time.monotonic())
@@ -76,7 +76,11 @@ class ForwardSurvivorTests(unittest.TestCase):
             stack.enter_context(patch('meme_machine.runtime.storage.compact_survivor'))
             stack.enter_context(patch('meme_machine.lanes.pons.pons_survivor_runtime.collect_v4_activities',side_effect=self.activities))
             stack.enter_context(patch.object(self.runtime,'fresh_state',side_effect=fresh))
-            stack.enter_context(patch.object(self.runtime,'fresh_quotes',return_value=SimpleNamespace(loss=lambda n:100)))
+            quotes=SimpleNamespace(loss=lambda n:100)
+            if funded:
+                quotes.entry=lambda n:dict(cost=n,quantity=n,block=state['block'],block_hash=state['block_hash'],
+                    acquired=time.monotonic(),gas=0)
+            stack.enter_context(patch.object(self.runtime,'fresh_quotes',return_value=quotes))
             if discovery_failure:
                 stack.enter_context(patch.object(self.runtime,'discover',side_effect=BoundaryError('provider_transport_failure')))
             return self.runtime.step(admit=True)
@@ -120,6 +124,25 @@ class ForwardSurvivorTests(unittest.TestCase):
         self.assertEqual(self.runtime.sleeve.reconcile()['available'],0)
         phases=[r['phase'] for r in self.runtime.attempts.rows(token)]
         self.assertLess(phases.index('qualification'),phases.index('funding'))
+
+    def test_four_hour_sustained_demand_reaches_native_funded_fill_and_book_restart(self):
+        token,state=self.seed_complete_winner()
+        prior=[dict(id='prior-extra:'+str(group),at=state['at']-2000+group,group='buyer:'+str(group),
+            buy=True,quote=10**18,tokens=100,authenticated=True) for group in range(3)]
+        self.runtime.history.append(token,through=state['at'],events=prior,points=[],complete=True)
+        result=self.run_winner(token,state,funded=True)
+        row=self.runtime.history.get(token)
+        self.assertTrue(row['decision']['candidate'],result)
+        self.assertIn('no_demand_acceleration',row['decision']['confirmation_context']['previous_policy_would_reject'])
+        native=self.runtime.book._load(row['position'])
+        self.assertEqual(native['status'],'open')
+        self.assertGreater(native['basis'],0)
+        self.assertTrue(self.runtime.book.replay()['verified'])
+        from meme_machine.runtime.survivor_paper_book import PaperBook
+        self.runtime.book.close()
+        self.runtime.book=PaperBook(str(self.runtime.root/'paper.sqlite'),run_id=self.runtime.run_id,
+            lane=row['decision']['strategy'],policy_hash=row['decision']['policy_hash'],initial=10**18)
+        self.assertEqual(self.runtime.book._load(row['position']),native)
 
     def test_incomplete_individual_continuity_cannot_qualify(self):
         token,state=self.seed_complete_winner()
@@ -309,11 +332,11 @@ class ForwardSurvivorTests(unittest.TestCase):
             from tests.test_robinhood_usd_valuation import assert_holding_delta
             assert_holding_delta(self,path,original,Path(path).read_bytes())
 
-    def test_pump_uses_its_own_four_hour_age_and_six_hour_price_requirement(self):
+    def test_pump_uses_complete_maturity_bounded_long_structure(self):
         from tests.lanes.pump.test_pumpswap_survivor import facts
         from meme_machine.lanes.pump.pumpswap_survivor import evaluate_entry as pump_entry, POLICY as pump_policy
         self.assertEqual(pump_policy['minimum_age_seconds'],14400)
-        for age,passes in ((14400,False),(21600,True)):
+        for age,passes in ((14400,True),(21600,True)):
             f=facts();offset=f['now']-age
             f['now']=age;f['base_end']-=offset
             f['price_points']=[dict(at=0,price='100')]+[
@@ -322,7 +345,8 @@ class ForwardSurvivorTests(unittest.TestCase):
             decision=pump_entry(f)
             self.assertNotIn('age',decision['all_rejections'])
             self.assertEqual(decision['candidate'],passes,decision)
-            if not passes:self.assertIn('six_hour_structure',decision['all_rejections'])
+            self.assertEqual(decision['features']['long_structure_window']['effective_seconds'],age)
+            self.assertTrue(decision['features']['long_structure_window']['complete'])
         f['continuity_complete']=False
         self.assertIn('authoritative_evidence',pump_entry(f)['all_rejections'])
 

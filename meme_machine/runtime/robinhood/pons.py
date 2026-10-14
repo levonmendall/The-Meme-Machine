@@ -68,7 +68,8 @@ class Broker:
 
         Adapter/configuration changes invalidate qualification, never token
         identity, original age or an existing native owner's exit obligations.
-        Economic policy and deployment identity changes remain fail-closed.
+        The one recognized PAPER revision invalidates qualification after an
+        acknowledged transition. Other economic/deployment changes fail closed.
         """
         row=self.plane._row(key)
         if row is not None and row['interpretation']==canonical(self.policy):return True
@@ -78,11 +79,20 @@ class Broker:
         if row is None and watch is None:return False
         old=json.loads(row['interpretation']) if row is not None else watch['interpretation']
         identity=('schema','chain','policy','factory','factory_runtime','deployer_source','curve_template')
-        if any(old.get(k)!=self.policy.get(k) for k in identity):return False
+        policy_changed=old.get('policy')!=self.policy.get('policy')
+        if policy_changed:
+            from meme_machine.paper_policy_revision import previous_hash
+            from meme_machine.runtime.policy_compatibility import active_hash
+            if old.get('policy')!=previous_hash('pons_current') or self.policy.get('policy')!=active_hash('pons_current'):
+                return False
+        if any(old.get(k)!=self.policy.get(k) for k in identity if k!='policy'):return False
         if ((row is not None and (row['claim'] is not None or row['state'] in ('entry_confirmation','entry_reserved')))
                 or self.plane.db.execute("SELECT 1 FROM runtime WHERE key LIKE 'native_position:pons:%' "
                     "AND json_extract(body,'$.candidate')=? AND json_extract(body,'$.position.status')<>'settled'",
                     (key,)).fetchone()):return False
+        if policy_changed:
+            from meme_machine.runtime.policy_compatibility import require_external_flat
+            require_external_flat()
         if watch is not None:
             if watch.get('interpretation')!=old:raise ValueError('pons_current_watch_interpretation_changed')
         # Existing journal retains the complete previous result and its source
@@ -670,13 +680,38 @@ def recover_cohort(path,policy):
     plane=Plane(path)
     try:
         saved=plane.checkpoint_read('pons_cohort')
-        if not saved or saved['result'].get('policy_hash')!=policy:
+        if not saved:
             raise BoundaryError('selective_existing_run_requires_explicit_recovery')
         rollover=saved['phase']=='finalizing'
         if alive(saved['owner']):raise BoundaryError('selective_cohort_owner_still_alive')
         result=saved['result']
         from meme_machine.runtime.pons_terminal_archive import controller_anchor
         controller_anchor(result)
+        stored_policy=result.get('policy_hash')
+        if stored_policy!=policy:
+            from meme_machine.paper_policy_revision import previous_hash,ACTIVE_REVISION
+            from meme_machine.runtime.policy_compatibility import active_hash,require_flat_rows,require_external_flat
+            if stored_policy!=previous_hash('pons_current') or policy!=active_hash('pons_current'):
+                raise BoundaryError('selective_existing_run_requires_explicit_recovery')
+            # No original lifecycle may adopt the new holding policy. The
+            # verified old cohort is terminal and all releases are acknowledged.
+            from contextlib import closing
+            from meme_machine.lanes.pons.pons_selective_capital import CohortCapital
+            capital=Path(path).parent/'pons-selective-cohort-capital.sqlite'
+            if not capital.is_file():raise BoundaryError('paper_policy_transition_cohort_evidence_unavailable')
+            with closing(sqlite3.connect(capital.resolve().as_uri()+'?mode=ro',uri=True)) as db:
+                db.execute('BEGIN')
+                genesis=json.loads(db.execute('SELECT body FROM capital_genesis WHERE id=1').fetchone()[0])
+                guard=CohortCapital.__new__(CohortCapital);guard.path=str(capital);guard.capital=genesis['capital']
+                from meme_machine.lanes.pons.pons_reentry import _shared_reader
+                guard._reconcile(db,readonly=True,readonly_authority=_shared_reader())
+                require_flat_rows([json.loads(raw) for raw, in db.execute('SELECT body FROM capital_positions')],kind='capital')
+            require_external_flat()
+            # All original vectors, times, lifecycle results and decision records
+            # keep their existing identities. Only subsequent decisions select v1.
+            result['previous_decision_policy_hash']=stored_policy
+            result['policy_hash']=policy
+            result['policy_revision']=ACTIVE_REVISION
         if rollover:
             result['started_at']=time.time()
             result.pop('ended_at',None);result.pop('summary',None)

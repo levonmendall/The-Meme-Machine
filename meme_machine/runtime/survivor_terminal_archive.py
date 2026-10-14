@@ -39,6 +39,8 @@ def _book_commit(book,plan):
         anchor=book._archive()
         if anchor.get('retirement_receipt')==plan['hash']:return
         before=book.reconcile();proof=book.replay()
+        from meme_machine.lanes.pump.pump_attempt_reference import retain_retirement_frontiers
+        if not retain_retirement_frontiers(book,anchor,plan):return False
         if book.db.execute('SELECT COUNT(*) FROM journal').fetchone()[0]:raise ValueError('retirement_new_native_events')
         totals=anchor.setdefault('folded',{})
         aggregate=totals.setdefault('metrics',{})

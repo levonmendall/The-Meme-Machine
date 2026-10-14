@@ -51,17 +51,80 @@ class SelectivePaper:
                 pons_selective_records_no_{operation.lower()} BEFORE {operation} ON records
                 WHEN OLD.category IN ('{GENESIS_CATEGORY}','{DECISION_CATEGORY}','{JOURNAL_CATEGORY}')
                 BEGIN SELECT RAISE(ABORT,'pons_selective_append_only'); END""")
-        self.store.put(
-            GENESIS_CATEGORY,self.experiment,
-            dict(
+        requested=dict(
                 capital=int(capital),delay=self.delay,
                 authority="pons_selective_continuation_only",
                 strategy_namespace=STRATEGY_NAMESPACE,
                 shared_allocator=False,
                 natural_policy_hash=self.natural_policy_hash,
                 position_table=TABLE,
-            ),
-        )
+            )
+        exists=self.store.db.execute('SELECT 1 FROM records WHERE category=? AND id=?',
+            (GENESIS_CATEGORY,self.experiment)).fetchone()
+        self.financial_policy_hash=self.natural_policy_hash
+        if exists:
+            stored=self.store.get(GENESIS_CATEGORY,self.experiment)
+            self.financial_policy_hash=stored['natural_policy_hash']
+            if stored!=requested:
+                from meme_machine.runtime.policy_compatibility import (compatible_identity,selection,
+                    require_flat_rows,require_external_flat,SELECTION_KEY)
+                if not compatible_identity(stored,requested,regime='pons_current',field='natural_policy_hash'):
+                    raise BoundaryError('selective_paper_genesis_policy_mismatch')
+                expected=selection(stored,requested)
+                category='pons_selective_policy_selection'
+                marker=self.store.db.execute('SELECT 1 FROM records WHERE category=? AND id=?',(category,SELECTION_KEY)).fetchone()
+                if marker:
+                    if self.store.get(category,SELECTION_KEY)!=expected:raise BoundaryError('paper_policy_selection_checkpoint_conflict')
+                else:
+                    self.store.db.execute('BEGIN IMMEDIATE')
+                    try:
+                        positions=self.positions()
+                        require_flat_rows(positions,kind='pons')
+                        # The native terminal alone does not establish that a
+                        # cohort's post-commit release was acknowledged.
+                        from pathlib import Path
+                        from contextlib import closing
+                        import sqlite3
+                        database=self.store.db.execute('PRAGMA database_list').fetchone()[2]
+                        capital_path=Path(database).parent/'pons-selective-cohort-capital.sqlite'
+                        if database and capital_path.is_file():
+                            from .pons_selective_capital import CohortCapital
+                            from .pons_reentry import _shared_reader
+                            with closing(sqlite3.connect(capital_path.resolve().as_uri()+'?mode=ro',uri=True)) as db:
+                                db.execute('BEGIN')
+                                genesis=json.loads(db.execute('SELECT body FROM capital_genesis WHERE id=1').fetchone()[0])
+                                guard=CohortCapital.__new__(CohortCapital);guard.path=str(capital_path);guard.capital=genesis['capital']
+                                guard._reconcile(db,readonly=True,readonly_authority=_shared_reader())
+                                # A crash before the native reserve can leave
+                                # only the cohort's original pending intent.
+                                owned=[json.loads(raw) for raw, in db.execute('SELECT body FROM capital_positions')
+                                    if Path(json.loads(raw)['trial_path']).resolve()==Path(database).resolve()]
+                                require_flat_rows(owned,kind='capital')
+                                for position in positions:
+                                    row=db.execute('SELECT body FROM capital_positions WHERE id=?',(position['id'],)).fetchone()
+                                    if row is None:
+                                        # Native files are removed after the exact
+                                        # financial retirement receipt commits.
+                                        # A crash in that interval retains the
+                                        # original acknowledged row in its prefix.
+                                        from meme_machine.runtime.pons_terminal_archive import anchor
+                                        pending=(anchor(db) or {}).get('retirement_pending') or {}
+                                        if pending.get('hash')!=digest({k:v for k,v in pending.items() if k!='hash'}):
+                                            raise BoundaryError('paper_policy_transition_cohort_ack_unavailable')
+                                        acknowledgement=(pending.get('retired') or {}).get(position['id'])
+                                        if acknowledgement is None:
+                                            raise BoundaryError('paper_policy_transition_cohort_ack_unavailable')
+                                    else:acknowledgement=json.loads(row[0])
+                                    require_flat_rows([acknowledgement],kind='capital')
+                                    if acknowledgement.get('native_settlement_hash')!=digest(position):
+                                        raise BoundaryError('paper_policy_transition_cohort_ack_conflict')
+                        require_external_flat()
+                        self.store.put(category,SELECTION_KEY,expected)
+                        self.store.db.execute('COMMIT')
+                    except BaseException:
+                        self.store.db.execute('ROLLBACK');raise
+        else:
+            self.store.put(GENESIS_CATEGORY,self.experiment,requested)
 
         from meme_machine.runtime.native_boundary import attach
         self.portfolio=attach(self,'pons')
@@ -245,6 +308,11 @@ class SelectivePaper:
         event=dict(strategy_namespace=STRATEGY_NAMESPACE,action=action,at=int(now),position=p,
             recorded_at_ns=recorded_at_ns,previous_hash=digest(previous) if previous else None,
             quote=asdict(quote) if quote is not None else None)
+        event['decision_policy_hash']=self.natural_policy_hash
+        event['financial_policy_hash']=self.financial_policy_hash
+        from meme_machine.paper_policy_revision import revision_for_hash
+        revision=revision_for_hash(self.natural_policy_hash)
+        if revision is not None:event['policy_revision']=revision
         if getattr(self,'portfolio',None):
             self.portfolio.record(p['id'],action,p,previous['position'] if previous else None,
                 at=int(now),checksum=digest(event),quote=event['quote'])

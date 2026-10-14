@@ -50,8 +50,26 @@ class PaperBook:
             BEGIN SELECT RAISE(ABORT,'immutable_genesis'); END;
         ''')
         self.db.execute('INSERT OR IGNORE INTO genesis VALUES(1,?)', (_json(self.identity),))
-        if json.loads(self.db.execute('SELECT body FROM genesis').fetchone()[0]) != self.identity:
-            raise ValueError('paper_book_namespace_or_genesis_mismatch')
+        requested=dict(self.identity)
+        stored=json.loads(self.db.execute('SELECT body FROM genesis').fetchone()[0])
+        self.decision_policy_hash=requested['policy_hash']
+        if stored!=requested:
+            from meme_machine.runtime.policy_compatibility import (regime_for,compatible_identity,
+                selection,runtime_selection,save_runtime_selection,require_flat_rows,require_external_flat)
+            if not compatible_identity(stored,requested,regime=regime_for(requested['lane'])):
+                raise ValueError('paper_book_namespace_or_genesis_mismatch')
+            self.identity=stored
+            expected=selection(stored,requested)
+            self.db.execute('BEGIN IMMEDIATE')
+            try:
+                self.replay()
+                if not runtime_selection(self.db,expected):
+                    require_flat_rows([json.loads(raw) for raw, in self.db.execute('SELECT body FROM positions')],kind='pump')
+                    require_external_flat()
+                    save_runtime_selection(self.db,expected)
+                self.db.execute('COMMIT')
+            except BaseException:
+                self.db.execute('ROLLBACK');self.db.close();raise
         self.replay()
         from meme_machine.runtime.native_boundary import attach
         self.portfolio=attach(self,'pump' if 'pump' in self.identity['lane'] else 'pons')
@@ -84,6 +102,11 @@ class PaperBook:
         position['last_at'] = at
         body = dict(identity=self.identity, action=action, at=at, position=position,
                     evidence=evidence, evidence_hash=_hash(evidence))
+        if hasattr(self,'decision_policy_hash'):
+            body['decision_policy_hash']=self.decision_policy_hash
+            from meme_machine.paper_policy_revision import revision_for_hash
+            revision=revision_for_hash(self.decision_policy_hash)
+            if revision is not None:body['policy_revision']=revision
         row = self.db.execute('SELECT seq,hash FROM journal ORDER BY seq DESC LIMIT 1').fetchone()
         seq, previous = (row[0] + 1, row[1]) if row else (1, '0' * 64)
         self.db.execute('INSERT INTO journal VALUES(?,?,?,?)',

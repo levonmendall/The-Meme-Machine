@@ -158,9 +158,14 @@ class LifecycleState(SimpleNamespace):
         base=paper.store.get(BASE,identity)
         if (not raw or not base or raw.get('schema')!=SCHEMA
                 or raw.get('identity')!=identity or base.get('identity')!=identity
-                or raw.get('policy_hash')!=POLICY_HASH or base.get('policy_hash')!=POLICY_HASH
+                or raw.get('policy_hash')!=base.get('policy_hash')
                 or raw.get('base_hash')!=digest(base)):
             raise BoundaryError('selective_controller_recovery_identity')
+        from meme_machine.runtime.policy_compatibility import known_hash
+        if not known_hash('pons_current',raw.get('policy_hash')):
+            raise BoundaryError('selective_controller_recovery_identity')
+        if raw['policy_hash']!=POLICY_HASH and position['status']!='settled':
+            raise BoundaryError('paper_policy_transition_unresolved_pons:'+identity)
         entries=[paper.store.get(JOURNAL_CATEGORY,key) for key, in paper.store.db.execute(
             'SELECT id FROM records WHERE category=?',(JOURNAL_CATEGORY,))]
         entries=[e for e in entries if e['position']['id']==identity and e['action']=='entry']
@@ -224,7 +229,8 @@ def resume_lifecycle(endpoint,*,db_path,capital_path=None,slice_seconds=None,exc
     store=Store(str(db_path),max_records=8192)
     try:
         genesis=store.get(GENESIS_CATEGORY,STRATEGY_NAMESPACE)
-        if not genesis or genesis['natural_policy_hash']!=POLICY_HASH:
+        from meme_machine.runtime.policy_compatibility import known_hash
+        if not genesis or not known_hash('pons_current',genesis['natural_policy_hash']):
             raise BoundaryError('selective_recovery_genesis')
         paper=SelectivePaper(store,STRATEGY_NAMESPACE,genesis['capital'],
             delay=EXIT_POLICY['entry_delay_seconds'],natural_policy_hash=POLICY_HASH)
@@ -320,7 +326,8 @@ def _pending_recoveries(root,qualifiers,lifecycles):
         if row['status']=='settled' and prior and prior.get('status') in ('settled','entry_failed'):
             continue
         qualifier=qualified.get(index)
-        if not qualifier or qualifier.get('vector',{}).get('policy_hash')!=POLICY_HASH:
+        from meme_machine.runtime.policy_compatibility import known_hash
+        if not qualifier or not known_hash('pons_current',qualifier.get('vector',{}).get('policy_hash')):
             raise BoundaryError('selective_recovery_qualifier_identity')
         pending.append((index,path,qualifier,prior))
     if len({q[2]["curve"] for q in pending})!=len(pending):

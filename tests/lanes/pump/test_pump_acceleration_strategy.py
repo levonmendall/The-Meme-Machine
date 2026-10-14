@@ -120,18 +120,21 @@ class PumpAccelerationStrategyTests(unittest.TestCase):
         self.assertFalse(collapse.qualified)
         self.assertIn("curve_deceleration",collapse.reasons)
 
-    def test_repeat_buyer_persistence_is_entry_authority(self):
+    def test_repeat_buying_is_confirmation_only_in_active_revision(self):
         weak=qualify(self.strong_late(
             repeat_buyer_clusters=1,repeat_buy_share_bps=500
         ))
-        self.assertFalse(weak.qualified)
-        self.assertIn("repeat_buyers",weak.reasons)
-        self.assertIn("repeat_buy_share",weak.reasons)
+        self.assertTrue(weak.qualified,weak.reasons)
+        self.assertNotIn("repeat_buyers",weak.reasons)
+        self.assertNotIn("repeat_buy_share",weak.reasons)
+        self.assertEqual(weak.demoted_conditions,("repeat_buyers","repeat_buy_share"))
 
         durable=qualify(self.strong_late(
             repeat_buyer_clusters=3,repeat_buy_share_bps=2500
         ))
         self.assertTrue(durable.qualified,durable.reasons)
+        self.assertIn('repeat_buyers',durable.confirmations)
+        self.assertIn('repeat_buy_share',durable.confirmations)
 
     def test_fill_time_persistence_rejects_decayed_thesis(self):
         decision=self.strong_late()

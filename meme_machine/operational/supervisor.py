@@ -93,6 +93,8 @@ def pons_capability_path(environ):
 def validate_environment(*,offline=False,environ=None,required_lanes=ACTIVE_LANES):
     env=os.environ if environ is None else environ
     if env.get('MM_MODE','PAPER')!='PAPER':raise ValueError('PAPER_only_service')
+    from meme_machine.paper_policy_revision import selected_revision
+    selected_revision(env)
     if any(env.get(key) for key in ('WALLET_PRIVATE_KEY','SOLANA_PRIVATE_KEY','ETH_PRIVATE_KEY','MM_LIVE_TRADING')):
         raise ValueError('PAPER_service_rejects_wallet_or_live_configuration')
     if env.get('MM_PUMP_HELD_RPC_MODE','baseline') not in ('baseline','optimized'):
@@ -162,6 +164,8 @@ class Supervisor:
             if shared:
                 self.shared_capital=connection(shared)
                 state=self.shared_capital.snapshot()['ledger']
+                from meme_machine.runtime.policy_compatibility import assert_shared_transition
+                assert_shared_transition(self.root,state)
                 self.epoch=state['epoch_id']
                 if self.offline != self.epoch.startswith('offline-fixture-'):
                     raise RuntimeError('offline_and_operational_state_must_be_separate')
@@ -192,6 +196,12 @@ class Supervisor:
                 elif self.offline != binding['receipt']['epoch_id'].startswith('offline-fixture-'):
                     raise RuntimeError('offline_and_operational_state_must_be_separate')
                 self.epoch=account.binding()['receipt']['epoch_id']
+                binding=account.binding()
+                from meme_machine.paper_policy_revision import previous_hash
+                if any(binding['identities']['lanes'][lane]['policy_hash']==previous_hash(lane+'_current')
+                        for lane in ('pump','pons')):
+                    from meme_machine.runtime.policy_compatibility import require_flat_portfolio
+                    require_flat_portfolio(account.snapshot())
                 self.pause_proof=self._assert_paused_lanes_clear(account)
         except BaseException:
             self.lock.close();self.lock=None
@@ -249,6 +259,8 @@ class Supervisor:
             MM_STATE_ROOT=str(self.root),MM_OPERATIONAL_PHASE='continuous',
             MM_DIRECTIONAL_SLEEVE_DB=str(self.root/lane/'directional-sleeve.sqlite'),
             MM_DIRECTIONAL_COHORT_ID=self.epoch,MM_DIRECTIONAL_COMPOSITE_REQUIRED='1')
+        from meme_machine.paper_policy_revision import ACTIVE_REVISION
+        env['MM_PAPER_POLICY_REVISION']=ACTIVE_REVISION
         if lane in ('pump','pons'):
             # Explicit operational attention switch reaches both Current and
             # Survivor in the existing family worker; it cannot grant funding.

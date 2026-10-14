@@ -159,10 +159,16 @@ class SharedSleeve(SleeveReservations):
             owner=os.environ.get('MM_LANE_PROCESS_INSTANCE')
             # Keep the original valuation expiry. Native qualification and
             # execution deadlines still gate the later native fill.
+            from meme_machine.paper_policy_revision import revision_for_hash
+            from meme_machine.runtime.policy_compatibility import known_hash
+            financial_contract=state['contracts'][r]['policy_hash']
+            if not known_hash(r,financial_contract):raise CapitalError('native_financial_policy_contract_unknown')
             self.authority.queue(q,native_id=identity,economic_keys=[self.asset_key(asset)],
                 evidence=dict(native_qualification_json=canonical(evidence),native_requested_units=units,
-                    funding_deadline=value.valid_until),
-                policy_hash=self.identity['policies'][strategy],token=owner,at=at)
+                    funding_deadline=value.valid_until,
+                    effective_decision_policy_hash=self.decision_policies[strategy],
+                    policy_revision=revision_for_hash(self.decision_policies[strategy])),
+                policy_hash=financial_contract,token=owner,at=at)
         # One event-driven fixed round; unrelated management never waits here.
         for attempt in range(3):
             try:self.authority.drain(at=max(at,int(time.time())));break

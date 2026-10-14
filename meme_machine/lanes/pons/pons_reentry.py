@@ -79,7 +79,11 @@ def _sleeve_ack(position, capital):
         sleeve.identity=json.loads(db.execute('SELECT body FROM sleeve_genesis WHERE id=1').fetchone()[0])
         expected=dict(lane='pons',capital=capital,policies=policies('pons'),
             cohort=os.environ.get('MM_DIRECTIONAL_COHORT_ID'),paper_only=True)
-        if sleeve.identity!=expected:raise BoundaryError('selective_reentry_sleeve_genesis')
+        from meme_machine.runtime.policy_compatibility import known_hash,regime_for
+        if (dict(sleeve.identity,policies=expected['policies'])!=expected
+                or set(sleeve.identity['policies'])!=set(expected['policies'])
+                or not all(known_hash(regime_for(k),v) for k,v in sleeve.identity['policies'].items())):
+            raise BoundaryError('selective_reentry_sleeve_genesis')
         if authority:sleeve.authority=authority
         sleeve.reconcile();held=sleeve.get(position['id'])
         return bool(held and held['status']=='settled' and held['held']==0
@@ -87,7 +91,8 @@ def _sleeve_ack(position, capital):
             and (held.get('scale_reservation') or {}).get('status')!='reserved')
 
 
-def _portfolio_ack(position, event_hash):
+def _portfolio_ack(position, event_hash, *, lane='pons', cancelled=None):
+    """Existing exact release receipts, shared by native directional adapters."""
     path=os.environ.get('MM_PORTFOLIO_ACCOUNTING_DB')
     if not path:return True
     from meme_machine.shared_capital.runtime import selected, RuntimeCapital
@@ -96,13 +101,13 @@ def _portfolio_ack(position, event_hash):
         with closing(_readonly(shared)) as db:
             db.execute('BEGIN')
             reader=object.__new__(RuntimeCapital);reader.db=db
-            state=reader._read();key='pons:'+position['id']
+            state=reader._read();key=lane+':'+position['id']
             if not state or key in state.get('runtime_pending',{}):return False
             life=state.get('native_aliases',{}).get(key)
             request_id=state.get('runtime_native_requests',{}).get(key)
             request_ids={request_id,state.get('runtime_native_requests',{}).get(key+':scale')}-{None}
             request=state.get('requests',{}).get(request_id) or {}
-            regime=(request.get('value') or {}).get('regime','pons_current')
+            regime=(request.get('value') or {}).get('regime',lane+'_current')
             cursor=state.get('native_cursors',{}).get(regime+':'+str(life))
             native=dict(epoch_id=state['epoch_id'],regime=regime,lifecycle_id=life,
                 event_id='native:'+event_hash,sequence=cursor,journal_sha256=event_hash)
@@ -114,7 +119,7 @@ def _portfolio_ack(position, event_hash):
                     for identity,r in state.get(category,{}).items())
                 and not any(r.get('lifecycle_id')==life or r.get('native_id')==position['id']
                     for r in state.get('runtime_pending',{}).values())
-                and not any(r.get('lane')=='pons' and r.get('native') in (position['id'],str(life).split(':',1)[-1])
+                and not any(r.get('lane')==lane and r.get('native') in (position['id'],str(life).split(':',1)[-1])
                     for r in state.get('pending_deliveries',[]))
                 and (not held or held.get('status')!='OPEN'))
     # Legacy accounting retains exact delivery receipts in its normal prefix.
@@ -126,26 +131,26 @@ def _portfolio_ack(position, event_hash):
         state=account._replay()
         if state is None:return False
         if db.execute('SELECT 1 FROM portfolio_native_pending WHERE lane=? AND native=?',
-                ('pons',position['id'])).fetchone():return False
+                (lane,position['id'])).fetchone():return False
         alias=db.execute('SELECT id FROM portfolio_native_ids WHERE lane=? AND native=?',
-            ('pons',position['id'])).fetchone()
+            (lane,position['id'])).fetchone()
         if not alias:return False
-        native_alias='n'+str(alias[0]);kind='release' if position['entry_tokens']==0 else 'settle'
+        native_alias='n'+str(alias[0]);kind='release' if (cancelled is True or cancelled is None and position['entry_tokens']==0) else 'settle'
         if any(json.loads(raw).get('native_lifecycle_id')==native_alias
-                for raw, in db.execute('SELECT body FROM portfolio_native_pending WHERE lane=?',('pons',))):return False
-        event_id='portfolio:pons:'+digest([state['receipt']['epoch_id'],'pons',native_alias,'native:'+event_hash,kind])
+                for raw, in db.execute('SELECT body FROM portfolio_native_pending WHERE lane=?',(lane,))):return False
+        event_id='portfolio:'+lane+':'+digest([state['receipt']['epoch_id'],lane,native_alias,'native:'+event_hash,kind])
         receipt=account.canonical_event(event_id)
         provenance=((receipt or {}).get('body',{}).get('data') or {}).get('provenance') or {}
         producer=object.__new__(PortfolioLaneProducer);producer.epoch_id=state['receipt']['epoch_id']
-        reservation=producer._reservation_id('pons',native_alias)
+        reservation=producer._reservation_id(lane,native_alias)
         # Receipt and terminal position are both products of native accountant
         # replay. A pending delivery or surviving reservation is never flat.
-        held=state['positions'].get('pons:'+native_alias)
+        held=state['positions'].get(lane+':'+native_alias)
         return bool(provenance.get('native_lifecycle_id')==native_alias
             and provenance.get('native_journal_hash')==event_hash
             and provenance.get('source_event_id')=='native:'+event_hash
             and reservation not in state['reservations']
-            and not any(r.get('lane')=='pons' and r.get('lifecycle_id')=='pons:'+native_alias
+            and not any(r.get('lane')==lane and r.get('lifecycle_id')==lane+':'+native_alias
                 for r in state['reservations'].values())
             and (not held or held.get('state')!='OPEN'))
 
@@ -174,7 +179,9 @@ def verify_lifecycle(root, qualifier, life):
         decision=store.get(DECISION_CATEGORY,identity)
         if digest(decision)!=row['decision_hash']:raise BoundaryError('selective_reentry_decision_identity')
         vector=qualifier.get('vector') or {}
-        if (vector.get('policy_hash')!=POLICY_HASH or not vector.get('current_threshold_pass')
+        from meme_machine.runtime.policy_compatibility import known_hash
+        if (not known_hash('pons_current',vector.get('policy_hash'))
+                or vector.get('policy_hash')!=decision.get('policy_hash') or not vector.get('current_threshold_pass')
                 or qualifier.get('curve')!=decision.get('market')
                 or qualifier.get('token')!=decision.get('token')
                 or qualifier.get('source_transaction')!=decision.get('source_transaction')

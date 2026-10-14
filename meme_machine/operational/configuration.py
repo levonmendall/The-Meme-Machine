@@ -33,7 +33,7 @@ def environment(path):
                 public_endpoint=dict(scheme=endpoint.scheme,hostname=endpoint.hostname,port=endpoint.port)
                 endpoints[name]=dict(public_endpoint,identity_sha256=hashlib.sha256(
                     json.dumps(public_endpoint,sort_keys=True).encode()).hexdigest())
-        if name in ('MM_MODE','MM_STATE_ROOT','MM_RPC_CAPABILITIES'):
+        if name in ('MM_MODE','MM_STATE_ROOT','MM_RPC_CAPABILITIES','MM_PAPER_POLICY_REVISION'):
             public[name]=value
     stat=Path(path).stat()
     return dict(variable_names=sorted(set(names)),provider_endpoints=endpoints,
@@ -56,6 +56,8 @@ def capture(source, *, configuration_root='/etc/meme-machine', unit_root='/etc/s
     packages={d.metadata['Name']:d.version for d in importlib.metadata.distributions()}
     storage=json.loads(storage_file.read_text())
     paper=environment(paper_file)
+    from meme_machine.paper_policy_revision import decision_metadata
+    policy_selection=decision_metadata({**paper['public_values'],**env})
     for state_root in (env.get('MM_STATE_ROOT'),paper['public_values'].get('MM_STATE_ROOT')):
         if state_root and Path(state_root).resolve()!=Path(storage['state_root']).resolve():
             raise ValueError('acceptance_configuration_state_root_mismatch')
@@ -64,7 +66,7 @@ def capture(source, *, configuration_root='/etc/meme-machine', unit_root='/etc/s
         python=platform.python_version(),sqlite=sqlite3.sqlite_version,
         websockets=importlib.metadata.version('websockets'),requirements_sha256=sha(source/'requirements.txt'),
         installed_requirements=packages,units=units,storage=storage,
-        environment=paper,configuration_files=dict(paper=str(paper_file),storage=str(storage_file)),
+        environment=paper,paper_policy=policy_selection,configuration_files=dict(paper=str(paper_file),storage=str(storage_file)),
         maintenance_environment=environment(configuration_root/'digitalocean.env'),
         block_device_identity=dict(major=os.major(device.st_rdev),minor=os.minor(device.st_rdev)),
         backup_configuration_sha256=sha(configuration_root/'backup.json'),

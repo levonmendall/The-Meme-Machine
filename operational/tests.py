@@ -2,6 +2,8 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+    'tests.test_paper_policy_compatibility',
+    'tests.lanes.pump.test_paper_opportunity_access',
     'tests.test_current_combined_diagnostic',
     'tests.lanes.pons.test_public_dispatch_spacing',
     'tests.test_pons_http_failure_context',

@@ -20,14 +20,33 @@ class CohortCapital:
         Path(path).parent.mkdir(parents=True,exist_ok=True)
         with closing(self._connect()) as db:
             db.executescript('''CREATE TABLE IF NOT EXISTS capital_genesis(id INTEGER PRIMARY KEY,body TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS runtime_state(identity TEXT NOT NULL,key TEXT NOT NULL,body TEXT NOT NULL,hash TEXT NOT NULL,PRIMARY KEY(identity,key));
                 CREATE TABLE IF NOT EXISTS capital_positions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS capital_journal(seq INTEGER PRIMARY KEY,id TEXT NOT NULL,action TEXT NOT NULL,body TEXT NOT NULL,hash TEXT NOT NULL);
                 CREATE TRIGGER IF NOT EXISTS journal_no_update BEFORE UPDATE ON capital_journal BEGIN SELECT RAISE(ABORT,'append_only'); END;
                 CREATE TRIGGER IF NOT EXISTS journal_no_delete BEFORE DELETE ON capital_journal BEGIN SELECT RAISE(ABORT,'append_only'); END;''')
             genesis=canonical(dict(capital=capital,policy_hash=POLICY_HASH,namespace=STRATEGY_NAMESPACE,asset='robinhood_native_quote',paper_only=True))
             db.execute('INSERT OR IGNORE INTO capital_genesis VALUES(1,?)',(genesis,))
-            if db.execute('SELECT body FROM capital_genesis WHERE id=1').fetchone()[0]!=genesis:
-                raise BoundaryError('selective_cohort_genesis_mismatch')
+            stored=json.loads(db.execute('SELECT body FROM capital_genesis WHERE id=1').fetchone()[0])
+            requested=json.loads(genesis)
+            self.financial_policy_hash=stored['policy_hash']
+            self.decision_policy_hash=POLICY_HASH
+            if stored!=requested:
+                from meme_machine.runtime.policy_compatibility import (compatible_identity,selection,
+                    runtime_selection,save_runtime_selection,require_flat_rows,require_external_flat)
+                if not compatible_identity(stored,requested,regime='pons_current'):
+                    raise BoundaryError('selective_cohort_genesis_mismatch')
+                expected=selection(stored,requested)
+                db.execute('BEGIN IMMEDIATE')
+                try:
+                    self._reconcile(db)
+                    if not runtime_selection(db,expected):
+                        require_flat_rows([json.loads(raw) for raw, in db.execute('SELECT body FROM capital_positions')],kind='capital')
+                        require_external_flat()
+                        save_runtime_selection(db,expected)
+                    db.execute('COMMIT')
+                except BaseException:
+                    db.execute('ROLLBACK');raise
         self.recover_shared_terminals()
 
     def recover_shared_terminals(self,*,release_absent=False):
@@ -68,7 +87,8 @@ class CohortCapital:
         replay=json.loads(canonical((prefix or {}).get('positions',{})))
         for identity,action,raw,checksum in db.execute('SELECT id,action,body,hash FROM capital_journal ORDER BY seq'):
             row=json.loads(raw);previous=replay.get(identity)
-            if row.get('id')!=identity or checksum!=digest(row) or row.get('policy_hash')!=POLICY_HASH:
+            from meme_machine.runtime.policy_compatibility import known_hash
+            if row.get('id')!=identity or checksum!=digest(row) or not known_hash('pons_current',row.get('policy_hash')):
                 raise BoundaryError('selective_cohort_journal_mismatch')
             if action=='reserve':
                 if previous is not None or row.get('status')!='reserved' or row.get('reserved')!=row.get('initial_reserved') or row.get('pnl')!=0:
@@ -112,7 +132,8 @@ class CohortCapital:
             raise BoundaryError('selective_cohort_cash_basis_invariant')
         return dict(genesis=self.capital,available=available,reserved=reserved,realized=realized,
                     unsettled=sum(x['status']!='settled' for x in rows),positions=folded.get('positions',0)+len(rows),
-                    policy_hash=POLICY_HASH,namespace=STRATEGY_NAMESPACE,
+                    policy_hash=json.loads(db.execute('SELECT body FROM capital_genesis WHERE id=1').fetchone()[0])['policy_hash'],
+                    decision_policy_hash=POLICY_HASH,namespace=STRATEGY_NAMESPACE,
                     conservation=self.capital+realized==available+reserved,
                     native_observation_complete=complete,
                     cash=cash if complete else None,remaining_cost_basis=basis if complete else None,
@@ -132,7 +153,8 @@ class CohortCapital:
         paper.positions()  # Verify immutable native replay against projection.
         event=paper.store.get(JOURNAL_CATEGORY,f'{identity}:{position["version"]}')
         decision=paper.store.get(DECISION_CATEGORY,identity)
-        if event['position']!=position or position.get('experiment')!=STRATEGY_NAMESPACE or decision.get('policy_hash')!=POLICY_HASH:
+        from meme_machine.runtime.policy_compatibility import known_hash
+        if event['position']!=position or position.get('experiment')!=STRATEGY_NAMESPACE or not known_hash('pons_current',decision.get('policy_hash')):
             raise BoundaryError('selective_cohort_native_observation_mismatch')
         accounting=paper.accounting(identity)
         if not accounting['replay_verified']:
@@ -239,6 +261,9 @@ class CohortCapital:
                     raise BoundaryError('selective_cohort_capital_exhausted')
                 row=dict(id=identity,status='reserved',reserved=amount,initial_reserved=amount,pnl=0,
                          at=int(at),decision_hash=decision_hash,trial_path=str(trial_path),policy_hash=POLICY_HASH)
+                from meme_machine.paper_policy_revision import revision_for_hash
+                revision=revision_for_hash(POLICY_HASH)
+                if revision is not None:row['policy_revision']=revision
                 if funding:row['shared_funding']=funding
                 if native_reservation_intent is not None:row['native_reservation_intent']=native_reservation_intent
                 self._write(db,row,'reserve');db.execute('COMMIT');return row

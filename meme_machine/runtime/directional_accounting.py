@@ -64,11 +64,20 @@ def terminal(lane,root,current):
         book=PaperBook.__new__(PaperBook);book.db=db;book.lock=threading.RLock()
         book.identity=json.loads(db.execute('SELECT body FROM genesis').fetchone()[0])
         strategy=book.identity['lane'];expected=policies(lane)
-        if expected.get(strategy)!=book.identity['policy_hash']:raise ValueError('survivor_terminal_policy')
+        from meme_machine.runtime.policy_compatibility import active_hash,known_hash,regime_for
+        def policy_matches(strategy,stored):
+            selected=expected.get(strategy)
+            if stored==selected:return True
+            try:regime=regime_for(strategy)
+            except ValueError:return False
+            return selected==active_hash(regime) and known_hash(regime,stored)
+        if not policy_matches(strategy,book.identity['policy_hash']):raise ValueError('survivor_terminal_policy')
         replay=book.replay();accounting=book.reconcile()
         sleeve=SleeveReservations.__new__(SleeveReservations);sleeve.db=allocation;sleeve.lock=threading.RLock()
         sleeve.identity=json.loads(allocation.execute('SELECT body FROM sleeve_genesis').fetchone()[0])
-        if sleeve.identity['policies']!=expected:raise ValueError('survivor_terminal_sleeve_identity')
+        if (set(sleeve.identity['policies'])!=set(expected)
+                or not all(policy_matches(k,v) for k,v in sleeve.identity['policies'].items())):
+            raise ValueError('survivor_terminal_sleeve_identity')
         ceiling=sleeve.reconcile()
         history=History.__new__(History);history.db=history_db
         rows={r['id']:r for r in history.rows()}
@@ -111,9 +120,11 @@ def terminal(lane,root,current):
             if held['held']<required:raise ValueError('current_capital_unreserved')
             if p['status'] in ('settled','cancelled') and held['held']:
                 raise ValueError('current_terminal_capital_not_reconciled')
-        status=dict(accounting=accounting,accounting_replay=replay,sleeve=ceiling,policies=expected,
+        status=dict(accounting=accounting,accounting_replay=replay,sleeve=ceiling,policies=sleeve.identity['policies'],
+            decision_policies=expected,
             native_execution_cost=execution_cost(book) if lane=='pons' else None,
-            durable_handoff=accounting['pending']==0,active=True,strategy=strategy,policy_hash=expected[strategy])
+            durable_handoff=accounting['pending']==0,active=True,strategy=strategy,
+            policy_hash=book.identity['policy_hash'],decision_policy_hash=expected[strategy])
         aggregate=combine(lane,current['accounting'],status)
         opened=current['open_positions']+accounting['open_positions']+accounting['pending']
         handoff=bool(opened>0 and accounting['pending']==0 and
@@ -126,4 +137,3 @@ def terminal(lane,root,current):
             strategy_accounting=dict(current=current['accounting'],survivor=accounting),
             survivor=status,durable_handoff=handoff,
             continuation_state=continuation if handoff else None)
-

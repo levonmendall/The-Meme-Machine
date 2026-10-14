@@ -1288,6 +1288,14 @@ def _lifecycle_steps(endpoint,evaluation,*,db_path,capital_path=None,_recovery=N
                     sell_quote=activity.get('sell_quote'),
                     soft_deterioration_streak=state.runner_soft_deterioration_streak,
                 )
+                context=action.get('management_context')
+                if growth is None and context is not None:
+                    # The legacy helper receives zero for compatible protective
+                    # inputs. Missing breadth is not an observed zero or an
+                    # evaluable previous-policy soft-exit predicate.
+                    context.update(lifetime_new_buyer_growth=None,
+                        previous_policy_would_exit=None,previous_predicate_evidence_complete=False,
+                        unavailable_fields=['lifetime_new_buyer_growth'])
                 facts=_continuation_facts(position,mark,meta,candidate,rbps,
                     demand=activity,soft_streak=state.runner_soft_deterioration_streak,action=action)
                 if exceptional_context is not None:
@@ -1478,12 +1486,19 @@ def _continuation_facts(position,mark,meta,candidate,rbps,*,demand,soft_streak,a
     top3=demand.get('top3_buyer_flow_bps')
     concentration=(largest is not None and int(largest)<=ENTRY_THRESHOLDS['max_largest_buyer_flow_bps']
         and (top3 is None or int(top3)<=ENTRY_THRESHOLDS['max_top3_buyer_flow_bps']))
+    buy=demand.get('current_buy_quote',demand.get('buy_quote'))
+    sell=demand.get('current_sell_quote',demand.get('sell_quote'))
+    # The consumed soft streak remains management evidence. It cannot silently
+    # recreate the removed C6 exit as a bridge/add veto. Retained adverse flow
+    # and fresh ongoing qualification still protect these continuation paths.
+    retained_flow_safe=(buy is not None and sell is not None and
+        (int(sell)==0 or int(sell)*10000<max(1,int(buy))*EXIT_POLICY['min_adverse_sell_buy_ratio_bps']))
     return dict(observed_at=now,current_after_cost_return_positive=rbps>0,after_cost_return_bps=rbps,
         fresh_generation_state=fresh and bool(meta.get('block_hash')),
         fresh_executable_exit_quote=fresh,canonical_lineage_and_venue=bool(candidate.get('auth')),
         creator_distribution_safe=bool(record) and creator==0,hard_concentration_safe=concentration,
         executable_exit_liquidity=mark.amount_out>mark.gas_quote,
-        no_persistent_confirmed_demand_failure=soft_streak<EXIT_POLICY['soft_deterioration_confirmations'],
+        no_persistent_confirmed_demand_failure=retained_flow_safe,
         no_irreversible_exit_intent=position['status']=='open' and action['action']=='hold')
 
 
