@@ -82,6 +82,78 @@ class ProviderAuthorityTests(unittest.TestCase):
                 self.assertFalse(rpc.canonical_authority)
                 self.assertIsNone(rpc.evidence_reuse)
                 with self.assertRaisesRegex(ValueError,'role_not_canonical'):authority.require_canonical(rpc)
+
+    def test_inactive_managed_route_uses_only_bound_primary_and_existing_shared_resources(self):
+        from meme_machine.lanes.pons.provider_topology import discovery_endpoint
+        with patch.dict(os.environ, {'MM_PONS_OBSERVATION_ROUTE':'canonical_primary',
+                'MM_ROBINHOOD_DISCOVERY_RPC_URL':'https://other-alchemy.invalid/not_authority'}):
+            endpoint, managed = discovery_endpoint()
+            self.assertEqual(endpoint, URL); self.assertTrue(managed)
+            rpc = self.client(configured_discovery_rpc)
+            primary = self.client()
+            self.assertTrue(rpc.canonical_authority)
+            self.assertEqual(rpc.role, 'pons_mandatory_observation_primary')
+            self.assertEqual(rpc.provider_fingerprint, primary.provider_fingerprint)
+            self.assertEqual(rpc.shared_admission.path, primary.shared_admission.path)
+            self.assertIs(rpc.evidence_reuse.store, primary.evidence_reuse.store)
+            self.assertFalse(rpc.primary_fallback); self.assertFalse(rpc.gap_recovery)
+            self.assertFalse(hasattr(rpc, 'recovery_rpc'))
+            report = topology_metadata()
+            self.assertEqual(report['directional']['discovery_route'], 'canonical_primary')
+            self.assertFalse(report['directional']['automatic_failover'])
+            self.assertNotIn('SYNTHETIC_SECRET', json.dumps(report))
+        public = configured_discovery_rpc()
+        self.assertFalse(public.canonical_authority)
+        self.assertEqual(public.provider_kind, 'robinhood_public')
+
+    def test_managed_route_fails_wrong_chain_identity_and_unknown_route(self):
+        with patch.dict(os.environ, {'MM_PONS_OBSERVATION_ROUTE':'canonical_primary'}):
+            calls = []
+            rpc = self.client(configured_discovery_rpc,
+                              transport=lambda m,p: calls.append(m) or '0x1')
+            with self.assertRaisesRegex(BoundaryError, 'wrong_chain'):
+                rpc.call('eth_getLogs',[{}],scope='pons_natural')
+            self.assertEqual(calls,['eth_chainId'])
+            self.assertFalse(rpc.chain_verified)
+            with patch.dict(os.environ, {'MM_ROBINHOOD_READ_RPC_URL':URL+'changed'}):
+                with self.assertRaisesRegex(BoundaryError, 'identity_changed'):
+                    rpc.call('eth_blockNumber',[])
+        with patch.dict(os.environ, {'MM_PONS_OBSERVATION_ROUTE':'unreviewed'}):
+            with self.assertRaisesRegex(BoundaryError, 'pons_observation_route_invalid'):
+                configured_discovery_rpc()
+
+    def test_managed_route_reuses_exact_verified_canonical_headers_and_logs_only(self):
+        with patch.dict(os.environ, {'MM_PONS_OBSERVATION_ROUTE':'canonical_primary'}):
+            managed = self.client(configured_discovery_rpc)
+            primary = self.client()
+            def http(request, **kwargs):
+                payload=json.loads(request.data)
+                if isinstance(payload,dict) and payload['method']=='eth_getLogs':
+                    self.requests.append(payload)
+                    return io.BytesIO(json.dumps(dict(jsonrpc='2.0',id=payload['id'],result=[])).encode())
+                return self.http(request,**kwargs)
+            with patch('meme_machine.lanes.pons.provider.urlopen', side_effect=http):
+                primary.verify_chain(); managed.verify_chain()
+                header = primary.call('eth_getBlockByHash',['h1',False])
+                before = len(self.requests)
+                self.assertEqual(managed.call('eth_getBlockByHash',['h1',False]),header)
+                self.assertEqual(len(self.requests),before)
+                query = dict(blockHash='h1',address='0xfactory',topics=[['0xaa']])
+                primary.call('eth_getLogs',[query],scope='pons_natural')
+                before = len(self.requests)
+                self.assertEqual(managed.call('eth_getLogs',[query],scope='pons_natural'),[])
+                self.assertEqual(len(self.requests),before)
+                managed.call('eth_getLogs',[dict(query,topics=[['0xbb']])],scope='pons_natural')
+                self.assertEqual(len(self.requests),before+1)
+                numeric = dict(address='0xfactory',topics=[['0xaa']],fromBlock='0x1',toBlock='0x28')
+                primary.call('eth_getLogs',[numeric],scope='pons_natural')
+                before = len(self.requests)
+                managed.call('eth_getLogs',[numeric],scope='pons_natural')
+                self.assertEqual(len(self.requests),before+1)
+            # Routing proves no larger window. Unknown filters remain ten-block
+            # acquisition under the unchanged protected capability loader.
+            from meme_machine.lanes.pons.log_windows import LogWindows
+            self.assertEqual(LogWindows(URL,dict(topics=[['0xaa']],address='0xfactory')).ceiling,10)
     def test_chain_required_before_shared_evidence_and_no_rescue(self):
         calls=[]
         rpc=self.client(transport=lambda m,p:calls.append(m) or '0x1')

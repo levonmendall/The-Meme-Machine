@@ -8,6 +8,7 @@ No signing, submission, or automatic alternate canonical provider exists.
 from __future__ import annotations
 
 from collections import Counter
+from contextlib import contextmanager, nullcontext
 import os
 import threading
 import time
@@ -20,6 +21,7 @@ from meme_machine.runtime.robinhood import provider_authority as authority
 
 PRIMARY_ENV = "MM_ROBINHOOD_READ_RPC_URL"
 DISCOVERY_ENV = "MM_ROBINHOOD_DISCOVERY_RPC_URL"
+OBSERVATION_ROUTE_ENV = "MM_PONS_OBSERVATION_ROUTE"
 DLMM_ENV = "MM_ROBINHOOD_DLMM_RPC_URL"
 SHADOW_ENV = "MM_ROBINHOOD_SHADOW_RPC_URL"
 QUICKNODE_ENV = "MM_ROBINHOOD_QUICKNODE_RPC_URL"  # compatibility-only alias
@@ -77,13 +79,19 @@ def primary_endpoint(primary_endpoint=None, *, environ=None):
 
 
 def discovery_endpoint(primary_fallback_endpoint=None, *, environ=None):
-    """Observation-only Pons discovery without routine Alchemy consumption.
+    """Observation-only Pons discovery; existing public routing is the default.
 
     A specifically configured non-Alchemy discovery endpoint may be used. Alchemy
-    endpoints, including a DLMM endpoint, are intentionally bypassed for routine
-    discovery because the official public RPC plus sequencer feed preserve the broad
-    market view without consuming scarce authoritative capacity.
+    URLs in DISCOVERY_ENV do not activate managed acquisition. The separately
+    reviewed canonical_primary choice uses only the already bound primary,
+    with its chain guard, shared admission and exact immutable evidence reuse.
+    This configuration choice supplies no capability or capacity proof.
     """
+    route = _env(OBSERVATION_ROUTE_ENV, environ) or "public_existing"
+    if route == "canonical_primary":
+        return primary_endpoint(primary_fallback_endpoint, environ=environ), True
+    if route != "public_existing":
+        raise BoundaryError("pons_observation_route_invalid")
     value = _env(DISCOVERY_ENV, environ)
     if value:
         endpoint = _require_https(
@@ -222,6 +230,38 @@ class ProviderPacer:
 
 class PacedRpc(Rpc):
     """Existing bounded Rpc with a physical-request pace and explicit provider role."""
+
+    @property
+    def evidence_deadline(self):
+        # Explicit client bounds retain their established behavior. An exact
+        # fallback adds only a thread-local, temporary upper bound, so peers on
+        # the same canonical client cannot inherit another request's deadline.
+        inherited = getattr(self.admission_scope, "fallback_deadline", None)
+        if inherited is None:
+            return self._evidence_deadline
+        explicit = getattr(self, "_evidence_deadline", None)
+        return inherited if explicit is None else min(inherited, explicit)
+
+    @evidence_deadline.setter
+    def evidence_deadline(self, value):
+        self._evidence_deadline = value
+
+    @evidence_deadline.deleter
+    def evidence_deadline(self):
+        del self._evidence_deadline
+
+    @contextmanager
+    def fallback_deadline(self, deadline):
+        previous = getattr(self.admission_scope, "fallback_deadline", None)
+        applicable = [value for value in (previous, deadline) if value is not None]
+        self.admission_scope.fallback_deadline = min(applicable) if applicable else None
+        try:
+            yield
+        finally:
+            if previous is None:
+                del self.admission_scope.fallback_deadline
+            else:
+                self.admission_scope.fallback_deadline = previous
 
     def __init__(
         self,
@@ -542,10 +582,19 @@ class ObservationFallbackRpc(PacedRpc):
         current=float(self.pacer.current_requests_per_second())
         self.pacer.recover_to(min(PUBLIC_DISCOVERY_RPS,current+0.1))
 
-    def _public_log_cooldown(self):
+    def _public_log_backpressure(self):
+        """Adaptive feedback is independent of single-call retry policy.
+
+        A rejected batch falls back exactly once; it must neither add a public
+        retry nor sleep after failure to apply the same endpoint-wide slowdown.
+        Admission retains ownership of the existing eight-second cooldown.
+        """
         self.public_log_success_streak = 0
         current=float(self.pacer.current_requests_per_second())
         self.pacer.slow_to(max(1.0,current*0.75))
+
+    def _public_log_cooldown(self):
+        self._public_log_backpressure()
         delay=getattr(self,"last_retry_after_seconds",None)
         if delay is None or not 0.0 <= float(delay) <= 1.0:
             delay=0.6
@@ -559,6 +608,12 @@ class ObservationFallbackRpc(PacedRpc):
         self.pacer.sleep(delay)
         self.public_log_cooldown_seconds += delay
         return True
+
+    def _bounded_recovery(self):
+        # Configured recovery uses PacedRpc. Fixture-only custom responders can
+        # remain synchronous without a transport deadline interface.
+        return (self.recovery_rpc.fallback_deadline(getattr(self,"evidence_deadline",None))
+                if isinstance(self.recovery_rpc,PacedRpc) else nullcontext())
 
     def call(self, method, params, *, scope="connectivity"):
         try:
@@ -591,7 +646,7 @@ class ObservationFallbackRpc(PacedRpc):
                 self.alchemy_exact_log_recoveries += 1
             try:
                 from .provider import http_retry_context
-                with http_retry_context('canonical_exact_fallback', exc):
+                with self._bounded_recovery(), http_retry_context('canonical_exact_fallback', exc):
                     return self.recovery_rpc.call(method, params, scope=scope)
             except BoundaryError:
                 self.recovery_failures += 1
@@ -603,18 +658,34 @@ class ObservationFallbackRpc(PacedRpc):
         scope=authority.safe_label(scope)
         self._authority_guard("batch")
         if isinstance(calls,list):self._record_demand([r[0] for r in calls if isinstance(r,(list,tuple)) and r])
+        public_logs = self.provider_kind == "robinhood_public" and isinstance(calls, list) and any(
+            isinstance(row, (list, tuple)) and row and row[0] == "eth_getLogs"
+            for row in calls
+        )
         try:
-            return super().batch(calls, scope=scope)
+            result = super().batch(calls, scope=scope)
+            if public_logs:
+                # One accepted physical batch supplies one recovery step,
+                # irrespective of its logical-element count.
+                self._public_log_success()
+            return result
         except BoundaryError as exc:
+            if public_logs and str(exc) in ("provider_http_429", "provider_rpc_429"):
+                self.public_log_429s += 1
+                self._public_log_backpressure()
             if self.recovery_rpc is None or not self._recoverable(exc):
                 raise
             self.recovery_requests += 1
+            if public_logs:
+                self.alchemy_exact_log_recoveries += 1
             try:
                 from .provider import http_retry_context
-                with http_retry_context('canonical_exact_fallback', exc):
+                with self._bounded_recovery(), http_retry_context('canonical_exact_fallback', exc):
                     return self.recovery_rpc.batch(calls, scope=scope)
             except BoundaryError:
                 self.recovery_failures += 1
+                if public_logs:
+                    self.unrecovered_log_ranges += 1
                 raise
 
     def telemetry(self):
@@ -674,10 +745,17 @@ def configured_rpc(primary_endpoint_value=None, *, environ=None, **kwargs):
 
 
 def configured_discovery_rpc(primary_fallback_endpoint=None, *, environ=None, **kwargs):
-    """Observation-only Pons discovery; public by default and never routine Alchemy."""
-    endpoint, _ = discovery_endpoint(
+    """Public by default; inactive managed choice reuses the canonical machinery."""
+    endpoint, managed_primary = discovery_endpoint(
         primary_fallback_endpoint, environ=environ
     )
+    if managed_primary:
+        rpc = PacedRpc(endpoint, role="pons_mandatory_observation_primary",
+            requests_per_second=DIRECTIONAL_RPS, pacer=_DIRECTIONAL_PACER, **kwargs)
+        rpc.primary_fallback = False
+        rpc.gap_recovery = False
+        rpc.observation_route = "canonical_primary"
+        return rpc
     public = _provider_kind(endpoint) == "robinhood_public"
     rps = PUBLIC_DISCOVERY_RPS if public else DISCOVERY_RPS
     recovery = (
@@ -698,6 +776,7 @@ def configured_discovery_rpc(primary_fallback_endpoint=None, *, environ=None, **
     )
     rpc.primary_fallback = False
     rpc.gap_recovery = False
+    rpc.observation_route = "public_existing"
     return rpc
 
 
@@ -782,14 +861,18 @@ def topology_metadata(*, environ=None):
         directional=dict(
             discovery="official_robinhood_sequencer_feed_plus_discovery_rpc",
             discovery_provider_kind=_provider_kind(discovery),
-            discovery_credential=(DISCOVERY_ENV if _provider_kind(discovery)!="robinhood_public" else None),
+            discovery_route="canonical_primary" if discovery_fallback else "public_existing",
+            discovery_credential=(PRIMARY_ENV if discovery_fallback else
+                DISCOVERY_ENV if _provider_kind(discovery)!="robinhood_public" else None),
             discovery_primary_fallback=False,
             discovery_requests_per_second=(
+                DIRECTIONAL_RPS if discovery_fallback else
                 PUBLIC_DISCOVERY_RPS if _provider_kind(discovery)=="robinhood_public" else DISCOVERY_RPS
             ),
             gap_recovery_provider_kind=_provider_kind(primary),
             gap_recovery_credential=PRIMARY_ENV,
-            gap_recovery_policy="only_after_public_observation_recovery_exhausted",
+            gap_recovery_policy=("none_on_managed_primary" if discovery_fallback else
+                "only_after_public_observation_recovery_exhausted"),
             evidence_provider_kind=_provider_kind(primary),
             evidence_credential=PRIMARY_ENV,
             requests_per_second=DIRECTIONAL_RPS,

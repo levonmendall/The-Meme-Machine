@@ -85,6 +85,7 @@ def is_canonical_role(role):
     return role in {'directional_evidence_primary', 'dlmm_reconstruction_primary',
                     'dlmm_reconstruction_primary_fallback',
                     'dlmm_reconstruction_primary_shared_observation',
+                    'pons_mandatory_observation_primary',
                     'pons_discovery_gap_recovery_primary'}
 
 

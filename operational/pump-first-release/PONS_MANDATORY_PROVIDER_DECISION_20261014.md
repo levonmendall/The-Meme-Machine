@@ -1,4 +1,4 @@
-# Pons provider decision — prepared, no routing change
+# Pons provider decision — inactive routing candidate, no deployment
 
 The pacing correction fixes the demonstrated dispatch defect. It does not make
 public RPC suitable for mandatory continuous work or identify its original quota.
@@ -13,7 +13,7 @@ Evaluate the already connected Alchemy mainnet application first.
 
 ## What is actually verified
 
-Authorized account metadata on this turn lists application `v5h0vqr0wpp9zscj`,
+Previously retained authorized account metadata lists application `v5h0vqr0wpp9zscj`,
 name Robinhood, with `ROBINHOOD_MAINNET` and `ROBINHOOD_TESTNET`. No credential was
 changed. The existing deployed credential/fingerprint binding and exact factory
 40-block comparison remain retained; no new market request was made.
@@ -31,19 +31,24 @@ $5.52 month-to-date through `2026-10-14T14:00:00Z`, with partial today included.
 This is provider-reported usage/value, not an independently verified invoice or
 contract. It cannot establish the cost of this proposed routing change.
 
-## Exact source change needed if approved later
+## Inactive source-routing candidate
 
-`provider_topology.discovery_endpoint` deliberately bypasses configured Alchemy
-discovery URLs. An environment substitution therefore does not migrate the
-observation workload.
+The default `MM_PONS_OBSERVATION_ROUTE=public_existing` preserves prior routing,
+including deliberate bypass of Alchemy URLs in `MM_ROBINHOOD_DISCOVERY_RPC_URL`.
+An inactive, separately reviewable `canonical_primary` choice now resolves only
+the existing `MM_ROBINHOOD_READ_RPC_URL` identity. It constructs the existing
+`PacedRpc` with a dedicated mandatory-observation role, the same mandatory
+endpoint admission ledger, chain guard and immutable evidence store used by
+canonical qualification/protection. It has no public fallback or second
+acquisition path. Unknown choices fail closed. No installed environment,
+provider route, account, credential or operational database was changed.
 
-A separately reviewed routing choice must construct mandatory observation reads
-through the existing canonical primary client/admission/evidence-cache path,
-retaining the current app, chain check and candidate-specific qualification
-authority. Public data may remain provisional only if it is genuinely optional.
-Do not create a second acquisition system or treat a discovery event as entry
-qualification. Verify canonical boundary/receipt membership and exact cursor
-continuity before accepting the new source's observations.
+The existing discovery consumers already obtain their client through
+`configured_discovery_rpc`; their filters, sequencer clock, cursor, gap handling
+and candidate authentication remain unchanged. This switch changes the transport
+and compatible evidence reuse, not qualification authority. A discovery event
+does not authorize entry. Canonical boundary/receipt membership, cursor continuity
+and complete intervals still require their existing authentication checks.
 
 Reuse local verified headers/receipts and exact complete log intervals before
 buying missing evidence. Existing candidate-scoped/V4 history is not proof of
@@ -79,7 +84,59 @@ The separately proved factory arithmetic remains 180→60 CU for 30 blocks and
 study or managed-alternative comparison was initiated. Evaluate an alternative
 only if the existing app's actual capabilities/cost make that necessary.
 
-**Decision pending:** whether to authorize a narrow source-routing implementation
-and bounded capability/freshness validation on the existing app, after actual
-account capacity/contract information is available. This is separate from the
-current existing-route, funding-closed bottleneck observation proposal.
+### Remaining evidence before enablement
+
+- Actual account-wide throughput, concurrency, contract/pricing and other app
+  demand; installed Robinhood 10 RPS is a local setting, not an entitlement.
+- Method and history coverage for the actual broad curve/factory/V4 filters,
+  headers and receipts, with exact parity, finality/reorganization and bounded
+  dense-response/splitting behavior. Only the retained exact factory proof may
+  use 40-block windows; unrelated filters remain on 10-block windows.
+- Original five-/three-second protection deadlines under shared observation,
+  qualification and protective acquisition. A mock accepted request proves
+  routing/accounting, not provider capacity or fresh financial consumption.
+- Net incremental unique elements/CU after exact authenticated local reuse and
+  subtraction of existing canonical fallback. Numeric multi-block discovery
+  ranges are not automatically immutable-cache hits; absent interval evidence
+  must not be called already acquired.
+
+**Decision pending:** authorize a bounded capability/freshness check and later
+activation only if the actual account evidence supports it. The candidate is
+inactive, not installed, and independently unproven for production suitability.
+No live traffic or migration is authorized by its offline validation.
+
+## Focused offline correction and verification
+
+The actual `ObservationFallbackRpc.batch` → shared admission → mock HTTP path
+reproduced the omitted feedback: one four-element `eth_getLogs` HTTP429 followed
+by unchanged canonical fallback left public pacing at 2 RPS. The expected failing
+regression is retained separately. The correction applies the same endpoint-wide
+adaptive slowdown as singles, 2→1.5 RPS, without adding a batch retry or sleep.
+Accepted batches count one physical recovery step, not four logical steps;
+twenty accepted public batches recover 1.5→1.6 RPS. No provider quota is inferred.
+
+The existing eight-second shared public cooldown remains authoritative. In the
+125-ms mock-response fixture, the next discovery admission waits 7.875 seconds
+after fallback, honestly exceeding the unchanged five-second queue guard.
+Adaptive feedback does not remove that safety failure or prove the public route
+suitable. Canonical protective priority and its independent endpoint cooldown
+remain unchanged. The failed public batch and exact fallback remain two physical
+attempts/eight logical elements, with no added same-endpoint attempt.
+
+A second expected failing regression showed an original wrapper deadline was
+not inherited by its canonical fallback: a three-second deadline could become
+a new 30-second admission window. A temporary bound in the client's existing
+thread-local admission context now retains the earlier of caller and existing
+canonical deadlines through cache wait, admission and transport. It restores on
+failure and cannot leak into a concurrent protective consumer of the same client.
+No deadline, timeout, queue threshold, cooldown or safety escalation was raised.
+
+**92 focused regressions PASS in 4.149s**, zero failures/errors/skips, supported
+network-blocked runner and pinned runtime. Coverage includes actual batch failure,
+exact fallback parameters/accounting, cooldown waits, absolute deadline expiry,
+concurrent canonical protection, unchanged discovery ranges/cursors, immutable
+cache behavior, default routing, explicit bound-primary routing, wrong-chain and
+identity rejection. Two expected RED results are preserved by reference in the
+engineering evidence root. Test duration is correctness evidence, not throughput
+or provider-capacity evidence. No production installation, service start,
+provider request or authoritative application-state write occurred.
