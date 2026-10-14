@@ -321,9 +321,9 @@ class EvidenceWriter:
             # SQLITE_INTERRUPT can be reported after BEGIN has already entered
             # a write transaction. Cleanup must cover admission as well as body
             # and commit, or the next checkpoint fails with SQLITE_LOCKED.
-            self.db.execute('BEGIN IMMEDIATE')
+            self._transaction_statement('BEGIN IMMEDIATE','begin')
             yield
-            self.db.execute('COMMIT')
+            self._transaction_statement('COMMIT','commit')
             callback=getattr(self,'_history_committed',None)
             if callback is not None:callback()
         except BaseException:
@@ -331,6 +331,21 @@ class EvidenceWriter:
             # Preserve its original error when there is no transaction to undo.
             if self.db.in_transaction:self.db.execute('ROLLBACK')
             raise
+
+    def _transaction_statement(self,sql,stage):
+        # Separate SQL admission/durability waiting from productive owner CPU.
+        # These bounded process-local diagnostics never write monetary/evidence
+        # rows, change transaction boundaries, or authorize an operation.
+        wall=time.monotonic();cpu=time.thread_time()
+        try:return self.db.execute(sql)
+        finally:
+            if not hasattr(self,'transaction_metrics'):self.transaction_metrics={}
+            metrics=self.transaction_metrics
+            metrics[stage+'.calls']=metrics.get(stage+'.calls',0)+1
+            for name,elapsed in (('wall',time.monotonic()-wall),('cpu',time.thread_time()-cpu)):
+                key=stage+'.'+name;micros=int(max(0,elapsed)*1_000_000)
+                metrics[key+'_total_microseconds']=metrics.get(key+'_total_microseconds',0)+micros
+                metrics[key+'_peak_microseconds']=max(metrics.get(key+'_peak_microseconds',0),micros)
 
     @contextmanager
     def source_frame(self):

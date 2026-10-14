@@ -1,5 +1,56 @@
 # History separation: final critical-path refinements
 
+## Sustained pipeline attribution: 2026-10-14
+
+The owner now requests diagnosis of the sustained deficit before more startup
+changes. The retained simultaneous, post-restoration interval is 391.186 seconds:
+control cursor progression 4.389 slots/sec, Pump and PumpSwap durable cursors
+1.869 each, process-group CPU 1.655 cores. Attached-device reads are 4.16 MB/sec,
+writes 19.06 MB/sec and busy fraction 0.530. Device statistics include all
+processes; they do not establish a canonical-database or hardware root cause.
+`E/STAGED_SUSTAINED_PIPELINE_BASELINE_20261014.json` preserves the exact interval,
+definitions, original owner counters and pending evidence. Formal acceptance
+remains zero, PAPER stopped/disabled, allocations closed.
+
+At the retained final state, newest stored economics are slot 456695359. The
+last live control cursor is 456697968. There are 8,933 pending canonical consumer
+records; published program history reaches 456694655 / 456694654. Thus actual
+stored processing falls behind **and** history publication adds separate lag.
+Old gap witnesses remain retained. `published_program_frontiers()` already
+distinguishes authenticated current tails from historical gaps; do not replace
+its original binding, linked-child, exact-interval or consumer-ACK requirements.
+
+The scoped successor adds numeric attribution, not another efficiency claim:
+existing owner stage timers distinguish control, candidate, scout, history
+publication and byte-accounting commands, recording thread CPU separately from
+wall/queue time. Outer SQLite BEGIN/COMMIT timing remains process-local and is
+published in the existing atomic storage-health record. Bounded native/joined,
+prepared, durable and consumer-completion counters reuse existing health
+publication. No per-event diagnostic SQL, provider calls, new scheduler, worker,
+subscription, evidence-authority change or timing relaxation is introduced.
+One health compatibility regression initially failed and remains recorded; the
+implementation was corrected to preserve the caller's exact IPC payload and
+its original single-COMMIT assertion. Final release validation is still required
+before a changed-source observation. Compare stage CPU versus wall and actual
+durability waiting before selecting the next causal correction.
+
+The September 20 bounded-hydration changes are retained in commits 110dbf34,
+a0ce2441 and 690320f8 (the latter two contain qualification-build patches).
+The October 7 Model B report remains `engineering/solana_prewarm/REPORT.md`:
+16.204 seconds measured consumer release, zero ordinary-startup cold/body/gap
+calls, but subsequent mixed capacity was incomplete, with long producer waits.
+Its retained-history reuse and deferred acquisition survive in the current
+Model B source. It is not evidence of sustained four-regime capacity. Do not
+blindly revert newer separation, complete recovery or $1,000 reconciliation.
+
+The unfinished Pons checkpoint-owned-connection reuse is preserved, uncommitted
+and not deployed, in `E/STAGED_PONS_CHECKPOINT_REUSE_WIP_20261014.patch`. It is
+deferred while identifying the principal pipeline constraint. The previously
+completed isolated recovery/integrity proof remains valid. The new scheduled
+04:02 backup failed at 04:03 with an OperationalError and a retained partial
+point; it is not successful. The separate active-backup cgroup-freeze/protective
+deadline conflict is also unresolved. Neither is repaired by these measurements.
+
 ## Retained source-owner reactivation lookup: 2026-10-14
 
 `08e1770c447e7941532424daefccd81a1caaa093` passed 1,943 FAST tests in

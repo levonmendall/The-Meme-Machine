@@ -34,6 +34,9 @@ class HealthAtomicityTests(unittest.TestCase):
         self.assertEqual(json.loads(rows['repair_http']), {'rpc_calls': 17})
         self.assertEqual(json.loads(rows['ipc']), {'frames': 29})
         self.assertEqual(json.loads(rows['owner_scheduler']), {'queued': 3})
+        sql=json.loads(rows['storage_maintenance'])['owner_sql_transactions']
+        self.assertGreater(sql['begin.calls'],0)
+        self.assertGreaterEqual(sql['commit.wall_total_microseconds'],0)
         self.assertFalse(db.in_transaction)
 
     def test_interruption_cannot_publish_new_heartbeat_with_old_storage_and_provider_state(self):

@@ -49,6 +49,75 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
             'candidate_pending_proofs','candidate_coverage','candidate_history_outbox')
         return {t:h.db.execute('SELECT * FROM '+t+' ORDER BY rowid').fetchall() for t in tables}
 
+    async def test_measured_owner_path_keeps_exact_economics_and_distinct_completion(self):
+        baseline,h=state_at(Path(self.tmp.name)/'baseline.sqlite')
+        self.addCleanup(baseline.writer.close)
+        frames=[frame(100),frame(101)]
+        commit_candidate_batch(baseline,frames,self.addresses,'same-session',publish=False)
+        source=SelectiveSource(SimpleNamespace(credential='offline',identity='a'*64),None)
+        source.stop=asyncio.Event();source.batched=True;source.history_separated=True
+        calls=[]
+        async def work(fn,priority,**options):
+            calls.append((priority,options));value=fn(self.state)
+            source.stop.set();return value
+        source.work=work;queue=CandidateCommitQueue()
+        for value in frames:await queue.put(value)
+        await asyncio.wait_for(source.candidate_commits(queue,self.addresses,'same-session'),2)
+        self.assertEqual(self.snapshot(self.h),self.snapshot(h))
+        self.assertEqual(calls,[(2,dict(label='source_commit',component='candidate'))])
+        self.assertEqual(source.pipeline_metrics['economic_prepared:candidate']['latest_slot'],101)
+        self.assertEqual(source.pipeline_metrics['evidence_timing:candidate']['latest_slot'],101)
+        # A later joined frame is explicitly distinct from durable evidence;
+        # reporting it cannot write evidence, consume a proof, or grant readiness.
+        before=self.snapshot(self.h)
+        source.observe('joined_frame',plane='candidate',slot=102,joined_wall=NOW+3)
+        self.assertEqual(source.pipeline_metrics['joined_frame:candidate']['latest_slot'],102)
+        self.assertEqual(source.pipeline_metrics['evidence_timing:candidate']['latest_slot'],101)
+        self.assertEqual(self.snapshot(self.h),before)
+        self.assertEqual(queue.count,0)
+
+    async def test_transaction_timing_preserves_outer_commit_nested_rollback_and_failure(self):
+        writer=self.state.writer;before=dict(writer.transaction_metrics)
+        with writer.transaction():
+            writer.db.execute("INSERT INTO meta VALUES('timing-test','committed')")
+            with writer.transaction():
+                writer.db.execute("UPDATE meta SET value='nested' WHERE key='timing-test'")
+        self.assertEqual(writer.transaction_metrics['begin.calls'],before['begin.calls']+1)
+        self.assertEqual(writer.transaction_metrics['commit.calls'],before['commit.calls']+1)
+        committed=dict(writer.transaction_metrics)
+        with self.assertRaisesRegex(RuntimeError,'original-failure'):
+            with writer.transaction():
+                with writer.transaction():
+                    writer.db.execute("UPDATE meta SET value='rolled-back' WHERE key='timing-test'")
+                    raise RuntimeError('original-failure')
+        self.assertEqual(writer.transaction_metrics['begin.calls'],committed['begin.calls']+1)
+        self.assertEqual(writer.transaction_metrics['commit.calls'],committed['commit.calls'])
+        self.assertEqual(writer.db.execute("SELECT value FROM meta WHERE key='timing-test'").fetchone(),('nested',))
+        self.assertFalse(writer.db.in_transaction)
+
+    async def test_numeric_pipeline_diagnostics_are_bounded_and_do_not_write_on_each_event(self):
+        source=SelectiveSource(SimpleNamespace(credential='offline'),None)
+        for i in range(1000):
+            source.observe('decode_timing',seconds=.001,stream_id=str(i),family='pump')
+        self.assertEqual(source.pipeline_metrics,{'decode_timing:shared':dict(
+            calls=1000,decode_total_microseconds=1_000_000,decode_peak_microseconds=1000)})
+        self.assertEqual(source.pending_diagnostics,[])
+        self.assertEqual(source.native_streams,{})
+
+    async def test_native_input_progress_is_separate_and_missing_diagnostics_stay_unavailable(self):
+        source=SelectiveSource(SimpleNamespace(credential='offline'),None)
+        source.native_streams['existing']=dict(messages={},samples=[])
+        source.observe('native_frame',stream_id='existing',family='pump',message='slot',
+            slot=104,bytes=50,seen=NOW,provider_created_at=NOW-1)
+        metric=source.pipeline_metrics['native_frame:pump:slot']
+        self.assertEqual((metric['latest_slot'],metric['bytes'],metric['latest_received_wall']),(104,50,NOW))
+        self.assertNotIn('evidence_timing:candidate',source.pipeline_metrics)
+        source.observe('native_frame',stream_id='existing',family='pump',message='transaction')
+        unavailable=source.pipeline_metrics['native_frame:pump:transaction']
+        self.assertNotIn('latest_slot',unavailable);self.assertNotIn('latest_received_wall',unavailable)
+        self.assertEqual(unavailable['unmeasured_bytes_frames'],1)
+        self.assertEqual(source.pending_diagnostics,[])
+
     async def test_publication_serializes_once_with_original_receipt_and_checksum(self):
         import meme_machine.solana_candidate_lifecycle as module
         body=dict(record=dict(identity='economic',slot=100,logs=['escaped-\\-é']*100),available=NOW)

@@ -690,6 +690,7 @@ class ServiceState:
         # archive/retention transactions. Actual source heartbeats and
         # finalized frontiers remain part of their durable source commit.
         with self.writer.transaction():
+            self.storage_metrics['owner_sql_transactions']=dict(getattr(self.writer,'transaction_metrics',{}))
             self.maintenance_health(http)
             self.fence.health('ipc',ipc)
             self.fence.health('owner_scheduler',scheduler)
@@ -831,14 +832,16 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
         source_driver.delivery_executor=delivery_executor
         source_driver.preparation_executor=decoder_pool
     source_program_addresses=tuple(sorted({s.address for s in program_subscriptions()}))
-    async def work(fn,priority=1,*,label=None,accepted=None,admit_before=None):
+    async def work(fn,priority=1,*,label=None,component=None,accepted=None,admit_before=None):
         if label not in (None,'source_commit','candidate_development','archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish','maintenance_decision','history_dispatch','history_apply','candidate_delivery_capture','candidate_delivery_ack'):
             raise EvidenceUnavailable('owner_stage_identity')
-        submitted=time.monotonic();execution=[None,None]
+        if component not in (None,'control','candidate','scout','history_publication','delivery_accounting'):
+            raise EvidenceUnavailable('owner_component_identity')
+        submitted=time.monotonic();execution=[None,None];cpu=[None,None]
         def timed(state):
-            started=time.monotonic();execution[0]=started
+            started=time.monotonic();execution[0]=started;cpu[0]=time.thread_time()
             try:value=fn(state)
-            finally:execution[1]=time.monotonic()
+            finally:execution[1]=time.monotonic();cpu[1]=time.thread_time()
             return value,int((started-submitted)*1_000_000),int((execution[1]-started)*1_000_000)
         submit_options=dict(priority=priority)
         if admit_before is not None:submit_options['admit_before']=admit_before
@@ -862,11 +865,14 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
             # priority metrics otherwise miss. Never retain request/evidence text.
             if label is not None and execution[1] is not None:
                 key='owner.stage.'+label
-                counts[key+'.calls']=counts.get(key+'.calls',0)+1
-                for stage,duration in (('queue',execution[0]-submitted),('execution',execution[1]-execution[0])):
-                    metric=key+'.'+stage;micros=int(max(0,duration)*1_000_000)
-                    counts[metric+'_total_microseconds']=counts.get(metric+'_total_microseconds',0)+micros
-                    counts[metric+'_peak_microseconds']=max(counts.get(metric+'_peak_microseconds',0),micros)
+                keys=[key] if component is None else [key,key+'.component.'+component]
+                for key in keys:
+                    counts[key+'.calls']=counts.get(key+'.calls',0)+1
+                    for stage,duration in (('queue',execution[0]-submitted),('execution',execution[1]-execution[0]),
+                            ('execution_cpu',cpu[1]-cpu[0])):
+                        metric=key+'.'+stage;micros=int(max(0,duration)*1_000_000)
+                        counts[metric+'_total_microseconds']=counts.get(metric+'_total_microseconds',0)+micros
+                        counts[metric+'_peak_microseconds']=max(counts.get(metric+'_peak_microseconds',0),micros)
         # Separate scheduler wait from actual writer work; the prior "commit"
         # metric included both and could not identify the saturated stage.
         for stage,duration in (('queue',queued),('execution',executed)):
@@ -937,6 +943,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
                 try:
                     http=repair_rpc.telemetry() if repair_rpc is not None and hasattr(repair_rpc,'telemetry') else {}
                     snapshot=dict(counts)
+                    if source_driver is not None:
+                        snapshot['pipeline']={k:dict(v) for k,v in getattr(source_driver,'pipeline_metrics',{}).items()}
                     scheduler=owner.telemetry()
                     scheduler['owner_admission']=admission.telemetry()
                     await work(lambda state:state.publish_health(http,snapshot,scheduler),4,label='maintenance_health')

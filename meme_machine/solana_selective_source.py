@@ -473,6 +473,7 @@ class SelectiveSource:
         self.native_peak=0;self.native_revision=0;self.native_published=-1
         self.pending_diagnostics=[]
         self.join_observed={}
+        self.pipeline_metrics={}
         self.rolling_publications=0
         self.control_bootstrap_tip=None;self.control_committed_slot=None
         self.control_committed_market_time=None
@@ -513,6 +514,34 @@ class SelectiveSource:
             del self.pending_diagnostics[:len(rows)]
 
     def observe(self,kind,**values):
+        # Numeric, process-local attribution only. Reuse the existing health
+        # publication; never add an evidence receipt or per-event SQL write.
+        if kind in ('joined_frame','economic_prepared','evidence_timing','publication_timing','history_delivery_timing','decode_timing'):
+            plane=values.get('plane','shared')
+            if plane not in ('shared','rolling','candidate'):plane='shared'
+            key=kind+':'+plane
+            metric=self.pipeline_metrics.setdefault(key,dict(calls=0))
+            metric['calls']+=1
+            slot=values.get('slot')
+            if type(slot) is int:metric['latest_slot']=max(metric.get('latest_slot',0),slot)
+            durations={}
+            if kind=='decode_timing':durations={'decode':values.get('seconds'),'decode_cpu':values.get('cpu_seconds')}
+            elif kind=='economic_prepared':durations={k:values.get(k) for k in ('cpu_seconds','transfer_and_wait_seconds')}
+            elif kind=='history_delivery_timing':durations={k:values.get(k) for k in ('wall_seconds','cpu_seconds')}
+            elif kind=='publication_timing':
+                durations={'owner_queue':values['owner_claim_monotonic']-values['work_ready_monotonic'],
+                    'execution':values['publication_finished_monotonic']-values['publication_started_monotonic']}
+            elif kind=='evidence_timing':
+                durations={'owner_queue':values['owner_claim_monotonic']-values['join_ready_monotonic'],
+                    'execution':values['durable_finished_monotonic']-values['owner_claim_monotonic']}
+            for name,duration in durations.items():
+                if duration is None:continue
+                micros=int(max(0,duration)*1_000_000)
+                metric[name+'_total_microseconds']=metric.get(name+'_total_microseconds',0)+micros
+                metric[name+'_peak_microseconds']=max(metric.get(name+'_peak_microseconds',0),micros)
+            if kind=='economic_prepared':metric['records']=metric.get('records',0)+values.get('records',0)
+            if kind=='evidence_timing':metric['latest_durable_wall']=values['durable_finished_wall']
+            if kind=='joined_frame':metric['latest_joined_wall']=values['joined_wall']
         identity=values.get('stream_id');family=values.get('family','shared')
         if kind=='subscribe':
             from google.protobuf.json_format import MessageToDict
@@ -538,6 +567,17 @@ class SelectiveSource:
             context=self.native_streams[identity];message=values['message']
             context['messages'][message]=context['messages'].get(message,0)+1
             if len(context['samples'])<16:context['samples'].append(values)
+            # Actual parsed native progress, distinct from joined/prepared and
+            # durable slots. Fixed families/types bound the diagnostic keys.
+            family=family if family in ('shared','pump','pumpswap','discovery','replay','candidate','rolling') else 'shared'
+            message=message if message in ('slot','block_meta','transaction_status','transaction','account','ping','pong') else 'unknown'
+            metric=self.pipeline_metrics.setdefault('native_frame:'+family+':'+message,dict(calls=0,bytes=0))
+            metric['calls']+=1
+            if type(values.get('bytes')) is int:metric['bytes']+=values['bytes']
+            else:metric['unmeasured_bytes_frames']=metric.get('unmeasured_bytes_frames',0)+1
+            if type(values.get('seen')) in (int,float):metric['latest_received_wall']=values['seen']
+            if type(values.get('slot')) is int:metric['latest_slot']=max(metric.get('latest_slot',0),values['slot'])
+            if 'provider_created_at' in values:metric['latest_provider_created_wall']=values['provider_created_at']
             return # Existing transport observers already receive the raw delivery.
         elif kind=='unsubscribe':
             context=self.native_streams.get(identity,{})
@@ -587,7 +627,7 @@ class SelectiveSource:
             # small commit a different class stalls the entire publisher.
             # Use intake/publication's bounded FIFO; actual protective work
             # retains its reserved higher priority and SQL preemption.
-            await self.work(commit,2,label='source_commit')
+            await self.work(commit,2,label='source_commit',component='delivery_accounting')
             for key,(size,seen) in pending.items():
                 remaining=self.pending_delivery[key][0]-size
                 if remaining:self.pending_delivery[key]=(remaining,self.pending_delivery[key][1])
@@ -611,7 +651,7 @@ class SelectiveSource:
                     startup=h.startup.advance()
                     return (bool(getattr(h.lifecycle,'_proof_publication_cursor',None)),startup,
                         getattr(h.lifecycle,'_consumer_retry_at',None),getattr(h.lifecycle,'_published_count',0))
-                more,startup,retry_at,published=await self.work(publish,2,label='source_commit')
+                more,startup,retry_at,published=await self.work(publish,2,label='source_commit',component='history_publication')
                 self.observe('publication_timing',work_ready_monotonic=ready,
                     work_returned_monotonic=time.monotonic(),**timing)
                 if more:self.history_wakeup.notify() # Drain one fixed durable horizon, then sleep.
@@ -651,7 +691,7 @@ class SelectiveSource:
                 # a socket, raw slot notification or submitted command is not it.
                 return state.writer.db.execute('''SELECT slot,market_time FROM stream_receipts
                     WHERE scope=? AND sealed=1 ORDER BY slot DESC LIMIT 1''',(CONTROL,)).fetchone()
-            receipt=await self.work(commit,2,label='source_commit')
+            receipt=await self.work(commit,2,label='source_commit',component='control')
             if receipt is not None:
                 self.control_committed_slot,self.control_committed_market_time=receipt
             for _ in batch:queue.task_done()
@@ -700,6 +740,8 @@ class SelectiveSource:
                         await self.work(failed,priority,label='source_commit')
                         raise
                     preparation['transfer_and_wait_seconds']=time.monotonic()-started
+            self.observe('economic_prepared',plane='rolling' if rolling else 'candidate',
+                slot=max(f.update.block.slot for f in frames),**preparation)
             claimed=[];finished_wall=[]
             def durable(state):
                 claimed.append(time.monotonic())
@@ -708,9 +750,9 @@ class SelectiveSource:
                 if rolling and not native_announced:
                     install(state).startup.native([s.split(':',2)[1] for s in addresses.values()])
                 claimed.append(time.monotonic());finished_wall.append(time.time())
-            await self.work(durable,priority,label='source_commit')
+            await self.work(durable,priority,label='source_commit',component='candidate')
             for frame,_,ready,ready_wall in rows:
-                self.observe('evidence_timing',session=session,slot=frame.update.block.slot,
+                self.observe('evidence_timing',plane='rolling' if rolling else 'candidate',session=session,slot=frame.update.block.slot,
                     native_last_receipt_wall=frame.seen,
                     economic_available_wall=max((r[4] for r in frame.candidate_statuses),default=frame.seen),
                     join_ready_wall=ready_wall,durable_finished_wall=finished_wall[-1],
@@ -904,7 +946,7 @@ class SelectiveSource:
             while len(batch)<SCOUT_COMMIT_BATCH:
                 try:batch.append(queue.get_nowait())
                 except asyncio.QueueEmpty:break
-            await self.work(lambda s:commit_scout_batch(s,batch),5,label='source_commit')
+            await self.work(lambda s:commit_scout_batch(s,batch),5,label='source_commit',component='scout')
             for _ in batch:queue.task_done()
 
     async def __call__(self,work,stop):
@@ -1232,6 +1274,7 @@ class SelectiveSource:
                     raise
                 accepted=await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
                     label='candidate_delivery_ack')
+                self.observe('history_delivery_timing',**result['metrics'])
                 # Noncritical short batches coalesce within the ORIGINAL 100-ms
                 # cadence. Canonical/proof work bypasses it; a full batch drains
                 # immediately. There is no idle polling or later trade deadline.
@@ -1518,7 +1561,10 @@ class SelectiveSource:
         log_frontiers={};logs_available=asyncio.Event()
         candidate_queue=CandidateCommitQueue();join_progress=asyncio.Event()
         async def commit(frame):
-            if frame:await candidate_queue.put(frame)
+            if frame:
+                self.observe('joined_frame',plane='rolling' if rolling else 'candidate',
+                    slot=frame.update.block.slot,joined_wall=time.time())
+                await candidate_queue.put(frame)
         acknowledged=asyncio.Event()
         async def native(update,size,seen):
             try:
