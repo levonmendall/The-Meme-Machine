@@ -1,4 +1,39 @@
-# Latest continuation — consolidated startup repair, 2026-10-14
+# Latest continuation — consolidated observation completed, 2026-10-14
+
+Read [CONSOLIDATED_OBSERVATION_RESULT_20261014.md](CONSOLIDATED_OBSERVATION_RESULT_20261014.md)
+first. The single authorized observation executed exact `1fe5a6f6` at 22:40:46 UTC
+and stopped after 250.071 seconds on Pons's retained-watch interpretation error.
+Pump required TERM/15-second/KILL escalation while restoring observed candidates.
+Original **RECOVERY_REQUIRED** is unchanged; empty processes and monetary replay
+are not successful native drainage. No retry or remaining runtime authority.
+
+Offline follow-up executable `c8beb2d1317084779f97214b6015b7c345242085` is published
+on `repair/consolidated-startup-followup-20261014` with [draft PR 133](https://github.com/levonmendall/The-Meme-Machine/pull/133).
+Two causally demonstrated repairs preserve Pons retained-watch/projection fences
+and Pump cancellation between completed restoration reads. Final affected 106
+tests pass, including the nine-case startup rehearsal and original source guards;
+the earlier 223-case integration proof remains applicable to unchanged paths.
+The already-dispatched FAST run 38652038787 is allowed to finish; local polling
+is stopped. Its result is recorded separately from scoped diagnostic validation;
+skipped draft CI is not a PASS. Follow the updated AGENTS/skill risk-based gate:
+affected checks, actual startup rehearsal, exact-source/economic guards,
+implicated safety regressions and fresh host preflight for an authorized start.
+Full FAST/applicable complete OPERATIONAL are reserved for a finalized one-hour/
+normal-operation candidate or demonstrated broad risk, not every repair or
+funding-closed diagnostic. No new suite is required for these instruction-only
+changes, and no repair is deployed.
+
+Compatible installed source `66f85d61` and saved small overlays are restored,
+stopped/disabled, `Restart=no`, funding closed. Post-stop replay verifies 8,982
+events, $1,000.00 cash and zero monetary obligations; historical $500 accounting,
+inception and capital policy are unchanged. Accepted pending native work and
+provider counters are retained without rewind. Throughput remains unresolved:
+startup CONTROL/stored/published progress was 4.634/1.980/1.942 slot units/s;
+pre-persistence gap grew 131→489. No steady-state, held-protection or acceptance
+PASS. Continue only supported offline work; new runtime activity needs separate
+authorization tied to the precise remaining question, not an unchanged retry.
+
+# Earlier continuation — consolidated startup repair, 2026-10-14
 
 Workflow merge `893640f2fbf323e64e943cced9976f65766e420e` is incorporated without
 application/test changes. Follow root `AGENTS.md` and

@@ -1,6 +1,6 @@
 ---
 name: meme-machine-operational-resolution
-description: Use for Meme Machine Pump/Pons operational defects, startup and shutdown failures, SQLite/provider bottlenecks, performance attribution, and release readiness. Diagnose retained evidence first; run focused offline validation and one final integrated release gate.
+description: Use for Meme Machine Pump/Pons operational defects, startup and shutdown failures, SQLite/provider bottlenecks, performance attribution, and release readiness. Diagnose retained evidence first; use risk-based diagnostic validation and reserve complete suites for release promotion or demonstrated broad risk.
 ---
 
 # Meme Machine operational resolution
@@ -18,8 +18,22 @@ This skill standardizes investigations; it does not grant deployment, provider-w
 
 - **Narrow edit:** invoke only affected named modules or cases under the repository network guard, e.g. `python -m operational.tests FAST --modules tests.test_current_combined_diagnostic`. Modules outside FAST use `OPERATIONAL --modules`. Test negative/fault-injection paths, not just happy-path assertions.
 - **Subsystem integration:** add adjacent owner/provider/recovery/strategy invariants; for supervisor/startup/shutdown work use existing `tests.test_integrated_startup_rehearsal` and actual disposable child paths. This fixture is NOT a faithful market replay or a sustained-capacity proof.
-- **Final release candidate:** one complete FAST on the exact final merged executable, preserve skip/failure disclosures; then the applicable OPERATIONAL gate before deployment, with owner-approved exceptions only. Any code change after a release PASS invalidates at least affected checks; ensure final integrated-source proof is current.
-- Prefer draft PRs and separate worktrees for iterative changes. Coordinate one integration/test owner and avoid concurrent resource-heavy validation. Existing CI runs complete FAST for review-ready PRs, main, or explicit dispatch; canceled/superseded runs and draft skips are not passes.
+- **Funding-closed diagnostic candidate:** apply the risk-based gate below. Full FAST or complete OPERATIONAL is not automatically required after a repair or before this diagnostic. Focused-test success is scoped evidence, never a general release PASS.
+- **Final one-hour acceptance/normal-operation candidate:** freeze the combined executable when genuinely ready for promotion, then run one complete FAST and the applicable complete OPERATIONAL release validation on that exact candidate. A change with demonstrated broad safety/dependency risk can require broader validation earlier; record the specific reason and scope. Preserve skip/failure disclosures. After subsequent changes, rerun affected checks and release checks actually invalidated; reuse still-valid evidence instead of repeating unrelated suites.
+- Prefer draft PRs and separate worktrees for iterative changes. Consolidate related fixes before the next integration checkpoint, using one integration/test owner. Do not manually dispatch full FAST after every draft repair or mark a draft ready just to trigger CI. Publish scoped diagnostic evidence separately from a promotion claim.
+- Let useful running CI finish unless it becomes obsolete. Do not repeatedly poll `gh run view`, create replacement polling/watch loops, or duplicate the running suite. Continue independent lightweight offline engineering without competing resource-heavy tests/profilers. Obtain the terminal result at a meaningful checkpoint; canceled/superseded runs, draft skips and fragmented suites are not passes.
+
+## Risk-based diagnostic validation gate
+
+Use existing tests, receipts and preflight machinery; this is not a new permission or certification system. Record the exact candidate and changed dependencies, then require:
+
+1. **Affected behavior:** focused network-blocked tests on the combined source, including the demonstrated failure and relevant negative, replay, cancellation and restart paths. Consolidate related fixes before shared-path integration testing.
+2. **Actual startup:** run the existing integrated startup rehearsal and actual disposable supervisor/child paths when startup, configuration propagation, worker lifecycle, native recovery or shutdown dependencies change. Preserve pending work and accurate unfinished-reconciliation status. Synthetic rehearsal is not authentic market replay or throughput proof.
+3. **Source and economics:** run the applicable exact source-integrity guards and relevant strategy-policy regressions. Preserve all six active opportunity-access changes, nine original economic changes, attention-only volume-quality behavior, Current/Survivor independence and the existing $1,000 epoch/historical accounting. Never broaden a source exemption or weaken an assertion to obtain a pass.
+4. **Safety dependencies:** run the accounting/authority, canonical completeness/durable delivery, provider admission/protection, recovery and maintenance regressions implicated by the edit. Keep original three-/five-second Pons protection, readiness and shutdown requirements. An unmet decision-critical invariant blocks the affected operation; funding closed is not permission to ignore it.
+5. **Fresh runtime preflight:** before an independently authorized diagnostic, verify actual source/runtime/configuration, service identity/access, obligations and monetary reconciliation, native pending-work resumability, applicable recovery reference, storage/resources, workload non-overlap and installed provider controls. Reuse valid recovery proofs with fresh applicability checks; do not repeat bulk verification without a changed dependency or evidence requiring it.
+
+Disclose failures, skips, unavailable evidence, remaining live-only questions and why the selected checks cover the diagnostic's risk. A fresh preflight or focused PASS neither authorizes a service start/provider workload nor establishes sustained capacity, held protection, full release readiness or acceptance. Preserve all original safety stops and explicit owner scope. If dependency reach cannot be bounded safely, expand validation with a stated reason or stop that branch; do not silently promote the candidate.
 
 ## Live boundary
 

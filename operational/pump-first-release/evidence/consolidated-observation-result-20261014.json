@@ -1,0 +1,194 @@
+{
+  "attempt": {
+    "acceptance_minutes": 0,
+    "allocations": false,
+    "elapsed_to_drain_seconds": 250.07142554898746,
+    "first_failure": "Pons retired-watch/current-candidate interpretation mismatch",
+    "funding": false,
+    "native_drain": "FAILED_PUMP_TERM_15S_KILL_MINUS9",
+    "raw_deadline_verdict": null,
+    "readiness": "NOT_ESTABLISHED_EARLY_FATAL_BEFORE_300S",
+    "result": "RECOVERY_REQUIRED",
+    "result_sha256": "234a147368e2b9b337fdb5248ca7a1c7a363e07aa0e421503d5dc0c1d3335fe8",
+    "source_sqlite_exception": "NOT_REPRODUCED",
+    "start_utc": "2026-10-14T22:40:46Z"
+  },
+  "base": "c1c3fd1662b1acbb917f57bfd0e578fc7a349bce",
+  "branch": "repair/consolidated-startup-followup-20261014",
+  "evidence_root": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011",
+  "executed_revision": "1fe5a6f62d37f84ad24f0b7413279c080e3424e5",
+  "financial": {
+    "capital_policy_unchanged": true,
+    "cash": "1000.00",
+    "counts": {
+      "commitments": 0,
+      "obligations": 0,
+      "pending_backing": 0,
+      "pending_deliveries": 0,
+      "positions": 0,
+      "reservations": 0,
+      "runtime_inbox": 0,
+      "runtime_pending": 0
+    },
+    "financial_replay": {
+      "conservation": true,
+      "events": 8982,
+      "journal_hash": "2a69c46a1cadce832746505b2464bdb160a61059df6e2c66fbb800289cb1c1ca",
+      "state_sha256": "d2adb97951e3a5ce7b507f21e06c692917fb69a9fd79f535f56cfbca1fb0a64b"
+    },
+    "historical500_exact_unchanged": true,
+    "inception_unchanged": true,
+    "new_journal_actions": {
+      "runtime_admission": 1,
+      "runtime_owner": 6,
+      "runtime_publish": 73
+    }
+  },
+  "focused_proofs": [
+    {
+      "errors": 0,
+      "failures": 0,
+      "log": "CONSOLIDATED_OBSERVATION_FOLLOWUP_INTEGRATION_20261014.log",
+      "seconds": 49.362,
+      "sha256": "afd8ac0d39a1d483354c01dc56e4f055b1f55d572de59ccc92670c8fa608266f",
+      "skips": 0,
+      "tests": 223
+    },
+    {
+      "errors": 0,
+      "failures": 0,
+      "log": "CONSOLIDATED_OBSERVATION_FOLLOWUP_FINAL_AFFECTED_20261014.log",
+      "seconds": 35.604,
+      "sha256": "422bc63f156d7b3b405d25e887c34da682689f504d0ba1185e73ecd15c821708",
+      "skips": 0,
+      "tests": 106
+    }
+  ],
+  "full_fast": {
+    "candidate": "c8beb2d1317084779f97214b6015b7c345242085",
+    "disposition": "existing useful run left running; no additional dispatch, cancellation or watch/poll loop",
+    "draft_pr_skip_not_a_pass": true,
+    "job_id": 116152898636,
+    "run_id": 38652038787,
+    "status": "IN_PROGRESS",
+    "status_observed_at_utc": "2026-10-14T23:26:50.741138+00:00",
+    "url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/38652038787"
+  },
+  "independent_blockers": [
+    "complete native recovery/drain",
+    "pre-join dependency and sustained capacity",
+    "original SQLite BUSY",
+    "managed Pons capacity/method/freshness/held protection",
+    "Pons READONLY INSERT",
+    "later failed backup",
+    "active-backup/protection compatibility"
+  ],
+  "managed_provider": {
+    "admissions": {
+      "count": 37,
+      "granted": 37,
+      "maximum_wait_seconds": 0.22893456695601344
+    },
+    "boundaries": {
+      "None": 36,
+      "evidence_deadline_during_transport": 1
+    },
+    "dispatch_spacing_seconds": {
+      "maximum": 32.7814612518996,
+      "median": 0.24967329704668373,
+      "minimum": 0.1105555510148406,
+      "samples": 36
+    },
+    "http_status": {
+      "200": 36,
+      "None": 1
+    },
+    "logical_methods": {
+      "eth_call": 57,
+      "eth_chainId": 6,
+      "eth_getBlockByNumber": 81,
+      "eth_getCode": 32,
+      "eth_getLogs": 4
+    },
+    "quote_usd": "Complete held-position quote/USD protection not exercised; eth_call candidate reads occurred, complete quote/USD timings unavailable",
+    "transport_429": 0,
+    "transport_starts": 37
+  },
+  "private_run": "/var/lib/meme-machine-diagnostics/20261014-consolidated-startup-224020",
+  "proof_overlap": "Counts overlap; unchanged proofs reused, never summed",
+  "pull_request": "https://github.com/levonmendall/The-Meme-Machine/pull/133",
+  "repair_executable": "c8beb2d1317084779f97214b6015b7c345242085",
+  "safe_state": {
+    "databases_rewound": false,
+    "funding": false,
+    "installed": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "native_recovery": "RECOVERY_REQUIRED",
+    "original_results_preserved": true,
+    "repair_deployed": false,
+    "service": "stopped/failed, disabled, Restart=no"
+  },
+  "schema": "consolidated-observation-result-v1",
+  "source_sha256": {
+    "meme_machine/lanes/pump/runner.py": "f94dc8512ae8e7e0446040db08e4736aad9b32fdb1bd6e65d5d1d7670ec0b884",
+    "meme_machine/runtime/robinhood/pons.py": "a1d3cf01ccf8bb102e31b33dc7edef2fa2dfd1434f5bf8dd0aa0d127d13ff030",
+    "tests/test_paper_policy_compatibility.py": "fa47ba05f4f17261c612d0fb63f44d77f981c5e71e7a4081792236085705390a",
+    "tests/test_pump_cancellation_diagnostics.py": "a80a6c2bc1f923a782e0a2a36031d3b5df7452313a378ed7fe761f889e1061fe",
+    "tests/test_robinhood_usd_valuation.py": "32d787ccabd09b9e7b7aedd09613ccd78e0b1b16260e91d274ca84ca075ef035"
+  },
+  "startup_rates": {
+    "causal_throughput_intervention": "INSUFFICIENT_EVIDENCE",
+    "control": 4.633724637282726,
+    "joined": 1.9869411244668331,
+    "newest_stored": 1.9795271650471806,
+    "pre_persistence_gap": [
+      131,
+      489
+    ],
+    "prepared": 1.9721132056275283,
+    "published": 1.942457367948919,
+    "scope": "current-generation 134.880695104599s startup only; Pump/PumpSwap overlap not summed",
+    "shared_parsed": 4.7152781908989025,
+    "stored_to_published_gap": [
+      3,
+      8
+    ],
+    "whole_path_improvement": "NOT_ESTABLISHED"
+  },
+  "usage": {
+    "at": "2026-10-14T22:47:36.475343+00:00",
+    "calls_by_this_read": 0,
+    "delta": {
+      "alchemy_rpc_cu": 4042,
+      "http_attempts": 44,
+      "http_bytes": 533701,
+      "http_uncertain_bytes": 0,
+      "native_bytes": 152695045,
+      "native_failures": 0,
+      "native_opens": 4,
+      "native_uncertain_bytes": 285212672,
+      "robinhood_rpc_elements": 180,
+      "rpc_cu": 4042,
+      "rpc_elements": 183,
+      "solana_rpc_elements": 3
+    },
+    "interval": "fresh_pre_dispatch_ledger_to_post_drain",
+    "modeled_cost_usd": "0.048102360285",
+    "new_risk_ready": "false",
+    "operating_mode": "CONTINUOUS",
+    "price_basis": "existing_frozen_conservative_model_not_invoice",
+    "provider_invoice": "UNAVAILABLE",
+    "reservation_after": {
+      "http_reserved": "0",
+      "native_reserved": "0"
+    }
+  },
+  "validation_workflow": {
+    "complete_suites": "finalized one-hour/normal-operation candidate or demonstrated broad dependency/safety risk",
+    "diagnostic_gate": "affected combined-source tests, actual integrated startup rehearsal for changed lifecycle paths, exact source/economic guards, implicated safety regressions, fresh authorized host preflight",
+    "focused_pass_is_release_pass": false,
+    "instruction_changes_invalidate_executable_proofs": false,
+    "instruction_review": "independent source-only review: no concrete gap; no tests required for instruction/handoff-only edits",
+    "running_ci_disposition": "allow existing run to finish; local polling/watch stopped; no new suite dispatched",
+    "runtime_authority_expanded": false
+  }
+}
