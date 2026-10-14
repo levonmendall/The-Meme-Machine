@@ -1,3 +1,29 @@
+# Replacement completed — 2026-10-14 17:09 UTC
+
+**STOPPED_FOR_REVIEW — RECOVERY_REQUIRED.** Read
+[REPLACEMENT_OBSERVATION_RESULT_20261014.md](REPLACEMENT_OBSERVATION_RESULT_20261014.md)
+first. Access repair `0333860364b0602583b7e300cbe7e57303697510` passed39focused
+tests and actual service-identity probes. The one authorized replacement started
+16:51:21UTC and stopped on the Robinhood queue guard; controller ended227.60s
+after origin. No readiness/acceptance PASS. Pump was SIGKILLed while RECONCILING;
+Pons exited0. Empty processes/supervisor exit0 are not a graceful-drain proof.
+
+Fresh monetary reconciliation passes: cash1000.00, no positions or obligations;
+historical500 unchanged. Authorized reporting journal is now sequence8896.
+Clean installed source/saved overlays returned to `a70e261`; PAPER inactive,
+disabled/Restart=no, funding closed. Approved parent0710 repair remains. No
+state/counter rewind, timer modification, automatic retry or original failure
+overwrite occurred. The original RECOVERY_REQUIRED result remains unchanged.
+
+Current-generation CONTROL/newest-economic/published rates are4.288/1.521/1.460
+slot units/s over98.64s; overlap/proxy/startup limitations apply. Public RPC
+returned two429s; its existing cooldown caused6.98s discovery admission wait.
+Dominant Pump cause and full protection capacity remain unproved. Preserve
+all retained evidence and perform scoped diagnostic/native-recovery review
+before proposing another operation. This replacement authorization is consumed.
+
+---
+
 # Authorized observation ended — 2026-10-14 16:25 UTC
 
 **OBSERVATION_FAILED_BEFORE_WORKER_START — STOPPED_FOR_REVIEW.** Read
