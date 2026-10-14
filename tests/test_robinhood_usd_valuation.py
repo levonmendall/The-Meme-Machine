@@ -492,7 +492,7 @@ class RobinhoodUSDTests(unittest.TestCase):
                 # replacing them with the operational predecessor must recover the
                 # entire operational AST, including shutdown and guard diagnostics.
                 current=ast.parse(combined);previous=ast.parse(operational);published=ast.parse(strategy_after)
-                for name in ('validate_environment','Supervisor.__init__','Supervisor.environment'):
+                for name in ('validate_environment','Supervisor.initialize','Supervisor.environment'):
                     parent=current;before=previous;after=published
                     for part in name.split('.')[:-1]:
                         parent=next(n for n in parent.body if isinstance(n,ast.ClassDef) and n.name==part)
