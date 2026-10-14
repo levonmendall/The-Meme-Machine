@@ -1,3 +1,153 @@
+# Mandatory two-blocker stop — 2026-10-14 06:35 UTC
+
+**STOPPED — INSUFFICIENT EVIDENCE FOR A JUSTIFIED SOLUTION OR DECISIVE TEST.**
+The owner's limited two-blocker authorization was exercised for one bounded
+diagnostic per blocker. No production code was changed, no corrective cycle
+was claimed, and no additional diagnostic or engineering is queued. Research
+remains suspended. PAPER is inactive/dead, disabled, MainPID 0, and funding is
+closed. Zero qualifying one-hour minutes have elapsed.
+
+This section takes precedence over the older pause retained below. The previous
+safe-stop checkpoint and all unfinished source are published on
+`preservation/sustained-throughput-blocker-20261014` at
+`66a87ac32f969195352ade7d35150dd2be53b81b`. Its two Pons checkpoint-reuse source
+changes remain untested, not deployed and separate from this clean engineering
+branch. Do not automatically integrate them or claim they repair either SQLite
+fault. Exact patch remains in E.
+
+Current engineering/remote branch is
+`engineering/pump-history-separation-20261013`. Tested and installed production
+source is `a70e2610743d8595b3d1a36ed25821a6689c29f3`; full FAST passed 1,949 tests
+with zero failures/errors/skips, run `38516007907`. This new checkpoint changes
+only the handoff; its exact published SHA is in
+`E/TARGETED_BOTTLENECK_STOP_PUBLICATION_20261014.json`. All prior integrated
+history separation, off-owner preparation, independent durable consumer,
+event-driven publication, approved lifecycle/reporting, nine strategy changes,
+volume-quality feature and verified Pons factory 40-block optimization remain.
+No deployment, new policy, portfolio epoch, hardware or pacing change occurred
+under the limited resumption.
+
+## Pons — endpoint identified; correction not established
+
+All four retained 429s bind to the **official public** endpoint
+`https://rpc.mainnet.chain.robinhood.com`, fingerprint
+`78ccdeee5ef1eac240a33a5d090abde993a67b38a8b42627004d153a1f8c7402`.
+They do not bind to the authenticated Alchemy credential. The existing eight-
+second provider cooldown produced observed waits of 6.69–7.62 seconds.
+
+Exact source paths: `pons_natural_observation.py:_pages/read_market`,
+`provider_topology.py:ObservationFallbackRpc.batch/call`,
+`provider_admission.py:invoke`. A batch-only construction restriction versus
+public throttling was the stated diagnostic uncertainty. The bounded public-
+only comparison used one four-element batch and the exact same four ten-block
+ranges as paced single requests, with original public two-RPS pacing, governor,
+usage ledger, no canonical fallback and no canonical coverage writes.
+
+At `06:16:54.657357Z`–`06:16:56.854261Z`, both forms were accepted: batch
+**0.40183 seconds**, four singles **0.28707/0.50846/0.48995/0.50629 seconds**,
+with **exact equality of seven ordered events**. Five physical starts, eight
+logical elements, modeled 480 CU, 11,752 delivered HTTP bytes, no native opens;
+modeled upper cost $0.000252, not verified billing. Normal PAPER stayed stopped.
+
+This rules out an unconditional four-element batch incompatibility; it does
+not reproduce or fix the under-load rejections. No 429 body was available in
+the retained audit or this control. **STOP Pons:** changing batching, limits or
+backoff would be unsupported. New evidence needed is the actual under-load
+error code/message/Retry-After or documented restrictions of this public method
+and endpoint, tied to actual concurrent starts. Do not substitute Alchemy team
+metadata or repeat the successful factory capability investigation.
+
+## Pump — near-current isolated source; new unlocalized SQLite failure
+
+One existing evidence worker, with original historical consumer, source feeds,
+sole canonical owner, Solana two-RPS governor, CPU quota 1.8 cores and existing
+memory/disk limits, ran in a temporary systemd diagnostic unit. Normal PAPER
+and both strategy workers remained stopped. It dispatched **zero Pons RPC
+calls**. No reference feed or replacement subscription was added.
+
+The untraced 63.711-second source-only window progressed at control
+**4.48899 slots/s**, durable Pump/PumpSwap **4.41051 slots/s**, gap **-2→3 slots**,
+source process-group CPU **1.0810 cores**. This is a short isolation result,
+not a controlled improvement or complete-machine capacity proof. The retained
+simultaneous restored baseline remains 4.3892 versus 1.8687 slots/s over
+391.186 seconds; its different source/load cannot establish a speedup here.
+
+A bounded owner-thread syscall capture obtained **4.786 seconds** before its
+four-MiB target. Actual size was 4,199,618 bytes (5,314 bytes over the target
+because the producer continued between checks); that limitation is retained.
+Captured syscall time includes pread64 **0.968 s**, futex **0.988 s**, fdatasync
+**0.183 s**, pwrite64 **0.182 s**, fcntl **0.094 s**. File identities and buffer-
+free trace are retained. I/O and synchronization are both material; this short,
+ptrace-affected sample does not identify a dominant causal combined-stage fix.
+
+At `06:29:08Z`, the source worker exited with the preserved original diagnostic:
+`evidence_worker_failed:OperationalError:SQLITE_BUSY:5`. The exact failing
+connection/database/SQL phase is **unknown**. Its unit is failed/MainPID 0 and
+all children exited. No timeout, permission, sidecar, queue or database reset
+was attempted. Seven total physical starts (including four native opens),
+three logical RPC elements, 60 modeled CU and 185,728,677 accounted native
+bytes plus 285,212,672 uncertain bytes were retained. The source experiment
+therefore ended before its 360-second limit and proves no sustainable pass.
+
+**STOP Pump:** isolation points toward combined-work contention, but an exact
+limiting operation and the new BUSY mechanism remain unproved. New evidence
+needed is the original SQLite failing-operation/connection/actor context and
+comparable restored-load I/O/GIL/runnable-wait attribution. No specific cache,
+transaction, concurrency or hardware change is currently justified. Do not
+relaunch an unchanged observation or invent a synthetic reproduction.
+
+## Preserved state, evidence and next decision
+
+At `06:34:45.312938Z`, read-only authoritative reconciliation passes for
+`paper-shared-1000-20261011T071207Z`: cash **$1,000.00**, zero positions,
+reservations, commitments, unsettled obligations or pending deliveries; zero
+realized P&L. Historical $500 state was not modified. All databases, journals,
+canonical histories, failed records and provider counters remain in their
+original persistent volumes. Nothing was purged or reseeded. No protection
+worker had to be left running because positions/obligations are zero. Read-only
+monitor/observer/dashboard remain; no other Codex session was altered.
+
+E is
+`/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011`.
+Key artifacts:
+
+- `TARGETED_BOTTLENECK_EVIDENCE_GATE_20261014.json`: exact pre-dispatch hypotheses,
+  outcome decisions, bounds and final STOP dispositions; two experiments,
+  zero code-correction cycles.
+- `TARGETED_BOTTLENECK_STOP_RESULT_20261014.json`: final findings and artifact
+  hashes; separates public/provider, isolation, tracing and readiness claims.
+- `PONS_PUBLIC_LOG_BATCH_DISCRIMINANT_20261014.json` and its driver/log.
+- `PUMP_OWNER_WAIT_ISOLATION_20261014.json`,
+  `PUMP_OWNER_WAIT_DIAGNOSTIC_ANALYSIS_20261014.json`,
+  `PUMP_OWNER_SYSCALL_TRACE_20261014.txt` and source-unit journal/driver.
+- `TARGETED_BOTTLENECK_FINAL_SAFE_STATE_20261014.json`.
+- Previous `STAGED_SUSTAINED_THROUGHPUT_SAFE_PAUSE_20261014.json`, authentic
+  attempt 7/8 records, exact source CI logs, and WIP/deferred patches remain.
+
+The latest scheduled backup failure and active-backup freeze/protection conflict
+remain **separate unresolved issues**, not repaired by these diagnostics. Keep
+`STAGED_RECOVERY_FINAL_20261013.json` and its completed isolated integrity verdict
+and snapshot; do not blindly run another longer full integrity retry. No recovery
+verification or additional bulk database copy was performed for this addendum.
+
+Normal PAPER still has a stopped finite diagnostic override; do not start it
+as autonomous operation. The temporary source unit is stopped and its protected
+credential file was removed after all processes exited. No native worker,
+provider experiment, test/CI or restart is queued. The removed dollar/attempt
+ceilings remain removed; they were not the reason for the STOP.
+
+Resume only with new diagnostic evidence/capability supporting a specific
+causal solution or discriminating test and owner direction under the mandatory
+limits. First inspect actual service/source/obligations and the preserved work;
+then address the exact missing error/owner-wait context. Do not repeat history
+redesign, startup optimization, factory capability, full recovery or broad tests.
+One-hour acceptance remains unavailable until both operating paths and all
+original admission/protection/recovery requirements pass.
+
+---
+
+## Earlier preservation checkpoint retained below (superseded)
+
 # Owner-directed safe pause — 2026-10-13 UTC
 
 **Status: SAFE_PAUSED. No automatic resumption.** The owner superseded the
