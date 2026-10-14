@@ -149,6 +149,204 @@ class PumpCancellationDiagnostics(unittest.TestCase):
             'pump.runtime_evidence_open')
         self.assertIs(status.snapshot()['reconciled'],False)
 
+    def test_actual_native_heartbeat_retains_operation_when_TERM_precedes_first_sample(self):
+        from meme_machine.lanes.pump import runner
+        captured=[];seen=threading.Event();original_health=lane.health
+        def record(root,name,phase,**facts):
+            original_health(root,name,phase,**facts)
+            if facts.get('native_operation'):
+                captured.append(dict(phase=phase,**facts));seen.set()
+        def cancelled(**kwargs):
+            with status.operation('pump.accounting_restore'):
+                status.cancellation_signal(signal.SIGTERM);stop.requested.set()
+                if not seen.wait(1):raise RuntimeError('early_TERM_operation_not_published')
+                raise stop.Shutdown()
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);(root/'pump').mkdir()
+            (root/'pump'/'native-genesis.json').write_text(json.dumps(dict(capital=1)))
+            pending=root/'pump'/'retained-pending.json'
+            pending.write_text('accepted-evidence-awaiting-history');before=pending.read_bytes()
+            with patch('sys.argv',['lane','--lane','pump','--state-root',str(root)]), \
+                    patch('meme_machine.operational.bounded_provider.install'), \
+                    patch.object(runner,'main',side_effect=cancelled), \
+                    patch.object(runner,'INITIAL_LAMPORTS',runner.INITIAL_LAMPORTS), \
+                    patch.object(runner,'ENTRY_BUDGET',runner.ENTRY_BUDGET), \
+                    patch.object(lane,'health',side_effect=record):
+                lane.main()
+            final=json.loads((root/'pump'/'health.json').read_text())
+            self.assertEqual(pending.read_bytes(),before)
+        self.assertEqual(len(captured),1)
+        self.assertEqual(captured[0]['native_operation']['operation'],'pump.accounting_restore')
+        self.assertEqual(captured[0]['native_operation']['native_thread_id'],threading.get_native_id())
+        self.assertEqual(captured[0]['cancellation_signal']['signal'],signal.SIGTERM)
+        self.assertIs(captured[0]['reconciled'],False)
+        self.assertEqual(final['phase'],'STOPPED');self.assertIs(final['reconciled'],False)
+        self.assertEqual(final['native_recent_operations'][-1]['state'],'CANCELLED')
+
+    def test_requested_heartbeat_cannot_overwrite_concurrent_terminal_health(self):
+        published=[];entered=threading.Event();release=threading.Event()
+        def record(root,name,phase,**facts):
+            if phase!='STOPPED':
+                entered.set()
+                if not release.wait(1):raise RuntimeError('publication_fixture_timeout')
+            published.append(dict(phase=phase,**facts))
+        publish=lane.NativeHealthPublisher('/disposable','pump')
+        stop.requested.set()
+        with patch.object(lane,'health',side_effect=record):
+            with status.operation('pump.accounting_restore'):
+                heartbeat=threading.Thread(target=publish.heartbeat,args=(stop.requested,status))
+                heartbeat.start();self.assertTrue(entered.wait(1))
+                terminal=threading.Thread(target=publish,args=('STOPPED',),kwargs=dict(reconciled=False))
+                terminal.start();self.assertTrue(publish.terminal.wait(1));release.set()
+                heartbeat.join(1);terminal.join(1)
+            publish.heartbeat(stop.requested,status)
+        self.assertFalse(heartbeat.is_alive());self.assertFalse(terminal.is_alive())
+        self.assertEqual([r['phase'] for r in published],['RECONCILING','STOPPED'])
+        self.assertIs(published[-1]['reconciled'],False)
+
+    def test_health_write_failure_preserves_original_startup_exception(self):
+        error=RuntimeError('original-startup-error-with-private-context')
+        def failed(root,name,publish):
+            with status.operation('pump.accounting_restore'):
+                facts=status.snapshot();facts.pop('phase',None)
+                publish('RECONCILING',**facts)
+                raise error
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);(root/'pump').mkdir()
+            with patch('sys.argv',['lane','--lane','pump','--state-root',str(root)]), \
+                    patch('meme_machine.operational.bounded_provider.install'), \
+                    patch.object(lane,'run_native',side_effect=failed), \
+                    patch.object(lane,'health',side_effect=OSError('optional-private-record-failure')), \
+                    patch('builtins.print') as logged:
+                with self.assertRaises(RuntimeError) as caught:lane.main()
+        self.assertIs(caught.exception,error)
+        self.assertNotIn('optional-private-record-failure',str(logged.call_args_list))
+
+    def test_health_publication_lock_wait_is_bounded_and_optional(self):
+        publish=lane.NativeHealthPublisher('/disposable','pump')
+        waits=[]
+        lock=SimpleNamespace(acquire=lambda **kwargs:waits.append(kwargs) or False,release=lambda:None)
+        with patch.object(publish,'lock',lock),patch.object(lane,'health') as record:
+            publish('STOPPED',reconciled=False)
+        self.assertEqual(waits,[dict(timeout=.05)])
+        self.assertTrue(publish.terminal.is_set());record.assert_not_called()
+
+    def test_cancelled_native_constructor_preserves_pending_journal_and_fresh_resume(self):
+        from meme_machine.shared_capital import runtime
+        from meme_machine.lanes.pump import runner
+        from tests.shared_capital_support import Harness
+        with tempfile.TemporaryDirectory() as directory:
+            h=Harness(directory)
+            try:
+                h.allocate([('pump_current',{})])
+                before=h.authority.snapshot()['ledger']
+                self.assertTrue(before['reservations'])
+                journal=h.authority.db.execute('SELECT * FROM shared_capital_events ORDER BY sequence').fetchall()
+                projection=h.authority.db.execute('SELECT * FROM shared_capital_projection').fetchall()
+                applied=[];opened=[];original_apply=runtime.RuntimeCapital._apply
+                original_connect=runtime.sqlite3.connect
+                def connect(*args,**kwargs):
+                    db=original_connect(*args,**kwargs)
+                    if Path(args[0])==h.path:opened.append(db)
+                    return db
+                def apply(owner,state,event):
+                    result=original_apply(owner,state,event);applied.append(event)
+                    stop.requested.set();return result
+                with patch.object(runtime.RuntimeCapital,'_apply',apply), \
+                        patch.object(runtime.sqlite3,'connect',side_effect=connect):
+                    with self.assertRaises(stop.Shutdown):
+                        runner._startup_work('pump.accounting_restore',runtime.connection,h.path)
+                self.assertEqual(len(applied),1)
+                self.assertEqual(len(opened),1)
+                with self.assertRaises(sqlite3.ProgrammingError):opened[0].execute('SELECT 1')
+                self.assertFalse(status.snapshot()['reconciled'])
+                self.assertEqual(status.snapshot()['native_recent_operations'][-1]['state'],'CANCELLED')
+                self.assertEqual(h.authority.db.execute('SELECT * FROM shared_capital_events ORDER BY sequence').fetchall(),journal)
+                self.assertEqual(h.authority.db.execute('SELECT * FROM shared_capital_projection').fetchall(),projection)
+                stop.requested.clear();resumed=[]
+                def full(owner,state,event):
+                    resumed.append(event);return original_apply(owner,state,event)
+                with patch.object(runtime.RuntimeCapital,'_apply',full):
+                    restored=runtime.RuntimeCapital(h.path)
+                try:
+                    self.assertEqual(len(resumed),len(journal))
+                    self.assertEqual(restored.ledger(),before)
+                    self.assertIsNone(restored._startup_replay_cancel)
+                finally:restored.close()
+                self.assertEqual(h.authority.db.execute('SELECT * FROM shared_capital_events ORDER BY sequence').fetchall(),journal)
+            finally:h.close()
+
+    def test_warm_prefix_startup_cancellation_does_not_create_partial_verification(self):
+        from meme_machine.shared_capital import runtime
+        from tests.shared_capital_support import Harness
+        with tempfile.TemporaryDirectory() as directory:
+            h=Harness(directory)
+            try:
+                h.allocate([('pump_current',{})])
+                owner=runtime.RuntimeCapital(h.path)
+                try:before=owner.verify_replay()
+                finally:owner.close()
+                checks=[]
+                def cancel():
+                    checks.append(True);return len(checks)==3
+                entered=[];prefix=runtime.RuntimeCapital._authenticated_replay_prefix
+                def observed(owner,key):
+                    entered.append(key);return prefix(owner,key)
+                with patch.object(runtime.RuntimeCapital,'_authenticated_replay_prefix',observed):
+                    with self.assertRaises(stop.Shutdown):runtime.RuntimeCapital(h.path,startup_cancel=cancel)
+                self.assertEqual(len(entered),1);self.assertEqual(len(checks),3)
+                restored=runtime.RuntimeCapital(h.path)
+                try:self.assertEqual(restored.verify_replay(),before)
+                finally:restored.close()
+            finally:h.close()
+
+    def test_outside_startup_scope_requested_shutdown_does_not_abort_monetary_settlement(self):
+        from meme_machine.shared_capital import runtime
+        from tests.shared_capital_support import Harness
+        with tempfile.TemporaryDirectory() as directory:
+            h=Harness(directory)
+            try:
+                requests,_=h.allocate([('pump_current',{})]);life,_=h.fill(requests[0])
+                h.authority.close();stop.requested.set()
+                # No native-startup scope: this fresh owner must fully verify
+                # and retain the existing protection/settlement write path.
+                h.authority=runtime.RuntimeCapital(h.path)
+                self.assertIsNone(h.authority._startup_replay_cancel)
+                h.realize('pump_current',life,'6.25',terminal=True)
+                self.assertEqual(h.authority.ledger()['positions'][life]['status'],'SETTLED')
+                self.assertTrue(h.authority.verify_replay()['conservation'])
+            finally:h.close()
+
+    def test_cancelled_constructor_does_not_bypass_corruption_on_resume(self):
+        from meme_machine.shared_capital import runtime,CapitalError
+        from tests.shared_capital_support import Harness
+        with tempfile.TemporaryDirectory() as directory:
+            h=Harness(directory)
+            try:
+                with self.assertRaises(stop.Shutdown):runtime.RuntimeCapital(h.path,startup_cancel=lambda:True)
+                h.authority.db.execute('DROP TRIGGER shared_capital_no_update')
+                h.authority.db.execute("UPDATE shared_capital_events SET body=body||' ' WHERE sequence=1")
+                with self.assertRaisesRegex(CapitalError,'capital_journal_integrity'):
+                    runtime.RuntimeCapital(h.path)
+            finally:h.close()
+
+    def test_native_attach_close_failure_preserves_original_shutdown(self):
+        from meme_machine.lanes.pump.paper_accounting import PaperBook
+        from meme_machine.lanes.pump.pump_acceleration_strategy import policy_hash,STRATEGY_ID
+        original=stop.Shutdown();closed=[];connect=sqlite3.connect
+        class BrokenClose(sqlite3.Connection):
+            def close(self):
+                super().close();closed.append(True)
+                raise OSError('optional-close-private-context')
+        def opened(*args,**kwargs):return connect(*args,factory=BrokenClose,**kwargs)
+        with tempfile.TemporaryDirectory() as directory, \
+                patch('meme_machine.lanes.pump.paper_accounting.sqlite3.connect',side_effect=opened), \
+                patch('meme_machine.runtime.native_boundary.attach',side_effect=original):
+            with self.assertRaises(stop.Shutdown) as caught:
+                PaperBook(Path(directory)/'paper.sqlite',run_id='fixture',lane=STRATEGY_ID,
+                    policy_hash=policy_hash(),initial=100)
+        self.assertIs(caught.exception,original);self.assertEqual(closed,[True])
+
     def test_supervisor_retains_actual_signal_and_wait_origin_without_changing_deadlines(self):
         clock=[0.0];sent=[];waits=[]
         def child(pid):

@@ -251,7 +251,9 @@ _REPLAY_PREFIX_BYTES=4*1024*1024
 class CapitalAuthority:
     """Only capital-granting API of the feature; inert until migration is installed."""
 
-    def __init__(self, database, *, fault=None):
+    def __init__(self, database, *, fault=None, startup_cancel=None):
+        if startup_cancel is not None and not callable(startup_cancel):
+            raise ValueError('startup_replay_cancel_check')
         self.path = Path(database)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(self.path, timeout=30, isolation_level=None, check_same_thread=False)
@@ -272,11 +274,16 @@ class CapitalAuthority:
         self._mutex = threading.RLock()
         self._replaying = False
         self.fault = fault
+        # Cancellation belongs only to this initial read-only verification.
+        # A verified owner retains its original mutation/settlement behavior.
+        self._startup_replay_cancel=startup_cancel
         try:
             self.verify_replay()
         except BaseException:
-            self.db.close()
+            from meme_machine.runtime.sqlite_failure import preserving_cleanup
+            with preserving_cleanup():self.db.close()
             raise
+        finally:self._startup_replay_cancel=None
 
     def close(self):
         self.db.close()
@@ -290,7 +297,10 @@ class CapitalAuthority:
                 self.db.execute("COMMIT")
             except BaseException:
                 if self.db.in_transaction:
-                    self.db.execute("ROLLBACK")
+                    if getattr(self,'_startup_replay_cancel',None) is not None:
+                        from meme_machine.runtime.sqlite_failure import preserving_cleanup
+                        with preserving_cleanup():self.db.execute("ROLLBACK")
+                    else:self.db.execute("ROLLBACK")
                 raise
 
     def _fault(self, stage):
@@ -348,6 +358,12 @@ class CapitalAuthority:
             getattr(self._apply,'__func__',self._apply),
             getattr(self._reconcile,'__func__',self._reconcile))
 
+    def _check_startup_replay_cancel(self):
+        check=getattr(self,'_startup_replay_cancel',None)
+        if check is not None and check():
+            from meme_machine.runtime.stop import Shutdown
+            raise Shutdown()
+
     def _authenticated_replay_prefix(self,key):
         if key is None:return None
         with _REPLAY_PREFIX_LOCK:cached=_REPLAY_PREFIXES.get(key)
@@ -361,6 +377,7 @@ class CapitalAuthority:
             if hashlib.sha256(raw_state.encode()).hexdigest()!=state_hash:return None
             for seq,op,raw,result_raw,record_state_hash,parent,hash_value in self.db.execute(
                     'SELECT * FROM shared_capital_events ORDER BY sequence'):
+                self._check_startup_replay_cancel()
                 expected=hashlib.sha256((parent+raw+result_raw+record_state_hash).encode()).hexdigest()
                 if (seq!=count+1 or previous!=parent or hash_value!=expected
                         or json.loads(raw).get('operation_id')!=op):return None
@@ -386,12 +403,14 @@ class CapitalAuthority:
 
     def _verify_replay(self):
         with self._transaction(write=False):
+            self._check_startup_replay_cancel()
             key=self._replay_prefix_key()
             prefix=self._authenticated_replay_prefix(key)
             state,previous,count=(None,'0'*64,0) if prefix is None else (prefix[2],prefix[1],prefix[0])
             if prefix is not None and state is not None:self._reconcile(state)
             for seq, op, raw, result_raw, state_hash, parent, hash_value in self.db.execute(
                     'SELECT * FROM shared_capital_events WHERE sequence>? ORDER BY sequence',(count,)):
+                self._check_startup_replay_cancel()
                 event, result = json.loads(raw), json.loads(result_raw)
                 expected = hashlib.sha256((parent + raw + result_raw + state_hash).encode()).hexdigest()
                 if seq != count + 1 or previous != parent or hash_value != expected or event.get('operation_id') != op:
@@ -401,6 +420,7 @@ class CapitalAuthority:
                     raise CapitalError('nondeterministic_capital_replay')
                 self._reconcile(state)
                 previous, count = hash_value, seq
+            self._check_startup_replay_cancel()
             projection = self._read()
             if projection != state:
                 raise CapitalError('replayed_projection_mismatch')

@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import signal
 import sqlite3
+import threading
 import time
 
 from meme_machine.portfolio_accounting import _atomic_json
@@ -37,6 +38,37 @@ def health(root,lane,phase,**fields):
         print('health publication failed:',type(error).__name__,flush=True)
 
 
+class NativeHealthPublisher:
+    """Serialize only this lane's descriptive health, including its final wake."""
+    def __init__(self,root,lane):
+        self.root=root;self.lane=lane
+        self.lock=threading.Lock();self.terminal=threading.Event()
+
+    def __call__(self,phase,**fields):
+        terminal=phase=='STOPPED'
+        if terminal:self.terminal.set()
+        # Optional recording must not add an unbounded shutdown lock wait.
+        if not self.lock.acquire(timeout=.05):
+            print('health publication unavailable:publication_busy',flush=True)
+            return
+        try:
+            if not terminal and self.terminal.is_set():return
+            try:health(self.root,self.lane,phase,**fields)
+            except Exception as error:
+                print('health publication unavailable:'+type(error).__name__,flush=True)
+        finally:self.lock.release()
+
+    def heartbeat(self,requested,status):
+        while True:
+            stopping=requested.wait(2)
+            # TERM can precede the first periodic sample. Preserve the active
+            # executor/operation and original signal once before this thread
+            # exits; a terminal publisher prevents a late phase overwrite.
+            value=status.snapshot();phase=value.pop('phase')
+            self(phase,**value)
+            if stopping:return
+
+
 def run_offline(root,lane,stop):
     from .offline import open_native,open_position,manage,close,install_network_guard
     install_network_guard()
@@ -58,20 +90,16 @@ def run_offline(root,lane,stop):
         health(root,lane,'STOPPED',offline=True,reconciled=True,market_calls=0)
 
 
-def run_native(root,lane):
+def run_native(root,lane,publish=None):
     from meme_machine.runtime.operating_families import require_active
     require_active(lane,production=True)
     # Shared USD delivery recovery is attached by each native book constructor.
     # Native restoration below is the existing recovery path, before discovery.
-    health(root,lane,'RECONCILING')
-    import threading
+    publish=publish or NativeHealthPublisher(root,lane)
+    publish('RECONCILING')
     from meme_machine.runtime import status
     from meme_machine.runtime.stop import requested
-    def heartbeat():
-        while not requested.wait(2):
-            value=status.snapshot();phase=value.pop('phase')
-            health(root,lane,phase,**value)
-    threading.Thread(target=heartbeat,daemon=True,name='health').start()
+    threading.Thread(target=publish.heartbeat,args=(requested,status),daemon=True,name='health').start()
     capital=None
     if lane in ('pump','pons','meteora'):
         from meme_machine.runtime.usd_valuation import native_reader
@@ -139,7 +167,7 @@ def run_native(root,lane):
         install_ramses(ramses_extended_test)
         ramses_extended_test.main(campaign=True)
     value=status.snapshot();value.pop('phase',None)
-    health(root,lane,'STOPPED',**value)
+    publish('STOPPED',**value)
 
 
 def empty_native_reconciliation(root,lane):
@@ -217,15 +245,16 @@ def main():
         else:
             from .bounded_provider import install
             install()
-            try:run_native(args.state_root,args.lane)
+            publish=NativeHealthPublisher(args.state_root,args.lane)
+            try:run_native(args.state_root,args.lane,publish)
             except Shutdown:
                 from meme_machine.runtime import status
                 facts=status.snapshot();facts.pop('phase',None)
                 # Cooperative cancellation can arrive before native restoration.
                 # A stopped process is not proof that its reconciliation finished.
-                health(args.state_root,args.lane,'STOPPED',**facts)
+                publish('STOPPED',**facts)
             except ValuationUnavailable as error:
-                health(args.state_root,args.lane,'VALUATION_UNAVAILABLE',reason=str(error))
+                publish('VALUATION_UNAVAILABLE',reason=str(error))
                 raise
     finally:lock.close()
 

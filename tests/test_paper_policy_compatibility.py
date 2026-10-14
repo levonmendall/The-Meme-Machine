@@ -246,6 +246,100 @@ class PaperPolicyCompatibilityTests(unittest.TestCase):
         self.assertIsNone(after['completed']);self.assertIsNone(revised.pop())
         revised.enqueue(event(2));self.assertIsNotNone(revised.pop());revised.close()
 
+    def cohort_recovery_case(self,name,*,colocated=False):
+        from meme_machine.runtime.robinhood.pons import Broker
+        from meme_machine.lanes.pons import pons_selective_capital as capital_module
+        from tests.lanes.pons.test_pons_candidate_plane import event
+        lane=self.root/name/'lane';lane.mkdir(parents=True)
+        path=lane/'candidate-evidence.sqlite' if colocated else self.root/name/'shared'/'canonical.candidates.sqlite'
+        capital=lane/'pons-selective-cohort-capital.sqlite'
+        with patch.object(capital_module,'POLICY_HASH',previous_hash('pons_current')):
+            book=capital_module.CohortCapital(capital,1000)
+        broker=Broker(path,previous_hash('pons_current'),clock=lambda:100)
+        broker.enqueue(event())
+        result=dict(policy_hash=previous_hash('pons_current'),rows=[dict(token='retained',observed_at=99)],
+            qualifiers=[],lifecycles=[],candidate_plane_path=str(path),retained_cursor=123)
+        saved=dict(result=result,cursor=123,phase='paused',owner='not-a-live-owner',checkpoint_at=100)
+        broker.plane.checkpoint('pons_cohort',saved)
+        population=[tuple(row) for row in broker.plane.db.execute('SELECT * FROM candidates')]
+        broker.close()
+        return path,capital,book,saved,population
+
+    def test_cohort_recovery_separates_shared_evidence_from_original_lane_capital(self):
+        from contextlib import closing
+        from meme_machine.runtime.robinhood.pons import recover_cohort
+        from meme_machine.runtime.robinhood.plane import Plane
+        from meme_machine.lanes.pons import BoundaryError
+        path,capital,_,saved,population=self.cohort_recovery_case('separate')
+        with closing(sqlite3.connect(capital)) as db:
+            before={table:db.execute('SELECT * FROM '+table).fetchall() for table in
+                ('capital_genesis','capital_positions','capital_journal','runtime_state')}
+        # Retain the failing colocated inference as the regression control on
+        # this exact fixture, then exercise the explicit native-authority fix.
+        with self.assertRaisesRegex(BoundaryError,'cohort_evidence_unavailable'):
+            recover_cohort(path,active_hash('pons_current'))
+        with patch('meme_machine.runtime.policy_compatibility.require_external_flat') as external:
+            recovered=recover_cohort(path,active_hash('pons_current'),capital_path=capital)
+        external.assert_called_once_with()
+        self.assertEqual(recovered['rows'],saved['result']['rows'])
+        self.assertEqual(recovered['retained_cursor'],123)
+        self.assertEqual(recovered['previous_decision_policy_hash'],previous_hash('pons_current'))
+        self.assertEqual(recovered['policy_hash'],active_hash('pons_current'))
+        self.assertFalse((path.parent/'pons-selective-cohort-capital.sqlite').exists())
+        with closing(Plane(path)) as plane:
+            self.assertEqual(plane.checkpoint_read('pons_cohort'),saved)
+            self.assertEqual([tuple(row) for row in plane.db.execute('SELECT * FROM candidates')],population)
+        with closing(sqlite3.connect(capital)) as db:
+            self.assertEqual({table:db.execute('SELECT * FROM '+table).fetchall() for table in before},before)
+
+    def test_cohort_run_forwards_native_authority_before_any_provider_or_worker_start(self):
+        from meme_machine.lanes.pons import pons_selective_cohort as cohort
+        path,capital,_,_,_=self.cohort_recovery_case('forward')
+        class StopAtRecovery(Exception):pass
+        cache=path.with_name('canonical.sqlite')
+        # plane_path changes only the candidate namespace. The native capital
+        # authority remains in the controller's lane directory.
+        with patch.object(cohort,'ROOT',capital.parent),patch.dict(os.environ,{'MM_RPC_CACHE_DB':str(cache)}), \
+                patch.object(cohort,'recover_cohort',side_effect=StopAtRecovery) as recover:
+            with self.assertRaises(StopAtRecovery):cohort.run('https://provider.invalid',campaign=True)
+        recover.assert_called_once_with(path,cohort.POLICY_HASH,capital_path=capital)
+
+    def test_cohort_recovery_never_substitutes_plane_local_capital_for_explicit_authority(self):
+        from contextlib import closing
+        from meme_machine.runtime.robinhood.pons import recover_cohort
+        from meme_machine.lanes.pons import pons_selective_capital as capital_module
+        from meme_machine.lanes.pons import BoundaryError
+        for condition in ('missing','unresolved','corrupt'):
+            with self.subTest(condition=condition):
+                path,capital,book,saved,_=self.cohort_recovery_case(condition)
+                with patch.object(capital_module,'POLICY_HASH',previous_hash('pons_current')):
+                    capital_module.CohortCapital(path.parent/'pons-selective-cohort-capital.sqlite',1000)
+                    if condition!='missing':book.reserve('old',100,at=100,decision_hash='decision',trial_path='retained-trial')
+                if condition=='missing':capital.unlink()
+                elif condition=='corrupt':
+                    with closing(sqlite3.connect(capital)) as db:
+                        db.execute("UPDATE capital_positions SET body='{}'");db.commit()
+                error=(BoundaryError,'cohort_evidence_unavailable') if condition=='missing' else (
+                    (ValueError,'transition_unresolved_capital') if condition=='unresolved' else
+                    (BoundaryError,'selective_cohort_projection_mismatch'))
+                with self.assertRaisesRegex(*error):
+                    recover_cohort(path,active_hash('pons_current'),capital_path=capital)
+                self.assertEqual(saved['result']['policy_hash'],previous_hash('pons_current'))
+
+    def test_cohort_recovery_preserves_external_flat_guard_and_colocated_compatibility(self):
+        from contextlib import closing
+        from meme_machine.runtime.robinhood.pons import recover_cohort
+        from meme_machine.runtime.robinhood.plane import Plane
+        path,capital,_,saved,_=self.cohort_recovery_case('external')
+        with patch('meme_machine.runtime.policy_compatibility.require_external_flat',
+                side_effect=ValueError('paper_policy_transition_unresolved_obligations')):
+            with self.assertRaisesRegex(ValueError,'transition_unresolved_obligations'):
+                recover_cohort(path,active_hash('pons_current'),capital_path=capital)
+        with closing(Plane(path)) as plane:self.assertEqual(plane.checkpoint_read('pons_cohort'),saved)
+        path,_,_,_,_=self.cohort_recovery_case('colocated',colocated=True)
+        recovered=recover_cohort(path,active_hash('pons_current'))
+        self.assertEqual(recovered['policy_hash'],active_hash('pons_current'))
+
     def test_four_revised_native_requests_keep_original_shared_financial_contracts(self):
         from copy import deepcopy
         from decimal import Decimal

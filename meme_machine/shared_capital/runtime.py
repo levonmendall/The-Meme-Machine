@@ -5,6 +5,7 @@ Only actual native requests enter an allocation round. Safety delivery does not
 wait for owners, candidates or round completion. No provider I/O occurs here.
 """
 from contextlib import closing, contextmanager
+from contextvars import ContextVar
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime
@@ -26,6 +27,16 @@ FIELDS = ('requested_basis','minimum_basis','liquidity_capacity','execution_capa
     'strategy_capacity','cost_headroom','settlement_headroom','kind','lifecycle_id',
     'native_quality_bps','expected_holding_seconds','scale_state','scale_facts','native_sizing')
 _LOCAL = threading.local()
+_STARTUP_REPLAY_CANCEL=ContextVar('native_startup_replay_cancel',default=None)
+
+
+@contextmanager
+def native_startup_replay(check):
+    """One native startup call; no cancellation authority for later writes."""
+    if not callable(check):raise ValueError('startup_replay_cancel_check')
+    token=_STARTUP_REPLAY_CANCEL.set(check)
+    try:yield
+    finally:_STARTUP_REPLAY_CANCEL.reset(token)
 
 
 def seconds(value):
@@ -72,7 +83,9 @@ def connection(path):
     if cached and cached[0]!=inode:
         cached[1].close();cached=None
     if cached is None:
-        cached=(inode,RuntimeCapital(path));pool[key]=cached
+        check=_STARTUP_REPLAY_CANCEL.get()
+        cached=(inode,RuntimeCapital(path,startup_cancel=check) if check is not None else RuntimeCapital(path))
+        pool[key]=cached
     return cached[1]
 
 

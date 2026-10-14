@@ -210,6 +210,109 @@ def observation_route_predecessor(test,relative,current):
     return stripped
 
 
+# The observed v1 startup failure demonstrated that canonical candidate cache
+# and native capital need not share a parent. Permit only the reviewed explicit
+# authority path, with a complete source pin and reversible byte delta. All
+# policy, replay, flat-state, release and strategy nodes still pass the existing
+# combined package guards below.
+COHORT_AUTHORITY_REFERENCE='66f85d61bf4d3ba9a01efdc0e9eb68949419bda8'
+COHORT_AUTHORITY_DELTAS={
+    'meme_machine/lanes/pons/pons_selective_cohort.py': (
+        '01340dc4a2f0994f3c6508f8ab7d8e8e6f25a1a33b4e568b3013418793a34203',
+        '441b41802e0351976b97982549691a718934f09f29aba69a0fe2f07a10a0d0e5',
+        ((b'    recovered=(recover_cohort(plane_path(ROOT/"candidate-evidence.sqlite"),POLICY_HASH) if occupied else None)\n',
+          b'    recovered=(recover_cohort(plane_path(ROOT/"candidate-evidence.sqlite"),POLICY_HASH,\n'
+          b"        capital_path=ROOT/'pons-selective-cohort-capital.sqlite') if occupied else None)\n"),)),
+    'meme_machine/runtime/robinhood/pons.py': (
+        '530108cf5539890547a5604c855ca49a75ae9a96d6e0c2630041dcb23f613209',
+        'ad75892a39a0b6ca898f90a0f698e7eb80ad8c7928820286babc46f5b697028c',
+        ((b'def recover_cohort(path,policy):\n',b'def recover_cohort(path,policy,*,capital_path=None):\n'),
+         (b"            capital=Path(path).parent/'pons-selective-cohort-capital.sqlite'\n",
+          b'            # The shared evidence/cache plane need not be beside native capital.\n'
+          b'            # The controller supplies its existing authority; standalone callers\n'
+          b'            # retain the original colocated layout.\n'
+          b'            capital=(Path(capital_path) if capital_path is not None else\n'
+          b"                Path(path).parent/'pons-selective-cohort-capital.sqlite')\n"))),
+}
+
+
+def cohort_authority_predecessor(test,relative,current):
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    reviewed=COHORT_AUTHORITY_DELTAS.get(relative)
+    if reviewed is None:return current
+    before,after,replacements=reviewed
+    prior=subprocess.check_output(['git','show',COHORT_AUTHORITY_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':reviewed authority predecessor')
+    if current==prior:return current
+    test.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':exact reviewed authority successor')
+    for old,new in replacements:
+        test.assertEqual(current.count(new),1,relative+':one exact authority delta')
+        current=current.replace(new,old,1)
+    test.assertEqual(current,prior,relative+':all other source bytes preserved')
+    return current
+
+
+# Constructor cancellation is authorized only for the reproduced native
+# startup read. Exact complete-source pins plus reversible named-node checks
+# keep every economic sibling, interface and constant in the original guards.
+STARTUP_CANCEL_DELTAS={
+    'meme_machine/lanes/pump/paper_accounting.py': (
+        '5f8107761615f6648fa72e8bc470d3f296af5794255d505427c5a2f77cdd17fe',
+        'e40166b342c03ff79121d1cba921f21880f0d639451d89530066c3371178523f',
+        ('PaperBook.__init__',),(),()),
+    'meme_machine/lanes/pump/runner.py': (
+        'd621e3037f769fc9ac8c21c811523097f08b1172552dec9e6324d6d3b2365d32',
+        '0cc465a0a17e88735fc26b3ab43400d68ab38a4ab91358f832fde90597c77f68',
+        ('_startup_work',),(),()),
+    'meme_machine/shared_capital/authority.py': (
+        '8bad413009a5f14aa91710b8051d9ae311044400edc12f7bbe6e9f7999c711ef',
+        'd31765d115545d30fb4dd0ba9d2523c5e4f5b86365673b4a94a67d45906c1839',
+        ('CapitalAuthority.__init__','CapitalAuthority._transaction',
+         'CapitalAuthority._verify_replay','CapitalAuthority._authenticated_replay_prefix'),
+        ('CapitalAuthority._check_startup_replay_cancel',),()),
+    'meme_machine/shared_capital/runtime.py': (
+        '313bff34c4ef6f5d9418991fb66039239975a8db629cae576a0771982ea69585',
+        'a8905fb779a02c4721b6fa0858eb3716eca2d63e9e407a31f97a1f18c384738a',
+        ('connection',),('native_startup_replay',),
+        ('from contextvars import ContextVar',
+         "_STARTUP_REPLAY_CANCEL=ContextVar('native_startup_replay_cancel',default=None)")),
+}
+
+
+def startup_cancel_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    reviewed=STARTUP_CANCEL_DELTAS.get(relative)
+    if reviewed is None:return current
+    before,after,changed,added,top_additions=reviewed
+    prior=subprocess.check_output(['git','show',COHORT_AUTHORITY_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':reviewed startup predecessor')
+    if current==prior:return current
+    test.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':exact reviewed startup successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def node(root,name):
+        parent=root
+        for part in name.split('.')[:-1]:
+            parent=next(n for n in parent.body if isinstance(n,ast.ClassDef) and n.name==part)
+        return parent,next(n for n in parent.body if isinstance(n,ast.FunctionDef) and n.name==name.split('.')[-1])
+    for name in changed:
+        parent,selected=node(tree,name);_,original=node(old,name)
+        test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':explicit changed node '+name)
+        parent.body[parent.body.index(selected)]=deepcopy(original)
+    for name in added:
+        parent,selected=node(tree,name);parent.body.remove(selected)
+        with test.assertRaises(StopIteration):node(old,name)
+    for source in top_additions:
+        addition=ast.parse(source).body[0]
+        matches=[n for n in tree.body if ast.dump(n)==ast.dump(addition)]
+        test.assertEqual(len(matches),1,relative+':one explicit startup-only top-level addition')
+        tree.body.remove(matches[0])
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':all other source nodes retained')
+    return prior
+
+
 def assert_opportunity_added_source(test,relative,current):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
@@ -229,6 +332,7 @@ def assert_opportunity_added_source(test,relative,current):
 def opportunity_predecessor(test,relative,current):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
+    current=startup_cancel_predecessor(test,relative,current)
     manifest=json.loads(OPPORTUNITY_MANIFEST.read_text())
     test.assertEqual(manifest['base'],OPPORTUNITY_BASE)
     test.assertEqual(manifest['strategy_base'],OPPORTUNITY_STRATEGY_BASE)
@@ -241,6 +345,7 @@ def opportunity_predecessor(test,relative,current):
         raise unittest.SkipTest('Historical source comparison needs the existing baseline commit') from None
     test.assertEqual(hashlib.sha256(prior).hexdigest(),record['before_sha256'],relative+':opportunity predecessor')
     if current==prior:return current
+    current=cohort_authority_predecessor(test,relative,current)
     current=observation_route_predecessor(test,relative,current)
     test.assertEqual(hashlib.sha256(current).hexdigest(),record['after_sha256'],relative+':approved opportunity source')
     def nodes(content):
@@ -336,6 +441,11 @@ class _RemoveReviewedPumpDiagnostics(ast.NodeTransformer):
         return node
 
 def pump_economic_tree(test,content,*,combined=False):
+    if combined:
+        # The separately pinned constructor-cancellation wrapper is reversed
+        # before this older attribution layer. Its original exact node guards
+        # and all negative mutation checks remain unchanged.
+        content=startup_cancel_predecessor(test,'meme_machine/lanes/pump/runner.py',content)
     tree=ast.parse(content)
     nodes={n.name:n for n in tree.body if isinstance(n,ast.FunctionDef)}
     if '_startup_work' not in nodes:return tree
@@ -490,6 +600,35 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_reviewed_startup_cancellation_preserves_all_original_economic_source(self):
+        import hashlib
+        for relative,(_,after,*_) in STARTUP_CANCEL_DELTAS.items():
+            current=(ROOT/relative).read_bytes()
+            self.assertEqual(hashlib.sha256(current).hexdigest(),after)
+            prior=subprocess.check_output(['git','show',COHORT_AUTHORITY_REFERENCE+':'+relative],cwd=ROOT)
+            self.assertEqual(startup_cancel_predecessor(self,relative,current),prior)
+            self.assertEqual(opportunity_predecessor(self,relative,current),
+                opportunity_predecessor(self,relative,prior))
+            for changed in (current+b'\n# unreviewed source change\n',b''):
+                with self.assertRaises(AssertionError):startup_cancel_predecessor(self,relative,changed)
+                with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
+    def test_reviewed_cohort_authority_path_preserves_exact_combined_economics(self):
+        import hashlib
+        for relative,(_,after,_) in COHORT_AUTHORITY_DELTAS.items():
+            current=(ROOT/relative).read_bytes()
+            self.assertEqual(hashlib.sha256(current).hexdigest(),after)
+            prior=subprocess.check_output(['git','show',COHORT_AUTHORITY_REFERENCE+':'+relative],cwd=ROOT)
+            self.assertEqual(cohort_authority_predecessor(self,relative,current),prior)
+            self.assertEqual(opportunity_predecessor(self,relative,current),
+                opportunity_predecessor(self,relative,prior))
+            for changed in (current+b'\n# unreviewed source change\n',
+                    current.replace(b'pons-selective-cohort-capital.sqlite',b'unreviewed-capital.sqlite'),
+                    current.replace(b'capital_path',b'unverified_authority_path')):
+                self.assertNotEqual(changed,current)
+                with self.assertRaises(AssertionError):cohort_authority_predecessor(self,relative,changed)
+                with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_reviewed_observation_route_forwarding_preserves_exact_combined_source(self):
         import hashlib
         relative=OBSERVATION_ROUTE_SOURCE
@@ -537,7 +676,9 @@ class RobinhoodUSDTests(unittest.TestCase):
             operational=subprocess.check_output(['git','show',OPPORTUNITY_BASE+':'+relative],cwd=ROOT)
             strategy_before=subprocess.check_output(['git','show',OPPORTUNITY_STRATEGY_BASE+':'+relative],cwd=ROOT)
             strategy_after=subprocess.check_output(['git','show',OPPORTUNITY_REFERENCE+':'+relative],cwd=ROOT)
-            combined=observation_route_predecessor(self,relative,(ROOT/relative).read_bytes())
+            combined=startup_cancel_predecessor(self,relative,(ROOT/relative).read_bytes())
+            combined=cohort_authority_predecessor(self,relative,combined)
+            combined=observation_route_predecessor(self,relative,combined)
             if operational==strategy_before:
                 self.assertEqual(combined,strategy_after,relative+':unchanged published strategy package')
                 continue

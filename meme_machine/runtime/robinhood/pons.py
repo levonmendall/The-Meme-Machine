@@ -673,7 +673,7 @@ def coalesce_lifecycle_rows(rows):
     return result
 
 
-def recover_cohort(path,policy):
+def recover_cohort(path,policy,*,capital_path=None):
     from .plane import alive
     from meme_machine.lanes.pons import BoundaryError
     if not Path(path).is_file():raise BoundaryError('selective_existing_run_requires_explicit_recovery')
@@ -697,7 +697,11 @@ def recover_cohort(path,policy):
             # verified old cohort is terminal and all releases are acknowledged.
             from contextlib import closing
             from meme_machine.lanes.pons.pons_selective_capital import CohortCapital
-            capital=Path(path).parent/'pons-selective-cohort-capital.sqlite'
+            # The shared evidence/cache plane need not be beside native capital.
+            # The controller supplies its existing authority; standalone callers
+            # retain the original colocated layout.
+            capital=(Path(capital_path) if capital_path is not None else
+                Path(path).parent/'pons-selective-cohort-capital.sqlite')
             if not capital.is_file():raise BoundaryError('paper_policy_transition_cohort_evidence_unavailable')
             with closing(sqlite3.connect(capital.resolve().as_uri()+'?mode=ro',uri=True)) as db:
                 db.execute('BEGIN')

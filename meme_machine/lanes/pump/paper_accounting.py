@@ -72,7 +72,11 @@ class PaperBook:
                 self.db.execute('ROLLBACK');self.db.close();raise
         self.replay()
         from meme_machine.runtime.native_boundary import attach
-        self.portfolio=attach(self,'pump' if 'pump' in self.identity['lane'] else 'pons')
+        try:self.portfolio=attach(self,'pump' if 'pump' in self.identity['lane'] else 'pons')
+        except BaseException:
+            from meme_machine.runtime.sqlite_failure import preserving_cleanup
+            with preserving_cleanup():self.db.close()
+            raise
 
     @contextmanager
     def transaction(self):

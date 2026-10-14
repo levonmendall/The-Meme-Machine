@@ -77,7 +77,12 @@ CANDIDATE_HISTORY=None
 
 def _startup_work(identity,call,*args,**kwargs):
     from meme_machine.runtime.status import operation
-    with operation(identity):return call(*args,**kwargs)
+    with operation(identity):
+        if identity=='pump.accounting_restore':
+            from meme_machine.shared_capital.runtime import native_startup_replay
+            from meme_machine.runtime.stop import requested
+            with native_startup_replay(requested.is_set):return call(*args,**kwargs)
+        return call(*args,**kwargs)
 
 def _progress(candidate,stage,reason=None,**details):
     if PIPELINE is not None:
