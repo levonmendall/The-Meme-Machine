@@ -1,6 +1,6 @@
 """Disposable native cancellation/reporting coverage; no market or real state."""
 from collections import deque
-from contextlib import closing
+from contextlib import ExitStack,closing
 import json
 import os
 from pathlib import Path
@@ -148,6 +148,99 @@ class PumpCancellationDiagnostics(unittest.TestCase):
         self.assertEqual(status.snapshot()['native_recent_operations'][-1]['operation'],
             'pump.runtime_evidence_open')
         self.assertIs(status.snapshot()['reconciled'],False)
+
+    def test_observed_restore_cancels_after_completed_read_preserving_pending_and_restart(self):
+        """Real retained rows and owner outbox; no market replay/capacity claim."""
+        import copy
+        from meme_machine.lanes.pump import runner
+        from meme_machine.lanes.pump.pump_acceleration_confirmations import ConfirmationBook
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        from meme_machine.solana_selective_history import PROGRAMS,economic_records
+        from tests.test_solana_closure import NOW,state_at
+        from tests.test_solana_selective_evidence import FIXTURE
+        with tempfile.TemporaryDirectory() as directory,ExitStack() as resources:
+            root=Path(directory);(root/'pump').mkdir()
+            candidate_path=root/'candidate-history.sqlite'
+            with patch.dict(os.environ,MM_SOLANA_CANDIDATE_HISTORY_DB=str(candidate_path)):
+                state,canonical=state_at(root/'canonical.sqlite')
+            resources.callback(state.writer.close)
+            canonical.lifecycle.delivery_separated=True
+            canonical.ingest([record for transaction in FIXTURE['pump'] for record in economic_records(
+                'pump',PROGRAMS['pump'],copy.deepcopy(transaction),endpoint_identity='a'*64,
+                seen=NOW,source='alchemy_finalized_stream')])
+            history=CandidateHistory(candidate_path,clock=lambda:NOW)
+            resources.callback(history.close)
+            for index,mint in enumerate(('first','second','later-survivor')):
+                history.observe('pump',mint,surface='pump',observed_at=int(NOW)+index)
+                kind='pumpswap_trade' if mint=='later-survivor' else 'pump_create'
+                history.append_event('pump',mint,identity=mint+':retained',slot=100+index,
+                    transaction_index=0,event_index=0,market_time=int(NOW)+index,kind=kind,
+                    payload=dict(event_type='trade' if mint=='later-survivor' else 'create',
+                        mint=mint,creator='creator',market_time=int(NOW)+index))
+            job=history.enqueue('pump','later-survivor',kind='warmup',ready_at=NOW,
+                deadline=NOW+60,estimate_seconds=1)
+            history.wait_for_history(job,'candidate:pumpswap:later-survivor',100,110,
+                retry_at=NOW+1)
+            def retained():
+                return {table:history.db.execute('SELECT * FROM '+table+' ORDER BY rowid').fetchall()
+                    for table in ('candidates','events','work','work_history_requirements',
+                                  'history_coverage','work_history_proofs')}
+            before=retained()
+            pending=state.writer.db.execute('SELECT id,hash,consumed FROM candidate_history_outbox '
+                'ORDER BY id').fetchall()
+            self.assertTrue(pending);self.assertTrue(all(row[2] is None for row in pending))
+            reads=[];read=history.events;created={};postgrad={}
+            def cancel_after_read(*args,**kwargs):
+                result=read(*args,**kwargs);reads.append(args[1])
+                status.cancellation_signal(signal.SIGTERM);stop.requested.set()
+                return result
+            confirmations=ConfirmationBook({'cohort':[]},1)
+            def restore(*args):
+                runner._startup_work('pump.observed_candidates_restore',
+                    runner._restore_observed_pump_candidates,created,postgrad,
+                    SimpleNamespace(add_address=lambda pool:None),object(),confirmations,int(NOW)+10)
+            with patch.object(runner,'CANDIDATE_HISTORY',history), \
+                    patch.object(history,'events',side_effect=cancel_after_read), \
+                    patch('sys.argv',['lane','--lane','pump','--state-root',str(root)]), \
+                    patch('meme_machine.operational.bounded_provider.install'), \
+                    patch.object(lane,'run_native',side_effect=restore):
+                lane.main()
+            # A completed bounded read must not lead to another candidate read
+            # or reconstruction after TERM. No required coverage is ACKed early.
+            self.assertEqual(reads,['first'])
+            self.assertEqual(created,{})
+            final=json.loads((root/'pump/health.json').read_text())
+            self.assertEqual(final['phase'],'STOPPED');self.assertIs(final['reconciled'],False)
+            self.assertEqual(final['native_recent_operations'][-1]['operation'],
+                'pump.observed_candidates_restore')
+            self.assertEqual(final['native_recent_operations'][-1]['state'],'CANCELLED')
+            self.assertEqual(retained(),before)
+            self.assertEqual(state.writer.db.execute('SELECT id,hash,consumed FROM candidate_history_outbox '
+                'ORDER BY id').fetchall(),pending)
+            history.close()
+            stop.requested.clear()
+            with closing(CandidateHistory(candidate_path,clock=lambda:NOW)) as resumed, \
+                    patch.object(runner,'CANDIDATE_HISTORY',resumed):
+                self.assertEqual(runner._restore_observed_pump_candidates(created,postgrad,
+                    SimpleNamespace(add_address=lambda pool:None),object(),
+                    ConfirmationBook({'cohort':[]},1),int(NOW)+10),2)
+                self.assertEqual(set(created),{'first','second'})
+                self.assertEqual(len(resumed.events('pump','later-survivor')),1)
+                self.assertEqual(resumed.db.execute('SELECT status FROM work WHERE id=?',(job,)).fetchone()[0],
+                    'pending')
+                self.assertTrue(resumed.db.execute('SELECT 1 FROM work_history_requirements '
+                    'WHERE work_id=?',(job,)).fetchone())
+            self.assertEqual(state.writer.db.execute('SELECT id,hash,consumed FROM candidate_history_outbox '
+                'ORDER BY id').fetchall(),pending)
+
+    def test_observed_restore_does_not_enumerate_when_cancellation_already_requested(self):
+        from meme_machine.lanes.pump import runner
+        from unittest.mock import Mock
+        history=Mock();history.candidates.return_value=[];stop.requested.set()
+        with patch.object(runner,'CANDIDATE_HISTORY',history):
+            with self.assertRaises(stop.Shutdown):
+                runner._restore_observed_pump_candidates({},{},Mock(),object(),Mock(),1000)
+        history.candidates.assert_not_called();history.events.assert_not_called()
 
     def test_actual_native_heartbeat_retains_operation_when_TERM_precedes_first_sample(self):
         from meme_machine.lanes.pump import runner

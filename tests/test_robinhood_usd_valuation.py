@@ -236,9 +236,63 @@ COHORT_AUTHORITY_DELTAS={
 }
 
 
+# Exact infrastructure deltas demonstrated by the 22:40:46 observation and
+# disposable crash/cancellation regressions. Reverse only these reviewed nodes
+# to the tested 1fe5 source before applying every existing economic/source guard.
+OBSERVATION_FOLLOWUP_REFERENCE='1fe5a6f62d37f84ad24f0b7413279c080e3424e5'
+OBSERVATION_FOLLOWUP_DELTAS={
+    'meme_machine/lanes/pump/runner.py': (
+        '0cc465a0a17e88735fc26b3ab43400d68ab38a4ab91358f832fde90597c77f68',
+        'f94dc8512ae8e7e0446040db08e4736aad9b32fdb1bd6e65d5d1d7670ec0b884',
+        ('_restore_observed_pump_candidates',)),
+    'meme_machine/runtime/robinhood/pons.py': (
+        'ad75892a39a0b6ca898f90a0f698e7eb80ad8c7928820286babc46f5b697028c',
+        'a1d3cf01ccf8bb102e31b33dc7edef2fa2dfd1434f5bf8dd0aa0d127d13ff030',
+        ('Broker.__init__','Broker._renew_retained_interpretation',
+         'Broker._remember_watch','Broker._sync_watch_order','Broker._enqueue')),
+}
+
+
+def observation_followup_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    reviewed=OBSERVATION_FOLLOWUP_DELTAS.get(relative)
+    if reviewed is None:return current
+    before,after,names=reviewed
+    prior=subprocess.check_output(['git','show',OBSERVATION_FOLLOWUP_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':tested observation predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':exact reviewed observation repair')
+    def selected(content,name):
+        parent=ast.parse(content)
+        for part in name.split('.')[:-1]:
+            parent=next(n for n in parent.body if isinstance(n,ast.ClassDef) and n.name==part)
+        return next(n for n in parent.body if isinstance(n,ast.FunctionDef) and n.name==name.split('.')[-1])
+    lines=current.splitlines(keepends=True);old_lines=prior.splitlines(keepends=True)
+    replacements=[]
+    for name in names:
+        node=selected(current,name);old=selected(prior,name)
+        expected=deepcopy(old.args)
+        if name=='Broker._remember_watch':
+            # Only the reviewed crash-recovery call may discard an invalidated
+            # adapter-bound attention summary. Ordinary callers keep it.
+            expected.kwonlyargs.append(ast.arg(arg='reset_quality'))
+            expected.kw_defaults.append(ast.Constant(value=False))
+        test.assertEqual(ast.dump(node.args),ast.dump(expected),relative+':exact reviewed interface '+name)
+        test.assertNotEqual(ast.dump(node),ast.dump(old),relative+':explicit reviewed node '+name)
+        replacements.append((node.lineno-1,node.end_lineno,old_lines[old.lineno-1:old.end_lineno]))
+    for first,last,body in sorted(replacements,reverse=True):lines[first:last]=body
+    test.assertEqual(b''.join(lines),prior,relative+':all other bytes and economic nodes unchanged')
+    return prior
+
+
 def cohort_authority_predecessor(test,relative,current):
     import hashlib
     if isinstance(current,str):current=current.encode()
+    followup=OBSERVATION_FOLLOWUP_DELTAS.get(relative)
+    if followup and hashlib.sha256(current).hexdigest()==followup[1]:
+        current=observation_followup_predecessor(test,relative,current)
     reviewed=COHORT_AUTHORITY_DELTAS.get(relative)
     if reviewed is None:return current
     before,after,replacements=reviewed
@@ -284,6 +338,9 @@ def startup_cancel_predecessor(test,relative,current):
     from copy import deepcopy
     import hashlib
     if isinstance(current,str):current=current.encode()
+    followup=OBSERVATION_FOLLOWUP_DELTAS.get(relative)
+    if followup and hashlib.sha256(current).hexdigest()==followup[1]:
+        current=observation_followup_predecessor(test,relative,current)
     reviewed=STARTUP_CANCEL_DELTAS.get(relative)
     if reviewed is None:return current
     before,after,changed,added,top_additions=reviewed
@@ -600,10 +657,24 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_reviewed_observation_repairs_keep_exact_prior_economics_and_reject_other_changes(self):
+        import hashlib
+        for relative,(_,after,_) in OBSERVATION_FOLLOWUP_DELTAS.items():
+            current=(ROOT/relative).read_bytes()
+            self.assertEqual(hashlib.sha256(current).hexdigest(),after)
+            prior=subprocess.check_output(['git','show',OBSERVATION_FOLLOWUP_REFERENCE+':'+relative],cwd=ROOT)
+            self.assertEqual(observation_followup_predecessor(self,relative,current),prior)
+            self.assertEqual(opportunity_predecessor(self,relative,current),
+                opportunity_predecessor(self,relative,prior))
+            for changed in (current+b'\n# unreviewed repair change\n',b''):
+                with self.assertRaises(AssertionError):observation_followup_predecessor(self,relative,changed)
+                with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_reviewed_startup_cancellation_preserves_all_original_economic_source(self):
         import hashlib
         for relative,(_,after,*_) in STARTUP_CANCEL_DELTAS.items():
             current=(ROOT/relative).read_bytes()
+            current=observation_followup_predecessor(self,relative,current)
             self.assertEqual(hashlib.sha256(current).hexdigest(),after)
             prior=subprocess.check_output(['git','show',COHORT_AUTHORITY_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(startup_cancel_predecessor(self,relative,current),prior)
@@ -617,6 +688,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         import hashlib
         for relative,(_,after,_) in COHORT_AUTHORITY_DELTAS.items():
             current=(ROOT/relative).read_bytes()
+            current=observation_followup_predecessor(self,relative,current)
             self.assertEqual(hashlib.sha256(current).hexdigest(),after)
             prior=subprocess.check_output(['git','show',COHORT_AUTHORITY_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(cohort_authority_predecessor(self,relative,current),prior)

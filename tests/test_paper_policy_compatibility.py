@@ -246,6 +246,229 @@ class PaperPolicyCompatibilityTests(unittest.TestCase):
         self.assertIsNone(after['completed']);self.assertIsNone(revised.pop())
         revised.enqueue(event(2));self.assertIsNotNone(revised.pop());revised.close()
 
+    def retired_pons_watch_case(self, name, *, buy_count=2):
+        from meme_machine.runtime.robinhood.pons import Broker
+        from meme_machine.runtime.robinhood.plane import digest
+        from meme_machine.lanes.pons.abi import topic
+        from tests.lanes.pons.test_pons_candidate_plane import event
+        path=self.root/name
+        clock=[100.]
+        old=Broker(path,previous_hash('pons_current'),clock=lambda:clock[0],
+            source='https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_WATCH',config='same-config')
+        buy=dict(event(buy_count),topics=[topic('CurveBuy(address,address,uint256,uint256,uint256,uint256)')])
+        for number in range(1,buy_count+1):old.enqueue(dict(event(number),topics=buy['topics']))
+        key=old.identity(buy);work=old.pop()
+        old.plane.finish(work['work'],state='freshness_deadline_censored',reason='fixture_incomplete')
+        clock[0]+=86401
+        old.plane.maintain()
+        self.assertIsNone(old.plane.get(key))
+        body,checksum=old.plane.db.execute('SELECT body,hash FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()
+        watch=json.loads(body);self.assertEqual(digest(watch),checksum)
+        old.close()
+        sell=dict(event(buy_count+1),topics=[topic('CurveSell(address,address,uint256,uint256,uint256,uint256)')])
+        return path,clock,key,buy,sell,watch,work
+
+    def test_retired_pons_watch_renews_before_new_policy_sell_without_authorizing_entry(self):
+        from contextlib import closing
+        from meme_machine.runtime.robinhood.pons import Broker
+        from meme_machine.runtime.robinhood.plane import canonical,digest
+        path,clock,key,buy,sell,watch,stale=self.retired_pons_watch_case('orphan-sell')
+        with closing(Broker(path,active_hash('pons_current'),clock=lambda:clock[0],
+                source='https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_WATCH',config='same-config')) as revised:
+            self.assertTrue(revised.enqueue(sell,needs_work=False))
+            row=revised.plane.get(key)
+            saved,checksum=revised.plane.db.execute('SELECT body,hash FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()
+            saved=json.loads(saved)
+            self.assertEqual(checksum,digest(saved));self.assertEqual(saved['interpretation'],revised.policy)
+            self.assertEqual(row['interpretation'],canonical(revised.policy))
+            self.assertEqual(saved['generation'],row['generation'])
+            self.assertGreater(row['generation'],watch['generation'])
+            self.assertEqual(saved['first_observed_at'],watch['first_observed_at'])
+            self.assertEqual(saved['last_buy_observed_at'],watch['last_buy_observed_at'])
+            self.assertEqual(saved['event'],buy)
+            self.assertEqual(saved['latest_id'],revised.observation_id(sell))
+            self.assertFalse(row['pending']);self.assertIsNone(row['result']);self.assertIsNone(row['completed'])
+            self.assertEqual(revised.rows,{})
+            self.assertFalse(revised.plane.current(stale['work']))
+            self.assertFalse(revised.plane.finish(stale['work'],result={'qualified':True}))
+
+    def test_retired_pons_watch_recovers_the_already_committed_unqualified_sell_cut(self):
+        from contextlib import closing
+        from meme_machine.runtime.robinhood.pons import Broker
+        from meme_machine.runtime.robinhood.plane import canonical,digest
+        path,clock,key,_,sell,watch,_=self.retired_pons_watch_case('orphan-committed-cut')
+        with closing(Broker(path,active_hash('pons_current'),clock=lambda:clock[0],
+                source='https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_WATCH',config='same-config')) as revised:
+            # The failed executable committed Plane.observe before discovering
+            # the old orphan watch. Retain precisely that crash/failure cut.
+            # Exact pons.py SHA256 at executed 1fe5a6f6: the successor source
+            # necessarily has a different adapter binding when it reopens.
+            binding=dict(revised.policy,adapter_source='ad75892a39a0b6ca898f90a0f698e7eb80ad8c7928820286babc46f5b697028c')
+            revised.plane.observe(key,'pons',revised.observation_id(sell),sell,ordering=(3,0,0),
+                watermark=dict(block=3,hash=sell['blockHash'],log=0,finality='confirmed'),
+                interpretation=binding,observed=clock[0],deadline=clock[0]+5,priority=4,needs_work=False)
+        with closing(Broker(path,active_hash('pons_current'),clock=lambda:clock[0],
+                source='https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_WATCH',config='same-config')) as resumed:
+            row=resumed.plane.get(key)
+            raw,checksum=resumed.plane.db.execute('SELECT body,hash FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()
+            saved=json.loads(raw)
+            self.assertEqual(checksum,digest(saved));self.assertEqual(saved['interpretation'],resumed.policy)
+            self.assertEqual(row['interpretation'],canonical(resumed.policy))
+            self.assertEqual(saved['generation'],row['generation'])
+            self.assertGreater(row['generation'],watch['generation'])
+            self.assertEqual(saved['first_observed_at'],watch['first_observed_at'])
+            self.assertFalse(row['pending']);self.assertIsNone(row['result']);self.assertIsNone(row['completed'])
+            self.assertEqual(resumed.rows,{})
+            self.assertFalse(resumed.enqueue(sell,needs_work=False))
+
+    def test_retired_pons_watch_rejects_incompatible_identity_before_new_observation(self):
+        from contextlib import closing
+        from meme_machine.runtime.robinhood.pons import Broker
+        from meme_machine.runtime.robinhood.plane import canonical,digest
+        for field,value in (('chain',1),('source','other-provider'),('config','other-config'),('policy','unknown-policy')):
+            with self.subTest(field=field):
+                path,clock,key,_,sell,watch,_=self.retired_pons_watch_case('orphan-invalid-'+field)
+                watch['interpretation'][field]=value
+                with closing(sqlite3.connect(path)) as db:
+                    db.execute('UPDATE pons_current_watch SET body=?,hash=? WHERE candidate=?',
+                        (canonical(watch),digest(watch),key));db.commit()
+                with closing(Broker(path,active_hash('pons_current'),clock=lambda:clock[0],
+                        source='https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_WATCH',config='same-config')) as revised:
+                    before=revised.plane.db.execute('SELECT COUNT(*) FROM observations').fetchone()[0]
+                    self.assertFalse(revised.enqueue(sell,needs_work=False))
+                    self.assertIsNone(revised.plane.get(key))
+                    self.assertEqual(revised.plane.db.execute('SELECT COUNT(*) FROM observations').fetchone()[0],before)
+
+    def test_retired_pons_watch_keeps_corruption_and_unresolved_transition_failures(self):
+        from contextlib import closing
+        from meme_machine.runtime.robinhood.pons import Broker
+        from meme_machine.runtime.robinhood.plane import canonical
+        for condition in ('corrupt','unresolved'):
+            with self.subTest(condition=condition):
+                path,clock,key,_,sell,watch,_=self.retired_pons_watch_case('orphan-'+condition)
+                if condition=='corrupt':
+                    with closing(sqlite3.connect(path)) as db:
+                        changed=dict(watch,first_observed_at=0)
+                        db.execute('UPDATE pons_current_watch SET body=? WHERE candidate=?',(canonical(changed),key));db.commit()
+                with closing(Broker(path,active_hash('pons_current'),clock=lambda:clock[0],
+                        source='https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_WATCH',config='same-config')) as revised:
+                    with patch('meme_machine.runtime.policy_compatibility.require_external_flat',
+                            side_effect=ValueError('paper_policy_transition_unresolved_obligations')):
+                        expected='watch_corruption' if condition=='corrupt' else 'transition_unresolved_obligations'
+                        with self.assertRaisesRegex(ValueError,expected):revised.enqueue(sell,needs_work=False)
+                    self.assertIsNone(revised.plane.get(key))
+
+    def test_recreated_pons_watch_does_not_adopt_a_pending_or_claimed_generation(self):
+        from contextlib import closing
+        from meme_machine.runtime.robinhood.pons import Broker
+        for condition in ('pending','claim','result','same-policy-pending','same-policy-claim','same-policy-result'):
+            with self.subTest(condition=condition):
+                path,clock,key,_,sell,_,_=self.retired_pons_watch_case('orphan-active-'+condition)
+                with closing(Broker(path,active_hash('pons_current'),clock=lambda:clock[0],
+                        source='https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_WATCH',config='same-config')) as revised:
+                    if condition.startswith('same-policy-'):
+                        with revised.plane.transaction():self.assertTrue(revised._renew_retained_interpretation(key))
+                    revised.plane.observe(key,'pons',revised.observation_id(sell),sell,ordering=(3,0,0),
+                        watermark=dict(block=3,hash=sell['blockHash'],log=0,finality='confirmed'),
+                        interpretation=revised.policy,observed=clock[0],deadline=clock[0]+5,priority=4,needs_work=False)
+                    if condition.endswith('pending'):revised.plane.db.execute('UPDATE candidates SET pending=1 WHERE id=?',(key,))
+                    elif condition.endswith('claim'):
+                        revised.plane.db.execute("UPDATE candidates SET claim='live-claim',owner=?,claim_until=? WHERE id=?",
+                            (revised.plane.owner,clock[0]+5,key))
+                    else:revised.plane.db.execute("UPDATE candidates SET result='{}' WHERE id=?",(key,))
+                with self.assertRaisesRegex(ValueError,'watch_(interpretation|generation)_changed'):
+                    Broker(path,active_hash('pons_current'),clock=lambda:clock[0],
+                        source='https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_WATCH',config='same-config')
+
+    def test_retired_pons_watch_recovers_same_interpretation_projection_crash_without_generation_rewind(self):
+        from contextlib import closing
+        from meme_machine.runtime.robinhood.pons import Broker
+        from meme_machine.runtime.robinhood.plane import canonical,digest
+        for cut in ('after-renewal','same-policy-retirement'):
+            with self.subTest(cut=cut):
+                path,clock,key,buy,sell,watch,stale=self.retired_pons_watch_case('orphan-generation-'+cut)
+                with closing(Broker(path,active_hash('pons_current'),clock=lambda:clock[0],
+                        source='https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_WATCH',config='same-config')) as revised:
+                    # First commit is the existing policy-renewal boundary.
+                    with revised.plane.transaction():self.assertTrue(revised._renew_retained_interpretation(key))
+                    if cut=='same-policy-retirement':
+                        self.assertTrue(revised.enqueue(sell,needs_work=False))
+                        clock[0]+=86401;revised.plane.maintain()
+                        self.assertIsNone(revised.plane.get(key))
+                        raw,checksum=revised.plane.db.execute('SELECT body,hash FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()
+                        watch=json.loads(raw);self.assertEqual(digest(watch),checksum)
+                        from tests.lanes.pons.test_pons_candidate_plane import event
+                        sell=dict(event(4),topics=sell['topics'])
+                    # Crash after Plane.observe commits but before the final
+                    # projection binds its generation above the retained watch.
+                    block=int(sell['blockNumber'],16)
+                    revised.plane.observe(key,'pons',revised.observation_id(sell),sell,ordering=(block,0,0),
+                        watermark=dict(block=block,hash=sell['blockHash'],log=0,finality='confirmed'),
+                        interpretation=revised.policy,observed=clock[0],deadline=clock[0]+5,priority=4,needs_work=False)
+                with closing(Broker(path,active_hash('pons_current'),clock=lambda:clock[0],
+                        source='https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_WATCH',config='same-config')) as resumed:
+                    row=resumed.plane.get(key)
+                    raw,checksum=resumed.plane.db.execute('SELECT body,hash FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()
+                    saved=json.loads(raw)
+                    self.assertEqual(digest(saved),checksum);self.assertEqual(saved['interpretation'],resumed.policy)
+                    self.assertEqual(saved['generation'],row['generation'])
+                    self.assertGreater(row['generation'],watch['generation'])
+                    self.assertEqual(saved['event'],buy)
+                    self.assertEqual(saved['first_observed_at'],watch['first_observed_at'])
+                    self.assertFalse(row['pending']);self.assertIsNone(row['result']);self.assertIsNone(row['completed'])
+                    self.assertFalse(resumed.plane.finish(stale['work'],result={'qualified':True}))
+                    self.assertEqual(resumed.rows,{})
+
+    def test_retired_pons_watch_projection_crash_preserves_accepted_buy_and_original_deadline(self):
+        from contextlib import closing
+        from meme_machine.runtime.robinhood.pons import Broker
+        from meme_machine.runtime.robinhood.plane import digest
+        from tests.lanes.pons.test_pons_candidate_plane import event
+        for cut,buy_count in (('prior-adapter',2),('same-policy-one-buy',1)):
+            with self.subTest(cut=cut):
+                path,clock,key,_,_,watch,stale=self.retired_pons_watch_case('orphan-buy-'+cut,buy_count=buy_count)
+                block=buy_count+1;fresh=dict(event(block),topics=watch['event']['topics'])
+                observed=clock[0];deadline=observed+5
+                with closing(Broker(path,active_hash('pons_current'),clock=lambda:clock[0],
+                        source='https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_WATCH',config='same-config')) as revised:
+                    # Renewal commits, then the BUY is accepted before its watch
+                    # projection. One retained BUY gives equal generation1 fences.
+                    with revised.plane.transaction():self.assertTrue(revised._renew_retained_interpretation(key))
+                    binding=revised.policy
+                    if cut=='prior-adapter':
+                        binding=dict(binding,adapter_source='ad75892a39a0b6ca898f90a0f698e7eb80ad8c7928820286babc46f5b697028c')
+                        raw=revised.plane.db.execute('SELECT body FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()[0]
+                        prior_watch=dict(json.loads(raw),interpretation=binding,volume_quality={'fixture_stale_adapter':True})
+                        from meme_machine.runtime.robinhood.plane import canonical
+                        with revised.plane.transaction():
+                            revised.plane.db.execute('UPDATE pons_current_watch SET body=?,hash=? WHERE candidate=?',
+                                (canonical(prior_watch),digest(prior_watch),key))
+                    revised.plane.observe(key,'pons',revised.observation_id(fresh),fresh,ordering=(block,0,0),
+                        watermark=dict(block=block,hash=fresh['blockHash'],log=0,finality='confirmed'),
+                        interpretation=binding,observed=observed,deadline=deadline,priority=4,needs_work=True)
+                clock[0]+=.25
+                with closing(Broker(path,active_hash('pons_current'),clock=lambda:clock[0],
+                        source='https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_WATCH',config='same-config')) as resumed:
+                    row=resumed.plane.get(key)
+                    raw,checksum=resumed.plane.db.execute('SELECT body,hash FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()
+                    saved=json.loads(raw)
+                    self.assertEqual(digest(saved),checksum);self.assertEqual(saved['interpretation'],resumed.policy)
+                    self.assertEqual(saved['generation'],row['generation'])
+                    self.assertGreater(row['generation'],watch['generation'])
+                    self.assertEqual(saved['event'],fresh);self.assertEqual(saved['last_buy_observed_at'],observed)
+                    self.assertEqual(saved['first_observed_at'],watch['first_observed_at'])
+                    if cut=='prior-adapter':self.assertNotIn('volume_quality',saved)
+                    else:self.assertIsNone(saved.get('volume_quality'))
+                    self.assertEqual((row['observed'],row['deadline'],row['queued']),(observed,deadline,observed))
+                    self.assertTrue(row['pending']);self.assertIsNone(row['result']);self.assertIsNone(row['completed'])
+                    self.assertEqual(row['state'],'discovered')
+                    self.assertFalse(resumed.plane.finish(stale['work'],result={'qualified':True}))
+                    self.assertEqual(list(resumed.committed()),[])
+                    scheduled=resumed.pop()
+                    self.assertIsNotNone(scheduled);self.assertEqual(scheduled['event'],fresh)
+                    self.assertEqual(scheduled['deadline'],deadline)
+                    self.assertFalse(resumed.plane.get(key).get('result'))
+
     def cohort_recovery_case(self,name,*,colocated=False):
         from meme_machine.runtime.robinhood.pons import Broker
         from meme_machine.lanes.pons import pons_selective_capital as capital_module
