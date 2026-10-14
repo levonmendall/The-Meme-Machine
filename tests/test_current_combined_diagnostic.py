@@ -2,7 +2,10 @@
 import importlib
 import hashlib
 import json
+import os
 from pathlib import Path
+import pwd
+import shutil
 import sqlite3
 import subprocess
 import tempfile
@@ -10,6 +13,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from engineering.diagnostics import current_combined_observation_20261014 as diagnostic
+from engineering.diagnostics import diagnostic_access_20261014 as access
 from meme_machine.operational.supervisor import Supervisor
 
 
@@ -323,6 +327,186 @@ class DiagnosticDrainTests(unittest.TestCase):
         ctl = Mock(side_effect=['', 'MainPID=0\nActiveState=inactive\nSubState=dead'])
         result = diagnostic.drain(0, ctl=ctl, clock=lambda: 1800, children=lambda: [])
         self.assertTrue(result['drained']); self.assertFalse(result['recovery_required'])
+
+
+class DiagnosticAccessTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.properties = dict.fromkeys(access.ACCESS_PROPERTIES, '')
+        self.properties.update(User='meme-machine', Group='meme-machine',
+            DynamicUser='no', PrivateUsers='no', UMask='0077',
+            WorkingDirectory='/opt/meme-machine', ProtectSystem='full', ProtectHome='yes',
+            PrivateTmp='yes', NoNewPrivileges='yes', RestrictNamespaces='no')
+        self.identity = dict(uid=997, gid=987, groups=[987])
+
+    def mock_output(self):
+        output = self.root / 'private-run'; output.mkdir(mode=0o700)
+        return output
+
+    def test_probe_preserves_installed_controls_and_disables_network(self):
+        command = access.probe_command('/private/probe', self.properties, self.identity, 'a' * 40)
+        for value in ('User=meme-machine', 'Group=meme-machine', 'ProtectSystem=full',
+                      'ProtectHome=yes', 'PrivateTmp=yes', 'NoNewPrivileges=yes', 'UMask=0077',
+                      'PrivateNetwork=yes', 'IPAddressDeny=any', 'RestrictAddressFamilies=AF_UNIX',
+                      'RuntimeMaxSec=10', 'TimeoutStopSec=2', 'Restart=no'):
+            self.assertIn('--property=' + value, command)
+        self.assertNotIn(diagnostic.UNIT, command)
+        self.assertNotIn('supervise', command)
+        with self.assertRaisesRegex(ValueError, 'properties_incomplete'):
+            access.probe_command('/private/probe', {}, self.identity, 'a' * 40)
+
+    def test_probe_failure_removes_only_own_files_without_real_clock(self):
+        output = self.mock_output()
+        owned = output.stat()
+        identity = dict(uid=owned.st_uid, gid=owned.st_gid, groups=[])
+        with patch.object(access, 'service_identity', return_value=identity), \
+             patch.object(access.os, 'chown'), \
+             self.assertRaisesRegex(ValueError, 'service_probe_failed'):
+            access.check_access(output, self.root / 'economic', 'a' * 40, self.properties,
+                write_metadata=diagnostic.write_metadata, run=Mock(return_value=Mock(returncode=1)))
+        self.assertEqual(list(output.iterdir()), [])
+        self.assertFalse((output / 'clock.json').exists())
+
+    def test_controller_can_read_service_outputs_and_probe_clock_is_disposable(self):
+        output = self.mock_output(); owned = output.stat()
+        identity = dict(uid=owned.st_uid, gid=owned.st_gid, groups=sorted(set(os.getgroups())))
+        observed = []
+        def execute(command, **kwargs):
+            probe = Path(command[command.index('--probe-dir') + 1])
+            observed.append(json.loads((probe / 'clock.json').read_text()))
+            access.service_probe(probe, identity, 'a' * 40)
+            return Mock(returncode=0)
+        with patch.object(access, 'service_identity', return_value=identity), \
+             patch.object(access.os, 'chown'):
+            verdict = access.check_access(output, self.root / 'economic', 'a' * 40, self.properties,
+                write_metadata=diagnostic.write_metadata, run=execute)
+        self.assertTrue(verdict['verified']); self.assertTrue(verdict['simulated_clock_only'])
+        self.assertEqual(observed, [dict(access_probe=True, revision='a' * 40, origin_monotonic=0)])
+        self.assertEqual(list(output.iterdir()), [])
+
+    def test_failure_precedes_real_clock_and_any_paper_start_request(self):
+        def ctl(*args, **kwargs):
+            if 'MainPID' in args: return '0'
+            if 'UnitFileState' in args: return 'disabled'
+            if 'ExecStart' in args:
+                return 'current_combined_observation_20261014 supervise ' + str(self.root) + ' ' + \
+                    str(self.root / 'run') + ' ' + 'a' * 40
+            keys = [args[i + 1] for i, value in enumerate(args[:-1]) if value == '-p']
+            values = dict(self.properties, Restart='no', RuntimeMaxUSec='30min',
+                          TimeoutStopUSec='1min 5s', KillMode='control-group')
+            return '\n'.join(key + '=' + values[key] for key in keys)
+        output = self.root / 'run'
+        with patch.object(diagnostic, 'control', side_effect=ctl) as control, \
+             patch.object(diagnostic.subprocess, 'check_output', return_value='a' * 40), \
+             patch.object(diagnostic, 'economic', return_value={}), \
+             patch.object(diagnostic, 'check_access', side_effect=ValueError('access_failed')) as check, \
+             patch.object(diagnostic.time, 'monotonic') as clock, \
+             patch.object(diagnostic, 'write_metadata') as writer:
+            with self.assertRaisesRegex(ValueError, 'access_failed'):
+                diagnostic.observe_once(self.root, output, 'a' * 40)
+        check.assert_called_once(); clock.assert_not_called(); writer.assert_not_called()
+        self.assertFalse(any('start' in call.args for call in control.call_args_list))
+
+    def test_probe_timeout_stops_only_own_probe_before_cleanup(self):
+        output = self.mock_output(); owned = output.stat()
+        identity = dict(uid=owned.st_uid, gid=owned.st_gid, groups=[])
+        stop = Mock(return_value=Mock(returncode=0, stdout='0'))
+        with patch.object(access, 'service_identity', return_value=identity), \
+             patch.object(access.os, 'chown'), self.assertRaisesRegex(ValueError, 'probe_timeout'):
+            access.check_access(output, self.root / 'economic', 'a' * 40, self.properties,
+                write_metadata=diagnostic.write_metadata,
+                run=Mock(side_effect=subprocess.TimeoutExpired('probe', access.PROBE_SECONDS)),
+                stop_probe=stop)
+        self.assertEqual(stop.call_count, 2)
+        self.assertTrue(stop.call_args_list[0].args[0][2].startswith('meme-machine-diagnostic-access-'))
+        self.assertFalse(any(diagnostic.UNIT in call.args[0] for call in stop.call_args_list))
+        self.assertEqual(list(output.iterdir()), [])
+
+    def test_unverified_probe_stop_preserves_probe_files_and_blocks_dispatch(self):
+        output = self.mock_output(); owned = output.stat()
+        identity = dict(uid=owned.st_uid, gid=owned.st_gid, groups=[])
+        with patch.object(access, 'service_identity', return_value=identity), \
+             patch.object(access.os, 'chown'), self.assertRaisesRegex(ValueError, 'stop_unverified'):
+            access.check_access(output, self.root / 'economic', 'a' * 40, self.properties,
+                write_metadata=diagnostic.write_metadata,
+                run=Mock(side_effect=subprocess.TimeoutExpired('probe', access.PROBE_SECONDS)),
+                stop_probe=Mock(return_value=Mock(returncode=1, stdout='')))
+        retained = list(output.iterdir()); self.assertEqual(len(retained), 1)
+        self.assertTrue((retained[0] / 'clock.json').exists())
+
+    def test_preparation_rejects_unrelated_parent_before_permission_changes(self):
+        parent = self.root / 'unrelated'; parent.mkdir(mode=0o700)
+        with patch.object(access, 'service_identity', return_value=self.identity), \
+             patch.object(access.os, 'chown') as chown, patch.object(access.os, 'chmod') as chmod:
+            with self.assertRaisesRegex(ValueError, 'exact_parent_required'):
+                access.prepare_output(parent / 'fresh', self.properties)
+        chown.assert_not_called(); chmod.assert_not_called()
+
+    def test_private_output_and_economic_state_checks_still_fail_closed(self):
+        output = self.mock_output(); output.chmod(0o755)
+        with self.assertRaisesRegex(ValueError, 'private_directory'):
+            access.validate_output(output, self.root / 'economic')
+        output.chmod(0o700)
+        with self.assertRaisesRegex(ValueError, 'outside_economic'):
+            access.validate_output(output, output)
+        link = self.root / 'link'; link.symlink_to(output)
+        with self.assertRaisesRegex(ValueError, 'private_directory'):
+            access.validate_output(link, self.root / 'economic')
+
+    @unittest.skipUnless(os.geteuid() == 0 and shutil.which('systemd-run') and
+                         Path('/run/systemd/system').exists(),
+                         'actual service identity/filesystem namespace need root/systemd')
+    def test_actual_service_identity_rejects_root_only_parent_and_accepts_explicit_repair(self):
+        try:
+            account = pwd.getpwnam('meme-machine')
+        except KeyError:
+            self.skipTest('configured service identity is unavailable')
+        from meme_machine.operational.artifact_storage import Scratch
+        current = subprocess.check_output(['systemctl', 'show', diagnostic.UNIT,
+            *(argument for key in access.ACCESS_PROPERTIES for argument in ('-p', key))],
+            text=True, timeout=5)
+        self.properties = dict(line.split('=', 1) for line in current.splitlines())
+        identity = access.service_identity(self.properties)
+        old_umask = os.umask(0o022)
+        try:
+            # This tiny admitted fixture is outside ProtectHome and PrivateTmp.
+            # It never touches the real diagnostic parent or application state.
+            with Scratch(parent=Path('/var/lib')) as scratch:
+                scratch.path.chmod(0o711)
+                parent = scratch.path / 'diagnostics'; parent.mkdir(mode=0o700)
+                prior = parent / 'prior-evidence'; prior.mkdir(mode=0o700)
+                preserved = prior / 'retained'; preserved.write_text('unchanged')
+                output = parent / 'fresh'; output.mkdir(mode=0o700)
+                os.chown(output, account.pw_uid, identity['gid'])
+                with self.assertRaisesRegex(ValueError, 'service_probe_failed'):
+                    access.check_access(output, scratch.path / 'economic', 'a' * 40,
+                        self.properties, write_metadata=diagnostic.write_metadata)
+                self.assertEqual(list(output.iterdir()), [])
+                # Retain the prior failed directory; use a fresh run and repair
+                # only its specified parent, with no recursive permission change.
+                corrected = parent / 'corrected'
+                access.prepare_output(corrected, self.properties, diagnostic_parent=parent)
+                self.assertEqual(parent.stat().st_mode & 0o777, 0o710)
+                self.assertEqual(parent.stat().st_gid, identity['gid'])
+                verdict = access.check_access(corrected, scratch.path / 'economic', 'a' * 40,
+                    self.properties, write_metadata=diagnostic.write_metadata)
+                self.assertTrue(verdict['verified']); self.assertEqual(list(corrected.iterdir()), [])
+                self.assertEqual(verdict['controller_clock_mode'], 0o644)
+                # An unreadable root-created clock must not pass actual UID checks.
+                os.umask(0o077)
+                with self.assertRaisesRegex(ValueError, 'service_probe_failed'):
+                    access.check_access(corrected, scratch.path / 'economic', 'a' * 40,
+                        self.properties, write_metadata=diagnostic.write_metadata)
+                os.umask(0o022)
+                self.assertEqual(preserved.read_text(), 'unchanged')
+                self.assertEqual(prior.stat().st_mode & 0o777, 0o700)
+                second = parent / 'second-fresh'; parent.chmod(0o700)
+                access.prepare_output(second, self.properties, diagnostic_parent=parent)
+                self.assertEqual(parent.stat().st_mode & 0o777, 0o710)
+                scratch.check(); scratch.success = True
+        finally:
+            os.umask(old_umask)
 
 
 if __name__ == '__main__':

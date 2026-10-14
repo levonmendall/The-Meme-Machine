@@ -19,6 +19,7 @@ import subprocess
 import sys
 import time
 
+from engineering.diagnostics.diagnostic_access_20261014 import ACCESS_PROPERTIES, check_access
 from meme_machine.operational.observation import atomic_json, numeric
 from meme_machine.operational.supervisor import Supervisor
 from meme_machine.solana_selective_runtime import CONTROL
@@ -473,10 +474,13 @@ def observe_once(root, output, source_revision):
         '-p', 'RuntimeMaxUSec', '-p', 'TimeoutStopUSec', '-p', 'KillMode').splitlines())
     verify_unit_properties(properties)
     before = economic(root)
-    if any(output.iterdir()):
-        raise ValueError('new_private_output_directory_required')
+    access_properties = dict(line.split('=', 1) for line in control('show', UNIT,
+        *(argument for key in ACCESS_PROPERTIES for argument in ('-p', key))).splitlines())
+    access = check_access(output, root, source_revision, access_properties,
+                          write_metadata=write_metadata)
     record = dict(revision=source_revision, funding=False, acceptance_minutes=0,
-                  status='STARTING', before=before, recovery_required=True, unit_properties=properties)
+                  status='STARTING', before=before, recovery_required=True, unit_properties=properties,
+                  diagnostic_access=access)
     origin = time.monotonic()
     window = Window(origin)
     write_metadata(output, 'clock.json', dict(origin_monotonic=origin, revision=source_revision))
