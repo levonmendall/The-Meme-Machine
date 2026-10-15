@@ -1,5 +1,9 @@
 # Consolidated observation and offline follow-up — 2026-10-14
 
+Latest recovery-gate decision: [NATIVE_RECOVERY_VERIFICATION_20261015.md](NATIVE_RECOVERY_VERIFICATION_20261015.md)
+verifies current-state guarded resumability; it supersedes the historical gate's
+retrospective drain requirement. Original failed observation/results below remain unchanged.
+
 Executed source: `1fe5a6f62d37f84ad24f0b7413279c080e3424e5`.
 Observation-followup baseline: `c8beb2d1317084779f97214b6015b7c345242085`, branch
 `repair/consolidated-startup-followup-20261014`, based on owned integration head

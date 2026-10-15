@@ -1,4 +1,31 @@
-# Current checkpoint — native lifecycle repair, 2026-10-15 00:02 UTC
+# Current checkpoint — native resumability verified, 2026-10-15
+
+**NATIVE_RECOVERY_VERIFIED — SAFE_TO_BEGIN_EXISTING_GUARDED_RECOVERY**.
+Read [NATIVE_RECOVERY_VERIFICATION_20261015.md](NATIVE_RECOVERY_VERIFICATION_20261015.md)
+and its exact evidence index first. Executable remains `ba25499b`; verification
+source `839be8b2d3e745696b259de333deec886ba7148e` changes tests, a read-only diagnostic and workflow
+wording only. Current ownership, compatible policy/epoch, source continuity and
+retained obligations support guarded recovery. Original forced-stop
+RECOVERY_REQUIRED remains unchanged; no retroactive graceful PASS is required.
+
+The complete actual startup/lifecycle rehearsal passes 19 cases. Focused native
+crash/recovery/source guards also pass with disclosed failed fixture/loader
+invocations preserved. No new complete suite. Current-state proof is bounded;
+full census, actual new startup completion, sustained throughput and Pons held
+protection remain unavailable.
+
+Campaign allowance remains 0/3; no service start occurred. Use the amended
+current-state recovery gate and obtain applicable operational retry scope before
+dispatch, with fresh preflight. Keep PAPER stopped/disabled, Restart=no, funding
+closed until authorized. No recovery-only operation is needed just to obtain a
+retroactive verdict. Preserve pending work; do not rewind or manually reset leases.
+Final 00:19:26 read-only projection/head match the completed replay: $1,000 cash,
+raw journal head8,982, no monetary obligations; historical $500 untouched.
+Installed clean source66f85d61 remains unchanged. See prior checkpoint below for
+original evidence; its blanket prior-drain blocker is superseded by this scoped
+current-state decision, not by a changed historical outcome.
+
+# Previous checkpoint — native lifecycle repair, 2026-10-15 00:02 UTC
 
 Exact offline executable: `ba25499b26103ec5d14f1ce765c8e8f180695f33`, branch
 `repair/consolidated-startup-followup-20261014`, draft PR 133. Read
