@@ -9,6 +9,7 @@ import subprocess
 import uuid
 
 from .backup import prepare
+from .artifact_storage import failure_fields
 from .digitalocean import request
 from .observation import read_json,atomic_json,stamp
 from .storage_guard import verify_storage
@@ -76,7 +77,7 @@ def execute(config='/etc/meme-machine/backup.json',output=OUTPUT):
                     shutil.rmtree(local)
             return row
         except BaseException as error:
-            row.update(status='FAIL',end_time=stamp(),error_type=type(error).__name__)
+            row.update(status='FAIL',end_time=stamp(),error_type=type(error).__name__,**failure_fields(error))
             # A timeout can leave a successfully created remote snapshot. Never
             # retry a creation blindly; use this exact snapshot_name to inspect.
             atomic_json(path,row);raise
@@ -86,7 +87,7 @@ def execute(config='/etc/meme-machine/backup.json',output=OUTPUT):
 def main():
     try:row=execute()
     except Exception as error:
-        print(json.dumps(dict(status='FAIL',error_type=type(error).__name__)));return 1
+        print(json.dumps(dict(status='FAIL',error_type=type(error).__name__,**failure_fields(error))));return 1
     print(json.dumps({k:row[k] for k in ('status','epoch_id','snapshot_id','point')},sort_keys=True));return 0
 
 if __name__=='__main__':raise SystemExit(main())

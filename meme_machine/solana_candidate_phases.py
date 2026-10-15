@@ -39,6 +39,16 @@ class CandidatePhases:
         self.wall=wall;self.cpu=cpu;self.runnable=runnable
         self.rows={name:pipeline.setdefault('candidate_phase:'+name,
             {field:0 for field in _FIELDS}) for name in PHASES}
+        for name in ('bulk_calls','bulk_records','scalar_calls','scalar_records'):
+            self.rows['economic_store'].setdefault(name,0)
+
+    def storage(self,bulk,records):
+        """Executed storage path, not a committed-event/coverage counter."""
+        try:
+            row=self.rows['economic_store'];prefix='bulk' if bulk else 'scalar'
+            row[prefix+'_calls']+=1;row[prefix+'_records']+=records
+        except BaseException:
+            pass # Optional telemetry must not change the original operation.
 
     def _sample(self):
         wall=self.wall();cpu=self.cpu()

@@ -997,14 +997,18 @@ class Runtime:
             if 'row' in locals() and row and row.get('id'):
                 self._failure(row,str(exc))
         from meme_machine.runtime.directional_accounting import execution_cost
-        self.attempts.maintain(self.now(),protected=(r['id'] for r in self.history.rows()))
+        # All strategy/history mutations above have finished on this owner.
+        # Authenticate one final population for this report; attempts maintenance
+        # writes the separate candidate plane, never this native history.
+        final_rows=self.history.rows()
+        self.attempts.maintain(self.now(),protected=(r['id'] for r in final_rows))
         return dict(strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,active=True,paper_only=True,
                     admission=dict(position_count_limit=None,capital_authority='native_shared_sleeve',
                         legacy_policy_count_is_not_enforced=True,owner_change='2026-10-09'),
                     position_safety=[r.get('position_safety',dict(at=0,evidence_current=False,
-                        blocker='pons_survivor_position_not_observed')) for r in self.history.rows() if r.get('position')],
+                        blocker='pons_survivor_position_not_observed')) for r in final_rows if r.get('position')],
                     native_execution_cost=execution_cost(self.book),
-                    candidate_count=len(self.history.rows()),last_boundary=self.last_error,
+                    candidate_count=len(final_rows),last_boundary=self.last_error,
                     discovery_capacity_deferred=False,
                     pending_graduations=self.history.pending_graduations(),
                     deferred_boundaries=errors,
@@ -1013,7 +1017,7 @@ class Runtime:
                     qualification_authority='candidate_specific_authenticated_evidence',
                     accounting=self.book.reconcile(),accounting_replay=self.book.replay(),
                     policies=self.sleeve.identity['policies'],sleeve=self.sleeve.reconcile(),
-                    durable_handoff=handoff_ready(self.book,self.history.rows()),
+                    durable_handoff=handoff_ready(self.book,final_rows),
                     held_paper_shadow=(getattr(self,'held_paper_shadow',None).status()
                         if getattr(self,'held_paper_shadow',None) is not None else
                         dict(enabled=False,mode='PAPER_SHADOW_ONLY')))

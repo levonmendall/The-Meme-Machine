@@ -199,6 +199,28 @@ class ProviderDemandCallerTests(unittest.TestCase):
         purchases={row['consumer']:row['physical_http_requests'] for row in telemetry['purchase_work']}
         self.assertEqual(purchases,{'current':2,'survivor':2})
 
+    def test_existing_ledger_gains_covering_retention_indexes_without_rewriting_accounting(self):
+        from meme_machine.lanes.pons.provider_admission import Admission
+        self.context('current')
+        indexes={'transport_starts':'usage_start_retention_seq',
+                 'admissions':'usage_admission_retention_seq','transports':'usage_transport_retention_seq'}
+        with sqlite3.connect(self.path) as db:
+            for index in indexes.values():db.execute('DROP INDEX '+index)
+            before={table:db.execute('SELECT * FROM '+table+' ORDER BY 1').fetchall()
+                    for table in (*indexes,'provider_usage','limits','logical_demand')}
+        Admission(self.path,self.endpoint,lane='pons',clock=self.now,sleeper=self.advance)
+        with sqlite3.connect(self.path) as db:
+            for table,index in indexes.items():
+                plan=db.execute('EXPLAIN QUERY PLAN SELECT seq FROM '+table+
+                    ' WHERE 1=1 ORDER BY seq DESC LIMIT 1 OFFSET 4095').fetchall()
+                self.assertTrue(any('USING COVERING INDEX '+index in row[3] for row in plan),plan)
+            for table,rows in before.items():
+                self.assertEqual(db.execute('SELECT * FROM '+table+' ORDER BY 1').fetchall(),rows,table)
+            for table in indexes:
+                with self.assertRaisesRegex(sqlite3.IntegrityError,'append_only'):
+                    db.execute('DELETE FROM '+table)
+                db.rollback()
+
     def test_failed_current_request_keeps_demand_and_recovers_without_caching_failure(self):
         from meme_machine.lanes.pons import BoundaryError
         current=self.context('current')

@@ -85,7 +85,7 @@ class PreparationTests(unittest.TestCase):
         f=frame(FIXTURE['pump'][0],'pump');addresses=self.addresses('pump')
         products,_=prepare_candidate_frames((f,),addresses,'phase-failure','a'*64)
         original=sqlite3.OperationalError('offline_original_store_failure')
-        with patch.object(self.h.rolling,'store',side_effect=original):
+        with patch.object(self.h.rolling,'store_many',side_effect=original):
             with self.assertRaises(sqlite3.OperationalError) as caught:
                 commit_candidate_batch(self.state,(f,),addresses,'phase-failure',publish=False,
                     prepared=products,timing=timing)
@@ -171,6 +171,36 @@ class PreparationTests(unittest.TestCase):
             with self.assertRaisesRegex(EvidenceUnavailable,'preparation_source_changed'):
                 commit_candidates(self.state,changed,a,session,publish=False,prepared=p[0])
         self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+
+    def test_partial_bulk_failure_preserves_frame_rollback_pending_delivery_and_exact_retry(self):
+        f=frame(FIXTURE['pump'][0],'pump');addresses=self.addresses('pump')
+        products,_=prepare_candidate_frames((f,),addresses,'bulk-frame','a'*64)
+        db=self.h.db;original=sqlite3.OperationalError('offline_partial_bulk_lineage_failure')
+        class Partial:
+            def __getattr__(self,name):return getattr(db,name)
+            def executemany(self,sql,values):
+                if sql.startswith('INSERT OR IGNORE INTO rolling_event_lineage'):
+                    db.executemany(sql,list(values)[:1]);raise original
+                return db.executemany(sql,values)
+        self.h.rolling.db=Partial()
+        try:
+            with self.assertRaises(sqlite3.OperationalError) as caught:
+                commit_candidate_batch(self.state,(f,),addresses,'bulk-frame',publish=False,prepared=products)
+            self.assertIs(caught.exception,original)
+        finally:self.h.rolling.db=db
+        for table in ('rolling_economic_events','rolling_economic_addresses','candidate_content_receipts',
+                      'rolling_event_lineage','native_order_attestations','candidate_outbox',
+                      'candidate_history_outbox','candidate_blocks'):
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM '+table).fetchone()[0],0,table)
+        self.assertEqual(db.execute('SELECT reason FROM candidate_gaps').fetchone()[0],'candidate_native_batch_failed')
+        self.assertFalse(db.in_transaction)
+        commit_candidate_batch(self.state,(f,),addresses,'bulk-frame',publish=False,prepared=products)
+        before=db.execute('SELECT * FROM rolling_economic_events ORDER BY identity').fetchall()
+        self.assertTrue(before)
+        self.assertGreater(db.execute('SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0],0)
+        commit_candidate_batch(self.state,(f,),addresses,'bulk-frame',publish=False,prepared=products)
+        self.assertEqual(db.execute('SELECT * FROM rolling_economic_events ORDER BY identity').fetchall(),before)
+        self.assertEqual(db.execute('SELECT COUNT(DISTINCT identity),COUNT(*) FROM candidate_outbox').fetchone()[0],len(before))
     def test_mutable_parent_check_still_persists_failure_witness(self):
         f=frame(FIXTURE['pump'][0],'pump');a=self.addresses('pump');scope=program_scope('pump')
         p,_=prepare_candidate_frames((f,),a,'session','a'*64)
@@ -261,7 +291,7 @@ class WakeupTests(unittest.IsolatedAsyncioTestCase):
             sampled.append(threading.get_native_id())
             return runnable_snapshot()
         self.source.candidate_phases.runnable=sampled_scheduler
-        original=native['history'].rolling.store
+        original=native['history'].rolling.store_many
         def held_store(*args,**kwargs):
             if not entered.is_set():
                 entered.set()
@@ -271,7 +301,7 @@ class WakeupTests(unittest.IsolatedAsyncioTestCase):
         addresses={PROGRAMS['pump']:program_scope('pump')}
         task=None
         try:
-            with patch.object(native['history'].rolling,'store',held_store):
+            with patch.object(native['history'].rolling,'store_many',held_store):
                 task=asyncio.create_task(self.source.candidate_commits(q,addresses,'canceled-phase'))
                 self.assertTrue(await asyncio.to_thread(entered.wait,1))
                 task.cancel()

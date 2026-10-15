@@ -68,6 +68,11 @@ exact candidate's enumerated Git objects/ancestors; never recursively change
 permissions or touch credential/state permissions. The existing network-disabled
 service-identity HEAD/tree/clean-status probe must pass before the real clock
 and service-start request. Root-readable Git is insufficient.
+Use `git --no-optional-locks status` for read-only engineering/installed-source
+inspection. Ordinary root `git status` can refresh the shared installed index
+under a private umask, replacing a service-readable index with root-only bytes.
+Source access repairs must retain the index content hash and change only the
+identified source metadata; the actual service-user guard remains mandatory.
 
 Preserve exact Decimal accounting, native reconciliation before discovery,
 idempotent reservations/delivery, bounded storage and maintenance fairness.

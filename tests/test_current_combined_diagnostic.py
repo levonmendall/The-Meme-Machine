@@ -446,6 +446,7 @@ class DiagnosticCollectionTests(unittest.TestCase):
                     'pipeline': {'economic_prepared:rolling': {'calls': 7, 'records': 11,
                         'cpu_seconds_total_microseconds': 4567, 'wall_seconds_total_microseconds': 5000},
                         'candidate_phase:economic_store': {'calls': 8, 'failed_calls': 1,
+                            'bulk_calls': 5, 'bulk_records': 500, 'scalar_calls': 2, 'scalar_records': 8,
                             'wall_seconds_total_microseconds': 11000,
                             'cpu_seconds_total_microseconds': 9000,
                             'runnable_wait_seconds_total_microseconds': 1000,
@@ -476,6 +477,8 @@ class DiagnosticCollectionTests(unittest.TestCase):
         self.assertEqual(phases['runnable_wait_seconds_total_microseconds'], 1000)
         self.assertEqual(phases['failed_calls'], 1)
         self.assertEqual(phases['runnable_unavailable_calls'], 1)
+        self.assertEqual({key: phases[key] for key in ('bulk_calls','bulk_records','scalar_calls','scalar_records')},
+                         dict(bulk_calls=5,bulk_records=500,scalar_calls=2,scalar_records=8))
         self.assertNotIn('secret', phases)
         self.assertEqual(retained['ipc_pipeline']['evidence_timing:rolling']['latest_slot'], 101)
         self.assertEqual(retained['ipc_aggregate']['checkpoint.boundary_total_microseconds'], 3456)

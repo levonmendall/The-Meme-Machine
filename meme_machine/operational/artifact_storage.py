@@ -13,7 +13,30 @@ GIB = 1024**3
 
 
 class ArtifactStorageFull(RuntimeError):
-    pass
+    def __init__(self, *args, admission=None):
+        super().__init__(*args)
+        self.admission = admission
+
+
+def failure_fields(error):
+    """Publish fixed admission facts, never exception text or filesystem paths."""
+    if not isinstance(error, ArtifactStorageFull):
+        return {}
+    reasons = ('engineering_inventory_entry_bound', 'engineering_artifact_byte_quota',
+               'root_headroom_blocks_nonessential_artifact', 'destination_copy_reserve_required',
+               'engineering_snapshot_per_copy_quota', 'engineering_snapshot_retained_quota',
+               'engineering_scratch_retained_quota')
+    reason = error.args[0] if error.args and type(error.args[0]) is str else None
+    record = dict(reason=reason if reason in reasons else 'storage_admission_unavailable')
+    facts = error.admission
+    if type(facts) is dict:
+        for name in ('estimated_bytes', 'free_bytes', 'reserve_bytes', 'used_bytes',
+                     'total_bytes', 'projected_used_bytes', 'block_percent_milli',
+                     'retained_bytes', 'limit_bytes'):
+            value = facts.get(name)
+            if type(value) is int and 0 <= value <= 2**63-1:
+                record[name] = value
+    return dict(storage_admission=record)
 
 
 @dataclass(frozen=True)
@@ -102,9 +125,13 @@ def headroom(destination, estimated_bytes=0, *, nonessential=True, policy=None, 
     projected = root['used_bytes'] + (estimated_bytes if root['device'] == target['device'] else 0)
     if nonessential and (100 * projected / root['total_bytes'] >= policy.block_percent or
                          root['free_bytes'] < policy.min_free_bytes):
-        raise ArtifactStorageFull('root_headroom_blocks_nonessential_artifact')
+        raise ArtifactStorageFull('root_headroom_blocks_nonessential_artifact', admission=dict(
+            estimated_bytes=estimated_bytes, free_bytes=root['free_bytes'], reserve_bytes=policy.min_free_bytes,
+            used_bytes=root['used_bytes'], total_bytes=root['total_bytes'], projected_used_bytes=projected,
+            block_percent_milli=int(policy.block_percent*1000)))
     if target['free_bytes'] < estimated_bytes + policy.min_free_bytes:
-        raise ArtifactStorageFull('destination_copy_reserve_required')
+        raise ArtifactStorageFull('destination_copy_reserve_required', admission=dict(
+            estimated_bytes=estimated_bytes, free_bytes=target['free_bytes'], reserve_bytes=policy.min_free_bytes))
     return dict(root=root, destination=target, estimated_bytes=estimated_bytes)
 
 
@@ -113,10 +140,12 @@ def admit_snapshot(root, parent, *, nonessential=True, policy=None):
     estimate = tree_bytes(root, reject_links=True)
     if nonessential:
         if estimate > policy.snapshot_max_bytes:
-            raise ArtifactStorageFull('engineering_snapshot_per_copy_quota')
+            raise ArtifactStorageFull('engineering_snapshot_per_copy_quota', admission=dict(
+                estimated_bytes=estimate, limit_bytes=policy.snapshot_max_bytes))
         retained = tree_bytes(parent, limit=policy.snapshot_total_bytes) if Path(parent).exists() else 0
         if retained + estimate > policy.snapshot_total_bytes:
-            raise ArtifactStorageFull('engineering_snapshot_retained_quota')
+            raise ArtifactStorageFull('engineering_snapshot_retained_quota', admission=dict(
+                estimated_bytes=estimate, retained_bytes=retained, limit_bytes=policy.snapshot_total_bytes))
     headroom(parent, estimate, nonessential=nonessential, policy=policy)
     return estimate
 
@@ -206,7 +235,7 @@ def main():
             raise ArtifactStorageFull('engineering_snapshot_per_copy_quota')
         print(json.dumps(headroom(args.destination, estimate, policy=policy), sort_keys=True))
     except (OSError, ValueError, ArtifactStorageFull) as error:
-        print(json.dumps(dict(passed=False, reason=str(error))), file=sys.stderr)
+        print(json.dumps(dict(passed=False, reason=str(error), **failure_fields(error))), file=sys.stderr)
         return 1
     return 0
 

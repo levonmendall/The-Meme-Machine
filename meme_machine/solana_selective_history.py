@@ -471,7 +471,13 @@ class SelectiveHistory:
             with candidate_phase(timing,'rolling_adopt'):
                 if hasattr(self,'rolling'):self.rolling.adopt(rows)
             with candidate_phase(timing,'economic_store'):
-                for row,prepared in zip(rows,serialized):
+                # Fresh local decoder products may share bounded mutable lookups
+                # and companion writes, inside this exact owner transaction.
+                # Every replay/legacy/restore/mixed case retains the scalar path.
+                stored_fresh=(hasattr(self,'rolling') and self.rolling.store_many(rows,serialized))
+                if timing is not None:timing.storage(stored_fresh,len(rows))
+                remaining=() if stored_fresh else zip(rows,serialized)
+                for row,prepared in remaining:
                     if hasattr(self,'rolling') and row.kind in ('event','transaction'):
                         self.rolling.store(row,serialized=prepared)
                         continue

@@ -361,6 +361,13 @@ class Admission:
                 ON admissions(json_extract(body,'$.endpoint_fingerprint'),json_extract(body,'$.created'),seq);
             CREATE INDEX IF NOT EXISTS usage_admission_ended
                 ON admissions(json_extract(body,'$.endpoint_fingerprint'),json_extract(body,'$.ended'),seq);
+            -- Exact whole-ring retention walks seq, independently of endpoint.
+            -- A narrow covering tree avoids reading wide audit bodies merely
+            -- to find that unchanged 4,096-row boundary. No retention or
+            -- accounting transaction changes; append-only guards stay intact.
+            CREATE INDEX IF NOT EXISTS usage_start_retention_seq ON transport_starts(seq);
+            CREATE INDEX IF NOT EXISTS usage_admission_retention_seq ON admissions(seq);
+            CREATE INDEX IF NOT EXISTS usage_transport_retention_seq ON transports(seq);
         ''')
         # An explicitly installed operating profile replaces the development
         # pace, while preserving the next grant, cooldown and all usage records.

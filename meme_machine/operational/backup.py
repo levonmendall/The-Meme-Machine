@@ -140,7 +140,7 @@ def copy_state(root, target, *, seconds=60, nonessential=True, reuse=None):
     if reuse is not None:
         result=reusable_point(root,reuse)
         if result is not None:return result
-    from .artifact_storage import admit_snapshot, headroom
+    from .artifact_storage import admit_snapshot, headroom, failure_fields
     remaining=admit_snapshot(root,target.parent,nonessential=nonessential)
     target.mkdir(parents=True,mode=0o700)
     # A process killed mid-copy leaves an identifiable disposable partial point.
@@ -185,9 +185,9 @@ def copy_state(root, target, *, seconds=60, nonessential=True, reuse=None):
         (target/'backup-incomplete.json').unlink()
         subprocess.run(['sync','-f',str(target)],check=True,timeout=5)
         return dict(epoch_id=baseline['epoch_id'],files=len(inventory),sqlite_databases=sum(r['sqlite'] for r in inventory.values()),directory=str(target))
-    except BaseException:
+    except BaseException as error:
         # A failed disposable copy has no restore authority; keep it for diagnosis.
-        atomic_json(target/'backup-failed.json',dict(at=stamp(),usable=False))
+        atomic_json(target/'backup-failed.json',dict(at=stamp(),usable=False,**failure_fields(error)))
         raise
 
 
@@ -324,7 +324,8 @@ def main():
     try:
         result=thaw_if_needed() if args.command=='thaw' else verify_copy(args.target) if args.command=='verify' else prove_replay(args.target) if args.command=='replay' else prepare(args.state_root,args.target)
     except Exception as error:
-        print(json.dumps(dict(passed=False,error_type=type(error).__name__)))
+        from .artifact_storage import failure_fields
+        print(json.dumps(dict(passed=False,error_type=type(error).__name__,**failure_fields(error))))
         return 1
     print(json.dumps(result,sort_keys=True));return 0
 

@@ -1,6 +1,7 @@
 """In-command body reuse preserves authenticated bytes and all refusal paths."""
 from dataclasses import replace
 from pathlib import Path
+import sqlite3
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -115,6 +116,192 @@ class RollingSerializationTests(unittest.TestCase):
             for index in range(300):tape.creation(str(index))
             self.assertEqual(len(tape._creation_batch),256)
             self.assertEqual(lookup.call_count,300)
+
+
+class RollingBulkStoreTests(unittest.TestCase):
+    """Disposable SQL-contract fixtures, never a market throughput proof."""
+    tables=('rolling_economic_events','rolling_economic_addresses',
+        'candidate_content_receipts','native_order_attestations',
+        'rolling_event_lineage','cursors','counters')
+
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
+        self.number=0
+
+    def history(self):
+        self.number+=1
+        state,history=state_at(Path(self.tmp.name)/('bulk-'+str(self.number)+'.sqlite'))
+        self.addCleanup(state.writer.close)
+        return history
+
+    def products(self):
+        from meme_machine.solana_economic_preparation import prepare_economic_record
+        rows={}
+        for family in ('pump','pumpswap'):
+            for tx in FIXTURE[family]:
+                for row in economic_records(family,PROGRAMS[family],tx,
+                        endpoint_identity='a'*64,seen=NOW,source='alchemy_finalized_stream'):
+                    rows.setdefault(row.identity,row)
+        self.assertTrue(rows)
+        return tuple(prepare_economic_record(row) for row in rows.values())
+
+    def snapshot(self,history):
+        return {table:history.db.execute('SELECT rowid,* FROM '+table+' ORDER BY rowid').fetchall()
+                for table in self.tables}
+
+    @staticmethod
+    def inputs(products):return tuple(product.record for product in products)
+
+    def test_fresh_bulk_matches_scalar_bytes_row_order_counts_and_last_clock(self):
+        scalar=self.history();bulk=self.history();products=self.products();rows=self.inputs(products)
+        times=[NOW+100-index for index in range(len(rows))]
+        for history in (scalar,bulk):
+            values=iter(times);history.clock=lambda values=values:next(values)
+            with history.writer.transaction():
+                for scope in dict.fromkeys(row.scope for row in rows):
+                    history.db.execute('INSERT INTO cursors VALUES(?,?,?)',
+                        (scope,max(row.slot for row in rows)+1000,NOW-1))
+                history.writer._count('ingested_event',7)
+                first=rows[0]
+                history.db.execute('INSERT INTO native_order_attestations VALUES(?,?,?,?,?)',
+                    (first.scope,first.slot,first.signature,first.transaction_index,
+                     digest([first.scope,first.slot,first.signature,first.transaction_index])))
+        with scalar.writer.transaction():
+            for row,product in zip(rows,products):scalar.rolling.store(row,serialized=product)
+        with bulk.writer.transaction():self.assertTrue(bulk.rolling.store_many(rows,products))
+        self.assertEqual(self.snapshot(bulk),self.snapshot(scalar))
+        self.assertEqual(bulk.db.execute("SELECT value FROM counters WHERE key='ingested_event'").fetchone(),
+            (7+len(rows),))
+        for scope in dict.fromkeys(row.scope for row in rows):
+            expected=next(times[index] for index in reversed(range(len(rows))) if rows[index].scope==scope)
+            self.assertEqual(bulk.db.execute('SELECT updated FROM cursors WHERE scope=?',(scope,)).fetchone(),
+                (expected,))
+
+    def test_unsupported_inputs_and_missing_transaction_return_without_writes(self):
+        from meme_machine.solana_economic_preparation import prepare_economic_record
+        history=self.history();product=self.products()[0];row=product.record
+        null=prepare_economic_record(replace(row,transaction_index=None))
+        unrelated=prepare_economic_record(replace(row,observed_at=NOW+1))
+        initial=self.snapshot(history)
+        self.assertFalse(history.rolling.store_many((row,),(product,)))
+        variants=[((),()),((row,),()),((row,),(row.serialized_body(),)),
+            ((row,row),(product,product)),((null.record,),(null,)),
+            ((row,),(unrelated,)),((row,),(replace(product,original_bytes=16*1024*1024+1),)),
+            (iter((row,)),(product,))]
+        with history.writer.transaction():
+            for rows,serialized in variants:
+                before=history.db.total_changes
+                self.assertFalse(history.rolling.store_many(rows,serialized))
+                self.assertEqual(history.db.total_changes,before)
+        self.assertEqual(self.snapshot(history),initial)
+
+    def test_transaction_records_and_repeated_addresses_keep_scalar_semantics(self):
+        from meme_machine.solana_economic_preparation import prepare_economic_record
+        scalar=self.history();bulk=self.history();base=self.products()[0].record
+        payload=dict(slot=base.slot,blockTime=base.market_time,transactionIndex=base.transaction_index,
+            transaction=dict(signatures=[base.signature],message=dict(accountKeys=list(base.addresses),instructions=[])),
+            meta=dict(err=None,logMessages=[],innerInstructions=[],preTokenBalances=[],postTokenBalances=[]))
+        product=prepare_economic_record(replace(base,identity=base.identity+':transaction-fixture',
+            kind='transaction',payload=payload,addresses=base.addresses+(base.addresses[0],)))
+        with scalar.writer.transaction():scalar.rolling.store(product.record,serialized=product)
+        with bulk.writer.transaction():self.assertTrue(bulk.rolling.store_many((product.record,),(product,)))
+        self.assertEqual(self.snapshot(bulk),self.snapshot(scalar))
+        self.assertEqual(bulk.db.execute("SELECT value FROM counters WHERE key='ingested_event'").fetchone(),(1,))
+
+    def test_any_retained_representation_falls_back_before_new_rows_are_written(self):
+        from meme_machine.solana_economic_preparation import prepare_economic_record
+        product=self.products()[0];row=product.record
+        fresh=prepare_economic_record(replace(row,identity=row.identity+':fresh'))
+        for representation in ('rolling','archived','legacy','receipt'):
+            with self.subTest(representation=representation):
+                history=self.history()
+                with history.writer.transaction():
+                    if representation in ('rolling','archived'):
+                        history.rolling.store(row,serialized=product)
+                        if representation=='archived':
+                            history.db.execute('UPDATE rolling_economic_events SET body=NULL,archive=?',('retained',))
+                    elif representation=='legacy':
+                        history.db.execute('INSERT INTO records VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)',
+                            (row.identity,row.scope,row.slot,row.signature,row.program,row.market_time,
+                             row.event_index,row.transaction_index,row.kind,product.encoded,product.checksum,NOW-5))
+                    else:
+                        history.db.execute('INSERT INTO candidate_content_receipts VALUES(?,?,?,?)',
+                            (row.identity,product.economic_hash,row.transaction_index,NOW-5))
+                before=self.snapshot(history)
+                with history.writer.transaction():
+                    changes=history.db.total_changes
+                    self.assertFalse(history.rolling.store_many((fresh.record,row),(fresh,product)))
+                    self.assertEqual(history.db.total_changes,changes)
+                self.assertEqual(self.snapshot(history),before)
+
+    def test_native_index_or_hash_conflicts_fail_before_any_writes(self):
+        from meme_machine.solana_economic_preparation import prepare_economic_record
+        product=self.products()[0];row=product.record
+        for bad in ('index','hash','within_batch'):
+            with self.subTest(bad=bad):
+                history=self.history();products=(product,)
+                with history.writer.transaction():
+                    if bad=='within_batch':
+                        other=prepare_economic_record(replace(row,identity=row.identity+':conflict',
+                            transaction_index=row.transaction_index+1))
+                        products+=(other,)
+                    else:
+                        index=row.transaction_index+(bad=='index')
+                        checksum='0'*64 if bad=='hash' else digest([row.scope,row.slot,row.signature,index])
+                        history.db.execute('INSERT INTO native_order_attestations VALUES(?,?,?,?,?)',
+                            (row.scope,row.slot,row.signature,index,checksum))
+                before=self.snapshot(history)
+                with history.writer.transaction():
+                    changes=history.db.total_changes
+                    with self.assertRaisesRegex(EvidenceConflict,'candidate_native_order_conflict'):
+                        history.rolling.store_many(self.inputs(products),products)
+                    self.assertEqual(history.db.total_changes,changes)
+                self.assertEqual(self.snapshot(history),before)
+
+    def test_mid_write_failure_rolls_back_and_identical_retry_remains_fresh(self):
+        history=self.history();products=self.products();rows=self.inputs(products)
+        original=sqlite3.OperationalError('offline_original_bulk_write_failure')
+        db=history.db
+        class Interrupted:
+            def __getattr__(self,name):return getattr(db,name)
+            def executemany(self,sql,parameters):
+                if sql.startswith('INSERT OR IGNORE INTO rolling_economic_addresses'):
+                    db.executemany(sql,list(parameters)[:1])
+                    raise original
+                return db.executemany(sql,parameters)
+        before=self.snapshot(history);history.rolling.db=Interrupted()
+        try:
+            with self.assertRaises(sqlite3.OperationalError) as caught:
+                with history.writer.transaction():history.rolling.store_many(rows,products)
+            self.assertIs(caught.exception,original)
+        finally:history.rolling.db=db
+        self.assertFalse(db.in_transaction)
+        self.assertEqual(self.snapshot(history),before)
+        with history.writer.transaction():self.assertTrue(history.rolling.store_many(rows,products))
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],len(rows))
+        with history.writer.transaction():self.assertFalse(history.rolling.store_many(rows,products))
+
+    def test_lookup_chunks_are_bounded_and_same_transaction_key_is_not_duplicated(self):
+        from meme_machine.solana_economic_preparation import prepare_economic_record
+        history=self.history();base=self.products()[0].record
+        # Synthetic identities test only parameter bounds and SQL semantics.
+        products=tuple(prepare_economic_record(replace(base,identity=base.identity+':bound-'+str(index)))
+            for index in range(257))
+        db=history.db;lookups=[]
+        class Observed:
+            def __getattr__(self,name):return getattr(db,name)
+            def execute(self,sql,parameters=()):
+                if sql.startswith('SELECT identity FROM '):lookups.append(len(parameters))
+                return db.execute(sql,parameters)
+        history.rolling.db=Observed()
+        try:
+            with history.writer.transaction():
+                self.assertTrue(history.rolling.store_many(self.inputs(products),products))
+        finally:history.rolling.db=db
+        self.assertEqual(lookups,[256,1]*3)
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM native_order_attestations').fetchone(),(1,))
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone(),(257,))
+        self.assertEqual(db.execute("SELECT value FROM counters WHERE key='ingested_event'").fetchone(),(257,))
 
 
 if __name__=='__main__':unittest.main()

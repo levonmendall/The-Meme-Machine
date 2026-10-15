@@ -273,6 +273,7 @@ def required_counters(health, *, now_monotonic=None):
         r'(?:calls|records|bytes|latest_slot|latest_durable_wall|latest_joined_wall|latest_received_wall|'
         r'latest_provider_created_wall|failed_calls|unmeasured_calls|unmeasured_bytes_frames|'
         r'runnable_measured_calls|runnable_unavailable_calls|'
+        r'(?:bulk|scalar)_(?:calls|records)|'
         r'(?:decode|decode_cpu|cpu_seconds|transfer_and_wait_seconds|wall_seconds|runnable_wait_seconds|owner_queue|execution)'
         r'_(?:total|peak)_microseconds)')
     pipeline = {}

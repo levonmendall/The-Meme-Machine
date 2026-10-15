@@ -173,6 +173,95 @@ class RollingHistory:
         if inserted:self.history.writer._count('ingested_event')
         return row
 
+    def store_many(self,rows,serialized):
+        """Consolidate fresh prepared economics inside the caller's transaction.
+
+        Replay, legacy migration, archived restoration and native-order
+        enrichment retain ``store``'s scalar contract. A false result has made
+        no writes, so the caller can use that path unchanged. All lookup state
+        is local to this call on the authoritative owner, never a retained cache.
+        """
+        from .solana_economic_preparation import PreparedEconomicRecord
+        from .solana_evidence_plane import EvidenceConflict,FinalizedRecord
+        self.history.writer._check()
+        if (not self.db.in_transaction or not isinstance(rows,(tuple,list)) or
+                not isinstance(serialized,(tuple,list)) or not 0<len(rows)<=2048 or
+                len(rows)!=len(serialized)):
+            return False
+        identities=[];native={};native_groups={};original_bytes=0;prepared_bytes=0
+        for row,product in zip(rows,serialized):
+            if (not isinstance(product,PreparedEconomicRecord) or not isinstance(row,FinalizedRecord) or
+                    product.record is not row or
+                    row.kind not in ('event','transaction') or
+                    type(row.transaction_index) is not int or row.transaction_index<0 or
+                    not all(isinstance(value,str) for value in
+                            (row.identity,row.scope,row.signature,row.program)) or
+                    not isinstance(product.encoded,str) or
+                    type(product.original_bytes) is not int or product.original_bytes<0 or
+                    type(product.byte_count) is not int or product.byte_count<0):
+                return False
+            # Prepared input still receives the same owner-side shape check.
+            row._body()
+            identities.append(row.identity)
+            original_bytes+=product.original_bytes;prepared_bytes+=product.byte_count
+            if original_bytes>16*1024*1024 or original_bytes+prepared_bytes>32*1024*1024:
+                return False
+        if len(set(identities))!=len(identities):return False
+
+        # Each base identity is indexed, including the branches of the canonical
+        # view. No bodies or historical populations are materialized here.
+        for table in ('rolling_economic_events','canonical_evidence','candidate_content_receipts'):
+            for offset in range(0,len(identities),256):
+                chunk=identities[offset:offset+256]
+                if self.db.execute('SELECT identity FROM '+table+' WHERE identity IN ('+
+                        ','.join('?' for _ in chunk)+') LIMIT 1',chunk).fetchone():
+                    return False
+
+        for row in rows:
+            key=(row.scope,row.slot,row.signature)
+            previous=native.get(key)
+            if previous is not None:
+                if previous[0]!=row.transaction_index:
+                    raise EvidenceConflict('candidate_native_order_conflict')
+                continue
+            value=(row.transaction_index,digest([*key,row.transaction_index]))
+            native[key]=value
+            native_groups.setdefault(key[:2],[]).append(key[2])
+        # The equality prefix and signature IN range use the existing native
+        # order primary key. Revalidate both the index and authenticated hash.
+        for (scope,slot),signatures in native_groups.items():
+            for offset in range(0,len(signatures),256):
+                chunk=signatures[offset:offset+256]
+                for sig,index,checksum in self.db.execute('''SELECT signature,transaction_index,hash
+                        FROM native_order_attestations WHERE scope=? AND slot=? AND signature IN ('''+
+                        ','.join('?' for _ in chunk)+')',(scope,slot,*chunk)):
+                    if native[(scope,slot,sig)]!=(index,checksum):
+                        raise EvidenceConflict('candidate_native_order_conflict')
+
+        inserted=self.db.executemany('INSERT OR IGNORE INTO rolling_economic_events VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)',
+            [(row.identity,row.scope,row.slot,row.signature,row.program,row.market_time,row.event_index,
+              row.transaction_index,row.kind,product.encoded,product.checksum,row.observed_at)
+             for row,product in zip(rows,serialized)]).rowcount
+        self.db.executemany('INSERT OR IGNORE INTO rolling_economic_addresses VALUES(?,?)',
+            [(row.identity,address) for row in rows for address in row.addresses])
+        self.db.executemany('INSERT OR IGNORE INTO candidate_content_receipts VALUES(?,?,?,?)',
+            [(row.identity,product.economic_hash,row.transaction_index,row.observed_at)
+             for row,product in zip(rows,serialized)])
+        self.db.executemany('INSERT OR IGNORE INTO native_order_attestations VALUES(?,?,?,?,?)',
+            [(*key,*value) for key,value in native.items()])
+        self.db.executemany('INSERT OR IGNORE INTO rolling_event_lineage VALUES(?,?,?,?)',
+            [(row.identity,row.source,row.endpoint_identity,row.observed_at) for row in rows])
+        cursors={}
+        for row in rows:
+            # Preserve every clock call and the last sample, not MAX(updated).
+            previous=cursors.get(row.scope)
+            cursors[row.scope]=(row.slot if previous is None else max(previous[0],row.slot),self.clock())
+        self.db.executemany('''INSERT INTO cursors VALUES(?,?,?) ON CONFLICT(scope)
+            DO UPDATE SET slot=MAX(slot,excluded.slot),updated=excluded.updated''',
+            [(scope,slot,updated) for scope,(slot,updated) in cursors.items()])
+        if inserted:self.history.writer._count('ingested_event',inserted)
+        return True
+
     def adopt(self,rows):
         """First authoritative create/migration establishes the lower boundary.
 

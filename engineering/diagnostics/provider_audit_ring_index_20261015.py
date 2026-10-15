@@ -7,6 +7,7 @@ are copies of a real four-element *offline* audit, never production records.
 """
 import argparse
 from collections import Counter
+from contextlib import contextmanager
 from dataclasses import replace
 from datetime import datetime, timezone
 import hashlib
@@ -39,6 +40,12 @@ def scenario(scratch, indexed):
         fixture.batch(context, 'current', [
             ('eth_getBlockByHash', ['0xseed'+str(n), False]) for n in range(4)])
         db = sqlite3.connect(fixture.path)
+        # Current production now has the three reviewed retention indexes.
+        # Remove only those indexes from this disposable fixture before the
+        # comparison; variant B then recreates the same seq-only definition.
+        # Otherwise a future rerun would silently compare indexed vs indexed.
+        for name in ('usage_start_retention_seq','usage_admission_retention_seq','usage_transport_retention_seq'):
+            db.execute('DROP INDEX IF EXISTS '+name)
         bodies = {table: db.execute('SELECT body FROM '+table+' ORDER BY seq DESC LIMIT 1').fetchone()[0]
                   for table in TABLES}
         with db:
@@ -90,32 +97,64 @@ def scenario(scratch, indexed):
         original_http = fixture.http
         prior_wire = len(fixture.requests)
         http_sequences = []
+        phases = {}
+
+        @contextmanager
+        def phase(name):
+            row = phases.setdefault(name, dict(cpu_seconds=0., wall_seconds=0., io=Counter()))
+            before = io_counts()
+            wall_start, cpu_start = time.perf_counter(), time.process_time()
+            try:
+                yield
+            finally:
+                row['cpu_seconds'] += time.process_time()-cpu_start
+                row['wall_seconds'] += time.perf_counter()-wall_start
+                after = io_counts()
+                row['io'].update({key: after[key]-before[key] for key in after})
 
         def http(request, **kwargs):
-            # Exact new initiated attempt is durable before the mocked wire.
-            with original_connect(fixture.path) as reader:
-                seq, body = reader.execute('SELECT seq,body FROM transport_starts ORDER BY seq DESC LIMIT 1').fetchone()
-                payload = json.loads(request.data)
-                assert seq == 4097 + len(http_sequences)
-                assert json.loads(body)['methods'] == [r['method'] for r in payload]
-                http_sequences.append(seq)
-            return original_http(request, **kwargs)
+            # Both durable-initiation oracles and fake-response construction are
+            # harness work, not production accounting. Preserve them, but pause
+            # SQL/VM counters and measure this complete nested mock separately.
+            previous = enabled[0]
+            enabled[0] = False
+            try:
+                with phase('mock_http_nested'):
+                    with original_connect(fixture.path) as reader:
+                        seq, body = reader.execute('SELECT seq,body FROM transport_starts ORDER BY seq DESC LIMIT 1').fetchone()
+                        payload = json.loads(request.data)
+                        assert seq == 4097 + len(http_sequences)
+                        assert json.loads(body)['methods'] == [r['method'] for r in payload]
+                        http_sequences.append(seq)
+                    return original_http(request, **kwargs)
+            finally:
+                enabled[0] = previous
 
         scratch.check()
         before_io, before_wall, before_cpu = io_counts(), time.perf_counter(), time.process_time()
         with patch.object(sqlite3, 'connect', opened), patch('meme_machine.lanes.pons.provider.urlopen', side_effect=http):
             for batch in range(32):
                 calls = [('eth_getBlockByHash', ['0xmeasure'+str(batch)+'_'+str(n), False]) for n in range(4)]
-                values = fixture.batch(context, 'current', calls)
-                assert [value['hash'] for value in values] == [call[1][0] for call in calls]
-                # Same verification work in both variants; excluded from SQL
-                # counters, included in wall/CPU/I/O with explicit scope.
-                with original_connect(fixture.path) as reader:
-                    for table in TABLES:
-                        appended[table].append(reader.execute('SELECT seq,body FROM '+table+' ORDER BY seq DESC LIMIT 1').fetchone())
-                scratch.check()
+                with phase('caller_including_mock'):
+                    values = fixture.batch(context, 'current', calls)
+                enabled[0] = False
+                try:
+                    with phase('external_oracle'):
+                        assert [value['hash'] for value in values] == [call[1][0] for call in calls]
+                        with original_connect(fixture.path) as reader:
+                            for table in TABLES:
+                                appended[table].append(reader.execute('SELECT seq,body FROM '+table+' ORDER BY seq DESC LIMIT 1').fetchone())
+                    with phase('containment'):
+                        scratch.check()
+                finally:
+                    enabled[0] = True
         cpu, wall, after_io = time.process_time()-before_cpu, time.perf_counter()-before_wall, io_counts()
         enabled[0] = False
+        inclusive, mock = phases['caller_including_mock'], phases['mock_http_nested']
+        phases['caller_excluding_mock'] = dict(
+            cpu_seconds=inclusive['cpu_seconds']-mock['cpu_seconds'],
+            wall_seconds=inclusive['wall_seconds']-mock['wall_seconds'],
+            io={key: inclusive['io'][key]-mock['io'][key] for key in inclusive['io']})
         assert len(fixture.requests)-prior_wire == len(http_sequences) == 32
         db = original_connect(fixture.path)
         try:
@@ -143,6 +182,7 @@ def scenario(scratch, indexed):
         finally:
             db.close()
         return dict(variant='seq_indexes' if indexed else 'current', wall_seconds=wall, cpu_seconds=cpu,
+                    phase_metrics=phases, shared_interval_seconds=context.rpc.shared_admission.interval,
                     io_delta={key: after_io[key]-before_io[key] for key in after_io},
                     measured_connect_execute_counts=dict(operations), vm_steps_quantized_lower_bound=ticks[0],
                     query_plans=plans, mock_transports=32, logical_elements=128,
@@ -167,16 +207,21 @@ def main():
     try:
         policy = replace(Policy.environment(), scratch_max_bytes=256*1024**2)
         with Scratch(policy=policy) as scratch:
-            variants = [scenario(scratch, indexed) for indexed in (False, True)]
+            # Match the installed shared10-RPS admission profile. This is still
+            # a mocked clock/transport, not a provider-capacity experiment.
+            with patch('meme_machine.operational.position_continuation.provider_interval', return_value=.1):
+                variants = [scenario(scratch, indexed) for indexed in (False, True)]
+            assert all(v['shared_interval_seconds'] == .1 for v in variants)
             assert variants[0]['usage_delta'] == variants[1]['usage_delta']
             result = dict(status='OFFLINE_ACCOUNTING_PAIR_COMPLETE', at=datetime.now(timezone.utc).isoformat(),
                 base_source='76a48e67fcb2ef53a2cb82e3c8d5db7d2812b2ee',
                 driver_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                provider_admission_sha256=hashlib.sha256(Path('meme_machine/lanes/pons/provider_admission.py').read_bytes()).hexdigest(),
                 elapsed_seconds=time.monotonic()-started, variants=variants,
                 limits=dict(wall_seconds=90, fixture_bytes=256*1024**2, measured_mock_transports_per_variant=32),
                 scope='Synthetic saturated audit rings and real caller/mock HTTP/accounting; not full-system throughput',
                 seeds='Copies of real offline four-element audit rows, not authentic market replay or a production copy',
-                timing='Includes identical per-request correctness/scratch checks; SQL counts cover measured new connections only',
+                timing='Separate caller/mock/external-oracle/containment; caller-exclusive subtracts nested mock only. I/O includes bounded observer reads. SQL/VM excludes mock and verification. No whole-host claim.',
                 provider_calls=0, authoritative_writes=0)
             args.output.write_text(json.dumps(result, sort_keys=True, indent=2)+'\n')
             os.chmod(args.output, 0o600)

@@ -56,6 +56,39 @@ class Headroom(unittest.TestCase):
             with self.assertRaisesRegex(storage.ArtifactStorageFull,'destination_copy_reserve'):
                 storage.headroom('/volume',storage.GIB,nonessential=False,warn=False)
 
+    def test_essential_backup_admission_keeps_exact_bounded_failure_facts(self):
+        with patch.object(storage,'usage',side_effect=[disk(90),disk(97,device=2)]) as measured:
+            with self.assertRaisesRegex(storage.ArtifactStorageFull,'destination_copy_reserve_required') as caught:
+                storage.headroom('/private-volume/account-state',storage.GIB,nonessential=False,warn=False)
+        self.assertEqual(measured.call_count,2)
+        self.assertEqual(str(caught.exception),'destination_copy_reserve_required')
+        self.assertEqual(storage.failure_fields(caught.exception),dict(storage_admission=dict(
+            reason='destination_copy_reserve_required',estimated_bytes=storage.GIB,
+            free_bytes=3*storage.GIB,reserve_bytes=5*storage.GIB)))
+        self.assertNotIn('private-volume',json.dumps(storage.failure_fields(caught.exception)))
+
+    def test_root_admission_keeps_projection_and_original_stop(self):
+        with patch.object(storage,'usage',return_value=disk(84)):
+            with self.assertRaisesRegex(storage.ArtifactStorageFull,'root_headroom') as caught:
+                storage.headroom('/private-root',storage.GIB,warn=False)
+        self.assertEqual(storage.failure_fields(caught.exception),dict(storage_admission=dict(
+            reason='root_headroom_blocks_nonessential_artifact',estimated_bytes=storage.GIB,
+            free_bytes=16*storage.GIB,reserve_bytes=5*storage.GIB,used_bytes=84*storage.GIB,
+            total_bytes=100*storage.GIB,projected_used_bytes=85*storage.GIB,block_percent_milli=85000)))
+
+    def test_failure_fields_never_publish_unknown_text_paths_or_unbounded_values(self):
+        error=storage.ArtifactStorageFull('/private/secret',admission=dict(
+            estimated_bytes=True,free_bytes=-1,reserve_bytes=2**100,limit_bytes=7,
+            source='/private/secret',expanded_sql='SECRET'))
+        record=storage.failure_fields(error)
+        self.assertEqual(record,dict(storage_admission=dict(reason='storage_admission_unavailable',limit_bytes=7)))
+        self.assertLess(len(json.dumps(record)),256)
+        self.assertEqual(str(error),'/private/secret')
+        self.assertEqual(storage.ArtifactStorageFull('first','second').args,('first','second'))
+        self.assertEqual(storage.failure_fields(storage.ArtifactStorageFull()),
+            dict(storage_admission=dict(reason='storage_admission_unavailable')))
+        self.assertEqual(storage.failure_fields(RuntimeError('SECRET')), {})
+
     def test_configurable_policy_rejects_invalid_and_nonfinite_thresholds(self):
         with patch.dict(os.environ,{'MM_STORAGE_WARN_PERCENT':'70','MM_STORAGE_BLOCK_PERCENT':'80'}):
             self.assertEqual(storage.Policy.environment().block_percent,80)

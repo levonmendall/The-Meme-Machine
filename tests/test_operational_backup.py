@@ -1,6 +1,7 @@
 """Restore real native journals and WAL data to disposable offline targets."""
 from contextlib import closing
 import fcntl
+import io
 import json
 import os
 from pathlib import Path
@@ -159,11 +160,17 @@ class BackupRestore(unittest.TestCase):
     def test_space_loss_during_copy_retains_partial_failure_without_restore_authority(self):
         from meme_machine.operational.artifact_storage import ArtifactStorageFull
         target=self.base/'partial';before=backup.state_identity(self.root)
-        with patch('meme_machine.operational.artifact_storage.headroom',side_effect=[{},ArtifactStorageFull('destination_copy_reserve')]):
-            with self.assertRaises(ArtifactStorageFull):backup.copy_state(self.root,target)
+        error=ArtifactStorageFull('destination_copy_reserve_required',admission=dict(
+            estimated_bytes=100,free_bytes=105,reserve_bytes=10))
+        with patch('meme_machine.operational.artifact_storage.headroom',side_effect=[{},error]):
+            with self.assertRaises(ArtifactStorageFull) as caught:backup.copy_state(self.root,target)
+        self.assertIs(caught.exception,error)
         self.assertFalse((target/'backup.json').exists())
         self.assertTrue((target/'backup-incomplete.json').exists())
-        self.assertTrue((target/'backup-failed.json').exists())
+        failure=json.loads((target/'backup-failed.json').read_text())
+        self.assertFalse(failure['usable'])
+        self.assertEqual(failure['storage_admission'],dict(reason='destination_copy_reserve_required',
+            estimated_bytes=100,free_bytes=105,reserve_bytes=10))
         self.assertEqual(backup.state_identity(self.root),before)
 
     def test_verify_refuses_authoritative_target(self):
@@ -211,5 +218,56 @@ class BackupRestore(unittest.TestCase):
         self.assertTrue((parent/'meme-machine-paper-complete-5'/'backup.json').is_file())
         self.assertEqual((unrelated/'keep').read_text(),'preserve')
         self.assertEqual((unknown/'keep').read_text(),'preserve');self.assertTrue(link.is_symlink())
+
+
+class BackupAdmissionReporting(unittest.TestCase):
+    def error(self):
+        from meme_machine.operational.artifact_storage import ArtifactStorageFull
+        return ArtifactStorageFull('destination_copy_reserve_required',admission=dict(
+            estimated_bytes=200,free_bytes=205,reserve_bytes=10))
+
+    def test_scheduled_pre_copy_rejection_retains_reason_and_original_exception(self):
+        from meme_machine.operational import digitalocean_backup as scheduled
+        with tempfile.TemporaryDirectory() as td:
+            base=Path(td);root=base/'source';root.mkdir();parent=base/'points';parent.mkdir()
+            config=base/'config.json';config.write_text(json.dumps(dict(point_parent=str(parent),
+                volume_id='fixture-volume',droplet_id=7,region='fixture',snapshot_prefix='meme-machine-paper-',
+                retained_snapshots=3)))
+            error=self.error();volume=dict(volume=dict(droplet_ids=[7],region=dict(slug='fixture')))
+            with patch.dict(os.environ,MM_STATE_ROOT=str(root)), \
+                    patch.object(scheduled,'verify_storage',return_value=dict(mount_target=str(base),epoch_id='fixture-epoch')), \
+                    patch.object(scheduled,'request',return_value=(200,volume)) as request, \
+                    patch.object(scheduled,'prepare',side_effect=error) as prepare:
+                with self.assertRaises(type(error)) as caught:scheduled.execute(config,base/'output')
+            self.assertIs(caught.exception,error)
+            request.assert_called_once_with('GET','/v2/volumes/fixture-volume')
+            self.assertFalse(prepare.call_args.kwargs['nonessential'])
+            self.assertFalse(list(parent.glob('meme-machine-paper-*')))
+            result=json.loads((base/'output'/'latest.json').read_text())
+            self.assertEqual((result['status'],result['error_type'],result['snapshot_id']),('FAIL','ArtifactStorageFull',None))
+            self.assertEqual(result['storage_admission'],dict(reason='destination_copy_reserve_required',
+                estimated_bytes=200,free_bytes=205,reserve_bytes=10))
+
+    def test_backup_and_scheduled_cli_keep_bounded_admission_facts_without_paths(self):
+        from meme_machine.operational import digitalocean_backup as scheduled
+        error=self.error()
+        with patch('sys.argv',['backup','prepare','/SECRET-target','--state-root','/SECRET-source']), \
+                patch.object(backup,'prepare',side_effect=error),patch('sys.stdout',new_callable=io.StringIO) as output:
+            self.assertEqual(backup.main(),1)
+        result=json.loads(output.getvalue())
+        self.assertFalse(result['passed']);self.assertEqual(result['error_type'],'ArtifactStorageFull')
+        self.assertEqual(result['storage_admission']['estimated_bytes'],200)
+        self.assertNotIn('SECRET',output.getvalue())
+        with patch.object(scheduled,'execute',side_effect=error),patch('sys.stdout',new_callable=io.StringIO) as output:
+            self.assertEqual(scheduled.main(),1)
+        self.assertEqual(json.loads(output.getvalue())['storage_admission'],result['storage_admission'])
+        self.assertLess(len(output.getvalue()),512)
+
+    def test_unrelated_failure_keeps_existing_error_type_without_text(self):
+        from meme_machine.operational import digitalocean_backup as scheduled
+        with patch.object(scheduled,'execute',side_effect=RuntimeError('SECRET')), \
+                patch('sys.stdout',new_callable=io.StringIO) as output:
+            self.assertEqual(scheduled.main(),1)
+        self.assertEqual(json.loads(output.getvalue()),dict(status='FAIL',error_type='RuntimeError'))
 
 if __name__=='__main__':unittest.main()
