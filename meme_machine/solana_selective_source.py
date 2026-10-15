@@ -1312,6 +1312,9 @@ class SelectiveSource:
         accepted=await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
             label='candidate_delivery_ack')
         if accepted and snapshot['proofs']:
+            # Retain the same accounting-before-publication fence as the
+            # background publisher. ACK alone does not flush native delivery.
+            await self.flush_delivery()
             identities=tuple(proof['identity'] for proof in snapshot['proofs'])
             await self.work(lambda state:install(state).lifecycle.publish(proof_ids=identities),2,
                 label='source_commit',component='history_publication')

@@ -343,6 +343,7 @@ class DeliverySeparationTests(unittest.TestCase):
         from meme_machine.solana_selective_source import SelectiveSource
         async def complete():
             source=SelectiveSource.__new__(SelectiveSource)
+            source.delivery_lock=asyncio.Lock();source.pending_delivery={}
             acked=asyncio.Event();urgent=[];turns=[]
             async def protective_opportunity():
                 await acked.wait();urgent.append('ran_between_owner_admissions')
@@ -372,6 +373,54 @@ class DeliverySeparationTests(unittest.TestCase):
             sorted((program_scope(family),131) for family in ('pump','pumpswap')))
         for family in ('pump','pumpswap'):
             self.assertEqual(self.h.rolling.missing(family,program_scope(family),100,131),[])
+
+    def test_exact_proof_publication_flushes_real_delivery_accounting_after_ack_and_preserves_failure(self):
+        from meme_machine.solana_history_delivery import capture,deliver
+        from meme_machine.solana_selective_source import SelectiveSource
+        life=self.h.lifecycle;life.delivery_separated=True;scope=program_scope('pumpswap')
+        life.defer_proof(IntervalProof(scope,100,101,'alchemy_finalized_stream','a'*64,
+            dict(finalized=True,complete=True,scope=scope,lower_slot=100,upper_slot=101,
+                 lineage_hash=digest([scope,100,101])),NOW))
+        snapshot=capture(life);result=deliver(snapshot)
+        identity=snapshot['proofs'][0]['identity']
+        pending={(int(NOW)//86400,'pump','yellowstone'):(123,NOW),
+                 (int(NOW)//86400,'pumpswap','yellowstone'):(456,NOW)}
+        async def complete():
+            source=SelectiveSource.__new__(SelectiveSource)
+            source.delivery_lock=asyncio.Lock();source.pending_delivery=dict(pending)
+            turns=[]
+            async def work(callback,priority,**metadata):
+                turns.append((priority,metadata.get('label'),metadata.get('component')))
+                if metadata.get('component')=='delivery_accounting':
+                    self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone(),(0,))
+                if metadata.get('component')=='history_publication':
+                    self.assertEqual(source.pending_delivery,{})
+                    self.assertEqual(self.h.db.execute('SELECT family,transport,raw_bytes FROM provider_delivery ORDER BY family').fetchall(),
+                        [('pump','yellowstone',123),('pumpswap','yellowstone',456)])
+                return callback(self.state)
+            source.work=work
+            original=self.h.delivery;failure=RuntimeError('injected_delivery_accounting_failure')
+            def fail_accounting(*args,**kwargs):
+                original(*args,**kwargs);raise failure
+            with patch.object(self.h,'delivery',fail_accounting):
+                with self.assertRaises(RuntimeError) as caught:
+                    await source._complete_history_delivery(snapshot,result)
+            self.assertIs(caught.exception,failure)
+            self.assertEqual(turns,[(2,'candidate_delivery_ack',None),(2,'source_commit','delivery_accounting')])
+            self.assertEqual(source.pending_delivery,pending)
+            self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM provider_delivery').fetchone(),(0,))
+            self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone(),(0,))
+            self.assertEqual(self.h.db.execute('SELECT id FROM candidate_pending_proofs').fetchall(),[(identity,)])
+            turns.clear()
+            self.assertTrue(await source._complete_history_delivery(snapshot,result))
+            self.assertEqual(turns,[(2,'candidate_delivery_ack',None),
+                (2,'source_commit','delivery_accounting'),(2,'source_commit','history_publication')])
+            self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone(),(0,))
+            accounted=self.h.db.execute('SELECT * FROM provider_delivery ORDER BY family').fetchall()
+            count=len(turns);await source.flush_delivery()
+            self.assertEqual(len(turns),count)
+            self.assertEqual(self.h.db.execute('SELECT * FROM provider_delivery ORDER BY family').fetchall(),accounted)
+        asyncio.run(complete())
 
     def test_exact_proof_batch_prevalidates_siblings_before_its_own_gap_repairs(self):
         from meme_machine.solana_history_delivery import capture,deliver,acknowledge
@@ -452,6 +501,7 @@ class DeliverySeparationTests(unittest.TestCase):
         from meme_machine.solana_selective_source import SelectiveSource
         async def cancel_publication_admission():
             source=SelectiveSource.__new__(SelectiveSource);turns=[]
+            source.delivery_lock=asyncio.Lock();source.pending_delivery={}
             async def work(callback,priority,**metadata):
                 turns.append(metadata.get('label'))
                 if len(turns)==1:return callback(self.state)
