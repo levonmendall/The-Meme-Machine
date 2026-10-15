@@ -274,6 +274,282 @@ class DeliverySeparationTests(unittest.TestCase):
     tearDown=HistorySeparationTests.tearDown
     pump=HistorySeparationTests.pump
     seal=HistorySeparationTests.seal
+    def test_consumer_selection_cannot_skip_pending_proofs_when_publisher_moves(self):
+        from meme_machine.solana_history_delivery import capture
+        life=self.h.lifecycle;life.delivery_separated=True
+        for family in ('pump','pumpswap'):
+            scope=program_scope(family)
+            life.defer_proof(IntervalProof(scope,100,100,'alchemy_finalized_stream','a'*64,
+                dict(finalized=True,complete=True,scope=scope,lower_slot=100,upper_slot=100,
+                     lineage_hash=digest([scope,100])),NOW))
+        # The independent publisher has examined these rows without receipts.
+        # Its volatile position cannot be the consumer's delivery progress.
+        life._proof_publication_cursor=(101,101,999)
+        snapshot=capture(life)
+        self.assertIsNotNone(snapshot,'publisher progress hid undelivered proof obligations')
+        self.assertEqual({p['family'] for p in snapshot['proofs']},{'pump','pumpswap'})
+
+    def test_current_startup_proofs_bypass_retained_scan_and_release_only_after_real_delivery(self):
+        from meme_machine.solana_history_delivery import capture,deliver
+        from meme_machine.solana_selective_source import SelectiveSource
+        from meme_machine.solana_selective_runtime import CONTROL
+        life=self.h.lifecycle;life.delivery_separated=True
+        for slot in range(100,196):
+            for family in ('pump','pumpswap'):
+                scope=program_scope(family)
+                life.defer_proof(IntervalProof(scope,slot,slot,'alchemy_finalized_stream','a'*64,
+                    dict(finalized=True,complete=True,scope=scope,lower_slot=slot,upper_slot=slot,
+                         lineage_hash=digest([scope,slot])),NOW-1))
+        self.h.startup.begin()
+        for family in ('pump','pumpswap'):
+            self.h.startup.feed_ack(family,300,300)
+            scope=program_scope(family)
+            life.defer_proof(IntervalProof(scope,300,300,'alchemy_finalized_stream','a'*64,
+                dict(finalized=True,complete=True,scope=scope,lower_slot=300,upper_slot=300,
+                     lineage_hash=digest([scope,300])),NOW))
+        self.h.startup.native(('pump','pumpswap'))
+        self.h.writer.ingest([],proof=IntervalProof(CONTROL,300,300,'alchemy_finalized_stream','a'*64,
+            dict(finalized=True,complete=True,scope=CONTROL,lower_slot=300,upper_slot=300,
+                 lineage_hash=digest([CONTROL,300])),NOW))
+        life._proof_publication_cursor=(1000,1000,999999)
+        snapshot=capture(life)
+        self.assertIsNotNone(snapshot)
+        self.assertEqual({p['family'] for p in snapshot['proofs'] if p['lo']==300},
+            {'pump','pumpswap'},'startup must not wait for unrelated retained proof pages')
+        self.assertTrue(any(p['lo']<300 for p in snapshot['proofs']),
+            'current traffic must preserve bounded retained-history progress')
+        self.assertLessEqual(len(snapshot['proofs']),64)
+        self.assertFalse(self.h.startup.advance()['released'])
+        result=deliver(snapshot)
+        self.assertFalse(self.h.startup.advance()['released'])
+        async def complete():
+            source=SelectiveSource.__new__(SelectiveSource)
+            source.delivery_lock=asyncio.Lock();source.pending_delivery={}
+            async def work(callback,priority,**metadata):return callback(self.state)
+            source.work=work
+            self.assertTrue(await source._complete_history_delivery(snapshot,result))
+        asyncio.run(complete())
+        self.assertTrue(self.h.startup.advance()['released'])
+        self.assertEqual(self.h.rolling.missing('pump',program_scope('pump'),300,300),[])
+        self.assertEqual(self.h.rolling.missing('pumpswap',program_scope('pumpswap'),300,300),[])
+        self.assertIsNotNone(self.h.db.execute('SELECT 1 FROM candidate_pending_proofs WHERE hi<300').fetchone(),
+            'unrelated retained obligations must survive the current release')
+
+    def test_received_startup_proofs_publish_without_another_consumer_write(self):
+        from contextlib import closing
+        from meme_machine.solana_history_delivery import capture,deliver
+        from meme_machine.solana_selective_source import SelectiveSource
+        from meme_machine.solana_history_notifications import WorkPulse
+        life=self.h.lifecycle;life.delivery_separated=True;self.h.startup.begin()
+        for family in ('pump','pumpswap'):
+            self.h.startup.feed_ack(family,300,300)
+            scope=program_scope(family)
+            life.defer_proof(IntervalProof(scope,300,300,'alchemy_finalized_stream','a'*64,
+                dict(finalized=True,complete=True,scope=scope,lower_slot=300,upper_slot=300,
+                     lineage_hash=digest([scope,300])),NOW))
+        self.h.startup.native(('pump','pumpswap'))
+        snapshot=capture(life);deliver(snapshot)
+        life._proof_publication_cursor=(1000,1000,999999)
+        with closing(sqlite3.connect(life.path)) as db:
+            receipts=db.execute('SELECT * FROM source_receipts ORDER BY id').fetchall()
+        async def complete():
+            source=SelectiveSource.__new__(SelectiveSource)
+            source.stop=asyncio.Event();source.delivery_lock=asyncio.Lock();source.pending_delivery={}
+            source.delivery_wakeup=WorkPulse();source.delivery_urgent=WorkPulse()
+            source.delivery_revision=0
+            source.history_wakeup=WorkPulse();source.publication_wakeup=WorkPulse()
+            class NoConsumerWrite:
+                def submit(_self,*args,**kwargs):
+                    raise AssertionError('already durable startup proof reopened the consumer writer')
+            source.delivery_executor=NoConsumerWrite()
+            async def work(callback,priority,**metadata):
+                value=callback(self.state)
+                if metadata.get('component')=='history_publication':source.stop.set()
+                return value
+            source.work=work
+            await asyncio.wait_for(source.candidate_history_delivery(),1)
+        asyncio.run(complete())
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone(),(0,))
+        with closing(sqlite3.connect(life.path)) as db:
+            self.assertEqual(db.execute('SELECT * FROM source_receipts ORDER BY id').fetchall(),receipts)
+
+    def test_urgent_overlap_selects_covering_predecessor_past_dense_unrelated_intervals(self):
+        from meme_machine.solana_history_delivery import capture
+        life=self.h.lifecycle;life.delivery_separated=True;self.h.startup.begin()
+        for family in ('pump','pumpswap'):self.h.startup.feed_ack(family,300,300)
+        scope=program_scope('pump')
+        def add(target,lo,hi,tag):
+            proof=IntervalProof(target,lo,hi,'alchemy_finalized_stream','a'*64,
+                dict(finalized=True,complete=True,scope=target,lower_slot=lo,upper_slot=hi,
+                     lineage_hash=digest([target,lo,hi,tag])),NOW-1)
+            life.defer_proof(proof)
+            return digest([proof.scope,proof.lower_slot,proof.upper_slot,proof.witness])
+        with self.state.writer.transaction():
+            covering=add(scope,100,200,'covering')
+            short=add(scope,149,149,'newer-noncovering')
+        deadline=NOW+5
+        job=self.h.request('pump','held-overlap',150,150,priority=0,deadline=deadline)
+        before=self.h.db.execute('SELECT priority,deadline FROM acquisition_jobs WHERE id=?',(job,)).fetchone()
+        query=('SELECT rowid,* FROM candidate_pending_proofs WHERE scope=? AND lo<=? AND hi>=? '
+               'ORDER BY lo DESC,hi DESC,rowid DESC LIMIT 1')
+        samples=[];snapshots=[];seeded=0
+        for population in (64,4096):
+            # Earlier unrelated obligations consume the single fair retained
+            # slot. Only the urgent exact interval lookup can select A now;
+            # B has the greater lower bound but cannot cover slot150.
+            with self.state.writer.transaction():
+                for i in range(seeded,population):
+                    add(coverage_scope('pump','unrelated-overlap-'+str(i)),1,1,i)
+            seeded=population
+            plan=[row[3] for row in self.h.db.execute('EXPLAIN QUERY PLAN '+query,(scope,150,150))]
+            steps=[0]
+            def progress():steps[0]+=100;return 0
+            self.h.db.set_progress_handler(progress,100)
+            try:
+                row=self.h.db.execute(query,(scope,150,150)).fetchone()
+                covering_steps=steps[0];steps[0]=0
+                snapshot=capture(life)
+                capture_steps=steps[0]
+            finally:self.h.db.set_progress_handler(None,0)
+            self.assertIsNotNone(row);self.assertEqual(row[1],covering)
+            samples.append(dict(unrelated_intervals=population,covering_lookup_vm_steps=covering_steps,
+                capture_vm_steps=capture_steps,vm_quantum=100,covering_lookup_plan=plan))
+            snapshots.append(snapshot)
+        print('URGENT_PROOF_OVERLAP_VM '+json.dumps(samples,sort_keys=True))
+        for snapshot in snapshots:
+            self.assertIsNotNone(snapshot)
+            identities={proof['identity'] for proof in snapshot['proofs']}
+            self.assertIn(covering,identities,
+                'greatest lower bound was noncovering; urgent earlier covering proof was skipped')
+            self.assertNotIn(short,identities)
+            self.assertLessEqual(len(identities),64)
+            self.assertEqual(next(p['observed_at'] for p in snapshot['proofs']
+                                  if p['identity']==covering),NOW-1)
+        self.assertEqual(self.h.db.execute('SELECT priority,deadline FROM acquisition_jobs WHERE id=?',(job,)).fetchone(),before)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone(),(4098,))
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone(),(0,))
+
+    def test_urgent_retained_history_is_selected_without_renewing_its_deadline(self):
+        from meme_machine.solana_history_delivery import capture
+        life=self.h.lifecycle;life.delivery_separated=True;self.h.startup.begin()
+        for family in ('pump','pumpswap'):self.h.startup.feed_ack(family,300,300)
+        for slot in range(100,196):
+            scope=program_scope('pump')
+            life.defer_proof(IntervalProof(scope,slot,slot,'alchemy_finalized_stream','a'*64,
+                dict(finalized=True,complete=True,scope=scope,lower_slot=slot,upper_slot=slot,
+                     lineage_hash=digest([scope,slot])),NOW-1))
+        deadline=NOW+5
+        job=self.h.request('pump','held-history',195,195,priority=0,deadline=deadline)
+        before=self.h.db.execute('SELECT priority,deadline FROM acquisition_jobs WHERE id=?',(job,)).fetchone()
+        snapshot=capture(life)
+        self.assertIn(195,{p['lo'] for p in snapshot['proofs']})
+        self.assertTrue(any(p['lo']<195 for p in snapshot['proofs']))
+        self.assertEqual(self.h.db.execute('SELECT priority,deadline FROM acquisition_jobs WHERE id=?',(job,)).fetchone(),before)
+
+    def test_blocked_scan_finishes_once_and_reopens_only_for_relevant_change(self):
+        from meme_machine.solana_history_delivery import capture,acknowledge
+        from meme_machine.solana_history_notifications import changed
+        life=self.h.lifecycle;life.delivery_separated=True;scope=program_scope('pump')
+        for slot in range(100,230):
+            life.defer_proof(IntervalProof(scope,slot,slot,'alchemy_finalized_stream','a'*64,
+                dict(finalized=True,complete=True,scope=scope,lower_slot=slot,upper_slot=slot,
+                     lineage_hash=digest([scope,slot])),NOW))
+        with patch.object(life,'unconsumed',return_value=True):
+            snapshots=[]
+            for _ in range(3):
+                snapshot=capture(life,schedule=True);self.assertIsNotNone(snapshot)
+                self.assertFalse(snapshot['rows'] or snapshot['proofs'] or snapshot['publication_ids'])
+                self.assertTrue(acknowledge(life,snapshot,dict(acknowledgements=[],refreshed=[])))
+                snapshots.append(snapshot)
+                life._proof_publication_cursor=(1000,1000,999999)
+            self.assertFalse(snapshots[-1]['proof_scan']['more'])
+            self.assertIsNone(capture(life,schedule=True),'unchanged blocked work must not restart its own horizon')
+            changed(self.h,publication=False)
+            self.assertIsNotNone(capture(life,schedule=True))
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone(),(130,))
+
+    def test_insert_behind_active_cursor_is_revisited_without_another_notification(self):
+        from meme_machine.solana_history_delivery import capture,deliver,acknowledge
+        life=self.h.lifecycle;life.delivery_separated=True;scope=program_scope('pump')
+        def add(slot):
+            life.defer_proof(IntervalProof(scope,slot,slot,'alchemy_finalized_stream','a'*64,
+                dict(finalized=True,complete=True,scope=scope,lower_slot=slot,upper_slot=slot,
+                     lineage_hash=digest([scope,slot])),NOW))
+        for slot in range(100,230):add(slot)
+        first=capture(life,schedule=True)
+        self.assertEqual([p['lo'] for p in first['proofs']],list(range(100,164)))
+        self.assertTrue(acknowledge(life,first,deliver(first)))
+        add(99)
+        revision=self.h._history_delivery_revision
+        captures=[]
+        for _ in range(6):
+            snapshot=capture(life,revision=revision,schedule=True)
+            if snapshot is None:break
+            captures.append(snapshot)
+            self.assertTrue(acknowledge(life,snapshot,deliver(snapshot)))
+        self.assertEqual(self.h._history_delivery_revision,revision)
+        self.assertEqual([p['lo'] for p in captures[0]['proofs']],list(range(164,228)),
+            'new arrivals must not reset an active horizon and starve its tail')
+        self.assertEqual([p['lo'] for p in captures[1]['proofs']],[228,229])
+        self.assertEqual([p['lo'] for p in captures[2]['proofs']],[99],
+            'the changed horizon must revisit its earlier insertion without a later pulse')
+        self.assertIsNone(capture(life,revision=revision,schedule=True))
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone(),(131,))
+
+    def test_generation_change_and_failed_consumer_do_not_advance_delivery_scan(self):
+        from meme_machine.solana_history_delivery import capture,deliver,acknowledge
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        life=self.h.lifecycle;life.delivery_separated=True;scope=program_scope('pump')
+        life.defer_proof(IntervalProof(scope,100,100,'alchemy_finalized_stream','a'*64,
+            dict(finalized=True,complete=True,scope=scope,lower_slot=100,upper_slot=100,
+                 lineage_hash=digest([scope,100])),NOW))
+        snapshot=capture(life);before=dict(life._proof_delivery_progress)
+        original=sqlite3.OperationalError('offline_consumer_commit_failed')
+        with patch.object(CandidateHistory,'commit_history_readiness',side_effect=original):
+            with self.assertRaises(sqlite3.OperationalError) as caught:deliver(snapshot)
+        self.assertIs(caught.exception,original)
+        self.assertEqual(life._proof_delivery_progress,before)
+        repeated=capture(life)
+        self.assertEqual([p['identity'] for p in repeated['proofs']],[p['identity'] for p in snapshot['proofs']])
+        result=deliver(repeated)
+        self.h.startup.begin()
+        self.assertFalse(acknowledge(life,repeated,result))
+        new=capture(life)
+        self.assertNotEqual(new['generation'],repeated['generation'])
+        self.assertEqual([p['identity'] for p in new['proofs']],[p['identity'] for p in repeated['proofs']])
+        self.assertEqual(new['proof_scan']['base'],{})
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone(),(1,))
+
+    def test_current_tail_arrivals_preserve_retained_progress_and_original_proof_times(self):
+        from meme_machine.solana_history_delivery import capture,deliver
+        from meme_machine.solana_selective_source import SelectiveSource
+        life=self.h.lifecycle;life.delivery_separated=True;self.h.startup.begin()
+        for family in ('pump','pumpswap'):self.h.startup.feed_ack(family,300,300)
+        scope=program_scope('pump')
+        def add(slot,at):
+            life.defer_proof(IntervalProof(scope,slot,slot,'alchemy_finalized_stream','a'*64,
+                dict(finalized=True,complete=True,scope=scope,lower_slot=slot,upper_slot=slot,
+                     lineage_hash=digest([scope,slot])),at))
+        for slot in range(100,110):add(slot,NOW-1)
+        async def complete(snapshot):
+            source=SelectiveSource.__new__(SelectiveSource)
+            source.delivery_lock=asyncio.Lock();source.pending_delivery={}
+            async def work(callback,priority,**metadata):return callback(self.state)
+            source.work=work
+            self.assertTrue(await source._complete_history_delivery(snapshot,deliver(snapshot)))
+        retained=[]
+        for i in range(5):
+            add(300+i,NOW)
+            snapshot=capture(life);self.assertIsNotNone(snapshot)
+            self.assertIn(300+i,{p['lo'] for p in snapshot['proofs']})
+            old=[p for p in snapshot['proofs'] if p['lo']<300]
+            self.assertTrue(old);self.assertTrue(all(p['observed_at']==NOW-1 for p in old))
+            retained.extend(p['identity'] for p in old)
+            asyncio.run(complete(snapshot))
+        self.assertEqual(len(set(retained)),5)
+        self.assertEqual(self.h.db.execute('SELECT lo FROM candidate_pending_proofs WHERE hi<300 ORDER BY lo').fetchall(),
+            [(i,) for i in range(105,110)])
+
     def test_raw_reuse_preserves_exact_outbox_ids_bytes_and_order(self):
         _,rows=self.pump()
         before=self.h.db.execute('SELECT id,family,address,kind,body,hash,created FROM candidate_history_outbox ORDER BY priority,created,rowid').fetchall()

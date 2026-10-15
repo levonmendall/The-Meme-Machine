@@ -494,11 +494,13 @@ class SelectiveSource:
         self.preparation_lock=asyncio.Lock()
         from .solana_history_notifications import WorkPulse
         self.history_wakeup=WorkPulse();self.delivery_wakeup=WorkPulse()
-        self.delivery_urgent=WorkPulse()
+        self.delivery_urgent=WorkPulse();self.delivery_revision=0
 
     def history_changed(self,*,publication=True,delivery=True,urgent_delivery=True):
         if publication:self.history_wakeup.notify()
-        if delivery:self.delivery_wakeup.notify()
+        if delivery:
+            self.delivery_revision=getattr(self,'delivery_revision',0)+1
+            self.delivery_wakeup.notify()
         if delivery and urgent_delivery:self.delivery_urgent.notify()
 
     def retain_join_state(self,plane,session,body,queue,*,state,monotonic):
@@ -695,7 +697,7 @@ class SelectiveSource:
                 self.observe('publication_timing',work_ready_monotonic=ready,
                     work_returned_monotonic=time.monotonic(),**timing)
                 if more:self.history_wakeup.notify() # Drain one fixed durable horizon, then sleep.
-                if published:self.delivery_wakeup.notify() # Revalidate proof context changed by gap repair.
+                if published:self.history_changed(publication=False) # Revalidate context changed by actual publication.
         finally:
             await self.flush_delivery()
 
@@ -1309,50 +1311,65 @@ class SelectiveSource:
         between ACK and proof publication so protective work can still win.
         """
         from .solana_history_delivery import acknowledge
+        snapshot['proof_publication_changed']=False
         accepted=await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
             label='candidate_delivery_ack')
-        if accepted and snapshot['proofs']:
+        identities=tuple(snapshot.get('publication_ids',[proof['identity'] for proof in snapshot['proofs']]))
+        if accepted and identities:
             # Retain the same accounting-before-publication fence as the
             # background publisher. ACK alone does not flush native delivery.
             await self.flush_delivery()
-            identities=tuple(proof['identity'] for proof in snapshot['proofs'])
-            await self.work(lambda state:install(state).lifecycle.publish(proof_ids=identities),2,
-                label='source_commit',component='history_publication')
+            def publish_exact(state):
+                life=install(state).lifecycle;life.publish(proof_ids=identities)
+                return getattr(life,'_published_count',0)
+            published=await self.work(publish_exact,2,label='source_commit',component='history_publication')
+            snapshot['proof_publication_changed']=bool(published)
         return accepted
 
     async def candidate_history_delivery(self):
         """Mandatory bounded consumer work, independent of optional history."""
         from .solana_history_delivery import capture,deliver,acknowledge
-        failures=0;seen=-1;urgent_seen=0;not_before=0
+        failures=0;seen=-1;urgent_seen=0;not_before=0;deadline=None
         while not self.stop.is_set():
-            seen=await self.delivery_wakeup.wait(seen,self.stop)
+            seen=await self.delivery_wakeup.wait(seen,self.stop,
+                delay=None if deadline is None else max(0,deadline-time.time()))
             if time.monotonic()<not_before:
                 await self.delivery_urgent.wait(urgent_seen,self.stop,delay=not_before-time.monotonic())
             seen=self.delivery_wakeup.epoch;urgent_seen=self.delivery_urgent.epoch
             if self.stop.is_set():break
-            snapshot=await self.work(lambda state:capture(install(state).lifecycle),2,
+            snapshot=await self.work(lambda state:capture(install(state).lifecycle,
+                revision=getattr(self,'delivery_revision',0),schedule=True),2,
                 label='candidate_delivery_capture')
             if snapshot is None:
-                continue
+                deadline=None;continue
+            deadline=snapshot.get('proof_deadline')
             try:
-                future=asyncio.wrap_future(self.delivery_executor.submit(deliver,snapshot))
-                try:result=await asyncio.shield(future)
-                except asyncio.CancelledError:
-                    # Drain the single accepted consumer batch before the owner
-                    # closes. If the process dies instead, its durable receipts
-                    # and unacknowledged outbox retain the exact restart replay.
-                    result=await asyncio.shield(future)
-                    await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
-                        label='candidate_delivery_ack')
-                    raise
+                consumer_work=bool(snapshot['rows'] or snapshot['proofs'] or snapshot['refresh'])
+                if consumer_work:
+                    future=asyncio.wrap_future(self.delivery_executor.submit(deliver,snapshot))
+                    try:result=await asyncio.shield(future)
+                    except asyncio.CancelledError:
+                        # Drain the single accepted batch before owner closure.
+                        # A crash leaves exact durable receipts/pending replay.
+                        result=await asyncio.shield(future)
+                        await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
+                            label='candidate_delivery_ack')
+                        raise
+                else:result=dict(acknowledgements=[],refreshed=[])
                 accepted=await self._complete_history_delivery(snapshot,result)
-                self.observe('history_delivery_timing',**result['metrics'])
+                if snapshot.get('proof_publication_changed'):self.history_changed(publication=False)
+                if consumer_work:self.observe('history_delivery_timing',**result['metrics'])
                 # Noncritical short batches coalesce within the ORIGINAL 100-ms
                 # cadence. Canonical/proof work bypasses it; a full batch drains
                 # immediately. There is no idle polling or later trade deadline.
                 not_before=0 if len(snapshot['rows'])==64 else time.monotonic()+.1
-                self.history_changed(publication=bool(snapshot['proofs']) or not accepted,
-                    urgent_delivery=bool(snapshot['proofs']) or not accepted)
+                publication=bool(snapshot.get('publication_ids',snapshot['proofs'])) or not accepted
+                more=bool(snapshot.get('proof_scan',{}).get('more'))
+                # Internal page/ACK drainage is not another committed-work
+                # revision: finished scans must not reopen each other forever.
+                if publication:self.history_wakeup.notify()
+                if consumer_work or more or not accepted:self.delivery_wakeup.notify()
+                if publication or more or not accepted:self.delivery_urgent.notify()
                 failures=0
             except sqlite3.OperationalError as exc:
                 if getattr(exc,'sqlite_errorcode',0)&255 not in (sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED):raise
