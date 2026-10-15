@@ -14,9 +14,11 @@ import asyncio
 from contextlib import closing
 from pathlib import Path
 import sqlite3
+from .runtime.operation_costs import measured
 from .runtime.sqlite_failure import connect as diagnostic_connect,checkpoint_result
 
 
+@measured('owner.checkpoint')
 def checkpoint_and_reclaim(path):
     """Caller holds the logical owner boundary; this connection owns no records."""
     with closing(diagnostic_connect(Path(path).resolve().as_uri()+'?mode=rw',

@@ -44,7 +44,9 @@ class PaperBook:
                 raise
 
     def _open(self,path):
-        self.db = sqlite3.connect(path, isolation_level=None, timeout=30, check_same_thread=False)
+        from meme_machine.runtime.operation_costs import connect
+        self.db = connect(path, isolation_level=None, timeout=30, check_same_thread=False,
+                          diagnostic_role='survivor_paper_book')
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.execute('PRAGMA synchronous=FULL')
         self.db.executescript('''

@@ -55,6 +55,72 @@ NATIVE_OPERATIONS = frozenset('pump.' + name for name in (
     'startup_cleanup.survivor_worker_open')) | frozenset(('pons.shared_capital_restore',))
 
 
+def operation_costs(row, expected_pid=None):
+    """Fixed numeric arrays before clipping; never expanded SQL or payloads.
+
+    Completed operation totals overlap parents. SQL is nested, selected-factory
+    attribution, not every SQLite connection or a GIL/lock-holder verdict.
+    """
+    from meme_machine.runtime.operation_costs import NAMES, SQL_BUCKETS, _FIELDS, _SQL_FIELDS
+    if not isinstance(row, dict) or row.get('enabled') is not True:
+        return dict(available=False, reason='OPERATION_COSTS_UNAVAILABLE')
+    if type(row.get('pid')) is not int or expected_pid is not None and row['pid'] != expected_pid:
+        return dict(available=False, reason='OPERATION_COST_PID_MISMATCH')
+    fields = list(_FIELDS) + [bucket + '.' + key for bucket in SQL_BUCKETS for key in _SQL_FIELDS]
+    provided = row.get('rows'); active = row.get('active'); missing = row.get('not_reached')
+    if (not isinstance(provided, dict) or len(provided) > len(NAMES) or
+            not isinstance(active, list) or len(active) > 16 or
+            not isinstance(missing, list) or len(missing) > len(NAMES)):
+        return dict(available=False, reason='OPERATION_COST_SCHEMA_BOUND')
+    selected = {}
+    for name in NAMES:
+        item = provided.get(name)
+        if not isinstance(item, dict):continue
+        values = [item.get(key) for key in _FIELDS]
+        sql = item.get('sql', {})
+        values += [sql.get(bucket, {}).get(key) if isinstance(sql.get(bucket), dict) else None
+                   for bucket in SQL_BUCKETS for key in _SQL_FIELDS] if isinstance(sql, dict) else [None] * (len(SQL_BUCKETS) * len(_SQL_FIELDS))
+        selected[name] = [value if finite_number(value) and value >= 0 else UNAVAILABLE for value in values]
+    identities = []
+    for item in active:
+        if not isinstance(item, dict) or item.get('operation') not in NAMES:continue
+        identities.append([item['operation'], *(item.get(key) if finite_number(item.get(key)) else UNAVAILABLE
+            for key in ('invocation', 'pid', 'native_thread_id', 'started_monotonic'))])
+    result = dict(available=True, fields=fields, rows=selected, active_fields=[
+        'operation', 'invocation', 'pid', 'native_thread_id', 'started_monotonic'], active=identities,
+        not_reached=[name for name in missing if name in NAMES], not_reached_status='UNEXERCISED',
+        sql_scope='SELECTED_INSTRUMENTED_CONNECTIONS_IN_INNERMOST_OPERATION',
+        operation_scope='COMPLETED_PARENT_TOTALS_OVERLAP_CHILDREN_ACTIVE_WORK_NOT_COMPLETED')
+    for key in ('pid', 'collected_monotonic', 'collected_wall', 'recording_lost_calls', 'active_overflow_calls'):
+        result[key] = row.get(key) if finite_number(row.get(key)) else UNAVAILABLE
+    result['recorder_valid'] = row.get('recorder_valid') if type(row.get('recorder_valid')) is bool else UNAVAILABLE
+    return result
+
+
+def descriptive_lanes(lanes):
+    # The required fixed profile is retained separately; do not duplicate a
+    # large partially clipped copy in descriptive health on every sample.
+    return numeric({name: {key: value for key, value in lane.items() if key != 'operation_costs'}
+                    if isinstance(lane, dict) else lane for name, lane in lanes.items()})
+
+
+class OperationCoverage:
+    """Diagnostic recorder loss stops attribution; never changes trading gates."""
+    def __init__(self):self.seen = set()
+
+    def check(self, name, row, now):
+        if not isinstance(row, dict) or not row.get('available'):
+            return 'operation_cost_coverage_lost:' + name if name in self.seen else None
+        self.seen.add(name)
+        if (row.get('recorder_valid') is not True or row.get('recording_lost_calls') != 0
+                or row.get('active_overflow_calls') != 0):
+            return 'operation_cost_recorder_lost:' + name
+        sampled = row.get('collected_monotonic')
+        if not finite_number(sampled) or not 0 <= now - sampled <= 15:
+            return 'operation_cost_sample_stale:' + name
+        return None
+
+
 def native_lifecycle(lanes):
     """Essential native startup/cancellation facts before descriptive clipping."""
     def cancellation_stack(row):
@@ -334,6 +400,7 @@ def required_counters(health, *, now_monotonic=None):
     operations=dict(active=operation(owner.get('active_operation')) if isinstance(owner,dict) else UNAVAILABLE,
         recent=[operation(row) for row in recent] if isinstance(recent,list) and len(recent)<=8 else UNAVAILABLE)
     result = dict(ipc_pipeline=pipeline or UNAVAILABLE, ipc_aggregate=aggregate or UNAVAILABLE,
+                  operation_costs=operation_costs(ipc.get('operation_costs'), health.get('pid')),
                   development_phases=(dict(fields=list(DEVELOPMENT_PHASE_FIELDS), rows=development)
                                       if development else UNAVAILABLE),
                   native_join_state=required_join_state(health,
@@ -398,8 +465,11 @@ def read_json(path):
 
 class Window:
     """One outer clock; a late restoration never repairs the original verdict."""
-    def __init__(self, origin):
+    def __init__(self, origin, *, measurement_seconds=900):
+        if type(measurement_seconds) is not int or not 300 <= measurement_seconds <= 900:
+            raise ValueError('diagnostic_measurement_bound')
         self.origin = origin
+        self.measurement_seconds = measurement_seconds
         self.restored = None
         self.original_readiness = None
 
@@ -416,7 +486,7 @@ class Window:
                 self.restored = now
         elif not ready:
             return 'REQUIRED_READINESS_LOST'
-        elif now - self.restored >= 900:
+        elif now - self.restored >= self.measurement_seconds:
             return 'POST_STARTUP_COMPLETE'
         return None
 
@@ -812,7 +882,8 @@ def pons_thread_counters(pid, owned, inventory, *, proc=Path('/proc')):
                   limit=16, scope='PONS_NATIVE_THREADS_OVERLAP_PROCESS_TOTAL', threads=[])
     if type(pid) is not int or pid <= 0 or pid not in owned:
         return dict(result, reason='CURRENT_PONS_NOT_IN_OWNED_CGROUP')
-    roles = ('main', 'health', 'survivor', 'pons-hydration', 'pons-discovery')
+    roles = ('main', 'health', 'survivor', 'pons-hydration', 'pons-discovery',
+             'pons-current', 'pons-current-entry', 'pons-usd', 'pons-scale-history')
     mapping = {}; inventory_valid = False
     if isinstance(inventory, dict):
         sampled = inventory.get('collected_at_monotonic')
@@ -936,7 +1007,7 @@ def counters(group, pids, owner=None, *, lanes=None):
 
 
 def append_sample(path, sample):
-    body = json.dumps(sample, sort_keys=True, allow_nan=False).encode() + b'\n'
+    body = json.dumps(sample, sort_keys=True, allow_nan=False, separators=(',', ':')).encode() + b'\n'
     size = path.stat().st_size if path.exists() else 0
     if len(body) > INPUT_BYTES or size + len(body) > OUTPUT_BYTES - 2 * TERMINAL_BYTES:
         raise ValueError('diagnostic_output_limit')
@@ -1041,7 +1112,7 @@ def drain(origin, *, ctl=control, clock=time.monotonic, children=live_children):
         return dict(drained=False, recovery_required=True, reason='DRAIN_TIMEOUT_OR_UNAVAILABLE')
 
 
-def observe_once(root, output, source_revision):
+def observe_once(root, output, source_revision, *, measurement_seconds=900):
     """Execute only after the separately authorized spec preflight and install."""
     from meme_machine.operational.supervisor import SOURCE_ROOT
     validate_revision(source_revision, subprocess.check_output(['git', 'rev-parse', 'HEAD'],
@@ -1066,8 +1137,10 @@ def observe_once(root, output, source_revision):
                   status='STARTING', before=before, recovery_required=True, unit_properties=properties,
                   diagnostic_access=access)
     origin = time.monotonic()
-    window = Window(origin)
-    write_metadata(output, 'clock.json', dict(origin_monotonic=origin, revision=source_revision))
+    window = Window(origin, measurement_seconds=measurement_seconds)
+    record['poststartup_measurement_seconds'] = measurement_seconds
+    write_metadata(output, 'clock.json', dict(origin_monotonic=origin, revision=source_revision,
+                                            poststartup_measurement_seconds=measurement_seconds))
     stopped = [False]
     prior = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
     for sig in prior:
@@ -1076,6 +1149,7 @@ def observe_once(root, output, source_revision):
     sampler = FiveSecondSampler()
     cohort = ReceiptCohort(time.time())
     coverage = RecorderCoverage()
+    costs_coverage = OperationCoverage()
     try:
         control('--no-block', 'start', UNIT)
         while True:
@@ -1153,8 +1227,15 @@ def observe_once(root, output, source_revision):
                 pipeline_observation='NEW_READ' if full_sample_due else 'CACHED_READ',
                 pipeline_observed_available=pipeline['available'])
             if full_sample_due:
-                sample = dict(guard, sample_kind='full', lanes=numeric(lanes), providers=numeric(providers),
+                pons_costs = operation_costs(lanes.get('pons', {}).get('operation_costs'), pids.get('pons'))
+                if os.environ.get('MM_OPERATION_COST_DIAGNOSTICS') == '1':
+                    for name, costs in (('solana', pipeline.get('required_counters', {}).get('operation_costs')),
+                                        ('pons', pons_costs)):
+                        lost = costs_coverage.check(name, costs, time.monotonic())
+                        if lost:raise ValueError(lost)
+                sample = dict(guard, sample_kind='full', lanes=descriptive_lanes(lanes), providers=numeric(providers),
                     native_lifecycle=native_lifecycle(lanes),
+                    pons_operation_costs=pons_costs,
                     fixed_scope_frontiers=selected_frontiers(providers), pipeline=pipeline,
                     sqlite_coverage_scope='CANONICAL_PARENT_ONLY_CHILD_HEALTH_UNAVAILABLE')
                 sample['counters'] = counters(group, dict(pids, supervisor=main_pid),
@@ -1175,6 +1256,9 @@ def observe_once(root, output, source_revision):
         record['final_native_health'] = final_native_health(root, observed_supervisor_pid, origin,
             expected_workers=expected_workers, shutdown_started=shutdown_started)
         record['native_drain'] = record['final_native_health'].get('native_drain', UNAVAILABLE)
+        if os.environ.get('MM_OPERATION_COST_DIAGNOSTICS') == '1':
+            record['operation_cost_coverage'] = {name: ('OBSERVED' if name in costs_coverage.seen
+                else UNAVAILABLE) for name in ('solana', 'pons')}
         record['recovery_required'] |= record['native_drain'] != 'VERIFIED_NATIVE_WORKER_STOP_ONLY'
         if record['drained']:
             try:
@@ -1196,6 +1280,8 @@ def main():
     parser.add_argument('--state-root', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--source-revision', required=True)
+    parser.add_argument('--measurement-seconds', type=int, default=900, choices=range(300, 901),
+                        help='Diagnostic post-startup collection only; may shorten, never extend the original 900s.')
     args = parser.parse_args()
     validate_revision(args.source_revision, args.source_revision)
     if (not args.output.is_absolute() or not args.state_root.is_absolute() or
@@ -1204,7 +1290,8 @@ def main():
     if args.output.resolve() == args.state_root.resolve() or args.state_root.resolve() in args.output.resolve().parents:
         parser.error('output must be outside economic state')
     if args.command == 'observe':
-        return observe_once(args.state_root, args.output, args.source_revision)
+        return observe_once(args.state_root, args.output, args.source_revision,
+                            measurement_seconds=args.measurement_seconds)
     clock = read_json(args.output / 'clock.json')
     if clock['revision'] != args.source_revision:
         parser.error('clock revision mismatch')

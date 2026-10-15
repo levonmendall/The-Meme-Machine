@@ -61,7 +61,9 @@ class Plane:
         self._immutable_bytes = 0
         self._immutable_version = None
         self._maintenance_stamp = None
-        self.db = sqlite3.connect(self.path, timeout=10, isolation_level=None, check_same_thread=False)
+        from meme_machine.runtime.operation_costs import connect
+        self.db = connect(self.path, timeout=10, isolation_level=None, check_same_thread=False,
+                          diagnostic_role='pons_plane')
         self.db.row_factory = sqlite3.Row
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.execute('PRAGMA synchronous=FULL')

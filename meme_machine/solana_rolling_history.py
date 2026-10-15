@@ -3,6 +3,8 @@
 No capital or entry authority. Checkpoints never seal an interval. Cold archive
 acquisition is requested only for an explicitly missing interval.
 """
+from .runtime.operation_costs import measured
+
 import json
 import hashlib
 import sys
@@ -117,6 +119,7 @@ class RollingHistory:
             for statement in script.split(';'):
                 if statement.strip():self.db.execute(statement)
 
+    @measured('owner.rolling_store')
     def store(self,row,*,serialized=None):
         """The event body lives once, independently of raw/hydration eviction."""
         from dataclasses import replace
@@ -173,6 +176,7 @@ class RollingHistory:
         if inserted:self.history.writer._count('ingested_event')
         return row
 
+    @measured('owner.rolling_store')
     def store_many(self,rows,serialized):
         """Consolidate fresh prepared economics inside the caller's transaction.
 

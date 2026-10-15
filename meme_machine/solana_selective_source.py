@@ -21,6 +21,7 @@ from websockets.exceptions import ConnectionClosed
 from .solana_activity_routes import ActivityRoutes,shards
 from .solana_candidate_join import CandidateTransactionJoin,candidate_subscription,MAX_PENDING_BYTES
 from .solana_candidate_phases import CandidatePhases,DEVELOPMENT_PHASES,phase as candidate_phase
+from .runtime.operation_costs import operation,measured
 from .solana_native_evidence import economic_transaction,pubkey,signature
 from .solana_evidence_plane import EvidenceUnavailable,IntervalProof,digest,canonical
 from .solana_evidence_transport import Subscription
@@ -177,6 +178,7 @@ def commit_scout_fact(state,fact):
 def commit_scout(state,update,seen):
     commit_scout_fact(state,scout_fact(update,seen))
 
+@measured('owner.scout_commit')
 def commit_scout_batch(state,facts):
     if not 0<len(facts)<=SCOUT_COMMIT_BATCH:raise EvidenceUnavailable('candidate_scout_batch_bound')
     install(state)
@@ -189,6 +191,7 @@ def block_message(frame):
         block=dict(parentSlot=b.parent_slot,blockhash=b.blockhash,previousBlockhash=b.parent_blockhash,
                    blockTime=b.block_time.timestamp,transactions=[])))))
 
+@measured('owner.control_commit')
 def commit_control(state,frame,*,active=True):
     install(state);b=frame.update.block;seen=frame.seen
     prepared=dict(endpoint_identity=state.fence.endpoint_identity,observed_at=seen,
@@ -1418,11 +1421,13 @@ class SelectiveSource:
                                 h.rolling.prepare('pump',addr,0,frontier,priority=3,deadline=first+150)
                         with timing.phase('reactivation'):
                             query="SELECT rowid,family,address,lower_slot FROM candidate_lifecycle WHERE "+active_sql('family',solana=True)+" AND state='reactivated' AND rowid>? ORDER BY rowid LIMIT ?"
-                            reactivated=db.execute(query,(cursors.get('reactivated',0),DEVELOPMENT_BATCH)).fetchall()
-                            if not reactivated and cursors.get('reactivated',0):reactivated=db.execute(query,(0,DEVELOPMENT_BATCH)).fetchall()
+                            with operation('owner.reactivation_lookup'):
+                                reactivated=db.execute(query,(cursors.get('reactivated',0),DEVELOPMENT_BATCH)).fetchall()
+                                if not reactivated and cursors.get('reactivated',0):reactivated=db.execute(query,(0,DEVELOPMENT_BATCH)).fetchall()
                             for _,family,addr,lo in reactivated:
-                                epoch=db.execute('SELECT epoch FROM candidate_lifecycle WHERE family=? AND address=?',(family,addr)).fetchone()[0]
-                                first=db.execute("SELECT MIN(json_extract(body,'$.seen')) FROM candidate_history_outbox WHERE family=? AND address=? AND kind='reactivated' AND json_extract(body,'$.epoch')=?",(family,addr,epoch)).fetchone()[0]
+                                with operation('owner.reactivation_lookup'):
+                                    epoch=db.execute('SELECT epoch FROM candidate_lifecycle WHERE family=? AND address=?',(family,addr)).fetchone()[0]
+                                    first=db.execute("SELECT MIN(json_extract(body,'$.seen')) FROM candidate_history_outbox WHERE family=? AND address=? AND kind='reactivated' AND json_extract(body,'$.epoch')=?",(family,addr,epoch)).fetchone()[0]
                                 deadline=(time.time() if first is None else first)+150
                                 if deadline<=time.time():
                                     h._observation(None,'promotion_deadline_missed',dict(family=family,address=addr,deadline=deadline,deadline_reset=False))

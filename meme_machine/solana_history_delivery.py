@@ -5,6 +5,7 @@ uses a dedicated consumer thread, independently of the optional historian.
 No new database, provider acquisition or evidence authority.
 """
 from contextlib import closing
+from .runtime.operation_costs import measured
 import hashlib
 import json
 from pathlib import Path
@@ -137,6 +138,7 @@ def _proof_selection(life,current_generation,revision):
 
 
 @boundary('candidate_delivery.capture',lambda life:life.writer.path)
+@measured('owner.delivery_capture')
 def capture(life,*,revision=None,schedule=False):
     """Capture consumer work; the runtime also requests ACKed scheduling turns.
 
@@ -263,6 +265,7 @@ def verified_proof(life,db,row):
 
 
 @boundary('candidate_delivery.acknowledge',lambda life,snapshot,result:life.writer.path)
+@measured('owner.delivery_ack')
 def acknowledge(life,snapshot,result):
     if digest(generation(life))!=digest(snapshot['generation']):return False
     # Verify durable consumer receipts and unchanged outbox obligations before

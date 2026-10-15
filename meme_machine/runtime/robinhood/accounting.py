@@ -9,7 +9,8 @@ import hashlib
 import json
 from pathlib import Path
 import sqlite3
-from contextlib import closing
+from contextlib import closing,nullcontext
+from meme_machine.runtime import operation_costs
 
 OUTCOMES = {
     'discovered': ('discovered', None),
@@ -77,30 +78,31 @@ def project(plane, pipeline, *, through=None, batch_size=256):
     The durable source is not acknowledged/deleted. Crash/restart replays any page
     safely. A shutdown caller may drain up to a captured high-water mark.
     """
-    if not 1<=batch_size<=256:raise ValueError('projection_batch_bound')
-    with plane.lock:
-        first=plane.db.execute('SELECT t.* FROM transitions t JOIN candidates c ON c.id=t.candidate WHERE c.lane=? ORDER BY t.seq LIMIT 1',(pipeline.lane,)).fetchone()
-        archive=plane.history_archive() or {}
-    source=plane.checkpoint_read('projection_source:'+pipeline.lane) or archive.get('projection_sources',{}).get(pipeline.lane)
-    if first is None:return 0
-    # Immutable source identity survives relocation/restart of either database.
-    source=source or 'candidate-plane:'+hashlib.sha256(json.dumps(dict(first),sort_keys=True).encode()).hexdigest()
-    plane.checkpoint('projection_source:'+pipeline.lane,source)
-    with pipeline.lock:
-        after=pipeline.db.execute('SELECT COALESCE(MAX(sequence),0) FROM progress_sources WHERE source=?',(source,)).fetchone()[0]
-    with plane.lock:
-        rows=plane.db.execute('''SELECT t.* FROM transitions t JOIN candidates c ON c.id=t.candidate
-            WHERE c.lane=? AND t.seq>? AND t.seq<=? ORDER BY t.seq LIMIT ?''',
-            (pipeline.lane,after,through if through is not None else 9223372036854775807,batch_size)).fetchall()
-    for raw in rows:
-        row=dict(raw);stage,classification=classify(row['kind'])
-        details=json.loads(row['details'])
-        pipeline.record(row['candidate'],stage,row['reason'],classification,
-            source=source,source_sequence=row['seq'],candidate_generation=row['generation'],
-            candidate_plane_kind=row['kind'],candidate_plane_sequence=row['seq'],
-            candidate_plane_at=row['at'],candidate_plane_details=details,
-            authenticated_evidence=details.get('authenticated_evidence'))
-    return len(rows)
+    with operation_costs.operation('pons.reporting') if pipeline.lane=='pons' else nullcontext():
+        if not 1<=batch_size<=256:raise ValueError('projection_batch_bound')
+        with plane.lock:
+            first=plane.db.execute('SELECT t.* FROM transitions t JOIN candidates c ON c.id=t.candidate WHERE c.lane=? ORDER BY t.seq LIMIT 1',(pipeline.lane,)).fetchone()
+            archive=plane.history_archive() or {}
+        source=plane.checkpoint_read('projection_source:'+pipeline.lane) or archive.get('projection_sources',{}).get(pipeline.lane)
+        if first is None:return 0
+        # Immutable source identity survives relocation/restart of either database.
+        source=source or 'candidate-plane:'+hashlib.sha256(json.dumps(dict(first),sort_keys=True).encode()).hexdigest()
+        plane.checkpoint('projection_source:'+pipeline.lane,source)
+        with pipeline.lock:
+            after=pipeline.db.execute('SELECT COALESCE(MAX(sequence),0) FROM progress_sources WHERE source=?',(source,)).fetchone()[0]
+        with plane.lock:
+            rows=plane.db.execute('''SELECT t.* FROM transitions t JOIN candidates c ON c.id=t.candidate
+                WHERE c.lane=? AND t.seq>? AND t.seq<=? ORDER BY t.seq LIMIT ?''',
+                (pipeline.lane,after,through if through is not None else 9223372036854775807,batch_size)).fetchall()
+        for raw in rows:
+            row=dict(raw);stage,classification=classify(row['kind'])
+            details=json.loads(row['details'])
+            pipeline.record(row['candidate'],stage,row['reason'],classification,
+                source=source,source_sequence=row['seq'],candidate_generation=row['generation'],
+                candidate_plane_kind=row['kind'],candidate_plane_sequence=row['seq'],
+                candidate_plane_at=row['at'],candidate_plane_details=details,
+                authenticated_evidence=details.get('authenticated_evidence'))
+        return len(rows)
 
 
 def high_water(plane):

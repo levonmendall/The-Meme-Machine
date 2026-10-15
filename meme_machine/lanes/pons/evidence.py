@@ -52,7 +52,8 @@ class Store:
         if not 1 <= max_records <= 100000:
             raise BoundaryError('invalid_storage_bound')
         self.max_records = max_records
-        self.db = sqlite3.connect(path, isolation_level=None)
+        from meme_machine.runtime.operation_costs import connect
+        self.db = connect(path, isolation_level=None, diagnostic_role='pons_native_store')
         self.db.execute('PRAGMA journal_mode=DELETE')
         self.db.execute('PRAGMA synchronous=FULL')
         self.db.execute('PRAGMA cache_size=-2048')

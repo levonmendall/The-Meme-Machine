@@ -6,6 +6,8 @@ checks readiness *at execution*, after previously queued source/control work.
 """
 from __future__ import annotations
 
+from .runtime.operation_costs import measured
+
 from collections import Counter, deque
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -443,6 +445,7 @@ class MaintenanceRuntime:
         # not reserve a decision here and strand it without its native execution.
 
 
+    @measured('owner.maintenance')
     def turn(self, flight, submitted):
         """Exactly one fresh owner-entry decision and at most one native side."""
         self.writer._check()

@@ -19,6 +19,8 @@ import threading
 import time
 from urllib.parse import unquote, urlsplit
 
+from . import operation_costs
+
 MAX_TERMINAL_BYTES=64*1024
 MAX_RING_BYTES=1024*1024
 _ring=deque(maxlen=128)
@@ -79,7 +81,7 @@ def _breadcrumb(row):
 
 def _facts(exc,metadata,phase,started,db=None):
     now=time.monotonic()
-    facts=dict(version=1,run_identity=_run,operation=phase,
+    facts=dict(version=1,run_identity=_run,operation=phase,current_operation=None,
         scope=_scope.get(),database=metadata['database'],opening_mode=metadata['opening_mode'],
         configured_database_identity_sha256=metadata.get('database_identity'),
         database_identity_truncated=metadata.get('database_identity_truncated',False),
@@ -98,6 +100,8 @@ def _facts(exc,metadata,phase,started,db=None):
         recorder_valid=_coverage_valid)
     # Capture essential facts before anything that could itself fail.
     exc.sqlite_failure=facts
+    try:facts['current_operation']=operation_costs._current_operation()
+    except BaseException:facts['operation_costs_valid']=False
     try:facts['in_transaction']=None if db is None else bool(db.in_transaction)
     except BaseException:facts['in_transaction']=None
     if not _breadcrumb(dict(operation=phase,pid=facts['pid'],native_thread_id=facts['native_thread_id'],
@@ -189,16 +193,33 @@ def write_terminal_record(path,report):
 
 class Connection(sqlite3.Connection):
     def _call(self,method,phase,*args,**kwargs):
-        started=time.monotonic()
-        try:result=method(*args,**kwargs)
-        except sqlite3.Error as exc:
-            annotate(exc,self._failure_metadata,phase,started,self);raise
+        try:started=time.monotonic()
+        except BaseException:started=None
+        try:cost=operation_costs._sql_started(phase,started,api=getattr(method,'__name__',None))
+        except BaseException:
+            operation_costs._lost();cost=None
+        failed=False
+        try:
+            try:result=method(*args,**kwargs)
+            except BaseException as exc:
+                failed=not isinstance(exc,StopIteration)
+                if isinstance(exc,sqlite3.Error):
+                    annotate(exc,self._failure_metadata,phase,started,self)
+                raise
+        finally:
+            if cost is not None:
+                try:operation_costs._sql_finished(cost,failed)
+                except BaseException:operation_costs._lost()
         if phase in ('BEGIN','COMMIT','ROLLBACK','SAVEPOINT','RELEASE','checkpoint','close'):
-            _breadcrumb(dict(operation=phase,pid=os.getpid(),native_thread_id=threading.get_native_id(),
-                connection_identity=self._failure_metadata['connection_identity'],
-                database_identity=self._failure_metadata['database_identity'],database_device=self._failure_metadata.get('database_device'),
-                database_inode=self._failure_metadata.get('database_inode'),
-                started=started,at=time.monotonic(),failed=False))
+            try:
+                _breadcrumb(dict(operation=phase,pid=os.getpid(),native_thread_id=threading.get_native_id(),
+                    connection_identity=self._failure_metadata['connection_identity'],
+                    database_identity=self._failure_metadata['database_identity'],database_device=self._failure_metadata.get('database_device'),
+                    database_inode=self._failure_metadata.get('database_inode'),
+                    started=started,at=time.monotonic(),failed=False))
+            except BaseException:
+                global _coverage_valid
+                _coverage_valid=False
         if phase=='BEGIN':self._failure_metadata['transaction_started_monotonic']=started
         elif phase in ('COMMIT','ROLLBACK'):self._failure_metadata['transaction_started_monotonic']=None
         return result
@@ -231,6 +252,8 @@ class Connection(sqlite3.Connection):
     def cursor(self,factory=None):
         # sqlite3.Connection.execute otherwise creates an uninstrumented native
         # cursor. Preserve the Cursor API and caller-provided factories.
+        if factory is not None and factory is not Cursor:
+            operation_costs._coverage('uninstrumented_cursor_calls')
         return self._call(super().cursor,'cursor_open',factory=Cursor if factory is None else factory)
 
     def commit(self):return self._call(super().commit,'COMMIT')
@@ -270,11 +293,15 @@ class Cursor(sqlite3.Cursor):
         return self.connection._call(super().fetchmany,getattr(self,'_failure_phase','read')+'.fetchmany',*args)
 
     def __next__(self):
+        if operation_costs._local_state() is not None:
+            return self.connection._call(super().__next__,
+                getattr(self,'_failure_phase','read')+'.iterate')
         # Avoid a clock/read-result wrapper for every successful row. The
         # operation timer remains the query's original execution start.
         try:return super().__next__()
         except sqlite3.Error as exc:
-            now=time.monotonic()
+            try:now=time.monotonic()
+            except BaseException:now=None
             annotate(exc,self.connection._failure_metadata,
                 getattr(self,'_failure_phase','read')+'.iterate',now,self.connection)
             raise

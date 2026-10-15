@@ -178,6 +178,121 @@ OPPORTUNITY_ADDED_SOURCES=(
 )
 
 
+# Fixed, opt-in reached-operation costs are descriptive infrastructure only.
+# Pin both complete sources, reverse these exact bytes to the ced262d4 checkpoint,
+# then apply every existing startup, opportunity, policy and economic assertion.
+# This layer grants no AST exemption to a whole controller or accounting method.
+OPERATION_COST_REFERENCE='ced262d4b488059fcc555f7684ec95b86221d546'
+OPERATION_COST_DELTAS={'meme_machine/lanes/pons/evidence.py': ('841db7b20c4e563527f30fb8090dabe20ee906c12aa2d6699e3346206e89680e',
+                                         '50636a9f0fa360131d62abd6006da152c9fa63c4ffd439decfe5d179f6530939',
+                                         ((b'        self.db = sqlite3.connect(path, isolation_level=None)\n',
+                                           b'        from meme_machine.runtime.operation_costs import connect'
+                                           b'\n        self.db = connect(path, isolation_level=None, diagn'
+                                           b"ostic_role='pons_native_store')\n"),)),
+ 'meme_machine/lanes/pons/pons_selective_capital.py': ('f04dd98eb22d3a6b9eccca284150c81366d6f624b7512dc0c07aaf4d63bf7b43',
+                                                       '08b25a29569f08e94a1131dd09f64a642a79814a3b6e8fc8513092ea05a7981f',
+                                                       ((b'        db=sqlite3.connect(self.path,timeout=30,'
+                                                         b'isolation_level=None)\n',
+                                                         b'        from meme_machine.runtime.operation_cost'
+                                                         b's import connect\n        db=connect(self.path,ti'
+                                                         b"meout=30,isolation_level=None,diagnostic_role='p"
+                                                         b"ons_selective_capital')\n"),)),
+ 'meme_machine/lanes/pons/pons_selective_cohort.py': ('c02656621b57e3c3a2533f79249d012c20ecddbfaf686c21683e989eded3aec8',
+                                                      'aa3ccf1884e6e80c274c967def3e481269c68f0c97bcc5bb333abb45ef03182b',
+                                                      ((b'',
+                                                        b'from meme_machine.runtime import operation_costs'
+                                                        b'\n'),
+                                                       (b'                discovery_future=discovery_pool.'
+                                                        b'submit(_discover_observations,\n',
+                                                        b'                discovery_future=operation_costs'
+                                                        b".submit(discovery_pool,'pons.current_discovery',"
+                                                        b'_discover_observations,\n'),
+                                                       (b'                priming_future=discovery_pool.su'
+                                                        b'bmit(_prime_current_step,startup_context,queue,s'
+                                                        b'tartup_head)\n',
+                                                        b'                priming_future=operation_costs.s'
+                                                        b"ubmit(discovery_pool,'pons.current_prime',_prime"
+                                                        b'_current_step,startup_context,queue,startup_head'
+                                                        b')\n'),
+                                                       (b'                hydration=hydration_pool.submit(\n',
+                                                        b'                hydration=operation_costs.submit'
+                                                        b"(hydration_pool,'pons.current_hydration',\n"))),
+ 'meme_machine/operational/supervisor.py': ('a010ee1daf2e34ab99d371085f674d3984933e8953e430770acfd4697de983a9',
+                                            'b2ffa2991607fef15fc1934682018d101a74ba21763702ca5d3757456a132982',
+                                            ((b'',
+                                              b"        if lane in ('pons','solana'):\n            env['MM_OP"
+                                              b"ERATION_COST_DIAGNOSTICS']='1' if os.environ.get('MM_OPERATI"
+                                              b"ON_COST_DIAGNOSTICS')=='1' else '0'\n"),)),
+ 'meme_machine/runtime/survivor_history.py': ('22ab2268bb4b23997314889c7e6936706a7a47a1e3301341e699acc51989ce40',
+                                              '5a0e1d111898748014f1412c84ab193ffe4ce5207fbece903613db05faf14350',
+                                              ((b'        self.db=sqlite3.connect(path,isolation_level=Non'
+                                                b'e)\n',
+                                                b'        from meme_machine.runtime.operation_costs import'
+                                                b' connect\n        self.db=connect(path,isolation_level=No'
+                                                b"ne,diagnostic_role='survivor_history')\n"),
+                                               (b'',
+                                                b'        from contextlib import nullcontext\n        from '
+                                                b'meme_machine.runtime import operation_costs\n        pons'
+                                                b"=os.environ.get('MM_RUNTIME_LANE')=='pons'\n        def o"
+                                                b'peration(name):return operation_costs.operation(name) if'
+                                                b' pons else nullcontext()\n'),
+                                               (b'            with native_startup_replay(requested.is_set)'
+                                                b':self.service=self.factory()\n',
+                                                b"            with operation('pons.survivor_restore'):\n   "
+                                                b'             with native_startup_replay(requested.is_set'
+                                                b'):self.service=self.factory()\n'),
+                                               (b'        if maintenance:\n            from meme_machine.la'
+                                                b'nes.pons.provider_admission import position_work\n       '
+                                                b'     status=position_work(self.service.step)(admit=False'
+                                                b')\n        else:status=self.service.step(admit=admit)\n',
+                                                b"        with operation('pons.survivor_step'):\n          "
+                                                b'  if maintenance:\n                from meme_machine.lane'
+                                                b's.pons.provider_admission import position_work\n         '
+                                                b'       status=position_work(self.service.step)(admit=Fal'
+                                                b'se)\n            else:status=self.service.step(admit=admi'
+                                                b't)\n'),
+                                               (b'                telemetry=enrich_service(self.service,no'
+                                                b'w=time.time())\n',
+                                                b"                with operation('pons.survivor_enrich'):\n"
+                                                b'                    telemetry=enrich_service(self.servic'
+                                                b'e,now=time.time())\n'))),
+ 'meme_machine/runtime/survivor_paper_book.py': ('50db696d52f2aafd22259a3aced3223117acf37631a5904b391dfe9edb7c976c',
+                                                 '0593b88ab84cb4ce7d9aa2a4f177d42ff933a2950a179cd42e72662ee2c0135d',
+                                                 ((b'        self.db = sqlite3.connect(path, isolation_level='
+                                                   b'None, timeout=30, check_same_thread=False)\n',
+                                                   b'        from meme_machine.runtime.operation_costs import'
+                                                   b' connect\n        self.db = connect(path, isolation_l'
+                                                   b'evel=None, timeout=30, check_same_thread=False,\n    '
+                                                   b"                      diagnostic_role='survivor_paper_bo"
+                                                   b"ok')\n"),))}
+
+
+def operation_cost_predecessor(test,relative,current):
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    reviewed=OPERATION_COST_DELTAS.get(relative)
+    if reviewed is None:return current
+    before,after,replacements=reviewed
+    prior=subprocess.check_output(['git','show',OPERATION_COST_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':reviewed operation-cost predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':exact operation-cost successor')
+    for old,new in replacements:
+        test.assertEqual(current.count(new),1,relative+':one exact operation-cost delta')
+        current=current.replace(new,old,1)
+    test.assertEqual(current,prior,relative+':all economic and operational bytes preserved')
+    return current
+
+
+def reviewed_operation_costs(test,relative,current):
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    reviewed=OPERATION_COST_DELTAS.get(relative)
+    if reviewed and hashlib.sha256(current).hexdigest()==reviewed[1]:
+        return operation_cost_predecessor(test,relative,current)
+    return current
+
+
 # Reviewed acquisition forwarding after the combined strategy release. Pin the
 # complete predecessor and successor, then remove only this exact Pons-only
 # environment block before applying the unchanged opportunity/economic guards.
@@ -200,6 +315,7 @@ OBSERVATION_ROUTE_BLOCK=(
 def observation_route_predecessor(test,relative,current):
     import hashlib
     if isinstance(current,str):current=current.encode()
+    current=reviewed_operation_costs(test,relative,current)
     if relative!=OBSERVATION_ROUTE_SOURCE:return current
     prior=subprocess.check_output(['git','show',OBSERVATION_ROUTE_REFERENCE+':'+relative],cwd=ROOT)
     test.assertEqual(hashlib.sha256(prior).hexdigest(),OBSERVATION_ROUTE_BEFORE_SHA256,
@@ -297,6 +413,7 @@ NATIVE_STARTUP_DELTAS={
 def native_startup_predecessor(test,relative,current):
     import hashlib
     if isinstance(current,str):current=current.encode()
+    current=reviewed_operation_costs(test,relative,current)
     reviewed=NATIVE_STARTUP_DELTAS.get(relative)
     if reviewed is None:return current
     prior=subprocess.check_output(['git','show',NATIVE_STARTUP_REFERENCE+':'+relative],cwd=ROOT)
@@ -363,6 +480,7 @@ def native_startup_predecessor(test,relative,current):
 def reviewed_native_startup(test,relative,current):
     import hashlib
     if isinstance(current,str):current=current.encode()
+    current=reviewed_operation_costs(test,relative,current)
     reviewed=NATIVE_STARTUP_DELTAS.get(relative)
     if reviewed and hashlib.sha256(current).hexdigest()==reviewed[1]:
         return native_startup_predecessor(test,relative,current)
@@ -427,6 +545,7 @@ def observation_followup_predecessor(test,relative,current):
 def cohort_authority_predecessor(test,relative,current):
     import hashlib
     if isinstance(current,str):current=current.encode()
+    current=reviewed_operation_costs(test,relative,current)
     followup=OBSERVATION_FOLLOWUP_DELTAS.get(relative)
     if followup and hashlib.sha256(current).hexdigest()==followup[1]:
         current=observation_followup_predecessor(test,relative,current)
@@ -527,6 +646,9 @@ def assert_opportunity_added_source(test,relative,current):
 def opportunity_predecessor(test,relative,current):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
+    if relative=='meme_machine/lanes/pons/evidence.py':
+        # The complete lane-tree guard also protects this non-manifest source.
+        current=operation_cost_predecessor(test,relative,current)
     current=startup_cancel_predecessor(test,relative,current)
     manifest=json.loads(OPPORTUNITY_MANIFEST.read_text())
     test.assertEqual(manifest['base'],OPPORTUNITY_BASE)
@@ -795,10 +917,41 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_reviewed_operation_costs_reverse_exactly_before_all_original_guards(self):
+        import hashlib
+        for relative,(_,after,_) in OPERATION_COST_DELTAS.items():
+            current=(ROOT/relative).read_bytes()
+            self.assertEqual(hashlib.sha256(current).hexdigest(),after,
+                relative+':active source must contain exactly the reviewed instrumentation')
+            prior=subprocess.check_output(['git','show',OPERATION_COST_REFERENCE+':'+relative],cwd=ROOT)
+            self.assertEqual(operation_cost_predecessor(self,relative,current),prior)
+            if relative=='meme_machine/lanes/pons/evidence.py':
+                # This file is protected by the original complete lane-tree loop,
+                # independently of the opportunity manifest; retain that guard.
+                original=subprocess.check_output(['git','show',
+                    'e1070404849dfa86eb3e47d57cf24263b2fefc25:'+relative],cwd=ROOT)
+                assert_holding_delta(self,relative,original,current)
+            else:
+                self.assertEqual(opportunity_predecessor(self,relative,current),
+                    opportunity_predecessor(self,relative,prior))
+            token=(b'MM_OPERATION_COST_DIAGNOSTICS' if relative==OBSERVATION_ROUTE_SOURCE
+                   else b'operation_costs')
+            self.assertTrue(token in current,relative+': mutation token must exist')
+            for changed in (current+b'\n# unreviewed operation-cost change\n',b'',
+                    current.replace(token,b'unreviewed_costs',1),
+                    current.replace(b'pons',b'unreviewed_pons',1)):
+                self.assertTrue(changed!=current,relative+': mutation must alter source')
+                with self.assertRaises(AssertionError):operation_cost_predecessor(self,relative,changed)
+                with self.assertRaises(AssertionError):
+                    if relative=='meme_machine/lanes/pons/evidence.py':
+                        assert_holding_delta(self,relative,original,changed)
+                    else:opportunity_predecessor(self,relative,changed)
+
     def test_native_startup_lifecycle_preserves_exact_prior_economics_and_rejects_other_changes(self):
         import hashlib
         for relative,(_,after) in NATIVE_STARTUP_DELTAS.items():
             current=(ROOT/relative).read_bytes()
+            current=operation_cost_predecessor(self,relative,current)
             self.assertEqual(hashlib.sha256(current).hexdigest(),after)
             prior=subprocess.check_output(['git','show',NATIVE_STARTUP_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(native_startup_predecessor(self,relative,current),prior)
@@ -864,6 +1017,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         import hashlib
         relative=OBSERVATION_ROUTE_SOURCE
         current=(ROOT/relative).read_bytes()
+        current=operation_cost_predecessor(self,relative,current)
         self.assertEqual(hashlib.sha256(current).hexdigest(),OBSERVATION_ROUTE_AFTER_SHA256,
             'the active source must contain the reviewed forwarding correction')
         prior=subprocess.check_output(['git','show',OBSERVATION_ROUTE_REFERENCE+':'+relative],cwd=ROOT)

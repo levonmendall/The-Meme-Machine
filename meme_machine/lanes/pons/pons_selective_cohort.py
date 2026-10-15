@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import time
+from meme_machine.runtime import operation_costs
 
 from . import BoundaryError
 from .abi import topic
@@ -1052,12 +1053,12 @@ def run(endpoint,*,campaign=False):
                     next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
                 _stop_sleep(.25);continue
             if discovery_future is None:
-                discovery_future=discovery_pool.submit(_discover_observations,
+                discovery_future=operation_costs.submit(discovery_pool,'pons.current_discovery',_discover_observations,
                     endpoint,rpc,cursor,tape,feed,result['discovery_sessions'],
                     result['sequencer_recoveries'],
                     on_provider_failure=lambda *args:discovery_failures.append(args))
             if not priming_done and priming_future is None and time.time()>=priming_resume_at:
-                priming_future=discovery_pool.submit(_prime_current_step,startup_context,queue,startup_head)
+                priming_future=operation_costs.submit(discovery_pool,'pons.current_prime',_prime_current_step,startup_context,queue,startup_head)
             if priming_future is not None and priming_future.done():
                 state=priming_future.result();priming_future=None
                 result['current_startup_coverage']=state
@@ -1151,7 +1152,7 @@ def run(endpoint,*,campaign=False):
                     if stage=='trajectory_admitted' and queue.plane.promote(work):
                         from .provider_admission import _decision_priority
                         _decision_priority.set(10)
-                hydration=hydration_pool.submit(
+                hydration=operation_costs.submit(hydration_pool,'pons.current_hydration',
                     _evaluate_current_candidate,endpoint,event,list(tape),
                     wallet_histories=None,creator_history=None,
                     evidence_observed_at=observed_at,

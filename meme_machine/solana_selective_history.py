@@ -5,6 +5,8 @@ shared by the three lanes; completeness belongs to an address and its requested
 interval. Archive work advances only in the transaction committing that content.
 No capital, portfolio, signing or transaction-submission interface exists here.
 """
+from .runtime.operation_costs import measured
+
 from dataclasses import replace
 import hashlib
 import json
@@ -209,6 +211,7 @@ class SelectiveHistory:
                 self.lifecycle.observe(family,address,slot=slot,seen=seen,signature=signature,fields=fields,
                     activity=fields.get('activity',False))
 
+    @measured('owner.binding')
     def bind(self,family,address,*,market_address=None,aliases=(),metadata=None):
         if family not in self.active_families:raise EvidenceUnavailable('paused_family_activity_forbidden')
         base=FAMILIES[family];scoped=coverage_scope(family,address)
@@ -294,6 +297,7 @@ class SelectiveHistory:
                 (status,now,canonical(body),job['id']))
             self._observation(job['id'],'archive_provider_failure',dict(body,status=status))
 
+    @measured('owner.history_plan')
     def plan(self,*,excluding=()):
         """Recheck shared evidence at dispatch; retain each original obligation."""
         from .runtime.operating_families import active_sql
@@ -435,6 +439,7 @@ class SelectiveHistory:
                 (job['id'],job['pages'],input_hash,canonical(result),seen))
         return result
 
+    @measured('owner.economic_ingest')
     def ingest(self,rows,*,restored=None,timing=None):
         """One identity; a bounded shared cache permits late scoped backfill.
 
@@ -644,6 +649,7 @@ class SelectiveHistory:
             from .solana_history_notifications import changed
             changed(self)
 
+    @measured('owner.order_attest')
     def attest_order(self,scope,slot,signature,index):
         checksum=digest([scope,slot,signature,index])
         old=self.db.execute('SELECT transaction_index,hash FROM native_order_attestations WHERE scope=? AND slot=? AND signature=?',(scope,slot,signature)).fetchone()

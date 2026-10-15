@@ -108,7 +108,11 @@ def thread_inventory():
             role=('main' if thread is main else 'health' if name=='health' else
                   'survivor' if name=='survivor_0' else
                   'pons-hydration' if name=='pons-hydration_0' else
-                  'pons-discovery' if name in ('pons-discovery_0','pons-discovery_1') else 'UNAVAILABLE')
+                  'pons-discovery' if name in ('pons-discovery_0','pons-discovery_1') else
+                  'pons-current' if re.fullmatch(r'pons-current_[0-7]',name) else
+                  'pons-current-entry' if re.fullmatch(r'pons-current-entry_[0-7]',name) else
+                  'pons-usd' if name=='pons-usd_0' else
+                  'pons-scale-history' if name=='pons-scale-history_0' else 'UNAVAILABLE')
             retained.append(dict(native_thread_id=identity(thread) or 'UNAVAILABLE',role=role))
         row.update(state='SAMPLED',total=len(threads),truncated=len(threads)>16,
                    missing_native_thread_ids=sum(identity(thread) is None for thread in threads),
@@ -124,4 +128,6 @@ def snapshot():
         if _completed:value['native_recent_operations']=[dict(row) for row in _completed]
     if _signal is not None:value['cancellation_signal']=dict(_signal)
     value['native_threads']=thread_inventory()
+    from . import operation_costs
+    if operation_costs.enabled():value['operation_costs']=operation_costs.snapshot()
     return value

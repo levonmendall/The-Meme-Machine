@@ -5,6 +5,8 @@ the native lane still constructs and evaluates its unchanged economic vector.
 The cross-database outbox is committed in the canonical store first, consumed
 idempotently in CandidateHistory second, and checkpointed last.
 """
+from .runtime.operation_costs import measured
+
 from contextlib import closing
 from pathlib import Path
 import hashlib
@@ -160,6 +162,7 @@ class CandidateLifecycle:
             self.emit(family,address,'reactivated',dict(epoch=epoch,slot=slot,seen=seen,receipt=receipt),at=seen)
             return True
 
+    @measured('owner.reactivation_promote')
     def promote(self,family,address,*,deadline,lower_slot=None):
         """Promotion allocates observation work, never entry or funding."""
         require_active(family)
@@ -195,11 +198,13 @@ class CandidateLifecycle:
                 decision_deadline=deadline,lower_slot=lo,entry_authority=False)
             return self.emit(family,address,'promotion',body)
 
+    @measured('owner.reactivation_demote')
     def demote(self,family,address,*,reason):
         with self.writer.transaction():
             self.db.execute("UPDATE candidate_lifecycle SET state='demoted' WHERE family=? AND address=?",(family,address))
             self.emit(family,address,'demoted',dict(reason=reason,at=self.clock(),recoverable=True))
 
+    @measured('owner.history_outbox')
     def queue_records(self,rows):
         """Called inside the canonical ingestion transaction."""
         for row in rows:
@@ -446,6 +451,7 @@ class CandidateLifecycle:
             changed(self.history)
 
     @defer_busy_consumer
+    @measured('owner.proof_publish')
     def publish(self,*,proof_ids=None):
         """Proofs become visible only after all source receipts are durable."""
         if self.db.in_transaction:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')

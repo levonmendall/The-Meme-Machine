@@ -984,6 +984,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
                         # Two bounded existing join samples; copy their original
                         # clocks/generation instead of refreshing stale facts.
                         snapshot['join_state']=source_join_snapshot(source_driver)
+                        from .runtime.operation_costs import enabled as costs_enabled,snapshot as costs_snapshot
+                        if costs_enabled():snapshot['operation_costs']=costs_snapshot()
                     scheduler=owner.telemetry()
                     scheduler['owner_admission']=admission.telemetry()
                     await work(lambda state:state.publish_health(http,snapshot,scheduler),4,label='maintenance_health')

@@ -19,6 +19,20 @@ from meme_machine.operational.supervisor import Supervisor
 
 
 class DiagnosticWindowTests(unittest.TestCase):
+    def test_shorter_measurement_preserves_original_readiness_and_hard_deadlines(self):
+        window = diagnostic.Window(0, measurement_seconds=300)
+        window.decision(200, True)
+        self.assertIsNone(window.decision(300, True))
+        self.assertEqual(window.original_readiness, 'PASS')
+        self.assertEqual(window.decision(500, True), 'POST_STARTUP_COMPLETE')
+        late = diagnostic.Window(0, measurement_seconds=300)
+        late.decision(300, False); late.decision(350, True)
+        self.assertEqual(late.original_readiness, 'FAIL')
+        self.assertEqual(late.decision(650, True), 'POST_STARTUP_COMPLETE')
+        for value in (299, 901, True, 300.0):
+            with self.assertRaisesRegex(ValueError, 'diagnostic_measurement_bound'):
+                diagnostic.Window(0, measurement_seconds=value)
+
     def test_explicit_source_revision_must_match_installed_git(self):
         diagnostic.validate_revision('a' * 40, 'a' * 40)
         with self.assertRaisesRegex(ValueError, 'revision_mismatch'):
@@ -185,9 +199,10 @@ class DiagnosticCollectionTests(unittest.TestCase):
     def test_metadata_and_terminal_have_independent_reserved_bytes(self):
         path = self.root / 'metrics.jsonl'
         body = {'metric': 1}
-        body_bytes = len(json.dumps(body, sort_keys=True).encode()) + 1
+        body_bytes = len(json.dumps(body, sort_keys=True, separators=(',', ':')).encode()) + 1
         with patch.object(diagnostic, 'OUTPUT_BYTES', 2 * diagnostic.TERMINAL_BYTES + body_bytes):
             diagnostic.append_sample(path, body)
+            self.assertEqual(path.stat().st_size, body_bytes)
             with self.assertRaisesRegex(ValueError, 'output_limit'):
                 diagnostic.append_sample(path, body)
         diagnostic.write_metadata(self.root, 'clock.json', {'origin': 0})
@@ -540,6 +555,47 @@ class DiagnosticCollectionTests(unittest.TestCase):
         with patch.object(diagnostic, 'COUNTER_BYTES', 1):
             self.assertEqual(diagnostic.required_counters({}),
                              {'available': False, 'reason': 'REQUIRED_COUNTER_BOUND'})
+
+    def test_operation_costs_survive_full_sql_collection_without_private_or_fake_values(self):
+        from meme_machine.runtime import operation_costs as costs
+        raw = dict(enabled=True, pid=44, collected_monotonic=100, collected_wall=200,
+            recorder_valid=True, recording_lost_calls=0, active_overflow_calls=0,
+            rows={'owner.reactivation_promote': {**{key: 7 for key in costs._FIELDS},
+                'sql': {bucket: {key: 9 for key in costs._SQL_FIELDS} for bucket in costs.SQL_BUCKETS},
+                'secret': 'never-copy-provider-token'}}, active=[], not_reached=list(costs.NAMES[1:]))
+        raw['rows']['owner.reactivation_promote']['sql']['statement']['cpu_microseconds'] = None
+        ipc = {f'unrelated_{i}': i for i in range(160)}
+        ipc['operation_costs'] = raw
+        with sqlite3.connect(self.path) as db:
+            db.execute("UPDATE service_health SET value=? WHERE key='ipc'", (json.dumps(ipc),))
+        sample = diagnostic.pipeline_sample(self.root, 44)
+        output = self.root / 'operation-costs.jsonl'
+        diagnostic.append_sample(output, dict(sample_kind='full', pipeline=sample,
+            lanes=diagnostic.descriptive_lanes({'pons': {'phase': 'DISCOVERING', 'operation_costs': raw}}),
+            pons_operation_costs=diagnostic.operation_costs(dict(raw, pid=55), 55)))
+        retained = json.loads(output.read_text())
+        profile = retained['pipeline']['required_counters']['operation_costs']
+        self.assertTrue(profile['available'])
+        values = profile['rows']['owner.reactivation_promote']
+        self.assertEqual(values[profile['fields'].index('calls')], 7)
+        self.assertEqual(values[profile['fields'].index('statement.cpu_microseconds')], 'UNAVAILABLE')
+        self.assertNotIn('operation_costs', retained['lanes']['pons'])
+        self.assertNotIn('never-copy', output.read_text())
+        self.assertEqual(retained['pons_operation_costs']['collected_monotonic'], 100)
+        self.assertFalse(diagnostic.operation_costs(raw, 55)['available'])
+        self.assertFalse(diagnostic.operation_costs(None)['available'])
+
+    def test_operation_cost_coverage_preserves_unavailable_stale_and_failed_samples(self):
+        coverage = diagnostic.OperationCoverage()
+        self.assertIsNone(coverage.check('pons', {'available': False}, 100))
+        row = dict(available=True, recorder_valid=True, recording_lost_calls=0,
+                   active_overflow_calls=0, collected_monotonic=99)
+        self.assertIsNone(coverage.check('pons', row, 100))
+        self.assertEqual(coverage.check('pons', row, 115), 'operation_cost_sample_stale:pons')
+        self.assertEqual(coverage.check('pons', dict(row, recorder_valid=False), 100),
+                         'operation_cost_recorder_lost:pons')
+        self.assertEqual(coverage.check('pons', {'available': False}, 100), 'operation_cost_coverage_lost:pons')
+        self.assertEqual(row['collected_monotonic'], 99)
 
     def test_development_attribution_survives_real_collection_with_fixed_private_schema(self):
         ipc={f'unrelated_{i}':i for i in range(160)}

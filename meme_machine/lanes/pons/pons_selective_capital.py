@@ -77,7 +77,8 @@ class CohortCapital:
                             terminal_hash=digest(dict(native_absent=held['id'],cohort_replay=verified)),cancelled=True)
 
     def _connect(self):
-        db=sqlite3.connect(self.path,timeout=30,isolation_level=None)
+        from meme_machine.runtime.operation_costs import connect
+        db=connect(self.path,timeout=30,isolation_level=None,diagnostic_role='pons_selective_capital')
         db.execute('PRAGMA synchronous=FULL')
         return db
 

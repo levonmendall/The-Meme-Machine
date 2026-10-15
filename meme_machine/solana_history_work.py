@@ -4,6 +4,8 @@ One isolated, CPU-bounded worker leaves the existing native/archive pool intact.
 canonical owner alone creates obligations, verifies inputs, and publishes the
 original RollingHistory.prepare mutations. No provider or capital authority.
 """
+from .runtime.operation_costs import measured
+
 from contextlib import closing
 import hashlib
 import json
@@ -244,6 +246,7 @@ class HistoricalTasks:
     @property
     def clock(self):return self.history.clock
 
+    @measured('owner.history_enqueue')
     def enqueue(self,family,address,lo,hi,*,deadline,priority=4,reason=None):
         if family not in ('pump','pumpswap') or family not in self.history.active_families:
             raise EvidenceUnavailable('historical_family')
@@ -296,6 +299,7 @@ class HistoricalTasks:
             missing_intervals=None,backfill_jobs=[],boundary_state='HISTORICAL_PLANNING_PENDING',
             decision_deadline=deadline,entry_authority=False,historical_job=identity)
 
+    @measured('owner.reactivation_cold')
     def cold_ready(self,family,address,*,epoch,deadline):
         from .solana_history_restore import metadata
         if metadata(self.history,family,address) is None:return True

@@ -21,7 +21,8 @@ class History:
         self.initial_file_sha256=None
         if self.path.is_file():
             with self.path.open('rb') as source:self.initial_file_sha256=hashlib.file_digest(source,'sha256').hexdigest()
-        self.db=sqlite3.connect(path,isolation_level=None)
+        from meme_machine.runtime.operation_costs import connect
+        self.db=connect(path,isolation_level=None,diagnostic_role='survivor_history')
         self.db.execute('PRAGMA journal_mode=WAL');self.db.execute('PRAGMA synchronous=FULL')
         self.db.executescript('''
         CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,body TEXT NOT NULL,hash TEXT NOT NULL);
@@ -385,23 +386,30 @@ class Worker:
         self.closed=False;self.close_future=None;self.enrichment_enabled=enrichment_enabled
 
     def _step(self,admit):
+        from contextlib import nullcontext
+        from meme_machine.runtime import operation_costs
+        pons=os.environ.get('MM_RUNTIME_LANE')=='pons'
+        def operation(name):return operation_costs.operation(name) if pons else nullcontext()
         if self.service is None:
             from meme_machine.shared_capital.runtime import native_startup_replay
             from meme_machine.runtime.stop import requested
             # The factory owns its SQLite objects on this executor. Only its
             # initial read-only capital replay may observe startup cancellation;
             # ordinary protection/settlement steps keep their existing behavior.
-            with native_startup_replay(requested.is_set):self.service=self.factory()
+            with operation('pons.survivor_restore'):
+                with native_startup_replay(requested.is_set):self.service=self.factory()
         from meme_machine.operational.position_continuation import position_only
         maintenance=position_only();admit=admit and not maintenance
-        if maintenance:
-            from meme_machine.lanes.pons.provider_admission import position_work
-            status=position_work(self.service.step)(admit=False)
-        else:status=self.service.step(admit=admit)
+        with operation('pons.survivor_step'):
+            if maintenance:
+                from meme_machine.lanes.pons.provider_admission import position_work
+                status=position_work(self.service.step)(admit=False)
+            else:status=self.service.step(admit=admit)
         if self.enrichment_enabled and not position_only():
             try:
                 from meme_machine.runtime.opportunity_telemetry import enrich_service
-                telemetry=enrich_service(self.service,now=time.time())
+                with operation('pons.survivor_enrich'):
+                    telemetry=enrich_service(self.service,now=time.time())
             except Exception as error:
                 telemetry=dict(status='FAILED',reason='opportunity_enrichment_failed:'+type(error).__name__,
                     qualification_authority=False,order_authority=False)

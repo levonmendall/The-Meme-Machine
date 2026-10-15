@@ -11,8 +11,22 @@ from contextvars import copy_context
 import heapq
 import threading
 import time
+from meme_machine.runtime import operation_costs
 
 from . import BoundaryError
+
+
+def _owner_operation(owner,name,function,*args):
+    """Enter on the saved native context; never time its scheduled idle wait."""
+    def execute():
+        ended=None;value=None
+        with operation_costs.operation(name):
+            try:value=function(*args)
+            except StopIteration as result:ended=result
+        # Finishing a generator is a successful native turn, not a failure.
+        if ended is not None:raise ended
+        return value
+    return owner['context'].run(execute)
 
 
 def held_acquisition_request(endpoint,rpc,history,position,state,gas_units,token):
@@ -169,7 +183,7 @@ class LifecyclePool:
             self.counts['peak_owners']=max(self.counts['peak_owners'],self.counts['owners'])
             if entry:
                 self.entries+=1
-                self.entry_executor.submit(self._entry,owner)
+                operation_costs.submit(self.entry_executor,'pons.current_entry_turn',self._entry,owner)
                 return future
             self.workers[index]['owners']+=1;self.entries+=int(entry)
             self._enqueue(index,owner)
@@ -305,7 +319,7 @@ class LifecyclePool:
                         owner['started']=True
                         if owner['context'] is None:owner['context']=copy_context()
                         owner['iterator']=owner['context'].run(owner['factory'],*owner['args'],**owner['kwargs'])
-                        value=owner['context'].run(next,owner['iterator'])
+                        value=_owner_operation(owner,'pons.current_owner_turn',next,owner['iterator'])
                 else:
                     command='handoff' if self.closing else None
                     if not self.closing:
@@ -315,7 +329,7 @@ class LifecyclePool:
                         if cohort is not None:
                             try:
                                 acquire=(acquire_current_exits if owner['acquisition_request'].get('execution') else acquire_current_owners)
-                                result=owner['context'].run(acquire,
+                                result=_owner_operation(owner,'pons.current_shared_acquire',acquire,
                                     [x['acquisition_request'] for x in cohort],min(x['due'] for x in cohort)+5)
                                 acquisition.set_result(result)
                             except Exception as exc:
@@ -328,7 +342,7 @@ class LifecyclePool:
                         except Exception as exc:
                             command=dict(acquisition_failed=True,
                                 boundary=str(exc) if isinstance(exc,BoundaryError) else 'provider_transport_failure')
-                    value=owner['context'].run(owner['iterator'].send,command)
+                    value=_owner_operation(owner,'pons.current_owner_turn',owner['iterator'].send,command)
                 if not done and (not isinstance(value,dict) or value.get('kind') not in ('monitor_wait','exit_wait')
                         or value['kind']=='monitor_wait' and value.get('seconds')!=5
                         or value['kind']=='exit_wait' and not 0<=value.get('seconds',-1)<=20):
@@ -337,7 +351,8 @@ class LifecyclePool:
             except BaseException as exc:done=True;error=exc
             finally:
                 if done and owner['iterator'] is not None:
-                    try:owner['context'].run(owner['iterator'].close)
+                    try:
+                        _owner_operation(owner,'pons.current_owner_turn',owner['iterator'].close)
                     except BaseException as exc:
                         if error is None:error=exc
                 with self.lock:
