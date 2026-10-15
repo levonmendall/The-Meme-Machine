@@ -35,6 +35,16 @@
     "Applicable usable recovery reference; failed backup is not recovery proof",
     "Backup/workload nonoverlap, disk/RAM/CPU and original provider/resource limits"
   ],
+  "fresh_preflight": {
+    "checks": 24,
+    "historical_metadata_guard": "FAILED_PRESERVED; scoped financial/native/current-Pons facts independentlychecked; no whole-storePASS",
+    "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/EXCLUSIVE_PHASE_THREAD_PREFLIGHT_20261015.json",
+    "queries": 395,
+    "seconds": 0.110891,
+    "service_access": "Existing mandatory network-disabled serviceUID/namespace/head/tree/output probe runs inside observe before real clock/start. Failure requests no PAPER start.",
+    "sha256": "0627b621947896e864c53fd8d949e700fb89a55e095acddbfad52e4f69aa0635",
+    "verdict": "CURRENT_REQUIRED_PREDISPATCH_FACTS_VERIFIED_HISTORICAL_METADATA_UNATTRIBUTED"
+  },
   "funding": "CLOSED_DURING_DIAGNOSIS",
   "global_attempt_limit": null,
   "independent_justification": "O7 exact5c current-generation503.600to899.634s: arrival4.2900/durable1.8862, gap1021to1977.187candidatebatches consumed97.759s preparation+186.125s ownerqueue+111.047s execution=394.931of396.034s; exact avoidable operation unknown. Pons271.56CPU s includes192.61s outside mainthread. Prior report-only optimization established no material whole-path gain. These are specific missing discriminators, not another unchanged throughput retry.",
@@ -61,6 +71,22 @@
   "per_invocation_one_start": true,
   "permitted_operational_writes": "Existing canonical/source/prewarm/session/historian/candidate-history/receiptACK/provider accounting/native recovery/reporting and OBSERVATION runtime-admission/owner records from unchanged run contract; no new position, reservation, fill, capital transfer, epoch or strategy-policy mutation; compatible additive metadata indexes and scoped_retirement_hot_cursor/table housekeeping metadata through the existing authoritative owner, no coverage/checkpoint advancement from archival cursors",
   "poststartup_measurement_maximum_seconds": 900,
+  "prepared_installation": {
+    "environment_path": "/etc/meme-machine/volume-quality-service.observation.env",
+    "executable": "1ee2d5fa6d660e696166f16b772d456b8c0a55d4",
+    "identities": {
+      "access_helper_sha256": "06ed4835ca126c5291d86546d08c08580afa33c45f96c3178d31391e24aa8ee0",
+      "base_unit_sha256": "7cd10c6c717a97f312c8718886bb09750b5498ccf96ef5bc74b52f8094bfe294",
+      "continuous_profile_sha256": "5bfc1fe915df2f40dff8fc6fb1cc5f98a836fe41c7155bfd4ca15f0d563e39bd",
+      "controller_sha256": "31c1c47197b56f41d4ddf835ef125d4b30e48551dc9cbc88eee2a34955f346e0",
+      "environment_sha256": "ef86c04932ac601cc3fe3ef1199b63bb2b0156408445d68dacbec69136f34006",
+      "unit_sha256": "48b0fe22daa4b4cb713422f3ebde8767779c2a0b959bcac3027381c2a0cc882c"
+    },
+    "installed_before": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "output": "/var/lib/meme-machine-diagnostics/20261015-standing-phase-thread-1ee2d5fa-045246",
+    "preparation": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/EXCLUSIVE_PHASE_THREAD_PREPARATION_20261015T045246Z",
+    "unit_path": "/etc/systemd/system/meme-machine-paper.service.d/validation-observation.conf"
+  },
   "prior_observation": {
     "evidence_index": "evidence/standing-source-access-result-20261015.json",
     "result": "STARTUP_LIMITATION / readinessFAIL / native stop verified currentworkers only / acceptance0",
@@ -82,7 +108,7 @@
   "routine_per_run_owner_approval": false,
   "schema": 1,
   "shutdown_reserve_seconds": 65,
-  "status": "FIXED_PHASE_THREAD_ATTRIBUTION_FOCUSED_TESTED_FRESH_PREFLIGHT_REQUIRED",
+  "status": "FIXED_PHASE_THREAD_ATTRIBUTION_PREPARED_SOURCE_INSTALLED_FUNDING_CLOSED_NOT_STARTED",
   "tested_successor": "1ee2d5fa6d660e696166f16b772d456b8c0a55d4",
   "unchanged_resource_protection_contract": "https://github.com/levonmendall/The-Meme-Machine/blob/a32f49d2061e577644ef2d28f75fefd4a48ebe87/operational/pump-first-release/CONSOLIDATED_STARTUP_NEXT_OBSERVATION_SPEC_20261014.json",
   "validation": "Risk-based focused gate:247cases246PASS/1stale duplicated-field assertionERROR57.453s; corrected affectedcollector+4exactsource/economic guards34PASS10.740s; final30collectorPASS. Actual integrated startup, original canonical/economic/order/rollback/pending-history/cancellation tests passed in247run. No new fullFAST; prior completeFAST38652038787 succeeded only on old c8beb2d source, not current releasePASS.",
