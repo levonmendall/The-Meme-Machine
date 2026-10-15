@@ -244,17 +244,44 @@ class LocalPumpTape:
         return value
 
     def _creation(self,mint):
+        from meme_machine.runtime.stop import requested,Shutdown
+        from meme_machine.runtime.sqlite_failure import preserving_cleanup
+        def check_stop():
+            if requested.is_set():raise Shutdown()
+        check_stop()
         db=self.plane.reader.db;db.execute('BEGIN')
         try:
+            # The existing canonical create receipt is committed with its
+            # economics. Resolve it by identity instead of expanding up to a
+            # thousand later trade bodies. This is lineage attention, never
+            # an interval-completeness or qualification verdict.
+            if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='rolling_origins'").fetchone():
+                origin=db.execute("SELECT lower_slot,market_time,receipt FROM rolling_origins WHERE family='pump' AND address=?",(mint,)).fetchone()
+                check_stop()
+                if origin:
+                    row=db.execute('SELECT body,hash,first_seen FROM records WHERE identity=? AND scope=? AND kind=\'event\' AND first_seen<=? LIMIT 1',
+                        (origin[2],PUMP_SCOPE,self.plane.clock())).fetchone()
+                    check_stop()
+                    if row and row[0]:
+                        record=decode_body(row[0],db);check_stop()
+                        from .solana_evidence_plane import digest
+                        event=record.get('payload',{}).get('event',{})
+                        if (digest(record)!=row[1] or record.get('identity')!=origin[2]
+                                or record.get('scope')!=PUMP_SCOPE or record.get('kind')!='event'
+                                or record.get('slot')!=origin[0] or record.get('market_time')!=origin[1]
+                                or event.get('event_type')!='create' or event.get('mint')!=mint):
+                            raise EvidenceUnavailable('pump_creation_origin_mismatch')
+                        return dict(event,available_time=int(row[2]))
             # Materializing the canonical UNION view for a join scanned the
             # entire retained market on every trade. Bind the same address's
             # identities first, then use each canonical branch's primary key.
             # A large identity set keeps the original path, never loses rows.
             identities=[r[0] for r in db.execute('SELECT identity FROM addresses WHERE address=? LIMIT 2049',(mint,))]
+            check_stop()
             if len(identities)>2048:
                 rows=db.execute('''SELECT r.body,r.first_seen FROM addresses a JOIN records r ON r.identity=a.identity
                     WHERE a.address=? AND r.scope=? AND r.kind='event' AND r.first_seen<=? ORDER BY r.slot DESC LIMIT 1000''',
-                    (mint,PUMP_SCOPE,self.plane.clock())).fetchall()
+                    (mint,PUMP_SCOPE,self.plane.clock()))
             elif identities:
                 # More than one identity let SQLite favor the whole-program
                 # ordering index again. Materialize only bounded point metadata
@@ -263,12 +290,15 @@ class LocalPumpTape:
                 # every record reference to its canonical content views.
                 rows=db.execute("SELECT (SELECT body FROM records e WHERE e.identity=r.identity LIMIT 1),r.first_seen FROM (WITH matched AS MATERIALIZED (SELECT identity,scope,kind,slot,first_seen FROM records WHERE identity IN ("+
                     ','.join('?' for _ in identities)+")) SELECT identity,first_seen FROM matched WHERE scope=? AND kind='event' AND first_seen<=? ORDER BY slot DESC LIMIT 1000) r",
-                    (*identities,PUMP_SCOPE,self.plane.clock())).fetchall()
+                    (*identities,PUMP_SCOPE,self.plane.clock()))
             else:rows=[]
             for raw,seen in rows:
+                check_stop()
                 if raw:
                     event=decode_body(raw,db)['payload'].get('event',{})
+                    check_stop()
                     if event.get('event_type')=='create':return dict(event,available_time=int(seen))
+            check_stop()
             from contextlib import closing
             from meme_machine.runtime.candidate_history import open_candidate_history
             history=open_candidate_history()
@@ -278,10 +308,12 @@ class LocalPumpTape:
                     # this normalized kind. Resolve creation only; buying a
                     # local archived trade history again cannot supply it.
                     for record in history.events('pump',mint,kind='pump_create'):
+                        check_stop()
                         event=record['payload']
                         if event.get('event_type')=='create':return dict(event,available_time=int(event.get('available_time',event['market_time'])))
             return None
-        finally:db.execute('ROLLBACK')
+        finally:
+            with preserving_cleanup():db.execute('ROLLBACK')
     def events_since(self,sequence):
         self._creation_batch={}
         self.candidate_history_retained_path=None

@@ -822,6 +822,169 @@ class DiagnosticDrainTests(unittest.TestCase):
         self.assertTrue(result['drained']); self.assertFalse(result['recovery_required'])
 
 
+class DiagnosticFinalNativeVerdictTests(unittest.TestCase):
+    """Actual controller serialization, without a service or provider start."""
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name) / 'state'; self.root.mkdir()
+        self.output = Path(self.tmp.name) / 'diagnostic'; self.output.mkdir()
+        self.expected = {'pump': dict(pid=12, process_instance='a' * 32),
+                         'pons': dict(pid=13, process_instance='b' * 32)}
+
+    def terminal_health(self):
+        now = diagnostic.time.monotonic()
+        return dict(pid=10, at='2026-10-15T01:00:00Z',
+            lanes={name: dict(identity, phase='STOPPED', reconciled=True,
+                exit_code=0, at='2026-10-15T01:00:00Z') for name, identity in self.expected.items()},
+            native_shutdown=[dict(operation='wait_completed', lane=name, run_id='c' * 32,
+                caller_pid=10, caller_native_thread_id=11, target_pid=identity['pid'],
+                at=100, monotonic=now, exit_code=0) for name, identity in self.expected.items()])
+
+    def observe(self, transform=lambda health: None, *, original_failure=False):
+        initial = dict(pid=10, lanes={name: dict(identity, phase='DISCOVERING', reconciled=True)
+                       for name, identity in self.expected.items()}, providers={})
+        if original_failure:
+            initial['providers'] = {'robinhood': {'queue_depth': 65}}
+        (self.root / 'health.json').write_text(json.dumps(initial))
+        starts = []; pid_reads = []; revision = 'a' * 40
+        def ctl(*args, **kwargs):
+            if args[:3] == ('show', diagnostic.UNIT, '-p') and args[3:] == ('MainPID', '--value'):
+                pid_reads.append(True); return '0' if len(pid_reads) == 1 else '10'
+            if args[-2:] == ('UnitFileState', '--value'):return 'disabled'
+            if args[-2:] == ('ExecStart', '--value'):
+                return f'current_combined_observation_20261014 supervise {self.root} {self.output} {revision}'
+            if args[:2] == ('--no-block', 'start'):
+                starts.append(args); return ''
+            return 'Restart=no\nRuntimeMaxUSec=30min\nTimeoutStopUSec=1min 5s\nKillMode=control-group'
+        def drain(_):
+            health = self.terminal_health(); transform(health)
+            (self.root / 'health.json').write_text(json.dumps(health))
+            return dict(drained=True, recovery_required=False, native_drain='UNVERIFIED_TIMEOUT_ESCALATION_POSSIBLE')
+        real_read = Path.read_text
+        def read(path, *args, **kwargs):
+            return '1' if path.name == 'memory.current' else real_read(path, *args, **kwargs)
+        pipeline = dict(available=False, collected_at=100, collected_at_monotonic=100)
+        with patch.object(diagnostic, 'control', side_effect=ctl), \
+             patch.object(diagnostic.subprocess, 'check_output', return_value=revision), \
+             patch.object(diagnostic, 'economic', return_value={'flat': True}), \
+             patch.object(diagnostic, 'check_access', return_value={'pass': True}), \
+             patch.object(diagnostic, 'drain', side_effect=drain) as drained, \
+             patch.object(diagnostic.os, 'statvfs', return_value=SimpleNamespace(f_bavail=10*1024**3, f_frsize=1)), \
+             patch.object(Path, 'read_text', new=read), \
+             patch.object(diagnostic.FiveSecondSampler, 'read', return_value=(pipeline, False)), \
+             patch.object(diagnostic, 'readiness', return_value=False), \
+             patch.object(diagnostic.Window, 'decision', return_value='STARTUP_LIMITATION'):
+            code = diagnostic.observe_once(self.root, self.output, revision)
+        self.assertEqual(len(starts), 1); drained.assert_called_once()
+        result = diagnostic.read_json(self.output / 'result.json')
+        self.assertEqual(result['acceptance_minutes'], 0)
+        self.assertTrue(result['drained']); self.assertTrue(result['economic_continuity'])
+        return code, result
+
+    def test_killed_discovering_native_overrides_empty_group_and_flat_money(self):
+        def killed(health):
+            health['lanes']['pump'].update(phase='DISCOVERING', exit_code=-9)
+            health['native_shutdown'][:0] = [dict(operation=operation, lane='pump',
+                run_id='c' * 32, caller_pid=10, target_pid=12, at=100,
+                monotonic=diagnostic.time.monotonic(), **fields) for operation, fields in (
+                    ('wait_timeout', {'timeout_seconds': 15}), ('signal_sent', {'signal': 9}))]
+            health['native_shutdown'][2]['exit_code'] = -9
+            health['native_shutdown'][0]['private'] = 'secret-context'
+        code, result = self.observe(killed)
+        self.assertEqual(code, 2)
+        self.assertEqual(result['stop_reason'], 'STARTUP_LIMITATION')
+        self.assertEqual(result['native_drain'], 'FAILED')
+        self.assertTrue(result['recovery_required'])
+        self.assertEqual(result['status'], 'RECOVERY_REQUIRED')
+        pump = result['final_native_health']['native_workers']['pump']
+        self.assertEqual((pump['phase'], pump['exit_code'], pump['state']), ('DISCOVERING', -9, 'FAILED'))
+        self.assertEqual(pump['expected_process_instance'], 'a' * 32)
+        self.assertNotIn('secret', (self.output / 'result.json').read_text())
+
+    def test_current_clean_native_stop_is_only_scoped_stop_evidence(self):
+        code, result = self.observe()
+        self.assertEqual(code, 0)
+        self.assertFalse(result['recovery_required'])
+        self.assertEqual(result['status'], 'STOPPED_REVIEW_REQUIRED')
+        self.assertEqual(result['native_drain'], 'VERIFIED_NATIVE_WORKER_STOP_ONLY')
+        self.assertEqual(result['stop_reason'], 'STARTUP_LIMITATION')
+        final = result['final_native_health']
+        self.assertEqual(final['native_drain_scope'],
+            'CURRENT_NATIVE_WORKER_STOP_NOT_GLOBAL_RECOVERY_OR_RESUMABILITY_PROOF')
+        self.assertEqual(final['native_workers']['pump']['current_shutdown_records'], 1)
+
+    def test_nonterminal_or_unreconciled_native_never_becomes_clean_stop(self):
+        for fields in (dict(phase='RECONCILING', reconciled=False), dict(phase='DISCOVERING'),
+                       dict(phase='STOPPED', reconciled=False)):
+            with self.subTest(fields=fields):
+                code, result = self.observe(lambda health: health['lanes']['pump'].update(fields))
+                self.assertEqual(code, 2); self.assertTrue(result['recovery_required'])
+                self.assertEqual(result['status'], 'RECOVERY_REQUIRED')
+
+    def test_missing_or_stale_native_evidence_remains_unavailable(self):
+        def missing_generation(health):health['lanes']['pump'].pop('process_instance')
+        def stale_generation(health):health['lanes']['pump']['process_instance'] = 'd' * 32
+        def wrong_pid(health):health['native_shutdown'][0]['target_pid'] = 99
+        def wrong_reporter(health):health['native_shutdown'][0]['caller_pid'] = 99
+        def old_clock(health):health['native_shutdown'][0]['monotonic'] = 0
+        def future_clock(health):health['native_shutdown'][0]['monotonic'] += 10000
+        def missing_exit(health):health['lanes']['pump'].pop('exit_code')
+        def missing_reconciliation(health):health['lanes']['pump'].pop('reconciled')
+        def missing_terminal(health):health.pop('native_shutdown')
+        def conflicting_run(health):health['native_shutdown'][0]['run_id'] = 'd' * 32
+        for mutate in (missing_generation, stale_generation, wrong_pid, wrong_reporter,
+                       old_clock, future_clock, missing_exit, missing_reconciliation,
+                       missing_terminal, conflicting_run):
+            with self.subTest(mutate=mutate.__name__):
+                code, result = self.observe(mutate)
+                self.assertEqual(code, 2); self.assertTrue(result['recovery_required'])
+                self.assertEqual(result['native_drain'], diagnostic.UNAVAILABLE)
+                self.assertEqual(result['status'], 'RECOVERY_REQUIRED')
+
+    def test_original_guard_failure_survives_later_native_failure(self):
+        code, result = self.observe(lambda health: health['lanes']['pump'].update(exit_code=-9),
+                                    original_failure=True)
+        self.assertEqual(code, 2)
+        self.assertEqual(result['stop_reason'], 'provider_queue_limit:robinhood')
+        self.assertEqual(result['triggering_guard']['queue_depth'], 65)
+        self.assertEqual(result['native_drain'], 'FAILED')
+        self.assertTrue(result['recovery_required'])
+
+    def test_unavailable_final_projection_preserves_original_guard_failure(self):
+        code, result = self.observe(lambda health: health.clear(), original_failure=True)
+        self.assertEqual(code, 2)
+        self.assertEqual(result['stop_reason'], 'provider_queue_limit:robinhood')
+        self.assertEqual(result['triggering_guard']['queue_depth'], 65)
+        self.assertEqual(result['native_drain'], diagnostic.UNAVAILABLE)
+        self.assertFalse(result['final_native_health']['available'])
+        self.assertTrue(result['recovery_required'])
+
+    def test_truncated_native_shutdown_cannot_establish_clean_stop(self):
+        def truncated(health):health['native_shutdown'] *= 25
+        code, result = self.observe(truncated)
+        self.assertEqual(code, 2)
+        self.assertTrue(result['final_native_health']['native_shutdown_truncated'])
+        self.assertEqual(len(result['final_native_health']['native_shutdown']), 48)
+        self.assertEqual(result['native_drain'], diagnostic.UNAVAILABLE)
+        self.assertTrue(result['recovery_required'])
+
+    def test_shutdown_request_clock_is_current_but_clean_pre_stop_exits_remain_valid(self):
+        health = self.terminal_health()
+        for row in health['native_shutdown']:
+            row.update(operation='already_exited', monotonic=1500)
+        (self.root / 'health.json').write_text(json.dumps(health))
+        with patch.object(diagnostic.time, 'monotonic', return_value=1800):
+            final = diagnostic.final_native_health(self.root, 10, 1000,
+                expected_workers=self.expected, shutdown_started=1700)
+            self.assertEqual(final['native_drain'], 'VERIFIED_NATIVE_WORKER_STOP_ONLY')
+            for invalid in (999, 1801, float('nan'), None):
+                with self.subTest(shutdown_started=invalid):
+                    final = diagnostic.final_native_health(self.root, 10, 1000,
+                        expected_workers=self.expected, shutdown_started=invalid)
+                    self.assertEqual(final['native_drain'], diagnostic.UNAVAILABLE)
+                    self.assertEqual(final['native_workers']['pump']['current_shutdown_records'], 0)
+
+
 class DiagnosticAccessTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)

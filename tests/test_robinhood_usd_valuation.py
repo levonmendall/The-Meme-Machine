@@ -119,7 +119,10 @@ OPERATION_DELTAS = {
         # 5ec6a2b6 keeps creation lookup and its bounded per-poll attention
         # cache separate. Missing lineage is forgotten on the next poll.
         'LocalPumpTape.creation': 'a233fc5649ccc393970f4de814b3462884155a0daf3618a9e608b2990624f0d7',
-        'LocalPumpTape._creation': '1533476e797f59f1d7a241f9134fba9d860d998a2d2156b9ed9a9332bb2a3113',
+        # O5 cancellation was inside rich-body fetchall. Exact authenticated
+        # rolling-origin lookup and cooperative legacy streaming preserve
+        # availability, hash/lineage validation and all economic siblings.
+        'LocalPumpTape._creation': 'a833703cf88891ed985af14d213c0ca2b9437002925fca278fadadc93b1cd51a',
         'LocalPumpTape.events_since': 'ba20cb5653544e5ae46696fbc47bf95c684b4e0042df9f76c52c09cca981e631',
     },
 }
@@ -363,9 +366,12 @@ OBSERVATION_FOLLOWUP_DELTAS={
         ('_restore_observed_pump_candidates',)),
     'meme_machine/runtime/robinhood/pons.py': (
         'ad75892a39a0b6ca898f90a0f698e7eb80ad8c7928820286babc46f5b697028c',
-        'a1d3cf01ccf8bb102e31b33dc7edef2fa2dfd1434f5bf8dd0aa0d127d13ff030',
+        '2ca1a6a84f52691e37cb15c7d9c4b574a9b95115492ac874f4710d32ed35d526',
         ('Broker.__init__','Broker._renew_retained_interpretation',
-         'Broker._remember_watch','Broker._sync_watch_order','Broker._enqueue')),
+         'Broker._remember_watch','Broker._sync_watch_order','Broker._enqueue',
+         # O5 report-only totals now project the same fresh native counters
+         # without full endpoint health/CU reporting; every other byte stays.
+         'provider_totals')),
 }
 
 

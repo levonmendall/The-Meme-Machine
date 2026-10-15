@@ -102,8 +102,8 @@ def native_lifecycle(lanes):
     return result
 
 
-def final_native_health(root, expected_pid, origin):
-    """Bounded final projection, not a graceful-drain or reconciliation verdict."""
+def final_native_health(root, expected_pid, origin, *, expected_workers=None, shutdown_started=None):
+    """Current-process shutdown evidence; never infer recovery from an empty cgroup."""
     if time.monotonic() >= origin + 1865 or expected_pid is None:
         return dict(available=False, reason='FINAL_HEALTH_DEADLINE_OR_PID_UNAVAILABLE')
     try:
@@ -124,13 +124,62 @@ def final_native_health(root, expected_pid, origin):
                 run = row.get('run_id')
                 facts['run_id'] = run if isinstance(run, str) and re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}', run) else UNAVAILABLE
                 rows.append(facts)
-        return dict(available=True, supervisor_pid=expected_pid,
+        result = dict(available=True, supervisor_pid=expected_pid,
             health_at=health.get('at') if isinstance(health.get('at'), str) and re.fullmatch(r'[0-9T:.+Z-]{1,40}', health['at']) else UNAVAILABLE,
             native_lifecycle=native_lifecycle(health.get('lanes', {})),
             native_shutdown=rows if isinstance(shutdown, list) else UNAVAILABLE,
             native_shutdown_truncated=isinstance(shutdown, list) and len(shutdown) > 48,
             scope='FINAL_PROJECTION_NOT_PROOF_OF_DRAIN_OR_COMPLETED_RECONCILIATION')
-    except (OSError, ValueError, TypeError, AttributeError):
+        workers = {}; now = time.monotonic(); current_runs = set()
+        result['collected_at_monotonic'] = now
+        result['shutdown_requested_at_monotonic'] = shutdown_started if finite_number(shutdown_started) else UNAVAILABLE
+        shutdown_clock_current = finite_number(shutdown_started) and origin <= shutdown_started <= now
+        lanes = health.get('lanes', {})
+        lanes = lanes if isinstance(lanes, dict) else {}
+        for name in ('pump', 'pons'):
+            lane = lanes.get(name, {}); lane = lane if isinstance(lane, dict) else {}
+            expected = (expected_workers or {}).get(name, {})
+            pid = expected.get('pid'); instance = expected.get('process_instance')
+            valid_pid = type(pid) is int and pid > 0
+            valid_instance = isinstance(instance, str) and re.fullmatch(r'[0-9a-f]{32}', instance) is not None
+            current = (valid_pid and valid_instance and lane.get('pid') == pid and
+                       lane.get('process_instance') == instance)
+            matching = [row for row in rows if row['lane'] == name and valid_pid and
+                        row['target_pid'] == pid and row['caller_pid'] == expected_pid and
+                        shutdown_clock_current and finite_number(row['monotonic']) and
+                        origin <= row['monotonic'] <= now and
+                        row['run_id'] != UNAVAILABLE]
+            runs = {row['run_id'] for row in matching}; current_runs.update(runs)
+            exit_code = lane.get('exit_code') if type(lane.get('exit_code')) is int else UNAVAILABLE
+            phase = lane.get('phase') if lane.get('phase') in (
+                'STOPPED', 'RECONCILING', 'DISCOVERING', 'MANAGING', 'STARTING',
+                'FAIL_CLOSED', 'VALUATION_UNAVAILABLE') else UNAVAILABLE
+            reconciled = lane.get('reconciled') if type(lane.get('reconciled')) is bool else UNAVAILABLE
+            failed = (any(row['operation'] == 'wait_timeout' or row['signal'] == int(signal.SIGKILL) or
+                          type(row['exit_code']) is int and row['exit_code'] != 0 for row in matching) or
+                      current and (exit_code != UNAVAILABLE and exit_code != 0 or
+                                   phase != UNAVAILABLE and phase != 'STOPPED' or reconciled is False))
+            completed = any(row['operation'] in ('wait_completed', 'already_exited') and
+                            row['exit_code'] == 0 for row in matching)
+            verified = (current and completed and phase == 'STOPPED' and reconciled is True and
+                        exit_code == 0 and not failed and len(runs) == 1 and
+                        not result['native_shutdown_truncated'])
+            state = 'FAILED' if failed else 'VERIFIED_NATIVE_WORKER_STOP_ONLY' if verified else UNAVAILABLE
+            workers[name] = dict(state=state,
+                expected_pid=pid if valid_pid else UNAVAILABLE,
+                expected_process_instance=instance if valid_instance else UNAVAILABLE,
+                current_process_identity=current, phase=phase, reconciled=reconciled,
+                exit_code=exit_code, current_shutdown_records=len(matching),
+                shutdown_run_id=next(iter(runs)) if len(runs) == 1 else UNAVAILABLE,
+                health_at=lane.get('at') if isinstance(lane.get('at'), str) and
+                    re.fullmatch(r'[0-9T:.+Z-]{1,40}', lane['at']) else UNAVAILABLE)
+        result['native_workers'] = workers
+        result['native_drain'] = ('FAILED' if any(row['state'] == 'FAILED' for row in workers.values()) else
+            'VERIFIED_NATIVE_WORKER_STOP_ONLY' if len(current_runs) == 1 and all(row['state'] == 'VERIFIED_NATIVE_WORKER_STOP_ONLY'
+                                                    for row in workers.values()) else UNAVAILABLE)
+        result['native_drain_scope'] = 'CURRENT_NATIVE_WORKER_STOP_NOT_GLOBAL_RECOVERY_OR_RESUMABILITY_PROOF'
+        return result
+    except Exception:
         return dict(available=False, reason='FINAL_NATIVE_HEALTH_UNAVAILABLE')
 
 
@@ -893,7 +942,7 @@ def observe_once(root, output, source_revision):
     prior = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
     for sig in prior:
         signal.signal(sig, lambda *_: stopped.__setitem__(0, True))
-    known = {}; covered = False; generation = None; observed_supervisor_pid = None
+    known = {}; expected_workers = {}; covered = False; generation = None; observed_supervisor_pid = None
     sampler = FiveSecondSampler()
     cohort = ReceiptCohort(time.time())
     coverage = RecorderCoverage()
@@ -929,6 +978,15 @@ def observe_once(root, output, source_revision):
             if any(k in known and known[k] != v for k, v in pids.items()):
                 raise ValueError('unexpected_worker_restart')
             known.update(pids)
+            for name in ('pump', 'pons'):
+                row = lanes.get(name, {})
+                if not isinstance(row, dict):continue
+                instance = row.get('process_instance')
+                if type(row.get('pid')) is int and row['pid'] > 0 and isinstance(instance, str) and re.fullmatch(r'[0-9a-f]{32}', instance):
+                    identity = dict(pid=row['pid'], process_instance=instance)
+                    if name in expected_workers and expected_workers[name] != identity:
+                        raise ValueError('unexpected_worker_generation')
+                    expected_workers[name] = identity
             group = Path('/sys/fs/cgroup/system.slice') / UNIT
             memory = int((group / 'memory.current').read_text())
             if memory >= 6 * 1024**3:
@@ -981,9 +1039,13 @@ def observe_once(root, output, source_revision):
     except BaseException as error:
         record.update(stop_reason=str(error) if type(error) is ValueError else type(error).__name__, failure=True)
     finally:
+        shutdown_started = time.monotonic()
         record.update(drain(origin), original_readiness=window.original_readiness,
                       restored_at_monotonic=window.restored, elapsed_to_drain_seconds=time.monotonic() - origin)
-        record['final_native_health'] = final_native_health(root, observed_supervisor_pid, origin)
+        record['final_native_health'] = final_native_health(root, observed_supervisor_pid, origin,
+            expected_workers=expected_workers, shutdown_started=shutdown_started)
+        record['native_drain'] = record['final_native_health'].get('native_drain', UNAVAILABLE)
+        record['recovery_required'] |= record['native_drain'] != 'VERIFIED_NATIVE_WORKER_STOP_ONLY'
         if record['drained']:
             try:
                 record['economic_continuity'] = economic(root) == before

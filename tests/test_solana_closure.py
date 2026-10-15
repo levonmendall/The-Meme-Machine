@@ -755,6 +755,153 @@ class ClosureTests(unittest.TestCase):
             self.assertEqual(tape.creation(event['mint']),dict(event,available_time=int(NOW)))
             self.assertTrue(any('JOIN canonical_evidence' in sql for sql in statements))
 
+    def creation_fixture(self,*,trades=0,origin=True):
+        from dataclasses import replace
+        from meme_machine.solana_program_decoders import pump_events
+        tx=FIXTURE['pump'][0]
+        event=next(e for e in pump_events(tx) if e['event_type']=='create')
+        rows=economic_records('pump',event['mint'],tx,endpoint_identity='a'*64,
+            seen=NOW,source='alchemy_finalized_repair')
+        created=next(r for r in rows if r.kind=='event' and r.payload['event']['event_type']=='create')
+        with self.state.writer.transaction():
+            for row in rows:self.h.rolling.store(row)
+            if origin:self.h.rolling.adopt([created])
+            # Rich disposable canonical bodies, not a faithful market replay.
+            for n in range(trades):
+                trade=replace(created,identity='creation-attention-trade-'+str(n),
+                    slot=created.slot+n+1,signature='attention-signature-'+str(n),
+                    payload=dict(event=dict(event,event_type='buy'),
+                        retained_fields=['retained-economic-field']*64))
+                self.h.rolling.store(trade)
+        return event,created
+
+    def test_creation_origin_reads_one_authenticated_body_after_dense_trade_history(self):
+        from meme_machine.solana_selective_history import ConsumerReader
+        from meme_machine.lanes.pump import solana_evidence_runtime as runtime
+        event,created=self.creation_fixture(trades=1001)
+        for restart in (False,True):
+            if restart:self.restart()
+            with closing(EvidenceReader(self.path)) as original:
+                tape=runtime.LocalPumpTape(SimpleNamespace(reader=ConsumerReader(original),clock=lambda:NOW))
+                with patch.object(runtime,'decode_body',wraps=runtime.decode_body) as decoded:
+                    self.assertEqual(tape.creation(event['mint']),dict(event,available_time=int(NOW)))
+                    self.assertEqual(decoded.call_count,1)
+                # Do not replace a caller-owned SQLite progress handler.
+                progress=[];original.db.set_progress_handler(lambda:progress.append(1) or 0,1)
+                tape.creation(event['mint']);before=len(progress)
+                original.db.execute('SELECT 1').fetchone()
+                self.assertGreater(len(progress),before)
+                original.db.set_progress_handler(None,0)
+                self.assertFalse(original.db.in_transaction)
+
+    def test_creation_origin_preserves_availability_and_rejects_corrupt_reference(self):
+        from meme_machine.solana_selective_history import ConsumerReader
+        from meme_machine.lanes.pump.solana_evidence_runtime import LocalPumpTape,EvidenceUnavailable as NativeUnavailable
+        event,created=self.creation_fixture()
+        with closing(EvidenceReader(self.path)) as original:
+            plane=SimpleNamespace(reader=ConsumerReader(original),clock=lambda:self.now[0])
+            tape=LocalPumpTape(plane)
+            self.now[0]=NOW-1;self.assertIsNone(tape.creation(event['mint']))
+            self.now[0]=NOW
+            self.assertEqual(tape.creation(event['mint']),dict(event,available_time=int(NOW)))
+            db=self.state.writer.db
+            db.execute('UPDATE rolling_economic_events SET hash=? WHERE identity=?',('corrupt',created.identity))
+            with self.assertRaises(NativeUnavailable):tape.creation(event['mint'])
+            self.assertFalse(original.db.in_transaction)
+
+    def test_creation_origin_reuses_only_exact_validated_lineage(self):
+        from meme_machine.solana_selective_history import ConsumerReader
+        from meme_machine.lanes.pump import solana_evidence_runtime as runtime
+        event,created=self.creation_fixture(trades=20)
+        db=self.state.writer.db
+        with closing(EvidenceReader(self.path)) as original:
+            tape=runtime.LocalPumpTape(SimpleNamespace(reader=ConsumerReader(original),clock=lambda:NOW))
+            with patch.object(runtime,'decode_body',wraps=runtime.decode_body) as decoded:
+                expected=tape.creation(event['mint']);self.assertEqual(decoded.call_count,1)
+                origin=db.execute("SELECT * FROM rolling_origins WHERE family='pump' AND address=?",(event['mint'],)).fetchone()
+                db.execute("DELETE FROM rolling_origins WHERE family='pump' AND address=?",(event['mint'],))
+                decoded.reset_mock()
+                self.assertEqual(tape.creation(event['mint']),expected)
+                self.assertEqual(decoded.call_count,22,'legacy fallback must retain its exact event order')
+                db.execute('INSERT INTO rolling_origins VALUES(?,?,?,?,?)',origin)
+            for column,value in (('lower_slot',created.slot+1),('market_time',created.market_time+1),
+                                 ('receipt','creation-attention-trade-0')):
+                with self.subTest(column=column):
+                    previous=db.execute('SELECT '+column+" FROM rolling_origins WHERE family='pump' AND address=?",(event['mint'],)).fetchone()[0]
+                    db.execute('UPDATE rolling_origins SET '+column+"=? WHERE family='pump' AND address=?",(value,event['mint']))
+                    try:
+                        with self.assertRaises(runtime.EvidenceUnavailable):tape.creation(event['mint'])
+                    finally:db.execute('UPDATE rolling_origins SET '+column+"=? WHERE family='pump' AND address=?",(previous,event['mint']))
+
+    def test_creation_cold_origin_uses_existing_history_receipt_without_fabricating_one(self):
+        from meme_machine.solana_selective_history import ConsumerReader
+        from meme_machine.lanes.pump.solana_evidence_runtime import LocalPumpTape
+        event,created=self.creation_fixture()
+        self.state.writer.db.execute('UPDATE rolling_economic_events SET body=NULL WHERE identity=?',(created.identity,))
+        path=Path(self.tmp.name)/'creation-history.sqlite'
+        with closing(CandidateHistory(path)) as history:
+            history.append_event('pump',event['mint'],identity=created.identity,kind='pump_create',
+                slot=created.slot,transaction_index=created.transaction_index,event_index=created.event_index,
+                market_time=event['market_time'],payload=dict(event,available_time=int(NOW)))
+        with closing(EvidenceReader(self.path)) as original:
+            tape=LocalPumpTape(SimpleNamespace(reader=ConsumerReader(original),clock=lambda:NOW))
+            with patch('meme_machine.runtime.candidate_history.open_candidate_history',
+                       side_effect=lambda:CandidateHistory(path)):
+                self.assertEqual(tape.creation(event['mint']),dict(event,available_time=int(NOW)))
+            with patch('meme_machine.runtime.candidate_history.open_candidate_history',return_value=None):
+                self.assertIsNone(tape.creation(event['mint']))
+
+    def test_creation_cancellation_preserves_pending_work_and_read_connection(self):
+        from meme_machine.solana_selective_history import ConsumerReader
+        from meme_machine.lanes.pump import solana_evidence_runtime as runtime
+        from meme_machine.runtime.stop import requested,Shutdown
+        event,created=self.creation_fixture(trades=10,origin=False)
+        self.addCleanup(requested.clear)
+        pending=self.life.emit('pump',event['mint'],'canonical',dict(
+            record=json.loads(self.state.writer.db.execute('SELECT body FROM rolling_economic_events WHERE identity=?',(created.identity,)).fetchone()[0]),
+            available=NOW))
+        before=self.state.writer.db.execute('SELECT * FROM candidate_history_outbox ORDER BY id').fetchall()
+        self.assertTrue(before);self.assertTrue(any(row[0]==pending and row[7] is None for row in before))
+        decode=runtime.decode_body
+        def canceled(*args,**kwargs):
+            value=decode(*args,**kwargs);requested.set();return value
+        with closing(EvidenceReader(self.path)) as original:
+            tape=runtime.LocalPumpTape(SimpleNamespace(reader=ConsumerReader(original),clock=lambda:NOW))
+            with patch.object(runtime,'decode_body',side_effect=canceled) as decoded:
+                with self.assertRaises(Shutdown):tape.creation(event['mint'])
+                self.assertEqual(decoded.call_count,1)
+            self.assertFalse(original.db.in_transaction)
+            requested.clear()
+            self.assertEqual(tape.creation(event['mint']),dict(event,available_time=int(NOW)))
+            requested.set()
+            with self.assertRaises(Shutdown):tape.creation(event['mint'])
+            self.assertFalse(original.db.in_transaction)
+        self.restart()
+        self.assertEqual(self.state.writer.db.execute('SELECT * FROM candidate_history_outbox ORDER BY id').fetchall(),before)
+
+    def test_creation_cleanup_failure_does_not_replace_original_cancellation(self):
+        from meme_machine.solana_selective_history import ConsumerReader
+        from meme_machine.lanes.pump import solana_evidence_runtime as runtime
+        from meme_machine.runtime.stop import requested,Shutdown
+        event,_=self.creation_fixture(origin=False)
+        self.addCleanup(requested.clear)
+        with closing(EvidenceReader(self.path)) as original:
+            consumer=ConsumerReader(original)
+            class FailedCleanup:
+                def execute(self,statement,*args):
+                    if statement=='ROLLBACK':
+                        consumer.db.execute('ROLLBACK')
+                        raise OSError('disposable_cleanup_failure')
+                    return consumer.db.execute(statement,*args)
+            proxy=FailedCleanup()
+            tape=runtime.LocalPumpTape(SimpleNamespace(reader=SimpleNamespace(db=proxy),clock=lambda:NOW))
+            decode=runtime.decode_body
+            def canceled(*args,**kwargs):
+                value=decode(*args,**kwargs);requested.set();return value
+            with patch.object(runtime,'decode_body',side_effect=canceled):
+                with self.assertRaises(Shutdown):tape.creation(event['mint'])
+            self.assertFalse(original.db.in_transaction)
+
 
 class StructuralCensusTests(unittest.TestCase):
     def test_quiet_census_resumes_cursor_and_retains_both_wsol_orientations(self):

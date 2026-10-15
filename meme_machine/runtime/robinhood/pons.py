@@ -825,9 +825,23 @@ def restore_position_needs(path,capital_path):
 
 
 def provider_totals(context):
-    telemetry=context.telemetry()
-    sessions=list(telemetry.get('completed_sessions',[]))
-    if telemetry.get('current_session'):sessions.append(telemetry['current_session'])
+    from meme_machine.lanes.pons.pons_selective_acquisition import SelectiveEvidenceContext
+    from meme_machine.lanes.pons.provider import Rpc
+    if isinstance(context,SelectiveEvidenceContext) and (context.rpc is None or isinstance(context.rpc,Rpc)):
+        # Candidate before/after accounting needs session counters, not the
+        # endpoint's rolling audit, cache statistics or CU reporting. Read the
+        # same current fields freshly; completed sessions retain their existing
+        # bounded rotation and unavailable-field behavior below.
+        rpc=context.rpc
+        current=(None if rpc is None else dict(logical_requests=rpc.logical,
+            transport_requests=rpc.transport_used,physical_http_requests=rpc.physical_http_requests))
+        sessions=list(context.completed_sessions)
+        if current:sessions.append(current)
+    else:
+        # Preserve callers exposing only the existing telemetry protocol.
+        telemetry=context.telemetry()
+        sessions=list(telemetry.get('completed_sessions',[]))
+        if telemetry.get('current_session'):sessions.append(telemetry['current_session'])
     if not sessions:return (0,0)
     if any('logical_requests' not in r or 'transport_requests' not in r for r in sessions):return (None,None)
     logical=sum(r['logical_requests'] for r in sessions)

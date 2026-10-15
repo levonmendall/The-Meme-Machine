@@ -235,6 +235,120 @@ class ProviderDemandCallerTests(unittest.TestCase):
         self.assertEqual(telemetry['sanitized_failures'],{'provider_rpc_-32000':1})
         self.assertEqual(telemetry['unresolved_transport_attempts'],0)
 
+    @staticmethod
+    def telemetry_totals(context):
+        """Preserved reporting path used as the exact operation-count baseline."""
+        telemetry=context.telemetry()
+        sessions=list(telemetry.get('completed_sessions',[]))
+        if telemetry.get('current_session'):sessions.append(telemetry['current_session'])
+        if not sessions:return (0,0)
+        if any('logical_requests' not in row or 'transport_requests' not in row for row in sessions):return (None,None)
+        return (sum(row['logical_requests'] for row in sessions),
+            sum(row['physical_http_requests'] for row in sessions)
+            if all('physical_http_requests' in row for row in sessions) else None)
+
+    def test_provider_totals_avoids_full_endpoint_snapshot_and_repeated_schedule_reads(self):
+        from collections import Counter
+        from meme_machine.runtime.robinhood.pons import provider_totals
+        from meme_machine.runtime.robinhood import provider_usage
+        context=self.context('current')
+        connect=sqlite3.connect;read_bytes=Path.read_bytes;read_text=Path.read_text
+        requests_before=len(self.requests)
+
+        def measured(function):
+            counts=Counter()
+            class Counted(sqlite3.Connection):
+                def execute(self,statement,*args,**kwargs):
+                    counts['statements']+=1
+                    if 'FROM provider_usage' in statement:counts['endpoint_snapshots']+=1
+                    if 'FROM reuse_events' in statement:counts['cache_scans']+=1
+                    return super().execute(statement,*args,**kwargs)
+            def opened(*args,**kwargs):
+                counts['connections']+=1
+                kwargs.setdefault('factory',Counted)
+                return connect(*args,**kwargs)
+            def bytes_read(path):
+                if path.name=='alchemy-cu-schedule.json':counts['schedule_reads']+=1
+                return read_bytes(path)
+            def text_read(path,*args,**kwargs):
+                if path.name=='alchemy-cu-schedule.json':counts['schedule_reads']+=1
+                return read_text(path,*args,**kwargs)
+            with patch.object(provider_usage.sqlite3,'connect',opened), \
+                    patch.object(Path,'read_bytes',bytes_read),patch.object(Path,'read_text',text_read):
+                value=function(context)
+            return value,counts
+
+        original,baseline=measured(self.telemetry_totals)
+        current,changed=measured(provider_totals)
+        self.assertEqual(original,(1,1));self.assertEqual(current,original)
+        self.assertEqual(baseline['endpoint_snapshots'],1)
+        self.assertEqual(baseline['cache_scans'],1)
+        self.assertGreaterEqual(baseline['connections'],2)
+        self.assertGreaterEqual(baseline['schedule_reads'],16)
+        self.assertEqual(changed,Counter())
+        self.assertEqual(len(self.requests),requests_before)
+
+    def test_provider_totals_reads_fresh_native_counters_without_changing_admission(self):
+        from meme_machine.runtime.robinhood.pons import provider_totals
+        context=self.context('current')
+        self.assertEqual(provider_totals(context),(1,1))
+        self.batch(context,'current',[('eth_getBlockByHash',['0xfresh',False])])
+        # A local immutable hit raises demand without changing the legacy
+        # current-session RPC counters or adding another HTTP start.
+        self.batch(context,'current',[('eth_getBlockByHash',['0xfresh',False])])
+        self.assertEqual(self.telemetry_totals(context),(2,2))
+        with patch.object(context,'telemetry',side_effect=AssertionError('reporting_not_required')):
+            self.assertEqual(provider_totals(context),(2,2))
+        authority=context.rpc.shared_admission.telemetry()
+        self.assertEqual(authority['consumer_logical_calls'],3)
+        self.assertEqual(authority['physical_http_requests'],2)
+        self.assertEqual(authority['unresolved_transport_attempts'],0)
+        # Full health reporting remains independently available and fallible.
+        with patch('meme_machine.runtime.robinhood.provider_usage.snapshot',
+                   side_effect=RuntimeError('reporting_unavailable')):
+            self.assertEqual(provider_totals(context),(2,2))
+            with self.assertRaisesRegex(RuntimeError,'reporting_unavailable'):
+                context.telemetry()
+
+    def test_provider_totals_preserves_completed_session_rotation_and_unknown_fields(self):
+        from meme_machine.runtime.robinhood.pons import provider_totals
+        from meme_machine.lanes.pons.pons_selective_acquisition import SelectiveEvidenceContext
+        context=self.context('current')
+        context.completed_sessions=[dict(logical_requests=i+1,transport_requests=i+2,
+            physical_http_requests=i+3) for i in range(32)]
+        context._rotate()
+        self.assertEqual(len(context.completed_sessions),32)
+        self.assertEqual(provider_totals(context),self.telemetry_totals(context))
+        self.assertEqual(provider_totals(context),(529,591))
+        for missing,expected in [('logical_requests',(None,None)),
+                                 ('transport_requests',(None,None)),
+                                 ('physical_http_requests',(529,None))]:
+            with self.subTest(missing=missing):
+                row=context.completed_sessions[0]
+                value=row.pop(missing)
+                try:self.assertEqual(provider_totals(context),expected)
+                finally:row[missing]=value
+        empty=SelectiveEvidenceContext(self.endpoint)
+        self.assertEqual(provider_totals(empty),(0,0))
+
+    def test_provider_totals_preserves_legacy_telemetry_and_explicit_none(self):
+        from types import SimpleNamespace
+        from meme_machine.runtime.robinhood.pons import provider_totals
+        cases=[({},(0,0)),({'current_session':None},(0,0)),
+            ({'current_session':dict(logical_requests=7,transport_requests=9,
+                                    physical_http_requests=3)},(7,3)),
+            ({'completed_sessions':[dict(logical_requests=7,transport_requests=9)]},(7,None)),
+            ({'completed_sessions':[dict(physical_http_requests=3)]},(None,None))]
+        for payload,expected in cases:
+            with self.subTest(payload=payload):
+                context=SimpleNamespace(telemetry=lambda value=payload:value)
+                self.assertEqual(provider_totals(context),expected)
+        payload={'current_session':dict(logical_requests=7,transport_requests=9,
+                                        physical_http_requests=None)}
+        context=SimpleNamespace(telemetry=lambda:payload)
+        # An explicitly invalid counter must not silently turn into zero.
+        with self.assertRaises(TypeError):provider_totals(context)
+
 
 def readonly_fixture(source):
     """Real unprivileged SQLite failure; no attribution to the operating incident."""
