@@ -60,9 +60,10 @@
     "pons_survivor_protection_seconds": 3,
     "rss_bytes": 6442450944
   },
+  "result_reference": "PROOF_HANDOFF_RESOLUTION_20261015.md",
   "schema": 1,
   "shutdown_reserve_seconds": 65,
-  "status": "EXACT_TESTED_CANDIDATE_FRESH_PREFLIGHT_REQUIRED",
+  "status": "CONSUMED_O10_READINESS_FAIL_STARTUP_LIMITATION_NATIVE_WORKER_STOP_VERIFIED",
   "tested_successor": "c281058e5993bd7a35190010e9398c982ca7cd1e",
   "validation": "49retention/outcome/progress/maintenancePASS13.327s;90actual integratedstartup+complete controllerPASS5.329s. Prior32collectionPASS overlap; c5 exact economic/source/ACK guards reused from208run207PASS/1stale assertion corrected20PASS. No fullFAST or general releasePASS.",
   "work_stop_seconds": 1800

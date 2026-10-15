@@ -1,3 +1,25 @@
+# Current checkpoint — exact durable-proof handoff repaired; guarded verification next
+
+Executable **76785b2a3e814ad456f3ad2d22befdcd68cb8a93**, branch
+`repair/consolidated-startup-followup-20261014`, draft PR133. Read
+[PROOF_HANDOFF_RESOLUTION_20261015.md](PROOF_HANDOFF_RESOLUTION_20261015.md) and
+PROOF_HANDOFF_NEXT_OBSERVATION_20261015.json. O10 c281058e readinessFAIL and native
+workerSTOPPED/reconciled/exit0 preserved; current verified financialhead10965,
+$1000/zeroobligations/historical500/allfourv1. True usable program_frontiers stayed
+empty; earlier raw-cursor publication terminology is corrected explicitly.
+Current arrival4.6321/durable2.7569slotunits/s and growinggap970→1646 remain a
+separate processing deficit; no wholemachine speedup/hardware verdict.
+
+Reproduced actual capture/deliver/ACK interleaving strands completed proofs behind
+the shared fair cursor. Bounded exact-ID handoff now revalidates current receipts
+before siblinggap repairs, preserves separate owner turns and original accounting
+flush fence. Parentab621246integrationPASS; finalsuccessor69affectedPASS17.908s,
+not fullreleasePASS. No secondwriter/consumer/outbox, policy/deadline changes.
+Installed rollback66f85d61 currentlyinactive/disabled/Restart=no/fundingclosed.
+Standingissue134 permits freshpreflight and cause-backed guardedverification;
+no unchangedretry or normalpromotion. Backupspace/freezeprotection, BUSY,
+READONLY, heldquote/USD and sustainedcapacity remain independentlyopen.
+
 # Current checkpoint — exact owner-retention discriminator ready
 
 Tested/published executable **c281058e5993bd7a35190010e9398c982ca7cd1e**.

@@ -1,0 +1,70 @@
+{
+  "absolute_start_to_drained_seconds": 1865,
+  "allowed_writes": "Unchanged existing diagnostic canonical/native/provider/history/exactACK/recovery/reporting/OBSERVATION ownership writes. Proof publication writes only validated pending proofs and original coverage/checkpoints; no allocation, new position/reservation/fill, capital/epoch/policy changes.",
+  "authority": "https://github.com/levonmendall/The-Meme-Machine/issues/134",
+  "auto_systemd_restart": false,
+  "changes_under_test": [
+    "Bounded exact64-ID pending-proof handoff after durable consumer completion and exact ACK, in separate original-priority owner admissions",
+    "Fresh binding/generation/source/gap/unconsumed validation before any sibling gap repair; atomic canonical prove/checkpoint/delete; original fair cursor remains unchanged",
+    "Existing delivery accounting flush fence preserved before publication, including failure/rollback and byte-once regression"
+  ],
+  "concurrent_runs": 1,
+  "controller": "engineering.diagnostics.current_combined_observation_20261014",
+  "controller_sha256": "074bc857abfd85962930bb85cbae243dd3896d149810d6798889afa097db6676",
+  "diagnostic_output": {
+    "cadence_seconds": 5,
+    "canonical_cohort_limit": 32,
+    "pons_thread_limit": 16,
+    "projected_metrics_bytes": 32740560,
+    "projection_receipt": "evidence/proof-handoff-output-budget-20261015.json",
+    "terminal_record_bytes": 65536,
+    "terminal_records": 2,
+    "total_bytes": 33554432
+  },
+  "diagnostic_startup_maximum_seconds": 900,
+  "end_state": "Stopped, disabled, Restart=no, funding closed; verify actual native drain independently, preserve all pending evidence/accounting, compatible rollback without rewind.",
+  "existing_provider_profiles": {
+    "pons_observation_route": "canonical_primary existing bound app only",
+    "robinhood_rps": 10,
+    "solana_rps": 2,
+    "spending": "Existing genuine provider/account controls; no obsolete fixed$2 ceiling; usage reporting retained"
+  },
+  "funding": "CLOSED_DURING_DIAGNOSIS",
+  "original_contract_reference": "https://github.com/levonmendall/The-Meme-Machine/blob/a32f49d2061e577644ef2d28f75fefd4a48ebe87/operational/pump-first-release/CONSOLIDATED_STARTUP_NEXT_OBSERVATION_SPEC_20261014.json",
+  "outcome_decisions": [
+    "Exact current proof receipts promptly publish and startup releases: measure actual strategy-usable freshness and arrival/commit/history/ACK/backlog separately; do not infer fullcapacity or heldprotection from startup success.",
+    "Durable progress remains slower than arrivals: use original candidate-phase/owner/retention/CPU/runnable/SQL/checkpoint counters; select only a materially attributed correction; no unchanged retry.",
+    "Startup remains blocked: identify exact current proof/unconsumed/generation/gap/coverage dependency from retained facts and bounded stopped-state queries; no steady-state capacity claim.",
+    "Fatal/recorder/protection/resource/accounting/recovery failure: preserve first failure and stop live branch; native/financial reconciliation independent; original recovery failures retained."
+  ],
+  "outside_scope": "No hardware/services purchase, strategy/provider-routing changes, funding transition, acceptance/autonomy promotion or backup-timer change.",
+  "per_invocation_one_start": true,
+  "poststartup_measurement_maximum_seconds": 900,
+  "preflight": "Fresh exact-source/config/service-access; O10head10965 financial/private verified append prefix and native resumability/pending exactACKs/ownership; provider/account/resource controls; applicable usable recovery reference; backup/workload non-overlap. Root owns execution.",
+  "prior_evidence": "PROOF_HANDOFF_RESOLUTION_20261015.md; O10readinessFAIL/native workersSTOPPEDreconciledexit0. Current incoming4.632112 vsdurable2.756944; true program_frontiers empty, not raw cursor publication. No controlled historical speedup claim.",
+  "question": "Does exact publication of freshly committed consumer proof receipts release the current startup gate without a whole fair-cursor horizon, and what processing/owner dependency remains after native reconciliation? This does not presume upstream capacity is corrected.",
+  "readiness_seconds": 300,
+  "required_metrics": [
+    "Current-generation arrival/join/preparation/durablecommit/historyreceipt/exactACK; raw durable cursors distinct from actual program_frontiers/coverage/strategy consumption; missing remains unavailable",
+    "Owner queue/execution, retention four phases, CPU/runnable waits, transaction timings, checkpoint handoffs",
+    "Startup phase/released/feed lo-hi/ACK/native timestamps; original300-second readiness verdict",
+    "Pons managed-route admission/errors and actual quote/USD timings only where exercised; unchanged provider accounting",
+    "Exact current native cancellation/shutdown and independent financial/current-state review",
+    "Exact proof counts and current startup phase, feed interval, consumer receipt/ACK and publication progression; never stock as arrivals or overlapping progress sums"
+  ],
+  "resource_bounds": {
+    "cpu_cores": 1.8,
+    "disk_reserve_each_bytes": 5368709120,
+    "http_inflight_bytes": 134217728,
+    "native_inflight_bytes": 536870912,
+    "pons_current_protection_seconds": 5,
+    "pons_survivor_protection_seconds": 3,
+    "rss_bytes": 6442450944
+  },
+  "schema": 1,
+  "shutdown_reserve_seconds": 65,
+  "status": "CAUSE_SUPPORTED_PROOF_HANDOFF_SUCCESSOR_FRESH_PREFLIGHT_REQUIRED",
+  "tested_successor": "76785b2a3e814ad456f3ad2d22befdcd68cb8a93",
+  "validation": "ab621aba246affected integration casesPASS102.915s; successor76785b2a69affected history/refinementPASS17.908s after accounting-fence correction. Overlap disclosed; no fullFAST/general releasePASS.",
+  "work_stop_seconds": 1800
+}
