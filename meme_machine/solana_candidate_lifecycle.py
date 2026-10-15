@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS candidate_pending_proofs(
  id TEXT PRIMARY KEY,scope TEXT NOT NULL,lo INTEGER NOT NULL,hi INTEGER NOT NULL,
  source TEXT NOT NULL,endpoint TEXT NOT NULL,body TEXT NOT NULL,available REAL NOT NULL);
 CREATE INDEX IF NOT EXISTS candidate_proof_publication ON candidate_pending_proofs(lo,hi);
+CREATE INDEX IF NOT EXISTS candidate_proof_scope ON candidate_pending_proofs(scope);
 CREATE TABLE IF NOT EXISTS candidate_activity_receipts(
  family TEXT NOT NULL,address TEXT NOT NULL,slot INTEGER NOT NULL,signature TEXT NOT NULL,
  PRIMARY KEY(family,address,slot,signature));

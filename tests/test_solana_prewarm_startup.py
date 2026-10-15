@@ -316,6 +316,18 @@ class StartupAsyncTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 task.cancel();await asyncio.gather(task,return_exceptions=True);state.writer.close()
 
+    async def test_cold_maintenance_preserves_busy_plan_deferral(self):
+        from unittest.mock import MagicMock
+        from meme_machine.solana_selective_source import SelectiveSource
+        source=SelectiveSource(MagicMock(),MagicMock(),token='offline')
+        source.stop=asyncio.Event()
+        async def ready():pass
+        async def deferred(fn,priority,**kwargs):
+            self.assertEqual(priority,4);source.stop.set();return 0
+        source.wait_startup=ready;source.work=deferred
+        with patch('meme_machine.solana_history_work.enabled',return_value=True):
+            await source.cold_maintenance()
+
     async def test_last_websocket_log_can_complete_native_join_and_release_startup(self):
         import copy,json,based58
         from meme_machine.solana_selective_source import SelectiveSource

@@ -14,6 +14,7 @@ FAST=[
  'tests.test_operational_simplification',
  'tests.test_solana_history_refinement',
  'tests.test_solana_history_separation',
+ 'tests.test_retirement_hot_pages',
  'tests.test_operational_evidence_storage',
  'tests.test_rolling_ingest_serialization',
  'tests.test_volume_quality',

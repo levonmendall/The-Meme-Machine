@@ -45,14 +45,19 @@ def apply(history,plan,result):
     """Hot pointers remain unchanged unless every current original pin passes."""
     retirement=ScopedRetirement(history);db=history.db
     if digest(generation(history.lifecycle))!=digest(plan['generation']):return False
+    for key,expected in plan.get('hot_cursor_before',{}).items():
+        actual=db.execute('SELECT value FROM meta WHERE key=?',(key,)).fetchone()
+        if (None if actual is None else actual[0])!=expected:return False
+    if 'hot_table_next' in plan:
+        actual=db.execute("SELECT value FROM meta WHERE key='scoped_retirement_hot_table'").fetchone()
+        if (None if actual is None else actual[0])!=plan['hot_table_before']:return False
     with closing(readonly_history(history.lifecycle.path)) as shared:
         for identity,row in result['selected'].items():
             if plan['selected'].get(identity)!=row or db.execute('SELECT * FROM canonical_evidence WHERE identity=?',(identity,)).fetchone()!=row:return False
             if result['body_hashes'].get(identity)!=row[10]:raise EvidenceConflict('local_evidence_hash_mismatch')
             if not db.execute("SELECT 1 FROM candidate_history_outbox WHERE kind='canonical' AND consumed IS NOT NULL AND json_extract(body,'$.record.identity')=? LIMIT 1",(identity,)).fetchone():return False
-            owners=db.execute('''SELECT DISTINCT b.family,b.coverage_scope FROM canonical_addresses a JOIN evidence_bindings b
-                ON b.market_address=a.address AND b.canonical_scope=? WHERE a.identity=? ORDER BY b.coverage_scope LIMIT 65''',(row[1],identity)).fetchall()
-            if len(owners)>64:return False
+            owners=retirement.shared_owners(row[1],identity)
+            if not owners or len(owners)>64:return False
             for family,scope in owners:
                 if retirement.pinned(family,scope.split(':',2)[2],row[2],row[2],shared):return False
             actual={r[0] for r in db.execute('SELECT address FROM canonical_addresses WHERE identity=?',(identity,))}
@@ -73,8 +78,12 @@ def apply(history,plan,result):
                 db.execute('UPDATE rolling_economic_events SET body=NULL,archive=? WHERE identity=?',(identity,row[0]))
                 db.execute('DELETE FROM shared_history_cache WHERE identity=?',(row[0],))
         if plan['bindings']:db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('scoped_retirement_cursor',plan['bindings'][-1][1]))
+        for key,value in plan.get('hot_cursors',{}).items():
+            db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',(key,canonical(value)))
+        if 'hot_table_next' in plan:
+            db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('scoped_retirement_hot_table',str(plan['hot_table_next'])))
         oldest=plan['oldest']
-        if oldest is None:
+        if oldest is None and 'selection' not in plan:
             row=retirement.oldest_hot_bound_record()
             if row:
                 scope=db.execute('''SELECT MIN(b.coverage_scope) FROM canonical_addresses a
@@ -87,11 +96,19 @@ def apply(history,plan,result):
             candidate_scopes_examined=len(plan['bindings']),candidate_scan_bound=min(plan['limit'],64),
             retirement_seconds=time.monotonic()-plan['started'],worker=result['worker'],off_owner_preparation=True,
             canonical_generation_revalidated=True)
+        if 'selection' in plan:
+            status.update(selection=plan['selection'],
+                candidate_scopes_examined=plan['selection']['candidate_scopes'],
+                candidate_scan_bound=plan['selection']['metadata_row_bound']*64,
+                cold_bytes_measurement='deferred')
         status.update(records_per_second=len(selected)/max(status['retirement_seconds'],1e-9),
             physical_database_bytes=sum(p.stat().st_size for p in (history.writer.path,Path(str(history.writer.path)+'-wal')) if p.exists()),
             retained_candidate_history_bytes=history.lifecycle.path.stat().st_size,
-            cold_bytes=db.execute('SELECT COALESCE(SUM(cold_bytes),0) FROM scoped_cold_manifests').fetchone()[0],
-            pinned_bytes_domain='examined slice and selected-row shared owners',
-            oldest_unretired_scope_domain='examined slice; global fallback when no local witness')
+            cold_bytes=(None if 'selection' in plan else db.execute(
+                'SELECT COALESCE(SUM(cold_bytes),0) FROM scoped_cold_manifests').fetchone()[0]),
+            pinned_bytes_domain=('examined hot representations' if 'selection' in plan else
+                'examined slice and selected-row shared owners'),
+            oldest_unretired_scope_domain=('examined hot page only' if 'selection' in plan else
+                'examined slice; global fallback when no local witness'))
         db.execute('INSERT INTO scoped_retirement_observations(at,body) VALUES(?,?)',(history.clock(),canonical(status)))
     return status

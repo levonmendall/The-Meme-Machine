@@ -562,6 +562,49 @@ class ClosureTests(unittest.TestCase):
             self.assertNotIn(shadow[0],selected)
         self.assertEqual(cold._oldest_hot_identities('meteora','unobserved',64),[])
 
+    def test_retirement_shared_owner_seek_does_not_scan_unrelated_bindings(self):
+        address,rows=self.ingest_fixture('meteora');cold=ScopedRetirement(self.h);db=self.h.db
+        row=db.execute('SELECT identity,scope FROM canonical_evidence LIMIT 1').fetchone()
+        oracle='''SELECT DISTINCT b.family,b.coverage_scope FROM canonical_addresses a
+            JOIN evidence_bindings b ON b.market_address=a.address AND b.canonical_scope=?
+            WHERE a.identity=? ORDER BY b.coverage_scope LIMIT 65'''
+        with self.state.writer.transaction():
+            db.executemany('INSERT INTO evidence_bindings VALUES(?,?,?,?,?,?)',
+                [('meteora','unrelated-'+str(n),'unrelated-market-'+str(n),row[1],
+                    coverage_scope('meteora','unrelated-'+str(n)),'{}') for n in range(4096)])
+        expected=db.execute(oracle,(row[1],row[0])).fetchall();steps=[0]
+        db.set_progress_handler(lambda:steps.__setitem__(0,steps[0]+100) or 0,100)
+        try:actual=cold.shared_owners(row[1],row[0])
+        finally:db.set_progress_handler(None,0)
+        self.assertEqual(actual,expected)
+        print('RETIREMENT_SHARED_OWNER_VM '+json.dumps(dict(unrelated=4096,steps=steps[0])),flush=True)
+        self.assertLess(steps[0],2000,'shared-owner check scanned unrelated program bindings')
+
+    def test_retirement_pin_seeks_do_not_scan_unrelated_obligations(self):
+        cold=ScopedRetirement(self.h);db=self.h.db;self.h.bind('pump','target')
+        with closing(CandidateHistory(self.life.path,clock=lambda:NOW)) as shared:
+            def measured():
+                steps=[0]
+                def tick():steps[0]+=100;return 0
+                db.set_progress_handler(tick,100);shared.db.set_progress_handler(tick,100)
+                try:self.assertIsNone(cold.pinned('pump','target',100,110,shared))
+                finally:db.set_progress_handler(None,0);shared.db.set_progress_handler(None,0)
+                return steps[0]
+            before=measured()
+            with self.state.writer.transaction():
+                db.executemany('INSERT INTO evidence_bindings VALUES(?,?,?,?,?,?)',
+                    [('pump','unrelated-'+str(n),'unrelated-market-'+str(n),'program:pump',
+                        coverage_scope('pump','unrelated-'+str(n)),'{}') for n in range(4096)])
+                db.executemany('INSERT INTO candidate_pending_proofs VALUES(?,?,?,?,?,?,?,?)',
+                    [(str(n),coverage_scope('pump','unrelated-'+str(n)),100,110,'source','endpoint','{}',NOW) for n in range(4096)])
+                db.executemany('INSERT INTO acquisition_jobs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                    [(str(n),'pump','unrelated-'+str(n),100,110,4,NOW+60,'pending',None,0,None,None,'[]',NOW,NOW,None) for n in range(4096)])
+            shared.db.executemany('INSERT INTO work VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                [(str(n),'pump','unrelated-'+str(n),'history',NOW,NOW+60,1,4,'pending',None,None,NOW,NOW,'{}','hash') for n in range(4096)])
+            after=measured()
+            print('RETIREMENT_PIN_VM '+json.dumps(dict(unrelated=4096,before=before,after=after)),flush=True)
+            self.assertLess(after,before+3000,'pin check scanned unrelated candidates or obligations')
+
     def test_failed_retirement_journal_does_not_skip_its_cursor(self):
         self.h.bind('pump','quiet')
         cold=ScopedRetirement(self.h)

@@ -1210,7 +1210,7 @@ class SelectiveSource:
             # The owner installs its existing urgent SQL interruption hook for
             # maintenance priority four. Interrupted slices retry durably.
             plan=await self.work(retire,4,label='retention')
-            if separated_history() and plan is not None:
+            if separated_history() and plan not in (None,0):
                 try:
                     if plan['selected']:
                         result=await asyncio.wrap_future(self.historical_executor.submit(prepare,plan))

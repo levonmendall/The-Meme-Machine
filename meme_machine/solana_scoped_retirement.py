@@ -6,7 +6,7 @@ are lossless and hash verified; restoring one candidate does not replay a market
 All byte savings in this module are LOCAL storage savings, not provider credits.
 """
 from contextlib import closing
-from .runtime.operating_families import active_sql
+from .runtime.operating_families import active_sql,solana_families
 from dataclasses import fields
 import hashlib
 import json
@@ -145,10 +145,132 @@ class ScopedRetirement:
             'SELECT DISTINCT identity,slot FROM ('+' UNION ALL '.join(parts)+') ORDER BY slot,identity LIMIT ?')
         return [r[0] for r in self.db.execute(query,(*args,limit))]
 
+    def shared_owners(self,scope,identity):
+        # Start with this identity's complete address set. The unconstrained
+        # join can instead scan every binding of a program for each hot row.
+        # Both existing binding-index keys must participate in the seek; no
+        # address or owner is truncated before the original fanout fence.
+        return self.db.execute('''WITH addresses AS MATERIALIZED (
+                SELECT address FROM canonical_addresses WHERE identity=?)
+            SELECT DISTINCT b.family,b.coverage_scope FROM addresses a
+            CROSS JOIN evidence_bindings b INDEXED BY evidence_binding_canonical_market
+            WHERE b.market_address=a.address AND b.canonical_scope=?
+            ORDER BY b.coverage_scope LIMIT 65''',(identity,scope)).fetchall()
+
+    def _plan_hot_page(self,limit,measure_hot_bytes):
+        """Bound archival planning inputs, independently of candidate age/population.
+
+        Archival order is housekeeping, not canonical event order. Page through
+        the existing hot-length indexes instead of reconstructing every retained
+        event for 64 candidates. Every hot representation rotates durably; only
+        archive.apply advances these cursors, with the pointer transaction.
+        """
+        from .solana_history_delivery import generation,readonly_history
+        started=time.monotonic();selected={};pinned={};oldest=None;size=0
+        before=self.hot_bytes() if measure_hot_bytes else None
+        tables=['records','shared_history_cache','scoped_cold_records']
+        if hasattr(self.history,'rolling'):tables.append('rolling_economic_events')
+        cursors={};previous={};examined=0;scopes=set();seen=set();full=False
+        enabled_scopes={FAMILIES[f] for f in solana_families()}
+        table_key='scoped_retirement_hot_table'
+        table_before=self.db.execute('SELECT value FROM meta WHERE key=?',(table_key,)).fetchone()
+        first=0 if table_before is None else int(table_before[0])%len(tables)
+        tables=tables[first:]+tables[:first];last=None
+        budget=min(limit,64)
+        with closing(readonly_history(self.lifecycle.path)) as shared:
+            for table in tables:
+                last=table
+                key='scoped_retirement_hot_cursor:'+table
+                stored=self.db.execute('SELECT value FROM meta WHERE key=?',(key,)).fetchone()
+                previous[key]=None if stored is None else stored[0]
+                saved=None if stored is None else json.loads(stored[0])
+                after=(-1,'') if saved is None else tuple(saved['after'])
+                through=None if saved is None else tuple(saved['through'])
+                def ceiling():
+                    return self.db.execute('SELECT length(CAST(body AS BLOB)),identity FROM '+table+
+                        ' INDEXED BY '+table+'_hot_lengths WHERE body IS NOT NULL '
+                        'ORDER BY length(CAST(body AS BLOB)) DESC,identity DESC LIMIT 1').fetchone()
+                def read_page(lower,upper):
+                    if upper is None:return []
+                    # Separate exact index ranges avoid rescanning an enormous
+                    # equal-length prefix (row-value expression comparisons do
+                    # not reliably seek both index terms on all SQLite builds).
+                    prefix=('SELECT identity,scope,slot,length(CAST(body AS BLOB)) FROM '+table+
+                        ' INDEXED BY '+table+'_hot_lengths WHERE body IS NOT NULL AND ')
+                    cap=budget-examined;result=[]
+                    condition='length(CAST(body AS BLOB))=? AND identity>?'
+                    args=[*lower]
+                    if lower[0]==upper[0]:condition+=' AND identity<=?';args.append(upper[1])
+                    result.extend(self.db.execute(prefix+condition+' ORDER BY identity LIMIT ?',(*args,cap)))
+                    if lower[0]<upper[0] and len(result)<cap:
+                        result.extend(self.db.execute(prefix+'length(CAST(body AS BLOB))>? AND '
+                            'length(CAST(body AS BLOB))<? ORDER BY length(CAST(body AS BLOB)),identity LIMIT ?',
+                            (lower[0],upper[0],cap-len(result))))
+                    if lower[0]<upper[0] and len(result)<cap:
+                        result.extend(self.db.execute(prefix+'length(CAST(body AS BLOB))=? AND identity<=? '
+                            'ORDER BY identity LIMIT ?',(upper[0],upper[1],cap-len(result))))
+                    return result
+                if through is None:through=ceiling()
+                rows=read_page(after,through)
+                if not rows and saved is not None:
+                    # A fixed cycle ceiling guarantees wrap even while new
+                    # work continually extends the tail beyond this cycle.
+                    after=(-1,'');through=ceiling();rows=read_page(after,through)
+                for identity,scope,slot,stored_bytes in rows:
+                    examined+=1;cursors[key]=dict(after=[stored_bytes,identity],through=list(through))
+                    if identity in seen:continue
+                    seen.add(identity)
+                    # Exact canonical precedence still determines visibility;
+                    # an older hot representation cannot defeat a cold shadow.
+                    canonical_row=self.db.execute('''SELECT scope,slot,body IS NOT NULL,length(CAST(body AS BLOB))
+                        FROM canonical_evidence WHERE identity=?''',(identity,)).fetchone()
+                    if canonical_row is None or not canonical_row[2]:continue
+                    scope,slot=canonical_row[:2]
+                    if scope not in enabled_scopes:continue
+                    owners=self.shared_owners(scope,identity)
+                    if not owners:continue # never guess an unbound consumer released evidence
+                    reason='shared_binding_bound' if len(owners)>64 else None
+                    owner_scope=owners[0][1]
+                    for family,owner_scope in owners if reason is None else ():
+                        scopes.add(owner_scope)
+                        reason=self.pinned(family,owner_scope.split(':',2)[2],slot,slot,shared)
+                        if reason:break
+                    if reason is None and not self.db.execute('''SELECT 1 FROM candidate_history_outbox
+                        WHERE kind='canonical' AND consumed IS NOT NULL
+                        AND json_extract(body,'$.record.identity')=? LIMIT 1''',(identity,)).fetchone():
+                        reason='batch_bound_or_unacknowledged_consumer'
+                    if reason:
+                        # Hot-index lengths are accounting of this examined
+                        # representation, not bytes of reconstructed history.
+                        pinned[identity]=stored_bytes
+                        if oldest is None or slot<oldest['slot']:
+                            oldest=dict(scope=owner_scope,slot=slot,reason=reason)
+                        continue
+                    if canonical_row[3]>16*1024*1024-size:continue
+                    row=self.db.execute('SELECT * FROM canonical_evidence WHERE identity=?',(identity,)).fetchone()
+                    length=len(row[9].encode() if isinstance(row[9],str) else row[9])
+                    if size+length>16*1024*1024:
+                        # Keep the row hot; the original format cannot prepare
+                        # an oversized archive. Rotation must still progress.
+                        continue
+                    selected[identity]=row;size+=length
+                    if len(selected)>=limit:
+                        full=True;break
+                if full or examined>=budget:break
+        return dict(selected=selected,pinned=pinned,oldest=oldest,before=before,
+            bindings=[],started=started,canonical_path=str(self.writer.path.resolve()),
+            generation=generation(self.lifecycle),limit=limit,hot_cursors=cursors,
+            hot_cursor_before=previous,hot_table_before=None if table_before is None else table_before[0],
+            hot_table_next=(first+tables.index(last)+1)%len(tables),
+            selection=dict(mode='indexed_hot_pages',metadata_rows=examined,
+                metadata_row_bound=budget,candidate_scopes=len(scopes),
+                preparation_bytes=size,oldest_domain='examined hot page only'))
+
     @defer_busy_consumer
     def retire(self,*,limit=64,measure_hot_bytes=True,plan_only=False):
         if self.db.in_transaction:raise EvidenceUnavailable('retention_inside_source_transaction')
         if not 1<=limit<=1000:raise EvidenceUnavailable('retention_batch_bound')
+        if plan_only:return self._plan_hot_page(limit,measure_hot_bytes)
         started=time.monotonic();selected={};pinned={};oldest=None
         # Whole-reservoir totals are optional diagnostics, never retirement
         # permission. Live source maintenance must not scan the growing
@@ -162,9 +284,7 @@ class ScopedRetirement:
         query='''SELECT DISTINCT family,coverage_scope FROM evidence_bindings WHERE '''+active_sql('family',solana=True)+''' AND coverage_scope>? ORDER BY coverage_scope LIMIT ?'''
         bindings=self.db.execute(query,(cursor,min(limit,64))).fetchall()
         if not bindings and cursor:bindings=self.db.execute(query,('',min(limit,64))).fetchall()
-        if plan_only:
-            from .solana_history_delivery import readonly_history
-        opener=readonly_history(self.lifecycle.path) if plan_only else CandidateHistory(self.lifecycle.path,clock=self.clock,write_wait_seconds=0)
+        opener=CandidateHistory(self.lifecycle.path,clock=self.clock,write_wait_seconds=0)
         with closing(opener) as shared:
             for family,scope in bindings:
                 address=scope[len('candidate:'+family+':'):]
@@ -193,10 +313,7 @@ class ScopedRetirement:
             # pointer. Large fanout remains hot rather than exceeding this work
             # bound or guessing that unseen owners have released the record.
             for identity,row in tuple(selected.items()):
-                owners=self.db.execute('''SELECT DISTINCT b.family,b.coverage_scope
-                    FROM canonical_addresses a JOIN evidence_bindings b
-                    ON b.market_address=a.address AND b.canonical_scope=?
-                    WHERE a.identity=? ORDER BY b.coverage_scope LIMIT 65''',(row[1],identity)).fetchall()
+                owners=self.shared_owners(row[1],identity)
                 reason='shared_binding_bound' if len(owners)>64 else None
                 if reason:scope=owners[0][1]
                 for family,scope in owners if reason is None else ():
@@ -209,18 +326,6 @@ class ScopedRetirement:
         # A canonical row shared with a pinned candidate remains pinned even if
         # a different candidate has no current consumer.
         for identity in pinned:selected.pop(identity,None)
-        if plan_only:
-            # Canonical pins/identity selection remain authoritative. All body
-            # expansion, serialization, compression and file I/O are separate.
-            from .solana_history_delivery import generation
-            bounded={};size=0
-            for identity,row in selected.items():
-                size+=len(row[9].encode() if isinstance(row[9],str) else row[9])
-                if size>16*1024*1024:break
-                bounded[identity]=row
-            return dict(selected=bounded,pinned=pinned,oldest=oldest,before=before,
-                bindings=bindings,started=started,canonical_path=str(self.writer.path.resolve()),
-                generation=generation(self.lifecycle),limit=limit)
         content=[];hot_bytes=0;bounded={}
         for row in selected.values():
             body=decode_body(row[9],self.db)

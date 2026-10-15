@@ -38,12 +38,16 @@ CREATE INDEX IF NOT EXISTS evidence_binding_canonical_market
 -- every retained Pump binding per proof eventually delays canonical intake.
 CREATE INDEX IF NOT EXISTS evidence_binding_coverage_lookup
  ON evidence_bindings(family,coverage_scope,market_address,address);
+-- Retirement checks all aliases of an exact scope, independent of family.
+CREATE INDEX IF NOT EXISTS evidence_binding_scope_aliases
+ ON evidence_bindings(coverage_scope,address);
 CREATE TABLE IF NOT EXISTS acquisition_jobs(
  id TEXT PRIMARY KEY,family TEXT NOT NULL,address TEXT NOT NULL,
  lo INTEGER NOT NULL,hi INTEGER NOT NULL,priority INTEGER NOT NULL,deadline REAL NOT NULL,
  status TEXT NOT NULL,token TEXT,pages INTEGER NOT NULL,last_slot INTEGER,last_index INTEGER,
  lineage TEXT NOT NULL,created REAL NOT NULL,updated REAL NOT NULL,error TEXT);
 CREATE INDEX IF NOT EXISTS acquisition_priority ON acquisition_jobs(status,priority,deadline,created);
+CREATE INDEX IF NOT EXISTS acquisition_candidate_status ON acquisition_jobs(family,address,status);
 CREATE TABLE IF NOT EXISTS acquisition_page_receipts(
  job TEXT NOT NULL,page INTEGER NOT NULL,input_hash TEXT NOT NULL,
  result TEXT NOT NULL,committed REAL NOT NULL,PRIMARY KEY(job,page));

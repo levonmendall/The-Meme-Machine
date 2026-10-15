@@ -148,6 +148,7 @@ class CandidateHistory:
           body TEXT NOT NULL,hash TEXT NOT NULL);
         CREATE INDEX IF NOT EXISTS work_edf
           ON work(status,ready_at,deadline,priority,created_at,id);
+        CREATE INDEX IF NOT EXISTS work_candidate_status ON work(lane,candidate,status);
         CREATE TABLE IF NOT EXISTS work_observations(
           id TEXT PRIMARY KEY,work_id TEXT NOT NULL,kind TEXT NOT NULL,
           at REAL NOT NULL,body TEXT NOT NULL,hash TEXT NOT NULL);
