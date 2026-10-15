@@ -28,6 +28,7 @@ class Pipeline:
                 self.db.close();raise ValueError('foreign_pipeline_namespace')
         self.stages=defaultdict(set);self.classes=defaultdict(set);self.reasons=defaultdict(set)
         self.last=None;self.write_seconds=0.;self.records=0
+        self._policy_count_generation=None;self._policy_counts=None
         for c,s,r,k,at,mono in self.db.execute('SELECT candidate,stage,reason,classification,at,monotonic FROM progress ORDER BY sequence'):
             self._index(c,s,r,k,at,mono)
 
@@ -65,6 +66,18 @@ class Pipeline:
         self.write_seconds+=time.monotonic()-mono
         return True
 
+    def _retained_policy_counts(self):
+        # The caller holds this Pipeline's lock. Local writes/retention change
+        # total_changes; independent connection commits change data_version.
+        # Never save or reuse an aggregate from a caller-owned transaction.
+        query='SELECT policy_hash,COUNT(*) FROM progress GROUP BY policy_hash'
+        if self.db.in_transaction:return dict(self.db.execute(query))
+        generation=(self.db.total_changes,self.db.execute('PRAGMA data_version').fetchone()[0])
+        if generation!=self._policy_count_generation:
+            counts=dict(self.db.execute(query))
+            self._policy_counts=counts;self._policy_count_generation=generation
+        return dict(self._policy_counts)
+
     def snapshot(self):
         with self.lock:
             stages=('discovered','prospect_observed','prospect_incomplete','prospect_admitted',
@@ -78,7 +91,7 @@ class Pipeline:
                      'no_authentic_activity','local_budget_exhausted','consumer_deadline')
             return dict(schema='lane-opportunity-coverage-v1',lane=self.lane,
                 effective_policy_hash=self.policy_hash,
-                retained_policy_record_counts=dict(self.db.execute('SELECT policy_hash,COUNT(*) FROM progress GROUP BY policy_hash')),
+                retained_policy_record_counts=self._retained_policy_counts(),
                 policy_coverage_scope='retained_debug_ring; historical policy identities preserved',
                 identity_scope='native_candidate_identity; stages and classes overlap; never sum as losses',
                 raw_records=self.records,retention='latest 4096-8192 debug transitions',

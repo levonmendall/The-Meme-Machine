@@ -217,6 +217,32 @@ def observation_route_predecessor(test,relative,current):
 # combined package guards below.
 COHORT_AUTHORITY_REFERENCE='66f85d61bf4d3ba9a01efdc0e9eb68949419bda8'
 COHORT_AUTHORITY_DELTAS={
+    # Reporting-only reuse: exact bytes reverse to the approved strategy
+    # source; no decision, economic or acquisition code is exempted.
+    'meme_machine/lanes/pons/pipeline.py': (
+        '21ba397b3c695e18b3a22c65b7c0bd0edde2c3b393ee83064c308337851a64e5',
+        'e9a848cb9f2b9ea28c8415fc495cc28712dd4de9c18129253ec316ae4195a622',
+        (
+            (b'        self.last=None;self.write_seconds=0.;self.records=0\n',
+             b'        self.last=None;self.write_seconds=0.;self.records=0\n'
+             b'        self._policy_count_generation=None;self._policy_counts=None\n'),
+            (b'    def snapshot(self):\n',
+             b'    def _retained_policy_counts(self):\n'
+             b"        # The caller holds this Pipeline's lock. Local writes/retention change\n"
+             b'        # total_changes; independent connection commits change data_version.\n'
+             b'        # Never save or reuse an aggregate from a caller-owned transaction.\n'
+             b"        query='SELECT policy_hash,COUNT(*) FROM progress GROUP BY policy_hash'\n"
+             b'        if self.db.in_transaction:return dict(self.db.execute(query))\n'
+             b"        generation=(self.db.total_changes,self.db.execute('PRAGMA data_version').fetchone()[0])\n"
+             b'        if generation!=self._policy_count_generation:\n'
+             b'            counts=dict(self.db.execute(query))\n'
+             b'            self._policy_counts=counts;self._policy_count_generation=generation\n'
+             b'        return dict(self._policy_counts)\n'
+             b'\n'
+             b'    def snapshot(self):\n'),
+            (b"retained_policy_record_counts=dict(self.db.execute('SELECT policy_hash,COUNT(*) FROM progress GROUP BY policy_hash'))",
+             b'retained_policy_record_counts=self._retained_policy_counts()'),
+        )),
     'meme_machine/lanes/pons/pons_selective_cohort.py': (
         '01340dc4a2f0994f3c6508f8ab7d8e8e6f25a1a33b4e568b3013418793a34203',
         '441b41802e0351976b97982549691a718934f09f29aba69a0fe2f07a10a0d0e5',
@@ -801,9 +827,12 @@ class RobinhoodUSDTests(unittest.TestCase):
             self.assertEqual(cohort_authority_predecessor(self,relative,current),prior)
             self.assertEqual(opportunity_predecessor(self,relative,current),
                 opportunity_predecessor(self,relative,prior))
-            for changed in (current+b'\n# unreviewed source change\n',
-                    current.replace(b'pons-selective-cohort-capital.sqlite',b'unreviewed-capital.sqlite'),
-                    current.replace(b'capital_path',b'unverified_authority_path')):
+            mutations=((current.replace(b'GROUP BY policy_hash',b'GROUP BY candidate'),
+                        current.replace(b'self.db.total_changes',b'0'))
+                       if relative=='meme_machine/lanes/pons/pipeline.py' else
+                       (current.replace(b'pons-selective-cohort-capital.sqlite',b'unreviewed-capital.sqlite'),
+                        current.replace(b'capital_path',b'unverified_authority_path')))
+            for changed in (current+b'\n# unreviewed source change\n',*mutations):
                 self.assertNotEqual(changed,current)
                 with self.assertRaises(AssertionError):cohort_authority_predecessor(self,relative,changed)
                 with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
