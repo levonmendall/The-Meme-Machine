@@ -1,0 +1,61 @@
+{
+  "source": "3c394784ee7f283e4586f86f68b3855a3757b72c",
+  "diagnostic_started_at": 1791768298.521367,
+  "budget_created_at": 1791768269.0,
+  "failure_at": 1791768533.2365563,
+  "elapsed_since_diagnostic_start_seconds": 234.71518921852112,
+  "elapsed_since_budget_creation_seconds": 264.2365562915802,
+  "status": "FAIL_CANONICAL_INTAKE_CAPACITY",
+  "failure": "candidate_log_buffer_pressure",
+  "new_economic_records": {
+    "program:pump": 6522,
+    "program:pumpswap": 19421
+  },
+  "new_economic_record_total": 25943,
+  "usage": {
+    "rpc_cu": 3860,
+    "rpc_elements": 41,
+    "http_attempts": 45,
+    "native_bytes": 228901908,
+    "native_reserved": 0,
+    "native_uncertain_bytes": 285212672,
+    "http_bytes": 8991642,
+    "http_reserved": 0,
+    "http_uncertain_bytes": 0,
+    "native_opens": 4
+  },
+  "modeled_public_upper_usd": "0.0560085309",
+  "invoice_verified": false,
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-owner-repair-3c394784-1791768269183.sqlite",
+  "work_trace": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pump-prepaid-intake-3c394784-1791768269183-work.json",
+  "native_group_trace": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pump-prepaid-intake-3c394784-1791768269183-groups.json",
+  "native_join": {
+    "completed": 455865378,
+    "early_log_bytes": 33552882,
+    "early_log_count": 15585,
+    "early_log_max_slot": 455865479,
+    "early_log_min_slot": 455865379,
+    "filtered_from_slot": 455865007,
+    "oldest_age": null,
+    "oldest_bodies": 0,
+    "oldest_finality": null,
+    "oldest_meta": false,
+    "oldest_missing_logs": 0,
+    "oldest_slot": null,
+    "oldest_statuses": 0,
+    "pending_bytes": 0,
+    "pending_slots": 0,
+    "reason": "candidate_log_buffer_pressure",
+    "replay_prefix_bytes": 342583
+  },
+  "resources": {
+    "user_cpu_seconds": 131.909098,
+    "system_cpu_seconds": 23.819581,
+    "maximum_rss_kib": 238696
+  },
+  "funding": false,
+  "orders": false,
+  "all_four_protection_pass": false,
+  "failed_evidence_preserved": true,
+  "prior_counters_reset": false
+}

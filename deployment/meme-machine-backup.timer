@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily bounded Meme Machine PAPER Volume backup
+
+[Timer]
+OnCalendar=*-*-* 04:00:00 UTC
+RandomizedDelaySec=300
+Persistent=true
+Unit=meme-machine-backup.service
+
+[Install]
+WantedBy=timers.target

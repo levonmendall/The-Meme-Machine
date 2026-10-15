@@ -1,0 +1,1175 @@
+{
+  "baseline": {
+    "allocator_alone": {
+      "application_retries": 0,
+      "begin_wait_over_1ms": 44,
+      "capital": {
+        "active_reservations": "0",
+        "actual_cash": "125.00",
+        "authoritative_fundable_capital": "500.00",
+        "conservation": true,
+        "deployed_basis": "375.00",
+        "free_cash": "125.00",
+        "pending_authoritative_commitments": "0",
+        "realized_equity": "500.00",
+        "required_funding_obligations": "0"
+      },
+      "conservation": true,
+      "cpu_seconds": 8.284606162000001,
+      "database_files_bytes": {
+        "shared-capital.sqlite": 1474560,
+        "shared-capital.sqlite-shm": 32768,
+        "shared-capital.sqlite-wal": 6262432
+      },
+      "durable_transactions": 440,
+      "errors": {},
+      "grant_latency": {
+        "median_ms": 193.48375449771993,
+        "p95_ms": 364.3547419924289,
+        "p99_ms": 364.63705700589344,
+        "samples": 64
+      },
+      "independent_authority_connections": 4,
+      "missed_funding_ceiling_5s": {},
+      "native_delivery_latency": {
+        "median_ms": 40.50011048093438,
+        "p95_ms": 73.10828298795968,
+        "p99_ms": 82.22296601161361,
+        "samples": 180
+      },
+      "process_io_delta": {
+        "cancelled_write_bytes": 1576960,
+        "rchar": 81022120,
+        "read_bytes": 0,
+        "syscr": 20028,
+        "syscw": 90674,
+        "wchar": 197609960,
+        "write_bytes": 201117696
+      },
+      "replay_seconds": 1.8713847199687734,
+      "requests": 64,
+      "wall_seconds": 10.748002995038405,
+      "worker_resources": {
+        "cpu_seconds": 10.576127624,
+        "process_io_delta": {
+          "cancelled_write_bytes": 1937408,
+          "rchar": 84530386,
+          "read_bytes": 53248,
+          "syscr": 20763,
+          "syscw": 91184,
+          "wchar": 198588140,
+          "write_bytes": 202760192
+        },
+        "rss_peak_kib": 49720,
+        "wall_seconds": 13.267653467948548
+      }
+    },
+    "allocator_combined": {
+      "application_retries": 0,
+      "begin_wait_over_1ms": 50,
+      "capital": {
+        "active_reservations": "0",
+        "actual_cash": "125.00",
+        "authoritative_fundable_capital": "500.00",
+        "conservation": true,
+        "deployed_basis": "375.00",
+        "free_cash": "125.00",
+        "pending_authoritative_commitments": "0",
+        "realized_equity": "500.00",
+        "required_funding_obligations": "0"
+      },
+      "conservation": true,
+      "cpu_seconds": 12.475832104,
+      "database_files_bytes": {
+        "shared-capital.sqlite": 1462272,
+        "shared-capital.sqlite-shm": 32768,
+        "shared-capital.sqlite-wal": 5821592
+      },
+      "durable_transactions": 440,
+      "errors": {},
+      "grant_latency": {
+        "median_ms": 296.88162403181195,
+        "p95_ms": 493.543568009045,
+        "p99_ms": 520.5996609875001,
+        "samples": 64
+      },
+      "independent_authority_connections": 4,
+      "missed_funding_ceiling_5s": {},
+      "native_delivery_latency": {
+        "median_ms": 59.63752849493176,
+        "p95_ms": 104.4983469764702,
+        "p99_ms": 143.0565440095961,
+        "samples": 180
+      },
+      "process_io_delta": {
+        "cancelled_write_bytes": 1347584,
+        "rchar": 80490212,
+        "read_bytes": 0,
+        "syscr": 19898,
+        "syscw": 90582,
+        "wchar": 197491144,
+        "write_bytes": 200777728
+      },
+      "replay_seconds": 3.14273886900628,
+      "requests": 64,
+      "wall_seconds": 15.7215909200022,
+      "worker_resources": {
+        "cpu_seconds": 16.249806782999997,
+        "process_io_delta": {
+          "cancelled_write_bytes": 1708032,
+          "rchar": 83277635,
+          "read_bytes": 0,
+          "syscr": 20456,
+          "syscw": 91092,
+          "wchar": 198469324,
+          "write_bytes": 202420224
+        },
+        "rss_peak_kib": 50260,
+        "wall_seconds": 19.834372721030377
+      }
+    },
+    "combined_ingestion": [
+      {
+        "canonical_count": 287,
+        "canonical_digest": "ed2e970c41ee81c8955aa6a48eddfa63fd060cd0bb9700559c319118b6d3d037",
+        "cpu_seconds": 7.245416736,
+        "limitations": [
+          "Replay executes captured deliveries serially; original scheduling and network/finality delays are not replayed.",
+          "Profiler overhead is included equally in comparisons.",
+          "Missing tape tail remains pending and confers no completeness.",
+          "Consumer qualification and position economics require additional unchanged fixture tests."
+        ],
+        "output_digests": {
+          "candidate_checkpoints": "fa9757fbd22c29f9a1846adc95b819ed536237e3cec8dcdc093f1d03dd892023",
+          "candidate_coverage": "a3e418943c93583b005e90ccab00cd9d3a8f1de6410202537f145bef6989391e",
+          "candidate_gaps": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "candidate_lifecycle": "9d04afaa3650ba2297267bef0a03b69c3583ff6bd75184ec875eb0ccf28323ae",
+          "candidate_pending_proofs": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "consumer:candidates": "a6653774756f3992f4b40e540a52092951d93ebbe691df1891d351b9b753159f",
+          "consumer:canonical_event_refs": "5c5ee9f5a665fea69a3c6b75b6603f149ceaeb5fd95ffcf39e9793dfe92c693b",
+          "consumer:work": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "evidence_bindings": "fbf41be12b0997d81d7c7110b4818377e7f17ef964310d459bdc71b80f57506a",
+          "market_observations": "5ed2db564b7140bc5f97b23671067d4b701ff91d3726e87cbe7bbc118712e7d7",
+          "rolling_origins": "fc0dc0c236b51dae7f5340f6ab0a16d4707fea622b101ef178a1b0b15f56e005"
+        },
+        "pending": {
+          "2f41d7ca1923436d8adbb109c6bfc13b": {
+            "bytes": 0,
+            "early_logs": 10210,
+            "missing_logs": 0,
+            "slots": 0
+          },
+          "d89d35c5c24b46c5aaaa2c3571fc4c33": {
+            "bytes": 0,
+            "early_logs": 0,
+            "missing_logs": 0,
+            "slots": 0
+          }
+        },
+        "process_io_delta": {
+          "cancelled_write_bytes": 29511680,
+          "rchar": 27645547,
+          "read_bytes": 0,
+          "syscr": 5396,
+          "syscw": 28992,
+          "wchar": 70510120,
+          "write_bytes": 87232512
+        },
+        "rss_peak_kib": 107792,
+        "sqlite_changes": 8440,
+        "wall_seconds": 10.098510414012708
+      },
+      {
+        "canonical_count": 287,
+        "canonical_digest": "ed2e970c41ee81c8955aa6a48eddfa63fd060cd0bb9700559c319118b6d3d037",
+        "cpu_seconds": 6.9351568299999995,
+        "limitations": [
+          "Replay executes captured deliveries serially; original scheduling and network/finality delays are not replayed.",
+          "Profiler overhead is included equally in comparisons.",
+          "Missing tape tail remains pending and confers no completeness.",
+          "Consumer qualification and position economics require additional unchanged fixture tests."
+        ],
+        "output_digests": {
+          "candidate_checkpoints": "fa9757fbd22c29f9a1846adc95b819ed536237e3cec8dcdc093f1d03dd892023",
+          "candidate_coverage": "a3e418943c93583b005e90ccab00cd9d3a8f1de6410202537f145bef6989391e",
+          "candidate_gaps": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "candidate_lifecycle": "9d04afaa3650ba2297267bef0a03b69c3583ff6bd75184ec875eb0ccf28323ae",
+          "candidate_pending_proofs": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "consumer:candidates": "a6653774756f3992f4b40e540a52092951d93ebbe691df1891d351b9b753159f",
+          "consumer:canonical_event_refs": "5c5ee9f5a665fea69a3c6b75b6603f149ceaeb5fd95ffcf39e9793dfe92c693b",
+          "consumer:work": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "evidence_bindings": "fbf41be12b0997d81d7c7110b4818377e7f17ef964310d459bdc71b80f57506a",
+          "market_observations": "5ed2db564b7140bc5f97b23671067d4b701ff91d3726e87cbe7bbc118712e7d7",
+          "rolling_origins": "fc0dc0c236b51dae7f5340f6ab0a16d4707fea622b101ef178a1b0b15f56e005"
+        },
+        "pending": {
+          "2f41d7ca1923436d8adbb109c6bfc13b": {
+            "bytes": 0,
+            "early_logs": 10210,
+            "missing_logs": 0,
+            "slots": 0
+          },
+          "d89d35c5c24b46c5aaaa2c3571fc4c33": {
+            "bytes": 0,
+            "early_logs": 0,
+            "missing_logs": 0,
+            "slots": 0
+          }
+        },
+        "process_io_delta": {
+          "cancelled_write_bytes": 29544448,
+          "rchar": 27645547,
+          "read_bytes": 0,
+          "syscr": 5396,
+          "syscw": 28992,
+          "wchar": 70510120,
+          "write_bytes": 87232512
+        },
+        "rss_peak_kib": 107952,
+        "sqlite_changes": 8440,
+        "wall_seconds": 9.304079268011265
+      }
+    ],
+    "combined_seconds": 21.837309162016027,
+    "exit_codes": {
+      "allocator": 0,
+      "pons": 0
+    },
+    "host": {
+      "memory_bytes": 8327667712,
+      "vcpus": 2
+    },
+    "ingestion_alone": {
+      "canonical_count": 287,
+      "canonical_digest": "ed2e970c41ee81c8955aa6a48eddfa63fd060cd0bb9700559c319118b6d3d037",
+      "cpu_seconds": 4.841850485,
+      "limitations": [
+        "Replay executes captured deliveries serially; original scheduling and network/finality delays are not replayed.",
+        "Profiler overhead is included equally in comparisons.",
+        "Missing tape tail remains pending and confers no completeness.",
+        "Consumer qualification and position economics require additional unchanged fixture tests."
+      ],
+      "output_digests": {
+        "candidate_checkpoints": "fa9757fbd22c29f9a1846adc95b819ed536237e3cec8dcdc093f1d03dd892023",
+        "candidate_coverage": "a3e418943c93583b005e90ccab00cd9d3a8f1de6410202537f145bef6989391e",
+        "candidate_gaps": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "candidate_lifecycle": "9d04afaa3650ba2297267bef0a03b69c3583ff6bd75184ec875eb0ccf28323ae",
+        "candidate_pending_proofs": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "consumer:candidates": "a6653774756f3992f4b40e540a52092951d93ebbe691df1891d351b9b753159f",
+        "consumer:canonical_event_refs": "5c5ee9f5a665fea69a3c6b75b6603f149ceaeb5fd95ffcf39e9793dfe92c693b",
+        "consumer:work": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "evidence_bindings": "fbf41be12b0997d81d7c7110b4818377e7f17ef964310d459bdc71b80f57506a",
+        "market_observations": "5ed2db564b7140bc5f97b23671067d4b701ff91d3726e87cbe7bbc118712e7d7",
+        "rolling_origins": "fc0dc0c236b51dae7f5340f6ab0a16d4707fea622b101ef178a1b0b15f56e005"
+      },
+      "pending": {
+        "2f41d7ca1923436d8adbb109c6bfc13b": {
+          "bytes": 0,
+          "early_logs": 10210,
+          "missing_logs": 0,
+          "slots": 0
+        },
+        "d89d35c5c24b46c5aaaa2c3571fc4c33": {
+          "bytes": 0,
+          "early_logs": 0,
+          "missing_logs": 0,
+          "slots": 0
+        }
+      },
+      "process_io_delta": {
+        "cancelled_write_bytes": 29544448,
+        "rchar": 27645547,
+        "read_bytes": 0,
+        "syscr": 5396,
+        "syscw": 28992,
+        "wchar": 70510120,
+        "write_bytes": 87232512
+      },
+      "rss_peak_kib": 107896,
+      "sqlite_changes": 8440,
+      "wall_seconds": 6.965694328013342
+    },
+    "limitations": [
+      "Zero provider workload: Pons probes certify fixture admission only.",
+      "Original candidate and real position deadlines require authorized live evidence.",
+      "Profiler overhead belongs to ingestion runs; allocator native fixture includes the same 64 requests and durable deliveries.",
+      "Peak RSS is sampled at 0.2 seconds; complete child CPU is retained by their result receipts.",
+      "Group CPU from /proc is a sampled lower bound; import and final unsampled work cannot be recovered exactly."
+    ],
+    "load_cycles": 2,
+    "observed_peak_process_group_rss_bytes": 182751232,
+    "pons_alone": {
+      "admission_probes": [
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.014171994989737868
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.49828988598892465
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.4998144819983281
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5005643360200338
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.501897657988593
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.49943811004050076
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5007050069980323
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 3.478601530950982
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 1.0019343119929545
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5002591949887574
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.49824020999949425
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.501351821993012
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.503472104028333
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 3.005713517020922
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.49697438202565536
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5004108920111321
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5012134269927628
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5032078259973787
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.49602915794821456
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5011510329786688
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.4997652290039696
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5128840320394374
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.48764502903213724
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5035739099839702
+        }
+      ],
+      "errors": [],
+      "fixture_deadline_misses": 0,
+      "interval": 0.5,
+      "physical_market_requests": 0,
+      "worker_resources": {
+        "cpu_seconds": 0.14160008600000001,
+        "process_io_delta": {
+          "cancelled_write_bytes": 360448,
+          "rchar": 2141663,
+          "read_bytes": 0,
+          "syscr": 550,
+          "syscw": 738,
+          "wchar": 1474028,
+          "write_bytes": 2338816
+        },
+        "rss_peak_kib": 28800,
+        "wall_seconds": 11.581602499994915
+      }
+    },
+    "pons_combined": {
+      "admission_probes": [
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.027686669025570154
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.501767456997186
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.49470917199505493
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5030081600416452
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5027218280010857
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.4977244570036419
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.512620078981854
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 3.4977943979902193
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.9919629019568674
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.49997357797110453
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5025073600118048
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.4980059820227325
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5063389689894393
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 3.0076591030228883
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.4927056830492802
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5101690929732285
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.4998851440032013
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.49854331696406007
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.49806028098100796
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5029606309835799
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.49529861001065
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5143366270349361
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.49995684204623103
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.494019981008023
+        }
+      ],
+      "errors": [],
+      "fixture_deadline_misses": 0,
+      "interval": 0.5,
+      "physical_market_requests": 0,
+      "worker_resources": {
+        "cpu_seconds": 0.152837905,
+        "process_io_delta": {
+          "cancelled_write_bytes": 360448,
+          "rchar": 2490007,
+          "read_bytes": 0,
+          "syscr": 632,
+          "syscw": 671,
+          "wchar": 1325352,
+          "write_bytes": 2117632
+        },
+        "rss_peak_kib": 28860,
+        "wall_seconds": 11.557233022002038
+      }
+    },
+    "provider_calls": 0,
+    "sampled_group_cpu_lower_bound": 31.689999999999998
+  },
+  "repaired": {
+    "allocator_alone": {
+      "application_retries": 0,
+      "begin_wait_over_1ms": 53,
+      "capital": {
+        "active_reservations": "0",
+        "actual_cash": "125.00",
+        "authoritative_fundable_capital": "500.00",
+        "conservation": true,
+        "deployed_basis": "375.00",
+        "free_cash": "125.00",
+        "pending_authoritative_commitments": "0",
+        "realized_equity": "500.00",
+        "required_funding_obligations": "0"
+      },
+      "conservation": true,
+      "cpu_seconds": 8.186840516999998,
+      "database_files_bytes": {
+        "shared-capital.sqlite": 1474560,
+        "shared-capital.sqlite-shm": 32768,
+        "shared-capital.sqlite-wal": 5821592
+      },
+      "durable_transactions": 440,
+      "errors": {},
+      "grant_latency": {
+        "median_ms": 180.9433824964799,
+        "p95_ms": 328.5071009886451,
+        "p99_ms": 328.9018690120429,
+        "samples": 64
+      },
+      "independent_authority_connections": 4,
+      "missed_funding_ceiling_5s": {},
+      "native_delivery_latency": {
+        "median_ms": 37.51753896358423,
+        "p95_ms": 73.9942790241912,
+        "p99_ms": 84.84856400173157,
+        "samples": 180
+      },
+      "process_io_delta": {
+        "cancelled_write_bytes": 1433600,
+        "rchar": 81889885,
+        "read_bytes": 0,
+        "syscr": 20240,
+        "syscw": 90771,
+        "wchar": 198171072,
+        "write_bytes": 201543680
+      },
+      "replay_seconds": 1.8277904280112125,
+      "requests": 64,
+      "wall_seconds": 10.608654237003066,
+      "worker_resources": {
+        "cpu_seconds": 10.439018819,
+        "process_io_delta": {
+          "cancelled_write_bytes": 1794048,
+          "rchar": 85387083,
+          "read_bytes": 0,
+          "syscr": 20975,
+          "syscw": 91283,
+          "wchar": 199177592,
+          "write_bytes": 203218944
+        },
+        "rss_peak_kib": 50004,
+        "wall_seconds": 13.068728799989913
+      }
+    },
+    "allocator_combined": {
+      "application_retries": 0,
+      "begin_wait_over_1ms": 50,
+      "capital": {
+        "active_reservations": "0",
+        "actual_cash": "125.00",
+        "authoritative_fundable_capital": "500.00",
+        "conservation": true,
+        "deployed_basis": "375.00",
+        "free_cash": "125.00",
+        "pending_authoritative_commitments": "0",
+        "realized_equity": "500.00",
+        "required_funding_obligations": "0"
+      },
+      "conservation": true,
+      "cpu_seconds": 12.521054697,
+      "database_files_bytes": {
+        "shared-capital.sqlite": 1474560,
+        "shared-capital.sqlite-shm": 32768,
+        "shared-capital.sqlite-wal": 5821592
+      },
+      "durable_transactions": 440,
+      "errors": {},
+      "grant_latency": {
+        "median_ms": 261.05482899583876,
+        "p95_ms": 474.27608497673646,
+        "p99_ms": 562.4761179788038,
+        "samples": 64
+      },
+      "independent_authority_connections": 4,
+      "missed_funding_ceiling_5s": {},
+      "native_delivery_latency": {
+        "median_ms": 56.840944511350244,
+        "p95_ms": 100.72990896878764,
+        "p99_ms": 109.12900901166722,
+        "samples": 180
+      },
+      "process_io_delta": {
+        "cancelled_write_bytes": 1548288,
+        "rchar": 81920267,
+        "read_bytes": 0,
+        "syscr": 20247,
+        "syscw": 90856,
+        "wchar": 198388192,
+        "write_bytes": 201875456
+      },
+      "replay_seconds": 3.1878888169885613,
+      "requests": 64,
+      "wall_seconds": 15.270107432967052,
+      "worker_resources": {
+        "cpu_seconds": 16.292508914,
+        "process_io_delta": {
+          "cancelled_write_bytes": 1908736,
+          "rchar": 85428365,
+          "read_bytes": 0,
+          "syscr": 20982,
+          "syscw": 91366,
+          "wchar": 199366372,
+          "write_bytes": 203517952
+        },
+        "rss_peak_kib": 49112,
+        "wall_seconds": 19.474791426968295
+      }
+    },
+    "combined_ingestion": [
+      {
+        "canonical_count": 287,
+        "canonical_digest": "ed2e970c41ee81c8955aa6a48eddfa63fd060cd0bb9700559c319118b6d3d037",
+        "cpu_seconds": 7.285079647,
+        "limitations": [
+          "Replay executes captured deliveries serially; original scheduling and network/finality delays are not replayed.",
+          "Profiler overhead is included equally in comparisons.",
+          "Missing tape tail remains pending and confers no completeness.",
+          "Consumer qualification and position economics require additional unchanged fixture tests."
+        ],
+        "output_digests": {
+          "candidate_checkpoints": "fa9757fbd22c29f9a1846adc95b819ed536237e3cec8dcdc093f1d03dd892023",
+          "candidate_coverage": "a3e418943c93583b005e90ccab00cd9d3a8f1de6410202537f145bef6989391e",
+          "candidate_gaps": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "candidate_lifecycle": "9d04afaa3650ba2297267bef0a03b69c3583ff6bd75184ec875eb0ccf28323ae",
+          "candidate_pending_proofs": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "consumer:candidates": "a6653774756f3992f4b40e540a52092951d93ebbe691df1891d351b9b753159f",
+          "consumer:canonical_event_refs": "5c5ee9f5a665fea69a3c6b75b6603f149ceaeb5fd95ffcf39e9793dfe92c693b",
+          "consumer:work": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "evidence_bindings": "fbf41be12b0997d81d7c7110b4818377e7f17ef964310d459bdc71b80f57506a",
+          "market_observations": "5ed2db564b7140bc5f97b23671067d4b701ff91d3726e87cbe7bbc118712e7d7",
+          "rolling_origins": "fc0dc0c236b51dae7f5340f6ab0a16d4707fea622b101ef178a1b0b15f56e005"
+        },
+        "pending": {
+          "2f41d7ca1923436d8adbb109c6bfc13b": {
+            "bytes": 0,
+            "early_logs": 10210,
+            "missing_logs": 0,
+            "slots": 0
+          },
+          "d89d35c5c24b46c5aaaa2c3571fc4c33": {
+            "bytes": 0,
+            "early_logs": 0,
+            "missing_logs": 0,
+            "slots": 0
+          }
+        },
+        "process_io_delta": {
+          "cancelled_write_bytes": 29544448,
+          "rchar": 27645550,
+          "read_bytes": 0,
+          "syscr": 5396,
+          "syscw": 28992,
+          "wchar": 70510120,
+          "write_bytes": 87232512
+        },
+        "rss_peak_kib": 107968,
+        "sqlite_changes": 8440,
+        "wall_seconds": 9.91184382600477
+      },
+      {
+        "canonical_count": 287,
+        "canonical_digest": "ed2e970c41ee81c8955aa6a48eddfa63fd060cd0bb9700559c319118b6d3d037",
+        "cpu_seconds": 6.931936904,
+        "limitations": [
+          "Replay executes captured deliveries serially; original scheduling and network/finality delays are not replayed.",
+          "Profiler overhead is included equally in comparisons.",
+          "Missing tape tail remains pending and confers no completeness.",
+          "Consumer qualification and position economics require additional unchanged fixture tests."
+        ],
+        "output_digests": {
+          "candidate_checkpoints": "fa9757fbd22c29f9a1846adc95b819ed536237e3cec8dcdc093f1d03dd892023",
+          "candidate_coverage": "a3e418943c93583b005e90ccab00cd9d3a8f1de6410202537f145bef6989391e",
+          "candidate_gaps": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "candidate_lifecycle": "9d04afaa3650ba2297267bef0a03b69c3583ff6bd75184ec875eb0ccf28323ae",
+          "candidate_pending_proofs": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "consumer:candidates": "a6653774756f3992f4b40e540a52092951d93ebbe691df1891d351b9b753159f",
+          "consumer:canonical_event_refs": "5c5ee9f5a665fea69a3c6b75b6603f149ceaeb5fd95ffcf39e9793dfe92c693b",
+          "consumer:work": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "evidence_bindings": "fbf41be12b0997d81d7c7110b4818377e7f17ef964310d459bdc71b80f57506a",
+          "market_observations": "5ed2db564b7140bc5f97b23671067d4b701ff91d3726e87cbe7bbc118712e7d7",
+          "rolling_origins": "fc0dc0c236b51dae7f5340f6ab0a16d4707fea622b101ef178a1b0b15f56e005"
+        },
+        "pending": {
+          "2f41d7ca1923436d8adbb109c6bfc13b": {
+            "bytes": 0,
+            "early_logs": 10210,
+            "missing_logs": 0,
+            "slots": 0
+          },
+          "d89d35c5c24b46c5aaaa2c3571fc4c33": {
+            "bytes": 0,
+            "early_logs": 0,
+            "missing_logs": 0,
+            "slots": 0
+          }
+        },
+        "process_io_delta": {
+          "cancelled_write_bytes": 29544448,
+          "rchar": 27645547,
+          "read_bytes": 0,
+          "syscr": 5396,
+          "syscw": 28992,
+          "wchar": 70510120,
+          "write_bytes": 87232512
+        },
+        "rss_peak_kib": 107728,
+        "sqlite_changes": 8440,
+        "wall_seconds": 9.337501654983498
+      }
+    ],
+    "combined_seconds": 21.632484890986234,
+    "exit_codes": {
+      "allocator": 0,
+      "pons": 0
+    },
+    "host": {
+      "memory_bytes": 8327667712,
+      "vcpus": 2
+    },
+    "ingestion_alone": {
+      "canonical_count": 287,
+      "canonical_digest": "ed2e970c41ee81c8955aa6a48eddfa63fd060cd0bb9700559c319118b6d3d037",
+      "cpu_seconds": 4.769298007,
+      "limitations": [
+        "Replay executes captured deliveries serially; original scheduling and network/finality delays are not replayed.",
+        "Profiler overhead is included equally in comparisons.",
+        "Missing tape tail remains pending and confers no completeness.",
+        "Consumer qualification and position economics require additional unchanged fixture tests."
+      ],
+      "output_digests": {
+        "candidate_checkpoints": "fa9757fbd22c29f9a1846adc95b819ed536237e3cec8dcdc093f1d03dd892023",
+        "candidate_coverage": "a3e418943c93583b005e90ccab00cd9d3a8f1de6410202537f145bef6989391e",
+        "candidate_gaps": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "candidate_lifecycle": "9d04afaa3650ba2297267bef0a03b69c3583ff6bd75184ec875eb0ccf28323ae",
+        "candidate_pending_proofs": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "consumer:candidates": "a6653774756f3992f4b40e540a52092951d93ebbe691df1891d351b9b753159f",
+        "consumer:canonical_event_refs": "5c5ee9f5a665fea69a3c6b75b6603f149ceaeb5fd95ffcf39e9793dfe92c693b",
+        "consumer:work": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "evidence_bindings": "fbf41be12b0997d81d7c7110b4818377e7f17ef964310d459bdc71b80f57506a",
+        "market_observations": "5ed2db564b7140bc5f97b23671067d4b701ff91d3726e87cbe7bbc118712e7d7",
+        "rolling_origins": "fc0dc0c236b51dae7f5340f6ab0a16d4707fea622b101ef178a1b0b15f56e005"
+      },
+      "pending": {
+        "2f41d7ca1923436d8adbb109c6bfc13b": {
+          "bytes": 0,
+          "early_logs": 10210,
+          "missing_logs": 0,
+          "slots": 0
+        },
+        "d89d35c5c24b46c5aaaa2c3571fc4c33": {
+          "bytes": 0,
+          "early_logs": 0,
+          "missing_logs": 0,
+          "slots": 0
+        }
+      },
+      "process_io_delta": {
+        "cancelled_write_bytes": 29544448,
+        "rchar": 27645547,
+        "read_bytes": 0,
+        "syscr": 5396,
+        "syscw": 28992,
+        "wchar": 70510120,
+        "write_bytes": 87232512
+      },
+      "rss_peak_kib": 107888,
+      "sqlite_changes": 8440,
+      "wall_seconds": 6.588901844981592
+    },
+    "limitations": [
+      "Zero provider workload: Pons probes certify fixture admission only.",
+      "Original candidate and real position deadlines require authorized live evidence.",
+      "Profiler overhead belongs to ingestion runs; allocator native fixture includes the same 64 requests and durable deliveries.",
+      "Peak RSS is sampled at 0.2 seconds; complete child CPU is retained by their result receipts.",
+      "Group CPU from /proc is a sampled lower bound; import and final unsampled work cannot be recovered exactly."
+    ],
+    "load_cycles": 2,
+    "observed_peak_process_group_rss_bytes": 188530688,
+    "pons_alone": {
+      "admission_probes": [
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.01055616297526285
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.48318153095897287
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5002807609853335
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5011770140263252
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5008938650134951
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5020050070015714
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.49810191098367795
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 3.503583009005524
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.9992869069683366
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5001266930485144
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.500603974040132
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5071781689766794
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.493674400029704
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.50014606496552
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 3.5035434699966572
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5001865859958343
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5004864119691774
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.49943523900583386
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5011576460092328
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.49891167401801795
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5003605509991758
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5002526989555918
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.503701914974954
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.4971444580005482
+        }
+      ],
+      "errors": [],
+      "fixture_deadline_misses": 0,
+      "interval": 0.5,
+      "physical_market_requests": 0,
+      "worker_resources": {
+        "cpu_seconds": 0.136520753,
+        "process_io_delta": {
+          "cancelled_write_bytes": 327680,
+          "rchar": 2117042,
+          "read_bytes": 0,
+          "syscr": 544,
+          "syscw": 725,
+          "wchar": 1453532,
+          "write_bytes": 2281472
+        },
+        "rss_peak_kib": 28928,
+        "wall_seconds": 11.569273010012694
+      }
+    },
+    "pons_combined": {
+      "admission_probes": [
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.02552595396991819
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5318816640065052
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5006281259702519
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.49801665998529643
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.49677924695424736
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5054750010021962
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.49823197699151933
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 3.509133967978414
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 1.0024579140008427
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.500772995990701
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.5033095219987445
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.4979452390107326
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.49888114200439304
+        },
+        {
+          "lane": "pons",
+          "scope": "pons_selective",
+          "seconds": 0.49993873899802566
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 3.506029195035808
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.49684235401218757
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5045749539858662
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.4939858940197155
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.506046447029803
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.49728495499584824
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.4983675710391253
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5032070860033855
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5023615109967068
+        },
+        {
+          "lane": "pons_survivor",
+          "scope": "pons_survivor_history",
+          "seconds": 0.5039283609949052
+        }
+      ],
+      "errors": [],
+      "fixture_deadline_misses": 0,
+      "interval": 0.5,
+      "physical_market_requests": 0,
+      "worker_resources": {
+        "cpu_seconds": 0.16016215799999997,
+        "process_io_delta": {
+          "cancelled_write_bytes": 356352,
+          "rchar": 2489962,
+          "read_bytes": 0,
+          "syscr": 632,
+          "syscw": 664,
+          "wchar": 1300744,
+          "write_bytes": 2084864
+        },
+        "rss_peak_kib": 28868,
+        "wall_seconds": 11.55726599902846
+      }
+    },
+    "provider_calls": 0,
+    "sampled_group_cpu_lower_bound": 31.84
+  },
+  "schema": "pump-provider-contention-receipt-v1"
+}

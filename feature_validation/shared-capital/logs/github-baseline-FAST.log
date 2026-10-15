@@ -1,0 +1,181 @@
+2026-10-06T16:20:56.4389962Z ##[group]Run python -m operational.tests FAST
+2026-10-06T16:20:56.4390209Z [36;1mpython -m operational.tests FAST[0m
+2026-10-06T16:20:56.4443892Z shell: /usr/bin/bash -e {0}
+2026-10-06T16:20:56.4444047Z env:
+2026-10-06T16:20:56.4444211Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-06T16:20:56.4444473Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+2026-10-06T16:20:56.4444702Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-06T16:20:56.4444915Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-06T16:20:56.4445140Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+2026-10-06T16:20:56.4445348Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+2026-10-06T16:20:56.4445526Z ##[endgroup]
+2026-10-06T16:21:00.8582038Z ...............................Executing <Task pending name='Task-12' coro=<StartupStorage.test_cold_records_retire_under_continuously_queued_source_work() running at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:33> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:181] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 0.318 seconds
+2026-10-06T16:21:01.3731173Z .Executing <Task pending name='Task-17' coro=<StartupStorage.test_cold_return_discharges_expired_source_debt_without_renewing_deadline() running at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:56> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:181] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 0.139 seconds
+2026-10-06T16:21:02.3816605Z ...Executing <Task pending name='Task-32' coro=<StartupStorage.test_dense_released_evidence_recovers_with_bounded_source_queue_waits() running at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:118> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:181] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 0.833 seconds
+2026-10-06T16:21:03.5839562Z Executing <Task finished name='Task-32' coro=<StartupStorage.test_dense_released_evidence_recovers_with_bounded_source_queue_waits() done, defined at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:100> result=None created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 0.132 seconds
+2026-10-06T16:21:05.4827874Z ........Executing <Task finished name='Task-72' coro=<StartupStorage.test_sparse_address_pin_observation_fits_existing_vm_budget() done, defined at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:304> result=None created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 1.612 seconds
+2026-10-06T16:21:06.7143954Z opportunity publication failed: IntegrityError
+2026-10-06T16:21:07.8674375Z opportunity schema unavailable: RuntimeError
+2026-10-06T16:21:07.8710592Z opportunity schema unavailable: RuntimeError
+2026-10-06T16:21:07.9013311Z opportunity publication failed: ValueError
+2026-10-06T16:21:11.7636890Z .........................................................F.FFFEFF.FEFF...............................................................ss..............................................................................................................................................................................................................................................................................................................
+2026-10-06T16:21:11.7638038Z ======================================================================
+2026-10-06T16:21:11.7638772Z ERROR: test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)
+2026-10-06T16:21:11.7639421Z ----------------------------------------------------------------------
+2026-10-06T16:21:11.7639704Z Traceback (most recent call last):
+2026-10-06T16:21:11.7646079Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 93, in test_observer_can_verify_readonly_mount_without_relaxing_startup
+2026-10-06T16:21:11.7646820Z     self.assertEqual(verify_storage(self.root, require_writable=False)['epoch_id'],
+2026-10-06T16:21:11.7647074Z                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-06T16:21:11.7647463Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/meme_machine/operational/storage_guard.py", line 40, in verify_storage
+2026-10-06T16:21:11.7664633Z ##[error]    raise StorageGuardError('storage_configuration_permissions')
+2026-10-06T16:21:11.7669088Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+2026-10-06T16:21:11.7669312Z 
+2026-10-06T16:21:11.7669388Z ======================================================================
+2026-10-06T16:21:11.7669765Z ERROR: test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)
+2026-10-06T16:21:11.7670147Z ----------------------------------------------------------------------
+2026-10-06T16:21:11.7670345Z Traceback (most recent call last):
+2026-10-06T16:21:11.7670761Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 55, in test_valid_existing_identity_is_read_only
+2026-10-06T16:21:11.7671186Z     self.assertEqual(verify_storage(self.root)['epoch_id'], 'paper-preserved')
+2026-10-06T16:21:11.7671416Z                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-06T16:21:11.7671740Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/meme_machine/operational/storage_guard.py", line 40, in verify_storage
+2026-10-06T16:21:11.7672332Z ##[error]    raise StorageGuardError('storage_configuration_permissions')
+2026-10-06T16:21:11.7672885Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+2026-10-06T16:21:11.7673093Z 
+2026-10-06T16:21:11.7673170Z ======================================================================
+2026-10-06T16:21:11.7673568Z FAIL: test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)
+2026-10-06T16:21:11.7673980Z ----------------------------------------------------------------------
+2026-10-06T16:21:11.7674272Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+2026-10-06T16:21:11.7674473Z 
+2026-10-06T16:21:11.7674574Z During handling of the above exception, another exception occurred:
+2026-10-06T16:21:11.7674721Z 
+2026-10-06T16:21:11.7674784Z Traceback (most recent call last):
+2026-10-06T16:21:11.7675172Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 83, in test_cloned_filesystem_uuid_on_wrong_volume_is_rejected
+2026-10-06T16:21:11.7675785Z     self.assert_startup_rejected(dict(self.mounted, **{'maj:min':'8:1'}),
+2026-10-06T16:21:11.7676175Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+2026-10-06T16:21:11.7676528Z     with self.assertRaisesRegex(StorageGuardError, reason):
+2026-10-06T16:21:11.7676845Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-06T16:21:11.7677123Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+2026-10-06T16:21:11.7677342Z 
+2026-10-06T16:21:11.7677415Z ======================================================================
+2026-10-06T16:21:11.7677790Z FAIL: test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)
+2026-10-06T16:21:11.7678176Z ----------------------------------------------------------------------
+2026-10-06T16:21:11.7678457Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+2026-10-06T16:21:11.7678656Z 
+2026-10-06T16:21:11.7678755Z During handling of the above exception, another exception occurred:
+2026-10-06T16:21:11.7678899Z 
+2026-10-06T16:21:11.7678956Z Traceback (most recent call last):
+2026-10-06T16:21:11.7679328Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 70, in test_missing_mount_never_creates_replacement_epoch
+2026-10-06T16:21:11.7679753Z     self.assert_startup_rejected(dict(self.mounted, target='/', uuid='root-disk'),
+2026-10-06T16:21:11.7680274Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+2026-10-06T16:21:11.7680621Z     with self.assertRaisesRegex(StorageGuardError, reason):
+2026-10-06T16:21:11.7680810Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-06T16:21:11.7681085Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+2026-10-06T16:21:11.7681299Z 
+2026-10-06T16:21:11.7681364Z ======================================================================
+2026-10-06T16:21:11.7681689Z FAIL: test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)
+2026-10-06T16:21:11.7682025Z ----------------------------------------------------------------------
+2026-10-06T16:21:11.7682298Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+2026-10-06T16:21:11.7682498Z 
+2026-10-06T16:21:11.7682595Z During handling of the above exception, another exception occurred:
+2026-10-06T16:21:11.7682742Z 
+2026-10-06T16:21:11.7682799Z Traceback (most recent call last):
+2026-10-06T16:21:11.7683154Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 108, in test_missing_portfolio_cannot_reseed
+2026-10-06T16:21:11.7683555Z     self.assert_startup_rejected(self.mounted, 'existing_portfolio_required')
+2026-10-06T16:21:11.7683945Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+2026-10-06T16:21:11.7684292Z     with self.assertRaisesRegex(StorageGuardError, reason):
+2026-10-06T16:21:11.7684478Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-06T16:21:11.7684726Z AssertionError: "existing_portfolio_required" does not match "storage_configuration_permissions"
+2026-10-06T16:21:11.7684925Z 
+2026-10-06T16:21:11.7684989Z ======================================================================
+2026-10-06T16:21:11.7685283Z FAIL: test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)
+2026-10-06T16:21:11.7685586Z ----------------------------------------------------------------------
+2026-10-06T16:21:11.7685858Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+2026-10-06T16:21:11.7686056Z 
+2026-10-06T16:21:11.7686240Z During handling of the above exception, another exception occurred:
+2026-10-06T16:21:11.7686405Z 
+2026-10-06T16:21:11.7686463Z Traceback (most recent call last):
+2026-10-06T16:21:11.7686900Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 79, in test_nested_mount_rejected
+2026-10-06T16:21:11.7687280Z     self.assert_startup_rejected(dict(self.mounted, target=str(self.root)),
+2026-10-06T16:21:11.7687700Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+2026-10-06T16:21:11.7688131Z     with self.assertRaisesRegex(StorageGuardError, reason):
+2026-10-06T16:21:11.7688321Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-06T16:21:11.7688618Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+2026-10-06T16:21:11.7688864Z 
+2026-10-06T16:21:11.7688934Z ======================================================================
+2026-10-06T16:21:11.7689262Z FAIL: test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)
+2026-10-06T16:21:11.7689609Z ----------------------------------------------------------------------
+2026-10-06T16:21:11.7689913Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+2026-10-06T16:21:11.7690149Z 
+2026-10-06T16:21:11.7690247Z During handling of the above exception, another exception occurred:
+2026-10-06T16:21:11.7690501Z 
+2026-10-06T16:21:11.7690560Z Traceback (most recent call last):
+2026-10-06T16:21:11.7690946Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 87, in test_readonly_mount_rejected
+2026-10-06T16:21:11.7691370Z     self.assert_startup_rejected(dict(self.mounted, options='ro,noatime'),
+2026-10-06T16:21:11.7691796Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+2026-10-06T16:21:11.7692169Z     with self.assertRaisesRegex(StorageGuardError, reason):
+2026-10-06T16:21:11.7692390Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-06T16:21:11.7692703Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+2026-10-06T16:21:11.7692929Z 
+2026-10-06T16:21:11.7692994Z ======================================================================
+2026-10-06T16:21:11.7693405Z FAIL: test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)
+2026-10-06T16:21:11.7693846Z ----------------------------------------------------------------------
+2026-10-06T16:21:11.7694141Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+2026-10-06T16:21:11.7694358Z 
+2026-10-06T16:21:11.7694469Z During handling of the above exception, another exception occurred:
+2026-10-06T16:21:11.7694639Z 
+2026-10-06T16:21:11.7694703Z Traceback (most recent call last):
+2026-10-06T16:21:11.7695178Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 102, in test_readonly_observer_still_rejects_cloned_wrong_volume
+2026-10-06T16:21:11.7695793Z     with self.assertRaisesRegex(StorageGuardError, 'expected_persistent_volume_not_mounted'):
+2026-10-06T16:21:11.7696121Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-06T16:21:11.7696457Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+2026-10-06T16:21:11.7696776Z 
+2026-10-06T16:21:11.7696858Z ======================================================================
+2026-10-06T16:21:11.7697244Z FAIL: test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)
+2026-10-06T16:21:11.7697771Z ----------------------------------------------------------------------
+2026-10-06T16:21:11.7698099Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+2026-10-06T16:21:11.7698350Z 
+2026-10-06T16:21:11.7698478Z During handling of the above exception, another exception occurred:
+2026-10-06T16:21:11.7698649Z 
+2026-10-06T16:21:11.7698727Z Traceback (most recent call last):
+2026-10-06T16:21:11.7699188Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 113, in test_unbound_portfolio_cannot_reseed
+2026-10-06T16:21:11.7699669Z     self.assert_startup_rejected(self.mounted, 'existing_portfolio_inception_required')
+2026-10-06T16:21:11.7700128Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+2026-10-06T16:21:11.7700517Z     with self.assertRaisesRegex(StorageGuardError, reason):
+2026-10-06T16:21:11.7700727Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-06T16:21:11.7701036Z AssertionError: "existing_portfolio_inception_required" does not match "storage_configuration_permissions"
+2026-10-06T16:21:11.7701270Z 
+2026-10-06T16:21:11.7701335Z ======================================================================
+2026-10-06T16:21:11.7701810Z FAIL: test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)
+2026-10-06T16:21:11.7702284Z ----------------------------------------------------------------------
+2026-10-06T16:21:11.7702714Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+2026-10-06T16:21:11.7703015Z 
+2026-10-06T16:21:11.7703119Z During handling of the above exception, another exception occurred:
+2026-10-06T16:21:11.7703286Z 
+2026-10-06T16:21:11.7703345Z Traceback (most recent call last):
+2026-10-06T16:21:11.7703783Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 118, in test_wrong_epoch_leaves_valid_existing_database_untouched
+2026-10-06T16:21:11.7704316Z     self.assert_startup_rejected(self.mounted, 'existing_PAPER_epoch_identity_mismatch')
+2026-10-06T16:21:11.7704780Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+2026-10-06T16:21:11.7705162Z     with self.assertRaisesRegex(StorageGuardError, reason):
+2026-10-06T16:21:11.7705366Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-06T16:21:11.7705680Z AssertionError: "existing_PAPER_epoch_identity_mismatch" does not match "storage_configuration_permissions"
+2026-10-06T16:21:11.7705897Z 
+2026-10-06T16:21:11.7705965Z ======================================================================
+2026-10-06T16:21:11.7706338Z FAIL: test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)
+2026-10-06T16:21:11.7706790Z ----------------------------------------------------------------------
+2026-10-06T16:21:11.7707068Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+2026-10-06T16:21:11.7707281Z 
+2026-10-06T16:21:11.7707392Z During handling of the above exception, another exception occurred:
+2026-10-06T16:21:11.7707545Z 
+2026-10-06T16:21:11.7707603Z Traceback (most recent call last):
+2026-10-06T16:21:11.7707971Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 75, in test_wrong_volume_rejected_before_any_writer
+2026-10-06T16:21:11.7708383Z     self.assert_startup_rejected(dict(self.mounted, uuid='wrong-filesystem'),
+2026-10-06T16:21:11.7708821Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+2026-10-06T16:21:11.7709215Z     with self.assertRaisesRegex(StorageGuardError, reason):
+2026-10-06T16:21:11.7709514Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-06T16:21:11.7709831Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+2026-10-06T16:21:11.7710068Z 
+2026-10-06T16:21:11.7710154Z ----------------------------------------------------------------------
+2026-10-06T16:21:11.7710339Z Ran 480 tests in 14.281s
+2026-10-06T16:21:11.7710421Z 
+2026-10-06T16:21:11.7710487Z FAILED (failures=9, errors=2, skipped=2)
+2026-10-06T16:21:11.8126472Z ##[error]Process completed with exit code 1.

@@ -1,0 +1,43 @@
+{
+  "schema": "focused-operational-repair-proof-v1",
+  "parent_source": "57c5b1570619f35d7ce40d949251887dd7418ec7",
+  "defect": "Pump missing-history checks searched coverage_scope without its family, scanning 11,175 retained bindings for each waiting candidate instead of using the existing family/scope index.",
+  "retained_authenticated_failure": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PUMP_JOIN_RETIREMENT_57c5b157-1791789429031.json",
+  "change": "Use the exact family and coverage-scope identity in the existing indexed creation-boundary lookup.",
+  "new_index": false,
+  "provider_methods_added": 0,
+  "evidence_or_deadlines_changed": false,
+  "offline_same_state_comparison": {
+    "point_in_time": 1791789580.0,
+    "original_seconds": 0.47124756895937026,
+    "corrected_seconds": 0.24056542094331235,
+    "same_selected_job": "5507a24af9d37b3d2b9bcb465f5d02f3e576bcd27656b24c0337139717909412",
+    "external_publication": false,
+    "provider_dispatch": false,
+    "all_database_changes_rolled_back": true,
+    "claims_actual_protective_latency": false
+  },
+  "tests": {
+    "FAST": {
+      "run": 37,
+      "seconds": 6.611,
+      "result": "PASS"
+    },
+    "OPERATIONAL": {
+      "run": 85,
+      "seconds": 42.541,
+      "skipped": 4,
+      "result": "PASS",
+      "modules": [
+        "tests.test_solana_rolling_prewarm",
+        "tests.test_solana_prewarm_startup",
+        "tests.test_run381_archive_scheduling",
+        "tests.test_coordinated_database"
+      ]
+    }
+  },
+  "regression": "5,000 retained bindings survive restart; the real creation lookup completes within 3,000 SQLite VM operations while original point-in-time availability and a newly recorded reorganization gap remain enforced.",
+  "authenticated_successor_result": "PENDING",
+  "paper_funding": false,
+  "research": "SUSPENDED"
+}

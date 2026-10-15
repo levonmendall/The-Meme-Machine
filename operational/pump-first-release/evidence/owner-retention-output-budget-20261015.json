@@ -1,0 +1,79 @@
+{
+  "additional_bytes": 380880,
+  "at": "2026-10-15T06:58:30.039879+00:00",
+  "base_projection_bytes": 32985360,
+  "base_reference": "CANONICAL_BATCH_NEXT_OBSERVATION_20261015.json:diagnostic_output",
+  "cadence_seconds": 5,
+  "candidate": "c281058e5993bd7a35190010e9398c982ca7cd1e",
+  "controller_sha256": "074bc857abfd85962930bb85cbae243dd3896d149810d6798889afa097db6676",
+  "full_samples": 360,
+  "guard_bytes": 1024,
+  "guard_samples": 1440,
+  "integer_assumption": "20decimal-digit unsigned64 counters; explicit projection assumption, Python integers are not a universal bounded-output guarantee",
+  "limits": "Retained-shape projection only. Existing runtime total/per-sample/counter bounds and required-counter-loss stops remain authoritative; no resource limit or cadence changed.",
+  "longest_startup_phase": "WAIT_FOR_DURABLE_PUBLICATION",
+  "metrics_bound_bytes": 33423360,
+  "per_sample_input_limit_bytes": 1048576,
+  "projected_metrics_bytes": 33366240,
+  "remaining_metrics_bytes": 57120,
+  "required_counter_limit_bytes": 65536,
+  "retention_added_bytes_per_full_sample": 757,
+  "retention_fields": 13,
+  "retention_keys": [
+    "retention_phase.housekeeping.cpu_us",
+    "retention_phase.housekeeping.runnable_us",
+    "retention_phase.housekeeping.wall_us",
+    "retention_phase.plan.cpu_us",
+    "retention_phase.plan.runnable_us",
+    "retention_phase.plan.wall_us",
+    "retention_phase.post.cpu_us",
+    "retention_phase.post.runnable_us",
+    "retention_phase.post.wall_us",
+    "retention_phase.transaction.cpu_us",
+    "retention_phase.transaction.runnable_us",
+    "retention_phase.transaction.wall_us",
+    "retention_phase.unmeasured"
+  ],
+  "retention_phase_names": [
+    "plan",
+    "transaction",
+    "housekeeping",
+    "post"
+  ],
+  "runtime_activity": 0,
+  "schema": 1,
+  "scope": "Exact new fixed retention/startup JSON field sizes added to retained prior projection; no app imports, DB reads or throughput benchmark",
+  "source_shapes": {
+    "engineering/diagnostics/current_combined_observation_20261014.py": "074bc857abfd85962930bb85cbae243dd3896d149810d6798889afa097db6676",
+    "meme_machine/solana_prewarm_startup.py": "34ad3074063fda19fe43656758c300d4d751a787c594ec6de10eac2affa84c6d",
+    "meme_machine/solana_retention_outcome.py": "1ebd8890d09eb320b4528bee55b3be93903a59611a266c15d4b64a031f279ac6"
+  },
+  "startup_added_bytes_per_full_sample": 301,
+  "startup_shape": {
+    "feeds": [
+      [
+        "pump",
+        9223372036854775807,
+        9223372036854775807,
+        -1.7976931348623157e+308,
+        -1.7976931348623157e+308
+      ],
+      [
+        "pumpswap",
+        9223372036854775807,
+        9223372036854775807,
+        -1.7976931348623157e+308,
+        -1.7976931348623157e+308
+      ]
+    ],
+    "phase": "WAIT_FOR_DURABLE_PUBLICATION",
+    "released": false
+  },
+  "startup_slots": "Maximum signedSQLite64-bit integer",
+  "startup_timestamps": "Longest finitePython float representation represented by negative maximum binary64; not fabricated market evidence",
+  "status": "OFFLINE_SERIALIZATION_PROJECTION_NOT_RUNTIME_PASS",
+  "terminal_record_bytes_each": 65536,
+  "terminal_records": 2,
+  "total_bytes": 33554432,
+  "within_bound": true
+}

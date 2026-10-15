@@ -1,0 +1,59 @@
+{
+  "verified_UTC": "2026-10-07T06:19:57.312448+00:00",
+  "head": "fe86d9a8b60a36de0f47a234f7d2291c2a33c629",
+  "tree": "c04392407151a48be34bb3f21f4d3c6c821f0127",
+  "operational_base": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+  "endpoint_identity": "8f3feda9d10baa64d74b5ecb3a97cfa48af379982666f93a425e537668a51749",
+  "endpoint_provider": "alchemy_solana_mainnet",
+  "network": "solana-mainnet",
+  "worker_count": 2,
+  "shared_governor_interval_seconds": 0.5,
+  "shared_rpc_rps": 2,
+  "provider_queue_capacity": 256,
+  "provider_deadline_bound_seconds": 30,
+  "candidate_worker_capacity_limit": 32,
+  "owner_queue_capacity": 64,
+  "shard_limit": 50,
+  "live_shard_candidates": 48,
+  "production_blockers": [
+    "combined_position_and_candidate_provider_latency_not_certified"
+  ],
+  "policy_hashes": {
+    "Pump": "89d2e6ac286e82f3d645feecc4de4193687cd9ba4e4f9006b7d57f1357c5b972",
+    "Survivor": "0d65e1023b5e7b586e9a71d060fe9da7954c964bfcc3fc986977b80979ea44a5",
+    "Meteora": "3d8c2cb1651efc104578d25c10311a4df32a1ca56e1f45d2bfc04335635d52e5"
+  },
+  "source_sha256": {
+    "meme_machine/runtime/governor.py": "593752096c67459ea1bd5515ebf6c7540288fbbfcf86fba53e054bfe9c4cf222",
+    "meme_machine/runtime/request_scheduling.py": "8313679157fd910c318f31aa1638e2897a21c5fdbe3de9fbbd53c9815df8b51b",
+    "meme_machine/runtime/candidate_history.py": "b5bca60a84da564c59b503860f9140c8aeeb6541d0076375167b288187dfb1da",
+    "meme_machine/runtime/lifecycle_timing.py": "78b12307a7681cd63df2c3e533e765e47bfc80848c7ebaa872b78186e35cdeb3",
+    "meme_machine/solana_selective_source.py": "bb9c92f01f2e353ab25bd6111a9a9f4130a17e7bbb20cc63cc91109678743dac",
+    "meme_machine/solana_candidate_lifecycle.py": "e0bdf50c46c6f022fc8a742572bc16d5d1ad7c5e99b2e1a89d0fc97c30a6ec83",
+    "meme_machine/solana_scoped_retirement.py": "7f07826ad278857fd2548819dec7dd6505c9715490b087538e8e19d361e93116",
+    "tests/test_solana_closure.py": "24e27ff0ac05d7fa30f4d437e737fb427f88bda84d624db3a680f1c8f0ead478"
+  },
+  "protected_services": {
+    "paper": "inactive",
+    "capacity": "inactive",
+    "recovery": "inactive",
+    "autonomy": "inactive"
+  },
+  "initial_focused_tests": {
+    "tests": 25,
+    "seconds": 15.852,
+    "result": "PASS"
+  },
+  "diagnostic_limit_usd": 5,
+  "maximum_live_seconds": 3600,
+  "owner_reserved_slots": 8,
+  "native_RPC_pacing": {
+    "Pump": {
+      "minimum_seconds": 0.5
+    },
+    "Meteora": {
+      "minimum_seconds": 0.2,
+      "signature_seconds": 1
+    }
+  }
+}

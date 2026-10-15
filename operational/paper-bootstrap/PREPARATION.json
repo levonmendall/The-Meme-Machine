@@ -1,0 +1,200 @@
+{
+  "AUTONOMY": "NOT_RUN",
+  "CAPACITY": "NOT_RUN",
+  "RECOVERY": "NOT_RUN",
+  "approval_request": {
+    "RPC_CU": 720000,
+    "RPC_elements": 10000,
+    "authorization": "NOT_GRANTED",
+    "does_not_authorize_CAPACITY_RECOVERY_AUTONOMY": true,
+    "healthy_progress_before_arm_seconds": 60,
+    "maximum_gross_PAPER_capital": "25",
+    "maximum_lifecycles": 1,
+    "maximum_readiness_seconds": 600,
+    "maximum_seconds": 1800,
+    "native_shutdown_reserve_bytes": 2147483648,
+    "native_total_bytes": 4294967296,
+    "phase": "FIRST_POSITION_PAPER_BOOTSTRAP",
+    "physical_HTTP_or_stream_attempts": 10000,
+    "provider_spend_allowance_USD": "3",
+    "spend_semantics": "conservative published-price model; billed usage remains unmeasured",
+    "stop_new_funding_seconds": 1200
+  },
+  "base_commit": "4c219ed575092195c2db92cd060c9721e3dd8962",
+  "base_tree": "fb5253ff67b96b1f07ccecf803c85252c463487f",
+  "branch": "activation/paper-bootstrap-20261008",
+  "canonical": {
+    "epoch_id": "paper-1791089005190643467",
+    "inception_sha256": "3a1986fc4e755a75a93808815cec3d0cb9a930d0818e36ef2a3a93abf6190a9e",
+    "journal_hash": "c0cb1d5fd4a156378e4e53764c0f528707ee9a5af799662daf15f207be95723e",
+    "sequence": 2036
+  },
+  "canonical_digests_unchanged": true,
+  "deployed_unchanged": {
+    "commit": "b577cc1c67f4d64f887b430f5e933f376b607dc2",
+    "tree": "d6f5964acaf2269571a8446a8f74fbca00c4a69e"
+  },
+  "deployment_performed": false,
+  "droplet_id": 605465049,
+  "latency_guard": {
+    "reason": "combined_position_and_candidate_provider_latency_not_certified",
+    "type": "EvidenceUnavailable"
+  },
+  "market_provider_calls": 0,
+  "migration_plan": {
+    "approved_policy_sha256": "e87385900145e53956df18956ee2390f0d95787e6ffc44243251f9b147eb65f2",
+    "migration_sha256": "33009f2b4b5764f1955e86ec90642b86a734e59590cb15c42cd947da447eab1a",
+    "path": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/actual-epoch-migration-plan.json",
+    "sha256": "45ce1ec34183d7b143ec382e002e4094f97de25d81e381f99dcff4c1d2abfada"
+  },
+  "monetary_digests": {
+    "meteora/native-genesis.json": {
+      "bytes": 241,
+      "sha256": "c9ef0e2e16be6714378d381b2c019f5ed3b50d8891c6c21b6dffc60fcba2c6e2"
+    },
+    "meteora/solana-dlmm-independent-v1-live.accounting.sqlite3": {
+      "bytes": 12288,
+      "sha256": "6d330ff5695b860706ae2ecac99384500effe68802f4d0be996116132fd7aa86"
+    },
+    "portfolio.sqlite": {
+      "bytes": 770048,
+      "sha256": "3198aae1f3c732451f008c5a620b8f176792caf92c1517435675d9e04f3a4087"
+    },
+    "pump/directional-sleeve.sqlite": {
+      "bytes": 131072,
+      "sha256": "b6ff1324c81ff6ec3beb5468f03de30f24f9145c90ea0e49b88d2523d8b10dec"
+    },
+    "pump/native-genesis.json": {
+      "bytes": 241,
+      "sha256": "2fb1cddc05c30cf9416e2ed5d1189bc3c6a5898f8bb37ef50429263e148282a0"
+    },
+    "pump/pump-acceleration-natural-prospective.accounting.sqlite3": {
+      "bytes": 32768,
+      "sha256": "8f258a46260a87492b1cf925403861453e8469849288c9958300ff5da8bd7fdf"
+    },
+    "pump/pump-survivor/paper.sqlite": {
+      "bytes": 32768,
+      "sha256": "19b19ecf3fbf3ed27641c8f638dbb3eb13fe5712bb51df7bc5e5199693c49ee6"
+    }
+  },
+  "normal_admission": "BLOCKED_PENDING_AUTHENTIC_EVIDENCE_REVIEW",
+  "original_capital": "500.00",
+  "paper_restart_performed": false,
+  "protected_configuration_permissions": {
+    "/etc/meme-machine/acceptance.env": {
+      "mode": "0o600",
+      "uid": 0
+    },
+    "/etc/meme-machine/paper.env": {
+      "mode": "0o600",
+      "uid": 0
+    },
+    "/etc/meme-machine/storage.json": {
+      "mode": "0o644",
+      "uid": 0
+    }
+  },
+  "repository": "levonmendall/The-Meme-Machine",
+  "reused_owner_alert": {
+    "alert_id": "7ac42335-0dd2-44d7-a013-725d7dc9c5f8",
+    "authentic_delivery_receipt": "existing_G03_owner_email_received",
+    "check_id": "dc24cb4f-9122-4ae2-9f7b-86469624617c",
+    "email_recipients": 1,
+    "enabled": true,
+    "new_messages_sent": 0
+  },
+  "reused_snapshot": {
+    "created": "2026-10-08T04:02:54Z",
+    "digest_mismatches": 0,
+    "id": "23ad67f3-c2cd-11f1-b847-eaa4572de3ae",
+    "off_host": true,
+    "point": "/mnt/volume_nyc1_1790918115030/meme-machine-backups/meme-machine-paper-20261008T040243-cd2edc34",
+    "restore_evidence": "existing_G02_isolated_restore_and_source_reverification",
+    "verified_point_bytes": 896335681,
+    "verified_point_files": 47
+  },
+  "schema": "paper-bootstrap-preparation-v1",
+  "shared_cutover_performed": false,
+  "source_checks": {
+    "baseline_FAST": {
+      "case": "tests.test_solana_shared_capacity.SourceLifetimeTests.test_unsupported_archive_page_preserves_scope_gap_and_position_interest",
+      "receipt": "/root/Documents/Codex/2026-10-08/meme-machine-final-paper-activation-acquisition/FAST-result.json",
+      "status": "INTERRUPTED_EXISTING_CASE_STALL"
+    },
+    "configuration": "PASS_NO_IO",
+    "diff": "PASS_CHECK",
+    "failed_fixture_attempts_retained": true,
+    "focused_passed_cases": 27,
+    "incorrect_selector_corrected": true,
+    "receipts": [
+      {
+        "log": "/root/Documents/Codex/2026-10-08/meme-machine-final-paper-activation-acquisition/source-boundaries-final.log",
+        "market_calls": 0,
+        "passed_cases": [
+          "test_authentic_fixture_book_mark_and_settlement_work_after_admission_closes (tests.test_paper_bootstrap.AdmissionTests.test_authentic_fixture_book_mark_and_settlement_work_after_admission_closes)",
+          "test_capital_allowance_never_truncates_strategy_size (tests.test_paper_bootstrap.AdmissionTests.test_capital_allowance_never_truncates_strategy_size)",
+          "test_dead_supervisor_and_clock_expiry_close_only_new_exposure (tests.test_paper_bootstrap.AdmissionTests.test_dead_supervisor_and_clock_expiry_close_only_new_exposure)",
+          "test_four_qualified_regimes_compete_for_one_unchanged_atomic_grant (tests.test_paper_bootstrap.AdmissionTests.test_four_qualified_regimes_compete_for_one_unchanged_atomic_grant)",
+          "test_observation_cutover_keeps_provider_proof_false_and_legacy_fenced (tests.test_paper_bootstrap.AdmissionTests.test_observation_cutover_keeps_provider_proof_false_and_legacy_fenced)",
+          "test_observation_denies_funding_without_changing_cash_or_qualification (tests.test_paper_bootstrap.AdmissionTests.test_observation_denies_funding_without_changing_cash_or_qualification)",
+          "test_operational_client_cannot_omit_the_funding_scope (tests.test_paper_bootstrap.AdmissionTests.test_operational_client_cannot_omit_the_funding_scope)",
+          "test_restart_observation_does_not_replenish_a_used_claim (tests.test_paper_bootstrap.AdmissionTests.test_restart_observation_does_not_replenish_a_used_claim)",
+          "test_independent_clients_count_batches_and_retries_before_dispatch (tests.test_paper_bootstrap.ProviderBudgetTests.test_independent_clients_count_batches_and_retries_before_dispatch)",
+          "test_physical_boundary_refuses_dispatch_when_budget_is_exhausted (tests.test_paper_bootstrap.ProviderBudgetTests.test_physical_boundary_refuses_dispatch_when_budget_is_exhausted)",
+          "test_received_shutdown_tail_consumes_its_reserve_without_double_counting (tests.test_paper_bootstrap.ProviderBudgetTests.test_received_shutdown_tail_consumes_its_reserve_without_double_counting)",
+          "test_rpc_limit_refuses_next_attempt_and_preserves_consumption (tests.test_paper_bootstrap.ProviderBudgetTests.test_rpc_limit_refuses_next_attempt_and_preserves_consumption)",
+          "test_shutdown_reservation_and_received_bytes_are_never_free (tests.test_paper_bootstrap.ProviderBudgetTests.test_shutdown_reservation_and_received_bytes_are_never_free)",
+          "test_unknown_or_writing_method_has_no_dispatch_allowance (tests.test_paper_bootstrap.ProviderBudgetTests.test_unknown_or_writing_method_has_no_dispatch_allowance)",
+          "test_wall_limit_and_host_restart_fail_closed (tests.test_paper_bootstrap.ProviderBudgetTests.test_wall_limit_and_host_restart_fail_closed)",
+          "test_native_crash_before_and_after_commit_and_duplicate_acknowledgement (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_native_crash_before_and_after_commit_and_duplicate_acknowledgement)",
+          "test_queued_deadline_is_preserved_and_expired_qualification_is_not_erased (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_queued_deadline_is_preserved_and_expired_qualification_is_not_erased)",
+          "test_missing_active_manifest_blocks_grants_but_not_settlement (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_missing_active_manifest_blocks_grants_but_not_settlement)",
+          "test_staged_add_is_an_actual_hold_and_preserves_original_native_basis (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_staged_add_is_an_actual_hold_and_preserves_original_native_basis)",
+          "test_duplicate_delivery_survives_checkpoint (tests.test_operational_supervisor.NativeDeliveryRecovery.test_duplicate_delivery_survives_checkpoint)",
+          "test_missing_canonical_portfolio_cannot_replace_native_epoch (tests.test_operational_supervisor.NativeDeliveryRecovery.test_missing_canonical_portfolio_cannot_replace_native_epoch)",
+          "test_parallel_shutdown_sends_one_term_to_each_lane (tests.test_operational_supervisor.ProcessSupervisor.test_parallel_shutdown_sends_one_term_to_each_lane)",
+          "test_shutdown_timeout_escalates_once_without_repeating_term (tests.test_operational_supervisor.ProcessSupervisor.test_shutdown_timeout_escalates_once_without_repeating_term)"
+        ],
+        "selector_error": true,
+        "sha256": "db732da62701778ae26a70dfe9e4a36bd3eafb2305a670f32c2736d2ebdfcbab"
+      },
+      {
+        "log": "/root/Documents/Codex/2026-10-08/meme-machine-final-paper-activation-acquisition/source-startup-final.log",
+        "market_calls": 0,
+        "passed_cases": [
+          "test_read_only_startup_is_separate_from_funded_admission (tests.test_solana_selective_evidence.SourceIntegrationTests.test_read_only_startup_is_separate_from_funded_admission)"
+        ],
+        "selector_error": false,
+        "sha256": "f99fb34e9959e569ae3f3e4731faa467c4576da11b37267edfdff78d7392717a"
+      },
+      {
+        "log": "/root/Documents/Codex/2026-10-08/meme-machine-final-paper-activation-acquisition/readiness-boundary-final.log",
+        "market_calls": 0,
+        "passed_cases": [
+          "test_bootstrap_requires_sixty_healthy_seconds_and_all_three_frontiers (tests.test_paper_bootstrap.AdmissionTests.test_bootstrap_requires_sixty_healthy_seconds_and_all_three_frontiers)"
+        ],
+        "selector_error": false,
+        "sha256": "1011c39259f4fb2527039b2f7be0e9eb24cdfce234dade13fb2172b250c385a2"
+      },
+      {
+        "log": "/root/Documents/Codex/2026-10-08/meme-machine-final-paper-activation-acquisition/monitoring-boundaries-final.log",
+        "market_calls": 0,
+        "passed_cases": [
+          "test_disabled_finite_run_and_remaining_obligations_still_expect_management (tests.test_operational_monitoring.Conditions.test_disabled_finite_run_and_remaining_obligations_still_expect_management)",
+          "test_lost_observation_cannot_hide_obligations_after_a_finite_run (tests.test_operational_monitoring.Conditions.test_lost_observation_cannot_hide_obligations_after_a_finite_run)"
+        ],
+        "selector_error": false,
+        "sha256": "20fb09f93822740cb24d292203dfdec50974ce8f0df02c0b57f1cfa9d38de094"
+      }
+    ],
+    "storage": "PASS_READ_ONLY",
+    "syntax": "PASS_COMPILE",
+    "systemd_units": "PASS_VERIFY"
+  },
+  "status": "READY_FOR_SEPARATELY_AUTHORIZED_FIRST_POSITION_BOOTSTRAP",
+  "storage": {
+    "epoch_id": "paper-1791089005190643467",
+    "filesystem_uuid": "0ce00d89-000b-4af1-960f-d5be400ff115",
+    "mount_target": "/mnt/volume_nyc1_1790918115030"
+  }
+}

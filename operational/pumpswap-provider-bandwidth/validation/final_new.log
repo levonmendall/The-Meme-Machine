@@ -1,0 +1,14 @@
+test_authentic_envelopes_keep_all_source_successes_and_failure_identities (tests.test_provider_efficiency.ProviderBandwidthAuditTests.test_authentic_envelopes_keep_all_source_successes_and_failure_identities) ... ok
+test_cost_model_uses_solana_specific_tariff_and_keeps_rpc_and_grpc_separate (tests.test_provider_efficiency.ProviderBandwidthAuditTests.test_cost_model_uses_solana_specific_tariff_and_keeps_rpc_and_grpc_separate) ... ok
+test_failed_log_omission_is_a_hypothesis_and_native_negative_witness_stays (tests.test_provider_efficiency.ProviderBandwidthAuditTests.test_failed_log_omission_is_a_hypothesis_and_native_negative_witness_stays) ... ok
+test_high_volume_failed_delivery_is_counted_even_when_duplicate_or_locally_unused (tests.test_provider_efficiency.ProviderBandwidthAuditTests.test_high_volume_failed_delivery_is_counted_even_when_duplicate_or_locally_unused) ... ok
+test_late_status_is_matched_but_absent_native_witness_remains_incomplete (tests.test_provider_efficiency.ProviderBandwidthAuditTests.test_late_status_is_matched_but_absent_native_witness_remains_incomplete) ... ok
+test_no_field_projection_or_failed_filter_is_invented_and_connections_are_not_opened (tests.test_provider_efficiency.ProviderBandwidthAuditTests.test_no_field_projection_or_failed_filter_is_invented_and_connections_are_not_opened) ... ok
+test_observation_bounds_and_uncaptured_charged_tail_are_explicit (tests.test_provider_efficiency.ProviderBandwidthAuditTests.test_observation_bounds_and_uncaptured_charged_tail_are_explicit) ... ok
+test_older_scoped_position_subscription_still_counts_physical_delivery (tests.test_provider_efficiency.ProviderBandwidthAuditTests.test_older_scoped_position_subscription_still_counts_physical_delivery) ... ok
+test_success_misclassified_as_failure_and_conflicting_true_index_fail_closed (tests.test_provider_efficiency.ProviderBandwidthAuditTests.test_success_misclassified_as_failure_and_conflicting_true_index_fail_closed) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.073s
+
+OK

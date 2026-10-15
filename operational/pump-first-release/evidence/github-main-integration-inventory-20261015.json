@@ -1,0 +1,1164 @@
+{
+  "captured_at_utc": "2026-10-15T16:39:54.026544+00:00",
+  "complete_remote_ref_inventory": {
+    "canonical_format": "UTF-8 JSON array of [branch_name,full_commit_sha], sorted by branch_name, compact separators",
+    "canonical_sha256": "9dca87359a62fc122e721190e4db014e5260d15cfae7d2b00b16224471edbc3f",
+    "source": "GitHub REST branches endpoint with all pages; every SHA resolved to a local commit"
+  },
+  "completed_approved_packages_included": [
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "b4e470c9a78e5f3dd3cdb1de31a1654e61c2ecd0",
+      "package": "nine_original_approved_economic_changes"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "da19fd5f89b7a2b9015bffdbd0b2d3b73fb1b892",
+      "package": "volume_quality_attention_only"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "5f94eb0b7c286ec2d763ab274784ebbb89b2baaa",
+      "package": "six_paper_opportunity_access_v1_implementation"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "92827c5638448c5797cbe4c844dade7beefcc3ff",
+      "package": "six_paper_opportunity_access_v1_reconciled_package"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "75df6eb70de43ae24d85f9b227bdcc67c8ecae08",
+      "package": "strategy_and_operational_package_merge"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "9cdc1b5428f8ebf0bfcc6206cb8122b354654d9d",
+      "package": "native_ready_lifecycle_and_reporting"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "2ae0430246d0b747699d4aaae0ebbf7615a4d766",
+      "package": "proven_provider_and_storage_efficiency_phase1"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "aa9fdcee23604ddacb740b454ca18c4909ca61d2",
+      "package": "pons_survivor_count_veto_removal"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "1c1cc59cab8ac117d6c495addc1ad0ee65f0c472",
+      "package": "pons_durable_current_worker_pressure"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "ae6858ef9372196981cb7038ff7671f48bf127bb",
+      "package": "pump_held_request_efficiency_pr126"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "c49fca072e39695ba5b5c03ba7b3a7d59f3a9742",
+      "package": "pons_event_driven_paper_pr127"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "2c826ddd0977871cfe66e3bd6d4c4d8eb7437629",
+      "package": "pump_pons_combined_pr128"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "9c6e7cbf3a8ef269c2d9689b07d96a5a309c4485",
+      "package": "shared_capital_long_hold_and_pump_first_release_pr129_pr130"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "cbfcb4137f10474ffc7fe0e19f0b8772f25c1563",
+      "package": "unpushed_local_pons_shadow_acquisition_isolation"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "e6aab04871a1f1c03d36905993cd3bdcf5c77ee7",
+      "package": "pump_history_separation_package"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "b92b3000355306d9f2cad6cafebbe4f124b70201",
+      "package": "native_batch_scope_and_volume_context"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "2d648349ad21f17d9d91fc44c4bb27d02b1ff81f",
+      "package": "dashboard_appearance_restoration"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "2f68322de92d2f8d0ad626f8e523e0aede23ba39",
+      "package": "pons_worker_quote_capabilities"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "4cfe8f5eb81b2f0158b78316f5ecf881760c5b5b",
+      "package": "ordered_pons_canonical_checks_integrated"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "22974c04ce5c74174d4ad706306206be22c11b8b",
+      "package": "current_scaling_history_integrated"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "4d45b368e7605b6bb4f25a121ec41162b4726472",
+      "package": "pons_readonly_diagnostic_integrated"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "63ec2352078a13480a12e84b6185d399583d186f",
+      "package": "concurrent_engineering_scratch_budget_integrated"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "9f08f0db68fd3161c84bb955800db9a200a70f77",
+      "package": "ramses_paused_integrated"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "8e011c2d9df19e8339e4e711ee75beaac7a4295f",
+      "package": "independent_dashboard_and_snapshot_port"
+    },
+    {
+      "commit_is_candidate_ancestor": true,
+      "commit_sha": "a793bd580593a87d17a0ab6e5e8581943bec6886",
+      "package": "latest_accepted_source_and_processing_checkpoint"
+    }
+  ],
+  "counts": {
+    "clean_registered_worktrees": 12,
+    "local_branches": 21,
+    "open_pull_request_heads_already_candidate_ancestors": 20,
+    "open_pull_requests": 69,
+    "registered_worktrees": 13,
+    "remote_branch_tips_already_candidate_ancestors": 143,
+    "remote_branch_tips_not_candidate_ancestors": 394,
+    "remote_branches": 537,
+    "unknown_remote_commit_objects": 0
+  },
+  "github_controls": {
+    "ci_required_by_release_directive": [
+      "complete FAST",
+      "applicable complete OPERATIONAL",
+      "Pump held PAPER offline proof",
+      "source/economic integrity guards",
+      "independent final remote main verification"
+    ],
+    "last_pr133_rollup": "fast COMPLETED/SKIPPED because draft; not a successful validation",
+    "main_branch_protected": false,
+    "main_protection_endpoint": "HTTP404 Branch not protected",
+    "repository_permissions": {
+      "admin": true,
+      "pull": true,
+      "push": true
+    },
+    "repository_rulesets": []
+  },
+  "inspected_candidate": {
+    "branch": "repair/consolidated-startup-followup-20261014",
+    "head_sha": "9bc778ff9237c0769aa6a6d2799bf513d677e333",
+    "tree_sha": "83453dde17f20230c026d8d19b2d92b568a37798",
+    "working_tree_changes_are_uncommitted": true
+  },
+  "integration_path": {
+    "blind_merging_all_open_pull_requests_is_required": false,
+    "current_base": "engineering/targeted-resolution-20261014",
+    "current_base_is_candidate_ancestor": true,
+    "current_base_sha": "c1c3fd1662b1acbb917f57bfd0e578fc7a349bce",
+    "current_pr": 133,
+    "main_only_obsolete_workflow_paths": [
+      ".github/workflows/non-market-certification.yml",
+      ".github/workflows/directional-six-regime-nonmarket.yml",
+      ".github/workflows/stagee-accepted-candidate-promotion.yml"
+    ],
+    "reason": "Completed functional branches already coexist in consolidated history/native ports; many open pull requests are historical, superseded or research-only.",
+    "recommendation": "Normal merge current main ancestry into final candidate, explicitly retire the three main-only orphan manual certification workflows consistent with approved operational cleanup, then merge validated PR133 into main (retarget or follow through intermediate-to-main PR). Intermediate merge alone is insufficient.",
+    "required_target": "main"
+  },
+  "inventory_scope": "Read-only inventory of all local branches, every current remote branch, registered worktrees and all open pull requests. No fetch, commit, merge, provider workload or test execution.",
+  "local_branches": [
+    {
+      "ahead_behind": [
+        0,
+        0
+      ],
+      "branch": "diagnostics/sqlite-public-rpc-20261014",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "06209b854378d7ef31a6ccc409c2f764295d24ed",
+      "upstream": "origin/diagnostics/sqlite-public-rpc-20261014"
+    },
+    {
+      "ahead_behind": [
+        0,
+        0
+      ],
+      "branch": "efficiency/redundant-acquisition-20261011",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "9c6e7cbf3a8ef269c2d9689b07d96a5a309c4485",
+      "upstream": "origin/efficiency/redundant-acquisition-20261011"
+    },
+    {
+      "ahead_behind": null,
+      "branch": "engineering/pons-owner-admission-20261009",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "1c1cc59cab8ac117d6c495addc1ad0ee65f0c472",
+      "upstream": null
+    },
+    {
+      "ahead_behind": [
+        0,
+        0
+      ],
+      "branch": "engineering/pons-survivor-count-removal-20261009",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "aa9fdcee23604ddacb740b454ca18c4909ca61d2",
+      "upstream": "origin/engineering/pons-survivor-count-removal-20261009"
+    },
+    {
+      "ahead_behind": null,
+      "branch": "engineering/proven-efficiency-phase1-20261009",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "2ae0430246d0b747699d4aaae0ebbf7615a4d766",
+      "upstream": null
+    },
+    {
+      "ahead_behind": [
+        0,
+        0
+      ],
+      "branch": "engineering/pump-history-separation-20261013",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "e6aab04871a1f1c03d36905993cd3bdcf5c77ee7",
+      "upstream": "origin/engineering/pump-history-separation-20261013"
+    },
+    {
+      "ahead_behind": null,
+      "branch": "engineering/system-wide-split-checkpoint-20261009",
+      "head_is_candidate_ancestor": false,
+      "head_sha": "d8a318e1454adf2f58da7fc48c9567f355373375",
+      "upstream": null
+    },
+    {
+      "ahead_behind": [
+        0,
+        0
+      ],
+      "branch": "engineering/targeted-resolution-20261014",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "c1c3fd1662b1acbb917f57bfd0e578fc7a349bce",
+      "upstream": "origin/engineering/targeted-resolution-20261014"
+    },
+    {
+      "ahead_behind": [
+        0,
+        0
+      ],
+      "branch": "implementation/ready-lifecycle-reporting-20261013",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "9cdc1b5428f8ebf0bfcc6206cb8122b354654d9d",
+      "upstream": "origin/implementation/ready-lifecycle-reporting-20261013"
+    },
+    {
+      "ahead_behind": [
+        0,
+        12
+      ],
+      "branch": "integration/pump-pons-efficiency-rc-20261009",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "030705397cf75766b5bffbea41abb8bf8db12104",
+      "upstream": "origin/integration/pump-pons-efficiency-rc-20261009"
+    },
+    {
+      "ahead_behind": [
+        1,
+        0
+      ],
+      "branch": "integration/pump-pons-live-paper-126-127-20261009",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "cbfcb4137f10474ffc7fe0e19f0b8772f25c1563",
+      "upstream": "origin/integration/pump-pons-live-paper-126-127-20261009"
+    },
+    {
+      "ahead_behind": [
+        0,
+        0
+      ],
+      "branch": "main",
+      "head_is_candidate_ancestor": false,
+      "head_sha": "97bc5c5e6cb7b569d814a667ca19ceca4dd6b2c0",
+      "upstream": "origin/main"
+    },
+    {
+      "ahead_behind": [
+        0,
+        0
+      ],
+      "branch": "policy/paper-opportunity-access-v1-20261014",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "92827c5638448c5797cbe4c844dade7beefcc3ff",
+      "upstream": "origin/policy/paper-opportunity-access-v1-20261014"
+    },
+    {
+      "ahead_behind": [
+        0,
+        0
+      ],
+      "branch": "preservation/sustained-throughput-blocker-20261014",
+      "head_is_candidate_ancestor": false,
+      "head_sha": "66a87ac32f969195352ade7d35150dd2be53b81b",
+      "upstream": "origin/preservation/sustained-throughput-blocker-20261014"
+    },
+    {
+      "ahead_behind": [
+        0,
+        0
+      ],
+      "branch": "release/continuous-paper-policy-20261011",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "a55f458baf37c7dafa6286a2a05a287b1a8c2611",
+      "upstream": "origin/release/continuous-paper-policy-20261011"
+    },
+    {
+      "ahead_behind": [
+        0,
+        0
+      ],
+      "branch": "release/overnight-protection-guard-20261011",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "8882b653668a3225804a249bc22975ebc00c52a4",
+      "upstream": "origin/release/overnight-protection-guard-20261011"
+    },
+    {
+      "ahead_behind": [
+        0,
+        1
+      ],
+      "branch": "release/pump-blocker-repair-20261011",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "8782b263632d0163f07e93a6b1cffa5b94071e87",
+      "upstream": "origin/release/pump-blocker-repair-20261011"
+    },
+    {
+      "ahead_behind": [
+        0,
+        0
+      ],
+      "branch": "release/pump-native-accounting-20261011",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "df6274e270bcf40b818428a359b30e88ceb21ffb",
+      "upstream": "origin/release/pump-native-accounting-20261011"
+    },
+    {
+      "ahead_behind": [
+        0,
+        0
+      ],
+      "branch": "repair/consolidated-startup-followup-20261014",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "9bc778ff9237c0769aa6a6d2799bf513d677e333",
+      "upstream": "origin/repair/consolidated-startup-followup-20261014"
+    },
+    {
+      "ahead_behind": [
+        0,
+        0
+      ],
+      "branch": "repair/pons-demand-readonly-20261013",
+      "head_is_candidate_ancestor": false,
+      "head_sha": "392b13fdaf1aebcf01e24ad707a5865061b7adf1",
+      "upstream": "origin/repair/pons-demand-readonly-20261013"
+    },
+    {
+      "ahead_behind": null,
+      "branch": "repair/retirement-hot-lengths-20261012",
+      "head_is_candidate_ancestor": true,
+      "head_sha": "b92b3000355306d9f2cad6cafebbe4f124b70201",
+      "upstream": null
+    }
+  ],
+  "main": {
+    "candidate_main_left_right_commits": [
+      1968,
+      3
+    ],
+    "common_ancestor_sha": "54712c4c6470cc4dc267888f934bd693aac030d0",
+    "main_only_commits": [
+      {
+        "sha": "97bc5c5e6cb7b569d814a667ca19ceca4dd6b2c0",
+        "subject": "Register exact E25 workflow stagee-accepted-candidate-promotion.yml"
+      },
+      {
+        "sha": "7b50ecc94276e083e8a3c5ca20a887ebf7167dff",
+        "subject": "Register exact E25 workflow directional-six-regime-nonmarket.yml"
+      },
+      {
+        "sha": "8c1ba4446f930756fc6e136ea69595246a1235a0",
+        "subject": "Register exact E25 workflow non-market-certification.yml"
+      }
+    ],
+    "remote_head_sha": "97bc5c5e6cb7b569d814a667ca19ceca4dd6b2c0",
+    "tree_sha": "ea138f446c289fb0fc456591cb6e42c9353dc453"
+  },
+  "nonancestor_dispositions": [
+    {
+      "branch": "engineering/system-wide-split-checkpoint-20261009",
+      "disposition": "Already integrated through reviewed cherry-picks; do not merge the obsolete branch.",
+      "evidence": "git range-diff: scaling commit is patch-equivalent; canonical-check commit omits only lifecycle generator adapter separately superseded by native lifecycle refactoring. SYSTEM_WIDE_SOURCE_RECONCILIATION.json records integrated replacements.",
+      "head_sha": "d8a318e1454adf2f58da7fc48c9567f355373375",
+      "integrated_commits": [
+        "4cfe8f5eb81b2f0158b78316f5ecf881760c5b5b",
+        "22974c04ce5c74174d4ad706306206be22c11b8b"
+      ],
+      "original_commits": [
+        "bccb873ce0a3632d1f9547d860289e378127ba0d",
+        "d8a318e1454adf2f58da7fc48c9567f355373375"
+      ]
+    },
+    {
+      "branch": "repair/pons-demand-readonly-20261013",
+      "disposition": "Diagnostic source/tests already cherry-picked and improved; remaining tip is historical handoff.",
+      "evidence": "HISTORY_CRITICAL_PATH_HANDOFF.md: Pons diagnostic integration; underlying original operating READONLY cause remains unproven, not permission to reset state or fabricate repair.",
+      "head_sha": "392b13fdaf1aebcf01e24ad707a5865061b7adf1",
+      "integrated_implementation_sha": "4d45b368e7605b6bb4f25a121ec41162b4726472",
+      "original_implementation_sha": "f8d66ff2eee5214a85c180e4e37e25ddf6d6bae6"
+    },
+    {
+      "branch": "preservation/sustained-throughput-blocker-20261014",
+      "disposition": "Preserve evidence and exclude explicitly deferred, unvalidated Pons plane-reuse prototype.",
+      "head_sha": "66a87ac32f969195352ade7d35150dd2be53b81b",
+      "prototype_paths": [
+        "meme_machine/lanes/pons/pons_selective_cohort.py",
+        "meme_machine/runtime/robinhood/pons.py"
+      ],
+      "reason": "Historical preservation commit contains unfinished optional existing-plane checkpoint plumbing; not a completed approved release correction."
+    },
+    {
+      "branch": "engineering/pons-finalization-wip-preservation-20261007",
+      "disposition": "Preserve unfinished experiments outside release; no blind merge.",
+      "head_sha": "2ca2afd3f2ae9d5fcfa7d935a8d898a2b1ba7210"
+    },
+    {
+      "branch": "release/portfolio-dashboard-v1",
+      "disposition": "Required dashboard/accounting code ported to native operational source, with later dashboard restoration; old Render staging/login and historical certification ancestry are not required release additions.",
+      "head_sha": "1deb19415ab1683f1fb6071ed6a1d6fdd5785817"
+    },
+    {
+      "branch": "dashboard/snapshot-push-20261008",
+      "disposition": "Required independent snapshot/dashboard feed ported into native operational tree; do not restore obsolete staging framework.",
+      "head_sha": "82e446e862354b1702c7601b9ef504e6134a66b7"
+    },
+    {
+      "branch": "engineering/pump-held-vault-snapshot-20261008",
+      "disposition": "PR125 is closed and superseded by integrated PR126 request-efficiency implementation; preserve comparison evidence.",
+      "head_sha": "d47307a5b9bf25848b42cb8f3bee891e42618074"
+    },
+    {
+      "branch": "research/extended-survivor-hold-20261009",
+      "disposition": "Research evidence integrated under operational/extended-survivor-hold; inactive alternatives remain INSUFFICIENT_EVIDENCE and do not change approved operating policies.",
+      "head_sha": "789f512ec3cd7c53772a2e6a1bb633dd06ffedab"
+    },
+    {
+      "branch": "engineering/continuation-resource-proof-20261008",
+      "disposition": "Relevant continuation/resource handoff ported into operational/continuation-resources.",
+      "head_sha": "88b42716d95a19063aeb0d99b025654f5d6ae6e5"
+    },
+    {
+      "branch": "operational/pause-ramses-20261007",
+      "disposition": "Equivalent source pause incorporated as9f08f0db; Ramses remains paused.",
+      "head_sha": "a2893f0800dca842cd20b823117ce2e256f38920"
+    },
+    {
+      "branch": "maintenance/engineering-storage-retention-20261008",
+      "disposition": "Equivalent engineering-storage corrections incorporated in candidate including63ec2352.",
+      "head_sha": "5978ceb054044197ea9d64fb7e7b03bc18be6e0d"
+    }
+  ],
+  "open_pull_requests": [
+    {
+      "base_ref": "engineering/targeted-resolution-20261014",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "repair/consolidated-startup-followup-20261014",
+      "head_sha": "9bc778ff9237c0769aa6a6d2799bf513d677e333",
+      "number": 133
+    },
+    {
+      "base_ref": "integration/pump-pons-live-paper-126-127-20261009",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "integration/pump-pons-efficiency-rc-20261009",
+      "head_sha": "9c6e7cbf3a8ef269c2d9689b07d96a5a309c4485",
+      "number": 129
+    },
+    {
+      "base_ref": "engineering/pons-held-efficiency-20261009",
+      "draft": false,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "integration/pump-pons-live-paper-126-127-20261009",
+      "head_sha": "2c826ddd0977871cfe66e3bd6d4c4d8eb7437629",
+      "number": 128
+    },
+    {
+      "base_ref": "engineering/pons-held-efficiency-20261009",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "engineering/pons-event-driven-paper-20261009",
+      "head_sha": "c49fca072e39695ba5b5c03ba7b3a7d59f3a9742",
+      "number": 127
+    },
+    {
+      "base_ref": "engineering/pons-held-efficiency-20261009",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "engineering/pump-pons-style-request-efficiency-20261008",
+      "head_sha": "ae6858ef9372196981cb7038ff7671f48bf127bb",
+      "number": 126
+    },
+    {
+      "base_ref": "engineering/exceptional-winner-candidate-20261009",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "engineering/pons-held-efficiency-20261009",
+      "head_sha": "6c534b06797cc0b299d59da28be50b15bcd38665",
+      "number": 124
+    },
+    {
+      "base_ref": "operational/paper-v1",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "repair/final-alchemy-solana-20261007",
+      "head_sha": "05af863f9dc2c98bd41d6d5cef21d0736deb4b99",
+      "number": 121
+    },
+    {
+      "base_ref": "diagnostics/stage-e-native-v3-executable-harness",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "fix/stage-e-native-v3-executable",
+      "head_sha": "f480c6b4f7a8442fd148c7ed61bcc4447edaefca",
+      "number": 118
+    },
+    {
+      "base_ref": "repair/autonomous-paper-runtime-20260927",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/attempt13-maintenance-contention-20260928",
+      "head_sha": "ae8579825ef0b3464614ae08eb4a8b9bb415f2c3",
+      "number": 117
+    },
+    {
+      "base_ref": "strategy/pons-opportunity-preservation-v2-20260925",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "strategy/pons-postgrad-survivor-momentum-v1-20260926",
+      "head_sha": "8cbebf942c6bbb6538a2764f97346963c3352fb8",
+      "number": 116
+    },
+    {
+      "base_ref": "cert/single-market-run371-all-repairs-20260925",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "architecture/certify-changes-preflight-runs-20260925",
+      "head_sha": "4ff35b9a918d829c91d81a1c256bb92d9c6c731a",
+      "number": 114
+    },
+    {
+      "base_ref": "cert/single-market-run369-repairs-20260925",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/run370-solana-evidence-capacity-20260925",
+      "head_sha": "4f05e82e807c92d579765243bbc5e67b5950e106",
+      "number": 113
+    },
+    {
+      "base_ref": "cert/single-market-run369-repairs-20260925",
+      "draft": false,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/run369-pons-accounting-20260925",
+      "head_sha": "7bf456a5a70b838cdb9d20492d12ff173a5159cf",
+      "number": 112
+    },
+    {
+      "base_ref": "cert/single-market-evidence-planes-v1-20260925",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/run369-pons-accounting-20260925",
+      "head_sha": "7bf456a5a70b838cdb9d20492d12ff173a5159cf",
+      "number": 111
+    },
+    {
+      "base_ref": "cert/single-market-evidence-planes-v1-20260925",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "repair/run369-solana-runtime-20260925",
+      "head_sha": "b618665268681558cacb74c8c4d0f0b781351a0a",
+      "number": 110
+    },
+    {
+      "base_ref": "cert/single-market-v12-pump-ramses-20260925",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/solana-evidence-plane-v1-20260925",
+      "head_sha": "507c9d2dd5a38ac636a5e28c1be1c257cb9ab0f0",
+      "number": 109
+    },
+    {
+      "base_ref": "feat/shared-portfolio-lane-integration",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "release/portfolio-dashboard-v1",
+      "head_sha": "1deb19415ab1683f1fb6071ed6a1d6fdd5785817",
+      "number": 107
+    },
+    {
+      "base_ref": "feat/shared-portfolio-accounting",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "feat/shared-portfolio-lane-integration",
+      "head_sha": "68ef37c5b9e8955db3c1c5af1797537d4e196b56",
+      "number": 106
+    },
+    {
+      "base_ref": "feat/read-only-portfolio-dashboard",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "feat/shared-portfolio-accounting",
+      "head_sha": "b11bc826e38681355bc6ce535b613fab1a980052",
+      "number": 105
+    },
+    {
+      "base_ref": "cert/prospective-market-v1",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "feat/read-only-portfolio-dashboard",
+      "head_sha": "05d165ede35475abad95fc7b30c49e71fa43973f",
+      "number": 104
+    },
+    {
+      "base_ref": "repair/pons-sequencer-session-recovery-20260922",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "strategy/pons-profitability-persistence-current-v1",
+      "head_sha": "012ea1a23ed892e19e3b1addc152fdcbe8b52ec2",
+      "number": 98
+    },
+    {
+      "base_ref": "cert/profitability-persistence-edge-v1",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "cert/profitability-persistence-edge-v1-compose",
+      "head_sha": "055b4f34c8bd8ef465a6e5ba8d02fa66364bd05f",
+      "number": 97
+    },
+    {
+      "base_ref": "cert/pons-execution-cert-v1",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "strategy/pons-profitability-v1",
+      "head_sha": "a660fa2fa64e2e5b76849c49d5ffe9e7983ec840",
+      "number": 96
+    },
+    {
+      "base_ref": "cert/pump-execution-cert-v1",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "strategy/pump-profitability-v1",
+      "head_sha": "a4003b292014cedf554a4930a9cca10900bfc178",
+      "number": 95
+    },
+    {
+      "base_ref": "repair/robinhood-cu-efficiency",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/solana-alchemy-efficiency",
+      "head_sha": "c0b8bfb71c1635f60997d92c681d85298bd2030c",
+      "number": 93
+    },
+    {
+      "base_ref": "repair/four-lane-observability",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "repair/robinhood-cu-efficiency",
+      "head_sha": "a34c5d4dce4dc93445b837cfeeb51901825bdb9f",
+      "number": 92
+    },
+    {
+      "base_ref": "cert/solana-consumer-scheduling",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "cert/one-hour-repair-campaign",
+      "head_sha": "54b8edbabdaad23d3f734b0579051235d68b65fa",
+      "number": 90
+    },
+    {
+      "base_ref": "cert/four-lane-capacity-v2",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "cert/solana-consumer-scheduling",
+      "head_sha": "477c153af8efd41d29aacdad25f6e6899df64e67",
+      "number": 89
+    },
+    {
+      "base_ref": "repair/meteora-hydration-deadline",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/meteora-consumer-scheduling",
+      "head_sha": "00ebf7ffb3e13911d6c842898c98312c98d4e628",
+      "number": 88
+    },
+    {
+      "base_ref": "repair/pump-hydration-deadline",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/solana-consumer-scheduling",
+      "head_sha": "110dbf34b054daf7a35c72d94196ec7ff0c2c331",
+      "number": 87
+    },
+    {
+      "base_ref": "repair/pons-combined-evidence-batching",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/pons-unfilled-reservation",
+      "head_sha": "40c66a68704fab147dacbfc25a0819b5a6f9c844",
+      "number": 86
+    },
+    {
+      "base_ref": "cert/four-lane-capacity-v2",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "cert/four-lane-run-records",
+      "head_sha": "fda85eb923651f13d55488b6893564bfa4df5eb1",
+      "number": 85
+    },
+    {
+      "base_ref": "repair/meteora-continuous-campaign",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/meteora-hydration-deadline",
+      "head_sha": "45041de0669c9f0db2dc27793ab2da2a77e72a25",
+      "number": 84
+    },
+    {
+      "base_ref": "repair/pump-continuous-campaign",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/pump-hydration-deadline",
+      "head_sha": "7774ebe0f712a0e12848de1c54aaaf44df8480e7",
+      "number": 83
+    },
+    {
+      "base_ref": "cert/four-lane-sustained-v1",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "cert/four-lane-capacity-v2",
+      "head_sha": "f7ee2b13036abb0171e0001608d589b51d28947e",
+      "number": 82
+    },
+    {
+      "base_ref": "repair/ramses-continuous-campaign",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/ramses-deferred-capital-initialization",
+      "head_sha": "325c6052056500146b88d1ad3e83bf5db5b9657a",
+      "number": 81
+    },
+    {
+      "base_ref": "repair/pons-partial-accounting-timeline",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/pons-combined-evidence-batching",
+      "head_sha": "38d264c9dd878e2f70ffb461c18bd12ecdd7c1d6",
+      "number": 80
+    },
+    {
+      "base_ref": "cert/four-lane-sustained-v1",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "research/four-lane-shadow-registration",
+      "head_sha": "8c7c0f2608fd96bccd6f4c44dbde276036c440e3",
+      "number": 79
+    },
+    {
+      "base_ref": "repair/pons-continuous-campaign",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/pons-partial-accounting-timeline",
+      "head_sha": "44355aaac41a06a80f306f4458bbf200b118f179",
+      "number": 78
+    },
+    {
+      "base_ref": "repair/ramses-capital-reservation-replay",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/ramses-continuous-campaign",
+      "head_sha": "a88d2c07daa3c3f0c77e0b78362fe269bbdeca4a",
+      "number": 77
+    },
+    {
+      "base_ref": "repair/pons-cohort-capital-certification",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/pons-continuous-campaign",
+      "head_sha": "3378ecc3e7a130e8dcd1fa1ef88105235875c6b1",
+      "number": 76
+    },
+    {
+      "base_ref": "repair/pump-paper-accounting-certification-20260920",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/pump-continuous-campaign",
+      "head_sha": "6377b4c46da95c4591848939c714f7766e789acd",
+      "number": 75
+    },
+    {
+      "base_ref": "repair/meteora-durable-paper-lifecycle",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/meteora-continuous-campaign",
+      "head_sha": "957ff70af2065c7bf0227f00a7fab0f44e0f81f0",
+      "number": 74
+    },
+    {
+      "base_ref": "repair/ramses-concurrent-certification-20260920",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/ramses-capital-reservation-replay",
+      "head_sha": "b3ec5aaca230f2aa9c0e894c9912722a56f2eef1",
+      "number": 73
+    },
+    {
+      "base_ref": "repair/dlmm-durable-state-certification-20260920",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/meteora-durable-paper-lifecycle",
+      "head_sha": "1b04eca2984f85c9a47d262dc7ea84796a21754e",
+      "number": 72
+    },
+    {
+      "base_ref": "feat/pons-selective-continuation-v1",
+      "draft": false,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/pons-cohort-capital-certification",
+      "head_sha": "40bc4c4d1fb81900645fcbce109b4be0341320aa",
+      "number": 70
+    },
+    {
+      "base_ref": "feat/robinhood-research-foundation",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/ramses-concurrent-certification-20260920",
+      "head_sha": "3ec74dfa223d3eecae3c3d525ceb27bcdf63d5f6",
+      "number": 69
+    },
+    {
+      "base_ref": "feat/pons-selective-continuation-v1",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/pons-concurrent-certification-20260920",
+      "head_sha": "c96d9092f7645c0def4fb2c237477644280f7041",
+      "number": 68
+    },
+    {
+      "base_ref": "feat/pump-acceleration-independent-v1",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/pump-paper-accounting-certification-20260920",
+      "head_sha": "2b2af01299ce99b0f036981bfad57107713c68b7",
+      "number": 67
+    },
+    {
+      "base_ref": "feat/pump-acceleration-independent-v1",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "cert/four-lane-sustained-v1",
+      "head_sha": "ebd03f5780eee46cc59f0338f48830e475480d78",
+      "number": 66
+    },
+    {
+      "base_ref": "research/solana-dlmm-independent-v1",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "repair/dlmm-durable-state-certification-20260920",
+      "head_sha": "6a3be3a2d3c3c45fb3068662a23800e2e3768933",
+      "number": 64
+    },
+    {
+      "base_ref": "research/market-native-opportunity-outcomes",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "feat/pump-acceleration-independent-v1",
+      "head_sha": "361d90dbfd12226467ac458f92b16a9f0b017fce",
+      "number": 31
+    },
+    {
+      "base_ref": "research/market-native-opportunity-outcomes",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "feat/pump-alpha-v1-independent",
+      "head_sha": "5f31bdaa01c7d36321319beaf0b907462da7d191",
+      "number": 30
+    },
+    {
+      "base_ref": "feat/robinhood-research-foundation",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "feat/pons-selective-continuation-v1",
+      "head_sha": "7ed22d3bdca3680869ef61b41f063389cb006366",
+      "number": 29
+    },
+    {
+      "base_ref": "main",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "feat/robinhood-research-foundation",
+      "head_sha": "eebcb9136efa41db9a28f2ac95e4dddde0d17b15",
+      "number": 15
+    },
+    {
+      "base_ref": "research/market-native-opportunity-outcomes",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "research/meme-continuation-expected-value-v1",
+      "head_sha": "4cef2aed3a9ebfce1a946bbbed007bf0fa74a507",
+      "number": 14
+    },
+    {
+      "base_ref": "research/dlmm-profitability-density-preflight-v2",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "research/dlmm-capital-case-ranking-v1",
+      "head_sha": "6d9161b3e06fb2829f6d2766cf3ec353b012e336",
+      "number": 13
+    },
+    {
+      "base_ref": "proof/market-native-active-paper",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "research/market-native-opportunity-outcomes",
+      "head_sha": "129ccf37d180754c50d126f6ec0da7fc1d76da53",
+      "number": 12
+    },
+    {
+      "base_ref": "feat/market-native-active-discovery",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "proof/market-native-active-paper",
+      "head_sha": "58372279792621e98889239810fadfbb81353c05",
+      "number": 11
+    },
+    {
+      "base_ref": "research/fomo-shadow-scaffold",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "research/fomo-offline-intelligence-v1",
+      "head_sha": "d6470efd2452378abaf0016b4b1ddd3726a00234",
+      "number": 10
+    },
+    {
+      "base_ref": "feat/market-native-active-discovery",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "research/market-native-natural-sample",
+      "head_sha": "004b579849ccee4fa512b9c7531bd5d7fdae9b2d",
+      "number": 9
+    },
+    {
+      "base_ref": "research/market-native-prioritizer",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "feat/market-native-active-discovery",
+      "head_sha": "cb7714439c732c48932ab6fd8118c7a2721d4ddf",
+      "number": 8
+    },
+    {
+      "base_ref": "research/market-native-shadow",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "research/market-native-prioritizer",
+      "head_sha": "e2d532921065a4bcf6995309049d9f6b45ca1485",
+      "number": 7
+    },
+    {
+      "base_ref": "feat/post-graduation-pumpswap-raydium",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "research/fomo-shadow-scaffold",
+      "head_sha": "1f78bfe23e16a7b2217bd2d79876055f3bdd96b8",
+      "number": 6
+    },
+    {
+      "base_ref": "feat/post-graduation-pumpswap-raydium",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "research/market-native-shadow",
+      "head_sha": "6a88e4c043a803e90b8c31cddc1434ceff268d4e",
+      "number": 5
+    },
+    {
+      "base_ref": "feat/post-graduation-pumpswap-raydium",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "feat/meteora-dlmm-paper-foundation",
+      "head_sha": "f765aad9bc2fa85f8292ca1c32b8b36032ac22aa",
+      "number": 4
+    },
+    {
+      "base_ref": "feat/post-graduation-pumpswap-raydium",
+      "draft": true,
+      "head_is_candidate_ancestor": false,
+      "head_ref": "proof/natural-continuation-v1-pumpswap",
+      "head_sha": "e252268b1cfaccb12c23fadb44ee206e2a49e7ef",
+      "number": 3
+    },
+    {
+      "base_ref": "feat/pump-directional-paper",
+      "draft": true,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "feat/post-graduation-pumpswap-raydium",
+      "head_sha": "a76155b153ad60262fa961840efdafdc90344f10",
+      "number": 2
+    },
+    {
+      "base_ref": "main",
+      "draft": false,
+      "head_is_candidate_ancestor": true,
+      "head_ref": "feat/pump-directional-paper",
+      "head_sha": "4800212aa42d2b52d74d4cb332199427e9ef8d31",
+      "number": 1
+    }
+  ],
+  "registered_worktrees": [
+    {
+      "changes": [],
+      "clean": true,
+      "head_is_candidate_ancestor": true,
+      "head_sha": "cbfcb4137f10474ffc7fe0e19f0b8772f25c1563",
+      "workspace": "2026-10-08/codex-final-paper-deployment-pr-126/repo"
+    },
+    {
+      "changes": [],
+      "clean": true,
+      "head_is_candidate_ancestor": true,
+      "head_sha": "030705397cf75766b5bffbea41abb8bf8db12104",
+      "workspace": "2026-10-09/the-meme-machine-codex-implementation-mandate/repo"
+    },
+    {
+      "changes": [],
+      "clean": true,
+      "head_is_candidate_ancestor": true,
+      "head_sha": "a55f458baf37c7dafa6286a2a05a287b1a8c2611",
+      "workspace": "2026-10-10/the-meme-machine-eliminate-redundant-data/continuous-paper-policy-20261011"
+    },
+    {
+      "changes": [],
+      "clean": true,
+      "head_is_candidate_ancestor": true,
+      "head_sha": "2d648349ad21f17d9d91fc44c4bb27d02b1ff81f",
+      "workspace": "2026-10-10/the-meme-machine-eliminate-redundant-data/dashboard-appearance-20261011"
+    },
+    {
+      "changes": [],
+      "clean": true,
+      "head_is_candidate_ancestor": true,
+      "head_sha": "5db82c42e9548de508b935c07a649fc1efc503aa",
+      "workspace": "2026-10-10/the-meme-machine-eliminate-redundant-data/development-replay-baseline-5db82c42"
+    },
+    {
+      "changes": [],
+      "clean": true,
+      "head_is_candidate_ancestor": true,
+      "head_sha": "df6274e270bcf40b818428a359b30e88ceb21ffb",
+      "workspace": "2026-10-10/the-meme-machine-eliminate-redundant-data/overnight-release"
+    },
+    {
+      "changes": [],
+      "clean": true,
+      "head_is_candidate_ancestor": true,
+      "head_sha": "2f68322de92d2f8d0ad626f8e523e0aede23ba39",
+      "workspace": "2026-10-10/the-meme-machine-eliminate-redundant-data/pons-configuration-handoff-20261012"
+    },
+    {
+      "changes": [
+        " M .github/workflows/pump-held-paper-offline-proof.yml",
+        " M engineering/diagnostics/current_combined_observation_20261014.py",
+        " M meme_machine/operational/configuration.py",
+        " M meme_machine/operational/position_continuation.py",
+        " M meme_machine/operational/supervisor.py",
+        " M meme_machine/runtime/evidence_worker.py",
+        " M meme_machine/solana_evidence_service.py",
+        " M meme_machine/solana_selective_source.py",
+        " M meme_machine/solana_source_drain.py",
+        " M operational/tests.py",
+        " M tests/test_current_combined_diagnostic.py",
+        " M tests/test_operational_configuration.py",
+        " M tests/test_solana_shared_capacity.py",
+        " M tests/test_solana_source_drain.py",
+        "?? operational/AWS_LIGHTSAIL_REPRODUCIBLE_INSTALL.md",
+        "?? tests/test_control_interrupted_recovery.py",
+        "?? tests/test_source_handler_recovery.py"
+      ],
+      "clean": false,
+      "head_is_candidate_ancestor": true,
+      "head_sha": "9bc778ff9237c0769aa6a6d2799bf513d677e333",
+      "workspace": "2026-10-10/the-meme-machine-eliminate-redundant-data/pump-history-separation-20261013"
+    },
+    {
+      "changes": [],
+      "clean": true,
+      "head_is_candidate_ancestor": true,
+      "head_sha": "9c6e7cbf3a8ef269c2d9689b07d96a5a309c4485",
+      "workspace": "2026-10-10/the-meme-machine-eliminate-redundant-data/repo"
+    },
+    {
+      "changes": [],
+      "clean": true,
+      "head_is_candidate_ancestor": true,
+      "head_sha": "b92b3000355306d9f2cad6cafebbe4f124b70201",
+      "workspace": "2026-10-10/the-meme-machine-eliminate-redundant-data/retirement-hot-lengths-20261012"
+    },
+    {
+      "changes": [],
+      "clean": true,
+      "head_is_candidate_ancestor": true,
+      "head_sha": "92827c5638448c5797cbe4c844dade7beefcc3ff",
+      "workspace": "2026-10-13/the-meme-machine-implement-ready-lifecycle/opportunity-access-20261014/repo"
+    },
+    {
+      "changes": [],
+      "clean": true,
+      "head_is_candidate_ancestor": true,
+      "head_sha": "9cdc1b5428f8ebf0bfcc6206cb8122b354654d9d",
+      "workspace": "2026-10-13/the-meme-machine-implement-ready-lifecycle/repo"
+    },
+    {
+      "changes": [],
+      "clean": true,
+      "head_is_candidate_ancestor": false,
+      "head_sha": "392b13fdaf1aebcf01e24ad707a5865061b7adf1",
+      "workspace": "2026-10-13/the-meme-machine-parallel-pons-database/pons-worktree"
+    }
+  ],
+  "repository": "levonmendall/The-Meme-Machine",
+  "safety": {
+    "financial_and_runtime_state_touched": false,
+    "operational_acceptance_claimed": false,
+    "paper_must_remain_inactive_disabled": true,
+    "remaining_live_capacity_and_held_protection_verification": "Deferred to AWS after authenticated persistent-state recovery and guarded first start; no old two-vCPU throughput failure rewritten.",
+    "repository_tracked_state_filename_audit": "No tracked .sqlite/.sqlite3/.db, SQLite WAL/SHM, PEM, id_rsa or id_ed25519 filenames at inspected HEAD. Filename audit is not a complete secret-content scan.",
+    "secrets_or_database_payloads_included": false
+  },
+  "schema": "meme-machine.github-main-integration-inventory.v1",
+  "unpushed_and_untracked_dispositions": {
+    "ahead_commit_already_in_candidate": true,
+    "behind_branches": "Two local tracking branches are behind their remotes; both remote branch tips are ancestors of candidate.",
+    "dirty_exception": "Only active PR133 worktree contains current in-progress release repairs; its exact filenames are captured above and must be committed before final validation/publication.",
+    "local_live_paper_branch_ahead_commit": "cbfcb4137f10474ffc7fe0e19f0b8772f25c1563"
+  }
+}

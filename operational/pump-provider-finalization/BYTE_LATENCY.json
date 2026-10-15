@@ -1,0 +1,1302 @@
+{
+  "archive": {
+    "records": 39769,
+    "uncompressed_archive_bytes": 61195936
+  },
+  "capture": "/mnt/volume_nyc1_1790918115030/sc-proof-corrected-20261008",
+  "captured_vs_charged_bytes": 915,
+  "ceiling_receipt": {
+    "billed_provider_cu": "UNMEASURED",
+    "estimate_basis": "published Solana method weights; Robinhood planning weight 100/request; native planning weight ceil(bytes/512)",
+    "estimated_native_delivery_cu": 98305,
+    "estimated_rpc_cu": 12210,
+    "limits": {
+      "estimated_native_delivery_cu": 131072,
+      "estimated_rpc_cu": 150000,
+      "native_delivery_bytes": 67108864,
+      "native_errors": 32,
+      "robinhood_rpc_requests": 1000,
+      "solana_rpc_requests": 2000,
+      "steady_seconds": 180,
+      "storage_bytes": 536870912,
+      "wall_seconds": 600
+    },
+    "methods": {
+      "robinhood:eth_call": 49,
+      "robinhood:eth_chainId": 4,
+      "robinhood:eth_gasPrice": 14,
+      "robinhood:eth_getBlockByNumber": 25,
+      "robinhood:eth_getCode": 10,
+      "robinhood:eth_getLogs": 4,
+      "robinhood:eth_getTransactionReceipt": 14,
+      "solana:getBlockTime": 2,
+      "solana:getGenesisHash": 3,
+      "solana:getMultipleAccounts": 3,
+      "solana:getSlot": 4
+    },
+    "native_delivery_bytes": 50331681,
+    "physical_http_attempts": {
+      "robinhood": 30,
+      "solana": 12
+    },
+    "reason": "native_delivery_inflight_margin_stop",
+    "requests": {
+      "robinhood": 120,
+      "solana": 12
+    }
+  },
+  "decoded_unique_economic_events": {
+    "pump:create": 7,
+    "pump:event_json_bytes": 426859,
+    "pump:migration": 1,
+    "pump:trade": 917,
+    "pumpswap:event_json_bytes": 1316284,
+    "pumpswap:trade": 4286
+  },
+  "decoder_failures": {},
+  "duplicate_payload": {
+    "grpc_cross_stream_bytes": 8451,
+    "grpc_duplicate_bytes": 8451,
+    "ws_cross_program_bytes": 96052,
+    "ws_duplicate_bytes": 96052,
+    "ws_duplicate_messages": 17
+  },
+  "limitations": [
+    "Application bytes exclude TLS, framing and NIC traffic.",
+    "Duplicate accounting does not imply provider-filter support or safe suppression.",
+    "All program data and decoded event bytes are informative content sizes, not a provider projection.",
+    "created_at semantics and physical dispatch/finality clocks are unproved.",
+    "SQLite page stock is not cumulative durable write traffic; process writes include captures and every DB.",
+    "No new history or live provider evidence was acquired."
+  ],
+  "outbox_timings": {
+    "canonical": {
+      "content_receipt_to_outbox_staging": {
+        "max": 6.429394721984863,
+        "n": 8,
+        "p50": 0.27559995651245117,
+        "p95": 6.290978908538818,
+        "p99": 6.290978908538818
+      },
+      "content_receipt_to_publication_ack": {
+        "max": 6.987607002258301,
+        "n": 8,
+        "p50": 0.41234636306762695,
+        "p95": 6.848884582519531,
+        "p99": 6.848884582519531
+      },
+      "staged_to_publication_ack": {
+        "max": 0.5582122802734375,
+        "n": 8,
+        "p50": 0.1373276710510254,
+        "p95": 0.5579056739807129,
+        "p99": 0.5579056739807129
+      }
+    },
+    "promotion": {
+      "staged_to_publication_ack": {
+        "max": 2.5989248752593994,
+        "n": 167,
+        "p50": 1.8908064365386963,
+        "p95": 2.5382838249206543,
+        "p99": 2.5784647464752197
+      }
+    },
+    "scout": {
+      "staged_to_publication_ack": {
+        "max": 6.170232057571411,
+        "n": 265,
+        "p50": 0.1506824493408203,
+        "p95": 0.324099063873291,
+        "p99": 0.4066736698150635
+      }
+    }
+  },
+  "persisted": {
+    "canonical_body_bytes": 273095,
+    "canonical_events": 287,
+    "delivery_accounting": [
+      [
+        "candidate_logs",
+        "websocket",
+        49932980,
+        0,
+        0,
+        0
+      ],
+      [
+        "pump",
+        "yellowstone",
+        1791039,
+        0,
+        0,
+        0
+      ],
+      [
+        "replay",
+        "rpc",
+        43,
+        0,
+        0,
+        0
+      ],
+      [
+        "shared",
+        "rpc",
+        86,
+        0,
+        0,
+        0
+      ],
+      [
+        "shared",
+        "yellowstone",
+        83936,
+        0,
+        0,
+        0
+      ]
+    ],
+    "distinct_canonical_events": 287,
+    "published_body_bytes": 258428,
+    "published_rows": 870,
+    "schema": {
+      "candidate_checkpoints": [
+        "scope",
+        "slot",
+        "receipt",
+        "updated"
+      ],
+      "canonical_evidence": [
+        "identity",
+        "scope",
+        "slot",
+        "signature",
+        "program",
+        "market_time",
+        "event_index",
+        "transaction_index",
+        "kind",
+        "body",
+        "hash",
+        "first_seen",
+        "archive"
+      ],
+      "rolling_economic_events": [
+        "identity",
+        "scope",
+        "slot",
+        "signature",
+        "program",
+        "market_time",
+        "event_index",
+        "transaction_index",
+        "kind",
+        "body",
+        "hash",
+        "first_seen",
+        "archive"
+      ],
+      "rolling_event_refs": []
+    },
+    "stock": {
+      "acquisition_jobs": 167,
+      "candidate_content_receipts": 287,
+      "candidate_lifecycle": 169,
+      "candidate_outbox": 287,
+      "market_observations": 169,
+      "rolling_economic_events": 287
+    },
+    "tables": {
+      "acquisition_jobs": {
+        "bytes": 45056,
+        "pages": 11
+      },
+      "acquisition_observations": {
+        "bytes": 237568,
+        "pages": 58
+      },
+      "acquisition_page_receipts": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "acquisition_priority": {
+        "bytes": 12288,
+        "pages": 3
+      },
+      "address_keys": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "address_refs": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "address_window": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "archive_gc": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "archives": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "backfill_reasons": {
+        "bytes": 36864,
+        "pages": 9
+      },
+      "cached_address_lookup": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "cached_addresses": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "candidate_activity_receipts": {
+        "bytes": 45056,
+        "pages": 11
+      },
+      "candidate_blocks": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "candidate_canonical_consumed_identity": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "candidate_checkpoints": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "candidate_content_receipts": {
+        "bytes": 65536,
+        "pages": 16
+      },
+      "candidate_coverage": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "candidate_coverage_bounds": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "candidate_evidence_pins": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "candidate_gaps": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "candidate_history_dispatch": {
+        "bytes": 32768,
+        "pages": 8
+      },
+      "candidate_history_identity_pending": {
+        "bytes": 65536,
+        "pages": 16
+      },
+      "candidate_history_outbox": {
+        "bytes": 516096,
+        "pages": 126
+      },
+      "candidate_history_pending": {
+        "bytes": 32768,
+        "pages": 8
+      },
+      "candidate_lifecycle": {
+        "bytes": 24576,
+        "pages": 6
+      },
+      "candidate_live_work": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "candidate_outbox": {
+        "bytes": 53248,
+        "pages": 13
+      },
+      "candidate_outbox_scope": {
+        "bytes": 16384,
+        "pages": 4
+      },
+      "candidate_pending_proofs": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "command_expiry": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "command_receipts": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "conflicts": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "consumers": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "counters": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "coverage": {
+        "bytes": 212992,
+        "pages": 52
+      },
+      "coverage_window": {
+        "bytes": 16384,
+        "pages": 4
+      },
+      "cursors": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "evidence_bindings": {
+        "bytes": 36864,
+        "pages": 9
+      },
+      "gap_window": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "gaps": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "hot_chunks": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "hot_ref_hash": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "hot_refs": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "interest_checkpoints": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "interest_owners": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "interests": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "lineage": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "maintenance_archived_slot": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "maintenance_archived_time": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "maintenance_cohorts": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "maintenance_episodes": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "maintenance_gap_bound": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "maintenance_hot_time": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "maintenance_interest_bound": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "maintenance_nonrecord_demand": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "maintenance_orphans": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "maintenance_progress": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "maintenance_recent_coverage": {
+        "bytes": 16384,
+        "pages": 4
+      },
+      "maintenance_retired_slot": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "market_observations": {
+        "bytes": 81920,
+        "pages": 20
+      },
+      "meta": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "native_order_attestations": {
+        "bytes": 61440,
+        "pages": 15
+      },
+      "prewarm_membership_revision": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "prewarm_startup": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "prewarm_startup_feeds": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "prewarm_startup_transitions": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "promotion_history_metrics": {
+        "bytes": 176128,
+        "pages": 43
+      },
+      "provider_delivery": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "receipt_parent": {
+        "bytes": 24576,
+        "pages": 6
+      },
+      "receipt_time": {
+        "bytes": 16384,
+        "pages": 4
+      },
+      "records": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "records_archive_ref": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "records_archive_time": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "records_hot_scope_slot": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "records_scope_slot": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "records_scope_time": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "records_signature": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "rolling_address_lookup": {
+        "bytes": 126976,
+        "pages": 31
+      },
+      "rolling_boundary_waits": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "rolling_economic_addresses": {
+        "bytes": 106496,
+        "pages": 26
+      },
+      "rolling_economic_events": {
+        "bytes": 450560,
+        "pages": 110
+      },
+      "rolling_event_lineage": {
+        "bytes": 69632,
+        "pages": 17
+      },
+      "rolling_event_order": {
+        "bytes": 16384,
+        "pages": 4
+      },
+      "rolling_group_members": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "rolling_member_address": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "rolling_origins": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "rolling_publication_waits": {
+        "bytes": 20480,
+        "pages": 5
+      },
+      "scoped_cold_address_lookup": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "scoped_cold_addresses": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "scoped_cold_manifests": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "scoped_cold_records": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "scoped_retirement_observations": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "service_health": {
+        "bytes": 28672,
+        "pages": 7
+      },
+      "service_interest_address": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "service_interests": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "shared_history_cache": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_acquisition_jobs_1": {
+        "bytes": 16384,
+        "pages": 4
+      },
+      "sqlite_autoindex_acquisition_page_receipts_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_address_keys_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_archive_gc_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_archives_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_backfill_reasons_1": {
+        "bytes": 16384,
+        "pages": 4
+      },
+      "sqlite_autoindex_cached_addresses_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_candidate_activity_receipts_1": {
+        "bytes": 49152,
+        "pages": 12
+      },
+      "sqlite_autoindex_candidate_blocks_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_candidate_checkpoints_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_candidate_content_receipts_1": {
+        "bytes": 49152,
+        "pages": 12
+      },
+      "sqlite_autoindex_candidate_coverage_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_candidate_evidence_pins_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_candidate_history_outbox_1": {
+        "bytes": 73728,
+        "pages": 18
+      },
+      "sqlite_autoindex_candidate_lifecycle_1": {
+        "bytes": 16384,
+        "pages": 4
+      },
+      "sqlite_autoindex_candidate_live_work_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_candidate_outbox_1": {
+        "bytes": 49152,
+        "pages": 12
+      },
+      "sqlite_autoindex_candidate_pending_proofs_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_command_receipts_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_consumers_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_counters_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_coverage_1": {
+        "bytes": 212992,
+        "pages": 52
+      },
+      "sqlite_autoindex_cursors_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_evidence_bindings_1": {
+        "bytes": 16384,
+        "pages": 4
+      },
+      "sqlite_autoindex_hot_chunks_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_interest_checkpoints_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_interest_owners_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_interests_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_lineage_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_maintenance_cohorts_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_maintenance_episodes_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_maintenance_nonrecord_demand_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_maintenance_progress_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_market_observations_1": {
+        "bytes": 16384,
+        "pages": 4
+      },
+      "sqlite_autoindex_meta_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_native_order_attestations_1": {
+        "bytes": 45056,
+        "pages": 11
+      },
+      "sqlite_autoindex_prewarm_startup_feeds_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_promotion_history_metrics_1": {
+        "bytes": 16384,
+        "pages": 4
+      },
+      "sqlite_autoindex_provider_delivery_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_records_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_rolling_boundary_waits_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_rolling_economic_addresses_1": {
+        "bytes": 126976,
+        "pages": 31
+      },
+      "sqlite_autoindex_rolling_economic_events_1": {
+        "bytes": 49152,
+        "pages": 12
+      },
+      "sqlite_autoindex_rolling_event_lineage_1": {
+        "bytes": 77824,
+        "pages": 19
+      },
+      "sqlite_autoindex_rolling_group_members_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_rolling_origins_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_rolling_publication_waits_1": {
+        "bytes": 16384,
+        "pages": 4
+      },
+      "sqlite_autoindex_scoped_cold_addresses_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_scoped_cold_manifests_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_scoped_cold_records_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_service_health_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_service_interests_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_shared_history_cache_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_stream_deliveries_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_stream_order_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_autoindex_stream_receipts_1": {
+        "bytes": 12288,
+        "pages": 3
+      },
+      "sqlite_autoindex_structural_census_1": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "sqlite_schema": {
+        "bytes": 45056,
+        "pages": 11
+      },
+      "stream_deliveries": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "stream_order": {
+        "bytes": 4096,
+        "pages": 1
+      },
+      "stream_receipts": {
+        "bytes": 61440,
+        "pages": 15
+      },
+      "structural_census": {
+        "bytes": 4096,
+        "pages": 1
+      }
+    }
+  },
+  "physical_payload": {
+    "websocket_bytes": 48501501,
+    "websocket_messages": 22386,
+    "yellowstone_bytes": 1829265,
+    "yellowstone_messages": 17375
+  },
+  "preserved_capture_manifest": {
+    "READINESS.json": {
+      "bytes": 217,
+      "sha256": "6fb8dbc6026ab93fa1ff3c032cd021a1ba5238a29fd4c2a4c437530a465f1b16"
+    },
+    "candidate.sqlite": {
+      "bytes": 786432,
+      "sha256": "e632ba791f6039511b4be35df9ebd3ce72f5ca58ca6b1beeaaf4e43499baa03d"
+    },
+    "ceilings.json": {
+      "bytes": 1171,
+      "sha256": "3a3d8797e4d9f987d283d8ac38e02b3c55777f1455d166a0a525a656a84a0bb9"
+    },
+    "governor.sqlite": {
+      "bytes": 36864,
+      "sha256": "ac1bec95454abc37b5b05ad9d5dbd220df4fab05ed2cd5c8d9de33587028180d"
+    },
+    "http.ndjson.zlib": {
+      "bytes": 2288,
+      "sha256": "939e3acff52826eaa894654db8bb4b58e6744bb0559ecb9ea7d4fcd642c41ec9"
+    },
+    "owner.samples.ndjson.zlib": {
+      "bytes": 13710,
+      "sha256": "2a879ec7a247b0d458e497ee969a1f281194dc13b56ccd85d43d4522b787dd63"
+    },
+    "pons/candidates.sqlite": {
+      "bytes": 110592,
+      "sha256": "685b73fa6ccbab36a8d45ab388b35143a05079222e26604a83505ae95eb1e57f"
+    },
+    "pons/history.sqlite": {
+      "bytes": 49152,
+      "sha256": "7e3b7433d0cc1c0f2e9888db9d794e18c4f6798a6b3daf1fde0887a32243bb38"
+    },
+    "pons/history.sqlite-wal": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "pons/position-quotes.sqlite": {
+      "bytes": 28672,
+      "sha256": "1684458d4fb9da2aee2950aa6344d65c781a4655266689ec14671cade315e869"
+    },
+    "pons/result.json": {
+      "bytes": 3250,
+      "sha256": "93a4be5fd12df9ef22d51ceecad0b8822354f3bc55516a26abc6247ce0c8ba24"
+    },
+    "process.json": {
+      "bytes": 43,
+      "sha256": "2504a64ea9ea1d5b44366427ebcb6858488c3af24f7fb757b9680fc6d3802bdd"
+    },
+    "provider.frames.zlib": {
+      "bytes": 7593762,
+      "sha256": "edc1ab35e5f2fc6bc4e9bfc35b4c9edd1cbe2103e2a67a57a40c9e4b29aed90c"
+    },
+    "reconciliation.json": {
+      "bytes": 290,
+      "sha256": "2f0ccfb92a739d7772dd13bbd46f5cbcb6e7f0000234499e62b21e29700eda15"
+    },
+    "result.json": {
+      "bytes": 1021242,
+      "sha256": "c1fb66b6791a0c556a3d17999fc531e2e8644e80b8a77775de2ad890da84ee85"
+    },
+    "robinhood-evidence.sqlite": {
+      "bytes": 167936,
+      "sha256": "f03a300e2cdc2ccd8ce21b1b97c0a8048f8f53105f71a180451c86e9c742885b"
+    },
+    "robinhood-evidence.sqlite-wal": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "robinhood-provider.sqlite": {
+      "bytes": 126976,
+      "sha256": "c653350a627c2719c16b7fad566b9f34534f55b6213191f7ba2f342451fbe82b"
+    },
+    "robinhood-provider.sqlite-wal": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "state/canonical.scoped-cold/1aeb0ad6789fbc301c2d8c9e819455d59ead4c78d34370314836b5474e38030c.zlib": {
+      "bytes": 1302,
+      "sha256": "1aeb0ad6789fbc301c2d8c9e819455d59ead4c78d34370314836b5474e38030c"
+    },
+    "state/canonical.sqlite": {
+      "bytes": 4075520,
+      "sha256": "33d7005382c569084ee9269ecd7d4533ba053292964837d82f4e21c8a4b5bc5d"
+    },
+    "state/canonical.sqlite-wal": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "survivor.sqlite": {
+      "bytes": 40960,
+      "sha256": "351ff0eb6ec6b598559d3c66aa2efba9cbc90569c2a5e45b8a68cb67063cd0b4"
+    }
+  },
+  "ranked_payload": [
+    {
+      "bytes": 27538305,
+      "component": "pumpswap_successful",
+      "logs_json_value_bytes": 25085434,
+      "messages": 9819,
+      "program_data_string_bytes": 3156670,
+      "startup_bytes": 22653593,
+      "steady_bytes": 4884712
+    },
+    {
+      "bytes": 13400141,
+      "component": "pumpswap_failed",
+      "logs_json_value_bytes": 11410599,
+      "messages": 6967,
+      "startup_bytes": 11380738,
+      "steady_bytes": 2019403
+    },
+    {
+      "bytes": 4521806,
+      "component": "pump_successful",
+      "logs_json_value_bytes": 4210553,
+      "messages": 1246,
+      "program_data_string_bytes": 606413,
+      "startup_bytes": 3954199,
+      "steady_bytes": 567607
+    },
+    {
+      "bytes": 3041169,
+      "component": "pump_failed",
+      "logs_json_value_bytes": 1807512,
+      "messages": 4352,
+      "startup_bytes": 2736440,
+      "steady_bytes": 304729
+    },
+    {
+      "below_requested_floor_bytes": 1548879,
+      "bytes": 1673692,
+      "component": "candidate_status:transaction_status",
+      "failed_bytes": 927338,
+      "failed_messages": 8384,
+      "messages": 16352,
+      "multi_scope_bytes": 1935,
+      "startup_bytes": 1661914,
+      "steady_bytes": 11778,
+      "successful_bytes": 746354,
+      "successful_messages": 7968
+    },
+    {
+      "below_requested_floor_bytes": 6480,
+      "bytes": 72165,
+      "component": "control:block_meta",
+      "messages": 345,
+      "startup_bytes": 70077,
+      "steady_bytes": 2088
+    },
+    {
+      "below_requested_floor_bytes": 63669,
+      "bytes": 63669,
+      "component": "scout:account",
+      "messages": 263,
+      "startup_bytes": 63669
+    },
+    {
+      "below_requested_floor_bytes": 1015,
+      "bytes": 11288,
+      "component": "control:slot",
+      "messages": 345,
+      "startup_bytes": 10960,
+      "steady_bytes": 328
+    },
+    {
+      "below_requested_floor_bytes": 6675,
+      "bytes": 7304,
+      "component": "candidate_status:block_meta",
+      "messages": 35,
+      "startup_bytes": 7094,
+      "steady_bytes": 210
+    },
+    {
+      "below_requested_floor_bytes": 1048,
+      "bytes": 1147,
+      "component": "candidate_status:slot",
+      "messages": 35,
+      "startup_bytes": 1147
+    },
+    {
+      "bytes": 80,
+      "component": "ws_ack",
+      "messages": 2
+    }
+  ],
+  "resource_samples": {
+    "child_cpu_seconds": 0.0,
+    "io_sample_seconds": 20.287899255752563,
+    "peak_owner_wait": 6.405478639004286,
+    "process_cpu_seconds": 16.549043582,
+    "process_io_delta": {
+      "cancelled_write_bytes": 10526720,
+      "rchar": 86820563,
+      "read_bytes": 626688,
+      "syscr": 33227,
+      "syscw": 74703,
+      "wchar": 91174186,
+      "write_bytes": 114298880
+    }
+  },
+  "schema": "pump-provider-offline-attribution-v1",
+  "source_hashes": {
+    "engineering/solana_capacity/certify.py": "dd88c5e01a985f99b64798395ddca3ca84015dea3629951defbb162fcc42a533",
+    "engineering/solana_capacity/final_mixed.py": "d1aa10dc78cbe7a304cdb6f1f5655291254e0cb03cbcef5fae4e83157d136c60",
+    "engineering/solana_capacity/live_probe.py": "8c643c938b06e00d859e16bd69c057ef403e914474886e001d81aac40d2d8588",
+    "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+    "engineering/solana_capacity/pump_pons_proof.py": "4ad4e219a9c0e803c482ad95a05a1d7e0ba3011ca947a36ee254bbeae325f8bf",
+    "engineering/solana_capacity/transport_meter.py": "936977b097c8351b8a877a175cc9ea37a417743c3d69077556d213a1cd029b54",
+    "meme_machine/lanes/meteora/runner.py": "b9bdfc2209485b430dc3d61b204f1935fe772d9c1bb9b4fe064551a481e3432b",
+    "meme_machine/lanes/pons/pons_selective_acquisition.py": "9671df69f7e61ec60c223cce888f1c843b194527b6e5d7c3c3572823fd459f13",
+    "meme_machine/lanes/pons/pons_selective_cohort.py": "17bd2b803f7877b6311afa05561ee460fd8bde815ef7351f5c79009a985ad615",
+    "meme_machine/lanes/pons/pons_selective_paper.py": "d483aa4f1241d102614cbba1073cef36499148c4396b5faa6c278e018d3556b8",
+    "meme_machine/lanes/pons/pons_survivor_runtime.py": "9dc886b33ed7bf11df3fafff97ac365176719e3257916dc25024cf5e83e19d72",
+    "meme_machine/lanes/pons/provider.py": "21e75b3dc7951d0657aade83cc1ed9f8ea5050d2bcaf00eb8a107346ab9ffcc1",
+    "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+    "meme_machine/runtime/candidate_history.py": "5446621a87cccaf28ba61d41dc6272437c5f830515523aff5dfab4a84ea2b7ea",
+    "meme_machine/runtime/evidence_worker.py": "e5a88fdcf48ef2105d3271e975c6a96c3acde34fd73860d9743c49e07ed2ecdd",
+    "meme_machine/runtime/governor.py": "ba77d183345037366333b7e7b81ceac9443b8d603254423d7be0e1ff61165034",
+    "meme_machine/runtime/lifecycle_timing.py": "1ceeae9b384768afc2c6a7faf1ddbb7913b59dc371381adb5770d72280c48070",
+    "meme_machine/runtime/solana_warming.py": "e129796e56ecd0b5f918e6ba080a7accfebb789f088d25ce5bb5d6d32b58f552",
+    "meme_machine/solana_candidate_join.py": "d35773573b7bbf75e4f56090b78470bc924b8cb576aca231b39e6c98602ffaaf",
+    "meme_machine/solana_candidate_lifecycle.py": "0bcf8f0e3b560b2fdacf9c286829b01b08ba4b9e97dd66bae649b6bfcd784575",
+    "meme_machine/solana_checkpoint.py": "63977d26d04bc2fd6f38e43e5fc7d6358ebe70d1bfe1c79a88036a87cc1d99e0",
+    "meme_machine/solana_evidence_control.py": "914941124cc5c2174969c928281061d92b1c18e050bf692d1ffe978eeb31db44",
+    "meme_machine/solana_evidence_service.py": "786860ce143badb54a7bb1550d119a0d544c333657463ffc238b21e5428f1df7",
+    "meme_machine/solana_prewarm_startup.py": "9291fac388444d0c3f4799cab81c9172aa8d8bf55f769dd616034b5d863b03c0",
+    "meme_machine/solana_rolling_history.py": "b2f165a780a7dbb432db6252e0db3e16c72527d01ad7c173061737f0f0d188b5",
+    "meme_machine/solana_scoped_retirement.py": "9082576aa9588145fdab400cbda1d0d88c5512d45a3cbc6a4adc4fbcbe4539ed",
+    "meme_machine/solana_selective_history.py": "ce6bfe39c68465b1fbe3a263ab964f630cff2fb019f7a39419f3dbcdac0eb6c0",
+    "meme_machine/solana_selective_source.py": "0c1a23908350dcf09eea5ceaec9fba11ad0f1220dd7e93c7a175401405e975a8",
+    "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55"
+  },
+  "throughput": {
+    "active_captured_delivery_seconds": 13.764220476150513,
+    "byte_buckets": [
+      [
+        1791418431,
+        24250
+      ],
+      [
+        1791418432,
+        4028090
+      ],
+      [
+        1791418433,
+        3991824
+      ],
+      [
+        1791418434,
+        3590180
+      ],
+      [
+        1791418435,
+        3853627
+      ],
+      [
+        1791418436,
+        3012511
+      ],
+      [
+        1791418437,
+        5247721
+      ],
+      [
+        1791418438,
+        3433736
+      ],
+      [
+        1791418439,
+        3952108
+      ],
+      [
+        1791418440,
+        3591547
+      ],
+      [
+        1791418441,
+        3655536
+      ],
+      [
+        1791418442,
+        3063869
+      ],
+      [
+        1791418443,
+        3835525
+      ],
+      [
+        1791418444,
+        3116794
+      ],
+      [
+        1791418445,
+        1933448
+      ]
+    ],
+    "first_captured_delivery": 1791418431.8915377,
+    "last_captured_delivery": 1791418445.6557581,
+    "peak_one_second_bucket": 5247721,
+    "post_delivery_drain_seconds": 5.415024757385254,
+    "post_release_captured_delivery_seconds": 2.3786072731018066,
+    "steady_seconds": 7.7936320304870605,
+    "window_seconds": 19.840281009674072
+  },
+  "timestamp_ages": {
+    "candidate_status:block_meta:created_age": {
+      "max": 18.824018239974976,
+      "n": 35,
+      "p50": 18.021083116531372,
+      "p95": 18.463907718658447,
+      "p99": 18.620909690856934
+    },
+    "candidate_status:created_minus_blocktime": {
+      "max": 1.5542230606079102,
+      "n": 35,
+      "p50": 1.049428939819336,
+      "p95": 1.4558444023132324,
+      "p99": 1.504601240158081
+    },
+    "candidate_status:slot:created_age": {
+      "max": 10.169130802154541,
+      "n": 35,
+      "p50": 9.402968883514404,
+      "p95": 9.821027755737305,
+      "p99": 10.041196823120117
+    },
+    "candidate_status:startup:chain_age": {
+      "max": 19.868916988372803,
+      "n": 34,
+      "p50": 19.11396360397339,
+      "p95": 19.70023775100708,
+      "p99": 19.79310369491577
+    },
+    "candidate_status:startup:in_range:created_age": {
+      "max": 18.879773378372192,
+      "n": 1107,
+      "p50": 18.595205545425415,
+      "p95": 18.861626148223877,
+      "p99": 18.87758207321167
+    },
+    "candidate_status:startup:prefix:created_age": {
+      "max": 18.450817108154297,
+      "n": 15201,
+      "p50": 17.918601512908936,
+      "p95": 18.337087154388428,
+      "p99": 18.429781913757324
+    },
+    "candidate_status:steady:chain_age": {
+      "max": 19.333775758743286,
+      "n": 1,
+      "p50": 19.333775758743286,
+      "p95": 19.333775758743286,
+      "p99": 19.333775758743286
+    },
+    "candidate_status:steady:in_range:created_age": {
+      "max": 18.82858157157898,
+      "n": 114,
+      "p50": 18.82365894317627,
+      "p95": 18.828038930892944,
+      "p99": 18.828456163406372
+    },
+    "candidate_status:transaction_status:created_age": {
+      "max": 18.879773378372192,
+      "n": 16352,
+      "p50": 17.976360082626343,
+      "p95": 18.49443483352661,
+      "p99": 18.84619379043579
+    },
+    "control:block_meta:created_age": {
+      "max": 86.4566822052002,
+      "n": 345,
+      "p50": 41.29916334152222,
+      "p95": 81.78327178955078,
+      "p99": 85.43373489379883
+    },
+    "control:created_minus_blocktime": {
+      "max": 1.5851945877075195,
+      "n": 345,
+      "p50": 1.0207455158233643,
+      "p95": 1.462432622909546,
+      "p99": 1.5148429870605469
+    },
+    "control:slot:created_age": {
+      "max": 77.84120488166809,
+      "n": 345,
+      "p50": 33.16166639328003,
+      "p95": 73.27263402938843,
+      "p99": 76.7920286655426
+    },
+    "control:startup:chain_age": {
+      "max": 87.89252233505249,
+      "n": 335,
+      "p50": 43.696266889572144,
+      "p95": 82.90887808799744,
+      "p99": 86.89337062835693
+    },
+    "control:startup:in_range:created_age": {
+      "max": 77.87097001075745,
+      "n": 608,
+      "p50": 34.664815187454224,
+      "p95": 69.94414615631104,
+      "p99": 76.10390019416809
+    },
+    "control:startup:prefix:created_age": {
+      "max": 86.4566822052002,
+      "n": 62,
+      "p50": 77.84120488166809,
+      "p95": 85.43373489379883,
+      "p99": 86.207590341568
+    },
+    "control:steady:chain_age": {
+      "max": 9.41963529586792,
+      "n": 10,
+      "p50": 8.850741386413574,
+      "p95": 9.355101346969604,
+      "p99": 9.355101346969604
+    },
+    "control:steady:in_range:created_age": {
+      "max": 8.144614458084106,
+      "n": 20,
+      "p50": 0.10039710998535156,
+      "p95": 8.119276285171509,
+      "p99": 8.119276285171509
+    },
+    "same_native_fact_original_created_at_receipt_separation": {
+      "max": 8.694034576416016,
+      "n": 70,
+      "p50": 3.6309728622436523,
+      "p95": 7.823978900909424,
+      "p99": 8.384804964065552
+    },
+    "scout:account:created_age": {
+      "max": 93.31794452667236,
+      "n": 263,
+      "p50": 91.06638407707214,
+      "p95": 92.50385236740112,
+      "p99": 92.93563318252563
+    },
+    "scout:startup:prefix:created_age": {
+      "max": 93.31794452667236,
+      "n": 263,
+      "p50": 91.06638407707214,
+      "p95": 92.50385236740112,
+      "p99": 92.93563318252563
+    }
+  }
+}

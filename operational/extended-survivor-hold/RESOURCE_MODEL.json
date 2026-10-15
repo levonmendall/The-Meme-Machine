@@ -1,0 +1,3851 @@
+{
+  "baseline": {
+    "current_bridge_seconds": 129600,
+    "hashes": {
+      "pons": "ed17402a75470801fda47877b6b1f3b1266793b7e0750b7a7cd821f327541e5f",
+      "pump": "0d65e1023b5e7b586e9a71d060fe9da7954c964bfcc3fc986977b80979ea44a5"
+    },
+    "operational_maximum_seconds": 264065,
+    "original_entry_clock_required": true,
+    "policies": {
+      "pons": {
+        "first_profit_bps": 2000,
+        "first_sell_bps": 2500,
+        "hard_stop_bps": -1000,
+        "maximum_hold_seconds": 259200,
+        "soft_confirmations": 2,
+        "stale_return_ceiling_bps": 500,
+        "stale_seconds": 21600,
+        "tight_arm_bps": 4000,
+        "tight_trail_bps": 1000,
+        "trail_bps": 1200
+      },
+      "pump": {
+        "first_profit_bps": 2500,
+        "first_sell_bps": 2500,
+        "hard_stop_bps": -1200,
+        "maximum_hold_seconds": 259200,
+        "soft_confirmations": 2,
+        "tight_arm_bps": 6000,
+        "tight_trail_bps": 1500,
+        "trail_bps": 2000
+      }
+    },
+    "provider_limits": {
+      "continuation": {
+        "http_attempts": 500000,
+        "http_bytes": 1073741824,
+        "native_bytes": 34359738368,
+        "native_inflight_bytes": 2147483648,
+        "native_stop_bytes": 32195477504,
+        "rpc_cu": 24000000,
+        "rpc_elements": 500000
+      },
+      "continuation_modeled_spend_usd": "20",
+      "maximum_cpu_cores": "1.8",
+      "maximum_queue_depth": 64,
+      "maximum_queue_wait_seconds": 5,
+      "maximum_reconnects": 32,
+      "maximum_rss_bytes": 6442450944,
+      "maximum_seconds": 264065,
+      "recovery": {
+        "http_attempts": 50000,
+        "http_bytes": 134217728,
+        "native_bytes": 1073741824,
+        "native_inflight_bytes": 536870912,
+        "native_stop_bytes": 520093696,
+        "rpc_cu": 2400000,
+        "rpc_elements": 50000
+      },
+      "recovery_modeled_spend_usd": "2",
+      "recovery_seconds": 3600,
+      "schema": "paper-position-continuation-resources-v1"
+    },
+    "recovery_is_not_speculative_hold_time": true,
+    "recovery_seconds": 3600,
+    "shutdown_seconds": 65
+  },
+  "component_only_maxima": {
+    "pons_high_activity": {
+      "binding": {
+        "all_modeled_rpc_components_fit": false,
+        "http_attempts": {
+          "demand": 72198,
+          "fits": true,
+          "unchanged_limit": 500000
+        },
+        "rpc_cu": {
+          "demand": 11397924,
+          "fits": true,
+          "unchanged_limit": 24000000
+        },
+        "rpc_elements": {
+          "demand": 500048,
+          "fits": false,
+          "unchanged_limit": 500000
+        },
+        "rpc_spend_only": {
+          "demand_usd": "5.983910100",
+          "fits": true,
+          "unchanged_limit_usd": "20"
+        }
+      },
+      "classification": "RPC_COMPONENT_BOUND_ONLY",
+      "demand_at_last_fitting_second": {
+        "assumptions": {
+          "active_every_n_turns": 1,
+          "blocks_per_three_seconds": 40,
+          "cross_turn_quote_hits": 0,
+          "distinct_event_blocks": 15,
+          "receipt_sender_missing": true,
+          "relevant_transactions_per_three_seconds": 15,
+          "retries": 0,
+          "verified_log_width": 10
+        },
+        "methods": {
+          "eth_call": 17112,
+          "eth_chainId": 3741,
+          "eth_gasPrice": 8556,
+          "eth_getBlockByNumber": 171120,
+          "eth_getCode": 8556,
+          "eth_getLogs": 34224,
+          "eth_getTransactionByHash": 128340,
+          "eth_getTransactionReceipt": 128340
+        },
+        "minimum_physical_rps_under_scenario": 2.8124123422159886,
+        "physical_attempts_without_failures": 72189,
+        "rpc_cu": 11396592,
+        "rpc_elements": 499989,
+        "rpc_only_modeled_usd": "5.983210800",
+        "turns": 8556
+      },
+      "hours": 7.13,
+      "seconds": 25668,
+      "streaming_bytes_latency_memory_queue_recovery_and_approval_proven": false
+    },
+    "pons_high_volatility": {
+      "binding": {
+        "all_modeled_rpc_components_fit": false,
+        "http_attempts": {
+          "demand": 196627,
+          "fits": true,
+          "unchanged_limit": 500000
+        },
+        "rpc_cu": {
+          "demand": 13569360,
+          "fits": true,
+          "unchanged_limit": 24000000
+        },
+        "rpc_elements": {
+          "demand": 500007,
+          "fits": false,
+          "unchanged_limit": 500000
+        },
+        "rpc_spend_only": {
+          "demand_usd": "7.123914000",
+          "fits": true,
+          "unchanged_limit_usd": "20"
+        }
+      },
+      "classification": "RPC_COMPONENT_BOUND_ONLY",
+      "demand_at_last_fitting_second": {
+        "assumptions": {
+          "active_every_n_turns": 1,
+          "blocks_per_three_seconds": 30,
+          "cross_turn_quote_hits": 0,
+          "distinct_event_blocks": 3,
+          "receipt_sender_missing": false,
+          "relevant_transactions_per_three_seconds": 3,
+          "retries": 0,
+          "verified_log_width": 10
+        },
+        "methods": {
+          "eth_call": 55158,
+          "eth_chainId": 3567,
+          "eth_gasPrice": 27579,
+          "eth_getBlockByNumber": 220632,
+          "eth_getCode": 27579,
+          "eth_getLogs": 82737,
+          "eth_getTransactionReceipt": 82737
+        },
+        "minimum_physical_rps_under_scenario": 2.376445846477392,
+        "physical_attempts_without_failures": 196620,
+        "rpc_cu": 13568868,
+        "rpc_elements": 499989,
+        "rpc_only_modeled_usd": "7.123655700",
+        "turns": 27579
+      },
+      "hours": 22.9825,
+      "seconds": 82737,
+      "streaming_bytes_latency_memory_queue_recovery_and_approval_proven": false
+    },
+    "pons_ordinary_reference": {
+      "binding": {
+        "all_modeled_rpc_components_fit": false,
+        "http_attempts": {
+          "demand": 215094,
+          "fits": true,
+          "unchanged_limit": 500000
+        },
+        "rpc_cu": {
+          "demand": 15303612,
+          "fits": true,
+          "unchanged_limit": 24000000
+        },
+        "rpc_elements": {
+          "demand": 500001,
+          "fits": false,
+          "unchanged_limit": 500000
+        },
+        "rpc_spend_only": {
+          "demand_usd": "8.034396300",
+          "fits": true,
+          "unchanged_limit_usd": "20"
+        }
+      },
+      "classification": "RPC_COMPONENT_BOUND_ONLY",
+      "demand_at_last_fitting_second": {
+        "assumptions": {
+          "active_every_n_turns": 10,
+          "blocks_per_three_seconds": 30,
+          "cross_turn_quote_hits": 0,
+          "distinct_event_blocks": 1,
+          "receipt_sender_missing": false,
+          "relevant_transactions_per_three_seconds": 1,
+          "retries": 0,
+          "verified_log_width": 10
+        },
+        "methods": {
+          "eth_call": 81400,
+          "eth_chainId": 3446,
+          "eth_gasPrice": 40700,
+          "eth_getBlockByNumber": 207570,
+          "eth_getCode": 40700,
+          "eth_getLogs": 122100,
+          "eth_getTransactionReceipt": 4070
+        },
+        "minimum_physical_rps_under_scenario": 1.7615561015561019,
+        "physical_attempts_without_failures": 215086,
+        "rpc_cu": 15303200,
+        "rpc_elements": 499986,
+        "rpc_only_modeled_usd": "8.034180000",
+        "turns": 40700
+      },
+      "hours": 33.916666666666664,
+      "seconds": 122100,
+      "streaming_bytes_latency_memory_queue_recovery_and_approval_proven": false
+    },
+    "pons_quiet": {
+      "binding": {
+        "all_modeled_rpc_components_fit": false,
+        "http_attempts": {
+          "demand": 210345,
+          "fits": true,
+          "unchanged_limit": 500000
+        },
+        "rpc_cu": {
+          "demand": 15393732,
+          "fits": true,
+          "unchanged_limit": 24000000
+        },
+        "rpc_elements": {
+          "demand": 500012,
+          "fits": false,
+          "unchanged_limit": 500000
+        },
+        "rpc_spend_only": {
+          "demand_usd": "8.081709300",
+          "fits": true,
+          "unchanged_limit_usd": "20"
+        }
+      },
+      "classification": "RPC_COMPONENT_BOUND_ONLY",
+      "demand_at_last_fitting_second": {
+        "assumptions": {
+          "active_every_n_turns": 1,
+          "blocks_per_three_seconds": 30,
+          "cross_turn_quote_hits": 0,
+          "distinct_event_blocks": 0,
+          "receipt_sender_missing": false,
+          "relevant_transactions_per_three_seconds": 0,
+          "retries": 0,
+          "verified_log_width": 10
+        },
+        "methods": {
+          "eth_call": 82760,
+          "eth_chainId": 3440,
+          "eth_gasPrice": 41380,
+          "eth_getBlockByNumber": 206900,
+          "eth_getCode": 41380,
+          "eth_getLogs": 124140
+        },
+        "minimum_physical_rps_under_scenario": 1.6943773159336233,
+        "physical_attempts_without_failures": 210340,
+        "rpc_cu": 15393360,
+        "rpc_elements": 500000,
+        "rpc_only_modeled_usd": "8.081514000",
+        "turns": 41380
+      },
+      "hours": 34.483333333333334,
+      "seconds": 124140,
+      "streaming_bytes_latency_memory_queue_recovery_and_approval_proven": false
+    },
+    "pump_snapshot": {
+      "binding": {
+        "all_modeled_rpc_components_fit": false,
+        "http_attempts": {
+          "demand": 500003,
+          "fits": false,
+          "unchanged_limit": 500000
+        },
+        "rpc_cu": {
+          "demand": 9961880,
+          "fits": true,
+          "unchanged_limit": 24000000
+        },
+        "rpc_elements": {
+          "demand": 500003,
+          "fits": false,
+          "unchanged_limit": 500000
+        },
+        "rpc_spend_only": {
+          "demand_usd": "5.229987000",
+          "fits": true,
+          "unchanged_limit_usd": "20"
+        }
+      },
+      "classification": "RPC_COMPONENT_BOUND_ONLY",
+      "demand_at_last_fitting_second": {
+        "methods": {
+          "getBlockTime": 198472,
+          "getGenesisHash": 3818,
+          "getMultipleAccounts": 297708
+        },
+        "physical_attempts_without_failures": 499998,
+        "rpc_cu": 9961780,
+        "rpc_elements": 499998,
+        "rpc_only_modeled_usd": "5.229934500",
+        "turns": 99236
+      },
+      "hours": 137.82777777777778,
+      "seconds": 496180,
+      "streaming_bytes_latency_memory_queue_recovery_and_approval_proven": false
+    }
+  },
+  "conditional_research_parameters": {
+    "absolute_hours_candidates": [
+      96,
+      120,
+      168,
+      240,
+      336
+    ],
+    "any_native_exit_pending_disqualifies": true,
+    "original_entry_timers_and_existing_risk_rules_immutable": true,
+    "renewal_hours_candidates": [
+      1,
+      3,
+      6
+    ],
+    "selected_absolute_hours": null,
+    "selected_renewal_hours": null,
+    "stale_incomplete_or_unverified_history_disqualifies": true,
+    "threshold_selection": "No economic data sufficient to choose minimum winner multiple or tighter price-to-high gate"
+  },
+  "cpu_projections": {
+    "classification": "offline 2-events-per-3s fixture; linear work arithmetic is not wall-time or live benchmark",
+    "horizon_seconds": {
+      "120": "711.3998122933333333333333333",
+      "168": "995.9597372106666666666666667",
+      "240": "1422.799624586666666666666667",
+      "336": "1991.919474421333333333333333",
+      "72": "426.839887376",
+      "96": "569.1198498346666666666666667"
+    },
+    "marginal_hardware_dollar_cost": "no new service/instance proposed; existing fixed cost, spare capacity unproved",
+    "survivor_history_72h_cpu_seconds": "426.839887376"
+  },
+  "disposition": "INSUFFICIENT_EVIDENCE",
+  "economic_comparison": [
+    {
+      "boundary_appreciation_multiple": 2,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 72,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 5,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 72,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 10,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 72,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 25,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 72,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 50,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 72,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 2,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 96,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 5,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 96,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 10,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 96,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 25,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 96,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 50,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 96,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 2,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 120,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 5,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 120,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 10,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 120,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 25,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 120,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 50,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 120,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 2,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 168,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 5,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 168,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 10,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 168,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 25,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 168,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 50,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 168,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 2,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 240,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 5,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 240,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 10,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 240,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 25,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 240,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 50,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 240,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 2,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 336,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 5,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 336,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 10,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 336,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 25,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 336,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 50,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pump",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 336,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 2,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 72,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 5,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 72,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 10,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 72,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 25,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 72,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 50,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 72,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 2,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 96,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 5,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 96,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 10,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 96,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 25,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 96,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 50,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 96,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 2,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 120,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 5,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 120,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 10,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 120,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 25,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 120,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 50,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 120,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 2,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 168,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 5,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 168,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 10,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 168,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 25,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 168,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 50,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 168,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 2,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 240,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 5,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 240,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 10,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 240,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 25,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 240,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 50,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 240,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 2,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 336,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 5,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 336,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 10,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 336,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 25,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 336,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    },
+    {
+      "boundary_appreciation_multiple": 50,
+      "capital_recycling_opportunity_cost": null,
+      "execution_fees_spread_slippage_gas": null,
+      "family": "pons",
+      "gains_lost_by_later_exit": null,
+      "gains_sacrificed_at_72h": null,
+      "hours": 336,
+      "independently_qualified_market_lifecycles": 0,
+      "liquidity_deterioration": null,
+      "maximum_drawdown_after_72h": null,
+      "portfolio_downside_risk": null,
+      "portfolio_return": null,
+      "profit_captured_fraction": null,
+      "realized_net_pnl": null,
+      "status": "INSUFFICIENT_EVIDENCE"
+    }
+  ],
+  "evidence": {
+    "accepted_economic_lifecycles": {
+      "pons": 0,
+      "pump": 0
+    },
+    "conclusion": "INSUFFICIENT_EVIDENCE",
+    "isolated_headers_do_not_prove_intervening_history": true,
+    "missing": [
+      "continuous token-specific economic coverage through 72h and proposed horizon",
+      "authenticated remaining-quantity executable exits, liquidity, gas, spread and slippage at boundaries",
+      "entry/partial-realization accounting and concurrent portfolio opportunity set",
+      "an ex ante population including reversals, failures and delistings; duplicate backups are not samples"
+    ],
+    "new_database_copies": 0,
+    "new_market_provider_calls": 0,
+    "prior_audit": {
+      "audited_sources": 33,
+      "distinct_verified_copies": 19,
+      "path": "operational/pons-historical-bootstrap/SOURCES.json",
+      "screened_databases": 503,
+      "sha256": "a28106401e0a121aa531d0c4aecc450e5e4bddf9829ef8f880e231ae5c963fe1",
+      "sources_with_reusable_complete_ranges": 0
+    },
+    "pump_capture": {
+      "active_delivery_seconds": 13.764220476150513,
+      "path": "operational/pump-provider-finalization/BYTE_LATENCY.json",
+      "post_release_delivery_seconds": 2.3786072731018066,
+      "sha256": "0ea03cbdf0bfb38371db57ade786abb26d750272620fb867571353799c93e79e"
+    },
+    "selected_existing_sources": [
+      {
+        "bytes": 49152,
+        "counts": {
+          "candidates": 0,
+          "events": 0,
+          "points": 0,
+          "pons_graduation_intake": 0
+        },
+        "header_bounds": null,
+        "header_count": null,
+        "path": "/mnt/volume_nyc1_1790918115030/sc-proof-corrected-20261008/pons/history.sqlite",
+        "reusable_complete_ranges": [],
+        "sha256": {
+          "main": "7e3b7433d0cc1c0f2e9888db9d794e18c4f6798a6b3daf1fde0887a32243bb38",
+          "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "wal_bytes": 0
+      },
+      {
+        "bytes": 2400256,
+        "counts": null,
+        "header_bounds": {
+          "earliest": 1791092124,
+          "first": 79692264,
+          "last": 81782454,
+          "latest": 1791305215
+        },
+        "header_count": 520,
+        "path": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-v1/shared/robinhood-evidence.sqlite",
+        "reusable_complete_ranges": [],
+        "sha256": {
+          "main": "59c74ef5f64aa30e655399b99b4ed90e7e0b06e81e7e248277858c58ae51c130",
+          "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "wal_bytes": 0
+      },
+      {
+        "bytes": 811008,
+        "counts": {
+          "candidates": 7,
+          "evidence": 97,
+          "observations": 92,
+          "rolling": 0
+        },
+        "header_bounds": null,
+        "header_count": null,
+        "path": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-v1/shared/robinhood-evidence.candidates.sqlite",
+        "reusable_complete_ranges": [],
+        "sha256": {
+          "main": "55c148044b921b8901fd91bb6906d7f5d614b2a2ec3032d15a6b096a65ba615e",
+          "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "wal_bytes": 0
+      },
+      {
+        "bytes": 49152,
+        "counts": {
+          "candidates": 0,
+          "events": 0,
+          "points": 0,
+          "pons_graduation_intake": 0
+        },
+        "header_bounds": null,
+        "header_count": null,
+        "path": "/mnt/volume_nyc1_1790918115030/sc-proof-20261007/pons/history.sqlite",
+        "reusable_complete_ranges": [],
+        "sha256": {
+          "main": "ec7100e166cb6ce6d80931bee62b0d04cb34c84126e36580990096ad7b6553f9",
+          "wal": null
+        },
+        "wal_bytes": 0
+      },
+      {
+        "bytes": 49152,
+        "counts": {
+          "candidates": 0,
+          "events": 0,
+          "points": 0,
+          "pons_graduation_intake": 0
+        },
+        "header_bounds": null,
+        "header_count": null,
+        "path": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/pump-pons-provider-proof/pons/history.sqlite",
+        "reusable_complete_ranges": [],
+        "sha256": {
+          "main": "f2d162dde10b8b84f012db03ee5913e3646f87b4f4a4b8344896eaf7c0d65e90",
+          "wal": null
+        },
+        "wal_bytes": 0
+      }
+    ],
+    "seven_day_startup_census_required": false
+  },
+  "exceptional_strata": [
+    {
+      "execution_price_guaranteed": false,
+      "existing_full_exit_at_or_below_return_bps": 6000,
+      "high_water_return_bps": 10000,
+      "peak_multiple": 2,
+      "peak_to_signal_drawdown_bps": 2000,
+      "reference_multiple_at_signal": "1.6"
+    },
+    {
+      "execution_price_guaranteed": false,
+      "existing_full_exit_at_or_below_return_bps": 24000,
+      "high_water_return_bps": 40000,
+      "peak_multiple": 5,
+      "peak_to_signal_drawdown_bps": 3200,
+      "reference_multiple_at_signal": "3.4"
+    },
+    {
+      "execution_price_guaranteed": false,
+      "existing_full_exit_at_or_below_return_bps": 54000,
+      "high_water_return_bps": 90000,
+      "peak_multiple": 10,
+      "peak_to_signal_drawdown_bps": 3600,
+      "reference_multiple_at_signal": "6.4"
+    },
+    {
+      "execution_price_guaranteed": false,
+      "existing_full_exit_at_or_below_return_bps": 144000,
+      "high_water_return_bps": 240000,
+      "peak_multiple": 25,
+      "peak_to_signal_drawdown_bps": 3840,
+      "reference_multiple_at_signal": "15.4"
+    },
+    {
+      "execution_price_guaranteed": false,
+      "existing_full_exit_at_or_below_return_bps": 294000,
+      "high_water_return_bps": 490000,
+      "peak_multiple": 50,
+      "peak_to_signal_drawdown_bps": 3920,
+      "reference_multiple_at_signal": "30.4"
+    }
+  ],
+  "limitation": "No market P&L, continuous economic coverage, paid-provider throughput or 336h service capacity is proved by synthetic tests.",
+  "market_provider_calls": 0,
+  "next_economic_validation": "prospective ex ante token-specific exit/liquidity tapes through proposed horizons; NOT AUTHORIZED",
+  "next_resource_validation": "operational/continuation-resources/OBSERVATION_PLAN.json; NOT AUTHORIZED",
+  "policy_and_service_source_sha256": {
+    "deployment/meme-machine-paper.service": "216c76c1d40dc08fd1120270d5bf2d7eca6e98c15d1862b961606002cb285a6b",
+    "meme_machine/lanes/pons/pons_postgrad_survivor.py": "5daa485ad962806b5f3e70411edbbd9371a9d3e5a0e730addd8ee4fd331bf217",
+    "meme_machine/lanes/pump/pumpswap_survivor.py": "73b6f28e8331262a0d33ecc53b7c28e0545314983e414a77566edb78029cd7ad",
+    "meme_machine/operational/position_continuation.py": "2493cc176aa66355cfa367d6d675afc7d7051822603c99eb3db42f57c261c721",
+    "meme_machine/runtime/directional_continuation.py": "42a67c4a5438c5824f81b9612ef992bae4700b311e0009fc08a61c0fcdd98ca9",
+    "meme_machine/runtime/survivor_risk.py": "81a5b35f03cb7a53a2233c2ffa79dd866fdd41d02ad976ece9c6402136512226",
+    "operational/position-continuation/RESOURCE_ENVELOPE.example.json": "cb1f0da81c0a4d8bf920033777aaa65b6da62ffeb480c5b5a9c5e1d6673719fe"
+  },
+  "primary_engineering_commit": "5370a633101620ab87c302546a87212334c400ec",
+  "production_extension_recommended": false,
+  "production_state_mutations": 0,
+  "recommended_policy": "Retain approved 72h maximum; no economically justified longer horizon established",
+  "research_is_not_authorization": true,
+  "resource_horizons": [
+    {
+      "capital_classification": "upper occupancy arithmetic, not actual residual basis or opportunity cost",
+      "capital_hours_gross_25_usd_upper": 1800,
+      "existing_operational_envelope_allows_extension": false,
+      "extension_hours_over_baseline": 0,
+      "hours": 72,
+      "http_1_gib_average_allowance_bytes_per_pons_turn": 12427.567407407407,
+      "incremental_capital_hours_upper": 0,
+      "native_32_gib_average_allowance_bytes_per_second": 132560.71901234568,
+      "native_stop_average_allowance_bytes_per_second": 124210.94716049383,
+      "ordinary_holding_after_service_start_deadline_seconds": 260400,
+      "original_policy_allows": true,
+      "pons": {
+        "degraded_provider": {
+          "allocation": "additional demand, not a grant; must fit unchanged separate recovery resources and deadlines",
+          "assumption": "10% extra failed attempts; each reserves at most a 50-element 60-CU batch; no internal retries",
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 782786,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 615968,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 42508800,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 1566368,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "22.317120000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "combined_reservation_upper": {
+            "physical_attempts_without_failures": 677565,
+            "rpc_cu": 227299800,
+            "rpc_elements": 4646218,
+            "rpc_only_modeled_usd": "119.332395000"
+          },
+          "combined_reservation_upper_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 677565,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 227299800,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 4646218,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "119.332395000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "extra_failed_physical_attempts": 61597,
+          "extra_logical_elements_upper": 3079850,
+          "extra_modeled_cu_upper": 184791000,
+          "extra_rpc_cost_upper_usd": "97.015275000",
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "0E-9",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 172800,
+            "eth_chainId": 11168,
+            "eth_gasPrice": 86400,
+            "eth_getBlockByNumber": 691200,
+            "eth_getCode": 86400,
+            "eth_getLogs": 259200,
+            "eth_getTransactionReceipt": 259200
+          },
+          "minimum_physical_rps_under_scenario": 2.3764197530864197,
+          "physical_attempts_removed": 166818,
+          "physical_attempts_without_failures": 615968,
+          "protected_guaranteed": false,
+          "rpc_cu": 42508800,
+          "rpc_elements": 1566368,
+          "rpc_only_modeled_usd": "22.317120000",
+          "turns": 86400
+        },
+        "high_activity": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 40,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 15,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_three_seconds": 15,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 869186,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 728953,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 115084800,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 5048953,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "60.419520000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "0E-9",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 172800,
+            "eth_chainId": 37753,
+            "eth_gasPrice": 86400,
+            "eth_getBlockByNumber": 1728000,
+            "eth_getCode": 86400,
+            "eth_getLogs": 345600,
+            "eth_getTransactionByHash": 1296000,
+            "eth_getTransactionReceipt": 1296000
+          },
+          "minimum_physical_rps_under_scenario": 2.812318672839506,
+          "physical_attempts_removed": 140233,
+          "physical_attempts_without_failures": 728953,
+          "rpc_cu": 115084800,
+          "rpc_elements": 5048953,
+          "rpc_only_modeled_usd": "60.419520000",
+          "turns": 86400
+        },
+        "high_volatility": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 782786,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 615968,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 42508800,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 1566368,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "22.317120000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "0E-9",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 172800,
+            "eth_chainId": 11168,
+            "eth_gasPrice": 86400,
+            "eth_getBlockByNumber": 691200,
+            "eth_getCode": 86400,
+            "eth_getLogs": 259200,
+            "eth_getTransactionReceipt": 259200
+          },
+          "minimum_physical_rps_under_scenario": 2.3764197530864197,
+          "physical_attempts_removed": 166818,
+          "physical_attempts_without_failures": 615968,
+          "rpc_cu": 42508800,
+          "rpc_elements": 1566368,
+          "rpc_only_modeled_usd": "22.317120000",
+          "turns": 86400
+        },
+        "ordinary_reference": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 1,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 627266,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 456593,
+              "fits": true,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 32486400,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 1061393,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "17.055360000",
+              "fits": true,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "0E-9",
+          "local_two_rps_cadence_fits": true,
+          "methods": {
+            "eth_call": 172800,
+            "eth_chainId": 7313,
+            "eth_gasPrice": 86400,
+            "eth_getBlockByNumber": 440640,
+            "eth_getCode": 86400,
+            "eth_getLogs": 259200,
+            "eth_getTransactionReceipt": 8640
+          },
+          "minimum_physical_rps_under_scenario": 1.7615470679012346,
+          "physical_attempts_removed": 170673,
+          "physical_attempts_without_failures": 456593,
+          "rpc_cu": 32486400,
+          "rpc_elements": 1061393,
+          "rpc_only_modeled_usd": "17.055360000",
+          "turns": 86400
+        },
+        "quiet": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 0,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 0,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 609986,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 439180,
+              "fits": true,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 32140800,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 1043980,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "16.873920000",
+              "fits": true,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "0E-9",
+          "local_two_rps_cadence_fits": true,
+          "methods": {
+            "eth_call": 172800,
+            "eth_chainId": 7180,
+            "eth_gasPrice": 86400,
+            "eth_getBlockByNumber": 432000,
+            "eth_getCode": 86400,
+            "eth_getLogs": 259200
+          },
+          "minimum_physical_rps_under_scenario": 1.6943672839506172,
+          "physical_attempts_removed": 170806,
+          "physical_attempts_without_failures": 439180,
+          "rpc_cu": 32140800,
+          "rpc_elements": 1043980,
+          "rpc_only_modeled_usd": "16.873920000",
+          "turns": 86400
+        }
+      },
+      "pump": {
+        "ceiling_checks": {
+          "all_modeled_rpc_components_fit": true,
+          "http_attempts": {
+            "demand": 261195,
+            "fits": true,
+            "unchanged_limit": 500000
+          },
+          "rpc_cu": {
+            "demand": 5203950,
+            "fits": true,
+            "unchanged_limit": 24000000
+          },
+          "rpc_elements": {
+            "demand": 261195,
+            "fits": true,
+            "unchanged_limit": 500000
+          },
+          "rpc_spend_only": {
+            "demand_usd": "2.732073750",
+            "fits": true,
+            "unchanged_limit_usd": "20"
+          }
+        },
+        "incremental_rpc_usd_over_72": "0E-9",
+        "methods": {
+          "getBlockTime": 103680,
+          "getGenesisHash": 1995,
+          "getMultipleAccounts": 155520
+        },
+        "native_stream_and_gap_reconstruction": "UNMEASURED; mandatory additional work, not included",
+        "physical_attempts_without_failures": 261195,
+        "rpc_cu": 5203950,
+        "rpc_elements": 261195,
+        "rpc_only_modeled_usd": "2.732073750",
+        "scenarios": "snapshot RPC count identical across quiet/volatile/busy prices; total stream/hydration work is not",
+        "turns": 51840
+      },
+      "safe_duration_proven": false
+    },
+    {
+      "capital_classification": "upper occupancy arithmetic, not actual residual basis or opportunity cost",
+      "capital_hours_gross_25_usd_upper": 2400,
+      "existing_operational_envelope_allows_extension": false,
+      "extension_hours_over_baseline": 24,
+      "hours": 96,
+      "http_1_gib_average_allowance_bytes_per_pons_turn": 9320.675555555556,
+      "incremental_capital_hours_upper": 600,
+      "native_32_gib_average_allowance_bytes_per_second": 99420.53925925925,
+      "native_stop_average_allowance_bytes_per_second": 93158.21037037038,
+      "ordinary_holding_after_service_start_deadline_seconds": 260400,
+      "original_policy_allows": false,
+      "pons": {
+        "degraded_provider": {
+          "allocation": "additional demand, not a grant; must fit unchanged separate recovery resources and deadlines",
+          "assumption": "10% extra failed attempts; each reserves at most a 50-element 60-CU batch; no internal retries",
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 1043714,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 821290,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 56678400,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 2088490,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "29.756160000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "combined_reservation_upper": {
+            "physical_attempts_without_failures": 903419,
+            "rpc_cu": 303065400,
+            "rpc_elements": 6194940,
+            "rpc_only_modeled_usd": "159.109335000"
+          },
+          "combined_reservation_upper_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 903419,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 303065400,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 6194940,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "159.109335000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "extra_failed_physical_attempts": 82129,
+          "extra_logical_elements_upper": 4106450,
+          "extra_modeled_cu_upper": 246387000,
+          "extra_rpc_cost_upper_usd": "129.353175000",
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "7.439040000",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 230400,
+            "eth_chainId": 14890,
+            "eth_gasPrice": 115200,
+            "eth_getBlockByNumber": 921600,
+            "eth_getCode": 115200,
+            "eth_getLogs": 345600,
+            "eth_getTransactionReceipt": 345600
+          },
+          "minimum_physical_rps_under_scenario": 2.376417824074074,
+          "physical_attempts_removed": 222424,
+          "physical_attempts_without_failures": 821290,
+          "protected_guaranteed": false,
+          "rpc_cu": 56678400,
+          "rpc_elements": 2088490,
+          "rpc_only_modeled_usd": "29.756160000",
+          "turns": 115200
+        },
+        "high_activity": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 40,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 15,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_three_seconds": 15,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 1158914,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 971936,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 153446400,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 6731936,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "80.559360000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "20.139840000",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 230400,
+            "eth_chainId": 50336,
+            "eth_gasPrice": 115200,
+            "eth_getBlockByNumber": 2304000,
+            "eth_getCode": 115200,
+            "eth_getLogs": 460800,
+            "eth_getTransactionByHash": 1728000,
+            "eth_getTransactionReceipt": 1728000
+          },
+          "minimum_physical_rps_under_scenario": 2.812314814814815,
+          "physical_attempts_removed": 186978,
+          "physical_attempts_without_failures": 971936,
+          "rpc_cu": 153446400,
+          "rpc_elements": 6731936,
+          "rpc_only_modeled_usd": "80.559360000",
+          "turns": 115200
+        },
+        "high_volatility": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 1043714,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 821290,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 56678400,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 2088490,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "29.756160000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "7.439040000",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 230400,
+            "eth_chainId": 14890,
+            "eth_gasPrice": 115200,
+            "eth_getBlockByNumber": 921600,
+            "eth_getCode": 115200,
+            "eth_getLogs": 345600,
+            "eth_getTransactionReceipt": 345600
+          },
+          "minimum_physical_rps_under_scenario": 2.376417824074074,
+          "physical_attempts_removed": 222424,
+          "physical_attempts_without_failures": 821290,
+          "rpc_cu": 56678400,
+          "rpc_elements": 2088490,
+          "rpc_only_modeled_usd": "29.756160000",
+          "turns": 115200
+        },
+        "ordinary_reference": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 1,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 836354,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 608790,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 43315200,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 1415190,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "22.740480000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "5.685120000",
+          "local_two_rps_cadence_fits": true,
+          "methods": {
+            "eth_call": 230400,
+            "eth_chainId": 9750,
+            "eth_gasPrice": 115200,
+            "eth_getBlockByNumber": 587520,
+            "eth_getCode": 115200,
+            "eth_getLogs": 345600,
+            "eth_getTransactionReceipt": 11520
+          },
+          "minimum_physical_rps_under_scenario": 1.761545138888889,
+          "physical_attempts_removed": 227564,
+          "physical_attempts_without_failures": 608790,
+          "rpc_cu": 43315200,
+          "rpc_elements": 1415190,
+          "rpc_only_modeled_usd": "22.740480000",
+          "turns": 115200
+        },
+        "quiet": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 0,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 0,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 813314,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 585573,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 42854400,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 1391973,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "22.498560000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "5.624640000",
+          "local_two_rps_cadence_fits": true,
+          "methods": {
+            "eth_call": 230400,
+            "eth_chainId": 9573,
+            "eth_gasPrice": 115200,
+            "eth_getBlockByNumber": 576000,
+            "eth_getCode": 115200,
+            "eth_getLogs": 345600
+          },
+          "minimum_physical_rps_under_scenario": 1.6943663194444445,
+          "physical_attempts_removed": 227741,
+          "physical_attempts_without_failures": 585573,
+          "rpc_cu": 42854400,
+          "rpc_elements": 1391973,
+          "rpc_only_modeled_usd": "22.498560000",
+          "turns": 115200
+        }
+      },
+      "pump": {
+        "ceiling_checks": {
+          "all_modeled_rpc_components_fit": true,
+          "http_attempts": {
+            "demand": 348260,
+            "fits": true,
+            "unchanged_limit": 500000
+          },
+          "rpc_cu": {
+            "demand": 6938600,
+            "fits": true,
+            "unchanged_limit": 24000000
+          },
+          "rpc_elements": {
+            "demand": 348260,
+            "fits": true,
+            "unchanged_limit": 500000
+          },
+          "rpc_spend_only": {
+            "demand_usd": "3.642765000",
+            "fits": true,
+            "unchanged_limit_usd": "20"
+          }
+        },
+        "incremental_rpc_usd_over_72": "0.910691250",
+        "methods": {
+          "getBlockTime": 138240,
+          "getGenesisHash": 2660,
+          "getMultipleAccounts": 207360
+        },
+        "native_stream_and_gap_reconstruction": "UNMEASURED; mandatory additional work, not included",
+        "physical_attempts_without_failures": 348260,
+        "rpc_cu": 6938600,
+        "rpc_elements": 348260,
+        "rpc_only_modeled_usd": "3.642765000",
+        "scenarios": "snapshot RPC count identical across quiet/volatile/busy prices; total stream/hydration work is not",
+        "turns": 69120
+      },
+      "safe_duration_proven": false
+    },
+    {
+      "capital_classification": "upper occupancy arithmetic, not actual residual basis or opportunity cost",
+      "capital_hours_gross_25_usd_upper": 3000,
+      "existing_operational_envelope_allows_extension": false,
+      "extension_hours_over_baseline": 48,
+      "hours": 120,
+      "http_1_gib_average_allowance_bytes_per_pons_turn": 7456.540444444445,
+      "incremental_capital_hours_upper": 1200,
+      "native_32_gib_average_allowance_bytes_per_second": 79536.4314074074,
+      "native_stop_average_allowance_bytes_per_second": 74526.56829629629,
+      "ordinary_holding_after_service_start_deadline_seconds": 260400,
+      "original_policy_allows": false,
+      "pons": {
+        "degraded_provider": {
+          "allocation": "additional demand, not a grant; must fit unchanged separate recovery resources and deadlines",
+          "assumption": "10% extra failed attempts; each reserves at most a 50-element 60-CU batch; no internal retries",
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 1304642,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 1026612,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 70848000,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 2610612,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "37.195200000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "combined_reservation_upper": {
+            "physical_attempts_without_failures": 1129274,
+            "rpc_cu": 378834000,
+            "rpc_elements": 7743712,
+            "rpc_only_modeled_usd": "198.887850000"
+          },
+          "combined_reservation_upper_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 1129274,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 378834000,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 7743712,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "198.887850000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "extra_failed_physical_attempts": 102662,
+          "extra_logical_elements_upper": 5133100,
+          "extra_modeled_cu_upper": 307986000,
+          "extra_rpc_cost_upper_usd": "161.692650000",
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "14.878080000",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 288000,
+            "eth_chainId": 18612,
+            "eth_gasPrice": 144000,
+            "eth_getBlockByNumber": 1152000,
+            "eth_getCode": 144000,
+            "eth_getLogs": 432000,
+            "eth_getTransactionReceipt": 432000
+          },
+          "minimum_physical_rps_under_scenario": 2.3764166666666666,
+          "physical_attempts_removed": 278030,
+          "physical_attempts_without_failures": 1026612,
+          "protected_guaranteed": false,
+          "rpc_cu": 70848000,
+          "rpc_elements": 2610612,
+          "rpc_only_modeled_usd": "37.195200000",
+          "turns": 144000
+        },
+        "high_activity": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 40,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 15,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_three_seconds": 15,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 1448642,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 1214919,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 191808000,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 8414919,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "100.699200000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "40.279680000",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 288000,
+            "eth_chainId": 62919,
+            "eth_gasPrice": 144000,
+            "eth_getBlockByNumber": 2880000,
+            "eth_getCode": 144000,
+            "eth_getLogs": 576000,
+            "eth_getTransactionByHash": 2160000,
+            "eth_getTransactionReceipt": 2160000
+          },
+          "minimum_physical_rps_under_scenario": 2.8123125,
+          "physical_attempts_removed": 233723,
+          "physical_attempts_without_failures": 1214919,
+          "rpc_cu": 191808000,
+          "rpc_elements": 8414919,
+          "rpc_only_modeled_usd": "100.699200000",
+          "turns": 144000
+        },
+        "high_volatility": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 1304642,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 1026612,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 70848000,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 2610612,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "37.195200000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "14.878080000",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 288000,
+            "eth_chainId": 18612,
+            "eth_gasPrice": 144000,
+            "eth_getBlockByNumber": 1152000,
+            "eth_getCode": 144000,
+            "eth_getLogs": 432000,
+            "eth_getTransactionReceipt": 432000
+          },
+          "minimum_physical_rps_under_scenario": 2.3764166666666666,
+          "physical_attempts_removed": 278030,
+          "physical_attempts_without_failures": 1026612,
+          "rpc_cu": 70848000,
+          "rpc_elements": 2610612,
+          "rpc_only_modeled_usd": "37.195200000",
+          "turns": 144000
+        },
+        "ordinary_reference": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 1,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 1045442,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 760987,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 54144000,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 1768987,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "28.425600000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "11.370240000",
+          "local_two_rps_cadence_fits": true,
+          "methods": {
+            "eth_call": 288000,
+            "eth_chainId": 12187,
+            "eth_gasPrice": 144000,
+            "eth_getBlockByNumber": 734400,
+            "eth_getCode": 144000,
+            "eth_getLogs": 432000,
+            "eth_getTransactionReceipt": 14400
+          },
+          "minimum_physical_rps_under_scenario": 1.7615439814814815,
+          "physical_attempts_removed": 284455,
+          "physical_attempts_without_failures": 760987,
+          "rpc_cu": 54144000,
+          "rpc_elements": 1768987,
+          "rpc_only_modeled_usd": "28.425600000",
+          "turns": 144000
+        },
+        "quiet": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 0,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 0,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 1016642,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 731966,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 53568000,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 1739966,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "28.123200000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "11.249280000",
+          "local_two_rps_cadence_fits": true,
+          "methods": {
+            "eth_call": 288000,
+            "eth_chainId": 11966,
+            "eth_gasPrice": 144000,
+            "eth_getBlockByNumber": 720000,
+            "eth_getCode": 144000,
+            "eth_getLogs": 432000
+          },
+          "minimum_physical_rps_under_scenario": 1.6943657407407406,
+          "physical_attempts_removed": 284676,
+          "physical_attempts_without_failures": 731966,
+          "rpc_cu": 53568000,
+          "rpc_elements": 1739966,
+          "rpc_only_modeled_usd": "28.123200000",
+          "turns": 144000
+        }
+      },
+      "pump": {
+        "ceiling_checks": {
+          "all_modeled_rpc_components_fit": true,
+          "http_attempts": {
+            "demand": 435325,
+            "fits": true,
+            "unchanged_limit": 500000
+          },
+          "rpc_cu": {
+            "demand": 8673250,
+            "fits": true,
+            "unchanged_limit": 24000000
+          },
+          "rpc_elements": {
+            "demand": 435325,
+            "fits": true,
+            "unchanged_limit": 500000
+          },
+          "rpc_spend_only": {
+            "demand_usd": "4.553456250",
+            "fits": true,
+            "unchanged_limit_usd": "20"
+          }
+        },
+        "incremental_rpc_usd_over_72": "1.821382500",
+        "methods": {
+          "getBlockTime": 172800,
+          "getGenesisHash": 3325,
+          "getMultipleAccounts": 259200
+        },
+        "native_stream_and_gap_reconstruction": "UNMEASURED; mandatory additional work, not included",
+        "physical_attempts_without_failures": 435325,
+        "rpc_cu": 8673250,
+        "rpc_elements": 435325,
+        "rpc_only_modeled_usd": "4.553456250",
+        "scenarios": "snapshot RPC count identical across quiet/volatile/busy prices; total stream/hydration work is not",
+        "turns": 86400
+      },
+      "safe_duration_proven": false
+    },
+    {
+      "capital_classification": "upper occupancy arithmetic, not actual residual basis or opportunity cost",
+      "capital_hours_gross_25_usd_upper": 4200,
+      "existing_operational_envelope_allows_extension": false,
+      "extension_hours_over_baseline": 96,
+      "hours": 168,
+      "http_1_gib_average_allowance_bytes_per_pons_turn": 5326.1003174603175,
+      "incremental_capital_hours_upper": 2400,
+      "native_32_gib_average_allowance_bytes_per_second": 56811.73671957672,
+      "native_stop_average_allowance_bytes_per_second": 53233.26306878307,
+      "ordinary_holding_after_service_start_deadline_seconds": 260400,
+      "original_policy_allows": false,
+      "pons": {
+        "degraded_provider": {
+          "allocation": "additional demand, not a grant; must fit unchanged separate recovery resources and deadlines",
+          "assumption": "10% extra failed attempts; each reserves at most a 50-element 60-CU batch; no internal retries",
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 1826498,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 1437255,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 99187200,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 3654855,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "52.073280000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "combined_reservation_upper": {
+            "physical_attempts_without_failures": 1580981,
+            "rpc_cu": 530365200,
+            "rpc_elements": 10841155,
+            "rpc_only_modeled_usd": "278.441730000"
+          },
+          "combined_reservation_upper_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 1580981,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 530365200,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 10841155,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "278.441730000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "extra_failed_physical_attempts": 143726,
+          "extra_logical_elements_upper": 7186300,
+          "extra_modeled_cu_upper": 431178000,
+          "extra_rpc_cost_upper_usd": "226.368450000",
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "29.756160000",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 403200,
+            "eth_chainId": 26055,
+            "eth_gasPrice": 201600,
+            "eth_getBlockByNumber": 1612800,
+            "eth_getCode": 201600,
+            "eth_getLogs": 604800,
+            "eth_getTransactionReceipt": 604800
+          },
+          "minimum_physical_rps_under_scenario": 2.3764136904761903,
+          "physical_attempts_removed": 389243,
+          "physical_attempts_without_failures": 1437255,
+          "protected_guaranteed": false,
+          "rpc_cu": 99187200,
+          "rpc_elements": 3654855,
+          "rpc_only_modeled_usd": "52.073280000",
+          "turns": 201600
+        },
+        "high_activity": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 40,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 15,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_three_seconds": 15,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 2028098,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 1700886,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 268531200,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 11780886,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "140.978880000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "80.559360000",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 403200,
+            "eth_chainId": 88086,
+            "eth_gasPrice": 201600,
+            "eth_getBlockByNumber": 4032000,
+            "eth_getCode": 201600,
+            "eth_getLogs": 806400,
+            "eth_getTransactionByHash": 3024000,
+            "eth_getTransactionReceipt": 3024000
+          },
+          "minimum_physical_rps_under_scenario": 2.8123115079365077,
+          "physical_attempts_removed": 327212,
+          "physical_attempts_without_failures": 1700886,
+          "rpc_cu": 268531200,
+          "rpc_elements": 11780886,
+          "rpc_only_modeled_usd": "140.978880000",
+          "turns": 201600
+        },
+        "high_volatility": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 1826498,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 1437255,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 99187200,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 3654855,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "52.073280000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "29.756160000",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 403200,
+            "eth_chainId": 26055,
+            "eth_gasPrice": 201600,
+            "eth_getBlockByNumber": 1612800,
+            "eth_getCode": 201600,
+            "eth_getLogs": 604800,
+            "eth_getTransactionReceipt": 604800
+          },
+          "minimum_physical_rps_under_scenario": 2.3764136904761903,
+          "physical_attempts_removed": 389243,
+          "physical_attempts_without_failures": 1437255,
+          "rpc_cu": 99187200,
+          "rpc_elements": 3654855,
+          "rpc_only_modeled_usd": "52.073280000",
+          "turns": 201600
+        },
+        "ordinary_reference": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 1,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 1463618,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 1065381,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 75801600,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 2476581,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "39.795840000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "22.740480000",
+          "local_two_rps_cadence_fits": true,
+          "methods": {
+            "eth_call": 403200,
+            "eth_chainId": 17061,
+            "eth_gasPrice": 201600,
+            "eth_getBlockByNumber": 1028160,
+            "eth_getCode": 201600,
+            "eth_getLogs": 604800,
+            "eth_getTransactionReceipt": 20160
+          },
+          "minimum_physical_rps_under_scenario": 1.7615426587301588,
+          "physical_attempts_removed": 398237,
+          "physical_attempts_without_failures": 1065381,
+          "rpc_cu": 75801600,
+          "rpc_elements": 2476581,
+          "rpc_only_modeled_usd": "39.795840000",
+          "turns": 201600
+        },
+        "quiet": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 0,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 0,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 1423298,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 1024751,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 74995200,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 2435951,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "39.372480000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "22.498560000",
+          "local_two_rps_cadence_fits": true,
+          "methods": {
+            "eth_call": 403200,
+            "eth_chainId": 16751,
+            "eth_gasPrice": 201600,
+            "eth_getBlockByNumber": 1008000,
+            "eth_getCode": 201600,
+            "eth_getLogs": 604800
+          },
+          "minimum_physical_rps_under_scenario": 1.694363425925926,
+          "physical_attempts_removed": 398547,
+          "physical_attempts_without_failures": 1024751,
+          "rpc_cu": 74995200,
+          "rpc_elements": 2435951,
+          "rpc_only_modeled_usd": "39.372480000",
+          "turns": 201600
+        }
+      },
+      "pump": {
+        "ceiling_checks": {
+          "all_modeled_rpc_components_fit": false,
+          "http_attempts": {
+            "demand": 609454,
+            "fits": false,
+            "unchanged_limit": 500000
+          },
+          "rpc_cu": {
+            "demand": 12142540,
+            "fits": true,
+            "unchanged_limit": 24000000
+          },
+          "rpc_elements": {
+            "demand": 609454,
+            "fits": false,
+            "unchanged_limit": 500000
+          },
+          "rpc_spend_only": {
+            "demand_usd": "6.374833500",
+            "fits": true,
+            "unchanged_limit_usd": "20"
+          }
+        },
+        "incremental_rpc_usd_over_72": "3.642759750",
+        "methods": {
+          "getBlockTime": 241920,
+          "getGenesisHash": 4654,
+          "getMultipleAccounts": 362880
+        },
+        "native_stream_and_gap_reconstruction": "UNMEASURED; mandatory additional work, not included",
+        "physical_attempts_without_failures": 609454,
+        "rpc_cu": 12142540,
+        "rpc_elements": 609454,
+        "rpc_only_modeled_usd": "6.374833500",
+        "scenarios": "snapshot RPC count identical across quiet/volatile/busy prices; total stream/hydration work is not",
+        "turns": 120960
+      },
+      "safe_duration_proven": false
+    },
+    {
+      "capital_classification": "upper occupancy arithmetic, not actual residual basis or opportunity cost",
+      "capital_hours_gross_25_usd_upper": 6000,
+      "existing_operational_envelope_allows_extension": false,
+      "extension_hours_over_baseline": 168,
+      "hours": 240,
+      "http_1_gib_average_allowance_bytes_per_pons_turn": 3728.2702222222224,
+      "incremental_capital_hours_upper": 4200,
+      "native_32_gib_average_allowance_bytes_per_second": 39768.2157037037,
+      "native_stop_average_allowance_bytes_per_second": 37263.284148148145,
+      "ordinary_holding_after_service_start_deadline_seconds": 260400,
+      "original_policy_allows": false,
+      "pons": {
+        "degraded_provider": {
+          "allocation": "additional demand, not a grant; must fit unchanged separate recovery resources and deadlines",
+          "assumption": "10% extra failed attempts; each reserves at most a 50-element 60-CU batch; no internal retries",
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 2609282,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 2053221,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 141696000,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 5221221,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "74.390400000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "combined_reservation_upper": {
+            "physical_attempts_without_failures": 2258544,
+            "rpc_cu": 757665000,
+            "rpc_elements": 15487371,
+            "rpc_only_modeled_usd": "397.774125000"
+          },
+          "combined_reservation_upper_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 2258544,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 757665000,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 15487371,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "397.774125000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "extra_failed_physical_attempts": 205323,
+          "extra_logical_elements_upper": 10266150,
+          "extra_modeled_cu_upper": 615969000,
+          "extra_rpc_cost_upper_usd": "323.383725000",
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "52.073280000",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 576000,
+            "eth_chainId": 37221,
+            "eth_gasPrice": 288000,
+            "eth_getBlockByNumber": 2304000,
+            "eth_getCode": 288000,
+            "eth_getLogs": 864000,
+            "eth_getTransactionReceipt": 864000
+          },
+          "minimum_physical_rps_under_scenario": 2.3764131944444444,
+          "physical_attempts_removed": 556061,
+          "physical_attempts_without_failures": 2053221,
+          "protected_guaranteed": false,
+          "rpc_cu": 141696000,
+          "rpc_elements": 5221221,
+          "rpc_only_modeled_usd": "74.390400000",
+          "turns": 288000
+        },
+        "high_activity": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 40,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 15,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_three_seconds": 15,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 2897282,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 2429836,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 383616000,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 16829836,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "201.398400000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "140.978880000",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 576000,
+            "eth_chainId": 125836,
+            "eth_gasPrice": 288000,
+            "eth_getBlockByNumber": 5760000,
+            "eth_getCode": 288000,
+            "eth_getLogs": 1152000,
+            "eth_getTransactionByHash": 4320000,
+            "eth_getTransactionReceipt": 4320000
+          },
+          "minimum_physical_rps_under_scenario": 2.812310185185185,
+          "physical_attempts_removed": 467446,
+          "physical_attempts_without_failures": 2429836,
+          "rpc_cu": 383616000,
+          "rpc_elements": 16829836,
+          "rpc_only_modeled_usd": "201.398400000",
+          "turns": 288000
+        },
+        "high_volatility": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 2609282,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 2053221,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 141696000,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 5221221,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "74.390400000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "52.073280000",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 576000,
+            "eth_chainId": 37221,
+            "eth_gasPrice": 288000,
+            "eth_getBlockByNumber": 2304000,
+            "eth_getCode": 288000,
+            "eth_getLogs": 864000,
+            "eth_getTransactionReceipt": 864000
+          },
+          "minimum_physical_rps_under_scenario": 2.3764131944444444,
+          "physical_attempts_removed": 556061,
+          "physical_attempts_without_failures": 2053221,
+          "rpc_cu": 141696000,
+          "rpc_elements": 5221221,
+          "rpc_only_modeled_usd": "74.390400000",
+          "turns": 288000
+        },
+        "ordinary_reference": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 1,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 2090882,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 1521972,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 108288000,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 3537972,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "56.851200000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "39.795840000",
+          "local_two_rps_cadence_fits": true,
+          "methods": {
+            "eth_call": 576000,
+            "eth_chainId": 24372,
+            "eth_gasPrice": 288000,
+            "eth_getBlockByNumber": 1468800,
+            "eth_getCode": 288000,
+            "eth_getLogs": 864000,
+            "eth_getTransactionReceipt": 28800
+          },
+          "minimum_physical_rps_under_scenario": 1.7615416666666666,
+          "physical_attempts_removed": 568910,
+          "physical_attempts_without_failures": 1521972,
+          "rpc_cu": 108288000,
+          "rpc_elements": 3537972,
+          "rpc_only_modeled_usd": "56.851200000",
+          "turns": 288000
+        },
+        "quiet": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 0,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 0,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 2033282,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 1463929,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 107136000,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 3479929,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "56.246400000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "39.372480000",
+          "local_two_rps_cadence_fits": true,
+          "methods": {
+            "eth_call": 576000,
+            "eth_chainId": 23929,
+            "eth_gasPrice": 288000,
+            "eth_getBlockByNumber": 1440000,
+            "eth_getCode": 288000,
+            "eth_getLogs": 864000
+          },
+          "minimum_physical_rps_under_scenario": 1.6943622685185185,
+          "physical_attempts_removed": 569353,
+          "physical_attempts_without_failures": 1463929,
+          "rpc_cu": 107136000,
+          "rpc_elements": 3479929,
+          "rpc_only_modeled_usd": "56.246400000",
+          "turns": 288000
+        }
+      },
+      "pump": {
+        "ceiling_checks": {
+          "all_modeled_rpc_components_fit": false,
+          "http_attempts": {
+            "demand": 870648,
+            "fits": false,
+            "unchanged_limit": 500000
+          },
+          "rpc_cu": {
+            "demand": 17346480,
+            "fits": true,
+            "unchanged_limit": 24000000
+          },
+          "rpc_elements": {
+            "demand": 870648,
+            "fits": false,
+            "unchanged_limit": 500000
+          },
+          "rpc_spend_only": {
+            "demand_usd": "9.106902000",
+            "fits": true,
+            "unchanged_limit_usd": "20"
+          }
+        },
+        "incremental_rpc_usd_over_72": "6.374828250",
+        "methods": {
+          "getBlockTime": 345600,
+          "getGenesisHash": 6648,
+          "getMultipleAccounts": 518400
+        },
+        "native_stream_and_gap_reconstruction": "UNMEASURED; mandatory additional work, not included",
+        "physical_attempts_without_failures": 870648,
+        "rpc_cu": 17346480,
+        "rpc_elements": 870648,
+        "rpc_only_modeled_usd": "9.106902000",
+        "scenarios": "snapshot RPC count identical across quiet/volatile/busy prices; total stream/hydration work is not",
+        "turns": 172800
+      },
+      "safe_duration_proven": false
+    },
+    {
+      "capital_classification": "upper occupancy arithmetic, not actual residual basis or opportunity cost",
+      "capital_hours_gross_25_usd_upper": 8400,
+      "existing_operational_envelope_allows_extension": false,
+      "extension_hours_over_baseline": 264,
+      "hours": 336,
+      "http_1_gib_average_allowance_bytes_per_pons_turn": 2663.0501587301587,
+      "incremental_capital_hours_upper": 6600,
+      "native_32_gib_average_allowance_bytes_per_second": 28405.86835978836,
+      "native_stop_average_allowance_bytes_per_second": 26616.631534391534,
+      "ordinary_holding_after_service_start_deadline_seconds": 260400,
+      "original_policy_allows": false,
+      "pons": {
+        "degraded_provider": {
+          "allocation": "additional demand, not a grant; must fit unchanged separate recovery resources and deadlines",
+          "assumption": "10% extra failed attempts; each reserves at most a 50-element 60-CU batch; no internal retries",
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 3652994,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 2874508,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 198374400,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 7309708,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "104.146560000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "combined_reservation_upper": {
+            "physical_attempts_without_failures": 3161959,
+            "rpc_cu": 1060727400,
+            "rpc_elements": 21682258,
+            "rpc_only_modeled_usd": "556.881885000"
+          },
+          "combined_reservation_upper_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 3161959,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 1060727400,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 21682258,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "556.881885000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "extra_failed_physical_attempts": 287451,
+          "extra_logical_elements_upper": 14372550,
+          "extra_modeled_cu_upper": 862353000,
+          "extra_rpc_cost_upper_usd": "452.735325000",
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "81.829440000",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 806400,
+            "eth_chainId": 52108,
+            "eth_gasPrice": 403200,
+            "eth_getBlockByNumber": 3225600,
+            "eth_getCode": 403200,
+            "eth_getLogs": 1209600,
+            "eth_getTransactionReceipt": 1209600
+          },
+          "minimum_physical_rps_under_scenario": 2.376412037037037,
+          "physical_attempts_removed": 778486,
+          "physical_attempts_without_failures": 2874508,
+          "protected_guaranteed": false,
+          "rpc_cu": 198374400,
+          "rpc_elements": 7309708,
+          "rpc_only_modeled_usd": "104.146560000",
+          "turns": 403200
+        },
+        "high_activity": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 40,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 15,
+            "receipt_sender_missing": true,
+            "relevant_transactions_per_three_seconds": 15,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 4056194,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 3401770,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 537062400,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 23561770,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "281.957760000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "221.538240000",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 806400,
+            "eth_chainId": 176170,
+            "eth_gasPrice": 403200,
+            "eth_getBlockByNumber": 8064000,
+            "eth_getCode": 403200,
+            "eth_getLogs": 1612800,
+            "eth_getTransactionByHash": 6048000,
+            "eth_getTransactionReceipt": 6048000
+          },
+          "minimum_physical_rps_under_scenario": 2.8123098544973546,
+          "physical_attempts_removed": 654424,
+          "physical_attempts_without_failures": 3401770,
+          "rpc_cu": 537062400,
+          "rpc_elements": 23561770,
+          "rpc_only_modeled_usd": "281.957760000",
+          "turns": 403200
+        },
+        "high_volatility": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 3,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 3,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 3652994,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 2874508,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 198374400,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 7309708,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "104.146560000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "81.829440000",
+          "local_two_rps_cadence_fits": false,
+          "methods": {
+            "eth_call": 806400,
+            "eth_chainId": 52108,
+            "eth_gasPrice": 403200,
+            "eth_getBlockByNumber": 3225600,
+            "eth_getCode": 403200,
+            "eth_getLogs": 1209600,
+            "eth_getTransactionReceipt": 1209600
+          },
+          "minimum_physical_rps_under_scenario": 2.376412037037037,
+          "physical_attempts_removed": 778486,
+          "physical_attempts_without_failures": 2874508,
+          "rpc_cu": 198374400,
+          "rpc_elements": 7309708,
+          "rpc_only_modeled_usd": "104.146560000",
+          "turns": 403200
+        },
+        "ordinary_reference": {
+          "assumptions": {
+            "active_every_n_turns": 10,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 1,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 1,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 2927234,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 2130759,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 151603200,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 4953159,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "79.591680000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "62.536320000",
+          "local_two_rps_cadence_fits": true,
+          "methods": {
+            "eth_call": 806400,
+            "eth_chainId": 34119,
+            "eth_gasPrice": 403200,
+            "eth_getBlockByNumber": 2056320,
+            "eth_getCode": 403200,
+            "eth_getLogs": 1209600,
+            "eth_getTransactionReceipt": 40320
+          },
+          "minimum_physical_rps_under_scenario": 1.7615401785714286,
+          "physical_attempts_removed": 796475,
+          "physical_attempts_without_failures": 2130759,
+          "rpc_cu": 151603200,
+          "rpc_elements": 4953159,
+          "rpc_only_modeled_usd": "79.591680000",
+          "turns": 403200
+        },
+        "quiet": {
+          "assumptions": {
+            "active_every_n_turns": 1,
+            "blocks_per_three_seconds": 30,
+            "cross_turn_quote_hits": 0,
+            "distinct_event_blocks": 0,
+            "receipt_sender_missing": false,
+            "relevant_transactions_per_three_seconds": 0,
+            "retries": 0,
+            "verified_log_width": 10
+          },
+          "before_optimization_physical_attempts": 2846594,
+          "ceiling_checks": {
+            "all_modeled_rpc_components_fit": false,
+            "http_attempts": {
+              "demand": 2049499,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_cu": {
+              "demand": 149990400,
+              "fits": false,
+              "unchanged_limit": 24000000
+            },
+            "rpc_elements": {
+              "demand": 4871899,
+              "fits": false,
+              "unchanged_limit": 500000
+            },
+            "rpc_spend_only": {
+              "demand_usd": "78.744960000",
+              "fits": false,
+              "unchanged_limit_usd": "20"
+            }
+          },
+          "guaranteed_exit_latency": false,
+          "http_bytes": "UNMEASURED; contract code and event payloads vary",
+          "incremental_rpc_usd_over_72": "61.871040000",
+          "local_two_rps_cadence_fits": true,
+          "methods": {
+            "eth_call": 806400,
+            "eth_chainId": 33499,
+            "eth_gasPrice": 403200,
+            "eth_getBlockByNumber": 2016000,
+            "eth_getCode": 403200,
+            "eth_getLogs": 1209600
+          },
+          "minimum_physical_rps_under_scenario": 1.6943609457671958,
+          "physical_attempts_removed": 797095,
+          "physical_attempts_without_failures": 2049499,
+          "rpc_cu": 149990400,
+          "rpc_elements": 4871899,
+          "rpc_only_modeled_usd": "78.744960000",
+          "turns": 403200
+        }
+      },
+      "pump": {
+        "ceiling_checks": {
+          "all_modeled_rpc_components_fit": false,
+          "http_attempts": {
+            "demand": 1218906,
+            "fits": false,
+            "unchanged_limit": 500000
+          },
+          "rpc_cu": {
+            "demand": 24285060,
+            "fits": false,
+            "unchanged_limit": 24000000
+          },
+          "rpc_elements": {
+            "demand": 1218906,
+            "fits": false,
+            "unchanged_limit": 500000
+          },
+          "rpc_spend_only": {
+            "demand_usd": "12.749656500",
+            "fits": true,
+            "unchanged_limit_usd": "20"
+          }
+        },
+        "incremental_rpc_usd_over_72": "10.017582750",
+        "methods": {
+          "getBlockTime": 483840,
+          "getGenesisHash": 9306,
+          "getMultipleAccounts": 725760
+        },
+        "native_stream_and_gap_reconstruction": "UNMEASURED; mandatory additional work, not included",
+        "physical_attempts_without_failures": 1218906,
+        "rpc_cu": 24285060,
+        "rpc_elements": 1218906,
+        "rpc_only_modeled_usd": "12.749656500",
+        "scenarios": "snapshot RPC count identical across quiet/volatile/busy prices; total stream/hydration work is not",
+        "turns": 241920
+      },
+      "safe_duration_proven": false
+    }
+  ],
+  "schema": "extended-survivor-hold-research-v1",
+  "simultaneous_positions": {
+    "cpu_cores": "1.8",
+    "first_bootstrap_maximum": 1,
+    "local_pons_rps_limit": 2,
+    "pons_independent_quiet_two_position_minimum_rps": 3.3887345679012344,
+    "queue_maximum": 64,
+    "queue_wait_maximum_seconds": 5,
+    "rss_readiness_bytes": 6442450944,
+    "shared_acquisition_savings": "UNVERIFIED for different positions; no aggregate cache discount assumed",
+    "systemd_memory_max_bytes": 7516192768
+  },
+  "storage_reference": {
+    "current": {
+      "baseline_exhausted_turn": 8191,
+      "baseline_sqlite_bytes": 3821568,
+      "classification": "actual native journal/quote/restart fixture; variable controller bodies still obey 32768-byte record and 64-MiB page caps",
+      "diagnostic_records_per_category": 512,
+      "expired_snapshot_dependencies_retained": true,
+      "maintenance_seconds": 60,
+      "measured_36_hour_turns": 25920,
+      "measured_maximum_records": 101,
+      "measured_sqlite_bytes": 360448,
+      "native_journal_segment_records": 64,
+      "quote_retention_seconds": 120,
+      "record_limit": 8192,
+      "sqlite_page_bytes": 4096,
+      "sqlite_page_limit": 16384
+    },
+    "survivor": {
+      "classification": "actual two-events-per-turn native history fixture; busy event bytes and shared plane footprints remain scenario dependent",
+      "event_hot_seconds": 3600,
+      "measured_72_hour_turns": 86401,
+      "measured_retained_events": 2402,
+      "measured_retained_points": 28803,
+      "measured_sqlite_bytes": 9293824,
+      "measured_wal_bytes": 9405992,
+      "new_persistent_quote_records_per_turn": 0,
+      "old_quote_limit": 10000,
+      "point_hot_seconds": 86400,
+      "point_limit": 100000,
+      "snapshot_ledger": "one bounded native in-memory Store per quote; economic book and authenticated history remain durable"
+    },
+    "v4_history": {
+      "cache_bytes_per_map": 16777216,
+      "cache_map_count": 5,
+      "current_hot_seconds": 900,
+      "memory_classification": "80-MiB serialized cache ceiling plus Python/index overhead; whole process bound enforced separately",
+      "page_pressure_exhausted_records": 2012,
+      "page_pressure_pending_exit_preserved": true,
+      "range_event_limit": 16384,
+      "range_physical_attempt_limit": 64,
+      "required_original_boundary_events_retained": true
+    }
+  }
+}

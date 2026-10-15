@@ -1,0 +1,39 @@
+{
+  "root_cause": "Ordinary maintenance may wait behind a dense source commit beyond its three-second owner lease; calling MaintenanceRuntime.turn then irreversibly poisons healthy maintenance even though no fresh native decision entered.",
+  "reproduction": {
+    "source": "tests/test_run377_persistence.py @ 7a516a6a92be9347661ac0e7f560971c171a0931",
+    "queue_seconds": 5.694780915,
+    "owner_lease_seconds": 3,
+    "stream_accepted_messages": 7,
+    "initial_test_result": "11 tests,1 ERROR,18.204s; isolated1 ERROR13.670s; instrumented1 ERROR13.914s."
+  },
+  "repair": "Refuse expired queued command before admission.entry/native turn using existing evidence_command_expired; yield before fresh retry. Preserve ordinary FIFO, native deadlines/lease/fail-closed gates and source batch bounds.",
+  "runtime_namespaces": [
+    "meme_machine/solana_evidence_service.py",
+    "meme_machine/lanes/pump/solana_evidence_service.py",
+    "meme_machine/lanes/meteora/solana_evidence_service.py"
+  ],
+  "historical_regression": {
+    "historical_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+    "path": "tests/test_run377_persistence.py",
+    "tests": 5,
+    "adaptations": "Only helper module import and fixture path anchor; all assertions unchanged.",
+    "fixture_historical_path": "certification/tests/fixtures/run377-production-transactions.json.gz",
+    "fixture_current_path": "tests/fixtures/solana_evidence_plane/run377-production-transactions.json.gz",
+    "fixture_sha256": "61d6f86a52c8aec51fdddc8d1f4f573377cf587278c49020181878d6f053bc17"
+  },
+  "validation": {
+    "tests": 78,
+    "result": "PASS",
+    "seconds": 83.5,
+    "groups": [
+      "Run377 persistence",
+      "Run380 atomic frame (separate pending restoration)",
+      "production maintenance arbiter",
+      "maintenance batch fairness",
+      "Robinhood valuation/source invariance"
+    ]
+  },
+  "state_compatibility": "No durable stores or schemas change. No PAPER state writes. No expired command enters native arbiter or credits service; existing durable recovery deadlines retain their identity.",
+  "historical_failure_attribution": "This reproduced dense-admission defect does not prove a cause for older saved generic diagnostics."
+}

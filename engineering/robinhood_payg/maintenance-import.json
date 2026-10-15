@@ -1,0 +1,8 @@
+{
+  "source": "/root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/repo",
+  "base_commit": "f8d4e9ec33ee557152fad9aca90fe1991919b45c",
+  "path": "tests/maintenance_production_harness.py",
+  "sha256": "35532118566d561a46b0af27feb78580161474db1bb548d54e63b3e97db60891",
+  "scope": "offline fixture clock/setup repair only; no production Solana or Pump modification",
+  "source_worktree_modified": false
+}

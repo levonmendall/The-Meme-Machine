@@ -1,0 +1,473 @@
+"""Bounded incremental, authenticated Survivor observations and lifecycle state.
+
+No provider client, backfill, inferred gaps, or portfolio authority. Graduation
+identity is immutable. Missing continuity is a sticky entry block until a new
+authenticated graduation identity, rather than a manufactured historical value.
+"""
+import json
+import hashlib
+import os
+from pathlib import Path
+import time
+import sqlite3
+from fractions import Fraction
+from contextlib import contextmanager
+from meme_machine.runtime.journal import canonical,digest
+
+
+class History:
+    def __init__(self,path,*,policy,maximum_candidates=None,maximum_points=100000):
+        self.path=Path(path)
+        self.initial_file_sha256=None
+        if self.path.is_file():
+            with self.path.open('rb') as source:self.initial_file_sha256=hashlib.file_digest(source,'sha256').hexdigest()
+        from meme_machine.runtime.operation_costs import connect
+        self.db=connect(path,isolation_level=None,diagnostic_role='survivor_history')
+        self.db.execute('PRAGMA journal_mode=WAL');self.db.execute('PRAGMA synchronous=FULL')
+        self.db.executescript('''
+        CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,body TEXT NOT NULL,hash TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS candidates(id TEXT PRIMARY KEY,body TEXT NOT NULL,hash TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS events(candidate TEXT,id TEXT,at INTEGER,body TEXT,hash TEXT,PRIMARY KEY(candidate,id));
+        CREATE INDEX IF NOT EXISTS recent_events ON events(candidate,at);
+        CREATE TABLE IF NOT EXISTS points(candidate TEXT,at INTEGER,price TEXT,hash TEXT,PRIMARY KEY(candidate,at));
+        ''')
+        # Candidate retention is not a work-admission mechanism.  The legacy
+        # count bound is accepted for recovery/test-call compatibility but is
+        # deliberately not enforced; storage pressure is handled by the shared
+        # operational storage guard and terminal-history compaction.
+        self.maximum_candidates=maximum_candidates;self.maximum_points=maximum_points
+        old=self.get_meta('policy')
+        if old is not None and old!=policy:self._select_policy(old,policy)
+        if old is None:self.set_meta('policy',policy)
+        self.initial_changes=self.db.total_changes
+        self.initial_data_version=self.db.execute('PRAGMA data_version').fetchone()[0]
+
+    def _select_policy(self,old,policy):
+        """Invalidate only derived candidate decisions at a verified flat boundary.
+
+        Raw observations and original archives are never relabeled. The old
+        Pump reset prefix cannot prove a new 3% reset after its detail retired.
+        """
+        from meme_machine.runtime.policy_compatibility import (active_hash,selection,
+            require_flat_rows,require_external_flat,SELECTION_KEY)
+        from meme_machine.paper_policy_revision import previous_hash
+        regimes=('pump_survivor','pons_survivor')
+        regime=next((r for r in regimes if old==previous_hash(r) and policy==active_hash(r)),None)
+        if regime is None:raise ValueError('survivor_history_policy_drift')
+        with self.transaction():
+            rows=self.rows(include_retired=True)
+            for row in rows:
+                if (row.get('position') or row.get('pending_action')
+                        or row.get('state') in ('reserved','filled','runner','exit_pending')):
+                    raise ValueError('paper_policy_transition_unresolved_survivor_history:'+row['id'])
+            # History precedes book construction in the native adapter. Verify
+            # its sibling native projection and chain before selecting a revision.
+            sibling=self.path.with_name('paper.sqlite')
+            if sibling.is_file():
+                from contextlib import closing
+                from meme_machine.runtime.survivor_paper_book import PaperBook
+                with closing(sqlite3.connect(sibling.resolve().as_uri()+'?mode=ro',uri=True)) as db:
+                    book=PaperBook.__new__(PaperBook);book.db=db
+                    import threading
+                    book.lock=threading.RLock()
+                    book.identity=json.loads(db.execute('SELECT body FROM genesis WHERE id=1').fetchone()[0])
+                    book.replay()
+                    require_flat_rows([json.loads(raw) for raw, in db.execute('SELECT body FROM positions')],kind='pump')
+            require_external_flat()
+            expected=selection(dict(policy_hash=old),dict(policy_hash=policy))
+            self.set_meta(SELECTION_KEY,expected)
+            self.set_meta('previous_policy:'+old,dict(policy_hash=old,revision='pre-paper-opportunity-access-v1'))
+            for row in rows:
+                identity=row['id'];saved=self.get_meta('calculation_prefix:'+identity)
+                if saved is not None:
+                    self.set_meta('previous_calculation_prefix:'+old+':'+identity,saved)
+                    self.db.execute('DELETE FROM meta WHERE key=?',('calculation_prefix:'+identity,))
+                archive=self.get_meta('archive_prefix:'+identity)
+                if regime=='pump_survivor' and archive is not None and archive.get('reducer_state') is not None:
+                    row['policy_recomputation_blocker']='reset_history_revision_detail_unavailable'
+                    row['policy_recomputation_source_policy']=old
+                if row.get('decision') is not None:
+                    self.set_meta('previous_candidate_decision:'+old+':'+identity,row['decision'])
+                row['last_checked']=0
+                row['decision_policy_hash']=policy
+                self.save(row)
+            self.set_meta('policy',policy)
+
+    @contextmanager
+    def transaction(self):
+        self.db.execute('BEGIN IMMEDIATE')
+        try:
+            yield
+            self.db.execute('COMMIT')
+        except BaseException:
+            self.db.execute('ROLLBACK');raise
+
+    def get_meta(self,key):
+        row=self.db.execute('SELECT body,hash FROM meta WHERE key=?',(key,)).fetchone()
+        return self._verified(row)
+
+    def set_meta(self,key,value):
+        self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?,?)',(key,canonical(value),digest(value)))
+
+    def _verified(self,row):
+        if row is None:return None
+        value=json.loads(row[0])
+        if digest(value)!=row[1]:raise ValueError('survivor_history_corruption')
+        return value
+
+    def get(self,identity):
+        return self._verified(self.db.execute('SELECT body,hash FROM candidates WHERE id=?',(identity,)).fetchone())
+
+    def save(self,row):
+        self.db.execute('INSERT OR REPLACE INTO candidates VALUES(?,?,?)',(row['id'],canonical(row),digest(row)))
+
+    def graduate(self,identity,evidence):
+        old=self.get(identity)
+        if old:
+            if old['graduation']!=evidence:raise ValueError('conflicting_survivor_graduation')
+            return old
+        if self.expired(evidence):raise ValueError('survivor_graduation_expired')
+        if self.maximum_candidates is not None and len(self.rows())>=self.maximum_candidates:
+            # A candidate-count limit is scheduling/storage pressure, not strategy
+            # authority.  Preserve the graduation and expose the pressure durably
+            # instead of deleting the 65th (or later) recoverable opportunity.
+            pressure=self.get_meta('candidate_capacity_pressure') or 0
+            self.set_meta('candidate_capacity_pressure',int(pressure)+1)
+        row=dict(id=identity,graduation=evidence,state='graduated',through=evidence['at'],
+                 complete=True,last_checked=0,position=None)
+        self.save(row);return row
+
+    def expired(self,evidence):
+        floor=self.get_meta('graduation_floor')
+        return floor is not None and evidence['at']<floor
+
+    def append(self,identity,*,through,events,points,complete,evidence_checkpoint=None):
+        points=list(points)
+        with self.transaction():
+            row=self.get(identity)
+            if row is None or through<row['through']:raise ValueError('survivor_history_watermark')
+            if not complete:
+                row.pop('volume_quality_state',None);row.pop('volume_quality',None)
+                row['complete']=False;self.save(row);return row
+            from meme_machine.runtime.learning import survivor
+            survivor(self.db,row,points)
+            quality_events=[]
+            for event in events:
+                if event.get('authenticated') is not True or event['at']>through:
+                    raise ValueError('survivor_history_event_authority')
+                old=self.db.execute('SELECT body,hash FROM events WHERE candidate=? AND id=?',(identity,event['id'])).fetchone()
+                if old and self._verified(old)!=event:raise ValueError('survivor_history_event_conflict')
+                if old is None:quality_events.append(event)
+                self.db.execute('INSERT OR IGNORE INTO events VALUES(?,?,?,?,?)',
+                    (identity,event['id'],event['at'],canonical(event),digest(event)))
+            prefix=self.get_meta('archive_prefix:'+identity)
+            for at,price in points:
+                if at>through:raise ValueError('survivor_future_price')
+                bar=dict(price) if isinstance(price,dict) else dict(price=str(price),low=str(price),high=str(price))
+                old=self.db.execute('SELECT price,hash FROM points WHERE candidate=? AND at=?',(identity,int(at))).fetchone()
+                if prefix and int(at)<=prefix['through']:
+                    if not old or old[0]!=canonical(bar):raise ValueError('survivor_archived_price_rewrite')
+                if old:
+                    if digest([identity,int(at),old[0]])!=old[1]:raise ValueError('survivor_price_corruption')
+                    prior=json.loads(old[0])
+                    bar['low']=str(min(Fraction(bar['low']),Fraction(prior['low'])))
+                    bar['high']=str(max(Fraction(bar['high']),Fraction(prior['high'])))
+                if not 0<Fraction(bar['low'])<=Fraction(bar['price'])<=Fraction(bar['high']):
+                    raise ValueError('survivor_price_range')
+                body=[identity,int(at),canonical(bar)]
+                self.db.execute('INSERT OR REPLACE INTO points VALUES(?,?,?,?)',(*body,digest(body)))
+            if self.db.execute('SELECT count(*) FROM points WHERE candidate=?',(identity,)).fetchone()[0]>self.maximum_points:
+                raise ValueError('survivor_history_point_capacity')
+            self.db.execute('DELETE FROM events WHERE candidate=? AND at<?',(identity,through-3600))
+            # Optional attention belongs to candidate work, never held-position
+            # monitoring. Existing canonical append/dedup is its only input.
+            from . import volume_quality as vq
+            asset=getattr(self,'volume_quote_asset',None)
+            if vq.enabled() and asset and not row.get('position'):
+                try:
+                    previous_quality=row.get('volume_quality')
+                    row['volume_quality_state']=vq.advance(row.get('volume_quality_state'),quality_events,
+                        lower=row['through'],through=through,complete=row['complete'],
+                        asset=asset,authoritative=True)
+                    row['volume_quality']=self.volume_signal(row,time.time())
+                    if vq.recovered(previous_quality,row['volume_quality'],time.time()):
+                        row['volume_quality_requalification_due']=True
+                except (ValueError,KeyError,TypeError,ArithmeticError) as error:
+                    row.pop('volume_quality_state',None)
+                    row['volume_quality']=vq.neutral_failure(error,at=through,asset=asset)
+            row['through']=through
+            if evidence_checkpoint is not None:
+                # Stored in the same FULL-sync transaction as the consumed rows.
+                # An interrupted append can never authorize pin advancement.
+                row['evidence_checkpoint']=evidence_checkpoint
+            self.save(row)
+            return row
+
+    def volume_signal(self,row,now):
+        from . import volume_quality as vq
+        if not vq.enabled() or row.get('recovery') or not row.get('complete'):
+            return vq.unavailable('canonical_interval_incomplete')
+        # Related/creator identities must be established by native qualification
+        # before this optional signal may award positive scheduling attention.
+        if 'volume_quality_excluded' not in row:return vq.unavailable('related_identity_pending')
+        try:
+            return vq.signal(row.get('volume_quality_state'),now=now,observed_at=now,
+                excluded=row['volume_quality_excluded'],progress=dict(stage='postgraduation'))
+        except (ValueError,KeyError,TypeError,ArithmeticError) as error:
+            return vq.neutral_failure(error,at=row['through'],asset=getattr(self,'volume_quote_asset',None))
+
+    def facts(self,identity,now,*,since=None,events_since=None):
+        prefix=self.get_meta('archive_prefix:'+identity)
+        if prefix and now<prefix['through']:raise ValueError('survivor_archived_history_query')
+        events=[self._verified(r) for r in self.db.execute('SELECT body,hash FROM events WHERE candidate=? AND at<=?'+
+            ('' if events_since is None else ' AND at>=?')+' ORDER BY at,id',
+            (identity,now) if events_since is None else (identity,now,events_since))]
+        points=[]
+        for at,price,h in self.db.execute('SELECT at,price,hash FROM points WHERE candidate=? AND at<=?'+
+                ('' if since is None else ' AND at>=?')+' ORDER BY at',
+                (identity,now) if since is None else (identity,now,since)):
+            if digest([identity,at,price])!=h:raise ValueError('survivor_price_corruption')
+            points.append(dict(at=at,**json.loads(price)))
+        return points,events
+
+    def calculation_facts(self,identity,now,*,reducer,policy):
+        """Exact existing reset reducer, incrementally folded without deletion.
+
+        Only a demanded Pump qualification uses this path. Retain all prices,
+        original graduation anchor, exact prefix-boundary witness and last 24h.
+        The approved two/six-hour and completed-base windows stay unchanged.
+        Any rewrite inside the prefix invalidates it, including corrupt writes
+        that leave the old row hash unchanged. Pons never installs these triggers.
+        """
+        if self.get_meta('policy')!=policy:raise ValueError('survivor_history_policy_drift')
+        if not getattr(self,'_calculation_triggers',False):
+            self.db.execute('CREATE INDEX IF NOT EXISTS survivor_event_time ON events(candidate,at,id)')
+            for action in ('INSERT','UPDATE','DELETE'):
+                side='OLD' if action=='DELETE' else 'NEW'
+                self.db.execute('CREATE TRIGGER IF NOT EXISTS survivor_calculation_'+action+' AFTER '+action+''' ON points BEGIN
+                    DELETE FROM meta WHERE key='calculation_prefix:'||'''+side+'''.candidate
+                    AND json_extract(body,'$.through')>='''+side+'''.at;
+                    '''+("DELETE FROM meta WHERE key='calculation_prefix:'||OLD.candidate AND json_extract(body,'$.through')>=OLD.at;" if action=='UPDATE' else '')+' END')
+            self._calculation_triggers=True
+        row=self.get(identity);archive=self.get_meta('archive_prefix:'+identity)
+        if (row is None or not row.get('complete') or row.get('recovery') or row.get('policy_recomputation_blocker')
+                or archive is not None and archive['reducer_state'] is None):
+            points,events=self.facts(identity,now);return points,events,self.prefix(identity)
+        source=digest([policy,row['graduation'],archive])
+        saved=self.get_meta('calculation_prefix:'+identity)
+        cut=now-86400
+        if saved and (saved['source']!=source or saved['through']>cut):saved=None
+        before=(None if archive is None else archive['reducer_state']) if saved is None else saved['state']
+        lower=None if before is None else before['through']
+        examined=0
+        inputs_hash=digest(archive) if saved is None else saved['inputs_hash']
+        def additions():
+            nonlocal examined,inputs_hash
+            query='SELECT at,price,hash FROM points WHERE candidate=? AND at<=?'+('' if lower is None else ' AND at>?')+' ORDER BY at'
+            for at,raw,checksum in self.db.execute(query,(identity,cut) if lower is None else (identity,cut,lower)):
+                examined+=1
+                if digest([identity,at,raw])!=checksum:raise ValueError('survivor_price_corruption')
+                inputs_hash=digest([inputs_hash,identity,at,checksum])
+                yield dict(at=at,**json.loads(raw))
+        state=reducer(additions(),before)
+        if state['through'] is None:
+            points,events=self.facts(identity,now);return points,events,self.prefix(identity)
+        value=dict(schema='survivor-calculation-prefix-v1',source=source,policy=policy,
+            through=state['through'],state=state,inputs_hash=inputs_hash,
+            records=examined+(0 if saved is None else saved['records']))
+        if value!=saved:self.set_meta('calculation_prefix:'+identity,value)
+        points,events=self.facts(identity,now,since=state['through'],events_since=now-3600)
+        first=self.db.execute('SELECT at,price,hash FROM points WHERE candidate=? AND at<=? ORDER BY at LIMIT 1',(identity,now)).fetchone()
+        if first and (not points or first[0]<points[0]['at']):
+            at,raw,checksum=first
+            if digest([identity,at,raw])!=checksum:raise ValueError('survivor_price_corruption')
+            points.insert(0,dict(at=at,**json.loads(raw)))
+        self.calculation_metrics=dict(prefix_records_decoded=examined,window_points=len(points),window_events=len(events))
+        return points,events,state
+
+    def prefix(self,identity):
+        value=self.get_meta('archive_prefix:'+identity)
+        return None if value is None else value['reducer_state']
+
+    def compact_archived(self,authority,*,reducer=None):
+        """Replace already-preserved old observations with exact sufficient state.
+
+        All removed bytes remain in the verified predecessor artifact. One original
+        graduation anchor and the boundary witness remain alongside the exact last
+        24 hours; the unchanged 100,000-point guard still applies to new ingestion.
+        """
+        prior=authority['state_hash']
+        if self.get_meta('compacted_from_state')==prior:return False
+        # The operational caller owns this history connection. Every removed
+        # point is verified and folded under the same transaction below.
+        with self.transaction():
+            for row in self.rows():
+                if row.get('policy_recomputation_blocker'):continue
+                identity=row['id'];cut=row['through']-86400
+                older=[]
+                for at,price,checksum in self.db.execute(
+                        'SELECT at,price,hash FROM points WHERE candidate=? AND at<=? ORDER BY at',(identity,cut)):
+                    if digest([identity,at,price])!=checksum:raise ValueError('survivor_price_corruption')
+                    older.append(dict(at=at,**json.loads(price)))
+                if len(older)<3:continue
+                from meme_machine.runtime.learning import survivor
+                survivor(self.db,row,((p['at'],p) for p in older))
+                previous=self.get_meta('archive_prefix:'+identity)
+                before=None if previous is None else previous['reducer_state']
+                folded=[p for p in older if previous is None or p['at']>previous['through']]
+                state=None if reducer is None else reducer(folded,before)
+                removed=older[1:-1]
+                record=dict(schema='survivor-archived-prefix-v1',through=older[-1]['at'],
+                    reducer_state=state,authority=authority,removed_count=len(removed),
+                    removed_hash=digest(removed),previous_prefix_hash=None if previous is None else digest(previous))
+                self.set_meta('archive_prefix:'+identity,record)
+                self.db.execute('DELETE FROM points WHERE candidate=? AND at>? AND at<?',
+                    (identity,older[0]['at'],older[-1]['at']))
+            self.set_meta('compacted_from_state',prior)
+            floor=self.get_meta('graduation_floor')
+            if floor is not None:
+                removed=hashlib.sha256();count=0
+                for body,checksum in self.db.execute("""SELECT body,hash FROM candidates
+                        WHERE json_extract(body,'$.state')='retired'
+                        AND json_extract(body,'$.graduation.at')<? ORDER BY id""",(floor,)):
+                    row=self._verified((body,checksum));identity=row['id']
+                    if row.get('position'):raise ValueError('survivor_open_position_retirement')
+                    prefix=self.get_meta('archive_prefix:'+identity)
+                    removed.update((canonical(dict(candidate=row,prefix=prefix))+'\n').encode())
+                    count+=1
+                    self.db.execute('DELETE FROM candidates WHERE id=?',(identity,))
+                    self.db.execute('DELETE FROM meta WHERE key=?',('archive_prefix:'+identity,))
+                if count:
+                    previous=self.get_meta('retired_archive')
+                    self.set_meta('retired_archive',dict(schema='survivor-retired-prefix-v1',
+                        graduation_floor=floor,removed_count=count,removed_hash=removed.hexdigest(),
+                        total_count=count+(previous['total_count'] if previous else 0),
+                        previous_prefix_hash=digest(previous) if previous else None,authority=authority))
+        self.db.execute('PRAGMA wal_checkpoint(TRUNCATE)')
+        return True
+
+    def rows(self,*,include_retired=False):
+        # Tombstones preserve identity but never enter the monitoring hot set.
+        sql='SELECT body,hash FROM candidates'
+        if not include_retired:sql+=" WHERE json_extract(body,'$.state')!='retired'"
+        rows=[self._verified(row) for row in self.db.execute(sql)]
+        return sorted(rows,key=lambda r:(r['last_checked'],r['id']))
+
+    def retire(self,row,*,expired_before=None):
+        if row.get('position'):raise ValueError('survivor_open_position_retirement')
+        if expired_before is not None and row['graduation']['at']>=expired_before:
+            raise ValueError('survivor_retirement_age')
+        with self.transaction():
+            from meme_machine.runtime.learning import survivor
+            survivor(self.db,row,((p['at'],p) for p in self.facts(row['id'],row.get('through',row['last_checked']))[0]))
+            if expired_before is not None:
+                previous=self.get_meta('graduation_floor')
+                self.set_meta('graduation_floor',max(expired_before,previous) if previous is not None else expired_before)
+            row=dict(id=row['id'],graduation=row['graduation'],state='retired',last_checked=row['last_checked'],position=None)
+            self.save(row)
+            self.db.execute('DELETE FROM points WHERE candidate=?',(row['id'],))
+            self.db.execute('DELETE FROM events WHERE candidate=?',(row['id'],))
+
+    def close(self):self.db.close()
+
+
+def compact_restored_history(history,*,lane,reducer=None):
+    from meme_machine.runtime.preserved_checkpoint import history_authority
+    return history.compact_archived(history_authority(history,lane),reducer=reducer)
+
+
+class Worker:
+    """One bounded task at a time; never blocks fast native decision scheduling."""
+    def __init__(self,factory,*,enrichment_enabled=True):
+        from concurrent.futures import ThreadPoolExecutor
+        self.pool=ThreadPoolExecutor(max_workers=1,thread_name_prefix='survivor')
+        self.factory=factory;self.service=None;self.future=None;self.last=0;self.status={}
+        self.completed_steps=0;self.successful_steps=0;self.admission_enabled_steps=0
+        self.closed=False;self.close_future=None;self.enrichment_enabled=enrichment_enabled
+
+    def _step(self,admit):
+        from contextlib import nullcontext
+        from meme_machine.runtime import operation_costs
+        pons=os.environ.get('MM_RUNTIME_LANE')=='pons'
+        def operation(name):return operation_costs.operation(name) if pons else nullcontext()
+        if self.service is None:
+            from meme_machine.shared_capital.runtime import native_startup_replay
+            from meme_machine.runtime.stop import requested
+            # The factory owns its SQLite objects on this executor. Only its
+            # initial read-only capital replay may observe startup cancellation;
+            # ordinary protection/settlement steps keep their existing behavior.
+            with operation('pons.survivor_restore'):
+                with native_startup_replay(requested.is_set):self.service=self.factory()
+        from meme_machine.operational.position_continuation import position_only
+        maintenance=position_only();admit=admit and not maintenance
+        with operation('pons.survivor_step'):
+            if maintenance:
+                from meme_machine.lanes.pons.provider_admission import position_work
+                status=position_work(self.service.step)(admit=False)
+            else:status=self.service.step(admit=admit)
+        if self.enrichment_enabled and not position_only():
+            try:
+                from meme_machine.runtime.opportunity_telemetry import enrich_service
+                with operation('pons.survivor_enrich'):
+                    telemetry=enrich_service(self.service,now=time.time())
+            except Exception as error:
+                telemetry=dict(status='FAILED',reason='opportunity_enrichment_failed:'+type(error).__name__,
+                    qualification_authority=False,order_authority=False)
+            status=dict(status,opportunity_telemetry=telemetry)
+        self.completed_steps+=1
+        if admit:self.admission_enabled_steps+=1
+        if not status.get('last_boundary'):self.successful_steps+=1
+        return dict(status,machinery=dict(completed_steps=self.completed_steps,
+            successful_steps=self.successful_steps,allocation_authority=bool(admit),
+            admission_enabled_steps=self.admission_enabled_steps,
+            last_step_completed_at=time.time()))
+
+    def prime(self,*,timeout=30):
+        """Initialize and reconcile on the owned executor, with a bounded wait."""
+        if self.closed:raise RuntimeError('survivor_worker_closed')
+        if self.future is None:self.future=self.pool.submit(self._step,False)
+        self.status=self.future.result(timeout=timeout)
+        self.future=None
+        return self.status
+
+    def tick(self,now,*,admit=True):
+        if self.closed:raise RuntimeError('survivor_worker_closed')
+        if self.future is not None:
+            if not self.future.done():return self.status
+            self.status=self.future.result();self.future=None
+        from meme_machine.operational.position_continuation import position_only
+        accounting=self.status.get('accounting') or {}
+        if (position_only() and self.status.get('durable_handoff') is True and
+                accounting and not any(accounting.get(k) for k in ('open_positions','reserved'))):
+            # The other native Current manager can still own a position. An
+            # empty Survivor worker needs no repeated provider reconnection.
+            return self.status
+        interval=getattr(self.service,'observation_interval_seconds',5)
+        if type(interval) not in (int,float) or not 1<=interval<=5:
+            raise ValueError('survivor_observation_interval')
+        if now-self.last>=interval:
+            self.last=now;self.future=self.pool.submit(self._step,admit)
+        return self.status
+
+    def _close_owned_service(self):
+        # Queued behind the accepted step on the same executor. SQLite is never
+        # closed from the supervisor thread, including after a timed-out prime.
+        try:
+            if self.future is not None:self.status=self.future.result()
+        finally:
+            if self.service is not None:self.service.close()
+        return self.status
+
+    def close(self,*,timeout=5):
+        """Bound caller drain; the supervisor owns process termination deadlines.
+
+        A timed-out transport may still finish on its owner thread. Do not close
+        its connection concurrently or report a durable step as cancelled. The
+        one queued close runs after it; native journals remain restart authority.
+        """
+        if timeout<0:raise ValueError('survivor_close_timeout')
+        if self.close_future is None:
+            self.closed=True
+            self.close_future=self.pool.submit(self._close_owned_service)
+            self.pool.shutdown(wait=False)
+        return self.close_future.result(timeout=timeout)

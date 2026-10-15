@@ -1,0 +1,50 @@
+{
+  "executable": "b007217e7930fa728604df4aa2a96f68f998e1ec",
+  "overlap": "294integration and initial140guard runs overlapped; no timing/throughput claim",
+  "prior_failures_preserved": true,
+  "private_evidence": {
+    "OPERATION_ATTRIBUTION_FIRST_FOCUSED_20261015.log": {
+      "bytes": 2100,
+      "sha256": "56ae04e6ae937fed48c16b560c677c3bfbea16a8472c46d9a456d1cf8febd9fc"
+    },
+    "OPERATION_ATTRIBUTION_FOCUSED_V2_20261015.log": {
+      "bytes": 960,
+      "sha256": "cf8f8869a618349959242d76db441f0c9d1f182104f7a1465ccf6cdf2b0f4e61"
+    },
+    "OPERATION_ATTRIBUTION_INTEGRATION_20261015.log": {
+      "bytes": 22915,
+      "sha256": "86a0f8fa001777a55d99a8d50a27d82097d8e04e129e2c14181bfbcaae9ff3ba"
+    },
+    "OPERATION_ATTRIBUTION_OUTPUT_PROJECTION_V1_20261015.json": {
+      "bytes": 812,
+      "sha256": "f2b49091df070b5a27ad8dff54adbd16569d93407d32500d36f48f4053e8b3d6"
+    },
+    "OPERATION_ATTRIBUTION_SOURCE_COLLECTOR_20261015.log": {
+      "bytes": 114826,
+      "sha256": "d9ede30791697c199983df2a61fe6fdd9a8f027e477f4e996d802a7d5548cfa4"
+    },
+    "OPERATION_ATTRIBUTION_SOURCE_COLLECTOR_V2_20261015.log": {
+      "bytes": 541,
+      "sha256": "dc068939f55cf0a0c13a7efb157412d0d99904f9364f308de7dc03390627e613"
+    }
+  },
+  "runtime": "CPython3.12.14/SQLite3.45.1",
+  "scope": "Risk-based fundingclosed diagnostic gate, not release or throughput PASS",
+  "tests": [
+    {
+      "cases": 122,
+      "scope": "focusedcosts/owner/Pons/collector",
+      "verdict": "PASS"
+    },
+    {
+      "cases": 294,
+      "scope": "actualstartup/economics/provider/protection/canonical/delivery/recovery withflag1",
+      "verdict": "PASS"
+    },
+    {
+      "cases": 140,
+      "scope": "finalsourceguards/collector",
+      "verdict": "PASS"
+    }
+  ]
+}

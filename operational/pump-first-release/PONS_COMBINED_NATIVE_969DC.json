@@ -1,0 +1,167 @@
+{
+  "source": "969dc905c2a454ea800f8572e525d7dbca0262e3",
+  "started_at": 1791754089.976459,
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pons-combined-969dc905-1791754089659.sqlite",
+  "purpose": "Exact native buy/full/quarter and coincident fresh USD: historical verified Pons V2 pool, not a qualified new entry",
+  "pool_id": "0x2075abed94de15d218a27b4da93541a974e23e131f1d2da32177b33634ac8da7",
+  "token": "0xf25cbd487fe0294dd0a39ba2955982bcff28fd72",
+  "gas_units_proxy": 1500000,
+  "gas_proxy_status": "diagnostic conservative upper, not fabricated observed settlement",
+  "funding": false,
+  "orders": false,
+  "qualification_proven": false,
+  "full_protection": false,
+  "epoch_reinitialized": false,
+  "historical_counters_reset": false,
+  "regimes_enabled": false,
+  "samples": [
+    {
+      "kind": "native_buy_50_usd_target",
+      "deadline_seconds": 5,
+      "usd_acquisition_seconds": 9.190989658236504e-06,
+      "total_seconds": 0.7757139829918742,
+      "quote": {
+        "market": "0x2075abed94de15d218a27b4da93541a974e23e131f1d2da32177b33634ac8da7",
+        "side": "buy",
+        "amount_in": 24672726971973818,
+        "amount_out": 20987535770753487117770459,
+        "gas_quote": 30156000000000,
+        "fee_quote": 0,
+        "stamp": {
+          "chain_id": 4663,
+          "block": 86148298,
+          "block_hash": "0xfd45dbb9984afb59c36ce0927ca9a943b92d9d6f830e06ec2f548618e598881d",
+          "event_at": 1791754093,
+          "observed_at": 1791754094,
+          "finality": "confirmed",
+          "kind": "natural"
+        },
+        "reason": null,
+        "acquisition_latency_seconds": 0.7737869799602777,
+        "chain_timestamp_lag_seconds": 0.36116909980773926
+      },
+      "valuation": {
+        "asset": "ETH",
+        "decimals": 18,
+        "usd_per_unit": "2026.52913303",
+        "observed_at": 1791754090,
+        "valid_until": 1791754095,
+        "evidence_id": "native-usdg-usd:86148266:0x544c010194d904a152524455fd9f3de59bbac034",
+        "evidence_hash": "8581a4baffcb8da96fce33ae6f4b635e7d41934ef283fd63404e60dfa88408a2"
+      },
+      "financial_native_usd": "50.06111201253565117939900854",
+      "net_native_amount": 24702882971973818,
+      "observed_at": 1791754094.1357028
+    },
+    {
+      "kind": "coincident_warm_USD_and_full_sell",
+      "deadline_seconds": 3,
+      "usd_acquisition_seconds": 2.117785659036599,
+      "total_seconds": 2.867751723038964,
+      "quote": {
+        "market": "0x2075abed94de15d218a27b4da93541a974e23e131f1d2da32177b33634ac8da7",
+        "side": "sell",
+        "amount_in": 20987535770753487117770459,
+        "amount_out": 23035287869386384,
+        "gas_quote": 30102000000000,
+        "fee_quote": 0,
+        "stamp": {
+          "chain_id": 4663,
+          "block": 86148345,
+          "block_hash": "0xac0e3a5d3e89f6e3bd1f5cea7698a6cbf603381b4afb5150fca5f2cabe7e661a",
+          "event_at": 1791754098,
+          "observed_at": 1791754098,
+          "finality": "confirmed",
+          "kind": "natural"
+        },
+        "reason": null,
+        "acquisition_latency_seconds": 0.7473421529866755,
+        "chain_timestamp_lag_seconds": 0.1199038028717041
+      },
+      "valuation": {
+        "asset": "ETH",
+        "decimals": 18,
+        "usd_per_unit": "2026.52913303",
+        "observed_at": 1791754095,
+        "valid_until": 1791754100,
+        "evidence_id": "native-usdg-usd:86148323:0x544c010194d904a152524455fd9f3de59bbac034",
+        "evidence_hash": "58263bea061a12e94e74328e8e7383d90c1fc9fa88ccc0920cdd9c931493a58c"
+      },
+      "financial_native_usd": "46.62067937508159558560666352",
+      "net_native_amount": 23005185869386384,
+      "observed_at": 1791754098.8679225
+    },
+    {
+      "kind": "quantity_specific_quarter_sell",
+      "deadline_seconds": 3,
+      "usd_acquisition_seconds": 1.0468997061252594e-05,
+      "total_seconds": 0.7560684989439324,
+      "quote": {
+        "market": "0x2075abed94de15d218a27b4da93541a974e23e131f1d2da32177b33634ac8da7",
+        "side": "sell",
+        "amount_in": 5246883942688371779442614,
+        "amount_out": 5862526192193171,
+        "gas_quote": 30030000000000,
+        "fee_quote": 0,
+        "stamp": {
+          "chain_id": 4663,
+          "block": 86148352,
+          "block_hash": "0xc77054e7a8c7eb4a99c0fea0c36523306dc8917e080023541d1351b311dabc63",
+          "event_at": 1791754098,
+          "observed_at": 1791754099,
+          "finality": "confirmed",
+          "kind": "natural"
+        },
+        "reason": null,
+        "acquisition_latency_seconds": 0.7542281791102141,
+        "chain_timestamp_lag_seconds": 0.8691773414611816
+      },
+      "valuation": {
+        "asset": "ETH",
+        "decimals": 18,
+        "usd_per_unit": "2026.52913303",
+        "observed_at": 1791754095,
+        "valid_until": 1791754100,
+        "evidence_id": "native-usdg-usd:86148323:0x544c010194d904a152524455fd9f3de59bbac034",
+        "evidence_hash": "58263bea061a12e94e74328e8e7383d90c1fc9fa88ccc0920cdd9c931493a58c"
+      },
+      "financial_native_usd": "11.81972345176600308091653813",
+      "net_native_amount": 5832496192193171,
+      "observed_at": 1791754099.6240263
+    }
+  ],
+  "status": "PASS_NATIVE_QUOTE_USD_COMBINATION_ONLY",
+  "ended_at": 1791754099.624443,
+  "elapsed_seconds": 9.647984981536865,
+  "preflight": {
+    "limits_verified": true,
+    "limits": {
+      "http_attempts": 64,
+      "http_bytes": 33554432,
+      "native_bytes": 67108864,
+      "native_inflight_bytes": 33554432,
+      "native_stop_bytes": 33554432,
+      "rpc_cu": 6000,
+      "rpc_elements": 200
+    },
+    "wall_seconds": 60,
+    "modeled_spend_limit": "0.01",
+    "maximum_native_opens": 1,
+    "lanes": [
+      "pons"
+    ],
+    "physical_http_start_intervals": {
+      "robinhood": "0.25",
+      "solana": "0.5"
+    }
+  },
+  "usage_delta": {
+    "http_attempts": 32,
+    "rpc_elements": 110,
+    "rpc_cu": 2558,
+    "http_bytes": 291182,
+    "native_opens": 0
+  },
+  "modeled_public_upper_usd": "0.00134295",
+  "invoice_verified": false
+}

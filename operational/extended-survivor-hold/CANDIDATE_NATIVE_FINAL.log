@@ -1,0 +1,93 @@
+STORAGE WARNING: root 75.3% used; 11.71 GiB available; nonessential bulk operations block at 85.0%.
+test_existing_survivor_workers_publish_pre_monitor_provider_failure_without_new_worker (tests.test_exceptional_winner_candidate.NativeSurvivorTests.test_existing_survivor_workers_publish_pre_monitor_provider_failure_without_new_worker) ... ERROR
+test_below_retention_cancels_and_releases_exactly_once (tests.test_survivor_commit.SurvivorCommitTests.test_below_retention_cancels_and_releases_exactly_once) ... ok
+test_breakout_disappearance_does_not_fill (tests.test_survivor_commit.SurvivorCommitTests.test_breakout_disappearance_does_not_fill) ... ok
+test_exact_retention_boundaries_for_both_sleeves (tests.test_survivor_commit.SurvivorCommitTests.test_exact_retention_boundaries_for_both_sleeves) ... ok
+test_native_fill_survives_process_death_before_sleeve_ack (tests.test_survivor_commit.SurvivorCommitTests.test_native_fill_survives_process_death_before_sleeve_ack) ... ok
+test_partial_original_quantity_exact_accounting_and_restart (tests.test_survivor_commit.SurvivorCommitTests.test_partial_original_quantity_exact_accounting_and_restart) ... ok
+test_pons_below_sixty_percent_cancels (tests.test_survivor_commit.SurvivorCommitTests.test_pons_below_sixty_percent_cancels) ... ok
+test_pons_twenty_percent_realization_exact_accounting (tests.test_survivor_commit.SurvivorCommitTests.test_pons_twenty_percent_realization_exact_accounting) ... ok
+test_process_death_after_validation_reacquires_all_fresh_inputs (tests.test_survivor_commit.SurvivorCommitTests.test_process_death_after_validation_reacquires_all_fresh_inputs) ... ok
+test_repeat_staleness_cancels_with_bounded_provider_work (tests.test_survivor_commit.SurvivorCommitTests.test_repeat_staleness_cancels_with_bounded_provider_work) ... ok
+test_restart_reserved_reacquires_state_and_capacity (tests.test_survivor_commit.SurvivorCommitTests.test_restart_reserved_reacquires_state_and_capacity) ... ok
+test_same_regime_block_survives_restart (tests.test_survivor_commit.SurvivorCommitTests.test_same_regime_block_survives_restart) ... ok
+test_slow_reconstruction_refreshes_once_then_rechecks_all_inputs (tests.test_survivor_commit.SurvivorCommitTests.test_slow_reconstruction_refreshes_once_then_rechecks_all_inputs) ... ok
+test_supersession_during_quote_and_reconstruction (tests.test_survivor_commit.SurvivorCommitTests.test_supersession_during_quote_and_reconstruction) ... ok
+test_unavailable_exit_preserves_full_exit_intent_after_restart (tests.test_survivor_commit.SurvivorCommitTests.test_unavailable_exit_preserves_full_exit_intent_after_restart) ... ok
+test_zero_quote_capacity_cancels (tests.test_survivor_commit.SurvivorCommitTests.test_zero_quote_capacity_cancels) ... ok
+test_absent_incomplete_or_stale_continuation_proof_cannot_fund (tests.test_position_continuation.LifecycleTests.test_absent_incomplete_or_stale_continuation_proof_cannot_fund) ... ok
+test_absolute_recovery_deadline_escalates_without_fabricating_exit (tests.test_position_continuation.LifecycleTests.test_absolute_recovery_deadline_escalates_without_fabricating_exit) ... ok
+test_funding_and_optional_discovery_close_at_1200_while_monitoring_stays_open (tests.test_position_continuation.LifecycleTests.test_funding_and_optional_discovery_close_at_1200_while_monitoring_stays_open) ... ok
+test_open_survivor_survives_1800_seconds_without_owner_shutdown (tests.test_position_continuation.LifecycleTests.test_open_survivor_survives_1800_seconds_without_owner_shutdown) ... ok
+test_provider_recovery_deadline_survives_restart_and_never_reopens_funding (tests.test_position_continuation.LifecycleTests.test_provider_recovery_deadline_survives_restart_and_never_reopens_funding) ... ok
+test_reconciliation_and_native_flat_proof_required_before_automatic_cleanup (tests.test_position_continuation.LifecycleTests.test_reconciliation_and_native_flat_proof_required_before_automatic_cleanup) ... ok
+test_restart_restores_original_clocks_consumption_and_single_lifecycle (tests.test_position_continuation.LifecycleTests.test_restart_restores_original_clocks_consumption_and_single_lifecycle) ... ok
+test_bootstrap_spend_allowance_remains_three_dollars_and_continuation_is_independent (tests.test_position_continuation.ResourceTests.test_bootstrap_spend_allowance_remains_three_dollars_and_continuation_is_independent) ... ok
+test_delivered_response_and_live_stream_transfer_are_not_double_counted (tests.test_position_continuation.ResourceTests.test_delivered_response_and_live_stream_transfer_are_not_double_counted) ... ok
+test_empty_survivor_worker_stops_provider_work_while_other_manager_can_continue (tests.test_position_continuation.ResourceTests.test_empty_survivor_worker_stops_provider_work_while_other_manager_can_continue) ... ok
+test_idle_family_needs_no_provider_but_cannot_hide_an_obligation_or_fault (tests.test_position_continuation.ResourceTests.test_idle_family_needs_no_provider_but_cannot_hide_an_obligation_or_fault) ... ok
+test_phase_exhaustion_uses_separate_budget_without_reset_or_extra_attempt (tests.test_position_continuation.ResourceTests.test_phase_exhaustion_uses_separate_budget_without_reset_or_extra_attempt) ... ok
+test_pons_native_step_keeps_protective_priority_after_optional_work_is_closed (tests.test_position_continuation.ResourceTests.test_pons_native_step_keeps_protective_priority_after_optional_work_is_closed) ... ok
+test_process_crash_charges_orphan_buffers_once_without_closing_live_peer (tests.test_position_continuation.ResourceTests.test_process_crash_charges_orphan_buffers_once_without_closing_live_peer) ... ok
+test_protective_work_preempts_closed_optional_work_without_new_engine (tests.test_position_continuation.ResourceTests.test_protective_work_preempts_closed_optional_work_without_new_engine) ... ok
+test_reconnects_and_recovery_are_finite_and_exhaustion_is_actionable (tests.test_position_continuation.ResourceTests.test_reconnects_and_recovery_are_finite_and_exhaustion_is_actionable) ... ok
+test_cold_start_enrolls_inclusively_without_seed_or_backdated_coverage (tests.test_forward_survivor.ForwardSurvivorTests.test_cold_start_enrolls_inclusively_without_seed_or_backdated_coverage) ... ok
+test_first_forward_start_migrates_native_checkpoint_but_not_partial_research (tests.test_forward_survivor.ForwardSurvivorTests.test_first_forward_start_migrates_native_checkpoint_but_not_partial_research) ... ok
+test_fork_at_enrollment_parent_rewinds_same_prospective_domain (tests.test_forward_survivor.ForwardSurvivorTests.test_fork_at_enrollment_parent_rewinds_same_prospective_domain) ... ok
+test_four_hour_winner_qualifies_despite_unrelated_incomplete_census_and_capital (tests.test_forward_survivor.ForwardSurvivorTests.test_four_hour_winner_qualifies_despite_unrelated_incomplete_census_and_capital) ... ok
+test_incomplete_individual_continuity_cannot_qualify (tests.test_forward_survivor.ForwardSurvivorTests.test_incomplete_individual_continuity_cannot_qualify) ... ok
+test_obsolete_historical_plan_never_starts_or_gates_normal_operation (tests.test_forward_survivor.ForwardSurvivorTests.test_obsolete_historical_plan_never_starts_or_gates_normal_operation) ... ok
+test_old_recovery_never_claims_or_delays_newer_candidate_acquisition (tests.test_forward_survivor.ForwardSurvivorTests.test_old_recovery_never_claims_or_delays_newer_candidate_acquisition) ... ok
+test_original_inclusive_maximum_age_and_frozen_policies (tests.test_forward_survivor.ForwardSurvivorTests.test_original_inclusive_maximum_age_and_frozen_policies) ... ok
+test_positions_keep_original_admission_during_missing_market_census (tests.test_forward_survivor.ForwardSurvivorTests.test_positions_keep_original_admission_during_missing_market_census) ... ok
+test_prospective_factory_discovery_retains_more_than_transport_cohort_bound (tests.test_forward_survivor.ForwardSurvivorTests.test_prospective_factory_discovery_retains_more_than_transport_cohort_bound) ... ok
+test_pump_discovers_independently_from_canonical_interval_on_cold_and_warm_start (tests.test_forward_survivor.ForwardSurvivorTests.test_pump_discovers_independently_from_canonical_interval_on_cold_and_warm_start) ... ok
+test_pump_uses_its_own_four_hour_age_and_six_hour_price_requirement (tests.test_forward_survivor.ForwardSurvivorTests.test_pump_uses_its_own_four_hour_age_and_six_hour_price_requirement) ... ok
+test_reorg_affects_only_forked_checkpoints_and_preserves_controllers (tests.test_forward_survivor.ForwardSurvivorTests.test_reorg_affects_only_forked_checkpoints_and_preserves_controllers) ... ok
+test_required_individual_interval_crossing_outage_stays_incomplete (tests.test_forward_survivor.ForwardSurvivorTests.test_required_individual_interval_crossing_outage_stays_incomplete) ... ok
+test_retained_pre_frontier_nomination_recovers_only_its_authenticated_lineage (tests.test_forward_survivor.ForwardSurvivorTests.test_retained_pre_frontier_nomination_recovers_only_its_authenticated_lineage) ... ok
+test_shared_worker_cadence_follows_pons_without_changing_pump_or_provider_rate (tests.test_forward_survivor.ForwardSurvivorTests.test_shared_worker_cadence_follows_pons_without_changing_pump_or_provider_rate) ... ok
+test_short_outage_keeps_gap_and_recovers_only_uncovered_tail (tests.test_forward_survivor.ForwardSurvivorTests.test_short_outage_keeps_gap_and_recovers_only_uncovered_tail) ... ok
+test_warm_restart_retains_frontier_candidate_times_and_complete_history (tests.test_forward_survivor.ForwardSurvivorTests.test_warm_restart_retains_frontier_candidate_times_and_complete_history) ... ok
+test_first_profit_harvest_preserves_runner_basis (tests.lanes.pump.test_pump_acceleration_paper.PumpAccelerationPaperLifecycleTests.test_first_profit_harvest_preserves_runner_basis) ... ok
+test_late_curve_can_carry_only_through_authenticated_graduation (tests.lanes.pump.test_pump_acceleration_paper.PumpAccelerationPaperLifecycleTests.test_late_curve_can_carry_only_through_authenticated_graduation) ... ok
+test_profitable_healthy_position_extends_once_then_times_out (tests.lanes.pump.test_pump_acceleration_paper.PumpAccelerationPaperLifecycleTests.test_profitable_healthy_position_extends_once_then_times_out) ... ok
+test_profitable_low_demand_requires_two_observations (tests.lanes.pump.test_pump_acceleration_paper.PumpAccelerationPaperLifecycleTests.test_profitable_low_demand_requires_two_observations) ... ok
+test_rejects_other_strategy_authority (tests.lanes.pump.test_pump_acceleration_paper.PumpAccelerationPaperLifecycleTests.test_rejects_other_strategy_authority) ... ok
+test_rejects_unqualified_signal (tests.lanes.pump.test_pump_acceleration_paper.PumpAccelerationPaperLifecycleTests.test_rejects_unqualified_signal) ... ok
+test_same_strategy_name_cannot_authorize_a_superseded_policy (tests.lanes.pump.test_pump_acceleration_paper.PumpAccelerationPaperLifecycleTests.test_same_strategy_name_cannot_authorize_a_superseded_policy) ... ok
+test_trailing_exit_and_settlement_are_strategy_local (tests.lanes.pump.test_pump_acceleration_paper.PumpAccelerationPaperLifecycleTests.test_trailing_exit_and_settlement_are_strategy_local) ... ok
+test_authentication_failure_is_not_retried_as_rate_pressure (tests.lanes.pons.test_pons_position_provider_recovery.PositionRecoveryTests.test_authentication_failure_is_not_retried_as_rate_pressure) ... ok
+test_fresh_unexitable_fill_is_cancelled_before_entry (tests.lanes.pons.test_pons_position_provider_recovery.PositionRecoveryTests.test_fresh_unexitable_fill_is_cancelled_before_entry) ... ok
+test_impossible_pending_exit_drains_at_original_max_hold_with_zero_proceeds (tests.lanes.pons.test_pons_position_provider_recovery.PositionRecoveryTests.test_impossible_pending_exit_drains_at_original_max_hold_with_zero_proceeds) ... ok
+test_pending_exit_429_keeps_original_intent_amount_and_due (tests.lanes.pons.test_pons_position_provider_recovery.PositionRecoveryTests.test_pending_exit_429_keeps_original_intent_amount_and_due) ... ok
+test_pending_exit_session_auth_recovery_keeps_ledger_and_original_clock (tests.lanes.pons.test_pons_position_provider_recovery.PositionRecoveryTests.test_pending_exit_session_auth_recovery_keeps_ledger_and_original_clock) ... ok
+test_persistent_pressure_is_bounded_and_filled_exposure_never_cancelled (tests.lanes.pons.test_pons_position_provider_recovery.PositionRecoveryTests.test_persistent_pressure_is_bounded_and_filled_exposure_never_cancelled) ... ok
+test_persistent_session_auth_failure_remains_bounded_with_pending_exposure (tests.lanes.pons.test_pons_position_provider_recovery.PositionRecoveryTests.test_persistent_session_auth_failure_remains_bounded_with_pending_exposure) ... ok
+test_post_entry_429_refreshes_evidence_on_same_lifecycle_then_settles (tests.lanes.pons.test_pons_position_provider_recovery.PositionRecoveryTests.test_post_entry_429_refreshes_evidence_on_same_lifecycle_then_settles) ... ok
+test_session_exhaustion_during_pending_exit_preserves_original_due (tests.lanes.pons.test_pons_position_provider_recovery.PositionRecoveryTests.test_session_exhaustion_during_pending_exit_preserves_original_due) ... ok
+test_session_exhaustion_inside_monitor_preserves_one_entry_and_settles (tests.lanes.pons.test_pons_position_provider_recovery.PositionRecoveryTests.test_session_exhaustion_inside_monitor_preserves_one_entry_and_settles) ... ok
+
+======================================================================
+ERROR: test_existing_survivor_workers_publish_pre_monitor_provider_failure_without_new_worker (tests.test_exceptional_winner_candidate.NativeSurvivorTests.test_existing_survivor_workers_publish_pre_monitor_provider_failure_without_new_worker)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_exceptional_winner_candidate.py", line 303, in test_existing_survivor_workers_publish_pre_monitor_provider_failure_without_new_worker
+    result=runtime.step(admit=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/meme_machine/lanes/pons/provider_admission.py", line 52, in wrapped
+    try:return function(*args,**kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/meme_machine/lanes/pons/pons_survivor_runtime.py", line 758, in step
+    native_execution_cost=execution_cost(self.book),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/meme_machine/runtime/directional_accounting.py", line 43, in execution_cost
+    gas=e['evidence']['execution']['gas']
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
+KeyError: 'gas'
+
+----------------------------------------------------------------------
+Ran 68 tests in 52.984s
+
+FAILED (errors=1)
+Offline failure evidence retained at /tmp/mm-engineering-741ztrc3

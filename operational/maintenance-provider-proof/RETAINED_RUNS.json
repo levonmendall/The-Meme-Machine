@@ -1,0 +1,159 @@
+{
+  "schema": "retained-engineering-runs-v1",
+  "runs": [
+    {
+      "path": "/tmp/mm-proof-offline-eighth",
+      "retained": true,
+      "receipt_sha256": "c86a5d5047c8f3d5c0ae3ce38d12585589f21f73d0ddb3dcafda345c9344cc3c",
+      "classification": "FAIL",
+      "reason": "cumulative_process_write_bytes",
+      "source_commit": "f8d4e9ec33ee557152fad9aca90fe1991919b45c"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-eleventh",
+      "retained": true,
+      "receipt_sha256": "a6aebdc0c4e0719d59fb69b9ed3466af9f54b14682aec1d7084a7e5158c8c321",
+      "classification": "FAIL",
+      "reason": "pump_fake_yellowstone_transaction_plane_required",
+      "source_commit": "f8d4e9ec33ee557152fad9aca90fe1991919b45c"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-fifteenth",
+      "retained": true,
+      "receipt_sha256": "dc7593fecc3fc0d09560fd74da02a386820ebe18d400c4c65ac652e0700bb1eb",
+      "classification": "INSUFFICIENT_SAMPLE",
+      "reason": null,
+      "source_commit": "f8d4e9ec33ee557152fad9aca90fe1991919b45c"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-fifth",
+      "retained": true,
+      "classification": "NO_FINAL_PROCESS_RECEIPT",
+      "reason": "Retained original blocked/failed engineering launch; never counted as PASS"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-final",
+      "retained": true,
+      "receipt_sha256": "c4f373109443a1421afd80901a37a94bee85bda96aabf09e9782602c37fe7153",
+      "classification": "INSUFFICIENT_SAMPLE",
+      "reason": null,
+      "source_commit": "1f05e058fd29ec387b8ae204a2aa179d45a7b647"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-first",
+      "retained": true,
+      "classification": "NO_FINAL_PROCESS_RECEIPT",
+      "reason": "Retained original blocked/failed engineering launch; never counted as PASS"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-fourteenth",
+      "retained": true,
+      "receipt_sha256": "77709438047542690113bf955cc368ab731b741e90993532a738dc9e2ba5a687",
+      "classification": "FAIL",
+      "reason": "recorded_workload_incomplete",
+      "source_commit": "f8d4e9ec33ee557152fad9aca90fe1991919b45c"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-fourth",
+      "retained": true,
+      "classification": "NO_FINAL_PROCESS_RECEIPT",
+      "reason": "Retained original blocked/failed engineering launch; never counted as PASS"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-frozen",
+      "retained": true,
+      "receipt_sha256": "0797a3ecbc501636950f5cf0cd0ade50074a204e092c6380247adb4cb1d28adb",
+      "classification": "INSUFFICIENT_SAMPLE",
+      "reason": null,
+      "source_commit": "cf614f024c8df7bbf6601ccb331ec83d9cc6bf74"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-ninth",
+      "retained": true,
+      "receipt_sha256": "4e3180aa89fd6fecf6b7a5af54df662e413c9049fc7a62e836eb6300c9eb0059",
+      "classification": "FAIL",
+      "reason": "pump_fake_yellowstone_status_filter_identity",
+      "source_commit": "f8d4e9ec33ee557152fad9aca90fe1991919b45c"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-ready",
+      "retained": true,
+      "receipt_sha256": "327d026a11d4f0437731ebcfaae90180d8e833f2f59f098fadb9a1da280da333",
+      "classification": "INSUFFICIENT_SAMPLE",
+      "reason": null,
+      "source_commit": "9c6910c57236004468bef506603c2d0502acbd3c"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-second",
+      "retained": true,
+      "classification": "NO_FINAL_PROCESS_RECEIPT",
+      "reason": "Retained original blocked/failed engineering launch; never counted as PASS"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-seventh",
+      "retained": true,
+      "receipt_sha256": "a2ffb538e146fb4ce43642625b6623b775e49878fa724cb636214751513fead1",
+      "classification": "FAIL",
+      "reason": "pons_fake_invalid_request_bounds",
+      "source_commit": "f8d4e9ec33ee557152fad9aca90fe1991919b45c"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-sixth",
+      "retained": true,
+      "receipt_sha256": "26e22da3ddeeb36f8180dbfdf1fabadb15956ce63d647358c1712ce4b76fecaa",
+      "classification": "FAIL",
+      "reason": "pons_fake_BoundaryError",
+      "source_commit": "f8d4e9ec33ee557152fad9aca90fe1991919b45c"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-tenth",
+      "retained": true,
+      "receipt_sha256": "293ff5c8e4d7c57f14d562f61ab6f523c93a96cc1f2c7aec4e6684ebbfa92d52",
+      "classification": "FAIL",
+      "reason": "pump_fake_yellowstone_transaction_plane_required",
+      "source_commit": "f8d4e9ec33ee557152fad9aca90fe1991919b45c"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-third",
+      "retained": true,
+      "classification": "NO_FINAL_PROCESS_RECEIPT",
+      "reason": "Retained original blocked/failed engineering launch; never counted as PASS"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-thirteenth",
+      "retained": true,
+      "receipt_sha256": "f7c2ac9b29df847694b245101ac6932bf7625821545cbd816cac781ac44c506a",
+      "classification": "FAIL",
+      "reason": "startup_ceiling",
+      "source_commit": "f8d4e9ec33ee557152fad9aca90fe1991919b45c"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-twelfth",
+      "retained": true,
+      "receipt_sha256": "336e321ad0b6dbb03fcb0183b84af42db9e8dc8818cd5f60db039220cbaba105",
+      "classification": "FAIL",
+      "reason": "startup_ceiling",
+      "source_commit": "f8d4e9ec33ee557152fad9aca90fe1991919b45c"
+    },
+    {
+      "path": "/tmp/mm-proof-offline-validated",
+      "retained": true,
+      "receipt_sha256": "738101cde4f2ee41abe15d209ed32d3af4de43398732c82255773371d9203323",
+      "classification": "INSUFFICIENT_SAMPLE",
+      "reason": null,
+      "source_commit": "4d164cdcccd7a7e35a45c5e7767847eaa111a3d3"
+    }
+  ],
+  "failed_scratch_locators": [
+    "/tmp/mm-engineering-0bx8pfqz",
+    "/tmp/mm-engineering-4wxucnkc",
+    "/tmp/mm-engineering-56ko5yh1",
+    "/tmp/mm-engineering-7aeusqag",
+    "/tmp/mm-engineering-9ieduxfa",
+    "/tmp/mm-engineering-gmh_0u1y",
+    "/tmp/mm-engineering-oc62gy_d",
+    "/tmp/mm-engineering-r82kid2d",
+    "/tmp/mm-engineering-u7ibswmj",
+    "/tmp/mm-engineering-zzjb6_ek"
+  ]
+}

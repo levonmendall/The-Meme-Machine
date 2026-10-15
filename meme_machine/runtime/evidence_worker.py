@@ -1,0 +1,337 @@
+"""Shared read-only Solana ingestion process, launched by the paper supervisor.
+
+Importing this module opens no network. Explicit process startup requires the same
+existing authenticated Alchemy endpoint and the unchanged shared governor.
+"""
+import asyncio
+import json
+import os
+import signal
+import sys
+from contextlib import contextmanager
+import urllib.error
+import urllib.request
+from pathlib import Path
+from meme_machine.runtime.governor import Governor
+from meme_machine.solana_evidence_transport import alchemy_stream_endpoint
+from meme_machine.solana_evidence_service import serve
+
+class DeliveredRPCError(ValueError):
+    def __init__(self,reason,receipt,*,retryable=False,cause_kind=None,method=None,rpc_code=None,http_status=None):
+        super().__init__(reason);self.receipt=receipt;self.retryable=retryable;self.cause_kind=cause_kind
+        self.method=method;self.rpc_code=rpc_code;self.http_status=http_status
+
+class RepairRPC:
+    def __init__(self,endpoint,governor):
+        from meme_machine.solana_provider_config import AlchemyEndpoint
+        from collections import Counter
+        import threading
+        self.config=AlchemyEndpoint.parse(endpoint)
+        self.endpoint=self.config.http_url;self.governor=governor
+        self.genesis_reads=None
+        cache=os.environ.get('MM_SOLANA_EVIDENCE_BROKER_DB')
+        if cache:
+            from meme_machine.lanes.pump.solana_immutable_rpc import ImmutableReads
+            self.genesis_reads=ImmutableReads(cache,self.endpoint)
+        self.counts=Counter({k:0 for k in ('physical_requests','logical_calls','repair_calls','identity_calls','failures','429s','unsupported_methods','queue_microseconds','transport_microseconds')});self.lock=threading.Lock()
+        self.flights={}
+        self.block_repair_profile=None
+        capability=os.environ.get('MM_RPC_CAPABILITIES')
+        if capability:
+            from meme_machine.solana_provider_config import GENESIS
+            try:
+                row=json.loads(Path(capability).read_text())['endpoints'][self.config.identity]
+                method=row['methods']['getBlock']
+                if row['genesis']==GENESIS and row['provider_identity']==self.config.identity and method['supported'] is True:
+                    self.block_repair_profile=method['observed_limits']
+            except (OSError,ValueError,KeyError,TypeError):pass
+    def _count(self,key,n=1):
+        with self.lock:self.counts[key]+=n
+    def telemetry(self):
+        from meme_machine.runtime.cu import estimate
+        from .provider_purchases import ledger
+        with self.lock:counts=dict(self.counts)
+        methods={k.split(':',1)[1]:v for k,v in counts.items() if k.startswith('method:')}
+        return dict(counters=counts,estimated_alchemy=estimate(methods),
+                    endpoint_identity=self.config.identity,provider=self.config.provider,
+                    provider_purchases=ledger(self).snapshot())
+    def validate_network(self):
+        from meme_machine.solana_provider_config import GENESIS
+        if self.call('getGenesisHash',[],False)!=GENESIS:
+            raise ValueError('solana_network_identity_mismatch')
+    def call(self,method,params,priority=False):
+        return self.call_delivered(method,params,1 if priority else 4)[0]
+    def call_delivered(self,method,params,priority=4):
+        from .provider_purchases import ledger
+        ledger(self).consumer([method],family='pump')
+        if method=='getGenesisHash' and not params and self.genesis_reads is not None:
+            receipt=dict(bytes=0,cu=0,calls=0)
+            def fetch():
+                value,physical=self._call_delivered(method,params,priority)
+                receipt.update(physical,calls=1)
+                return value
+            value=self.genesis_reads.call(method,params,fetch)
+            return value,receipt
+        if (method in ('getTransactionsForAddress','getTransaction','getBlock') and len(params)==2
+                and isinstance(params[1],dict) and params[1].get('commitment')=='finalized'):
+            # Join only concurrent immutable content reads at the same safety
+            # priority. Fresh head samples must still occur after each WS ACK.
+            from concurrent.futures import Future
+            key=(method,json.dumps(params,sort_keys=True,separators=(',',':')),priority)
+            with self.lock:
+                future=self.flights.get(key);leader=future is None
+                if leader:future=self.flights[key]=Future()
+            if not leader:
+                ledger(self).consumer([method],cache_hit=True,shared=True,family='pump')
+                try:
+                    value,_=future.result()
+                    from copy import deepcopy
+                    return deepcopy(value),dict(bytes=0,cu=0,calls=0)
+                except DeliveredRPCError as exc:
+                    from meme_machine.runtime.sqlite_failure import carry
+                    raise carry(exc,DeliveredRPCError(str(exc),dict(bytes=0,cu=0,calls=0),
+                        retryable=exc.retryable,cause_kind=exc.cause_kind,method=exc.method,
+                        rpc_code=exc.rpc_code,http_status=exc.http_status)) from None
+            try:
+                result=self._call_delivered(method,params,priority)
+                from copy import deepcopy
+                future.set_result(deepcopy(result));return result
+            except BaseException as exc:future.set_exception(exc);raise
+            finally:
+                with self.lock:self.flights.pop(key,None)
+        return self._call_delivered(method,params,priority)
+
+    def _call_delivered(self,method,params,priority=4):
+        import time
+        if method not in ('getTransactionsForAddress','getGenesisHash','getSlot','getProgramAccountsV2','getTransaction') and not (method=='getBlock' and self.block_repair_profile and self.block_repair_profile.get('validated') is True):
+            raise ValueError('repair_method_forbidden')
+        maximum=16*1024*1024;timeout=8
+        if method=='getBlock':
+            maximum=min(maximum,int(self.block_repair_profile['max_response_bytes']))
+            timeout=min(timeout,float(self.block_repair_profile['max_latency_seconds']))
+            if maximum<=0 or timeout<=0:raise ValueError('repair_response_bound')
+        from .provider_purchases import ledger,work_label
+        purchases=ledger(self);label=work_label(family='pump');purchased=False;failed=True
+        started=time.monotonic();transport=None;received=0;charged=0;code=None
+        try:
+            self.governor.acquire('solana','evidence',int(priority) if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB') else (2 if priority<=2 else 50),deadline_seconds=8,methods=(method,))
+            self._count('queue_microseconds',int((time.monotonic()-started)*1e6))
+            transport=time.monotonic()
+            self._count('physical_requests');self._count('logical_calls');self._count('method:'+method)
+            charged={'getTransactionsForAddress':100,'getGenesisHash':10,'getSlot':20,'getProgramAccountsV2':20,'getTransaction':40,'getBlock':40}[method]
+            self._count('repair_calls' if method=='getTransactionsForAddress' else 'identity_calls')
+            request=urllib.request.Request(self.endpoint,json.dumps(dict(jsonrpc='2.0',id=1,method=method,params=params)).encode(),{'Content-Type':'application/json'})
+            purchases.started(label,[method],len(request.data),retry=label.get('retry_attempt',0));purchased=True
+            with urllib.request.urlopen(request,timeout=timeout) as response:raw=response.read(maximum+1)
+            received=len(raw)
+            if len(raw)>maximum:raise ValueError('repair_response_bound')
+            value=json.loads(raw)
+            code=(value.get('error') or {}).get('code')
+            if code in (429,-32005):
+                self._count('429s');self.governor.rate_limited('solana',(method,))
+            if code==-32601:
+                self._count('unsupported_methods')
+                if method=='getBlock':self.block_repair_profile=None
+            if value.get('id')!=1 or 'error' in value or 'result' not in value:
+                raise ValueError('repair_response_unavailable')
+            self.config.public(value)
+            self.governor.succeeded('solana',(method,))
+            failed=False
+            return value['result'],dict(bytes=received,cu=charged)
+        except urllib.error.HTTPError as exc:
+            if exc.code==429:
+                self._count('429s');self.governor.rate_limited('solana',(method,))
+            self._count('failures')
+            raise DeliveredRPCError('repair_http_'+str(int(exc.code)),dict(bytes=received,cu=charged),
+                retryable=exc.code in (429,502,503,504),cause_kind='HTTPError',
+                method=method,http_status=int(exc.code)) from None
+        except Exception as exc:
+            self._count('failures')
+            retryable=isinstance(exc,(TimeoutError,urllib.error.URLError,json.JSONDecodeError)) or code in (429,-32603,-32005,-32016)
+            from meme_machine.runtime.sqlite_failure import carry
+            raise carry(exc,DeliveredRPCError('repair_response_unavailable',dict(bytes=received,cu=charged),
+                retryable=retryable,cause_kind=type(exc).__name__,method=method,rpc_code=code)) from None
+        finally:
+            if purchased:purchases.completed(label,received,failed=failed)
+            if transport is not None:self._count('transport_microseconds',int((time.monotonic()-transport)*1e6))
+            self._count('delivered_response_bytes',received);self._count('current_pricing_cu',charged)
+
+
+@contextmanager
+def owner_thread_fairness():
+    """Let the SQLite owner resume while authenticated intake remains busy.
+
+    SQLite releases the interpreter lock for each statement. A continuously
+    ready intake thread otherwise delays its reacquisition for the default
+    five-millisecond slice, multiplying a short durable batch into seconds.
+    This process-local scheduling interval changes no owner priority, SQL,
+    durability, queue/frame bound, evidence or protective deadline.
+    """
+    previous=sys.getswitchinterval()
+    sys.setswitchinterval(.0005)
+    try:yield
+    finally:sys.setswitchinterval(previous)
+
+
+async def main_async():
+    from meme_machine.solana_selective_source import SelectiveSource
+    # Read-only acquisition is independent of funded-position admission. The
+    # supervisor and capital authority enforce the retained latency guard.
+    from meme_machine.operational.bounded_provider import install
+    install()
+    token=os.environ.get('MM_SOLANA_YELLOWSTONE_TOKEN')
+    endpoint=os.environ['MM_SOLANA_READ_RPC_URL']
+    path=Path(os.environ['MM_SOLANA_EVIDENCE_PLANE_DB'])
+    governor=Governor(os.environ['MM_PROVIDER_GOVERNOR_DB'])
+    stop=asyncio.Event();loop=asyncio.get_running_loop()
+    for sig in (signal.SIGINT,signal.SIGTERM):loop.add_signal_handler(sig,stop.set)
+    rpc=RepairRPC(endpoint,governor)
+    await asyncio.to_thread(rpc.validate_network)
+    with owner_thread_fairness():
+        await serve(path,endpoint,repair_rpc=rpc,stop=stop,
+                    source_driver=SelectiveSource(rpc.config,rpc,token=token or rpc.config.credential))
+
+# Only source-defined fixed reason codes may cross the process boundary.
+SAFE_EVIDENCE_REASONS=frozenset(('address_history_page_bound', 'address_history_response_shape_unverified', 'admitted_frame_drain_timeout', 'archive_batch_bound', 'archive_manifest_record_count', 'archive_snapshot_bound', 'archive_snapshot_source_changed', 'archive_worker_metric', 'authoritative_alchemy_endpoint_required', 'authoritative_subscription_rejected', 'checkpoint_handoff_owner_thread', 'checkpoint_handoff_token', 'checkpoint_handoff_unavailable', 'checkpoint_inside_source_transaction', 'checkpoint_ticket_owner_thread', 'consumer_command_bound', 'consumer_command_forbidden', 'consumer_counter_bound', 'consumer_cursor_regression', 'decoded_event_address_missing', 'dlmm_local_transaction_identity_or_order', 'dlmm_signature_census_missing_start_boundary', 'evidence_ack_identity', 'evidence_admission_offer_expired', 'evidence_admission_offer_unavailable', 'evidence_background_yield', 'evidence_cold_start', 'evidence_command_envelope', 'evidence_command_expired', 'evidence_command_identity_conflict', 'evidence_command_unacknowledged', 'evidence_control_overloaded', 'evidence_interest_command_bound', 'evidence_owner_shutdown_timeout', 'evidence_owner_unavailable', 'evidence_receipt_capacity', 'evidence_request_identity_conflict', 'evidence_requires_offline_archive_restore', 'evidence_time_boundary_unavailable', 'evidence_writer_already_running', 'exact_finalized_block_time_unavailable', 'filtered_block_bound', 'filtered_block_unavailable', 'filtered_census_shape', 'finalized_block_fence_shape', 'finalized_block_unavailable', 'frozen_log_decoder_required', 'hot_store_capacity', 'hot_store_capacity_bound', 'incomplete_finalized_logs', 'incomplete_interval_proof', 'ingestion_backlog_gap', 'ingestion_batch_bound', 'ingestion_payload_bound', 'ingestion_queue_overflow', 'interest_account_bound', 'interest_address', 'interest_checkpoint_ahead_of_source', 'interest_checkpoint_conflict', 'interest_checkpoint_owner_inactive', 'interest_checkpoint_regression', 'interest_checkpoint_shape', 'interest_checkpoint_unknown_owner', 'interest_owned_by_other_consumer', 'interest_owner_bound', 'interest_owner_capacity', 'invalid_finalized_record', 'invalid_gap', 'invalid_interest', 'invalid_interval_proof', 'invalid_pump_time_window', 'invalid_query_window', 'invalid_subscription_interest', 'lifecycle_evidence_priority', 'lifecycle_interest_downgrade', 'local_evidence_query_bound', 'local_ordered_commit_stalled', 'maintenance_admission_revoked', 'maintenance_archive_concurrency', 'maintenance_archive_slice_exceeds_512', 'maintenance_archive_worker_lease_exceeded', 'maintenance_cannot_reserve_both_sides', 'maintenance_clock_regressed', 'maintenance_clock_relationship_invalid', 'maintenance_completion_identity', 'maintenance_completion_transaction_open', 'maintenance_completion_unavailable', 'maintenance_deadline_invalid', 'maintenance_decision_in_flight', 'maintenance_demand_invalid', 'maintenance_durable_progress_invalid', 'maintenance_episode_bound', 'maintenance_episode_invalid', 'maintenance_execution_lease_exceeded', 'maintenance_finalized_frontier_invalid', 'maintenance_floor_ahead_of_hot_evidence', 'maintenance_floor_contradiction', 'maintenance_generation_changed', 'maintenance_invalid_service_lease', 'maintenance_missing_recovery_clock', 'maintenance_no_two_sided_reservation', 'maintenance_nonrecord_demand_bound', 'maintenance_nonrecord_demand_invalid', 'maintenance_observation_clock', 'maintenance_observation_inside_transaction', 'maintenance_observation_python_bound', 'maintenance_observation_row_bound', 'maintenance_observation_vm_bound', 'maintenance_owner_lease_exceeded', 'maintenance_pin_count_contradiction', 'maintenance_progress_bound', 'maintenance_progress_clock_invalid', 'maintenance_progress_outside_transaction', 'maintenance_progress_regressed', 'maintenance_progress_shape', 'maintenance_readiness_incomplete', 'maintenance_receipt_clock_invalid', 'maintenance_receipt_generation_changed', 'maintenance_recovery_source_unavailable', 'maintenance_scope_bound', 'maintenance_service_deadline_exhausted', 'maintenance_source_clock_invalid', 'maintenance_stale_or_wrong_generation', 'maintenance_storage_failure', 'maintenance_store_poisoned', 'maintenance_synopsis_contradiction', 'maintenance_synopsis_trigger_identity', 'nested_source_frame', 'notification_subscription_mismatch', 'owner_stage_identity', 'prepared_source_identity_mismatch', 'pump_consumer_backlog_archived', 'pump_event_lineage_mismatch', 'pump_local_snapshot_boundary_required', 'pump_normalized_event_missing', 'query_bound', 'reconnect_cursor_regression', 'record_below_hot_retention_floor', 'repair_duplicate_signature', 'repair_not_bounded_or_exhausted', 'repair_order_or_bounds', 'repair_page_budget', 'repair_page_budget_or_state', 'repair_pagination_stalled', 'repair_upper_boundary_not_finalized', 'restored_subscription_capacity', 'retention_batch_bound', 'retention_inside_source_transaction', 'service_draining', 'shared_evidence_plane_required', 'source_block_shape', 'source_message_shape', 'source_message_size_limit', 'source_receive_idle_timeout', 'source_transaction_shape', 'storage_capacity_critical', 'storage_stage_identity', 'stream_commit_batch_bound', 'stream_ordered_drain_incomplete', 'stream_receiver_stopped', 'subscription_capacity', 'unknown_source_subscription', 'unresolved_evidence_gap', 'unresolved_lifecycle_interest', 'unsupported_evidence_class', 'writer_failed', 'writer_start_timeout', 'writer_stop_timeout', 'writer_thread_violation'))
+
+SAFE_CANDIDATE_REASONS=frozenset(["activity_filter_identity","authoritative_subscription_rejected","bootstrap_optional_work_closed","candidate_activity_task_stopped","candidate_addresses_required","candidate_block_repair_economic_identity","candidate_block_repair_identity_or_completeness","candidate_block_repair_transaction_identity","candidate_content_scope","candidate_economic_content_conflict","candidate_join_wait_bound","candidate_late_log_content","candidate_live_task_stopped","candidate_log_buffer_pressure","candidate_log_content_conflict","candidate_log_status_conflict","candidate_native_eof","candidate_native_frame_bound","candidate_native_parent_gap","candidate_page_lease_stale","candidate_replay_floor_required","candidate_replay_receipt_conflict","candidate_required_content_missing","candidate_scout_census_shape","candidate_scout_fields_missing","candidate_scout_filter","candidate_scout_owner","candidate_source_task_stopped","candidate_websocket_ack_timeout","incomplete_finalized_logs","repair_pagination_stalled","rolling_delivery_frontier_unavailable","unknown_source_subscription","yellowstone_census_buffer_bound","yellowstone_conflicting_content","yellowstone_conflicting_status_census","yellowstone_content_census_mismatch","yellowstone_content_filter_identity","yellowstone_duplicate_signature","yellowstone_finalized_bank_mismatch","yellowstone_finalized_block_shape","yellowstone_frame_bound","yellowstone_incomplete_status_census","yellowstone_late_census_content","yellowstone_status_filter_identity","yellowstone_transaction_error_encoding","yellowstone_transaction_index_shape","yellowstone_transaction_plane_required","yellowstone_unfiltered_transaction"])
+
+SAFE_CANDIDATE_REASONS=SAFE_CANDIDATE_REASONS | frozenset((
+    'accepted_source_frame_drain_incomplete','source_handler_record_bound',
+    'source_handler_recovery_corrupt','source_handler_recovery_conflict',
+    'source_handler_recovery_unverified','control_reauthentication_capacity',
+    'control_recovery_obligation_invalid','control_required_replay_outside_configured_window',
+    'candidate_preparation_source_changed','candidate_preparation_batch_shape',
+    'candidate_preparation_result_bound','candidate_preparation_executor_required',
+    'prepared_economic_store_required','historical_executor_required',
+    'candidate_delivery_executor_required'))
+
+# Fixed failure codes from the separated history, delivery and startup paths.
+# Retaining these codes changes diagnostics only, never evidence admission.
+SAFE_CANDIDATE_REASONS=SAFE_CANDIDATE_REASONS | frozenset((
+    'candidate_consumer_before_canonical_commit','candidate_delivery_ack_content',
+    'candidate_delivery_ack_order','candidate_delivery_input_capacity',
+    'candidate_delivery_receipt_corrupt','candidate_delivery_receipt_missing_or_corrupt',
+    'candidate_refresh_ack_order','candidate_refresh_state',
+    'candidate_history_request_shape','historical_current_proof_corrupt',
+    'historical_family','historical_input_capacity','historical_job_corrupt',
+    'historical_metric_corrupt','historical_processing_configuration',
+    'historical_result_identity','historical_result_intervals','historical_result_queries',
+    'historical_worker_deadline','historical_result_query_mismatch',
+    'prewarm_startup_corrupt','prewarm_startup_feed_boundary',
+    'prewarm_startup_transition_order','rolling_publication_pending',
+    'candidate_checkpoint_ahead_of_history','candidate_decision_deadline_missed',
+    'candidate_proof_publication_requires_separated_delivery',
+    'candidate_proof_publication_batch_bound',
+    'candidate_history_outbox_corrupt','candidate_history_store_must_be_separate'))
+
+
+def failure_diagnostic(exc):
+    from meme_machine.solana_evidence_plane import EvidenceUnavailable
+    terminal_error=exc
+    def essential(error):
+        import re,sqlite3
+        name=type(error).__name__
+        result=name if re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,63}',name) else 'Exception'
+        from meme_machine.runtime.sqlite_failure import payload
+        owned=payload(error)
+        if isinstance(error,sqlite3.Error) or owned is not None:
+            code=getattr(error,'sqlite_errorcode',None);name=getattr(error,'sqlite_errorname',None)
+            if owned is not None:
+                code=owned.get('sqlite_errorcode',code);name=owned.get('sqlite_errorname',name)
+            if (type(code) is int and isinstance(name,str) and name.startswith('SQLITE_')
+                    and getattr(sqlite3,name,None)==code):result+=':'+name+':'+str(code)
+        return result
+    essentials=[essential(exc)]
+    def classification(error):
+        result=type(error).__name__
+        if isinstance(error,DeliveredRPCError):
+            if error.method in ('getSlot','getGenesisHash','getTransactionsForAddress',
+                    'getTransaction','getBlock','getProgramAccountsV2'):
+                result+=':method='+error.method
+            if type(error.rpc_code) is int and -(2**31)<=error.rpc_code<2**31:
+                result+=':rpc_code='+str(error.rpc_code)
+            if type(error.http_status) is int and 100<=error.http_status<=599:
+                result+=':http_status='+str(error.http_status)
+            if error.cause_kind in ('ValueError','TimeoutError','URLError','HTTPError','JSONDecodeError'):
+                result+=':cause='+error.cause_kind
+        import sqlite3
+        if isinstance(error,sqlite3.Error):
+            code=getattr(error,'sqlite_errorcode',None);name=getattr(error,'sqlite_errorname',None)
+            if (type(code) is int and isinstance(name,str) and name.startswith('SQLITE_')
+                    and getattr(sqlite3,name,None)==code):result+=':'+name+':'+str(code)
+        from meme_machine.runtime.sqlite_failure import payload
+        diagnostic=payload(error)
+        if diagnostic is not None:
+            import threading
+            diagnostic=dict(diagnostic,reporter_pid=os.getpid(),
+                reporter_native_thread_id=threading.get_native_id())
+            result+=':sqlite_failure='+json.dumps(diagnostic,sort_keys=True,separators=(',',':'),allow_nan=False)
+        if type(error) is EvidenceUnavailable and len(error.args)==1:
+            reason=error.args[0]
+            if isinstance(reason,str) and reason in SAFE_EVIDENCE_REASONS | SAFE_CANDIDATE_REASONS | {'solana_candidate_topology_not_certified',
+                    'maintenance_startup_recovery_incomplete','maintenance_gap_range_bound'}:
+                result+=':'+reason
+                diagnostic=getattr(error,'maintenance_failure',None)
+                if isinstance(diagnostic,dict):
+                    import math
+                    safe={key:value for key,value in diagnostic.items() if key in
+                        ('units','records','deadline_seconds','safety_seconds','drought_seconds',
+                         'recovery_seconds','pins','gaps','vm_steps') and
+                        (value is None or type(value) in (int,float) and math.isfinite(value))}
+                    if diagnostic.get('side') in ('archive','retirement'):
+                        safe['side']=diagnostic['side']
+                    result+=':'+json.dumps(safe,sort_keys=True,allow_nan=False)
+            else:
+                # Unknown messages remain redacted. Preserve only the last
+                # owned code location, without locals or filesystem probes.
+                # This also works when a newly added fixed code was omitted.
+                import re
+                location=None;trace=error.__traceback__
+                for _ in range(32):
+                    if trace is None:break
+                    frame=trace.tb_frame;module=frame.f_globals.get('__name__','')
+                    function=frame.f_code.co_name
+                    if (isinstance(module,str) and len(module)<=200
+                            and re.fullmatch(r'meme_machine\.[a-zA-Z0-9_.]+',module)
+                            and len(function)<=64 and re.fullmatch(r'[a-zA-Z_][a-zA-Z0-9_]*',function)
+                            and 0<trace.tb_lineno<=1000000):
+                        location=module+'.'+function+':'+str(trace.tb_lineno)
+                    trace=trace.tb_next
+                if location is not None:result+=':origin='+location
+        return result
+    result='evidence_worker_failed:'+classification(exc)
+    seen={id(exc)}
+    # Preserve native writer_failed causes without formatting messages or URLs.
+    for _ in range(3):
+        cause=exc.__cause__
+        if cause is None and not exc.__suppress_context__:cause=exc.__context__
+        if cause is None or id(cause) in seen:break
+        seen.add(id(cause));essentials.append(essential(cause))
+        result+=':caused_by:'+classification(cause);exc=cause
+    if getattr(terminal_error,'sqlite_terminal_record_failed',False):
+        result+=':terminal_record_write_failed:recorder_valid=false'
+    # Reserve the existing terminal stderr/journal channel independently of
+    # any capped diagnostic trace. Never emit a partial JSON attribution.
+    from meme_machine.runtime.sqlite_failure import MAX_TERMINAL_BYTES
+    if len(result.encode())>MAX_TERMINAL_BYTES:
+        return ('evidence_worker_failed:'+':caused_by:'.join(essentials)+
+            ':terminal_record_bound:recorder_valid=false')
+    return result
+
+def main():
+    # Final process diagnostic never formats third-party exceptions/URLs.
+    try:asyncio.run(main_async())
+    except Exception as exc:
+        report=failure_diagnostic(exc)
+        terminal=os.environ.get('MM_SQLITE_TERMINAL_RECORD_PATH')
+        if terminal:
+            from meme_machine.runtime.sqlite_failure import write_terminal_record
+            try:write_terminal_record(terminal,report)
+            except BaseException:
+                exc.sqlite_terminal_record_failed=True
+                report=failure_diagnostic(exc)
+        raise SystemExit(report) from None
+
+
+if __name__=='__main__':main()

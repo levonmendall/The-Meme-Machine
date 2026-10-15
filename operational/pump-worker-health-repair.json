@@ -1,0 +1,55 @@
+{
+  "authenticated_observation": "pending corrected-source observation",
+  "changes": [
+    "reuse maintenance_coverage_end for exact current health predicate, with original legacy fallback",
+    "use existing verified_epoch_volume physical-storage health for null lifetime file ceiling"
+  ],
+  "economic_rules_changed": false,
+  "epoch_reinitialized": false,
+  "not_changed": [
+    "canonical coverage and gaps",
+    "15-second heartbeat and 60-second finalized freshness",
+    "native quote and USD validity",
+    "all economic strategy and portfolio policy",
+    "provider pacing and acquisition coverage"
+  ],
+  "parent": "9cdac8861e7d130ce97955b7e6bf4a7452fc4cdb",
+  "provider_usage_reset": false,
+  "root_cause": "Actual Pump lane health reader retained a full coverage-prefix lookup and null file-limit arithmetic despite maintained top-level fixes",
+  "source_integrity": "only exact evidence_health AST pinned; other lane nodes and nine-change tests remain unchanged",
+  "tests": [
+    {
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pump-worker-health-before-repair.log",
+      "sha256": "947c553aad47c8a63fb6a286b55b643c5ce68e6617f055c907c449e4caf02bb1",
+      "tail": [
+        "----------------------------------------------------------------------",
+        "Ran 2 tests in 0.301s",
+        "",
+        "FAILED (failures=2)",
+        "Offline failure evidence retained at /tmp/mm-engineering-yi_s5pdg"
+      ]
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pump-worker-health-fast.log",
+      "sha256": "193d0936e87cca7e85511ecaec29063fa28d583443658c8be58faf2319b3f9f8",
+      "tail": [
+        "",
+        "----------------------------------------------------------------------",
+        "Ran 47 tests in 7.924s",
+        "",
+        "OK"
+      ]
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pump-worker-health-operational.log",
+      "sha256": "51b24767cccd28c57018eaedc7e60d4b9a3368d2e7f0467f6ad69e3f8db35406",
+      "tail": [
+        "",
+        "----------------------------------------------------------------------",
+        "Ran 52 tests in 8.516s",
+        "",
+        "OK"
+      ]
+    }
+  ]
+}

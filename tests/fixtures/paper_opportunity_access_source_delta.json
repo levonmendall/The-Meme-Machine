@@ -1,0 +1,588 @@
+{
+  "added_sources": {
+    "meme_machine/lanes/pump/pump_attempt_reference.py": {
+      "sha256": "416df125746464dae5761f9e6a19e5056f30d07fcdc66efb9ccf7863ea6f30c8"
+    },
+    "meme_machine/paper_policy_revision.py": {
+      "sha256": "0f855c6ce3d597e993b525bfeeac19b0d17f99c9b0a47efeabd8e0a2c2fcbf52"
+    },
+    "meme_machine/policy_history/pre_opportunity_access_v1.json": {
+      "sha256": "9e30348778689f945f0a3faa18b7b45a3badbdda207ab38966dc1c91d7ec2303"
+    },
+    "meme_machine/runtime/policy_compatibility.py": {
+      "sha256": "1c600e0ff03aa77aaf9ceddfb15a902e4d17c2ae2f49d0e6d0171f6c47511c53"
+    }
+  },
+  "base": "b1ece095231f156eaf1d9d61bfd2f9d959558c54",
+  "files": {
+    "meme_machine/lanes/pons/pipeline.py": {
+      "after_sha256": "21ba397b3c695e18b3a22c65b7c0bd0edde2c3b393ee83064c308337851a64e5",
+      "before_sha256": "aaafb41746f789b2ffd1f7fb3a41435891c601c6519a7d0d12f1ba89e027ad18",
+      "nodes": {
+        "ClassDef:Pipeline": {
+          "after": "84ac72fdbda48417bed919f05487dda18396539cf65e3acf1fea9de6335aff1e",
+          "before": "19cac2c7fe8a030822a2d0bbc03ca8f545bf4dd45d4f0f20f75892c23171e991"
+        }
+      }
+    },
+    "meme_machine/lanes/pons/pons_postgrad_survivor.py": {
+      "after_sha256": "b24fc5baacb143af208a5f6112a7ded5375ca0b98f955fff3221e65d19b30bb4",
+      "before_sha256": "1dece647d5ff6ccdab17fab0d1ef9c3ca0dd8d5bd373e15fefe22d5fa9973f71",
+      "nodes": {
+        "Assign:Name(id='POLICY', ctx=Store())": {
+          "after": "505e35ef8deedcdec6b683fce9bc6647b1db89c7bf998a11bebdac74985a2287",
+          "before": "8ab035362a932330e470b25163dc44f4c939388d555b21e50bdcff7398cb26e9"
+        },
+        "FunctionDef:_bounded_window": {
+          "after": "15c416314c89e21eb76f272053ae33b3d9fea3d33f388c58f516de349940d37d",
+          "before": null
+        },
+        "FunctionDef:_feature_set": {
+          "after": "661491faae7176964657e175c4fc730ebdc63ecf4e674654f4ed4034cd28bac1",
+          "before": "38a81815f47c18b76cb6636b03f99a19be709091bb96f293a3029cc221798bee"
+        },
+        "FunctionDef:evaluate_entry": {
+          "after": "8e9135ae228754a1f98e0f824b01d5044ecc8c6abbb44593ade937d87d6d566b",
+          "before": "9e5f8d62797d7e22e9824a4c2e8f82c6b8e6d837988aa3a78be967426b1943d5"
+        },
+        "ImportFrom:0:meme_machine.paper_policy_revision": {
+          "after": "4b60410b88689cf8a0b835cd0fb46d3e239cd6e77bf76faaea9b0b50a5f74262",
+          "before": null
+        }
+      }
+    },
+    "meme_machine/lanes/pons/pons_reentry.py": {
+      "after_sha256": "6b516866c5c1abd2099933b73e422306cd949588e976c2c5a265769189fe53ad",
+      "before_sha256": "3c1ddc3d750d02d0ac24f62c15e38abe69ede3901448a7d2108b118fc952a4eb",
+      "nodes": {
+        "FunctionDef:_portfolio_ack": {
+          "after": "bc5dd5b4a42efef741070092bbdc4e86efd7b2b8536dfe617afcf133a6da183e",
+          "before": "136635b5b601f80bb93103a97f54ebc05509c6f2bd0eb929126522a3f8ad0fd4"
+        },
+        "FunctionDef:_sleeve_ack": {
+          "after": "2dc54020c077904637205fd59f06350f20bb8da4066fab6c8e5815d4f4084b0d",
+          "before": "ded508d85de6a993b6d2e26d55f4b2ecf15b735a2692b67f9f65cfd1a60e3859"
+        },
+        "FunctionDef:verify_lifecycle": {
+          "after": "5810c01270a345e6841006c21380156e14cea90a1138eb0fc1d58b4672084d92",
+          "before": "ee64992d185877154e26a51772f70fb6f0a9d1345d8b4ccb79b96980e1cd5185"
+        }
+      }
+    },
+    "meme_machine/lanes/pons/pons_selective_acquisition.py": {
+      "after_sha256": "76e9edf4339d1968c1755c6f183d7798e7170babb527e2007db29c068037b89c",
+      "before_sha256": "1c6a411425108eede8d9299617f0825a0d82d7a6454b08cd91be439ebc7e14d7",
+      "nodes": {
+        "FunctionDef:evaluate_candidate": {
+          "after": "8f0c9c806a6bcb330d5b25ed4e5c508ae736056744ea360844c348cb042b373b",
+          "before": "7b8beae4acac08aa0382ed7c9a099d46f6e8868f6dacbc68317705c9968f52e8"
+        },
+        "FunctionDef:strategy_trajectory_preflight": {
+          "after": "902e890bdc6fb5bc07c7823a2c0c4ab96152fac585767dbea170bf92ede942b5",
+          "before": "2144c2b697367f827aec8dfe3a3a3d83b0cf1bca0c789758a4bf8d6e37372880"
+        },
+        "ImportFrom:1:pons_selective_continuation": {
+          "after": "57c615a68ab7c27553031f82ac5fbc653f487ff198a3080139ed5f02beaed914",
+          "before": "1136614df3ac42fa3068006d290140e00737220706687b0db0aefb8eee3a290a"
+        }
+      }
+    },
+    "meme_machine/lanes/pons/pons_selective_capital.py": {
+      "after_sha256": "f04dd98eb22d3a6b9eccca284150c81366d6f624b7512dc0c07aaf4d63bf7b43",
+      "before_sha256": "54f9621fed567b8e68b2e18dddc10eb0f0e7db5b4bfb243d434f173d8a5d5716",
+      "nodes": {
+        "ClassDef:CohortCapital": {
+          "after": "7d2306d7f19cb5ae79b717b3c970f51227fa1dd29235c56e526ac11b3c662609",
+          "before": "f1030e428def1255d2a27a884e7d1d43200606019a74dbf548433f93cbc31cf3"
+        }
+      }
+    },
+    "meme_machine/lanes/pons/pons_selective_cohort.py": {
+      "after_sha256": "01340dc4a2f0994f3c6508f8ab7d8e8e6f25a1a33b4e568b3013418793a34203",
+      "before_sha256": "893a7ec3aa54688d69ce5174605229b3c4b448a79c9ceb8f202e163ec857c083",
+      "nodes": {
+        "FunctionDef:run": {
+          "after": "ddc2fcf27b36da8d902acd0a8ad2faaa6b8aa213e3e040a739b9df35102a5bbe",
+          "before": "3769e6190fe6b1cdfa05f2e17837b92ecdb7389f6257c75c4ccb569506f70890"
+        },
+        "ImportFrom:1:pons_selective_continuation": {
+          "after": "30635521c27f256cdf28937e0b198ce07fca9a10809388ecfc3334c2ce24ee9d",
+          "before": "6eb2cf03558407e1b344883053319e5a963947402b10e3abd2e29675c24cc702"
+        }
+      }
+    },
+    "meme_machine/lanes/pons/pons_selective_continuation.py": {
+      "after_sha256": "2f48b7de0706e00cc1c62adac2d0810795121689412e04379462b223bf1a642b",
+      "before_sha256": "e25cd6074cb283dd0924c942094877ff79ed0a21f613ea0974fe16424007e145",
+      "nodes": {
+        "Assign:Name(id='ENTRY_THRESHOLDS', ctx=Store())": {
+          "after": "d4d3b4470140ac4662bacc3de40246cd1a41f3fc3d073bf29f0c1ed67343d5c5",
+          "before": "7a341c155aa75e4c33ba0e6fe81d35bb016cef07a67b99e6651d470833cd5e9a"
+        },
+        "Assign:Name(id='EXIT_POLICY', ctx=Store())": {
+          "after": "b9a09d156baa609c1ceaeabc8d2b8d9042f196b3da632ed853a4917971e56085",
+          "before": "d5c1db3bdcb0584019c65743306e7090010237e157780e2c0a0e2ba3397fc547"
+        },
+        "Assign:Name(id='POLICY_REVISION', ctx=Store())": {
+          "after": "78a5b729d2b6ebd197bca2683f45d75a59f34fa57dc40944ee45be6ffe26ec9c",
+          "before": "92d2daba77654a05bfbaed225dac82263da601fb9c34be3cf450c7d625771c5f"
+        },
+        "FunctionDef:_ongoing_pregraduation_quality": {
+          "after": "ccb1a793d22cca466c62f6ba5b18b458edcd5a9f57ff7c33fba48fde998b9362",
+          "before": "0487d3b6e8ceabc23899642a881236704aaf94f811b4d511d2f453aa552ddf4f"
+        },
+        "FunctionDef:acceleration_context": {
+          "after": "02835be4a3b01113c83bfd0e675c855d984137a1518e192f34ac7495a15aa253",
+          "before": null
+        },
+        "FunctionDef:entry_signal_persistence": {
+          "after": "f9c471a162c79b890c44dc44aa16b41b57d2bb5cdc0521e9f6e52cca8e37b925",
+          "before": "f106c406ea8c3537ccd47bdd67467ca99c722acfc45a8af3e602a426689412d4"
+        },
+        "FunctionDef:ongoing_scale_requalification": {
+          "after": "dcb6b3672c8db515e4b0071325ad29bb22ee752d4a779b2ed256c404017f3d46",
+          "before": "a07cec8c13a7adbbe7f95516e3d35434004401647dcb8d6c08e355604d3c86f0"
+        },
+        "FunctionDef:pregraduation_action": {
+          "after": "6c829e5dd3c68a8490f30c9c482369d78702180f125c818e226b8ad11af70298",
+          "before": "123c3c69fcb29d907ea62109e7b7fb96793470439114279ce6a74b791f253ee2"
+        },
+        "FunctionDef:qualification_vector": {
+          "after": "8ef0f6263071deedd64fa3582032257d13b7000bfa32c94fc12fe155a41a4b59",
+          "before": "ec2130ef3c618814689a7ab7a1616d83f138b564b783d684a22311e9db870327"
+        },
+        "FunctionDef:runner_action": {
+          "after": "99d2b3ae02c32a0093bb65753a1e4ddf5c285fc78f285d658435d711fa31e378",
+          "before": "a7ace0b4d7fdd1cb7141efb5ae0c283265177bae04de7d09a38239fadf3ef5c7"
+        },
+        "ImportFrom:0:meme_machine.paper_policy_revision": {
+          "after": "4b60410b88689cf8a0b835cd0fb46d3e239cd6e77bf76faaea9b0b50a5f74262",
+          "before": null
+        },
+        "module_docstring": {
+          "after": "cc29da753f7bbd399f268b9a3d369f2a4442575afc3a335dcc6e2a63ce4c50fb",
+          "before": "2ff944b403ec381361879a868bc759e51a019a80081c33773cd9f4a0326b7d22"
+        }
+      }
+    },
+    "meme_machine/lanes/pons/pons_selective_ledger.py": {
+      "after_sha256": "6a71f9d54e1f3ef7ce4ad37ff52abbaf8bc8431ca7f642f2aaa4f10f91ca3282",
+      "before_sha256": "b9305ccef3d996ae078629656de97f8c3c63db3fb58f5f3777a6ff2cb77d67e1",
+      "nodes": {
+        "ClassDef:SelectivePaper": {
+          "after": "4338c13ea8f5b704e1062d7ad7100068806c04f95a2c04ebca6cdfbef33644b0",
+          "before": "b5a206d702f27108eb9715189c21c14e85927a62f76591b85e0280e447f48363"
+        }
+      }
+    },
+    "meme_machine/lanes/pons/pons_selective_paper.py": {
+      "after_sha256": "a6520224bdaf2679a8cdd256e46e1270adc2458070b89479fde328c71c657af1",
+      "before_sha256": "1613220acd652d03ba3030008bd474b9eb0f95f7712576c6237ebda393ea7a9a",
+      "nodes": {
+        "FunctionDef:_continuation_facts": {
+          "after": "6382e8789a4280e6f7b1d98da73b68e6d8f1ab093cc49fb2c4193b6f5411f7dd",
+          "before": "82af2578f052762d430e3d33df86be41415fe9d5f6fe75e2e40239f5378cc61c"
+        },
+        "FunctionDef:_lifecycle_steps": {
+          "after": "595093708b4e9487816259761bd9288ee30776b950b7d0a1bf3df8326b3575a8",
+          "before": "e9740653efdd52aa556111145e99a6bf200e279e61e1726b3bb7795d3c938ae5"
+        }
+      }
+    },
+    "meme_machine/lanes/pons/pons_selective_recovery.py": {
+      "after_sha256": "14cd0a87386bad99b9096773974fa8188d1767c9699b0ec2bf05a48f27169672",
+      "before_sha256": "700a09510f2e1eda0f9ea5ef552561d3b13827078c6797dd5ba765e08ec06226",
+      "nodes": {
+        "ClassDef:LifecycleState": {
+          "after": "f8e51ab5d1d3b9e336c499bc6dee6df24bf2e25a421e248466499978082fbfdf",
+          "before": "85c181a071ef72df65f59ef1e2451d91e6b981f1c6fa2760f0180129bcd9a112"
+        },
+        "FunctionDef:_pending_recoveries": {
+          "after": "37cb137a4d197a4156d33c49968209a94ff5608b423a9748bfaf89aa1dea29b3",
+          "before": "eebe70670100caebe235b442b400afa3bd586d0b5c41fb9bdbed85b630b16096"
+        },
+        "FunctionDef:resume_lifecycle": {
+          "after": "14a9863b8c1eabdebf67790ba395e136da16ac9167fadc5df9114dd7536a7abb",
+          "before": "1b8fdfad967f2b6e268dc16295f17e2ac00711e833945c379381c5ece7deaf56"
+        }
+      }
+    },
+    "meme_machine/lanes/pons/pons_survivor_runtime.py": {
+      "after_sha256": "2eb7a93827981696edc26115c1c8259d00f30c76a007249ddb8592d03fd3e389",
+      "before_sha256": "39d9b5f538d6ef16241ce2cec55cd7fc177e8bb5c6b7a8c51d5d99a7541830d1",
+      "nodes": {
+        "ClassDef:Runtime": {
+          "after": "70bec02506021370809a2deb6049397140d6d0a15c151053e3ab4b4451947779",
+          "before": "c34301b1618b26844fd256302dd98a3106472318ae58f321c9ac68a4ed94b29c"
+        }
+      }
+    },
+    "meme_machine/lanes/pump/paper_accounting.py": {
+      "after_sha256": "5f8107761615f6648fa72e8bc470d3f296af5794255d505427c5a2f77cdd17fe",
+      "before_sha256": "754f356d0655f4db1f89b3254f19a002363a99f99b3c2cd1c187ec2128b53675",
+      "nodes": {
+        "ClassDef:PaperBook": {
+          "after": "1f1d1296830df7c3efd59fb8c7bebb42f10b3ee040ee0bcba0b5fc6b83cbc885",
+          "before": "f07f6b7cd604f17974754201a6a79a40bacb01893193e93610841dda46d8a2f4"
+        }
+      }
+    },
+    "meme_machine/lanes/pump/pipeline.py": {
+      "after_sha256": "ef5c970fbb6bc0f9088bfee3218dc552c74b231bf91b77ed1566090c416ac112",
+      "before_sha256": "9543b389a477f4a056359ba2c6d117fb5da50195b932b0ad9b4403b6e4c794e6",
+      "nodes": {
+        "ClassDef:Pipeline": {
+          "after": "2feef5fdd64a2f43fa5d3251ac88035b7d1b3eca00702a455f652513acd28fdf",
+          "before": "8d1f573e55924017d93793cdbd1f60ca8e99ef43175fbdba14ee34acde4d9ab9"
+        }
+      }
+    },
+    "meme_machine/lanes/pump/pump_acceleration_paper.py": {
+      "after_sha256": "d04c3c74db1d302736e8236c26231ee70ce784190b92ed95b1331ff65ff2193b",
+      "before_sha256": "34570f3e7efa45fe8b4fcf94a3a7553cb1a389735d2ca8478421756caeab56ec",
+      "nodes": {
+        "ClassDef:PumpAccelerationPaperLifecycle": {
+          "after": "58a6e0b35842c6c47ea56d2d5892baab81e2659207564a768c847e50517a28fc",
+          "before": "1e461c0f82006cf67279fac16c77f9c3e491d196f95cfa4543b1c0e950699052"
+        }
+      }
+    },
+    "meme_machine/lanes/pump/pump_acceleration_strategy.py": {
+      "after_sha256": "b0c7b0b1d753c9acbe993c437f6ff2d26310ea986dfd684ca662653ee83e3f9a",
+      "before_sha256": "1fb7e42ebc3ba18441c786f8d38675525c0a938dc90597f73c18632bd6011f9a",
+      "nodes": {
+        "ClassDef:FrozenPolicy": {
+          "after": "04a255d4bdc68258d2e557e6046a7997dfc48dc244dbf71f7175f5180bc02571",
+          "before": "92f6b0fd49d520a88761dcbf895858d58e742ba1c35ca578afb2edd280ca427d"
+        },
+        "ClassDef:Qualification": {
+          "after": "b7b6a7f3b4b82887706d67ca6298383aa44954e4bff2560c7b70866e97ce13e2",
+          "before": "1d30eaff8c9beff5740c2c41e58b829e2c1b48d715f4776d0b151d551bb9b7ca"
+        },
+        "ClassDef:SignalVector": {
+          "after": "04960fdaef5fbbb96c022441d0ef756e0f13401a68d06fec24d794c37b4b0638",
+          "before": "94a46beb1bb0445143440e0e0dc077f068a10aaadf54e220b3b3cb559004868d"
+        },
+        "FunctionDef:_late_score": {
+          "after": "dcdb4d3993c2e5971268284d129af2a05da6449f47cef0d22a866269b85426d2",
+          "before": "2cc42a4957bc970472282f2d8832fe7ecb84dfd842ba7267bcf8009e5f26c7cc"
+        },
+        "FunctionDef:entry_signal_persistence": {
+          "after": "6af7826b41f88689b01d6ab6787e499707b6950531fffa8101bac52aa6b298a0",
+          "before": "fef98ecfe9ade699f294b88fd93aab873d09e18af61bd46eb41e7455df5d1b62"
+        },
+        "FunctionDef:qualify": {
+          "after": "00b434baf04099ddfecca120067b4cd24797cf6622d4b22bdd11cd3f74e6ff49",
+          "before": "1019e1277f310376c46f6aeaa37391205e98e96e5a47a9b0c180bcb8d84232ae"
+        },
+        "ImportFrom:0:meme_machine.paper_policy_revision": {
+          "after": "4b60410b88689cf8a0b835cd0fb46d3e239cd6e77bf76faaea9b0b50a5f74262",
+          "before": null
+        }
+      },
+      "policy_scalar_deltas": {
+        "revision": {
+          "after": "Name(id='ACTIVE_REVISION', ctx=Load())",
+          "before": null
+        },
+        "version": {
+          "after": "BinOp(left=BinOp(left=Name(id='STRATEGY_ID', ctx=Load()), op=Add(), right=Constant(value='-profitability-v1-profit-protection-v2-counterfactual-replay-v1-moderate-admission-v1-operational-nine-v1-')), op=Add(), right=Name(id='ACTIVE_REVISION', ctx=Load()))",
+          "before": "BinOp(left=Name(id='STRATEGY_ID', ctx=Load()), op=Add(), right=Constant(value='-profitability-v1-profit-protection-v2-counterfactual-replay-v1-moderate-admission-v1-operational-nine-v1'))"
+        }
+      }
+    },
+    "meme_machine/lanes/pump/pumpswap_survivor.py": {
+      "after_sha256": "7c92f9ab7b83a3ddbb3e7c94a28bc57f4a29c922b7beed59452cf42beed85281",
+      "before_sha256": "73b6f28e8331262a0d33ecc53b7c28e0545314983e414a77566edb78029cd7ad",
+      "nodes": {
+        "Assign:Name(id='POLICY', ctx=Store())": {
+          "after": "dba62aea62f5f36bf9c7547eadc40e913da8efacc3479a1c4131d945e3518c2d",
+          "before": "5c8c4bab1ab5b048d81c8fe7c108e37d6e9278acf9a8d9d54cc58f6b77f3a955"
+        },
+        "Assign:Name(id='POLICY_HASH', ctx=Store())": {
+          "after": "62b28546e833862afccc9fdce381a5fdad21f3730f7f898eaade01d132ba7ed8",
+          "before": "933454f7c98338a1a60f8e58468b85c9e8cc0c4efa446948a411059f16419c16"
+        },
+        "FunctionDef:_decision": {
+          "after": "c4343639caa7a444a7cc1149db26382f6d2186c7f7596e8ca440821165db4aae",
+          "before": "2ddf8a8a850a836beee7c60e86b641b747da9217b3176024e749945920819957"
+        },
+        "FunctionDef:evaluate_entry": {
+          "after": "3beba104f591809762826b786e13df021b69216a607c340805d95763581ea005",
+          "before": "ec0f99c271031dd04876aac7b3b89993c7decb2bab8de635b86eaae6829b8191"
+        },
+        "FunctionDef:policy_hash": {
+          "after": "b6cafaa2d3c974087dc431cca4135af10b7766abe5f19c3329ce58f1b6a41bd5",
+          "before": null
+        },
+        "FunctionDef:reduce_reset_history": {
+          "after": "02c7f9e2f107d5b3e7dfd21a077c6b47b3f1748879d40caac90d205485e27e06",
+          "before": "40194c0a44c49666ee93b4b59d830ffda0364ae99543a165a0fa9c50adfe53be"
+        },
+        "ImportFrom:0:meme_machine.paper_policy_revision": {
+          "after": "4b60410b88689cf8a0b835cd0fb46d3e239cd6e77bf76faaea9b0b50a5f74262",
+          "before": null
+        }
+      }
+    },
+    "meme_machine/lanes/pump/pumpswap_survivor_runtime.py": {
+      "after_sha256": "8790ad97bc5dea4b579e65b017e96b8fa38ee1c2fc56ca70c9bb34564b56c090",
+      "before_sha256": "ade9b157ca2dccd5e12108e10291963c6d1eedb853e37b8bef76d33402c136ae",
+      "nodes": {
+        "ClassDef:Runtime": {
+          "after": "24a07db56c96951add581d3b67d894e8bf8ea67c25d3b13d3718235179ccf349",
+          "before": "72260348d2f3067449f5c1b15fda51f0478f271886fd1baf05b09317a7a720e0"
+        }
+      }
+    },
+    "meme_machine/lanes/pump/runner.py": {
+      "after_sha256": "d621e3037f769fc9ac8c21c811523097f08b1172552dec9e6324d6d3b2365d32",
+      "before_sha256": "6d026cf1b79cf94ce2b97053294f6f38499016d9382d4beab6a18e878a2c777c",
+      "nodes": {
+        "Assign:Name(id='FROZEN_POLICY_HASH', ctx=Store())": {
+          "after": "08804a75ec1b8f4020b416c66a4780db020193e3ba94c27827797b0fd74730c3",
+          "before": "b3efc6fc5d36c9894469aaa167560efd8540eddd4bc98660a01dcf57de1fed67"
+        },
+        "FunctionDef:_fill_pending": {
+          "after": "c8d600d2f35ac9b89f625858130abe4bab5d633d272e64a0fefb56c2ff53a487",
+          "before": "95235ac84c91b5da62c7094735e01346a28fc8e308c8b9ebfc4f932f9a8a6016"
+        },
+        "FunctionDef:_monitor_positions": {
+          "after": "2ec20e94cd1a84f0794aa500715cd95583984d600f9200e2936d0662a44c943f",
+          "before": "9ff7f86373d2598cf6a9fa0130822ba4aafb9a6b8bfce504e0d80e998b794ba1"
+        },
+        "FunctionDef:_pump_continuation_facts": {
+          "after": "1ffb10f7f40c24c38008786c105348939c07d9b828361fa26158d5ac08d4a691",
+          "before": "c8f6c4303c6ff5500288d28714a5fe208bf77f02100a0aa699b7d93a5ec5e03f"
+        },
+        "FunctionDef:_record_attempt": {
+          "after": "fdad5aac5a1c6bd64833f202b65b6fed9d0e1252a14f366436f7305a517521fc",
+          "before": "e0d61bb5bda067f4b12274a946a93af485d03a43ca394938dc38f8754ae5bb6e"
+        },
+        "FunctionDef:_reserve_position": {
+          "after": "27b6f51c853bbf05e23213953ca94c6000f1d179e56b047721de0869fbcd3c55",
+          "before": "d39ee90a159b8b3e93406fa4631871d855ea8467ad845e9420902f3bdc1b1cc4"
+        },
+        "FunctionDef:_retire_postgrad": {
+          "after": "77e2e7bea7b4192cf339af0b8e91e56be2075ee9671a18e17e8b76dace683038",
+          "before": "c346a3411932d71bb263608de0040ddf47a90ae541d9c96082857aa6ab52cb4d"
+        },
+        "FunctionDef:main": {
+          "after": "5f27be1968411202d86f00c20d109423ac6399acfbfdd21ab1d457e88d0f423a",
+          "before": "985426c540e43cb439a068e52ee3f9b0a7744abd22625cf4d0f99b7a2754de69"
+        },
+        "FunctionDef:restore_runtime": {
+          "after": "331a581d46311c7796ae761dfe7353660bc49aa36a1e39a0a150306cb948645e",
+          "before": "f9edc7a2f330c036fa5ba2ae1df94847f3bed41698bb5db9a05bc5ab4fc2071a"
+        }
+      }
+    },
+    "meme_machine/operational/configuration.py": {
+      "after_sha256": "c848672443076ba8f8f4facaf6bfad3a34ee719cb58f05675827e4d5237d0fa7",
+      "before_sha256": "d9fdc1d1322e6518fde5a932e4b183cfd1d7396e30fbf9d86a671dda94175e26",
+      "nodes": {
+        "FunctionDef:capture": {
+          "after": "43bf2f24340537caa447d668475e75f14083f17a703f98c8f37ea46400e30da5",
+          "before": "172af6a3932704da49716625e3ce87b8450134b19bdb480ef7e0293cabb45c6c"
+        },
+        "FunctionDef:environment": {
+          "after": "10495f5561204991c0fd9811d13e8f34b778c5e96546f6a9463cd1e5df071145",
+          "before": "b76b42d5962bd22af0b87872e53216f64aa15cf569fdcd5a3ec75b996d186e07"
+        }
+      }
+    },
+    "meme_machine/operational/supervisor.py": {
+      "after_sha256": "8c6fc561bbe5dc82bb09d90fc73f8700d01c3dab6e3e9fa007d94c5594961b14",
+      "before_sha256": "7108aa70d73577141f1453de0901a47915ffde0470c70e5c7f45a031c2bd7a96",
+      "nodes": {
+        "ClassDef:Supervisor": {
+          "after": "2ca9270b2a0917ca29c3ba6ede5844169452ead72e23f41e3a44a458729ec523",
+          "before": "d0f7dbf9f971727bee6524bc905a9af0c967f11101a018b2dd3b886361c969c4"
+        },
+        "FunctionDef:validate_environment": {
+          "after": "922dff49a5499c5c5740718b50eba3bb22cf48afe8a58d5105ef12315bef6552",
+          "before": "6d8c0331aa8034cd5d954cbb007ead3dae481f4d0a231c72816acfa38bc34f29"
+        }
+      }
+    },
+    "meme_machine/runtime/directional_accounting.py": {
+      "after_sha256": "47d57586a20d2bc09b1f81d187cd2dafc8ceb600700e248d97debfb2dc080579",
+      "before_sha256": "fc7f04904507e93710538ea58b787d602c7ca3fa04084d9a48cfc035543e7b3c",
+      "nodes": {
+        "FunctionDef:terminal": {
+          "after": "e1ebf6e313901fcc202f5b81d9b43ce834fbdf7cfd962d321c39e7d2d6eeb267",
+          "before": "e20b8e556b308f29aa234cf017953071e67b0428fbdea265fbd5c0cba846e46d"
+        }
+      }
+    },
+    "meme_machine/runtime/opportunity_telemetry.py": {
+      "after_sha256": "7dd8de2b67be2502c9293b857d8e08d0e559e09278931a85681938f9cdbbabf1",
+      "before_sha256": "c6601be7d6705514870f23a8e122549c5a533fa3622a05c226e4d5c17e3de1ba",
+      "nodes": {
+        "FunctionDef:current_receipt": {
+          "after": "096e13f2e0ad41c3d2a29790d5b0c9a578a35ccb0f4c7f3acb90bc0400e64cec",
+          "before": "e67b149a074c256ebcd737e0adbc3f7f551c50ea647f4e340b64cf38e950d155"
+        },
+        "FunctionDef:gate": {
+          "after": "1926b88398c4c273803a7162c16101c4370a21a390ae78b8b9f2e0c1ce7cbd0c",
+          "before": "f93084a50a06250275a7ecc28a178a8bf7b5018b4f9987258f7e3c73e7bb45ba"
+        },
+        "FunctionDef:measurable_gates": {
+          "after": "32cff96e50d0f4713d43b01c183d1b30543ae910a37ff1a71a7b7c818a2c0035",
+          "before": "ce5572ba0806bcec88358de2dff9bb4e2be02d2e706863e96b86b032f9d2d6dd"
+        },
+        "ImportFrom:0:meme_machine.paper_policy_revision": {
+          "after": "22705731422c422d2fcf0332d7667c3f61dd8abab7d99fce9246b61fb1328721",
+          "before": null
+        }
+      }
+    },
+    "meme_machine/runtime/robinhood/pons.py": {
+      "after_sha256": "530108cf5539890547a5604c855ca49a75ae9a96d6e0c2630041dcb23f613209",
+      "before_sha256": "6c69c09c8c58c5c5f2a70051362ca67ff47cc0e73bb4fdca53f59ca1b44b4304",
+      "nodes": {
+        "ClassDef:Broker": {
+          "after": "249ecb18022224ec1da18afb860f7e791617be00dec8342943e0a8c68e5d4ef1",
+          "before": "c09ffa6e19fa4730879a90fbe6cfd52ec6511fe90950a6cb21fe71530fc83bfe"
+        },
+        "FunctionDef:recover_cohort": {
+          "after": "6a21f972cfdc9ecccf0d1437e4e4f6553f16b5c4075aa239344a1bd5da140c68",
+          "before": "598c3142842a36e8254fa27a077d29181415500545dd46f1ea7f0221a1f39031"
+        }
+      }
+    },
+    "meme_machine/runtime/sleeve_reservations.py": {
+      "after_sha256": "34e97241836137e535077a9345121ae2fb3e3063ba8a688aa44cecd65b0f5821",
+      "before_sha256": "78eeff1176bb85567df900ba65da3057bfd3115bb52c8ade8cb2029f7d5032ee",
+      "nodes": {
+        "ClassDef:SleeveReservations": {
+          "after": "33d034bda211860b527cda8c853356170ffc2e354feec1f4a1c24211a13fc4ed",
+          "before": "5ad7df83797d45db34910b8b6fe918ce83cc82515430d228c3abaf3e5de54abe"
+        }
+      }
+    },
+    "meme_machine/runtime/storage.py": {
+      "after_sha256": "0cbe6ea56ed5eba9bc9e2ba895d1dcb0cab569a4c7d13b3f7b5b31f39ee31e9e",
+      "before_sha256": "4cfaf6e951b3c86b1ff9bcaa251efa9fa049aab83c992c55f50164c61a8116fc",
+      "nodes": {
+        "FunctionDef:compact_pump": {
+          "after": "bcf04844f065300400d43342fd5af68151e64243a84c8357f6b5838fd317cb5c",
+          "before": "8e8914734c18fd52dd3e8f99d3cb14fe2496a2b777c9ba022fba8ccdb907f032"
+        }
+      }
+    },
+    "meme_machine/runtime/survivor_history.py": {
+      "after_sha256": "69ccc56e918403a2d7939d71c76f84beaa34388f5975be9f5904fdcdd30e7b03",
+      "before_sha256": "6cc06670ecc603f0cbefe8a2007340916fbc1b5b5aafec07893b5e75d75504e4",
+      "nodes": {
+        "ClassDef:History": {
+          "after": "f137fc6382c77b21b0a921540a0283e867917319493ad1763cba6d8990906a45",
+          "before": "6d423391912e8a9c4730eaf13e211882ca7238674a53edea8cdb8b0eb37db0fe"
+        }
+      }
+    },
+    "meme_machine/runtime/survivor_paper_book.py": {
+      "after_sha256": "50db696d52f2aafd22259a3aced3223117acf37631a5904b391dfe9edb7c976c",
+      "before_sha256": "32faaab1e8475e082f621ed2df62a29626414110dd58369ef4877c24447a34ea",
+      "nodes": {
+        "ClassDef:PaperBook": {
+          "after": "f174766a7e7b5f2cb22781a81d7f726599287a7750bcb9962af03fd6e01e8f81",
+          "before": "ce657b74b0224aaacf173807cbab1987f53200c770355802720e2c2f37d33b07"
+        }
+      }
+    },
+    "meme_machine/runtime/survivor_terminal_archive.py": {
+      "after_sha256": "5824724802d5c8638194c1d91cdbf0c237147337687b67b8ec25eee7e8841980",
+      "before_sha256": "6ac94d4a6d6bf6cb9abe800a2981773360110bad1ad705ceab1447e068c7a8f4",
+      "nodes": {
+        "FunctionDef:_book_commit": {
+          "after": "4e57a1566f33bbd101479494c5dadbf250ac3582e7fd41c1e003be3e36549f26",
+          "before": "6aa0b683e6f5bea297a90312573897fa72de77317136af8a5abb35a2504bc454"
+        }
+      }
+    },
+    "meme_machine/runtime/terminal_reconciliation.py": {
+      "after_sha256": "f83f33cd7ce5a2d789c15a509d58dd605391edb2be0f69e68c29309b9d7b9ca2",
+      "before_sha256": "1e83c01f29c93f8f5c58c9ca9d81e504dd28bcdcb0d5ade6e1c8e04bc0e96467",
+      "nodes": {
+        "FunctionDef:reconcile": {
+          "after": "b1a17c35ed8cedcdf595631b9d4eb7683ea0090616766230bb7739acdb5dcdb9",
+          "before": "c7b224685e9e1f2b7f8f01283a9d9e7a08bf5f598221fde05b4c8d3c4968d232"
+        }
+      }
+    },
+    "meme_machine/shared_capital/native_sleeve.py": {
+      "after_sha256": "a837057782f02846a46329f477c9c69e35e849364383066358582231a100d4e7",
+      "before_sha256": "016e437b7d9b371cf8634f2469d0b568ab98d87169a82bb335d47d76c6abaa71",
+      "nodes": {
+        "ClassDef:SharedSleeve": {
+          "after": "145c98cc4b9612e64c91c15970850dfb60c2f866a7627a110cfb3122f8050f4e",
+          "before": "7d3a20564e08a598bbe92c3dbb91cbab0a810f26baf3ddfcaf479adacf59d5a1"
+        }
+      }
+    },
+    "operational/strategy-change-audit.py": {
+      "after_sha256": "f468852f02136350782368874b8c794daf99e2e5ecd21c9234b98288cef8fe67",
+      "before_sha256": "68ae9e17266044592e4c2e8c3ad24d181c062452a4cc780c470b5b57a7908a09",
+      "nodes": {
+        "Assert:Assert(test=Compare(left=SetComp(elt=Name(id='k', ctx=Load()), generators=[comprehension(target=Name(id='k', ctx=Store()), iter=BinOp(left=Call(func=Attribute(value=Name(id='a', ctx=Load()), attr='keys', ctx=Load()), args=[], keywords=[]), op=BitOr(), right=Call(func=Attribute(value=Name(id='b', ctx=Load()), attr='keys', ctx=Load()), args=[], keywords=[])), ifs=[Compare(left=Call(func=Attribute(value=Name(id='a', ctx=Load()), attr='get', ctx=Load()), args=[Name(id='k', ctx=Load())], keywords=[]), ops=[NotEq()], comparators=[Call(func=Attribute(value=Name(id='b', ctx=Load()), attr='get', ctx=Load()), args=[Name(id='k', ctx=Load())], keywords=[])])], is_async=0)]), ops=[Eq()], comparators=[Set(elts=[Constant(value='version'), Constant(value='revision'), Constant(value='trailing_drawdown_bps'), Constant(value='tail_arm_bps'), Constant(value='tail_gain_giveback_bps')])]))": {
+          "after": "bdcf762a6d290e5caa5d66a5960b05286bdda383258da021a8c36eeed29f8dd5",
+          "before": null
+        },
+        "Assert:Assert(test=Compare(left=SetComp(elt=Name(id='k', ctx=Load()), generators=[comprehension(target=Name(id='k', ctx=Store()), iter=BinOp(left=Call(func=Attribute(value=Name(id='a', ctx=Load()), attr='keys', ctx=Load()), args=[], keywords=[]), op=BitOr(), right=Call(func=Attribute(value=Name(id='b', ctx=Load()), attr='keys', ctx=Load()), args=[], keywords=[])), ifs=[Compare(left=Call(func=Attribute(value=Name(id='a', ctx=Load()), attr='get', ctx=Load()), args=[Name(id='k', ctx=Load())], keywords=[]), ops=[NotEq()], comparators=[Call(func=Attribute(value=Name(id='b', ctx=Load()), attr='get', ctx=Load()), args=[Name(id='k', ctx=Load())], keywords=[])])], is_async=0)]), ops=[Eq()], comparators=[Set(elts=[Constant(value='version'), Constant(value='trailing_drawdown_bps'), Constant(value='tail_arm_bps'), Constant(value='tail_gain_giveback_bps')])]))": {
+          "after": null,
+          "before": "5fa657ece108724849e29e3a4019b2905170e81f22543a9656b8ad285e9958e7"
+        },
+        "Assert:Assert(test=Compare(left=Subscript(value=Name(id='b', ctx=Load()), slice=Constant(value='revision'), ctx=Load()), ops=[Eq()], comparators=[Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='dump', ctx=Load()), args=[Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='Name', ctx=Load()), args=[], keywords=[keyword(arg='id', value=Constant(value='ACTIVE_REVISION')), keyword(arg='ctx', value=Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='Load', ctx=Load()), args=[], keywords=[]))])], keywords=[])]))": {
+          "after": "0fce75e03b7047aadaca4d1bd432a84a4fbc93683ab1800a99f100ddd916aee4",
+          "before": null
+        },
+        "Expr:Expr(value=Call(func=Name(id='check', ctx=Load()), args=[Name(id='p', ctx=Load()), Constant(value='ENTRY_THRESHOLDS'), Dict(keys=[Constant(value='capital_size_bps'), Constant(value='require_curve_acceleration'), Constant(value='require_flow_acceleration')], values=[Tuple(elts=[Constant(value=25), Constant(value=500)], ctx=Load()), Tuple(elts=[Constant(value=True), Constant(value=False)], ctx=Load()), Tuple(elts=[Constant(value=True), Constant(value=False)], ctx=Load())])], keywords=[]))": {
+          "after": "e6de14cb037ff19826d57dca326fc8bd1fd0294bc9741196ea362c290dda7f6e",
+          "before": null
+        },
+        "Expr:Expr(value=Call(func=Name(id='check', ctx=Load()), args=[Name(id='p', ctx=Load()), Constant(value='ENTRY_THRESHOLDS'), Dict(keys=[Constant(value='capital_size_bps')], values=[Tuple(elts=[Constant(value=25), Constant(value=500)], ctx=Load())])], keywords=[]))": {
+          "after": null,
+          "before": "34d2acdf4fac99768491c2d692706ada78d6321bb82b4313cde63d02208392eb"
+        },
+        "Expr:Expr(value=Call(func=Name(id='check', ctx=Load()), args=[Name(id='p', ctx=Load()), Constant(value='EXIT_POLICY'), Dict(keys=[Constant(value='first_profit_sell_bps'), Constant(value='runner_trailing_drawdown_bps'), Constant(value='min_adverse_sell_buy_ratio_bps'), Constant(value='tail_arm_bps'), Constant(value='tail_gain_giveback_bps')], values=[Tuple(elts=[Constant(value=3333), Constant(value=2500)], ctx=Load()), Tuple(elts=[Constant(value=1000), Constant(value=1200)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=12000)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=10000)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=4000)], ctx=Load())])], keywords=[]))": {
+          "after": null,
+          "before": "1a87b38442e8cdda9b3e48c6c219d0514396778efaa3a5ed24231573301a5e6a"
+        },
+        "Expr:Expr(value=Call(func=Name(id='check', ctx=Load()), args=[Name(id='p', ctx=Load()), Constant(value='EXIT_POLICY'), Dict(keys=[Constant(value='first_profit_sell_bps'), Constant(value='runner_trailing_drawdown_bps'), Constant(value='positive_demand_slowing_exit_authority'), Constant(value='stale_high_breadth_exit_authority'), Constant(value='min_adverse_sell_buy_ratio_bps'), Constant(value='tail_arm_bps'), Constant(value='tail_gain_giveback_bps')], values=[Tuple(elts=[Constant(value=3333), Constant(value=2500)], ctx=Load()), Tuple(elts=[Constant(value=1000), Constant(value=1200)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=False)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=False)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=12000)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=10000)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=4000)], ctx=Load())])], keywords=[]))": {
+          "after": "4bfb802d7648007f94a00870a8d7d95e8cfad50ae7c3d03b4d6b2e6561abc38e",
+          "before": null
+        },
+        "For:For(target=Name(id='rel', ctx=Store()), iter=Tuple(elts=[Constant(value='pump/pumpswap_survivor.py'), Constant(value='pons/pons_postgrad_survivor.py')], ctx=Load()), body=[Assign(targets=[Name(id='path', ctx=Store())], value=BinOp(left=Constant(value='meme_machine/lanes/'), op=Add(), right=Name(id='rel', ctx=Load()))), Assign(targets=[Name(id='a', ctx=Store())], value=Call(func=Name(id='value', ctx=Load()), args=[Call(func=Name(id='before', ctx=Load()), args=[Name(id='path', ctx=Load())], keywords=[]), Constant(value='POLICY')], keywords=[])), Assign(targets=[Name(id='b', ctx=Store())], value=Call(func=Name(id='value', ctx=Load()), args=[Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='path', ctx=Load())), attr='read_text', ctx=Load()), args=[], keywords=[]), Constant(value='POLICY')], keywords=[])), If(test=Call(func=Attribute(value=Name(id='rel', ctx=Load()), attr='startswith', ctx=Load()), args=[Constant(value='pump')], keywords=[]), body=[Assign(targets=[Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='target_sleeve_bps'), ctx=Store())], value=Constant(value=500))], orelse=[Assign(targets=[Subscript(value=Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='execution'), ctx=Load()), slice=Constant(value='target_capital_bps'), ctx=Store())], value=Constant(value=500))]), Assert(test=Compare(left=Name(id='a', ctx=Load()), ops=[Eq()], comparators=[Name(id='b', ctx=Load())]), msg=Name(id='path', ctx=Load()))], orelse=[])": {
+          "after": null,
+          "before": "f8b4ad39529b517d89ce700206631340e0991e89925409d47a93243ed59635b9"
+        },
+        "For:For(target=Name(id='rel', ctx=Store()), iter=Tuple(elts=[Constant(value='pump/pumpswap_survivor.py'), Constant(value='pons/pons_postgrad_survivor.py')], ctx=Load()), body=[Assign(targets=[Name(id='path', ctx=Store())], value=BinOp(left=Constant(value='meme_machine/lanes/'), op=Add(), right=Name(id='rel', ctx=Load()))), Assign(targets=[Name(id='a', ctx=Store())], value=Call(func=Name(id='value', ctx=Load()), args=[Call(func=Name(id='before', ctx=Load()), args=[Name(id='path', ctx=Load())], keywords=[]), Constant(value='POLICY')], keywords=[])), Assign(targets=[Name(id='b', ctx=Store())], value=Call(func=Name(id='value', ctx=Load()), args=[Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='path', ctx=Load())), attr='read_text', ctx=Load()), args=[], keywords=[]), Constant(value='POLICY')], keywords=[])), If(test=Call(func=Attribute(value=Name(id='rel', ctx=Load()), attr='startswith', ctx=Load()), args=[Constant(value='pump')], keywords=[]), body=[Expr(value=Call(func=Attribute(value=Name(id='a', ctx=Load()), attr='update', ctx=Load()), args=[], keywords=[keyword(arg='target_sleeve_bps', value=Constant(value=500)), keyword(arg='minimum_reset_bps', value=Constant(value=300)), keyword(arg='compression_bps', value=Constant(value=10000))]))], orelse=[Assign(targets=[Subscript(value=Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='execution'), ctx=Load()), slice=Constant(value='target_capital_bps'), ctx=Store())], value=Constant(value=500)), Assign(targets=[Subscript(value=Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='demand'), ctx=Load()), slice=Constant(value='require_buy_acceleration'), ctx=Store())], value=Constant(value=False))]), Assign(targets=[Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='revision'), ctx=Store())], value=Constant(value='paper-opportunity-access-v1')), Assert(test=Compare(left=Name(id='a', ctx=Load()), ops=[Eq()], comparators=[Name(id='b', ctx=Load())]), msg=Name(id='path', ctx=Load()))], orelse=[])": {
+          "after": "4802601f3a9b8b7d16e95c0c6c3afc26cc81f39d675d38a9e0333bc4323f3ad8",
+          "before": null
+        },
+        "FunctionDef:value": {
+          "after": "38db7b9e2914adced37bacff6c1dddb2270e35a2d1937e080fb9e1b664dce383",
+          "before": "1e017f04e200a798290794978b93ab6725d420db65ea97d70cf6d6c7b8e86fd6"
+        }
+      }
+    },
+    "tests/test_operational_nine.py": {
+      "after_sha256": "4cd113e60520ca157d2cded7b8ff02b7612e0bae4ba111b78ae9116b1e7afedc",
+      "before_sha256": "033631ea8cda2195bc9b61d949a257610db7352267d0e5da17b3368a6a4515ff",
+      "nodes": {
+        "ClassDef:NineChanges": {
+          "after": "6735c9ab07468d74ec913b52aa8fd95bb655e067e0ca509a6cd266f61b29b4a9",
+          "before": "792239bb746113cf6ca2e65b418a9f5d3e38144d0276eef38c3e097bbb96c408"
+        }
+      }
+    }
+  },
+  "operational_executable": "ccc0cb3d52741b382d8680d717e0a226cf04f0b5",
+  "original_manifest_sha256": "80ccc48ff5bedf7fb7612c9a586b1533fa3f93e5df745e13af324293d9c60210",
+  "revision": "paper-opportunity-access-v1",
+  "schema": "owner-selected-paper-opportunity-source-delta-v1",
+  "strategy_base": "a048ee8cbeb87bff9c589a0b6f587fd909c23ed5",
+  "strategy_documentation": "92827c5638448c5797cbe4c844dade7beefcc3ff",
+  "strategy_implementation": "5f94eb0b7c286ec2d763ab274784ebbb89b2baaa"
+}

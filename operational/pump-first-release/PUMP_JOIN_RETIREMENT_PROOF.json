@@ -1,0 +1,52 @@
+{
+  "baseline_source": "de71885d4e54ca39c78e958f394c4964c4937040",
+  "changes": [
+    "Expired finalized slots delete only their own retained log-checksum keys, preserving the exact count/byte duplicate horizon",
+    "Repeated native frames reuse the existing per-slot join state without constructing discarded dicts and sets"
+  ],
+  "authenticated_trigger": {
+    "receipt": "PUMP_STAGE_ISOLATION_de71885d-1791774909447.json",
+    "new_canonical_records": 27505,
+    "join_drain_cpu_seconds": 7.581357304000409,
+    "native_payload_boundary_bytes": 536870912,
+    "coverage_or_protection_pass": false
+  },
+  "offline_same_input": {
+    "synthetic": true,
+    "slots": 400,
+    "transactions": 51200,
+    "baseline_seconds": 8.23769832297694,
+    "optimized_seconds": 6.475647686980665,
+    "log_frame_sha256": "408c3e7eeb3f820c27ac3494a92953ee8d59ff53a2fb95b02c8644cb2560785e",
+    "identical_normalized_frames": true,
+    "retained_slots": 256,
+    "retained_checksums": 32768,
+    "incremental_provider_requests": 0
+  },
+  "regressions": {
+    "log": "/tmp/pump-join-retirement-focused.log",
+    "sha256": "8d78f9592fb370cc0a88bff955cce66ef0aa7981e74aa2e19ea471a6b13a97f6",
+    "tests": 171,
+    "seconds": 19.341,
+    "result": "PASS",
+    "cases": [
+      "slot-bound duplicate horizon / changed-content failure",
+      "byte-bound duplicate horizon / expired-content failure",
+      "existing strict native identities, ordering, finality, filtered-census, replay, resource and volume-quality coverage"
+    ]
+  },
+  "unchanged": [
+    "Native status/log/meta/finality acquisition",
+    "Native ordering and canonical content conflicts",
+    "All frame, pending, history, timing and buffer bounds",
+    "Economic strategies, quote/USD expiry, capital/accounting",
+    "Original stores, no new service or provider I/O"
+  ],
+  "provider_equivalence": "AWAITING_TARGETED_AUTHENTICATED_RETRY",
+  "safety_equivalence": "OFFLINE_PROVEN",
+  "activation": "DO_NOT_OPEN_FUNDING_WITHOUT_AUTHENTICATED_NATIVE_COVERAGE_AND_FULL_PROTECTION",
+  "files": {
+    "meme_machine/solana_candidate_join.py": "cd570e5ed58519bf61ccfc553910d1a5093952e7754a9cab80d517f3e7269699",
+    "tests/test_solana_selective_evidence.py": "7c6edeb719cc123a91e4511e65b0ff75266343a08f58add126f8b74da1ae5447"
+  }
+}

@@ -1,0 +1,1452 @@
+{
+  "bounds": [
+    {
+      "bound": "Current age90..900s/progress45..88%/ETA15..120s; Survivor4h..7d; original bridge36h/Survivor hold72h",
+      "category": "A",
+      "classification": "Frozen strategy domain; expiration is explicit.",
+      "status": "unchanged"
+    },
+    {
+      "bound": "Current/Suv entry and reentry quality, executable cost/impact, maxSurvivor positions2 and add ceilings",
+      "category": "A",
+      "classification": "Economic/exposure rules; position limit applies after durable qualification.",
+      "status": "unchanged"
+    },
+    {
+      "bound": "Current window900s, Survivor exactlast24h+originalanchor+olderboundary; flowlast1h",
+      "category": "B",
+      "classification": "Only facts outside future qualification windows are folded; proof prefix retained. Dense100001-price regression keeps whole vector identical.",
+      "status": "repaired"
+    },
+    {
+      "bound": "Immutable4096headers/launches/static,8192receipts/sharedRPC, plane diagnostic512rolling events and4096debug rows",
+      "category": "B",
+      "classification": "Cache/debug eviction cannot evict candidate identity or decide strategy. Miss reacquires canonical fact. Hash bodies survive fork-alias invalidation.",
+      "status": "separated"
+    },
+    {
+      "bound": "Candidate-plane24h maintenance; Pons attempt audit7d maintenance",
+      "category": "B",
+      "classification": "Pending/claim/outbox/native-position and Survivor controllers protect live identities; only explicit past horizon audit rows fold.",
+      "status": "protected"
+    },
+    {
+      "bound": "Survivor64candidate work batch,40blocks/turn,onegraduation authentication/turn,onequalification/turn",
+      "category": "C",
+      "classification": "Durable attempt sequence rotates before provider work; bounded catch-up may be slow, never a count rejection.",
+      "status": "repaired"
+    },
+    {
+      "bound": "Current expensive worker and native lifecycle concurrency; sessions rotate at180requests",
+      "category": "C",
+      "classification": "Cheap identity persists; position work has higher provider priority. Actual deadline throughput remains unproven.",
+      "status": "retained"
+    },
+    {
+      "bound": "10-block log pages,4V4log calls/physical batch,50RPC members,256candidate provider queue,0.5s admission interval",
+      "category": "D",
+      "classification": "Transport shapes; priorityzero position admission cannot be refused because candidate queue is full. Requests/candidates defer under pressure.",
+      "status": "repaired"
+    },
+    {
+      "bound": "8192-block trajectory lookup, bounded32 sizing searches and4capacity steps",
+      "category": "D",
+      "classification": "Missing unproven evidence is INCOMPLETE_EVIDENCE or EXECUTION_CAPACITY_UNAVAILABLE, not an invented reject. Extreme block-rate coverage remains unproven.",
+      "status": "explicit"
+    },
+    {
+      "bound": "512Current authenticated trades,2048source-tail slice,256V4perpool events,1000public log count",
+      "category": "E",
+      "classification": "Removed accidental opportunity/evidence truncation. All complete selected-curve/window events feed frozen policy.",
+      "status": "repaired"
+    },
+    {
+      "bound": "Survivor64population discovery stop/32graduationburst cap and lowest-block starvation",
+      "category": "E",
+      "classification": "No population stop; raw intake+cursor atomic, all nominees retained; failed batches rotate and another reorged candidate cannot skip valid candidates.",
+      "status": "repaired"
+    },
+    {
+      "bound": "Current campaign20000 attempt cap and65s blocking startup warmup",
+      "category": "E",
+      "classification": "Campaign cap removed; complete canonical demand replaces warmup; restored positions serviced before observation startup. Bounded research modes remain isolated.",
+      "status": "repaired"
+    },
+    {
+      "bound": "Survivor qualification using allocatable cash; discovery suspended bycash; original unfilled-controller history lag",
+      "category": "E",
+      "classification": "Fixed qualification target is realized equity; qualification durable first; unfunded controllers continue bounded history.",
+      "status": "repaired"
+    },
+    {
+      "bound": "Non-atomic history block pin and cached canonical-number aliases acrossforks",
+      "category": "E",
+      "classification": "Observations+checkpoint atomic; numeric canonical membership revalidated, invalid aliases cleared; old observations cannot authorize fresh qualification/add.",
+      "status": "repaired"
+    },
+    {
+      "bound": "Survivor fixed quote ladder omitting exact turnover/funding sizes; quote completion restarting freshness",
+      "category": "E",
+      "classification": "Exact requested and double-size probes are bought on demand; cached quote access retains the original state clock. Current/Survivor V4 reads batch state/cost with a fresh numeric membership boundary.",
+      "status": "repaired"
+    }
+  ],
+  "current": [
+    {
+      "authority": "All-address CurveBuy/CurveSell public log ranges; sequencer supplies only block clock.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_cohort.py",
+          "line": 599,
+          "symbol": "run"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_cohort.py",
+          "line": 386,
+          "symbol": "_start_observation"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_cohort.py",
+          "line": 470,
+          "symbol": "_poll"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_cohort.py",
+          "line": 407,
+          "symbol": "_discovery_curve_events"
+        },
+        {
+          "file": "meme_machine/lanes/pons/sequencer_feed.py",
+          "line": 462,
+          "symbol": "SequencerBlockClock.wait_for_range_after"
+        }
+      ],
+      "stage": "discovery"
+    },
+    {
+      "authority": "Independent curve identity and fenced generation; cash does not gate observation.",
+      "refs": [
+        {
+          "file": "meme_machine/runtime/robinhood/pons.py",
+          "line": 38,
+          "symbol": "Broker.enqueue"
+        },
+        {
+          "file": "meme_machine/runtime/robinhood/pons.py",
+          "line": 71,
+          "symbol": "Broker.pop"
+        },
+        {
+          "file": "meme_machine/runtime/robinhood/plane.py",
+          "line": 196,
+          "symbol": "Plane.observe"
+        },
+        {
+          "file": "meme_machine/runtime/robinhood/plane.py",
+          "line": 267,
+          "symbol": "Plane.claim"
+        },
+        {
+          "file": "meme_machine/runtime/robinhood/plane.py",
+          "line": 250,
+          "symbol": "Plane.recover"
+        }
+      ],
+      "stage": "candidate_retention"
+    },
+    {
+      "authority": "Public nominations never supply authoritative strategy fields.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_cohort.py",
+          "line": 369,
+          "symbol": "_current_curve_events"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_current_window.py",
+          "line": 11,
+          "symbol": "canonical_window"
+        }
+      ],
+      "stage": "market_observation"
+    },
+    {
+      "authority": "Canonical chain 4663, exact compiled CREATE2 identity, receipt/header and current ABI state.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_acquisition.py",
+          "line": 944,
+          "symbol": "evaluate_candidate"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_natural_observation.py",
+          "line": 141,
+          "symbol": "_authenticate_candidate"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons.py",
+          "line": 30,
+          "symbol": "authenticate_curve"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_acquisition.py",
+          "line": 638,
+          "symbol": "_trajectory"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_acquisition.py",
+          "line": 457,
+          "symbol": "_authenticate_window"
+        }
+      ],
+      "stage": "evidence_acquisition"
+    },
+    {
+      "authority": "Frozen progress/age/trajectory/demand/concentration/creator/cost vector; realized-equity target.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 438,
+          "symbol": "qualification_vector"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 129,
+          "symbol": "trajectory_metrics"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 192,
+          "symbol": "demand_metrics"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 362,
+          "symbol": "entry_size"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 376,
+          "symbol": "roundtrip_loss_bps"
+        }
+      ],
+      "stage": "qualification"
+    },
+    {
+      "authority": "Full normalized evidence and qualification commit before any funding disposition.",
+      "refs": [
+        {
+          "file": "meme_machine/runtime/robinhood/pons.py",
+          "line": 91,
+          "symbol": "Broker.finish"
+        },
+        {
+          "file": "meme_machine/runtime/robinhood/plane.py",
+          "line": 299,
+          "symbol": "Plane.finish"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_attempts.py",
+          "line": 82,
+          "symbol": "Attempts.record"
+        },
+        {
+          "file": "meme_machine/runtime/robinhood/pons.py",
+          "line": 98,
+          "symbol": "Broker.committed"
+        }
+      ],
+      "stage": "durable_decision"
+    },
+    {
+      "authority": "Cash/capacity/same-asset conflicts occur after qualification; native reservation is idempotent.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "line": 1451,
+          "symbol": "run_lifecycle"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_capital.py",
+          "line": 204,
+          "symbol": "CohortCapital.reserve"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_ledger.py",
+          "line": 257,
+          "symbol": "SelectivePaper.reserve"
+        },
+        {
+          "file": "meme_machine/runtime/sleeve_reservations.py",
+          "line": 211,
+          "symbol": "SleeveReservations.reserve"
+        }
+      ],
+      "stage": "funding_reservation"
+    },
+    {
+      "authority": "Two-second modeled delay, fresh signal/breadth/state/quote, generation fence and canonical delta.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "line": 505,
+          "symbol": "_run_lifecycle"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "line": 342,
+          "symbol": "_refresh_entry_persistence_signal"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "line": 368,
+          "symbol": "_confirm_entry_delta"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "line": 406,
+          "symbol": "_validate_final_entry"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_ledger.py",
+          "line": 334,
+          "symbol": "SelectivePaper.advance"
+        }
+      ],
+      "stage": "entry"
+    },
+    {
+      "authority": "Position work priority; fresh executable marks and complete safety flow; history accumulates approved add window.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "line": 185,
+          "symbol": "_curve_logs"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "line": 222,
+          "symbol": "_read_curve_logs"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "line": 314,
+          "symbol": "_refresh_curve_signal"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_current_history.py",
+          "line": 61,
+          "symbol": "CurrentHistory.remember"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_current_history.py",
+          "line": 93,
+          "symbol": "CurrentHistory.facts"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_quotes.py",
+          "line": 69,
+          "symbol": "v4_quote"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_quotes.py",
+          "line": 42,
+          "symbol": "PinnedV4Reads.call"
+        },
+        {
+          "file": "meme_machine/lanes/pons/provider_admission.py",
+          "line": 25,
+          "symbol": "position_work"
+        }
+      ],
+      "stage": "monitoring"
+    },
+    {
+      "authority": "At +18% sell 25%; native ledger realizes proceeds without rebasing original risk.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 663,
+          "symbol": "pregraduation_action"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 815,
+          "symbol": "runner_action"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_ledger.py",
+          "line": 334,
+          "symbol": "SelectivePaper.advance"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_capital.py",
+          "line": 121,
+          "symbol": "CohortCapital.observe"
+        }
+      ],
+      "stage": "partial_realization"
+    },
+    {
+      "authority": "12% runner drawdown before 2x; 1.20x adverse sell/buy and existing confirmations/safety.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 663,
+          "symbol": "pregraduation_action"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 653,
+          "symbol": "pregraduation_soft_deterioration"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 815,
+          "symbol": "runner_action"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 807,
+          "symbol": "runner_soft_deterioration"
+        }
+      ],
+      "stage": "ordinary_trail_adverse_flow"
+    },
+    {
+      "authority": "At >=2x, floor on return is 60% of peak profit, preserving 40% peak-profit giveback.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 663,
+          "symbol": "pregraduation_action"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 815,
+          "symbol": "runner_action"
+        },
+        {
+          "file": "meme_machine/runtime/directional_continuation.py",
+          "line": 9,
+          "symbol": "reference_return"
+        }
+      ],
+      "stage": "right_tail"
+    },
+    {
+      "authority": "One fresh full requalification after 2x/harvest/900s/within15%HWM; existing cash/capacity/exposure ceilings.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "line": 1252,
+          "symbol": "_ongoing_scale_evidence"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 964,
+          "symbol": "ongoing_scale_requalification"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "line": 1348,
+          "symbol": "_attempt_current_scale"
+        },
+        {
+          "file": "meme_machine/runtime/directional_continuation.py",
+          "line": 30,
+          "symbol": "scale_budget"
+        },
+        {
+          "file": "meme_machine/runtime/sleeve_reservations.py",
+          "line": 300,
+          "symbol": "SleeveReservations.reserve_scale"
+        }
+      ],
+      "stage": "staged_add"
+    },
+    {
+      "authority": "Same native position/basis/HWM; existing strong-winner gates; deadline original open +36h.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "line": 1237,
+          "symbol": "_bridge_action"
+        },
+        {
+          "file": "meme_machine/runtime/directional_continuation.py",
+          "line": 15,
+          "symbol": "bridge_state"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_recovery.py",
+          "line": 83,
+          "symbol": "LifecycleState.checkpoint"
+        }
+      ],
+      "stage": "bridge"
+    },
+    {
+      "authority": "V2 factory graduation and registered/initialized V4 native pool; five-to45second existing continuation gates.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 757,
+          "symbol": "post_graduation_vector"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_v4.py",
+          "line": 89,
+          "symbol": "collect_v4_activity"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons.py",
+          "line": 177,
+          "symbol": "prove_v4_lineage"
+        }
+      ],
+      "stage": "graduation_continuation"
+    },
+    {
+      "authority": "Authenticated executable exit or durable pending intent; exact realized P&L and native verification before release.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "line": 430,
+          "symbol": "_delayed_exit"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "line": 477,
+          "symbol": "_complete_pending_v4_exit"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_ledger.py",
+          "line": 334,
+          "symbol": "SelectivePaper.advance"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_ledger.py",
+          "line": 206,
+          "symbol": "SelectivePaper.accounting"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_capital.py",
+          "line": 247,
+          "symbol": "CohortCapital.settle"
+        }
+      ],
+      "stage": "exit_settlement"
+    },
+    {
+      "authority": "Native reconciliation precedes discovery; original evidence/clock/controller/reservation retained; stale quotes reacquired.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_recovery.py",
+          "line": 106,
+          "symbol": "LifecycleState.restore"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_recovery.py",
+          "line": 165,
+          "symbol": "resume_lifecycle"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_recovery.py",
+          "line": 275,
+          "symbol": "submit_existing_lifecycles"
+        },
+        {
+          "file": "meme_machine/runtime/robinhood/pons.py",
+          "line": 215,
+          "symbol": "save_cohort_checkpoint"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_current_history.py",
+          "line": 38,
+          "symbol": "CurrentHistory.get"
+        }
+      ],
+      "stage": "restart"
+    }
+  ],
+  "current_qualification_evidence": [
+    {
+      "field": "identity_lineage_native_quote",
+      "provider_calls": "eth_chainId, eth_getBlockByNumber, eth_getTransactionReceipt, eth_getCode, eth_call",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_natural_observation.py",
+          "line": 141,
+          "symbol": "_authenticate_candidate"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons.py",
+          "line": 30,
+          "symbol": "authenticate_curve"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_acquisition.py",
+          "line": 224,
+          "symbol": "SelectiveEvidenceContext.batch"
+        }
+      ],
+      "rejecting_gates": [
+        "already_graduated",
+        "non_native_quote_allocation_disabled"
+      ],
+      "reuse_failure": "Hash bodies reusable only after fresh numeric canonical membership; compiled identity has verified non-proxy CREATE2 provenance.",
+      "window_authority": "Exact current pin; compiled curve/deployer, fresh factory getLaunchedToken, token(), code, receipt and header; native pairToken zero."
+    },
+    {
+      "field": "freshness",
+      "provider_calls": "All calls retain original evidence_deadline; fresh numeric membership and current quote.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_acquisition.py",
+          "line": 944,
+          "symbol": "evaluate_candidate"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 438,
+          "symbol": "qualification_vector"
+        }
+      ],
+      "rejecting_gates": [
+        "stale_state_after_evidence"
+      ],
+      "reuse_failure": "No latest-state cache or reused old observation clock.",
+      "window_authority": "Original first observation -> complete evidence <=5s monotonic; chain timestamp lag separately reported; never reset by retries/restart."
+    },
+    {
+      "field": "price_progress_launch_trajectory",
+      "provider_calls": "Pinned eth_call realQuoteReserve; canonical eth_getBlockByNumber search.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_acquisition.py",
+          "line": 638,
+          "symbol": "_trajectory"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 129,
+          "symbol": "trajectory_metrics"
+        }
+      ],
+      "rejecting_gates": [
+        "curve_progress",
+        "token_age",
+        "trajectory_history",
+        "curve_velocity",
+        "curve_deceleration",
+        "graduation_eta"
+      ],
+      "reuse_failure": "4096 header/static-state cache and launch hints; missing history is INCOMPLETE_EVIDENCE.",
+      "window_authority": "Current real quote/threshold; launch zero-to-positive boundary; exact <=asof 15s/30s snapshots; age90..900s, progress45..88%, velocity>=200bps, ETA15..120s."
+    },
+    {
+      "field": "liquidity_capacity_cost",
+      "provider_calls": "eth_call getReserves/realQuoteReserve/reservedTokens/fees/currentSnipeTaxBps; eth_gasPrice; receipt gasUsed; exact compiled buy/sell math.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 362,
+          "symbol": "entry_size"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 376,
+          "symbol": "roundtrip_loss_bps"
+        },
+        {
+          "file": "meme_machine/runtime/execution_capacity.py",
+          "line": 23,
+          "symbol": "resize"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "line": 11,
+          "symbol": "_entry_capacity"
+        }
+      ],
+      "rejecting_gates": [
+        "position_size_zero",
+        "roundtrip_cost_unavailable",
+        "roundtrip_cost"
+      ],
+      "reuse_failure": "Mutable gas only within current cost epoch/deadline; hash-pinned state reuse. No mark substituted for executable quantity. Capacity failure remains explicit.",
+      "window_authority": "Pinned reserves, real quote, fee/tax/snipe and fresh gas; 5% realized target limited by2%realquote/10%net/400bpsimpact; ordinary+2x stress capacity."
+    },
+    {
+      "field": "flow_independence_concentration",
+      "provider_calls": "10-block eth_getLogs pages, receipt/header authentication of every returned member.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_current_window.py",
+          "line": 11,
+          "symbol": "canonical_window"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_acquisition.py",
+          "line": 457,
+          "symbol": "_authenticate_window"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 192,
+          "symbol": "demand_metrics"
+        }
+      ],
+      "rejecting_gates": [
+        "independent_breadth",
+        "buyer_growth",
+        "buy_sell_flow",
+        "net_demand_nonpositive",
+        "flow_deceleration",
+        "largest_buyer_concentration",
+        "top3_buyer_concentration"
+      ],
+      "reuse_failure": "Canonical block/transaction/log order; dedupe conflicts fail closed; complete vector uses all rows even if diagnostic rolling cache512 evicts.",
+      "window_authority": "Complete selected-curve60s canonical ranges; current15s and preceding15s net/flow/buyers; three groups/newone/ratio1.1/largest45%/top3 65%. Independence is the coded group-address exclusion, not a proved sybil census."
+    },
+    {
+      "field": "creator_tax_distribution_snipe",
+      "provider_calls": "Canonical receipts/logs plus pinned currentSnipeTaxBps, fee/tax state and factory record.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_natural_observation.py",
+          "line": 141,
+          "symbol": "_authenticate_candidate"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 192,
+          "symbol": "demand_metrics"
+        }
+      ],
+      "rejecting_gates": [
+        "creator_distribution",
+        "creator_tax",
+        "snipe_tax_nonzero"
+      ],
+      "reuse_failure": "No public-trade omission can prove no creator sale; missing authority defers.",
+      "window_authority": "Fresh factory deployer/creatorFeeRecipient; creator sale in current15s, creator tax<=200bps and recipient snipe exactlyzero."
+    },
+    {
+      "field": "optional_diagnostics",
+      "provider_calls": "No speculative historical wallet/creator RPC purchased.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 294,
+          "symbol": "wallet_convergence"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 438,
+          "symbol": "qualification_vector"
+        }
+      ],
+      "rejecting_gates": [
+        "creator_adverse_history"
+      ],
+      "reuse_failure": "Does not substitute a missing active market fact.",
+      "window_authority": "Runtime passes no historical creator/wallet/relative-strength provider input. Repeat-wallet/convergence and quote-relative strength are diagnostics, not active hard gates. Creator adverse history is conditional only when supplied."
+    },
+    {
+      "field": "entry_persistence_postgrad_add",
+      "provider_calls": "Small canonical log delta, current ABI state or V4 quote/lineage/tape.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "line": 368,
+          "symbol": "_confirm_entry_delta"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 586,
+          "symbol": "entry_signal_persistence"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 757,
+          "symbol": "post_graduation_vector"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_continuation.py",
+          "line": 964,
+          "symbol": "ongoing_scale_requalification"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_current_history.py",
+          "line": 43,
+          "symbol": "CurrentHistory.invalidate"
+        }
+      ],
+      "rejecting_gates": [],
+      "reuse_failure": "Durable900s accumulation; gap/reorg resets observation proof, does not reset position basis/HWM; incomplete add never commits.",
+      "window_authority": "Fresh entry breadth>=50% retained; complete original trajectory+current15s quality; postgrad5..45s V4 tape; add rolling900s plus current authenticated state. No expired original early-entry age/ETA gate added to approved ongoing requalification."
+    }
+  ],
+  "generic_components": [
+    {
+      "authority": "Shared durable identity/generation/outbox; Pons adapter and owned history tables carry Pons interpretation.",
+      "refs": [
+        {
+          "file": "meme_machine/runtime/robinhood/plane.py",
+          "line": 196,
+          "symbol": "Plane.observe"
+        },
+        {
+          "file": "meme_machine/runtime/robinhood/plane.py",
+          "line": 267,
+          "symbol": "Plane.claim"
+        },
+        {
+          "file": "meme_machine/runtime/robinhood/plane.py",
+          "line": 299,
+          "symbol": "Plane.finish"
+        },
+        {
+          "file": "meme_machine/runtime/robinhood/plane.py",
+          "line": 143,
+          "symbol": "Plane.maintain"
+        },
+        {
+          "file": "meme_machine/runtime/robinhood/pons.py",
+          "line": 134,
+          "symbol": "durable_cache"
+        }
+      ],
+      "stage": "candidate_evidence_plane"
+    },
+    {
+      "authority": "Chain/endpoint authority independent from resource scheduling.",
+      "refs": [
+        {
+          "file": "meme_machine/runtime/robinhood/provider_authority.py",
+          "line": 122,
+          "symbol": "require_canonical"
+        },
+        {
+          "file": "meme_machine/lanes/pons/provider_topology.py",
+          "line": 265,
+          "symbol": "PacedRpc._authority_guard"
+        },
+        {
+          "file": "meme_machine/lanes/pons/provider_topology.py",
+          "line": 300,
+          "symbol": "PacedRpc._wire_params"
+        },
+        {
+          "file": "meme_machine/lanes/pons/provider_admission.py",
+          "line": 135,
+          "symbol": "Admission.acquire"
+        },
+        {
+          "file": "meme_machine/lanes/pons/provider_admission.py",
+          "line": 55,
+          "symbol": "next_ticket"
+        },
+        {
+          "file": "meme_machine/lanes/pons/immutable_rpc.py",
+          "line": 124,
+          "symbol": "Reuse.lookup"
+        }
+      ],
+      "stage": "provider_authority_admission_reuse"
+    },
+    {
+      "authority": "Integer native units/exact accounting and durable realized-equity sleeve; no shared-capital feature change.",
+      "refs": [
+        {
+          "file": "meme_machine/runtime/survivor_paper_book.py",
+          "line": 216,
+          "symbol": "PaperBook.replay"
+        },
+        {
+          "file": "meme_machine/runtime/sleeve_reservations.py",
+          "line": 171,
+          "symbol": "SleeveReservations.sizing_basis"
+        },
+        {
+          "file": "meme_machine/runtime/sleeve_reservations.py",
+          "line": 281,
+          "symbol": "SleeveReservations.acknowledge_native"
+        },
+        {
+          "file": "meme_machine/runtime/directional_sleeve.py",
+          "line": 31,
+          "symbol": "open_sleeve"
+        }
+      ],
+      "stage": "native_accounting"
+    }
+  ],
+  "name": "PONS_EVIDENCE_LIFECYCLE_MAP",
+  "proof_limitations": [
+    "Source map and offline fixtures establish implementation paths; not a complete historical market census.",
+    "Provider rate/deadline/capacity/cost acceptance remains unmeasurable from the retained archive."
+  ],
+  "provider_roles": {
+    "admission": "Pons/Ramses share existing endpoint governor; no budget ceiling raised; position class0 bypasses candidate queue-cap refusal.",
+    "canonical": "Authenticated chain4663 https://robinhood-mainnet.g.alchemy.com/v2/: Current/Survivor/positions, no public authority fallback.",
+    "immutable": "By-hash headers/receipt/fully pinned state reusable; fresh canonical numeric membership remains mandatory; gas/latest values stay fresh.",
+    "official_public": "https://rpc.mainnet.chain.robinhood.com: discovery only, governed observation fallback retains range.",
+    "sequencer": "wss://feed.mainnet.chain.robinhood.com: block/range clock only; no strategy value."
+  },
+  "runtime_selection": [
+    {
+      "authority": "Operational native Pons dispatch calls the selective cohort with campaign=True; the bounded default/research mode uses the same policy and is not the operational market domain.",
+      "refs": [
+        {
+          "file": "meme_machine/operational/lane.py",
+          "line": 61,
+          "symbol": "run_native"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_cohort.py",
+          "line": 599,
+          "symbol": "run"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_paper.py",
+          "line": 1451,
+          "symbol": "run_lifecycle"
+        }
+      ],
+      "stage": "operational_current"
+    },
+    {
+      "authority": "The directional composite setting MM_DIRECTIONAL_COMPOSITE_REQUIRED=1 creates the independent Survivor Worker from the selective cohort. Its native runtime/history/book are separate.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_cohort.py",
+          "line": 599,
+          "symbol": "run"
+        },
+        {
+          "file": "meme_machine/runtime/survivor_history.py",
+          "line": 231,
+          "symbol": "Worker"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 490,
+          "symbol": "Runtime.step"
+        }
+      ],
+      "stage": "operational_survivor"
+    },
+    {
+      "authority": "continuation-v1-robinhood and its sample/cohort runners are preserved historical/research paths; the operational dispatcher does not select them.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/continuation_robinhood.py",
+          "line": 82,
+          "symbol": "qualification_vector"
+        },
+        {
+          "file": "meme_machine/lanes/pons/continuation_robinhood_sample.py",
+          "line": 377,
+          "symbol": "run"
+        },
+        {
+          "file": "meme_machine/lanes/pons/continuation_robinhood_cohort.py",
+          "line": 437,
+          "symbol": "run"
+        }
+      ],
+      "stage": "legacy_continuation_research"
+    },
+    {
+      "authority": "Natural observation and breakout/relative samples are preserved research paths; breakout allocation authority remains disabled. Shared natural identity/graduation/quote helpers supply the active implementations.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_natural_observation.py",
+          "line": 404,
+          "symbol": "run"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_natural_paper.py",
+          "line": 432,
+          "symbol": "run"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_breakout_sample.py",
+          "line": 132,
+          "symbol": "run"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_relative_sample.py",
+          "line": 31,
+          "symbol": "run"
+        }
+      ],
+      "stage": "other_research"
+    }
+  ],
+  "schema": "pons-lifecycle-map-v1",
+  "source_commit": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+  "source_files_sha256": {
+    "meme_machine/lanes/pons/continuation_robinhood.py": "aa6936ed20838880920b4ce3f2040b17008418babecca07971fc1b8cfe2e0681",
+    "meme_machine/lanes/pons/continuation_robinhood_cohort.py": "cb86e1e3621451dacf5e90250d0a663db4f56df2ea110ea894042e0c9c52f943",
+    "meme_machine/lanes/pons/continuation_robinhood_sample.py": "b6553e7ef8b1b831a170f932b6d9cda36164f419c4d920e6d0987a8314203be2",
+    "meme_machine/lanes/pons/immutable_rpc.py": "96b92abb0566f7c4125c56fd24620ec728aa52f0f482558c40f7c9b1b5e52285",
+    "meme_machine/lanes/pons/pons.py": "b21fc0630c82a09689ead28451fdf1408721b044b50218b82f0469d8bad77233",
+    "meme_machine/lanes/pons/pons_attempts.py": "439feb9dcfdb41d81a302e5eae15a446b966eed7e39b42c2c0cea20f5c15175a",
+    "meme_machine/lanes/pons/pons_breakout_sample.py": "03784e532e65d8648c24a9508a8c2a0ed418f885ef1f560f6b97fdf86eb3bf2d",
+    "meme_machine/lanes/pons/pons_current_history.py": "f5f91bfdc457873a6f12a2318a83b7ebc1216e477b41859ce7a9404a2bb0f459",
+    "meme_machine/lanes/pons/pons_current_window.py": "faade32e556f044c23a3244108089e808ea768d5ef83f8785edc08676b942de2",
+    "meme_machine/lanes/pons/pons_history.py": "b1627c4a0785b3120a0f14aeeae5afe6b84ad3564370becf77753333fd74e95b",
+    "meme_machine/lanes/pons/pons_natural_observation.py": "10cb58cb09f9b0f039fd287e3b8361c6b5e819b020c5f8b07ebb3d6b94b5383f",
+    "meme_machine/lanes/pons/pons_natural_paper.py": "034a518630d5ba7ec8b3e679bed042fe1af6e88ae5032c52fb8de19fcd1f3686",
+    "meme_machine/lanes/pons/pons_postgrad_survivor.py": "5daa485ad962806b5f3e70411edbbd9371a9d3e5a0e730addd8ee4fd331bf217",
+    "meme_machine/lanes/pons/pons_quotes.py": "00ef6b5e02c2c5406d0de6ad71abd281c9f7ed889a94e6c8c50a7753fc5d85fe",
+    "meme_machine/lanes/pons/pons_relative_sample.py": "9b7ea137b1739bb199015dc7482f1ae3ae8ffb2b653f5db34ff54a57ed5022d9",
+    "meme_machine/lanes/pons/pons_selective_acquisition.py": "ad5b052eb272eb5ec38e15280dd132050d1d0c39c9fcb5c0f47e968fc334448f",
+    "meme_machine/lanes/pons/pons_selective_capital.py": "cad8273a5f48482f18130fc5b3e0333edfa69bdcd58d3cdee659cc8a5059f609",
+    "meme_machine/lanes/pons/pons_selective_cohort.py": "e4605781be19a1b1e7c83b6842f19e5daffad57c857e61f2b16884e5a25cbdcc",
+    "meme_machine/lanes/pons/pons_selective_continuation.py": "aec2863ebb5b89c0bfeb923ddffbb68e6bc992d2c477205b6df482c4459bb183",
+    "meme_machine/lanes/pons/pons_selective_ledger.py": "b9305ccef3d996ae078629656de97f8c3c63db3fb58f5f3777a6ff2cb77d67e1",
+    "meme_machine/lanes/pons/pons_selective_paper.py": "87bbfca33537e5bde9646e2a32621750f161371610920d1136315886048594a1",
+    "meme_machine/lanes/pons/pons_selective_recovery.py": "8fcb7f41f027a8ae3ad12f21fb2ff2bb00f0cf812aa1359098cdc03a3de480d5",
+    "meme_machine/lanes/pons/pons_selective_v4.py": "55adfa50954a1f096332ec54859d9058f0c181d2a84906790028cb49db06611f",
+    "meme_machine/lanes/pons/pons_survivor_runtime.py": "9dc886b33ed7bf11df3fafff97ac365176719e3257916dc25024cf5e83e19d72",
+    "meme_machine/lanes/pons/provider_admission.py": "ca3d0cebef3dff24943f79f41165acb2d70d5d1d5c37d997c6deed0d86c16938",
+    "meme_machine/lanes/pons/provider_topology.py": "87cfa72b62255879f4d59328808c0a196198a609911583792a96ac7f11381119",
+    "meme_machine/lanes/pons/sequencer_feed.py": "870bdba4f593774c9d6a9e6890c1922ad84f06617b85160cf7c9395f004a84bd",
+    "meme_machine/operational/lane.py": "db876a4791195a123c510f9a4a6c4418bcfae793a769d37660fb2bd08add23de",
+    "meme_machine/runtime/directional_continuation.py": "42a67c4a5438c5824f81b9612ef992bae4700b311e0009fc08a61c0fcdd98ca9",
+    "meme_machine/runtime/directional_sleeve.py": "356507894be2ee943f57866d6a55fa5075f54191c32210022f98ea9ac9234836",
+    "meme_machine/runtime/execution_capacity.py": "6a0f25cd252d5cc45cf9d59d897bba574a45d47ec6365d147b3d08e0e1a7fc15",
+    "meme_machine/runtime/robinhood/plane.py": "df941b0695ba40a4414636d5d16733da98077c79be2465d9e8865205c932f597",
+    "meme_machine/runtime/robinhood/pons.py": "a856c02b883382dfde681f53bd5b556f37e606013609a237689c73e48027732c",
+    "meme_machine/runtime/robinhood/provider_authority.py": "1c5ae9f6dbdf23332abfca321ec02f266f455b565a42f81031419d479f919877",
+    "meme_machine/runtime/sleeve_reservations.py": "39cc74c98d8706c6753cc92fb4abe967817d75deee0616edfb9658a3d97da3db",
+    "meme_machine/runtime/survivor_commit.py": "eefde5d2210fc9a8cf894a583ffb385ed13dbe9ee4ce6ecaff9f6d589c156b22",
+    "meme_machine/runtime/survivor_history.py": "b3e4f7445791db7927758ad01f3cac713a23ecc159514ec9ab33684cd5bd86c1",
+    "meme_machine/runtime/survivor_paper_book.py": "cc2d70e85939f37b9fdc9ead31ed0d764b239cb5bb79a9f4b3ba6c715a45b52c",
+    "meme_machine/runtime/survivor_risk.py": "81a5b35f03cb7a53a2233c2ffa79dd866fdd41d02ad976ece9c6402136512226"
+  },
+  "source_tree": "65c2f85f1c67676372ab2b449499d76a17bb224f",
+  "strategies": {
+    "current": {
+      "policy_hash": "888904d0e58865f1a701560a5be8386f57d88f66a0c25d7094c994cafa7f448f",
+      "revision": "profitability-v1-profit-protection-v2-execution-capacity-v1-moderate-admission-v1-operational-nine-v1",
+      "version": "pons-selective-continuation-v1"
+    },
+    "survivor": {
+      "policy_hash": "ed17402a75470801fda47877b6b1f3b1266793b7e0750b7a7cd821f327541e5f",
+      "version": "pons-postgrad-survivor-momentum-v1"
+    }
+  },
+  "survivor": [
+    {
+      "authority": "Canonical Pons V2 factory PoolGraduated; independent seven-day bootstrap and hashed cursor.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 152,
+          "symbol": "Runtime.discover"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 229,
+          "symbol": "Runtime._bootstrap_cursor"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_history.py",
+          "line": 69,
+          "symbol": "PonsHistory.retain_graduations"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_natural_paper.py",
+          "line": 240,
+          "symbol": "_graduation_transition"
+        }
+      ],
+      "stage": "discovery"
+    },
+    {
+      "authority": "All raw nominees commit with range watermark before bounded one-member authentication; no Current-state dependency.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_history.py",
+          "line": 88,
+          "symbol": "PonsHistory.graduation_batch"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_history.py",
+          "line": 103,
+          "symbol": "PonsHistory.graduation_complete"
+        },
+        {
+          "file": "meme_machine/runtime/survivor_history.py",
+          "line": 68,
+          "symbol": "History.graduate"
+        }
+      ],
+      "stage": "candidate_retention"
+    },
+    {
+      "authority": "Fair <=64 identities and <=40-block slices; complete deterministic V4 tape and atomic checkpoint.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_history.py",
+          "line": 139,
+          "symbol": "PonsHistory.history_batch"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 282,
+          "symbol": "Runtime._increment_candidates"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 246,
+          "symbol": "Runtime._increment"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 271,
+          "symbol": "Runtime._append_tape"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_selective_v4.py",
+          "line": 181,
+          "symbol": "collect_v4_activities"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_history.py",
+          "line": 167,
+          "symbol": "PonsHistory.append_block"
+        }
+      ],
+      "stage": "market_observation_history"
+    },
+    {
+      "authority": "A canonical watermark mismatch removes historical authority, preserves controller and replays bounded slices from proven graduation.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 263,
+          "symbol": "Runtime._recover_reorg"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_history.py",
+          "line": 175,
+          "symbol": "PonsHistory.reset_after_reorg"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_history.py",
+          "line": 209,
+          "symbol": "PonsHistory.finish_recovery"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_history.py",
+          "line": 80,
+          "symbol": "PonsHistory.invalidate_discovery"
+        }
+      ],
+      "stage": "reorg_recovery"
+    },
+    {
+      "authority": "Graduation anchor, all last24h prices, current/previous30m flow, fresh V4 state and exact ordinary/double-size quotes. The realized-equity/turnover-capped strategy size is independent of the funding budget; the original five-second acquisition clock covers state, history and quotes.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 313,
+          "symbol": "Runtime.fresh_state"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 333,
+          "symbol": "Runtime.fresh_quotes"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 111,
+          "symbol": "Quotes.loss"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 57,
+          "symbol": "Quotes._acquire"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 335,
+          "symbol": "Runtime.reconstruct"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 367,
+          "symbol": "Runtime.qualify"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_postgrad_survivor.py",
+          "line": 239,
+          "symbol": "evaluate_entry"
+        }
+      ],
+      "stage": "evidence_qualification"
+    },
+    {
+      "authority": "Fair independent qualification, History/Plane/Sleeve evidence and explicit disposition precede funding.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_history.py",
+          "line": 155,
+          "symbol": "PonsHistory.qualification_turn"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 490,
+          "symbol": "Runtime.step"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_attempts.py",
+          "line": 82,
+          "symbol": "Attempts.record"
+        },
+        {
+          "file": "meme_machine/runtime/sleeve_reservations.py",
+          "line": 157,
+          "symbol": "SleeveReservations.observe"
+        }
+      ],
+      "stage": "durable_decision"
+    },
+    {
+      "authority": "Same realized-equity target in all cash states; available cash affects fresh commit only; capacity/breadth/generation fence.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 420,
+          "symbol": "Runtime._enter"
+        },
+        {
+          "file": "meme_machine/runtime/survivor_commit.py",
+          "line": 23,
+          "symbol": "commit"
+        },
+        {
+          "file": "meme_machine/runtime/survivor_paper_book.py",
+          "line": 113,
+          "symbol": "PaperBook.reserve"
+        },
+        {
+          "file": "meme_machine/runtime/sleeve_reservations.py",
+          "line": 211,
+          "symbol": "SleeveReservations.reserve"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 391,
+          "symbol": "Runtime.validate_current"
+        }
+      ],
+      "stage": "funding_reservation_entry"
+    },
+    {
+      "authority": "Funded native positions first; one position error cannot skip another; executable exit quote precedes candidate history.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 444,
+          "symbol": "Runtime._position"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 398,
+          "symbol": "Runtime.exit_quote"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 490,
+          "symbol": "Runtime.step"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_quotes.py",
+          "line": 42,
+          "symbol": "PinnedV4Reads.call"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_quotes.py",
+          "line": 27,
+          "symbol": "canonical_boundary"
+        },
+        {
+          "file": "meme_machine/runtime/survivor_commit.py",
+          "line": 127,
+          "symbol": "monitor"
+        }
+      ],
+      "stage": "monitoring"
+    },
+    {
+      "authority": "Survivor-owned -10%, +20%/25%, 12% then10% ordinary trail; existing persistent flow/creator/safety/max72h exits.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_postgrad_survivor.py",
+          "line": 378,
+          "symbol": "risk_policy"
+        },
+        {
+          "file": "meme_machine/runtime/survivor_risk.py",
+          "line": 4,
+          "symbol": "mark"
+        },
+        {
+          "file": "meme_machine/runtime/survivor_commit.py",
+          "line": 127,
+          "symbol": "monitor"
+        },
+        {
+          "file": "meme_machine/runtime/survivor_paper_book.py",
+          "line": 131,
+          "symbol": "PaperBook.transition"
+        }
+      ],
+      "stage": "partial_realization_trail_adverse_flow"
+    },
+    {
+      "authority": "Common >=2x 40% peak-profit giveback, original-unit risk after harvest/add.",
+      "refs": [
+        {
+          "file": "meme_machine/runtime/survivor_risk.py",
+          "line": 4,
+          "symbol": "mark"
+        },
+        {
+          "file": "meme_machine/runtime/directional_continuation.py",
+          "line": 9,
+          "symbol": "reference_return"
+        },
+        {
+          "file": "meme_machine/runtime/survivor_commit.py",
+          "line": 127,
+          "symbol": "monitor"
+        }
+      ],
+      "stage": "right_tail"
+    },
+    {
+      "authority": "Exactly one fresh complete strategy+execution requalification; inherited common add budget and native event.",
+      "refs": [
+        {
+          "file": "meme_machine/runtime/survivor_commit.py",
+          "line": 162,
+          "symbol": "scale"
+        },
+        {
+          "file": "meme_machine/runtime/directional_continuation.py",
+          "line": 30,
+          "symbol": "scale_budget"
+        },
+        {
+          "file": "meme_machine/runtime/survivor_paper_book.py",
+          "line": 131,
+          "symbol": "PaperBook.transition"
+        },
+        {
+          "file": "meme_machine/runtime/sleeve_reservations.py",
+          "line": 300,
+          "symbol": "SleeveReservations.reserve_scale"
+        }
+      ],
+      "stage": "staged_add"
+    },
+    {
+      "authority": "The Current timing bridge lives on the Current controller; Survivor never sells/rebuys it. Same-asset reservation is execution-only.",
+      "refs": [
+        {
+          "file": "meme_machine/runtime/directional_continuation.py",
+          "line": 15,
+          "symbol": "bridge_state"
+        },
+        {
+          "file": "meme_machine/runtime/sleeve_reservations.py",
+          "line": 200,
+          "symbol": "SleeveReservations.fill_blocker"
+        }
+      ],
+      "stage": "bridge"
+    },
+    {
+      "authority": "Irreversible risk intent, fresh validated executable exit, native replay then sleeve release.",
+      "refs": [
+        {
+          "file": "meme_machine/runtime/survivor_commit.py",
+          "line": 127,
+          "symbol": "monitor"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+          "line": 413,
+          "symbol": "Runtime.validate_exit"
+        },
+        {
+          "file": "meme_machine/runtime/survivor_paper_book.py",
+          "line": 216,
+          "symbol": "PaperBook.replay"
+        },
+        {
+          "file": "meme_machine/runtime/sleeve_reservations.py",
+          "line": 264,
+          "symbol": "SleeveReservations.release"
+        }
+      ],
+      "stage": "exit_settlement"
+    },
+    {
+      "authority": "Exact committed block/hash/points/events/controller and native risk journal; no cached quote funds recovery.",
+      "refs": [
+        {
+          "file": "meme_machine/lanes/pons/pons_history.py",
+          "line": 132,
+          "symbol": "PonsHistory.get"
+        },
+        {
+          "file": "meme_machine/lanes/pons/pons_history.py",
+          "line": 167,
+          "symbol": "PonsHistory.append_block"
+        },
+        {
+          "file": "meme_machine/runtime/survivor_commit.py",
+          "line": 97,
+          "symbol": "restore_risk"
+        },
+        {
+          "file": "meme_machine/runtime/survivor_commit.py",
+          "line": 13,
+          "symbol": "handoff_ready"
+        },
+        {
+          "file": "meme_machine/runtime/survivor_paper_book.py",
+          "line": 216,
+          "symbol": "PaperBook.replay"
+        },
+        {
+          "file": "meme_machine/runtime/sleeve_reservations.py",
+          "line": 281,
+          "symbol": "SleeveReservations.acknowledge_native"
+        }
+      ],
+      "stage": "restart"
+    }
+  ],
+  "target_market": {
+    "addresses": {
+      "pons_deployer": "0x3711ceA4feaDE896C913C68F01Eda97Cb06D1A42",
+      "pons_v2_factory": "0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e",
+      "pons_v2_hook": "0xE5e702641Ea86F4ae6cC3cDaeD2B886f976Be044",
+      "uniswap_v4_manager": "0x8366a39CC670B4001A1121B8F6A443A643e40951"
+    },
+    "chain_id": 4663,
+    "current": "All native-quote compiled Pons V2 curves observed through all-address CurveBuy/CurveSell; frozen early-entry domain is separate from discovery.",
+    "survivor": "All authenticated Pons V2 PoolGraduated transitions to the registered native Uniswap V4 pool; independent4h..7d qualification."
+  }
+}

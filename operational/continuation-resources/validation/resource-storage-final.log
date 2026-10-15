@@ -1,0 +1,14 @@
+test_actual_64_mib_page_pressure_preserves_pending_exit_and_reports_capacity (tests.test_continuation_resource_efficiency.LongHoldStorageTests.test_actual_64_mib_page_pressure_preserves_pending_exit_and_reports_capacity) ... STORAGE_TRACE {"page_pressure_records": 2012, "sqlite_pages": 16379, "page_size": 4096, "pending_exit_preserved": true}
+ok
+test_full_36_hour_current_bridge_actual_journals_quotes_and_restart (tests.test_continuation_resource_efficiency.LongHoldStorageTests.test_full_36_hour_current_bridge_actual_journals_quotes_and_restart) ... STORAGE_TRACE {"current_monitor_turns": 25920, "maximum_records": 101, "final_records": 12, "journal_rows": 6, "maximum_sqlite_bytes": 360448, "cpu_seconds": 607.08673236, "restarts": 4, "original_opened_at": 102, "high_water": 37920, "partial_quantity": 750, "final_booked_realized": 314}
+ok
+test_original_current_record_capacity_is_exhausted_before_tail_deadline (tests.test_continuation_resource_efficiency.LongHoldStorageTests.test_original_current_record_capacity_is_exhausted_before_tail_deadline) ... STORAGE_TRACE {"original_current_stop_turn": 8191, "stop_hours": 11.376388888888888, "body_bytes": 1327762, "sqlite_bytes": 3821568}
+ok
+test_quote_expiration_does_not_grant_history_or_delete_history_dependencies (tests.test_continuation_resource_efficiency.LongHoldStorageTests.test_quote_expiration_does_not_grant_history_or_delete_history_dependencies) ... ok
+test_retention_rollback_keeps_exact_evidence_and_accounting (tests.test_continuation_resource_efficiency.LongHoldStorageTests.test_retention_rollback_keeps_exact_evidence_and_accounting) ... ok
+test_same_scope_and_exact_identity_are_idempotent_but_new_availability_is_distinct (tests.test_continuation_resource_efficiency.LongHoldStorageTests.test_same_scope_and_exact_identity_are_idempotent_but_new_availability_is_distinct) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 712.205s
+
+OK

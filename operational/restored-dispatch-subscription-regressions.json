@@ -1,0 +1,26 @@
+{
+  "historical_source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "suite": "OPERATIONAL",
+  "validation": {
+    "tests": 7,
+    "result": "PASS",
+    "seconds": 8.488
+  },
+  "adaptation": "Only old test_run373 helper import renamed test_dispatch_throughput; Pump postgrad import current namespace. All assertions unchanged.",
+  "files": [
+    {
+      "historical_path": "tests/test_run376_dispatch_pressure.py",
+      "current_path": "tests/test_run376_dispatch_pressure.py",
+      "historical_sha256": "fe6ab1226cd99351e5fa6cb39c8dea92bdc0d5a10acfe53e2de316e591a4118c",
+      "current_sha256": "f37a7a53228d79fdbd1f72dddea6c146d76dbe851b10a67b42693ad26a05fa69"
+    },
+    {
+      "historical_path": "tests/test_run381_subscription_progress.py",
+      "current_path": "tests/test_run381_subscription_progress.py",
+      "historical_sha256": "eb3c40c2588b2b05e6b2a2d4183edb80aad4bf774b94c266e5bca76e990beb82",
+      "current_sha256": "d8d9b16c668eba8e80e6fea98a681aba955064ad039d974cb51d3e9cd709696b"
+    }
+  ],
+  "obligations": "Mixed account/block dispatch saturation waits for durable drain without loss, ordering and invalid frame boundaries; unchanged interest polls cannot starve maintenance, new/released/disconnected interests and committed expiry/restart signal subscription progress.",
+  "state_compatibility": "Disposable SQLite and fake WebSocket/IPC only; no runtime/schema/epoch/economic changes."
+}

@@ -1,0 +1,44 @@
+{
+  "criteria": {
+    "CAPACITY": {
+      "classification": "BLOCKED",
+      "reason": "combined_position_and_candidate_provider_latency_not_certified remains; no deployment or production authority change."
+    },
+    "candidate_original_deadline_performance": {
+      "classification": "INSUFFICIENT_SAMPLE",
+      "reason": "Original deadlines preserved; zero complete captured Pump hydration/evaluation windows."
+    },
+    "native_position_deadline_performance": {
+      "classification": "INSUFFICIENT_SAMPLE",
+      "reason": "Zero complete Pump native position samples; fixture settlement evidence passes only offline."
+    },
+    "pons_concurrent_coverage": {
+      "classification": "BLOCKED",
+      "reason": "Seven-day cold bootstrap incomplete; no validated complete warm seed. Slice defect repaired; admission fixtures pass."
+    },
+    "provider_resource_cost": {
+      "classification": "MEASURED_PARTIALLY",
+      "reason": "Application payload/planning CU measured; physical wire bytes and billed CU/currency unmeasured."
+    },
+    "pump_pumpswap_captured_parity": {
+      "classification": "PASS",
+      "reason": "All 287 witnessed canonical rows and 169 candidate identities/first observations preserved exactly."
+    },
+    "pump_pumpswap_full_evidence_completeness": {
+      "classification": "INSUFFICIENT_SAMPLE",
+      "reason": "10,210 unwitnessed log facts; complete historical windows and canonical graduation sample absent."
+    },
+    "shared_capital_contention": {
+      "classification": "PASS_OFFLINE_ONLY",
+      "reason": "64 requests in each isolated/combined phase, conservation/replay preserved, zero five-second fixture misses; live deadlines unproven."
+    },
+    "sustained_provider_drainage": {
+      "classification": "INSUFFICIENT_SAMPLE",
+      "reason": "2.379 active post-release delivery seconds; shutdown drainage cannot certify sustained load."
+    }
+  },
+  "next_provider_proof": "BLOCKED",
+  "production_service": "INACTIVE",
+  "provider_calls": 0,
+  "schema": "pump-provider-readiness-v1"
+}

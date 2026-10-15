@@ -1,0 +1,49 @@
+{
+  "adaptive": false,
+  "approved_policy_sha256": "e87385900145e53956df18956ee2390f0d95787e6ffc44243251f9b147eb65f2",
+  "byte_identical_to_published_candidate": {
+    "meme_machine/lanes/meteora/DLMM_STRATEGY_RULE_V1.json": "05cd43a7a280c0b07220fc000329dd89f6eaa5e33faf20facc74d62d28cd31bc",
+    "meme_machine/lanes/pons/pons_attempts.py": "a00eba385cb6382b99b7f52fadea23b869d0819dc86608382cbc2b1e51154515",
+    "meme_machine/lanes/pons/pons_current_window.py": "e82e572fff39bd4f8eaf578d5dea7a50e522e84d387cb0f3c329225b3cb75044",
+    "meme_machine/lanes/pons/pons_postgrad_survivor.py": "5daa485ad962806b5f3e70411edbbd9371a9d3e5a0e730addd8ee4fd331bf217",
+    "meme_machine/lanes/pons/pons_selective_acquisition.py": "9671df69f7e61ec60c223cce888f1c843b194527b6e5d7c3c3572823fd459f13",
+    "meme_machine/lanes/pons/pons_selective_cohort.py": "17bd2b803f7877b6311afa05561ee460fd8bde815ef7351f5c79009a985ad615",
+    "meme_machine/lanes/pons/pons_selective_continuation.py": "aec2863ebb5b89c0bfeb923ddffbb68e6bc992d2c477205b6df482c4459bb183",
+    "meme_machine/lanes/pump/pump_acceleration_strategy.py": "647445ade5a79acbccc7ec56d47d322abc3c0f8622ff8a40b8af4f291cee33d5",
+    "meme_machine/lanes/pump/pumpswap_survivor.py": "73b6f28e8331262a0d33ecc53b7c28e0545314983e414a77566edb78029cd7ad",
+    "meme_machine/lanes/ramses/ramses_strategy.py": "8df06ae65826d27655a121c6568c9b972359fa0eb7ee1d1c04ed2134ae51cc85",
+    "meme_machine/runtime/directional_continuation.py": "42a67c4a5438c5824f81b9612ef992bae4700b311e0009fc08a61c0fcdd98ca9",
+    "meme_machine/runtime/robinhood/pons.py": "1f7e55fc5553d1723af1c06e9d8f82ac936941fdfaf4ac2148150550e61a191b",
+    "meme_machine/runtime/survivor_risk.py": "81a5b35f03cb7a53a2233c2ffa79dd866fdd41d02ad976ece9c6402136512226",
+    "meme_machine/solana_checkpoint.py": "63977d26d04bc2fd6f38e43e5fc7d6358ebe70d1bfe1c79a88036a87cc1d99e0",
+    "meme_machine/solana_prewarm_startup.py": "9291fac388444d0c3f4799cab81c9172aa8d8bf55f769dd616034b5d863b03c0",
+    "meme_machine/solana_rolling_history.py": "b2f165a780a7dbb432db6252e0db3e16c72527d01ad7c173061737f0f0d188b5",
+    "meme_machine/solana_selective_history.py": "ce6bfe39c68465b1fbe3a263ab964f630cff2fb019f7a39419f3dbcdac0eb6c0",
+    "meme_machine/solana_selective_source.py": "0c1a23908350dcf09eea5ceaec9fba11ad0f1220dd7e93c7a175401405e975a8",
+    "operational/nine-change-implementation.json": "27dc7b14ce0daa400b6609dedf415072bf46008f22d71c9d6f49a68578b1061a",
+    "tests/lanes/pons/test_pons_continuous_campaign.py": "11c0abd28f050725c65914cf1fb905b959e7763fc475cb8621e9dd5bc0b33dc0",
+    "tests/lanes/pons/test_pons_finalization.py": "1431d8c295ebb771b8f7b1f9bfa8d2d0e42bb01e51ee915d50d1d1de5b91c697",
+    "tests/test_operational_nine.py": "efb40e9557d138624d67a24aecd1c21e58b6728f1c670a2981d04cf153728c09"
+  },
+  "credentials_exact_value_scan": "PASS",
+  "native_strategy_contracts": {
+    "pons": {
+      "pons-postgrad-survivor-momentum-v1": "ed17402a75470801fda47877b6b1f3b1266793b7e0750b7a7cd821f327541e5f",
+      "pons-selective-continuation-v1": "888904d0e58865f1a701560a5be8386f57d88f66a0c25d7094c994cafa7f448f"
+    },
+    "pump": {
+      "pump-acceleration-independent-v1": "89d2e6ac286e82f3d645feecc4de4193687cd9ba4e4f9006b7d57f1357c5b972",
+      "pumpswap-survivor-momentum-v1": "0d65e1023b5e7b586e9a71d060fe9da7954c964bfcc3fc986977b80979ea44a5"
+    }
+  },
+  "preserved_ancestors": [
+    "9eb7e6d15912ca214de2f5cd1c905abc0b1cedf1",
+    "f6f21a3d10e1e3460122ffb8db016e929ffa5b44",
+    "062f4aef04a35539e83f32282de2937497d3d6df"
+  ],
+  "preserved_remote_heads_checked": 493,
+  "schema": "shared-capital-preservation-v1",
+  "sizing_basis": "effective_family_equivalence",
+  "source_files_scanned": 77,
+  "starting_commit": "9ee5d3a400227b0add3d80226430ced47f833590"
+}

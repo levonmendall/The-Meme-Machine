@@ -1,0 +1,341 @@
+{
+  "branch": "repair/consolidated-startup-followup-20261014",
+  "correction": {
+    "bounded_fixture": {
+      "after": "Same exact completed IDs published without a horizon rescan.",
+      "before": "Exact completed IDs remain pending behind cursor.",
+      "completed_consumer_batch": 64,
+      "intervening_owner_publication": true,
+      "pending_proofs": 192,
+      "scope": "Actual disposable capture/deliver/ACK/publication scheduling paths; not faithful market replay, CPU attribution or capacity."
+    },
+    "busy_limit": "Existing durable retry/cursor survives BUSY; immediate exact-batch latency is not guaranteed when the exact attempt is deferred.",
+    "implementation": [
+      "At most64 validated unique pending proof identities selected by primary key; background cursor/horizon unchanged.",
+      "Authenticate all selected receipt/unconsumed contexts before any owner-local gap repairs; publish in existing atomic writer transaction.",
+      "Durable consumer ACK, original flush_delivery accounting fence, separate existing priority2 exact-publication admission.",
+      "No second canonical writer, queue, outbox or evidence authority. Stale external contexts remain pending; cancellation/crash/rollback retain replayable obligations."
+    ],
+    "live_repair_effect": "NOT_MEASURED",
+    "mechanism": "Independent consumer FULL-commits while the shared fair proof cursor can pass its pending IDs; receipt-ready proofs then wait for a horizon wrap. Owner-local gap repair can stale a later sibling checked after mutation."
+  },
+  "documentation_step": {
+    "authoritative_queries": 0,
+    "authoritative_writes": 0,
+    "deployments": 0,
+    "provider_requests": 0,
+    "tests": 0
+  },
+  "final_executable": "76785b2a3e814ad456f3ad2d22befdcd68cb8a93",
+  "final_executable_deployed": false,
+  "initial_repair": "ab621aba7d33245aa0090a24ef1dc07338f2b5b0",
+  "next_action": "Risk-based affected-source gate and fresh safety preflight, then one cause-based current-system measurement distinguishing actual startup publication from remaining processing capacity; no unchanged retry/promotion based on fixture.",
+  "o10": {
+    "O9_scope_correction": "O9 fixed raw program cursor rate2.71478/s was labelled published frontier. Startup wasunreleased and true program_frontiers empty: relabel raw cursor progress, no usable published/qualification-readiness proof.",
+    "candidate_serial_budget": {
+      "candidate_owner_batches": 247,
+      "candidate_owner_callback_seconds": 98.762964,
+      "candidate_owner_queue_seconds": 152.326059,
+      "completion_budget_fraction_of_interval": 0.9949795353444197,
+      "preparation_batches": 246,
+      "preparation_cpu_seconds": 31.716046,
+      "preparation_parent_elapsed_seconds": 105.47967,
+      "preparation_transfer_and_wait_scope": "Wire metric is full parent elapsed from before inline/pool preparation through returned result; it INCLUDES worker preparation wall and is not a separable additive transfer-only duration.",
+      "preparation_transfer_and_wait_seconds": 105.47967,
+      "preparation_worker_wall_seconds": 73.946484,
+      "prepared_records": 47621,
+      "scope": "Parent preparation elapsed + actual batch queue + batch callback. Worker wall/CPU overlap parent elapsed.246preparation versus247owner batches reflects boundary completion windows; not event omission proof.",
+      "serial_completion_budget_seconds": 356.568693
+    },
+    "evidence_market_age_seconds": {
+      "end": 366.0316550731659,
+      "maximum": 366.0316550731659,
+      "start": 223.66378903388977
+    },
+    "gaps": {
+      "control_to_retained_economics_end": 1646,
+      "control_to_retained_economics_start": 970,
+      "join_to_durable_end": 7,
+      "join_to_durable_start": 9,
+      "native_candidate_to_join_end": 0,
+      "native_candidate_to_join_start": 0
+    },
+    "held_protection": "NOT_EXERCISED_FLAT_FUNDING_CLOSED; no held quote/USD3-or5second proof",
+    "interval": {
+      "criterion": "First both-native-reconciled full sample through final full sample; source startup never released",
+      "end_elapsed_seconds": 898.4691925270017,
+      "full_samples": 70,
+      "full_samples_total": 174,
+      "generation": "fdc38221bff2443da85850192e0f7257",
+      "seconds": 358.36786620598286,
+      "single_generation": true,
+      "source_pid": 2975709,
+      "source_session": "2cf8c12a7e6845878ba1a7d2b289f955",
+      "start_elapsed_seconds": 540.1013263210189
+    },
+    "minimum_factor_scope": "Measured canonical durable rate only; excludes surplus needed for bursts/backlog recovery. Startup not released, not steady-state proof.",
+    "minimum_factor_to_match_current_arrivals": 1.6801619433198383,
+    "owner": {
+      "actual_thread_cpu_seconds": 80.614805385,
+      "actual_thread_runnable_wait_seconds": 146.769857227,
+      "callback_plus_handoff_seconds": 357.555867,
+      "callback_wall_seconds": 333.93751299999997,
+      "checkpoint_handoff_wall_seconds": 23.618354
+    },
+    "provider_usage": {
+      "before_scope": "Retained authenticated capability baseline plus six preceding verified diagnostic deltas; matched to O9 final durable counters. Current-run delta only, not invoice verification.",
+      "cost_basis": "Existing frozen conservative model; uncertain bytes are accounted exposure, not confirmed delivery or invoice.",
+      "delta": {
+        "alchemy_rpc_cu": 403292,
+        "http_attempts": 2896,
+        "http_bytes": 16779722,
+        "http_uncertain_bytes": 50331648,
+        "native_bytes": 638701359,
+        "native_failures": 0,
+        "native_opens": 4,
+        "native_uncertain_bytes": 285212672,
+        "robinhood_rpc_elements": 11459,
+        "rpc_cu": 403292,
+        "rpc_elements": 11462,
+        "solana_rpc_elements": 3
+      },
+      "http_reserved": "0",
+      "modeled_cost_usd": "0.308739273255",
+      "native_openings_subset": 4,
+      "native_reserved": "0",
+      "non_native_http_starts": 2892,
+      "physical_starts_including_native": 2896,
+      "provider_invoice": "UNAVAILABLE",
+      "unclosed_http_receipts": [],
+      "unclosed_streams": []
+    },
+    "publication_correction": {
+      "nonempty_samples": 0,
+      "proof_eligibility": "UNAVAILABLE_NOT_REEVALUATED",
+      "raw_cursor_progress_is_not_published_usable": true,
+      "strategy_consumption": "UNAVAILABLE; startup never released and usable program frontiers empty"
+    },
+    "resource": {
+      "cgroup_average_cores": 1.7039810194617426,
+      "cgroup_memory_max_bytes": 2488778752,
+      "cgroup_throttled_seconds": 18.190843,
+      "scope": "Thread/process/group and phase measures overlap; no wall-minus-CPU lock/GIL inference."
+    },
+    "result": {
+      "acceptance_minutes": 0,
+      "drained": true,
+      "economic_continuity": true,
+      "elapsed_to_drain_seconds": 905.2908411049284,
+      "funding": false,
+      "native_drain": "VERIFIED_NATIVE_WORKER_STOP_ONLY",
+      "original_readiness": "FAIL",
+      "recovery_required": false,
+      "status": "STOPPED_REVIEW_REQUIRED",
+      "stop_reason": "STARTUP_LIMITATION"
+    },
+    "retention": {
+      "calls": 253,
+      "outer_wall_seconds": 57.214531,
+      "phase_wall_sum_seconds": 56.071915,
+      "phases": {
+        "housekeeping": {
+          "cpu_seconds": 0.161972,
+          "runnable_seconds": 0.395298,
+          "wall_seconds": 0.54853
+        },
+        "plan": {
+          "cpu_seconds": 7.233667,
+          "runnable_seconds": 14.354202,
+          "wall_seconds": 30.017028
+        },
+        "post": {
+          "cpu_seconds": 0.081377,
+          "runnable_seconds": 0.610868,
+          "wall_seconds": 1.96567
+        },
+        "transaction": {
+          "cpu_seconds": 5.351125,
+          "runnable_seconds": 10.954087,
+          "wall_seconds": 23.540687
+        }
+      },
+      "scope": "Entered exclusive phases; CPU and runnable overlap elapsed wall. Residual is outside wrappers, not inferred SQL/CPU.",
+      "unmeasured_delta": 0
+    },
+    "retention_zero_cost_upper_bound_only": {
+      "elapsed_fraction": 0.15646468416275625,
+      "maximum_elapsed_speedup_if_all_retention_wall_disappeared": 1.1854868210318599,
+      "not_a_proposed_correctness_relaxation": true
+    },
+    "slot_unit_rates": {
+      "candidate_native_block_metadata": 2.7513627559265217,
+      "canonical_durable": 2.756943613443614,
+      "control_arrival_side_receipt": 4.632111739186639,
+      "joined": 2.7513627559265217,
+      "prepared": 2.7457818984094295,
+      "raw_program_cursor": 2.7457818984094295,
+      "retained_economics_min": 2.7457818984094295,
+      "usable_published_program_frontier": "UNAVAILABLE_EMPTY_TRUE_PROGRAM_FRONTIERS"
+    },
+    "startup_phase": "WAIT_FOR_DURABLE_PUBLICATION",
+    "startup_released": false
+  },
+  "observed_executable": "c281058e5993bd7a35190010e9398c982ca7cd1e",
+  "pons_history_discriminator": {
+    "active_body_bytes": 31487,
+    "active_candidates": 2,
+    "decision": "No material active-population History.rows scan correction supported; no repeated query/optimization.",
+    "scope": "Single warm actual retained-population call, not full-machine capacity.",
+    "sql_statements": 1,
+    "thread_cpu_seconds": 0.001262084,
+    "wall_seconds": 0.001254614
+  },
+  "private_evidence": [
+    {
+      "bytes": 31063,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/OWNER_RETENTION_PIPELINE_ANALYSIS_20261015.json",
+      "sha256": "12f6639e4d02ec0d506a7cb38f4d584f7248b53a5843cea36505db61b2c2f787"
+    },
+    {
+      "bytes": 4125,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/OWNER_RETENTION_PROOF_DEPENDENCY_20261015.json",
+      "sha256": "ad9900729d59a3120ed7d4d77b5572527bf4faf3fd038661330cb1b9479a4ee5"
+    },
+    {
+      "bytes": 2255,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/OWNER_RETENTION_PROOF_FINAL_CLOCK_COMPARISON_20261015.json",
+      "sha256": "a1c6284d0b7c664e90ee3c8dc65ead38510406a64934072f94bbcd22aad8d34c"
+    },
+    {
+      "bytes": 1964727,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/OWNER_RETENTION_POST_NATIVE_FINANCIAL_20261015.json",
+      "sha256": "62fe0fd838afbb67b4a0ad4d0a4e22d06ffb44b5752eca1f6be984849da12e5d"
+    },
+    {
+      "bytes": 751,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/OWNER_RETENTION_ROLLBACK_20261015.json",
+      "sha256": "fc3fb6aee95c4d2eb11de18ae998754e5c03174fd9c33bf356616e2c04822e8c"
+    },
+    {
+      "bytes": 206,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_HANDOFF_INTERLEAVING_REPRO_UNFIXED_20261015.log",
+      "sha256": "3f9b54a082b86c25e459ab8154d3798d4e21a983219a19666f9b3fd38aa5df38"
+    },
+    {
+      "bytes": 1135,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_HANDOFF_INTERLEAVING_REPRO_SELECTED_20261015.log",
+      "sha256": "835068ba81d8620d6bf5b3a8f80e66cd3b39902423c43c29a42c4293fa7fb6db"
+    },
+    {
+      "bytes": 211,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_HANDOFF_AFFECTED_DELIVERY_20261015.log",
+      "sha256": "9cee2a8bbc9e14b062336d3189cb5d7ed38e4386da14fa162af9bf5cc42692ec"
+    },
+    {
+      "bytes": 5637,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_HANDOFF_COMBINED_INTEGRATION_20261015.log",
+      "sha256": "4ef3591462536a1b00946c1f848e70454e679c50228e97fb3df2d9ca474c556e"
+    },
+    {
+      "bytes": 2761,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_HANDOFF_ACCOUNTING_AFFECTED_20261015.log",
+      "sha256": "3ce49f2c208e83d79cfcf3de0668889162b340817efef6dc3654ecc2f0a53872"
+    },
+    {
+      "bytes": 2893,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_HISTORY_ROWS_DISCRIMINATOR_20261015.json",
+      "sha256": "6d770f0ccdb4d0ba9635d9ddb5f336863b12ee096a8e9a273f6c602381bcee86"
+    }
+  ],
+  "remaining_blockers": [
+    "Pump startup release and actual usable publication not established.",
+    "Pre-persistence processing deficit remains; matching measured arrivals requires at least1.68016x canonical durable rate before recovery/burst headroom.",
+    "Accepted source-frame drain not established by native stop or monetary reconciliation.",
+    "Managed Pons complete held quote/USD three/five-second protection not exercised by flat funded-closed run.",
+    "Original SQLite BUSY, Pons READONLY INSERT and native replay semantics remain independently open.",
+    "Later failed backup remains unusable; applicable older recovery proof does not resolve storage failure.",
+    "Full-cgroup backup freeze compatibility with uninterrupted protection unresolved."
+  ],
+  "retained_state": {
+    "actual_native": {
+      "pons": {
+        "phase": "STOPPED",
+        "reconciled": true,
+        "verdict": "VERIFIED_LANE_GRACEFUL_DRAIN"
+      },
+      "pump": {
+        "phase": "STOPPED",
+        "reconciled": true,
+        "verdict": "VERIFIED_LANE_GRACEFUL_DRAIN"
+      }
+    },
+    "all_four_v1": "VERIFIED",
+    "cash": "1000.00",
+    "current_sampled_cohort": {
+      "dispositions": {
+        "ACKED_WITH_AUTHENTIC_RECEIPT": 1629,
+        "PENDING_PRESERVED": 6
+      },
+      "named": 1635,
+      "scope": "Bounded sampled canonical identities, not full population or complete source-frame drain.",
+      "status": "VERIFIED"
+    },
+    "epoch_id": "paper-shared-1000-20261011T071207Z",
+    "historical500_preservation": "VERIFIED",
+    "journal_sequence": 10965,
+    "obligation_counts": {
+      "commitments": 0,
+      "obligations": 0,
+      "pending_backing": 0,
+      "pending_deliveries": 0,
+      "positions": 0,
+      "reservations": 0,
+      "runtime_inbox": 0,
+      "runtime_pending": 0
+    },
+    "post_verdict": "CHECKED_STATE_CONSISTENT_NATIVE_LANES_DRAIN_VERIFIED_REVIEW_REQUIRED",
+    "retained_service": "inactive/disabled/Restart=no; funding closed",
+    "rollback_source": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "rollback_state_rewind": false,
+    "scope": "Retained O10 post-review, not a new fresh pre-dispatch inspection.",
+    "source_frame_drain": "UNAVAILABLE_FROM_STATIC_REVIEW; source OFF/empty group does not alone prove all accepted in-memory frames completed."
+  },
+  "schema": 1,
+  "status": "OFFLINE_HANDOFF_CORRECTION_VALIDATED_NOT_CAPACITY_PROOF",
+  "validation_disclosures": [
+    "Affected/combined/successor cases overlap; no distinct-case sum.",
+    "Initial requested case outside FAST correctly rejected before execution.",
+    "First successor class-as-module command rejected before execution, exit2; no application failure.",
+    "Full FAST/complete OPERATIONAL release validation not run for this narrow repair; no general release PASS."
+  ],
+  "validations": [
+    {
+      "case": "tests.test_solana_history_separation.DeliverySeparationTests.test_completed_proof_batch_publishes_after_intervening_owner_turn_without_horizon_rescan",
+      "cases": 1,
+      "result": "REPRODUCED_FAILURE",
+      "seconds": 0.301,
+      "source": "unfixed predecessor with new reproduction"
+    },
+    {
+      "cases": 12,
+      "result": "PASS",
+      "scope": "Affected delivery cases",
+      "seconds": 2.137,
+      "source": "ab621aba7d33245aa0090a24ef1dc07338f2b5b0"
+    },
+    {
+      "cases": 246,
+      "result": "PASS",
+      "scope": "Combined integration; reused only for successor unchanged dependencies",
+      "seconds": 102.915,
+      "source": "ab621aba7d33245aa0090a24ef1dc07338f2b5b0"
+    },
+    {
+      "cases": 69,
+      "result": "PASS",
+      "scope": "tests.test_solana_history_separation and tests.test_solana_history_refinement; includes accounting fence failures/order.",
+      "seconds": 17.908,
+      "source": "76785b2a3e814ad456f3ad2d22befdcd68cb8a93"
+    }
+  ]
+}

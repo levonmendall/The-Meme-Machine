@@ -1,0 +1,9 @@
+test_compact_failure_cost_is_charged_and_never_presented_as_guaranteed_savings (tests.test_continuation_resource_efficiency.EnvelopeModelTests.test_compact_failure_cost_is_charged_and_never_presented_as_guaranteed_savings) ... ok
+test_old_contract_bootstrap_limits_are_retained_exactly (tests.test_continuation_resource_efficiency.EnvelopeModelTests.test_old_contract_bootstrap_limits_are_retained_exactly) ... ok
+test_quote_only_demand_cannot_fit_old_element_envelope_and_never_enlarges_it (tests.test_continuation_resource_efficiency.EnvelopeModelTests.test_quote_only_demand_cannot_fit_old_element_envelope_and_never_enlarges_it) ... ok
+test_stress_exceeds_shared_provider_ceiling_even_after_witness_batching (tests.test_continuation_resource_efficiency.EnvelopeModelTests.test_stress_exceeds_shared_provider_ceiling_even_after_witness_batching) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.006s
+
+OK

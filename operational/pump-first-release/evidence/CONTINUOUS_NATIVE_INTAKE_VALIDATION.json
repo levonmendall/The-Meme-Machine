@@ -1,0 +1,42 @@
+{
+  "status": "PASS_FOCUSED_82_PLUS_SQLITE_DIAGNOSTIC_CASE",
+  "baseline_source": "75288fec2f19991c21f042e8f6daa366259f4c45",
+  "source_sha256": {
+    "meme_machine/operational/bounded_provider.py": "1fc78a6f35170dcc4448066dba9b35204e6bf445424348ee401e04c7152f70ea",
+    "meme_machine/runtime/evidence_worker.py": "4958491822eed328479af96c46143766024cacd25ffd5bfad8bef32456d9117e",
+    "operational/tests.py": "1097291d0a37e20c2fa0b7b304e0b1eeceb3a5de00788394cd06a5dc3d23c884",
+    "tests/test_bounded_provider_preflight.py": "fc499bfda7e2c358c5962487157805e863eed972931a3ed11a921decfbb13542",
+    "tests/test_continuous_paper.py": "675d8744ee60d76747d9daa7c7da1b2a9bee4a131c27c4a8344f54c76e74e8b4",
+    "tests/test_position_continuation.py": "273f7f8220718ca6792ee45b01ad7b6e07b54e8dc902ecc8b7bfa40c419560a4",
+    "tests/test_native_usage_intake.py": "fdc91942fda93d6ad96c66e754075741dc7864e218219d83b5b0eb7b49c91e53",
+    "tests/test_operational_capacity_repairs.py": "e40aedc3bffd1e5aaaff1bbbcd280ea6b0a116a312c2995b59c7df2377bde1e7"
+  },
+  "focused_command": "python -m operational.tests OPERATIONAL --modules tests.test_native_usage_intake tests.test_bounded_provider_preflight tests.test_continuous_paper tests.test_position_continuation tests.test_operational_capacity_repairs",
+  "focused_tests": 82,
+  "focused_elapsed_seconds": "16.916",
+  "additional_command": "python -m operational.tests OPERATIONAL --cases tests.test_operational_capacity_repairs.EvidenceWorkerDiagnosticTests.test_sqlite_busy_retains_verified_code_without_exception_message",
+  "additional_tests": 1,
+  "long_integration": {
+    "tests": 170,
+    "elapsed_seconds": "1311.190",
+    "result": "FAIL_ONE_FIXTURE_ERROR",
+    "failed_case": "tests.test_position_continuation.SelectiveShutdownTests.test_running_optional_program_subscription_is_cancelled_at_cutoff",
+    "cause": "fixture omitted rolling_publications; production closure assertion unchanged",
+    "correction": "fixture initializes rolling_publications=0; same case passed in corrected 82-case suite",
+    "other_cases_passed": 169,
+    "source_note": "Integration loaded the old fixture before it was corrected; retained failed evidence is not relabelled PASS."
+  },
+  "accounting": "exact delivered group bytes durably committed before any FIFO content",
+  "group_bounds": {
+    "frames": 32,
+    "bytes": 16777216,
+    "positive_batch_wait_seconds": 0,
+    "yellowstone_per_open_reserved_bytes": 50331648,
+    "websocket_per_open_reserved_bytes": 67108864,
+    "installed_native_inflight_bytes": 536870912
+  },
+  "billing_savings_claimed": false,
+  "authenticated_equivalence": false,
+  "funding": false,
+  "economic_rules_changed": false
+}

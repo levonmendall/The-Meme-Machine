@@ -1,0 +1,436 @@
+{
+  "acceptance_minutes": 0,
+  "access_repair": "PASS",
+  "artifacts": [
+    {
+      "bytes": 7558,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/DIAGNOSTIC_ACCESS_REPAIR_FOCUSED_20261014.log",
+      "sha256": "e32077ac8f58f7682a368280dab2495f24d1a9c353bb9075c5f8e3a88ec3fc66"
+    },
+    {
+      "bytes": 9904,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLACEMENT_OBSERVATION_PREPARATION_20261014.json",
+      "sha256": "1039f0996578463da113f6d05c01d20089920dd25cba9d0c07ada5dacb41b248"
+    },
+    {
+      "bytes": 545421,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLACEMENT_OBSERVATION_BEFORE_STATES_20261014.json",
+      "sha256": "f6178aa91ed82de1ff6b546078a1f2472a8b2ac43e2c0b1adf2ff9110f75ccd6"
+    },
+    {
+      "bytes": 0,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLACEMENT_OBSERVATION_CONTROLLER_20261014.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1224,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLACEMENT_OBSERVATION_JOURNAL_20261014.log",
+      "sha256": "9a231beffb171d5a954664ac35f0c4535ec07d4d12613a904e9162e3ef4006e8"
+    },
+    {
+      "bytes": 6184,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLACEMENT_OBSERVATION_PROCESSES_AFTER_20261014.txt",
+      "sha256": "0a23955730a0a3fcc71489433c118af2b750ce1ae13d359e4b21ffb581fb9e55"
+    },
+    {
+      "bytes": 554668,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLACEMENT_OBSERVATION_POSTCHECK_20261014.json",
+      "sha256": "594a7727205e2ddf625e6065c94a0c604908cc7a1096533bbf94d3811151ceac"
+    },
+    {
+      "bytes": 39996,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLACEMENT_OBSERVATION_FINAL_HEALTH_20261014.json",
+      "sha256": "ed309f151f32c67dc05a7ea7f571641220aa27407a9b24bc7075af2270a878cf"
+    },
+    {
+      "bytes": 3661,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLACEMENT_OBSERVATION_SHUTDOWN_REVIEW_20261014.json",
+      "sha256": "5be9f7c522c57619e3e6e44e662c6d63f8ff919172925c97da6833afd718e512"
+    },
+    {
+      "bytes": 1499,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLACEMENT_OBSERVATION_PIPELINE_ANALYSIS_20261014.json",
+      "sha256": "0b38776f802968c34392e803d5e336b757774599c1e0242f142b3969b10ca846"
+    },
+    {
+      "bytes": 1274,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLACEMENT_OBSERVATION_ROLLBACK_20261014.json",
+      "sha256": "e7ad98883d89b7c467200ee6eacbc5ddfb26bfaeef11a58c37cdfac158040ea7"
+    },
+    {
+      "bytes": 96,
+      "path": "/var/lib/meme-machine-diagnostics/20261014-replacement-combined-165022/clock.json",
+      "sha256": "53c0753cabe80c7b5019da10c902cb3e70f153555a62cb5658f4a8f2d59407f5"
+    },
+    {
+      "bytes": 1829,
+      "path": "/var/lib/meme-machine-diagnostics/20261014-replacement-combined-165022/result.json",
+      "sha256": "8cba0a66b3423e49a9935739354f431bf411d8d4d0ebad5df5250cb3b93467c7"
+    },
+    {
+      "bytes": 1340144,
+      "path": "/var/lib/meme-machine-diagnostics/20261014-replacement-combined-165022/metrics.jsonl",
+      "sha256": "8f57293085ebcfcf04bd92d92526b19de138b3e945689f00225d5e23005ffa38"
+    }
+  ],
+  "backup_timers_routes_credentials_quotas_changed": false,
+  "executed_revision": "0333860364b0602583b7e300cbe7e57303697510",
+  "focused_validation": {
+    "actual_service_identity_and_fs_restrictions_exercised": true,
+    "errors": 0,
+    "failures": 0,
+    "runner": "python -m operational.tests FAST --modules tests.test_current_combined_diagnostic --verbose",
+    "runtime": "CPython3.12.14 SQLite3.45.1",
+    "seconds": 0.638,
+    "skips": 0,
+    "tests": 39
+  },
+  "historical500_exact_unchanged": true,
+  "independent_blockers_open": [
+    "Pump sustainedthroughput/dominantconstraint",
+    "Pump startup/nativegracefulrecovery",
+    "OriginalSQLITE_BUSY",
+    "Pons publicprovider arrangement/429cause",
+    "Pons READONLY INSERT",
+    "Laterbackupfailure",
+    "Activebackup/protectioncompatibility"
+  ],
+  "measurement_limitations": [
+    "CONTROL is arrival-side frontier proxy; no raw arrivals/processed event count",
+    "numeric128-key clipping drops nested required pipeline/aggregate counters",
+    "Fixed cohort32preexisting scout/activity records does not measure new canonical history/ACK rates",
+    "Original threshold-crossing provider queue fields not retained before raising guard",
+    "Startup RECONCILING and provider failure prevent steady-state capacity/protection conclusion",
+    "No owner native thread scheduling attribution; io.stat unavailable"
+  ],
+  "modeled_cost_delta_usd": "0.049087233720",
+  "next_work_not_executed": [
+    "Retain triggering guard fields/requiredpipelinecounters/currentcanonicalcohort withinoriginalbounds",
+    "Focused offlinebatch429/fallback/adaptivefeedback regression",
+    "Attribute PumpRECONCILING and failedgracefulcancel before restart"
+  ],
+  "operating_economic_identity_cash_policy_inception_unchanged": true,
+  "original_failed_result_sha256": "1480bdcb09e6535ea51211b028d664e7fb032f04475e0311056caad2fdc9089e",
+  "original_failed_result_unchanged": true,
+  "pons": {
+    "admission_id": 55403,
+    "batch_adaptive_hook_difference": "batch fallback omits singlecall adaptive feedback; proposedoffline testonly, not implemented or claimed429fix",
+    "canonical_admission_max_seconds": 0.12271,
+    "canonical_alchemy": 61,
+    "canonical_boundary_errors": 0,
+    "complete_quote_plus_usd": "UNOBSERVED",
+    "completed_transports": 68,
+    "exact_provider_limit": "UNKNOWN",
+    "held_protection_capacity": "UNPROVEN",
+    "old125ms_burst_observed": false,
+    "public": 7,
+    "public429_count": 2,
+    "public429_dispatch_elapsed_seconds": [
+      203.799,
+      213.337
+    ],
+    "public429_form": "4-elementeth_getLogs,inflight1,retry0,cf-rayonly,noRetry-After/rate-limitinfo,chunkedbodydeadline-skipped",
+    "public_discovery_admission_wait_seconds": 6.97935,
+    "public_dispatch_spacing_seconds": {
+      "max": 8.25318,
+      "median": 0.90713,
+      "min": 0.58637
+    },
+    "public_endpoint": "https://rpc.mainnet.chain.robinhood.com",
+    "supported_mechanism": "Natural429->existing8s endpointcooldown->long discovery admission"
+  },
+  "portfolio_summaries": {
+    "historical500": {
+      "cash": null,
+      "counts": {
+        "commitments": 0,
+        "obligations": 0,
+        "pending_backing": 0,
+        "pending_deliveries": 0,
+        "positions": 0,
+        "reservations": 0,
+        "runtime_inbox": 0,
+        "runtime_pending": 0
+      },
+      "epoch_id": "paper-1791089005190643467",
+      "journal_hash": "c0cb1d5fd4a156378e4e53764c0f528707ee9a5af799662daf15f207be95723e",
+      "reconciliation": "PASS",
+      "replayed_sha256": "682cadd084dae4b288d1972e5e1d23c9e5b6026bd1d165442a239f6af9570563",
+      "sequence": 2036
+    },
+    "paper1000": {
+      "cash": "1000.00",
+      "counts": {
+        "commitments": 0,
+        "obligations": 0,
+        "pending_backing": 0,
+        "pending_deliveries": 0,
+        "positions": 0,
+        "reservations": 0,
+        "runtime_inbox": 0,
+        "runtime_pending": 0
+      },
+      "epoch_id": "paper-shared-1000-20261011T071207Z",
+      "journal_hash": "197e8d1ca6c0629b2b810151105f118cfa09aa18d6fdb9f6b903b5d95f76a57e",
+      "reconciliation": "PASS",
+      "replayed_sha256": "48277a4c0cb212efe636f290082bb6b060a8c0101852b1082a0a91ca9ca3d8df",
+      "sequence": 8896
+    }
+  },
+  "price_scope": "Existing conservative public-rate model includes uncertain native unread bytes; no invoice or account-plan fee verification",
+  "pump_measurements": {
+    "control_scope_note": "Arrival-side frontier proxy, not raw frame/event counts. Per-program scopes overlap; never sum. Excludes startup old-stock frontier jump.",
+    "control_slots": 423,
+    "control_slots_per_second": 4.28834261802377,
+    "first_elapsed": 109.56834101793356,
+    "history_ACK_scope_note": "32 retained old scout/activity cohort records only; cannot measure current canonical consumer/ACK throughput.",
+    "last_elapsed": 208.20784762408584,
+    "metrics_bytes": 1340144,
+    "programs": {
+      "program:pump": {
+        "control_to_stored_gap_first": 146,
+        "control_to_stored_gap_last": 419,
+        "newest_economic_slot_progress": 150,
+        "newest_economic_slot_progress_per_second": 1.5206888716396347,
+        "published_slots": 144,
+        "published_slots_per_second": 1.4598613167740493,
+        "stored_to_published_gap_first": 1,
+        "stored_to_published_gap_last": 7
+      },
+      "program:pumpswap": {
+        "control_to_stored_gap_first": 146,
+        "control_to_stored_gap_last": 419,
+        "newest_economic_slot_progress": 150,
+        "newest_economic_slot_progress_per_second": 1.5206888716396347,
+        "published_slots": 144,
+        "published_slots_per_second": 1.4598613167740493,
+        "stored_to_published_gap_first": 1,
+        "stored_to_published_gap_last": 7
+      }
+    },
+    "readiness_ever_observed": false,
+    "samples": 20,
+    "seconds": 98.63950660615228,
+    "service_cpu_cores": 1.6804016838995595,
+    "throttled_periods_delta": 574,
+    "throttled_seconds_delta": 7.314423
+  },
+  "pump_stage_callback_deltas": {
+    "candidate_commit": {
+      "calls": 40,
+      "cpu_seconds": 7.49,
+      "wall_seconds": 36.75
+    },
+    "checkpoint_owner_holds": {
+      "calls": 17,
+      "seconds": 6.620059
+    },
+    "history_publication": {
+      "calls": 30,
+      "cpu_seconds": 3.97,
+      "wall_seconds": 12.09
+    },
+    "scope_note": "Overlapping callbacks/SQL/checkpoint measures, not additive critical path. No causal bottleneck/hardware verdict.",
+    "scout": {
+      "calls": 59,
+      "cpu_seconds": 3.83,
+      "wall_seconds": 24.27
+    },
+    "sql_commit": {
+      "calls": 333,
+      "cpu_seconds": 0.982493,
+      "wall_seconds": 6.141484
+    }
+  },
+  "readiness_ever_observed": false,
+  "recorded_at": "2026-10-14T17:19:08.592047+00:00",
+  "repair_documentation_revision": "a048ee8cbeb87bff9c589a0b6f587fd909c23ed5",
+  "replacement_attempt_count": 1,
+  "restart_or_another_observation_authorized": false,
+  "result_unchanged": {
+    "acceptance_minutes": 0,
+    "before": {
+      "cash": "1000.00",
+      "epoch_id": "paper-shared-1000-20261011T071207Z",
+      "inception_sha256": "aea262d34d976cddeddf83f57045508cf09f3c8e28cf8a2c73ae49d38cc261b1",
+      "policy_sha256": "8c6eb7f30f2729b28de865ac1353e626f64c6cbd00dce375281946a962976c66",
+      "realized": {
+        "meteora": "0",
+        "pons_current": "0",
+        "pons_survivor": "0",
+        "pump_current": "0",
+        "pump_survivor": "0",
+        "ramses": "0"
+      }
+    },
+    "diagnostic_access": {
+      "controller_clock_mode": 420,
+      "filesystem_properties": {
+        "BindPaths": "",
+        "BindReadOnlyPaths": "",
+        "DynamicUser": "no",
+        "Group": "meme-machine",
+        "InaccessiblePaths": "",
+        "NoNewPrivileges": "yes",
+        "PrivateDevices": "no",
+        "PrivateTmp": "yes",
+        "PrivateUsers": "no",
+        "ProtectControlGroups": "no",
+        "ProtectHome": "yes",
+        "ProtectKernelModules": "no",
+        "ProtectKernelTunables": "no",
+        "ProtectSystem": "full",
+        "ReadOnlyPaths": "",
+        "ReadWritePaths": "",
+        "RestrictNamespaces": "no",
+        "RootDirectory": "",
+        "RootImage": "",
+        "SupplementaryGroups": "",
+        "TemporaryFileSystem": "",
+        "UMask": "0077",
+        "User": "meme-machine",
+        "WorkingDirectory": "/opt/meme-machine"
+      },
+      "identity": {
+        "gid": 987,
+        "groups": [
+          987
+        ],
+        "uid": 997
+      },
+      "network": "DISABLED",
+      "probe_run_mode": 448,
+      "simulated_clock_only": true,
+      "verified": true
+    },
+    "drained": true,
+    "economic_continuity": true,
+    "elapsed_to_drain_seconds": 227.59960561897606,
+    "failure": true,
+    "funding": false,
+    "native_drain": "UNVERIFIED_TIMEOUT_ESCALATION_POSSIBLE",
+    "original_readiness": null,
+    "recovery_required": true,
+    "restored_at_monotonic": null,
+    "revision": "0333860364b0602583b7e300cbe7e57303697510",
+    "service_state": "MainPID=0\nActiveState=inactive\nSubState=dead",
+    "status": "RECOVERY_REQUIRED",
+    "stop_reason": "provider_queue_limit:robinhood",
+    "unit_properties": {
+      "KillMode": "control-group",
+      "Restart": "no",
+      "RuntimeMaxUSec": "30min",
+      "TimeoutStopUSec": "1min 5s"
+    }
+  },
+  "result_written_at": "2026-10-14T16:55:09.216798+00:00",
+  "rollback": {
+    "acceptance_minutes": 0,
+    "active_exposure": false,
+    "at": "2026-10-14T17:09:35.526439+00:00",
+    "backup_configuration_modified": false,
+    "clean": true,
+    "database_rewind": false,
+    "diagnostic_parent_repair_retained": true,
+    "finished_at": "2026-10-14T17:09:36.158078+00:00",
+    "funding": false,
+    "native_graceful_drain": "FAILED_PUMP_SIGKILL_RECOVERY_REVIEW_REQUIRED",
+    "original_failed_result_unchanged": true,
+    "previous_source": "a70e2610743d8595b3d1a36ed25821a6689c29f3",
+    "restored_overlays": [
+      {
+        "mode": "0o640",
+        "path": "/etc/meme-machine/volume-quality-service.observation.env",
+        "sha256": "75f4d3e42edcf099b2d00be6319c91aa1f0d496ca3c9c39226bb18b3ac70a0c5"
+      },
+      {
+        "mode": "0o644",
+        "path": "/etc/systemd/system/meme-machine-paper.service.d/validation-observation.conf",
+        "sha256": "5472f456883cef4552d2367168b96366fc7b7a6b2d09e18d72472f19aeadde80"
+      }
+    ],
+    "service_start_requested": false,
+    "source": "a70e2610743d8595b3d1a36ed25821a6689c29f3",
+    "state_after_observation_exact_unchanged": true,
+    "status": "ROLLBACK_COMPLETE_STOPPED_RECOVERY_REVIEW_REQUIRED",
+    "unit_properties": "Restart=no\nTimeoutStopUSec=1min 5s\nRuntimeMaxUSec=21min 5s\nMainPID=0\nResult=success\nControlGroup=\nActiveState=inactive\nSubState=dead\nUnitFileState=disabled",
+    "usage_after_observation_exact_unchanged": true
+  },
+  "schema": "replacement-combined-observation-outcome-v1",
+  "service_start_at": "2026-10-14T16:51:21.616528Z",
+  "shutdown": {
+    "canonical_owner_admission_closed": true,
+    "canonical_phase": "OFF",
+    "kill_invoker": "NOT_LOGGED;15.23sstop interval consistentwithnative15s timeout escalation",
+    "lane_health": {
+      "meteora": {
+        "exit_code": null,
+        "phase": "PAUSED",
+        "pid": null,
+        "reconciled": true,
+        "restarts": 0
+      },
+      "pons": {
+        "exit_code": 0,
+        "phase": "STOPPED",
+        "pid": 2704039,
+        "reconciled": true,
+        "restarts": 0
+      },
+      "pump": {
+        "exit_code": -9,
+        "phase": "RECONCILING",
+        "pid": 2704035,
+        "reconciled": false,
+        "restarts": 0
+      },
+      "ramses": {
+        "exit_code": null,
+        "phase": "PAUSED",
+        "pid": null,
+        "reconciled": true,
+        "restarts": 0
+      }
+    },
+    "native_flat_checks": {
+      "pons": {
+        "held_sleeve_rows": 0,
+        "sleeve_columns": [
+          "id",
+          "body"
+        ],
+        "sleeve_rows": 0
+      },
+      "pump": {
+        "held_sleeve_rows": 0,
+        "native_position_rows": 0,
+        "native_statuses": [],
+        "sleeve_columns": [
+          "id",
+          "body"
+        ],
+        "sleeve_rows": 0
+      }
+    },
+    "native_graceful_drain": "FAIL_PUMP_SIGKILL_WHILE_RECONCILING",
+    "no_terminal_sqlite_error_captured": true,
+    "source_child_exit_code": "NOT_RETAINED"
+  },
+  "specification_revision": "282d38946955b46422a34348062ac572777d8473",
+  "status": "STOPPED_FOR_REVIEW_RECOVERY_REQUIRED",
+  "stop_requested_at": "2026-10-14T16:54:53.954934Z",
+  "usage_delta": {
+    "alchemy_rpc_cu": 6262,
+    "http_attempts": 75,
+    "http_bytes": 641264,
+    "http_uncertain_bytes": 33554432,
+    "native_bytes": 145774792,
+    "native_failures": 0,
+    "native_opens": 4,
+    "native_uncertain_bytes": 285212672,
+    "robinhood_rpc_elements": 257,
+    "rpc_cu": 7302,
+    "rpc_elements": 260,
+    "solana_rpc_elements": 3
+  }
+}

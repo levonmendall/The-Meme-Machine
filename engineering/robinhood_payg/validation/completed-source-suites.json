@@ -1,0 +1,14 @@
+[
+  {
+    "level": "FAST",
+    "returncode": 0,
+    "log": "engineering/robinhood_payg/validation/FAST-complete.log",
+    "resources": "engineering/robinhood_payg/validation/FAST-complete-resources.txt"
+  },
+  {
+    "level": "OPERATIONAL",
+    "returncode": 0,
+    "log": "engineering/robinhood_payg/validation/OPERATIONAL-complete.log",
+    "resources": "engineering/robinhood_payg/validation/OPERATIONAL-complete-resources.txt"
+  }
+]

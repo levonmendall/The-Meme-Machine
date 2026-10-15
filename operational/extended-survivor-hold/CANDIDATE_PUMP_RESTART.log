@@ -1,0 +1,8 @@
+STORAGE WARNING: root 75.3% used; 11.72 GiB available; nonessential bulk operations block at 85.0%.
+test_pump_native_current_bridge_renewal_restart_and_existing_trail_exit (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pump_native_current_bridge_renewal_restart_and_existing_trail_exit) ... ok
+test_pump_unavailable_evidence_intent_is_durable_without_synthetic_mark_or_fill (tests.test_exceptional_winner_candidate.NativeCurrentTests.test_pump_unavailable_evidence_intent_is_durable_without_synthetic_mark_or_fill) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.693s
+
+OK

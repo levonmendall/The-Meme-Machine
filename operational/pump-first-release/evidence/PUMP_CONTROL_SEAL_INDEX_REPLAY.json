@@ -1,0 +1,54 @@
+{
+  "status": "PASS_OFFLINE_IDENTICAL_RESULTS",
+  "same_retained_input": true,
+  "canonical_db_changed": false,
+  "provider_requests": 0,
+  "rows": [
+    {
+      "kind": "before",
+      "vm_steps": 151000,
+      "seconds": 0.007811301038600504,
+      "result": [],
+      "plan": [
+        [
+          7,
+          0,
+          0,
+          "SEARCH c USING INDEX receipt_parent (scope=?)"
+        ],
+        [
+          15,
+          0,
+          0,
+          "SEARCH p USING INDEX sqlite_autoindex_stream_receipts_1 (scope=? AND slot=?)"
+        ],
+        [
+          45,
+          0,
+          0,
+          "USE TEMP B-TREE FOR ORDER BY"
+        ]
+      ]
+    },
+    {
+      "kind": "after",
+      "vm_steps": 0,
+      "seconds": 0.00021859805565327406,
+      "result": [],
+      "plan": [
+        [
+          7,
+          0,
+          0,
+          "SEARCH p USING INDEX receipt_unsealed (scope=? AND session=?)"
+        ],
+        [
+          16,
+          0,
+          0,
+          "SEARCH c USING INDEX receipt_parent (scope=? AND parent=? AND session=?)"
+        ]
+      ]
+    }
+  ]
+}

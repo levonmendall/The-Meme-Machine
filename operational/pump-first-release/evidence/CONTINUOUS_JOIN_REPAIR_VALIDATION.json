@@ -1,0 +1,16 @@
+{
+  "status": "PASS_OFFLINE_67",
+  "baseline_source": "5f70e90b313adfdfdb0b9269d984cc158e4ec71c",
+  "source_sha256": {
+    "meme_machine/solana_selective_source.py": "19eaa485fc6249ab7cb7a2ced852689654d0bbad83d995a36543231b11e9d2c7",
+    "meme_machine/runtime/evidence_worker.py": "6d2018f151e7b00b74dee40850ca1a0514042ff56d7d2bc2787a8030e2468127",
+    "tests/test_solana_selective_evidence.py": "8ad6aa8367922d46ffaec5c2ce649c17901d1190ca246bfca6457d5725176bac",
+    "tests/test_operational_capacity_repairs.py": "3d1c9064cbad31fe22549d193a87ae33a2000cb5a05915f572b93f937009cb3f"
+  },
+  "tests": 67,
+  "elapsed_seconds": "14.106",
+  "test_command": "python -m operational.tests OPERATIONAL --modules tests.test_solana_selective_evidence tests.test_solana_prewarm_startup tests.test_operational_capacity_repairs",
+  "protection_rules_relaxed": false,
+  "provider_equivalence": false,
+  "funding": false
+}

@@ -1,0 +1,344 @@
+{
+  "schema": "pons-historical-preserved-artifacts-v1",
+  "artifacts": [
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-work-preservation/efficiency-successor-20261006/baseline-source.tar",
+      "bytes": 15851520,
+      "sha256": "50b5d7ebc9b42fc854a5473db6fd5a4001e67c36d2c9ef86aad9e00b077880ca",
+      "members": 742,
+      "database_members": [],
+      "classification": "preserved source archive, not authenticated history"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-work-preservation/efficiency-successor-20261006/checkpoint-before-yellowstone-20261006T165859Z/artifacts/baseline-source.tar",
+      "bytes": 15851520,
+      "sha256": "50b5d7ebc9b42fc854a5473db6fd5a4001e67c36d2c9ef86aad9e00b077880ca",
+      "members": 742,
+      "database_members": [],
+      "classification": "preserved source archive, not authenticated history"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-work-preservation/efficiency-successor-20261006/checkpoint-before-yellowstone-20261006T165859Z/artifacts/g02-efficiency-snapshot.json",
+      "bytes": 856,
+      "sha256": "47fef5c3064182b13557017455442edfdec8160238d6462841748e07d72d8593",
+      "top_level_keys": [
+        "coherent_point",
+        "end_time",
+        "epoch_id",
+        "existing_owner_authorized_destination",
+        "off_host",
+        "point",
+        "restore_relative_point",
+        "snapshot_id",
+        "snapshot_name",
+        "source",
+        "start_time",
+        "status",
+        "volume_id"
+      ],
+      "classification": "inventory/dashboard/report; no underlying authenticated event-range journal restored"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-work-preservation/efficiency-successor-20261006/checkpoint-before-yellowstone-20261006T165859Z/artifacts/recovered-source-before-intake.tar",
+      "bytes": 15882240,
+      "sha256": "45935eace610214f397ba9ee1a53503b87875f55ef8a084ae8f5af3eb96cdf35",
+      "members": 745,
+      "database_members": [],
+      "classification": "preserved source archive, not authenticated history"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-work-preservation/efficiency-successor-20261006/g02-efficiency-snapshot.json",
+      "bytes": 856,
+      "sha256": "47fef5c3064182b13557017455442edfdec8160238d6462841748e07d72d8593",
+      "top_level_keys": [
+        "coherent_point",
+        "end_time",
+        "epoch_id",
+        "existing_owner_authorized_destination",
+        "off_host",
+        "point",
+        "restore_relative_point",
+        "snapshot_id",
+        "snapshot_name",
+        "source",
+        "start_time",
+        "status",
+        "volume_id"
+      ],
+      "classification": "inventory/dashboard/report; no underlying authenticated event-range journal restored"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-work-preservation/efficiency-successor-20261006/recovered-source-before-intake.tar",
+      "bytes": 15882240,
+      "sha256": "45935eace610214f397ba9ee1a53503b87875f55ef8a084ae8f5af3eb96cdf35",
+      "members": 745,
+      "database_members": [],
+      "classification": "preserved source archive, not authenticated history"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-backups/meme-machine-paper-20261007T040430-4d5600b2/dashboard-snapshot.json",
+      "bytes": 107468,
+      "sha256": "07c63a39e2764a88092434348c677e2508b5da53cea209c0cf6476215c99005f",
+      "top_level_keys": [
+        "as_of",
+        "epoch_id",
+        "export",
+        "export_sha256",
+        "inception_sha256",
+        "receipt",
+        "receipt_sha256",
+        "schema",
+        "sequence",
+        "snapshot_sha256",
+        "source_identity_sha256",
+        "valid_until"
+      ],
+      "classification": "inventory/dashboard/report; no underlying authenticated event-range journal restored"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-backups/pre-efficiency-start-20261006T162403Z/dashboard-snapshot.json",
+      "bytes": 94093,
+      "sha256": "99c3b5d27de4108bfa7bd2d93599594cb2e7e58783c95134d11779cdf8b10376",
+      "top_level_keys": [
+        "as_of",
+        "epoch_id",
+        "export",
+        "export_sha256",
+        "inception_sha256",
+        "receipt",
+        "receipt_sha256",
+        "schema",
+        "sequence",
+        "snapshot_sha256",
+        "source_identity_sha256",
+        "valid_until"
+      ],
+      "classification": "inventory/dashboard/report; no underlying authenticated event-range journal restored"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-backups/meme-machine-paper-20261006T040416-e6b98fa4/dashboard-snapshot.json",
+      "bytes": 84998,
+      "sha256": "9c097d1c359c053281ee453b6cf267ccb29776a690990fad78a9e388bb24869f",
+      "top_level_keys": [
+        "as_of",
+        "epoch_id",
+        "export",
+        "export_sha256",
+        "inception_sha256",
+        "receipt",
+        "receipt_sha256",
+        "schema",
+        "sequence",
+        "snapshot_sha256",
+        "source_identity_sha256",
+        "valid_until"
+      ],
+      "classification": "inventory/dashboard/report; no underlying authenticated event-range journal restored"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-04/the-meme-machine-final-migration-completeness/paper-state-current-readers-176usy7d/dashboard-snapshot.json",
+      "bytes": 9022,
+      "sha256": "e13376d39c5b4b629e282d1423b1718b92d13ea8dccddfd87ec661ca923b0e6e",
+      "top_level_keys": [
+        "as_of",
+        "epoch_id",
+        "export",
+        "export_sha256",
+        "inception_sha256",
+        "receipt",
+        "receipt_sha256",
+        "schema",
+        "sequence",
+        "snapshot_sha256",
+        "source_identity_sha256",
+        "valid_until"
+      ],
+      "classification": "inventory/dashboard/report; no underlying authenticated event-range journal restored"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-04/the-meme-machine-final-migration-completeness/paper-state-current-readers-z4scwkck/dashboard-snapshot.json",
+      "bytes": 9022,
+      "sha256": "e13376d39c5b4b629e282d1423b1718b92d13ea8dccddfd87ec661ca923b0e6e",
+      "top_level_keys": [
+        "as_of",
+        "epoch_id",
+        "export",
+        "export_sha256",
+        "inception_sha256",
+        "receipt",
+        "receipt_sha256",
+        "schema",
+        "sequence",
+        "snapshot_sha256",
+        "source_identity_sha256",
+        "valid_until"
+      ],
+      "classification": "inventory/dashboard/report; no underlying authenticated event-range journal restored"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-04/the-meme-machine-final-migration-completeness/paper-state-current-readers/dashboard-snapshot.json",
+      "bytes": 9022,
+      "sha256": "e13376d39c5b4b629e282d1423b1718b92d13ea8dccddfd87ec661ca923b0e6e",
+      "top_level_keys": [
+        "as_of",
+        "epoch_id",
+        "export",
+        "export_sha256",
+        "inception_sha256",
+        "receipt",
+        "receipt_sha256",
+        "schema",
+        "sequence",
+        "snapshot_sha256",
+        "source_identity_sha256",
+        "valid_until"
+      ],
+      "classification": "inventory/dashboard/report; no underlying authenticated event-range journal restored"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-04/the-meme-machine-final-migration-completeness/existing-paper-state-snapshot.json",
+      "bytes": 97538,
+      "sha256": "376afa91437d8ba3a1ef1a05726d3c15efaf12bdcf710fafec5a967b91147a26",
+      "top_level_keys": [
+        "at",
+        "source_root",
+        "snapshot_root",
+        "source_unchanged",
+        "sqlite_databases",
+        "file_sha256"
+      ],
+      "classification": "inventory/dashboard/report; no underlying authenticated event-range journal restored"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-04/the-meme-machine-final-migration-completeness/paper-state-compatibility-snapshot/dashboard-snapshot.json",
+      "bytes": 9022,
+      "sha256": "e13376d39c5b4b629e282d1423b1718b92d13ea8dccddfd87ec661ca923b0e6e",
+      "top_level_keys": [
+        "as_of",
+        "epoch_id",
+        "export",
+        "export_sha256",
+        "inception_sha256",
+        "receipt",
+        "receipt_sha256",
+        "schema",
+        "sequence",
+        "snapshot_sha256",
+        "source_identity_sha256",
+        "valid_until"
+      ],
+      "classification": "inventory/dashboard/report; no underlying authenticated event-range journal restored"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-04/the-meme-machine-final-migration-completeness/paper-state-current-readers-c6z2q235/dashboard-snapshot.json",
+      "bytes": 9022,
+      "sha256": "e13376d39c5b4b629e282d1423b1718b92d13ea8dccddfd87ec661ca923b0e6e",
+      "top_level_keys": [
+        "as_of",
+        "epoch_id",
+        "export",
+        "export_sha256",
+        "inception_sha256",
+        "receipt",
+        "receipt_sha256",
+        "schema",
+        "sequence",
+        "snapshot_sha256",
+        "source_identity_sha256",
+        "valid_until"
+      ],
+      "classification": "inventory/dashboard/report; no underlying authenticated event-range journal restored"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-07/the-meme-machine-root-disk-cleanup/cloud-snapshot-inventory.json",
+      "bytes": 10391,
+      "sha256": "49c8e586b5ecc7d30d352afe50f00e61520351de3f27b695b20935102a53060c",
+      "top_level_keys": [
+        "/v2/droplets/605465049",
+        "/v2/droplets/605465049/snapshots",
+        "/v2/droplets/605465049/backups",
+        "/v2/volumes/580be5d5-be20-11f1-bb2f-3ee8be45f379",
+        "/v2/volumes/580be5d5-be20-11f1-bb2f-3ee8be45f379/snapshots?per_page=200"
+      ],
+      "classification": "inventory/dashboard/report; no underlying authenticated event-range journal restored"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-05/the-meme-machine-resume-final-migration/existing-paper-state-snapshot.json",
+      "bytes": 97588,
+      "sha256": "41b734ba7bf1bd84864ea6e076f0b25e44122c0a093a3a3b549b12fafcb4bdc9",
+      "top_level_keys": [
+        "at",
+        "commit",
+        "source_root",
+        "snapshot_root",
+        "source_unchanged",
+        "sqlite_databases",
+        "file_sha256"
+      ],
+      "classification": "inventory/dashboard/report; no underlying authenticated event-range journal restored"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-05/the-meme-machine-resume-final-migration/paper-state-current-readers-8_4_tm6d/dashboard-snapshot.json",
+      "bytes": 9022,
+      "sha256": "e13376d39c5b4b629e282d1423b1718b92d13ea8dccddfd87ec661ca923b0e6e",
+      "top_level_keys": [
+        "as_of",
+        "epoch_id",
+        "export",
+        "export_sha256",
+        "inception_sha256",
+        "receipt",
+        "receipt_sha256",
+        "schema",
+        "sequence",
+        "snapshot_sha256",
+        "source_identity_sha256",
+        "valid_until"
+      ],
+      "classification": "inventory/dashboard/report; no underlying authenticated event-range journal restored"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-05/the-meme-machine-resume-final-migration/paper-state-compatibility-snapshot/dashboard-snapshot.json",
+      "bytes": 9022,
+      "sha256": "e13376d39c5b4b629e282d1423b1718b92d13ea8dccddfd87ec661ca923b0e6e",
+      "top_level_keys": [
+        "as_of",
+        "epoch_id",
+        "export",
+        "export_sha256",
+        "inception_sha256",
+        "receipt",
+        "receipt_sha256",
+        "schema",
+        "sequence",
+        "snapshot_sha256",
+        "source_identity_sha256",
+        "valid_until"
+      ],
+      "classification": "inventory/dashboard/report; no underlying authenticated event-range journal restored"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-05/the-meme-machine-post-migration-final/preserved-before-start/dashboard-snapshot.json",
+      "bytes": 9022,
+      "sha256": "e13376d39c5b4b629e282d1423b1718b92d13ea8dccddfd87ec661ca923b0e6e",
+      "top_level_keys": [
+        "as_of",
+        "epoch_id",
+        "export",
+        "export_sha256",
+        "inception_sha256",
+        "receipt",
+        "receipt_sha256",
+        "schema",
+        "sequence",
+        "snapshot_sha256",
+        "source_identity_sha256",
+        "valid_until"
+      ],
+      "classification": "inventory/dashboard/report; no underlying authenticated event-range journal restored"
+    }
+  ],
+  "off_host_snapshot_contents": "NOT_RESTORED_OR_CERTIFIED",
+  "recursive_collection_copies": 0,
+  "source_mutations": 0
+}

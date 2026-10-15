@@ -1,0 +1,311 @@
+{
+  "artifacts": [
+    {
+      "bytes": 15043,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_NATIVE_FINANCIAL_PREFLIGHT_20261015.json",
+      "sha256": "586de90d6e680e921beea572da04e982af87c879310f02c0d610e1e97738d590"
+    },
+    {
+      "bytes": 16842,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_PROVIDER_RECOVERY_PREFLIGHT_20261015.json",
+      "sha256": "408a9d5d8b0f394a16ca27e09aaff943b57bbe8563669c8e85833350b5baf6fb"
+    },
+    {
+      "bytes": 2951,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_DISPATCH_PREFLIGHT_20261015.json",
+      "sha256": "7f2727537b19ee025f6ad57b31f6d8360d5cc9dc00b9809ff5a28f7cc8ee76de"
+    },
+    {
+      "bytes": 475,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_SOURCE_METADATA_ACCESS_20261015.json",
+      "sha256": "673f22d70517210ff61ffacb5aa06a5950ec7c8fa2b8dfb612377d31b35de955"
+    },
+    {
+      "bytes": 2000,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_SOURCE_FILE_ACCESS_20261015.json",
+      "sha256": "e6cbfe7a0be9619489d90519d4203664781b9e25d56002619b638789e4fd64ac"
+    },
+    {
+      "bytes": 485,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_GITCONFIG_ACCESS_20261015.json",
+      "sha256": "47e615f2249d0817279d686c2a4fe37fac9d4431d084d0109bbfa84f1d126f9f"
+    },
+    {
+      "bytes": 4877,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_SOURCE_REPLAY_CONTEXT_20261015.json",
+      "sha256": "d4c286996e746e68aa4f34d381b8620ac595d8a8b69eacb7950bd33e00d18897"
+    },
+    {
+      "bytes": 884,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_SOURCE_FAILURE_JOURNAL_20261015.log",
+      "sha256": "34723ef81a385eff238759400adcd3b0d671bdc0edf401eb5f1a85e835f24030"
+    },
+    {
+      "bytes": 2911,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_UNIT_JOURNAL_20261015.log",
+      "sha256": "18269e834149f3d5661c3c66241f8380b6575d6090cc35aac60ab1daad907fa5"
+    },
+    {
+      "bytes": 63844,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_FINAL_HEALTH_20261015.json",
+      "sha256": "4e88bf576c2e42c96d5d5bb9bb28f449d42cdd9c8ccb32ec46c9e8f0b04d6806"
+    },
+    {
+      "bytes": 1707,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_USAGE_20261015.json",
+      "sha256": "c76a1591f7cb0500706d89183773f11e2c7262779766c7165ba0d4fcb4ae64e2"
+    },
+    {
+      "bytes": 33172,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_POST_NATIVE_FINANCIAL_20261015.json",
+      "sha256": "f90f04541d23fcf2ff2e9fbcb76f6a759b6ec25a002fe25cb567e0c9ad564490"
+    },
+    {
+      "bytes": 925,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_ROLLBACK_20261015.json",
+      "sha256": "5c858e3abbcc5674dc8a37f0f99d1f61ec9897bf55217f063fe1794c09fdb132"
+    },
+    {
+      "bytes": 1770,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_FINAL_SAFE_STATE_20261015.json",
+      "sha256": "bebf5966d8eb913ad89779a55f385a21a3d5f903e0f73b58e5a4fd3590a61877"
+    },
+    {
+      "bytes": 7852,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_REPRODUCTIONS_20261015.log",
+      "sha256": "c611542dbce295619496019936a9f5d900258e40fb07c26edeced55f26952977"
+    },
+    {
+      "bytes": 4180,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_PONS_STARTUP_GREEN_20261015.log",
+      "sha256": "edeb3053f6f61960d132f82a7247ebdd1f6c7616b14ddaf8af4366444c5fd09d"
+    },
+    {
+      "bytes": 743,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_PONS_STARTUP_FINAL_20261015.log",
+      "sha256": "9416197098ab644195675d1a9e6da7aece3734b9249cc9eed25ac91f35686690"
+    },
+    {
+      "bytes": 22037,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_FOCUSED_INTEGRATION_20261015.log",
+      "sha256": "1481a84091c0e04cb8d65bc02e57a7df78a3e5873991e7b7f1f87141a87698fd"
+    },
+    {
+      "bytes": 377,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CAMPAIGN_ATTEMPT1_ECONOMIC_SOURCE_GUARD_20261015.log",
+      "sha256": "8a3375a4291be13c4a4ac151c8bccba06a37dfef06657a627cc6addbc448793e"
+    },
+    {
+      "bytes": 96,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-campaign-attempt1-ba25499b-002832/clock.json",
+      "sha256": "60de5e505b4bf58eb84f06fc96db3d16f38804f5f3dddbfe394c09793df01746"
+    },
+    {
+      "bytes": 74981,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-campaign-attempt1-ba25499b-002832/metrics.jsonl",
+      "sha256": "527814c7af08123e33ed47caebc95cf80393f4d11a9be3f12722ea5ae2e62f3e"
+    },
+    {
+      "bytes": 97,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-campaign-attempt1-ba25499b-002832/source-sqlite-terminal.txt",
+      "sha256": "0304660bf3e8ae01dafe5488f4bf493c4d6a16db5c70e766776b05901f79afc8"
+    },
+    {
+      "bytes": 105,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-campaign-attempt1-ba25499b-002832/supervisor-fatal.json",
+      "sha256": "e17b7093ae771b0780452feb96d635c7f304911396fba68bb8a6123adf3afa3e"
+    },
+    {
+      "bytes": 7343,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-campaign-attempt1-ba25499b-002832/result.json",
+      "sha256": "32f30f36c820d18fce8989354e7670713be2339d448fdcf98d848e93967f9240"
+    }
+  ],
+  "at": "2026-10-15T00:51:07.767462+00:00",
+  "attempt": {
+    "acceptance_minutes": 0,
+    "elapsed_to_empty_scope_seconds": 64.59902323107235,
+    "funding": "CLOSED",
+    "native_drain": "FAILED_PONS_TIMEOUT_KILL",
+    "new_native_frames": 0,
+    "readiness": "NOT_ESTABLISHED_STARTUP_FATAL_BEFORE_300_SECONDS",
+    "status": "RECOVERY_REQUIRED",
+    "stop_reason": "FIRST_FATAL_WORKER"
+  },
+  "branch": "repair/consolidated-startup-followup-20261014",
+  "campaign": {
+    "consumed": 1,
+    "earliest_expiry_bound_utc": "2026-10-15T23:06:44Z",
+    "exact_owner_received_time": "not retained; not reset",
+    "live_branch": "STOPPED",
+    "maximum": 3
+  },
+  "current_recovery": {
+    "cash": "1000.00",
+    "failed": 0,
+    "future_native_startup_drain": "UNAVAILABLE",
+    "historical_500": "PRESERVED",
+    "monetary_obligations": 0,
+    "named_current_receipt_cohort": {
+      "authentic_exact_acks_after": 32,
+      "authentic_exact_acks_before": 21,
+      "identities": 32,
+      "scope": "retained/replayed stock; not new native arrivals"
+    },
+    "next_start_authorized_by_receipt": false,
+    "older_history_witnesses_pending": 8,
+    "pending_work": "PRESERVED_IN_NAMED_COHORTS",
+    "queries": 155,
+    "query_seconds": 0.101,
+    "raw_journal_head": 8990,
+    "tail_replayed": 8,
+    "unavailable": 0,
+    "verdict": "SAFE_TO_BEGIN_EXISTING_GUARDED_RECOVERY_IN_CHECKED_SCOPE",
+    "verified": 20
+  },
+  "executed_revision": "ba25499b26103ec5d14f1ce765c8e8f180695f33",
+  "new_result_sha256": "32f30f36c820d18fce8989354e7670713be2339d448fdcf98d848e93967f9240",
+  "next_decision": {
+    "forbidden": "No unchanged attempt2; no cursor shift, generic retry, required-evidence omission, second subscription or provider replacement",
+    "limits": "No calls made. Actual method support, account accounting and same-node semantics unverified. Range alone cannot prove exact-slot completeness.",
+    "local_capability": "geyser.proto SubscribeReplayInfo.first_available and finalized GetSlot could discriminate advertised range versus requested floor",
+    "question": "What replay positions are actually available on the bound native endpoint, and how is an unavailable/skipped slot handled?"
+  },
+  "offline_repair": {
+    "actual_kill_cause_identified": false,
+    "database_transaction_durability_timeouts_or_provider_behavior_changed": false,
+    "mechanism": "Initial Pons shared-authority verification did not use the existing native_startup_replay cancellation scope",
+    "scope": "Constructor-only; reuse existing verified executor connection; exact operation telemetry"
+  },
+  "original_historical_result_sha256": "234a147368e2b9b337fdb5248ca7a1c7a363e07aa0e421503d5dc0c1d3335fe8",
+  "pons_shutdown": {
+    "blocking_operation": "UNAVAILABLE",
+    "exit_code": -9,
+    "phase": "RECONCILING",
+    "reconciled": false
+  },
+  "pump_shutdown": {
+    "exit_code": 0,
+    "operation": "pump.accounting_restore",
+    "reconciled": false,
+    "state": "CANCELLED",
+    "term_to_exit_seconds": 0.11528325080871582
+  },
+  "remaining_blockers": [
+    "Native provider replay availability/semantics at current overlap; no causal production correction supported",
+    "Actual Pons forced-stop blocking operation unknown; reproduced cancellation-scope gap fixed offline only",
+    "Pump sustained throughput and native restoration completion unmeasured in this attempt",
+    "Managed-Pons mandatory methods/shared capacity/quote+USD protection unexercised",
+    "Original SQLite BUSY, Pons READONLY INSERT, backup/storage and active-backup/protection compatibility remain separate"
+  ],
+  "restored_installed_revision": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+  "schema": 1,
+  "source": {
+    "control_overlap": 256,
+    "detail": "failed to get replay position for slot 457039819",
+    "http_finalized_tip": 457040075,
+    "local_software_cause": "UNESTABLISHED",
+    "phase": "stream_read",
+    "requested_slot": 457039819,
+    "status": "INVALID_ARGUMENT",
+    "throughput": "UNAVAILABLE_NO_CURRENT_NATIVE_INPUT"
+  },
+  "specification_publication": "a32f49d2061e577644ef2d28f75fefd4a48ebe87",
+  "specification_sha256": "122d837c2f95aa4133fceead1b7311e29ad4fd209b5521f56eac83a56d117408",
+  "tested_offline_successor": "0000a4f817107cff9b46a881b7f1ae00745aa384",
+  "usage": {
+    "after": {
+      "alchemy_rpc_cu": 5060466,
+      "http_attempts": 55189,
+      "http_bytes": 984097698,
+      "http_reserved": 0,
+      "http_uncertain_bytes": 973078528,
+      "native_bytes": 16417371672,
+      "native_failures": 15,
+      "native_opens": 267,
+      "native_reserved": 0,
+      "native_uncertain_bytes": 19092471808,
+      "robinhood_rpc_elements": 226189,
+      "rpc_cu": 7627066,
+      "rpc_elements": 229772,
+      "solana_rpc_elements": 3583
+    },
+    "at": "2026-10-15T00:39:25.837047+00:00",
+    "before": {
+      "alchemy_rpc_cu": 5060446,
+      "http_attempts": 55186,
+      "http_bytes": 984097655,
+      "http_reserved": 0,
+      "http_uncertain_bytes": 973078528,
+      "native_bytes": 16417371672,
+      "native_failures": 13,
+      "native_opens": 265,
+      "native_reserved": 0,
+      "native_uncertain_bytes": 18958254080,
+      "robinhood_rpc_elements": 226189,
+      "rpc_cu": 7627046,
+      "rpc_elements": 229771,
+      "solana_rpc_elements": 3582
+    },
+    "calls_by_this_read": 0,
+    "delta": {
+      "alchemy_rpc_cu": 20,
+      "http_attempts": 3,
+      "http_bytes": 43,
+      "http_reserved": 0,
+      "http_uncertain_bytes": 0,
+      "native_bytes": 0,
+      "native_failures": 2,
+      "native_opens": 2,
+      "native_reserved": 0,
+      "native_uncertain_bytes": 134217728,
+      "robinhood_rpc_elements": 0,
+      "rpc_cu": 20,
+      "rpc_elements": 1,
+      "solana_rpc_elements": 1
+    },
+    "model": "existing frozen conservative application-byte/CU model; native uncertain/reserved accounting separate from confirmed delivery; not invoice",
+    "modeled_cost_usd": "0.01410336144",
+    "new_risk_ready": "false",
+    "physical_starts_include_native_openings": true,
+    "provider_invoice": "UNAVAILABLE",
+    "run_reason": "",
+    "work_mode": "DISCOVERY"
+  },
+  "validation": {
+    "earlier_focused": {
+      "errors": 0,
+      "failures": 0,
+      "seconds": 0.507,
+      "tests": 2
+    },
+    "economic_manifest": "36 protected entries unchanged; manifest unchanged",
+    "economic_source_guard": {
+      "errors": 0,
+      "failures": 0,
+      "seconds": 7.837,
+      "skips": 0,
+      "tests": 1
+    },
+    "failures_preserved": [
+      "Initial 2-case reproduction: Pons cancellation FAIL, source semantic rejection PASS",
+      "Initial repaired 2-case fixture: cancellation PASS; positive startup ERROR because offline USD evidence missing; fixture corrected with existing MockProvider"
+    ],
+    "full_fast": "NOT_DISPATCHED; no general release PASS",
+    "integrated": {
+      "errors": 0,
+      "failures": 0,
+      "modules": {
+        "test_current_combined_diagnostic": 58,
+        "test_integrated_startup_rehearsal": 13,
+        "test_native_startup_lifecycle": 8,
+        "test_pump_cancellation_diagnostics": 24
+      },
+      "seconds": 6.993,
+      "skips": 0,
+      "tests": 103
+    },
+    "review": "Read-only independent frozen-diff review: no defects found",
+    "runtime": "CPython 3.12.14; linked SQLite 3.45.1; existing contained network-blocked runner"
+  }
+}

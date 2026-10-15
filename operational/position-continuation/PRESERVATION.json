@@ -1,0 +1,68 @@
+{
+  "approved_policy_matches": true,
+  "backup": {
+    "created_at": "2026-10-08T04:02:54Z",
+    "files": 47,
+    "integrity": "PASS",
+    "off_host_object_reverified": true,
+    "point": "/mnt/volume_nyc1_1790918115030/meme-machine-backups/meme-machine-paper-20261008T040243-cd2edc34",
+    "replay_matches_current": true,
+    "resource_id": "580be5d5-be20-11f1-bb2f-3ee8be45f379",
+    "snapshot_id": "23ad67f3-c2cd-11f1-b847-eaa4572de3ae"
+  },
+  "canonical_journal_hash": "c0cb1d5fd4a156378e4e53764c0f528707ee9a5af799662daf15f207be95723e",
+  "canonical_sequence": 2036,
+  "checked_at": "2026-10-08T22:28:18.850129+00:00",
+  "droplet_id": 605465049,
+  "epoch_id": "paper-1791089005190643467",
+  "exact_base_commit": "6d14ceec7167b29b5a38c686e4abbfe07a2d4cfa",
+  "first_position_funding": "CLOSED",
+  "inception_sha256": "3a1986fc4e755a75a93808815cec3d0cb9a930d0818e36ef2a3a93abf6190a9e",
+  "ledger_reconciliation": "PASS",
+  "market_provider_calls": 0,
+  "migration_sha256": "33009f2b4b5764f1955e86ec90642b86a734e59590cb15c42cd947da447eab1a",
+  "native_mapping_sha256": "29797b694595df515856cd63d17c93e3f1a49e883bc72c52e124bcebbd3ef947",
+  "native_monetary_digests": {
+    "meteora/native-genesis.json": {
+      "bytes": 241,
+      "sha256": "c9ef0e2e16be6714378d381b2c019f5ed3b50d8891c6c21b6dffc60fcba2c6e2"
+    },
+    "meteora/solana-dlmm-independent-v1-live.accounting.sqlite3": {
+      "bytes": 12288,
+      "sha256": "6d330ff5695b860706ae2ecac99384500effe68802f4d0be996116132fd7aa86"
+    },
+    "portfolio.sqlite": {
+      "bytes": 770048,
+      "sha256": "3198aae1f3c732451f008c5a620b8f176792caf92c1517435675d9e04f3a4087"
+    },
+    "pump/directional-sleeve.sqlite": {
+      "bytes": 131072,
+      "sha256": "b6ff1324c81ff6ec3beb5468f03de30f24f9145c90ea0e49b88d2523d8b10dec"
+    },
+    "pump/native-genesis.json": {
+      "bytes": 241,
+      "sha256": "2fb1cddc05c30cf9416e2ed5d1189bc3c6a5898f8bb37ef50429263e148282a0"
+    },
+    "pump/pump-acceleration-natural-prospective.accounting.sqlite3": {
+      "bytes": 32768,
+      "sha256": "8f258a46260a87492b1cf925403861453e8469849288c9958300ff5da8bd7fdf"
+    },
+    "pump/pump-survivor/paper.sqlite": {
+      "bytes": 32768,
+      "sha256": "19b19ecf3fbf3ed27641c8f638dbb3eb13fe5712bb51df7bc5e5199693c49ee6"
+    }
+  },
+  "original_capital": "500.00",
+  "paper_disabled": true,
+  "policy_sha256": "e87385900145e53956df18956ee2390f0d95787e6ffc44243251f9b147eb65f2",
+  "provider_proof_verified": false,
+  "reused_isolated_migration_and_recovery_receipt": true,
+  "separate_continuation_authorization": "NOT_GRANTED",
+  "storage": {
+    "epoch_id": "paper-1791089005190643467",
+    "filesystem_uuid": "0ce00d89-000b-4af1-960f-d5be400ff115",
+    "inception_sha256": "3a1986fc4e755a75a93808815cec3d0cb9a930d0818e36ef2a3a93abf6190a9e",
+    "mount_target": "/mnt/volume_nyc1_1790918115030"
+  },
+  "writers_stopped": true
+}

@@ -1,0 +1,56 @@
+{
+  "status": "PASS_RETAINED_STARTUP_RECOVERY",
+  "seconds": 0.10377174499444664,
+  "original_persisted_demand": [
+    [
+      "control:solana",
+      "retirement",
+      1791758937.1284251
+    ]
+  ],
+  "remaining_persisted_demand": [
+    [
+      "control:solana",
+      "retirement",
+      1791758937.1284251
+    ]
+  ],
+  "native_progress": [
+    [
+      "control:solana",
+      "retirement",
+      1791760761.484936,
+      29816,
+      null,
+      0
+    ],
+    [
+      "program:pump",
+      "retirement",
+      1791741348.7412176,
+      2,
+      null,
+      0
+    ],
+    [
+      "program:pumpswap",
+      "retirement",
+      1791741348.7435217,
+      2,
+      null,
+      0
+    ]
+  ],
+  "unresolved_gap_count": 35,
+  "canonical_gaps_unchanged": true,
+  "normal_turn": {
+    "snapshot": null,
+    "side": "retirement",
+    "archive_pressure": false,
+    "retirement_pressure": true,
+    "retention_outcome": "RetentionOutcome(retired_records=0, continuity_rows=80, housekeeping_rows=0, floor_updates=0, committed_slices=1, examined_scopes=3, pending=False, interrupted=False, yield_reason=None)"
+  },
+  "disposable_copy_only": true,
+  "provider_requests": 0,
+  "source_records_freshened": false
+}

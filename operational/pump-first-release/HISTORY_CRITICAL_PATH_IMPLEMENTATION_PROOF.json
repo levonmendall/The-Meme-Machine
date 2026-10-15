@@ -1,0 +1,185 @@
+{
+  "status": "COMBINED_FOCUSED_AND_REPLAY_PASS_FINAL_RELEASE_CI_PENDING",
+  "comparison_baseline": "c3c753c3bdf8bf6e3dd5c253e21799fb52e8d743",
+  "original_design": "dc957c521b6d043a9d4a1bca3c47127bc2f51abb",
+  "branch": "engineering/pump-history-separation-20261013",
+  "files_sha256": {
+    "meme_machine/runtime/evidence_worker.py": "3c24dd6c9c5b005114106f28dae3b278a3958af8691b80aefb3476bb9f7d014d",
+    "meme_machine/runtime/robinhood/provider_usage.py": "f8d32ab48938f34ae5af8192dc55b4eaa94420649e7a98636b4996d4f516bc46",
+    "meme_machine/solana_candidate_lifecycle.py": "bf9685dea4b0814388732d13c574cba9cca3422d84c3700e56cd35b099d8367b",
+    "meme_machine/solana_evidence_plane.py": "da3b6ca2ef187c3dfb1e0f7fc6d9f1b0014f1b71ce3dc8de35fde5551fd47557",
+    "meme_machine/solana_evidence_service.py": "af6ea0e598e340546bf3b1dc48a00667404dadccb86b10b79831b8fd7cae4ce9",
+    "meme_machine/solana_history_delivery.py": "d4482b777ea38ec6f3bb782db34c69717114e5c15e3eedbebb579e59dbcaa29f",
+    "meme_machine/solana_rolling_history.py": "96cafd030579263a8e830346823d32d7e3b797b9f966d6521d1eb3acb7d310e4",
+    "meme_machine/solana_selective_history.py": "df688c5c727179a14b7d5dfe5ea4c4807150197dac1ced73f1f7c025a83ca109",
+    "meme_machine/solana_selective_source.py": "071f0be585abeb75a098f537d1ece39189d29c439abbcde6d7c2e82d14a85963",
+    "operational/tests.py": "89ec0a3686760faa35c83ddf4409b47deb9f1ab9b0e3c830c112841e3ed5bdec",
+    "tests/test_provider_usage_wal_race.py": "05ca98bf3464055601b4cd5fb52273f4165096e6d6dc06267ecb150ce2f2f208",
+    "tests/test_solana_shared_capacity.py": "f283b481b801fb1032cb03ef009f8c97e09343dcca0a0f26298fe23b9c05a4be",
+    "engineering/solana_capacity/history_refinement_replay.py": "07c91648722fdb5b2f5ffa76830379bb1cd2f80c7ceaf3e36a54cbe647ba90cb",
+    "meme_machine/solana_economic_preparation.py": "92eafe7b8309e1895ce8deb940d3fe81e01c6dc8adad0ec6ed32d750ecf7bd03",
+    "meme_machine/solana_history_notifications.py": "15e45839bff5984300b8c41af3fc0637d5e62677eba6142ced6c404844201df6",
+    "tests/test_solana_history_refinement.py": "57692ded0bc3a402e9d6706e2b7675348d04efc389dff0766d85120c1345ca16",
+    "tests/test_robinhood_usd_valuation.py": "a9d9f2810eeeb5a2ec0f9325d7e04bf0b486570070c3397a24e2106caa2127fa",
+    "tests/test_pons_capacity_repair.py": "c4a04dfd72c54fd3e8531b718f94e8ec1e8a6fb9a9ec51943225f14ca44d9c5a"
+  },
+  "provider_dispatches": 0,
+  "deployed": false,
+  "paper_state": "inactive/dead/disabled; funding closed",
+  "epoch": "paper-shared-1000-20261011T071207Z",
+  "capital_modified": false,
+  "research_resumed": false,
+  "validation": {
+    "focused": "85 PASS / 17.345 seconds",
+    "relevant_operational": "220 tests PASS / 68.546 seconds, one existing archived Model A skip",
+    "pons_diagnostic": "9 PASS, including essential-context optional-probe failure and actual lane.main traceback path",
+    "pons_regressions": "73 PASS; no overlap with Pump profiling",
+    "baseline_ci": "1886 PASS exact c3c753c3, run 38428869088",
+    "final_fast_ci": "Required stable-candidate CI after publication; see external exact publication receipt",
+    "ci_failure_record": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/HISTORY_REFINEMENT_FAST_CI_FAILED_20261013.log",
+    "failed_prior_fast_ci": "e8f7d2ec: 1907 ran / 3 failures in original Pons real-clock/combined deadline tests. Assertions intact; failed evidence retained. Isolated same-source 3 cases PASS / 78.594 seconds.",
+    "refinement_fast_ci": "1907 PASS / 1500.963 seconds exact 60ffa9cd, run 38446154537 completed 2026-10-13T18:47:36Z; prior failure retained, cause unresolved",
+    "lifecycle_source_guard": "2 PASS / 5.760 seconds, exact reviewed package file pins and original economic guard",
+    "lifecycle_combined_native": "83 PASS / 14.235 seconds exact a190fb07",
+    "lifecycle_combined_policy_recovery": "152 PASS / 98.505 seconds exact a190fb07",
+    "lifecycle_combined_history_diagnostic": "112 PASS / 15.331 seconds exact a190fb07; actual lane error-note reporting preserved"
+  },
+  "raw_comparison": {
+    "status": "EXACT_RAW_PREFIX_ECONOMIC_AND_COVERAGE_PARITY",
+    "input_records": 40000,
+    "economic_records": 287,
+    "completed_program_slots": 3,
+    "baseline": {
+      "group_cpu_seconds": 10.564961199999999,
+      "full_path_seconds": 10.35485256195534,
+      "candidate_owner_cpu_seconds": 0.27212329200000007,
+      "publication_turns": 79,
+      "sql_statements": 23027,
+      "group_rss_peak_bytes": 206082048,
+      "required_history_max_seconds": 0.2858448940096423,
+      "urgent_probe_max_seconds": 0.3234167849877849
+    },
+    "candidate": {
+      "group_cpu_seconds": 9.598163644,
+      "full_path_seconds": 8.977881090948358,
+      "candidate_owner_cpu_seconds": 0.16752743000000003,
+      "publication_turns": 8,
+      "sql_statements": 23008,
+      "group_rss_peak_bytes": 186064896,
+      "required_history_max_seconds": 0.29339738900307566,
+      "urgent_probe_max_seconds": 0.7027295010630041
+    },
+    "economic_order_availability_population_coverage_checkpoint_receipt_and_history_verdict_parity": true,
+    "oldest_pending_required_history": [
+      null,
+      null,
+      0
+    ],
+    "interpretation": "Single offline prefix comparison, not sustainable market capacity. Required-history max 0.286 -> 0.293 seconds; urgent scheduling max 0.323 -> 0.703 seconds worsened. No native protection or deadline PASS inferred. Incomplete joins stay unavailable. Checkpoint updated timestamps are recorded separately, never rewritten."
+  },
+  "deferred": [
+    "Always-process preparation for small unfunded packets: transfer cost and usable latency lacked a consistent benefit",
+    "Reducing existing decoder/archive pool from two to one: no competing archive workload in the one-worker comparison",
+    "Additional optimizations, authenticated validation and deployment: outside this scope/authority"
+  ],
+  "operating_blockers": [
+    "Pump current-market sustainable throughput and freshness remain unmeasured after separation",
+    "Pons readonly logical-demand INSERT cause unresolved; only diagnostics integrated",
+    "Combined original native quotation/USD protective deadlines remain unproven",
+    "Backup ArtifactStorageFull and volume 85% warning remain separate",
+    "No owner authorization for deployment/provider workloads/PAPER restart or acceptance"
+  ],
+  "external_evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011",
+  "paired_comparison_sha256": "7e6e689e77ece78a30ceb9c1a3151c10f70cd51f621bcf0f4ad822d70a23e03f",
+  "lifecycle_reporting_integration": {
+    "receiving_commit": "60ffa9cdcd7d0e2de257620fb3d8bc4e1b331c1f",
+    "package_commit": "9cdc1b5428f8ebf0bfcc6206cb8122b354654d9d",
+    "package_base": "e8f7d2ec8ccc0d530c94171390e1966d5c42a70f",
+    "method": "normal non-fast-forward merge",
+    "conflicts": [],
+    "status": "COMBINED_FOCUSED_AND_REPLAY_PASS_RELEASE_CI_PENDING",
+    "source_guard": "Three exact published file pins; prior versions still pass original economic guard; all other assertions retained",
+    "files_sha256": {
+      "meme_machine/lanes/pons/pons_reentry.py": "3c1ddc3d750d02d0ac24f62c15e38abe69ede3901448a7d2108b118fc952a4eb",
+      "meme_machine/lanes/pons/pons_selective_capital.py": "54f9621fed567b8e68b2e18dddc10eb0f0e7db5b4bfb243d434f173d8a5d5716",
+      "meme_machine/lanes/pons/pons_selective_cohort.py": "893a7ec3aa54688d69ce5174605229b3c4b448a79c9ceb8f202e163ec857c083",
+      "meme_machine/lanes/pons/pons_selective_continuation.py": "e25cd6074cb283dd0924c942094877ff79ed0a21f613ea0974fe16424007e145",
+      "meme_machine/lanes/pons/pons_selective_paper.py": "1613220acd652d03ba3030008bd474b9eb0f95f7712576c6237ebda393ea7a9a",
+      "meme_machine/lanes/pons/pons_selective_recovery.py": "700a09510f2e1eda0f9ea5ef552561d3b13827078c6797dd5ba765e08ec06226",
+      "meme_machine/runtime/component_performance.py": "8febd9daa2aeccddf10f85579e837e2e55fc3eed353dcc2d3074f4d4b5c838b4",
+      "meme_machine/runtime/learning.py": "10bc622abecc29422930302151a19389eaff3eacd52b48af07a516e35871230a",
+      "meme_machine/runtime/pons_terminal_archive.py": "ad6853bd29269823701a3c3120cf040b19428b3451f45cf770345c392e37d942",
+      "meme_machine/runtime/robinhood/plane.py": "f3a3175a71b4cc0be77e2896f71bc98640f9fa8a9c86bed1ae2f266d0286d978",
+      "meme_machine/runtime/storage.py": "4cfaf6e951b3c86b1ff9bcaa251efa9fa049aab83c992c55f50164c61a8116fc",
+      "meme_machine/runtime/survivor_paper_book.py": "32faaab1e8475e082f621ed2df62a29626414110dd58369ef4877c24447a34ea",
+      "meme_machine/runtime/survivor_terminal_archive.py": "6ac94d4a6d6bf6cb9abe800a2981773360110bad1ad705ceab1447e068c7a8f4",
+      "meme_machine/shared_capital/native_sleeve.py": "016e437b7d9b371cf8634f2469d0b568ab98d87169a82bb335d47d76c6abaa71",
+      "meme_machine/shared_capital/reporting.py": "64a8a8d99f8440ef2bf638f0d19cabbc52844fe47c24ba79a66cfde61d0bf207",
+      "operational/pump-first-release/COMPONENT_PERFORMANCE_REPORTING.md": "a1ee535c6f104b23bf320014d2d84c69fcab3e057f2e76f0a0b0cf39b07ca99a",
+      "operational/pump-first-release/READY_LIFECYCLE_REPORTING_HANDOFF.md": "dffa6868252fd9e795f9223e4622014f0ea6d408ed1279bbe1c843aa0a272ec2",
+      "tests/lanes/pons/test_pons_current_recovery.py": "22ccdd2ed206c699ac6899db8b1346b0acfc5d97f62d25aa468b87e9d4050e09",
+      "tests/lanes/pons/test_pons_entry_confirmation_ordering.py": "ac397ebb2ee20589caaaa93377b3703d0b4695d1605182ad4b164c41da5bf588",
+      "tests/test_learning_retention.py": "eaaf536b427b8f9cbbf1daaf773ff4476334be75592891459fe61d424fb0c897",
+      "tests/test_robinhood_plane.py": "d307eb62562995a0d810237c1ff638a948f1bec63f2de00758e0e238d1a6bd4b",
+      "tests/test_survivor_terminal_retirement.py": "f0d10d8050102c9ffdb7fc740a93fe0e1866eea8c9acace4869bfc6d1ccc9f98"
+    },
+    "combined_implementation": "a190fb07b16964d28dbfc643ceb5b89ddd013bd5",
+    "package_distinct_combined_tests": 235,
+    "additional_history_diagnostic_tests": 112,
+    "performance_comparison": {
+      "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/LIFECYCLE_HISTORY_INTEGRATION_COMPARISON_20261013.json",
+      "sha256": "5c074df0da6414e6a4a74054bdd57139b29b3e1285967b6dce764d9be26a3c5a",
+      "baseline": "60ffa9cdcd7d0e2de257620fb3d8bc4e1b331c1f",
+      "combined": "a190fb07b16964d28dbfc643ceb5b89ddd013bd5",
+      "status": "OFFLINE_RETAINED_PREFIX_PARITY_PASS",
+      "parity": {
+        "raw_input_digest": true,
+        "projection": true,
+        "consumer_counts": true,
+        "history_verdict_digest": true,
+        "economic_records": true,
+        "incoming_joined_slots": true,
+        "final_obligations": true,
+        "pending_input_joins": true
+      },
+      "scope": "40000 retained raw records; 287 economic events; only three complete program slots",
+      "limits": [
+        "Offline bounded prefix of retained October 8 raw delivery; missing joins remain missing.",
+        "Deadline probes are owner scheduling checks, not native Pons/Pump protective quotations.",
+        "Explicit four-candidate history demands compare the same retained obligations, not observed financial entries.",
+        "Incoming slot rate is replay speed; it is not a new authenticated market capacity measurement.",
+        "Only three complete program slots in this retained prefix; no whole-market or two-CPU capacity claim.",
+        "Sequential nonoverlapping replay; measurements are a single paired offline trial.",
+        "No funded lifecycle or Pons native protection is represented by this raw Pump replay.",
+        "Lifecycle/protection correctness and deadline tests are separate evidence, not replay throughput."
+      ],
+      "aggregate_seconds": {
+        "baseline": {
+          "full_path": 8.221336381044239,
+          "group_cpu": 9.087829632,
+          "rss_bytes": 207630336,
+          "required_history_max": 0.2580063909990713,
+          "urgent_probe_max": 0.3032866860739887,
+          "pending_history": [
+            null,
+            null,
+            0
+          ]
+        },
+        "combined": {
+          "full_path": 8.068330793990754,
+          "group_cpu": 8.906111755000001,
+          "rss_bytes": 203923456,
+          "required_history_max": 0.2625635939184576,
+          "urgent_probe_max": 0.5784620069898665,
+          "pending_history": [
+            null,
+            null,
+            0
+          ]
+        }
+      },
+      "protective_headroom_proven": false
+    }
+  }
+}

@@ -1,0 +1,247 @@
+{
+  "schema": "maintenance-proof-source-preservation-v1",
+  "initial": [
+    {
+      "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo",
+      "commit": "481bd11e918cda9c5de624a619f44688dc97fefb",
+      "status": "",
+      "worktrees": "worktree /root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo\nHEAD 481bd11e918cda9c5de624a619f44688dc97fefb\nbranch refs/heads/engineering/forward-survivor-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/repo\nHEAD 842c99c462f42dda582d9211b16242ae12dff225\nbranch refs/heads/engineering/robinhood-scout-first-20261008\n\n",
+      "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "untracked": []
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+      "commit": "703d8764a775d9680e3b48baf2c96f3fb7cf8eb6",
+      "status": " M engineering/solana_capacity/offline_replay.py\n M tests/test_provider_efficiency.py\n?? engineering/solana_capacity/bandwidth_audit.py\n?? engineering/solana_capacity/bandwidth_cost.py\n?? operational/pumpswap-provider-bandwidth/\n?? tests/fixtures/pump_bandwidth/\n",
+      "worktrees": "worktree /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo\nHEAD 703d8764a775d9680e3b48baf2c96f3fb7cf8eb6\nbranch refs/heads/engineering/pumpswap-provider-bandwidth-20261008\n\n",
+      "patch_sha256": "d7188c4178587d31923671e2134aba92247458bbfbfc7e098bb05f49c9517ad8",
+      "untracked": [
+        {
+          "path": "engineering/solana_capacity/bandwidth_audit.py",
+          "bytes": 14772,
+          "sha256": "ac25811b0ae2ba08afc16b0a035a06af046b1833a57f0d9991e9c036f12fb80b"
+        },
+        {
+          "path": "engineering/solana_capacity/bandwidth_cost.py",
+          "bytes": 12128,
+          "sha256": "5f514452df7702a3a17505d166b5be5f52503d7a97047760b1d2185ab1016764"
+        },
+        {
+          "path": "operational/pumpswap-provider-bandwidth/BASELINE.json",
+          "bytes": 12061,
+          "sha256": "b2e6656783fb3eb629307c47cffd6327c6ad2cb91c157dd740f526edfa173097"
+        },
+        {
+          "path": "operational/pumpswap-provider-bandwidth/COST_MODEL.json",
+          "bytes": 42811,
+          "sha256": "63983922314f3900d966dbd9ac31a33c4aec434eb33195ec91810df18559f04c"
+        },
+        {
+          "path": "operational/pumpswap-provider-bandwidth/COVERAGE.md",
+          "bytes": 5874,
+          "sha256": "ab1bfb526617654081d8ce83925365c27c4f79bd5a1096b098aa717ba254de28"
+        },
+        {
+          "path": "operational/pumpswap-provider-bandwidth/EXPERIMENT.md",
+          "bytes": 8833,
+          "sha256": "8621e4b70bd3e6638c74501bca9d5257cba77f2f69e85e9c7b63a86538560c11"
+        },
+        {
+          "path": "operational/pumpswap-provider-bandwidth/HANDOFF.md",
+          "bytes": 19488,
+          "sha256": "caf83e15c73bcf972350d903b364ddedda4c77fb212093bb8c6935650b6a63b7"
+        },
+        {
+          "path": "operational/pumpswap-provider-bandwidth/PARITY.json",
+          "bytes": 239838,
+          "sha256": "c71d95a4d5e4f51f30bbd65205f7c899b5a2e01a4f36bc831527a5e765737058"
+        },
+        {
+          "path": "operational/pumpswap-provider-bandwidth/PRESERVATION.json",
+          "bytes": 51714,
+          "sha256": "d2e811a5711ee28d32bca041d2bc9a50e489fc7c6e02274eede12b0eb6507139"
+        },
+        {
+          "path": "operational/pumpswap-provider-bandwidth/PRIOR_CAPTURE.json",
+          "bytes": 18417,
+          "sha256": "a0bf8166df023f1bf1dd5a8d8da453f030c2ba21e94528f39fdc3798bdfb4556"
+        },
+        {
+          "path": "tests/fixtures/pump_bandwidth/manifest.json",
+          "bytes": 3203,
+          "sha256": "f1bf1bbf79622ed74e2aac6cfa99cfbc8bc5e8aaa3b6719b39fd030063233d75"
+        },
+        {
+          "path": "tests/fixtures/pump_bandwidth/provider.frames.zlib",
+          "bytes": 3556,
+          "sha256": "322193561e6862aad137732c640b15886f932c99fc8043815b8f6c38cb8f235f"
+        }
+      ]
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/repo",
+      "commit": "842c99c462f42dda582d9211b16242ae12dff225",
+      "status": "",
+      "worktrees": "worktree /root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo\nHEAD 481bd11e918cda9c5de624a619f44688dc97fefb\nbranch refs/heads/engineering/forward-survivor-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/repo\nHEAD 842c99c462f42dda582d9211b16242ae12dff225\nbranch refs/heads/engineering/robinhood-scout-first-20261008\n\n",
+      "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "untracked": []
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-05/the-meme-machine-post-migration-final/repo",
+      "commit": "5c52b55208bfd6d8dc507eb89f2ad39402a67e3b",
+      "status": " M meme_machine/solana_maintenance_state.py\n M tests/test_production_maintenance_arbiter.py\n",
+      "worktrees": "worktree /root/Documents/Codex/2026-10-05/the-meme-machine-post-migration-final/repo\nHEAD 5c52b55208bfd6d8dc507eb89f2ad39402a67e3b\nbranch refs/heads/operational/paper-v1\n\nworktree /root/Documents/Codex/2026-10-06/the-meme-machine-efficiency-successor/worktree\nHEAD b577cc1c67f4d64f887b430f5e933f376b607dc2\nbranch refs/heads/recovery/efficiency-successor-20261006\n\nworktree /tmp/mm-cold-retirement-original\nHEAD 1abe80f53ef059e2641de2d26337e3287cf2f61a\ndetached\n\nworktree /tmp/mm-maintenance-vm-original-5c52\nHEAD 5c52b55208bfd6d8dc507eb89f2ad39402a67e3b\ndetached\n\n",
+      "patch_sha256": "202391fb31a838a8d58f95f2edd581074c93a8587b7f47369af7451fbe130313",
+      "untracked": []
+    },
+    {
+      "path": "/opt/meme-machine",
+      "commit": "b577cc1c67f4d64f887b430f5e933f376b607dc2",
+      "status": "",
+      "worktrees": "worktree /opt/actions-runner/_work/The-Meme-Machine/The-Meme-Machine\nHEAD eb0446a2953d0e7107738268d96204994502734d\ndetached\n\nworktree /opt/meme-machine\nHEAD b577cc1c67f4d64f887b430f5e933f376b607dc2\ndetached\n\n",
+      "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "untracked": []
+    }
+  ],
+  "before_final": {
+    "captured_utc": "2026-10-08T19:45:00Z",
+    "rows": [
+      {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo",
+        "commit": "481bd11e918cda9c5de624a619f44688dc97fefb",
+        "status": "",
+        "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": [],
+        "worktrees": "worktree /root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo\nHEAD 481bd11e918cda9c5de624a619f44688dc97fefb\nbranch refs/heads/engineering/forward-survivor-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/repo\nHEAD 4d164cdcccd7a7e35a45c5e7767847eaa111a3d3\nbranch refs/heads/engineering/maintenance-provider-proof-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo\nHEAD 73243cb0c135197359c23cce46d3a91a48d8b40a\nbranch refs/heads/engineering/robinhood-payg-optimization-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/repo\nHEAD 842c99c462f42dda582d9211b16242ae12dff225\nbranch refs/heads/engineering/robinhood-scout-first-20261008\n\n",
+        "modified_by_this_assignment": false
+      },
+      {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+        "commit": "874e94a915900215993566822e8adc9ce9524a6b",
+        "status": "",
+        "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": [],
+        "worktrees": "worktree /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo\nHEAD 874e94a915900215993566822e8adc9ce9524a6b\nbranch refs/heads/engineering/pumpswap-provider-bandwidth-20261008\n\n",
+        "modified_by_this_assignment": false
+      },
+      {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/repo",
+        "commit": "842c99c462f42dda582d9211b16242ae12dff225",
+        "status": "",
+        "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": [],
+        "worktrees": "worktree /root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo\nHEAD 481bd11e918cda9c5de624a619f44688dc97fefb\nbranch refs/heads/engineering/forward-survivor-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/repo\nHEAD 4d164cdcccd7a7e35a45c5e7767847eaa111a3d3\nbranch refs/heads/engineering/maintenance-provider-proof-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo\nHEAD 73243cb0c135197359c23cce46d3a91a48d8b40a\nbranch refs/heads/engineering/robinhood-payg-optimization-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/repo\nHEAD 842c99c462f42dda582d9211b16242ae12dff225\nbranch refs/heads/engineering/robinhood-scout-first-20261008\n\n",
+        "modified_by_this_assignment": false
+      },
+      {
+        "path": "/root/Documents/Codex/2026-10-05/the-meme-machine-post-migration-final/repo",
+        "commit": "5c52b55208bfd6d8dc507eb89f2ad39402a67e3b",
+        "status": " M meme_machine/solana_maintenance_state.py\n M tests/test_production_maintenance_arbiter.py\n",
+        "patch_sha256": "202391fb31a838a8d58f95f2edd581074c93a8587b7f47369af7451fbe130313",
+        "untracked": [],
+        "worktrees": "worktree /root/Documents/Codex/2026-10-05/the-meme-machine-post-migration-final/repo\nHEAD 5c52b55208bfd6d8dc507eb89f2ad39402a67e3b\nbranch refs/heads/operational/paper-v1\n\nworktree /root/Documents/Codex/2026-10-06/the-meme-machine-efficiency-successor/worktree\nHEAD b577cc1c67f4d64f887b430f5e933f376b607dc2\nbranch refs/heads/recovery/efficiency-successor-20261006\n\nworktree /tmp/mm-cold-retirement-original\nHEAD 1abe80f53ef059e2641de2d26337e3287cf2f61a\ndetached\n\nworktree /tmp/mm-maintenance-vm-original-5c52\nHEAD 5c52b55208bfd6d8dc507eb89f2ad39402a67e3b\ndetached\n\n",
+        "modified_by_this_assignment": false
+      },
+      {
+        "path": "/opt/meme-machine",
+        "commit": "b577cc1c67f4d64f887b430f5e933f376b607dc2",
+        "status": "",
+        "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": [],
+        "worktrees": "worktree /opt/actions-runner/_work/The-Meme-Machine/The-Meme-Machine\nHEAD eb0446a2953d0e7107738268d96204994502734d\ndetached\n\nworktree /opt/meme-machine\nHEAD b577cc1c67f4d64f887b430f5e933f376b607dc2\ndetached\n\n",
+        "modified_by_this_assignment": false
+      },
+      {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo",
+        "commit": "73243cb0c135197359c23cce46d3a91a48d8b40a",
+        "status": "",
+        "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": [],
+        "worktrees": "worktree /root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo\nHEAD 481bd11e918cda9c5de624a619f44688dc97fefb\nbranch refs/heads/engineering/forward-survivor-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/repo\nHEAD 4d164cdcccd7a7e35a45c5e7767847eaa111a3d3\nbranch refs/heads/engineering/maintenance-provider-proof-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo\nHEAD 73243cb0c135197359c23cce46d3a91a48d8b40a\nbranch refs/heads/engineering/robinhood-payg-optimization-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/repo\nHEAD 842c99c462f42dda582d9211b16242ae12dff225\nbranch refs/heads/engineering/robinhood-scout-first-20261008\n\n",
+        "modified_by_this_assignment": false
+      }
+    ],
+    "production_databases_opened": 0,
+    "production_service_mutations": 0,
+    "interpretation": "Concurrent tasks may advance their own worktrees; this assignment only modifies its dedicated worktree. Initial diffs remain preserved locally."
+  },
+  "after_final": {
+    "captured_utc": "2026-10-08T19:57:07Z",
+    "rows": [
+      {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo",
+        "commit": "481bd11e918cda9c5de624a619f44688dc97fefb",
+        "status": "",
+        "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": [],
+        "worktrees": "worktree /root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo\nHEAD 481bd11e918cda9c5de624a619f44688dc97fefb\nbranch refs/heads/engineering/forward-survivor-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-final-alchemy-acquisition/repo\nHEAD 9c6910c57236004468bef506603c2d0502acbd3c\nbranch refs/heads/integration/alchemy-acquisition-final-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/repo\nHEAD 9c6910c57236004468bef506603c2d0502acbd3c\nbranch refs/heads/engineering/maintenance-provider-proof-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo\nHEAD 73243cb0c135197359c23cce46d3a91a48d8b40a\nbranch refs/heads/engineering/robinhood-payg-optimization-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/repo\nHEAD 842c99c462f42dda582d9211b16242ae12dff225\nbranch refs/heads/engineering/robinhood-scout-first-20261008\n\n",
+        "modified_by_this_assignment": false
+      },
+      {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+        "commit": "874e94a915900215993566822e8adc9ce9524a6b",
+        "status": "",
+        "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": [],
+        "worktrees": "worktree /root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo\nHEAD 874e94a915900215993566822e8adc9ce9524a6b\nbranch refs/heads/engineering/pumpswap-provider-bandwidth-20261008\n\n",
+        "modified_by_this_assignment": false
+      },
+      {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/repo",
+        "commit": "842c99c462f42dda582d9211b16242ae12dff225",
+        "status": "",
+        "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": [],
+        "worktrees": "worktree /root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo\nHEAD 481bd11e918cda9c5de624a619f44688dc97fefb\nbranch refs/heads/engineering/forward-survivor-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-final-alchemy-acquisition/repo\nHEAD 9c6910c57236004468bef506603c2d0502acbd3c\nbranch refs/heads/integration/alchemy-acquisition-final-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/repo\nHEAD 9c6910c57236004468bef506603c2d0502acbd3c\nbranch refs/heads/engineering/maintenance-provider-proof-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo\nHEAD 73243cb0c135197359c23cce46d3a91a48d8b40a\nbranch refs/heads/engineering/robinhood-payg-optimization-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/repo\nHEAD 842c99c462f42dda582d9211b16242ae12dff225\nbranch refs/heads/engineering/robinhood-scout-first-20261008\n\n",
+        "modified_by_this_assignment": false
+      },
+      {
+        "path": "/root/Documents/Codex/2026-10-05/the-meme-machine-post-migration-final/repo",
+        "commit": "5c52b55208bfd6d8dc507eb89f2ad39402a67e3b",
+        "status": " M meme_machine/solana_maintenance_state.py\n M tests/test_production_maintenance_arbiter.py\n",
+        "patch_sha256": "202391fb31a838a8d58f95f2edd581074c93a8587b7f47369af7451fbe130313",
+        "untracked": [],
+        "worktrees": "worktree /root/Documents/Codex/2026-10-05/the-meme-machine-post-migration-final/repo\nHEAD 5c52b55208bfd6d8dc507eb89f2ad39402a67e3b\nbranch refs/heads/operational/paper-v1\n\nworktree /root/Documents/Codex/2026-10-06/the-meme-machine-efficiency-successor/worktree\nHEAD b577cc1c67f4d64f887b430f5e933f376b607dc2\nbranch refs/heads/recovery/efficiency-successor-20261006\n\nworktree /tmp/mm-cold-retirement-original\nHEAD 1abe80f53ef059e2641de2d26337e3287cf2f61a\ndetached\n\nworktree /tmp/mm-maintenance-vm-original-5c52\nHEAD 5c52b55208bfd6d8dc507eb89f2ad39402a67e3b\ndetached\n\n",
+        "modified_by_this_assignment": false
+      },
+      {
+        "path": "/opt/meme-machine",
+        "commit": "b577cc1c67f4d64f887b430f5e933f376b607dc2",
+        "status": "",
+        "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": [],
+        "worktrees": "worktree /opt/actions-runner/_work/The-Meme-Machine/The-Meme-Machine\nHEAD eb0446a2953d0e7107738268d96204994502734d\ndetached\n\nworktree /opt/meme-machine\nHEAD b577cc1c67f4d64f887b430f5e933f376b607dc2\ndetached\n\n",
+        "modified_by_this_assignment": false
+      },
+      {
+        "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo",
+        "commit": "73243cb0c135197359c23cce46d3a91a48d8b40a",
+        "status": "",
+        "patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "untracked": [],
+        "worktrees": "worktree /root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo\nHEAD 481bd11e918cda9c5de624a619f44688dc97fefb\nbranch refs/heads/engineering/forward-survivor-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-final-alchemy-acquisition/repo\nHEAD 9c6910c57236004468bef506603c2d0502acbd3c\nbranch refs/heads/integration/alchemy-acquisition-final-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-maintenance-repair-and/repo\nHEAD 9c6910c57236004468bef506603c2d0502acbd3c\nbranch refs/heads/engineering/maintenance-provider-proof-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo\nHEAD 73243cb0c135197359c23cce46d3a91a48d8b40a\nbranch refs/heads/engineering/robinhood-payg-optimization-20261008\n\nworktree /root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-scout-first/repo\nHEAD 842c99c462f42dda582d9211b16242ae12dff225\nbranch refs/heads/engineering/robinhood-scout-first-20261008\n\n",
+        "modified_by_this_assignment": false
+      }
+    ],
+    "production_databases_opened": 0,
+    "production_service_mutations": 0,
+    "interpretation": "Concurrent tasks may advance their own worktrees; this assignment only modifies its dedicated worktree. Initial diffs remain preserved locally."
+  },
+  "integrated_committed_peers": {
+    "pump": "874e94a915900215993566822e8adc9ce9524a6b",
+    "robinhood": "73243cb0c135197359c23cce46d3a91a48d8b40a"
+  },
+  "active_changes_overwritten": false,
+  "production_source_changed": false,
+  "production_databases_opened": 0,
+  "production_service_restarts": 0,
+  "original_epoch": "paper-1791089005190643467",
+  "original_capital_usd": "500",
+  "strategies": 4,
+  "approved_strategy_changes": 9,
+  "paused": {
+    "meteora": 0,
+    "ramses": 0
+  },
+  "limits": "Source hashes and kernel/SQL isolation demonstrate this assignment scope. This does not assert that independent external processes never changed production state."
+}

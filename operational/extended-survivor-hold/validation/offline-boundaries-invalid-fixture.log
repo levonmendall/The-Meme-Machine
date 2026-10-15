@@ -1,0 +1,20 @@
+STORAGE WARNING: root 75.2% used; 11.74 GiB available; nonessential bulk operations block at 85.0%.
+test_resource_usage_restart_does_not_reset_or_expand_for_a_research_horizon (tests.test_extended_survivor_hold_research.OperationalDeadlineTests.test_resource_usage_restart_does_not_reset_or_expand_for_a_research_horizon) ... ok
+test_unchanged_supervisor_deadline_faults_instead_of_granting_14_day_speculation (tests.test_extended_survivor_hold_research.OperationalDeadlineTests.test_unchanged_supervisor_deadline_faults_instead_of_granting_14_day_speculation) ... ok
+test_fresh_quote_canonical_fork_and_provider_fault_at_each_hypothetical_boundary (tests.test_extended_survivor_hold_research.QuoteBoundaryTests.test_fresh_quote_canonical_fork_and_provider_fault_at_each_hypothetical_boundary) ... FAIL
+test_partial_exit_quantity_and_pending_fault_never_use_an_old_full_size_quote (tests.test_extended_survivor_hold_research.QuoteBoundaryTests.test_partial_exit_quantity_and_pending_fault_never_use_an_old_full_size_quote) ... ok
+
+======================================================================
+FAIL: test_fresh_quote_canonical_fork_and_provider_fault_at_each_hypothetical_boundary (tests.test_extended_survivor_hold_research.QuoteBoundaryTests.test_fresh_quote_canonical_fork_and_provider_fault_at_each_hypothetical_boundary)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/approve-deployment-preparation-of-the-exact/extended-hold-research/tests/test_extended_survivor_hold_research.py", line 341, in test_fresh_quote_canonical_fork_and_provider_fault_at_each_hypothetical_boundary
+    fresh=r.exit_quote(qty);self.assertIsNotNone(fresh)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: unexpectedly None
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.236s
+
+FAILED (failures=1)
+Offline failure evidence retained at /tmp/mm-engineering-c0_k81_1

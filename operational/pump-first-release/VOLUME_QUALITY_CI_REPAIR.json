@@ -1,0 +1,18 @@
+{
+  "source": "b92b3000355306d9f2cad6cafebbe4f124b70201",
+  "run_id": 38189447977,
+  "job_id": 114618839137,
+  "tests": 1699,
+  "seconds": 1366.563,
+  "status": "FAIL",
+  "failures": 1,
+  "errors": 6,
+  "raw_log": "/tmp/b92-job-direct.log",
+  "raw_log_sha256": "5371b82e3fa99412e8ad69d0b8608ce9000f1833d48d453584e433a0ad303848",
+  "causes": [
+    "Legacy WindowContext fixture assumed every batch member was a log query; the source now batches canonical timestamp headers too.",
+    "Historical source-delta guard did not yet pin the explicitly owner-approved volume-quality attention methods."
+  ],
+  "repair": "Fixture retains original coverage/fault assertions while supporting headers; source guard pins exact authorized attention bodies with negative-mutation coverage, rather than exempting economic methods.",
+  "original_assertions_weakened": false
+}

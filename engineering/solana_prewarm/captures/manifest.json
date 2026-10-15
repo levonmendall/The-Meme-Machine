@@ -1,0 +1,107 @@
+{
+  "startup-b1/result.json.zlib": {
+    "raw_bytes": 1098880,
+    "raw_sha256": "2f8a5428b668081113e128697fcddfaddf00ee50b1757260fd3b055a50f250d0",
+    "stored_bytes": 230023,
+    "stored_sha256": "97c8a88c48d308e809203c1f9b72decc4bace2355aee3dc5a6e1178251e3f307",
+    "provenance": "Bounded read-only actual Model B source/governor capture on disposable state; no monetary controller"
+  },
+  "startup-b2/result.json.zlib": {
+    "raw_bytes": 245186,
+    "raw_sha256": "9c30520f2d01aa37161e4dd97dee6b024b4bc29d056a2a1ac30296d53643007b",
+    "stored_bytes": 12110,
+    "stored_sha256": "20fa9e69b7097127d07697d77e7bbc658988e9d001527a0b363787ba3c42c5a8",
+    "provenance": "Bounded read-only actual Model B source/governor capture on disposable state; no monetary controller"
+  },
+  "startup-b3/result.json.zlib": {
+    "raw_bytes": 592520,
+    "raw_sha256": "705d6ba2521fef822b4aca4a29ca6514303d30bfb0d39d325bc46ce1391738ff",
+    "stored_bytes": 25024,
+    "stored_sha256": "fa1c4b2035b2e160eac67ec33f803ee8e68eda9416b183c30ee0654efce78452",
+    "provenance": "Bounded read-only actual Model B source/governor capture on disposable state; no monetary controller"
+  },
+  "startup-b4/result.json.zlib": {
+    "raw_bytes": 2618808,
+    "raw_sha256": "cfa3286d0c39c10b1de131a4e1a2728f6f940323356a90a5a5da4ec99ec64c2e",
+    "stored_bytes": 480681,
+    "stored_sha256": "9656923fcb32998ed6fd715c154edd8352a3655e5b93c39708f08dd04b7b5378",
+    "provenance": "Bounded read-only actual Model B source/governor capture on disposable state; no monetary controller"
+  },
+  "startup-b4/audit.json.zlib": {
+    "raw_bytes": 592405,
+    "raw_sha256": "e07b0bf187f1e298f27aa0246aeef0f63263554bef772868c55f77d77c132ce8",
+    "stored_bytes": 102229,
+    "stored_sha256": "ada91e30c327f2b969e01e415652c9d661207afee0f1e9491fbfc44e5210c513",
+    "provenance": "Bounded read-only actual Model B source/governor capture on disposable state; no monetary controller"
+  },
+  "startup-b5/result.json.zlib": {
+    "raw_bytes": 1855694,
+    "raw_sha256": "c0338e46df795c182f2387cf31f8e3492452edd7217202d42bb9cde9dbcbf4df",
+    "stored_bytes": 396782,
+    "stored_sha256": "ffd654dfeec77fce2b45f125b625fdd4bf12e8dcefa06092a3fd1986019b6b98",
+    "provenance": "Bounded read-only actual Model B source/governor capture on disposable state; no monetary controller"
+  },
+  "startup-b6/result.json.zlib": {
+    "raw_bytes": 2788736,
+    "raw_sha256": "898bd4143d659b3911af1dc6a99ccd835516257f627c594a8740256001a881e3",
+    "stored_bytes": 590277,
+    "stored_sha256": "5f789b78455e986f580ac138231383808c169f604b734c49633f915358b47c67",
+    "provenance": "Bounded read-only actual Model B source/governor capture on disposable state; no monetary controller"
+  },
+  "startup-b6/startup_audit.json.zlib": {
+    "raw_bytes": 77184,
+    "raw_sha256": "b611863e6c98da7ec4d2540182e7c309a0d055459ce29a7694159e4eaf014b21",
+    "stored_bytes": 14592,
+    "stored_sha256": "bf07a765954b0160ea393b48c2706a580ef04a16e3fb99af4d9725f1ba16542d",
+    "provenance": "Audit of preserved Model B read-only provider capture; no new provider execution"
+  },
+  "startup-b6/audit.json.zlib": {
+    "raw_bytes": 1210002,
+    "raw_sha256": "2b57d46f26c1f6fbb123dfbdf45368a4c9ea2b562ca6e603ead86e82b67c8b8f",
+    "stored_bytes": 215489,
+    "stored_sha256": "2762bd5c2a34bd914ab93dfa46b770d0ec8d7b9ed09f0fda68dd297808d56d99",
+    "provenance": "Bounded read-only actual Model B source/governor capture on disposable state; no monetary controller"
+  },
+  "startup-b6/provider.frames.zlib": {
+    "raw_bytes": 35202502,
+    "raw_sha256": "f24d57d2e4eea231ab7257f8e8abb401c7cf228afab99ba0c2e4d1a18b52e304",
+    "stored_bytes": 35202502,
+    "stored_sha256": "f24d57d2e4eea231ab7257f8e8abb401c7cf228afab99ba0c2e4d1a18b52e304",
+    "provenance": "Bounded read-only actual Model B source/governor capture on disposable state; no monetary controller"
+  },
+  "startup-b6/http.ndjson.zlib": {
+    "raw_bytes": 9654566,
+    "raw_sha256": "02c0321588b7db7f43ade3cea09aca97554568046ccc9e6f85f89786aecbc758",
+    "stored_bytes": 9654566,
+    "stored_sha256": "02c0321588b7db7f43ade3cea09aca97554568046ccc9e6f85f89786aecbc758",
+    "provenance": "Bounded read-only actual Model B source/governor capture on disposable state; no monetary controller"
+  },
+  "positive-20261007T041506Z/result.json": {
+    "raw_bytes": 19514,
+    "raw_sha256": "559c7f77be3be75320046b3a92a020d13b167ae736296eea3207407a4ad360a4",
+    "stored_bytes": 19514,
+    "stored_sha256": "559c7f77be3be75320046b3a92a020d13b167ae736296eea3207407a4ad360a4",
+    "provenance": "Previously established authenticated positive Meteora capture, replayed offline; no new market observation"
+  },
+  "positive-20261007T041506Z/rpc.ndjson.zlib": {
+    "raw_bytes": 2142194,
+    "raw_sha256": "d9462365d0df4b7df192b9965cd9879a6a1a08c01165c0c86ce8b4207c193013",
+    "stored_bytes": 423641,
+    "stored_sha256": "f5bdad9da4a65ebadcb4592bfb6819f9ddea50fd26e017b32a93bdc9527aaa24",
+    "provenance": "Previously established authenticated positive Meteora capture, replayed offline; no new market observation"
+  },
+  "positive-20261007T041506Z/native.frames.zlib": {
+    "raw_bytes": 444540,
+    "raw_sha256": "c4a6d20d561e4d1509f74dc8393661030215af670062fb7b85a1ce626cceb931",
+    "stored_bytes": 108991,
+    "stored_sha256": "cebd00f34931c34396ab0150de4f9973f8ba901ffea07bd58b91e52c7c384a8b",
+    "provenance": "Previously established authenticated positive Meteora capture, replayed offline; no new market observation"
+  },
+  "startup-b6/tested-source.tar.gz": {
+    "raw_bytes": 614400,
+    "raw_sha256": "833dc51d8c630e503c73f93dec7207a35cb0fadc455e8f7634d8600fb492405e",
+    "stored_bytes": 143889,
+    "stored_sha256": "804ff2fafde2186b91722d622d9e399756f85c1821e86fb70b5f11bf296d5b79",
+    "provenance": "Exact historical Model B source bytes used by startup-b6; non-active measurement provenance only"
+  }
+}

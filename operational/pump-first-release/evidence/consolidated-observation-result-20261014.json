@@ -1,0 +1,373 @@
+{
+  "attempt": {
+    "acceptance_minutes": 0,
+    "allocations": false,
+    "elapsed_to_drain_seconds": 250.07142554898746,
+    "first_failure": "Pons retired-watch/current-candidate interpretation mismatch",
+    "funding": false,
+    "native_drain": "FAILED_PUMP_TERM_15S_KILL_MINUS9",
+    "post_term_active_operation": "UNAVAILABLE: before-TERM operation and supervisor TERM15s/KILL are known; exact operation during shutdown interval is not established",
+    "raw_deadline_verdict": null,
+    "readiness": "NOT_ESTABLISHED_EARLY_FATAL_BEFORE_300S",
+    "result": "RECOVERY_REQUIRED",
+    "result_sha256": "234a147368e2b9b337fdb5248ca7a1c7a363e07aa0e421503d5dc0c1d3335fe8",
+    "source_sqlite_exception": "NOT_REPRODUCED",
+    "start_utc": "2026-10-14T22:40:46Z"
+  },
+  "base": "c1c3fd1662b1acbb917f57bfd0e578fc7a349bce",
+  "branch": "repair/consolidated-startup-followup-20261014",
+  "campaign_gate": {
+    "authoritative_writes": false,
+    "authorization": "up to three separate funding-closed starts over24h; native recovery safety mandatory",
+    "cause": "preceding Pump native reconciliation/drain unresolved after TERM15s/KILL; economic book replay and sampled pending records insufficient for full source/native recovery verdict",
+    "checked_at_utc": "2026-10-14T23:30:22Z",
+    "current_executable": "ba25499b26103ec5d14f1ce765c8e8f180695f33",
+    "current_workflow_documentation": "e194a3e344f164526b1876591f244e0c3062fcbb",
+    "fresh_money": "projection and journal exact equal verified post-replay, cash1000.00, zero monetary obligations",
+    "fresh_provider_ledger": "exact unchanged",
+    "last_preservation_check_utc": "2026-10-15T00:02:17.002754+00:00",
+    "new_campaign_provider_spend": "0; no provider activity",
+    "next_decision": "owner review of a separately scoped native-recovery verification; complete retained-state recovery verdict required before any ordinary combined diagnostic dispatch",
+    "offline_scope": "supported Level-2 lifecycle correction complete; strict live native recovery gate remains STOP; zero starts consumed",
+    "original_failure_result": "exact unchanged",
+    "provider_calls": 0,
+    "receipt": "CAMPAIGN_NATIVE_RECOVERY_GATE_20261014T233022Z.json",
+    "starts_consumed": 0,
+    "status": "STOP_BEFORE_DISPATCH_NATIVE_RECOVERY_GATE"
+  },
+  "evidence_root": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011",
+  "executed_revision": "1fe5a6f62d37f84ad24f0b7413279c080e3424e5",
+  "financial": {
+    "capital_policy_unchanged": true,
+    "cash": "1000.00",
+    "counts": {
+      "commitments": 0,
+      "obligations": 0,
+      "pending_backing": 0,
+      "pending_deliveries": 0,
+      "positions": 0,
+      "reservations": 0,
+      "runtime_inbox": 0,
+      "runtime_pending": 0
+    },
+    "financial_replay": {
+      "conservation": true,
+      "events": 8982,
+      "journal_hash": "2a69c46a1cadce832746505b2464bdb160a61059df6e2c66fbb800289cb1c1ca",
+      "state_sha256": "d2adb97951e3a5ce7b507f21e06c692917fb69a9fd79f535f56cfbca1fb0a64b"
+    },
+    "historical500_exact_unchanged": true,
+    "inception_unchanged": true,
+    "new_journal_actions": {
+      "runtime_admission": 1,
+      "runtime_owner": 6,
+      "runtime_publish": 73
+    }
+  },
+  "focused_proofs": [
+    {
+      "errors": 0,
+      "failures": 0,
+      "log": "CONSOLIDATED_OBSERVATION_FOLLOWUP_INTEGRATION_20261014.log",
+      "seconds": 49.362,
+      "sha256": "afd8ac0d39a1d483354c01dc56e4f055b1f55d572de59ccc92670c8fa608266f",
+      "skips": 0,
+      "tests": 223
+    },
+    {
+      "errors": 0,
+      "failures": 0,
+      "log": "CONSOLIDATED_OBSERVATION_FOLLOWUP_FINAL_AFFECTED_20261014.log",
+      "seconds": 35.604,
+      "sha256": "422bc63f156d7b3b405d25e887c34da682689f504d0ba1185e73ecd15c821708",
+      "skips": 0,
+      "tests": 106
+    }
+  ],
+  "full_fast": {
+    "candidate": "c8beb2d1317084779f97214b6015b7c345242085",
+    "completed_at_utc": "2026-10-14T23:32:24Z",
+    "conclusion": "success",
+    "disposition": "existing useful run completed; local polling/watch stopped; no replacement suite dispatched",
+    "draft_pr_skip_not_a_pass": true,
+    "earlier_in_progress_observed_at_utc": "2026-10-14T23:26:50.741138+00:00",
+    "errors": 0,
+    "failures": 0,
+    "job_id": 116152898636,
+    "proof_scope": "exact c8 baseline; subsequent lifecycle changes require their affected checks",
+    "run_id": 38652038787,
+    "seconds": 1515.638,
+    "skip_reason": "configured service identity is unavailable on hosted runner",
+    "skips": 1,
+    "status": "COMPLETED",
+    "terminal_log": "CONSOLIDATED_OBSERVATION_FOLLOWUP_FAST_38652038787_TERMINAL.log",
+    "terminal_log_sha256": "62aaad69aad7d074ec81fa73a399b0e523553a32bad9f3518fceca1f0a8f938f",
+    "tests": 2165,
+    "url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/38652038787"
+  },
+  "independent_blockers": [
+    "complete native recovery/drain",
+    "pre-join dependency and sustained capacity",
+    "original SQLite BUSY",
+    "managed Pons capacity/method/freshness/held protection",
+    "Pons READONLY INSERT",
+    "later failed backup",
+    "active-backup/protection compatibility"
+  ],
+  "latest_executable": "ba25499b26103ec5d14f1ce765c8e8f180695f33",
+  "lifecycle_successor": {
+    "alternatives": {
+      "local_only": "insufficient: reproduced pre-loop and asynchronous cleanup cuts",
+      "mechanism_replacement": "unsupported; canonical owner/storage/orchestration unchanged",
+      "subsystem_refactor": "selected: reuses existing executor, cancellation, status and ExitStack"
+    },
+    "bounds": {
+      "deadlines_changed": false,
+      "new_authoritative_writers": 0,
+      "new_operating_databases": 0,
+      "new_worker_processes": 0,
+      "owned_resources_max": 7,
+      "shutdown_health_cadence_seconds": 2
+    },
+    "classification": "LEVEL_2_NATIVE_RESOURCE_LIFECYCLE_CONTRACT",
+    "combined_failure_disposition": "one assertion required original startup ERROR to be last; strengthened to exact original operation/error type plus all cleanup/pending/reconciliation invariants; final nine-case rehearsal passes",
+    "comparison_baseline": "c8beb2d1317084779f97214b6015b7c345242085",
+    "demonstrated_defects": [
+      "pre-loop acquired resources left open after startup failure",
+      "owned Survivor constructor lacks startup replay cancellation",
+      "asynchronous Survivor failure after loop entry skips remaining cleanup",
+      "TERM ends operation sampling before native shutdown",
+      "new fixed cleanup identities unavailable in final diagnostic projection"
+    ],
+    "deployed": false,
+    "executable": "ba25499b26103ec5d14f1ce765c8e8f180695f33",
+    "independent_review": "asynchronous ownership finding reproduced then closed; no additional concrete introduced risk in bounded recheck",
+    "limitations": [
+      "historical post-TERM active operation unknown",
+      "partial constructor internals remain constructor-owned",
+      "actual retained-state native recovery not established",
+      "sustained throughput improvement not established",
+      "managed provider/held protection not established"
+    ],
+    "proofs": [
+      {
+        "errors": 0,
+        "failures": 2,
+        "log": "NATIVE_LIFECYCLE_HEALTH_RED_20261014.log",
+        "seconds": 4.005,
+        "sha256": "4dd046383cca0312f8d0d93f924f7a90678e9228ba3a38d8164f9b5a60403538",
+        "skips": 0,
+        "status": "FAILED_EXPECTED",
+        "tests": 2
+      },
+      {
+        "errors": 0,
+        "failures": 4,
+        "log": "NATIVE_STARTUP_LIFECYCLE_RED_20261014.log",
+        "seconds": 0.286,
+        "sha256": "1e186db45eee3658939fc3b2b7dcf592ee33b38bb76cae9381c498788a15de16",
+        "skips": 0,
+        "status": "FAILED_EXPECTED",
+        "tests": 4
+      },
+      {
+        "errors": 1,
+        "failures": 0,
+        "log": "NATIVE_STARTUP_CLEANUP_COLLECTION_RED_20261014.log",
+        "seconds": 0.002,
+        "sha256": "3a034a686ce1f674032d02b5420376f6ffcd7f9ce118615551d8eab9cff03a66",
+        "skips": 0,
+        "status": "FAILED_EXPECTED",
+        "tests": 1
+      },
+      {
+        "errors": 0,
+        "failures": 1,
+        "log": "NATIVE_LIFECYCLE_ASYNC_CLOSE_RED_20261014.log",
+        "seconds": 0.178,
+        "sha256": "0cc76e00473e24ae07a78131b4071cc9667a0865af56d10d37c523898c9a3521",
+        "skips": 0,
+        "status": "FAILED_EXPECTED",
+        "tests": 1
+      },
+      {
+        "errors": 0,
+        "failures": 0,
+        "log": "NATIVE_LIFECYCLE_COMPLETE_OWNERSHIP_GREEN_20261014.log",
+        "seconds": 0.44,
+        "sha256": "fefa8dd708ad9a5adc6200b30a7c6f49d0c0917f00dd7c3d769a5b2e39e6ac17",
+        "skips": 0,
+        "status": "PASS",
+        "tests": 8
+      },
+      {
+        "errors": 0,
+        "failures": 0,
+        "log": "NATIVE_LIFECYCLE_COMPLETE_SOURCE_GREEN_20261014.log",
+        "seconds": 1.066,
+        "sha256": "8c175512c886543f3a658b327ee56b9b184eaa6772ab0718920f1d9e4665d66a",
+        "skips": 0,
+        "status": "PASS",
+        "tests": 2
+      },
+      {
+        "errors": 0,
+        "failures": 1,
+        "log": "NATIVE_LIFECYCLE_COMBINED_AFFECTED_20261014.log",
+        "seconds": 95.045,
+        "sha256": "eb2f05060087794223510b16b44f5cf59a50b07a5a3fe178abc3e8f3646dc592",
+        "skips": 0,
+        "status": "FAILED",
+        "tests": 297
+      },
+      {
+        "errors": 0,
+        "failures": 0,
+        "log": "NATIVE_LIFECYCLE_FINAL_STARTUP_20261015.log",
+        "seconds": 2.128,
+        "sha256": "512a75dffaf7504903726de5337714376cc67e93c7c2788d8bf0e68cee413561",
+        "skips": 0,
+        "status": "PASS",
+        "tests": 17
+      }
+    ],
+    "release_pass": false,
+    "reuse": "296 other passing cases reused: only diagnostic fixture assertion changed, production source unchanged; not an uninterrupted 297-case PASS",
+    "runtime": {
+      "network": "blocked",
+      "python": "3.12.14",
+      "sqlite": "3.45.1",
+      "state": "disposable"
+    },
+    "safe_state_receipt": "NATIVE_LIFECYCLE_FINAL_SAFE_STATE_20261015.json",
+    "safe_state_sha256": "180353a95ca9af9b94429dc64e4d685596658c2fdc63eeaf51c33a78be222aee",
+    "selected_solution": "one fixed, bounded ownership scope across whole native main; idempotent closers retain original order/results/first failures, constructor-only cancellation, existing health/collector lifetime",
+    "source_sha256": {
+      "engineering/diagnostics/current_combined_observation_20261014.py": "1955405789121fe93e913a75bd745effdc5a95114c68ad1a65ac01e79e966885",
+      "meme_machine/lanes/pump/runner.py": "ca83600f6a54806b52c4f6625d1b30d482e922e82db17d086e1ca055485c6a41",
+      "meme_machine/operational/lane.py": "018902259f084fcbbb614811d884453075d1a8a2c43d5953a2b750d3450cd9f2",
+      "meme_machine/runtime/survivor_history.py": "22ab2268bb4b23997314889c7e6936706a7a47a1e3301341e699acc51989ce40",
+      "operational/tests.py": "bf2166c1215901d48ed1d6497adeab0886a1b3c01559c80e4d5e4dcac396918f",
+      "tests/test_current_combined_diagnostic.py": "d3a13b207fa54ae2c8848fab1962323fd663fc536c9d5b22780ba39ee7d1a7fa",
+      "tests/test_integrated_startup_rehearsal.py": "76ab34cc9c0dd899886151f2fefc84ed4a1660a9d9753cc8285594c8c048e4a7",
+      "tests/test_native_startup_lifecycle.py": "107ab9e1bca4b84846845fedbb338213ecbe670edeab0a1174ae7a5dc7ea5c34",
+      "tests/test_pump_cancellation_diagnostics.py": "0fc23be598c6e35ab5bb95db0a0768689278cf7f240a0ba384f6543306fece3d",
+      "tests/test_robinhood_usd_valuation.py": "9373a308668557d6b93635d8d2fd4d6611635d38be6fe7a5d5a2d26c7a094e97"
+    },
+    "strategy": {
+      "original_nine_preserved": true,
+      "six_active_opportunity_changes_preserved": true,
+      "source_guard": "exact successor/predecessor pins and byte reversal retain all existing economics and negative assertions",
+      "volume_attention_preserved": true
+    },
+    "whole_path_improvement": "NOT_ESTABLISHED"
+  },
+  "managed_provider": {
+    "admissions": {
+      "count": 37,
+      "granted": 37,
+      "maximum_wait_seconds": 0.22893456695601344
+    },
+    "boundaries": {
+      "None": 36,
+      "evidence_deadline_during_transport": 1
+    },
+    "dispatch_spacing_seconds": {
+      "maximum": 32.7814612518996,
+      "median": 0.24967329704668373,
+      "minimum": 0.1105555510148406,
+      "samples": 36
+    },
+    "http_status": {
+      "200": 36,
+      "None": 1
+    },
+    "logical_methods": {
+      "eth_call": 57,
+      "eth_chainId": 6,
+      "eth_getBlockByNumber": 81,
+      "eth_getCode": 32,
+      "eth_getLogs": 4
+    },
+    "quote_usd": "Complete held-position quote/USD protection not exercised; eth_call candidate reads occurred, complete quote/USD timings unavailable",
+    "transport_429": 0,
+    "transport_starts": 37
+  },
+  "private_run": "/var/lib/meme-machine-diagnostics/20261014-consolidated-startup-224020",
+  "proof_overlap": "Counts overlap; unchanged proofs reused, never summed",
+  "pull_request": "https://github.com/levonmendall/The-Meme-Machine/pull/133",
+  "repair_executable": "c8beb2d1317084779f97214b6015b7c345242085",
+  "safe_state": {
+    "databases_rewound": false,
+    "funding": false,
+    "installed": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "native_recovery": "RECOVERY_REQUIRED",
+    "original_results_preserved": true,
+    "repair_deployed": false,
+    "service": "stopped/failed, disabled, Restart=no"
+  },
+  "schema": "consolidated-observation-result-v1",
+  "source_sha256": {
+    "meme_machine/lanes/pump/runner.py": "f94dc8512ae8e7e0446040db08e4736aad9b32fdb1bd6e65d5d1d7670ec0b884",
+    "meme_machine/runtime/robinhood/pons.py": "a1d3cf01ccf8bb102e31b33dc7edef2fa2dfd1434f5bf8dd0aa0d127d13ff030",
+    "tests/test_paper_policy_compatibility.py": "fa47ba05f4f17261c612d0fb63f44d77f981c5e71e7a4081792236085705390a",
+    "tests/test_pump_cancellation_diagnostics.py": "a80a6c2bc1f923a782e0a2a36031d3b5df7452313a378ed7fe761f889e1061fe",
+    "tests/test_robinhood_usd_valuation.py": "32d787ccabd09b9e7b7aedd09613ccd78e0b1b16260e91d274ca84ca075ef035"
+  },
+  "startup_rates": {
+    "causal_throughput_intervention": "INSUFFICIENT_EVIDENCE",
+    "control": 4.633724637282726,
+    "joined": 1.9869411244668331,
+    "newest_stored": 1.9795271650471806,
+    "pre_persistence_gap": [
+      131,
+      489
+    ],
+    "prepared": 1.9721132056275283,
+    "published": 1.942457367948919,
+    "scope": "current-generation 134.880695104599s startup only; Pump/PumpSwap overlap not summed",
+    "shared_parsed": 4.7152781908989025,
+    "stored_to_published_gap": [
+      3,
+      8
+    ],
+    "whole_path_improvement": "NOT_ESTABLISHED"
+  },
+  "usage": {
+    "at": "2026-10-14T22:47:36.475343+00:00",
+    "calls_by_this_read": 0,
+    "delta": {
+      "alchemy_rpc_cu": 4042,
+      "http_attempts": 44,
+      "http_bytes": 533701,
+      "http_uncertain_bytes": 0,
+      "native_bytes": 152695045,
+      "native_failures": 0,
+      "native_opens": 4,
+      "native_uncertain_bytes": 285212672,
+      "robinhood_rpc_elements": 180,
+      "rpc_cu": 4042,
+      "rpc_elements": 183,
+      "solana_rpc_elements": 3
+    },
+    "interval": "fresh_pre_dispatch_ledger_to_post_drain",
+    "modeled_cost_usd": "0.048102360285",
+    "new_risk_ready": "false",
+    "operating_mode": "CONTINUOUS",
+    "price_basis": "existing_frozen_conservative_model_not_invoice",
+    "provider_invoice": "UNAVAILABLE",
+    "reservation_after": {
+      "http_reserved": "0",
+      "native_reserved": "0"
+    }
+  },
+  "validation_workflow": {
+    "complete_suites": "finalized one-hour/normal-operation candidate or demonstrated broad dependency/safety risk",
+    "diagnostic_gate": "affected combined-source tests, actual integrated startup rehearsal for changed lifecycle paths, exact source/economic guards, implicated safety regressions, fresh authorized host preflight",
+    "focused_pass_is_release_pass": false,
+    "instruction_changes_invalidate_executable_proofs": false,
+    "instruction_review": "independent source-only review: no concrete gap; no tests required for instruction/handoff-only edits",
+    "running_ci_disposition": "original c8 FAST completed 2165 tests/1 skip; no additional complete-suite dispatch or polling loop",
+    "runtime_authority_expanded": false
+  }
+}

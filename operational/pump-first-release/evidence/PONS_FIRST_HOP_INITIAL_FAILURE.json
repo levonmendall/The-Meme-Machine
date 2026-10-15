@@ -1,0 +1,27 @@
+{
+  "source": "00f1327a010eaadd8c987379a348fecf4a16b993",
+  "started_at": 1791744105.5686374,
+  "purpose": "Existing-inventory first-hop route capability only",
+  "funding": false,
+  "orders": false,
+  "native_streams": false,
+  "full_protection": false,
+  "financial_route_activated": false,
+  "historical_counters_reset": false,
+  "results": [],
+  "status": "FAIL_ROUTE_CAPABILITY_ONLY",
+  "reason": "BoundaryError",
+  "canonical_membership": true,
+  "ended_at": 1791744108.4908633,
+  "duration_seconds": 2.9222264289855957,
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pons-first-hop-00f1327a-1791744094250.sqlite",
+  "usage_delta": {
+    "http_attempts": 12,
+    "rpc_elements": 234,
+    "rpc_cu": 5480,
+    "http_bytes": 118809,
+    "native_opens": 0
+  },
+  "modeled_public_upper_usd": "0.0028770",
+  "invoice_verified": false
+}

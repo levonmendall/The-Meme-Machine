@@ -1,0 +1,49 @@
+{
+  "status": "PASS_FOCUSED_PREFETCH_AND_ARCHIVE_SCOPE",
+  "baseline_source": "96ae082daacc2b32c37e6d525c37d70721178bd7",
+  "source_sha256": {
+    "meme_machine/operational/bounded_provider.py": "727d459e635950779a202c7974976b2f989ce2857c9f78d587d9c617343f5fd4",
+    "meme_machine/runtime/evidence_worker.py": "3c5acc8f5d0d0d12b6b0542f7b2604cddff4cfb98ae8d3f9a9750a12472708f3",
+    "meme_machine/solana_selective_source.py": "cb40109cf3bcc35c49c219de0729256a4d2873901214ef2471755380b26dc82f",
+    "meme_machine/solana_selective_history.py": "7ed5f8f2eb890f8e7cc829c8f6acc530b7fe0fd7a694114aa46986c8ea05e165",
+    "tests/test_native_usage_intake.py": "e01a1423170d671576a6b1da6bffccc17d0a3d8765c7a2fbdde2d6edb99f1ead",
+    "tests/test_bounded_provider_preflight.py": "d1435208702cedfa05cb3d9b965343a80aa736b3ebd98272eb2a861808565799",
+    "tests/test_continuous_paper.py": "f4de705be9e71c8ffdb89f7d71719e1dbaf03c3bfe06e15e65ec36a235703cf6",
+    "tests/test_solana_shared_capacity.py": "73dad2f7ebd3a647cb5ece6a3714baa4af6796b2280d47fa4b6b11116ec3ab27",
+    "tests/test_operational_capacity_repairs.py": "60b7337ead3ae1d3fe764b9833af737c8c17a9265f6c9de531c9c9523f063088"
+  },
+  "intake_final": {
+    "tests": 51,
+    "seconds": "6.724",
+    "command": "python -m operational.tests OPERATIONAL --modules tests.test_native_usage_intake tests.test_bounded_provider_preflight tests.test_continuous_paper"
+  },
+  "archive_focus": {
+    "tests": 102,
+    "seconds": "16.957",
+    "result": "101_PASS_ONE_NEW_FIXTURE_EXPECTATION_FAIL",
+    "corrected_case": "test_optional_archive_fault_does_not_terminate_canonical_source_or_prove_history",
+    "correction": "expect maintained STEADY_STATE phase, no changed implementation/assertions for deadlines, coverage or recovery",
+    "corrected_case_tests": 1,
+    "corrected_case_result": "PASS"
+  },
+  "prior_prefetch_scope": {
+    "tests": 150,
+    "seconds": "18.988",
+    "result": "149_PASS_ONE_CANCEL_AFTER_EVENT_LOOP_CLOSED_ERROR",
+    "correction": "Consume a completed producer task directly before the loop closes; all 51 intake/resource cases now PASS"
+  },
+  "group_bounds": {
+    "frames_per_group": 32,
+    "bytes_per_group": 16777216,
+    "queued_group_bytes": 16777216,
+    "lookahead_bytes": 16777216,
+    "yellowstone_reservation_bytes": 67108864,
+    "websocket_reservation_bytes": 83886080,
+    "native_inflight_bytes": 536870912,
+    "positive_batch_delay_seconds": 0
+  },
+  "actual_provider_equivalence": false,
+  "economic_rules_changed": false,
+  "funding": false,
+  "new_infrastructure": false
+}

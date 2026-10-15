@@ -1,0 +1,50 @@
+{
+  "status": "FAIL_CANONICAL_ECONOMIC_PUBLICATION",
+  "source": "5f70e90b313adfdfdb0b9269d984cc158e4ec71c",
+  "tree": "6669fe71fef48e748389b28ad3a5992e308fbbb9",
+  "retained_at": 1791737624.4585183,
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-canonical-5f70e90b-20261011T164259Z.sqlite",
+  "usage_db_sha256": "bf629f678bbb17ab8ce8cd1c6d1ed04cb243a2a36d40fa8ff59383ee7163cc0f",
+  "counters": {
+    "http_attempts": 15,
+    "rpc_elements": 7,
+    "rpc_cu": 140,
+    "http_bytes": 301,
+    "native_bytes": 11928863,
+    "native_uncertain_bytes": 318767104,
+    "native_reserved": 0,
+    "native_opens": 8
+  },
+  "accounted_native_bytes": 330695967,
+  "effective_limits": {
+    "http_attempts": 1200,
+    "http_bytes": 134217728,
+    "native_bytes": 1073741824,
+    "native_inflight_bytes": 536870912,
+    "native_stop_bytes": 536870912,
+    "rpc_cu": 150000,
+    "rpc_elements": 1800
+  },
+  "pacing": {
+    "robinhood": "0.5",
+    "solana": "0.5"
+  },
+  "modeled_public_upper_usd": "0.034796576535",
+  "authenticated_invoice": false,
+  "terminal_classification": "EvidenceUnavailable:fixed_reason_not_reported",
+  "meter_reason": "",
+  "economic_tables": {
+    "candidate_checkpoints": 0,
+    "rolling_economic_events": 0,
+    "market_observations": 297,
+    "candidate_outbox": 0
+  },
+  "native_errors": 0,
+  "funding": false,
+  "orders": false,
+  "component_rerun": false,
+  "previous_counters_reset": false,
+  "normal_deployment": false,
+  "ci_at_dispatch": "IN_PROGRESS",
+  "full_protection_pass": false
+}

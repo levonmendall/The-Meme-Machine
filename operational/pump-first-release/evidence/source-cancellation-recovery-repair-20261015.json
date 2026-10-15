@@ -1,0 +1,248 @@
+{
+  "ci_original_failure": 38753995554,
+  "executed_unchanged": "a793bd580593a87d17a0ab6e5e8581943bec6886",
+  "initial_complete_ci": {
+    "FAST": {
+      "failed_subtests": 2,
+      "failed_test_cases": 1,
+      "run": 38771988024,
+      "selected": 2427,
+      "skipped": 2,
+      "verdict": "FAIL"
+    },
+    "OPERATIONAL": {
+      "failed_subtests_or_cases": 4,
+      "run": 38771971950,
+      "selected": 3937,
+      "skipped": 36,
+      "verdict": "FAIL"
+    },
+    "candidate": "9e93392c5f23de586933d7783eee57ad4593bb15",
+    "held": {
+      "added_passed": 145,
+      "added_selected": 147,
+      "added_skipped": 2,
+      "original_passed": 79,
+      "run": 38771976014,
+      "verdict": "PASS_WITH_DISCLOSED_HOST_SKIPS"
+    }
+  },
+  "private_receipts": [
+    {
+      "bytes": 14375,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/HANDLER_HISTORICAL_ATTRIBUTION_REVIEW_20261015.json",
+      "sha256": "80ff2ff96e4032d1d68b4869964b88b563c8f9896e53cb3954bdd0e3d5d7a882"
+    },
+    {
+      "bytes": 2471,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/SOURCE_RECOVERY_OFFLINE_SAFETY_20261015.json",
+      "sha256": "d382b8a379c5aaa7f62b3b6ad77a105c6588b63967dabd5c3fcbf2efcd6ba547"
+    }
+  ],
+  "reviewed": "9bc778ff9237c0769aa6a6d2799bf513d677e333",
+  "schema": 1,
+  "scope": "offline source repair; historical results unchanged; focused counts overlap",
+  "second_complete_ci": {
+    "FAST": {
+      "run": 38777600727,
+      "selected": 2427,
+      "skipped": 2,
+      "verdict": "PASS"
+    },
+    "OPERATIONAL": {
+      "cause": "direct native-genesis fixture did not own its descriptive health-thread lifetime",
+      "errors": 1,
+      "run": 38777597576,
+      "selected": 3937,
+      "skipped": 36,
+      "verdict": "FAIL"
+    },
+    "candidate": "bc725062abf9a9ee3f6752a1c30ebf0d8a0bed7f",
+    "held": {
+      "added_passed": 145,
+      "added_selected": 147,
+      "added_skipped": 2,
+      "original_passed": 79,
+      "run": 38777601421,
+      "verdict": "PASS_WITH_DISCLOSED_HOST_SKIPS"
+    }
+  },
+  "tests": [
+    {
+      "bytes": 2599,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/SOURCE_RECOVERY_ORIGINAL_REPRO_20261015.log",
+      "seconds": 1.095,
+      "sha256": "944861fc2af89437cd2996bf8f10a53b1f56bcd59ed609a0158bf9c7ff8c9dfc",
+      "tests": 1,
+      "verdict": "FAIL"
+    },
+    {
+      "bytes": 842,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/SOURCE_RECOVERY_CUTOFF_CORRECTION_20261015.log",
+      "seconds": 0.398,
+      "sha256": "e6270d2007891311fe27b0fd4fc1a6e6ab031bba895ec091c681c15daba7ea6c",
+      "tests": 1,
+      "verdict": "PASS"
+    },
+    {
+      "bytes": 20276,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/SOURCE_RECOVERY_FIRST_INTEGRATION_20261015.log",
+      "seconds": 8.793,
+      "sha256": "534ffb051743a8d87280674086476931e81d754296ca66692b7d559523f988fc",
+      "tests": 66,
+      "verdict": "FAIL"
+    },
+    {
+      "bytes": 21163,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/SOURCE_RECOVERY_CONTRACT_INTEGRATION_20261015.log",
+      "seconds": 10.42,
+      "sha256": "baa67b39de6dc22286a046ec42a199ad4b9f6602b668d3ff98e75a78726a1d4b",
+      "tests": 79,
+      "verdict": "PASS"
+    },
+    {
+      "bytes": 1621,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/SOURCE_RECOVERY_LIFECYCLE_REHEARSAL_20261015.log",
+      "seconds": null,
+      "sha256": "9b0fdd923de2dc327d505e95c587f600bfa3a6c8e13966e3ed947e4577de67f0",
+      "tests": null,
+      "verdict": "INTERRUPTED_INCOMPLETE"
+    },
+    {
+      "bytes": 4225,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/SOURCE_RECOVERY_INTAKE_DEADLINE_20261015.log",
+      "seconds": 0.541,
+      "sha256": "ae165ffe258fefbdaa11446c4df20d252d9b7fd4934e57cbc32fcfb48b1b33d7",
+      "tests": 4,
+      "verdict": "FAIL"
+    },
+    {
+      "bytes": 30573,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/SOURCE_RECOVERY_LIFECYCLE_REHEARSAL_R2_20261015.log",
+      "seconds": 11.19,
+      "sha256": "37e933baa899429c0da170b307eb38e4c664946647a5df3f576fbf27532784f6",
+      "tests": 143,
+      "verdict": "PASS"
+    },
+    {
+      "bytes": 49344,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/SOURCE_RECOVERY_FINAL_LIFECYCLE_20261015.log",
+      "seconds": 18.098,
+      "sha256": "1cd41903f97d1536b52fa42b2abe8c44c46f2cb3b50f847ca0409255a3ed129e",
+      "tests": 214,
+      "verdict": "PASS"
+    },
+    {
+      "bytes": 14843,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/SOURCE_RECOVERY_HELD_PAPER_79_20261015.log",
+      "seconds": 6.13,
+      "sha256": "b923f6f7ff21e2b1a75f45ed5308f550308e8f5f0fd1c8fb8015980756d8ddfc",
+      "tests": 79,
+      "verdict": "PASS"
+    },
+    {
+      "bytes": 30538,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/SOURCE_RECOVERY_STRATEGY_ACCOUNTING_20261015.log",
+      "seconds": 41.665,
+      "sha256": "233a950ae314577ecbc5eebaba6a75bddd1f15be082754d77070eb21e88916b7",
+      "tests": 158,
+      "verdict": "PASS"
+    },
+    {
+      "bytes": 66076,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/SOURCE_RECOVERY_FROZEN_COMBINED_20261015.log",
+      "seconds": 24.692,
+      "sha256": "9ee3e6f10407f5229acfef4f42b919fc0bccd8884d9b046d4767c6725df48c9e",
+      "tests": 294,
+      "verdict": "FAIL"
+    },
+    {
+      "bytes": 64177,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/SOURCE_RECOVERY_FROZEN_COMBINED_R2_20261015.log",
+      "seconds": 33.244,
+      "sha256": "271aa185d808cf7a23c30a9b5ec7362352df167ebf347ede24469edcc69a00b9",
+      "tests": 294,
+      "verdict": "PASS"
+    },
+    {
+      "bytes": 1462,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_PORTABLE_CONFIGURATION_20261015.log",
+      "seconds": 0.077,
+      "sha256": "a67a0631451660a4e67176a4780e519e065517b4006de7fd12a5c0ef27911e3d",
+      "tests": 6,
+      "verdict": "PASS"
+    },
+    {
+      "bytes": 31769,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_CPU_CONFIG_SAFETY_20261015.log",
+      "seconds": 51.006,
+      "sha256": "f5cde62381b5dbfb91d070d6bcb100fbc7cb896c60d8fe8ea5b52a22748d9d47",
+      "tests": 140,
+      "verdict": "FAIL"
+    },
+    {
+      "bytes": 28123,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_CPU_CONFIG_SAFETY_R2_20261015.log",
+      "seconds": 52.603,
+      "sha256": "50ac3c435dcb9f81df58a1c7f101480f522b968365aab488fbf7a501f6b35d51",
+      "tests": 141,
+      "verdict": "PASS"
+    },
+    {
+      "bytes": 3127,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_FAILURE_CODES_REPRO_R2_20261015.log",
+      "seconds": 0.081,
+      "sha256": "a0d0d564bf3389360c0ec51a4bfd4c9940a4e18ecf3d04cad5b029471d6b1d04",
+      "tests": 1,
+      "verdict": "FAIL"
+    },
+    {
+      "bytes": 12772,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_FAILURE_CODES_CORRECTION_20261015.log",
+      "seconds": 5.049,
+      "sha256": "8d9f75f677fb5696f7826b9d2aa89101abbfd7cf856a312fca9693f938808c12",
+      "tests": 61,
+      "verdict": "PASS"
+    },
+    {
+      "bytes": 2542,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_TIMING_FAILURE_REPRO_20261015.log",
+      "seconds": 0.081,
+      "sha256": "05765bf0db2d7410e0ce78a282ca541d2bc1eb5aa71683167cc22bc76a21ba50",
+      "tests": 2,
+      "verdict": "FAIL"
+    },
+    {
+      "bytes": 208,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_CONSOLIDATED_FAILURE_CORRECTIONS_20261015.log",
+      "seconds": null,
+      "sha256": "e37d90fb6f03420ea8b59efa6ae4fbf98654534b632d1aa3fdd33bdb57b09a5f",
+      "tests": null,
+      "verdict": "NOT_RUN_INVALID_MODULE_SELECTION"
+    },
+    {
+      "bytes": 16850,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_CONSOLIDATED_FAILURE_CORRECTIONS_R2_20261015.log",
+      "seconds": 5.337,
+      "sha256": "7b834d4ab6c1e2a386ac30c0bf2dd213956798dcb2129a22323782faf0c06da9",
+      "tests": 80,
+      "verdict": "PASS_WITH_5_EXISTING_ARCHIVE_SKIPS"
+    },
+    {
+      "bytes": 407,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_GENESIS_CLEANUP_REPRO_20261015.log",
+      "seconds": 0.04,
+      "sha256": "d330be1b2e5c5d9ed52f4fb181ffa62abfb2c1f944e3bba95691bb688851863a",
+      "tests": 1,
+      "verdict": "PASS_ISOLATED_NOT_DISPROOF_OF_RACE"
+    },
+    {
+      "bytes": 13561,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_GENESIS_FIXTURE_OWNERSHIP_20261015.log",
+      "seconds": 6.186,
+      "sha256": "6c7169855f725a077a9934d68d55f9d675890904595fc01233a30236f8292230",
+      "tests": 58,
+      "verdict": "PASS"
+    }
+  ]
+}

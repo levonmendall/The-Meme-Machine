@@ -1,0 +1,208 @@
+{
+  "archive_commit": "c8a980b69ca1d26a1d72e8554bc32fc9f73e8932",
+  "archive_tree": "348ad500e397f53e3eff33c6412c138a6d7ceb2d",
+  "active_model": "MODEL_B_ROLLING_NORMALIZED_PREWARM",
+  "archive_sha256": "802118eee2264fc9b2b227f8c4e805c201417732483c45baea03f5d0b4a1204a",
+  "archived_test_count": 33,
+  "legacy_tests": [
+    {
+      "test_id": "tests.test_maintenance_overlap.ArchiveCleanupOverlapTests.test_slow_passive_checkpoint_cannot_block_source_and_is_joined_on_shutdown",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 146
+    },
+    {
+      "test_id": "tests.test_maintenance_overlap.ArchiveCleanupOverlapTests.test_incomplete_passive_checkpoint_skips_owner_truncate",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 196
+    },
+    {
+      "test_id": "tests.test_maintenance_overlap.ArchiveCleanupOverlapTests.test_completed_passive_checkpoint_joins_source_fifo_for_zero_wait_reset",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 233
+    },
+    {
+      "test_id": "tests.test_maintenance_overlap.ArchiveCleanupOverlapTests.test_repeated_health_yields_cannot_starve_archive_progress",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 272
+    },
+    {
+      "test_id": "tests.test_maintenance_overlap.ArchiveCleanupOverlapTests.test_hot_cleanup_progresses_while_next_archive_worker_is_pending",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 322
+    },
+    {
+      "test_id": "tests.test_run372_large_frame_runtime.Run372LargeFrameTests.test_shared_pumpswap_decoder_is_strategy_independent_and_available",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 90
+    },
+    {
+      "test_id": "tests.test_run372_large_frame_runtime.Run372LargeFrameTests.test_prepared_transport_keeps_event_loop_live_during_realistic_large_frames",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 123
+    },
+    {
+      "test_id": "tests.test_run372_large_frame_runtime.Run372LargeFrameTests.test_slow_independent_observer_does_not_manufacture_transport_lag",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 126
+    },
+    {
+      "test_id": "tests.test_run372_large_frame_runtime.Run372LargeFrameTests.test_real_receive_loop_stall_still_fails_the_original_limit",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 135
+    },
+    {
+      "test_id": "tests.test_run381_subscription_progress.SubscriptionProgressTests.test_unchanged_interests_do_not_enqueue_repeated_priority_zero_reads",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 23
+    },
+    {
+      "test_id": "tests.test_run381_subscription_progress.SubscriptionProgressTests.test_new_interest_during_subscription_send_and_release_are_not_lost",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 36
+    },
+    {
+      "test_id": "tests.test_run381_subscription_progress.SubscriptionProgressTests.test_disconnected_command_waiter_still_signals_subscription_change",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 62
+    },
+    {
+      "test_id": "tests.test_maintenance_batch_fairness.StageE19MaintenanceBatchFairnessTests.test_maintenance_pressure_limits_source_batches_to_one_frame",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 21
+    },
+    {
+      "test_id": "tests.test_solana_source_intake.LiveIntakeBoundaryTests.test_real_dispatch_never_submits_raw_unrelated_body_to_process_pool",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 249
+    },
+    {
+      "test_id": "tests.test_run377_persistence.StopDrainTests.test_stop_drains_every_admitted_frame_before_process_close",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 56
+    },
+    {
+      "test_id": "tests.test_run377_persistence.ProductionPressureTests.test_retained_dense_transaction_workload_drains_with_original_bounds",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 105
+    },
+    {
+      "test_id": "tests.test_run377_persistence.StopSchedulingTests.test_subscription_exit_before_stop_waiter_still_drains_admitted_frames",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 130
+    },
+    {
+      "test_id": "tests.test_run380_production_pressure.SourceClockPressureTests.test_sustained_source_clock_candidate_progress_and_durable_drain",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 96
+    },
+    {
+      "test_id": "tests.test_run376_dispatch_pressure.Run376PressureTests.test_saturated_admission_waits_for_durable_drain_without_loss",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 47
+    },
+    {
+      "test_id": "tests.test_run376_dispatch_pressure.Run376PressureTests.test_mixed_large_blocks_and_accounts_drain_without_capacity_churn",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 88
+    },
+    {
+      "test_id": "tests.test_dispatch_throughput.Run373DispatchThroughputTests.test_sustains_run373_shaped_large_frame_rate_without_capacity_disconnect",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 133
+    },
+    {
+      "test_id": "tests.test_dispatch_throughput.Run373DispatchThroughputTests.test_run375_commit_batching_amortizes_full_sync_without_relaxing_bounds",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 205
+    },
+    {
+      "test_id": "tests.test_dispatch_throughput.Run373DispatchThroughputTests.test_oversized_frame_drains_already_received_frames_before_gap",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 289
+    },
+    {
+      "test_id": "tests.test_run381_archive_scheduling.ArchiveReceiptRetryTests.test_periodic_telemetry_does_not_preempt_background_durable_work",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 45
+    },
+    {
+      "test_id": "tests.test_run381_archive_scheduling.ArchiveReceiptRetryTests.test_cooperative_commit_yield_reuses_already_published_archive",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 70
+    },
+    {
+      "test_id": "tests.test_run381_archive_scheduling.ArchiveReceiptRetryTests.test_yield_after_durable_commit_retries_idempotently",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 73
+    },
+    {
+      "test_id": "tests.test_run381_archive_scheduling.ArchiveReceiptRetryTests.test_ready_archive_receipt_finishes_slices_before_fresh_retention_grant",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 123
+    },
+    {
+      "test_id": "tests.test_run379_transport_backpressure.TransportBackpressureTests.test_silent_source_still_gets_a_bounded_explicit_gap",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 26
+    },
+    {
+      "test_id": "tests.test_run379_transport_backpressure.TransportBackpressureTests.test_real_protocol_queue_backpressure_drains_without_ping_disconnect",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Requires removed default cold/broad startup producer",
+      "line_at_archive": 53
+    },
+    {
+      "test_id": "tests.test_run381_repair_pagination.RepairPaginationTests.test_stage_costs_and_yields_survive_restart_without_exception_text",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Legacy global startup pagination planner removed; targeted selective recovery remains",
+      "line_at_archive": 10
+    },
+    {
+      "test_id": "tests.test_run381_repair_pagination.RepairPaginationTests.test_successful_pages_drain_without_failure_backoff_and_stay_fail_closed",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Legacy global startup pagination planner removed; targeted selective recovery remains",
+      "line_at_archive": 34
+    },
+    {
+      "test_id": "tests.test_run381_repair_pagination.RepairPaginationTests.test_failed_provider_attempts_retain_bounded_backoff",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Legacy global startup pagination planner removed; targeted selective recovery remains",
+      "line_at_archive": 47
+    },
+    {
+      "test_id": "tests.test_work_admission.GateTests.test_batching_recomputed_after_rendezvous_and_source_charge_uses_actual_frames",
+      "classification": "LEGACY_ARCHIVE_CHARACTERIZATION",
+      "reason": "Inspects removed Model A nested dispatcher batching; Model B publication and shared admission remain tested",
+      "line_at_archive": 347
+    }
+  ],
+  "shared_maintenance_tests": "Remain active with quiet Model B fixture using the sole canonical owner; no legacy stream"
+}

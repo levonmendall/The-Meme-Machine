@@ -1,0 +1,35 @@
+{
+  "parent_source": "be8dc03434ada013f014760b5ba6f71336e56924",
+  "cause": "retirement hot-byte telemetry scanned rich canonical bodies twice per maintenance slice",
+  "change": "covering SQLite expression indexes and the identical canonical-identity precedence",
+  "proof": "zero-provider operation on fresh disposable copies of the same retained authenticated database",
+  "final_tables_identical": true,
+  "table_hashes": {
+    "evidence_bindings": "e6264fba3ca7a6ce195f43b775821a09e03982502b40c4450383f3cf08bb434b",
+    "candidate_lifecycle": "eafd1a44e4bb3d6b6c2d6bd1e36ebeabfc161082790e7686418c48f7585c3726",
+    "candidate_history_outbox": "55a5706365916d65fd510d40afea9eb7933dfdb7e9fb49b0d1688e1f350d9fc7",
+    "rolling_boundary_waits": "aafcef58a7b17eaac979840ebaf6150fb468cd6b344b64a7093d9e510d3363e6",
+    "rolling_publication_waits": "1e9549e0ecbb4a3ee11019b36b84eb660f037fe191460e1015cc2fb08c9825ad",
+    "acquisition_jobs": "15a54c444f1f5f56d1ce5bba34551b72c5d0eee8f41a90f96d2a94ef477792fe",
+    "acquisition_observations": "76d34246a80bea5b8ccc9b588ca64d9e6bb1f08e9c16f22216c9408af4c51700",
+    "promotion_history_metrics": "63c868209e086daaea281feea98d758ae304a0767ff9b112edc75d3a3a4ca173",
+    "history:work": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "history:candidates": "8b82c04d3ec8c994d679fdd74db2af7be7d914bd59b27c87fbf0f040483fd3bd"
+  },
+  "original_profile_seconds": 0.36094079504255205,
+  "original_hot_bytes_seconds": 0.342,
+  "indexed_cold_start_profile_seconds": 0.42390862305182964,
+  "indexed_one_time_install_seconds": 0.354,
+  "indexed_retirement_seconds": 0.068,
+  "indexed_hot_bytes_seconds": 0.051,
+  "first_index_build_included": true,
+  "provider_latency_claim": false,
+  "provider_requests_added": 0,
+  "storage_guards_changed": false,
+  "test": {
+    "passed": 67,
+    "seconds": 49.777,
+    "log": "/tmp/pump-hot-byte-focused.log",
+    "sha256": "ba0df646219c745827c74f6b4450d47f49ad8000d92fb0db5aee77ef0fe31b5d"
+  }
+}

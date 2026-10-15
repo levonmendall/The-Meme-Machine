@@ -1,0 +1,53 @@
+{
+  "aggregate": {
+    "A_HARD_SLEEVES": {
+      "mean_utilization_pct": 36.7783,
+      "mean_stranded_idle_sleeve_usd": 312.3178,
+      "qualified_unfunded": 1321,
+      "granted": 1252,
+      "mean_realized_return_pct": 15.4684,
+      "worst_drawdown_pct": 11.4145,
+      "peak_regime_exposure_pct": 32.4484,
+      "mean_capital_time_utilization_pct": 39.4223,
+      "allocation_changes": 0,
+      "mean_requested_position_usd": 8.993026
+    },
+    "B_SHARED_FIXED": {
+      "mean_utilization_pct": 49.2207,
+      "mean_stranded_idle_sleeve_usd": 0.0,
+      "qualified_unfunded": 822,
+      "granted": 1751,
+      "mean_realized_return_pct": 19.3929,
+      "worst_drawdown_pct": 21.0445,
+      "peak_regime_exposure_pct": 53.7872,
+      "mean_capital_time_utilization_pct": 52.8492,
+      "allocation_changes": 0,
+      "mean_requested_position_usd": 9.239282
+    },
+    "C_SHARED_ADAPTIVE": {
+      "mean_utilization_pct": 49.3981,
+      "mean_stranded_idle_sleeve_usd": 0.0,
+      "qualified_unfunded": 867,
+      "granted": 1706,
+      "mean_realized_return_pct": 19.9699,
+      "worst_drawdown_pct": 21.3869,
+      "peak_regime_exposure_pct": 55.8107,
+      "mean_capital_time_utilization_pct": 53.0127,
+      "allocation_changes": 22,
+      "mean_requested_position_usd": 9.242679
+    },
+    "B_SHARED_PORTFOLIO_SIZING": {
+      "mean_utilization_pct": 51.0388,
+      "mean_stranded_idle_sleeve_usd": 0.0,
+      "qualified_unfunded": 1953,
+      "granted": 620,
+      "mean_realized_return_pct": 28.3004,
+      "worst_drawdown_pct": 22.2706,
+      "peak_regime_exposure_pct": 108.526,
+      "mean_capital_time_utilization_pct": 54.334,
+      "allocation_changes": 0,
+      "mean_requested_position_usd": 26.456124
+    }
+  },
+  "recommendation": "B_SHARED_FIXED"
+}

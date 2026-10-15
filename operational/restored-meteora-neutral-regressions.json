@@ -1,0 +1,33 @@
+{
+  "historical_sources": {
+    "tests/lanes/meteora/support.py": {
+      "commit": "a1392c0698deba784e5f31ea16bc527c0765fd86",
+      "sha256": "2d2f3ed9430ed47b4641c4cf1a129963486754cd6131253351772f3183c98caa"
+    },
+    "tests/lanes/meteora/dlmm_support.py": {
+      "commit": "a1392c0698deba784e5f31ea16bc527c0765fd86",
+      "sha256": "366294683019f3e4e084d3c4a2c5a05ded60a1af7034b912979ac12c2cf083d4"
+    },
+    "tests/lanes/meteora/test_dlmm_tape.py": {
+      "commit": "a1392c0698deba784e5f31ea16bc527c0765fd86",
+      "sha256": "3d1fa1f9efde362194efcf81479b6fe7cc5869f2fedf318e5c5c8f6c2cc1dc73"
+    },
+    "tests/lanes/meteora/test_dlmm_bin_array_neutral.py": {
+      "commit": "a1392c0698deba784e5f31ea16bc527c0765fd86",
+      "sha256": "fd45a744033c95970aee62bf9a95da52df719e2e5d01d2a4fec610b4b1018c3c"
+    },
+    "tests/lanes/meteora/test_dlmm_pool_neutral.py": {
+      "commit": "a1392c0698deba784e5f31ea16bc527c0765fd86",
+      "sha256": "5c2a17bd26a2064718b9226ee9dcd940ed9a2b1cf8e5801b2ef0f06c4ba6c514"
+    }
+  },
+  "regressions": [
+    "tests/test_meteora_bin_array_neutral.py",
+    "tests/test_meteora_pool_neutral.py"
+  ],
+  "adaptation": "Only fixture helper import paths changed in original tests. Selected original fixture constants/functions extracted unchanged into tests/meteora_tape_fixtures.py; unused historical test wrappers/probes omitted.",
+  "suite": "OPERATIONAL",
+  "runtime_changes": false,
+  "state_changes": false,
+  "provider_calls": false
+}

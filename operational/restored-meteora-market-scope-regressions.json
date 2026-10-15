@@ -1,0 +1,14 @@
+{
+  "historical_source_commit": "a1392c0698deba784e5f31ea16bc527c0765fd86",
+  "historical_path": "tests/lanes/meteora/test_meteora_market_scope_efficiency.py",
+  "historical_sha256": "b8b10d93ff4f4b76808c464a61da4c9d071d45a8114e5987c5d6ad60519233b4",
+  "current_path": "tests/test_meteora_market_scope_efficiency.py",
+  "adaptation": "None; original complete source byte-for-byte.",
+  "coverage": [
+    "Complete public pool snapshot needs no redundant history request",
+    "Public acceleration context derived without extra provider request",
+    "Occupied capital/open continuation remain distinct from reconstruction failure"
+  ],
+  "suite": "OPERATIONAL",
+  "authority": "Mocked API and in-memory pipeline only; no entry economics, provider workload or state migration."
+}

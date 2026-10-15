@@ -1,0 +1,35 @@
+{
+  "schema": "robinhood-billing-availability-v1",
+  "checked_at": "2026-10-08T15:34:00Z",
+  "access": "read-only Alchemy administrative API; no market RPC or subscription workload",
+  "matching_app": {
+    "name": "Solana ROI — Robinhood Production Read",
+    "network": "ROBINHOOD_MAINNET",
+    "api_key_published": false
+  },
+  "window": {
+    "start": "2026-10-07T15:34:00Z",
+    "end": "2026-10-08T15:34:00Z"
+  },
+  "app_method_query": {
+    "status": 403,
+    "reason": "groupBy breakdowns require a paid plan",
+    "usable_app_attribution": false
+  },
+  "permitted_account_query": {
+    "granularity": "day",
+    "products": [
+      "SUPERNODE_CU"
+    ],
+    "metric": "amount",
+    "groupBy": [],
+    "rows": [],
+    "contains_partial_today": true
+  },
+  "independently_reported_usage_amount": null,
+  "verified_billed_robinhood_cu": null,
+  "verified_invoice_usd": null,
+  "interpretation": "An empty returned data array is absence of a usable usage observation, not proof of zero consumption. Account totals also cannot isolate this app or branch. This offline implementation has not been exercised against the market provider.",
+  "provider_plans_changed": false,
+  "capacity_purchased": false
+}

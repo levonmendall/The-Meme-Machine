@@ -1,0 +1,408 @@
+{
+  "schema": "meme-machine-read-only-alchemy-admin-v1",
+  "billing_summary": {
+    "data": {
+      "billingPeriod": {
+        "startTime": "2026-10-01T00:00:00.000Z",
+        "endTime": "2026-11-01T00:00:00.000Z"
+      },
+      "totals": {
+        "monthToDate": {
+          "amount": "1740125.5362",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.91"
+        },
+        "last7Days": {
+          "amount": "1740125.5362",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.91"
+        },
+        "last30Days": {
+          "amount": "1740125.5362",
+          "unit": "ALCHEMY_COMPUTE_UNIT",
+          "usd": "0.91"
+        }
+      },
+      "freshness": {
+        "dataThrough": "2026-10-11T02:28:00.000Z",
+        "containsPartialToday": true,
+        "updateCadence": "minute"
+      }
+    }
+  },
+  "cu_time_series": {
+    "data": {
+      "query": {
+        "startTime": "2026-10-04T00:00:00Z",
+        "endTime": "2026-10-11T02:28:00Z",
+        "granularity": "day",
+        "products": [
+          "SUPERNODE_CU"
+        ],
+        "metrics": [
+          "amount"
+        ],
+        "groupBy": [
+          "app",
+          "network",
+          "requestType"
+        ]
+      },
+      "freshness": {
+        "dataThrough": "2026-10-11T02:28:00.000Z",
+        "containsPartialToday": true,
+        "updateCadence": "minute"
+      },
+      "data": [
+        {
+          "startTime": "2026-10-06T00:00:00.000Z",
+          "endTime": "2026-10-07T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "grpc"
+          },
+          "amount": "0",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-06T00:00:00.000Z",
+          "endTime": "2026-10-07T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "http"
+          },
+          "amount": "2130",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-06T00:00:00.000Z",
+          "endTime": "2026-10-07T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "websocket"
+          },
+          "amount": "28572.893",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-07T00:00:00.000Z",
+          "endTime": "2026-10-08T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "grpc"
+          },
+          "amount": "0",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-07T00:00:00.000Z",
+          "endTime": "2026-10-08T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "http"
+          },
+          "amount": "1152350",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-07T00:00:00.000Z",
+          "endTime": "2026-10-08T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "websocket"
+          },
+          "amount": "537033.5636",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-08T00:00:00.000Z",
+          "endTime": "2026-10-09T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "grpc"
+          },
+          "amount": "0",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-08T00:00:00.000Z",
+          "endTime": "2026-10-09T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "http"
+          },
+          "amount": "260",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-08T00:00:00.000Z",
+          "endTime": "2026-10-09T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "websocket"
+          },
+          "amount": "16745.0796",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-08T00:00:00.000Z",
+          "endTime": "2026-10-09T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "v5h0vqr0wpp9zscj",
+            "network": "robinhood-mainnet",
+            "requestType": "http"
+          },
+          "amount": "10",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-09T00:00:00.000Z",
+          "endTime": "2026-10-10T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "network": "solana-mainnet",
+            "requestType": "http"
+          },
+          "amount": "160",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        },
+        {
+          "startTime": "2026-10-09T00:00:00.000Z",
+          "endTime": "2026-10-10T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "v5h0vqr0wpp9zscj",
+            "network": "robinhood-mainnet",
+            "requestType": "http"
+          },
+          "amount": "2864",
+          "unit": "ALCHEMY_COMPUTE_UNIT"
+        }
+      ]
+    }
+  },
+  "grpc_time_series": {
+    "data": {
+      "query": {
+        "startTime": "2026-10-04T00:00:00Z",
+        "endTime": "2026-10-11T02:28:00Z",
+        "granularity": "day",
+        "products": [
+          "SOLANA_GRPC_TB"
+        ],
+        "metrics": [
+          "amount"
+        ],
+        "groupBy": [
+          "app",
+          "requestType"
+        ]
+      },
+      "freshness": {
+        "dataThrough": "2026-10-11T02:28:00.000Z",
+        "containsPartialToday": true,
+        "updateCadence": "minute"
+      },
+      "data": [
+        {
+          "startTime": "2026-10-06T00:00:00.000Z",
+          "endTime": "2026-10-07T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "requestType": "grpc"
+          },
+          "amount": "0.0046426064",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-06T00:00:00.000Z",
+          "endTime": "2026-10-07T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "requestType": "http"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-06T00:00:00.000Z",
+          "endTime": "2026-10-07T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "requestType": "websocket"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-07T00:00:00.000Z",
+          "endTime": "2026-10-08T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "requestType": "grpc"
+          },
+          "amount": "0.0016483698",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-07T00:00:00.000Z",
+          "endTime": "2026-10-08T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "requestType": "http"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-07T00:00:00.000Z",
+          "endTime": "2026-10-08T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "requestType": "websocket"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-08T00:00:00.000Z",
+          "endTime": "2026-10-09T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "requestType": "grpc"
+          },
+          "amount": "0.000039756",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-08T00:00:00.000Z",
+          "endTime": "2026-10-09T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "requestType": "http"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-08T00:00:00.000Z",
+          "endTime": "2026-10-09T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "requestType": "websocket"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-08T00:00:00.000Z",
+          "endTime": "2026-10-09T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "v5h0vqr0wpp9zscj",
+            "requestType": "http"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-09T00:00:00.000Z",
+          "endTime": "2026-10-10T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "9bin99s96t7ga5e9",
+            "requestType": "http"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        },
+        {
+          "startTime": "2026-10-09T00:00:00.000Z",
+          "endTime": "2026-10-10T00:00:00.000Z",
+          "isPartial": false,
+          "dimensions": {
+            "app": "v5h0vqr0wpp9zscj",
+            "requestType": "http"
+          },
+          "amount": "0",
+          "unit": "DATA_TERABYTE"
+        }
+      ]
+    }
+  },
+  "apps": [
+    {
+      "id": "9bin99s96t7ga5e9",
+      "name": "Solana",
+      "configured_networks": [
+        "SOLANA_MAINNET"
+      ],
+      "runtime_credential_binding_verified": false,
+      "existing_webhook_count": 0
+    },
+    {
+      "id": "v5h0vqr0wpp9zscj",
+      "name": "Robinhood",
+      "configured_networks": [
+        "ROBINHOOD_MAINNET",
+        "ROBINHOOD_TESTNET"
+      ],
+      "runtime_credential_binding_verified": false,
+      "existing_webhook_count": 0
+    }
+  ],
+  "capabilities": {
+    "filtered_usage_analytics": "authenticated successful response",
+    "actual_plan": null,
+    "payg_active": null,
+    "effective_cu_price": null,
+    "grpc_price": null,
+    "websocket_price": null,
+    "included_allowance": null,
+    "credits": null,
+    "account_throughput": null,
+    "app_concurrency": null,
+    "remaining_allowance": null,
+    "spend_cap": null,
+    "failed_request_billing": null,
+    "robinhood_log_range_entitlement": null,
+    "yellowstone_replay_slots": null
+  },
+  "interpretation": "Administrative measured historical usage; no invoice, runtime market attribution, first-owner protection, or authenticated market capability proof.",
+  "invalid_query": {
+    "products": [
+      "BANDWIDTH"
+    ],
+    "result": "INVALID_ARGUMENT; corrected to SOLANA_GRPC_TB; no market call"
+  },
+  "market_provider_calls": 0
+}

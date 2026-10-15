@@ -1,0 +1,30 @@
+{
+  "changed_files": [
+    "meme_machine/operational/bounded_provider.py",
+    "tests/test_native_usage_intake.py",
+    "tests/test_position_continuation.py"
+  ],
+  "passed_tests": 75,
+  "duration_seconds": "11.020",
+  "failed_first_log": "/tmp/native-ledger-write-focused.log",
+  "corrected_log": "/tmp/native-ledger-write-focused-corrected.log",
+  "corrected_log_sha256": "d3a61e73a79da0d5b84d42c0e17bfffce9e9b75f4a135dd9be8047f603789663",
+  "synchronous": "FULL",
+  "new_ledger_journal": "WAL",
+  "old_run_migration": false,
+  "counter_reset": false,
+  "new_provider_plan": false,
+  "provider_rps_changed": false,
+  "byte_limit_changed": false,
+  "physical_requests_saved": 0,
+  "cu_saved": 0,
+  "safety_preserved": [
+    "per-group durable commit before content",
+    "finite diagnostic envelopes",
+    "continuous hourly counters",
+    "orphan unread reservations",
+    "atomic failure rollback",
+    "ungraceful worker restart"
+  ],
+  "claim": "Local accounting work reduction; no authenticated protection pass yet"
+}

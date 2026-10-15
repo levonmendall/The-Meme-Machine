@@ -1,0 +1,232 @@
+{
+  "acceptance_minutes": 0,
+  "artifacts": [
+    {
+      "bytes": 9746,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-retirement-bdc19709-025742/result.json",
+      "scope": "Original result immutable; recovery_required=false superseded only by separate supported native-drain decision.",
+      "sha256": "63b0070714bad314202b04b2235afec7626bd26ba5a36f17482caa68da2ae5cc"
+    },
+    {
+      "bytes": 96,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-retirement-bdc19709-025742/clock.json",
+      "scope": "Original exact-source diagnostic clock.",
+      "sha256": "1bcd261628ab47dcc25be287e5d06b35f97a29cef9682e2087e60b9b8d487f36"
+    },
+    {
+      "bytes": 13763763,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-retirement-bdc19709-025742/metrics.jsonl",
+      "scope": "Bounded current-run collection; stages and timing scopes described in retained analysis.",
+      "sha256": "3d54c6f2309427fac7fc111c10bd007065087283848367892ec032e9ee8a2449"
+    },
+    {
+      "bytes": 0,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_RETIREMENT_EXECUTION_20261015.log",
+      "scope": "Controller stdout/stderr; empty output is not a success verdict.",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 1762,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_RETIREMENT_PREPARATION_LOCATOR_20261015.json",
+      "scope": "Exact executable and intended controller/unit/environment identities.",
+      "sha256": "1c4d2fc6bbe54e33060d94ed772b75ae2c23b9806909ee16808f285fc001db9d"
+    },
+    {
+      "bytes": 123010,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_RETIREMENT_PREFLIGHT_FINAL_20261015.json",
+      "scope": "Final fresh read-only preflight; no full replay or provider traffic.",
+      "sha256": "e90bec15a6df128ce140197940ee6a7b52ef7a103ee7e66f2c059902e392b50a"
+    },
+    {
+      "bytes": 59132,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_RETIREMENT_PIPELINE_ANALYSIS_20261015.json",
+      "scope": "Metrics-only analysis; planner applicability remained unavailable until separate post-stop indexed reads.",
+      "sha256": "b20b62eefda01b5e1b260f5a354a953eddaee21c05fe830c4019680c7d3d2b0d"
+    },
+    {
+      "bytes": 1129,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_RETIREMENT_LIVE_ARCHIVE_METADATA_20261015.json",
+      "scope": "Earlier interim sample retained old retirement receipt3936 and no hot cursor; not proof of new planner execution.",
+      "sha256": "e0f601488181bfe12058559108b4e2f56de0337c3df2e49bf6ba852cc3d61e75"
+    },
+    {
+      "bytes": 203641,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_RETIREMENT_POST_NATIVE_FINANCIAL_20261015.json",
+      "scope": "Bounded financial/native/actual-shutdown review including exact latest retirement receipt4014.",
+      "sha256": "fc09285ef6d35d39b8dfe7a9852eda3f837d02f2c52bb908124039ecf08aea7e"
+    },
+    {
+      "bytes": 343013,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_FINANCIAL_VERIFIED_PREFIX_9340_20261015.json",
+      "scope": "Private authenticated financial state for subsequent bounded-tail verification; contains no new authority.",
+      "sha256": "242fae7959b6228319bb989085388b655b1989c233d08c47c765e1ec5b33d210"
+    },
+    {
+      "bytes": 8877,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_RETIREMENT_UNIT_JOURNAL_20261015.jsonl",
+      "scope": "Original unit journal with native TERM/timeout/SIGKILL sequence.",
+      "sha256": "5f1d42e1a1831c7dae958273d7a4abff6d536c58e6d7335396427a8aa5855ef2"
+    },
+    {
+      "bytes": 728,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_RETIREMENT_ROLLBACK_20261015.json",
+      "scope": "Compatible source/small-overlay rollback; authoritative databases not rewound.",
+      "sha256": "5e4d861aabed07c23df40de831d9cfb000c0d2b91fe517ad8fc8ca02a5cdfaf9"
+    }
+  ],
+  "authority": "https://github.com/levonmendall/The-Meme-Machine/issues/134",
+  "decision": "RECOVERY_REQUIRED",
+  "executed_revision": "bdc19709e7daad243b3e3e1c3d50874af79695c1",
+  "financial": {
+    "actual_native_shutdown_failed": true,
+    "all_four_active_policy_bindings_verified": true,
+    "cash": "1000.00",
+    "current_cohort": {
+      "ACKED_WITH_AUTHENTIC_RECEIPT": 5,
+      "PENDING_PRESERVED": 27
+    },
+    "current_state_verdict": "CONSISTENT_CHECKED_STATE_NATIVE_SHUTDOWN_FAILED_REVIEW_REQUIRED",
+    "historical500_unchanged": true,
+    "new_verified_tail_events": 320,
+    "obligations": {
+      "commitments": 0,
+      "obligations": 0,
+      "pending_backing": 0,
+      "pending_deliveries": 0,
+      "positions": 0,
+      "reservations": 0,
+      "runtime_inbox": 0,
+      "runtime_pending": 0
+    },
+    "projection_sha256": "e2699dcb8b3587e5e26b10b6e3341d3bafe56fa20a10dd7ff425e2084cab2cd6",
+    "raw_head": [
+      9660,
+      "5d4485039e855e7675a9d8016639956ede975aadf112cac5d5a83c41ced5c614"
+    ]
+  },
+  "funding": false,
+  "measurement": {
+    "actual_checkpoint_handoff_seconds": 23.520659,
+    "average_service_cpu_cores": 1.6961246069472664,
+    "control_receipt_to_stored_gap": [
+      932,
+      2033
+    ],
+    "end_elapsed_seconds": 896.3981415939052,
+    "limitation": "Current uncontrolled funding-closed run, not historical before/after causal comparison, complete event throughput or held protection proof.",
+    "owner_runnable_wait_seconds": 200.26860679,
+    "owner_thread_cpu_seconds": 102.343533589,
+    "rates_slot_head_units_per_second": {
+      "control_receipt": 4.188010417385683,
+      "durable_timing": 1.8135868610946724,
+      "fixed_control": 4.102058433447547,
+      "joined": 1.8114380614962189,
+      "prepared": 1.8221820594884859,
+      "published_fixed_program": 1.8221820594884859,
+      "pump_status_receipt": 1.8114380614962189,
+      "stored": 1.8221820594884859
+    },
+    "seconds": 465.37611079216003,
+    "start_elapsed_seconds": 431.0220308098942,
+    "stored_to_fixed_program_gap": [
+      4,
+      4
+    ]
+  },
+  "native_review": {
+    "pons": "STOPPED/reconciled=true/exit0",
+    "pump": "TERM15-second wait then SIGKILL/exit-9; final DISCOVERING/reconciled=true is stale pre-kill health, not graceful STOPPED",
+    "source": "OFF/admission closed/not failed/queue0; process absence does not prove accepted-frame drainage"
+  },
+  "original_controller_fields": {
+    "drained": true,
+    "economic_continuity": true,
+    "elapsed_to_drain_seconds": 915.9847793879453,
+    "native_drain": "UNVERIFIED_TIMEOUT_ESCALATION_POSSIBLE",
+    "original_readiness": "FAIL",
+    "recovery_required": false,
+    "status": "STOPPED_REVIEW_REQUIRED",
+    "stop_reason": "STARTUP_LIMITATION"
+  },
+  "original_result_unchanged": true,
+  "output": "/var/lib/meme-machine-diagnostics/20261015-standing-retirement-bdc19709-025742",
+  "remaining_blockers": [
+    "Pump15s cancellation escalation/SIGKILL requires causal review and correction.",
+    "Sustained pre-persistence deficit; dominant suboperation/wait contribution not isolated.",
+    "Original SQLiteBUSY/PonsREADONLY not repaired by this result.",
+    "Managed complete quote/USD held protection and account suitability remain unproved.",
+    "Backup/protection compatibility and native replay semantics remain separately open."
+  ],
+  "retirement": {
+    "absent_hot_metadata_keys": [
+      "scoped_retirement_hot_cursor:records",
+      "scoped_retirement_hot_cursor:scoped_cold_records",
+      "scoped_retirement_hot_cursor:shared_history_cache"
+    ],
+    "actual_indexed_apply_verified": true,
+    "candidate_work_index_names": [
+      "sqlite_autoindex_work_1",
+      "work_candidate_status",
+      "work_edf"
+    ],
+    "current_owner_cpu_seconds": 2.244207,
+    "current_owner_peak_seconds": 0.602539,
+    "current_owner_wall_seconds": 22.504622,
+    "current_process_completed_calls": 154,
+    "latest_observation_id": 4014,
+    "latest_observation_sha256": "6135c700f4e0b71f6fe47abed785ec2f891954208b83674dce7ada0b8cd9ec41",
+    "latest_retired_records": 0,
+    "latest_turn_seconds": 1.9483286519534886,
+    "limitation": "Latest apply observation and exact five keys, not total scan population, total archival rate or canonical-coverage proof.",
+    "metadata_row_bound": 64,
+    "metadata_rows": 64,
+    "present_hot_metadata_keys": [
+      "scoped_retirement_hot_cursor:rolling_economic_events",
+      "scoped_retirement_hot_table"
+    ]
+  },
+  "rollback": {
+    "at": "2026-10-15T03:21:44.066646+00:00",
+    "authoritative_state_rewound": false,
+    "clean": true,
+    "hot_cursor_and_archive_format": "additive metadata and identical archive format; no economic/coverage migration",
+    "native_result": "Pump SIGKILL-9 preserved as RECOVERY_REQUIRED, not inferred from controller success",
+    "old_observation_overlay": "Historical finite diagnostic only; never start unchanged",
+    "policy_history_preserved": true,
+    "properties": "Restart=no\nMainPID=0\nActiveState=inactive\nUnitFileState=disabled",
+    "result_sha256": "63b0070714bad314202b04b2235afec7626bd26ba5a36f17482caa68da2ae5cc",
+    "source": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "source_and_small_overlays_restored": true
+  },
+  "schema": 1,
+  "usage": {
+    "at": "2026-10-15T03:19:13.084558+00:00",
+    "before_reference": "Retained capability usage_after + two exact preceding observation ledger deltas; common counters match fresh retirement preflight exactly.",
+    "cost_basis": "Existing frozen conservative model, not provider invoice; uncertain native/HTTP bytes are accounted unresolved SDK/HTTP delivery exposure, not confirmed delivered bytes.",
+    "delta": {
+      "alchemy_rpc_cu": 416448,
+      "http_attempts": 3043,
+      "http_bytes": 17490513,
+      "http_uncertain_bytes": 16777216,
+      "native_bytes": 661854189,
+      "native_failures": 0,
+      "native_opens": 4,
+      "native_uncertain_bytes": 285212672,
+      "robinhood_rpc_elements": 11372,
+      "rpc_cu": 416448,
+      "rpc_elements": 11409,
+      "solana_rpc_elements": 37
+    },
+    "do_not_add_native_openings_to_physical_total": true,
+    "http_reserved_after": "0",
+    "modeled_cost_usd": "0.318077220405",
+    "native_reserved_after": "0",
+    "new_risk_ready": "false",
+    "open_http_receipt_rows": [],
+    "open_stream_rows": [],
+    "physical_native_openings": 4,
+    "physical_non_native_http_starts": 3039,
+    "physical_total_starts": 3043,
+    "provider_invoice": "UNAVAILABLE"
+  }
+}

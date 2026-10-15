@@ -1,0 +1,83 @@
+{
+  "absolute_start_to_drained_seconds": 1865,
+  "allowed_writes": "Unchanged existing diagnostic canonical/native/provider/history/exactACK/recovery/reporting/OBSERVATION ownership writes. Proof publication writes only validated pending proofs and original coverage/checkpoints; no allocation, new position/reservation/fill, capital/epoch/policy changes.",
+  "authority": "https://github.com/levonmendall/The-Meme-Machine/issues/134",
+  "auto_systemd_restart": false,
+  "changes_under_test": [
+    "Opt-in fixed30 reached-operation counters with actual executor queue/CPU/wall/runnable times and invocation-local direct-child counters; no business SQL, ordering or scheduling changes.",
+    "Selected existing SQLite connections retain per-operation API-bucket costs, not SQL/bindings; original first-failure facts attach before optional operation linkage.",
+    "Fixed schemas survive collection/clipping; compact identical-value JSON and300s post-startup collection stay within original32MiB output/terminal reserves."
+  ],
+  "concurrent_runs": 1,
+  "consumed": true,
+  "continuation": "Owner requests completed-work pause. No additional diagnostic or repair iteration until further direction; standingissue134 unchanged.",
+  "controller": "engineering.diagnostics.current_combined_observation_20261014",
+  "controller_sha256": "3ebc4cc8c42234a6c39ebaae9bf24a1963e9edf605498c6010851a92327f51fe",
+  "diagnostic_output": {
+    "active_per_process_limit": 16,
+    "cadence_seconds": 5,
+    "canonical_cohort_limit": 32,
+    "fixed_operation_limit": 30,
+    "pons_thread_limit": 16,
+    "projected_metrics_bytes": 32776724,
+    "projection_receipt": "evidence/operation-attribution-output-budget-20261015.json",
+    "required_counter_limit_bytes": 65536,
+    "terminal_record_bytes": 65536,
+    "terminal_records": 2,
+    "total_bytes": 33554432
+  },
+  "diagnostic_startup_maximum_seconds": 900,
+  "end_state": "Stopped, disabled, Restart=no, funding closed; verify actual native drain independently, preserve all pending evidence/accounting, compatible rollback without rewind. Global accepted-source-frame drain is independently UNAVAILABLE under current ModelB cancellation order; do not equate native stop with globalqueuecompletion. Retained replay/gap obligations remain preserved.",
+  "executed_output": "/var/lib/meme-machine-diagnostics/20261015-operation-attribution-b007217e-132123",
+  "existing_provider_profiles": {
+    "pons_observation_route": "canonical_primary existing bound app only",
+    "robinhood_rps": 10,
+    "solana_rps": 2,
+    "spending": "Existing genuine provider/account controls; no obsolete fixed$2 ceiling; usage reporting retained"
+  },
+  "funding": "CLOSED_DURING_DIAGNOSIS",
+  "maximum_actual_work_with_shortened_measurement_seconds": 1200,
+  "original_contract_reference": "https://github.com/levonmendall/The-Meme-Machine/blob/a32f49d2061e577644ef2d28f75fefd4a48ebe87/operational/pump-first-release/CONSOLIDATED_STARTUP_NEXT_OBSERVATION_SPEC_20261014.json",
+  "outcome_decisions": [
+    "Reached operation CPU/selectedSQL dominates: reproduce that exact mechanism offline and correct it preserving original economic/order/receipt/ACK/recovery invariants; no claim based on total wall alone.",
+    "Owner SQLexecutemany/fetch duration dominates with scheduling: distinguish native SQLite execution from actual CPU/runnable/device facts; no GIL/lockholder conclusion from subtraction.",
+    "Actual Pons discovery/hydration/Survivor/reporting callback CPU dominates: target only demonstrated repeated/avoidable work; preserve mandatory evidence and protection.",
+    "Completed economics outpaces history/ACK/proof/publication: identify exact same-generation pending identities and reason before correction.",
+    "Startup/safety/recorderloss prevents useful interval: preserve limitation, native/financialstate and originalreadinessFAIL; no unchangedretry.",
+    "No SQLite recurrence means not reproduced; flatportfolio leaves heldquoteUSD/protectionunexercised; diagnosticminutes count0acceptance."
+  ],
+  "outside_scope": "No hardware/servicespurchase, routing/policy/fundingchange, acceptance/autonomy promotion orbackup-timerchange in this invocation. Standing latercause-supportedwork remains authorized.",
+  "per_invocation_one_start": true,
+  "poststartup_measurement_maximum_seconds": 300,
+  "preflight": "Fresh24 required current-state financial/native checks against authenticated O13 head11938 and every retained named identity/cohort, exclusiveownership, provider/resource/recovery, backupnonoverlap and actual serviceUID source/output access beforeclock. No new bulkcopy or retrospective failedshutdown PASS.",
+  "prior_evidence": "DEVELOPMENT_PHASE_RESULT_20261015.md at ced262d4: failedstartup, owner303.017/303.481s occupied,56.710CPU/117.963runnable; Pons.690cores;4.534arrivalproxy/2.112durable;gap1404to2139. Dominant operation unresolved. Coldmetadata optimization rejected and not installed.",
+  "question": "Which reached source-owner operation and actual concurrent Pons executor work accounts for CPU, runnable delay, selected SQLite statement/executemany/fetch/transaction/checkpoint duration and queue waiting in the unresolved processing deficit?",
+  "readiness_seconds": 300,
+  "required_metrics": [
+    "Current-generation arrival/join/preparation/durablecommit/historyreceipt/exactACK; raw durable cursors distinct from actual program_frontiers/coverage/strategy consumption; missing remains unavailable",
+    "Owner queue/execution, retention four phases, CPU/runnable waits, transaction timings, checkpoint handoffs",
+    "Startup phase/released/feed lo-hi/ACK/native timestamps; original300-second readiness verdict",
+    "Pons managed-route admission/errors and actual quote/USD timings only where exercised; unchanged provider accounting",
+    "Exact current native cancellation/shutdown and independent financial/current-state review",
+    "Exact proof counts and current startup phase, feed interval, consumer receipt/ACK and publication progression; never stock as arrivals or overlapping progress sums",
+    "Fixed exclusive developmentphase totalwall/productiveCPU/kernelrunnable/calls/failure/unavailable fields retained beforeclipping; selection mayhave2entries, commitincludesoriginalexitcallback; noadditiontooverlappingownertotals.",
+    "Fixed reached-operation perprocess arrays with immutable collection clocks; directchild totals overlap parents; SQL costs selectedinneroperation only; missing/unreached remains UNAVAILABLE/UNEXERCISED. Process/thread kernel scheduler and I/O counters remain separate."
+  ],
+  "resource_bounds": {
+    "cpu_cores": 1.8,
+    "disk_reserve_each_bytes": 5368709120,
+    "http_inflight_bytes": 134217728,
+    "native_inflight_bytes": 536870912,
+    "pons_current_protection_seconds": 5,
+    "pons_survivor_protection_seconds": 3,
+    "rss_bytes": 6442450944
+  },
+  "result_evidence": "evidence/operation-attribution-pause-result-20261015.json",
+  "result_handoff": "OWNER_REVIEW_PAUSE_FINDINGS_20261015.md",
+  "schema": 1,
+  "shutdown_reserve_seconds": 65,
+  "status": "CONSUMED_STARTUP_LIMITATION_OWNER_REVIEW_PAUSE",
+  "tested_successor": "b007217e7930fa728604df4aa2a96f68f998e1ec",
+  "validation": "122focusedPASS;294affectedintegrationPASS with flag1 includingactualstartup;140sourceguard/collectorPASS on finalsource. Initial113test2fixtureERROR and initial140test2sourceguardFAIL preserved privately. The294integration and initial140guard runs overlapped; durations are correctness evidence only. No fullFAST/release/capacityPASS.",
+  "work_stop_seconds": 1800
+}

@@ -1,0 +1,150 @@
+{
+  "schema": "coverage-frontier-access-repair-v1",
+  "observed_at": 1791805321.0230212,
+  "installed_source_before": "54b0ac42e19217e1730bbf3ee6f19ad62c05264d",
+  "coverage_rows": 103242,
+  "local_query_measurement": {
+    "frontier_original": {
+      "seconds": 0.04550237988587469,
+      "rows": [
+        [
+          456031503
+        ]
+      ],
+      "plan": [
+        [
+          4,
+          0,
+          0,
+          "SEARCH coverage USING INDEX maintenance_recent_coverage (scope=? AND available<?)"
+        ]
+      ]
+    },
+    "frontier_existing_index": {
+      "seconds": 3.743404522538185e-05,
+      "rows": [
+        [
+          456031503
+        ]
+      ],
+      "plan": [
+        [
+          4,
+          0,
+          0,
+          "SEARCH coverage USING INDEX maintenance_coverage_end (scope=?)"
+        ]
+      ]
+    },
+    "tail_original": {
+      "seconds": 0.0117198689840734,
+      "rows": [
+        [
+          456031499,
+          456031499
+        ],
+        [
+          456031500,
+          456031500
+        ],
+        [
+          456031501,
+          456031501
+        ],
+        [
+          456031502,
+          456031502
+        ],
+        [
+          456031503,
+          456031503
+        ]
+      ],
+      "plan": [
+        [
+          4,
+          0,
+          0,
+          "SEARCH coverage USING INDEX coverage_window (scope=? AND lo<?)"
+        ]
+      ]
+    },
+    "tail_existing_index": {
+      "seconds": 6.087799556553364e-05,
+      "rows": [
+        [
+          456031499,
+          456031499
+        ],
+        [
+          456031500,
+          456031500
+        ],
+        [
+          456031501,
+          456031501
+        ],
+        [
+          456031502,
+          456031502
+        ],
+        [
+          456031503,
+          456031503
+        ]
+      ],
+      "plan": [
+        [
+          4,
+          0,
+          0,
+          "SEARCH coverage USING INDEX maintenance_coverage_end (scope=? AND hi>?)"
+        ],
+        [
+          23,
+          0,
+          0,
+          "USE TEMP B-TREE FOR ORDER BY"
+        ]
+      ]
+    }
+  },
+  "authority": "exact existing SQLite predicates, original available-time, scope, retention floor, gap and continuity checks",
+  "providers_dispatched": 0,
+  "classification": "source repair of measured hot path; not authenticated protection or continuous acceptance",
+  "focused_tests": {
+    "FAST": {
+      "tests": 99,
+      "seconds": 14.159,
+      "result": "PASS",
+      "log": "/tmp/coverage-end-index-fast.log"
+    },
+    "OPERATIONAL": {
+      "tests": 37,
+      "seconds": 3.264,
+      "result": "PASS",
+      "log": "/tmp/coverage-end-index-operational.log"
+    }
+  },
+  "regressions": [
+    "16384-interval tail read remains below 2000 SQLite VM steps in both native readers",
+    "selective runtime frontier bounded below 2500 VM steps",
+    "future availability excluded",
+    "scope membership preserved",
+    "missing middle fails closed",
+    "late repairs preserve original as-of",
+    "retention floor preserved",
+    "old snapshot without index retains original path",
+    "reader restart preserves stored witnesses"
+  ],
+  "unchanged": [
+    "economic qualification",
+    "quote and USD freshness",
+    "protective deadlines",
+    "canonical witnesses",
+    "provider transports",
+    "capital policy",
+    "history retention",
+    "provider counters"
+  ]
+}

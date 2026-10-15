@@ -1,0 +1,29 @@
+{
+  "checked_UTC": "2026-10-07T17:03:12.710399+00:00",
+  "services_started_by_task": [],
+  "trading_signing_submission": false,
+  "portfolio_opened": false,
+  "preexisting_capacity_state": "failed/stopped; unchanged",
+  "states": [
+    {
+      "service": "meme-machine-paper.service",
+      "state": "ExecMainStartTimestampMonotonic=386699708087\nActiveState=inactive\nSubState=dead",
+      "exit_status": 0
+    },
+    {
+      "service": "meme-machine-acceptance@CAPACITY.service",
+      "state": "ExecMainStartTimestampMonotonic=345369761157\nActiveState=failed\nSubState=failed",
+      "exit_status": 0
+    },
+    {
+      "service": "meme-machine-acceptance@RECOVERY.service",
+      "state": "ExecMainStartTimestampMonotonic=0\nActiveState=inactive\nSubState=dead",
+      "exit_status": 0
+    },
+    {
+      "service": "meme-machine-acceptance@AUTONOMY.service",
+      "state": "ExecMainStartTimestampMonotonic=0\nActiveState=inactive\nSubState=dead",
+      "exit_status": 0
+    }
+  ]
+}

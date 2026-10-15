@@ -1,0 +1,246 @@
+{
+  "files": [
+    {
+      "path": "BOUNDARY_RECEIPTS.json",
+      "bytes": 34704,
+      "sha256": "f855c0d02d8aae45111bc259ba9e353a755151b8b8217c479c151845c47715aa"
+    },
+    {
+      "path": "ENFORCEMENT.json",
+      "bytes": 85613,
+      "sha256": "b0a759ba4fab8dc7cb5bf5acea2788277c761b105126123ae7de75d08cfebaec"
+    },
+    {
+      "path": "MAINTENANCE.md",
+      "bytes": 4578,
+      "sha256": "02351c585f7adeef0536682aa420df56c033a31569080cc5dc7d5a8374e56b49"
+    },
+    {
+      "path": "OFFLINE_SUMMARY.json",
+      "bytes": 13998,
+      "sha256": "3e41d38e3151e2ae4d881c384f6059287cb515d207a8bc8909b1a7ba504849bf"
+    },
+    {
+      "path": "OWNER_AUTHORIZATION.md",
+      "bytes": 8009,
+      "sha256": "151eff969de0bb3bc69ae493ac2ffce2c6493b600fd5a2d936a90bc9e5fa5a92"
+    },
+    {
+      "path": "PRESERVATION.json",
+      "bytes": 19751,
+      "sha256": "c5d733958db65aeef2c3fb7d3d3972c1d61a70714f79266c110ad591b83d8911"
+    },
+    {
+      "path": "README.md",
+      "bytes": 6201,
+      "sha256": "cdfcde3b77ee81630230cc2bc2116712d638c6d64127eba981cf8892e342b7e4"
+    },
+    {
+      "path": "RETAINED_RUNS.json",
+      "bytes": 6078,
+      "sha256": "ad3e5dc63307eeb7d28b3039d2c60b03f1ea943250cb15322dd7d15055af982a"
+    },
+    {
+      "path": "SOURCE_FREEZE.json",
+      "bytes": 1511,
+      "sha256": "59390dcd80ec374ac690689b2b126e8ad67be48614b8adc45a39805810a6ca02"
+    },
+    {
+      "path": "TRANSPORT_AUDIT_LOCATIONS.txt",
+      "bytes": 2487,
+      "sha256": "c71bc4ffb215823d5bfb153c27031f1248b2ef45c378dbe0ff18132daa2ff1de"
+    },
+    {
+      "path": "VALIDATION.json",
+      "bytes": 36455,
+      "sha256": "a1f4a07cfc6296ef47c11e903787753b5222d68018cb7f5e3606bb2f6ccceec2"
+    },
+    {
+      "path": "evidence/FAST-affected-final.log.gz",
+      "bytes": 4342,
+      "sha256": "a7f688eb0b493bc32724a6572264c5a0d429779a2566d6d2e05850ef09da4307"
+    },
+    {
+      "path": "evidence/FAST-affected-final3.log.gz",
+      "bytes": 4648,
+      "sha256": "3701f6fd986f2e06de9a54b027d944399372abe66d23bffced301dc7b543a82f"
+    },
+    {
+      "path": "evidence/FAST-frozen.log.gz",
+      "bytes": 31839,
+      "sha256": "ea638f52e674eef2371488c4d46e9f8e535aceed10dd924e5670cfad49c35533"
+    },
+    {
+      "path": "evidence/FAST-integrated-final.log.gz",
+      "bytes": 5989,
+      "sha256": "94717a4739719a05281f458357655b5eadf6bbf7830c2c8452d50bab4b7a062a"
+    },
+    {
+      "path": "evidence/FAST-stream-final.log.gz",
+      "bytes": 6026,
+      "sha256": "2d4fa173d9b9bcf54037bd33f7b1f257090b87087922ed2c145fcb8aa29358a6"
+    },
+    {
+      "path": "evidence/FAST-stream-final.resources.txt.gz",
+      "bytes": 535,
+      "sha256": "2ceeabe0f4eb4ab5332699bda4868f421ffc12da7d78ec13499a89c9d06351c2"
+    },
+    {
+      "path": "evidence/OPERATIONAL-final.log.gz",
+      "bytes": 32153,
+      "sha256": "cfd68ac053b17dd550f0b1c2cb9dd5d3618e53bbc3a8805ea1d065d8a65bd4e3"
+    },
+    {
+      "path": "evidence/OPERATIONAL-final.resources.txt.gz",
+      "bytes": 508,
+      "sha256": "8157ce7345041e3bd189fda257bfd307a2b2ea9642de7698f09bcbb2818ea788"
+    },
+    {
+      "path": "evidence/boundary-receipts.log.gz",
+      "bytes": 2588,
+      "sha256": "776f620bdd7d76e7bced3e632db37bd4f285f434c2ebf5011b29da890e57a1c4"
+    },
+    {
+      "path": "evidence/boundary_receipts.py.gz",
+      "bytes": 1137,
+      "sha256": "7f3403ddd5ed837428e45d1d3082ba48681afbfe7930fe94b5bb0c6cb5074b78"
+    },
+    {
+      "path": "evidence/build_enforcement.py.gz",
+      "bytes": 6736,
+      "sha256": "a5bdc5d9f6b3d4216537155d74f1d238c4500e02e1cf6bda13d0d20bd235145c"
+    },
+    {
+      "path": "evidence/deadline-tightening-reproduction.log.gz",
+      "bytes": 98,
+      "sha256": "549f055e67d3f6e0e75ff3df9a951589e869f7806d141c3dc1e1cf897834d7f0"
+    },
+    {
+      "path": "evidence/maintenance-clocked-concurrent-1.log.gz",
+      "bytes": 825,
+      "sha256": "27dca58371435286964a5293346720f8fa3d9caa85eff641d0e9bce54f77e3fc"
+    },
+    {
+      "path": "evidence/maintenance-clocked-concurrent-2.log.gz",
+      "bytes": 797,
+      "sha256": "eb6b473cd00cc438907fe16a7185616d50da0b8c696ad1ee7d2ee86bfd2b9f35"
+    },
+    {
+      "path": "evidence/maintenance-concurrent-1.log.gz",
+      "bytes": 2284,
+      "sha256": "03113e4faf635391d73e7a6769dff03d57b416e7e2aa239531bab576d8917da9"
+    },
+    {
+      "path": "evidence/maintenance-concurrent-2.log.gz",
+      "bytes": 2257,
+      "sha256": "2462a8f8d75bbd9d1a7dfee6dd954c2848a0af07703d7fa077c81a284dd9c73b"
+    },
+    {
+      "path": "evidence/maintenance-final-isolated-1.log.gz",
+      "bytes": 435,
+      "sha256": "220f34de70690f6d88c47a6e1d514860142e39395ca9f53a19d30309062c4185"
+    },
+    {
+      "path": "evidence/maintenance-final-isolated-2.log.gz",
+      "bytes": 454,
+      "sha256": "db9933f8ecf3ab7e25240ffaebed8c54cbadd83449b32c7c9d82167d2f409dd5"
+    },
+    {
+      "path": "evidence/maintenance-final-isolated-3.log.gz",
+      "bytes": 491,
+      "sha256": "6628bb56514a7540040121b02be86cc7cf9ceaa2d90a2436d7660de7f0a8c2b5"
+    },
+    {
+      "path": "evidence/maintenance-initial.log.gz",
+      "bytes": 305,
+      "sha256": "55ae10b6479148f9767841c98b7a01467ea0d4ca40b6fcbf4d0c39dd96857f0f"
+    },
+    {
+      "path": "evidence/maintenance-modules-final.log.gz",
+      "bytes": 3042,
+      "sha256": "74c890f748ac40f8bc360d484c1cf9083f2b05436ff857db7a1b7e014045df5c"
+    },
+    {
+      "path": "evidence/maintenance-profile.log.gz",
+      "bytes": 1145,
+      "sha256": "5b7de5238e6c2e281fddacb15c2862bc21970a529a1d3c70ce53c8aa29cccc97"
+    },
+    {
+      "path": "evidence/maintenance-repaired-trace-2.json.gz",
+      "bytes": 15122,
+      "sha256": "a81a3e0aacc892a15d86be8cecdc2143aadd11cc945f25c956d33bb1af13b4a9"
+    },
+    {
+      "path": "evidence/maintenance-sql.json.gz",
+      "bytes": 1583,
+      "sha256": "645ab04aedce86b6e8750a4ba2e5858d966e9ff3b86775639e419c022f68cece"
+    },
+    {
+      "path": "evidence/maintenance-trace-contention-1.json.gz",
+      "bytes": 15025,
+      "sha256": "17aabd2a76233d685465e8d8251448615014a6550b448429d5cd0e8b2d4eb4a2"
+    },
+    {
+      "path": "evidence/maintenance-trace-contention-2.json.gz",
+      "bytes": 15093,
+      "sha256": "78b7f9e162a37f255f0fa4b324bdc48fcab1db02e3dac8ca0633e3666446b7e0"
+    },
+    {
+      "path": "evidence/maintenance-trace-quiet.json.gz",
+      "bytes": 15181,
+      "sha256": "4c5f792ae935a1e71694bbfed5721ffecc52cd1bb87e43e6cfdd1a917d99efef"
+    },
+    {
+      "path": "evidence/maintenance_profile.py.gz",
+      "bytes": 581,
+      "sha256": "c29a6e054e7c47b1e013f83c7a5e8e8c2a28aa232be92c95a203946907f7d199"
+    },
+    {
+      "path": "evidence/maintenance_sql.py.gz",
+      "bytes": 701,
+      "sha256": "2c1bc22896f0f2dcc6ae09030e1f1a157ec143d9026c63b49eec221bacf714e0"
+    },
+    {
+      "path": "evidence/maintenance_trace.py.gz",
+      "bytes": 1002,
+      "sha256": "afe7329b3cab76ed924eff89f4c7f72dcdbbf34a84c2ab70b14d342b73f73b29"
+    },
+    {
+      "path": "evidence/offline-capital-fixtures.log.gz",
+      "bytes": 475,
+      "sha256": "8e890f48fd87e7bc35763b831bb0b56814293b8d4e84d83038064a20d16907fb"
+    },
+    {
+      "path": "evidence/offline-ceilings.json.gz",
+      "bytes": 88971,
+      "sha256": "0beb91cef893cd560b35a94bf46a0593c749c7936f2d8c8b0cc3bdd2a3f2adf5"
+    },
+    {
+      "path": "evidence/offline-process.json.gz",
+      "bytes": 125877,
+      "sha256": "d07814484145ccca14a32be2c8df48f30c05f8df2021a4ea1f85ddb09e989905"
+    },
+    {
+      "path": "evidence/offline-worker.log.gz",
+      "bytes": 20,
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "path": "evidence/preservation.py.gz",
+      "bytes": 917,
+      "sha256": "f8bd05f2f2fba854ba0870b0ee906b170ee3245665647a1e53e3e657a82831d0"
+    },
+    {
+      "path": "evidence/proof-offline-ready.log.gz",
+      "bytes": 136,
+      "sha256": "80659fb896438e3f9978b501285cf3b59f31501334169ce622a3923ec273a065"
+    },
+    {
+      "path": "evidence/proof-offline-ready.resources.txt.gz",
+      "bytes": 518,
+      "sha256": "3c6398bbd08558a487e1e41584dcf096917a77ff16e406bba9c16aebfecaf690"
+    }
+  ],
+  "executable_commit": "9c6910c57236004468bef506603c2d0502acbd3c",
+  "exact_raw_receipts_gzip": true
+}

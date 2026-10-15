@@ -1,0 +1,385 @@
+{
+  "schema": "offline-proof-summary-v1",
+  "source_commit": "9c6910c57236004468bef506603c2d0502acbd3c",
+  "classification": "INSUFFICIENT_SAMPLE",
+  "safety_and_executor_validation": "PASS",
+  "elapsed_seconds": 206.9962125850143,
+  "startup_seconds": 26.328484038007446,
+  "steady_observation_seconds": 180.06361921702046,
+  "budget": {
+    "counts": {
+      "total_rpc_elements": 188,
+      "physical_http_attempts": 180,
+      "published_rpc_cu": 3952,
+      "diagnostic_rpc_cu": 18660,
+      "total_diagnostic_cu": 29918,
+      "solana_rpc_elements": 2,
+      "http_response_bytes": 255450,
+      "robinhood_rpc_elements": 186,
+      "native_stream_bytes": 5763893,
+      "diagnostic_native_cu": 11258
+    },
+    "methods": {
+      "solana:getTransaction": 1,
+      "solana:getMultipleAccounts": 1,
+      "robinhood:eth_chainId": 4,
+      "robinhood:eth_getBlockByNumber": 166,
+      "robinhood:eth_getLogs": 6,
+      "robinhood:eth_getCode": 5,
+      "robinhood:eth_getTransactionReceipt": 3,
+      "robinhood:eth_call": 2
+    },
+    "http_reserved_bytes": 0,
+    "native_transports": {
+      "yellowstone": 756005,
+      "solana_websocket": 5007888
+    },
+    "native_possible_unread_shutdown_bytes": {},
+    "native_known_delivered_bytes": 5763893,
+    "native_ceiling_ledger": "known delivered payload plus conservative unobserved SDK shutdown reservations",
+    "native_inflight_reserved_bytes": 0,
+    "published_modeled_solana_ws_cu": "1001.5776",
+    "published_modeled_yellowstone_usd": "0.000056700375",
+    "published_method_prices": {
+      "solana": {
+        "getGenesisHash": 10,
+        "getSlot": 20,
+        "getMultipleAccounts": 20,
+        "getAccountInfo": 10,
+        "getBlockTime": 20,
+        "getTokenLargestAccounts": 3000,
+        "getProgramAccounts": 20,
+        "getProgramAccountsV2": 20,
+        "getTransactionsForAddress": 100,
+        "getTransaction": 40,
+        "getBlock": 40,
+        "getSignaturesForAddress": 40,
+        "getSignatureStatuses": 20
+      },
+      "robinhood": {
+        "eth_chainId": 0,
+        "eth_blockNumber": 10,
+        "eth_getBlockByNumber": 20,
+        "eth_getBlockByHash": 20,
+        "eth_getLogs": 60,
+        "eth_getTransactionReceipt": 20,
+        "eth_getCode": 20,
+        "eth_call": 26,
+        "eth_gasPrice": 20,
+        "eth_getBalance": 20,
+        "eth_getStorageAt": 20,
+        "eth_getTransactionByHash": 20,
+        "eth_getBlockReceipts": 20,
+        "eth_callMany": 20
+      }
+    },
+    "price_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+    "conservative_contract_weight_overrides": {
+      "getTokenLargestAccounts": 3000
+    },
+    "actual_provider_billed_cu": null,
+    "actual_provider_currency": null,
+    "accounting_basis": "attempted RPC elements; separate physical HTTP/WS-upgrade/gRPC-Subscribe attempts; received payload plus conservative SDK tail reservations; TLS excluded",
+    "retries": 0,
+    "real_provider_dispatches": 0,
+    "fake_provider_dispatches": 180,
+    "reason": null,
+    "admissions_stopped": true,
+    "ready_elapsed": 26.328484038007446,
+    "elapsed": 206.70336393499747,
+    "shutdown_elapsed": 206.3921032550279,
+    "limits": {
+      "consecutive_candidate_deadline_violations": 2,
+      "cumulative_process_write_bytes": 2147483648,
+      "diagnostic_native_cu": 4194304,
+      "diagnostic_rpc_cu": 720000,
+      "http_response_bytes": 134217728,
+      "maximum_group_cpu_cores_30_second_average": 1.8,
+      "maximum_log_range_blocks": 10,
+      "minimum_system_available_bytes": 2147483648,
+      "native_inflight_shutdown_reserve_bytes": 268435456,
+      "native_stream_bytes": 2147483648,
+      "output_stock_bytes": 805306368,
+      "per_http_response_bytes": 2000000,
+      "physical_http_attempts": 7200,
+      "position_deadline_violations": 0,
+      "proof_group_rss_bytes": 4294967296,
+      "published_rpc_cu": 720000,
+      "queue_capacity": 64,
+      "robinhood_rpc_elements": 1200,
+      "rpc_retries": 0,
+      "solana_rpc_elements": 6000,
+      "sustained_queue_stop_depth": 32,
+      "sustained_queue_stop_seconds": 5,
+      "total_diagnostic_cu": 4914304,
+      "total_rpc_elements": 7200
+    },
+    "time": {
+      "kill_after_shutdown_seconds": 30,
+      "maximum_startup_seconds": 60,
+      "minimum_steady_seconds": 180,
+      "shutdown_reserve_seconds": 30,
+      "stop_new_work_at_seconds": 270,
+      "term_after_shutdown_seconds": 20,
+      "total_wall_seconds": 300
+    },
+    "contract_sha256": "d258a12246128315e7516ff02fd65f4bc8de37845fb724564e77cd56f072c372"
+  },
+  "queues": {
+    "peak": 1,
+    "depths": {
+      "robinhood-pacer": 0,
+      "robinhood-provider": 0,
+      "pump-source": 0,
+      "pons-read": 0
+    },
+    "sustained_since": {},
+    "pending": [],
+    "running": [],
+    "completed": 2225,
+    "deadline_violations": {},
+    "consecutive_candidate_violations": 0,
+    "drain_proven": true,
+    "drain_evidence": {
+      "enqueued": 2225,
+      "dispatched": 2225,
+      "successful_completions": 2224,
+      "polls": 4014,
+      "progress_span_seconds": 201.4262008080259,
+      "observation_span_seconds": 202.23749590408988,
+      "completed_by_queue": {
+        "robinhood-pacer": 179,
+        "robinhood-provider": 179,
+        "pump-source": 1718,
+        "pons-read": 148
+      },
+      "normal_service_witness": {
+        "at": 571326.074561318,
+        "successful_completions": 2221,
+        "completed_by_queue": {
+          "robinhood-pacer": 178,
+          "robinhood-provider": 178,
+          "pump-source": 1717,
+          "pons-read": 148
+        },
+        "pending": 0,
+        "running": 2
+      },
+      "criterion": "multiple successful service events spanning at least five seconds, continuously polled; no remaining work"
+    }
+  },
+  "recovery": {
+    "disconnects": 1,
+    "resumed": true,
+    "checkpoint_identity_preserved": true,
+    "candidate_identities": [
+      "0xf25cbd487fe0294dd0a39ba2955982bcff28fd72"
+    ],
+    "original_source_clocks_preserved": true,
+    "event_order_preserved": true,
+    "transport": "deterministic fake disconnect and native PonsHistory reopen"
+  },
+  "capital_fixtures": {
+    "tests": 7,
+    "passed": true,
+    "qualification_precedes_funding": true,
+    "four_native_regimes": true,
+    "production_books_opened": 0,
+    "fixture_books": "disposable original offline fixtures only"
+  },
+  "insufficient": [
+    "synthetic_and_recorded_inputs_do_not_certify_live_capacity",
+    "authentic_native_positions_not_available",
+    "new_Survivor_candidates_cannot_mature_in_300_seconds"
+  ],
+  "peaks": {
+    "group_rss_bytes": 119681024,
+    "output_stock_bytes": 10983584,
+    "group_cpu_cores_30_second_average": 0.6157052327291335
+  },
+  "kernel_write_admission": {
+    "reserved_bytes": 867876864,
+    "reserved_output_extents": 15261430,
+    "fork_duplicated_rss_reserved": 0,
+    "denied": 0
+  },
+  "network": {
+    "real_provider_dispatches": 0,
+    "kernel_connections": 0,
+    "forbidden_socket_attempts": 0,
+    "offline_network_namespace": true
+  },
+  "shutdown": {
+    "worker_exit_code": 0,
+    "forced": false,
+    "descendants_survived": false
+  },
+  "resource_summary": {
+    "samples": 2036,
+    "maximum_measured_cumulative_process_writes": 346632192,
+    "minimum_available_system_bytes": 7249444864
+  },
+  "pump_replay": {
+    "canonical_count": 14,
+    "canonical_digest": "fab4a7600d90b3b3906f93026ff1ed3d00cae19b19a3ffb21f6160dde1d3bd51",
+    "original_clock_rows": [
+      [
+        "program:pump:454202900:4dhmVJbyTevCNFQ5xwQnza3veyh78cUiq9nVuuyPv3U2v13g4XaudJd9AUkoau7ze1MpV39CocxbfPHC41Mw2vgw:29",
+        "program:pump",
+        454202900,
+        "4dhmVJbyTevCNFQ5xwQnza3veyh78cUiq9nVuuyPv3U2v13g4XaudJd9AUkoau7ze1MpV39CocxbfPHC41Mw2vgw",
+        978,
+        29,
+        "92f97e84a2c22a9fd4b8dd412315f0165a4c67d2d1aa60720b8f838ea1d51df6",
+        1791370751.9971104
+      ],
+      [
+        "program:pump:454202910:3VUCTYQE3QPvRhdXWuYNQu5HR13jN1ZAu4YNTf4F4tViauR42RrgCpVq8GYQJLJ6r13J212H8d2qy4XVngnCGo1j:69",
+        "program:pump",
+        454202910,
+        "3VUCTYQE3QPvRhdXWuYNQu5HR13jN1ZAu4YNTf4F4tViauR42RrgCpVq8GYQJLJ6r13J212H8d2qy4XVngnCGo1j",
+        142,
+        69,
+        "a23ac4213e6a8aba621831014e06210d072a65c6058c84965d9026d3cc3bbfaa",
+        1791370755.1434422
+      ],
+      [
+        "program:pump:454202920:3R8iCPfUWAUEuZVyBcNAufNpgrNXdKUQJ3gBGZ7vKrvD1iQRCKD95xj5Lbrs1tx55kxRZUED4KyGcyk5k5taHBjf:44",
+        "program:pump",
+        454202920,
+        "3R8iCPfUWAUEuZVyBcNAufNpgrNXdKUQJ3gBGZ7vKrvD1iQRCKD95xj5Lbrs1tx55kxRZUED4KyGcyk5k5taHBjf",
+        628,
+        44,
+        "f151be39252ccf304185b575f1f089cb0230151346815e9972d6615889289dfd",
+        1791370759.4521446
+      ],
+      [
+        "program:pump:454202922:5prcWq3PXUk5eP4F3BvtJPhxHZU789D6NQNCRN3KweSQ1wuhcmDD3RZFKgvC37cEUU8NAvxM6qfoRAJpgsKuUdFH:15",
+        "program:pump",
+        454202922,
+        "5prcWq3PXUk5eP4F3BvtJPhxHZU789D6NQNCRN3KweSQ1wuhcmDD3RZFKgvC37cEUU8NAvxM6qfoRAJpgsKuUdFH",
+        811,
+        15,
+        "3956b274dad5f710f7f792fc5bf1a2caeb9b37c8faddd87773b228af50125666",
+        1791370800.6999557
+      ],
+      [
+        "program:pump:454202933:3dRn6j1wCHgHabvfWTy15ZMye6tX7WWevZDCLgfXVnfpQFteXJPYP6ZSvDiesJi75kNxbRZ2GNHG4EJXPuhfcQc6:42",
+        "program:pump",
+        454202933,
+        "3dRn6j1wCHgHabvfWTy15ZMye6tX7WWevZDCLgfXVnfpQFteXJPYP6ZSvDiesJi75kNxbRZ2GNHG4EJXPuhfcQc6",
+        708,
+        42,
+        "ed45ec178a9250c4a450bde3de79e332241be9cdbd0b5585b69daa71aaa90f70",
+        1791370781.19976
+      ],
+      [
+        "program:pump:454202933:23tbiqGayh8PpLQFqMxFSDJZFiuVuxwgnZs2gHjJGuwbDcZkAY8N7Mwd9fuPmpCDYP2Fky8HssVVqPq6kEaaeWHS:42",
+        "program:pump",
+        454202933,
+        "23tbiqGayh8PpLQFqMxFSDJZFiuVuxwgnZs2gHjJGuwbDcZkAY8N7Mwd9fuPmpCDYP2Fky8HssVVqPq6kEaaeWHS",
+        712,
+        42,
+        "4385aee04ccd24bfa6e90cdc6763594db111c4610768fd055785a89ee3e1ac93",
+        1791370781.2061813
+      ],
+      [
+        "program:pump:454202933:2ZB6MCGQVKgdfpEpjxuzKeXXEju2559PtW2uYeuoRgUQbnP5BCPS8pqFtVr3f9njqEwmatbGadt39JAhFziAAPK3:29",
+        "program:pump",
+        454202933,
+        "2ZB6MCGQVKgdfpEpjxuzKeXXEju2559PtW2uYeuoRgUQbnP5BCPS8pqFtVr3f9njqEwmatbGadt39JAhFziAAPK3",
+        715,
+        29,
+        "e7b775642a4b79788742a7ff106afdb64abc28e21f2225fbfef2db4cb229dc12",
+        1791370781.2069032
+      ],
+      [
+        "program:pump:454202933:2w4Pa2QG5f9QVZAbChrexF1h1NhTSFfQYff4kVnif4roRzr6JmhDhnFuv43fm2WRN28eczKamzMQg1yww4846u88:42",
+        "program:pump",
+        454202933,
+        "2w4Pa2QG5f9QVZAbChrexF1h1NhTSFfQYff4kVnif4roRzr6JmhDhnFuv43fm2WRN28eczKamzMQg1yww4846u88",
+        719,
+        42,
+        "8f57e62e2a4c1634c4fb144a4ae93e0e8775da59f964a3af74115a690e7ec9bb",
+        1791370781.212052
+      ],
+      [
+        "program:pump:454202933:3hwADkd9eJxJCbLQERdrrhqoY3PxPMtFETT7M5cvi1rFemhnkGZwwuPJN5w14Mo3rQrRzVBeBXZ4yUCtMzfZtNAS:42",
+        "program:pump",
+        454202933,
+        "3hwADkd9eJxJCbLQERdrrhqoY3PxPMtFETT7M5cvi1rFemhnkGZwwuPJN5w14Mo3rQrRzVBeBXZ4yUCtMzfZtNAS",
+        721,
+        42,
+        "e3ecd02fae39a0cc9da7941d243290fcb54c92e65331e1dcea5c4728e9bf0bf6",
+        1791370781.2130008
+      ],
+      [
+        "program:pump:454202933:3B4qqae5Lp7GZX6Hr9KHEymjV2PQbNzcRUX2bcfDh46hwEMw7Uf919MoUFgxeGH1NMjZZDUeLLTtQhiwjBb7D7F8:42",
+        "program:pump",
+        454202933,
+        "3B4qqae5Lp7GZX6Hr9KHEymjV2PQbNzcRUX2bcfDh46hwEMw7Uf919MoUFgxeGH1NMjZZDUeLLTtQhiwjBb7D7F8",
+        871,
+        42,
+        "395a6a05c749e4ebaf85d6187e6947ca54bc51cb9783141f6d12c456044311be",
+        1791370781.215416
+      ],
+      [
+        "program:pump:454202933:3xca8jA967S6Niwv4Ns5yvr1Ngsn1iQpKvWo8AE8FM4zxqaQdJKm8XNsaTZXmiSDEyU2M4P3aAjjqDnmcCz2t4jk:42",
+        "program:pump",
+        454202933,
+        "3xca8jA967S6Niwv4Ns5yvr1Ngsn1iQpKvWo8AE8FM4zxqaQdJKm8XNsaTZXmiSDEyU2M4P3aAjjqDnmcCz2t4jk",
+        873,
+        42,
+        "ad1decb8701bbe9d99549c6bd9eeede741f5525e1fbbcd7de12c3c65146fd4b3",
+        1791370781.2176533
+      ],
+      [
+        "program:pump:454202933:4FMZRUqqzPKq4p4EErNFZAvXyKwG9HFm1ptG7G2rrqXSv6ZwSqKxqb3UHeZEHb5zPfXNCFem9gDv8rLugDbbmxCF:42",
+        "program:pump",
+        454202933,
+        "4FMZRUqqzPKq4p4EErNFZAvXyKwG9HFm1ptG7G2rrqXSv6ZwSqKxqb3UHeZEHb5zPfXNCFem9gDv8rLugDbbmxCF",
+        887,
+        42,
+        "580c2736e0f70e6feacf6ea531800842af42295683d4a55a195e1cccd27ef316",
+        1791370781.2201128
+      ],
+      [
+        "program:pump:454202934:21fyQCqSVy85iy2cKwU3U33DFcFRZAh8x1YLA2sv7Wss8Kn6h9D5Ex3Wtqk5vhwNEwB8gDEkY2v1h9vPENRTyyqe:47",
+        "program:pump",
+        454202934,
+        "21fyQCqSVy85iy2cKwU3U33DFcFRZAh8x1YLA2sv7Wss8Kn6h9D5Ex3Wtqk5vhwNEwB8gDEkY2v1h9vPENRTyyqe",
+        585,
+        47,
+        "21fcb529225a865dedd53ac799fc81e710eb212dd68a6fd159534d6d0a6a1637",
+        1791370783.3851848
+      ],
+      [
+        "program:pump:454202950:2aVYsHDxvkXtH8xwuZQvBiRFU8MxXpBakvH5TzfrikdVSfLwTKXyLs9k4gJLVqW5ajzGMD5mDBAqnYXtRkFQdZXi:30",
+        "program:pump",
+        454202950,
+        "2aVYsHDxvkXtH8xwuZQvBiRFU8MxXpBakvH5TzfrikdVSfLwTKXyLs9k4gJLVqW5ajzGMD5mDBAqnYXtRkFQdZXi",
+        227,
+        30,
+        "490a57b903aa38bcb7e5a378165b1dc30e6b9212d36d8eb520629a2e50fd0a21",
+        1791370815.157595
+      ]
+    ],
+    "counters": {
+      "native_deliveries": 6348,
+      "scout_deliveries": 55,
+      "paused_or_unidentified_sessions_excluded": 9,
+      "websocket_deliveries": 2193
+    },
+    "source_sha256": "673822d151d81b34cc21b8e5009ceadf45f885117221e4f4c432e45c1c2486e4",
+    "candidate_history_rows": 37,
+    "candidate_checkpoints": 12,
+    "unresolved_join_tails": 393,
+    "seconds": 199.98333798197564,
+    "replay_stopped_at_contract_boundary": true,
+    "limitations": [
+      "Recorded tape tails and unavailable pre-enrollment intervals stay incomplete.",
+      "Paused-family recorded sessions are excluded from this contract, before fake delivery.",
+      "Historical probe addresses do not constitute authentic positions."
+    ]
+  }
+}

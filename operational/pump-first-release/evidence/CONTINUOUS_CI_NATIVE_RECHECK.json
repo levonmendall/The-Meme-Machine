@@ -1,0 +1,28 @@
+{
+  "source_baseline": "9e8b605d9df64fa98636119ca6a05189e0a916b3",
+  "ci_failed_source": "96ae082daacc2b32c37e6d525c37d70721178bd7",
+  "ci_run": 38161323918,
+  "failed_tests": [
+    "tests.test_paper_bootstrap.ProviderBudgetTests.test_received_shutdown_tail_consumes_its_reserve_without_double_counting",
+    "tests.test_pons_capacity_repair.ProtectivePhaseTests.test_real_native_staggered_current_and_survivor_exits_use_bounded_phase"
+  ],
+  "changes": {
+    "shutdown_tail": "assert known 16-MiB tail plus all three remaining reserved frames; same 512-MiB bound",
+    "pons_capacity": "failure diagnostic extended; original 3/12 RPS, owner cohorts, quotes and protective assertions retained"
+  },
+  "isolated_recheck": {
+    "tests": 2,
+    "elapsed_seconds": "15.168",
+    "result": "PASS",
+    "survivor_seconds_at_3rps": "1.931798234023148",
+    "survivor_seconds_at_12rps": "1.3365040440345126"
+  },
+  "pons_ci_deadline_failure_preserved": true,
+  "pons_ci_failure_cause": "not yet established; isolated passing sample is not authenticated capacity proof",
+  "production_rate_changed": false,
+  "production_regime_activated": false,
+  "source_sha256": {
+    "tests/test_paper_bootstrap.py": "a9689d4c39632cd0904d9bc3d74b0545c6d0de67f45305ed8ae998aa30e9782f",
+    "tests/test_pons_current_shared_owners.py": "6631f350d2462019d172fb686764b3f11165cba108ca78db8cf5bff1af27e57e"
+  }
+}

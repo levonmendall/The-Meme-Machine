@@ -1,0 +1,83 @@
+"""Offline regressions for cache-bypassed DLMM interval endpoints."""
+import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
+from meme_machine.lanes.meteora import dlmm, pump
+from meme_machine.lanes.meteora.provider import RPC
+from tests.meteora_tape_fixtures import POOL, snapshot
+
+class FreshProviderRead(unittest.TestCase):
+
+    def test_fresh_call_bypasses_short_cache_and_refreshes_it(self):
+        values = iter((111, 222))
+
+        def transport(request):
+            return {'result': next(values)}
+        rpc = RPC('https://example.invalid', limit=40, transport=transport, clock=lambda: 100.0, sleeper=lambda _seconds: None)
+        self.assertEqual(rpc.call('getBlockTime', [1], True), 111)
+        self.assertEqual(rpc.call('getBlockTime', [1], True), 111)
+        self.assertEqual(rpc.cache_hits, 1)
+        self.assertEqual(rpc.call('getBlockTime', [1], True, fresh=True), 222)
+        self.assertEqual(rpc.calls, 2)
+        self.assertEqual(rpc.call('getBlockTime', [1], True), 222)
+        self.assertEqual(rpc.cache_hits, 2)
+
+    def test_dlmm_snapshot_fresh_flag_reaches_both_account_reads_only(self):
+        fixture = snapshot()
+        calls = []
+
+        class StubRPC:
+            clock = staticmethod(lambda: 100.0)
+
+            def call(self, method, params=None, priority=False, fresh=False):
+                params = params or []
+                calls.append((method, params, priority, fresh))
+                if method == 'getGenesisHash':
+                    return pump.MAINNET
+                if method == 'getMultipleAccounts':
+                    keys = params[0]
+                    return {'context': {'slot': 100}, 'value': [fixture['accounts'].get(key) for key in keys]}
+                if method == 'getBlockTime':
+                    return 100
+                raise AssertionError(method)
+        adapter = dlmm.Adapter(StubRPC())
+        result = adapter.snapshot(POOL, 100, True, fresh=True)
+        self.assertEqual(result['slot'], 100)
+        account_reads = [call for call in calls if call[0] == 'getMultipleAccounts']
+        self.assertEqual(len(account_reads), 2)
+        self.assertTrue(all((call[3] is True for call in account_reads)))
+        block_reads = [call for call in calls if call[0] == 'getBlockTime']
+        self.assertEqual(len(block_reads), 1)
+        self.assertFalse(block_reads[0][3])
+
+    def test_state_hinted_endpoint_uses_one_account_read_and_forward_context(self):
+        fixture = snapshot()
+        fixture['kind'] = 'real'
+        start = dlmm.validate(fixture, 100, 'real')
+        calls = []
+
+        class StubRPC:
+            clock = staticmethod(lambda: 101.0)
+
+            def call(self, method, params=None, priority=False, fresh=False):
+                params = params or []
+                calls.append((method, params, priority, fresh))
+                if method == 'getGenesisHash':
+                    return pump.MAINNET
+                if method == 'getMultipleAccounts':
+                    keys = params[0]
+                    self.min_context = params[1].get('minContextSlot')
+                    return {'context': {'slot': 101}, 'value': [fixture['accounts'].get(key) for key in keys]}
+                if method == 'getBlockTime':
+                    return 101
+                raise AssertionError(method)
+        rpc = StubRPC()
+        adapter = dlmm.Adapter(rpc)
+        result = adapter.snapshot_from_state(start, 101, True, fresh=True)
+        self.assertEqual(result['slot'], 101)
+        account_reads = [call for call in calls if call[0] == 'getMultipleAccounts']
+        self.assertEqual(len(account_reads), 1)
+        self.assertEqual(rpc.min_context, 101)
+        self.assertTrue(account_reads[0][3])
+if __name__ == '__main__':
+    unittest.main()

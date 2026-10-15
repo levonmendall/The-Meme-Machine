@@ -1,0 +1,40 @@
+{
+  "parent": "6dda725550ac74cf0a4e983eb4f9e39ac6f2370b",
+  "reason": "Routine foreground canonical control/publication repeatedly interrupts the maintenance SQL needed to preserve physical storage and canonical continuity.",
+  "authentic_failure": {
+    "receipt": "CONTINUOUS_ACTUAL_WORKERS_1791818066664.json",
+    "reason": "maintenance_service_deadline_exhausted",
+    "cooperative_sql_yields": 170,
+    "completed_retirement_turns": 71,
+    "last_retirement_turn_progress": 0,
+    "last_owner_wait_seconds": 2.5897087228950113
+  },
+  "repair": "Restore priority two for routine control, delivery and publication, matching nonposition native intake and the original bounded FIFO. Actual held/reserved intake stays priority zero; foreground control commands and exit SQL preemption unchanged.",
+  "tests": [
+    {
+      "path": "/tmp/routine-canonical-fifo-fast.log",
+      "sha256": "ab3f56740e9566e6058a8628c305289d3f6028533447055113cb5188be9058b0",
+      "tests": 53,
+      "skipped": 0,
+      "passed": 53
+    },
+    {
+      "path": "/tmp/routine-canonical-fifo-operational.log",
+      "sha256": "929b9b6240fa7ff0fc21d1baf44244fc7cad841e11acb39a23b21a80d2bec971",
+      "tests": 95,
+      "skipped": 4,
+      "passed": 91
+    }
+  ],
+  "invariants_unchanged": [
+    "record identities and complete histories",
+    "canonical ordering and durable external ACK fence",
+    "buffer/memory/queue bounds",
+    "storage and original maintenance/execution deadlines",
+    "position/exit priority and mandatory native evidence",
+    "capital and strategies"
+  ],
+  "provider_proven": false,
+  "normal_funding": false,
+  "acceptance_pass": false
+}

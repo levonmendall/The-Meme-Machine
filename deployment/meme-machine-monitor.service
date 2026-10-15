@@ -1,0 +1,31 @@
+[Unit]
+Description=Meme Machine independent observation-only condition monitor
+Wants=meme-machine-observer.service
+After=meme-machine-observer.service
+
+[Service]
+Type=exec
+User=meme-machine
+Group=meme-machine
+WorkingDirectory=/opt/meme-machine
+ExecStart=/opt/meme-machine/.venv/bin/python -m meme_machine.operational.monitoring
+Restart=on-failure
+RestartSec=15
+StateDirectory=meme-machine-monitor
+StateDirectoryMode=0755
+UMask=0077
+NoNewPrivileges=true
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/mnt/volume_nyc1_1790918115030 /var/lib/meme-machine-observer
+ReadWritePaths=/var/lib/meme-machine-monitor
+RestrictAddressFamilies=AF_UNIX
+CPUQuota=5%
+MemoryMax=128M
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

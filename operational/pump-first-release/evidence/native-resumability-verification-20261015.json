@@ -1,0 +1,184 @@
+{
+  "amended_gate": {
+    "campaign_allowance_preserved": 3,
+    "campaign_starts_consumed": 0,
+    "objective": "current authoritative state consistent, recoverable and safely resumable; historical failed drain immutable",
+    "required": "fresh source/policy/state compatibility, actual obligations, pending preservation, exclusive ownership and existing recovery safeguards; runtime startup must still complete required reconciliation before readiness",
+    "runtime_scope": "no start, deployment or provider authority added by this verification; maintain stopped until applicable operational scope approved"
+  },
+  "artifacts": {
+    "NATIVE_RECOVERY_BOUNDED_PROBE_DISPOSITION_20261015.json": {
+      "bytes": 2883,
+      "sha256": "cc64f09e519eef16f453464bbccb603ff0d5c1ad642d4476a1465eee97b3446e"
+    },
+    "NATIVE_RECOVERY_BOUNDED_READONLY_20261015T001616Z.json": {
+      "bytes": 46035,
+      "sha256": "784aa53c811ba254bac429df7fefe9a59f2adcb5cd7ac21ed424de2c7c594be2"
+    },
+    "NATIVE_RECOVERY_EXACT_ACK_CASE_20261015.log": {
+      "bytes": 395,
+      "sha256": "7dd5ba085da01ce6eed88cb1787cc9e09bc367130eccb4d6a4e24409022a7e6f"
+    },
+    "NATIVE_RECOVERY_FOCUSED_INVARIANTS_20261015.log": {
+      "bytes": 2510,
+      "sha256": "1cade3347c25b285b3f237f7d0f1a9512c0efa6ff2a7ebbb9f8f78421e6f7151"
+    },
+    "NATIVE_RECOVERY_INTEGRATED_STARTUP_20261015.log": {
+      "bytes": 4608,
+      "sha256": "1118aa8324f07f521c6289e2965176eb56ae16b0f1299111726ee13b298ce3c3"
+    },
+    "NATIVE_RECOVERY_INTERRUPTION_CASES_20261015.log": {
+      "bytes": 1508,
+      "sha256": "65176feaa37e57b1a9456fc8438fef3437fe329cd93811e98de8d2cbf13a233b"
+    },
+    "NATIVE_RECOVERY_OWNERSHIP_20261015.json": {
+      "bytes": 13364,
+      "sha256": "b80b48f8891749eadd279127d31cdc1b0074bbc451928b68b6eb87b4d756c75f"
+    },
+    "NATIVE_RECOVERY_SUPERSEDED_WRONG_SCOPE_20261015.json": {
+      "bytes": 45634,
+      "sha256": "0803ea8b622b596a844594154a9f6c2c8d314e769b4e7051a314bb5676217186"
+    },
+    "NATIVE_RESUMABILITY_FINAL_SAFE_STATE_20261015.json": {
+      "bytes": 1237,
+      "sha256": "4a0750a30ac0f48af8c4722277d6290f87e50a34dc878a419befc72fe96937ae"
+    }
+  },
+  "at": "2026-10-15T00:20:53.776295+00:00",
+  "branch": "repair/consolidated-startup-followup-20261014",
+  "checks": {
+    "actual_runtime_recovery_completion": {
+      "reason": "no authoritative recovery operations executed; not required to prove current-state guarded resumability",
+      "status": "UNAVAILABLE"
+    },
+    "financial_native_ownership": {
+      "cash": "1000.00",
+      "head": [
+        8982,
+        "2a69c46a1cadce832746505b2464bdb160a61059df6e2c66fbb800289cb1c1ca"
+      ],
+      "positions_reservations_obligations": 0,
+      "projection_sha256": "d2adb97951e3a5ce7b507f21e06c692917fb69a9fd79f535f56cfbca1fb0a64b",
+      "status": "VERIFIED"
+    },
+    "lease_writer_ownership": {
+      "consumer_active": 0,
+      "future_exclusive_acquisition": "existing writer flock required at startup",
+      "historian_active": 0,
+      "status": "VERIFIED",
+      "writer_lock_held_observed": false
+    },
+    "pending_preservation_and_restart_fencing": {
+      "scope": "real disposable process-loss rehearsal plus existing exact generation/token/proof checks; no full market replay",
+      "status": "VERIFIED"
+    },
+    "retained_receipt_ack": {
+      "current_identities": 32,
+      "exact_authenticated_compact_ack": 21,
+      "old_outbox_history_proof_identities": 24,
+      "pending": 11,
+      "scope": "named cohorts, not population census",
+      "status": "VERIFIED"
+    },
+    "source_policy_epoch_compatibility": {
+      "active_revision": "paper-opportunity-access-v1",
+      "epoch": "paper-shared-1000-20261011T071207Z",
+      "pump_survivor": "exact approved predecessor; flat supported lazy transition pending; no forced reclassification",
+      "status": "VERIFIED"
+    },
+    "source_session_frontiers": {
+      "durable_slots": {
+        "control": 457009027,
+        "pump": 457008522,
+        "pumpswap": 457008522
+      },
+      "matches_prior_receipt": true,
+      "phase": "WAIT_FOR_DURABLE_PUBLICATION",
+      "released": false,
+      "status": "VERIFIED"
+    },
+    "sustained_capacity_provider_protection": {
+      "reason": "offline/current-state verification does not exercise authentic market or held protection",
+      "status": "UNAVAILABLE"
+    },
+    "whole_store_integrity_census": {
+      "reason": "not attempted beyond bounded indexed checks; slow large count terminated and not repeated",
+      "status": "UNAVAILABLE"
+    }
+  },
+  "current_failed_invariants": [],
+  "decision": "NATIVE_RECOVERY_VERIFIED",
+  "executable": "ba25499b26103ec5d14f1ce765c8e8f180695f33",
+  "full_fast_dispatched": false,
+  "historical_shutdown": "FAILED_PUMP_TERM15S_KILL_UNCHANGED",
+  "independent_blockers": [
+    "Pump sustained pre-join processing dependency and throughput",
+    "Historical SQLite BUSY attribution",
+    "Managed Pons acquisition capacity and complete quote/USD protection",
+    "Pons READONLY INSERT",
+    "Later failed backup and active-backup/protection compatibility"
+  ],
+  "original_failure": "RECOVERY_REQUIRED_UNCHANGED",
+  "private_evidence_root": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011",
+  "probe": {
+    "bounded_queries": 106,
+    "errors": 0,
+    "first_large_count": "stopped after26s I/O; exact process reaped; original evidence retained",
+    "global_prefixes": "at least257 each; not totals",
+    "seconds": 0.037792,
+    "wrong_scope_probe": "superseded; corrected actual program_scope keys queried"
+  },
+  "production_source_unchanged": true,
+  "schema": "native-resumability-decision-v1",
+  "scope": "SAFE_TO_BEGIN_EXISTING_GUARDED_RECOVERY",
+  "state": {
+    "authoritative_writes": 0,
+    "funding": "CLOSED",
+    "historical500": "untouched; applicable prior preservation evidence retained",
+    "installed": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "installed_clean": true,
+    "new_epoch": false,
+    "new_starts": 0,
+    "provider_calls": 0,
+    "unit": "Restart=no\nMainPID=0\nActiveState=failed\nSubState=failed\nUnitFileState=disabled\n"
+  },
+  "test_scope": "28 distinct passing checks across disclosed runs; not an uninterrupted28-case or complete release PASS",
+  "tests": [
+    {
+      "cause": "new fixture assumed inline events; actual canonical_event_refs storage; fixture strengthened, no production repair",
+      "failures": 1,
+      "log": "NATIVE_RECOVERY_INTERRUPTION_CASES_20261015.log",
+      "seconds": 1.017,
+      "status": "FAILED",
+      "tests": 2
+    },
+    {
+      "errors": 0,
+      "failures": 0,
+      "log": "NATIVE_RECOVERY_INTEGRATED_STARTUP_20261015.log",
+      "seconds": 3.161,
+      "skips": 0,
+      "status": "PASS",
+      "tests": 19
+    },
+    {
+      "cause": "one requested case named wrong class; no production or assertion change",
+      "errors": 1,
+      "log": "NATIVE_RECOVERY_FOCUSED_INVARIANTS_20261015.log",
+      "passing_cases": 8,
+      "seconds": 16.097,
+      "status": "FAILED",
+      "tests": 9
+    },
+    {
+      "errors": 0,
+      "failures": 0,
+      "log": "NATIVE_RECOVERY_EXACT_ACK_CASE_20261015.log",
+      "seconds": 0.178,
+      "skips": 0,
+      "status": "PASS",
+      "tests": 1
+    }
+  ],
+  "verification_commit": "839be8b2d3e745696b259de333deec886ba7148e"
+}

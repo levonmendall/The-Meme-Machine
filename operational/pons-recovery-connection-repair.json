@@ -1,0 +1,7 @@
+{
+  "root_cause": "Readonly native snapshot connection opened before candidate Plane construction, outside its try/finally; constructor failure leaked caller-owned snapshot.",
+  "repair": "Explicit contextlib.closing spans candidate-plane construction and original recovery body; plane retains finally close; original exception propagated.",
+  "schema_compatibility": "No schema, query, epoch, journal, capital or position change; old capital_positions schema success regression.",
+  "regression": "tests.test_pons_recovery_connection",
+  "negative_reproduction": "2 tests, 1 failure .023s: no close after injected candidate-plane constructor failure; original success path passes."
+}

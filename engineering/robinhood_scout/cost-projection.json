@@ -1,0 +1,404 @@
+{
+  "schema": "robinhood-scout-cost-projection-v2",
+  "days": 30,
+  "diagnostic_schedule": "meme_machine/runtime/alchemy-cu-schedule.json",
+  "header_rate_source": "operational/pump-provider-finalization/NEXT_PROOF.json",
+  "header_pairs": [
+    [
+      41443136,
+      1787231172
+    ],
+    [
+      82886255,
+      1791418430
+    ]
+  ],
+  "block_rate": 9.897436221985844,
+  "blocks_30d": 25654154.687387306,
+  "public_observation": {
+    "market_getLogs_elements_30d": 2565415.4687387305,
+    "pool_getLogs_elements_per_continuous_cohort_30d": 2565415.4687387305,
+    "market_plus_one_pool_cohort_physical_http_attempts_30d": 1924061.6015540478,
+    "physical_requests_per_second": 0.7423077166489382,
+    "provider": "Robinhood public RPC; not Alchemy",
+    "public_response_bytes": "UNMEASURED at representative live activity",
+    "subscription_bytes": "UNMEASURED; existing sequencer telemetry counts decoded deliveries, not wire framing",
+    "scope": "one header batch, one market filter batch, one exact-Pons pool batch per forty blocks",
+    "public_provider_sustainability": "UNVERIFIED",
+    "direct_alchemy_rpc_elements": 0,
+    "verified_billed_alchemy_cu": null
+  },
+  "routine_alchemy_broad_discovery_cu": {
+    "baseline": 153924928.12432384,
+    "optimized": 0
+  },
+  "startup_global_seven_day_factory_scan_cu": {
+    "baseline": 35915816.56234223,
+    "optimized": 0,
+    "classification": "one-time method-weight estimate, not repeated monthly"
+  },
+  "floors": [
+    {
+      "scenario": "normal",
+      "classification": "MODELED_REQUIRED_WORK_LOWER_BOUND",
+      "simultaneously_continuously_hydrated_cohorts": 1,
+      "mean_survivor_funded_positions": 0.05,
+      "optimized_canonical_range_cu": 153924928.12432384,
+      "optimized_position_exit_quote_cu": 5702400.0,
+      "optimized_position_warm_turn_cu": 6566400.0,
+      "baseline_factory_discovery_cu": 153924928.12432384,
+      "baseline_known_subtotal_cu": 314416256.2486477,
+      "optimized_known_subtotal_cu": 160491328.12432384,
+      "comparison_cadence": "same three-second funded workload for both architectures; b1 reference Worker originally ran at five seconds, the approved forward work adopts three",
+      "optimized_known_physical_http_attempts": 770953.8671846826,
+      "optimized_known_physical_rps": 0.2974359055496461,
+      "optimized_known_logical_rpc_elements": 2867815.4687387305,
+      "optimized_known_response_bytes": 49075200.0,
+      "response_bytes_exclude_canonical_ranges_and_missing_terms": true,
+      "missing_terms": [
+        "Current qualification/positions",
+        "launch/graduation authentication",
+        "swap receipts/headers",
+        "candidate state/qualification/entry quotes",
+        "position flow/state checks",
+        "gaps/retries",
+        "canonical head probes"
+      ],
+      "verified_minimum_billed_cu": null,
+      "verified_billed_cu": null,
+      "complete_system_forecast": false,
+      "under_aspirational_10m": false
+    },
+    {
+      "scenario": "busy_market",
+      "classification": "MODELED_REQUIRED_WORK_LOWER_BOUND",
+      "simultaneously_continuously_hydrated_cohorts": 1,
+      "mean_survivor_funded_positions": 0.25,
+      "optimized_canonical_range_cu": 153924928.12432384,
+      "optimized_position_exit_quote_cu": 28512000.0,
+      "optimized_position_warm_turn_cu": 32832000.0,
+      "baseline_factory_discovery_cu": 153924928.12432384,
+      "baseline_known_subtotal_cu": 340681856.2486477,
+      "optimized_known_subtotal_cu": 186756928.12432384,
+      "comparison_cadence": "same three-second funded workload for both architectures; b1 reference Worker originally ran at five seconds, the approved forward work adopts three",
+      "optimized_known_physical_http_attempts": 1289353.8671846827,
+      "optimized_known_physical_rps": 0.4974359055496461,
+      "optimized_known_logical_rpc_elements": 4077415.4687387305,
+      "optimized_known_response_bytes": 245376000.0,
+      "response_bytes_exclude_canonical_ranges_and_missing_terms": true,
+      "missing_terms": [
+        "Current qualification/positions",
+        "launch/graduation authentication",
+        "swap receipts/headers",
+        "candidate state/qualification/entry quotes",
+        "position flow/state checks",
+        "gaps/retries",
+        "canonical head probes"
+      ],
+      "verified_minimum_billed_cu": null,
+      "verified_billed_cu": null,
+      "complete_system_forecast": false,
+      "under_aspirational_10m": false
+    },
+    {
+      "scenario": "stress",
+      "classification": "MODELED_REQUIRED_WORK_LOWER_BOUND",
+      "simultaneously_continuously_hydrated_cohorts": 2,
+      "mean_survivor_funded_positions": 1,
+      "optimized_canonical_range_cu": 307849856.2486477,
+      "optimized_position_exit_quote_cu": 114048000.0,
+      "optimized_position_warm_turn_cu": 131328000.0,
+      "baseline_factory_discovery_cu": 153924928.12432384,
+      "baseline_known_subtotal_cu": 593102784.3729715,
+      "optimized_known_subtotal_cu": 439177856.2486477,
+      "comparison_cadence": "same three-second funded workload for both architectures; b1 reference Worker originally ran at five seconds, the approved forward work adopts three",
+      "optimized_known_physical_http_attempts": 3874707.7343693655,
+      "optimized_known_physical_rps": 1.4948718110992922,
+      "optimized_known_logical_rpc_elements": 11178830.937477462,
+      "optimized_known_response_bytes": 981504000.0,
+      "response_bytes_exclude_canonical_ranges_and_missing_terms": true,
+      "missing_terms": [
+        "Current qualification/positions",
+        "launch/graduation authentication",
+        "swap receipts/headers",
+        "candidate state/qualification/entry quotes",
+        "position flow/state checks",
+        "gaps/retries",
+        "canonical head probes"
+      ],
+      "verified_minimum_billed_cu": null,
+      "verified_billed_cu": null,
+      "complete_system_forecast": false,
+      "under_aspirational_10m": false
+    }
+  ],
+  "sustained_trace_projections": [
+    {
+      "scenario": "normal",
+      "classification": "SYNTHETIC_SUSTAINED_TRACE_NORMALIZATION",
+      "block_rate": 9.897436221985844,
+      "trace_cycles_30d": 1282707.7343693653,
+      "candidates_in_transport_cohort": 8,
+      "economic_event_rate": 65.32307906510657,
+      "prospective_candidate_recall": 1.0,
+      "current_additive_cost": "UNMEASURED",
+      "final_qualification_and_position_additive_cost": "not included in collector normalization",
+      "verified_billed_cu": null,
+      "representative_live_workload": false,
+      "baseline": {
+        "diagnostic_estimated_cu": 7593629787.466642,
+        "physical_http_attempts": 16033846.679617064,
+        "response_bytes": 441927447599.0743,
+        "provider_requests_per_second": 6.185897638741152,
+        "logical_rpc_elements_per_second": 144.50256884099332,
+        "diagnostic_throughput_cu_per_second": 2939.538557929796,
+        "collector_cpu_core_equivalent": 1.0190639144446505,
+        "measured_offline_peak_rss_bytes": 35377152
+      },
+      "optimized": {
+        "diagnostic_estimated_cu": 4053356440.6071944,
+        "physical_http_attempts": 7696246.406216191,
+        "response_bytes": 388954183585.08826,
+        "provider_requests_per_second": 2.969230866595753,
+        "logical_rpc_elements_per_second": 76.70513072039029,
+        "diagnostic_throughput_cu_per_second": 1566.2692821292599,
+        "collector_cpu_core_equivalent": 0.24040515731140652,
+        "measured_offline_peak_rss_bytes": 35524608
+      },
+      "response_bytes_exclude_factory_and_all_other_work": true,
+      "within_existing_2rps_alchemy_ceiling": false,
+      "smallest_integer_collector_physical_ceiling_rps": 3,
+      "minimum_collector_throughput_cu_per_second": 1566.2692821292599,
+      "within_documented_free_300_cups": false,
+      "complete_system_capacity_certified": false,
+      "required_complete_system_rps": "collector demand + Current + funded maintenance + authentication + qualification + recovery; deadline/burst headroom also unmeasured",
+      "under_aspirational_10m": false
+    },
+    {
+      "scenario": "busy_market",
+      "classification": "SYNTHETIC_SUSTAINED_TRACE_NORMALIZATION",
+      "block_rate": 9.897436221985844,
+      "trace_cycles_30d": 641353.8671846826,
+      "candidates_in_transport_cohort": 32,
+      "economic_event_rate": 193.98974995092254,
+      "prospective_candidate_recall": 1.0,
+      "current_additive_cost": "UNMEASURED",
+      "final_qualification_and_position_additive_cost": "not included in collector normalization",
+      "verified_billed_cu": null,
+      "representative_live_workload": false,
+      "baseline": {
+        "diagnostic_estimated_cu": 20933790224.908043,
+        "physical_http_attempts": 31426339.49204945,
+        "response_bytes": 1300053149707.375,
+        "provider_requests_per_second": 12.124359371932657,
+        "logical_rpc_elements_per_second": 403.32052604592315,
+        "diagnostic_throughput_cu_per_second": 8093.628470528924,
+        "collector_cpu_core_equivalent": 2.961765693653524,
+        "measured_offline_peak_rss_bytes": 46206976
+      },
+      "optimized": {
+        "diagnostic_estimated_cu": 10723436659.327894,
+        "physical_http_attempts": 15392492.812432382,
+        "response_bytes": 1142786767935.019,
+        "provider_requests_per_second": 5.938461733191506,
+        "logical_rpc_elements_per_second": 206.36154522840485,
+        "diagnostic_throughput_cu_per_second": 4144.551417956573,
+        "collector_cpu_core_equivalent": 0.6351502568466426,
+        "measured_offline_peak_rss_bytes": 46993408
+      },
+      "response_bytes_exclude_factory_and_all_other_work": true,
+      "within_existing_2rps_alchemy_ceiling": false,
+      "smallest_integer_collector_physical_ceiling_rps": 6,
+      "minimum_collector_throughput_cu_per_second": 4144.551417956573,
+      "within_documented_free_300_cups": false,
+      "complete_system_capacity_certified": false,
+      "required_complete_system_rps": "collector demand + Current + funded maintenance + authentication + qualification + recovery; deadline/burst headroom also unmeasured",
+      "under_aspirational_10m": false
+    },
+    {
+      "scenario": "stress",
+      "classification": "SYNTHETIC_SUSTAINED_TRACE_NORMALIZATION",
+      "block_rate": 9.897436221985844,
+      "trace_cycles_30d": 641353.8671846826,
+      "candidates_in_transport_cohort": 64,
+      "economic_event_rate": 202.8974425507098,
+      "prospective_candidate_recall": 1.0,
+      "current_additive_cost": "UNMEASURED",
+      "final_qualification_and_position_additive_cost": "not included in collector normalization",
+      "verified_billed_cu": null,
+      "representative_live_workload": false,
+      "baseline": {
+        "diagnostic_estimated_cu": 21857339793.653984,
+        "physical_http_attempts": 32709047.226418816,
+        "response_bytes": 1359472020086.5671,
+        "provider_requests_per_second": 12.61923118303195,
+        "logical_rpc_elements_per_second": 421.1359112454977,
+        "diagnostic_throughput_cu_per_second": 8449.936174520413,
+        "collector_cpu_core_equivalent": 3.2870738722233703,
+        "measured_offline_peak_rss_bytes": 51183616
+      },
+      "optimized": {
+        "diagnostic_estimated_cu": 11185211443.700865,
+        "physical_http_attempts": 16033846.679617066,
+        "response_bytes": 1194984635123.5789,
+        "provider_requests_per_second": 6.185897638741152,
+        "logical_rpc_elements_per_second": 215.2692378281921,
+        "diagnostic_throughput_cu_per_second": 4322.705269952317,
+        "collector_cpu_core_equivalent": 0.7749897208629325,
+        "measured_offline_peak_rss_bytes": 51970048
+      },
+      "response_bytes_exclude_factory_and_all_other_work": true,
+      "within_existing_2rps_alchemy_ceiling": false,
+      "smallest_integer_collector_physical_ceiling_rps": 7,
+      "minimum_collector_throughput_cu_per_second": 4322.705269952317,
+      "within_documented_free_300_cups": false,
+      "complete_system_capacity_certified": false,
+      "required_complete_system_rps": "collector demand + Current + funded maintenance + authentication + qualification + recovery; deadline/burst headroom also unmeasured",
+      "under_aspirational_10m": false
+    }
+  ],
+  "aspirational_target_cu_30d": 10000000,
+  "target_is_acceptance_gate": false,
+  "hard_production_cu_budget": null,
+  "acceptance_objective": "Complete strategy behavior, candidate preservation, original deadlines and position safety at sustainable measured throughput; minimize avoidable consumption afterward",
+  "cost_target_observation": "Modeled continuous-history subtotals exceed the aspiration; this does not fail strategy acceptance",
+  "measured_cost_coefficients": {
+    "canonical_continuous_ten_block_range_stream_cu_30d": 153924928.12432384,
+    "canonical_range_physical_rps_per_forty_block_batch": 0.2474359055496461,
+    "graduation_cold_authentication": {
+      "methods": {
+        "eth_getBlockByNumber": 12,
+        "eth_getLogs": 1,
+        "eth_chainId": 2,
+        "eth_getCode": 5,
+        "eth_getTransactionReceipt": 3,
+        "eth_call": 2,
+        "eth_getBlockByHash": 1
+      },
+      "diagnostic_estimated_cu": 532,
+      "diagnostic_throughput_cu": 542,
+      "physical_http_attempts": 19,
+      "logical_rpc_elements": 26,
+      "response_bytes": 201873
+    },
+    "survivor_exit_quote": {
+      "physical_http_attempts": 2,
+      "response_bytes": 883,
+      "methods": {
+        "eth_getBlockByNumber": 2,
+        "eth_getCode": 1,
+        "eth_call": 2,
+        "eth_gasPrice": 1
+      },
+      "diagnostic_cu": {
+        "estimated_cu_by_method": {
+          "eth_getBlockByNumber": 40,
+          "eth_getCode": 20,
+          "eth_call": 52,
+          "eth_gasPrice": 20
+        },
+        "estimated_cu": 132,
+        "known_estimated_cu": 132,
+        "unpriced_methods": {},
+        "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+        "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+        "logical_calls": 6,
+        "billing_estimate_only": true
+      },
+      "cadence_changed": false
+    },
+    "survivor_funded_warm_turn": {
+      "physical_http_attempts": 3,
+      "logical_rpc_elements": 7,
+      "response_bytes": 1136,
+      "methods": {
+        "eth_getBlockByNumber": 3,
+        "eth_getCode": 1,
+        "eth_call": 2,
+        "eth_gasPrice": 1
+      },
+      "diagnostic_cu": {
+        "estimated_cu_by_method": {
+          "eth_getBlockByNumber": 60,
+          "eth_getCode": 20,
+          "eth_call": 52,
+          "eth_gasPrice": 20
+        },
+        "estimated_cu": 152,
+        "known_estimated_cu": 152,
+        "unpriced_methods": {},
+        "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+        "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+        "logical_calls": 7,
+        "billing_estimate_only": true
+      },
+      "verified_billed_cu": null,
+      "scope": "native funded step, unchanged head with no economic delta; excludes new swaps and conditional exit/scaling work"
+    },
+    "survivor_eligible_quote_ladder": {
+      "methods": {
+        "eth_getBlockByNumber": 1,
+        "eth_getCode": 1,
+        "eth_call": 15,
+        "eth_gasPrice": 1
+      },
+      "diagnostic_cu": {
+        "estimated_cu_by_method": {
+          "eth_getBlockByNumber": 20,
+          "eth_getCode": 20,
+          "eth_call": 390,
+          "eth_gasPrice": 20
+        },
+        "estimated_cu": 450,
+        "known_estimated_cu": 450,
+        "unpriced_methods": {},
+        "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+        "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+        "logical_calls": 18,
+        "billing_estimate_only": true
+      },
+      "physical_http_attempts": 3,
+      "response_bytes": 2879
+    },
+    "survivor_weak_quote_ladder_cu": 0,
+    "current_full_qualification_and_position_units": "UNMEASURED; must be added, never zero-filled"
+  },
+  "capacity_investigation": {
+    "existing_application_physical_ceiling_rps": 2,
+    "physical_ceiling_is_not_alchemy_account_cups": true,
+    "documented_free_account_throughput_cups": 300,
+    "documented_payg_account_throughput_cups": 10000,
+    "account_specific_throughput_verified": false,
+    "documentation_checked_at": "2026-10-08",
+    "sources": [
+      "https://www.alchemy.com/docs/reference/throughput",
+      "https://www.alchemy.com/docs/reference/pricing-plans",
+      "https://www.alchemy.com/docs/reference/compute-unit-costs"
+    ],
+    "current_two_rps_complete_workload_status": "NOT_CERTIFIED; insufficient even for all three sustained dense collector traces",
+    "smallest_justified_increase": "At least 3 / 6 / 7 physical RPS for the measured dense collector alone, plus all other work and deadline headroom. No complete-system limit or purchase is justified before genuine combined measurements.",
+    "proposed_capacity_change": null,
+    "narrow_architectural_option": {
+      "status": "INVESTIGATED_NOT_IMPLEMENTED_OR_VALIDATED",
+      "option": "Supported authenticated exact-Pons filtered logs subscription with existing journal, receipt authentication, canonical boundaries and bounded ten-block recovery",
+      "purpose": "May avoid empty canonical range polling without weakening authority or transaction evidence",
+      "subscription_delivery_diagnostic_cu_per_byte": 0.04,
+      "one_range_stream_subscription_delivery_break_even_bytes_per_second": 1484.6154332978765,
+      "excluded_costs": "subscription establishment, receipts/headers, reorgs, outage replay, quotes and all Current work",
+      "required_evidence": "Robinhood filter support, complete ordering, measured delivered bytes, reconnect/gap recovery and exact economic equivalence; requires separate bounded provider authorization",
+      "dense_receipt_driver_remains": true
+    }
+  },
+  "actual_billing_evidence": "billing-availability.json: app/method breakdown denied; allowed account-level window returned no usage rows; neither is zero billed CU",
+  "canonical_role_changed": false,
+  "provider_limits_changed": false,
+  "billing_measurement": "UNMEASURED",
+  "verified_minimum_requirement": "UNMEASURED without separately authorized provider measurements",
+  "lowest_realistic_complete_monthly_requirement": {
+    "normal": null,
+    "busy_market": null,
+    "stress": null,
+    "status": "NOT_ESTABLISHED: genuine promotion, swap, Current, funded-position and recovery rates are not available. Conditional lower bounds and dense profiles are reported separately, not relabeled as complete representative forecasts."
+  },
+  "interpretation": "The trace rates are synthetic capacity scenarios; use the lower bounds and measured coefficients to substitute genuine prospective rates. Consumption is subordinate to complete operation. No scenario licenses candidate loss, weaker evidence or spending authorization."
+}

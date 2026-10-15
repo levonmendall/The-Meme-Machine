@@ -1,0 +1,158 @@
+{
+  "baseline": {
+    "canonical_event_body_bytes": 278519,
+    "limitation": "Actual successful syscall bytes in a profiled serial offline replay. Not original provider-proof WAL traffic; trace overhead invalidates latency comparisons. FD writes exclude mmap SHM and block-layer rounding.",
+    "successful_syncs": {
+      "candidate.sqlite": 68,
+      "candidate.sqlite-journal": 2,
+      "candidate.sqlite-wal": 227,
+      "canonical.sqlite": 13,
+      "canonical.sqlite-journal": 4,
+      "canonical.sqlite-wal": 788,
+      "journal-baseline": 71
+    },
+    "syscall_errors": {},
+    "total_wal_written_bytes": 47534936,
+    "trace": "/mnt/volume_nyc1_1790918115030/pump-provider-offline-evidence-20261008/journal-baseline.strace",
+    "trace_bytes": 4787870,
+    "trace_sha256": "4623d24edbee3c24c6918af2cec0ef8a8949797ec95af8125259f0c599ebe092",
+    "wal_per_canonical_body_byte": 170.67035283050708,
+    "writes": {
+      "<sqlite-temporary-sort>": {
+        "bytes": 16133500,
+        "calls": 1690
+      },
+      "candidate.sqlite": {
+        "bytes": 4313088,
+        "calls": 1053
+      },
+      "candidate.sqlite-journal": {
+        "bytes": 524,
+        "calls": 2
+      },
+      "candidate.sqlite-shm": {
+        "bytes": 3080,
+        "calls": 3080
+      },
+      "candidate.sqlite-wal": {
+        "bytes": 4497064,
+        "calls": 2249
+      },
+      "canonical.sqlite": {
+        "bytes": 6037504,
+        "calls": 1474
+      },
+      "canonical.sqlite-journal": {
+        "bytes": 5152,
+        "calls": 7
+      },
+      "canonical.sqlite-shm": {
+        "bytes": 8,
+        "calls": 8
+      },
+      "canonical.sqlite-wal": {
+        "bytes": 43037872,
+        "calls": 20903
+      },
+      "journal-baseline.log": {
+        "bytes": 701,
+        "calls": 1
+      },
+      "parity.json": {
+        "bytes": 684868,
+        "calls": 1
+      },
+      "profile.pstats": {
+        "bytes": 47278,
+        "calls": 1
+      },
+      "profile.txt": {
+        "bytes": 3141,
+        "calls": 1
+      },
+      "result.json": {
+        "bytes": 106193,
+        "calls": 1
+      }
+    }
+  },
+  "provider_calls": 0,
+  "repaired": {
+    "canonical_event_body_bytes": 278519,
+    "limitation": "Actual successful syscall bytes in a profiled serial offline replay. Not original provider-proof WAL traffic; trace overhead invalidates latency comparisons. FD writes exclude mmap SHM and block-layer rounding.",
+    "successful_syncs": {
+      "candidate.sqlite": 68,
+      "candidate.sqlite-journal": 2,
+      "candidate.sqlite-wal": 227,
+      "canonical.sqlite": 13,
+      "canonical.sqlite-journal": 4,
+      "canonical.sqlite-wal": 788,
+      "journal-repaired": 71
+    },
+    "syscall_errors": {},
+    "total_wal_written_bytes": 47534936,
+    "trace": "/mnt/volume_nyc1_1790918115030/pump-provider-offline-evidence-20261008/journal-repaired.strace",
+    "trace_bytes": 4787832,
+    "trace_sha256": "2d4da418948ebe64ca40a418b549a3715875c8605a27c4bd6fdcae13a7ce8e32",
+    "wal_per_canonical_body_byte": 170.67035283050708,
+    "writes": {
+      "<sqlite-temporary-sort>": {
+        "bytes": 16133500,
+        "calls": 1690
+      },
+      "candidate.sqlite": {
+        "bytes": 4313088,
+        "calls": 1053
+      },
+      "candidate.sqlite-journal": {
+        "bytes": 524,
+        "calls": 2
+      },
+      "candidate.sqlite-shm": {
+        "bytes": 3080,
+        "calls": 3080
+      },
+      "candidate.sqlite-wal": {
+        "bytes": 4497064,
+        "calls": 2249
+      },
+      "canonical.sqlite": {
+        "bytes": 6037504,
+        "calls": 1474
+      },
+      "canonical.sqlite-journal": {
+        "bytes": 5152,
+        "calls": 7
+      },
+      "canonical.sqlite-shm": {
+        "bytes": 8,
+        "calls": 8
+      },
+      "canonical.sqlite-wal": {
+        "bytes": 43037872,
+        "calls": 20903
+      },
+      "journal-repaired.log": {
+        "bytes": 701,
+        "calls": 1
+      },
+      "parity.json": {
+        "bytes": 684868,
+        "calls": 1
+      },
+      "profile.pstats": {
+        "bytes": 47846,
+        "calls": 1
+      },
+      "profile.txt": {
+        "bytes": 3164,
+        "calls": 1
+      },
+      "result.json": {
+        "bytes": 106202,
+        "calls": 1
+      }
+    }
+  },
+  "schema": "pump-provider-offline-journal-v1"
+}

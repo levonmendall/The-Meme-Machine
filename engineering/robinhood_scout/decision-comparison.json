@@ -1,0 +1,523 @@
+{
+  "schema": "robinhood-native-decision-replay-v1",
+  "cases": [
+    {
+      "case": "accelerating_buyers",
+      "candidate_recall": 1.0,
+      "points": [
+        {
+          "at": 1790915200,
+          "age_seconds": 14400,
+          "candidate": true,
+          "features_digest": "ac6d35582ff2d54273514e48dc93dbf7119c7fea0a5cfbeb59910d477e6212a0",
+          "authenticated_tapes_equal": true,
+          "complete_eligible_decisions_equal": true,
+          "reference_quote_sizes": 7,
+          "optimized_quote_sizes": 7,
+          "original_deadline": 1791505600,
+          "optimized_execution_status": "COMPLETE",
+          "reference_quote_work": {
+            "methods": {
+              "eth_getBlockByNumber": 1,
+              "eth_getCode": 1,
+              "eth_call": 15,
+              "eth_gasPrice": 1
+            },
+            "diagnostic_cu": {
+              "estimated_cu_by_method": {
+                "eth_getBlockByNumber": 20,
+                "eth_getCode": 20,
+                "eth_call": 390,
+                "eth_gasPrice": 20
+              },
+              "estimated_cu": 450,
+              "known_estimated_cu": 450,
+              "unpriced_methods": {},
+              "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+              "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+              "logical_calls": 18,
+              "billing_estimate_only": true
+            },
+            "physical_http_attempts": 3,
+            "response_bytes": 2879
+          },
+          "optimized_quote_work": {
+            "methods": {
+              "eth_getBlockByNumber": 1,
+              "eth_getCode": 1,
+              "eth_call": 15,
+              "eth_gasPrice": 1
+            },
+            "diagnostic_cu": {
+              "estimated_cu_by_method": {
+                "eth_getBlockByNumber": 20,
+                "eth_getCode": 20,
+                "eth_call": 390,
+                "eth_gasPrice": 20
+              },
+              "estimated_cu": 450,
+              "known_estimated_cu": 450,
+              "unpriced_methods": {},
+              "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+              "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+              "logical_calls": 18,
+              "billing_estimate_only": true
+            },
+            "physical_http_attempts": 3,
+            "response_bytes": 2879
+          },
+          "missing_execution_is_economic_rejection": false
+        }
+      ],
+      "lookahead": false,
+      "reference_source_sha256": "79bd20b74efec31c93bfdc489f09eccbd4b6b0fe39f388c56cb6130b0a232639",
+      "capital_denial_then_native_open": true,
+      "position_quotes_equal": true,
+      "position_quote_usage": {
+        "physical_http_attempts": 2,
+        "response_bytes": 883,
+        "methods": {
+          "eth_getBlockByNumber": 2,
+          "eth_getCode": 1,
+          "eth_call": 2,
+          "eth_gasPrice": 1
+        },
+        "diagnostic_cu": {
+          "estimated_cu_by_method": {
+            "eth_getBlockByNumber": 40,
+            "eth_getCode": 20,
+            "eth_call": 52,
+            "eth_gasPrice": 20
+          },
+          "estimated_cu": 132,
+          "known_estimated_cu": 132,
+          "unpriced_methods": {},
+          "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "logical_calls": 6,
+          "billing_estimate_only": true
+        },
+        "cadence_changed": false
+      },
+      "position_turn_usage": {
+        "physical_http_attempts": 3,
+        "logical_rpc_elements": 7,
+        "response_bytes": 1136,
+        "methods": {
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_call": 2,
+          "eth_gasPrice": 1
+        },
+        "diagnostic_cu": {
+          "estimated_cu_by_method": {
+            "eth_getBlockByNumber": 60,
+            "eth_getCode": 20,
+            "eth_call": 52,
+            "eth_gasPrice": 20
+          },
+          "estimated_cu": 152,
+          "known_estimated_cu": 152,
+          "unpriced_methods": {},
+          "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "logical_calls": 7,
+          "billing_estimate_only": true
+        },
+        "verified_billed_cu": null,
+        "scope": "native funded step, unchanged head with no economic delta; excludes new swaps and conditional exit/scaling work"
+      },
+      "storage": {
+        "shared_plane": {
+          "sqlite_page_stock_bytes": 167936,
+          "free_pages": 0,
+          "interpretation": "offline logical SQLite page stock; not cumulative disk writes, WAL stock or a monthly projection"
+        },
+        "optimized_history": {
+          "sqlite_page_stock_bytes": 159744,
+          "free_pages": 0,
+          "interpretation": "offline logical SQLite page stock; not cumulative disk writes, WAL stock or a monthly projection"
+        },
+        "reference_history": {
+          "sqlite_page_stock_bytes": 86016,
+          "free_pages": 0,
+          "interpretation": "offline logical SQLite page stock; not cumulative disk writes, WAL stock or a monthly projection"
+        }
+      },
+      "nomination_usage": {
+        "logical_requests": 3,
+        "requests": 3,
+        "physical_http_requests": 2,
+        "transport_requests": 2,
+        "request_bytes": 919,
+        "response_bytes": 1838,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 2
+        },
+        "failures": {}
+      },
+      "nomination_plus_authentication_usage": {
+        "logical_requests": 29,
+        "requests": 29,
+        "physical_http_requests": 21,
+        "transport_requests": 21,
+        "request_bytes": 4152,
+        "response_bytes": 203711,
+        "methods": {
+          "eth_getBlockByNumber": 13,
+          "eth_getLogs": 3,
+          "eth_chainId": 2,
+          "eth_getCode": 5,
+          "eth_getTransactionReceipt": 3,
+          "eth_call": 2,
+          "eth_getBlockByHash": 1
+        },
+        "failures": {}
+      }
+    },
+    {
+      "case": "quiet_then_breakout",
+      "candidate_recall": 1.0,
+      "points": [
+        {
+          "at": 1790915200,
+          "age_seconds": 14400,
+          "candidate": false,
+          "features_digest": "1a4378e766ea57f4444372c81d58d61058767dec2edb08a624c53a19af56d1c6",
+          "authenticated_tapes_equal": true,
+          "complete_eligible_decisions_equal": true,
+          "reference_quote_sizes": 7,
+          "optimized_quote_sizes": 0,
+          "original_deadline": 1791505600,
+          "optimized_execution_status": "PENDING_EVIDENCE",
+          "reference_quote_work": {
+            "methods": {
+              "eth_getBlockByNumber": 1,
+              "eth_getCode": 1,
+              "eth_call": 15,
+              "eth_gasPrice": 1
+            },
+            "diagnostic_cu": {
+              "estimated_cu_by_method": {
+                "eth_getBlockByNumber": 20,
+                "eth_getCode": 20,
+                "eth_call": 390,
+                "eth_gasPrice": 20
+              },
+              "estimated_cu": 450,
+              "known_estimated_cu": 450,
+              "unpriced_methods": {},
+              "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+              "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+              "logical_calls": 18,
+              "billing_estimate_only": true
+            },
+            "physical_http_attempts": 3,
+            "response_bytes": 2879
+          },
+          "optimized_quote_work": {
+            "methods": {},
+            "diagnostic_cu": {
+              "estimated_cu_by_method": {},
+              "estimated_cu": 0,
+              "known_estimated_cu": 0,
+              "unpriced_methods": {},
+              "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+              "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+              "logical_calls": 0,
+              "billing_estimate_only": true
+            },
+            "physical_http_attempts": 0,
+            "response_bytes": 0
+          },
+          "missing_execution_is_economic_rejection": false
+        },
+        {
+          "at": 1790918800,
+          "age_seconds": 18000,
+          "candidate": true,
+          "features_digest": "aaa3eb75b24407a579f8106ea6a5b35e4ee17d598de975973db13652c0a4a006",
+          "authenticated_tapes_equal": true,
+          "complete_eligible_decisions_equal": true,
+          "reference_quote_sizes": 7,
+          "optimized_quote_sizes": 7,
+          "original_deadline": 1791505600,
+          "optimized_execution_status": "COMPLETE",
+          "reference_quote_work": {
+            "methods": {
+              "eth_getBlockByNumber": 1,
+              "eth_getCode": 1,
+              "eth_call": 15,
+              "eth_gasPrice": 1
+            },
+            "diagnostic_cu": {
+              "estimated_cu_by_method": {
+                "eth_getBlockByNumber": 20,
+                "eth_getCode": 20,
+                "eth_call": 390,
+                "eth_gasPrice": 20
+              },
+              "estimated_cu": 450,
+              "known_estimated_cu": 450,
+              "unpriced_methods": {},
+              "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+              "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+              "logical_calls": 18,
+              "billing_estimate_only": true
+            },
+            "physical_http_attempts": 3,
+            "response_bytes": 2879
+          },
+          "optimized_quote_work": {
+            "methods": {
+              "eth_getBlockByNumber": 1,
+              "eth_getCode": 1,
+              "eth_call": 15,
+              "eth_gasPrice": 1
+            },
+            "diagnostic_cu": {
+              "estimated_cu_by_method": {
+                "eth_getBlockByNumber": 20,
+                "eth_getCode": 20,
+                "eth_call": 390,
+                "eth_gasPrice": 20
+              },
+              "estimated_cu": 450,
+              "known_estimated_cu": 450,
+              "unpriced_methods": {},
+              "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+              "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+              "logical_calls": 18,
+              "billing_estimate_only": true
+            },
+            "physical_http_attempts": 3,
+            "response_bytes": 2879
+          },
+          "missing_execution_is_economic_rejection": false
+        }
+      ],
+      "lookahead": false,
+      "reference_source_sha256": "79bd20b74efec31c93bfdc489f09eccbd4b6b0fe39f388c56cb6130b0a232639",
+      "capital_denial_then_native_open": true,
+      "position_quotes_equal": true,
+      "position_quote_usage": {
+        "physical_http_attempts": 2,
+        "response_bytes": 883,
+        "methods": {
+          "eth_getBlockByNumber": 2,
+          "eth_getCode": 1,
+          "eth_call": 2,
+          "eth_gasPrice": 1
+        },
+        "diagnostic_cu": {
+          "estimated_cu_by_method": {
+            "eth_getBlockByNumber": 40,
+            "eth_getCode": 20,
+            "eth_call": 52,
+            "eth_gasPrice": 20
+          },
+          "estimated_cu": 132,
+          "known_estimated_cu": 132,
+          "unpriced_methods": {},
+          "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "logical_calls": 6,
+          "billing_estimate_only": true
+        },
+        "cadence_changed": false
+      },
+      "position_turn_usage": {
+        "physical_http_attempts": 3,
+        "logical_rpc_elements": 7,
+        "response_bytes": 1136,
+        "methods": {
+          "eth_getBlockByNumber": 3,
+          "eth_getCode": 1,
+          "eth_call": 2,
+          "eth_gasPrice": 1
+        },
+        "diagnostic_cu": {
+          "estimated_cu_by_method": {
+            "eth_getBlockByNumber": 60,
+            "eth_getCode": 20,
+            "eth_call": 52,
+            "eth_gasPrice": 20
+          },
+          "estimated_cu": 152,
+          "known_estimated_cu": 152,
+          "unpriced_methods": {},
+          "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "logical_calls": 7,
+          "billing_estimate_only": true
+        },
+        "verified_billed_cu": null,
+        "scope": "native funded step, unchanged head with no economic delta; excludes new swaps and conditional exit/scaling work"
+      },
+      "storage": {
+        "shared_plane": {
+          "sqlite_page_stock_bytes": 188416,
+          "free_pages": 0,
+          "interpretation": "offline logical SQLite page stock; not cumulative disk writes, WAL stock or a monthly projection"
+        },
+        "optimized_history": {
+          "sqlite_page_stock_bytes": 172032,
+          "free_pages": 1,
+          "interpretation": "offline logical SQLite page stock; not cumulative disk writes, WAL stock or a monthly projection"
+        },
+        "reference_history": {
+          "sqlite_page_stock_bytes": 98304,
+          "free_pages": 1,
+          "interpretation": "offline logical SQLite page stock; not cumulative disk writes, WAL stock or a monthly projection"
+        }
+      },
+      "nomination_usage": {
+        "logical_requests": 3,
+        "requests": 3,
+        "physical_http_requests": 2,
+        "transport_requests": 2,
+        "request_bytes": 919,
+        "response_bytes": 1838,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 2
+        },
+        "failures": {}
+      },
+      "nomination_plus_authentication_usage": {
+        "logical_requests": 29,
+        "requests": 29,
+        "physical_http_requests": 21,
+        "transport_requests": 21,
+        "request_bytes": 4152,
+        "response_bytes": 203711,
+        "methods": {
+          "eth_getBlockByNumber": 13,
+          "eth_getLogs": 3,
+          "eth_chainId": 2,
+          "eth_getCode": 5,
+          "eth_getTransactionReceipt": 3,
+          "eth_call": 2,
+          "eth_getBlockByHash": 1
+        },
+        "failures": {}
+      }
+    },
+    {
+      "case": "concentrated_buyer_rejection",
+      "candidate_recall": 1.0,
+      "points": [
+        {
+          "at": 1790915200,
+          "age_seconds": 14400,
+          "candidate": false,
+          "features_digest": "21ada3bc906fc3b4e9b87eab83887224aac5aeb90f0f25ad2fdcb77d0983d794",
+          "authenticated_tapes_equal": true,
+          "complete_eligible_decisions_equal": true,
+          "reference_quote_sizes": 7,
+          "optimized_quote_sizes": 0,
+          "original_deadline": 1791505600,
+          "optimized_execution_status": "PENDING_EVIDENCE",
+          "reference_quote_work": {
+            "methods": {
+              "eth_getBlockByNumber": 1,
+              "eth_getCode": 1,
+              "eth_call": 15,
+              "eth_gasPrice": 1
+            },
+            "diagnostic_cu": {
+              "estimated_cu_by_method": {
+                "eth_getBlockByNumber": 20,
+                "eth_getCode": 20,
+                "eth_call": 390,
+                "eth_gasPrice": 20
+              },
+              "estimated_cu": 450,
+              "known_estimated_cu": 450,
+              "unpriced_methods": {},
+              "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+              "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+              "logical_calls": 18,
+              "billing_estimate_only": true
+            },
+            "physical_http_attempts": 3,
+            "response_bytes": 2879
+          },
+          "optimized_quote_work": {
+            "methods": {},
+            "diagnostic_cu": {
+              "estimated_cu_by_method": {},
+              "estimated_cu": 0,
+              "known_estimated_cu": 0,
+              "unpriced_methods": {},
+              "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+              "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+              "logical_calls": 0,
+              "billing_estimate_only": true
+            },
+            "physical_http_attempts": 0,
+            "response_bytes": 0
+          },
+          "missing_execution_is_economic_rejection": false
+        }
+      ],
+      "lookahead": false,
+      "reference_source_sha256": "79bd20b74efec31c93bfdc489f09eccbd4b6b0fe39f388c56cb6130b0a232639",
+      "capital_denial_then_native_open": null,
+      "position_quotes_equal": null,
+      "position_quote_usage": null,
+      "position_turn_usage": null,
+      "storage": {
+        "shared_plane": {
+          "sqlite_page_stock_bytes": 167936,
+          "free_pages": 0,
+          "interpretation": "offline logical SQLite page stock; not cumulative disk writes, WAL stock or a monthly projection"
+        },
+        "optimized_history": {
+          "sqlite_page_stock_bytes": 159744,
+          "free_pages": 0,
+          "interpretation": "offline logical SQLite page stock; not cumulative disk writes, WAL stock or a monthly projection"
+        },
+        "reference_history": {
+          "sqlite_page_stock_bytes": 86016,
+          "free_pages": 0,
+          "interpretation": "offline logical SQLite page stock; not cumulative disk writes, WAL stock or a monthly projection"
+        }
+      },
+      "nomination_usage": {
+        "logical_requests": 3,
+        "requests": 3,
+        "physical_http_requests": 2,
+        "transport_requests": 2,
+        "request_bytes": 919,
+        "response_bytes": 1838,
+        "methods": {
+          "eth_getBlockByNumber": 1,
+          "eth_getLogs": 2
+        },
+        "failures": {}
+      },
+      "nomination_plus_authentication_usage": {
+        "logical_requests": 29,
+        "requests": 29,
+        "physical_http_requests": 21,
+        "transport_requests": 21,
+        "request_bytes": 4152,
+        "response_bytes": 203711,
+        "methods": {
+          "eth_getBlockByNumber": 13,
+          "eth_getLogs": 3,
+          "eth_chainId": 2,
+          "eth_getCode": 5,
+          "eth_getTransactionReceipt": 3,
+          "eth_call": 2,
+          "eth_getBlockByHash": 1
+        },
+        "failures": {}
+      }
+    }
+  ],
+  "evidence_basis": "synthetic canonical-shaped chronological RPC tape; real production reducers and Quotes",
+  "production_deadline_certification": "NOT_MEASURED"
+}

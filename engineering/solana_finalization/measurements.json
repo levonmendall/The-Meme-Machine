@@ -1,0 +1,36 @@
+{
+  "control_bytes_per_second": 868,
+  "pump_scout_bytes_per_day": 720577058.379703,
+  "met_pool_scout_bytes_per_day": 246365234.85139385,
+  "met_bin_scout_bytes_per_day": 1000929738.1459837,
+  "activity_bytes_per_status": 114.66447368421052,
+  "activity_mean_fanout": 1.1137218045112782,
+  "archive_bytes_per_transaction": 8445.378640776698,
+  "canonical_pump_event_bytes": 5366,
+  "canonical_swap_event_bytes": 5831,
+  "met_warming_calls": 27,
+  "met_warming_CU": 540,
+  "met_warming_http_bytes": 571671,
+  "met_warming_wall_seconds": 13.70387651596684,
+  "timestamp_UTC": "2026-10-07 02:40 UTC",
+  "proven_body_free_swap_events": 879,
+  "observed_meteora_structural_pool_population": 119330,
+  "source_windows_seconds": [
+    24,
+    30.10356330004288,
+    25.184735190996435,
+    61.760908365249634
+  ],
+  "limitations": [
+    "Activity-biased updated-curve fraction is not creation-cohort promotion incidence.",
+    "A negative Meteora qualification vector matched; no positive opportunity was certified.",
+    "Provider wire protobuf sizes precede filtering; framing uncertainty is included in high scenario traffic/replay margins.",
+    "Position rate scenarios are engineering envelopes, not a combined production benchmark."
+  ],
+  "sources": {
+    "pricing": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+    "PAYG": "https://www.alchemy.com/pricing",
+    "yellowstone": "https://www.alchemy.com/solana-grpc",
+    "host": "DigitalOcean connected droplets API reports gd-2vcpu-8gb at $68/mo; read-only lsblk confirms attached 50 GiB; https://docs.digitalocean.com/products/volumes/details/pricing/"
+  }
+}

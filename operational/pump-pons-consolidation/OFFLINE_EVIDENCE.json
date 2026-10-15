@@ -1,0 +1,73 @@
+{
+  "acceptance_phase": false,
+  "before_and_after_live_comparison": "UNAVAILABLE",
+  "checks": {
+    "cash_basis_conservation": true,
+    "cost_attribution": true,
+    "lane_realized_less_shared_costs": true,
+    "remaining_basis": true
+  },
+  "fixture_provider_requests": 0,
+  "inception": "500.00",
+  "kind": "OFFLINE_ONLY",
+  "paper_only": true,
+  "paused": {
+    "meteora": {
+      "max_processes": 0,
+      "new_bytes": 0,
+      "new_files": 0,
+      "provider_measurement": "offline fixture has no provider transport",
+      "restarts": 0,
+      "strategy_databases": 0,
+      "strategy_jobs": 0,
+      "strategy_queues": 0
+    },
+    "ramses": {
+      "max_processes": 0,
+      "new_bytes": 0,
+      "new_files": 0,
+      "provider_measurement": "offline fixture has no provider transport",
+      "restarts": 0,
+      "strategy_databases": 0,
+      "strategy_jobs": 0,
+      "strategy_queues": 0
+    }
+  },
+  "pending_deliveries": 0,
+  "positions": 2,
+  "reconciliation": "PASS",
+  "runs": [
+    {
+      "average_percent_of_two_vcpu": 18.08560012011186,
+      "elapsed_seconds": 8.515061650000007,
+      "peak_aggregate_rss_bytes": 61800448,
+      "peak_processes_by_family": {
+        "meteora": 0,
+        "pons": 1,
+        "pump": 1,
+        "ramses": 0,
+        "shared": 2
+      },
+      "pump_crash_injected": true,
+      "sampled_process_cpu_seconds": 3.08,
+      "samples": 167
+    },
+    {
+      "average_percent_of_two_vcpu": 33.231128520872986,
+      "elapsed_seconds": 4.5288862190000145,
+      "peak_aggregate_rss_bytes": 53317632,
+      "peak_processes_by_family": {
+        "meteora": 0,
+        "pons": 1,
+        "pump": 1,
+        "ramses": 0,
+        "shared": 2
+      },
+      "pump_crash_injected": false,
+      "sampled_process_cpu_seconds": 3.0100000000000002,
+      "samples": 89
+    }
+  ],
+  "same_epoch": true,
+  "same_inception": true
+}

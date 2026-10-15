@@ -1,0 +1,209 @@
+{
+  "source": {
+    "commit": "dbf2aa12d339ed69a2656ef19bc678e0d7448859",
+    "tree": "01baa88abcaad04efea72ced6f71ca0a1a9f9a15",
+    "dirty": false,
+    "hashes": {
+      "engineering/solana_capacity/pump_pons_proof.py": "c7fe4d3a532aff00aa872e8d3a37bd83e559f44cb233e9db36786667c4ab5944",
+      "engineering/solana_capacity/proof_limits.py": "cf2f983787380836865541cf4c8d2563a67e96ea79b084e9b1d79d90c739c71f",
+      "engineering/solana_capacity/proof_host.py": "295dc71899c9ec79d18ac714a8652269b28863eb4f5957a7af916b1d3d2c40a0",
+      "engineering/solana_capacity/proof_transport.py": "aafd0bfdac317a3435971a66e614240e342db2933d5f92147c1c8b9680a30f8b",
+      "engineering/solana_capacity/proof_workload.py": "440ec590f64446f236a576ccf77faa4429e912f6f9f75cdc8a7f28f9dad05e42",
+      "engineering/solana_capacity/final_mixed.py": "e3d255a632f1665472d59ca7976288834507ceff1ba94f57cf78600e41520b94",
+      "operational/forward-survivor/NEXT_PROOF.json": "1e02ae8630e8823f6bf24c52cf6792f6f2699df81d83b3ae805fa6020d858e6f"
+    },
+    "component_sha256": "5ad16f3ec55e8586fd378d3640157166e0140bff7c9935bef9b35bd5e82fbd2f"
+  },
+  "app_id": "9bin99s96t7ga5e9",
+  "status": "PASS_COMPONENT_ONLY",
+  "limits": {
+    "seconds": 15,
+    "http_starts": 8,
+    "logical_elements": 8,
+    "modeled_cu": 160,
+    "delivered_bytes": 4194304,
+    "response_bytes": 2000000,
+    "inflight": 1,
+    "physical_rps": 2,
+    "retries": 0,
+    "subscriptions": 0,
+    "maximum_usd": "0.01"
+  },
+  "modeled_worst_case_usd": "0.000084000",
+  "pricing_basis": "PUBLIC_PROVISIONAL_OWNER_AUTHORIZED",
+  "contractual_price_verified": false,
+  "acquisition": {
+    "reason": null,
+    "physical_starts": 7,
+    "logical_elements": 7,
+    "modeled_cu": 130,
+    "charged_cu_reserved": 140,
+    "delivered_bytes": 17489,
+    "upper_spend_reserved_usd": "0.000068250",
+    "actual_invoice_usd": null,
+    "elapsed_seconds": 6.188229472958483,
+    "methods": {
+      "getMultipleAccounts": 4,
+      "getGenesisHash": 1,
+      "getBlockTime": 2
+    },
+    "requests": [
+      {
+        "method": "getMultipleAccounts",
+        "started_seconds": 0.08346461202017963,
+        "response_bytes": 436,
+        "response_sha256": "5fdf0cda1d46eedfa377b57f6b000c533968b180c1bb83134f70059f385d0e10",
+        "completed_seconds": 0.13476623396854848
+      },
+      {
+        "method": "getGenesisHash",
+        "started_seconds": 0.5836456259712577,
+        "response_bytes": 81,
+        "response_sha256": "60b9ccc79790a4d0af8f3562b834fe40401e7c2b33a427a1d6eab237d44f0fda",
+        "completed_seconds": 0.6340229520574212
+      },
+      {
+        "method": "getMultipleAccounts",
+        "started_seconds": 1.0838166839675978,
+        "response_bytes": 660,
+        "response_sha256": "b4d1ffc3ea257fb2d9d5150325cfc7ccdab2ba0c7a26a554fab365b1ca580b66",
+        "completed_seconds": 1.1313871910097077
+      },
+      {
+        "method": "getMultipleAccounts",
+        "started_seconds": 1.5839968930231407,
+        "response_bytes": 8111,
+        "response_sha256": "2cc9769da0292222bb01afca342433c7901904979c7b89c99c5ed46a87be0fc0",
+        "completed_seconds": 1.639007207006216
+      },
+      {
+        "method": "getBlockTime",
+        "started_seconds": 2.084161109989509,
+        "response_bytes": 45,
+        "response_sha256": "6888617cc615f8c5a05c4d9c1c7a7797629d21476b4d87dd62ee2deb5f1d7cc0",
+        "completed_seconds": 2.1318937649484724
+      },
+      {
+        "method": "getMultipleAccounts",
+        "started_seconds": 5.638574832002632,
+        "response_bytes": 8111,
+        "response_sha256": "071f660fd90167ecf872909a8fa398ca51a5e939d3897bdae756a3edbbcbbe38",
+        "completed_seconds": 5.672204553964548
+      },
+      {
+        "method": "getBlockTime",
+        "started_seconds": 6.1387756139738485,
+        "response_bytes": 45,
+        "response_sha256": "5f0241795b98acf1967712ff661cd03ec35ffa077d20869972a1d7c5ef2092bf",
+        "completed_seconds": 6.185579114011489
+      }
+    ]
+  },
+  "result": {
+    "native_samples": [
+      {
+        "kind": "cold",
+        "slot": 455516051,
+        "market_time": 1791692230,
+        "elapsed_seconds": 1.4998870629351586,
+        "initial_budget_usd": "50",
+        "addition_budget_usd": "25",
+        "buy": {
+          "surface": "pumpswap",
+          "side": "buy",
+          "input_amount": 457699767,
+          "output_amount": 1785164324537202,
+          "fee_amount": 5650616,
+          "fee_asset": "quote",
+          "gross_output": 1785164324537202
+        },
+        "addition_quote": {
+          "surface": "pumpswap",
+          "side": "buy",
+          "input_amount": 228849883,
+          "output_amount": 1644357008259020,
+          "fee_amount": 2825308,
+          "fee_asset": "quote",
+          "gross_output": 1644357008259020
+        },
+        "full_sell": {
+          "surface": "pumpswap",
+          "side": "sell",
+          "input_amount": 1785164324537202,
+          "output_amount": 19967609,
+          "fee_amount": 252757,
+          "fee_asset": "quote",
+          "gross_output": 20220366
+        },
+        "partial_sell": {
+          "surface": "pumpswap",
+          "side": "sell",
+          "input_amount": 892582162268601,
+          "output_amount": 13116175,
+          "fee_amount": 166029,
+          "fee_asset": "quote",
+          "gross_output": 13282204
+        }
+      },
+      {
+        "kind": "warm",
+        "slot": 455516070,
+        "market_time": 1791692235,
+        "elapsed_seconds": 0.5532962779980153,
+        "initial_budget_usd": "50",
+        "addition_budget_usd": "25",
+        "buy": {
+          "surface": "pumpswap",
+          "side": "buy",
+          "input_amount": 457699767,
+          "output_amount": 1785164324537202,
+          "fee_amount": 5650616,
+          "fee_asset": "quote",
+          "gross_output": 1785164324537202
+        },
+        "addition_quote": {
+          "surface": "pumpswap",
+          "side": "buy",
+          "input_amount": 228849883,
+          "output_amount": 1644357008259020,
+          "fee_amount": 2825308,
+          "fee_asset": "quote",
+          "gross_output": 1644357008259020
+        },
+        "full_sell": {
+          "surface": "pumpswap",
+          "side": "sell",
+          "input_amount": 1785164324537202,
+          "output_amount": 19967609,
+          "fee_amount": 252757,
+          "fee_asset": "quote",
+          "gross_output": 20220366
+        },
+        "partial_sell": {
+          "surface": "pumpswap",
+          "side": "sell",
+          "input_amount": 892582162268601,
+          "output_amount": 13116175,
+          "fee_amount": 166029,
+          "fee_asset": "quote",
+          "gross_output": 13282204
+        }
+      }
+    ],
+    "usd": {
+      "asset": "SOL",
+      "decimals": 9,
+      "usd_per_unit": "109.241917",
+      "observed_at": 1791692178,
+      "valid_until": 1791692298,
+      "evidence_id": "sol-usd:455516044",
+      "evidence_hash": "7feb0d8fb562fe8d8aa581a35bee00d8099c02f80d6d19aeaba033f3f04e12cb"
+    },
+    "complete_protection_proven": false,
+    "discovery_proven": false,
+    "paper_ready": false,
+    "runtime_mode_changed": false,
+    "orders": 0,
+    "subscriptions": 0
+  }
+}

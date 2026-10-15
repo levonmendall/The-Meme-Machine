@@ -1,0 +1,10 @@
+{
+  "status": "PASS_OFFLINE",
+  "tests": 82,
+  "seconds": 15.124,
+  "command": "python -m operational.tests FAST --modules tests.test_solana_rolling_prewarm tests.test_solana_prewarm_startup tests.test_solana_shared_capacity",
+  "log": "/tmp/pump-wait-transaction-focused.log",
+  "log_sha256": "d1777e5d25a36d11fe1cc047ad52e96c23bc3d6e90e901605ea6ae374abbca47",
+  "purpose": "Commit wait dispositions and diagnostics once per owner command, retain original deadlines and rollback on faults",
+  "authenticated_protection": false
+}

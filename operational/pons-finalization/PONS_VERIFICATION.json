@@ -1,0 +1,1091 @@
+{
+  "acceptance_campaigns_started": [],
+  "affected_operational_modules": [
+    "tests.test_robinhood_usd_valuation",
+    "tests.test_opportunity_telemetry",
+    "tests.test_opportunity_retention",
+    "tests.test_pons_ongoing_scale",
+    "tests.test_strategy_observability_runtime",
+    "tests.test_current_survivor_independence",
+    "tests.test_portfolio_lane_integration",
+    "tests.test_provider_retry",
+    "tests.test_provider_usage_wal_race",
+    "tests.test_robinhood_archive_snapshot",
+    "tests.test_pons_recovery_connection",
+    "tests.test_pons_capital_recovery_snapshot",
+    "tests.lanes.pons.test_pons_selective_continuation",
+    "tests.lanes.pons.test_pons_partial_accounting",
+    "tests.lanes.pons.test_pons_postgrad_survivor",
+    "tests.lanes.pons.test_pons_finalization",
+    "tests.lanes.pons.test_pons_current_recovery",
+    "tests.lanes.pons.test_pons_position_provider_recovery",
+    "tests.test_survivor_bounded_drain",
+    "tests.test_provider_partial_batch_retry",
+    "tests.lanes.pons.test_confirmed_finality",
+    "tests.lanes.pons.test_immutable_rpc",
+    "tests.lanes.pons.test_provider",
+    "tests.lanes.pons.test_provider_admission",
+    "tests.lanes.pons.test_public_log_429_adaptive",
+    "tests.lanes.pons.test_rpc_log_timestamp_metadata",
+    "tests.lanes.pons.test_sequencer_feed",
+    "tests.lanes.pons.test_shared_position_fairness",
+    "tests.lanes.pons.test_view_batch",
+    "tests.lanes.pons.test_evidence_queue",
+    "tests.lanes.pons.test_pons_entry_confirmation_ordering",
+    "tests.lanes.pons.test_pons_evidence_reconstruction_semantics",
+    "tests.lanes.pons.test_pons_execution_acquisition",
+    "tests.lanes.pons.test_pons_factory_hint_reuse",
+    "tests.lanes.pons.test_pons_market_scope_efficiency",
+    "tests.lanes.pons.test_pons_capacity_persistence",
+    "tests.lanes.pons.test_pons_selective_independence",
+    "tests.lanes.pons.test_pons_shared_survivor",
+    "tests.lanes.pons.test_run377_survivor_provider",
+    "tests.lanes.pons.test_run379_survivor_graduation",
+    "tests.lanes.pons.test_candidate_authentication_deadline",
+    "tests.lanes.pons.test_coverage_acquisition",
+    "tests.lanes.pons.test_discovery_capacity",
+    "tests.lanes.pons.test_discovery_range_batching",
+    "tests.lanes.pons.test_natural_paper_harness",
+    "tests.lanes.pons.test_opportunity_coverage",
+    "tests.lanes.pons.test_pons_cohort_capital",
+    "tests.lanes.pons.test_pons_continuous_campaign",
+    "tests.lanes.pons.test_pons_natural_observation",
+    "tests.lanes.pons.test_pons_writeoff_proof",
+    "tests.lanes.pons.test_position_sessions",
+    "tests.lanes.pons.test_run369_accounting",
+    "tests.lanes.pons.test_selective_block_cache",
+    "tests.lanes.pons.test_strategy_prospect_admission",
+    "tests.lanes.pons.test_native_pons",
+    "tests.lanes.pons.test_captured_pons_lineage",
+    "tests.lanes.pons.test_captured",
+    "tests.test_directional_accounting",
+    "tests.test_directional_execution_capacity",
+    "tests.test_reserved_evidence_priority",
+    "tests.test_robinhood_plane",
+    "tests.test_survivor_archive_bounds",
+    "tests.test_survivor_commit",
+    "tests.test_survivor_history",
+    "tests.test_survivor_risk_boundaries",
+    "tests.test_pons_native_retirement",
+    "tests.test_survivor_terminal_retirement",
+    "tests.test_survivor_prefix_recovery",
+    "tests.test_native_continuity",
+    "tests.test_native_terminal_prefix",
+    "tests.test_native_crash_recovery",
+    "tests.lanes.pons.test_protocol_foundation",
+    "tests.lanes.pons.test_protocol_identity",
+    "tests.lanes.pons.test_provider_topology",
+    "tests.lanes.pons.test_pons_candidate_plane"
+  ],
+  "baseline_failure_detail": "Both baseline and final fail first on the same pre-existing Meteora dlmm_discovery.py byte-equality assertion; that file was not modified.",
+  "baseline_failure_scope": "Identity and first-trace parity, not proof that every masked historical byte assertion passes. Authorized Pons machinery also changes bytes; frozen economics have independent current-operational AST/hash/vector proof.",
+  "branch": "engineering/pons-finalization-20261007",
+  "classification": "D: PONS_NOT_READY",
+  "deployment_performed": false,
+  "final_read_only_upstream": {
+    "branch_retains_source_head_observed_at_creation": true,
+    "intervening_commit": "Pause Ramses as a reversible operational lane",
+    "intervening_files": [
+      "meme_machine/operational/acceptance.py",
+      "meme_machine/operational/supervisor.py",
+      "operational/owner-decisions/ramses-pause.md",
+      "operational/tests.py",
+      "tests/test_operational_ramses_pause.py"
+    ],
+    "later_operational_integrated": false,
+    "operational_head": "9f08f0db68fd3161c84bb955800db9a200a70f77",
+    "operational_tree": "384b94e290c0262f667c6605034c85f037c5fe47",
+    "pons_sources_and_economic_policies_changed": false,
+    "pr121": {
+      "head": "daad4640a6dab35ffcabca4e17ba9b3e3ae6c927",
+      "incorporated": false,
+      "merged_at": null,
+      "state": "OPEN"
+    }
+  },
+  "focused": {
+    "elapsed_seconds": 43.80872759199701,
+    "errors": [],
+    "failures": [],
+    "level": "FOCUSED",
+    "skipped": [],
+    "successful": true,
+    "tests": 46
+  },
+  "focused_process": {
+    "max_rss_kib": 174416,
+    "scope": "Complete offline focused test process, not a running market lane throughput or deadline measurement.",
+    "socket_messages_received": 0,
+    "socket_messages_sent": 0,
+    "system_cpu_seconds": 3.01,
+    "user_cpu_seconds": 35.25,
+    "wall_seconds": 43.91
+  },
+  "frozen_economics": {
+    "historical_complete_vector_comparisons": 33,
+    "historical_whole_vector_divergences": 0,
+    "pure_current_ast_equal_except_removed_machine_event_count_guard": true,
+    "removed_machine_guard": "len(events)>512 -> selective_event_capacity; no active economic expression changed",
+    "survivor_and_common_risk_continuation_sizing_accounting_sources_byte_unchanged": true
+  },
+  "installed_pins": {
+    "pysimdjson": "7.0.2",
+    "websockets": "17.1"
+  },
+  "merge_performed": false,
+  "population": {
+    "cheap_current_identities": 4096,
+    "cheap_survivor_identities": 4096,
+    "current_restart_identity_and_equal_pure_vector_indices": [
+      1,
+      65,
+      257,
+      1024,
+      1025
+    ],
+    "dense_survivor_price_points": 100001,
+    "fair_survivor_history_population": 1025,
+    "graduation_burst_population": 1025,
+    "qualification_turn_population": 1025
+  },
+  "protected": {
+    "changes_outside_authorized_pons_paths": [],
+    "files_verified": 205,
+    "generic_provider_change": "Position priority admission bypasses only a full candidate queue; original 0.5-second ceiling and burst fairness are unchanged. Shared-governor offline suite 26/26 passes.",
+    "pr121_architecture_unchanged": true,
+    "shared_capital_unchanged": true,
+    "source_blobs": {
+      ".github/workflows/ci.yml": {
+        "current_blob": "52d63735f9299a6261916f5a14961f8cc066ed0b",
+        "source_blob": "52d63735f9299a6261916f5a14961f8cc066ed0b"
+      },
+      "deployment/do-agent-meme-machine.conf": {
+        "current_blob": "64ffabc9e0a93e92c653e6aa6d78716a170f0c5b",
+        "source_blob": "64ffabc9e0a93e92c653e6aa6d78716a170f0c5b"
+      },
+      "deployment/meme-machine-acceptance@.service": {
+        "current_blob": "11c8cf18e4e58121e601f26f07052cb31e36a179",
+        "source_blob": "11c8cf18e4e58121e601f26f07052cb31e36a179"
+      },
+      "deployment/meme-machine-backup-point.service": {
+        "current_blob": "164d78e9fd058fd9760eaea0b9c5ee2419032d28",
+        "source_blob": "164d78e9fd058fd9760eaea0b9c5ee2419032d28"
+      },
+      "deployment/meme-machine-backup.service": {
+        "current_blob": "492cffd9ef8e7babe4f2fb050bf086607f7a8ac3",
+        "source_blob": "492cffd9ef8e7babe4f2fb050bf086607f7a8ac3"
+      },
+      "deployment/meme-machine-backup.timer": {
+        "current_blob": "e774e9b12c5f2f07875f289374811ba589df70d2",
+        "source_blob": "e774e9b12c5f2f07875f289374811ba589df70d2"
+      },
+      "deployment/meme-machine-metrics.service": {
+        "current_blob": "cf23b9aef191664841321c34a28c2b2514d1f894",
+        "source_blob": "cf23b9aef191664841321c34a28c2b2514d1f894"
+      },
+      "deployment/meme-machine-monitor.service": {
+        "current_blob": "94ff5d1c76815c0e1876d1a04f5778ed5c86c33c",
+        "source_blob": "94ff5d1c76815c0e1876d1a04f5778ed5c86c33c"
+      },
+      "deployment/meme-machine-observer.service": {
+        "current_blob": "f723e42e5b2bd2548152d7c79f0ef8fcd03c8ffe",
+        "source_blob": "f723e42e5b2bd2548152d7c79f0ef8fcd03c8ffe"
+      },
+      "deployment/meme-machine-paper.service": {
+        "current_blob": "21c2381c4b72f5c66b7088dc1ad81fc0e3db6b46",
+        "source_blob": "21c2381c4b72f5c66b7088dc1ad81fc0e3db6b46"
+      },
+      "deployment/meme-machine-uptime-health.service": {
+        "current_blob": "c94de48818fb8968c18d856eb615a6750e1d5908",
+        "source_blob": "c94de48818fb8968c18d856eb615a6750e1d5908"
+      },
+      "deployment/paper.env.example": {
+        "current_blob": "5ec9965b7cd3c7f9775d081919f73e347d48d921",
+        "source_blob": "5ec9965b7cd3c7f9775d081919f73e347d48d921"
+      },
+      "meme_machine/lanes/meteora/DLMM_STRATEGY_RULE_V1.json": {
+        "current_blob": "86053aff11f506914bf3bddf8a88f8ec08084c6e",
+        "source_blob": "86053aff11f506914bf3bddf8a88f8ec08084c6e"
+      },
+      "meme_machine/lanes/meteora/SOLANA_DLMM_INDEPENDENT_V1.json": {
+        "current_blob": "bc9080fea471e1cd104f730d4ccf8515f66404ff",
+        "source_blob": "bc9080fea471e1cd104f730d4ccf8515f66404ff"
+      },
+      "meme_machine/lanes/meteora/__init__.py": {
+        "current_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+        "source_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+      },
+      "meme_machine/lanes/meteora/__main__.py": {
+        "current_blob": "7cf340356dfc8896ecc3c5ba283f51f73c67098d",
+        "source_blob": "7cf340356dfc8896ecc3c5ba283f51f73c67098d"
+      },
+      "meme_machine/lanes/meteora/concentration.py": {
+        "current_blob": "985d23776d4a6109318c719f21c7e084454d2426",
+        "source_blob": "985d23776d4a6109318c719f21c7e084454d2426"
+      },
+      "meme_machine/lanes/meteora/dlmm.py": {
+        "current_blob": "f607c7b6140a1f00b2368b5032b44450b820bb24",
+        "source_blob": "f607c7b6140a1f00b2368b5032b44450b820bb24"
+      },
+      "meme_machine/lanes/meteora/dlmm_alchemy_provider.py": {
+        "current_blob": "56170d6f41656ce15843ad14361c9e65d99923f8",
+        "source_blob": "56170d6f41656ce15843ad14361c9e65d99923f8"
+      },
+      "meme_machine/lanes/meteora/dlmm_discovery.py": {
+        "current_blob": "4216ae7fa90bb0e6e84962b9ab61d8742addfd55",
+        "source_blob": "4216ae7fa90bb0e6e84962b9ab61d8742addfd55"
+      },
+      "meme_machine/lanes/meteora/dlmm_independent_accounting.py": {
+        "current_blob": "8a69f00f97671360217218955d4bb59bb195de9a",
+        "source_blob": "8a69f00f97671360217218955d4bb59bb195de9a"
+      },
+      "meme_machine/lanes/meteora/dlmm_paper.py": {
+        "current_blob": "3dd4618a9e4106cbd6b1cd0aa41dd4bb0b54137f",
+        "source_blob": "3dd4618a9e4106cbd6b1cd0aa41dd4bb0b54137f"
+      },
+      "meme_machine/lanes/meteora/dlmm_tape.py": {
+        "current_blob": "16a17f6bf369bdca265653d9d680446255b97c65",
+        "source_blob": "16a17f6bf369bdca265653d9d680446255b97c65"
+      },
+      "meme_machine/lanes/meteora/durable_publication.py": {
+        "current_blob": "4d1e04d488082ed342b5ae2d26787f6177e2674e",
+        "source_blob": "4d1e04d488082ed342b5ae2d26787f6177e2674e"
+      },
+      "meme_machine/lanes/meteora/engine.py": {
+        "current_blob": "d840dbdc77e10b6bccd6728f797ecd3fcd3a9c5a",
+        "source_blob": "d840dbdc77e10b6bccd6728f797ecd3fcd3a9c5a"
+      },
+      "meme_machine/lanes/meteora/legacy_raydium.py": {
+        "current_blob": "ca99962f1b747415da18ea9f7a96fa1bc37af13a",
+        "source_blob": "ca99962f1b747415da18ea9f7a96fa1bc37af13a"
+      },
+      "meme_machine/lanes/meteora/pipeline.py": {
+        "current_blob": "f879401e8efe38b30ee04a4168d223c426b9ddd8",
+        "source_blob": "f879401e8efe38b30ee04a4168d223c426b9ddd8"
+      },
+      "meme_machine/lanes/meteora/postgrad.py": {
+        "current_blob": "ea315d0b4fdc3983988dc658f91c562d62692ded",
+        "source_blob": "ea315d0b4fdc3983988dc658f91c562d62692ded"
+      },
+      "meme_machine/lanes/meteora/postgrad_resolver.py": {
+        "current_blob": "62fbddc54e48274e7d6962fd4cc2a9ae27e70327",
+        "source_blob": "62fbddc54e48274e7d6962fd4cc2a9ae27e70327"
+      },
+      "meme_machine/lanes/meteora/provider.py": {
+        "current_blob": "20919e0517d98c3fd67ba979677f5ed874335f7e",
+        "source_blob": "20919e0517d98c3fd67ba979677f5ed874335f7e"
+      },
+      "meme_machine/lanes/meteora/pump.py": {
+        "current_blob": "9a0f9a9553d804ffd2dcbf3dc8fe53019d4bc65f",
+        "source_blob": "9a0f9a9553d804ffd2dcbf3dc8fe53019d4bc65f"
+      },
+      "meme_machine/lanes/meteora/pumpswap_runtime.py": {
+        "current_blob": "ea90263741ed841a702bd718c8b251ad69d6fc6c",
+        "source_blob": "ea90263741ed841a702bd718c8b251ad69d6fc6c"
+      },
+      "meme_machine/lanes/meteora/research.py": {
+        "current_blob": "abbb5ba555e654a0599ac9aa1081c9f47bc74066",
+        "source_blob": "abbb5ba555e654a0599ac9aa1081c9f47bc74066"
+      },
+      "meme_machine/lanes/meteora/runner.py": {
+        "current_blob": "a4eae943f30ac15de7c545aeef3717507b22d027",
+        "source_blob": "a4eae943f30ac15de7c545aeef3717507b22d027"
+      },
+      "meme_machine/lanes/meteora/solana_archive_snapshot.py": {
+        "current_blob": "2bb30f9eb3467d9e7914c2fe5266aa4ccf32330b",
+        "source_blob": "2bb30f9eb3467d9e7914c2fe5266aa4ccf32330b"
+      },
+      "meme_machine/lanes/meteora/solana_checkpoint.py": {
+        "current_blob": "f1608116b8fa4a5100a46e16f75649659ffe604f",
+        "source_blob": "f1608116b8fa4a5100a46e16f75649659ffe604f"
+      },
+      "meme_machine/lanes/meteora/solana_evidence_broker.py": {
+        "current_blob": "a1b5f6e2841a87a3c98968c9bb2ed06e977a8989",
+        "source_blob": "a1b5f6e2841a87a3c98968c9bb2ed06e977a8989"
+      },
+      "meme_machine/lanes/meteora/solana_evidence_consumers.py": {
+        "current_blob": "ef11eef0d3015f023330ce313276c33e83b7bbed",
+        "source_blob": "ef11eef0d3015f023330ce313276c33e83b7bbed"
+      },
+      "meme_machine/lanes/meteora/solana_evidence_control.py": {
+        "current_blob": "98d3446a408e27f86e4152a12459fe9d146f2e7e",
+        "source_blob": "98d3446a408e27f86e4152a12459fe9d146f2e7e"
+      },
+      "meme_machine/lanes/meteora/solana_evidence_health.py": {
+        "current_blob": "54d12e38711e2330ebf3cdc52f0e5e8ad1a144c9",
+        "source_blob": "54d12e38711e2330ebf3cdc52f0e5e8ad1a144c9"
+      },
+      "meme_machine/lanes/meteora/solana_evidence_plane.py": {
+        "current_blob": "aa873114bcb193fe9ecc000a7b674d42fa53ff2b",
+        "source_blob": "aa873114bcb193fe9ecc000a7b674d42fa53ff2b"
+      },
+      "meme_machine/lanes/meteora/solana_evidence_queries.py": {
+        "current_blob": "6534ccad16fcd95f4340dc2e869ff3a93c244af7",
+        "source_blob": "6534ccad16fcd95f4340dc2e869ff3a93c244af7"
+      },
+      "meme_machine/lanes/meteora/solana_evidence_runtime.py": {
+        "current_blob": "5efd06e0945c5e9c768f59e93d59d131ef6ca1f0",
+        "source_blob": "5efd06e0945c5e9c768f59e93d59d131ef6ca1f0"
+      },
+      "meme_machine/lanes/meteora/solana_evidence_service.py": {
+        "current_blob": "2818070034000fb25e58301d7cd40e27a568dd1e",
+        "source_blob": "2818070034000fb25e58301d7cd40e27a568dd1e"
+      },
+      "meme_machine/lanes/meteora/solana_evidence_storage.py": {
+        "current_blob": "8e67e5e8d3acf5118344ea7fd4bd6083e7cd9af3",
+        "source_blob": "8e67e5e8d3acf5118344ea7fd4bd6083e7cd9af3"
+      },
+      "meme_machine/lanes/meteora/solana_evidence_transport.py": {
+        "current_blob": "8ad77d49e4155bf60ad2ae60ab92fb55875b7d02",
+        "source_blob": "8ad77d49e4155bf60ad2ae60ab92fb55875b7d02"
+      },
+      "meme_machine/lanes/meteora/solana_immutable_rpc.py": {
+        "current_blob": "46afaade48b4fa29abc0e15a9d99d93ae7273c5d",
+        "source_blob": "46afaade48b4fa29abc0e15a9d99d93ae7273c5d"
+      },
+      "meme_machine/lanes/meteora/solana_maintenance_arbiter.py": {
+        "current_blob": "337bb569ec5920497dd012c01a14c36fdea2518a",
+        "source_blob": "337bb569ec5920497dd012c01a14c36fdea2518a"
+      },
+      "meme_machine/lanes/meteora/solana_maintenance_runtime.py": {
+        "current_blob": "ee777e5c605646dbc105614eb8335caeaab1535a",
+        "source_blob": "ee777e5c605646dbc105614eb8335caeaab1535a"
+      },
+      "meme_machine/lanes/meteora/solana_maintenance_state.py": {
+        "current_blob": "92e7d69d4e5af4f5946aaad19ce4062563670976",
+        "source_blob": "92e7d69d4e5af4f5946aaad19ce4062563670976"
+      },
+      "meme_machine/lanes/meteora/solana_owner_admission.py": {
+        "current_blob": "e6b7544038804ef942a75ed4b0e882636335942b",
+        "source_blob": "e6b7544038804ef942a75ed4b0e882636335942b"
+      },
+      "meme_machine/lanes/meteora/solana_program_decoders.py": {
+        "current_blob": "025f4d80d3e4f7011587f1993b029130a6840d24",
+        "source_blob": "025f4d80d3e4f7011587f1993b029130a6840d24"
+      },
+      "meme_machine/lanes/meteora/solana_provider_config.py": {
+        "current_blob": "fc6084825f23e9339309df6385346ba5991cd683",
+        "source_blob": "fc6084825f23e9339309df6385346ba5991cd683"
+      },
+      "meme_machine/lanes/meteora/solana_read_rpc.py": {
+        "current_blob": "c9a4346c2a880a483e2be5c862573e2d3ef3e10b",
+        "source_blob": "c9a4346c2a880a483e2be5c862573e2d3ef3e10b"
+      },
+      "meme_machine/lanes/meteora/solana_retention_outcome.py": {
+        "current_blob": "ab602323f7a1d2bbce91c12b0a79d9f388337018",
+        "source_blob": "ab602323f7a1d2bbce91c12b0a79d9f388337018"
+      },
+      "meme_machine/lanes/meteora/solana_signature_identity.py": {
+        "current_blob": "8b7b8205eb6a2c4f11836a2677655127e98b9393",
+        "source_blob": "8b7b8205eb6a2c4f11836a2677655127e98b9393"
+      },
+      "meme_machine/lanes/meteora/store.py": {
+        "current_blob": "f2788b70abebff95c57b6c426741eba865591109",
+        "source_blob": "f2788b70abebff95c57b6c426741eba865591109"
+      },
+      "meme_machine/lanes/meteora/stream.py": {
+        "current_blob": "23e3e33ea075eb2bdbc21a89bb8b77a6d2eb8d1c",
+        "source_blob": "23e3e33ea075eb2bdbc21a89bb8b77a6d2eb8d1c"
+      },
+      "meme_machine/lanes/meteora/wallets.py": {
+        "current_blob": "53fd586dd4d4b4fbc6003844f58409088197e541",
+        "source_blob": "53fd586dd4d4b4fbc6003844f58409088197e541"
+      },
+      "meme_machine/lanes/pump/__init__.py": {
+        "current_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+        "source_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+      },
+      "meme_machine/lanes/pump/__main__.py": {
+        "current_blob": "c4804d1116d6057388d6c46d9aee2c31e1e6dc07",
+        "source_blob": "c4804d1116d6057388d6c46d9aee2c31e1e6dc07"
+      },
+      "meme_machine/lanes/pump/concentration.py": {
+        "current_blob": "6871f582e72f7ebd673663906fd7e18e46719b44",
+        "source_blob": "6871f582e72f7ebd673663906fd7e18e46719b44"
+      },
+      "meme_machine/lanes/pump/durable_publication.py": {
+        "current_blob": "4d1e04d488082ed342b5ae2d26787f6177e2674e",
+        "source_blob": "4d1e04d488082ed342b5ae2d26787f6177e2674e"
+      },
+      "meme_machine/lanes/pump/engine.py": {
+        "current_blob": "c3cb3666d0438a266a1754437d45e591ab56dda4",
+        "source_blob": "c3cb3666d0438a266a1754437d45e591ab56dda4"
+      },
+      "meme_machine/lanes/pump/fixtures/solana_alpha_wallet_cohort_frozen.json": {
+        "current_blob": "a86c7ca2c4d8e06dcef2a6ef54f6a92aaabe6a0a",
+        "source_blob": "a86c7ca2c4d8e06dcef2a6ef54f6a92aaabe6a0a"
+      },
+      "meme_machine/lanes/pump/fixtures/solana_skilled_wallet_prospective_contract.json": {
+        "current_blob": "3377417a43fc6524539354e92f16f12039a93b20",
+        "source_blob": "3377417a43fc6524539354e92f16f12039a93b20"
+      },
+      "meme_machine/lanes/pump/legacy_raydium.py": {
+        "current_blob": "ca99962f1b747415da18ea9f7a96fa1bc37af13a",
+        "source_blob": "ca99962f1b747415da18ea9f7a96fa1bc37af13a"
+      },
+      "meme_machine/lanes/pump/market_native_priority.py": {
+        "current_blob": "cec104a9669f40fed9538d6ae0a26b48a77660a1",
+        "source_blob": "cec104a9669f40fed9538d6ae0a26b48a77660a1"
+      },
+      "meme_machine/lanes/pump/market_native_research.py": {
+        "current_blob": "9ddcbf485d12a5908eda00a4d139358bcec091c9",
+        "source_blob": "9ddcbf485d12a5908eda00a4d139358bcec091c9"
+      },
+      "meme_machine/lanes/pump/market_native_runtime.py": {
+        "current_blob": "012bf2b1eeb7583262bbaa15a188c7cc146722f1",
+        "source_blob": "012bf2b1eeb7583262bbaa15a188c7cc146722f1"
+      },
+      "meme_machine/lanes/pump/market_native_shadow.py": {
+        "current_blob": "459e52b9591a901c3f59998d99333bda9cc73320",
+        "source_blob": "459e52b9591a901c3f59998d99333bda9cc73320"
+      },
+      "meme_machine/lanes/pump/outcome_research.py": {
+        "current_blob": "395e55e887a7b1918f0b4e6a0390fe8cd30ce777",
+        "source_blob": "395e55e887a7b1918f0b4e6a0390fe8cd30ce777"
+      },
+      "meme_machine/lanes/pump/paper_accounting.py": {
+        "current_blob": "38dabfe57c0108ef8bfe4a3ee84334d6e1be6ca2",
+        "source_blob": "38dabfe57c0108ef8bfe4a3ee84334d6e1be6ca2"
+      },
+      "meme_machine/lanes/pump/pipeline.py": {
+        "current_blob": "611f747249f7107fa4877e0e2b48f537d5d059ad",
+        "source_blob": "611f747249f7107fa4877e0e2b48f537d5d059ad"
+      },
+      "meme_machine/lanes/pump/postgrad.py": {
+        "current_blob": "6fd38403aa65fb5722a380f946018e6b42e83ac7",
+        "source_blob": "6fd38403aa65fb5722a380f946018e6b42e83ac7"
+      },
+      "meme_machine/lanes/pump/postgrad_resolver.py": {
+        "current_blob": "62fbddc54e48274e7d6962fd4cc2a9ae27e70327",
+        "source_blob": "62fbddc54e48274e7d6962fd4cc2a9ae27e70327"
+      },
+      "meme_machine/lanes/pump/provider.py": {
+        "current_blob": "970a7fe38df1beb2349c7d2668b6572c11aa2c32",
+        "source_blob": "970a7fe38df1beb2349c7d2668b6572c11aa2c32"
+      },
+      "meme_machine/lanes/pump/pump.py": {
+        "current_blob": "bf56ba7830df6d3794ae82012795044ea8ca2514",
+        "source_blob": "bf56ba7830df6d3794ae82012795044ea8ca2514"
+      },
+      "meme_machine/lanes/pump/pump_acceleration_confirmations.py": {
+        "current_blob": "8af9e02fd0bc277a7b674ac81cf1d7a3fb319ac9",
+        "source_blob": "8af9e02fd0bc277a7b674ac81cf1d7a3fb319ac9"
+      },
+      "meme_machine/lanes/pump/pump_acceleration_evidence.py": {
+        "current_blob": "76fb177e7101bcccae57c6bc9d593c8f58a3edab",
+        "source_blob": "76fb177e7101bcccae57c6bc9d593c8f58a3edab"
+      },
+      "meme_machine/lanes/pump/pump_acceleration_history.py": {
+        "current_blob": "6c8f45bb289779793c6f6adc1d86a075eb4c863f",
+        "source_blob": "6c8f45bb289779793c6f6adc1d86a075eb4c863f"
+      },
+      "meme_machine/lanes/pump/pump_acceleration_paper.py": {
+        "current_blob": "bab0c58fff7e05dccfd762a904fc953a44d816ae",
+        "source_blob": "bab0c58fff7e05dccfd762a904fc953a44d816ae"
+      },
+      "meme_machine/lanes/pump/pump_acceleration_strategy.py": {
+        "current_blob": "03b6cc705f7241093a67cf888a9a4349c0b84306",
+        "source_blob": "03b6cc705f7241093a67cf888a9a4349c0b84306"
+      },
+      "meme_machine/lanes/pump/pump_evidence_execution.py": {
+        "current_blob": "0020dec7facf85e60b18868b68807b189dd233ae",
+        "source_blob": "0020dec7facf85e60b18868b68807b189dd233ae"
+      },
+      "meme_machine/lanes/pump/pumpswap_runtime.py": {
+        "current_blob": "0153ecccf88659a65699a529fe145485932bc68a",
+        "source_blob": "0153ecccf88659a65699a529fe145485932bc68a"
+      },
+      "meme_machine/lanes/pump/pumpswap_survivor.py": {
+        "current_blob": "b7c63e7bc7784352b1276ef1bce7013db624770e",
+        "source_blob": "b7c63e7bc7784352b1276ef1bce7013db624770e"
+      },
+      "meme_machine/lanes/pump/pumpswap_survivor_evidence.py": {
+        "current_blob": "3c119a1fdfaaa913d83700fc7c589fd19354e693",
+        "source_blob": "3c119a1fdfaaa913d83700fc7c589fd19354e693"
+      },
+      "meme_machine/lanes/pump/pumpswap_survivor_runtime.py": {
+        "current_blob": "967a4b306e50e4a5cf9f882426155956f8ddeca3",
+        "source_blob": "967a4b306e50e4a5cf9f882426155956f8ddeca3"
+      },
+      "meme_machine/lanes/pump/rejected_winner_trajectory.py": {
+        "current_blob": "cdde5757bcc93a1fcb0fd2702c93cf1c38b6e9bc",
+        "source_blob": "cdde5757bcc93a1fcb0fd2702c93cf1c38b6e9bc"
+      },
+      "meme_machine/lanes/pump/research.py": {
+        "current_blob": "8119da450b76e658c3316bbe42b32b3a5e036d8c",
+        "source_blob": "8119da450b76e658c3316bbe42b32b3a5e036d8c"
+      },
+      "meme_machine/lanes/pump/runner.py": {
+        "current_blob": "eea9355089023f98d94636f7e8b4c541c1ab4841",
+        "source_blob": "eea9355089023f98d94636f7e8b4c541c1ab4841"
+      },
+      "meme_machine/lanes/pump/solana_archive_snapshot.py": {
+        "current_blob": "2bb30f9eb3467d9e7914c2fe5266aa4ccf32330b",
+        "source_blob": "2bb30f9eb3467d9e7914c2fe5266aa4ccf32330b"
+      },
+      "meme_machine/lanes/pump/solana_checkpoint.py": {
+        "current_blob": "f1608116b8fa4a5100a46e16f75649659ffe604f",
+        "source_blob": "f1608116b8fa4a5100a46e16f75649659ffe604f"
+      },
+      "meme_machine/lanes/pump/solana_evidence_broker.py": {
+        "current_blob": "49e6e0d1f50d70b0a9d5fa53d5f22a20cbdf1ce5",
+        "source_blob": "49e6e0d1f50d70b0a9d5fa53d5f22a20cbdf1ce5"
+      },
+      "meme_machine/lanes/pump/solana_evidence_consumers.py": {
+        "current_blob": "34a03dc7c43514d6b651513137e27aed0389da6a",
+        "source_blob": "34a03dc7c43514d6b651513137e27aed0389da6a"
+      },
+      "meme_machine/lanes/pump/solana_evidence_control.py": {
+        "current_blob": "98d3446a408e27f86e4152a12459fe9d146f2e7e",
+        "source_blob": "98d3446a408e27f86e4152a12459fe9d146f2e7e"
+      },
+      "meme_machine/lanes/pump/solana_evidence_health.py": {
+        "current_blob": "54d12e38711e2330ebf3cdc52f0e5e8ad1a144c9",
+        "source_blob": "54d12e38711e2330ebf3cdc52f0e5e8ad1a144c9"
+      },
+      "meme_machine/lanes/pump/solana_evidence_plane.py": {
+        "current_blob": "aa873114bcb193fe9ecc000a7b674d42fa53ff2b",
+        "source_blob": "aa873114bcb193fe9ecc000a7b674d42fa53ff2b"
+      },
+      "meme_machine/lanes/pump/solana_evidence_queries.py": {
+        "current_blob": "6534ccad16fcd95f4340dc2e869ff3a93c244af7",
+        "source_blob": "6534ccad16fcd95f4340dc2e869ff3a93c244af7"
+      },
+      "meme_machine/lanes/pump/solana_evidence_runtime.py": {
+        "current_blob": "72b0d426f1dd473e91ed448ecd17765fc21b7183",
+        "source_blob": "72b0d426f1dd473e91ed448ecd17765fc21b7183"
+      },
+      "meme_machine/lanes/pump/solana_evidence_service.py": {
+        "current_blob": "2818070034000fb25e58301d7cd40e27a568dd1e",
+        "source_blob": "2818070034000fb25e58301d7cd40e27a568dd1e"
+      },
+      "meme_machine/lanes/pump/solana_evidence_storage.py": {
+        "current_blob": "8e67e5e8d3acf5118344ea7fd4bd6083e7cd9af3",
+        "source_blob": "8e67e5e8d3acf5118344ea7fd4bd6083e7cd9af3"
+      },
+      "meme_machine/lanes/pump/solana_evidence_transport.py": {
+        "current_blob": "8ad77d49e4155bf60ad2ae60ab92fb55875b7d02",
+        "source_blob": "8ad77d49e4155bf60ad2ae60ab92fb55875b7d02"
+      },
+      "meme_machine/lanes/pump/solana_immutable_rpc.py": {
+        "current_blob": "46afaade48b4fa29abc0e15a9d99d93ae7273c5d",
+        "source_blob": "46afaade48b4fa29abc0e15a9d99d93ae7273c5d"
+      },
+      "meme_machine/lanes/pump/solana_maintenance_arbiter.py": {
+        "current_blob": "337bb569ec5920497dd012c01a14c36fdea2518a",
+        "source_blob": "337bb569ec5920497dd012c01a14c36fdea2518a"
+      },
+      "meme_machine/lanes/pump/solana_maintenance_runtime.py": {
+        "current_blob": "ee777e5c605646dbc105614eb8335caeaab1535a",
+        "source_blob": "ee777e5c605646dbc105614eb8335caeaab1535a"
+      },
+      "meme_machine/lanes/pump/solana_maintenance_state.py": {
+        "current_blob": "92e7d69d4e5af4f5946aaad19ce4062563670976",
+        "source_blob": "92e7d69d4e5af4f5946aaad19ce4062563670976"
+      },
+      "meme_machine/lanes/pump/solana_owner_admission.py": {
+        "current_blob": "e6b7544038804ef942a75ed4b0e882636335942b",
+        "source_blob": "e6b7544038804ef942a75ed4b0e882636335942b"
+      },
+      "meme_machine/lanes/pump/solana_program_decoders.py": {
+        "current_blob": "025f4d80d3e4f7011587f1993b029130a6840d24",
+        "source_blob": "025f4d80d3e4f7011587f1993b029130a6840d24"
+      },
+      "meme_machine/lanes/pump/solana_provider_config.py": {
+        "current_blob": "fc6084825f23e9339309df6385346ba5991cd683",
+        "source_blob": "fc6084825f23e9339309df6385346ba5991cd683"
+      },
+      "meme_machine/lanes/pump/solana_read_rpc.py": {
+        "current_blob": "f6c2bf1496d0981f12a32c8d6492a832774a4fa4",
+        "source_blob": "f6c2bf1496d0981f12a32c8d6492a832774a4fa4"
+      },
+      "meme_machine/lanes/pump/solana_retention_outcome.py": {
+        "current_blob": "ab602323f7a1d2bbce91c12b0a79d9f388337018",
+        "source_blob": "ab602323f7a1d2bbce91c12b0a79d9f388337018"
+      },
+      "meme_machine/lanes/pump/solana_signature_identity.py": {
+        "current_blob": "8b7b8205eb6a2c4f11836a2677655127e98b9393",
+        "source_blob": "8b7b8205eb6a2c4f11836a2677655127e98b9393"
+      },
+      "meme_machine/lanes/pump/store.py": {
+        "current_blob": "dcbeceedb31af61b1d0ad823f052c25bf8e3d92c",
+        "source_blob": "dcbeceedb31af61b1d0ad823f052c25bf8e3d92c"
+      },
+      "meme_machine/lanes/pump/stream.py": {
+        "current_blob": "b73aaa9cfc0b964e3d9c34f2a24a61464158ca36",
+        "source_blob": "b73aaa9cfc0b964e3d9c34f2a24a61464158ca36"
+      },
+      "meme_machine/lanes/pump/wallets.py": {
+        "current_blob": "53fd586dd4d4b4fbc6003844f58409088197e541",
+        "source_blob": "53fd586dd4d4b4fbc6003844f58409088197e541"
+      },
+      "meme_machine/lanes/ramses/RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V3.json": {
+        "current_blob": "5e3daf074cd19a7e2fdc8b88f14f86c460799286",
+        "source_blob": "5e3daf074cd19a7e2fdc8b88f14f86c460799286"
+      },
+      "meme_machine/lanes/ramses/RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V4.json": {
+        "current_blob": "28d09bf02c9f368c12276ea9875b3597e4382a6e",
+        "source_blob": "28d09bf02c9f368c12276ea9875b3597e4382a6e"
+      },
+      "meme_machine/lanes/ramses/__init__.py": {
+        "current_blob": "8226bf840d4ca7d2a27401712b729a8ab94cfb10",
+        "source_blob": "8226bf840d4ca7d2a27401712b729a8ab94cfb10"
+      },
+      "meme_machine/lanes/ramses/abi.py": {
+        "current_blob": "6764c9cee69e33fc5004c9901155ec080d468e03",
+        "source_blob": "6764c9cee69e33fc5004c9901155ec080d468e03"
+      },
+      "meme_machine/lanes/ramses/continuation_robinhood.py": {
+        "current_blob": "7b1ba242fc4c74ab397a7567684110b6cae97a94",
+        "source_blob": "7b1ba242fc4c74ab397a7567684110b6cae97a94"
+      },
+      "meme_machine/lanes/ramses/continuation_robinhood_cohort.py": {
+        "current_blob": "abe03bfac172e495ebdc85f64758ccb80f02ac85",
+        "source_blob": "abe03bfac172e495ebdc85f64758ccb80f02ac85"
+      },
+      "meme_machine/lanes/ramses/continuation_robinhood_sample.py": {
+        "current_blob": "7d1ea688ca854ad5fcd03338783039f4c8d2dc2d",
+        "source_blob": "7d1ea688ca854ad5fcd03338783039f4c8d2dc2d"
+      },
+      "meme_machine/lanes/ramses/directional.py": {
+        "current_blob": "54c012e53f4f97fb337d1a4879b7c35b6b98b769",
+        "source_blob": "54c012e53f4f97fb337d1a4879b7c35b6b98b769"
+      },
+      "meme_machine/lanes/ramses/evidence.py": {
+        "current_blob": "c5ab15ac41a856eb3946e09372514cc41f2afb44",
+        "source_blob": "c5ab15ac41a856eb3946e09372514cc41f2afb44"
+      },
+      "meme_machine/lanes/ramses/evidence_queue.py": {
+        "current_blob": "1b6f6752446b7a758cd10306bd693430a043b8bc",
+        "source_blob": "1b6f6752446b7a758cd10306bd693430a043b8bc"
+      },
+      "meme_machine/lanes/ramses/finality.py": {
+        "current_blob": "9cb53f5313cf0e969289fad072d4526b1cbda712",
+        "source_blob": "9cb53f5313cf0e969289fad072d4526b1cbda712"
+      },
+      "meme_machine/lanes/ramses/identity.py": {
+        "current_blob": "9637034ebda292e177279a0859e3c161a57ddc82",
+        "source_blob": "9637034ebda292e177279a0859e3c161a57ddc82"
+      },
+      "meme_machine/lanes/ramses/immutable_rpc.py": {
+        "current_blob": "0d10406874da4382bef780ca8bfce3ee94115e05",
+        "source_blob": "0d10406874da4382bef780ca8bfce3ee94115e05"
+      },
+      "meme_machine/lanes/ramses/keccak.py": {
+        "current_blob": "8986e98812f1b997039f57c38758ff75ad8161f7",
+        "source_blob": "8986e98812f1b997039f57c38758ff75ad8161f7"
+      },
+      "meme_machine/lanes/ramses/liquidity.py": {
+        "current_blob": "c3c3c6c51ff14add87cd12a76ba853b4928ecbdd",
+        "source_blob": "c3c3c6c51ff14add87cd12a76ba853b4928ecbdd"
+      },
+      "meme_machine/lanes/ramses/observability_probe.py": {
+        "current_blob": "a132142637190208f5d0a8c25092893f64091eef",
+        "source_blob": "a132142637190208f5d0a8c25092893f64091eef"
+      },
+      "meme_machine/lanes/ramses/outcomes.py": {
+        "current_blob": "ae14d254ca69adfd74268bef266730410d52f4a1",
+        "source_blob": "ae14d254ca69adfd74268bef266730410d52f4a1"
+      },
+      "meme_machine/lanes/ramses/paper.py": {
+        "current_blob": "d0de68c1f4b4121dd23df83835cbe4506c5d574d",
+        "source_blob": "d0de68c1f4b4121dd23df83835cbe4506c5d574d"
+      },
+      "meme_machine/lanes/ramses/pipeline.py": {
+        "current_blob": "de88e7075111ce617be5cfffe37fba3f2e58f687",
+        "source_blob": "de88e7075111ce617be5cfffe37fba3f2e58f687"
+      },
+      "meme_machine/lanes/ramses/pons.py": {
+        "current_blob": "af96fffcd2bc5b755364464be80bf2b67ce30023",
+        "source_blob": "af96fffcd2bc5b755364464be80bf2b67ce30023"
+      },
+      "meme_machine/lanes/ramses/pons_concentration.py": {
+        "current_blob": "a0a2259ff1ae4738fdce2b3150025101cf5c6590",
+        "source_blob": "a0a2259ff1ae4738fdce2b3150025101cf5c6590"
+      },
+      "meme_machine/lanes/ramses/pons_curve_template.json": {
+        "current_blob": "15035c5033ec1c879cae0bb1bdd5243a8773392c",
+        "source_blob": "15035c5033ec1c879cae0bb1bdd5243a8773392c"
+      },
+      "meme_machine/lanes/ramses/pons_lineage_capture.py": {
+        "current_blob": "1f3b7f56c85637e71ae160418450e483bc2bbf16",
+        "source_blob": "1f3b7f56c85637e71ae160418450e483bc2bbf16"
+      },
+      "meme_machine/lanes/ramses/pons_natural_observation.py": {
+        "current_blob": "0417a824d40e9c00361bf3ead5cdff52fc6e9d87",
+        "source_blob": "0417a824d40e9c00361bf3ead5cdff52fc6e9d87"
+      },
+      "meme_machine/lanes/ramses/pons_natural_paper.py": {
+        "current_blob": "c609149311f0ee514d5f9c3628824a78d3875570",
+        "source_blob": "c609149311f0ee514d5f9c3628824a78d3875570"
+      },
+      "meme_machine/lanes/ramses/probe.py": {
+        "current_blob": "97728a1a4983e9ea8f7b3f05868f91d55e5f75d5",
+        "source_blob": "97728a1a4983e9ea8f7b3f05868f91d55e5f75d5"
+      },
+      "meme_machine/lanes/ramses/protocol_probe.py": {
+        "current_blob": "092c3bce65cee2a5abeb1dbe8ce4114eeca86f3e",
+        "source_blob": "092c3bce65cee2a5abeb1dbe8ce4114eeca86f3e"
+      },
+      "meme_machine/lanes/ramses/protocols.py": {
+        "current_blob": "a5543e44de319c31d5646ec591abd0f6c72c0e8a",
+        "source_blob": "a5543e44de319c31d5646ec591abd0f6c72c0e8a"
+      },
+      "meme_machine/lanes/ramses/provider.py": {
+        "current_blob": "8bdff3e8926e49aa0b9e987415e08ea65f962bc2",
+        "source_blob": "8bdff3e8926e49aa0b9e987415e08ea65f962bc2"
+      },
+      "meme_machine/lanes/ramses/provider_admission.py": {
+        "current_blob": "af56ebe7dd6c49c198b6ee91b252ee96072e1e03",
+        "source_blob": "af56ebe7dd6c49c198b6ee91b252ee96072e1e03"
+      },
+      "meme_machine/lanes/ramses/provider_topology.py": {
+        "current_blob": "94cddc61e8cf0dea2d0db56e738ce545914af009",
+        "source_blob": "94cddc61e8cf0dea2d0db56e738ce545914af009"
+      },
+      "meme_machine/lanes/ramses/ramses.py": {
+        "current_blob": "7532dfab7ab4455a10c71d18bff4444f4229c0cb",
+        "source_blob": "7532dfab7ab4455a10c71d18bff4444f4229c0cb"
+      },
+      "meme_machine/lanes/ramses/ramses_active_wide_maker.py": {
+        "current_blob": "d7e8412d791e48078605f1fbb3c5dd6daf16014e",
+        "source_blob": "d7e8412d791e48078605f1fbb3c5dd6daf16014e"
+      },
+      "meme_machine/lanes/ramses/ramses_all_pool_lifecycle.py": {
+        "current_blob": "1ff2641f559eb0ed100f5ac3fa81baee3fd36e17",
+        "source_blob": "1ff2641f559eb0ed100f5ac3fa81baee3fd36e17"
+      },
+      "meme_machine/lanes/ramses/ramses_campaign.py": {
+        "current_blob": "645f0811caa39216c6e9f6eb533d7ef754774d02",
+        "source_blob": "645f0811caa39216c6e9f6eb533d7ef754774d02"
+      },
+      "meme_machine/lanes/ramses/ramses_capture.py": {
+        "current_blob": "d86f194c6f4c525d0a28c844d4ded18cb023ec60",
+        "source_blob": "d86f194c6f4c525d0a28c844d4ded18cb023ec60"
+      },
+      "meme_machine/lanes/ramses/ramses_costs.py": {
+        "current_blob": "4c471c278161f3e3f0df06a415994336ce464dd6",
+        "source_blob": "4c471c278161f3e3f0df06a415994336ce464dd6"
+      },
+      "meme_machine/lanes/ramses/ramses_evidence_coverage.py": {
+        "current_blob": "c542bae9f60066a88e3ac1a712cb5dda835862cb",
+        "source_blob": "c542bae9f60066a88e3ac1a712cb5dda835862cb"
+      },
+      "meme_machine/lanes/ramses/ramses_extended_test.py": {
+        "current_blob": "0bc16dc2d56b120f9cc6ffa9ad79f64a9e9ce2f4",
+        "source_blob": "0bc16dc2d56b120f9cc6ffa9ad79f64a9e9ce2f4"
+      },
+      "meme_machine/lanes/ramses/ramses_forced_paper.py": {
+        "current_blob": "7d44346e5d0be712e3c738d869cf01e95381e9a8",
+        "source_blob": "7d44346e5d0be712e3c738d869cf01e95381e9a8"
+      },
+      "meme_machine/lanes/ramses/ramses_lifecycle_log_census.py": {
+        "current_blob": "aa6e19d6904b1988e323aff97ab119cfa2ab9863",
+        "source_blob": "aa6e19d6904b1988e323aff97ab119cfa2ab9863"
+      },
+      "meme_machine/lanes/ramses/ramses_native_inventory_baseline.json": {
+        "current_blob": "a9922867988a471b3b5f458b96008657376989b4",
+        "source_blob": "a9922867988a471b3b5f458b96008657376989b4"
+      },
+      "meme_machine/lanes/ramses/ramses_paper.py": {
+        "current_blob": "aa2e3c69c7e67c7b5a474b7a695e5078e205760b",
+        "source_blob": "aa2e3c69c7e67c7b5a474b7a695e5078e205760b"
+      },
+      "meme_machine/lanes/ramses/ramses_strategy.py": {
+        "current_blob": "2a5c205d207dde107df8cc39ea161d2837846697",
+        "source_blob": "2a5c205d207dde107df8cc39ea161d2837846697"
+      },
+      "meme_machine/lanes/ramses/ramses_strategy_ledger.py": {
+        "current_blob": "40b9a42706d15db2bdb10fd2caab49d5398319fe",
+        "source_blob": "40b9a42706d15db2bdb10fd2caab49d5398319fe"
+      },
+      "meme_machine/lanes/ramses/ramses_strategy_sample.py": {
+        "current_blob": "b362d64263771063291259b3a4b9880f8f42c225",
+        "source_blob": "b362d64263771063291259b3a4b9880f8f42c225"
+      },
+      "meme_machine/lanes/ramses/ramses_universe.py": {
+        "current_blob": "bf63dece3d07292a4b53e9c9f2779b57b59d3287",
+        "source_blob": "bf63dece3d07292a4b53e9c9f2779b57b59d3287"
+      },
+      "meme_machine/lanes/ramses/registry.json": {
+        "current_blob": "8341f3a0008062db1050885a01305ad3013569f2",
+        "source_blob": "8341f3a0008062db1050885a01305ad3013569f2"
+      },
+      "meme_machine/lanes/ramses/sequencer_feed.py": {
+        "current_blob": "6008e4387673bfbfe5659e610868b2cf652640db",
+        "source_blob": "6008e4387673bfbfe5659e610868b2cf652640db"
+      },
+      "meme_machine/lanes/ramses/verified/pons_deployer.json": {
+        "current_blob": "ea08ec0f0137ac0592bf978e4e0cf2a5abb89260",
+        "source_blob": "ea08ec0f0137ac0592bf978e4e0cf2a5abb89260"
+      },
+      "meme_machine/lanes/ramses/verified/pons_executor.json": {
+        "current_blob": "7f39c3fe61c53f89b8b9374779f2f58f631e85f6",
+        "source_blob": "7f39c3fe61c53f89b8b9374779f2f58f631e85f6"
+      },
+      "meme_machine/lanes/ramses/verified/pons_v1_factory.json": {
+        "current_blob": "3e519e524e051281c8707f23208d322c11b19808",
+        "source_blob": "3e519e524e051281c8707f23208d322c11b19808"
+      },
+      "meme_machine/lanes/ramses/verified/pons_v2_factory.json": {
+        "current_blob": "f9fffe1c03013c8c3da674d05c510766e7d4e2ec",
+        "source_blob": "f9fffe1c03013c8c3da674d05c510766e7d4e2ec"
+      },
+      "meme_machine/lanes/ramses/verified/pons_v2_hook.json": {
+        "current_blob": "c8c98e14e15f5a0a28618fb0e35db8e024b27524",
+        "source_blob": "c8c98e14e15f5a0a28618fb0e35db8e024b27524"
+      },
+      "meme_machine/lanes/ramses/verified/ramses_factory.json": {
+        "current_blob": "6e56517269e17890b154532cb413890930655ac1",
+        "source_blob": "6e56517269e17890b154532cb413890930655ac1"
+      },
+      "meme_machine/lanes/ramses/verified/ramses_fee_collector.json": {
+        "current_blob": "7344b1800f4dcd0a060829e9a43f8aa1c5bf60a2",
+        "source_blob": "7344b1800f4dcd0a060829e9a43f8aa1c5bf60a2"
+      },
+      "meme_machine/lanes/ramses/verified/ramses_pool_implementation.json": {
+        "current_blob": "fa401ec70a069cd65fe0e6a74bfcba960128cfc0",
+        "source_blob": "fa401ec70a069cd65fe0e6a74bfcba960128cfc0"
+      },
+      "meme_machine/lanes/ramses/verified/ramses_quoter.json": {
+        "current_blob": "53d0bafd0c1383c16bae8cfb47d90800e40dc3cc",
+        "source_blob": "53d0bafd0c1383c16bae8cfb47d90800e40dc3cc"
+      },
+      "meme_machine/lanes/ramses/verified/ramses_router.json": {
+        "current_blob": "c0461f18ff1e5eab7e9b72615493a026b5c73393",
+        "source_blob": "c0461f18ff1e5eab7e9b72615493a026b5c73393"
+      },
+      "meme_machine/lanes/ramses/verified/uniswap_v3_factory.json": {
+        "current_blob": "bedec77a2a2b3f6852e3f1b6e86a560a688d81f8",
+        "source_blob": "bedec77a2a2b3f6852e3f1b6e86a560a688d81f8"
+      },
+      "meme_machine/lanes/ramses/verified/uniswap_v4_manager.json": {
+        "current_blob": "7d74183bb6b4962ea2bb54d974180882e58fddea",
+        "source_blob": "7d74183bb6b4962ea2bb54d974180882e58fddea"
+      },
+      "meme_machine/operational/__init__.py": {
+        "current_blob": "334539a7eae5d72343d26c9f479c60703e07bb61",
+        "source_blob": "334539a7eae5d72343d26c9f479c60703e07bb61"
+      },
+      "meme_machine/operational/__main__.py": {
+        "current_blob": "d8ad0de034e32c7090fcf46dd48ecf1f370e68a9",
+        "source_blob": "d8ad0de034e32c7090fcf46dd48ecf1f370e68a9"
+      },
+      "meme_machine/operational/acceptance.py": {
+        "current_blob": "2a9340ab73bec6c0d27c8271477f2125ed88eac1",
+        "source_blob": "2a9340ab73bec6c0d27c8271477f2125ed88eac1"
+      },
+      "meme_machine/operational/backup.py": {
+        "current_blob": "f30c3ba21e5746016c0a3110fb81547e6b59d737",
+        "source_blob": "f30c3ba21e5746016c0a3110fb81547e6b59d737"
+      },
+      "meme_machine/operational/configuration.py": {
+        "current_blob": "46e7985a3c6cb744809163da3e348c327a46f6ef",
+        "source_blob": "46e7985a3c6cb744809163da3e348c327a46f6ef"
+      },
+      "meme_machine/operational/digitalocean.py": {
+        "current_blob": "970aab0388208c3cb3848cad7727159f6d5f83db",
+        "source_blob": "970aab0388208c3cb3848cad7727159f6d5f83db"
+      },
+      "meme_machine/operational/digitalocean_backup.py": {
+        "current_blob": "fe3839f3e32ea33d6674186b5d8e32d64e0d6be8",
+        "source_blob": "fe3839f3e32ea33d6674186b5d8e32d64e0d6be8"
+      },
+      "meme_machine/operational/durable_acceptance.py": {
+        "current_blob": "8c61ec2456df9702d575b3104ba6089406798b80",
+        "source_blob": "8c61ec2456df9702d575b3104ba6089406798b80"
+      },
+      "meme_machine/operational/lane.py": {
+        "current_blob": "60e753f1363785274f604b7323028057190802b3",
+        "source_blob": "60e753f1363785274f604b7323028057190802b3"
+      },
+      "meme_machine/operational/metrics.py": {
+        "current_blob": "68e0a3eeaa5a17b60efe15734e3aa925b236d0b1",
+        "source_blob": "68e0a3eeaa5a17b60efe15734e3aa925b236d0b1"
+      },
+      "meme_machine/operational/monitoring.py": {
+        "current_blob": "6b71d021e37170b44f7269ceee8a96f0eecabd11",
+        "source_blob": "6b71d021e37170b44f7269ceee8a96f0eecabd11"
+      },
+      "meme_machine/operational/observation.py": {
+        "current_blob": "b34c601d5df3b83175d6d1cf0b906ffe790ad98e",
+        "source_blob": "b34c601d5df3b83175d6d1cf0b906ffe790ad98e"
+      },
+      "meme_machine/operational/offline-market.json": {
+        "current_blob": "18bd13f168408a5ddfa0b9d7c8ea25792b58aa88",
+        "source_blob": "18bd13f168408a5ddfa0b9d7c8ea25792b58aa88"
+      },
+      "meme_machine/operational/offline.py": {
+        "current_blob": "76a67d2ea870b67f10de516c144ae9144ac0f43c",
+        "source_blob": "76a67d2ea870b67f10de516c144ae9144ac0f43c"
+      },
+      "meme_machine/operational/storage_guard.py": {
+        "current_blob": "9c314c8d2393f9b66d1e855a5dbc124b429d8405",
+        "source_blob": "9c314c8d2393f9b66d1e855a5dbc124b429d8405"
+      },
+      "meme_machine/operational/storage_measurement.py": {
+        "current_blob": "899f4c43b344496ecf98b10d73881c48be95e605",
+        "source_blob": "899f4c43b344496ecf98b10d73881c48be95e605"
+      },
+      "meme_machine/operational/supervisor.py": {
+        "current_blob": "88b8ddb51d358cf1a55aed96483401e3eb894254",
+        "source_blob": "88b8ddb51d358cf1a55aed96483401e3eb894254"
+      },
+      "meme_machine/operational/uptime_health.py": {
+        "current_blob": "b175345c370b34b1fa9d4c835d922466fd80f4c3",
+        "source_blob": "b175345c370b34b1fa9d4c835d922466fd80f4c3"
+      },
+      "meme_machine/runtime/directional_accounting.py": {
+        "current_blob": "751e02cf796b6658c5d7a4fa166284f4d10330ae",
+        "source_blob": "751e02cf796b6658c5d7a4fa166284f4d10330ae"
+      },
+      "meme_machine/runtime/directional_continuation.py": {
+        "current_blob": "7372ce12460fff9d03584c3e65e77f5a7b6c9d4a",
+        "source_blob": "7372ce12460fff9d03584c3e65e77f5a7b6c9d4a"
+      },
+      "meme_machine/runtime/directional_sleeve.py": {
+        "current_blob": "d1ad4b8326ceccd79d5e5579b638d9a879228271",
+        "source_blob": "d1ad4b8326ceccd79d5e5579b638d9a879228271"
+      },
+      "meme_machine/runtime/execution_capacity.py": {
+        "current_blob": "c62a36988fc68071c08ceee14cdb2e7281e986e3",
+        "source_blob": "c62a36988fc68071c08ceee14cdb2e7281e986e3"
+      },
+      "meme_machine/runtime/sleeve_reservations.py": {
+        "current_blob": "b6efce34b4493bddd9752ea524a2940410521f04",
+        "source_blob": "b6efce34b4493bddd9752ea524a2940410521f04"
+      },
+      "meme_machine/runtime/survivor_commit.py": {
+        "current_blob": "cf1293a72b0cff28710d995c5e8f8cbd0de8a4bc",
+        "source_blob": "cf1293a72b0cff28710d995c5e8f8cbd0de8a4bc"
+      },
+      "meme_machine/runtime/survivor_history.py": {
+        "current_blob": "5e47abe80e40275b5543a7187800d80288fe7ba7",
+        "source_blob": "5e47abe80e40275b5543a7187800d80288fe7ba7"
+      },
+      "meme_machine/runtime/survivor_paper_book.py": {
+        "current_blob": "af7ddd1ecd0292e62c4fec3d0cd4688e9e1e8806",
+        "source_blob": "af7ddd1ecd0292e62c4fec3d0cd4688e9e1e8806"
+      },
+      "meme_machine/runtime/survivor_risk.py": {
+        "current_blob": "4ad06fca04c82ffc84783cb61e1f1b6ce56c8776",
+        "source_blob": "4ad06fca04c82ffc84783cb61e1f1b6ce56c8776"
+      },
+      "meme_machine/runtime/survivor_terminal_archive.py": {
+        "current_blob": "29689b9404a87fb369545e31fa8db0a137985711",
+        "source_blob": "29689b9404a87fb369545e31fa8db0a137985711"
+      }
+    },
+    "violations": []
+  },
+  "python": "3.12.14",
+  "queue_test": {
+    "candidate_queue_depth": 256,
+    "candidate_tickets_retained": 256,
+    "physical_interval_seconds": 0.5,
+    "position_admission_depth": 257,
+    "position_wait_seconds": 0
+  },
+  "requirements_sha256": "628605787f3a0ca904665688e29ff9446b79015fd8b0129a65c43fcab519766a",
+  "schema": "pons-finalization-verification-v1",
+  "shared_governor": {
+    "errors": [],
+    "failures": [],
+    "successful": true,
+    "tests": 26
+  },
+  "source_commit": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+  "source_tree": "65c2f85f1c67676372ab2b449499d76a17bb224f",
+  "suites": {
+    "affected-operational": {
+      "baseline": {
+        "elapsed_seconds": 290.1522073959932,
+        "errors": [],
+        "failures": [
+          {
+            "id": "tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged",
+            "trace": "Traceback (most recent call last):\n  File \"/tmp/pons-baseline-repo/tests/test_robinhood_usd_valuation.py\", line 572, in test_strategy_sources_and_nine_change_tests_byte_unchanged\n    self.assertEqual(current,baseline(rel),rel)\nAssertionError: b'\"\"\"[1599 chars]     queue_order INTEGER, last_cycle INTEGER,\\[9957 chars]l)\\n' != b'\"\"\"[1599 chars]     UNIQUE(invocation,pool));\\n            CR[7506 chars]l)\\n' : meme_machine/lanes/meteora/dlmm_discovery.py\n"
+          }
+        ],
+        "level": "AFFECTED_OPERATIONAL",
+        "skipped": [],
+        "successful": false,
+        "tests": 582
+      },
+      "failure_identity_parity": true,
+      "final": {
+        "elapsed_seconds": 143.3373048910289,
+        "errors": [],
+        "failures": [
+          {
+            "id": "tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged",
+            "trace": "Traceback (most recent call last):\n  File \"/root/Documents/Codex/2026-10-07/the-meme-machine-pons-end-to/repo/tests/test_robinhood_usd_valuation.py\", line 572, in test_strategy_sources_and_nine_change_tests_byte_unchanged\n    self.assertEqual(current,baseline(rel),rel)\nAssertionError: b'\"\"\"[1599 chars]     queue_order INTEGER, last_cycle INTEGER,\\[9957 chars]l)\\n' != b'\"\"\"[1599 chars]     UNIQUE(invocation,pool));\\n            CR[7506 chars]l)\\n' : meme_machine/lanes/meteora/dlmm_discovery.py\n"
+          }
+        ],
+        "level": "AFFECTED_OPERATIONAL",
+        "skipped": [],
+        "successful": false,
+        "tests": 630
+      },
+      "new_failure_identities": [],
+      "removed_failure_identities": []
+    },
+    "fast": {
+      "baseline": {
+        "elapsed_seconds": 54.01609294698574,
+        "errors": [],
+        "failures": [
+          {
+            "id": "tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged",
+            "trace": "Traceback (most recent call last):\n  File \"/root/Documents/Codex/2026-10-07/the-meme-machine-pons-end-to/repo/tests/test_robinhood_usd_valuation.py\", line 572, in test_strategy_sources_and_nine_change_tests_byte_unchanged\n    self.assertEqual(current,baseline(rel),rel)\nAssertionError: b'\"\"\"[1599 chars]     queue_order INTEGER, last_cycle INTEGER,\\[9957 chars]l)\\n' != b'\"\"\"[1599 chars]     UNIQUE(invocation,pool));\\n            CR[7506 chars]l)\\n' : meme_machine/lanes/meteora/dlmm_discovery.py\n"
+          }
+        ],
+        "level": "FAST",
+        "skipped": [],
+        "successful": false,
+        "tests": 496
+      },
+      "failure_identity_parity": true,
+      "final": {
+        "elapsed_seconds": 70.9948420849978,
+        "errors": [],
+        "failures": [
+          {
+            "id": "tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged",
+            "trace": "Traceback (most recent call last):\n  File \"/root/Documents/Codex/2026-10-07/the-meme-machine-pons-end-to/repo/tests/test_robinhood_usd_valuation.py\", line 572, in test_strategy_sources_and_nine_change_tests_byte_unchanged\n    self.assertEqual(current,baseline(rel),rel)\nAssertionError: b'\"\"\"[1599 chars]     queue_order INTEGER, last_cycle INTEGER,\\[9957 chars]l)\\n' != b'\"\"\"[1599 chars]     UNIQUE(invocation,pool));\\n            CR[7506 chars]l)\\n' : meme_machine/lanes/meteora/dlmm_discovery.py\n"
+          }
+        ],
+        "level": "FAST",
+        "skipped": [],
+        "successful": false,
+        "tests": 542
+      },
+      "new_failure_identities": [],
+      "removed_failure_identities": []
+    },
+    "pons": {
+      "baseline": {
+        "elapsed_seconds": 42.61801358498633,
+        "errors": [],
+        "failures": [],
+        "level": "PONS",
+        "skipped": [],
+        "successful": true,
+        "tests": 376
+      },
+      "failure_identity_parity": true,
+      "final": {
+        "elapsed_seconds": 60.77922235999722,
+        "errors": [],
+        "failures": [],
+        "level": "PONS",
+        "skipped": [],
+        "successful": true,
+        "tests": 424
+      },
+      "new_failure_identities": [],
+      "removed_failure_identities": []
+    }
+  },
+  "zero_market_provider_calls": true
+}

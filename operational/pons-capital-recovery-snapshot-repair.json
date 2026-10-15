@@ -1,0 +1,7 @@
+{
+  "root_cause": "recover_shared_terminals replayed capital journal and projection without a read transaction; independently committed Pons reservation could produce false selective_cohort_projection_mismatch. Constructor invokes this during concurrent lifecycle work.",
+  "negative_reproduction": "Actual two CohortCapital WAL connections and actual shared SleeveReservations; writer.reserve interleaved after original journal query. One test ERROR in .049s.",
+  "repair": "One deferred BEGIN on existing caller-local recovery snapshot connection; existing closing ends snapshot. No reservation/release/entry changes, no source authority/gates changed.",
+  "schema_compatibility": "Existing generated stores, no schema/epoch/accounting identity change. Exact lane source-byte comparison permits only this BEGIN.",
+  "regression": "tests.test_pons_capital_recovery_snapshot"
+}

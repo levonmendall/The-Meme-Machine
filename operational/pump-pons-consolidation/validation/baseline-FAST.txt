@@ -1,0 +1,176 @@
+...............................Executing <Task pending name='Task-12' coro=<StartupStorage.test_cold_records_retire_under_continuously_queued_source_work() running at /workspace/pump-pons-baseline/tests/test_startup_storage.py:33> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/base_events.py:181] created at /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/runners.py:100> took 0.297 seconds
+.Executing <Task pending name='Task-17' coro=<StartupStorage.test_cold_return_discharges_expired_source_debt_without_renewing_deadline() running at /workspace/pump-pons-baseline/tests/test_startup_storage.py:56> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/base_events.py:181] created at /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/runners.py:100> took 0.128 seconds
+...Executing <Task pending name='Task-32' coro=<StartupStorage.test_dense_released_evidence_recovers_with_bounded_source_queue_waits() running at /workspace/pump-pons-baseline/tests/test_startup_storage.py:118> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/base_events.py:181] created at /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/runners.py:100> took 0.909 seconds
+........Executing <Task finished name='Task-72' coro=<StartupStorage.test_sparse_address_pin_observation_fits_existing_vm_budget() done, defined at /workspace/pump-pons-baseline/tests/test_startup_storage.py:304> result=None created at /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/runners.py:100> took 2.073 seconds
+............................................................F.FFFEFF.FEFF..............................opportunity publication failed: IntegrityError
+.................................F................opportunity schema unavailable: RuntimeError
+opportunity schema unavailable: RuntimeError
+..opportunity publication failed: ValueError
+.............................................................................................................................................................................................................................................................................................................
+======================================================================
+ERROR: test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 93, in test_observer_can_verify_readonly_mount_without_relaxing_startup
+    self.assertEqual(verify_storage(self.root, require_writable=False)['epoch_id'],
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/pump-pons-baseline/meme_machine/operational/storage_guard.py", line 40, in verify_storage
+    raise StorageGuardError('storage_configuration_permissions')
+meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+
+======================================================================
+ERROR: test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 55, in test_valid_existing_identity_is_read_only
+    self.assertEqual(verify_storage(self.root)['epoch_id'], 'paper-preserved')
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/pump-pons-baseline/meme_machine/operational/storage_guard.py", line 40, in verify_storage
+    raise StorageGuardError('storage_configuration_permissions')
+meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+
+======================================================================
+FAIL: test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)
+----------------------------------------------------------------------
+meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 83, in test_cloned_filesystem_uuid_on_wrong_volume_is_rejected
+    self.assert_startup_rejected(dict(self.mounted, **{'maj:min':'8:1'}),
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+    with self.assertRaisesRegex(StorageGuardError, reason):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+
+======================================================================
+FAIL: test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)
+----------------------------------------------------------------------
+meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 70, in test_missing_mount_never_creates_replacement_epoch
+    self.assert_startup_rejected(dict(self.mounted, target='/', uuid='root-disk'),
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+    with self.assertRaisesRegex(StorageGuardError, reason):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+
+======================================================================
+FAIL: test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)
+----------------------------------------------------------------------
+meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 108, in test_missing_portfolio_cannot_reseed
+    self.assert_startup_rejected(self.mounted, 'existing_portfolio_required')
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+    with self.assertRaisesRegex(StorageGuardError, reason):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "existing_portfolio_required" does not match "storage_configuration_permissions"
+
+======================================================================
+FAIL: test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)
+----------------------------------------------------------------------
+meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 79, in test_nested_mount_rejected
+    self.assert_startup_rejected(dict(self.mounted, target=str(self.root)),
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+    with self.assertRaisesRegex(StorageGuardError, reason):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+
+======================================================================
+FAIL: test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)
+----------------------------------------------------------------------
+meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 87, in test_readonly_mount_rejected
+    self.assert_startup_rejected(dict(self.mounted, options='ro,noatime'),
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+    with self.assertRaisesRegex(StorageGuardError, reason):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+
+======================================================================
+FAIL: test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)
+----------------------------------------------------------------------
+meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 102, in test_readonly_observer_still_rejects_cloned_wrong_volume
+    with self.assertRaisesRegex(StorageGuardError, 'expected_persistent_volume_not_mounted'):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+
+======================================================================
+FAIL: test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)
+----------------------------------------------------------------------
+meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 113, in test_unbound_portfolio_cannot_reseed
+    self.assert_startup_rejected(self.mounted, 'existing_portfolio_inception_required')
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+    with self.assertRaisesRegex(StorageGuardError, reason):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "existing_portfolio_inception_required" does not match "storage_configuration_permissions"
+
+======================================================================
+FAIL: test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)
+----------------------------------------------------------------------
+meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 118, in test_wrong_epoch_leaves_valid_existing_database_untouched
+    self.assert_startup_rejected(self.mounted, 'existing_PAPER_epoch_identity_mismatch')
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+    with self.assertRaisesRegex(StorageGuardError, reason):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "existing_PAPER_epoch_identity_mismatch" does not match "storage_configuration_permissions"
+
+======================================================================
+FAIL: test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)
+----------------------------------------------------------------------
+meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 75, in test_wrong_volume_rejected_before_any_writer
+    self.assert_startup_rejected(dict(self.mounted, uuid='wrong-filesystem'),
+  File "/workspace/pump-pons-baseline/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+    with self.assertRaisesRegex(StorageGuardError, reason):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+
+======================================================================
+FAIL: test_strategy_sources_and_nine_change_tests_byte_unchanged (tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/pump-pons-baseline/tests/test_robinhood_usd_valuation.py", line 572, in test_strategy_sources_and_nine_change_tests_byte_unchanged
+    self.assertEqual(current,baseline(rel),rel)
+AssertionError: b'"""[1599 chars]     queue_order INTEGER, last_cycle INTEGER,\[9957 chars]l)\n' != b'"""[1599 chars]     UNIQUE(invocation,pool));\n            CR[7506 chars]l)\n' : meme_machine/lanes/meteora/dlmm_discovery.py
+
+----------------------------------------------------------------------
+Ran 499 tests in 11.625s
+
+FAILED (failures=10, errors=2)

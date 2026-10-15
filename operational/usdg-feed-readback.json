@@ -1,0 +1,102 @@
+{
+  "chain_id": 4663,
+  "feed": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2",
+  "block": {
+    "number": "0x4bdc170",
+    "hash": "0xc1428112e199645031d6d2026bd0b4648c1a9a39a5d93b3166372b0fbdbe514c",
+    "timestamp": "0x6ac1ab02"
+  },
+  "code_exists": true,
+  "code_prefix": "0x608060405234801561001057600080fd5b506004361061018d5760003560e01c80638f6b4d91116100e3578063bc43cbaf1161008c578063f2fde38b11610066578063f2fde38b1461042b578063f8a2abd31461045e578063feaf968c146104915761018d565b8063bc43cbaf146103fa578063c159730414610402578063e8",
+  "code_response_truncated": true,
+  "reads": [
+    {
+      "name": "description",
+      "result": "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000a55534447202f2055534400000000000000000000000000000000000000000000"
+    },
+    {
+      "name": "decimals",
+      "result": "0x0000000000000000000000000000000000000000000000000000000000000008"
+    },
+    {
+      "name": "round",
+      "result": "0x00000000000000000000000000000000000000000000000100000000000000790000000000000000000000000000000000000000000000000000000005f61789000000000000000000000000000000000000000000000000000000006ac121c5000000000000000000000000000000000000000000000000000000006ac121d10000000000000000000000000000000000000000000000010000000000000079"
+    },
+    {
+      "name": "aggregator",
+      "result": "0x0000000000000000000000008beee3503f6860d5dac4ce26b5eee92982951c2e"
+    },
+    {
+      "name": "version",
+      "result": "0x0000000000000000000000000000000000000000000000000000000000000006"
+    }
+  ],
+  "identity_source": "https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json",
+  "source_authority": "https://github.com/smartcontractkit/documentation/blob/main/src/features/data/chains.ts#L623",
+  "directory_record": {
+    "compareOffchain": "",
+    "contractAddress": "0x8bEeE3503F6860D5dac4cE26b5eEe92982951c2e",
+    "contractType": "",
+    "contractVersion": 6,
+    "decimalPlaces": null,
+    "ens": null,
+    "formatDecimalPlaces": null,
+    "healthPrice": "",
+    "heartbeat": 86400,
+    "history": null,
+    "multiply": "100000000",
+    "name": "USDG / USD",
+    "pair": [
+      "",
+      ""
+    ],
+    "path": "usdg-usd-shared-svr",
+    "proxyAddress": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2",
+    "secondaryProxyAddress": "0x901f56689360B89D7767a8acE28B7801e6348fa2",
+    "svrDisplayLabel": "Shared SVR",
+    "threshold": 0.5,
+    "valuePrefix": "",
+    "assetName": "Global Dollar",
+    "feedCategory": "medium",
+    "feedType": "Crypto",
+    "docs": {
+      "assetClass": "Crypto",
+      "assetSubClass": "Stablecoin",
+      "attributeType": "cex_price",
+      "baseAsset": "USDG",
+      "baseAssetClic": "USDG_CR",
+      "baseAssetEntityId": "crypto-USDG",
+      "blockchainName": "Robinhood",
+      "clicProductName": "USDG/USD-RefPrice-DF-Robinhood-001",
+      "deliveryChannelCode": "DF",
+      "marketHours": "Crypto",
+      "productSubType": "Reference",
+      "productType": "Price",
+      "productTypeCode": "RefPrice",
+      "quoteAsset": "USD",
+      "quoteAssetClic": "USD_FX",
+      "quoteAssetEntityId": "forex-USD",
+      "underlyingAsset": "forex-USD",
+      "underlyingAssetClic": "USD_FX"
+    },
+    "decimals": 8,
+    "maxSubmissionValue": "95780971304118053647396689196894323976171195136475135"
+  },
+  "verification_transport": "Existing Robinhood Production Read Alchemy application; read-only RPC",
+  "decoded": {
+    "description": "USDG / USD",
+    "feed_decimals": 8,
+    "usdg_token_decimals": 6,
+    "round_id": 18446744073709551737,
+    "answer": 100013961,
+    "usd_per_usdg": "1.00013961",
+    "started_at": 1791041989,
+    "updated_at": 1791042001,
+    "answered_in_round": 18446744073709551737,
+    "age_at_block_seconds": 35121,
+    "heartbeat_seconds": 86400,
+    "aggregator": "0x8bEeE3503F6860D5dac4cE26b5eEe92982951c2e",
+    "proxy_version": 6,
+    "aggregator_type_and_version": "DualAggregator 1.0.0"
+  }
+}

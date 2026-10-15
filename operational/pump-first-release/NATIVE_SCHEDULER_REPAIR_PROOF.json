@@ -1,0 +1,20 @@
+{
+  "parent_source": "da19fd5f89b7a2b9015bffdbd0b2d3b73fb1b892",
+  "changes": [
+    "Coalesce idle archive plans at original 100-ms cadence without caching successful claims or evidence",
+    "One canonical Pons shared physical-start governor; public observation retains its adaptive pacer",
+    "Bounded batched exact historical timestamp boundary with adjacent authenticated headers"
+  ],
+  "tests": {
+    "level": "OPERATIONAL",
+    "passed": 119,
+    "seconds": 12.953,
+    "log": "/tmp/native-scheduler-focused.log",
+    "sha256": "4ebba276a8a32bca0b3097efb0f909c9a19e70e77a2462baf5a9cbe17409e500"
+  },
+  "provider_requests_offline": 0,
+  "live_protection_proven": false,
+  "paper_activation": false,
+  "economic_rules_changed": false,
+  "buffer_limits_changed": false
+}

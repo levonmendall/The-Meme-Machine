@@ -1,0 +1,84 @@
+{
+  "authenticated_successor_throughput": "pending",
+  "base_source": "e2c1a771d420653275adabfbe7b677a86f09a23c",
+  "correction": {
+    "original_deadlines_unchanged": true,
+    "owner_priorities_unchanged": true,
+    "process": "shared Solana evidence worker only",
+    "provider_and_frame_limits_unchanged": true,
+    "restored_on_return_and_failure": true,
+    "sql_and_durability_unchanged": true,
+    "switch_seconds": "0.0005"
+  },
+  "facts": {
+    "authenticated_baseline": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CONTINUOUS_ACTUAL_WORKERS_1791850738731.json",
+    "baseline_completed_slots_per_second": "1.6008715695321005",
+    "baseline_cpu_cores": "1.7488814944641222",
+    "baseline_ending_lag_slots": 678,
+    "baseline_incoming_slots_per_second": "3.182713462160402",
+    "offline_proof": {
+      "chosen_0_5ms_seconds": "0.08441981906071305",
+      "default_5ms_seconds": "1.063218570081517",
+      "evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/native-owner-fairness-intervals-20261013.log",
+      "identical_records_ordering_and_outbox": true,
+      "performance_status": "controlled contention reproduction; not a live throughput guarantee",
+      "qualification_and_capital_changes": false,
+      "records": 64
+    },
+    "owner_sql_attribution": "/var/lib/meme-machine-observer/native-critical-path-1791851282.json"
+  },
+  "formal_acceptance_minutes": 0,
+  "normal_profile": {
+    "installed": false,
+    "path": "operational/pump-first-release/deployment/paper-continuous.four-regime.json",
+    "regimes": [
+      "pump_current",
+      "pump_survivor",
+      "pons_current",
+      "pons_survivor"
+    ],
+    "requires_actual_selected_regime_readiness": true,
+    "robinhood_rps": 10,
+    "runtime_expiration": false,
+    "solana_rps": 2,
+    "volume_quality_enabled": true
+  },
+  "pons_pacing": {
+    "coherent_validation_rps": 10,
+    "combined_native_and_usd_samples": 7,
+    "deadline_failures": 0,
+    "evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_COHERENT_TEN_RPS_RESULT.json",
+    "invoice_verified": false,
+    "max_full_turn_seconds": "2.3366753429872915",
+    "prefix_qualification_not_proven": true,
+    "prior_failed_validation_rps": 6,
+    "proposed_12_rps_not_dispatched": true,
+    "simultaneous_workers_rps": 10
+  },
+  "reviewed_file_sha256": {
+    "meme_machine/runtime/evidence_worker.py": "98e55a8d38dd612005a41d351838d14f7baf38cc8301413295b97a581b781143",
+    "operational/pump-first-release/deployment/paper-continuous.conf": "72a775ba90f357bd211f41a0c7d292b89e92a0c7567d03997398444a055ca596",
+    "operational/pump-first-release/deployment/paper-continuous.four-regime.json": "7d07d80ca00218e4a65b05c873cb10ae2686ebe9109cd7fd4d61d5b39e0e048f",
+    "tests/test_continuous_paper.py": "3ff11908578a01034021b896b9fc827d9abb9fc006ea9fb06b09074996c35101",
+    "tests/test_solana_closure.py": "da3b7e517be186506f677dec33ea125d06de9a82ee22c85014e45101de9d92d8"
+  },
+  "schema": "source-owner-fairness-repair-v1",
+  "scope": "Operating source process interpreter scheduling and coherent existing four-regime profile only",
+  "tests": {
+    "focused_fast": {
+      "evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/source-owner-fairness-focused-20261013.log",
+      "passed": 2
+    },
+    "operational": {
+      "evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/source-owner-fairness-operational-20261013.log",
+      "modules": [
+        "tests.test_solana_closure",
+        "tests.test_continuous_paper",
+        "tests.test_operational_capacity_repairs",
+        "tests.test_robinhood_usd_valuation"
+      ],
+      "passed": 158,
+      "seconds": "49.133"
+    }
+  }
+}

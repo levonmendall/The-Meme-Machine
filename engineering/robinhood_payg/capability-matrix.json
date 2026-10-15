@@ -1,0 +1,138 @@
+{
+  "schema": "robinhood-payg-capability-matrix-v1",
+  "date": "2026-10-08",
+  "applications": {
+    "pons": "v5h0vqr0wpp9zscj",
+    "pump": "9bin99s96t7ga5e9"
+  },
+  "previous_paid_admin_403_finding_superseded": true,
+  "old_masked_app_identity_is_not_current_authority": true,
+  "credentials_changed": false,
+  "live_provider_work_dispatched": false,
+  "rows": [
+    {
+      "feature": "PAYG account and apps",
+      "status": "VERIFIED_BY_OWNER",
+      "evidence": "Latest connectivity update; both app IDs visible in correct PAYG team",
+      "separate_authorization_for_provider_execution": false
+    },
+    {
+      "feature": "Configured Droplet canonical endpoints",
+      "status": "VERIFIED_OFFLINE",
+      "evidence": "Protected environment inspected; scheme/host/path and secret-domain fingerprints valid",
+      "separate_authorization_for_provider_execution": false
+    },
+    {
+      "feature": "Exact administrative key agreement",
+      "status": "NOT_INDEPENDENTLY_MEASURED",
+      "evidence": "Owner confirmed correct binding; current session MCP app calls return -32001 Unknown tool",
+      "separate_authorization_for_provider_execution": false
+    },
+    {
+      "feature": "Actual account usage analytics",
+      "status": "VERIFIED_BY_OWNER",
+      "evidence": "Approximately 1.73M CU / $0.91; app/network/method/request-type breakdown visible to owner; numeric series not returned in this session",
+      "separate_authorization_for_provider_execution": false
+    },
+    {
+      "feature": "Robinhood eth_chainId 4663",
+      "status": "VERIFIED_BY_OWNER",
+      "evidence": "Successful direct test reported by owner; not repeated here",
+      "separate_authorization_for_provider_execution": true
+    },
+    {
+      "feature": "Ten-block filtered eth_getLogs",
+      "status": "VERIFIED_PREVIOUS_ENDPOINT_AND_OFFLINE",
+      "evidence": "Previous bounded provider evidence; current operational fallback; upgraded endpoint not newly probed",
+      "separate_authorization_for_provider_execution": true
+    },
+    {
+      "feature": "Wider filtered Robinhood eth_getLogs",
+      "status": "DOCUMENTED_ONLY",
+      "evidence": "PAYG unlimited range / 150MB provider response cap; local response/work bounds remain; proposed forty-block exact-union comparison not executed",
+      "separate_authorization_for_provider_execution": true
+    },
+    {
+      "feature": "Address and positional topic OR filters",
+      "status": "DOCUMENTED_AND_OFFLINE_VALIDATED",
+      "evidence": "Exact complete native filters preserve dynamic curves and Pons-only V4 IDs; account filtered-stream test not run",
+      "separate_authorization_for_provider_execution": true
+    },
+    {
+      "feature": "Robinhood Alchemy WebSocket endpoint",
+      "status": "DOCUMENTED_ONLY",
+      "evidence": "Official connection page lists Alchemy WSS URL; no connection or subscription opened",
+      "separate_authorization_for_provider_execution": true
+    },
+    {
+      "feature": "eth_subscribe logs on this credential/network",
+      "status": "AUTHORIZATION_REQUIRED",
+      "evidence": "General Alchemy log filtering documented; account/network behavior and reconnect/billing unverified",
+      "separate_authorization_for_provider_execution": true
+    },
+    {
+      "feature": "PAYG throughput/concurrency",
+      "status": "DOCUMENTED_ONLY",
+      "evidence": "Published 300 RPS / 10k throughput CU per second; account shared capacity not verified; existing two RPS governor unchanged",
+      "separate_authorization_for_provider_execution": true
+    },
+    {
+      "feature": "HTTP RPC batching",
+      "status": "VERIFIED_PREVIOUS_AND_OFFLINE",
+      "evidence": "Existing four-log-element and fifty-hydration-element bounded batches; documented members individually billed",
+      "separate_authorization_for_provider_execution": true
+    },
+    {
+      "feature": "WebSocket delivery billing",
+      "status": "DOCUMENTED_ONLY",
+      "evidence": "EVM .04 CU/byte; Solana .0002 CU/byte; observed Solana WebSocket driver owner supplied; actual bytes unknown",
+      "separate_authorization_for_provider_execution": false
+    },
+    {
+      "feature": "Stateful log filters",
+      "status": "DOCUMENTED_ONLY",
+      "evidence": "Robinhood API method catalogue; expiry/connection lifecycle/replay behavior unverified; not selected",
+      "separate_authorization_for_provider_execution": true
+    },
+    {
+      "feature": "Enhanced block receipts/call batching/debug/trace",
+      "status": "DOCUMENTED_ONLY",
+      "evidence": "Retain existing capability-gated selective block-receipt and view helpers; no new probes or trace acquisition justified",
+      "separate_authorization_for_provider_execution": true
+    },
+    {
+      "feature": "Alchemy enhanced mined/pending subscriptions on Robinhood",
+      "status": "UNAVAILABLE_IN_DOCUMENTED_NETWORK_SCOPE",
+      "evidence": "Reviewed supported-network list does not include Robinhood; no assumption or attempted subscription",
+      "separate_authorization_for_provider_execution": true
+    },
+    {
+      "feature": "Forty-block capability comparison",
+      "status": "AUTHORIZATION_REQUIRED",
+      "evidence": "Separate revised 45-second limits prepared; cannot run under original ten-block 300-second plan",
+      "separate_authorization_for_provider_execution": true
+    },
+    {
+      "feature": "300-second forward provider proof",
+      "status": "AUTHORIZATION_REQUIRED",
+      "evidence": "Executable and offline tested; original pinned limits unchanged; live proof not run",
+      "separate_authorization_for_provider_execution": true
+    },
+    {
+      "feature": "Combined position/candidate operational certification",
+      "status": "PROVIDER_VALIDATION_REQUIRED",
+      "evidence": "Retained latency blocker; genuine complete candidate and funded-controller samples required",
+      "separate_authorization_for_provider_execution": true
+    }
+  ],
+  "sources": [
+    "https://www.alchemy.com/docs/chains/robinhood-chain/robinhood-chain-api-endpoints/eth-get-logs",
+    "https://www.alchemy.com/docs/reference/compute-unit-costs",
+    "https://www.alchemy.com/pricing",
+    "https://www.alchemy.com/docs/reference/throughput",
+    "https://www.alchemy.com/docs/reference/subscription-api",
+    "https://www.alchemy.com/docs/reference/logs",
+    "https://www.alchemy.com/docs/reference/batch-requests",
+    "https://docs.robinhood.com/chain/connecting/"
+  ]
+}

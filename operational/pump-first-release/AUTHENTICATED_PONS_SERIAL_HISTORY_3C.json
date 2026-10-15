@@ -1,0 +1,28 @@
+{
+  "source": "3c394784ee7f283e4586f86f68b3855a3757b72c",
+  "status": "FAIL_TWO_OWNER_POSTGRAD_ACQUISITION",
+  "reason": "pons_concurrent_protective_deadline_missed",
+  "stage": "cycle_financial_projection",
+  "started_at": 1791768875.0708363,
+  "ended_at": 1791768887.9461567,
+  "cold_start_seconds": 8.604405879974365,
+  "usage": {
+    "http_attempts": 51,
+    "rpc_elements": 247,
+    "rpc_cu": 7952,
+    "http_bytes": 421637,
+    "native_opens": 0
+  },
+  "modeled_public_upper_usd": "0.0041748",
+  "maximum_rss_kib": 350000,
+  "cpu_seconds": 2.4204660000000002,
+  "qualification_proven": false,
+  "full_protection": false,
+  "survivor_30_minute_history_proven": false,
+  "regimes_enabled": false,
+  "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_CONCURRENT_HISTORY_1791768875.json",
+  "sha256": "a9897a3ebc74a0ddabdaa22fe63e00b2e390358de0886a94e2c84a7fc3851698",
+  "protective_cycle_seconds": 4.264991566073149,
+  "original_deadline_seconds": 3,
+  "correction_to_test_next": "Use existing merged Current native quote/history with ordered fences and a separate governed USD session, not serial duplicate history reads"
+}

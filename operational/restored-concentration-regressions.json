@@ -1,0 +1,17 @@
+{
+  "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "source_path": "tests/test_concentration_reader.py",
+  "current_path": "tests/test_concentration_reader.py",
+  "suite": "OPERATIONAL",
+  "test_count": 15,
+  "result": "15PASS in0.063s",
+  "changes": "Original five assertion bodies unchanged; inherited against Pump and Meteora operational concentration/provider classes with scoped patches only.",
+  "invariants": [
+    "Mint-filter/8-byte compact finalized scan",
+    "Authenticated secondary, no primary expensive RPC when satisfied",
+    "Stale secondary cannot authorize, fresh primary required",
+    "Wrong network secondary never trusted",
+    "Both sources unavailable fails closed"
+  ],
+  "economic_change": "NONE"
+}

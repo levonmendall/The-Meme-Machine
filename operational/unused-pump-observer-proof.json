@@ -1,0 +1,32 @@
+{
+  "schema": "unused-pump-observer-proof-v1",
+  "at": 1791817037.8759665,
+  "parent_source": "7395886c2b82853898fc150769c2d172678c0f9f",
+  "files": {
+    "meme_machine/lanes/pump/runner.py": "6356b626c6bfedd1cc073d348f46c33aa92995798e56856a5fd4b7f858c002c1",
+    "tests/lanes/pump/test_evidence_runtime_cutover.py": "38123dc72a99a7f4793863725557ecd927315a7eaaa610f90410d63695929f6a"
+  },
+  "tests": [
+    {
+      "path": "/tmp/unused-pump-observer-fast.log",
+      "passed": 18,
+      "level": "FAST",
+      "sha256": "245b4a36d28095583f8b06678be359b65e36e1d8d9240ca76008bf6459ce34c8"
+    },
+    {
+      "path": "/tmp/unused-pump-observer-operational.log",
+      "passed": 12,
+      "level": "OPERATIONAL",
+      "sha256": "76d6ed5f4212423fbee35ad7b28c7b3cbd5723ea3f2fa226c258ab85e18ca679"
+    }
+  ],
+  "removed_acquisition": "One redundant finalized Pump logsSubscribe in the native Current manager.",
+  "retained_authority": "LocalPumpTape and LocalInterestRegistry still consume canonical shared Pump/PumpSwap feeds. All actual discovery, history, qualification and protective decisions already used this source.",
+  "source_proof": "The removed discovery_tape was referenced only by its PumpLogStream constructor; qualification and all report stream fields use LocalPumpTape. Its thread startup and cleanup had no economic consumer.",
+  "regression": "Actual recovered-candidate main loop retains original native qualification/provider calls and accounting identity; asserts no duplicate observer construction. Existing liveness, progression, execution cutover and live-PAPER acquisition checks pass.",
+  "provider_transport_difference": "One unnecessary log subscription removed; live delivered-byte/CU reduction has not been measured.",
+  "strategy_or_quote_changes": false,
+  "canonical_guards_unchanged": true,
+  "one_hour_acceptance": false,
+  "retained_startup_failure": "CONTINUOUS_ACTUAL_WORKERS_1791816489257.json: boot owner took 61.096 s while new partial index first installed, followed by mandatory maintenance_service_deadline_exhausted. No native streams opened. Existing index idempotence verified read-only at 0.000020451 s; next actual startup remains unproved. Maintenance deadlines and failure assertions unchanged."
+}

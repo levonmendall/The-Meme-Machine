@@ -1,0 +1,19 @@
+{
+  "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "paths": [
+    "tests/test_solana_evidence_queries.py",
+    "tests/test_solana_evidence_fences.py"
+  ],
+  "transfer": "Exact historical bytes unchanged;14 tests against current root shared evidence plane/service/query consumers.",
+  "suite": "OPERATIONAL",
+  "result": "14 PASS in0.841s",
+  "invariants": [
+    "No single notification or silence grants coverage",
+    "Exact finalized census/linked child fences",
+    "Missing delivery/provider gaps fail closed with asof identity",
+    "No cross-session coverage",
+    "Consumers cannot manufacture proofs",
+    "Interest ownership and capacity atomicity",
+    "Local Pump/Meteora queries retain authenticated payload/order/pool boundary without historical RPC fallback"
+  ]
+}

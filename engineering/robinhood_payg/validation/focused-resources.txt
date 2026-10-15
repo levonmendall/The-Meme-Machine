@@ -1,0 +1,195 @@
+test_historical_malformed_receipt_sender_never_triggers_untrusted_buyer_evidence (tests.test_robinhood_payg.EvidenceCase.test_historical_malformed_receipt_sender_never_triggers_untrusted_buyer_evidence) ... ok
+test_historical_witness_receipt_sender_matches_transaction_body_fallback (tests.test_robinhood_payg.EvidenceCase.test_historical_witness_receipt_sender_matches_transaction_body_fallback) ... FAIL
+test_range_rejection_in_success_http_envelope_is_classified_and_not_retried (tests.test_robinhood_payg.EvidenceCase.test_range_rejection_in_success_http_envelope_is_classified_and_not_retried) ... ok
+test_aggregate_byte_overflow_splits_batch_before_block_ranges (tests.test_robinhood_payg.WindowsCase.test_aggregate_byte_overflow_splits_batch_before_block_ranges) ... ok
+test_credential_rotation_invalidates_capability_and_density_domain (tests.test_robinhood_payg.WindowsCase.test_credential_rotation_invalidates_capability_and_density_domain) ... ok
+test_dense_saturation_subdivides_deterministically_without_buyer_loss (tests.test_robinhood_payg.WindowsCase.test_dense_saturation_subdivides_deterministically_without_buyer_loss) ... ok
+test_entitlement_empty_sample_wrong_chain_and_incomplete_comparison_fall_back (tests.test_robinhood_payg.WindowsCase.test_entitlement_empty_sample_wrong_chain_and_incomplete_comparison_fall_back) ... ok
+test_one_wide_success_never_authorizes_larger_windows (tests.test_robinhood_payg.WindowsCase.test_one_wide_success_never_authorizes_larger_windows) ... ok
+test_range_rejection_uses_exact_ten_block_fallback_and_survives_restart (tests.test_robinhood_payg.WindowsCase.test_range_rejection_uses_exact_ten_block_fallback_and_survives_restart) ... ok
+test_rate_limit_and_slow_provider_do_not_start_duplicate_recovery (tests.test_robinhood_payg.WindowsCase.test_rate_limit_and_slow_provider_do_not_start_duplicate_recovery) ... ok
+test_recovery_exhaustion_has_no_false_checkpoint_or_infinite_retry (tests.test_robinhood_payg.WindowsCase.test_recovery_exhaustion_has_no_false_checkpoint_or_infinite_retry) ... ok
+test_removed_and_conflicting_logs_are_gaps_never_complete (tests.test_robinhood_payg.WindowsCase.test_removed_and_conflicting_logs_are_gaps_never_complete) ... ok
+test_reordered_duplicates_reduce_to_exact_order (tests.test_robinhood_payg.WindowsCase.test_reordered_duplicates_reduce_to_exact_order) ... ok
+test_single_block_saturation_never_advances_canonical_checkpoint (tests.test_robinhood_payg.WindowsCase.test_single_block_saturation_never_advances_canonical_checkpoint) ... ok
+test_unknown_pagination_envelope_is_not_a_complete_array (tests.test_robinhood_payg.WindowsCase.test_unknown_pagination_envelope_is_not_a_complete_array) ... ok
+test_unproved_filter_or_larger_pool_union_falls_back_without_dropping_pools (tests.test_robinhood_payg.WindowsCase.test_unproved_filter_or_larger_pool_union_falls_back_without_dropping_pools) ... ok
+test_unverified_endpoint_stays_at_ten_blocks (tests.test_robinhood_payg.WindowsCase.test_unverified_endpoint_stays_at_ten_blocks) ... ok
+test_verified_filter_reduces_log_elements_without_changing_the_tape (tests.test_robinhood_payg.WindowsCase.test_verified_filter_reduces_log_elements_without_changing_the_tape) ... ok
+test_authenticated_receipt_sender_preserves_exact_v4_buyer_flow (tests.test_robinhood_scout.EvidenceTests.test_authenticated_receipt_sender_preserves_exact_v4_buyer_flow) ... ERROR
+test_canonical_saturation_subdivides_and_preserves_all_buyers (tests.test_robinhood_scout.EvidenceTests.test_canonical_saturation_subdivides_and_preserves_all_buyers) ... ERROR
+test_current_complete_vectors_match_frozen_reference (tests.test_robinhood_scout.EvidenceTests.test_current_complete_vectors_match_frozen_reference) ... ok
+test_burst_retention_is_not_a_work_queue_or_candidate_cap (tests.test_robinhood_scout.ScoutCase.test_burst_retention_is_not_a_work_queue_or_candidate_cap) ... ok
+test_delayed_authentication_retains_original_identity_and_deadline (tests.test_robinhood_scout.ScoutCase.test_delayed_authentication_retains_original_identity_and_deadline) ... ok
+test_graduation_in_enrollment_block_has_no_seven_day_wait (tests.test_robinhood_scout.ScoutCase.test_graduation_in_enrollment_block_has_no_seven_day_wait) ... ok
+test_interrupted_native_hydration_and_restart_never_claims_complete (tests.test_robinhood_scout.ScoutCase.test_interrupted_native_hydration_and_restart_never_claims_complete) ... ok
+test_multiple_valid_candidates_rotate_without_changing_deadlines (tests.test_robinhood_scout.ScoutCase.test_multiple_valid_candidates_rotate_without_changing_deadlines) ... ok
+test_native_fair_tie_breaks_and_urgent_original_deadline_both_survive (tests.test_robinhood_scout.ScoutCase.test_native_fair_tie_breaks_and_urgent_original_deadline_both_survive) ... ok
+test_old_public_pool_recovery_cannot_consume_newer_pool_work_credit (tests.test_robinhood_scout.ScoutCase.test_old_public_pool_recovery_cannot_consume_newer_pool_work_credit) ... ok
+test_one_public_filter_serves_independent_current_and_survivor (tests.test_robinhood_scout.ScoutCase.test_one_public_filter_serves_independent_current_and_survivor) ... ok
+test_orphan_nomination_does_not_poison_later_canonical_graduation (tests.test_robinhood_scout.ScoutCase.test_orphan_nomination_does_not_poison_later_canonical_graduation) ... ok
+test_pool_scout_is_exact_pons_scope_and_keeps_raw_transaction_evidence (tests.test_robinhood_scout.ScoutCase.test_pool_scout_is_exact_pons_scope_and_keeps_raw_transaction_evidence) ... ok
+test_public_loss_never_advances_watermark_and_resume_retains_identities (tests.test_robinhood_scout.ScoutCase.test_public_loss_never_advances_watermark_and_resume_retains_identities) ... ok
+test_reorganization_rewinds_prospective_interval_and_keeps_fork_witnesses (tests.test_robinhood_scout.ScoutCase.test_reorganization_rewinds_prospective_interval_and_keeps_fork_witnesses) ... ok
+test_saturation_splits_without_losing_events_or_accepting_pagination (tests.test_robinhood_scout.ScoutCase.test_saturation_splits_without_losing_events_or_accepting_pagination) ... ok
+test_weak_candidate_and_capital_denial_reactivate_on_new_pool_signal (tests.test_robinhood_scout.ScoutCase.test_weak_candidate_and_capital_denial_reactivate_on_new_pool_signal) ... ok
+test_cold_start_enrolls_inclusively_without_seed_or_backdated_coverage (tests.test_forward_survivor.ForwardSurvivorTests.test_cold_start_enrolls_inclusively_without_seed_or_backdated_coverage) ... ok
+test_first_forward_start_migrates_native_checkpoint_but_not_partial_research (tests.test_forward_survivor.ForwardSurvivorTests.test_first_forward_start_migrates_native_checkpoint_but_not_partial_research) ... ok
+test_fork_at_enrollment_parent_rewinds_same_prospective_domain (tests.test_forward_survivor.ForwardSurvivorTests.test_fork_at_enrollment_parent_rewinds_same_prospective_domain) ... ok
+test_four_hour_winner_qualifies_despite_unrelated_incomplete_census_and_capital (tests.test_forward_survivor.ForwardSurvivorTests.test_four_hour_winner_qualifies_despite_unrelated_incomplete_census_and_capital) ... ok
+test_incomplete_individual_continuity_cannot_qualify (tests.test_forward_survivor.ForwardSurvivorTests.test_incomplete_individual_continuity_cannot_qualify) ... ok
+test_obsolete_historical_plan_never_starts_or_gates_normal_operation (tests.test_forward_survivor.ForwardSurvivorTests.test_obsolete_historical_plan_never_starts_or_gates_normal_operation) ... ok
+test_old_recovery_never_claims_or_delays_newer_candidate_acquisition (tests.test_forward_survivor.ForwardSurvivorTests.test_old_recovery_never_claims_or_delays_newer_candidate_acquisition) ... ok
+test_original_inclusive_maximum_age_and_frozen_policies (tests.test_forward_survivor.ForwardSurvivorTests.test_original_inclusive_maximum_age_and_frozen_policies) ... ok
+test_positions_keep_original_admission_during_missing_market_census (tests.test_forward_survivor.ForwardSurvivorTests.test_positions_keep_original_admission_during_missing_market_census) ... ok
+test_prospective_factory_discovery_retains_more_than_transport_cohort_bound (tests.test_forward_survivor.ForwardSurvivorTests.test_prospective_factory_discovery_retains_more_than_transport_cohort_bound) ... ok
+test_pump_discovers_independently_from_canonical_interval_on_cold_and_warm_start (tests.test_forward_survivor.ForwardSurvivorTests.test_pump_discovers_independently_from_canonical_interval_on_cold_and_warm_start) ... ERROR
+test_pump_uses_its_own_four_hour_age_and_six_hour_price_requirement (tests.test_forward_survivor.ForwardSurvivorTests.test_pump_uses_its_own_four_hour_age_and_six_hour_price_requirement) ... ok
+test_reorg_affects_only_forked_checkpoints_and_preserves_controllers (tests.test_forward_survivor.ForwardSurvivorTests.test_reorg_affects_only_forked_checkpoints_and_preserves_controllers) ... ok
+test_required_individual_interval_crossing_outage_stays_incomplete (tests.test_forward_survivor.ForwardSurvivorTests.test_required_individual_interval_crossing_outage_stays_incomplete) ... ok
+test_retained_pre_frontier_nomination_recovers_only_its_authenticated_lineage (tests.test_forward_survivor.ForwardSurvivorTests.test_retained_pre_frontier_nomination_recovers_only_its_authenticated_lineage) ... ok
+test_shared_worker_cadence_follows_pons_without_changing_pump_or_provider_rate (tests.test_forward_survivor.ForwardSurvivorTests.test_shared_worker_cadence_follows_pons_without_changing_pump_or_provider_rate) ... ERROR
+test_short_outage_keeps_gap_and_recovers_only_uncovered_tail (tests.test_forward_survivor.ForwardSurvivorTests.test_short_outage_keeps_gap_and_recovers_only_uncovered_tail) ... ok
+test_warm_restart_retains_frontier_candidate_times_and_complete_history (tests.test_forward_survivor.ForwardSurvivorTests.test_warm_restart_retains_frontier_candidate_times_and_complete_history) ... ok
+test_bounded_capability_comparison (tests.test_pons_historical.HistoricalTests.test_bounded_capability_comparison) ... ok
+test_candidate_complete_flag_cannot_replace_missing_coverage (tests.test_pons_historical.HistoricalTests.test_candidate_complete_flag_cannot_replace_missing_coverage) ... ok
+test_candidate_reorg_preserves_controller_and_replays_native_history (tests.test_pons_historical.HistoricalTests.test_candidate_reorg_preserves_controller_and_replays_native_history) ... ok
+test_capability_budget_stops_before_dispatch (tests.test_pons_historical.HistoricalTests.test_capability_budget_stops_before_dispatch) ... ok
+test_capability_detects_silent_large_range_truncation (tests.test_pons_historical.HistoricalTests.test_capability_detects_silent_large_range_truncation) ... ok
+test_capability_empty_range_is_insufficient (tests.test_pons_historical.HistoricalTests.test_capability_empty_range_is_insufficient) ... ok
+test_database_corruption_cannot_certify_restore (tests.test_pons_historical.HistoricalTests.test_database_corruption_cannot_certify_restore) ... ok
+test_deleted_prefix_range_is_not_accepted_as_complete (tests.test_pons_historical.HistoricalTests.test_deleted_prefix_range_is_not_accepted_as_complete) ... ok
+test_duplicate_events_and_repeated_turn_insert_once (tests.test_pons_historical.HistoricalTests.test_duplicate_events_and_repeated_turn_insert_once) ... ok
+test_duplicate_identity_conflict_fails_closed (tests.test_pons_historical.HistoricalTests.test_duplicate_identity_conflict_fails_closed) ... ok
+test_empty_ranges_require_canonical_boundaries (tests.test_pons_historical.HistoricalTests.test_empty_ranges_require_canonical_boundaries) ... ok
+test_empty_response_missing_boundary_is_incomplete (tests.test_pons_historical.HistoricalTests.test_empty_response_missing_boundary_is_incomplete) ... ok
+test_exact_boundary_census_and_all_candidate_histories (tests.test_pons_historical.HistoricalTests.test_exact_boundary_census_and_all_candidate_histories) ... ok
+test_existing_worker_driver_finishes_and_restores (tests.test_pons_historical.HistoricalTests.test_existing_worker_driver_finishes_and_restores) ... ok
+test_expiration_requires_strategy_and_recovery_boundaries (tests.test_pons_historical.HistoricalTests.test_expiration_requires_strategy_and_recovery_boundaries) ... ok
+test_historical_priority_yields_to_current_and_position_work (tests.test_pons_historical.HistoricalTests.test_historical_priority_yields_to_current_and_position_work) ... ok
+test_interrupted_atomic_write_restart_keeps_original_checkpoint (tests.test_pons_historical.HistoricalTests.test_interrupted_atomic_write_restart_keeps_original_checkpoint) ... ok
+test_missing_journal_event_is_detected_by_range_replay (tests.test_pons_historical.HistoricalTests.test_missing_journal_event_is_detected_by_range_replay) ... ok
+test_native_local_receipt_cache_hits_are_counted_with_shared_telemetry (tests.test_pons_historical.HistoricalTests.test_native_local_receipt_cache_hits_are_counted_with_shared_telemetry) ... ok
+test_old_and_new_exact_complete_vectors_and_rejections (tests.test_pons_historical.HistoricalTests.test_old_and_new_exact_complete_vectors_and_rejections) ... ok
+test_older_launch_search_reuses_authenticated_lineage (tests.test_pons_historical.HistoricalTests.test_older_launch_search_reuses_authenticated_lineage) ... ok
+test_population_reorg_rewinds_affected_tail_not_whole_domain (tests.test_pons_historical.HistoricalTests.test_population_reorg_rewinds_affected_tail_not_whole_domain) ... ok
+test_population_watermark_alone_cannot_release_survivor (tests.test_pons_historical.HistoricalTests.test_population_watermark_alone_cannot_release_survivor) ... ok
+test_prospective_enrollment_keeps_seven_day_requirement (tests.test_pons_historical.HistoricalTests.test_prospective_enrollment_keeps_seven_day_requirement) ... ok
+test_provider_page_and_pagination_failure_do_not_advance (tests.test_pons_historical.HistoricalTests.test_provider_page_and_pagination_failure_do_not_advance) ... ok
+test_range_rejection_subdivides_without_losing_census (tests.test_pons_historical.HistoricalTests.test_range_rejection_subdivides_without_losing_census) ... ok
+test_receipt_pins_reuse_native_cache_domain_and_restore_session (tests.test_pons_historical.HistoricalTests.test_receipt_pins_reuse_native_cache_domain_and_restore_session) ... ok
+test_restart_during_catchup_does_not_refetch_proven_ranges (tests.test_pons_historical.HistoricalTests.test_restart_during_catchup_does_not_refetch_proven_ranges) ... ok
+test_runtime_increment_limit_and_provider_blocker_preserved (tests.test_pons_historical.HistoricalTests.test_runtime_increment_limit_and_provider_blocker_preserved) ... ok
+test_runtime_warm_discovery_and_position_precedence (tests.test_pons_historical.HistoricalTests.test_runtime_warm_discovery_and_position_precedence) ... ok
+test_shared_group_reconstruction_and_restart (tests.test_pons_historical.HistoricalTests.test_shared_group_reconstruction_and_restart) ... ok
+test_single_block_saturation_is_incomplete_not_rejection (tests.test_pons_historical.HistoricalTests.test_single_block_saturation_is_incomplete_not_rejection) ... ok
+test_transient_provider_error_leaves_retryable_gap_and_deadline (tests.test_pons_historical.HistoricalTests.test_transient_provider_error_leaves_retryable_gap_and_deadline) ... ok
+test_unverified_widening_makes_zero_provider_requests (tests.test_pons_historical.HistoricalTests.test_unverified_widening_makes_zero_provider_requests) ... ok
+test_usage_counts_physical_batches_separately_from_elements (tests.test_pons_historical.HistoricalTests.test_usage_counts_physical_batches_separately_from_elements) ... ok
+test_wider_bounded_ranges_preserve_native_output (tests.test_pons_historical.HistoricalTests.test_wider_bounded_ranges_preserve_native_output) ... ok
+test_wrong_provider_capability_makes_zero_requests (tests.test_pons_historical.HistoricalTests.test_wrong_provider_capability_makes_zero_requests) ... ok
+
+======================================================================
+ERROR: test_authenticated_receipt_sender_preserves_exact_v4_buyer_flow (tests.test_robinhood_scout.EvidenceTests.test_authenticated_receipt_sender_preserves_exact_v4_buyer_flow)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/tests/test_robinhood_scout.py", line 303, in test_authenticated_receipt_sender_preserves_exact_v4_buyer_flow
+    actual=collect_v4_activity('https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_SCOUT',pool_id=pool,key=key,token=token,start_block=first,end_block=last)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/meme_machine/lanes/pons/pons_selective_v4.py", line 111, in collect_v4_activity
+    shared=_shared or _transport(endpoint,pool_ids=[_pool_topic(pool_id)],
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/meme_machine/lanes/pons/pons_selective_v4.py", line 65, in _transport
+    headers_v,_=acquire([("eth_getBlockByHash",[h,False]) for h in hashes])
+    ^^^^^^^^^^^
+ValueError: too many values to unpack (expected 2)
+
+======================================================================
+ERROR: test_canonical_saturation_subdivides_and_preserves_all_buyers (tests.test_robinhood_scout.EvidenceTests.test_canonical_saturation_subdivides_and_preserves_all_buyers)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/tests/test_robinhood_scout.py", line 275, in test_canonical_saturation_subdivides_and_preserves_all_buyers
+    result=collect_v4_activity('https://robinhood-mainnet.g.alchemy.com/v2/OFFLINE_SCOUT',
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/meme_machine/lanes/pons/pons_selective_v4.py", line 111, in collect_v4_activity
+    shared=_shared or _transport(endpoint,pool_ids=[_pool_topic(pool_id)],
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/meme_machine/lanes/pons/pons_selective_v4.py", line 71, in _transport
+    receipts_v,_=acquire([("eth_getTransactionReceipt",[tx]) for tx,_ in tx_rows])
+    ^^^^^^^^^^^^
+ValueError: too many values to unpack (expected 2)
+
+======================================================================
+ERROR: test_pump_discovers_independently_from_canonical_interval_on_cold_and_warm_start (tests.test_forward_survivor.ForwardSurvivorTests.test_pump_discovers_independently_from_canonical_interval_on_cold_and_warm_start)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/tests/test_forward_survivor.py", line 327, in test_pump_discovers_independently_from_canonical_interval_on_cold_and_warm_start
+    from meme_machine.lanes.pump.pumpswap_survivor_runtime import Runtime as PumpRuntime, PUMP_SCOPE
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/meme_machine/lanes/pump/pumpswap_survivor_runtime.py", line 24, in <module>
+    from .solana_evidence_runtime import RuntimeEvidence,PUMP_SCOPE,SWAP_SCOPE
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/meme_machine/lanes/pump/solana_evidence_runtime.py", line 180, in <module>
+    from meme_machine.solana_selective_runtime import SelectiveRuntime
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/meme_machine/solana_selective_runtime.py", line 5, in <module>
+    from .solana_selective_history import ConsumerReader,FAMILIES
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/meme_machine/solana_selective_history.py", line 16, in <module>
+    from .solana_native_evidence import normalize_zero_display
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/meme_machine/solana_native_evidence.py", line 12, in <module>
+    import based58
+ModuleNotFoundError: No module named 'based58'
+
+======================================================================
+ERROR: test_shared_worker_cadence_follows_pons_without_changing_pump_or_provider_rate (tests.test_forward_survivor.ForwardSurvivorTests.test_shared_worker_cadence_follows_pons_without_changing_pump_or_provider_rate)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/tests/test_forward_survivor.py", line 356, in test_shared_worker_cadence_follows_pons_without_changing_pump_or_provider_rate
+    from meme_machine.lanes.pump.pumpswap_survivor_runtime import Runtime as PumpRuntime
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/meme_machine/lanes/pump/pumpswap_survivor_runtime.py", line 24, in <module>
+    from .solana_evidence_runtime import RuntimeEvidence,PUMP_SCOPE,SWAP_SCOPE
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/meme_machine/lanes/pump/solana_evidence_runtime.py", line 180, in <module>
+    from meme_machine.solana_selective_runtime import SelectiveRuntime
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/meme_machine/solana_selective_runtime.py", line 5, in <module>
+    from .solana_selective_history import ConsumerReader,FAMILIES
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/meme_machine/solana_selective_history.py", line 16, in <module>
+    from .solana_native_evidence import normalize_zero_display
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/meme_machine/solana_native_evidence.py", line 12, in <module>
+    import based58
+ModuleNotFoundError: No module named 'based58'
+
+======================================================================
+FAIL: test_historical_witness_receipt_sender_matches_transaction_body_fallback (tests.test_robinhood_payg.EvidenceCase.test_historical_witness_receipt_sender_matches_transaction_body_fallback)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-robinhood-payg-alchemy/repo/tests/test_robinhood_payg.py", line 192, in test_historical_witness_receipt_sender_matches_transaction_body_fallback
+    self.assertEqual(native['txs'],full['txs'])
+AssertionError: {('0x[296 chars]2', 'from': '0x0000000000000000000000000000000[1084 chars]04'}} != {('0x[296 chars]2', 'blockNumber': '0x363f618', 'transactionIn[1304 chars]04'}}
+Diff is 6030 characters long. Set self.maxDiff to None to see it.
+
+----------------------------------------------------------------------
+Ran 90 tests in 68.731s
+
+FAILED (failures=1, errors=4)
+Offline failure evidence retained at /tmp/mm-engineering-8c4ga9_h
+Command exited with non-zero status 1
+	Command being timed: "/opt/meme-machine/.venv/bin/python -m operational.tests FAST --modules tests.test_robinhood_payg tests.test_robinhood_scout tests.test_forward_survivor tests.test_pons_historical --verbose"
+	User time (seconds): 60.84
+	System time (seconds): 2.51
+	Percent of CPU this job got: 91%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:09.53
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 64720
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 26023
+	Voluntary context switches: 34150
+	Involuntary context switches: 6274
+	Swaps: 0
+	File system inputs: 8
+	File system outputs: 624184
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

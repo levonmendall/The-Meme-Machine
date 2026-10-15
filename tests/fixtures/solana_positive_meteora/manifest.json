@@ -1,0 +1,21 @@
+{
+  "source": "Bounded read-only Alchemy mainnet capture 2026-10-07T04:15:06Z",
+  "diagnostic": "Authenticated fresh swap, then 12 native observation chunks; no entry or service",
+  "files": {
+    "rpc.ndjson": {
+      "raw_bytes": 2142194,
+      "sha256": "d9462365d0df4b7df192b9965cd9879a6a1a08c01165c0c86ce8b4207c193013",
+      "stored": "rpc.ndjson.zlib"
+    },
+    "native.frames": {
+      "raw_bytes": 444540,
+      "sha256": "c4a6d20d561e4d1509f74dc8393661030215af670062fb7b85a1ce626cceb931",
+      "stored": "native.frames.zlib"
+    },
+    "result.json": {
+      "raw_bytes": 19514,
+      "sha256": "559c7f77be3be75320046b3a92a020d13b167ae736296eea3207407a4ad360a4",
+      "stored": "result.json"
+    }
+  }
+}

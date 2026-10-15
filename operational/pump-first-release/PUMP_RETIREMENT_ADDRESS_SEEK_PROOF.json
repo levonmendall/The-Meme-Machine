@@ -1,0 +1,77 @@
+{
+  "baseline_source": "93984946cd5d4310eafe3a7f46fb320f93966863",
+  "defect": "correlated canonical-address UNION in oldest retained-record telemetry materializes all program addresses and stalls the sole evidence owner",
+  "authenticated_trigger": {
+    "receipt": "PUMP_JOIN_RETIREMENT_93984946-1791777636716.json",
+    "new_canonical_records": 27798,
+    "failure": "candidate_log_buffer_pressure",
+    "maximum_retirement_execution_seconds": 5.353540802025236,
+    "full_protection": false
+  },
+  "same_retained_state_read_only": {
+    "source_file_sha256": "3c536bdae24285890f1501a05f4576397495dc45434ffa8d9b089bbf8b9e4767",
+    "reference": {
+      "stage": "exact_oldest_global_fallback",
+      "seconds": 3.901571959955618,
+      "result": [
+        "program:pump:399639646:52hWhLSaxoEau9c9kemqekvkLRdCRE2giY2snaPWhDkxK5AARnnmAEDTT5Dujg9t4bM3jK1rDxThPt5pqs7iYddm:15",
+        "program:pump",
+        399639646
+      ]
+    },
+    "optimized": [
+      {
+        "seconds": 0.11219663801603019,
+        "oldest": [
+          "program:pump:399639646:52hWhLSaxoEau9c9kemqekvkLRdCRE2giY2snaPWhDkxK5AARnnmAEDTT5Dujg9t4bM3jK1rDxThPt5pqs7iYddm:15",
+          "program:pump",
+          399639646
+        ]
+      },
+      {
+        "seconds": 0.10682131198700517,
+        "oldest": [
+          "program:pump:399639646:52hWhLSaxoEau9c9kemqekvkLRdCRE2giY2snaPWhDkxK5AARnnmAEDTT5Dujg9t4bM3jK1rDxThPt5pqs7iYddm:15",
+          "program:pump",
+          399639646
+        ]
+      },
+      {
+        "seconds": 0.10685791890136898,
+        "oldest": [
+          "program:pump:399639646:52hWhLSaxoEau9c9kemqekvkLRdCRE2giY2snaPWhDkxK5AARnnmAEDTT5Dujg9t4bM3jK1rDxThPt5pqs7iYddm:15",
+          "program:pump",
+          399639646
+        ]
+      }
+    ],
+    "canonical_oldest_identity_equal": true,
+    "provider_requests": 0,
+    "authoritative_state_read_only": true,
+    "billing_savings_claimed": false
+  },
+  "repair": "Seek the original representations and canonical scopes with all original precedence guards and identity-indexed complete owner/address tests; take the same global minimum",
+  "regressions": {
+    "receipt": "/tmp/pump-retirement-oldest-seek-closure.log",
+    "sha256": "763ce776345e55aea5496a043f5bbed8626169d970cf650c47ea734d97a54288",
+    "tests": 39,
+    "seconds": 23.968,
+    "result": "PASS",
+    "prior_fixture_failures_retained": [
+      "/tmp/pump-retirement-oldest-seek-focused.log",
+      "/tmp/pump-retirement-oldest-seek-focused-fixed.log"
+    ]
+  },
+  "unchanged": [
+    "canonical membership and coverage",
+    "full shared-owner pin checks and cold restore",
+    "native buffers and frame bounds",
+    "all economic strategies, accounting and quotation/USD expiry",
+    "provider acquisition and normal protection priority"
+  ],
+  "status": "OFFLINE_PROVEN_AWAITING_AUTHENTICATED_CANONICAL_RETRY",
+  "files": {
+    "meme_machine/solana_scoped_retirement.py": "3c536bdae24285890f1501a05f4576397495dc45434ffa8d9b089bbf8b9e4767",
+    "tests/test_solana_closure.py": "1fd668ef866d89a59d69e494d0170a5c7d3ae8affc92011e3dd6a9a90d56c32f"
+  }
+}

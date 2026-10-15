@@ -1,0 +1,15 @@
+{
+  "historical_source_commit": "a1392c0698deba784e5f31ea16bc527c0765fd86",
+  "historical_path": "tests/lanes/meteora/test_meteora_mint_supply.py",
+  "historical_sha256": "31050362b08ab9e48c68b345b179f1563b61740e91efed7f9403146de88a1fa8",
+  "current_path": "tests/test_meteora_mint_supply.py",
+  "adaptation": "Only three helper imports relocated; every original helper and test assertion unchanged.",
+  "coverage": [
+    "Off-pool supply endpoint metadata authenticated without invented pool events",
+    "Supply changes preserve swap decision and exact position accounting",
+    "Mint controls/program/bin/vault changes remain fail-closed",
+    "Token2022 burn preserves exact safe extensions; extension mutation rejected"
+  ],
+  "suite": "OPERATIONAL",
+  "authority": "Synthetic protocol bytes and disposable fixtures; no strategy economics or provider calls."
+}

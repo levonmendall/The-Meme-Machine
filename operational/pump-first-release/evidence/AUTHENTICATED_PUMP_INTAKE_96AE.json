@@ -1,0 +1,54 @@
+{
+  "status": "FAIL_SUSTAINED_ECONOMIC_COVERAGE",
+  "source": "96ae082daacc2b32c37e6d525c37d70721178bd7",
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-intake-96ae082d-1791741237226.sqlite",
+  "usage_db_sha256": "4a414e626032f1a583bc8d05c77ddceaf2b4fa9ffdd8612c129470938e8c5c09",
+  "physical_starts": 64,
+  "logical_rpc_elements": 58,
+  "conservative_cu": 5400,
+  "known_native_bytes": 63989536,
+  "uncertain_native_bytes": 335544320,
+  "native_reserved_bytes": 0,
+  "accounted_native_bytes": 399533856,
+  "native_openings": 6,
+  "native_boundary_bytes": 536870912,
+  "terminal_failure": "DeliveredRPCError; original cause/status unavailable",
+  "http": {
+    "physical_rpc": 58,
+    "getSlot": 5,
+    "getTransactionsForAddress": 53,
+    "rpc_failures": 6,
+    "delivered_bytes": 48332336,
+    "total_queue_seconds": "92.638471",
+    "total_transport_seconds": "9.355535"
+  },
+  "initial_program_intervals": [
+    {
+      "family": "pump",
+      "lo": 455740687,
+      "hi": 455740688
+    },
+    {
+      "family": "pumpswap",
+      "lo": 455740687,
+      "hi": 455740688
+    }
+  ],
+  "rolling_economic_records": 0,
+  "rolling_join_failure": "candidate_log_buffer_pressure",
+  "failed_join_early_log_bytes": 33553334,
+  "native_group_commit_timing": {
+    "kind": "native_meter_timing",
+    "unit": "durable_native_group_commits",
+    "sample_count": 9528,
+    "mean_ms": 27.199656520758545,
+    "p95_ms": 65.52140007261187,
+    "maximum_ms": 4039.9030830012634
+  },
+  "modeled_public_upper_usd": "0.04478605488",
+  "invoice_verified": false,
+  "full_protection": false,
+  "funding": false,
+  "orders": false,
+  "historical_counters_reset": false
+}

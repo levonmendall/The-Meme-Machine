@@ -1,0 +1,139 @@
+{
+  "artifacts": [
+    {
+      "bytes": 1068,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_BATCH_429_PRE_REPAIR_20261014.log",
+      "sha256": "3898fa8d471f1a6624568d787979d725eec0dea39a5da23080dae8eebaf69b3a"
+    },
+    {
+      "bytes": 1169,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_FALLBACK_DEADLINE_PRE_REPAIR_20261014.log",
+      "sha256": "f87915c86735eb1afa9bf952f62aaa833d130c525dd97c772efa1f14c35ad753"
+    },
+    {
+      "bytes": 17654,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_TARGETED_OFFLINE_GREEN_20261014.log",
+      "sha256": "e4d544df9653896b2d38ff4560a55e8ecf8478c961475ce1bd54bf80527c94a7"
+    },
+    {
+      "bytes": 3932,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PUMP_CANCELLATION_FOCUSED_20261014.log",
+      "sha256": "b473d7c28d73603bc6d1584a4d9819160d2ffe04cbccea14862504dc39dd57be"
+    },
+    {
+      "bytes": 3731,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PUMP_CANCELLATION_GUARD_FINAL_20261014.log",
+      "sha256": "0b4a81c53720348cb125156af152d9857c2482b743a8b8d387748d7c552ea4c9"
+    },
+    {
+      "bytes": 10438,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/POST_REPLACEMENT_DIAGNOSTICS_FOCUSED_20261014.log",
+      "sha256": "a23ba3359bf09bb293268315a675693c56082a2f0d2ac1ed996a758f47c64399"
+    },
+    {
+      "bytes": 35557,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/POST_REPLACEMENT_COMBINED_OFFLINE_20261014.log",
+      "sha256": "cee18370ea44a2d575a3197bef7c584ee0f7898a1dbb28fbfb930d1539bd4eb7"
+    },
+    {
+      "bytes": 8207,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PUMP_CANCELLATION_RECOVERY_REVIEW_20261014.json",
+      "sha256": "c9590321912547f63556f983e0a2735551de7c929fb2c4682f673d9141eb1a4b"
+    },
+    {
+      "bytes": 2078,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/POST_REPLACEMENT_OFFLINE_PREFLIGHT_20261014.json",
+      "sha256": "9fe704541f7d4a1dcd68b080a9d6aac284637a76ae1cab308c42e6e83639359c"
+    },
+    {
+      "bytes": 1797,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/POST_REPLACEMENT_OFFLINE_FINAL_STATE_20261014.json",
+      "sha256": "de75d062cdafd80d70652086a969a3dd8efe608cfb3510af8cff9478a98dc508"
+    }
+  ],
+  "at": "2026-10-14T17:55:05.626983+00:00",
+  "branch": "engineering/targeted-resolution-20261014",
+  "deployed": "a70e2610743d8595b3d1a36ed25821a6689c29f3",
+  "diagnostics": {
+    "canonical_cohort_limit": 32,
+    "exact_receipt_ack": "AUTHENTICATED_AND_SOURCE_HASH_FENCED",
+    "full_sample_seconds": 5,
+    "guard_seconds": 1,
+    "metadata_reserve_bytes": 65536,
+    "per_event_generation": "UNAVAILABLE_CAPTURE_FENCE_ONLY",
+    "physical_arrival": "UNVERIFIED",
+    "queue_thresholds_unchanged": true,
+    "required_counters": "FIXED_SCHEMA_BEFORE_CLIP",
+    "total_output_limit_bytes": 33554432
+  },
+  "independent_open_blockers": [
+    "Pump native interrupted recovery/drain",
+    "Pump sustained throughput",
+    "Original Pump SQLITE_BUSY",
+    "Pons mandatory provider arrangement",
+    "Pons READONLY INSERT",
+    "Later failed backup",
+    "Active-backup protection compatibility"
+  ],
+  "observed_failed_source": "0333860364b0602583b7e300cbe7e57303697510",
+  "pons": {
+    "batch_feedback": "OFFLINE_CORRECTED_2_TO_1_5_RPS",
+    "fallback_absolute_deadline": "OFFLINE_CORRECTED_THREAD_LOCAL",
+    "fixture_next_admission_wait_seconds": 7.875,
+    "live_suitability": "UNPROVEN",
+    "managed_route": "INACTIVE_CANONICAL_PRIMARY",
+    "provider_quota": "UNKNOWN",
+    "unchanged_cooldown_seconds": 8,
+    "unchanged_queue_guard_seconds": 5
+  },
+  "pump": {
+    "corrected": "FALSE_RECONCILED_TRUE_ON_EARLY_SHUTDOWN",
+    "graceful_drain": "HISTORICAL_FAIL_UNATTRIBUTED",
+    "historical_kill_origin": "UNRESOLVED",
+    "native_reconciliation": "UNFINISHED",
+    "pending_lower_bounds": {
+      "candidate_history_outbox": 257,
+      "canonical_outbox": 257,
+      "pending_proofs": 257
+    },
+    "portfolio_reconciliation": "PRIOR_PASS_PRESERVED",
+    "sustained_throughput": "UNRESOLVED"
+  },
+  "repair_commits": [
+    "81d60d5ecd2edbdb779c9ba533c0cd8fd11c6a82",
+    "e281769722d05f5646990054baa77729f529a251",
+    "ccc0cb3d52741b382d8680d717e0a226cf04f0b5"
+  ],
+  "reviewed_baseline": "ddcee53eb2498b7281820793408abbea71f2e88a",
+  "schema": "post-replacement-targeted-offline-repair-v1",
+  "state": {
+    "acceptance_minutes": 0,
+    "accounting_preserved": true,
+    "authoritative_writes": false,
+    "cash": "1000.00",
+    "deployment": false,
+    "funding": "CLOSED",
+    "historical500_sequence": 2036,
+    "original_results_preserved": true,
+    "portfolio_head": "197e8d1ca6c0629b2b810151105f118cfa09aa18d6fdb9f6b903b5d95f76a57e",
+    "portfolio_sequence": 8896,
+    "provider_calls": 0,
+    "service": "Restart=no\nMainPID=0\nControlGroup=\nActiveState=inactive\nUnitFileState=disabled",
+    "usage_unchanged": true
+  },
+  "status": "STOPPED_FOR_REVIEW_NO_RUNTIME_AUTHORIZATION",
+  "tested_candidate": "ccc0cb3d52741b382d8680d717e0a226cf04f0b5",
+  "tests": {
+    "errors": 0,
+    "failures": 0,
+    "final_distinct_cases": 171,
+    "full_release_suite": "NOT_RERUN_SCOPE_FOCUSED",
+    "network": "BLOCKED",
+    "performance_claim": "NONE",
+    "prior_expected_red_cases": 2,
+    "runtime": "CPython3.12.14 SQLite3.45.1",
+    "seconds": 11.314,
+    "skips": 0,
+    "supported_runner": "operational.tests OPERATIONAL --cases"
+  }
+}

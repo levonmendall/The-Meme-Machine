@@ -1,0 +1,6 @@
+test_old_recovery_never_claims_or_delays_newer_candidate_acquisition (tests.test_forward_survivor.ForwardSurvivorTests.test_old_recovery_never_claims_or_delays_newer_candidate_acquisition) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 4.052s
+
+OK

@@ -1,0 +1,27 @@
+{
+  "parent_source": "6b2f872673f6c8d0be381839da4f9414a1108e67",
+  "change": "Overlap the original Pons unit-price USD reader with already-due native quote/history work. The original accounting read and current five-second validation remain mandatory.",
+  "configuration": "MM_PONS_USD_ACQUISITION_OVERLAP=1 is forwarded only to Pons. The reviewed continuous profile also carries the authenticated two-hop native/USDG route.",
+  "bounded_processing": "One pending unit-price task per process; one worker; no queued redundant acquisition. Compatible cached values create no worker or provider request. Busy foreground readers retain the original path.",
+  "safety": [
+    "No SQLite native journal moves to the background thread",
+    "All consumers retain original financial freshness checks at commit",
+    "No new independent data feed or discovery loop",
+    "Failed optional prefetch has a fixed credential-free diagnostic; it cannot publish a USD value or fund an entry",
+    "Existing provider governors, original quote clocks and protection/admission gates unchanged"
+  ],
+  "tests": {
+    "receipt": "/tmp/pons-native-usd-overlap-focused-fixed.log",
+    "sha256": "f9e1c7d6af8f3a28f9ea9050c2dadfcb979bef105d7d35ccd3d6562ac48c5299",
+    "passed": 131,
+    "seconds": "66.777"
+  },
+  "prior_failed_receipt": "/tmp/pons-native-usd-overlap-focused.log",
+  "existing_authenticated_component": "PONS_CONCURRENT_HISTORY_1791772177.json",
+  "original_component_max_protective_seconds": "2.606619765982032",
+  "original_component_max_with_discovery_seconds": "2.804208006011322",
+  "normal_profile_installed": false,
+  "actual_controller_overlap_provider_validation": false,
+  "full_protection_proven": false,
+  "remaining": "Authenticated validation of the integrated overlap and independent qualification/history/combined protection; the one-market component is not four-regime capacity."
+}

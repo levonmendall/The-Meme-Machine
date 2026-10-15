@@ -1,0 +1,611 @@
+"""Active Model B startup proofs; no legacy producer or market I/O."""
+import asyncio
+from contextlib import closing
+import json,os,sqlite3,tempfile,time,unittest
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
+from tests.test_solana_closure import state_at,NOW
+from meme_machine.solana_evidence_plane import EvidenceUnavailable,IntervalProof,digest
+from meme_machine.solana_rolling_history import program_scope
+from meme_machine.solana_selective_runtime import CONTROL
+from meme_machine.solana_prewarm_startup import PHASES,candidate_release
+from meme_machine.runtime.candidate_history import CandidateHistory,CandidateDeadlineMissed
+
+
+class ControlFrontierQueryTests(unittest.TestCase):
+    def database(self,path=':memory:',indexed=True):
+        db=sqlite3.connect(path)
+        db.execute('CREATE TABLE coverage(scope TEXT,lo INTEGER,hi INTEGER,available REAL)')
+        db.execute('CREATE INDEX maintenance_recent_coverage ON coverage(scope,available,lo)')
+        if indexed:db.execute('CREATE INDEX maintenance_coverage_end ON coverage(scope,hi,lo)')
+        return db
+
+    def test_exact_availability_and_scope_with_nonmonotonic_ends(self):
+        from meme_machine.solana_prewarm_startup import _available_control_frontier
+        rows=[(CONTROL,1,100,20),(CONTROL,101,103,10),(CONTROL,104,105,30),
+              ('another-scope',1,10000,0)]
+        for indexed in (False,True):
+            with self.subTest(indexed=indexed),closing(self.database(indexed=indexed)) as db:
+                db.executemany('INSERT INTO coverage VALUES(?,?,?,?)',rows)
+                before=db.total_changes
+                for at in (-1,0,9,10,19,20,29,30,100):
+                    expected=max((hi for scope,_,hi,available in rows if scope==CONTROL and available<=at),default=None)
+                    self.assertEqual(_available_control_frontier(db,at),expected)
+                self.assertEqual(db.total_changes,before)
+
+    def test_fresh_committed_rows_and_future_availability_are_not_cached(self):
+        from meme_machine.solana_prewarm_startup import _available_control_frontier
+        with tempfile.TemporaryDirectory() as tmp:
+            path=str(Path(tmp)/'coverage.sqlite')
+            with closing(self.database(path)) as db,closing(sqlite3.connect(path)) as writer:
+                db.execute('INSERT INTO coverage VALUES(?,?,?,?)',(CONTROL,1,10,1));db.commit()
+                self.assertEqual(_available_control_frontier(db,2),10)
+                writer.execute('INSERT INTO coverage VALUES(?,?,?,?)',(CONTROL,11,20,3));writer.commit()
+                self.assertEqual(_available_control_frontier(db,2),10)
+                self.assertEqual(_available_control_frontier(db,3),20)
+
+    def test_existing_end_index_avoids_availability_prefix_walk(self):
+        from meme_machine.solana_prewarm_startup import _available_control_frontier
+        with closing(self.database()) as db:
+            db.executemany('INSERT INTO coverage VALUES(?,?,?,?)',
+                ((CONTROL,i,i,i) for i in range(4096)))
+            steps=[0]
+            def progress():steps[0]+=1;return 0
+            db.set_progress_handler(progress,1)
+            expected=db.execute('SELECT MAX(hi) FROM coverage INDEXED BY maintenance_recent_coverage WHERE scope=? AND available<=?',(CONTROL,4096)).fetchone()[0]
+            scan=steps[0];steps[0]=0;statements=[];db.set_trace_callback(statements.append)
+            self.assertEqual(_available_control_frontier(db,4096),expected)
+            seek=steps[0];db.set_progress_handler(None,0);db.set_trace_callback(None)
+            self.assertLess(seek,scan//20)
+            self.assertTrue(any('INDEXED BY maintenance_coverage_end' in sql for sql in statements))
+
+
+def proof(scope,lo,hi,at=NOW):
+    return IntervalProof(scope,lo,hi,'alchemy_finalized_stream','a'*64,
+        dict(finalized=True,complete=True,scope=scope,lower_slot=lo,upper_slot=hi,
+             lineage_hash=digest([scope,lo,hi])),at)
+
+
+def seal(history,lo,hi):
+    history.writer.ingest([],proof=proof(CONTROL,lo,hi,history.clock()))
+    for family in ('pump','pumpswap'):
+        history.lifecycle.defer_proof(proof(program_scope(family),lo,hi,history.clock()))
+    history.lifecycle.publish()
+
+
+async def quiet_model_b(work,stop):
+    """Offline Model B fixture for shared maintenance, never old block intake."""
+    from meme_machine.solana_selective_source import install
+    def boot(state):
+        h=install(state);h.startup.begin()
+        for family in ('pump','pumpswap'):h.startup.feed_ack(family,100,100)
+        h.startup.native(('pump','pumpswap'));seal(h,100,100);h.startup.advance()
+    await work(boot,0)
+    await stop.wait()
+
+
+class StartupTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory();self.path=Path(self.tmp.name)/'canonical.sqlite'
+        self.now=[NOW];self.state,self.h=state_at(self.path,lambda:self.now[0])
+    def tearDown(self):self.state.writer.close();self.tmp.cleanup()
+    def test_first_economic_availability_uses_covering_index_without_changing_timestamp(self):
+        # Startup's exact MIN over all retained normalized history caused the
+        # authenticated 59-second owner stall. Index only its existing field;
+        # neither a scout nor a retimestamped receipt is an alternative source.
+        query='SELECT MIN(first_seen) FROM rolling_economic_events WHERE first_seen>=?'
+        plan=self.h.db.execute('EXPLAIN QUERY PLAN '+query,(NOW,)).fetchall()
+        self.assertTrue(any('COVERING INDEX rolling_event_availability' in r[3] for r in plan),plan)
+        columns='identity,scope,slot,signature,program,market_time,event_index,transaction_index,kind,body,hash,first_seen,archive'
+        with self.state.writer.transaction():
+            for i,seen in enumerate((NOW-1,NOW+2,NOW+1)):
+                self.h.db.execute('INSERT INTO rolling_economic_events('+columns+') VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                    (str(i),program_scope('pump'),i,'sig','program',int(NOW),0,0,'event','{}','hash',seen,None))
+        self.assertEqual(self.h.db.execute(query,(NOW,)).fetchone()[0],NOW+1)
+        self.assertIsNone(self.h.db.execute(query,(NOW+3,)).fetchone()[0])
+    def begin(self):
+        self.h.startup.begin()
+        for family in ('pump','pumpswap'):self.h.startup.feed_ack(family,100,101)
+        self.h.startup.native(('pump','pumpswap'))
+    def test_missing_startup_state_does_not_authorize_consumer_release(self):
+        self.assertFalse(candidate_release(self.path))
+        self.assertFalse(candidate_release(Path(self.tmp.name)/'unavailable.sqlite'))
+
+    def current_tail(self):
+        from meme_machine.solana_selective_source import commit_candidate_batch,commit_control
+        from meme_machine.solana_selective_history import PROGRAMS
+        from tests.test_candidate_commit_batches import frame
+        for family in ('pump','pumpswap'):
+            self.h.gap(program_scope(family),90,90,'retained_historical_gap')
+        self.begin()
+        addresses={PROGRAMS[f]:program_scope(f) for f in ('pump','pumpswap')}
+        commit_candidate_batch(self.state,[frame(n,logs=False) for n in range(100,104)],addresses,'native-session')
+        for n in range(100,105):commit_control(self.state,frame(n,logs=False))
+        self.assertTrue(self.h.startup.advance()['released'])
+
+    def test_current_published_frontier_is_independent_of_old_marketwide_gap(self):
+        from meme_machine.solana_prewarm_startup import published_program_frontiers
+        self.current_tail()
+        before=self.h.db.total_changes
+        rows=published_program_frontiers(self.h.db,now=NOW)
+        self.assertEqual(len(rows),2);self.assertEqual({r['slot'] for r in rows},{102})
+        self.assertEqual({r['linked_child_slot'] for r in rows},{103})
+        self.assertEqual(self.h.db.total_changes,before)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_gaps WHERE repaired IS NULL').fetchone()[0],2)
+        self.assertEqual(self.h.rolling.missing('pump',program_scope('pump'),90,90),[(90,90)])
+        self.state.writer.close();self.state,self.h=state_at(self.path,lambda:self.now[0])
+        self.assertEqual(len(published_program_frontiers(self.h.db,now=NOW)),2)
+        self.h.startup.begin()
+        self.assertEqual(published_program_frontiers(self.h.db,now=NOW),[])
+
+    def test_current_gap_pending_content_or_unpublished_tail_blocks_frontier(self):
+        from meme_machine.solana_prewarm_startup import published_program_frontiers
+        self.current_tail();scope=program_scope('pump')
+        self.h.gap(scope,100,100,'current_session_gap')
+        self.assertEqual(published_program_frontiers(self.h.db,now=NOW),[])
+        self.h.lifecycle.defer_proof(proof(scope,100,100));self.h.lifecycle.publish()
+        self.assertEqual(len(published_program_frontiers(self.h.db,now=NOW)),2)
+        body=dict(record=dict(slot=102));self.h.db.execute('''INSERT INTO candidate_history_outbox
+            (id,family,address,kind,body,hash,created,consumed) VALUES(?,?,?,?,?,?,?,NULL)''',
+            ('pending','pump','mint','canonical',json.dumps(body),digest(body),NOW))
+        self.assertEqual(published_program_frontiers(self.h.db,now=NOW),[])
+        self.h.db.execute('UPDATE candidate_history_outbox SET consumed=? WHERE id=?',(NOW,'pending'))
+        self.h.db.execute('DELETE FROM candidate_coverage WHERE scope=?',(scope,))
+        self.assertEqual(published_program_frontiers(self.h.db,now=NOW),[])
+
+    def test_corrupt_frontier_proof_or_startup_identity_cannot_grant_readiness(self):
+        from meme_machine.solana_prewarm_startup import published_program_frontiers
+        self.current_tail()
+        self.h.db.execute("UPDATE candidate_coverage SET hash='invalid'")
+        with self.assertRaisesRegex(EvidenceUnavailable,'candidate_coverage_corrupt'):
+            published_program_frontiers(self.h.db,now=NOW)
+        self.h.db.execute("UPDATE prewarm_startup SET hash='invalid'")
+        with self.assertRaisesRegex(EvidenceUnavailable,'prewarm_startup_corrupt'):
+            published_program_frontiers(self.h.db,now=NOW)
+
+    def test_a_different_control_bank_or_unsealed_membership_prevents_readiness(self):
+        from meme_machine.solana_prewarm_startup import published_program_frontiers
+        self.current_tail()
+        self.h.db.execute('UPDATE stream_receipts SET sealed=0 WHERE scope=? AND slot=103',(CONTROL,))
+        self.assertEqual(published_program_frontiers(self.h.db,now=NOW),[])
+        self.h.db.execute("UPDATE stream_receipts SET sealed=1,hash='another-bank' WHERE scope=? AND slot=103",(CONTROL,))
+        self.assertEqual(published_program_frontiers(self.h.db,now=NOW),[])
+    def test_skipped_initial_slot_requires_an_actual_finalized_parent_boundary(self):
+        from meme_machine.solana_selective_source import commit_candidates
+        from meme_machine.solana_candidate_join import YellowstoneTransactionFrame
+        from meme_machine.solana_selective_history import PROGRAMS
+        from meme_machine.yellowstone import geyser_pb2 as pb
+        addresses={PROGRAMS[f]:program_scope(f) for f in ('pump','pumpswap')}
+        for parent in (100,99):
+            u=pb.SubscribeUpdate();b=u.block;b.slot=102;b.parent_slot=parent;b.blockhash='102';b.parent_blockhash=str(parent);b.block_time.timestamp=int(NOW)
+            frame=YellowstoneTransactionFrame(u,10,NOW,replay_from_slot=100)
+            if parent==99:self.h.db.execute('DELETE FROM candidate_blocks')
+            commit_candidates(self.state,frame,addresses,str(parent))
+            self.assertEqual(self.h.lifecycle.missing(program_scope('pump'),100,101),[] if parent==99 else [(100,101)])
+    def test_exact_replayed_last_receipt_joins_new_session_child_without_a_gap(self):
+        from meme_machine.solana_selective_source import commit_candidates
+        from meme_machine.solana_candidate_join import YellowstoneTransactionFrame
+        from meme_machine.solana_selective_history import PROGRAMS
+        from meme_machine.yellowstone import geyser_pb2 as pb
+        addresses={PROGRAMS[f]:program_scope(f) for f in ('pump','pumpswap')}
+        def frame(slot):
+            u=pb.SubscribeUpdate();b=u.block;b.slot=slot;b.parent_slot=slot-1;b.blockhash=str(slot);b.parent_blockhash=str(slot-1);b.block_time.timestamp=int(NOW)
+            return YellowstoneTransactionFrame(u,10,NOW,replay_from_slot=100)
+        commit_candidates(self.state,frame(100),addresses,'old')
+        self.assertEqual(self.h.lifecycle.missing(program_scope('pump'),100,100),[(100,100)])
+        self.state.writer.close();self.state,self.h=state_at(self.path,lambda:self.now[0])
+        commit_candidates(self.state,frame(100),addresses,'new');commit_candidates(self.state,frame(101),addresses,'new')
+        self.assertEqual(self.h.lifecycle.missing(program_scope('pump'),100,100),[])
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM acquisition_jobs').fetchone()[0],0)
+    def test_clean_boot_releases_only_after_durable_contiguous_publication(self):
+        self.begin();self.assertFalse(candidate_release(self.path))
+        self.assertEqual(self.h.startup.advance()['phase'],'WAIT_FOR_DURABLE_PUBLICATION')
+        self.h.writer.ingest([],proof=proof(CONTROL,100,101))
+        self.h.lifecycle.defer_proof(proof(program_scope('pump'),100,101));self.h.lifecycle.publish()
+        self.assertFalse(self.h.startup.advance()['released'])
+        self.h.lifecycle.defer_proof(proof(program_scope('pumpswap'),100,101));self.h.lifecycle.publish()
+        self.assertEqual(self.h.startup.advance()['phase'],'STEADY_STATE')
+        self.assertTrue(candidate_release(self.path))
+        self.assertEqual([r[0] for r in self.h.db.execute('SELECT phase FROM prewarm_startup_transitions ORDER BY sequence')],list(PHASES))
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM acquisition_jobs').fetchone()[0],0)
+        self.assertFalse(self.h.startup.snapshot()['legacy_startup_active'])
+    def test_ack_or_timeout_cannot_seal_an_open_upper_boundary(self):
+        self.begin();seal(self.h,100,100);self.now[0]+=200
+        self.assertFalse(self.h.startup.advance()['released'])
+        self.assertEqual(self.h.lifecycle.missing(program_scope('pump'),100,101),[(101,101)])
+    def test_unresolved_gap_prevents_release_until_real_overlap_proof(self):
+        self.begin();seal(self.h,100,101);self.h.gap(program_scope('pump'),101,101,'disconnect')
+        self.assertFalse(self.h.startup.advance()['released'])
+        self.h.lifecycle.defer_proof(proof(program_scope('pump'),101,101));self.h.lifecycle.publish()
+        self.assertTrue(self.h.startup.advance()['released'])
+    def test_candidate_workers_wait_but_original_deadline_can_expire(self):
+        self.begin()
+        with patch.dict(os.environ,MM_SOLANA_EVIDENCE_PLANE_DB=str(self.path)),closing(CandidateHistory(self.h.lifecycle.path,clock=lambda:self.now[0])) as c:
+            c.enqueue('meteora','pool',kind='warmup',ready_at=NOW,deadline=NOW+30,
+                estimate_seconds=12,priority=30,identity='work',payload={})
+            self.assertIsNone(c.claim('one'));self.now[0]+=31
+            with self.assertRaises(CandidateDeadlineMissed):c.claim('two')
+            self.assertEqual(c.db.execute('SELECT status,deadline FROM work').fetchone(),('deadline_missed',NOW+30))
+    def test_fail_closed_never_releases_or_selects_legacy_startup(self):
+        self.begin();self.h.startup.fail('unresolved_gap');seal(self.h,100,101)
+        snap=self.h.startup.advance();self.assertEqual(snap['phase'],'FAIL_CLOSED')
+        self.assertFalse(snap['released']);self.assertFalse(snap['legacy_fallback'])
+    def test_restart_at_each_boundary_restores_frontier_without_deadline_reset(self):
+        for phase in ('RESTORE_DURABLE_FRONTIER','START_ROLLING_FEEDS','RECOVERY_OVERLAP',
+                'WAIT_FOR_DURABLE_PUBLICATION','RELEASE_CANDIDATE_CONSUMERS','STEADY_STATE'):
+            with self.subTest(phase=phase):
+                self.state.writer.close();self.path=Path(self.tmp.name)/(phase+'.sqlite')
+                self.state,self.h=state_at(self.path,lambda:self.now[0])
+                self.h.startup.begin()
+                # Interruption after a committed transition, not a fabricated
+                # complete interval. The previous frontier is already durable.
+                self.h.lifecycle.checkpoint(program_scope('pump'),99,digest([99]))
+                self.h.lifecycle.checkpoint(program_scope('pumpswap'),99,digest([99]))
+                with closing(CandidateHistory(self.h.lifecycle.path,clock=lambda:self.now[0])) as c:
+                    c.enqueue('meteora','pool',kind='warmup',ready_at=NOW,deadline=NOW+150,
+                        estimate_seconds=12,priority=30,identity=phase,payload={})
+                # Test the durable phase commit independently of sockets.
+                with self.h.writer.transaction():
+                    self.h.db.execute('UPDATE prewarm_startup SET phase=?,released=?',(phase,int(phase in ('RELEASE_CANDIDATE_CONSUMERS','STEADY_STATE'))))
+                self.state.writer.close();self.state,self.h=state_at(self.path,lambda:self.now[0])
+                restored=self.h.startup.begin();self.assertEqual(restored['restored_frontiers'],dict(pump=99,pumpswap=99))
+                self.assertFalse(restored['released'])
+                for f in ('pump','pumpswap'):self.h.startup.feed_ack(f,98,101)
+                self.h.startup.native(('pump','pumpswap'));seal(self.h,98,101)
+                self.assertTrue(self.h.startup.advance()['released'])
+                self.h.lifecycle.repair([dict(family='pump',address='late',scope='candidate:pump:late',
+                    lower_slot=98,priority=4,deadline=NOW+150)],101)
+                with closing(CandidateHistory(self.h.lifecycle.path)) as c:
+                    self.assertEqual(c.db.execute('SELECT deadline FROM work WHERE id=?',(phase,)).fetchone()[0],NOW+150)
+                self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+    def test_true_late_discovery_fetches_only_missing_prefix(self):
+        self.h.bind('pumpswap','pool');seal(self.h,105,110)
+        m=self.h.rolling.prepare('pumpswap','pool',100,110,deadline=NOW+150,reason='LATE_DISCOVERY')
+        self.assertEqual(m['missing_intervals'],[(100,104)])
+        self.assertEqual(self.h.db.execute('SELECT lo,hi,deadline FROM acquisition_jobs').fetchall(),[(100,104,NOW+150)])
+        self.assertEqual(self.h.db.execute('SELECT reason FROM backfill_reasons').fetchone()[0],'LATE_DISCOVERY')
+    def test_unchanged_meteora_membership_has_stable_revision(self):
+        self.h.observe('meteora','pool',slot=100,signature='',seen=NOW,fields=dict(wsol_pair_locator=True,activity=False))
+        self.h.bind('meteora','pool')
+        revision=self.h.db.execute('SELECT revision FROM prewarm_membership_revision').fetchone()[0]
+        for i in range(100):
+            self.h.observe('meteora','pool',slot=100+i,signature='',seen=NOW+i,fields=dict(wsol_pair_locator=True,activity=False))
+            self.h.bind('meteora','pool')
+        self.assertEqual(self.h.db.execute('SELECT revision FROM prewarm_membership_revision').fetchone()[0],revision)
+
+    def test_checkpoint_prefix_repairs_only_proven_missing_slots_not_publication_tail(self):
+        scope=self.h.bind('meteora','pool')
+        with closing(CandidateHistory(self.h.lifecycle.path,clock=lambda:NOW)) as c:
+            c.enqueue('meteora','pool',kind='warmup',ready_at=NOW,deadline=NOW+150,
+                estimate_seconds=12,priority=30,identity='prefix',payload={})
+            c.wait_for_history('prefix',scope,99,102,retry_at=NOW+120)
+        self.assertEqual(self.h.rolling.repair_required_checkpoint_prefixes(),[])
+        self.h.lifecycle.defer_proof(proof(scope,100,101));self.h.lifecycle.publish()
+        self.h.rolling.repair_required_checkpoint_prefixes();self.h.rolling.repair_required_checkpoint_prefixes()
+        self.assertEqual(self.h.db.execute('SELECT lo,hi,deadline FROM acquisition_jobs').fetchall(),[(99,99,NOW+150)])
+        self.assertEqual(self.h.db.execute('SELECT reason FROM backfill_reasons').fetchone()[0],'CHECKPOINT_GAP')
+        self.h.lifecycle.defer_proof(proof(scope,99,99));self.h.lifecycle.publish()
+        self.assertEqual(self.h.rolling.repair_required_checkpoint_prefixes(),[])
+        with closing(CandidateHistory(self.h.lifecycle.path,clock=lambda:NOW)) as c:self.assertIsNone(c.claim('one'))
+        self.h.lifecycle.defer_proof(proof(scope,102,102));self.h.lifecycle.publish()
+        with closing(CandidateHistory(self.h.lifecycle.path,clock=lambda:NOW)) as c:self.assertEqual(c.claim('one')['deadline'],NOW+150)
+
+
+class StartupAsyncTests(unittest.IsolatedAsyncioTestCase):
+    async def test_canceled_waiter_retains_actual_owner_completion_and_operation_identity(self):
+        import threading,sqlite3
+        from meme_machine import solana_evidence_service as service,solana_evidence_control as control
+        from tests.maintenance_production_harness import NativeCompletionPool
+        from tests.evidence_ipc_harness import ipc_transport
+        entered=threading.Event();release=threading.Event();accepted=[];observed={};owners=[]
+        stop=asyncio.Event();original=control.PriorityOwner.__init__
+        def owner_init(owner,*args,**kwargs):
+            original(owner,*args,**kwargs);owners.append(owner)
+        async def driver(work,stop):
+            boot=asyncio.Event();boot.set();await quiet_model_b(work,boot)
+            def command(state):
+                observed['native_tid']=threading.get_native_id();entered.set()
+                if not release.wait(2):raise RuntimeError('offline_release_missing')
+                return 'original-result'
+            waiter=asyncio.create_task(work(command,4,label='source_commit',component='candidate',accepted=accepted.append))
+            try:
+                while not entered.is_set():await asyncio.sleep(.001)
+                active=owners[0].telemetry()['active_operation']
+                self.assertEqual(active['stage'],'source_commit');self.assertEqual(active['component'],'candidate')
+                self.assertEqual(active['native_thread_id'],observed['native_tid'])
+                self.assertEqual(owners[0].telemetry()['native_thread_id'],observed['native_tid'])
+                waiter.cancel()
+                with self.assertRaises(asyncio.CancelledError):await waiter
+                self.assertFalse(accepted[0].done())
+                await asyncio.sleep(.02);release.set()
+                self.assertEqual((await asyncio.wrap_future(accepted[0]))[0],'original-result')
+                for _ in range(1000):
+                    observed['completed']=owners[0].telemetry()
+                    if any(r['component']=='candidate' for r in observed['completed']['recent_slow_operations']):break
+                    await asyncio.sleep(.001)
+            finally:release.set();stop.set()
+        with tempfile.TemporaryDirectory() as t,ipc_transport(),patch.object(control.PriorityOwner,'__init__',owner_init), \
+                patch.object(control,'OWNER_SLOW_SECONDS',.01),patch('concurrent.futures.ProcessPoolExecutor',NativeCompletionPool):
+            path=Path(t)/'canonical.sqlite'
+            await asyncio.wait_for(service.serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',
+                stop=stop,source_driver=driver),10)
+            with closing(sqlite3.connect(path)) as db:
+                ipc=json.loads(db.execute("SELECT value FROM service_health WHERE key='ipc'").fetchone()[0])
+            key='owner.stage.source_commit.component.candidate'
+            self.assertEqual(ipc[key+'.calls'],1)
+            self.assertGreaterEqual(ipc[key+'.execution_total_microseconds'],10000)
+            self.assertGreaterEqual(ipc[key+'.execution_cpu_total_microseconds'],0)
+            records=[r for r in observed['completed']['recent_slow_operations'] if r['component']=='candidate']
+            self.assertEqual(len(records),1);self.assertEqual(records[0]['outcome'],'COMPLETED')
+            self.assertEqual(records[0]['native_thread_id'],observed['native_tid'])
+            self.assertNotEqual((observed['completed']['active_operation'] or {}).get('component'),'candidate')
+
+    async def test_cold_maintenance_cannot_compete_with_initial_publication(self):
+        from unittest.mock import MagicMock
+        from meme_machine.solana_selective_source import SelectiveSource
+        with tempfile.TemporaryDirectory() as directory:
+            state,h=state_at(Path(directory)/'canonical.sqlite')
+            source=SelectiveSource(MagicMock(),MagicMock(),token='offline')
+            source.canonical_path=state.writer.path;source.stop=asyncio.Event();calls=[]
+            async def work(fn,priority,**kwargs):
+                calls.append(priority);value=fn(state);source.stop.set();return value
+            source.work=work
+            task=asyncio.create_task(source.cold_maintenance())
+            try:
+                await asyncio.sleep(.02);self.assertEqual(calls,[])
+                h.startup.begin()
+                for family in ('pump','pumpswap'):h.startup.feed_ack(family,100,100)
+                h.startup.native(('pump','pumpswap'));seal(h,100,100);h.startup.advance()
+                await task
+                self.assertEqual(calls,[4])
+            finally:
+                task.cancel();await asyncio.gather(task,return_exceptions=True);state.writer.close()
+
+    async def test_cold_maintenance_preserves_busy_plan_deferral(self):
+        from unittest.mock import MagicMock
+        from meme_machine.solana_selective_source import SelectiveSource
+        source=SelectiveSource(MagicMock(),MagicMock(),token='offline')
+        source.stop=asyncio.Event()
+        async def ready():pass
+        async def deferred(fn,priority,**kwargs):
+            self.assertEqual(priority,4);source.stop.set();return 0
+        source.wait_startup=ready;source.work=deferred
+        with patch('meme_machine.solana_history_work.enabled',return_value=True):
+            await source.cold_maintenance()
+
+    async def test_last_websocket_log_can_complete_native_join_and_release_startup(self):
+        import copy,json,based58
+        from meme_machine.solana_selective_source import SelectiveSource
+        from meme_machine.solana_selective_history import PROGRAMS
+        from meme_machine.solana_candidate_join import scope_labels
+        from meme_machine.yellowstone import geyser_pb2 as pb
+        from tests.test_solana_selective_evidence import FIXTURE
+        tx=copy.deepcopy(FIXTURE['pump'][0]);slot=tx['slot'];index=tx['transactionIndex']
+        addresses={PROGRAMS[f]:program_scope(f) for f in ('pump','pumpswap')}
+        with tempfile.TemporaryDirectory() as t:
+            state,h=state_at(Path(t)/'canonical.sqlite');h.startup.begin()
+            source=SelectiveSource(SimpleNamespace(credential='offline',stream_url='offline'),None)
+            source.stop=asyncio.Event();statuses_ready=asyncio.Event();log_committed=asyncio.Event()
+            async def work(fn,*a,**kw):
+                result=fn(state)
+                row=h.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0]
+                if row:log_committed.set()
+                return result
+            async def rpc(method,*args):self.assertEqual(method,'getSlot');return slot-1
+            source.work=work;source.measured_rpc=rpc
+            class Socket:
+                def __init__(self):self.acks=asyncio.Queue();self.sent=False;self.frontiers=iter((11,12))
+                async def send(self,raw):
+                    r=json.loads(raw);await self.acks.put(json.dumps(dict(id=r['id'],result=r['id']+10)))
+                async def recv(self):
+                    if not self.acks.empty():return await self.acks.get()
+                    subscription=next(self.frontiers,None)
+                    if subscription is not None:
+                        return json.dumps(dict(method='logsNotification',params=dict(subscription=subscription,result=dict(
+                            context=dict(slot=slot-1),value=dict(err={'InstructionError':[0,0]},signature='failed',logs=[])))))
+                    await statuses_ready.wait()
+                    if self.sent:await asyncio.Event().wait()
+                    self.sent=True
+                    return json.dumps(dict(method='logsNotification',params=dict(subscription=11,result=dict(
+                        context=dict(slot=slot),value=dict(err=None,signature=tx['transaction']['signatures'][0],logs=tx['meta']['logMessages'])))))
+            class Connection:
+                async def __aenter__(self):return Socket()
+                async def __aexit__(self,*a):pass
+            async def stream(channel,request,handler,*args):
+                u=pb.SubscribeUpdate(filters=[scope_labels(addresses)[program_scope('pump')]])
+                s=u.transaction_status;s.slot=slot;s.index=index;s.signature=based58.b58decode(tx['transaction']['signatures'][0].encode())
+                await handler(u,u.ByteSize(),NOW)
+                for at in (slot,slot+1):
+                    u=pb.SubscribeUpdate(filters=['b']);m=u.block_meta;m.slot=at;m.parent_slot=at-1
+                    m.blockhash=str(at);m.parent_blockhash=str(at-1);m.block_time.timestamp=tx['blockTime']
+                    m.executed_transaction_count=index+1 if at==slot else 0
+                    await handler(u,u.ByteSize(),NOW)
+                    u=pb.SubscribeUpdate(filters=['f']);u.slot.slot=at;u.slot.parent=at-1;u.slot.status=pb.SLOT_FINALIZED
+                    await handler(u,u.ByteSize(),NOW)
+                    if at==slot:
+                        statuses_ready.set();await log_committed.wait()
+                        # This frame became ready on the log callback, not on
+                        # the native callback above. Readiness must be durable.
+                        self.assertTrue(all(r[0] is not None for r in h.db.execute('SELECT native_at FROM prewarm_startup_feeds')))
+                source.stop.set()
+            source.stream=stream
+            desired=[dict(family=f,address=PROGRAMS[f],scope=program_scope(f),priority=6,deadline=NOW+150,lower_slot=0,rolling=True) for f in ('pump','pumpswap')]
+            try:
+                with patch('meme_machine.solana_selective_source.connect',lambda *a,**kw:Connection()):
+                    await asyncio.wait_for(source.live(None,desired,asyncio.Event()),3)
+                h.writer.ingest([],proof=proof(CONTROL,slot,slot+1));h.lifecycle.publish()
+                self.assertTrue(h.startup.advance()['released'])
+                self.assertEqual(h.db.execute('SELECT COUNT(*) FROM acquisition_jobs').fetchone()[0],0)
+            finally:state.writer.close()
+    async def test_shared_entrypoint_backpressure_includes_checkpoint_and_health(self):
+        from meme_machine import solana_evidence_service as service
+        from meme_machine.solana_evidence_control import PriorityOwner
+        from tests.maintenance_production_harness import NativeCompletionPool
+        from tests.evidence_ipc_harness import ipc_transport
+        original_init=PriorityOwner.__init__;executed=[];stop=asyncio.Event()
+        def bounded(owner,factory,**kw):return original_init(owner,factory,capacity=4,reserved=1)
+        async def driver(work,stop):
+            boot_done=asyncio.Event();boot_done.set();await quiet_model_b(work,boot_done)
+            def command(n):
+                def apply(state):time.sleep(.002);executed.append(n);return n
+                return apply
+            result=await asyncio.gather(*(work(command(n),2,label='source_commit') for n in range(32)))
+            self.assertEqual(result,list(range(32)));stop.set()
+        with tempfile.TemporaryDirectory() as t,ipc_transport(),patch.object(PriorityOwner,'__init__',bounded),patch('concurrent.futures.ProcessPoolExecutor',NativeCompletionPool):
+            path=Path(t)/'canonical.sqlite'
+            await asyncio.wait_for(service.serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',stop=stop,source_driver=driver),10)
+            import sqlite3,json
+            with closing(sqlite3.connect(path)) as db:
+                ipc=json.loads(db.execute("SELECT value FROM service_health WHERE key='ipc'").fetchone()[0])
+                metrics=json.loads(db.execute("SELECT value FROM service_health WHERE key='owner_scheduler'").fetchone()[0])
+            self.assertGreater(metrics['admission_waited'],0)
+            self.assertLessEqual(metrics['queue_peak'],3);self.assertEqual(metrics['queued'],0)
+            self.assertEqual(sorted(executed),list(range(32)))
+    async def test_archived_default_startup_is_not_available(self):
+        from meme_machine.solana_evidence_service import serve
+        with self.assertRaisesRegex(EvidenceUnavailable,'legacy_startup_archived_model_b_driver_required'):
+            await serve('/unused','https://solana-mainnet.g.alchemy.com/v2/offline-test')
+    async def test_actual_owner_backpressure_drains_every_unadmitted_command(self):
+        from meme_machine.solana_evidence_control import PriorityOwner
+        from meme_machine.solana_selective_source import source_work
+        executed=[];observed=[];stop=asyncio.Event()
+        owner=PriorityOwner(lambda:SimpleNamespace(close=lambda:None),capacity=4,reserved=1)
+        await asyncio.wrap_future(owner.ready)
+        async def work(fn,priority=2,**kw):return await asyncio.shield(asyncio.wrap_future(owner.submit(fn,priority=priority)))
+        work=source_work(work,stop,lambda kind,**values:observed.append(values))
+        def command(n):
+            def apply(s):time.sleep(.005);executed.append(n);return n
+            return apply
+        try:
+            results=await asyncio.gather(*(work(command(n),2) for n in range(24)))
+            self.assertEqual(results,list(range(24)));self.assertEqual(sorted(executed),list(range(24)))
+            self.assertEqual(owner.telemetry()['queued'],0);self.assertLessEqual(owner.telemetry()['queue_peak'],3)
+            self.assertGreater(sum(r['retries'] for r in observed),0)
+        finally:owner.close()
+    async def test_membership_plan_coalesces_unchanged_state_before_owner_admission(self):
+        from meme_machine.solana_selective_source import SelectiveSource
+        with tempfile.TemporaryDirectory() as t:
+            state,h=state_at(Path(t)/'canonical.sqlite');h.startup.begin()
+            for f in ('pump','pumpswap'):h.startup.feed_ack(f,100,100)
+            h.startup.native(('pump','pumpswap'));seal(h,100,100);h.startup.advance()
+            h.observe('meteora','pool',slot=100,signature='',seen=NOW,fields=dict(wsol_pair_locator=True))
+            source=SelectiveSource(SimpleNamespace(credential='offline'),None);source.stop=asyncio.Event()
+            source.canonical_path=str(h.writer.path);plans=[];installs=[];events=[]
+            async def work(fn,*a,**kw):plans.append(1);return fn(state)
+            async def live(channel,desired,local_stop):installs.append(desired);await local_stop.wait()
+            source.work=work;source.live=live;source.observer=lambda kind,values:events.append(kind)
+            try:
+                task=asyncio.create_task(source.live_manager(None));await asyncio.sleep(.82)
+                source.stop.set();await task
+                self.assertEqual(len(plans),1);self.assertEqual(len(installs),1)
+                self.assertGreaterEqual(events.count('membership_suppressed'),2)
+            finally:state.writer.close()
+
+    async def test_provider_subscription_pressure_retries_same_durable_interest(self):
+        from meme_machine.solana_selective_source import SelectiveSource
+        with tempfile.TemporaryDirectory() as t:
+            state,h=state_at(Path(t)/'canonical.sqlite');h.startup.begin()
+            for f in ('pump','pumpswap'):h.startup.feed_ack(f,100,100)
+            h.startup.native(('pump','pumpswap'));seal(h,100,100);h.startup.advance()
+            h.observe('meteora','pool',slot=100,signature='',seen=NOW,fields=dict(wsol_pair_locator=True))
+            h.lifecycle.promote('meteora','pool',deadline=NOW+150)
+            source=SelectiveSource(SimpleNamespace(credential='offline'),None);source.stop=asyncio.Event()
+            source.canonical_path=str(h.writer.path);attempts=[];resumed=asyncio.Event()
+            async def work(fn,*a,**kw):return fn(state)
+            async def live(channel,desired,local_stop):
+                attempts.append(desired)
+                if len(attempts)==1:raise EvidenceUnavailable('candidate_native_resource_exhausted')
+                resumed.set();await local_stop.wait()
+            source.work=work;source.live=live
+            try:
+                task=asyncio.create_task(source.live_manager(None))
+                await asyncio.wait_for(resumed.wait(),3)
+                source.stop.set();await task
+                self.assertEqual(attempts[0],attempts[1])
+                self.assertEqual(h.db.execute('SELECT deadline FROM candidate_lifecycle').fetchone()[0],NOW+150)
+                self.assertIn('candidate_native_resource_exhausted',h.db.execute(
+                    "SELECT body FROM acquisition_observations WHERE kind='subscription_retry'").fetchone()[0])
+            finally:state.writer.close()
+
+    async def test_native_subscription_write_error_uses_scoped_retry_status(self):
+        import grpc
+        from meme_machine.solana_selective_source import SelectiveSource
+        from meme_machine.yellowstone import geyser_pb2 as pb
+        class Call:
+            cancelled=False
+            async def write(self,request):
+                raise grpc.aio.AioRpcError(grpc.StatusCode.RESOURCE_EXHAUSTED,(),(),details='offline pressure')
+            def cancel(self):self.cancelled=True
+        call=Call()
+        channel=SimpleNamespace(stream_stream=lambda *a,**kw:lambda **options:call)
+        source=SelectiveSource(SimpleNamespace(credential='offline'),None);source.stop=asyncio.Event()
+        with self.assertRaisesRegex(EvidenceUnavailable,'^candidate_native_resource_exhausted$'):
+            await source.stream(channel,pb.SubscribeRequest(),None,'candidate_live')
+        self.assertTrue(call.cancelled)
+
+    async def test_actual_replay_position_rejection_fails_closed_without_changing_pending_history(self):
+        import grpc
+        from meme_machine.solana_selective_source import SelectiveSource,CONTROL_OVERLAP
+        # Retained attempt 1: the HTTP finalized tip was current; replay at its
+        # 256-slot overlap was rejected before either subscription delivered.
+        tip=457040075;floor=457039819
+        details='failed to get replay position for slot 457039819'
+        self.assertEqual(tip-CONTROL_OVERLAP,floor)
+        for plane in ('scout','control'):
+            with self.subTest(plane=plane),tempfile.TemporaryDirectory() as directory:
+                state,h=state_at(Path(directory)/'canonical.sqlite')
+                h.writer.ingest([],proof=proof(CONTROL,457007864,457007865))
+                h.lifecycle.checkpoint(program_scope('pump'),457007865,digest(['pending']))
+                h.gap(program_scope('pump'),457007866,floor,'retained_outage')
+                h.request('pump','pending-pool',457007866,floor,priority=2,deadline=NOW+150)
+                h.lifecycle.defer_proof(proof(program_scope('pump'),457007864,457007865))
+                tables=('records','coverage','gaps','cursors','candidate_checkpoints',
+                    'candidate_gaps','candidate_history_outbox','candidate_pending_proofs',
+                    'acquisition_jobs','native_order_attestations')
+                def snapshot():
+                    return {table:h.db.execute('SELECT * FROM '+table+' ORDER BY rowid').fetchall()
+                        for table in tables}
+                before=snapshot();requests=[];handlers=[];calls=[]
+                class Call:
+                    cancelled=False
+                    async def write(self,request):requests.append(request)
+                    async def read(self):
+                        raise grpc.aio.AioRpcError(grpc.StatusCode.INVALID_ARGUMENT,(),(),details=details)
+                    def cancel(self):self.cancelled=True
+                call=Call()
+                channel=SimpleNamespace(stream_stream=lambda *a,**kw:lambda **options:call)
+                source=SelectiveSource(SimpleNamespace(credential='offline'),None)
+                source.stop=asyncio.Event()
+                async def work(fn,*a,**kw):return fn(state)
+                async def rpc(*a,**kw):
+                    calls.append(a);raise AssertionError('semantic rejection must not invent a replay retry')
+                async def handler(*a):handlers.append(a)
+                source.work=work;source.measured_rpc=rpc
+                try:
+                    with patch('meme_machine.solana_selective_source.enabled',lambda family:False):
+                        with self.assertRaisesRegex(EvidenceUnavailable,'^candidate_native_invalid_argument$'):
+                            if plane=='scout':await source.scout_stream(channel,tip,handler)
+                            else:await source.control_stream(channel,tip,asyncio.Queue())
+                    self.assertEqual(len(requests),1);request=requests[0]
+                    self.assertTrue(request.HasField('from_slot'));self.assertEqual(request.from_slot,floor)
+                    if plane=='scout':
+                        self.assertEqual(set(request.accounts),{'p'})
+                        self.assertEqual([(s.offset,s.length) for s in request.accounts_data_slice],[(0,49)])
+                    else:
+                        self.assertEqual(set(request.blocks_meta),{'b'});self.assertEqual(set(request.slots),{'f'})
+                        self.assertTrue(request.slots['f'].filter_by_commitment)
+                    self.assertEqual(handlers,[]);self.assertEqual(calls,[])
+                    self.assertTrue(call.cancelled);self.assertEqual(snapshot(),before)
+                    errors=[body for kind,body in source.pending_diagnostics if kind=='native_error']
+                    self.assertEqual(len(errors),1)
+                    self.assertEqual((errors[0]['status'],errors[0]['details'],errors[0]['phase']),
+                        ('INVALID_ARGUMENT',details,'stream_read'))
+                    self.assertEqual(errors[0]['request']['from_slot'],str(floor))
+                    self.assertEqual(errors[0]['messages'],{});self.assertEqual(errors[0]['samples'],[])
+                finally:state.writer.close()
+
+
+if __name__=='__main__':unittest.main()

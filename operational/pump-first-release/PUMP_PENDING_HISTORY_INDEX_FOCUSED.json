@@ -1,0 +1,10 @@
+{
+  "status": "PASS_OFFLINE",
+  "tests": 117,
+  "seconds": 22.937,
+  "command": "python -m operational.tests FAST --modules tests.test_solana_rolling_prewarm tests.test_solana_prewarm_startup tests.test_solana_shared_capacity tests.test_solana_selective_evidence",
+  "log": "/tmp/pump-pending-history-index-focused.log",
+  "log_sha256": "0d5d70ea248e0f8c944fcec5c101f4702f363ee7a536313866a8578ed8ebfa5e",
+  "purpose": "Index exact current canonical obligations while retaining 30,000 consumed historical receipts; restored pending content still prevents checkpoint",
+  "authenticated_protection": false
+}

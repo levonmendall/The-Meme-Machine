@@ -1,0 +1,16 @@
+{
+  "hot_bytes_before": 4172,
+  "hot_bytes_after": 0,
+  "retired_records": 1,
+  "retired_logical_bytes": 20943,
+  "pinned_bytes": 0,
+  "oldest_unretired_scope": null,
+  "retirement_seconds": 0.0058762680273503065,
+  "records_per_second": 170.17603610754875,
+  "physical_database_bytes": 2311328,
+  "retained_candidate_history_bytes": 90112,
+  "cold_bytes": 5217,
+  "restart_restored_records": 1,
+  "candidate_first_seen_preserved": 1791400000.0,
+  "provider_cost_credit_usd": 0
+}

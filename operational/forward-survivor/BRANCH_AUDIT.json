@@ -1,0 +1,72 @@
+{
+  "active_other_work": "Another offline OPERATIONAL suite was observed in a separate worktree near the end of this run. It was left untouched; its unfinished code was not merged.",
+  "audit": "Published heads reverified before final receipt publication; no newer relevant published engineering head discovered.",
+  "baseline": "b1f215edd3dc079b623401c7e09e9c91a380e6a0",
+  "completed_storage_cherry_picks": [
+    "8c08039c3c3eb7e217dfd8475de7d4ce78ca2e62",
+    "63ec2352078a13480a12e84b6185d399583d186f"
+  ],
+  "heads": [
+    {
+      "ancestor_of_requested_baseline": null,
+      "branch": "engineering/forward-survivor-20261008",
+      "published_sha": "d0c67bee09cb58f4b60627c6fdec1ecfee299caf"
+    },
+    {
+      "ancestor_of_requested_baseline": true,
+      "branch": "engineering/pons-40-block-capability-20261008",
+      "published_sha": "b1f215edd3dc079b623401c7e09e9c91a380e6a0"
+    },
+    {
+      "ancestor_of_requested_baseline": true,
+      "branch": "engineering/pons-finalization-20261007",
+      "published_sha": "30b289d50529595431bbe8b01d70cf881273cc9a"
+    },
+    {
+      "ancestor_of_requested_baseline": false,
+      "branch": "engineering/pons-finalization-wip-preservation-20261007",
+      "published_sha": "2ca2afd3f2ae9d5fcfa7d935a8d898a2b1ba7210"
+    },
+    {
+      "ancestor_of_requested_baseline": true,
+      "branch": "engineering/pons-historical-bootstrap-20261008",
+      "published_sha": "b8434e30b9de296fdb36a48e3992d12ac7b64546"
+    },
+    {
+      "ancestor_of_requested_baseline": true,
+      "branch": "engineering/pons-three-defect-repair-20261007",
+      "published_sha": "07ca4d0a8a61b20409a04b849d39b872316dda10"
+    },
+    {
+      "ancestor_of_requested_baseline": true,
+      "branch": "integration/pump-pons-paper-20261007",
+      "published_sha": "9ee5d3a400227b0add3d80226430ced47f833590"
+    },
+    {
+      "ancestor_of_requested_baseline": true,
+      "branch": "integration/shared-capital-paper-20261007",
+      "published_sha": "510b61d1950ae54c8b0435b7b7cae3aad0bcc1fe"
+    },
+    {
+      "ancestor_of_requested_baseline": null,
+      "branch": "maintenance/engineering-storage-retention-20261008",
+      "published_sha": "5978ceb054044197ea9d64fb7e7b03bc18be6e0d"
+    },
+    {
+      "ancestor_of_requested_baseline": true,
+      "branch": "repair/pump-provider-offline-20261008",
+      "published_sha": "703d8764a775d9680e3b48baf2c96f3fb7cf8eb6"
+    },
+    {
+      "ancestor_of_requested_baseline": false,
+      "branch": "main",
+      "published_sha": "97bc5c5e6cb7b569d814a667ca19ceca4dd6b2c0"
+    }
+  ],
+  "production_checkout_sha": "b577cc1c67f4d64f887b430f5e933f376b607dc2",
+  "production_service": "inactive; read-only reverified",
+  "schema": "forward-survivor-branch-audit-v1",
+  "unfinished_branches_not_integrated": [
+    "engineering/pons-finalization-wip-preservation-20261007"
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "checked_at": "2026-10-08T00:39:07.028597+00:00",
+  "deployed_commit": "b577cc1c67f4d64f887b430f5e933f376b607dc2",
+  "deployed_worktree_clean": true,
+  "paper_service": "inactive",
+  "epoch_unchanged": true,
+  "inception": "500.00",
+  "funding_authority": "LEGACY_PRESERVED_NOT_ACTIVATED",
+  "shared_marker_absent": true,
+  "accounting": {
+    "epoch_id": "paper-1791089005190643467",
+    "inception_sha256": "3a1986fc4e755a75a93808815cec3d0cb9a930d0818e36ef2a3a93abf6190a9e",
+    "sequence": 2036,
+    "journal_hash": "c0cb1d5fd4a156378e4e53764c0f528707ee9a5af799662daf15f207be95723e",
+    "replayed_sha256": "682cadd084dae4b288d1972e5e1d23c9e5b6026bd1d165442a239f6af9570563",
+    "pending_deliveries": [],
+    "native_ids": [],
+    "sleeves": [
+      [
+        "meteora",
+        "125.00"
+      ],
+      [
+        "pons",
+        "125.00"
+      ],
+      [
+        "pump",
+        "125.00"
+      ],
+      [
+        "ramses",
+        "125.00"
+      ]
+    ]
+  },
+  "reconciliation": "PASS",
+  "checks": {
+    "lane_realized_less_shared_costs": true,
+    "remaining_basis": true,
+    "cash_basis_conservation": true,
+    "cost_attribution": true
+  },
+  "storage": {
+    "/": {
+      "total_bytes": 50884108288,
+      "available_bytes": 21960122368,
+      "used_pct": 56.809895420368775
+    },
+    "/mnt/volume_nyc1_1790918115030": {
+      "total_bytes": 53075214336,
+      "available_bytes": 25324412928,
+      "used_pct": 47.196549171557926
+    }
+  },
+  "external_activity": "Independent root disk preservation work was observed in another workspace; no process or files belonging to it were changed by this integration task."
+}

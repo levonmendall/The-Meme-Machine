@@ -1,0 +1,24 @@
+Command exited with non-zero status 1
+	Command being timed: "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python -c from operational.tests import network_guard;network_guard();import unittest;names=['tests.test_run369_runtime.Run369IPCTests.test_disconnected_client_commit_retry_and_service_survival', 'tests.test_run369_runtime.Run369IPCTests.test_response_after_old_250ms_limit_is_acknowledged_once', 'tests.test_production_maintenance_arbiter.ProductionServeTests.test_generation_change_revokes_old_runtime', 'tests.test_robinhood_usd_valuation.RobinhoodUSDTests.test_strategy_sources_and_nine_change_tests_byte_unchanged'];r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromNames(names));raise SystemExit(not r.wasSuccessful())"
+	User time (seconds): 0.53
+	System time (seconds): 0.18
+	Percent of CPU this job got: 25%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:02.84
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 51864
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 23995
+	Voluntary context switches: 1360
+	Involuntary context switches: 248
+	Swaps: 0
+	File system inputs: 1064
+	File system outputs: 9976
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

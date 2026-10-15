@@ -1,0 +1,29 @@
+test_unchanged_request_writes_nothing_and_never_renews_deadline (tests.test_provider_efficiency.RequestIdempotenceTests.test_unchanged_request_writes_nothing_and_never_renews_deadline) ... FAIL
+test_cold_history_slice_with_independent_boundary_and_reorg_witness_advances (tests.test_provider_efficiency.SurvivorWitnessCountTests.test_cold_history_slice_with_independent_boundary_and_reorg_witness_advances) ... ERROR
+test_missing_log_result_still_fails_closed_without_advancing (tests.test_provider_efficiency.SurvivorWitnessCountTests.test_missing_log_result_still_fails_closed_without_advancing) ... ok
+
+======================================================================
+ERROR: test_cold_history_slice_with_independent_boundary_and_reorg_witness_advances (tests.test_provider_efficiency.SurvivorWitnessCountTests.test_cold_history_slice_with_independent_boundary_and_reorg_witness_advances)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/pump-provider-offline-20261008/tests/test_provider_efficiency.py", line 37, in test_cold_history_slice_with_independent_boundary_and_reorg_witness_advances
+    self.runtime.discover()
+  File "/mnt/volume_nyc1_1790918115030/pump-provider-offline-20261008/meme_machine/lanes/pons/provider_admission.py", line 49, in wrapped
+    try:return function(*args,**kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/volume_nyc1_1790918115030/pump-provider-offline-20261008/meme_machine/lanes/pons/pons_survivor_runtime.py", line 179, in discover
+    raise BoundaryError('survivor_graduation_range_incomplete')
+meme_machine.lanes.pons.BoundaryError: survivor_graduation_range_incomplete
+
+======================================================================
+FAIL: test_unchanged_request_writes_nothing_and_never_renews_deadline (tests.test_provider_efficiency.RequestIdempotenceTests.test_unchanged_request_writes_nothing_and_never_renews_deadline)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/pump-provider-offline-20261008/tests/test_provider_efficiency.py", line 21, in test_unchanged_request_writes_nothing_and_never_renews_deadline
+    self.assertEqual(state.writer.db.total_changes,before)
+AssertionError: 50 != 48
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.928s
+
+FAILED (failures=1, errors=1)

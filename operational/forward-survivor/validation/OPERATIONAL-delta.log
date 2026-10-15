@@ -1,0 +1,8 @@
+test_disconnected_client_commit_retry_and_service_survival (tests.test_run369_runtime.Run369IPCTests.test_disconnected_client_commit_retry_and_service_survival) ... ok
+test_response_after_old_250ms_limit_is_acknowledged_once (tests.test_run369_runtime.Run369IPCTests.test_response_after_old_250ms_limit_is_acknowledged_once) ... ok
+test_eligible_reader_and_all_scopes_progress_under_source_pressure (tests.test_run381_archive_scheduling.BoundedArchiveRetirementTests.test_eligible_reader_and_all_scopes_progress_under_source_pressure) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 11.640s
+
+OK

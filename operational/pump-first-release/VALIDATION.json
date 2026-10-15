@@ -1,0 +1,315 @@
+{
+  "schema": "pump-first-release-offline-validation-v1",
+  "optimization_handoff_commit": "4fd362c675480aa61bcf917f42af87ca7b41d86f",
+  "CI_host_prerequisite_fix_commit": "bfb90b810ffebad525173083eebf07688736b6a0",
+  "funding_scope_commit": "c774fca89bd6956ab9446309c612a1699b5a7124",
+  "final_release_source_identity": "BOUND_AFTER_EXACT_FINAL_CI_BY_RELEASE_TAG_AND_EXTERNAL_FROZEN_RELEASE_RECEIPT",
+  "python": "3.12.14",
+  "final_focused": {
+    "status": "PASS",
+    "tests": 125,
+    "seconds": 24.341,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "log": "evidence/pump-first-1000-release-final.log.gz",
+    "modules": [
+      "tests.test_pump_first_check",
+      "tests.test_first_owner_scope",
+      "tests.test_shared_portfolio_epoch",
+      "tests.lanes.pump.test_postgrad_read_efficiency",
+      "tests.test_paper_bootstrap",
+      "tests.test_position_continuation",
+      "tests.test_final_acquisition"
+    ]
+  },
+  "earlier_scope": {
+    "status": "PASS",
+    "tests": 81,
+    "seconds": 21.013,
+    "log": "evidence/first-owner-focused.log.gz"
+  },
+  "final_scope": {
+    "status": "PASS",
+    "tests": 13,
+    "seconds": 0.538,
+    "log": "evidence/first-owner-scope-final.log.gz"
+  },
+  "failed_attempts": {
+    "ci-129-fast.log": "1500 cases; 1 failure and 1 error due missing cgroup permissions and wrong CPU affinity. Original assertions retained.",
+    "ci-containment-focused.log": "Two original cases reproduce missing I/O controller delegation on the workspace. No controller was changed locally. Failed scope /tmp/mm-engineering-ta3_6zeh retained.",
+    "pump-first-check-focused.log": "New diagnostic budget division met original exact Decimal traps; corrected to exact rational flooring. Failed scope /tmp/mm-engineering-ghbhsabc retained.",
+    "pump-first-final-focused.log": "New aggregate-byte fixture omitted params before opening response; corrected fixture to complete JSON-RPC shape. Failed scope /tmp/mm-engineering-e_gvfk5m retained.",
+    "ci-bfb-fast.log": "1515 cases; containment passes; 6 errors from sudo parent default 1024 file descriptors in multi-owner SQLite fixtures. CI parent provisioned at least 4096; original native assertions and contained limits unchanged."
+  },
+  "files_sha256": {
+    ".github/workflows/ci.yml": "f2ee23b5a0b0251d068e56895efc60a1f11946c9a19043cdf9eb1d80eae7b801",
+    "meme_machine/operational/admission.py": "55b01c32fb2513676bcdbdef4aa605974246459f265b557c647072bb6530e93e",
+    "meme_machine/operational/position_continuation.py": "28b5f5eafe254c308b1621bc370e7f978e1a15d3060f35a016df25c5da292e1a",
+    "meme_machine/operational/supervisor.py": "298f698ee72be4a50bc4a8760abca99ef1f4da50d29df9da41a0113fa484d271",
+    "meme_machine/shared_capital/native_sleeve.py": "577b85bb39fd27e3c9133af873b5a8c50050cde9c45b937a2b939083e3cce12c",
+    "operational/tests.py": "8a6e227cee5475fd7efa2af0c52d82c1f2ba67e21a41d9d9d9d17113aa28a7a1",
+    "tests/test_first_owner_scope.py": "9394b70c2af4432f48c2e69cb2109d14f1b601bb382d5d2f5882fdec126d2fae",
+    "tests/test_pump_first_check.py": "da492b8989b0bc8151db3c07e5778fb8b8791cd1ea2da58fe089f852b5a4b7a2",
+    "engineering/pump_first/check.py": "5ad16f3ec55e8586fd378d3640157166e0140bff7c9935bef9b35bd5e82fbd2f",
+    "requirements.txt": "d1e960f8fe94fed128958c849e48d034ba004b156739ca9be0f9767425698ffe",
+    "deployment/paper-bootstrap.conf": "69e06b0e91bd378330800d749daa80b42fe49a484fc14c0785bfe0af225c2e72",
+    "deployment/paper.env.example": "9f9492355189e02c3ed7d5671ff09202b6ff6819ceaab661be97d526e09cba7c",
+    "operational/shared-capital-activation/risk-policy.shared-1000.proposed.json": "f2da6f2fa3f1451c1313be20bc3592d53070b70c62725cb0ac43fa6f3a73d034",
+    "operational/pump-first-release/LAUNCH_1000_DISABLED.json": "256a9c2171332e3112b411dc2b62814c541f080bfa1469d0e3589601104a47d3",
+    "operational/pump-first-release/storage.shared-1000.uninitialized.example.json": "2d6e5cba00cf9919f80c9f6e1bbdd0de09c73f6581706d9a12f0c6aa90fcca9d",
+    "deployment/meme-machine-paper.service": "216c76c1d40dc08fd1120270d5bf2d7eca6e98c15d1862b961606002cb285a6b",
+    "deployment/meme-machine-backup.service": "8a3b303644f7b6c57035977a36f193c6d588b179115f78c5c9004b9f22216e81",
+    "deployment/meme-machine-backup-point.service": "a5894eeb0ebfca1527b9f25e71c2cedce5c62653b1953b7e8731cab7504354fd",
+    "deployment/meme-machine-acceptance@.service": "d2d1236b187976ff00caf4b1564d6b3579a9b564810a687b0389690f47896471",
+    "deployment/meme-machine-observer.service": "b798383b6dee41ee71e7b69c9dada53cc4084ff9691600f04011d69a5e6aed30",
+    "deployment/meme-machine-monitor.service": "b36e3191d0c53189f6906d07911d0699898845f7a3c8b4dd3bf791e3867b4f18"
+  },
+  "logs": [
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/ci-129-fast.log",
+      "retained": "operational/pump-first-release/evidence/ci-129-fast.log.gz",
+      "sha256": "7388994a7e508538e1042312a77db18f71418917c5db741b4f818030569c0dfb",
+      "raw_sha256": "a95f885a846edefb1ff137d0338e29962611c69b9d67391e67492885cb7b1cd3",
+      "raw_bytes": 632019
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/ci-containment-focused.log",
+      "retained": "operational/pump-first-release/evidence/ci-containment-focused.log.gz",
+      "sha256": "15056ef4c40513dce9d8e211cefc2947f5f17b6f7c17c568e759acac65a80634",
+      "raw_sha256": "4c46c58788c76288427bf634a7ee7137161ff185c5feb31790bd3403465b3074",
+      "raw_bytes": 4078
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/first-owner-focused.log",
+      "retained": "operational/pump-first-release/evidence/first-owner-focused.log.gz",
+      "sha256": "1e3339d267db1baf5892f3e0b355ebbdd1baa35ccf0bc1285b8755ce6840b224",
+      "raw_sha256": "26c036a95942268f26ae0ce023a8e65beab61b5fbc5efd09d81122b36a42a6b4",
+      "raw_bytes": 16451
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/first-owner-scope-final.log",
+      "retained": "operational/pump-first-release/evidence/first-owner-scope-final.log.gz",
+      "sha256": "ea62d04c7df25eeac04c76a36483e38dbf3999e69a52fb28f6181ac8e1496ff3",
+      "raw_sha256": "e56a6f8d45597cfafc69ff160b1ea2edfbc4102279a5b83ede47911b6d2bc99b",
+      "raw_bytes": 2591
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-first-check-focused.log",
+      "retained": "operational/pump-first-release/evidence/pump-first-check-focused.log.gz",
+      "sha256": "249594f7107c20858ceed7a4092250ce5d3f912dae4ba2d2a7202025a483f318",
+      "raw_sha256": "d53c9b227712ded581e957fbede7f9d096055564ac00bb762f4e4757e63a2d9a",
+      "raw_bytes": 4217
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-first-final-focused.log",
+      "retained": "operational/pump-first-release/evidence/pump-first-final-focused.log.gz",
+      "sha256": "f00b2c695e5b3d1009c77d34c699d1366aa81120fb891dc835585b623278526b",
+      "raw_sha256": "97e60a82ae80e87fc505101ffb781b7885b0f543bef262605908b6d440995f99",
+      "raw_bytes": 18884
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-first-final-focused-pass.log",
+      "retained": "operational/pump-first-release/evidence/pump-first-final-focused-pass.log.gz",
+      "sha256": "42aeb7d2c8bd47a56ce0e0381ce8a74424ee1a36077f9609fa9c91f76f996cda",
+      "raw_sha256": "ca5d1d9600710154e862eac15410191e098d0a7dbe74c980c39b2efc5380562d",
+      "raw_bytes": 18214
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-first-release-focused.log",
+      "retained": "operational/pump-first-release/evidence/pump-first-release-focused.log.gz",
+      "sha256": "40427c9253a61b705a8bd44d2132de0254af3c47be088b3bb1527a02a67ff91a",
+      "raw_sha256": "a5d8f07ee6585a8b3cbcacc97e9dffa1894f9d7b2f622185856b5f6e738973cb",
+      "raw_bytes": 18214
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-first-account-case-final.log",
+      "retained": "operational/pump-first-release/evidence/pump-first-account-case-final.log.gz",
+      "sha256": "519194a0cfa0e199f92c760da69b17939222ad02bd09f79c6b1968735f82f427",
+      "raw_sha256": "c86477404cd5c80828243fd2f58af6823bf754100d7ac37ffc680530c768b7cc",
+      "raw_bytes": 2523
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/ci-bfb-fast.log",
+      "retained": "operational/pump-first-release/evidence/ci-bfb-fast.log.gz",
+      "sha256": "8304961d4acfdad56eeaa99b8a1cbb1965618eabae6f0ed0a84f63ff9e66adae",
+      "raw_sha256": "11b7b1c2ff174afc4ba06e81bc5eeb0e1a33cadf3c40e37473ac606de56c2f99",
+      "raw_bytes": 645570
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-first-1000-release-focused.log",
+      "retained": "operational/pump-first-release/evidence/pump-first-1000-release-focused.log.gz",
+      "sha256": "e6cae8dca065f0cb57d4cb58b62b68ad93e55d4d07c4a5ab4019558e6c8b7e48",
+      "raw_sha256": "def4253fbd8efab01537fd933a8aea86d1935c2f071bacb1eb885cfb0b044ea7",
+      "raw_bytes": 24448
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-first-1000-release-final.log",
+      "retained": "operational/pump-first-release/evidence/pump-first-1000-release-final.log.gz",
+      "sha256": "555179d9e7699afeebe1a5a1851b9fdd9d4540e677a5f986780b5b9517fd927d",
+      "raw_sha256": "48727930a523fa77ac3abc0d6d02b26e67c9211cc01b6b7e1de83272aad5ffe0",
+      "raw_bytes": 24648
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-1000-cutover-focused.log",
+      "retained": "operational/pump-first-release/evidence/pump-1000-cutover-focused.log.gz",
+      "sha256": "88501b24ed452eb792ab7d135ce5d2e4b8799ab75bb26a0e3d55793667ebe375",
+      "raw_sha256": "4413de2f40caecfd6173c53e84167a556783943e0e9cdb0e52bc138545a1c027",
+      "raw_bytes": 14823
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/pump-1000-units-verify.log",
+      "retained": "operational/pump-first-release/evidence/pump-1000-units-verify.log.gz",
+      "sha256": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec",
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "raw_bytes": 0
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../release-inclusion-focused.log",
+      "retained": "operational/pump-first-release/evidence/release-inclusion-focused.log.gz",
+      "sha256": "24450e8cd30bd86c6dc3fb74f3f797de9c5d3592bd595443e964d229c5bf2038",
+      "raw_sha256": "36abb4a9f2d7a1893d8ec1db1f3a7892e6ff3fea94f3995d0a308d513101da85",
+      "raw_bytes": 37061
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../release-cutover-final.log",
+      "retained": "operational/pump-first-release/evidence/release-cutover-final.log.gz",
+      "sha256": "b858570974d2be736279579612d560698d038f7fcff88dcb1c20f9817ea7f30b",
+      "raw_sha256": "a51c89d674a4a29d714cc6d500fd9ccfbfea7f755f3643ff98fb38660c30b0cb",
+      "raw_bytes": 6430
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../release-owner-quorum-before.log",
+      "retained": "operational/pump-first-release/evidence/release-owner-quorum-before.log.gz",
+      "sha256": "68d63f5f340c22ef99fe8f379f374cce0d5b4c0b9996b823e322d316da7563da",
+      "raw_sha256": "f9fbaa0694ac9b39c0d229c9e416811cc93a78d42654470d8c12a039e5bd2a2b",
+      "raw_bytes": 1495
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../release-owner-quorum-final.log",
+      "retained": "operational/pump-first-release/evidence/release-owner-quorum-final.log.gz",
+      "sha256": "2e32599af22dd08111dd081194aec602ea21ec3251648afef2848782c15407e9",
+      "raw_sha256": "95adf45cd4968e1a092f29cbbe26c8f0ecce37ab83a600f7f1dc32eed85b52f4",
+      "raw_bytes": 23898
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../release-historical-guard-final.log",
+      "retained": "operational/pump-first-release/evidence/release-historical-guard-final.log.gz",
+      "sha256": "4baedd4036aff483ee3b43d616c7a7697b4281ee722ed481597577ffc75c6227",
+      "raw_sha256": "0dd6959ac374b50f6a97ad7ec138ee59e8e78a047e05b62276017af8afa17438",
+      "raw_bytes": 377
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../release-dashboard-frontend.log",
+      "retained": "operational/pump-first-release/evidence/release-dashboard-frontend.log.gz",
+      "sha256": "f4617f626a292706d1ed22e4893540d7e79283ed78204c225ee15dc5af5746fd",
+      "raw_sha256": "1583f2c02f9bf7dfc90d87be455de130bd98278c0d338296b5ce2367e98db83d",
+      "raw_bytes": 188
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../release-prepared-profile-verify.log",
+      "retained": "operational/pump-first-release/evidence/release-prepared-profile-verify.log.gz",
+      "sha256": "013bc5af6432a3a255f379b93281d55c726df5d1849133602609238e3e2c7722",
+      "raw_sha256": "7a5e4691457c0e0f795f4000418b8a0b277e53cd9c85862899916513ac64ea67",
+      "raw_bytes": 148
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../release-final-changed-cases.log",
+      "retained": "operational/pump-first-release/evidence/release-final-changed-cases.log.gz",
+      "sha256": "e721dd8c71c0895a30178c51ae4fd141110801f8b3092f5a27c6a45f4682eeff",
+      "raw_sha256": "54baff1d82de5dc6564e7b3e4c130bcac0f971d14f3e1e673304280d4be5e288",
+      "raw_bytes": 9440
+    },
+    {
+      "source": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/repo/../ci-882-fast.log",
+      "retained": "operational/pump-first-release/evidence/ci-882-fast.log.gz",
+      "sha256": "dc64e1d5613a3e1f45e30ea9e20dd3c1944e8bcefab95d13dce6b8b6b32efabb",
+      "raw_sha256": "3810e8cbabcdd7a53afceffeef46a5b71ee8c7f354dac4792ee3e004d2e2f46a",
+      "raw_bytes": 630740
+    }
+  ],
+  "market_provider_requests": 0,
+  "subscriptions_created": 0,
+  "deployment": false,
+  "paper_activation": false,
+  "operating_1000_epoch_initialized": false,
+  "existing_handoff_validation": "operational/redundant-acquisition/VALIDATION.json; retained, not recounted as new CI.",
+  "prior_focused": {
+    "status": "PASS",
+    "tests": 93,
+    "seconds": 7.888,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "log": "evidence/pump-first-release-focused.log.gz",
+    "modules": [
+      "tests.test_pump_first_check",
+      "tests.test_first_owner_scope",
+      "tests.lanes.pump.test_postgrad_read_efficiency",
+      "tests.test_paper_bootstrap",
+      "tests.test_position_continuation",
+      "tests.test_final_acquisition"
+    ]
+  },
+  "launch_target": {
+    "starting_capital": "1000.00",
+    "sizing_basis": "shared_realized_equity",
+    "policy_canonical_sha256": "b91e83300994b6c02fe5e6bdbeb031cc391e6c8caa97af9fa6df1ecbc4aa979c",
+    "policy_approval": "NOT_GRANTED",
+    "historical_500_preserved": true,
+    "balance_migration": false,
+    "new_epoch_initialized": false
+  },
+  "component_authorization": "CONSUMED_ONE_BOUNDED_READ_ONLY_COMPONENT_RUN",
+  "bootstrap_environment_precedence": "Separate new private EnvironmentFile replaces historical list; absent new file refuses startup; no installed change.",
+  "cutover_focused": {
+    "status": "PASS",
+    "tests": 79,
+    "seconds": 3.175,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "log": "evidence/pump-1000-cutover-focused.log.gz",
+    "modules": [
+      "tests.test_operational_storage_guard",
+      "tests.test_operational_backup",
+      "tests.test_operational_observation",
+      "tests.test_operational_monitoring",
+      "tests.test_durable_acceptance",
+      "tests.test_paper_bootstrap"
+    ]
+  },
+  "prepared_units_syntax": {
+    "status": "PASS",
+    "unit_count": 8,
+    "source": "operational/pump-first-release/deployment/",
+    "log": "evidence/release-prepared-profile-verify.log.gz",
+    "host_mutations": 0
+  },
+  "release_inclusion_audit": "RELEASE_INCLUSION_AUDIT.json",
+  "authenticated_component": {
+    "status": "PASS_COMPONENT_ONLY",
+    "source_commit": "dbf2aa12d339ed69a2656ef19bc678e0d7448859",
+    "receipt": "AUTHENTICATED_COMPONENT.json",
+    "physical_starts": 7,
+    "logical_elements": 7,
+    "modeled_CU": 130,
+    "modeled_public_tariff_usd": "0.00006825",
+    "invoice_usd": null,
+    "authorization": "CONSUMED"
+  },
+  "final_source_repairs": [
+    "selected new-epoch acceptance and monitoring identity",
+    "historical root restore-target fence",
+    "scoped Pump-first shared allocation with all outstanding owner obligations"
+  ],
+  "historical_source_guard": "RESTORED_ORIGINAL_SERVICE_TEMPLATE; original test unchanged; new inactive eight-service profile prepared separately for authorized cutover",
+  "source_profile_rule": "Use coherent new-epoch release bundle under existing service identities; top-level unit templates preserve historical profile, not new launch source.",
+  "scoped_allocation_focused": {
+    "status": "PASS",
+    "tests": 119,
+    "seconds": 43.547,
+    "log": "evidence/release-owner-quorum-final.log.gz"
+  },
+  "host_preservation": "Historical inception and portfolio bytes identical; PAPER inactive/disabled/PID0; new root absent; existing installed source unchanged."
+}

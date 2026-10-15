@@ -1,0 +1,628 @@
+"""Model B uses canonical economics once, candidate views and proved intervals.
+
+No capital or entry authority. Checkpoints never seal an interval. Cold archive
+acquisition is requested only for an explicitly missing interval.
+"""
+from .runtime.operation_costs import measured
+
+import json
+import hashlib
+import sys
+from collections import OrderedDict
+from .runtime.operating_families import active_sql
+from .solana_evidence_plane import EvidenceUnavailable,digest,canonical,decode_body
+from .solana_selective_history import FAMILIES,PROGRAMS,coverage_scope,coverage_points
+
+MODEL_A='MODEL_A_PROMOTION_TIME_BACKFILL'
+MODEL_B='MODEL_B_ROLLING_NORMALIZED_PREWARM'
+SCHEMA='''
+CREATE TABLE IF NOT EXISTS rolling_origins(
+ family TEXT NOT NULL,address TEXT NOT NULL,lower_slot INTEGER NOT NULL,
+ market_time INTEGER NOT NULL,receipt TEXT NOT NULL,PRIMARY KEY(family,address));
+CREATE TABLE IF NOT EXISTS promotion_history_metrics(
+ id TEXT PRIMARY KEY,family TEXT NOT NULL,address TEXT NOT NULL,at REAL NOT NULL,
+ body TEXT NOT NULL,hash TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS backfill_reasons(
+ job TEXT PRIMARY KEY,reason TEXT NOT NULL,fields TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS rolling_boundary_waits(
+ family TEXT NOT NULL,address TEXT NOT NULL,observed_slot INTEGER NOT NULL,
+ upper_slot INTEGER NOT NULL,deadline REAL NOT NULL,priority INTEGER NOT NULL,
+ created REAL NOT NULL,status TEXT NOT NULL,PRIMARY KEY(family,address));
+CREATE INDEX IF NOT EXISTS rolling_boundary_pending_cursor ON rolling_boundary_waits(status)
+ WHERE status='pending';
+CREATE TABLE IF NOT EXISTS rolling_publication_waits(
+ family TEXT NOT NULL,address TEXT NOT NULL,lo INTEGER NOT NULL,hi INTEGER NOT NULL,
+ deadline REAL NOT NULL,priority INTEGER NOT NULL,created REAL NOT NULL,status TEXT NOT NULL,
+ PRIMARY KEY(family,address,lo,hi));
+CREATE INDEX IF NOT EXISTS rolling_publication_pending_cursor ON rolling_publication_waits(status)
+ WHERE status='pending';
+CREATE TABLE IF NOT EXISTS rolling_group_members(
+ scope TEXT NOT NULL,family TEXT NOT NULL,address TEXT NOT NULL,lower_slot INTEGER NOT NULL,
+ PRIMARY KEY(scope,family,address));
+CREATE INDEX IF NOT EXISTS rolling_member_address ON rolling_group_members(family,address);
+CREATE TABLE IF NOT EXISTS rolling_economic_events(
+ identity TEXT PRIMARY KEY,scope TEXT NOT NULL,slot INTEGER NOT NULL,signature TEXT NOT NULL,
+ program TEXT NOT NULL,market_time INTEGER,event_index INTEGER NOT NULL,transaction_index INTEGER,
+ kind TEXT NOT NULL,body TEXT,hash TEXT NOT NULL,first_seen REAL NOT NULL,archive TEXT);
+CREATE INDEX IF NOT EXISTS rolling_event_order ON rolling_economic_events(scope,slot,transaction_index,event_index);
+CREATE INDEX IF NOT EXISTS rolling_event_availability ON rolling_economic_events(first_seen);
+CREATE TABLE IF NOT EXISTS rolling_economic_addresses(
+ identity TEXT NOT NULL,address TEXT NOT NULL,PRIMARY KEY(identity,address));
+CREATE INDEX IF NOT EXISTS rolling_address_lookup ON rolling_economic_addresses(address,identity);
+CREATE TABLE IF NOT EXISTS rolling_event_lineage(
+ identity TEXT NOT NULL,source TEXT NOT NULL,endpoint TEXT NOT NULL,observed REAL NOT NULL,
+ PRIMARY KEY(identity,source,endpoint));
+'''
+
+
+def program_scope(family):return coverage_scope(family,PROGRAMS[family])
+
+
+def _subtract_intervals(intervals,gaps):
+    """Subtract one branch's unavailable union with a single ordered sweep.
+
+    Repeated outages can overlap, and fragment every historical proof. Applying
+    each outage to every already-split piece made candidate planning quadratic.
+    These are the caller's freshly selected, timestamp-filtered intervals only;
+    no coverage verdict or gap state is retained between owner commands.
+    """
+    def union(values):
+        result=[]
+        for a,b in sorted((a,b) for a,b in values if a<=b):
+            if result and a<=result[-1][1]+1:
+                result[-1]=(result[-1][0],max(result[-1][1],b))
+            else:result.append((a,b))
+        return result
+    covered=union(intervals);unavailable=union(gaps);result=[];index=0
+    for a,b in covered:
+        while index<len(unavailable) and unavailable[index][1]<a:index+=1
+        cursor=a;next_gap=index
+        while next_gap<len(unavailable) and unavailable[next_gap][0]<=b:
+            x,y=unavailable[next_gap]
+            if cursor<x:result.append((cursor,min(b,x-1)))
+            cursor=max(cursor,y+1)
+            if cursor>b:break
+            next_gap+=1
+        if cursor<=b:result.append((cursor,b))
+        index=next_gap
+    return result
+
+
+class RollingHistory:
+    def __init__(self,history):
+        self.history=history;self.db=history.db
+        self.db.executescript(SCHEMA)
+        self.install_views()
+
+    @property
+    def clock(self):return self.history.clock
+
+    def install_views(self):
+        """Extend the existing canonical view, not a competing event database."""
+        cold=self.db.execute("SELECT 1 FROM sqlite_master WHERE name='scoped_cold_records'").fetchone()
+        tail='' if not cold else ''' UNION ALL SELECT * FROM scoped_cold_records c
+            WHERE NOT EXISTS(SELECT 1 FROM rolling_economic_events e WHERE e.identity=c.identity)
+            AND NOT EXISTS(SELECT 1 FROM records r WHERE r.identity=c.identity AND r.body IS NOT NULL)
+            AND NOT EXISTS(SELECT 1 FROM shared_history_cache h WHERE h.identity=c.identity)'''
+        cold_guard='' if not cold else ' AND NOT EXISTS(SELECT 1 FROM scoped_cold_records c WHERE c.identity=records.identity)'
+        script=('''DROP VIEW IF EXISTS canonical_evidence;
+            CREATE VIEW canonical_evidence AS SELECT * FROM rolling_economic_events
+            UNION ALL SELECT * FROM records WHERE NOT EXISTS(SELECT 1 FROM rolling_economic_events e WHERE e.identity=records.identity)
+            AND (body IS NOT NULL OR (NOT EXISTS(SELECT 1 FROM shared_history_cache c WHERE c.identity=records.identity)'''+cold_guard+'''))
+            UNION ALL SELECT * FROM shared_history_cache c WHERE NOT EXISTS(SELECT 1 FROM rolling_economic_events e WHERE e.identity=c.identity)
+            AND NOT EXISTS(SELECT 1 FROM records r WHERE r.identity=c.identity AND r.body IS NOT NULL)'''+tail+''';
+            DROP VIEW IF EXISTS canonical_addresses;
+            CREATE VIEW canonical_addresses AS SELECT identity,address FROM rolling_economic_addresses
+            UNION SELECT identity,address FROM addresses UNION SELECT identity,address FROM cached_addresses'''+
+            ('' if not cold else ' UNION SELECT identity,address FROM scoped_cold_addresses')+';')
+        with self.history.writer.transaction():
+            for statement in script.split(';'):
+                if statement.strip():self.db.execute(statement)
+
+    @measured('owner.rolling_store')
+    def store(self,row,*,serialized=None):
+        """The event body lives once, independently of raw/hydration eviction."""
+        from dataclasses import replace
+        from .solana_evidence_plane import EvidenceConflict
+        # Only the local ingest command supplies already validated body bytes.
+        # Direct callers still run all shape and credential checks. No retained
+        # snapshot is reused for another input or across an owner transaction.
+        from .solana_economic_preparation import PreparedEconomicRecord
+        product=serialized if isinstance(serialized,PreparedEconomicRecord) else None
+        if product is not None:
+            body=row._body();raw=product.encoded;checksum=product.checksum
+            original=None # Expand original raw lineage only for a legacy conflict/migration.
+        else:original,raw=row.serialized_body() if serialized is None else serialized
+        prior=self.db.execute('SELECT hash,first_seen,body,transaction_index FROM rolling_economic_events WHERE identity=?',(row.identity,)).fetchone()
+        legacy=None
+        if prior is None:
+            legacy=self.db.execute('SELECT body,hash,first_seen FROM canonical_evidence WHERE identity=?',(row.identity,)).fetchone()
+        if product is None:
+            body=original;payload=original['payload']
+            if 'raw_lineage' in payload:
+                row=replace(row,payload=dict(event=payload['event'],raw_lineage_hash=digest(payload['raw_lineage'])))
+                body=dict(original,payload=row.payload);raw=canonical(body)
+            checksum=hashlib.sha256(raw.encode()).hexdigest()
+        if legacy and legacy[0] is not None:
+            if original is None:original=json.loads(product.original_raw)
+            old=decode_body(legacy[0],self.db)
+            self.history._compatible(old,original)
+            # Preserve the original immutable representation on migration.
+            # Only newly acquired events omit raw logs from durable economics.
+            body=old;raw=canonical(body);checksum=legacy[1]
+        if prior and prior[0]!=checksum:
+            if original is None:original=json.loads(product.original_raw)
+            original_body=dict(original,transaction_index=prior[3])
+            if digest(original_body)!=prior[0]:raise EvidenceConflict('candidate_economic_content_conflict')
+            body=original_body;raw=canonical(body);checksum=prior[0]
+        receipt=self.db.execute('SELECT first_seen FROM candidate_content_receipts WHERE identity=?',(row.identity,)).fetchone()
+        available=prior[1] if prior else (legacy[2] if legacy else receipt[0] if receipt else row.observed_at)
+        if prior and prior[2] is None:
+            # A physically paid duplicate can restore only this exact immutable
+            # normalized body; its first availability and identity do not move.
+            self.db.execute('UPDATE rolling_economic_events SET body=?,archive=NULL WHERE identity=?',(raw,row.identity))
+        inserted=self.db.execute('INSERT OR IGNORE INTO rolling_economic_events VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)',
+            (row.identity,row.scope,row.slot,row.signature,row.program,row.market_time,row.event_index,body['transaction_index'],
+             row.kind,raw,checksum,available)).rowcount
+        for address in row.addresses:self.db.execute('INSERT OR IGNORE INTO rolling_economic_addresses VALUES(?,?)',(row.identity,address))
+        economic_hash=(product.economic_hash if product is not None and checksum==product.checksum
+                       else self.history.content_hash(body))
+        self.db.execute('INSERT OR IGNORE INTO candidate_content_receipts VALUES(?,?,?,?)',
+            (row.identity,economic_hash,row.transaction_index,available))
+        self.history.attest_order(row.scope,row.slot,row.signature,row.transaction_index)
+        self.db.execute('INSERT OR IGNORE INTO rolling_event_lineage VALUES(?,?,?,?)',(row.identity,row.source,row.endpoint_identity,available))
+        self.db.execute('INSERT INTO cursors VALUES(?,?,?) ON CONFLICT(scope) DO UPDATE SET slot=MAX(slot,excluded.slot),updated=excluded.updated',
+            (row.scope,row.slot,self.clock()))
+        if inserted:self.history.writer._count('ingested_event')
+        return row
+
+    @measured('owner.rolling_store')
+    def store_many(self,rows,serialized):
+        """Consolidate fresh prepared economics inside the caller's transaction.
+
+        Replay, legacy migration, archived restoration and native-order
+        enrichment retain ``store``'s scalar contract. A false result has made
+        no writes, so the caller can use that path unchanged. All lookup state
+        is local to this call on the authoritative owner, never a retained cache.
+        """
+        from .solana_economic_preparation import PreparedEconomicRecord
+        from .solana_evidence_plane import EvidenceConflict,FinalizedRecord
+        self.history.writer._check()
+        if (not self.db.in_transaction or not isinstance(rows,(tuple,list)) or
+                not isinstance(serialized,(tuple,list)) or not 0<len(rows)<=2048 or
+                len(rows)!=len(serialized)):
+            return False
+        identities=[];native={};native_groups={};original_bytes=0;prepared_bytes=0
+        for row,product in zip(rows,serialized):
+            if (not isinstance(product,PreparedEconomicRecord) or not isinstance(row,FinalizedRecord) or
+                    product.record is not row or
+                    row.kind not in ('event','transaction') or
+                    type(row.transaction_index) is not int or row.transaction_index<0 or
+                    not all(isinstance(value,str) for value in
+                            (row.identity,row.scope,row.signature,row.program)) or
+                    not isinstance(product.encoded,str) or
+                    type(product.original_bytes) is not int or product.original_bytes<0 or
+                    type(product.byte_count) is not int or product.byte_count<0):
+                return False
+            # Prepared input still receives the same owner-side shape check.
+            row._body()
+            identities.append(row.identity)
+            original_bytes+=product.original_bytes;prepared_bytes+=product.byte_count
+            if original_bytes>16*1024*1024 or original_bytes+prepared_bytes>32*1024*1024:
+                return False
+        if len(set(identities))!=len(identities):return False
+
+        # Each base identity is indexed, including the branches of the canonical
+        # view. No bodies or historical populations are materialized here.
+        for table in ('rolling_economic_events','canonical_evidence','candidate_content_receipts'):
+            for offset in range(0,len(identities),256):
+                chunk=identities[offset:offset+256]
+                if self.db.execute('SELECT identity FROM '+table+' WHERE identity IN ('+
+                        ','.join('?' for _ in chunk)+') LIMIT 1',chunk).fetchone():
+                    return False
+
+        for row in rows:
+            key=(row.scope,row.slot,row.signature)
+            previous=native.get(key)
+            if previous is not None:
+                if previous[0]!=row.transaction_index:
+                    raise EvidenceConflict('candidate_native_order_conflict')
+                continue
+            value=(row.transaction_index,digest([*key,row.transaction_index]))
+            native[key]=value
+            native_groups.setdefault(key[:2],[]).append(key[2])
+        # The equality prefix and signature IN range use the existing native
+        # order primary key. Revalidate both the index and authenticated hash.
+        for (scope,slot),signatures in native_groups.items():
+            for offset in range(0,len(signatures),256):
+                chunk=signatures[offset:offset+256]
+                for sig,index,checksum in self.db.execute('''SELECT signature,transaction_index,hash
+                        FROM native_order_attestations WHERE scope=? AND slot=? AND signature IN ('''+
+                        ','.join('?' for _ in chunk)+')',(scope,slot,*chunk)):
+                    if native[(scope,slot,sig)]!=(index,checksum):
+                        raise EvidenceConflict('candidate_native_order_conflict')
+
+        inserted=self.db.executemany('INSERT OR IGNORE INTO rolling_economic_events VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)',
+            [(row.identity,row.scope,row.slot,row.signature,row.program,row.market_time,row.event_index,
+              row.transaction_index,row.kind,product.encoded,product.checksum,row.observed_at)
+             for row,product in zip(rows,serialized)]).rowcount
+        self.db.executemany('INSERT OR IGNORE INTO rolling_economic_addresses VALUES(?,?)',
+            [(row.identity,address) for row in rows for address in row.addresses])
+        self.db.executemany('INSERT OR IGNORE INTO candidate_content_receipts VALUES(?,?,?,?)',
+            [(row.identity,product.economic_hash,row.transaction_index,row.observed_at)
+             for row,product in zip(rows,serialized)])
+        self.db.executemany('INSERT OR IGNORE INTO native_order_attestations VALUES(?,?,?,?,?)',
+            [(*key,*value) for key,value in native.items()])
+        self.db.executemany('INSERT OR IGNORE INTO rolling_event_lineage VALUES(?,?,?,?)',
+            [(row.identity,row.source,row.endpoint_identity,row.observed_at) for row in rows])
+        cursors={}
+        for row in rows:
+            # Preserve every clock call and the last sample, not MAX(updated).
+            previous=cursors.get(row.scope)
+            cursors[row.scope]=(row.slot if previous is None else max(previous[0],row.slot),self.clock())
+        self.db.executemany('''INSERT INTO cursors VALUES(?,?,?) ON CONFLICT(scope)
+            DO UPDATE SET slot=MAX(slot,excluded.slot),updated=excluded.updated''',
+            [(scope,slot,updated) for scope,(slot,updated) in cursors.items()])
+        if inserted:self.history.writer._count('ingested_event',inserted)
+        return True
+
+    def adopt(self,rows):
+        """First authoritative create/migration establishes the lower boundary.
+
+        A scout timestamp alone cannot establish creation or graduation. Never
+        move a lower boundary forward to make an old candidate seem complete.
+        """
+        for row in rows:
+            if row.kind!='event':continue
+            e=row.payload.get('event') or {};family=next(f for f,s in FAMILIES.items() if s==row.scope)
+            if family=='pumpswap' and e.get('pool'):
+                # The fixed canonical feed already covers every swap and its
+                # native order. Wake retained pools from that receipt, without
+                # acquiring an additional status feed per quiet-candidate shard.
+                self.history.lifecycle.wake(family,e['pool'],slot=row.slot,
+                    seen=row.observed_at,signature=row.signature,
+                    evidence=dict(source='canonical_program_event',identity=row.identity))
+            if family=='pump' and e.get('event_type')=='create':
+                mint=e['mint'];curve=e['bonding_curve']
+                old=self.db.execute("SELECT coverage_scope,market_address FROM evidence_bindings WHERE family='pump' AND address=?",(curve,)).fetchone()
+                if old and old[1]!=mint:
+                    self.db.execute("DELETE FROM evidence_bindings WHERE family='pump' AND coverage_scope=?",(old[0],))
+                scope=self.history.bind('pump',mint,market_address=mint,aliases=(curve,))
+                if old and old[0]!=scope:self.history.lifecycle.rebind_pins(old[0],scope)
+                self.db.execute('INSERT OR IGNORE INTO rolling_origins VALUES(?,?,?,?,?)',('pump',mint,row.slot,row.market_time,row.identity))
+                self.history.observe('pump',curve,slot=row.slot,signature=row.signature,seen=row.observed_at,
+                    fields=dict(mint=mint,creation_slot=row.slot,economic_event=True,activity=False))
+            if family=='pump' and e.get('event_type')=='migration':
+                pool=e['pool'];self.history.bind('pumpswap',pool)
+                self.db.execute('INSERT OR IGNORE INTO rolling_origins VALUES(?,?,?,?,?)',('pumpswap',pool,row.slot,row.market_time,row.identity))
+                self.history.observe('pumpswap',pool,slot=row.slot,signature=row.signature,seen=row.observed_at,
+                    fields=dict(mint=e['mint'],graduation=e['market_time'],economic_event=True,activity=True))
+
+    def scopes(self,family,scope):
+        # Program-filtered Pump/PumpSwap delivery really covers every candidate.
+        # It must never be inferred from an address-filtered receipt.
+        if family in ('pump','pumpswap'):return tuple(dict.fromkeys((scope,program_scope(family))))
+        address=scope.split(':',2)[2]
+        return (scope,*[s for s, in self.db.execute('SELECT scope FROM rolling_group_members WHERE family=? AND address=?',(family,address))])
+
+    def _compact_proofs(self,rows):
+        """Reuse an authenticated immutable prefix when its final proof grows.
+
+        Native coverage appends to the latest compressed fragment. Hash every
+        freshly selected fragment before reuse, but do not decompress unchanged
+        older fragments again merely because that final fragment changed. No
+        gap, timestamp-filtered verdict or database row is cached here.
+        """
+        cache=getattr(self,'_coverage_span_cache',None)
+        if cache is None:cache=self._coverage_span_cache=OrderedDict()
+        fingerprint=hashlib.sha256();keys=[];prefix=0;compact=((),float('-inf'),0)
+        for index,(packed,checksum) in enumerate(rows):
+            actual=hashlib.sha256(packed).hexdigest()
+            if actual!=checksum:
+                from .solana_evidence_plane import EvidenceConflict
+                raise EvidenceConflict('candidate_coverage_corrupt')
+            fingerprint.update(actual.encode('ascii'));key=fingerprint.digest();keys.append(key)
+            found=cache.get(key)
+            if found is not None:
+                prefix=index+1;compact=found;cache.move_to_end(key)
+        if not rows:
+            keys=[fingerprint.digest()]
+        for index in range(prefix,len(rows)):
+            packed,checksum=rows[index];points=coverage_points(packed,checksum)
+            spans=_subtract_intervals((*compact[0],*((a,b) for a,b,t in points)),())
+            compact=(tuple(spans),max(compact[1],max(t for a,b,t in points)),compact[2]+len(points))
+            # Only the off-owner historical planner installs this CPU budget.
+            # Normal canonical verification and foreground readers never sleep.
+            budget=getattr(self,'_history_cpu_budget',None)
+            if budget is not None:
+                self._history_decoded_points=getattr(self,'_history_decoded_points',0)+len(points)
+                budget()
+            # Keep the prefix before the mutable final fragment as well as the
+            # whole cohort. Both share the original eight-entry / 512-KiB bound.
+            if index not in (len(rows)-2,len(rows)-1):continue
+            key=keys[index]
+            retained=(sys.getsizeof(key)+sys.getsizeof(compact)+sys.getsizeof(compact[0])+
+                sys.getsizeof(compact[1])+sys.getsizeof(compact[2])+
+                sum(sys.getsizeof(s)+sum(sys.getsizeof(n) for n in s) for s in compact[0]))
+            if retained<=64*1024 and compact[2]<=32768 and len(spans)<=4096:
+                cache[key]=compact;cache.move_to_end(key)
+                while len(cache)>8:cache.popitem(last=False)
+        return compact
+
+    def missing(self,family,scope,lo,hi,*,as_of=None):
+        supplied=getattr(self,'_prepared_missing',None)
+        if supplied is not None and as_of is None:
+            key=(family,scope,lo,hi)
+            if key not in supplied:raise EvidenceUnavailable('historical_result_query_mismatch')
+            return supplied[key]
+        return self.missing_from_inputs(self.missing_inputs(family,scope,lo,hi,as_of=as_of))
+
+    def missing_inputs(self,family,scope,lo,hi,*,as_of=None):
+        """Committed immutable facts; no historical proof calculation here.
+
+        A worker copies these under a short read transaction, closes SQLite,
+        then performs the expensive compressed-proof/interval calculation.
+        Foreground callers retain the exact same calculation synchronously.
+        """
+        at=self.clock() if as_of is None else as_of
+        requested=(family,scope,lo,hi)
+        branches=[]
+        if hi<lo:return dict(requested=requested,lo=lo,hi=hi,at=at,branches=branches)
+        if family=='pump':
+            # The scope includes its family. Use that same identity in the
+            # existing indexed lookup: scanning every retained binding for each
+            # waiting candidate blocks current native publication.
+            binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND coverage_scope=? LIMIT 1',(family,scope)).fetchone()
+            origin=None if not binding else self.db.execute('SELECT lower_slot,receipt FROM rolling_origins WHERE family=? AND address=?',(family,binding[0])).fetchone()
+            if origin and origin[0]>lo and self.db.execute('SELECT 1 FROM canonical_evidence WHERE identity=? AND first_seen<=?',(origin[1],at)).fetchone():
+                # No mint economics precede its authenticated creation. This is
+                # a creation proof, never an inference from a quiet interval.
+                lo=origin[0]
+                if hi<lo:return dict(requested=requested,lo=lo,hi=hi,at=at,branches=branches)
+        scopes=self.scopes(family,scope)
+        # Remove unsealed gaps from their own coverage branch. An independently
+        # proved overlapping program/candidate branch may genuinely repair one.
+        for source in scopes:
+            floor=self.db.execute('SELECT lower_slot FROM rolling_group_members WHERE scope=? AND family=? AND address=?',
+                (source,family,scope.split(':',2)[2])).fetchone()
+            # Every interval below is a subset of this exact immutable query
+            # window. Read its unavailable intervals once, not once per
+            # historical proof fragment. No result escapes this owner command.
+            # The disjoint NULL / later-repair branches seek availability, not
+            # every already repaired outage since genesis. Both retain the
+            # caller's exact time and interval predicates; no gap is removed.
+            gaps=self.db.execute('''SELECT lo,COALESCE(hi,?) FROM candidate_gaps INDEXED BY candidate_gap_availability
+                WHERE scope=? AND repaired IS NULL AND created<=? AND lo<=? AND (hi IS NULL OR hi>=?)
+                UNION ALL
+                SELECT lo,COALESCE(hi,?) FROM candidate_gaps INDEXED BY candidate_gap_availability
+                WHERE scope=? AND repaired>? AND created<=? AND lo<=? AND (hi IS NULL OR hi>=?)''',
+                (hi,source,at,hi,lo,hi,source,at,at,hi,lo)).fetchall()
+            rows=[];size=0;bound=getattr(self,'_history_input_byte_limit',None)
+            for row in self.db.execute('SELECT lo,hi,points,hash FROM candidate_coverage WHERE scope=? AND hi>=? AND lo<=? ORDER BY lo,hi',
+                    (source,lo,hi)):
+                size+=len(row[2])
+                if bound is not None and size>bound:raise EvidenceUnavailable('historical_input_capacity')
+                rows.append(row)
+            rows=tuple(rows)
+            branches.append(dict(scope=source,floor=floor,gaps=gaps,rows=rows))
+        return dict(requested=requested,lo=lo,hi=hi,at=at,branches=branches)
+
+    def missing_from_inputs(self,inputs):
+        """The original branch-local, point-in-time completeness predicate."""
+        lo,hi,at=inputs['lo'],inputs['hi'],inputs['at']
+        if hi<lo:return []
+        valid=[]
+        for item in inputs['branches']:
+            floor=item['floor'];gaps=item['gaps'];branch=[]
+            rows=tuple((packed,checksum) for _,_,packed,checksum in item['rows'])
+            # Reuse only identical immutable proof bytes selected by this fresh
+            # query. Gap/reorganization facts above are always read anew. The
+            # compact union is valid only once ALL its observations are available
+            # at this caller's timestamp; earlier point-in-time reads retain the
+            # original timestamp filter. No cached missing/coverage verdict.
+            compact=self._compact_proofs(rows)
+            if compact[1]<=at:
+                branch.extend((max(lo,a,0 if floor is None else floor[0]),min(hi,b)) for a,b in compact[0])
+            else:
+                branch.extend((max(lo,a,0 if floor is None else floor[0]),min(hi,b))
+                    for packed,checksum in rows for a,b,t in coverage_points(packed,checksum) if t<=at)
+            # Subtract each source's own gaps before unioning independently
+            # authenticated branches. A candidate proof may repair a program
+            # gap (or vice versa); neither source inherits the other's outage.
+            valid.extend(_subtract_intervals(branch,gaps))
+        result=[];cursor=lo
+        for a,b in sorted(valid):
+            if b<cursor:continue
+            if a>cursor:result.append((cursor,a-1))
+            cursor=max(cursor,b+1)
+            if cursor>hi:break
+        if cursor<=hi:result.append((cursor,hi))
+        return result
+
+    def prepare(self,family,address,lo,hi,*,deadline,priority=4,reason=None):
+        tasks=getattr(self.history,'historical_tasks',None)
+        if (tasks is not None and family in ('pump','pumpswap') and priority>2
+                and getattr(self,'_prepared_missing',None) is None):
+            return tasks.enqueue(family,address,lo,hi,deadline=deadline,priority=priority,reason=reason)
+        scope=self.history.scope_for(family,address)
+        binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
+        market=address if not binding else binding[0]
+        origin=self.db.execute('SELECT lower_slot FROM rolling_origins WHERE family=? AND address=?',(family,market)).fetchone()
+        if family=='pump' and lo==0 and not origin:
+            observed=self.db.execute("SELECT first_slot FROM candidate_lifecycle WHERE family='pump' AND address=?",(address,)).fetchone()
+            observed_slot=hi if observed is None else observed[0]
+            start=self.db.execute('SELECT MIN(lo) FROM candidate_coverage WHERE scope=?',(program_scope(family),)).fetchone()[0]
+            # An account notification may beat the native log join/publication.
+            # First prove that observation slot before classifying an unseen
+            # creation as late discovery. Waiting is durable and has no proof
+            # or new deadline authority.
+            if (start is None or observed_slot>=start) and self.missing(family,program_scope(family),observed_slot,observed_slot):
+                self.db.execute('''INSERT INTO rolling_boundary_waits VALUES(?,?,?,?,?,?,?,'pending')
+                    ON CONFLICT(family,address) DO UPDATE SET
+                    upper_slot=MAX(upper_slot,excluded.upper_slot),deadline=MIN(deadline,excluded.deadline),
+                    priority=MIN(priority,excluded.priority)''',
+                    (family,address,observed_slot,hi,deadline,priority,self.clock()))
+                return dict(model=MODEL_B,history_already_complete_at_promotion=False,
+                    missing_intervals=None,backfill_jobs=[],boundary_state='LOWER_BOUND_PENDING_ROLLING_PUBLICATION',
+                    decision_deadline=deadline,entry_authority=False)
+        # Genesis can be replaced ONLY by the authenticated creation boundary,
+        # not first sight, promotion, a timeout or an arbitrary retention floor.
+        if lo==0 and origin and family=='pump':lo=origin[0]
+        prior_wait=self.db.execute('SELECT deadline,priority FROM rolling_publication_waits WHERE family=? AND address=? AND lo=? AND hi=?',
+            (family,address,lo,hi)).fetchone()
+        if prior_wait:deadline=min(deadline,prior_wait[0]);priority=min(priority,prior_wait[1])
+        gaps=self.missing(family,scope,lo,hi)
+        # A control/finality tip is not a normalized publication frontier. Even
+        # with an authenticated creation, the recent tail may still be joining
+        # logs and native order. Repair only a deficit behind durable published
+        # coverage; wait for the open tail without turning it into an RPC gap.
+        sources=self.scopes(family,scope);marks=','.join('?' for _ in sources)
+        frontier=self.db.execute('SELECT MAX(hi) FROM candidate_coverage WHERE scope IN ('+marks+')',sources).fetchone()[0]
+        jobs=[];waiting=[]
+        for a,b in gaps:
+            closed=None if frontier is None else min(b,frontier)
+            if closed is not None and a<=closed:
+                job=self.history.request(family,address,a,closed,priority=priority,deadline=deadline)
+                why=reason or ('LATE_DISCOVERY' if not origin and lo==0 else 'PROVIDER_GAP')
+                self.db.execute('INSERT OR IGNORE INTO backfill_reasons VALUES(?,?,?)',(job,why,canonical(dict(scope=scope,lo=a,hi=closed))))
+                jobs.append(job)
+            tail=a if closed is None else max(a,closed+1)
+            if tail<=b:waiting.append((tail,b))
+        if waiting:
+            self.db.execute('''INSERT INTO rolling_publication_waits VALUES(?,?,?,?,?,?,?,'pending')
+                ON CONFLICT(family,address,lo,hi) DO UPDATE SET
+                deadline=MIN(deadline,excluded.deadline),priority=MIN(priority,excluded.priority)''',
+                (family,address,lo,hi,deadline,priority,self.clock()))
+            deadline=self.db.execute('SELECT deadline FROM rolling_publication_waits WHERE family=? AND address=? AND lo=? AND hi=?',
+                (family,address,lo,hi)).fetchone()[0]
+        metric=dict(model=MODEL_B,lower_slot=lo,upper_slot=hi,
+            history_already_complete_at_promotion=not gaps,history_gap_slots_at_promotion=sum(b-a+1 for a,b in gaps),
+            history_gap_seconds_at_promotion=None,missing_intervals=gaps,backfill_jobs=jobs,
+            publication_pending_intervals=waiting,
+            backfill_calls_at_promotion=0,backfill_bytes_at_promotion=0,transaction_bodies_at_promotion=0,
+            decision_deadline=deadline,entry_authority=False)
+        if waiting:metric['boundary_state']='UPPER_BOUND_PENDING_ROLLING_PUBLICATION'
+        identity=digest([family,address,lo,hi,deadline])
+        self.db.execute('INSERT OR IGNORE INTO promotion_history_metrics VALUES(?,?,?,?,?,?)',
+            (identity,family,address,self.clock(),canonical(metric),digest(metric)))
+        return metric
+
+    def pending_slice(self,table,columns,*,limit,after):
+        """Fair keyset slice; every unresolved obligation remains durable.
+
+        This is an owner-work bound, never a candidate population or history
+        limit. A cursor has no evidence authority and restarts at zero safely.
+        """
+        if table not in ('rolling_boundary_waits','rolling_publication_waits'):
+            raise ValueError('rolling_wait_table')
+        where=" WHERE "+active_sql('family',solana=True)+" AND status='pending'"
+        if limit is None:return self.db.execute('SELECT rowid,'+columns+' FROM '+table+where+' ORDER BY rowid').fetchall()
+        if type(limit) is not int or limit<1:raise ValueError('rolling_wait_slice')
+        query='SELECT rowid,'+columns+' FROM '+table+where+' AND rowid>? ORDER BY rowid LIMIT ?'
+        rows=self.db.execute(query,(after,limit)).fetchall()
+        return rows if rows or not after else self.db.execute(query,(0,limit)).fetchall()
+
+    def resume_boundaries(self,*,limit=None,after=0):
+        """A sealed native observation resolves a first-sight publication race."""
+        tasks=getattr(self.history,'historical_tasks',None)
+        if tasks is not None:return tasks.resume_waits('rolling_boundary_waits',limit=limit,after=after)
+        # These writes belong to one owner command. Per-row autocommits turn a
+        # backlog of expired observations into hundreds of FULL fsyncs, blocking
+        # native publication. Commit states and their diagnostics together;
+        # rollback retains every original obligation and deadline.
+        with self.history.writer.transaction():
+            observed_coverage={}
+            rows=self.pending_slice('rolling_boundary_waits',
+                'family,address,observed_slot,upper_slot,deadline,priority,created',limit=limit,after=after)
+            for _,family,address,observed,upper,deadline,priority,created in rows:
+                if self.clock()>=deadline:
+                    self.db.execute("UPDATE rolling_boundary_waits SET status='deadline_missed' WHERE family=? AND address=?",(family,address))
+                    self.history._observation(None,'boundary_deadline_missed',dict(family=family,address=address,
+                        observed_slot=observed,deadline=deadline,created=created,deadline_reset=False))
+                    continue
+                binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
+                origin=self.db.execute('SELECT 1 FROM rolling_origins WHERE family=? AND address=?',
+                    (family,address if binding is None else binding[0])).fetchone()
+                start=self.db.execute('SELECT MIN(lo) FROM candidate_coverage WHERE scope=?',(program_scope(family),)).fetchone()[0]
+                if not origin and (start is None or observed>=start):
+                    # Every scout at this same slot asks the identical program
+                    # publication question. This sole-owner operation cannot
+                    # publish new coverage while it runs. Never reuse the answer
+                    # across commands, blocks, restarts or a candidate lookback.
+                    key=(family,observed)
+                    if key not in observed_coverage:
+                        observed_coverage[key]=self.missing(family,program_scope(family),observed,observed)
+                    if observed_coverage[key]:continue
+                result=self.prepare(family,address,0,upper,deadline=deadline,priority=priority,
+                    reason=None if origin else 'LATE_DISCOVERY')
+                if result.get('boundary_state'):continue
+                self.db.execute("UPDATE rolling_boundary_waits SET status='resolved' WHERE family=? AND address=?",(family,address))
+        return rows[-1][0] if rows else 0
+
+    def resume_publication(self,*,limit=None,after=0):
+        """Release waits only on durable publication, preserving first deadline."""
+        tasks=getattr(self.history,'historical_tasks',None)
+        if tasks is not None:return tasks.resume_waits('rolling_publication_waits',limit=limit,after=after)
+        with self.history.writer.transaction():
+            rows=self.pending_slice('rolling_publication_waits',
+                'family,address,lo,hi,deadline,priority',limit=limit,after=after)
+            for _,family,address,lo,hi,deadline,priority in rows:
+                if self.clock()>=deadline:
+                    status='deadline_missed'
+                    self.history._observation(None,'publication_deadline_missed',dict(
+                        family=family,address=address,lo=lo,hi=hi,deadline=deadline,deadline_reset=False))
+                else:
+                    result=self.prepare(family,address,lo,hi,deadline=deadline,priority=priority)
+                    if result['missing_intervals']:continue
+                    status='resolved'
+                self.db.execute('UPDATE rolling_publication_waits SET status=? WHERE family=? AND address=? AND lo=? AND hi=?',
+                    (status,family,address,lo,hi))
+        return rows[-1][0] if rows else 0
+
+    def repair_required_checkpoint_prefixes(self):
+        """Only a proven prefix before installed rolling coverage needs RPC.
+
+        A worker's authoritative snapshot may precede first-sight native
+        membership by a few slots. Its durable requirement supplies the exact
+        lower bound; an actually published interval proves the retained floor.
+        The unpublished live tail waits for the publisher and is never fetched.
+        """
+        from contextlib import closing
+        from .runtime.candidate_history import CandidateHistory
+        with closing(CandidateHistory(self.history.lifecycle.path,clock=self.clock)) as shared:
+            requirements=shared.db.execute('''SELECT r.scope,r.lo,r.hi,w.deadline
+                FROM work_history_requirements r JOIN work w ON w.id=r.work_id
+                WHERE w.status IN ('pending','active') AND w.deadline>?
+                ORDER BY w.deadline''',(self.clock(),)).fetchall()
+        jobs=[]
+        for scope,lo,hi,deadline in requirements:
+            family,address=scope.split(':',2)[1:]
+            if family!='meteora':continue
+            scopes=self.scopes(family,scope);marks=','.join('?' for _ in scopes)
+            floor=self.db.execute('SELECT MIN(lo) FROM candidate_coverage WHERE scope IN ('+marks+')',scopes).fetchone()[0]
+            if floor is not None and lo<floor:
+                metric=self.prepare(family,address,lo,min(hi,floor-1),deadline=deadline,
+                    priority=4,reason='CHECKPOINT_GAP')
+                jobs.extend(metric['backfill_jobs'])
+        return jobs
+
+    def retention(self,family,address):
+        """Maximum future need, not a new eligibility gate or ranking cap."""
+        if family in ('pump','pumpswap'):
+            binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND address=?',(family,address)).fetchone()
+            market=address if not binding else binding[0]
+            row=self.db.execute('SELECT fields FROM market_observations WHERE family=? AND address=?',(family,address)).fetchone()
+            fields={} if not row else json.loads(row[0]);graduation=fields.get('graduation')
+            if graduation is None:
+                # Pre-graduation trajectory can still be required arbitrarily
+                # late. It cannot be truncated to a guessed launch-age limit.
+                migrations=self.db.execute("SELECT body FROM canonical_evidence r JOIN canonical_addresses a ON a.identity=r.identity WHERE a.address=? AND r.scope='program:pump' AND r.kind='event' AND r.body IS NOT NULL",(market,)).fetchall()
+                for raw, in migrations:
+                    e=decode_body(raw,self.db)['payload'].get('event',{})
+                    if e.get('event_type')=='migration':graduation=e['market_time']
+            if graduation is None:return dict(retain_until=None,reason='future_current_and_survivor_trajectory')
+            from .lanes.pump.pumpswap_survivor import POLICY
+            return dict(retain_until=graduation+POLICY['maximum_age_seconds'],reason='survivor_maximum_future_age')
+        from .lanes.meteora import runner,dlmm
+        window=runner.FRESH_SWAP_TRIGGER_MAX_SECONDS+runner.load_policy()['range']['warmup_seconds']+dlmm.MAX_AGE
+        return dict(retain_until=self.clock(),window_seconds=window,reason='trigger_warmup_freshness_plus_existing_pins')

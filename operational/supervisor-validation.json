@@ -1,0 +1,30 @@
+{
+  "result": "PASS",
+  "mode": "OFFLINE_FIXTURES_ONLY",
+  "native_commit_and_lost_shared_ack_lanes": [
+    "pump",
+    "pons",
+    "meteora",
+    "ramses"
+  ],
+  "four_processes": true,
+  "each_process_SIGKILL_recovered_without_duplicate_exposure": true,
+  "SIGTERM_exit_codes": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "second_supervisor_start_same_epoch_and_positions": true,
+  "publication_failure_isolated": true,
+  "unfilled_intent_released_without_price": true,
+  "blocked_production_start_creates_no_epoch": true,
+  "tests": {
+    "supervisor": 8,
+    "storage": 4,
+    "current_pons_crash_cuts": 11,
+    "nine_and_portfolio": 72,
+    "native_selected": 174
+  },
+  "production_blocker": "USDG/USD authoritative anchor missing"
+}

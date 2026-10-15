@@ -1,0 +1,81 @@
+{
+  "branch": "engineering/targeted-resolution-20261014",
+  "changes": {
+    "engineering/diagnostics/pump_attachment_cancel_20261014.py": "5a6671d715b7875a4e23b41b924e143eef0763ff718dbef95bd054775bb029da",
+    "meme_machine/lanes/pons/pons_selective_cohort.py": "441b41802e0351976b97982549691a718934f09f29aba69a0fe2f07a10a0d0e5",
+    "meme_machine/lanes/pump/paper_accounting.py": "e40166b342c03ff79121d1cba921f21880f0d639451d89530066c3371178523f",
+    "meme_machine/lanes/pump/runner.py": "0cc465a0a17e88735fc26b3ab43400d68ab38a4ab91358f832fde90597c77f68",
+    "meme_machine/operational/lane.py": "bc6a1c01e6b9a002893ca9a89746ef02cb665763affb6d169f61c33390b85892",
+    "meme_machine/runtime/robinhood/pons.py": "ad75892a39a0b6ca898f90a0f698e7eb80ad8c7928820286babc46f5b697028c",
+    "meme_machine/shared_capital/authority.py": "d31765d115545d30fb4dd0ba9d2523c5e4f5b86365673b4a94a67d45906c1839",
+    "meme_machine/shared_capital/runtime.py": "a8905fb779a02c4721b6fa0858eb3716eca2d63e9e407a31f97a1f18c384738a",
+    "operational/tests.py": "05446ce6eb91194af120124c93d20f872689d2dacd006163c7fccee5a9b316b8",
+    "tests/test_integrated_startup_rehearsal.py": "3f7d8240d0ed4f29ec938efe89ba2362d98e85caf90e305e723fbcbdc524da14",
+    "tests/test_paper_policy_compatibility.py": "efb4e588763dc6286fef7c7dbba94378a0936e6906898fb6d741eb2ce9a49daa",
+    "tests/test_pump_cancellation_diagnostics.py": "8c5aaf3bcecb0648a4602a9dede516a6e74c36348c940d372813c77658361bb9",
+    "tests/test_robinhood_usd_valuation.py": "3b49ac89767cf526ed52ad24b8dd177d9ce9f6b17d004f9eef293459b5f580b4"
+  },
+  "evidence_root": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011",
+  "executable": "1fe5a6f62d37f84ad24f0b7413279c080e3424e5",
+  "final_fast": "GitHub CI for this publication; terminal verdict is separately retained in CONSOLIDATED_STARTUP_FINAL_VALIDATION_20261014.json and the linked Actions run; no PASS assumed",
+  "focused_operational": {
+    "errors": 0,
+    "failures": 0,
+    "log": "CONSOLIDATED_STARTUP_OPERATIONAL_FINAL_20261014.log",
+    "runner": "pinned Python3.12.14, linked SQLite3.45.1; supported OPERATIONAL/network guard/Scratch",
+    "seconds": 62.29,
+    "sha256": "320f501079e0d9ade6e59c5b8b97c14cf5e05f386c08da861f46cb52ef66d6d0",
+    "skips": 0,
+    "tests": 293
+  },
+  "matched_cancellation": {
+    "after_exit": 0,
+    "after_reconciled": false,
+    "after_seconds": 0.7918,
+    "before_exit": -9,
+    "before_seconds": 15.862143989885226,
+    "input": "three identical retained monetary/native database SHA256 receipts",
+    "scope": "native initial read-only attachment cancellation, not throughput or full recovery",
+    "term_to_finish_ms": 5.03
+  },
+  "operational_state": {
+    "acceptance_minutes": 0,
+    "commitments": 0,
+    "funding": false,
+    "historical500": "exactly unchanged",
+    "installed": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "native": "original RECOVERY_REQUIRED retained",
+    "obligations": 0,
+    "portfolio_cash": "1000.00",
+    "positions": 0,
+    "reservations": 0,
+    "service": "stopped/disabled, Restart=no; retained failed unit state"
+  },
+  "original_attempt": {
+    "actual_usage": {
+      "http_attempts": 1,
+      "http_bytes": 43,
+      "invoice": "unavailable",
+      "modeled_usd": "0.0000105",
+      "native_bytes": 0,
+      "robinhood_elements": 0,
+      "rpc_cu": 20,
+      "solana_elements": 1
+    },
+    "empty_scope_seconds": 59.64043225185014,
+    "first_fatal": "Pons recover_cohort inferred native capital beside shared canonical plane",
+    "pons_quote_usd": "not exercised",
+    "sqlite_busy": "not reproduced",
+    "start_utc": "2026-10-14T21:20:29Z",
+    "throughput": "unavailable; no current-generation measurement interval"
+  },
+  "preserved_failures": [
+    "INTEGRATED_STARTUP_REHEARSAL_FIRST_20261014.log",
+    "INTEGRATED_STARTUP_REHEARSAL_FIXTURE_SUCCESSOR_20261014.log",
+    "CONSOLIDATED_STARTUP_OPERATIONAL_FIRST_20261014.log"
+  ],
+  "prior_executable": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+  "private_attempt": "/var/lib/meme-machine-diagnostics/20261014-integrated-combined-211136",
+  "rehearsal_cases": 9,
+  "schema": "consolidated-startup-repair-evidence-v1"
+}

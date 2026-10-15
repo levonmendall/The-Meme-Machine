@@ -1,0 +1,305 @@
+{
+  "model": "B",
+  "classification": "MEASURED_REPLAY",
+  "preserved_input_provider_bytes": 119108,
+  "provider_bytes_note": "Same preserved provider input charged to both. No local projection credit.",
+  "promotion_backfill_rpc_calls": 0,
+  "promotion_backfill_rpc_cu": 0,
+  "promotion_backfill_transaction_bodies": 0,
+  "promotions": 4,
+  "histories_complete_at_promotion": 4,
+  "history_complete_at_promotion_percent": 100.0,
+  "promotion_ready_seconds": {
+    "N": 4,
+    "p50": 0.0031143040396273136,
+    "p95": 0.003211755014490336,
+    "p99": 0.003211755014490336,
+    "max": 0.0048703880165703595
+  },
+  "events": 12,
+  "ordered_vectors": {
+    "pump:7sYAHmtqvPTbjqAERhDJRiXrFta1NXPtEv5WwAeMpump": [
+      {
+        "slot": 454070512,
+        "transaction_index": 895,
+        "event_index": 86,
+        "identity": "program:pump:454070512:3CfyogGncx3CEwVrUsYV4mDFx5qZQVNnyNYLidPCgJ3C8iCvMWyznqPmqRcoEBFwqjzk75tHQju6b9NvXjyiiEbG:86",
+        "event": {
+          "bonding_curve": "EioKN3ovjTe1hKVoTTBGt7WfQ71TNDMGzXBiKNfki3RV",
+          "creator": "sAhs4ASzJNXbXRmBjcn3ou8s8rn7feYtZJduBoJRsFS",
+          "event_type": "create",
+          "index": 86,
+          "initial_real_token_reserves": 793100000000000,
+          "initial_virtual_quote_reserves": 30000000000,
+          "initial_virtual_token_reserves": 1073000000000000,
+          "market_time": 1791335224,
+          "mint": "7sYAHmtqvPTbjqAERhDJRiXrFta1NXPtEv5WwAeMpump",
+          "slot": 454070512,
+          "token_total_supply": 1000000000000000,
+          "wallet": "sAhs4ASzJNXbXRmBjcn3ou8s8rn7feYtZJduBoJRsFS"
+        }
+      },
+      {
+        "slot": 454070512,
+        "transaction_index": 895,
+        "event_index": 129,
+        "identity": "program:pump:454070512:3CfyogGncx3CEwVrUsYV4mDFx5qZQVNnyNYLidPCgJ3C8iCvMWyznqPmqRcoEBFwqjzk75tHQju6b9NvXjyiiEbG:129",
+        "event": {
+          "amount": 59408092,
+          "buy": true,
+          "creator": "sAhs4ASzJNXbXRmBjcn3ou8s8rn7feYtZJduBoJRsFS",
+          "event_type": "trade",
+          "fees_lamports": 742602,
+          "index": 129,
+          "market_time": 1791335224,
+          "mint": "7sYAHmtqvPTbjqAERhDJRiXrFta1NXPtEv5WwAeMpump",
+          "real_quote_reserves": 59408092,
+          "real_token_reserves": 790979369998664,
+          "slot": 454070512,
+          "tokens": 2120630001336,
+          "virtual_quote_reserves": 30059408092,
+          "virtual_token_reserves": 1070879369998664,
+          "wallet": "sAhs4ASzJNXbXRmBjcn3ou8s8rn7feYtZJduBoJRsFS"
+        }
+      },
+      {
+        "slot": 454070516,
+        "transaction_index": 627,
+        "event_index": 17,
+        "identity": "program:pump:454070516:3zW6C9YphDJCJArb7g7ThXudAFKzXaWebf9GZFY7uXhQ7ckGsJbPu8zN8wP3SZbXz7YELqoNi9s4dPrBhTYMzyEh:17",
+        "event": {
+          "amount": 11673689,
+          "buy": false,
+          "creator": "sAhs4ASzJNXbXRmBjcn3ou8s8rn7feYtZJduBoJRsFS",
+          "event_type": "trade",
+          "fees_lamports": 0,
+          "index": 17,
+          "market_time": 1791335225,
+          "mint": "7sYAHmtqvPTbjqAERhDJRiXrFta1NXPtEv5WwAeMpump",
+          "real_quote_reserves": 47734403,
+          "real_token_reserves": 791395411808189,
+          "slot": 454070516,
+          "tokens": 416041809525,
+          "virtual_quote_reserves": 24162099892,
+          "virtual_token_reserves": 1071295411808189,
+          "wallet": "BwWK17cbHxwWBKZkUYvzxLcNQ1YVyaFezduWbtm2de6s"
+        }
+      },
+      {
+        "slot": 454070518,
+        "transaction_index": 360,
+        "event_index": 19,
+        "identity": "program:pump:454070518:2YJU9KKMTkn5pG69sf9F6Pgqy7q2MV5AWEPGv7LAL2txptyhWvQzrQYSLAeXitTzcNmFBcxEQiFojT5GqXB5mkEf:19",
+        "event": {
+          "amount": 8639926,
+          "buy": true,
+          "creator": "sAhs4ASzJNXbXRmBjcn3ou8s8rn7feYtZJduBoJRsFS",
+          "event_type": "trade",
+          "fees_lamports": 0,
+          "index": 19,
+          "market_time": 1791335226,
+          "mint": "7sYAHmtqvPTbjqAERhDJRiXrFta1NXPtEv5WwAeMpump",
+          "real_quote_reserves": 56374329,
+          "real_token_reserves": 791012473050342,
+          "slot": 454070518,
+          "tokens": 382938757847,
+          "virtual_quote_reserves": 28525259541,
+          "virtual_token_reserves": 1070912473050342,
+          "wallet": "BwWK17cbHxwWBKZkUYvzxLcNQ1YVyaFezduWbtm2de6s"
+        }
+      },
+      {
+        "slot": 454070521,
+        "transaction_index": 131,
+        "event_index": 17,
+        "identity": "program:pump:454070521:4RZ6UQ9t9zFH4Cgih6S9GzY555ifykySP3vjkVTTZjcmcJN2AcLL4nyiatnfxp8Y3cZsWXAUgDTmupgWgs8xfc2X:17",
+        "event": {
+          "amount": 12830796,
+          "buy": false,
+          "creator": "sAhs4ASzJNXbXRmBjcn3ou8s8rn7feYtZJduBoJRsFS",
+          "event_type": "trade",
+          "fees_lamports": 0,
+          "index": 17,
+          "market_time": 1791335226,
+          "mint": "7sYAHmtqvPTbjqAERhDJRiXrFta1NXPtEv5WwAeMpump",
+          "real_quote_reserves": 43543533,
+          "real_token_reserves": 791494391327800,
+          "slot": 454070521,
+          "tokens": 481918277458,
+          "virtual_quote_reserves": 22042806490,
+          "virtual_token_reserves": 1071394391327800,
+          "wallet": "BwWK17cbHxwWBKZkUYvzxLcNQ1YVyaFezduWbtm2de6s"
+        }
+      },
+      {
+        "slot": 454070524,
+        "transaction_index": 827,
+        "event_index": 19,
+        "identity": "program:pump:454070524:2Fjjn3qWF3wc9ZFAg5Qd1bCAmaXBeDtmkqGmddWYXntDWSK4GC76TsrZTEAQYBCpPUbAZBYtiNtEmd1xVV9KP9wY:19",
+        "event": {
+          "amount": 8046844,
+          "buy": true,
+          "creator": "sAhs4ASzJNXbXRmBjcn3ou8s8rn7feYtZJduBoJRsFS",
+          "event_type": "trade",
+          "fees_lamports": 0,
+          "index": 19,
+          "market_time": 1791335227,
+          "mint": "7sYAHmtqvPTbjqAERhDJRiXrFta1NXPtEv5WwAeMpump",
+          "real_quote_reserves": 51590377,
+          "real_token_reserves": 791103415822277,
+          "slot": 454070524,
+          "tokens": 390975505523,
+          "virtual_quote_reserves": 26106805080,
+          "virtual_token_reserves": 1071003415822277,
+          "wallet": "BwWK17cbHxwWBKZkUYvzxLcNQ1YVyaFezduWbtm2de6s"
+        }
+      },
+      {
+        "slot": 454070529,
+        "transaction_index": 271,
+        "event_index": 17,
+        "identity": "program:pump:454070529:2pRLrdMJiuRiLWC61JXkf7dCbFDamGGNuPrAvtoVFrzVLd4kYfotxwRisJjAvzjzmX8f3U3LuyNHbmJz5prEKQpj:17",
+        "event": {
+          "amount": 6510704,
+          "buy": false,
+          "creator": "sAhs4ASzJNXbXRmBjcn3ou8s8rn7feYtZJduBoJRsFS",
+          "event_type": "trade",
+          "fees_lamports": 0,
+          "index": 17,
+          "market_time": 1791335228,
+          "mint": "7sYAHmtqvPTbjqAERhDJRiXrFta1NXPtEv5WwAeMpump",
+          "real_quote_reserves": 45079673,
+          "real_token_reserves": 791370577073189,
+          "slot": 454070529,
+          "tokens": 267161250912,
+          "virtual_quote_reserves": 22817806305,
+          "virtual_token_reserves": 1071270577073189,
+          "wallet": "BwWK17cbHxwWBKZkUYvzxLcNQ1YVyaFezduWbtm2de6s"
+        }
+      },
+      {
+        "slot": 454070532,
+        "transaction_index": 609,
+        "event_index": 17,
+        "identity": "program:pump:454070532:4ULQuhNP5K7msKYPbRTPtJ8gXCqhfLW3mT5yfxbn3UjhBufmfhtkgn2ra3hhwdjx1gP5nT3RdDRbJtqFARzEhNq9:17",
+        "event": {
+          "amount": 9692128,
+          "buy": false,
+          "creator": "sAhs4ASzJNXbXRmBjcn3ou8s8rn7feYtZJduBoJRsFS",
+          "event_type": "trade",
+          "fees_lamports": 0,
+          "index": 17,
+          "market_time": 1791335229,
+          "mint": "7sYAHmtqvPTbjqAERhDJRiXrFta1NXPtEv5WwAeMpump",
+          "real_quote_reserves": 35387545,
+          "real_token_reserves": 791825805091901,
+          "slot": 454070532,
+          "tokens": 455228018712,
+          "virtual_quote_reserves": 17919575324,
+          "virtual_token_reserves": 1071725805091901,
+          "wallet": "BwWK17cbHxwWBKZkUYvzxLcNQ1YVyaFezduWbtm2de6s"
+        }
+      },
+      {
+        "slot": 454070538,
+        "transaction_index": 137,
+        "event_index": 17,
+        "identity": "program:pump:454070538:26rbibWpFEdRa4CHxSZbN12n56tbUTmCmf6vS13We57QZr2x5XSDqbG2yhZatemufFh29WVKDVgcEYRQ8831gWBU:17",
+        "event": {
+          "amount": 3050405,
+          "buy": false,
+          "creator": "sAhs4ASzJNXbXRmBjcn3ou8s8rn7feYtZJduBoJRsFS",
+          "event_type": "trade",
+          "fees_lamports": 0,
+          "index": 17,
+          "market_time": 1791335231,
+          "mint": "7sYAHmtqvPTbjqAERhDJRiXrFta1NXPtEv5WwAeMpump",
+          "real_quote_reserves": 32337140,
+          "real_token_reserves": 792008273446739,
+          "slot": 454070538,
+          "tokens": 182468354838,
+          "virtual_quote_reserves": 16377691060,
+          "virtual_token_reserves": 1071908273446739,
+          "wallet": "BwWK17cbHxwWBKZkUYvzxLcNQ1YVyaFezduWbtm2de6s"
+        }
+      }
+    ],
+    "pumpswap:2reQreKMjqv6KXxk125h8HGLoxFzfDLowAzVvjEoxVGi": [
+      {
+        "slot": 454004496,
+        "transaction_index": 947,
+        "event_index": 44,
+        "identity": "program:pumpswap:454004496:3hZWAqQB7JhZC9dDEvueSxkrX4pupzU6sXaELwisGwNA5kCwSCzuQqjQTnPXxQQxqKxuu3SmT1YLCV1gVpS5atvK:44",
+        "event": {
+          "amount": 1650347871,
+          "buy": false,
+          "index": 44,
+          "market_time": 1791317413,
+          "pool": "2reQreKMjqv6KXxk125h8HGLoxFzfDLowAzVvjEoxVGi",
+          "pool_base_reserve": 142183186681,
+          "pool_quote_reserve": 78611941655594,
+          "slot": 454004496,
+          "tokens": 2985000,
+          "user_quote_amount": 1645396827,
+          "wallet": "zsb9fYhnJnzrx7jSSDqejo2SgEXmX7CiygkxGvEqTJe"
+        }
+      }
+    ],
+    "pumpswap:8jE5aF3YrRHLU2HUPWQiLomz1Z28XQeHL7uvuS68VtCC": [
+      {
+        "slot": 454004496,
+        "transaction_index": 932,
+        "event_index": 53,
+        "identity": "program:pumpswap:454004496:25eMHK3fyLthFkxALbkRYdy9cXwFhnSjEPTuuBzvLZtSZVmYAuDN1MP6jvgUhYf3KTShxjtc2LUsHsQaAWMuHz12:53",
+        "event": {
+          "amount": 300000000,
+          "buy": true,
+          "index": 53,
+          "market_time": 1791317413,
+          "pool": "8jE5aF3YrRHLU2HUPWQiLomz1Z28XQeHL7uvuS68VtCC",
+          "pool_base_reserve": 195557855185847,
+          "pool_quote_reserve": 72614258157,
+          "slot": 454004496,
+          "tokens": 640646871303,
+          "user_quote_amount": 296442686,
+          "wallet": "5UkTRUuu1EJQ96eXDkuP7uwfcB1B48cohTAjKxx4oZLW"
+        }
+      }
+    ],
+    "pumpswap:Dx8T9F6HZn1xx7ykZjEECC7N6wFPTaiCq6D3EuYPAyUm": [
+      {
+        "slot": 454004496,
+        "transaction_index": 930,
+        "event_index": 44,
+        "identity": "program:pumpswap:454004496:vogqiUZrDzhzm3fhG1PhJ89uPdD3e4DkvGKYw94SETbp7RnUKjYFbSB9WWmtwii74LCxQQkH2WzG2etEHzyMbx5:44",
+        "event": {
+          "amount": 98488609,
+          "buy": false,
+          "index": 44,
+          "market_time": 1791317413,
+          "pool": "Dx8T9F6HZn1xx7ykZjEECC7N6wFPTaiCq6D3EuYPAyUm",
+          "pool_base_reserve": 85579584443689,
+          "pool_quote_reserve": 212201833233,
+          "slot": 454004496,
+          "tokens": 36707570000,
+          "user_quote_amount": 97405232,
+          "wallet": "8nXY9BgpCgk3EBK5bZ8YuV8PnTrqkSmBgQD7mYzGggtY"
+        }
+      }
+    ]
+  },
+  "sqlite_write_statements": {
+    "INSERT": 146,
+    "UPDATE": 13,
+    "DELETE": 2
+  },
+  "sqlite_changes": 179,
+  "hot_database_bytes": 700416,
+  "candidate_database_bytes": 159744,
+  "cpu_seconds": 0.10219350299999999,
+  "peak_rss_kib": 45660,
+  "unresolved_gaps": 0,
+  "deadline_misses": 0,
+  "expensive_worker_utilization": null,
+  "worker_note": "Ordered-history source replay, not simultaneous worker/capacity certification"
+}

@@ -1,0 +1,30 @@
+{
+  "schema": "paper-position-continuation-resources-v1",
+  "maximum_seconds": 264065,
+  "recovery_seconds": 3600,
+  "maximum_queue_depth": 64,
+  "maximum_queue_wait_seconds": 5,
+  "maximum_rss_bytes": 6442450944,
+  "maximum_cpu_cores": "1.8",
+  "maximum_reconnects": 32,
+  "continuation_modeled_spend_usd": "20",
+  "recovery_modeled_spend_usd": "2",
+  "continuation": {
+    "rpc_cu": 24000000,
+    "rpc_elements": 500000,
+    "http_attempts": 500000,
+    "http_bytes": 1073741824,
+    "native_bytes": 34359738368,
+    "native_stop_bytes": 32195477504,
+    "native_inflight_bytes": 2147483648
+  },
+  "recovery": {
+    "rpc_cu": 2400000,
+    "rpc_elements": 50000,
+    "http_attempts": 50000,
+    "http_bytes": 134217728,
+    "native_bytes": 1073741824,
+    "native_stop_bytes": 520093696,
+    "native_inflight_bytes": 536870912
+  }
+}

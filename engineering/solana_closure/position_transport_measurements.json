@@ -1,0 +1,75 @@
+{
+  "delivery": [
+    {
+      "family": "shared",
+      "transport": "rpc",
+      "raw_bytes": 156,
+      "rpc_cu": 140,
+      "calls": 3
+    },
+    {
+      "family": "candidate_logs",
+      "transport": "websocket",
+      "raw_bytes": 80,
+      "rpc_cu": 0,
+      "calls": 0
+    },
+    {
+      "family": "replay",
+      "transport": "rpc",
+      "raw_bytes": 181,
+      "rpc_cu": 220,
+      "calls": 3
+    },
+    {
+      "family": "pump",
+      "transport": "rpc",
+      "raw_bytes": 69,
+      "rpc_cu": 100,
+      "calls": 1
+    },
+    {
+      "family": "candidate_live",
+      "transport": "yellowstone",
+      "raw_bytes": 29273,
+      "rpc_cu": 0,
+      "calls": 0
+    },
+    {
+      "family": "pumpswap",
+      "transport": "rpc",
+      "raw_bytes": 69,
+      "rpc_cu": 100,
+      "calls": 1
+    }
+  ],
+  "canonical_events": 0,
+  "checkpoints": 2,
+  "classification": "MEASURED_REPLAY_POSITION_TRAFFIC",
+  "transport_classification": "MEASURED_LIVE",
+  "window_seconds": 16.01425248401938,
+  "errors": [],
+  "positions": [
+    {
+      "family": "pump",
+      "address": "4oNG2rkpvuswaA7MVdHDXw8oDPrmUzyMmNMpntd9pump",
+      "scope": "candidate:pump:4oNG2rkpvuswaA7MVdHDXw8oDPrmUzyMmNMpntd9pump",
+      "priority": 1,
+      "lower_slot": 454119157,
+      "deadline": 1791348445.5734847
+    },
+    {
+      "family": "pumpswap",
+      "address": "9FZGsYBH5B1nsRR1oQcfEXdD6u4z6Vy6uFjjVxxrQkVF",
+      "scope": "candidate:pumpswap:9FZGsYBH5B1nsRR1oQcfEXdD6u4z6Vy6uFjjVxxrQkVF",
+      "priority": 1,
+      "lower_slot": 454119157,
+      "deadline": 1791348445.5734909
+    }
+  ],
+  "rpc_calls": 10,
+  "rpc_cu": 510,
+  "rpc_bytes": 573,
+  "body_subscription": false,
+  "provider_cost_upper_usd": 0.0002701650225
+}

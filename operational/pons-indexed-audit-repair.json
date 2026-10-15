@@ -1,0 +1,122 @@
+{
+  "all_cumulative_counters_preserved": true,
+  "all_snapshot_fields_equal": true,
+  "authenticated_successor_throughput": "pending",
+  "base_source": "00fc4d08a75230224af29b8e66540c7e9c4a8c4a",
+  "changes": "Existing provider ledger expression indexes and exact retained-sample boundary lookup, followed by indexed ten-second rows; counters and sample semantics unchanged.",
+  "files_sha256": {
+    "meme_machine/lanes/pons/provider_admission.py": "ed5fa6c117c461b655758be96d91ac8c1876f4fe6de9f7c2063baab2454f8853",
+    "meme_machine/runtime/robinhood/provider_usage.py": "22bd4deb4fbbc446ef065960a5163bc3830980b2732b7ac353c2e0af1620e4c8",
+    "tests/test_provider_usage_wal_race.py": "a6a98f37aec8cd2101f7ab69ebca0db39b9a6b7f6c1db58550a0788ff8144022",
+    "tests/test_robinhood_payg.py": "8a4a2b63ab144ebc84a4385488fe0ac1585ef686811cd0d898213d98b007a165"
+  },
+  "formal_acceptance_minutes": 0,
+  "future_rows_excluded": true,
+  "missing_clock_semantics_preserved": true,
+  "new_database": false,
+  "offline_comparison": {
+    "at": 1791857043.764131,
+    "counters": {
+      "actual_account_capacity": null,
+      "admission_arrival_rate": 3.2,
+      "admissions_arrived": 32,
+      "available": true,
+      "completed_admissions": 31,
+      "diagnostic_method_cu": {
+        "billing_estimate_only": true,
+        "estimated_cu": 7214,
+        "estimated_cu_by_method": {
+          "eth_call": 1274,
+          "eth_chainId": 0,
+          "eth_getBlockByNumber": 1360,
+          "eth_getCode": 480,
+          "eth_getLogs": 4080,
+          "eth_getTransactionReceipt": 20
+        },
+        "known_estimated_cu": 7214,
+        "logical_calls": 211,
+        "schedule_sha256": "961b0d5aef58196f726f809237329ceb0d21cca296b4bbf25ddf4bd018f745d1",
+        "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+        "unpriced_methods": {}
+      },
+      "diagnostic_throughput_cu": 7219,
+      "diagnostic_throughput_cups": 721.9,
+      "granted_admission_service_rate": 3.1,
+      "known_diagnostic_throughput_cu": 7219,
+      "logical_calls_by_method": {
+        "eth_call": 49,
+        "eth_chainId": 1,
+        "eth_getBlockByNumber": 68,
+        "eth_getCode": 24,
+        "eth_getLogs": 68,
+        "eth_getTransactionReceipt": 1
+      },
+      "logical_rpc_elements": 211,
+      "missing_rate_instrumentation_tables": [],
+      "physical_http_attempts": 32,
+      "physical_rps": 3.2,
+      "rates_are_retained_audit_samples": true,
+      "records_without_start_clock": 0,
+      "sample_capacity": 4096,
+      "unpriced_throughput_methods": {},
+      "verified_billed_cu": null
+    },
+    "exact_snapshot_equal": true,
+    "indices": 6,
+    "new_provider_acquisition": false,
+    "original_source": "00fc4d08a75230224af29b8e66540c7e9c4a8c4a",
+    "provider_requests": 0,
+    "scope": "offline coherent provider-ledger clone; unchanged counters, retained 4096-row sample and all ten-second statistics",
+    "source_ledger_unmodified": true,
+    "timing_seconds": {
+      "indexed": [
+        0.006412966060452163,
+        0.006810687016695738,
+        0.006434396025724709,
+        0.011892240960150957,
+        0.006811110069975257
+      ],
+      "original": [
+        0.03515297395642847,
+        0.034132765023969114,
+        0.03482068993616849,
+        0.03442134603392333,
+        0.03411465499084443
+      ]
+    }
+  },
+  "overlapping_arrival_completion_not_double_counted": true,
+  "pricing_or_pacing_changed": false,
+  "provider_methods_or_acquisition_changed": false,
+  "same_read_snapshot_for_queue_counters_and_sample": true,
+  "sample_capacity": 4096,
+  "schema": "pons-indexed-audit-repair-v1",
+  "snapshot_transaction_correction": {
+    "cause": "BEGIN had been placed in demand writer instead of snapshot reader, causing WAL lock upgrade failure",
+    "failed_observation": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CONTINUOUS_ACTUAL_WORKERS_1791857980492.json",
+    "failure_evidence_preserved": true,
+    "read_begin_placed_in_snapshot": true,
+    "regression_reproduces_concurrent_commit_between_schema_read_and_write": true,
+    "source_cash_unchanged": true,
+    "tests": {
+      "fast": 65,
+      "operational": 130,
+      "operational_seconds": "63.502"
+    },
+    "writer_original_behavior_restored": true
+  },
+  "source_bottleneck": "Survivor and Current batch paths synchronously reconstruct the 4096-record provider-rate audit sample on each telemetry call; retained current stacks attribute repeated CPU to provider_usage.snapshot.",
+  "strategies_or_capital_changed": false,
+  "tests": {
+    "focused_fast": {
+      "evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pons-indexed-audit-focused-20261013.log",
+      "passed": 63,
+      "seconds": "17.144"
+    },
+    "operational": {
+      "evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pons-indexed-audit-operational-20261013.log",
+      "passed": 129,
+      "seconds": "63.999"
+    }
+  }
+}

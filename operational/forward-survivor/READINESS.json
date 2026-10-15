@@ -1,0 +1,85 @@
+{
+  "Meteora": "PAUSED",
+  "Ramses": "PAUSED",
+  "autonomous_paper_ready": false,
+  "autonomous_paper_running": false,
+  "full_operational_suite_green": false,
+  "market_wide_pre_enrollment_coverage": "UNOBSERVED unless independently authenticated preserved evidence exists",
+  "minimum_next_provider_test_authorized": false,
+  "mode": "PAPER_ONLY",
+  "next_proof": "NEXT_PROOF.json",
+  "preserved_funding_and_safety_requirements": true,
+  "prod_service_at_read": "inactive",
+  "production_startup_blockers": [
+    "combined_position_and_candidate_provider_latency_not_certified"
+  ],
+  "regimes": {
+    "pons_current": {
+      "active": false,
+      "economic_authority": "existing PAPER safety checks plus original shared-capital admission",
+      "global_seven_day_history_required": false,
+      "offline_implementation_ready": true,
+      "operational_status": "BLOCKED",
+      "qualification_independent_of_available_capital": true,
+      "qualification_requires_complete_individual_evidence": true,
+      "running": false
+    },
+    "pons_survivor": {
+      "active": false,
+      "earliest_new_graduation_qualification_seconds": 14400,
+      "economic_authority": "existing PAPER safety checks plus original shared-capital admission",
+      "global_seven_day_history_required": false,
+      "maximum_age_inclusive": true,
+      "maximum_age_seconds": 604800,
+      "minimum_age_seconds": 14400,
+      "offline_implementation_ready": true,
+      "operational_status": "BLOCKED",
+      "qualification_independent_of_available_capital": true,
+      "qualification_requires_complete_individual_evidence": true,
+      "reason_for_earliest": "Complete available post-graduation history may satisfy the original clipped long/medium/short features, reset/base/breakout/flow and execution gates at four hours.",
+      "running": false
+    },
+    "pump_current": {
+      "active": false,
+      "economic_authority": "existing PAPER safety checks plus original shared-capital admission",
+      "global_seven_day_history_required": false,
+      "offline_implementation_ready": true,
+      "operational_status": "BLOCKED",
+      "qualification_independent_of_available_capital": true,
+      "qualification_requires_complete_individual_evidence": true,
+      "running": false
+    },
+    "pump_survivor": {
+      "active": false,
+      "earliest_new_graduation_qualification_seconds": 21600,
+      "economic_authority": "existing PAPER safety checks plus original shared-capital admission",
+      "global_seven_day_history_required": false,
+      "maximum_age_inclusive": true,
+      "maximum_age_seconds": 604800,
+      "minimum_age_seconds": 14400,
+      "offline_implementation_ready": true,
+      "operational_status": "BLOCKED",
+      "qualification_independent_of_available_capital": true,
+      "qualification_requires_complete_individual_evidence": true,
+      "reason_for_earliest": "Frozen mandatory six-hour price structure requires a real point at/before now-21600; post-graduation history begins at actual graduation.",
+      "running": false
+    }
+  },
+  "remaining_evidence": [
+    "Resolve or reproduce unchanged maintenance timeout failures under the intended host workload; full OPERATIONAL is not green. Deadlines remain unchanged.",
+    "Review finite executor with full resource/CU/response-byte stops before separately authorized dispatch.",
+    "Simultaneous canonical Pump/Pons discovery, all four qualification paths, native position monitoring and provider contention under original deadlines.",
+    "Sustainable queue drainage and fresh state under ordinary forward-only workload.",
+    "Measured delivered bytes, priced method counts and durable storage growth; authenticated account usage/billing for a realistic monthly budget.",
+    "Independent off-host restore and final deployed CAPACITY/RECOVERY/AUTONOMY with existing routes/transport."
+  ],
+  "removed_prerequisites": [
+    "whole-market seven-day cold scan",
+    "seven-day prospective maturity",
+    "complete seven-day candidate census",
+    "unrelated candidate histories",
+    "machine enrollment age"
+  ],
+  "schema": "forward-survivor-readiness-v1",
+  "source_production_guard_unchanged": true
+}

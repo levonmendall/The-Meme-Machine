@@ -1,0 +1,24 @@
+{
+  "parent_source": "d934820ab2d908beca130944e70504087f30547b",
+  "cause": "Authenticated d934 service terminated Pons qualification when SharedSleeve.sizing_basis checked fresh USD evidence against the pre-acquisition request timestamp. Receipt ended after 352.57 seconds with capital unchanged.",
+  "retained_failure": "blocker-repair-20261011/continuous-actual-workers-1791785711338.log",
+  "implementation": "Check shared sizing and grant USD at actual financial consumption; do not extend evidence expiry. Acquire sizing on existing qualification worker and route unavailable USD through the original candidate boundary rather than terminating the cohort.",
+  "focused_tests": {
+    "suite": "OPERATIONAL",
+    "modules": [
+      "tests.test_continuous_paper",
+      "tests.test_native_valuation_completion",
+      "tests.lanes.pons.test_pons_finalization"
+    ],
+    "run": 106,
+    "seconds": 150.714,
+    "result": "PASS",
+    "log_sha256": "a9bb23cacec28fbcd3036bb84dc6cae8f2a8652de6ff226d1dbf41523230a8c1",
+    "log": "/tmp/current-financial-completion-pass.log"
+  },
+  "native_rules_modified": false,
+  "provider_transports_added": false,
+  "provider_acquisition_added": false,
+  "authenticated_successor_validation": "PENDING",
+  "normal_PAPER_funding": "CLOSED"
+}

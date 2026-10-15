@@ -1,0 +1,233 @@
+{
+  "artifacts": [
+    {
+      "bytes": 8840,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/AUTHORIZED_CURRENT_COMBINED_PREPARATION_20261014.json",
+      "sha256": "db361d5c174e2a50845e5199ba6f165500a0f7c7ce1b9957f90a93ab9210dedc"
+    },
+    {
+      "bytes": 545421,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/AUTHORIZED_CURRENT_COMBINED_BEFORE_STATES_20261014.json",
+      "sha256": "87558fe3e22069d8d86ea9c02c0fb9c806a7c35ae9abfd1d422ed9c14e3025e6"
+    },
+    {
+      "bytes": 3143,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/AUTHORIZED_CURRENT_COMBINED_JOURNAL_20261014.log",
+      "sha256": "787002d8cdb67f5ed5e7d55a0abbc64194d7c24348b57a3c8ed59c2cbd6b6a81"
+    },
+    {
+      "bytes": 5842,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/AUTHORIZED_CURRENT_COMBINED_PROCESSES_AFTER_20261014.txt",
+      "sha256": "66fcf25b60131688ee33862b394bdafdc4ae24058f2572c73aa64673761adee1"
+    },
+    {
+      "bytes": 577518,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/AUTHORIZED_CURRENT_COMBINED_POSTCHECK_20261014.json",
+      "sha256": "ee89d7d27687d0dbdc9fd1c75b950aa3ecc8ad13f5e80897f4aed07b61dc7a93"
+    },
+    {
+      "bytes": 277,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/AUTHORIZED_CURRENT_COMBINED_ROLLBACK_20261014.json",
+      "sha256": "9ab0ba311ab1f08407f23697e802c150064a72aeeee9265285dbed69b03ebb32"
+    },
+    {
+      "bytes": 1569,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/AUTHORIZED_CURRENT_COMBINED_ROLLBACK_COMPLETION_20261014.json",
+      "sha256": "5321dcf35329030523139714c6626d08d72291fe2fa8ed25619533fbcb5d7670"
+    },
+    {
+      "bytes": 0,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/AUTHORIZED_CURRENT_COMBINED_CONTROLLER_20261014.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 96,
+      "path": "/var/lib/meme-machine-diagnostics/20261014-current-combined-161351/clock.json",
+      "sha256": "bb267c781900429d9d0e45dab52ef2bcad32c51293f9df38b6ff0163b5c3041d"
+    },
+    {
+      "bytes": 997,
+      "path": "/var/lib/meme-machine-diagnostics/20261014-current-combined-161351/result.json",
+      "sha256": "1480bdcb09e6535ea51211b028d664e7fb032f04475e0311056caad2fdc9089e"
+    }
+  ],
+  "attempt_count": 1,
+  "backup_configuration_modified": false,
+  "backup_schedule_note": "Existing randomized next firing re-evaluated by ordinary authorized daemon reload; no timer file/settings changed, no backup overlap.",
+  "complete_portfolio_identities_unchanged": {
+    "historical500": true,
+    "paper1000": true
+  },
+  "confirmed_failure": {
+    "cause": "Existing parent mode was not changed by mkdir(exist_ok=True); service identity could not traverse it. Preflight missed ancestor traversal.",
+    "child_mode": "0700",
+    "child_owner": "meme-machine:meme-machine",
+    "errno": 13,
+    "operation": "Path.is_dir before supervisor construction",
+    "parent_mode": "0700",
+    "parent_owner": "root:root",
+    "path": "/var/lib/meme-machine-diagnostics/20261014-current-combined-161351",
+    "pid": 2690426,
+    "source": "engineering/diagnostics/current_combined_observation_20261014.py:600",
+    "type": "PermissionError"
+  },
+  "controller_result_unchanged": {
+    "acceptance_minutes": 0,
+    "before": {
+      "cash": "1000.00",
+      "epoch_id": "paper-shared-1000-20261011T071207Z",
+      "inception_sha256": "aea262d34d976cddeddf83f57045508cf09f3c8e28cf8a2c73ae49d38cc261b1",
+      "policy_sha256": "8c6eb7f30f2729b28de865ac1353e626f64c6cbd00dce375281946a962976c66",
+      "realized": {
+        "meteora": "0",
+        "pons_current": "0",
+        "pons_survivor": "0",
+        "pump_current": "0",
+        "pump_survivor": "0",
+        "ramses": "0"
+      }
+    },
+    "drained": true,
+    "economic_continuity": true,
+    "elapsed_to_drain_seconds": 20.213236859068274,
+    "failure": true,
+    "funding": false,
+    "native_drain": "UNVERIFIED_TIMEOUT_ESCALATION_POSSIBLE",
+    "original_readiness": null,
+    "recovery_required": true,
+    "restored_at_monotonic": null,
+    "revision": "5f03b0599af6af05c796e27c867a545f2abb188c",
+    "service_state": "MainPID=0\nActiveState=failed\nSubState=failed",
+    "status": "RECOVERY_REQUIRED",
+    "stop_reason": "SUPERVISOR_ENDED",
+    "unit_properties": {
+      "KillMode": "control-group",
+      "Restart": "no",
+      "RuntimeMaxUSec": "30min",
+      "TimeoutStopUSec": "1min 5s"
+    }
+  },
+  "controller_result_written_at": "2026-10-14T16:18:45.827543+00:00",
+  "drain_disposition": "Original RECOVERY_REQUIRED/native drain unverified preserved. Journal and launcher order show no supervisor or worker construction. No native drain was exercised; empty unit alone is not a native drain PASS.",
+  "engineering_branch": "engineering/targeted-resolution-20261014",
+  "failed_backup_usable": false,
+  "independent_blockers_open": [
+    "Pump sustained combined capacity",
+    "Pump historical fatal SQLite attribution",
+    "Pons public throttling/provider arrangement",
+    "Pons demand-writer READONLY INSERT",
+    "Later incomplete backup failure",
+    "Active backup/protection compatibility"
+  ],
+  "inspected_available_storage_bytes": {
+    "/": 12544274432,
+    "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000": 21470142464
+  },
+  "installed_after_rollback": "a70e2610743d8595b3d1a36ed25821a6689c29f3",
+  "market_actors_started": false,
+  "next_backup_after_daemon_reload": "2026-10-15T04:00:03Z",
+  "next_observation_authorized": false,
+  "original_readiness": "NOT_REACHED_FATAL_STARTUP",
+  "portfolio_summaries": {
+    "historical500": {
+      "cash": null,
+      "counts": {
+        "commitments": 0,
+        "obligations": 0,
+        "pending_backing": 0,
+        "pending_deliveries": 0,
+        "positions": 0,
+        "reservations": 0,
+        "runtime_inbox": 0,
+        "runtime_pending": 0
+      },
+      "epoch_id": "paper-1791089005190643467",
+      "journal_hash": "c0cb1d5fd4a156378e4e53764c0f528707ee9a5af799662daf15f207be95723e",
+      "reconciliation": "PASS",
+      "sequence": 2036
+    },
+    "paper1000": {
+      "cash": "1000.00",
+      "counts": {
+        "commitments": 0,
+        "obligations": 0,
+        "pending_backing": 0,
+        "pending_deliveries": 0,
+        "positions": 0,
+        "reservations": 0,
+        "runtime_inbox": 0,
+        "runtime_pending": 0
+      },
+      "epoch_id": "paper-shared-1000-20261011T071207Z",
+      "journal_hash": "ffb6b9bd229457948caa66a6c5a2a4d2716bdf1792be0863d163294261e899af",
+      "reconciliation": "PASS",
+      "sequence": 8826
+    }
+  },
+  "qualifying_acceptance_minutes": 0,
+  "recorded_at": "2026-10-14T16:28:16.274037+00:00",
+  "recovery_reference_reused": "/mnt/volume_nyc1_1790918115030/meme-machine-backups/meme-machine-paper-20261013T221423-5891a20c",
+  "rollback": {
+    "clean": true,
+    "controller_result_preserved": true,
+    "database_rewind": false,
+    "diagnostic_parent_access_unchanged": true,
+    "exact_portfolio_identities_unchanged": true,
+    "finished_at": "2026-10-14T16:25:12.112244+00:00",
+    "overlays": [
+      {
+        "gid": 987,
+        "mode": "0o640",
+        "path": "/etc/meme-machine/volume-quality-service.observation.env",
+        "sha256": "75f4d3e42edcf099b2d00be6319c91aa1f0d496ca3c9c39226bb18b3ac70a0c5",
+        "uid": 0
+      },
+      {
+        "gid": 0,
+        "mode": "0o644",
+        "path": "/etc/systemd/system/meme-machine-paper.service.d/validation-observation.conf",
+        "sha256": "5472f456883cef4552d2367168b96366fc7b7a6b2d09e18d72472f19aeadde80",
+        "uid": 0
+      }
+    ],
+    "provider_snapshot_unchanged": true,
+    "service_start_requested": false,
+    "source": "a70e2610743d8595b3d1a36ed25821a6689c29f3",
+    "status": "ROLLBACK_COMPLETE_NO_RESTART",
+    "unit_properties": "Restart=no\nTimeoutStopUSec=1min 5s\nRuntimeMaxUSec=21min 5s\nMainPID=0\nResult=exit-code\nExecMainStatus=1\nControlGroup=\nActiveState=failed\nSubState=failed\nUnitFileState=disabled"
+  },
+  "schema": "current-combined-observation-outcome-v1",
+  "service_failure_journal_at": "2026-10-14T16:18:25.900822Z",
+  "service_start_journal_at": "2026-10-14T16:18:25.610827Z",
+  "source_changes_during_outcome_publication": "Documentation/evidence only; exact executable/spec unchanged; no tests/provider rerun.",
+  "specification_revision": "282d38946955b46422a34348062ac572777d8473",
+  "status": "OBSERVATION_FAILED_BEFORE_WORKER_START_STOPPED_FOR_REVIEW",
+  "supported_next_correction_not_implemented": "Give existing service group traversal of diagnostic parent while retaining private0700 run directory; focused actual-service-identity traversal/clock/write-access preflight test. No DB mode/timeout/routing/retry change.",
+  "tested_attempted_executable": "5f03b0599af6af05c796e27c867a545f2abb188c",
+  "unexercised": [
+    "Pump arrival/process/commit/history/ACK/proof/publication/strategy rates and queues",
+    "Natural SQLite failure",
+    "Pons transport spacing/429/admission/quote/USD/protection",
+    "Held positions and lifecycle paths"
+  ],
+  "usage": {
+    "bootstrap_snapshot_identical": true,
+    "comparison": "Same Budget bootstrap projection (. not in key), read via mode=ro; raw SELECT contains existing stream-owner rows omitted by Budget.snapshot. Difference in key sets is not ledger change.",
+    "counter_deltas": {
+      "alchemy_rpc_cu": 0,
+      "http_attempts": 0,
+      "http_bytes": 0,
+      "http_uncertain_bytes": 0,
+      "native_bytes": 0,
+      "native_failures": 0,
+      "native_opens": 0,
+      "native_uncertain_bytes": 0,
+      "robinhood_rpc_elements": 0,
+      "rpc_cu": 0,
+      "rpc_elements": 0,
+      "solana_rpc_elements": 0
+    },
+    "invoice_verified": false,
+    "modeled_incremental_usage_cost_usd": "0"
+  }
+}

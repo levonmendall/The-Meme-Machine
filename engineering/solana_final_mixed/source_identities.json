@@ -1,0 +1,12 @@
+{
+  "starting_PR_head": "781bdbacad2a9a0e5a33ecbf9a34c648363d2677",
+  "starting_PR_tree": "0f22220d8098f463647e7740a99a3fbfbed1d54c",
+  "tested_implementation_commit": "476bad205014c8c3d586f45d87f84ec44306817a",
+  "tested_implementation_tree": "e9158889bd78b42ffd93b9fe563d0a64b54b5928",
+  "runtime_repair_commit": "3cfe0d3f99d5349e55e9453171bc27a727962edc",
+  "measurement_census_commit": "458d9e01ab1d2763ed26ae05fba898cd911c5e0f",
+  "branch": "repair/final-alchemy-solana-20261007",
+  "legacy_archive_commit": "c8a980b69ca1d26a1d72e8554bc32fc9f73e8932",
+  "legacy_archive_tree": "348ad500e397f53e3eff33c6412c138a6d7ceb2d",
+  "delivery_note": "Subsequent delivery changes reports/artifacts only. Delivery SHA/tree are published on PR #121 and in the owner response. Validated source hashes remain those in measurements.json."
+}

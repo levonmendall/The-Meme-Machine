@@ -1,0 +1,14 @@
+{
+  "label": "current-maintenance-timeout",
+  "command": [
+    "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/.venv/bin/python",
+    "-c",
+    "from operational.tests import network_guard;network_guard();import unittest;r=unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromName('tests.test_production_maintenance_arbiter.ProductionServeTests.test_simultaneous_high_debt_and_three_scopes'));raise SystemExit(not r.wasSuccessful())"
+  ],
+  "cwd": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/repo",
+  "exit_code": 0,
+  "wall_seconds": 10.272509400034323,
+  "storage_source": "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/operational/artifact_storage.py",
+  "scratch_path": "/tmp/mm-engineering-zo398072",
+  "scratch_retained": false
+}

@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+.env.*
+*.db
+*.db-*
+*.db.lock
+*.sqlite
+*.sqlite-*
+*.sqlite.lock
+config.local.json
+.venv/

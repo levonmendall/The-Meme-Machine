@@ -1,0 +1,74 @@
+name: CI — fast deterministic tests
+# Development branches use focused offline tests; run the expensive complete FAST
+# suite at the final PR review/release gate, on main, or when dispatched explicitly.
+# Retain the existing full FAST job unchanged: a skipped/draft job is NOT a PASS.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Complete offline release suite (finalized candidates only)
+        type: choice
+        options: [FAST, OPERATIONAL]
+        default: FAST
+permissions:
+  contents: read
+# New commits cancel obsolete runs for the same PR/ref; the final revision must pass.
+concurrency:
+  group: fast-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  fast:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.suite == 'OPERATIONAL' && 90 || 45 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Source-equivalence checks retain the pinned source through later commits.
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install -r requirements.txt
+      - name: Run complete offline suite with the required Linux containment
+        env:
+          OFFLINE_SUITE: ${{ inputs.suite || 'FAST' }}
+        run: |
+          # The real containment regressions require cgroup v2 and exactly two
+          # CPUs. Supply those conditions on this disposable runner; retain the
+          # original tests, kernel limits and market-provider network guard.
+          sudo env CI=true PYTHONDONTWRITEBYTECODE=1 OFFLINE_SUITE="$OFFLINE_SUITE" "$(command -v python)" - <<'PY'
+          import os
+          from pathlib import Path
+          import runpy
+          import resource
+          import sys
+
+          # sudo's 1,024-descriptor default is insufficient for the unchanged
+          # multi-owner SQLite replay fixtures in the FAST parent. This does
+          # not change the contained workers' protective resource ceilings.
+          soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+          if hard < 4096:
+              raise RuntimeError('ci_replay_file_descriptors_required')
+          resource.setrlimit(resource.RLIMIT_NOFILE, (max(soft, 4096), hard))
+          cpus = sorted(os.sched_getaffinity(0))
+          if len(cpus) < 2:
+              raise RuntimeError('two_ci_cpus_required')
+          os.sched_setaffinity(0, set(cpus[:2]))
+          Path('/sys/fs/cgroup/cgroup.subtree_control').write_text('+cpu +memory +io')
+          from engineering.solana_capacity.proof_host import LinuxGroup
+          from engineering.solana_capacity.proof_limits import LIMITS
+          group = LinuxGroup(LIMITS)
+          group.close()
+          # Preserve the last reached regression if containment or the runner
+          # fails. This changes diagnostics only, not tests or their limits.
+          level = os.environ['OFFLINE_SUITE']
+          if level not in ('FAST', 'OPERATIONAL'):
+              raise RuntimeError('explicit_offline_suite_required')
+          sys.argv = ['operational.tests', level, '--verbose']
+          runpy.run_module('operational.tests', run_name='__main__')
+          PY

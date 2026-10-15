@@ -1,0 +1,29 @@
+3:Alternative Python clients have no socket dispatch context. gRPC's C transport
+11:import socket
+101:        import grpc
+108:        self.replace(urllib.request,'urlopen',self.open);self.replace(provider,'urlopen',self.open)
+109:        # Imports with urlopen aliases are covered by a process-wide audit hook;
+110:        # they cannot use a different client or SDK's Python sockets.
+115:            ws_dns=event=='socket.getaddrinfo' and args[0]=='solana-mainnet.g.alchemy.com' and self.ws_opening>0
+116:            if event=='socket.getaddrinfo' and (self.offline or _NETWORK.get() is None and not ws_dns):
+118:            if event in ('socket.connect','socket.sendto'):
+120:                if sock.family!=socket.AF_UNIX and (self.offline or _NETWORK.get() is None):
+121:                    self.budget.fail('unmetered_socket_dispatch')
+126:            # incompatible retry requests are refused before constructing them.
+256:        native_channel=grpc.aio.secure_channel
+261:            if options.get('grpc.max_receive_message_length',MAX_FRAME)>MAX_FRAME:self.budget.fail('unbounded_native_receive')
+262:            options.update({'grpc.max_receive_message_length':MAX_FRAME,'grpc.enable_retries':0,
+263:                'grpc.http2.bdp_probe':0,'grpc.http2.initial_stream_window_size':MAX_FRAME,
+264:                'grpc.http2.initial_connection_window_size':MAX_FRAME})
+268:        self.replace(grpc.aio,'secure_channel',channel)
+270:        self.replace(grpc,'secure_channel',unsupported_channel);self.replace(grpc,'insecure_channel',unsupported_channel)
+271:        self.replace(grpc.aio,'insecure_channel',unsupported_channel)
+277:            except ValueError:self.budget.fail('unapproved_websocket_endpoint')
+330:            import grpc
+336:            self.raw.cancel();return grpc.aio.EOF
+349:        self.reserve=self.t.budget.stream_open('solana_websocket');self.token=_NETWORK.set(('websocket','solana-mainnet.g.alchemy.com'))
+353:            self.t.budget.stream_close(self.reserve,transport='solana_websocket',unread_possible=True)
+360:            self.t.budget.stream_close(self.reserve,transport='solana_websocket',unread_possible=True)
+364:        except (ValueError,KeyError,TypeError):self.t.budget.fail('websocket_request_shape')
+365:        if method not in ('logsSubscribe','logsUnsubscribe'):self.t.budget.fail('unapproved_websocket_method')
+369:        self.t.budget.native('solana_websocket',len(raw.encode() if isinstance(raw,str) else raw));return raw

@@ -1,0 +1,19 @@
+test_legacy_authority_fenced_and_unused_rollback_preserves_epoch (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_legacy_authority_fenced_and_unused_rollback_preserves_epoch) ... ok
+test_missing_active_manifest_blocks_grants_but_not_settlement (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_missing_active_manifest_blocks_grants_but_not_settlement) ... FAIL
+test_native_pump_shared_funding_exceeds_125_with_original_625_targets (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_native_pump_shared_funding_exceeds_125_with_original_625_targets) ... ok
+
+======================================================================
+FAIL: test_missing_active_manifest_blocks_grants_but_not_settlement (tests.test_pump_pons_capital_preparation.RuntimeIntegrationTests.test_missing_active_manifest_blocks_grants_but_not_settlement)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_pump_pons_capital_preparation.py", line 142, in test_missing_active_manifest_blocks_grants_but_not_settlement
+    self.assertEqual(a.snapshot()['capital']['free_cash'],'500')
+AssertionError: '500.00' != '500'
+- 500.00
++ 500
+
+
+----------------------------------------------------------------------
+Ran 3 tests in 13.585s
+
+FAILED (failures=1)

@@ -1,0 +1,133 @@
+{
+  "runtime_authority": "none; provenance only; active economics remain in implementation",
+  "records": [
+    {
+      "item": "approved nine rules",
+      "classification": "ACTIVE_STRATEGY",
+      "source_commit": "16f7dcefb9632be278c10c9377fed5fe847089af",
+      "source_path": "certification/strategy-prep/post-stage-e-strategy-activation-v1.json",
+      "source_sha256": "5dc16b46415a64f1858cc4c6ce8c42037876b714ddbb62da959066d6f5957c43",
+      "conclusion": "Approved detailed contracts are summarized in STRATEGIC_REFERENCE and nine-change-implementation; current code and permanent regressions implement all nine, subject to final independent reachability audit."
+    },
+    {
+      "item": "right-tail calibration and limits",
+      "classification": "ACTIVE_STRATEGY",
+      "source_commit": "16f7dcefb9632be278c10c9377fed5fe847089af",
+      "source_path": "certification/strategy-prep/right-tail-capture-v1.json",
+      "source_sha256": "2dddb4dbaa47a6cb0127310814cac1ac983c62f5064ea1f6e8f0e8832d9000e8",
+      "conclusion": "tail thresholds survive; source economics separately from deprecated Stage-E gates"
+    },
+    {
+      "item": "external right-tail timing/volatility evidence",
+      "classification": "RESEARCH_ONLY",
+      "source_commit": "16f7dcefb9632be278c10c9377fed5fe847089af",
+      "source_path": "certification/strategy-prep/right-tail-market-evidence-20261001.json",
+      "source_sha256": "e966cfb237830465f3b152748b7560bcf64f1cbb2c9b1f21c7fb037a0ab18e9b",
+      "conclusion": "Source evidence and limitations are preserved in STRATEGIC_REFERENCE with no trading authority."
+    },
+    {
+      "item": "Pump rejected winner enrichment and unacceptable downside",
+      "classification": "RESEARCH_ONLY",
+      "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "source_path": "research/PUMP_REJECTED_WINNER_HYPOTHESIS_V1.json",
+      "source_sha256": "8f6fbe69e70d35dfc82fd5dd176e899bccb11d8c720d8495c4092ef62257f84e",
+      "conclusion": "4 of 15 matching winners but 73.33% below -10%; no trading-rule freeze permitted"
+    },
+    {
+      "item": "15-second rejected winner prospective protocol",
+      "classification": "RESEARCH_ONLY",
+      "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "source_path": "research/PUMP_REJECTED_WINNER_TRAJECTORY_V1.json",
+      "source_sha256": "4cd4deadbe4c4228d1549b3966433289aab7ed3f6de59dbb92e8e3bd08095935",
+      "conclusion": "no lookahead membership; frozen prospective controls; shadow-only"
+    },
+    {
+      "item": "seven-day Pump scaling rejection and Pons shadow distinction",
+      "classification": "RESEARCH_ONLY",
+      "source_commit": "a8d85c61b293ad4da491e5c4119c7ad93f704523",
+      "source_path": "research/public-market-7d-20261001/REPORT.md",
+      "source_sha256": "5c24162dfa8d7c988d7d167a8fd112cb66a06562ba59dd5587e86bdde8176ace",
+      "conclusion": "simple Pump price-strength signal fails robust cohort; Pons +5% local breakout is provisional shadow, not approved current scaling rule"
+    },
+    {
+      "item": "reset/recovery independent regime research contract",
+      "classification": "DEFERRED_IMPLEMENTATION",
+      "source_commit": "617f1b4ec2d6f3e1a8c79dd19c2a5b91549ed967",
+      "source_path": "docs/RESET_RECOVERY_V1_RESEARCH_CONTRACT.md",
+      "source_sha256": "866d8cd7328d0efbf72c34834729f344489ae48c2fd9b60906d3bb13fe6f702b",
+      "conclusion": "no thresholds frozen; independent evidence/policy/shared-sleeve review before any future promotion"
+    },
+    {
+      "item": "Current/Survivor opportunity and marginal-reject receipts",
+      "classification": "ACTIVE_STRATEGY",
+      "source_commit": "16f7dcefb9632be278c10c9377fed5fe847089af",
+      "source_path": "docs/DIRECTIONAL_OPPORTUNITY_PRESERVATION_V1_IMPLEMENTATION_CONTRACT.md",
+      "source_sha256": "9143c6cbdda239e292db4ebd34a9f8ef3f0ef3e4d6a869e725098594423d7c7d",
+      "conclusion": "Independent eligibility, durable duplicate-fill fencing and read-only opportunity telemetry have active regression coverage; future strategic audit remains separate."
+    },
+    {
+      "item": "Run 373 dispatch saturation failure mechanism",
+      "classification": "OPERATIONAL_REFERENCE",
+      "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "source_path": "docs/run373-solana-dispatch-throughput-repair.md",
+      "source_sha256": "17d9fee27c74c225ce38644395b0aceefa1c2ad1cc36748918c1f8cf28f0dda7",
+      "conclusion": "Dispatch throughput engineering and the standalone throughput regression are retained in permanent OPERATIONAL."
+    },
+    {
+      "item": "Run 381 retention/archive starvation and infrastructural censoring",
+      "classification": "OPERATIONAL_REFERENCE",
+      "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "source_path": "certification/notes/run381-runtime-repair.md",
+      "source_sha256": "22d9a2d5f31f318a416b4eea4b23cfe250fdaa673e6535afcf64fe3c27ea0b74",
+      "conclusion": "engineering survives; preserve why zero local reads cannot be called poor strategy economics"
+    },
+    {
+      "item": "dashboard authority and failure isolation",
+      "classification": "OPERATIONAL_REFERENCE",
+      "source_commit": "c3462c8cb43678fc5e2eb9a44dccc9c6dd31cc6b",
+      "source_path": "docs/DASHBOARD_RUNTIME_INTEGRATION_PREP.md",
+      "source_sha256": "9efb59a451a84b776b2743ca76ba904d17eb15d75dada85b32459e812c8357c3",
+      "conclusion": "read-only snapshots and publication isolation preserved"
+    },
+    {
+      "item": "capital deployment, Decimal sleeves and $500 inception",
+      "classification": "ACTIVE_STRATEGY",
+      "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "source_path": "certification/directional_sleeve.py",
+      "source_sha256": "4df4edd8cd6479cb2cbae6eba883bb7fee2c2d09247dc1b41ecf31e6006aec86",
+      "conclusion": "shared USD authority integrated; durable pending delivery retained"
+    },
+    {
+      "item": "Historical economic evidence and shadow interpretation",
+      "classification": "SUPERSEDED",
+      "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "source_path": "certification/profitability_protocol.json",
+      "source_sha256": "996d367d230276c3b9ab02816eeba9cfbcea4af953363a121bb4a777db99fe42",
+      "conclusion": "Statistical interpretation and historical thresholds explicitly retained in STRATEGIC_REFERENCE as information; obsolete certification/runtime admission removed. No new economic rule or audit performed."
+    },
+    {
+      "item": "Historical economic evidence and shadow interpretation",
+      "classification": "SUPERSEDED",
+      "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "source_path": "certification/cohorts/prospective-four-lane-six-regime-v13-20260926.json",
+      "source_sha256": "00a342d395cdc45db13b1ed497dce94dfd92fda16b0d9034e3fe6f3af680d90b",
+      "conclusion": "Statistical interpretation and historical thresholds explicitly retained in STRATEGIC_REFERENCE as information; obsolete certification/runtime admission removed. No new economic rule or audit performed."
+    },
+    {
+      "item": "Historical economic evidence and shadow interpretation",
+      "classification": "SUPERSEDED",
+      "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "source_path": "certification/cohorts/prospective-four-lane-v12-pump-counterfactual-ramses-v4-20260924.json",
+      "source_sha256": "35dc3d305dcfbb07bea99926eee67bdedf1de47e80a0726d96763512ea27f4c5",
+      "conclusion": "Statistical interpretation and historical thresholds explicitly retained in STRATEGIC_REFERENCE as information; obsolete certification/runtime admission removed. No new economic rule or audit performed."
+    },
+    {
+      "item": "Historical economic evidence and shadow interpretation",
+      "classification": "RESEARCH_ONLY",
+      "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+      "source_path": "certification/shadow_registry.json",
+      "source_sha256": "840ca2c42dc5e93f202e5abf1d1c721b55ec6d0f71ab4e348749efe9230b507e",
+      "conclusion": "Statistical interpretation and historical thresholds explicitly retained in STRATEGIC_REFERENCE as information; obsolete certification/runtime admission removed. No new economic rule or audit performed."
+    }
+  ]
+}

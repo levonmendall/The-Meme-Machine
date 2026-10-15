@@ -1,0 +1,348 @@
+{
+  "authenticated_successor_throughput": "pending",
+  "base_source": "05103e93c28f2731674b1a99403067d57e7b0848",
+  "baseline_authenticated_throughput": {
+    "age_seconds": 188.4,
+    "completed": 1.4255046197660741,
+    "cpu_cores": 1.6614056884094377,
+    "incoming": 2.8510092395321482,
+    "lag_end": 471,
+    "lag_start": 215,
+    "method": "last 180 seconds; only freshly updated native/control frontiers; no restored cursor jumps",
+    "receipt": "CONTINUOUS_ACTUAL_WORKERS_1791858935216.json",
+    "seconds": 179.58552813529968,
+    "source": "05103e93c28f2731674b1a99403067d57e7b0848"
+  },
+  "candidate_population_changed": false,
+  "change": "Reuse only freshly byte-authenticated immutable cohort prefixes inside the existing bounded compact-proof cache. Every selected packed proof checksum is reverified; current gaps and point-in-time availability remain independently evaluated.",
+  "deadline_or_frame_limits_changed": false,
+  "economic_rules_changed": false,
+  "files_sha256": {
+    "meme_machine/solana_rolling_history.py": "70d9dad579edc296a1e8413805d64c380237fc40e1f7230d1894eb1314457519",
+    "tests/test_solana_rolling_prewarm.py": "ef350609a3c8060ad46ba0a5187f8e24c771a12f50d896f281d2369431e1b082"
+  },
+  "formal_acceptance_minutes": 0,
+  "measured_cause": "Each changing final native coverage fragment changed the whole-cohort cache key; repeated candidate planning decompressed unchanged earlier historical fragments again. Retained authentic source timings attribute 21.52 CPU /52.92 wall seconds to 1850 missing calls in the failed-throughput observation.",
+  "memory_bounds_unchanged": {
+    "entries": 8,
+    "maximum_point_count": 32768,
+    "maximum_spans": 4096,
+    "per_entry_bytes": 65536
+  },
+  "offline_comparison": {
+    "at": 1791859348.4256692,
+    "authoritative_state_modified": false,
+    "families": [
+      {
+        "coverage_decodes": {
+          "original": 3072,
+          "prefix": 207
+        },
+        "family": "pump",
+        "missing_interval_results_identical": true,
+        "retained_fragments": 192,
+        "sequential_updates": 16,
+        "times": {
+          "original": [
+            {
+              "cpu": 0.08943794699999996,
+              "wall": 0.10230139596387744
+            },
+            {
+              "cpu": 0.08365152600000003,
+              "wall": 0.08925890899263322
+            },
+            {
+              "cpu": 0.09438285700000004,
+              "wall": 0.10900222393684089
+            },
+            {
+              "cpu": 0.085727569,
+              "wall": 0.15360421291552484
+            },
+            {
+              "cpu": 0.08445160299999999,
+              "wall": 0.10911268403287977
+            },
+            {
+              "cpu": 0.08570750500000002,
+              "wall": 0.09105489298235625
+            },
+            {
+              "cpu": 0.09750338299999994,
+              "wall": 0.12810175097547472
+            },
+            {
+              "cpu": 0.08267022000000002,
+              "wall": 0.11206887592561543
+            },
+            {
+              "cpu": 0.08523060299999996,
+              "wall": 0.12830117892008275
+            },
+            {
+              "cpu": 0.08399120599999987,
+              "wall": 0.09152437990996987
+            },
+            {
+              "cpu": 0.0935138419999999,
+              "wall": 0.09357784001622349
+            },
+            {
+              "cpu": 0.0834433240000001,
+              "wall": 0.08411655493546277
+            },
+            {
+              "cpu": 0.08382169200000011,
+              "wall": 0.08390904194675386
+            },
+            {
+              "cpu": 0.08471025600000015,
+              "wall": 0.08762062306050211
+            },
+            {
+              "cpu": 0.09435134999999994,
+              "wall": 0.09537869901396334
+            },
+            {
+              "cpu": 0.08421361900000002,
+              "wall": 0.0875270760152489
+            }
+          ],
+          "prefix": [
+            {
+              "cpu": 0.09591017700000015,
+              "wall": 0.09841431898530573
+            },
+            {
+              "cpu": 0.003654706000000063,
+              "wall": 0.0036651160335168242
+            },
+            {
+              "cpu": 0.00387502400000006,
+              "wall": 0.004550261073745787
+            },
+            {
+              "cpu": 0.003915376000000137,
+              "wall": 0.003981578047387302
+            },
+            {
+              "cpu": 0.0034977199999999264,
+              "wall": 0.0055522790644317865
+            },
+            {
+              "cpu": 0.003998990000000147,
+              "wall": 0.004165876074694097
+            },
+            {
+              "cpu": 0.0035315190000000385,
+              "wall": 0.005639715003781021
+            },
+            {
+              "cpu": 0.0033500140000000123,
+              "wall": 0.004759602015838027
+            },
+            {
+              "cpu": 0.003666652000000159,
+              "wall": 0.003666672040708363
+            },
+            {
+              "cpu": 0.003481802000000034,
+              "wall": 0.003639127011410892
+            },
+            {
+              "cpu": 0.0035428269999999706,
+              "wall": 0.0035437169717624784
+            },
+            {
+              "cpu": 0.003416864000000075,
+              "wall": 0.0034171519801020622
+            },
+            {
+              "cpu": 0.003486405999999942,
+              "wall": 0.0035602720454335213
+            },
+            {
+              "cpu": 0.0035151899999998903,
+              "wall": 0.0035433670273050666
+            },
+            {
+              "cpu": 0.003417380999999997,
+              "wall": 0.0034174739848822355
+            },
+            {
+              "cpu": 0.003704354000000132,
+              "wall": 0.0037616539048030972
+            }
+          ]
+        },
+        "warm_cpu_original": 1.307370555,
+        "warm_cpu_prefix": 0.054054825000000584
+      },
+      {
+        "coverage_decodes": {
+          "original": 6160,
+          "prefix": 400
+        },
+        "family": "pumpswap",
+        "missing_interval_results_identical": true,
+        "retained_fragments": 385,
+        "sequential_updates": 16,
+        "times": {
+          "original": [
+            {
+              "cpu": 0.08627779700000016,
+              "wall": 0.10300137102603912
+            },
+            {
+              "cpu": 0.08437242,
+              "wall": 0.08518957707565278
+            },
+            {
+              "cpu": 0.09484273100000018,
+              "wall": 0.09571571392007172
+            },
+            {
+              "cpu": 0.08781266399999987,
+              "wall": 0.08900148700922728
+            },
+            {
+              "cpu": 0.08603907799999977,
+              "wall": 0.08626554091461003
+            },
+            {
+              "cpu": 0.09593943800000027,
+              "wall": 0.09674046596046537
+            },
+            {
+              "cpu": 0.08537985800000003,
+              "wall": 0.08591296104714274
+            },
+            {
+              "cpu": 0.08709026399999997,
+              "wall": 0.15167099004611373
+            },
+            {
+              "cpu": 0.08649377000000014,
+              "wall": 0.09248497697990388
+            },
+            {
+              "cpu": 0.09729822099999996,
+              "wall": 0.09817436092998832
+            },
+            {
+              "cpu": 0.08716517800000023,
+              "wall": 0.08850075700320303
+            },
+            {
+              "cpu": 0.08699607799999987,
+              "wall": 0.0881170459324494
+            },
+            {
+              "cpu": 0.08769146800000005,
+              "wall": 0.08847084396984428
+            },
+            {
+              "cpu": 0.09605900699999959,
+              "wall": 0.09658509399741888
+            },
+            {
+              "cpu": 0.08451992799999974,
+              "wall": 0.08575910597573966
+            },
+            {
+              "cpu": 0.0859605990000003,
+              "wall": 0.0871550269657746
+            }
+          ],
+          "prefix": [
+            {
+              "cpu": 0.11196831800000018,
+              "wall": 0.11506629805080593
+            },
+            {
+              "cpu": 0.004816939999999992,
+              "wall": 0.004824659088626504
+            },
+            {
+              "cpu": 0.00454205200000013,
+              "wall": 0.004542184993624687
+            },
+            {
+              "cpu": 0.004437787000000082,
+              "wall": 0.004529571975581348
+            },
+            {
+              "cpu": 0.004868182000000054,
+              "wall": 0.004869633005000651
+            },
+            {
+              "cpu": 0.004908887999999667,
+              "wall": 0.004909005016088486
+            },
+            {
+              "cpu": 0.0047832180000000335,
+              "wall": 0.004784011980518699
+            },
+            {
+              "cpu": 0.0048714819999999825,
+              "wall": 0.004871792974881828
+            },
+            {
+              "cpu": 0.005001146000000123,
+              "wall": 0.005151498015038669
+            },
+            {
+              "cpu": 0.005102824000000172,
+              "wall": 0.005102765979245305
+            },
+            {
+              "cpu": 0.004846988999999802,
+              "wall": 0.004846123978495598
+            },
+            {
+              "cpu": 0.005050993999999864,
+              "wall": 0.005050682928413153
+            },
+            {
+              "cpu": 0.004915779999999703,
+              "wall": 0.00491558201611042
+            },
+            {
+              "cpu": 0.005249722999999928,
+              "wall": 0.00524937198497355
+            },
+            {
+              "cpu": 0.004715249999999838,
+              "wall": 0.004715051967650652
+            },
+            {
+              "cpu": 0.0029567460000001766,
+              "wall": 0.0029560549883171916
+            }
+          ]
+        },
+        "warm_cpu_original": 1.333660702,
+        "warm_cpu_prefix": 0.07106800099999955
+      }
+    ],
+    "provider_calls": 0,
+    "scope": "offline sequential growth of retained authentic proof fragments; no claim of new authenticated market coverage",
+    "source_baseline": "05103e93c28f2731674b1a99403067d57e7b0848"
+  },
+  "original_rows_and_proof_timestamps_preserved": true,
+  "provider_calls_added": 0,
+  "schema": "immutable-coverage-prefix-repair-v1",
+  "tests": {
+    "FAST": {
+      "evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pump-proof-prefix-fast-20261013.log",
+      "passed": 43,
+      "seconds": 16.447
+    },
+    "OPERATIONAL": {
+      "evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pump-proof-prefix-operational-20261013.log",
+      "passed": 154,
+      "seconds": 49.117
+    }
+  }
+}

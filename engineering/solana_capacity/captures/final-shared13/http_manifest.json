@@ -1,0 +1,7 @@
+{
+  "filename": "http.ndjson.zlib",
+  "bytes": 107194896,
+  "sha256": "ef2441a83e881df2181a5145ac4d688c90ebd8a0f5922d6f612cdf6303786207",
+  "parts": 7,
+  "restoration": "Concatenate ordered .partNN files; zlib decompress; parse newline-delimited JSON. Credentials and request URLs are absent. No portfolio or SQLite state is included."
+}

@@ -1,0 +1,53 @@
+{
+  "source": "504479a9aff23c69064ed80a1414641ef4e9c969",
+  "started_at": 1791760310.6584756,
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pons-forward-discovery-504479a9-1791760310425.sqlite",
+  "preflight": {
+    "limits_verified": true,
+    "limits": {
+      "http_attempts": 80,
+      "http_bytes": 134217728,
+      "native_bytes": 67108864,
+      "native_inflight_bytes": 33554432,
+      "native_stop_bytes": 33554432,
+      "rpc_cu": 42000,
+      "rpc_elements": 700
+    },
+    "wall_seconds": 60,
+    "modeled_spend_limit": "0.03",
+    "maximum_native_opens": 1,
+    "lanes": [
+      "pons"
+    ],
+    "physical_http_start_intervals": {
+      "robinhood": "0.25",
+      "solana": "0.5"
+    }
+  },
+  "history_path": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/pons/pons-selective-continuation-v1-cohort/pons-survivor/history.sqlite",
+  "maximum_public_modeled_usd": "0.02205",
+  "invoice_verified": false,
+  "purpose": "Native prospective factory census, advancing durable frontier, and authenticated history restart",
+  "funding": false,
+  "orders": false,
+  "epoch_reinitialized": false,
+  "historical_counters_reset": false,
+  "full_protection": false,
+  "stages": [],
+  "status": "FAIL_PROSPECTIVE_CENSUS_OR_RESTART",
+  "reason": "evidence_worker_failed:ValueError",
+  "qualification_authority": false,
+  "ended_at": 1791760310.716331,
+  "elapsed_seconds": 0.057855844497680664,
+  "usage": {
+    "http_attempts": 0,
+    "rpc_elements": 0,
+    "rpc_cu": 0,
+    "http_bytes": 0,
+    "native_opens": 0
+  },
+  "modeled_public_upper_usd": "0E-7",
+  "diagnosed_cause": "diagnostic_helper_missing_required_chain_verification_before_native_Preparation.rpc",
+  "helper_repaired": true,
+  "runtime_source_defect": false
+}

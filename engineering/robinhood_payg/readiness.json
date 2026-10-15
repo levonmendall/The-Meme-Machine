@@ -1,0 +1,139 @@
+{
+  "schema": "robinhood-payg-readiness-v1",
+  "outcome": "OPTIMIZED_OFFLINE_READY",
+  "runtime_outcome": "PROVIDER_VALIDATION_REQUIRED",
+  "validation_record": "validation.json",
+  "architecture": "A: one existing durable shared public MarketScout with selective canonical Alchemy hydration",
+  "production_getLogs_window_fallback": 10,
+  "new_live_capability_file_installed": false,
+  "new_subscriptions": 0,
+  "new_workers": 0,
+  "governor_min_interval_seconds": 0.5,
+  "pump_production_modified": false,
+  "paused_families": [
+    "ramses",
+    "meteora"
+  ],
+  "paused_provider_work": 0,
+  "preserved_state": {
+    "epoch": "paper-1791089005190643467",
+    "inception_usd": 500,
+    "reseeded": false,
+    "database_recreated": false,
+    "production_history_changed": false
+  },
+  "guard": "combined_position_and_candidate_provider_latency_not_certified",
+  "guard_removed": false,
+  "offline_regression_map": [
+    {
+      "requirement": "wider rejection / ten fallback",
+      "suites": "tests.test_robinhood_payg.WindowsCase",
+      "fixture_basis": "Synthetic deterministic regressions, plus authentic captured lineage/accounting where stated"
+    },
+    {
+      "requirement": "dense/saturated ranges and complete single-block pool union",
+      "suites": "tests.test_robinhood_payg.WindowsCase",
+      "fixture_basis": "Synthetic deterministic regressions, plus authentic captured lineage/accounting where stated"
+    },
+    {
+      "requirement": "removed/missing/reordered/duplicate events and fork membership",
+      "suites": "tests.test_robinhood_payg.WindowsCase; tests.test_robinhood_payg.EvidenceCase; tests.test_robinhood_scout",
+      "fixture_basis": "Synthetic deterministic regressions, plus authentic captured lineage/accounting where stated"
+    },
+    {
+      "requirement": "restart, durable checkpoints, recovery fairness",
+      "suites": "tests.test_robinhood_scout; tests.lanes.pons.test_pons_finalization; tests.test_forward_survivor",
+      "fixture_basis": "Synthetic deterministic regressions, plus authentic captured lineage/accounting where stated"
+    },
+    {
+      "requirement": "slow provider, quota and deadline pressure",
+      "suites": "tests.test_robinhood_payg; tests.lanes.pons.test_candidate_authentication_deadline; tests.lanes.pons.test_pons_position_provider_recovery",
+      "fixture_basis": "Synthetic deterministic regressions, plus authentic captured lineage/accounting where stated"
+    },
+    {
+      "requirement": "funded priority, concurrent exits and independent consumers",
+      "suites": "tests.lanes.pons.test_shared_position_fairness; tests.lanes.pons.test_pons_finalization; tests.lanes.pons.test_position_sessions",
+      "fixture_basis": "Synthetic deterministic regressions, plus authentic captured lineage/accounting where stated"
+    },
+    {
+      "requirement": "shared capital contention and accounting",
+      "suites": "tests.test_shared_capital_concurrency; tests.lanes.pons.test_run369_accounting; tests.test_portfolio_accounting",
+      "fixture_basis": "Synthetic deterministic regressions, plus authentic captured lineage/accounting where stated"
+    },
+    {
+      "requirement": "public/canonical disagreement and lineage",
+      "suites": "tests.test_robinhood_scout; tests.lanes.pons.test_captured_pons_lineage; tests.lanes.pons.test_coverage_acquisition",
+      "fixture_basis": "Synthetic deterministic regressions, plus authentic captured lineage/accounting where stated"
+    },
+    {
+      "requirement": "credential rotation and secret-free app reconciliation",
+      "suites": "tests.test_robinhood_payg; tests.lanes.pons.test_provider_topology",
+      "fixture_basis": "Synthetic deterministic regressions, plus authentic captured lineage/accounting where stated"
+    },
+    {
+      "requirement": "paused families zero provider work",
+      "suites": "tests.test_operational_ramses_pause; tests.lanes.pons.test_provider_topology; tests.test_robinhood_payg.ProofCase",
+      "fixture_basis": "Synthetic deterministic regressions, plus authentic captured lineage/accounting where stated"
+    },
+    {
+      "requirement": "resource exhaustion and maintenance timeouts",
+      "suites": "tests.test_robinhood_payg.ProofCase; tests.test_production_maintenance_arbiter; tests.test_maintenance_integrity; tests.test_maintenance_overlap",
+      "fixture_basis": "Synthetic deterministic regressions, plus authentic captured lineage/accounting where stated"
+    },
+    {
+      "requirement": "existing Nitro WebSocket failure / gaps / RPC recovery",
+      "suites": "tests.lanes.pons.test_sequencer_feed; tests.lanes.pons.test_pons_natural_observation",
+      "fixture_basis": "Synthetic deterministic regressions, plus authentic captured lineage/accounting where stated"
+    },
+    {
+      "requirement": "paid log subscription versus HTTP reconciliation",
+      "suites": "NOT_IMPLEMENTED_OR_RUN: architecture A does not add a paid log stream; existing Nitro regressions are not this proof",
+      "fixture_basis": "Synthetic deterministic regressions, plus authentic captured lineage/accounting where stated"
+    }
+  ],
+  "blockers": [
+    {
+      "id": "provider_forward_coverage_and_latency",
+      "resolution": "Separate authorization and bounded original 300-second forward proof; public/canonical witness, queue, bytes, resource and throttle observations required"
+    },
+    {
+      "id": "combined_position_and_candidate_provider_latency_not_certified",
+      "resolution": "Ongoing shared Pump/Pons proof must supply actual qualifying complete authentic candidate and genuine funded-controller evidence in admitted copies; retain blocker without it"
+    },
+    {
+      "id": "shared_account_capacity",
+      "resolution": "Measure actual Pump/Pons arrivals, weighted throughput and original deadlines together; propose smallest bounded governor change only if measured demand requires it; high modeled demand exceeds current physical ceiling before Current"
+    },
+    {
+      "id": "administrative_numeric_series_not_returned_in_this_session",
+      "resolution": "Use restored account connection in callable execution session for protected exact app/key comparison and numeric method/request-type series; owner PAYG confirmation already accepted"
+    },
+    {
+      "id": "safe_release_integration",
+      "resolution": "Committed shared proof through e39784a already integrated and 221 affected regressions pass; reconcile only later completed Pump/proof changes, review exact release, then obtain provider/deployment/autonomous PAPER authorization"
+    }
+  ],
+  "optional_optimization": {
+    "id": "wider_range_capability",
+    "mandatory_for_forward_startup": false,
+    "resolution": "Separately review and authorize exact nonempty filter forty-block comparison, then separately authorize protected capability installation; otherwise remain ten"
+  },
+  "not_performed": [
+    "live RPC capability probe",
+    "WebSocket subscription",
+    "300-second provider proof",
+    "CAPACITY",
+    "deployment",
+    "autonomous PAPER workload",
+    "live trading",
+    "billing/credential change"
+  ],
+  "thirty_day_billing_or_autonomy_certified": false,
+  "sustained_measurements": "Collect after qualifying authorized operation; not a mandatory global historical bootstrap or architectural perfection gate",
+  "integrated_shared_proof_commits": [
+    "cf614f024c8df7bbf6601ccb331ec83d9cc6bf74",
+    "1f05e058fd29ec387b8ae204a2aa179d45a7b647",
+    "e39784a59cfc585cfea972250dc72954e0adf134"
+  ],
+  "reconciliation_regressions_passed": 221
+}

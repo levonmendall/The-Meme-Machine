@@ -1,0 +1,111 @@
+{
+  "schema": "final-acquisition-saved-workload-v1",
+  "baseline_commit": "5bf3f245a6ac0146d3950e368ab6e3c22fef5a1c",
+  "classification": "OFFLINE_SAVED_FIXTURES_NOT_ACCOUNT_BILLING",
+  "before": {
+    "physical_rpc_elements": {
+      "getTransactionsForAddress": 5,
+      "getBlockTime": 5,
+      "getMultipleAccounts": 2,
+      "eth_getTransactionByHash": 2
+    },
+    "history_spans": [
+      [
+        "tail-pool",
+        300,
+        320
+      ],
+      [
+        "authenticated-alias",
+        200,
+        220
+      ],
+      [
+        "rolling-pool",
+        100,
+        120
+      ],
+      [
+        "tail-pool",
+        310,
+        330
+      ],
+      [
+        "alias-pool",
+        200,
+        220
+      ]
+    ],
+    "complete_coverage": {
+      "rolling-pool": [],
+      "alias-pool": [],
+      "authenticated-alias": [],
+      "tail-pool": []
+    },
+    "block_times": [
+      1100,
+      1100,
+      1101,
+      1101,
+      1100
+    ],
+    "transaction_sender": {
+      "hash": "tx",
+      "blockHash": "block",
+      "from": "0x0101010101010101010101010101010101010101"
+    }
+  },
+  "after": {
+    "physical_rpc_elements": {
+      "getTransactionsForAddress": 3,
+      "getBlockTime": 2,
+      "getMultipleAccounts": 2,
+      "eth_getTransactionByHash": 1
+    },
+    "history_spans": [
+      [
+        "tail-pool",
+        300,
+        320
+      ],
+      [
+        "authenticated-alias",
+        200,
+        220
+      ],
+      [
+        "tail-pool",
+        321,
+        330
+      ]
+    ],
+    "complete_coverage": {
+      "rolling-pool": [],
+      "alias-pool": [],
+      "authenticated-alias": [],
+      "tail-pool": []
+    },
+    "block_times": [
+      1100,
+      1100,
+      1101,
+      1101,
+      1100
+    ],
+    "transaction_sender": {
+      "hash": "tx",
+      "blockHash": "block",
+      "from": "0x0101010101010101010101010101010101010101"
+    }
+  },
+  "eliminated_rpc_elements": {
+    "getTransactionsForAddress": 2,
+    "getBlockTime": 3,
+    "getMultipleAccounts": 0,
+    "eth_getTransactionByHash": 1
+  },
+  "avoided_cu": 280,
+  "avoided_usd": 0.000147,
+  "canonical_coverage_and_values_equal": true,
+  "market_calls": 0
+}

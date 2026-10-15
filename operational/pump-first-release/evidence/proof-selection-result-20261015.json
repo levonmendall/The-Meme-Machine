@@ -1,0 +1,129 @@
+{
+  "acceptance_minutes": 0,
+  "artifacts": [
+    {
+      "bytes": 10315,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-proof-selection-1385d289-084448/result.json",
+      "sha256": "56c300f7d4beed560f7218d7accf059793e78279f96ba4c7871cac8c9cfa4424"
+    },
+    {
+      "bytes": 96,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-proof-selection-1385d289-084448/clock.json",
+      "sha256": "989dabf461b35d11c030b6152f9572e098c7d3fa1c183bc180fef6195c186826"
+    },
+    {
+      "bytes": 12978484,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-proof-selection-1385d289-084448/metrics.jsonl",
+      "sha256": "1960f0c9ab8e6f0628855bae76694ef22addfeee59fb186f8040ecd4ac36710c"
+    },
+    {
+      "bytes": 26835,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_SELECTION_PIPELINE_ANALYSIS_20261015.json",
+      "sha256": "b5a1a1b9bae1d94cbc85ef4f28eee4d799ed4fb80420a16c32cb9fbf1cab864d"
+    },
+    {
+      "bytes": 26550,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_SELECTION_PIPELINE_ANALYSIS_INITIAL_INVALID_OCCUPANCY_20261015.json",
+      "sha256": "b62bfed71f93f4571e52c442654bf4eab0d4502746924f14bca90e6628ffdde8"
+    },
+    {
+      "bytes": 4425554,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_SELECTION_POST_NATIVE_FINANCIAL_20261015.json",
+      "sha256": "c7da68f40a3c82d6c243154387a566eb430b1312ae427ed89468ba602d2c1d76"
+    },
+    {
+      "bytes": 8877,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_SELECTION_UNIT_JOURNAL_20261015.jsonl",
+      "sha256": "9a62af9d429b7dab147c9742dfd4a96dad6c191c52a1aa5db01d4af639ca3c05"
+    },
+    {
+      "bytes": 1060,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_SELECTION_ROLLBACK_20261015.json",
+      "sha256": "2722a81267319d15ae2a29babc534c4faa707852efc33db8d622ab8ae0c3dfce"
+    },
+    {
+      "bytes": 4466,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_SELECTION_DEVELOPMENT_QUERY_20261015.json",
+      "sha256": "602c916ee954d004373f2e40387b87a4f53a7ebfbfc6a9f1c2d5df4a25566888"
+    },
+    {
+      "bytes": 10985,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_SELECTION_PLAN_SELECTOR_20261015.json",
+      "sha256": "8b3b48cda016322725af43702e93902d31dcfa4b6833c5d37e928be918f614ed"
+    },
+    {
+      "bytes": 30309,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_SELECTION_PUBLICATION_DEPENDENCY_20261015.json",
+      "sha256": "7db5bf943c73a764abd879e41129436e6d237aaa3f1e4181c0d7703f9989044c"
+    },
+    {
+      "bytes": 429,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_SELECTION_CONTROL_MEMBERSHIP_POINT_20261015.json",
+      "sha256": "329331364a33dfd41c193770a2e1beb2fe6a11f58589de55c82aa2fc67b9f8c8"
+    }
+  ],
+  "backlog": [
+    1271,
+    2039
+  ],
+  "capacity": "FAILED_UNDER_MEASURED_CURRENT_WORKLOAD_NOT_A_CONTROLLED_HISTORICAL_COMPARISON",
+  "evidence_age": [
+    282.00571060180664,
+    479.66705894470215
+  ],
+  "executed": "1385d289524b014b4142f53230f93c109d344931",
+  "financial": {
+    "equity": "1000.00",
+    "head": [
+      11615,
+      "1e71df5574916ad03ef7abe3bb8ba00c54e8d6e2c0e350287da7532ffd882287"
+    ],
+    "obligation_counts": {
+      "commitments": 0,
+      "obligations": 0,
+      "pending_backing": 0,
+      "pending_deliveries": 0,
+      "positions": 0,
+      "reservations": 0,
+      "runtime_inbox": 0,
+      "runtime_pending": 0
+    },
+    "projection_sha256": "b9b32aa1f94d611818ef08491039f955481aecc6e2c06b5f3887931083c39bfc"
+  },
+  "global_accepted_source_frame_drain": "UNAVAILABLE",
+  "group_cpu_cores": 1.6971217805573382,
+  "interval": {
+    "both_native_reconciled": true,
+    "first": 581.6469481049571,
+    "full_samples": 61,
+    "last": 900.3082965100184,
+    "seconds": 318.6613484050613
+  },
+  "limitations": [
+    "Current workload, not controlled comparison with O11 or original older source.",
+    "CONTROL arrival proxy may itself be affected by source scheduling/backpressure; not an independent true-market-rate estimate.",
+    "CPU/runnable/SQL/checkpoint/phase categories overlap; no GIL/lock-holder inference.",
+    "History receipt/ACK cohort is sampled and cannot be substituted for global completed-history slot frontier.",
+    "Kernel process/thread CPU overlap. Flat portfolio: held quote/USD/protection unexercised.",
+    "Post-native interval remains evidence-stale and is not a qualifying steady-state acceptance interval."
+  ],
+  "native_drain": "BOTH_STOPPED_RECONCILED_EXIT0_WITHOUT_KILL",
+  "owner_occupancy_seconds": 318.49777400000005,
+  "owner_productive_cpu_seconds": 55.243942531,
+  "owner_runnable_seconds": 121.464861861,
+  "rates": {
+    "arrival": 4.183124205906448,
+    "durable": 1.776180270474906,
+    "joined": 1.7793183981612575,
+    "prepared": 1.7730421427885545,
+    "raw_cursor": 1.7887327812203115,
+    "stored": 1.7730421427885545,
+    "usable_publication": null
+  },
+  "readiness": "FAIL",
+  "required_match_factor": 2.3551236749116606,
+  "run": "/var/lib/meme-machine-diagnostics/20261015-proof-selection-1385d289-084448",
+  "schema": 1,
+  "source_release_seconds": 104.05661568697542,
+  "spec_publication": "1bbe359ad81321234fa40ee7670416bfed0474a5"
+}

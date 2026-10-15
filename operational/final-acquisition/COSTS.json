@@ -1,0 +1,431 @@
+{
+  "as_of": "2026-10-08",
+  "historical_interpretation": "Historical measured account usage includes unknown production/engineering mix and billing duration. Current-tariff equivalent is not an invoice or eliminated usage.",
+  "historical_method_subtotal_cu": 1641342,
+  "historical_subtotal_at_current_tariff_usd": "0.86170455",
+  "limitations": [
+    "Conditional existing scenario assumptions, not measured autonomous operation",
+    "No monthly duplicate frequency observed; new saved-workload savings are not extrapolated",
+    "No provider-side WS savings from discarding failed logs locally",
+    "Pump funded-position traffic, Pons Current funded work, conditional entries/scaling/exits, retries, reorgs, unique historical gaps and actual byte metering remain unknown",
+    "Droplet base cost, taxes and custom billing discounts excluded",
+    "Exact ten-block Pons fallback preserved; no forty-block saving assumed",
+    "No hard paid-acquisition cap introduced"
+  ],
+  "model_sources": [
+    "operational/pumpswap-provider-bandwidth/COST_MODEL.json",
+    "engineering/robinhood_payg/cost-projections.json"
+  ],
+  "owner_historical_method_cu": {
+    "WebSocket_logs": 582352,
+    "getBlockTime": 115480,
+    "getGenesisHash": 21590,
+    "getMultipleAccounts": 154640,
+    "getSlot": 121680,
+    "getTransactionsForAddress": 645600
+  },
+  "pricing": {
+    "account_specific_invoice_tariff_independently_verified": false,
+    "credits_or_free_allowance_assumed": false,
+    "retained_native_usd_per_decimal_tb": "75",
+    "solana_ws_cu_per_byte": "0.0002",
+    "sources": [
+      "https://www.alchemy.com/pricing",
+      "https://www.alchemy.com/docs/reference/compute-unit-costs"
+    ],
+    "usd_per_million_cu": "0.525"
+  },
+  "retained_capture": {
+    "captured_application_bytes": 50330766,
+    "charged_application_bytes": 50331681,
+    "charged_not_captured_bytes": 915,
+    "failed_ws_bytes": 16441310,
+    "native_status_bytes": 1673692,
+    "provider_byte_meter_basis_not_verified": true,
+    "ws_bytes": 48501501
+  },
+  "saved_workload": {
+    "avoided_cu": 280,
+    "avoided_usd": "0.000147",
+    "comparison": "COMPARISON.json",
+    "eliminated_rpc_elements": 6,
+    "historical_billing_savings_claimed": false,
+    "monthly_extrapolation_performed": false,
+    "provider_delivery_savings_claimed": false
+  },
+  "scenarios": [
+    {
+      "combined_usd_30d_range": [
+        "12.03275605272369286391844896",
+        "15.05675605272369086391844896"
+      ],
+      "pons_additive_unknowns": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ],
+      "pons_assumptions": {
+        "candidates_per_day": 4,
+        "canonical_event_share": 0.25,
+        "canonical_watch_hours": 1,
+        "cohorts": 1,
+        "current_attempts_per_hour": 1,
+        "curve_events_per_hour": 8,
+        "funded_occupancy": 0.05,
+        "gap_blocks": 0,
+        "gaps_per_day": 0,
+        "name": "quiet",
+        "pool_events_per_hour": 4,
+        "qualified_per_day": 1
+      },
+      "pons_cu_30d_range": [
+        17465340.0,
+        23225340.0
+      ],
+      "pons_source_scenario": "quiet",
+      "pons_usd_30d_range": [
+        "9.169303500000002",
+        "12.1933035"
+      ],
+      "pump_assumptions": {
+        "additional_position_events_per_second": {},
+        "additional_position_http": "0",
+        "alternative_native_subscribe_rpcs": 3,
+        "alternative_ws_connections": 1,
+        "archive_pages_per_reactivation_gap": 0,
+        "archive_transactions_per_page_assumed": 100,
+        "base_account_rpc_per_second": "0.01",
+        "baseline_native_subscribe_rpcs": 3,
+        "baseline_ws_connections": 1,
+        "events_per_second": {
+          "pump": {
+            "failed": "0.2",
+            "successful": "0.2"
+          },
+          "pumpswap": {
+            "failed": "1",
+            "successful": "2"
+          }
+        },
+        "exceptional_reactivation_history_gaps": 0,
+        "reactivation_history_seconds_assumed": 0,
+        "reactivation_pool_transactions_per_second_assumed": 0,
+        "reconnect_gap_seconds": 0,
+        "reconnects": 0,
+        "scout_updates_per_second": "0.1",
+        "startup_status_prefix_bytes_per_session": "1627766",
+        "startup_success_body_overlap_seconds_assumed": 1,
+        "unchanged_independent_position_native_bytes": "0",
+        "unchanged_independent_position_ws_bytes": "0"
+      },
+      "pump_retained_components": {
+        "http_request_elements": "25927.00",
+        "rpc_cu": "518510.00",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "25920.00",
+          "getSlot": "4",
+          "getTransaction": "0.0",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "0.27221775",
+        "total_streaming_bytes": "25842614453.71653258719254975",
+        "total_usage_usd": "2.863452552723690863918448964",
+        "ws_bytes": "21767957289.83169732930025773",
+        "ws_cu": "4353591.457966339465860051546",
+        "ws_usd": "2.285635515432328219576527062",
+        "yellowstone_bytes": "4074657163.884835257892292020",
+        "yellowstone_usd": "0.3055992872913626443419219015"
+      },
+      "pump_source_scenario": "quiet",
+      "pump_usd_30d": "2.863452552723690863918448964",
+      "scenario": "quiet"
+    },
+    {
+      "combined_usd_30d_range": [
+        "90.37146378367060479785421745",
+        "126.6594637836706047978542174"
+      ],
+      "pons_additive_unknowns": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ],
+      "pons_assumptions": {
+        "candidates_per_day": 48,
+        "canonical_event_share": 0.25,
+        "canonical_watch_hours": 6,
+        "cohorts": 1,
+        "current_attempts_per_hour": 12,
+        "curve_events_per_hour": 360,
+        "funded_occupancy": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0,
+        "name": "normal",
+        "pool_events_per_hour": 120,
+        "qualified_per_day": 8
+      },
+      "pons_cu_30d_range": [
+        116434080.0,
+        185554080.0
+      ],
+      "pons_source_scenario": "normal",
+      "pons_usd_30d_range": [
+        "61.127892",
+        "97.415892"
+      ],
+      "pump_assumptions": {
+        "additional_position_events_per_second": {},
+        "additional_position_http": "0",
+        "alternative_native_subscribe_rpcs": 3,
+        "alternative_ws_connections": 1,
+        "archive_pages_per_reactivation_gap": 0,
+        "archive_transactions_per_page_assumed": 100,
+        "base_account_rpc_per_second": "0.1",
+        "baseline_native_subscribe_rpcs": 3,
+        "baseline_ws_connections": 1,
+        "events_per_second": {
+          "pump": {
+            "failed": "2",
+            "successful": "2"
+          },
+          "pumpswap": {
+            "failed": "15",
+            "successful": "20"
+          }
+        },
+        "exceptional_reactivation_history_gaps": 0,
+        "reactivation_history_seconds_assumed": 0,
+        "reactivation_pool_transactions_per_second_assumed": 0,
+        "reconnect_gap_seconds": 0,
+        "reconnects": 0,
+        "scout_updates_per_second": "1",
+        "startup_status_prefix_bytes_per_session": "1627766",
+        "startup_success_body_overlap_seconds_assumed": 1,
+        "unchanged_independent_position_native_bytes": "0",
+        "unchanged_independent_position_ws_bytes": "0"
+      },
+      "pump_retained_components": {
+        "http_request_elements": "259207.0",
+        "rpc_cu": "5184110.0",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "259200.0",
+          "getSlot": "4",
+          "getTransaction": "0",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "2.72165775",
+        "total_streaming_bytes": "256582924971.6148950551262892",
+        "total_usage_usd": "29.24357178367060479785421745",
+        "ws_bytes": "242606488693.3162556239915251",
+        "ws_cu": "48521297.73866325112479830502",
+        "ws_usd": "25.47368131279820684051911014",
+        "yellowstone_bytes": "13976436278.29863943113476413",
+        "yellowstone_usd": "1.04823272087239795733510731"
+      },
+      "pump_source_scenario": "normal",
+      "pump_usd_30d": "29.24357178367060479785421745",
+      "scenario": "normal"
+    },
+    {
+      "combined_usd_30d_range": [
+        "666.7166218136580946607264991",
+        "1029.596621813658094660726499"
+      ],
+      "pons_additive_unknowns": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ],
+      "pons_assumptions": {
+        "candidates_per_day": 480,
+        "canonical_event_share": 0.5,
+        "canonical_watch_hours": 24,
+        "cohorts": 2,
+        "current_attempts_per_hour": 120,
+        "curve_events_per_hour": 7200,
+        "funded_occupancy": 1,
+        "gap_blocks": 0,
+        "gaps_per_day": 0,
+        "name": "high_activity",
+        "pool_events_per_hour": 2000,
+        "qualified_per_day": 80
+      },
+      "pons_cu_30d_range": [
+        887428800.0,
+        1578628800.0
+      ],
+      "pons_source_scenario": "high_activity",
+      "pons_usd_30d_range": [
+        "465.90012",
+        "828.78012"
+      ],
+      "pump_assumptions": {
+        "additional_position_events_per_second": {},
+        "additional_position_http": "0",
+        "alternative_native_subscribe_rpcs": 3,
+        "alternative_ws_connections": 1,
+        "archive_pages_per_reactivation_gap": 0,
+        "archive_transactions_per_page_assumed": 100,
+        "base_account_rpc_per_second": "1",
+        "baseline_native_subscribe_rpcs": 3,
+        "baseline_ws_connections": 1,
+        "events_per_second": {
+          "pump": {
+            "failed": "15",
+            "successful": "10"
+          },
+          "pumpswap": {
+            "failed": "150",
+            "successful": "100"
+          }
+        },
+        "exceptional_reactivation_history_gaps": 0,
+        "reactivation_history_seconds_assumed": 0,
+        "reactivation_pool_transactions_per_second_assumed": 0,
+        "reconnect_gap_seconds": 0,
+        "reconnects": 0,
+        "scout_updates_per_second": "5",
+        "startup_status_prefix_bytes_per_session": "1627766",
+        "startup_success_body_overlap_seconds_assumed": 1,
+        "unchanged_independent_position_native_bytes": "0",
+        "unchanged_independent_position_ws_bytes": "0"
+      },
+      "pump_retained_components": {
+        "http_request_elements": "2592007",
+        "rpc_cu": "51840110",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "2592000",
+          "getSlot": "4",
+          "getTransaction": "0",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "27.21605775",
+        "total_streaming_bytes": "1676275542210.930703967926779",
+        "total_usage_usd": "200.8165018136580946607264991",
+        "ws_bytes": "1595992613261.276395437733021",
+        "ws_cu": "319198522.6522552790875466042",
+        "ws_usd": "167.5792243924340215209619672",
+        "yellowstone_bytes": "80282928949.65430853019375805",
+        "yellowstone_usd": "6.021219671224073139764531854"
+      },
+      "pump_source_scenario": "busy",
+      "pump_usd_30d": "200.8165018136580946607264991",
+      "scenario": "high_activity"
+    },
+    {
+      "combined_usd_30d_range": [
+        "122.7023050956784347426583536",
+        "158.9903050956784347426583536"
+      ],
+      "pons_additive_unknowns": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ],
+      "pons_assumptions": {
+        "candidates_per_day": 48,
+        "canonical_event_share": 0.25,
+        "canonical_watch_hours": 6,
+        "cohorts": 1,
+        "current_attempts_per_hour": 12,
+        "curve_events_per_hour": 360,
+        "funded_occupancy": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0,
+        "name": "normal",
+        "pool_events_per_hour": 120,
+        "qualified_per_day": 8
+      },
+      "pons_cu_30d_range": [
+        116434080.0,
+        185554080.0
+      ],
+      "pons_source_scenario": "normal",
+      "pons_usd_30d_range": [
+        "61.127892",
+        "97.415892"
+      ],
+      "pump_assumptions": {
+        "additional_position_events_per_second": {
+          "failed": "2",
+          "successful": "5"
+        },
+        "additional_position_http": "2592000",
+        "alternative_native_subscribe_rpcs": 4,
+        "alternative_ws_connections": 2,
+        "archive_pages_per_reactivation_gap": 0,
+        "archive_transactions_per_page_assumed": 100,
+        "base_account_rpc_per_second": "0.1",
+        "baseline_native_subscribe_rpcs": 4,
+        "baseline_ws_connections": 2,
+        "events_per_second": {
+          "pump": {
+            "failed": "2",
+            "successful": "2"
+          },
+          "pumpswap": {
+            "failed": "15",
+            "successful": "20"
+          }
+        },
+        "exceptional_reactivation_history_gaps": 0,
+        "reactivation_history_seconds_assumed": 0,
+        "reactivation_pool_transactions_per_second_assumed": 0,
+        "reconnect_gap_seconds": 0,
+        "reconnects": 0,
+        "scout_updates_per_second": "1",
+        "startup_status_prefix_bytes_per_session": "1627766",
+        "startup_success_body_overlap_seconds_assumed": 1,
+        "unchanged_independent_position_native_bytes": "3351983761.296001891973564925",
+        "unchanged_independent_position_ws_bytes": "46318300284.86314098005827394"
+      },
+      "pump_retained_components": {
+        "http_request_elements": "2851209.0",
+        "rpc_cu": "57024150.0",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "2851200.0",
+          "getSlot": "6",
+          "getTransaction": "0",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "29.93767875",
+        "total_streaming_bytes": "306253209017.7740379271581281",
+        "total_usage_usd": "61.57441309567843474265835358",
+        "ws_bytes": "288924788978.1793966040497990",
+        "ws_cu": "57784957.79563587932080995980",
+        "ws_usd": "30.3371028427088366434252289",
+        "yellowstone_bytes": "17328420039.59464132310832906",
+        "yellowstone_usd": "1.29963150296959809923312468"
+      },
+      "pump_source_scenario": "normal_open_position_maintenance",
+      "pump_usd_30d": "61.57441309567843474265835358",
+      "scenario": "normal_with_Pump_position_maintenance"
+    }
+  ],
+  "target_achieved_for_normal_assumptions": false,
+  "target_combined_usd_30d": 50
+}

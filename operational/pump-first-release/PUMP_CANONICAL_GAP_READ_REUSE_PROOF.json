@@ -1,0 +1,30 @@
+{
+  "parent_source": "0952b85589fb79898ae4e7a65a5cf38602b67a16",
+  "offline_only": true,
+  "provider_requests": 0,
+  "change": "Read overlapping unavailable intervals once per exact canonical coverage query, rather than once per historical proof fragment",
+  "before_seconds": 0.28744916897267103,
+  "after_seconds": 0.1750218439847231,
+  "result_tables_identical": true,
+  "result_table_sha256": {
+    "evidence_bindings": "877add4de0bf2fc7ef6d2d91baad94c930eb0cb785dc9435573d1e637cdd2c76",
+    "candidate_lifecycle": "8178df902807706eb4b61add5ab4e887672289b1ff596de849518a61d01bcb1a",
+    "candidate_history_outbox": "fe3b0b1cd03d4dcd279d43cb9477d9eb92b836a17bc3cc128c05d6da41ee10f4",
+    "rolling_boundary_waits": "3a9a2bb22a273c9a83aa5f449f04a483d307f7c2491f026c9d232f378001183b",
+    "rolling_publication_waits": "490ccbc3693710bd7f42b2b82464b7650f58298d04283bd06c50068ab40046c6",
+    "acquisition_jobs": "7cfe5710d9df2012cbba6c031fe38816e1f8b12eccad219614354701f3fd3f7e",
+    "acquisition_observations": "a22da50288f3079c5f7bf883eba36a7c91cd2071f226b62c6e9459030d1f2732",
+    "promotion_history_metrics": "488cf6441ca8aff72747bea5740590c83368509a3054224615f938160f76e984",
+    "history:work": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "history:candidates": "43be3addc20de88fe8fa305c232db9a12e4b356c0e56f7906c697300fd031be5"
+  },
+  "cross_command_cache": false,
+  "canonical_predicates_changed": false,
+  "latency_is_offline_disposable_copy_not_provider": true,
+  "focused_tests": {
+    "passed": 65,
+    "seconds": 27.252,
+    "log": "/tmp/pump-gap-fragment-reuse.log",
+    "sha256": "8dba4159b0f306e7f4c0aa1fa007f4be47fac90d3916ea2e9797374c62fddc8a"
+  }
+}

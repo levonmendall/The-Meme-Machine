@@ -1,0 +1,41 @@
+{
+  "parent_source": "2f68322de92d2f8d0ad626f8e523e0aede23ba39",
+  "cause": "Actual service worker rejected retained same-economic-policy watches bound to a previous adapter/configuration; original data and policy checks were valid but continuous nomination renewal was missing.",
+  "repair": "Archive previous candidate/watch in the existing transition journal, retain identity and first observation, clear previous qualification and attention, require a new canonical refresh generation. Protected owners and entry guards keep original obligations. Foreign economic/deployment policies cannot be claimed or replayed as current qualification.",
+  "ci_defect": "The original child-environment isolation regression caught raw MM_RPC_CAPABILITIES forwarding. Missing, relative, unsafe or unbound files now remain excluded; only the existing endpoint-bound JSON can reach the live Pons worker.",
+  "original_isolation_assertion_preserved": true,
+  "previous_ci_failure": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/38204184937",
+  "previous_full_fast_result": {
+    "tests": 1735,
+    "failures": 1,
+    "cause": "raw optional parent capability path"
+  },
+  "focused_tests": [
+    {
+      "log": "/tmp/pons-vq-cutover-recovery-focused-pass.log",
+      "passed": 8,
+      "seconds": 0.317,
+      "sha256": "5c05df5c1bc621c3395ff781fd33e60ef11c29b41d2671bf0c4d9b6acc77c03a"
+    },
+    {
+      "log": "/tmp/pons-vq-cutover-recovery-integration.log",
+      "passed": 193,
+      "seconds": 152.41,
+      "sha256": "57c7218edf2a9b9fcc6a46dc8361bdaadbec932f7ddeac3a74a4c2773933afc2"
+    }
+  ],
+  "funding_authority_changed": false,
+  "economic_policy_changed": false,
+  "tracker_provider_transports_added": 0,
+  "authenticated_worker_receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/VOLUME_QUALITY_ACTUAL_WORKERS_1791780514842.json",
+  "actual_worker_switches": {
+    "pump_current": "1",
+    "pump_survivor": "1",
+    "pons_current": "1",
+    "pons_survivor": "1"
+  },
+  "actual_live_signal_and_priority_verified": false,
+  "activation": "AWAITING_SAFE_LANE_ACTIVATION",
+  "research_suspended": true,
+  "epoch_reinitialized": false
+}

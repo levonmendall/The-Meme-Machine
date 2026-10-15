@@ -1,0 +1,21 @@
+{
+  "commit": "458d9e01ab1d2763ed26ae05fba898cd911c5e0f",
+  "tree": "1756b6c5717ce1758ad92b662e1b855be880b5b1",
+  "checks": [
+    {
+      "name": "focused",
+      "sha256": "01dd73ed6d0bdd23a74bb34f57ff4948e2a0a24e03e610d13a7dade473907658",
+      "tail": "n-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.154 seconds\n.....................................s.........................................\n----------------------------------------------------------------------\nRan 173 tests in 41.683s\n\nOK (skipped=1)\ncheckpoint-handoff-growth-proof {'baseline_wal_bytes': [341992, 659232, 992952, 1318432, 1656272, 1985872, 2327832, 2657432], 'repaired_wal_bytes': [0, 0, 0, 0, 0, 0, 0, 0], 'records': 272}\n"
+    },
+    {
+      "name": "fast",
+      "sha256": "29a67fdd8b03cebe14c893d816a851c91334b12b42d1eb60d033dcc87d1deefc",
+      "tail": "r\n..opportunity publication failed: ValueError\n.............................................................................................................................................................................................................................................................................................................\n----------------------------------------------------------------------\nRan 665 tests in 109.107s\n\nOK\n"
+    },
+    {
+      "name": "affected",
+      "sha256": "8cc7b557110b009e46d515e6352b0bbee21ef43c60d3c8aebc312e1285879bd2",
+      "tail": "ask_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.132 seconds\n......................\n----------------------------------------------------------------------\nRan 780 tests in 185.163s\n\nOK (skipped=8)\n"
+    }
+  ]
+}

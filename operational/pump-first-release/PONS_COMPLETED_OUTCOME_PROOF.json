@@ -1,0 +1,26 @@
+{
+  "parent": "84153cbfcd2dfc03b111c25689a7b3268b06f045",
+  "authenticated_failure": "VOLUME_QUALITY_ACTUAL_WORKERS_1791784317419.json: Pons worker exited on unclassified_candidate_plane_outcome:expired_by_strategy_horizon; durable transition seq 399 retained",
+  "fix": "Project all explicit completed decision_category outcomes; unknown outcomes still fail closed. No market decision, age rule, funding or provider change.",
+  "tests": {
+    "suite": "OPERATIONAL",
+    "modules": [
+      "tests.lanes.pons.test_run369_accounting",
+      "tests.test_robinhood_plane",
+      "tests.lanes.pons.test_pons_candidate_plane"
+    ],
+    "run": 48,
+    "passed": 48,
+    "seconds": 1.912,
+    "log": "/tmp/pons-completed-outcome-projection.log"
+  },
+  "file_sha256": {
+    "meme_machine/runtime/robinhood/accounting.py": "e647846a2e95275c21d87b70455d38aade8354680ddc9a73af111fbb0a9fcfd1",
+    "tests/lanes/pons/test_run369_accounting.py": "fdd779cfe0e03bfc03b670fa360fd65ea79744bbfc23b9464ee8eb70ea51bebb"
+  },
+  "capital_unchanged": true,
+  "historical_transitions_not_rewritten": true,
+  "new_provider_calls": 0,
+  "full_protection": false,
+  "sixty_minute_acceptance": false
+}

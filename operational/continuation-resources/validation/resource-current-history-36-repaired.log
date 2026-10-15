@@ -1,0 +1,7 @@
+test_full_36_hour_current_v4_rolling_history_preserves_original_windows (tests.test_continuation_resource_efficiency.LongHoldHistoryTests.test_full_36_hour_current_v4_rolling_history_preserves_original_windows) ... STORAGE_TRACE {"current_v4_monitor_turns": 25920, "original_boundary_parity_every_turn": true, "maximum_retained_events": 721, "sqlite_bytes": 774144, "wal_bytes": 4152, "cpu_seconds": 62.288830501, "restarts": 3}
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 69.702s
+
+OK

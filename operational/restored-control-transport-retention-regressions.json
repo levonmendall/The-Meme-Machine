@@ -1,0 +1,42 @@
+{
+  "historical_source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "purpose": "Retain direct production engineering assertions without certification orchestration.",
+  "suite": "OPERATIONAL",
+  "files": [
+    {
+      "path": "tests/test_solana_health_atomicity.py",
+      "source_sha256": "ae56e712eece260a6f5ba4065923ef9defeb964f49643764844f4a1ba8cdec16",
+      "current_sha256": "ae56e712eece260a6f5ba4065923ef9defeb964f49643764844f4a1ba8cdec16",
+      "adaptation": "NONE; exact historical bytes",
+      "obligation": "One commit publishes coherent health; interrupted publication rolls back all fields."
+    },
+    {
+      "path": "tests/test_run379_control_pressure.py",
+      "source_sha256": "b58d2fa91c5ec4f4a943365c971e4496d02bf864aa820de10aa8294e63ead575",
+      "current_sha256": "b58d2fa91c5ec4f4a943365c971e4496d02bf864aa820de10aa8294e63ead575",
+      "adaptation": "NONE; exact historical bytes",
+      "obligation": "Bounded priority admission, foreground precedence and background queue behavior."
+    },
+    {
+      "path": "tests/test_solana_evidence_transport.py",
+      "source_sha256": "27ebf4bb1376ac32c270752b7304ed51d0c33542a39b9919f61ec4ae3db70cd5",
+      "current_sha256": "27ebf4bb1376ac32c270752b7304ed51d0c33542a39b9919f61ec4ae3db70cd5",
+      "adaptation": "NONE; exact historical bytes",
+      "obligation": "Finalized subscription/notification identity and gap-repair safety."
+    },
+    {
+      "path": "tests/test_solana_evidence_retention.py",
+      "source_sha256": "b58d1f23f3754aa0c6ed3a410c5408eb396058d9b64006a48a37f5b0853305af",
+      "current_sha256": "b58d1f23f3754aa0c6ed3a410c5408eb396058d9b64006a48a37f5b0853305af",
+      "adaptation": "NONE; exact historical bytes",
+      "obligation": "Archive/retained raw boundaries, expiry, coverage and lossless durable reads."
+    }
+  ],
+  "validation": {
+    "command": "/opt/meme-machine/.venv/bin/python -m unittest tests.test_solana_health_atomicity tests.test_run379_control_pressure tests.test_solana_evidence_transport tests.test_solana_evidence_retention",
+    "tests": 19,
+    "result": "PASS",
+    "seconds": 0.572
+  },
+  "state_compatibility": "Tests use disposable SQLite databases. No durable production schema, PAPER epoch, journal or reservation changes."
+}

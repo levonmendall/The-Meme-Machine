@@ -1,0 +1,63 @@
+{
+  "candidate": "10ae127c399279847df908d555eceb1aaf46ef1d",
+  "fields": [
+    "calls",
+    "failed_calls",
+    "unmeasured_calls",
+    "runnable_measured_calls",
+    "runnable_unavailable_calls",
+    "wall_seconds_total_microseconds",
+    "cpu_seconds_total_microseconds",
+    "runnable_wait_seconds_total_microseconds"
+  ],
+  "increment_per_full_sample_bytes": 1305,
+  "limits": "Same original shape projection limitations. Placeholder integers are no evidence or source events. Actual unchanged output/recorder guards remain authoritative; no ceiling increase.",
+  "metrics_bound_bytes": 33423360,
+  "new_section_bytes": 1339,
+  "original_projection": {
+    "at": "2026-10-15T07:46:39.047372+00:00",
+    "candidate": "76785b2a3e814ad456f3ad2d22befdcd68cb8a93",
+    "full_samples": 360,
+    "full_samples_observed": 174,
+    "guard_bytes": 1024,
+    "guard_samples": 1440,
+    "limitations": [
+      "Retained shape projection, not universal bound on future population or number of distinct counter keys.",
+      "Placeholder serialization values are not source events, evidence, or capacity proof.",
+      "Original32MiB output,64KiB terminal reservations,5s cadence and runtime loss/resource stops unchanged."
+    ],
+    "maximum_observed_full_bytes": 79231,
+    "metrics_bound_bytes": 33423360,
+    "normalized_base_bytes": 79231,
+    "projected_full_bytes": 86850,
+    "projected_metrics_bytes": 32740560,
+    "remaining_bytes": 682800,
+    "retained_metrics": "/var/lib/meme-machine-diagnostics/20261015-owner-retention-c281058e-070215/metrics.jsonl",
+    "retained_metrics_sha256": "8c8d38f62e2e2fe9eb385ef1f4b22a88035e982b3c4ba0899cdbe8560486b0e5",
+    "schema": 1,
+    "status": "OFFLINE_SERIALIZATION_PROJECTION_NOT_RUNTIME_PASS",
+    "transforms": [
+      "16 Pons thread records with20digit integers and80char wait channels",
+      "two program frontier rows with64bit slots and long finite float timestamps",
+      "released startup and two nonempty proof checkpoint entries"
+    ],
+    "within_bound": true
+  },
+  "phases": [
+    "selection",
+    "reactivation",
+    "boundaries",
+    "publication",
+    "plan",
+    "commit"
+  ],
+  "preserved_terminal_bytes_each": 65536,
+  "preserved_terminal_records": 2,
+  "preserved_total_bytes": 33554432,
+  "projected_metrics_bytes": 33210360,
+  "question": "Can the six fixed numeric phase rows fit the unchanged retained-shape output projection?",
+  "remaining_bytes": 213000,
+  "schema": 1,
+  "status": "PURE_SERIALIZATION_PROJECTION_NOT_RUNTIME_OR_CAPACITY_PROOF",
+  "within_bound": true
+}

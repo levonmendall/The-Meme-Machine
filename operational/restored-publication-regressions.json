@@ -1,0 +1,18 @@
+{
+  "source_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "source_paths": [
+    "tests/test_durable_publication.py",
+    "tests/test_report_publisher_isolation.py"
+  ],
+  "suite": "OPERATIONAL",
+  "change": "Exact historical test bytes unchanged.",
+  "test_count": 3,
+  "result": "3PASS in0.022s",
+  "family_equivalence": "Root/Pump/Meteora publish_bytes,publish_report and ReportPublisher full AST identical.",
+  "invariants": [
+    "Failed replace preserves last report/cleans temporary and returns fixed error class",
+    "Invalid export cannot escape into lifecycle",
+    "Stalled report uses exactly one mailbox, submit stays bounded, close timeout cannot block lifecycle caller"
+  ],
+  "economic_change": "NONE"
+}

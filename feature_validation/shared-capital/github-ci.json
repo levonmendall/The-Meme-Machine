@@ -1,0 +1,38 @@
+{
+  "cause": "Existing storage guard requires configuration UID 0; non-root GitHub fixture ownership raises storage_configuration_permissions before fixture-specific checks.",
+  "errors": 2,
+  "failures": 9,
+  "feature_run_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/37507725916",
+  "feature_tests": 534,
+  "guard_or_fixture_changed": false,
+  "identical_failure_identities": [
+    "test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)",
+    "test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)",
+    "test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)",
+    "test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)",
+    "test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)",
+    "test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)",
+    "test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)",
+    "test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)",
+    "test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)",
+    "test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)",
+    "test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)"
+  ],
+  "implementation_commit": "0a80588cdcb7123f6b608b1b84d7accc5d180966",
+  "local_fast": "PASS 534",
+  "local_operational": "PASS 1964",
+  "logs": {
+    "github-baseline-FAST.log": "1f83dbf847556f0581871b3f20e73e205b37a771bb720936b5f930def87f4fcf",
+    "github-feature-FAST.log": "73e51efd7cad3c8abf2fe844bc887a306eb3bfe12363da66558b7596d9f65d87"
+  },
+  "new_allocator_test_failures": 0,
+  "new_allocator_tests": 54,
+  "new_failure_identities": [],
+  "outcome": "PRE_EXISTING_CI_ENVIRONMENT_FAILURES",
+  "skipped": 2,
+  "source_commit": "b577cc1c67f4d64f887b430f5e933f376b607dc2",
+  "source_run_url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/37494970824",
+  "source_tests": 480,
+  "unchanged_guard": "meme_machine/operational/storage_guard.py",
+  "unchanged_tests": "tests/test_operational_storage_guard.py"
+}

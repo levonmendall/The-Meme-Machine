@@ -1,0 +1,38 @@
+{
+  "base_commit": "bf1cc8f8433def27bbb0f2697c7fd4e3df745b65",
+  "changed_meteora_transport_functions": [
+    "_campaign_candidates",
+    "_capture_chunk",
+    "run_live"
+  ],
+  "protected_meteora_functions_unchanged": [
+    "pre_entry_features",
+    "qualify",
+    "_build_position",
+    "_advance_position",
+    "_mark",
+    "_segment_exit",
+    "_eligible_exit_reasons",
+    "_position_lifecycle",
+    "load_policy",
+    "_regime_pass"
+  ],
+  "protected_economic_files_unchanged": 127,
+  "pons_ramses_unchanged": true,
+  "shared_capital_isolated": true,
+  "inception_unchanged": true,
+  "nine_approved_changes_preserved": true,
+  "services": {
+    "meme-machine-paper.service": "inactive",
+    "meme-machine-capacity.service": "inactive",
+    "meme-machine-recovery.service": "inactive",
+    "meme-machine-autonomy.service": "inactive"
+  },
+  "secret_scan": "PASS including all compressed captures",
+  "no_deploy": true,
+  "no_signing": true,
+  "no_submission": true,
+  "live_money": false,
+  "last_rechecked_UTC": "2026-10-07T05:55:02.953371+00:00",
+  "checked_pons_ramses_files": 125
+}

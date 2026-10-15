@@ -1,0 +1,1160 @@
+{
+  "operational_base": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+  "pr120_head": "87d55b95ef07d96a5bfe01313f5f55cbddd3c2ad",
+  "combined_successor": "5c1e5e23803b95fd61af84f6e828d235df650d52",
+  "strategy_economic_changes": [],
+  "byte_identical": [
+    {
+      "path": "meme_machine/lanes/__init__.py",
+      "base_SHA256": "11e17d6f45e5a811ffb8bfa109f6b814f28b6c065ef6c7c46f0227b602cf9297",
+      "candidate_SHA256": "11e17d6f45e5a811ffb8bfa109f6b814f28b6c065ef6c7c46f0227b602cf9297"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/DLMM_STRATEGY_RULE_V1.json",
+      "base_SHA256": "05cd43a7a280c0b07220fc000329dd89f6eaa5e33faf20facc74d62d28cd31bc",
+      "candidate_SHA256": "05cd43a7a280c0b07220fc000329dd89f6eaa5e33faf20facc74d62d28cd31bc"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/SOLANA_DLMM_INDEPENDENT_V1.json",
+      "base_SHA256": "ff46c453c3557bf3d45cf833bf4177a2a4c53e4e6e8289de188b5382babec9e9",
+      "candidate_SHA256": "ff46c453c3557bf3d45cf833bf4177a2a4c53e4e6e8289de188b5382babec9e9"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/__init__.py",
+      "base_SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "candidate_SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/__main__.py",
+      "base_SHA256": "36d589897b2409cd102bbb6d9552968174493b0b184aa4b5e8d7569029a2dfa1",
+      "candidate_SHA256": "36d589897b2409cd102bbb6d9552968174493b0b184aa4b5e8d7569029a2dfa1"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/concentration.py",
+      "base_SHA256": "60e970f75cb82041488b08cf20e48d27dc202033b39f80d6f0f0c726cc8ef2d0",
+      "candidate_SHA256": "60e970f75cb82041488b08cf20e48d27dc202033b39f80d6f0f0c726cc8ef2d0"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/dlmm.py",
+      "base_SHA256": "f47a807571adf04f3217de6761ac3a37d14dc271d8a85cb0427829d606253a74",
+      "candidate_SHA256": "f47a807571adf04f3217de6761ac3a37d14dc271d8a85cb0427829d606253a74"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/dlmm_alchemy_provider.py",
+      "base_SHA256": "a80c5c0574964cc60fec0ce00c54a89f5d69904f708cf4bfbaaf493afe415148",
+      "candidate_SHA256": "a80c5c0574964cc60fec0ce00c54a89f5d69904f708cf4bfbaaf493afe415148"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/dlmm_discovery.py",
+      "base_SHA256": "7ff5680c62f4df5afd5acf952e29af6da4f2efed40400b6fcb10ec48990a51fe",
+      "candidate_SHA256": "7ff5680c62f4df5afd5acf952e29af6da4f2efed40400b6fcb10ec48990a51fe"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/dlmm_independent_accounting.py",
+      "base_SHA256": "4c039d45e86cbc2428d7c02bac225d2ff7dde2da7a655a8a56ad462df9cc26ea",
+      "candidate_SHA256": "4c039d45e86cbc2428d7c02bac225d2ff7dde2da7a655a8a56ad462df9cc26ea"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/dlmm_paper.py",
+      "base_SHA256": "9bfb5b302ded675cda01b1b4df122cef78daab7d0d6e91a9bea64e2f06449345",
+      "candidate_SHA256": "9bfb5b302ded675cda01b1b4df122cef78daab7d0d6e91a9bea64e2f06449345"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/dlmm_tape.py",
+      "base_SHA256": "0365aac3f7fc2bc67e599c76ae02215e7ef40350c1a83b2ce9d4f4c0669c00c3",
+      "candidate_SHA256": "0365aac3f7fc2bc67e599c76ae02215e7ef40350c1a83b2ce9d4f4c0669c00c3"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/durable_publication.py",
+      "base_SHA256": "189ef209a2f909c9324ec0e04961d18ae05a49fc9343a9a0f2e2a01c4a0d2685",
+      "candidate_SHA256": "189ef209a2f909c9324ec0e04961d18ae05a49fc9343a9a0f2e2a01c4a0d2685"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/engine.py",
+      "base_SHA256": "9e928a904ce39b052770c908a81046271229aadd7002d6aa81352b9a4695781b",
+      "candidate_SHA256": "9e928a904ce39b052770c908a81046271229aadd7002d6aa81352b9a4695781b"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/legacy_raydium.py",
+      "base_SHA256": "fbda4bcc30395527a67f9cc5f4c3a93cc589331da4145152b7005054519d92b6",
+      "candidate_SHA256": "fbda4bcc30395527a67f9cc5f4c3a93cc589331da4145152b7005054519d92b6"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/pipeline.py",
+      "base_SHA256": "e3c7bd1e0c385ba434ea17078ecf000c18338cb95dcaa215a6f448cb2b9981bb",
+      "candidate_SHA256": "e3c7bd1e0c385ba434ea17078ecf000c18338cb95dcaa215a6f448cb2b9981bb"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/postgrad.py",
+      "base_SHA256": "37efbb143081b0f065e3f8ed6af6fa5d5bfd8046ca336484a55ba1213c5ed757",
+      "candidate_SHA256": "37efbb143081b0f065e3f8ed6af6fa5d5bfd8046ca336484a55ba1213c5ed757"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/postgrad_resolver.py",
+      "base_SHA256": "46c7c9657101181ffbd2b15591261e57de22f30209a70956a7227af79f18aa5a",
+      "candidate_SHA256": "46c7c9657101181ffbd2b15591261e57de22f30209a70956a7227af79f18aa5a"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/provider.py",
+      "base_SHA256": "1dec9c635eccbd3e1e839a0aea001666077e29cdf398e0297d7292ca54b4705d",
+      "candidate_SHA256": "1dec9c635eccbd3e1e839a0aea001666077e29cdf398e0297d7292ca54b4705d"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/pump.py",
+      "base_SHA256": "23e2a08cb063c9dbefadd4e6b3915b1a7ceb314847ab633997e4ddfc49e37852",
+      "candidate_SHA256": "23e2a08cb063c9dbefadd4e6b3915b1a7ceb314847ab633997e4ddfc49e37852"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/pumpswap_runtime.py",
+      "base_SHA256": "ee3248942e628e44794ea61e365d293edfa67673a42261d3d40bd85833d27808",
+      "candidate_SHA256": "ee3248942e628e44794ea61e365d293edfa67673a42261d3d40bd85833d27808"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/research.py",
+      "base_SHA256": "414987f4b7dcca8ac4d18160481d7fb266e71a53afc4472415f4cd488272a22c",
+      "candidate_SHA256": "414987f4b7dcca8ac4d18160481d7fb266e71a53afc4472415f4cd488272a22c"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_archive_snapshot.py",
+      "base_SHA256": "85bdf910f66ff658c6133df11662be9a7c147acd7f737371427ed5b16137f0ac",
+      "candidate_SHA256": "85bdf910f66ff658c6133df11662be9a7c147acd7f737371427ed5b16137f0ac"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_checkpoint.py",
+      "base_SHA256": "a8a866361dd026a83eeb4e8e020c559bbca03b3655ff46249207483ad3042aba",
+      "candidate_SHA256": "a8a866361dd026a83eeb4e8e020c559bbca03b3655ff46249207483ad3042aba"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_evidence_broker.py",
+      "base_SHA256": "abf8270e397ddab0bd852ae0e09e26cca6e4bcde8aeb5901ce414dc74ae5dcd7",
+      "candidate_SHA256": "abf8270e397ddab0bd852ae0e09e26cca6e4bcde8aeb5901ce414dc74ae5dcd7"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_evidence_consumers.py",
+      "base_SHA256": "efdb9d5f8a43077c6dae5e8959809f9bf6bfdd730add7c03f1c71b27c9bc541f",
+      "candidate_SHA256": "efdb9d5f8a43077c6dae5e8959809f9bf6bfdd730add7c03f1c71b27c9bc541f"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_evidence_control.py",
+      "base_SHA256": "6e0cc16ee3cb52e9ca5f53af8997c20c5b56cf4d300d36f35e5a03bbb9cf5ad3",
+      "candidate_SHA256": "6e0cc16ee3cb52e9ca5f53af8997c20c5b56cf4d300d36f35e5a03bbb9cf5ad3"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_evidence_health.py",
+      "base_SHA256": "0543655d3e619dd8c28a8d7e7905293a109c0b03c759a5e0b3e955697e1fc318",
+      "candidate_SHA256": "0543655d3e619dd8c28a8d7e7905293a109c0b03c759a5e0b3e955697e1fc318"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_evidence_plane.py",
+      "base_SHA256": "ebf484c9fdbfd48c3acfb386f0bee1cdd9962ca492f7c1d028aa48e2307c1f0c",
+      "candidate_SHA256": "ebf484c9fdbfd48c3acfb386f0bee1cdd9962ca492f7c1d028aa48e2307c1f0c"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_evidence_service.py",
+      "base_SHA256": "e5a5017fe1d741291d6bd8ab8e50ef48435dcc461fc320a6d2f27f8247f5924c",
+      "candidate_SHA256": "e5a5017fe1d741291d6bd8ab8e50ef48435dcc461fc320a6d2f27f8247f5924c"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_evidence_storage.py",
+      "base_SHA256": "e08e5b283d723c621d126278c7af2b05ced715a10b5c7953f96fb0209538d99b",
+      "candidate_SHA256": "e08e5b283d723c621d126278c7af2b05ced715a10b5c7953f96fb0209538d99b"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_evidence_transport.py",
+      "base_SHA256": "bc9471d911a7a4c2a3791c586883436aed61111823a8e620c66b74b4693dacd2",
+      "candidate_SHA256": "bc9471d911a7a4c2a3791c586883436aed61111823a8e620c66b74b4693dacd2"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_immutable_rpc.py",
+      "base_SHA256": "472cc7655202cdbf9285304c5b185e67d6a03ee26ea18e51a7189159d52082fc",
+      "candidate_SHA256": "472cc7655202cdbf9285304c5b185e67d6a03ee26ea18e51a7189159d52082fc"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_maintenance_arbiter.py",
+      "base_SHA256": "736bc378bf01cdf3294fbeacea20576a4a34d97c3b68dfa609d919d4054d07d5",
+      "candidate_SHA256": "736bc378bf01cdf3294fbeacea20576a4a34d97c3b68dfa609d919d4054d07d5"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_maintenance_runtime.py",
+      "base_SHA256": "178fe8ace0e60490aeede8ed0c4a34492b322a0dfc1f6cdd2960fed50d923577",
+      "candidate_SHA256": "178fe8ace0e60490aeede8ed0c4a34492b322a0dfc1f6cdd2960fed50d923577"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_maintenance_state.py",
+      "base_SHA256": "c3f0639eefd0a688846a822cbd7f700720aa27936c8e4c6becdd9be3d894068b",
+      "candidate_SHA256": "c3f0639eefd0a688846a822cbd7f700720aa27936c8e4c6becdd9be3d894068b"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_owner_admission.py",
+      "base_SHA256": "183c900e1ec2e5f19243bc5c14e7ca289a8e028ad5f1a5020d4ee330fc415530",
+      "candidate_SHA256": "183c900e1ec2e5f19243bc5c14e7ca289a8e028ad5f1a5020d4ee330fc415530"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_program_decoders.py",
+      "base_SHA256": "0c453161d565ed338d01c473256ad3375299efc98a367ac57986a9d86a5b6f20",
+      "candidate_SHA256": "0c453161d565ed338d01c473256ad3375299efc98a367ac57986a9d86a5b6f20"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_provider_config.py",
+      "base_SHA256": "05d79a350a37b26f141e07f31c8fb1bdff44657d6a8f2640a6da4179ff91daf6",
+      "candidate_SHA256": "05d79a350a37b26f141e07f31c8fb1bdff44657d6a8f2640a6da4179ff91daf6"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_read_rpc.py",
+      "base_SHA256": "7861bf64f5a69e486f69fa7da0deae160895a2cab4075789f535793317b50999",
+      "candidate_SHA256": "7861bf64f5a69e486f69fa7da0deae160895a2cab4075789f535793317b50999"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_retention_outcome.py",
+      "base_SHA256": "e16edcda5ef7ebdb771b5980226388ca6dda89d4a749a85b4c3fd66f442befc2",
+      "candidate_SHA256": "e16edcda5ef7ebdb771b5980226388ca6dda89d4a749a85b4c3fd66f442befc2"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_signature_identity.py",
+      "base_SHA256": "deaf88cfe121651bf8270eb3df94abc987358f7890d81886d94af4c988771a89",
+      "candidate_SHA256": "deaf88cfe121651bf8270eb3df94abc987358f7890d81886d94af4c988771a89"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/store.py",
+      "base_SHA256": "c11783c48273e0b951d511a2f171cc0879119cdfd993669849a8c4017721a227",
+      "candidate_SHA256": "c11783c48273e0b951d511a2f171cc0879119cdfd993669849a8c4017721a227"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/stream.py",
+      "base_SHA256": "56cccda6385d5dfe4b0789d81963bf8dec1f2fa05980cf91506fc34eca8fc804",
+      "candidate_SHA256": "56cccda6385d5dfe4b0789d81963bf8dec1f2fa05980cf91506fc34eca8fc804"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/wallets.py",
+      "base_SHA256": "20f15bd0e359bd494a670dcc7cc2df8ee4d24d8d52654613d35b2f240793edb7",
+      "candidate_SHA256": "20f15bd0e359bd494a670dcc7cc2df8ee4d24d8d52654613d35b2f240793edb7"
+    },
+    {
+      "path": "meme_machine/lanes/pons/__init__.py",
+      "base_SHA256": "7a08167ee430e4196ad37ff77bd3228c9215ca7e79cb64bf779a2653fe943f51",
+      "candidate_SHA256": "7a08167ee430e4196ad37ff77bd3228c9215ca7e79cb64bf779a2653fe943f51"
+    },
+    {
+      "path": "meme_machine/lanes/pons/abi.py",
+      "base_SHA256": "491c9ad996d4cbd3b26fcecf0bf4216b92778151ba1d6818b621c2be7f5c52c8",
+      "candidate_SHA256": "491c9ad996d4cbd3b26fcecf0bf4216b92778151ba1d6818b621c2be7f5c52c8"
+    },
+    {
+      "path": "meme_machine/lanes/pons/continuation_robinhood.py",
+      "base_SHA256": "aa6936ed20838880920b4ce3f2040b17008418babecca07971fc1b8cfe2e0681",
+      "candidate_SHA256": "aa6936ed20838880920b4ce3f2040b17008418babecca07971fc1b8cfe2e0681"
+    },
+    {
+      "path": "meme_machine/lanes/pons/continuation_robinhood_cohort.py",
+      "base_SHA256": "cb86e1e3621451dacf5e90250d0a663db4f56df2ea110ea894042e0c9c52f943",
+      "candidate_SHA256": "cb86e1e3621451dacf5e90250d0a663db4f56df2ea110ea894042e0c9c52f943"
+    },
+    {
+      "path": "meme_machine/lanes/pons/continuation_robinhood_sample.py",
+      "base_SHA256": "b6553e7ef8b1b831a170f932b6d9cda36164f419c4d920e6d0987a8314203be2",
+      "candidate_SHA256": "b6553e7ef8b1b831a170f932b6d9cda36164f419c4d920e6d0987a8314203be2"
+    },
+    {
+      "path": "meme_machine/lanes/pons/directional.py",
+      "base_SHA256": "d52afd909fe82a49d2d25dae0651ea732877cdea041a22224e06caac4ec85639",
+      "candidate_SHA256": "d52afd909fe82a49d2d25dae0651ea732877cdea041a22224e06caac4ec85639"
+    },
+    {
+      "path": "meme_machine/lanes/pons/evidence.py",
+      "base_SHA256": "cd62e4ff4a695a2f291aadb2b87a419b97a853ee40c1aa71c716b662e0c36c6b",
+      "candidate_SHA256": "cd62e4ff4a695a2f291aadb2b87a419b97a853ee40c1aa71c716b662e0c36c6b"
+    },
+    {
+      "path": "meme_machine/lanes/pons/evidence_queue.py",
+      "base_SHA256": "db1704f6d7ab99779d74672d710e3547117b542bd8adc6c6522b2e498a9a5a2b",
+      "candidate_SHA256": "db1704f6d7ab99779d74672d710e3547117b542bd8adc6c6522b2e498a9a5a2b"
+    },
+    {
+      "path": "meme_machine/lanes/pons/finality.py",
+      "base_SHA256": "38004464e8be06735694cd3a7a37fd57b3363b556bc46daaf30b6439caf2f48a",
+      "candidate_SHA256": "38004464e8be06735694cd3a7a37fd57b3363b556bc46daaf30b6439caf2f48a"
+    },
+    {
+      "path": "meme_machine/lanes/pons/identity.py",
+      "base_SHA256": "9cd47cf9d5316c8958fa85ab760064e1a4c30f42cdc0991da2ce41143a8a984d",
+      "candidate_SHA256": "9cd47cf9d5316c8958fa85ab760064e1a4c30f42cdc0991da2ce41143a8a984d"
+    },
+    {
+      "path": "meme_machine/lanes/pons/immutable_rpc.py",
+      "base_SHA256": "96b92abb0566f7c4125c56fd24620ec728aa52f0f482558c40f7c9b1b5e52285",
+      "candidate_SHA256": "96b92abb0566f7c4125c56fd24620ec728aa52f0f482558c40f7c9b1b5e52285"
+    },
+    {
+      "path": "meme_machine/lanes/pons/keccak.py",
+      "base_SHA256": "4b4bd8c33463fc36152c6dc497146f7353352685bc6bca996545a892f1393c5c",
+      "candidate_SHA256": "4b4bd8c33463fc36152c6dc497146f7353352685bc6bca996545a892f1393c5c"
+    },
+    {
+      "path": "meme_machine/lanes/pons/liquidity.py",
+      "base_SHA256": "f982994e92c625accaee35c6467bd99638a05e03cf3212a97a67adf90f776b40",
+      "candidate_SHA256": "f982994e92c625accaee35c6467bd99638a05e03cf3212a97a67adf90f776b40"
+    },
+    {
+      "path": "meme_machine/lanes/pons/observability_probe.py",
+      "base_SHA256": "c6df219bc3c6d4348d1a885b6001f919e4149f17fb76d601705f623858cee245",
+      "candidate_SHA256": "c6df219bc3c6d4348d1a885b6001f919e4149f17fb76d601705f623858cee245"
+    },
+    {
+      "path": "meme_machine/lanes/pons/outcomes.py",
+      "base_SHA256": "52e8f3bba196b298bcf373f5e47838112bb251c0acc18763f7f1e0970fa87d39",
+      "candidate_SHA256": "52e8f3bba196b298bcf373f5e47838112bb251c0acc18763f7f1e0970fa87d39"
+    },
+    {
+      "path": "meme_machine/lanes/pons/paper.py",
+      "base_SHA256": "e74525a29b41f5d084999aea30a9ec8200f6e31401f41a3195d76c03d1192bcc",
+      "candidate_SHA256": "e74525a29b41f5d084999aea30a9ec8200f6e31401f41a3195d76c03d1192bcc"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pipeline.py",
+      "base_SHA256": "aaafb41746f789b2ffd1f7fb3a41435891c601c6519a7d0d12f1ba89e027ad18",
+      "candidate_SHA256": "aaafb41746f789b2ffd1f7fb3a41435891c601c6519a7d0d12f1ba89e027ad18"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons.py",
+      "base_SHA256": "b21fc0630c82a09689ead28451fdf1408721b044b50218b82f0469d8bad77233",
+      "candidate_SHA256": "b21fc0630c82a09689ead28451fdf1408721b044b50218b82f0469d8bad77233"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_breakout_sample.py",
+      "base_SHA256": "03784e532e65d8648c24a9508a8c2a0ed418f885ef1f560f6b97fdf86eb3bf2d",
+      "candidate_SHA256": "03784e532e65d8648c24a9508a8c2a0ed418f885ef1f560f6b97fdf86eb3bf2d"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_concentration.py",
+      "base_SHA256": "5be1119085b0885b65c07a34367e5d036e2f237e96ac2ddebcc6831dd20acc52",
+      "candidate_SHA256": "5be1119085b0885b65c07a34367e5d036e2f237e96ac2ddebcc6831dd20acc52"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_curve_template.json",
+      "base_SHA256": "159b7d66fd1c66492abc4fd62bef3c07ed96e6d42edfc97da580dbf8586eb2a2",
+      "candidate_SHA256": "159b7d66fd1c66492abc4fd62bef3c07ed96e6d42edfc97da580dbf8586eb2a2"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_lineage_capture.py",
+      "base_SHA256": "d62758989275ebc63957e7fcd0b536e839892d3832b7422bdba885ef25e27c4e",
+      "candidate_SHA256": "d62758989275ebc63957e7fcd0b536e839892d3832b7422bdba885ef25e27c4e"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_natural_observation.py",
+      "base_SHA256": "10cb58cb09f9b0f039fd287e3b8361c6b5e819b020c5f8b07ebb3d6b94b5383f",
+      "candidate_SHA256": "10cb58cb09f9b0f039fd287e3b8361c6b5e819b020c5f8b07ebb3d6b94b5383f"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_natural_paper.py",
+      "base_SHA256": "034a518630d5ba7ec8b3e679bed042fe1af6e88ae5032c52fb8de19fcd1f3686",
+      "candidate_SHA256": "034a518630d5ba7ec8b3e679bed042fe1af6e88ae5032c52fb8de19fcd1f3686"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_postgrad_survivor.py",
+      "base_SHA256": "5daa485ad962806b5f3e70411edbbd9371a9d3e5a0e730addd8ee4fd331bf217",
+      "candidate_SHA256": "5daa485ad962806b5f3e70411edbbd9371a9d3e5a0e730addd8ee4fd331bf217"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_relative_sample.py",
+      "base_SHA256": "9b7ea137b1739bb199015dc7482f1ae3ae8ffb2b653f5db34ff54a57ed5022d9",
+      "candidate_SHA256": "9b7ea137b1739bb199015dc7482f1ae3ae8ffb2b653f5db34ff54a57ed5022d9"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_relative_value.py",
+      "base_SHA256": "150a094085504c5fae15d034cdb01b1ced86e9f38bab87d3c11d0a6e072e3c98",
+      "candidate_SHA256": "150a094085504c5fae15d034cdb01b1ced86e9f38bab87d3c11d0a6e072e3c98"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_selective_acquisition.py",
+      "base_SHA256": "126803996623598040e2adf76a9e96c36a5f4d266767466e0c24966a0f0c047a",
+      "candidate_SHA256": "126803996623598040e2adf76a9e96c36a5f4d266767466e0c24966a0f0c047a"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_selective_capital.py",
+      "base_SHA256": "cad8273a5f48482f18130fc5b3e0333edfa69bdcd58d3cdee659cc8a5059f609",
+      "candidate_SHA256": "cad8273a5f48482f18130fc5b3e0333edfa69bdcd58d3cdee659cc8a5059f609"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_selective_cohort.py",
+      "base_SHA256": "3055c3d87e1db07487b4dd1afe879b1153a74e45fe1dbc9b13221f83d5bd0844",
+      "candidate_SHA256": "3055c3d87e1db07487b4dd1afe879b1153a74e45fe1dbc9b13221f83d5bd0844"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_selective_continuation.py",
+      "base_SHA256": "b8158b507366967ef2b8d402147f90ba6e49a64ad1a941c810f80764f6875187",
+      "candidate_SHA256": "b8158b507366967ef2b8d402147f90ba6e49a64ad1a941c810f80764f6875187"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_selective_ledger.py",
+      "base_SHA256": "b9305ccef3d996ae078629656de97f8c3c63db3fb58f5f3777a6ff2cb77d67e1",
+      "candidate_SHA256": "b9305ccef3d996ae078629656de97f8c3c63db3fb58f5f3777a6ff2cb77d67e1"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_selective_paper.py",
+      "base_SHA256": "fd41b22885c0a5f925c9ca3188f2974cf07ed149a8aba618878122ba3c02c122",
+      "candidate_SHA256": "fd41b22885c0a5f925c9ca3188f2974cf07ed149a8aba618878122ba3c02c122"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_selective_recovery.py",
+      "base_SHA256": "8fcb7f41f027a8ae3ad12f21fb2ff2bb00f0cf812aa1359098cdc03a3de480d5",
+      "candidate_SHA256": "8fcb7f41f027a8ae3ad12f21fb2ff2bb00f0cf812aa1359098cdc03a3de480d5"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_selective_v4.py",
+      "base_SHA256": "ff88e19bfdb32d3449a792b15f0550611ca1622b2de989c9a51acb566af063c1",
+      "candidate_SHA256": "ff88e19bfdb32d3449a792b15f0550611ca1622b2de989c9a51acb566af063c1"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_selective_wallets.py",
+      "base_SHA256": "777e6cbd580b3829488fc2a4b817223bee7bf6a0d46d6e95d66c86144a067346",
+      "candidate_SHA256": "777e6cbd580b3829488fc2a4b817223bee7bf6a0d46d6e95d66c86144a067346"
+    },
+    {
+      "path": "meme_machine/lanes/pons/position_sessions.py",
+      "base_SHA256": "bcacf7a411ff4c912c424f00d390d34ff60294c4158df6ee63c1f1fbe6916d98",
+      "candidate_SHA256": "bcacf7a411ff4c912c424f00d390d34ff60294c4158df6ee63c1f1fbe6916d98"
+    },
+    {
+      "path": "meme_machine/lanes/pons/probe.py",
+      "base_SHA256": "2e92205e28a8819042b5e6aa5b94f08458aabaeeaa75b780d93c8a001576bfc4",
+      "candidate_SHA256": "2e92205e28a8819042b5e6aa5b94f08458aabaeeaa75b780d93c8a001576bfc4"
+    },
+    {
+      "path": "meme_machine/lanes/pons/protocol_probe.py",
+      "base_SHA256": "aa3da5769e325fd6c9b6e45b10c9ace9133b9b3292822b6255a005c753caea5e",
+      "candidate_SHA256": "aa3da5769e325fd6c9b6e45b10c9ace9133b9b3292822b6255a005c753caea5e"
+    },
+    {
+      "path": "meme_machine/lanes/pons/protocols.py",
+      "base_SHA256": "7b88e36ace37c9b0125798dc2c04ff32601df9dda595ab06e0e00ee28038edfc",
+      "candidate_SHA256": "7b88e36ace37c9b0125798dc2c04ff32601df9dda595ab06e0e00ee28038edfc"
+    },
+    {
+      "path": "meme_machine/lanes/pons/provider.py",
+      "base_SHA256": "21e75b3dc7951d0657aade83cc1ed9f8ea5050d2bcaf00eb8a107346ab9ffcc1",
+      "candidate_SHA256": "21e75b3dc7951d0657aade83cc1ed9f8ea5050d2bcaf00eb8a107346ab9ffcc1"
+    },
+    {
+      "path": "meme_machine/lanes/pons/provider_admission.py",
+      "base_SHA256": "76c14359080d03205f4378c65526f0d614f720a89bf79d22fd49bba55f8cd510",
+      "candidate_SHA256": "76c14359080d03205f4378c65526f0d614f720a89bf79d22fd49bba55f8cd510"
+    },
+    {
+      "path": "meme_machine/lanes/pons/provider_topology.py",
+      "base_SHA256": "87cfa72b62255879f4d59328808c0a196198a609911583792a96ac7f11381119",
+      "candidate_SHA256": "87cfa72b62255879f4d59328808c0a196198a609911583792a96ac7f11381119"
+    },
+    {
+      "path": "meme_machine/lanes/pons/ramses.py",
+      "base_SHA256": "70cf51034d9ab352b0118ba015268ececd32498e522f18d8cf350404bda9aa53",
+      "candidate_SHA256": "70cf51034d9ab352b0118ba015268ececd32498e522f18d8cf350404bda9aa53"
+    },
+    {
+      "path": "meme_machine/lanes/pons/ramses_capture.py",
+      "base_SHA256": "5312c152af1d75ae1955f980cd7f128c09e8438b0621432b21c55d13fdca82b0",
+      "candidate_SHA256": "5312c152af1d75ae1955f980cd7f128c09e8438b0621432b21c55d13fdca82b0"
+    },
+    {
+      "path": "meme_machine/lanes/pons/ramses_forced_paper.py",
+      "base_SHA256": "d0c408b1723545b5e5c3a0cd8072149ca0b0393a7e83fba546cc6e53b938b428",
+      "candidate_SHA256": "d0c408b1723545b5e5c3a0cd8072149ca0b0393a7e83fba546cc6e53b938b428"
+    },
+    {
+      "path": "meme_machine/lanes/pons/ramses_native_inventory_baseline.json",
+      "base_SHA256": "ee7fc400bfb5828835fc9a6ffcb2b862b21b5ff0f986dd9fcd23464363870f11",
+      "candidate_SHA256": "ee7fc400bfb5828835fc9a6ffcb2b862b21b5ff0f986dd9fcd23464363870f11"
+    },
+    {
+      "path": "meme_machine/lanes/pons/ramses_paper.py",
+      "base_SHA256": "464217ee757c8fe9390529dd2d3b1131b1fc2b1514c61b130327ac7a5775e049",
+      "candidate_SHA256": "464217ee757c8fe9390529dd2d3b1131b1fc2b1514c61b130327ac7a5775e049"
+    },
+    {
+      "path": "meme_machine/lanes/pons/registry.json",
+      "base_SHA256": "8fe1728d1d5bb79e42e163a5856a50f4420f4e81366b5bcb5e6715058c720481",
+      "candidate_SHA256": "8fe1728d1d5bb79e42e163a5856a50f4420f4e81366b5bcb5e6715058c720481"
+    },
+    {
+      "path": "meme_machine/lanes/pons/sequencer_feed.py",
+      "base_SHA256": "870bdba4f593774c9d6a9e6890c1922ad84f06617b85160cf7c9395f004a84bd",
+      "candidate_SHA256": "870bdba4f593774c9d6a9e6890c1922ad84f06617b85160cf7c9395f004a84bd"
+    },
+    {
+      "path": "meme_machine/lanes/pons/verified/pons_deployer.json",
+      "base_SHA256": "c6f28ad1defb2467b2976473b0e4fafa51765a5ba4e0ce6676405a5b2e75d73b",
+      "candidate_SHA256": "c6f28ad1defb2467b2976473b0e4fafa51765a5ba4e0ce6676405a5b2e75d73b"
+    },
+    {
+      "path": "meme_machine/lanes/pons/verified/pons_executor.json",
+      "base_SHA256": "350b97f65e8342d24641cb3c63f401ef861cffa1334d88373e8696774d8bcc85",
+      "candidate_SHA256": "350b97f65e8342d24641cb3c63f401ef861cffa1334d88373e8696774d8bcc85"
+    },
+    {
+      "path": "meme_machine/lanes/pons/verified/pons_v1_factory.json",
+      "base_SHA256": "bd3cc4cbdaf7532465261118f8fd0b1393801fd503d17a81e232accc52bb4e48",
+      "candidate_SHA256": "bd3cc4cbdaf7532465261118f8fd0b1393801fd503d17a81e232accc52bb4e48"
+    },
+    {
+      "path": "meme_machine/lanes/pons/verified/pons_v2_factory.json",
+      "base_SHA256": "db41386e8295b7f53732721a61448c92735eeb50d39fe633016815c4613c1252",
+      "candidate_SHA256": "db41386e8295b7f53732721a61448c92735eeb50d39fe633016815c4613c1252"
+    },
+    {
+      "path": "meme_machine/lanes/pons/verified/pons_v2_hook.json",
+      "base_SHA256": "307be0b3cd70907156891125a2b3759cbeb4782390c50e4dbe3346c222940451",
+      "candidate_SHA256": "307be0b3cd70907156891125a2b3759cbeb4782390c50e4dbe3346c222940451"
+    },
+    {
+      "path": "meme_machine/lanes/pons/verified/ramses_factory.json",
+      "base_SHA256": "3208f635dc28c6f1a8c725a095b7f36868b5897ecc2808066a774941552a1e20",
+      "candidate_SHA256": "3208f635dc28c6f1a8c725a095b7f36868b5897ecc2808066a774941552a1e20"
+    },
+    {
+      "path": "meme_machine/lanes/pons/verified/ramses_fee_collector.json",
+      "base_SHA256": "158509dc3419b5b9c692a2c8c19987eda8d70942661d1cbed98c746ff427add3",
+      "candidate_SHA256": "158509dc3419b5b9c692a2c8c19987eda8d70942661d1cbed98c746ff427add3"
+    },
+    {
+      "path": "meme_machine/lanes/pons/verified/ramses_pool_implementation.json",
+      "base_SHA256": "2fd559feeb5fc11482aa443d89952bfd83ab6dd04b90a271c114472076d7ab8d",
+      "candidate_SHA256": "2fd559feeb5fc11482aa443d89952bfd83ab6dd04b90a271c114472076d7ab8d"
+    },
+    {
+      "path": "meme_machine/lanes/pons/verified/ramses_quoter.json",
+      "base_SHA256": "36c52e1b3791e13a294e499dbbf658b41077101e537458a72ad62a741e594ac0",
+      "candidate_SHA256": "36c52e1b3791e13a294e499dbbf658b41077101e537458a72ad62a741e594ac0"
+    },
+    {
+      "path": "meme_machine/lanes/pons/verified/ramses_router.json",
+      "base_SHA256": "ac7073f390d95b3f4313421b4758802a6567a0cd5cb8964579cab4512659372f",
+      "candidate_SHA256": "ac7073f390d95b3f4313421b4758802a6567a0cd5cb8964579cab4512659372f"
+    },
+    {
+      "path": "meme_machine/lanes/pons/verified/uniswap_v3_factory.json",
+      "base_SHA256": "5a2f403ba7a4a08ebadef2dabe9652eb9d190dd477ce59303cfdb03849ebdf70",
+      "candidate_SHA256": "5a2f403ba7a4a08ebadef2dabe9652eb9d190dd477ce59303cfdb03849ebdf70"
+    },
+    {
+      "path": "meme_machine/lanes/pons/verified/uniswap_v4_manager.json",
+      "base_SHA256": "bb25fff71ebb9e93f43f148b7f097efb210644d042bc9505d497876a4156ef4b",
+      "candidate_SHA256": "bb25fff71ebb9e93f43f148b7f097efb210644d042bc9505d497876a4156ef4b"
+    },
+    {
+      "path": "meme_machine/lanes/pons/view_batch.py",
+      "base_SHA256": "ea5ee797bbac5c252dd579f0e4d5a04fa6f1d37ca33f3d7c88024cc08eda5737",
+      "candidate_SHA256": "ea5ee797bbac5c252dd579f0e4d5a04fa6f1d37ca33f3d7c88024cc08eda5737"
+    },
+    {
+      "path": "meme_machine/lanes/pump/__init__.py",
+      "base_SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "candidate_SHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "meme_machine/lanes/pump/__main__.py",
+      "base_SHA256": "163954d90d2ef66588d9d4baed71102ff170209668057ae45c0aac797491f00b",
+      "candidate_SHA256": "163954d90d2ef66588d9d4baed71102ff170209668057ae45c0aac797491f00b"
+    },
+    {
+      "path": "meme_machine/lanes/pump/concentration.py",
+      "base_SHA256": "00a8e2b8f144d57204bd75f2d3a518ca8a411e4267858579a00f29fffe4a49a0",
+      "candidate_SHA256": "00a8e2b8f144d57204bd75f2d3a518ca8a411e4267858579a00f29fffe4a49a0"
+    },
+    {
+      "path": "meme_machine/lanes/pump/durable_publication.py",
+      "base_SHA256": "189ef209a2f909c9324ec0e04961d18ae05a49fc9343a9a0f2e2a01c4a0d2685",
+      "candidate_SHA256": "189ef209a2f909c9324ec0e04961d18ae05a49fc9343a9a0f2e2a01c4a0d2685"
+    },
+    {
+      "path": "meme_machine/lanes/pump/engine.py",
+      "base_SHA256": "868195e47f112f8e6448c395a46d5e85904d124f8e011b8ee5cdea9b0f9d2800",
+      "candidate_SHA256": "868195e47f112f8e6448c395a46d5e85904d124f8e011b8ee5cdea9b0f9d2800"
+    },
+    {
+      "path": "meme_machine/lanes/pump/fixtures/solana_alpha_wallet_cohort_frozen.json",
+      "base_SHA256": "61be668f62201a922d9ed0575cac9aad6301c840bc5ddf9171a2e744344cc296",
+      "candidate_SHA256": "61be668f62201a922d9ed0575cac9aad6301c840bc5ddf9171a2e744344cc296"
+    },
+    {
+      "path": "meme_machine/lanes/pump/fixtures/solana_skilled_wallet_prospective_contract.json",
+      "base_SHA256": "18f85ea876f42f2c50575ff2b9f533ff32e1214be455510e639987b13993764d",
+      "candidate_SHA256": "18f85ea876f42f2c50575ff2b9f533ff32e1214be455510e639987b13993764d"
+    },
+    {
+      "path": "meme_machine/lanes/pump/legacy_raydium.py",
+      "base_SHA256": "fbda4bcc30395527a67f9cc5f4c3a93cc589331da4145152b7005054519d92b6",
+      "candidate_SHA256": "fbda4bcc30395527a67f9cc5f4c3a93cc589331da4145152b7005054519d92b6"
+    },
+    {
+      "path": "meme_machine/lanes/pump/market_native_priority.py",
+      "base_SHA256": "c62070541619ef4a500a328b7ec800fa8d780f13dbfca9dcc6041e1ff8bdd677",
+      "candidate_SHA256": "c62070541619ef4a500a328b7ec800fa8d780f13dbfca9dcc6041e1ff8bdd677"
+    },
+    {
+      "path": "meme_machine/lanes/pump/market_native_research.py",
+      "base_SHA256": "c31c65c85a5054d8d4c7ab5531450928ef2ee4383f5adb877181eac6a3d87ef3",
+      "candidate_SHA256": "c31c65c85a5054d8d4c7ab5531450928ef2ee4383f5adb877181eac6a3d87ef3"
+    },
+    {
+      "path": "meme_machine/lanes/pump/market_native_runtime.py",
+      "base_SHA256": "b1d612fe4f8b28b5de1485a0f3b18eb0b49ffde974b634130b91376bd9a45f45",
+      "candidate_SHA256": "b1d612fe4f8b28b5de1485a0f3b18eb0b49ffde974b634130b91376bd9a45f45"
+    },
+    {
+      "path": "meme_machine/lanes/pump/market_native_shadow.py",
+      "base_SHA256": "4b58ce5e09fa737babd004ff9c7585f870546cb087fb25f9443d72cd75a6d447",
+      "candidate_SHA256": "4b58ce5e09fa737babd004ff9c7585f870546cb087fb25f9443d72cd75a6d447"
+    },
+    {
+      "path": "meme_machine/lanes/pump/outcome_research.py",
+      "base_SHA256": "e1e22089df310200cf463406150b1c1c37226d7959b6bfbe600da9dee998f10d",
+      "candidate_SHA256": "e1e22089df310200cf463406150b1c1c37226d7959b6bfbe600da9dee998f10d"
+    },
+    {
+      "path": "meme_machine/lanes/pump/paper_accounting.py",
+      "base_SHA256": "acffc8cf61defdced8a2e97d7bd1835fe0f37fc56931cf9c211d46df1c8aef7d",
+      "candidate_SHA256": "acffc8cf61defdced8a2e97d7bd1835fe0f37fc56931cf9c211d46df1c8aef7d"
+    },
+    {
+      "path": "meme_machine/lanes/pump/pipeline.py",
+      "base_SHA256": "9543b389a477f4a056359ba2c6d117fb5da50195b932b0ad9b4403b6e4c794e6",
+      "candidate_SHA256": "9543b389a477f4a056359ba2c6d117fb5da50195b932b0ad9b4403b6e4c794e6"
+    },
+    {
+      "path": "meme_machine/lanes/pump/postgrad.py",
+      "base_SHA256": "c28ad0995ec3cbde1e0649fbdc7e8b4950db988d9bd9cec09bae05e7de006808",
+      "candidate_SHA256": "c28ad0995ec3cbde1e0649fbdc7e8b4950db988d9bd9cec09bae05e7de006808"
+    },
+    {
+      "path": "meme_machine/lanes/pump/postgrad_resolver.py",
+      "base_SHA256": "46c7c9657101181ffbd2b15591261e57de22f30209a70956a7227af79f18aa5a",
+      "candidate_SHA256": "46c7c9657101181ffbd2b15591261e57de22f30209a70956a7227af79f18aa5a"
+    },
+    {
+      "path": "meme_machine/lanes/pump/provider.py",
+      "base_SHA256": "44e026dc6a638e5d70a5ae858e01ab6a460a090d885969814fb3589fa9a5fdc5",
+      "candidate_SHA256": "44e026dc6a638e5d70a5ae858e01ab6a460a090d885969814fb3589fa9a5fdc5"
+    },
+    {
+      "path": "meme_machine/lanes/pump/pump.py",
+      "base_SHA256": "41be92f065cf77e7509f1669e1ce27f4b8b295049f0d97e12a71d9bd03955119",
+      "candidate_SHA256": "41be92f065cf77e7509f1669e1ce27f4b8b295049f0d97e12a71d9bd03955119"
+    },
+    {
+      "path": "meme_machine/lanes/pump/pump_acceleration_confirmations.py",
+      "base_SHA256": "6e82377644c63b68d54daff22b35755c3fee0fb585cf7d9759d9842d8e606897",
+      "candidate_SHA256": "6e82377644c63b68d54daff22b35755c3fee0fb585cf7d9759d9842d8e606897"
+    },
+    {
+      "path": "meme_machine/lanes/pump/pump_acceleration_history.py",
+      "base_SHA256": "44e349885a19fe514407224ada6c49b8a1eac88b76e9b27228c60fdd10f09d3f",
+      "candidate_SHA256": "44e349885a19fe514407224ada6c49b8a1eac88b76e9b27228c60fdd10f09d3f"
+    },
+    {
+      "path": "meme_machine/lanes/pump/pump_acceleration_paper.py",
+      "base_SHA256": "c2338f36c10afc5cb5c2079f1b0806d0f763e5b004a84cbf29006a4c6a14e1a5",
+      "candidate_SHA256": "c2338f36c10afc5cb5c2079f1b0806d0f763e5b004a84cbf29006a4c6a14e1a5"
+    },
+    {
+      "path": "meme_machine/lanes/pump/pump_acceleration_strategy.py",
+      "base_SHA256": "647445ade5a79acbccc7ec56d47d322abc3c0f8622ff8a40b8af4f291cee33d5",
+      "candidate_SHA256": "647445ade5a79acbccc7ec56d47d322abc3c0f8622ff8a40b8af4f291cee33d5"
+    },
+    {
+      "path": "meme_machine/lanes/pump/pump_evidence_execution.py",
+      "base_SHA256": "15db2b6e0b432c8774cf0e21eb1df446c1978f6b35908e13cf4e7c3ba3a0e47a",
+      "candidate_SHA256": "15db2b6e0b432c8774cf0e21eb1df446c1978f6b35908e13cf4e7c3ba3a0e47a"
+    },
+    {
+      "path": "meme_machine/lanes/pump/pumpswap_runtime.py",
+      "base_SHA256": "b59c7f6215f8d5eb9ff416f36af4f7ee0ce7272f9227a1449b02092ca93e795a",
+      "candidate_SHA256": "b59c7f6215f8d5eb9ff416f36af4f7ee0ce7272f9227a1449b02092ca93e795a"
+    },
+    {
+      "path": "meme_machine/lanes/pump/pumpswap_survivor.py",
+      "base_SHA256": "73b6f28e8331262a0d33ecc53b7c28e0545314983e414a77566edb78029cd7ad",
+      "candidate_SHA256": "73b6f28e8331262a0d33ecc53b7c28e0545314983e414a77566edb78029cd7ad"
+    },
+    {
+      "path": "meme_machine/lanes/pump/pumpswap_survivor_evidence.py",
+      "base_SHA256": "fe45a1201ae899fae9a31b9134ce266e23c8272103f976677289d1d20905f946",
+      "candidate_SHA256": "fe45a1201ae899fae9a31b9134ce266e23c8272103f976677289d1d20905f946"
+    },
+    {
+      "path": "meme_machine/lanes/pump/rejected_winner_trajectory.py",
+      "base_SHA256": "a9e4aa5086370a24da7240a06921dda52182de6743d30fdd7f9f2025b2471260",
+      "candidate_SHA256": "a9e4aa5086370a24da7240a06921dda52182de6743d30fdd7f9f2025b2471260"
+    },
+    {
+      "path": "meme_machine/lanes/pump/research.py",
+      "base_SHA256": "fa03c0f6bd9a67406288f5476e26917343f31786dfa3d7b8b9fe63d9032ac471",
+      "candidate_SHA256": "fa03c0f6bd9a67406288f5476e26917343f31786dfa3d7b8b9fe63d9032ac471"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_archive_snapshot.py",
+      "base_SHA256": "85bdf910f66ff658c6133df11662be9a7c147acd7f737371427ed5b16137f0ac",
+      "candidate_SHA256": "85bdf910f66ff658c6133df11662be9a7c147acd7f737371427ed5b16137f0ac"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_checkpoint.py",
+      "base_SHA256": "a8a866361dd026a83eeb4e8e020c559bbca03b3655ff46249207483ad3042aba",
+      "candidate_SHA256": "a8a866361dd026a83eeb4e8e020c559bbca03b3655ff46249207483ad3042aba"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_evidence_broker.py",
+      "base_SHA256": "6c8feab951375e147f586ad2a1798c722a5093ee8af29b29113cd5088fb30f56",
+      "candidate_SHA256": "6c8feab951375e147f586ad2a1798c722a5093ee8af29b29113cd5088fb30f56"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_evidence_consumers.py",
+      "base_SHA256": "86ea158148120ffa70f999b77fac67ac6bb900ec7338342ce51f35a28eecca05",
+      "candidate_SHA256": "86ea158148120ffa70f999b77fac67ac6bb900ec7338342ce51f35a28eecca05"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_evidence_control.py",
+      "base_SHA256": "6e0cc16ee3cb52e9ca5f53af8997c20c5b56cf4d300d36f35e5a03bbb9cf5ad3",
+      "candidate_SHA256": "6e0cc16ee3cb52e9ca5f53af8997c20c5b56cf4d300d36f35e5a03bbb9cf5ad3"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_evidence_health.py",
+      "base_SHA256": "0543655d3e619dd8c28a8d7e7905293a109c0b03c759a5e0b3e955697e1fc318",
+      "candidate_SHA256": "0543655d3e619dd8c28a8d7e7905293a109c0b03c759a5e0b3e955697e1fc318"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_evidence_plane.py",
+      "base_SHA256": "ebf484c9fdbfd48c3acfb386f0bee1cdd9962ca492f7c1d028aa48e2307c1f0c",
+      "candidate_SHA256": "ebf484c9fdbfd48c3acfb386f0bee1cdd9962ca492f7c1d028aa48e2307c1f0c"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_evidence_service.py",
+      "base_SHA256": "e5a5017fe1d741291d6bd8ab8e50ef48435dcc461fc320a6d2f27f8247f5924c",
+      "candidate_SHA256": "e5a5017fe1d741291d6bd8ab8e50ef48435dcc461fc320a6d2f27f8247f5924c"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_evidence_storage.py",
+      "base_SHA256": "e08e5b283d723c621d126278c7af2b05ced715a10b5c7953f96fb0209538d99b",
+      "candidate_SHA256": "e08e5b283d723c621d126278c7af2b05ced715a10b5c7953f96fb0209538d99b"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_evidence_transport.py",
+      "base_SHA256": "bc9471d911a7a4c2a3791c586883436aed61111823a8e620c66b74b4693dacd2",
+      "candidate_SHA256": "bc9471d911a7a4c2a3791c586883436aed61111823a8e620c66b74b4693dacd2"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_immutable_rpc.py",
+      "base_SHA256": "472cc7655202cdbf9285304c5b185e67d6a03ee26ea18e51a7189159d52082fc",
+      "candidate_SHA256": "472cc7655202cdbf9285304c5b185e67d6a03ee26ea18e51a7189159d52082fc"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_maintenance_arbiter.py",
+      "base_SHA256": "736bc378bf01cdf3294fbeacea20576a4a34d97c3b68dfa609d919d4054d07d5",
+      "candidate_SHA256": "736bc378bf01cdf3294fbeacea20576a4a34d97c3b68dfa609d919d4054d07d5"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_maintenance_runtime.py",
+      "base_SHA256": "178fe8ace0e60490aeede8ed0c4a34492b322a0dfc1f6cdd2960fed50d923577",
+      "candidate_SHA256": "178fe8ace0e60490aeede8ed0c4a34492b322a0dfc1f6cdd2960fed50d923577"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_maintenance_state.py",
+      "base_SHA256": "c3f0639eefd0a688846a822cbd7f700720aa27936c8e4c6becdd9be3d894068b",
+      "candidate_SHA256": "c3f0639eefd0a688846a822cbd7f700720aa27936c8e4c6becdd9be3d894068b"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_owner_admission.py",
+      "base_SHA256": "183c900e1ec2e5f19243bc5c14e7ca289a8e028ad5f1a5020d4ee330fc415530",
+      "candidate_SHA256": "183c900e1ec2e5f19243bc5c14e7ca289a8e028ad5f1a5020d4ee330fc415530"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_program_decoders.py",
+      "base_SHA256": "0c453161d565ed338d01c473256ad3375299efc98a367ac57986a9d86a5b6f20",
+      "candidate_SHA256": "0c453161d565ed338d01c473256ad3375299efc98a367ac57986a9d86a5b6f20"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_provider_config.py",
+      "base_SHA256": "05d79a350a37b26f141e07f31c8fb1bdff44657d6a8f2640a6da4179ff91daf6",
+      "candidate_SHA256": "05d79a350a37b26f141e07f31c8fb1bdff44657d6a8f2640a6da4179ff91daf6"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_read_rpc.py",
+      "base_SHA256": "530dea6b9db8cd71032c045a990010501f75d2fa412c53c9c2d2233d78215dc4",
+      "candidate_SHA256": "530dea6b9db8cd71032c045a990010501f75d2fa412c53c9c2d2233d78215dc4"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_retention_outcome.py",
+      "base_SHA256": "e16edcda5ef7ebdb771b5980226388ca6dda89d4a749a85b4c3fd66f442befc2",
+      "candidate_SHA256": "e16edcda5ef7ebdb771b5980226388ca6dda89d4a749a85b4c3fd66f442befc2"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_signature_identity.py",
+      "base_SHA256": "deaf88cfe121651bf8270eb3df94abc987358f7890d81886d94af4c988771a89",
+      "candidate_SHA256": "deaf88cfe121651bf8270eb3df94abc987358f7890d81886d94af4c988771a89"
+    },
+    {
+      "path": "meme_machine/lanes/pump/store.py",
+      "base_SHA256": "01d7b229fb928e2fc6426dfe81e3b7f4d37d1639ad45a5e4c192afb38f9e49e5",
+      "candidate_SHA256": "01d7b229fb928e2fc6426dfe81e3b7f4d37d1639ad45a5e4c192afb38f9e49e5"
+    },
+    {
+      "path": "meme_machine/lanes/pump/stream.py",
+      "base_SHA256": "6253006b81c27171a422120b1bace1d6a9ac3666c289dd4bc03268ea08faa7ce",
+      "candidate_SHA256": "6253006b81c27171a422120b1bace1d6a9ac3666c289dd4bc03268ea08faa7ce"
+    },
+    {
+      "path": "meme_machine/lanes/pump/wallets.py",
+      "base_SHA256": "20f15bd0e359bd494a670dcc7cc2df8ee4d24d8d52654613d35b2f240793edb7",
+      "candidate_SHA256": "20f15bd0e359bd494a670dcc7cc2df8ee4d24d8d52654613d35b2f240793edb7"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V3.json",
+      "base_SHA256": "e83b0255937c891e55f4ad4a473368c57d69f5c02e0340686bdbdd2b4f6d74a0",
+      "candidate_SHA256": "e83b0255937c891e55f4ad4a473368c57d69f5c02e0340686bdbdd2b4f6d74a0"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/RAMSES_ACTIVE_WIDE_MAKER_REBALANCE_V4.json",
+      "base_SHA256": "5550a96e74af116f9e57efbbef762da04146416d6729f62a60f6339325e1be2d",
+      "candidate_SHA256": "5550a96e74af116f9e57efbbef762da04146416d6729f62a60f6339325e1be2d"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/__init__.py",
+      "base_SHA256": "7a08167ee430e4196ad37ff77bd3228c9215ca7e79cb64bf779a2653fe943f51",
+      "candidate_SHA256": "7a08167ee430e4196ad37ff77bd3228c9215ca7e79cb64bf779a2653fe943f51"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/abi.py",
+      "base_SHA256": "491c9ad996d4cbd3b26fcecf0bf4216b92778151ba1d6818b621c2be7f5c52c8",
+      "candidate_SHA256": "491c9ad996d4cbd3b26fcecf0bf4216b92778151ba1d6818b621c2be7f5c52c8"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/continuation_robinhood.py",
+      "base_SHA256": "aa6936ed20838880920b4ce3f2040b17008418babecca07971fc1b8cfe2e0681",
+      "candidate_SHA256": "aa6936ed20838880920b4ce3f2040b17008418babecca07971fc1b8cfe2e0681"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/continuation_robinhood_cohort.py",
+      "base_SHA256": "cb86e1e3621451dacf5e90250d0a663db4f56df2ea110ea894042e0c9c52f943",
+      "candidate_SHA256": "cb86e1e3621451dacf5e90250d0a663db4f56df2ea110ea894042e0c9c52f943"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/continuation_robinhood_sample.py",
+      "base_SHA256": "b6553e7ef8b1b831a170f932b6d9cda36164f419c4d920e6d0987a8314203be2",
+      "candidate_SHA256": "b6553e7ef8b1b831a170f932b6d9cda36164f419c4d920e6d0987a8314203be2"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/directional.py",
+      "base_SHA256": "d52afd909fe82a49d2d25dae0651ea732877cdea041a22224e06caac4ec85639",
+      "candidate_SHA256": "d52afd909fe82a49d2d25dae0651ea732877cdea041a22224e06caac4ec85639"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/evidence.py",
+      "base_SHA256": "cd62e4ff4a695a2f291aadb2b87a419b97a853ee40c1aa71c716b662e0c36c6b",
+      "candidate_SHA256": "cd62e4ff4a695a2f291aadb2b87a419b97a853ee40c1aa71c716b662e0c36c6b"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/evidence_queue.py",
+      "base_SHA256": "46a33b8d67e3f4eb77d3c3c05ffdee3cc60f5e6ee4cc033e028e42b3bf730047",
+      "candidate_SHA256": "46a33b8d67e3f4eb77d3c3c05ffdee3cc60f5e6ee4cc033e028e42b3bf730047"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/finality.py",
+      "base_SHA256": "357f6f365b9ab4ce2969d4151425d9c67459e3fa7592db867813f758780be139",
+      "candidate_SHA256": "357f6f365b9ab4ce2969d4151425d9c67459e3fa7592db867813f758780be139"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/identity.py",
+      "base_SHA256": "9cd47cf9d5316c8958fa85ab760064e1a4c30f42cdc0991da2ce41143a8a984d",
+      "candidate_SHA256": "9cd47cf9d5316c8958fa85ab760064e1a4c30f42cdc0991da2ce41143a8a984d"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/immutable_rpc.py",
+      "base_SHA256": "96b92abb0566f7c4125c56fd24620ec728aa52f0f482558c40f7c9b1b5e52285",
+      "candidate_SHA256": "96b92abb0566f7c4125c56fd24620ec728aa52f0f482558c40f7c9b1b5e52285"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/keccak.py",
+      "base_SHA256": "4b4bd8c33463fc36152c6dc497146f7353352685bc6bca996545a892f1393c5c",
+      "candidate_SHA256": "4b4bd8c33463fc36152c6dc497146f7353352685bc6bca996545a892f1393c5c"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/liquidity.py",
+      "base_SHA256": "f982994e92c625accaee35c6467bd99638a05e03cf3212a97a67adf90f776b40",
+      "candidate_SHA256": "f982994e92c625accaee35c6467bd99638a05e03cf3212a97a67adf90f776b40"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/observability_probe.py",
+      "base_SHA256": "c6df219bc3c6d4348d1a885b6001f919e4149f17fb76d601705f623858cee245",
+      "candidate_SHA256": "c6df219bc3c6d4348d1a885b6001f919e4149f17fb76d601705f623858cee245"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/outcomes.py",
+      "base_SHA256": "52e8f3bba196b298bcf373f5e47838112bb251c0acc18763f7f1e0970fa87d39",
+      "candidate_SHA256": "52e8f3bba196b298bcf373f5e47838112bb251c0acc18763f7f1e0970fa87d39"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/paper.py",
+      "base_SHA256": "e74525a29b41f5d084999aea30a9ec8200f6e31401f41a3195d76c03d1192bcc",
+      "candidate_SHA256": "e74525a29b41f5d084999aea30a9ec8200f6e31401f41a3195d76c03d1192bcc"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/pipeline.py",
+      "base_SHA256": "2c9fc76419e2943854c52e058678aaef4ff7be4309fd2f8b29e1a22551b9e95b",
+      "candidate_SHA256": "2c9fc76419e2943854c52e058678aaef4ff7be4309fd2f8b29e1a22551b9e95b"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/pons.py",
+      "base_SHA256": "b21fc0630c82a09689ead28451fdf1408721b044b50218b82f0469d8bad77233",
+      "candidate_SHA256": "b21fc0630c82a09689ead28451fdf1408721b044b50218b82f0469d8bad77233"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/pons_concentration.py",
+      "base_SHA256": "5be1119085b0885b65c07a34367e5d036e2f237e96ac2ddebcc6831dd20acc52",
+      "candidate_SHA256": "5be1119085b0885b65c07a34367e5d036e2f237e96ac2ddebcc6831dd20acc52"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/pons_curve_template.json",
+      "base_SHA256": "159b7d66fd1c66492abc4fd62bef3c07ed96e6d42edfc97da580dbf8586eb2a2",
+      "candidate_SHA256": "159b7d66fd1c66492abc4fd62bef3c07ed96e6d42edfc97da580dbf8586eb2a2"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/pons_lineage_capture.py",
+      "base_SHA256": "d62758989275ebc63957e7fcd0b536e839892d3832b7422bdba885ef25e27c4e",
+      "candidate_SHA256": "d62758989275ebc63957e7fcd0b536e839892d3832b7422bdba885ef25e27c4e"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/pons_natural_observation.py",
+      "base_SHA256": "a457269d5669f2c949763262fa380639ad1e03e20f374eeb53d96715ad1af1cf",
+      "candidate_SHA256": "a457269d5669f2c949763262fa380639ad1e03e20f374eeb53d96715ad1af1cf"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/pons_natural_paper.py",
+      "base_SHA256": "18f3488a9347e791e2cf89edefef3cb1eb559a8419da5329c3e67269be8bb92a",
+      "candidate_SHA256": "18f3488a9347e791e2cf89edefef3cb1eb559a8419da5329c3e67269be8bb92a"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/probe.py",
+      "base_SHA256": "2e92205e28a8819042b5e6aa5b94f08458aabaeeaa75b780d93c8a001576bfc4",
+      "candidate_SHA256": "2e92205e28a8819042b5e6aa5b94f08458aabaeeaa75b780d93c8a001576bfc4"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/protocol_probe.py",
+      "base_SHA256": "aa3da5769e325fd6c9b6e45b10c9ace9133b9b3292822b6255a005c753caea5e",
+      "candidate_SHA256": "aa3da5769e325fd6c9b6e45b10c9ace9133b9b3292822b6255a005c753caea5e"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/protocols.py",
+      "base_SHA256": "7b88e36ace37c9b0125798dc2c04ff32601df9dda595ab06e0e00ee28038edfc",
+      "candidate_SHA256": "7b88e36ace37c9b0125798dc2c04ff32601df9dda595ab06e0e00ee28038edfc"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/provider.py",
+      "base_SHA256": "9bc3b4c93f4228c0136db609d733d437c0eed759de0c4ddda1bb4608786fe8df",
+      "candidate_SHA256": "9bc3b4c93f4228c0136db609d733d437c0eed759de0c4ddda1bb4608786fe8df"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/provider_admission.py",
+      "base_SHA256": "81c0311da623997f1cf57b59cbe22f409afbecb26de7ade1fab5b07e4e5863f3",
+      "candidate_SHA256": "81c0311da623997f1cf57b59cbe22f409afbecb26de7ade1fab5b07e4e5863f3"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/provider_topology.py",
+      "base_SHA256": "603e68c650624ee50591d86f07650497856d3a556b91da009c180c2ceae67850",
+      "candidate_SHA256": "603e68c650624ee50591d86f07650497856d3a556b91da009c180c2ceae67850"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/ramses.py",
+      "base_SHA256": "3b1cab124cfd6644b87747fd712339cc6d93e371371a6079c5930855e01e3251",
+      "candidate_SHA256": "3b1cab124cfd6644b87747fd712339cc6d93e371371a6079c5930855e01e3251"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/ramses_active_wide_maker.py",
+      "base_SHA256": "0bc1d9a1df432920966c49fdb26d2c27186c6c8153d2b0aba7b36d8ca9584e62",
+      "candidate_SHA256": "0bc1d9a1df432920966c49fdb26d2c27186c6c8153d2b0aba7b36d8ca9584e62"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/ramses_all_pool_lifecycle.py",
+      "base_SHA256": "8cd973918f6923ee95d9fd3fcfa7d244d4f3ddb96c7157fa9ff484c0694bdf94",
+      "candidate_SHA256": "8cd973918f6923ee95d9fd3fcfa7d244d4f3ddb96c7157fa9ff484c0694bdf94"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/ramses_campaign.py",
+      "base_SHA256": "9d27575983f9206f81b1f83d97352fce5f545c46f60191f64b4894e1b4aaa000",
+      "candidate_SHA256": "9d27575983f9206f81b1f83d97352fce5f545c46f60191f64b4894e1b4aaa000"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/ramses_capture.py",
+      "base_SHA256": "bf0d97cd48dfa2c9ed91e7f6231d37c32faaa1e9beb6f9b0cacdd6769cc7595e",
+      "candidate_SHA256": "bf0d97cd48dfa2c9ed91e7f6231d37c32faaa1e9beb6f9b0cacdd6769cc7595e"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/ramses_costs.py",
+      "base_SHA256": "5bc3564fea784c2e1d644c20803d39de69d83bc04aa8eadbb8624de77f8ecfcd",
+      "candidate_SHA256": "5bc3564fea784c2e1d644c20803d39de69d83bc04aa8eadbb8624de77f8ecfcd"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/ramses_evidence_coverage.py",
+      "base_SHA256": "436e818b1f373ec6cc1f0f1095778d6f5809469d6a5e52159d4a236eec8c5625",
+      "candidate_SHA256": "436e818b1f373ec6cc1f0f1095778d6f5809469d6a5e52159d4a236eec8c5625"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/ramses_extended_test.py",
+      "base_SHA256": "6294fb39cf6401932a20901d03e7675e57403279e593c66a4f24eb988ac22ef3",
+      "candidate_SHA256": "6294fb39cf6401932a20901d03e7675e57403279e593c66a4f24eb988ac22ef3"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/ramses_forced_paper.py",
+      "base_SHA256": "d0c408b1723545b5e5c3a0cd8072149ca0b0393a7e83fba546cc6e53b938b428",
+      "candidate_SHA256": "d0c408b1723545b5e5c3a0cd8072149ca0b0393a7e83fba546cc6e53b938b428"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/ramses_lifecycle_log_census.py",
+      "base_SHA256": "8c02777710fa71d65827d8f49c13d8085766bc4406c7183809f66e1cf7014147",
+      "candidate_SHA256": "8c02777710fa71d65827d8f49c13d8085766bc4406c7183809f66e1cf7014147"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/ramses_native_inventory_baseline.json",
+      "base_SHA256": "ee7fc400bfb5828835fc9a6ffcb2b862b21b5ff0f986dd9fcd23464363870f11",
+      "candidate_SHA256": "ee7fc400bfb5828835fc9a6ffcb2b862b21b5ff0f986dd9fcd23464363870f11"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/ramses_paper.py",
+      "base_SHA256": "464217ee757c8fe9390529dd2d3b1131b1fc2b1514c61b130327ac7a5775e049",
+      "candidate_SHA256": "464217ee757c8fe9390529dd2d3b1131b1fc2b1514c61b130327ac7a5775e049"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/ramses_strategy.py",
+      "base_SHA256": "8df06ae65826d27655a121c6568c9b972359fa0eb7ee1d1c04ed2134ae51cc85",
+      "candidate_SHA256": "8df06ae65826d27655a121c6568c9b972359fa0eb7ee1d1c04ed2134ae51cc85"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/ramses_strategy_ledger.py",
+      "base_SHA256": "45646a7990664f256761a8485469910783ecdd140caa669d12925c2ccda7175b",
+      "candidate_SHA256": "45646a7990664f256761a8485469910783ecdd140caa669d12925c2ccda7175b"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/ramses_strategy_sample.py",
+      "base_SHA256": "90e39b76ee1063f34193678cff057af680d454c0c01a3f87ae973f88cc74b3bc",
+      "candidate_SHA256": "90e39b76ee1063f34193678cff057af680d454c0c01a3f87ae973f88cc74b3bc"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/ramses_universe.py",
+      "base_SHA256": "9f2b294a46ff29954e8b6f09a5ee5766ff9f56d4e8ec401031b035ef5c98cbdd",
+      "candidate_SHA256": "9f2b294a46ff29954e8b6f09a5ee5766ff9f56d4e8ec401031b035ef5c98cbdd"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/registry.json",
+      "base_SHA256": "8fe1728d1d5bb79e42e163a5856a50f4420f4e81366b5bcb5e6715058c720481",
+      "candidate_SHA256": "8fe1728d1d5bb79e42e163a5856a50f4420f4e81366b5bcb5e6715058c720481"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/sequencer_feed.py",
+      "base_SHA256": "56cae0b33d656d925fba3dffad63e0ae98f4628cb0d6cc115bf1b35d57f4c362",
+      "candidate_SHA256": "56cae0b33d656d925fba3dffad63e0ae98f4628cb0d6cc115bf1b35d57f4c362"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/verified/pons_deployer.json",
+      "base_SHA256": "c6f28ad1defb2467b2976473b0e4fafa51765a5ba4e0ce6676405a5b2e75d73b",
+      "candidate_SHA256": "c6f28ad1defb2467b2976473b0e4fafa51765a5ba4e0ce6676405a5b2e75d73b"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/verified/pons_executor.json",
+      "base_SHA256": "350b97f65e8342d24641cb3c63f401ef861cffa1334d88373e8696774d8bcc85",
+      "candidate_SHA256": "350b97f65e8342d24641cb3c63f401ef861cffa1334d88373e8696774d8bcc85"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/verified/pons_v1_factory.json",
+      "base_SHA256": "bd3cc4cbdaf7532465261118f8fd0b1393801fd503d17a81e232accc52bb4e48",
+      "candidate_SHA256": "bd3cc4cbdaf7532465261118f8fd0b1393801fd503d17a81e232accc52bb4e48"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/verified/pons_v2_factory.json",
+      "base_SHA256": "db41386e8295b7f53732721a61448c92735eeb50d39fe633016815c4613c1252",
+      "candidate_SHA256": "db41386e8295b7f53732721a61448c92735eeb50d39fe633016815c4613c1252"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/verified/pons_v2_hook.json",
+      "base_SHA256": "307be0b3cd70907156891125a2b3759cbeb4782390c50e4dbe3346c222940451",
+      "candidate_SHA256": "307be0b3cd70907156891125a2b3759cbeb4782390c50e4dbe3346c222940451"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/verified/ramses_factory.json",
+      "base_SHA256": "3208f635dc28c6f1a8c725a095b7f36868b5897ecc2808066a774941552a1e20",
+      "candidate_SHA256": "3208f635dc28c6f1a8c725a095b7f36868b5897ecc2808066a774941552a1e20"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/verified/ramses_fee_collector.json",
+      "base_SHA256": "158509dc3419b5b9c692a2c8c19987eda8d70942661d1cbed98c746ff427add3",
+      "candidate_SHA256": "158509dc3419b5b9c692a2c8c19987eda8d70942661d1cbed98c746ff427add3"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/verified/ramses_pool_implementation.json",
+      "base_SHA256": "2fd559feeb5fc11482aa443d89952bfd83ab6dd04b90a271c114472076d7ab8d",
+      "candidate_SHA256": "2fd559feeb5fc11482aa443d89952bfd83ab6dd04b90a271c114472076d7ab8d"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/verified/ramses_quoter.json",
+      "base_SHA256": "36c52e1b3791e13a294e499dbbf658b41077101e537458a72ad62a741e594ac0",
+      "candidate_SHA256": "36c52e1b3791e13a294e499dbbf658b41077101e537458a72ad62a741e594ac0"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/verified/ramses_router.json",
+      "base_SHA256": "ac7073f390d95b3f4313421b4758802a6567a0cd5cb8964579cab4512659372f",
+      "candidate_SHA256": "ac7073f390d95b3f4313421b4758802a6567a0cd5cb8964579cab4512659372f"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/verified/uniswap_v3_factory.json",
+      "base_SHA256": "5a2f403ba7a4a08ebadef2dabe9652eb9d190dd477ce59303cfdb03849ebdf70",
+      "candidate_SHA256": "5a2f403ba7a4a08ebadef2dabe9652eb9d190dd477ce59303cfdb03849ebdf70"
+    },
+    {
+      "path": "meme_machine/lanes/ramses/verified/uniswap_v4_manager.json",
+      "base_SHA256": "bb25fff71ebb9e93f43f148b7f097efb210644d042bc9505d497876a4156ef4b",
+      "candidate_SHA256": "bb25fff71ebb9e93f43f148b7f097efb210644d042bc9505d497876a4156ef4b"
+    }
+  ],
+  "mechanical_or_input_repairs": [
+    {
+      "path": "meme_machine/lanes/meteora/runner.py",
+      "base_SHA256": "20b8ed218a161e4495b5f2d60f1bd53ee450ede97b472a7cd6ebb5e29616dca2",
+      "candidate_SHA256": "c207546a11175f6d988e424e3ca0415dca793d86ef689a0d26d7ea232de574da"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_evidence_queries.py",
+      "base_SHA256": "ec88ff836eb468fe4712c59ef19e55a8f6d7064c13ee45306f7d5c8a57061bf6",
+      "candidate_SHA256": "085960f848a7b427ebdbe1c9ae5e291aaf6dbc38c43ec911e0983bc48d210878"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_evidence_runtime.py",
+      "base_SHA256": "92438b5449daa4179ea7f7b7fe2fbb3535f0351e6af646c46b8fe112c8253162",
+      "candidate_SHA256": "af4b1a1576369beedc08460c959e1b2d39f403bfb3800c11f189d90f1b5b8f46"
+    },
+    {
+      "path": "meme_machine/lanes/pons/pons_survivor_runtime.py",
+      "base_SHA256": "00fe148fb46146f9065c2f163cce1e275958bc0f9134b8bb175ee7be6b60f019",
+      "candidate_SHA256": "fc82ec7a586263bed0ad6d80b1c70c46b6bc383a26161fe65be3c0dd2cc98705"
+    },
+    {
+      "path": "meme_machine/lanes/pump/pump_acceleration_evidence.py",
+      "base_SHA256": "a9195b369104e6b956a4a6aa38e24645f40f32d2cf0b406393dda70ba069b52d",
+      "candidate_SHA256": "a6175e162479cb80bbc0047cdcc361fd998c4ce44cb062ebc70ad54945dfd0d7"
+    },
+    {
+      "path": "meme_machine/lanes/pump/pumpswap_survivor_runtime.py",
+      "base_SHA256": "c27845bfb52573c4cd821723b62db3955d11d5f166a3155dddae23f16fd424af",
+      "candidate_SHA256": "88fd84a4619e9294c44c08ad7070e52bf7995b637b3e822b1f9b76b6e378984c"
+    },
+    {
+      "path": "meme_machine/lanes/pump/runner.py",
+      "base_SHA256": "c25d323f288b9c16772eb52edc750b15f140b0b39a5013aff2370aabbd89460b",
+      "candidate_SHA256": "21a11b48871f553af0e085aead8702d7f5d9a1f4d908e3d883da1f222d16df70"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_evidence_queries.py",
+      "base_SHA256": "ec88ff836eb468fe4712c59ef19e55a8f6d7064c13ee45306f7d5c8a57061bf6",
+      "candidate_SHA256": "085960f848a7b427ebdbe1c9ae5e291aaf6dbc38c43ec911e0983bc48d210878"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_evidence_runtime.py",
+      "base_SHA256": "3d6fbc374513ae17837a8e1594dcd3e41c59289b9481d24f385505c0172193e1",
+      "candidate_SHA256": "40053d64ab389c67ef23cd0c5ad2f17caa6edc10ec3329f1dda282e768f8c72d"
+    }
+  ]
+}

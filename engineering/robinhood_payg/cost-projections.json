@@ -1,0 +1,2735 @@
+{
+  "schema": "robinhood-payg-conditional-cost-model-v1",
+  "projections": [
+    {
+      "architecture": "A",
+      "scenario": "quiet",
+      "window_blocks": 10,
+      "wider_range_status": "CURRENT_SAFE_FALLBACK",
+      "assumptions": {
+        "name": "quiet",
+        "cohorts": 1,
+        "canonical_watch_hours": 1,
+        "funded_occupancy": 0.05,
+        "curve_events_per_hour": 8,
+        "pool_events_per_hour": 4,
+        "candidates_per_day": 4,
+        "qualified_per_day": 1,
+        "current_attempts_per_hour": 1,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 264720.0,
+        "warm_survivor_position_maintenance": 218880.0,
+        "cold_graduation_authentication": 2128,
+        "eligible_survivor_quote_ladders": 450,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 0.0,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        96000,
+        288000
+      ],
+      "modeled_cu_24h_range": [
+        582178.0,
+        774178.0
+      ],
+      "modeled_cu_30d_range": [
+        17465340.0,
+        23225340.0
+      ],
+      "modeled_usd_24h_range": [
+        0.30564345,
+        0.40644345000000004
+      ],
+      "modeled_usd_30d_range": [
+        9.169303500000002,
+        12.1933035
+      ],
+      "subscription_delivery_bytes_24h": 0.0,
+      "subscription_delivery_cu_24h": 0.0,
+      "known_physical_http_attempts_24h": 6799.719999999999,
+      "known_physical_rps": 0.07870046296296296,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.012735143749999999,
+        0.016935143750000003
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.0764108625,
+        0.10161086250000001
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.30564345,
+        0.40644345000000004
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 66712.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ]
+    },
+    {
+      "architecture": "B",
+      "scenario": "quiet",
+      "window_blocks": 10,
+      "wider_range_status": "CURRENT_SAFE_FALLBACK",
+      "assumptions": {
+        "name": "quiet",
+        "cohorts": 1,
+        "canonical_watch_hours": 1,
+        "funded_occupancy": 0.05,
+        "curve_events_per_hour": 8,
+        "pool_events_per_hour": 4,
+        "candidates_per_day": 4,
+        "qualified_per_day": 1,
+        "current_attempts_per_hour": 1,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 264720.0,
+        "warm_survivor_position_maintenance": 218880.0,
+        "cold_graduation_authentication": 2128,
+        "eligible_survivor_quote_ladders": 450,
+        "paid_observation_http": 11116800.3645345,
+        "subscription_byte_estimate": 0.0,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        96000,
+        288000
+      ],
+      "modeled_cu_24h_range": [
+        11698978.3645345,
+        11890978.3645345
+      ],
+      "modeled_cu_30d_range": [
+        350969350.936035,
+        356729350.936035
+      ],
+      "modeled_usd_24h_range": [
+        6.141963641380612,
+        6.242763641380613
+      ],
+      "modeled_usd_30d_range": [
+        184.25890924141837,
+        187.28290924141837
+      ],
+      "subscription_delivery_bytes_24h": 0.0,
+      "subscription_delivery_cu_24h": 0.0,
+      "known_physical_http_attempts_24h": 70935.10671846828,
+      "known_physical_rps": 0.8210081796119013,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.25591515172419216,
+        0.2601151517241922
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        1.535490910345153,
+        1.5606909103451532
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        6.141963641380612,
+        6.242763641380613
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 66712.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ]
+    },
+    {
+      "architecture": "C",
+      "scenario": "quiet",
+      "window_blocks": 10,
+      "wider_range_status": "CURRENT_SAFE_FALLBACK",
+      "assumptions": {
+        "name": "quiet",
+        "cohorts": 1,
+        "canonical_watch_hours": 1,
+        "funded_occupancy": 0.05,
+        "curve_events_per_hour": 8,
+        "pool_events_per_hour": 4,
+        "candidates_per_day": 4,
+        "qualified_per_day": 1,
+        "current_attempts_per_hour": 1,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 264720.0,
+        "warm_survivor_position_maintenance": 218880.0,
+        "cold_graduation_authentication": 2128,
+        "eligible_survivor_quote_ladders": 450,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 11235.87369038885,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        96000,
+        288000
+      ],
+      "modeled_cu_24h_range": [
+        593413.8736903889,
+        785413.8736903889
+      ],
+      "modeled_cu_30d_range": [
+        17802416.210711665,
+        23562416.210711665
+      ],
+      "modeled_usd_24h_range": [
+        0.3115422836874542,
+        0.4123422836874542
+      ],
+      "modeled_usd_30d_range": [
+        9.346268510623625,
+        12.370268510623625
+      ],
+      "subscription_delivery_bytes_24h": 280396.84225972125,
+      "subscription_delivery_cu_24h": 11235.87369038885,
+      "known_physical_http_attempts_24h": 6799.719999999999,
+      "known_physical_rps": 0.07870046296296296,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.012980928486977258,
+        0.01718092848697726
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.07788557092186355,
+        0.10308557092186355
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.3115422836874542,
+        0.4123422836874542
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 66712.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "paid-stream periodic HTTP reconciliation, heartbeat and subscription/filter lifecycle work"
+      ]
+    },
+    {
+      "architecture": "D",
+      "scenario": "quiet",
+      "window_blocks": 10,
+      "wider_range_status": "CURRENT_SAFE_FALLBACK",
+      "assumptions": {
+        "name": "quiet",
+        "cohorts": 1,
+        "canonical_watch_hours": 1,
+        "funded_occupancy": 0.05,
+        "curve_events_per_hour": 8,
+        "pool_events_per_hour": 4,
+        "candidates_per_day": 4,
+        "qualified_per_day": 1,
+        "current_attempts_per_hour": 1,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 264720.0,
+        "warm_survivor_position_maintenance": 218880.0,
+        "cold_graduation_authentication": 2128,
+        "eligible_survivor_quote_ladders": 450,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 11235.87369038885,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        96000,
+        288000
+      ],
+      "modeled_cu_24h_range": [
+        593413.8736903889,
+        785413.8736903889
+      ],
+      "modeled_cu_30d_range": [
+        17802416.210711665,
+        23562416.210711665
+      ],
+      "modeled_usd_24h_range": [
+        0.3115422836874542,
+        0.4123422836874542
+      ],
+      "modeled_usd_30d_range": [
+        9.346268510623625,
+        12.370268510623625
+      ],
+      "subscription_delivery_bytes_24h": 280396.84225972125,
+      "subscription_delivery_cu_24h": 11235.87369038885,
+      "known_physical_http_attempts_24h": 6799.719999999999,
+      "known_physical_rps": 0.07870046296296296,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.012980928486977258,
+        0.01718092848697726
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.07788557092186355,
+        0.10308557092186355
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.3115422836874542,
+        0.4123422836874542
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 66712.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "paid-stream periodic HTTP reconciliation, heartbeat and subscription/filter lifecycle work"
+      ]
+    },
+    {
+      "architecture": "A",
+      "scenario": "quiet",
+      "window_blocks": 40,
+      "wider_range_status": "CONDITIONAL_AFTER_AUTHORIZED_COMPARISON",
+      "assumptions": {
+        "name": "quiet",
+        "cohorts": 1,
+        "canonical_watch_hours": 1,
+        "funded_occupancy": 0.05,
+        "curve_events_per_hour": 8,
+        "pool_events_per_hour": 4,
+        "candidates_per_day": 4,
+        "qualified_per_day": 1,
+        "current_attempts_per_hour": 1,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 120720.0,
+        "warm_survivor_position_maintenance": 218880.0,
+        "cold_graduation_authentication": 2128,
+        "eligible_survivor_quote_ladders": 450,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 0.0,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        96000,
+        288000
+      ],
+      "modeled_cu_24h_range": [
+        438178.0,
+        630178.0
+      ],
+      "modeled_cu_30d_range": [
+        13145340.0,
+        18905340.0
+      ],
+      "modeled_usd_24h_range": [
+        0.23004345,
+        0.33084345000000004
+      ],
+      "modeled_usd_30d_range": [
+        6.9013035,
+        9.9253035
+      ],
+      "subscription_delivery_bytes_24h": 0.0,
+      "subscription_delivery_cu_24h": 0.0,
+      "known_physical_http_attempts_24h": 6799.719999999999,
+      "known_physical_rps": 0.07870046296296296,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.00958514375,
+        0.013785143750000001
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.0575108625,
+        0.08271086250000001
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.23004345,
+        0.33084345000000004
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 30712.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ]
+    },
+    {
+      "architecture": "B",
+      "scenario": "quiet",
+      "window_blocks": 40,
+      "wider_range_status": "CONDITIONAL_AFTER_AUTHORIZED_COMPARISON",
+      "assumptions": {
+        "name": "quiet",
+        "cohorts": 1,
+        "canonical_watch_hours": 1,
+        "funded_occupancy": 0.05,
+        "curve_events_per_hour": 8,
+        "pool_events_per_hour": 4,
+        "candidates_per_day": 4,
+        "qualified_per_day": 1,
+        "current_attempts_per_hour": 1,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 120720.0,
+        "warm_survivor_position_maintenance": 218880.0,
+        "cold_graduation_authentication": 2128,
+        "eligible_survivor_quote_ladders": 450,
+        "paid_observation_http": 3420553.9583183075,
+        "subscription_byte_estimate": 0.0,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        96000,
+        288000
+      ],
+      "modeled_cu_24h_range": [
+        3858731.9583183075,
+        4050731.9583183075
+      ],
+      "modeled_cu_30d_range": [
+        115761958.74954922,
+        121521958.74954922
+      ],
+      "modeled_usd_24h_range": [
+        2.0258342781171117,
+        2.1266342781171113
+      ],
+      "modeled_usd_30d_range": [
+        60.77502834351334,
+        63.79902834351335
+      ],
+      "subscription_delivery_bytes_24h": 0.0,
+      "subscription_delivery_cu_24h": 0.0,
+      "known_physical_http_attempts_24h": 70935.10671846828,
+      "known_physical_rps": 0.8210081796119013,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.08440976158821299,
+        0.08860976158821297
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.5064585695292779,
+        0.5316585695292778
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        2.0258342781171117,
+        2.1266342781171113
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 30712.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ]
+    },
+    {
+      "architecture": "C",
+      "scenario": "quiet",
+      "window_blocks": 40,
+      "wider_range_status": "CONDITIONAL_AFTER_AUTHORIZED_COMPARISON",
+      "assumptions": {
+        "name": "quiet",
+        "cohorts": 1,
+        "canonical_watch_hours": 1,
+        "funded_occupancy": 0.05,
+        "curve_events_per_hour": 8,
+        "pool_events_per_hour": 4,
+        "candidates_per_day": 4,
+        "qualified_per_day": 1,
+        "current_attempts_per_hour": 1,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 120720.0,
+        "warm_survivor_position_maintenance": 218880.0,
+        "cold_graduation_authentication": 2128,
+        "eligible_survivor_quote_ladders": 450,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 11235.87369038885,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        96000,
+        288000
+      ],
+      "modeled_cu_24h_range": [
+        449413.87369038886,
+        641413.8736903889
+      ],
+      "modeled_cu_30d_range": [
+        13482416.210711665,
+        19242416.210711665
+      ],
+      "modeled_usd_24h_range": [
+        0.23594228368745418,
+        0.3367422836874541
+      ],
+      "modeled_usd_30d_range": [
+        7.078268510623625,
+        10.102268510623626
+      ],
+      "subscription_delivery_bytes_24h": 280396.84225972125,
+      "subscription_delivery_cu_24h": 11235.87369038885,
+      "known_physical_http_attempts_24h": 6799.719999999999,
+      "known_physical_rps": 0.07870046296296296,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.009830928486977258,
+        0.014030928486977255
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.058985570921863545,
+        0.08418557092186353
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.23594228368745418,
+        0.3367422836874541
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 30712.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "paid-stream periodic HTTP reconciliation, heartbeat and subscription/filter lifecycle work"
+      ]
+    },
+    {
+      "architecture": "D",
+      "scenario": "quiet",
+      "window_blocks": 40,
+      "wider_range_status": "CONDITIONAL_AFTER_AUTHORIZED_COMPARISON",
+      "assumptions": {
+        "name": "quiet",
+        "cohorts": 1,
+        "canonical_watch_hours": 1,
+        "funded_occupancy": 0.05,
+        "curve_events_per_hour": 8,
+        "pool_events_per_hour": 4,
+        "candidates_per_day": 4,
+        "qualified_per_day": 1,
+        "current_attempts_per_hour": 1,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 120720.0,
+        "warm_survivor_position_maintenance": 218880.0,
+        "cold_graduation_authentication": 2128,
+        "eligible_survivor_quote_ladders": 450,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 11235.87369038885,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        96000,
+        288000
+      ],
+      "modeled_cu_24h_range": [
+        449413.87369038886,
+        641413.8736903889
+      ],
+      "modeled_cu_30d_range": [
+        13482416.210711665,
+        19242416.210711665
+      ],
+      "modeled_usd_24h_range": [
+        0.23594228368745418,
+        0.3367422836874541
+      ],
+      "modeled_usd_30d_range": [
+        7.078268510623625,
+        10.102268510623626
+      ],
+      "subscription_delivery_bytes_24h": 280396.84225972125,
+      "subscription_delivery_cu_24h": 11235.87369038885,
+      "known_physical_http_attempts_24h": 6799.719999999999,
+      "known_physical_rps": 0.07870046296296296,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.009830928486977258,
+        0.014030928486977255
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.058985570921863545,
+        0.08418557092186353
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.23594228368745418,
+        0.3367422836874541
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 30712.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "paid-stream periodic HTTP reconciliation, heartbeat and subscription/filter lifecycle work"
+      ]
+    },
+    {
+      "architecture": "A",
+      "scenario": "normal",
+      "window_blocks": 10,
+      "wider_range_status": "CURRENT_SAFE_FALLBACK",
+      "assumptions": {
+        "name": "normal",
+        "cohorts": 1,
+        "canonical_watch_hours": 6,
+        "funded_occupancy": 0.25,
+        "curve_events_per_hour": 360,
+        "pool_events_per_hour": 120,
+        "candidates_per_day": 48,
+        "qualified_per_day": 8,
+        "current_attempts_per_hour": 12,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 1605600.0,
+        "warm_survivor_position_maintenance": 1094400.0,
+        "cold_graduation_authentication": 25536,
+        "eligible_survivor_quote_ladders": 3600,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 0.0,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        1152000,
+        3456000
+      ],
+      "modeled_cu_24h_range": [
+        3881136.0,
+        6185136.0
+      ],
+      "modeled_cu_30d_range": [
+        116434080.0,
+        185554080.0
+      ],
+      "modeled_usd_24h_range": [
+        2.0375964,
+        3.2471964
+      ],
+      "modeled_usd_30d_range": [
+        61.127892,
+        97.415892
+      ],
+      "subscription_delivery_bytes_24h": 0.0,
+      "subscription_delivery_cu_24h": 0.0,
+      "known_physical_http_attempts_24h": 36957.6,
+      "known_physical_rps": 0.42774999999999996,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.08489985,
+        0.13529985
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.042449925,
+        0.067649925
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.25469955,
+        0.40589955
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 33982.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ]
+    },
+    {
+      "architecture": "B",
+      "scenario": "normal",
+      "window_blocks": 10,
+      "wider_range_status": "CURRENT_SAFE_FALLBACK",
+      "assumptions": {
+        "name": "normal",
+        "cohorts": 1,
+        "canonical_watch_hours": 6,
+        "funded_occupancy": 0.25,
+        "curve_events_per_hour": 360,
+        "pool_events_per_hour": 120,
+        "candidates_per_day": 48,
+        "qualified_per_day": 8,
+        "current_attempts_per_hour": 12,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 1605600.0,
+        "warm_survivor_position_maintenance": 1094400.0,
+        "cold_graduation_authentication": 25536,
+        "eligible_survivor_quote_ladders": 3600,
+        "paid_observation_http": 11116800.3645345,
+        "subscription_byte_estimate": 0.0,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        1152000,
+        3456000
+      ],
+      "modeled_cu_24h_range": [
+        14997936.3645345,
+        17301936.364534497
+      ],
+      "modeled_cu_30d_range": [
+        449938090.936035,
+        519058090.9360349
+      ],
+      "modeled_usd_24h_range": [
+        7.873916591380612,
+        9.083516591380612
+      ],
+      "modeled_usd_30d_range": [
+        236.21749774141838,
+        272.5054977414183
+      ],
+      "subscription_delivery_bytes_24h": 0.0,
+      "subscription_delivery_cu_24h": 0.0,
+      "known_physical_http_attempts_24h": 101092.98671846828,
+      "known_physical_rps": 1.1700577166489385,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.3280798579741922,
+        0.37847985797419215
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.1640399289870961,
+        0.18923992898709607
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.9842395739225765,
+        1.1354395739225764
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 33982.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ]
+    },
+    {
+      "architecture": "C",
+      "scenario": "normal",
+      "window_blocks": 10,
+      "wider_range_status": "CURRENT_SAFE_FALLBACK",
+      "assumptions": {
+        "name": "normal",
+        "cohorts": 1,
+        "canonical_watch_hours": 6,
+        "funded_occupancy": 0.25,
+        "curve_events_per_hour": 360,
+        "pool_events_per_hour": 120,
+        "candidates_per_day": 48,
+        "qualified_per_day": 8,
+        "current_attempts_per_hour": 12,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 1605600.0,
+        "warm_survivor_position_maintenance": 1094400.0,
+        "cold_graduation_authentication": 25536,
+        "eligible_survivor_quote_ladders": 3600,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 444882.19691856205,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        1152000,
+        3456000
+      ],
+      "modeled_cu_24h_range": [
+        4326018.196918562,
+        6630018.196918562
+      ],
+      "modeled_cu_30d_range": [
+        129780545.90755686,
+        198900545.90755686
+      ],
+      "modeled_usd_24h_range": [
+        2.271159553382245,
+        3.4807595533822453
+      ],
+      "modeled_usd_30d_range": [
+        68.13478660146735,
+        104.42278660146737
+      ],
+      "subscription_delivery_bytes_24h": 11121554.922964051,
+      "subscription_delivery_cu_24h": 444882.19691856205,
+      "known_physical_http_attempts_24h": 36957.6,
+      "known_physical_rps": 0.42774999999999996,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.09463164805759354,
+        0.14503164805759355
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.04731582402879677,
+        0.07251582402879678
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.2838949441727806,
+        0.43509494417278066
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 33982.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "paid-stream periodic HTTP reconciliation, heartbeat and subscription/filter lifecycle work"
+      ]
+    },
+    {
+      "architecture": "D",
+      "scenario": "normal",
+      "window_blocks": 10,
+      "wider_range_status": "CURRENT_SAFE_FALLBACK",
+      "assumptions": {
+        "name": "normal",
+        "cohorts": 1,
+        "canonical_watch_hours": 6,
+        "funded_occupancy": 0.25,
+        "curve_events_per_hour": 360,
+        "pool_events_per_hour": 120,
+        "candidates_per_day": 48,
+        "qualified_per_day": 8,
+        "current_attempts_per_hour": 12,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 1605600.0,
+        "warm_survivor_position_maintenance": 1094400.0,
+        "cold_graduation_authentication": 25536,
+        "eligible_survivor_quote_ladders": 3600,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 444882.19691856205,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        1152000,
+        3456000
+      ],
+      "modeled_cu_24h_range": [
+        4326018.196918562,
+        6630018.196918562
+      ],
+      "modeled_cu_30d_range": [
+        129780545.90755686,
+        198900545.90755686
+      ],
+      "modeled_usd_24h_range": [
+        2.271159553382245,
+        3.4807595533822453
+      ],
+      "modeled_usd_30d_range": [
+        68.13478660146735,
+        104.42278660146737
+      ],
+      "subscription_delivery_bytes_24h": 11121554.922964051,
+      "subscription_delivery_cu_24h": 444882.19691856205,
+      "known_physical_http_attempts_24h": 36957.6,
+      "known_physical_rps": 0.42774999999999996,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.09463164805759354,
+        0.14503164805759355
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.04731582402879677,
+        0.07251582402879678
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.2838949441727806,
+        0.43509494417278066
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 33982.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "paid-stream periodic HTTP reconciliation, heartbeat and subscription/filter lifecycle work"
+      ]
+    },
+    {
+      "architecture": "A",
+      "scenario": "normal",
+      "window_blocks": 40,
+      "wider_range_status": "CONDITIONAL_AFTER_AUTHORIZED_COMPARISON",
+      "assumptions": {
+        "name": "normal",
+        "cohorts": 1,
+        "canonical_watch_hours": 6,
+        "funded_occupancy": 0.25,
+        "curve_events_per_hour": 360,
+        "pool_events_per_hour": 120,
+        "candidates_per_day": 48,
+        "qualified_per_day": 8,
+        "current_attempts_per_hour": 12,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 741600.0,
+        "warm_survivor_position_maintenance": 1094400.0,
+        "cold_graduation_authentication": 25536,
+        "eligible_survivor_quote_ladders": 3600,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 0.0,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        1152000,
+        3456000
+      ],
+      "modeled_cu_24h_range": [
+        3017136.0,
+        5321136.0
+      ],
+      "modeled_cu_30d_range": [
+        90514080.0,
+        159634080.0
+      ],
+      "modeled_usd_24h_range": [
+        1.5839964,
+        2.7935964
+      ],
+      "modeled_usd_30d_range": [
+        47.519892000000006,
+        83.80789200000001
+      ],
+      "subscription_delivery_bytes_24h": 0.0,
+      "subscription_delivery_cu_24h": 0.0,
+      "known_physical_http_attempts_24h": 36957.6,
+      "known_physical_rps": 0.42774999999999996,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.06599985,
+        0.11639985000000001
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.032999925,
+        0.058199925000000007
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.19799955,
+        0.34919955
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 15982.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ]
+    },
+    {
+      "architecture": "B",
+      "scenario": "normal",
+      "window_blocks": 40,
+      "wider_range_status": "CONDITIONAL_AFTER_AUTHORIZED_COMPARISON",
+      "assumptions": {
+        "name": "normal",
+        "cohorts": 1,
+        "canonical_watch_hours": 6,
+        "funded_occupancy": 0.25,
+        "curve_events_per_hour": 360,
+        "pool_events_per_hour": 120,
+        "candidates_per_day": 48,
+        "qualified_per_day": 8,
+        "current_attempts_per_hour": 12,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 741600.0,
+        "warm_survivor_position_maintenance": 1094400.0,
+        "cold_graduation_authentication": 25536,
+        "eligible_survivor_quote_ladders": 3600,
+        "paid_observation_http": 3420553.9583183075,
+        "subscription_byte_estimate": 0.0,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        1152000,
+        3456000
+      ],
+      "modeled_cu_24h_range": [
+        6437689.958318308,
+        8741689.958318308
+      ],
+      "modeled_cu_30d_range": [
+        193130698.74954924,
+        262250698.74954924
+      ],
+      "modeled_usd_24h_range": [
+        3.3797872281171117,
+        4.589387228117111
+      ],
+      "modeled_usd_30d_range": [
+        101.39361684351336,
+        137.68161684351335
+      ],
+      "subscription_delivery_bytes_24h": 0.0,
+      "subscription_delivery_cu_24h": 0.0,
+      "known_physical_http_attempts_24h": 101092.98671846828,
+      "known_physical_rps": 1.1700577166489385,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.14082446783821298,
+        0.19122446783821298
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.07041223391910649,
+        0.09561223391910649
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.42247340351463897,
+        0.5736734035146389
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 15982.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ]
+    },
+    {
+      "architecture": "C",
+      "scenario": "normal",
+      "window_blocks": 40,
+      "wider_range_status": "CONDITIONAL_AFTER_AUTHORIZED_COMPARISON",
+      "assumptions": {
+        "name": "normal",
+        "cohorts": 1,
+        "canonical_watch_hours": 6,
+        "funded_occupancy": 0.25,
+        "curve_events_per_hour": 360,
+        "pool_events_per_hour": 120,
+        "candidates_per_day": 48,
+        "qualified_per_day": 8,
+        "current_attempts_per_hour": 12,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 741600.0,
+        "warm_survivor_position_maintenance": 1094400.0,
+        "cold_graduation_authentication": 25536,
+        "eligible_survivor_quote_ladders": 3600,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 444882.19691856205,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        1152000,
+        3456000
+      ],
+      "modeled_cu_24h_range": [
+        3462018.196918562,
+        5766018.196918562
+      ],
+      "modeled_cu_30d_range": [
+        103860545.90755686,
+        172980545.90755686
+      ],
+      "modeled_usd_24h_range": [
+        1.817559553382245,
+        3.027159553382245
+      ],
+      "modeled_usd_30d_range": [
+        54.52678660146735,
+        90.81478660146736
+      ],
+      "subscription_delivery_bytes_24h": 11121554.922964051,
+      "subscription_delivery_cu_24h": 444882.19691856205,
+      "known_physical_http_attempts_24h": 36957.6,
+      "known_physical_rps": 0.42774999999999996,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.07573164805759354,
+        0.12613164805759355
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.03786582402879677,
+        0.06306582402879678
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.22719494417278063,
+        0.37839494417278063
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 15982.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "paid-stream periodic HTTP reconciliation, heartbeat and subscription/filter lifecycle work"
+      ]
+    },
+    {
+      "architecture": "D",
+      "scenario": "normal",
+      "window_blocks": 40,
+      "wider_range_status": "CONDITIONAL_AFTER_AUTHORIZED_COMPARISON",
+      "assumptions": {
+        "name": "normal",
+        "cohorts": 1,
+        "canonical_watch_hours": 6,
+        "funded_occupancy": 0.25,
+        "curve_events_per_hour": 360,
+        "pool_events_per_hour": 120,
+        "candidates_per_day": 48,
+        "qualified_per_day": 8,
+        "current_attempts_per_hour": 12,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 741600.0,
+        "warm_survivor_position_maintenance": 1094400.0,
+        "cold_graduation_authentication": 25536,
+        "eligible_survivor_quote_ladders": 3600,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 444882.19691856205,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        1152000,
+        3456000
+      ],
+      "modeled_cu_24h_range": [
+        3462018.196918562,
+        5766018.196918562
+      ],
+      "modeled_cu_30d_range": [
+        103860545.90755686,
+        172980545.90755686
+      ],
+      "modeled_usd_24h_range": [
+        1.817559553382245,
+        3.027159553382245
+      ],
+      "modeled_usd_30d_range": [
+        54.52678660146735,
+        90.81478660146736
+      ],
+      "subscription_delivery_bytes_24h": 11121554.922964051,
+      "subscription_delivery_cu_24h": 444882.19691856205,
+      "known_physical_http_attempts_24h": 36957.6,
+      "known_physical_rps": 0.42774999999999996,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.07573164805759354,
+        0.12613164805759355
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.03786582402879677,
+        0.06306582402879678
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.22719494417278063,
+        0.37839494417278063
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 15982.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "paid-stream periodic HTTP reconciliation, heartbeat and subscription/filter lifecycle work"
+      ]
+    },
+    {
+      "architecture": "A",
+      "scenario": "high_activity",
+      "window_blocks": 10,
+      "wider_range_status": "CURRENT_SAFE_FALLBACK",
+      "assumptions": {
+        "name": "high_activity",
+        "cohorts": 2,
+        "canonical_watch_hours": 24,
+        "funded_occupancy": 1,
+        "curve_events_per_hour": 7200,
+        "pool_events_per_hour": 2000,
+        "candidates_per_day": 480,
+        "qualified_per_day": 80,
+        "current_attempts_per_hour": 120,
+        "canonical_event_share": 0.5,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 13392000.0,
+        "warm_survivor_position_maintenance": 4377600.0,
+        "cold_graduation_authentication": 255360,
+        "eligible_survivor_quote_ladders": 36000,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 0.0,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        11520000,
+        34560000
+      ],
+      "modeled_cu_24h_range": [
+        29580960.0,
+        52620960.0
+      ],
+      "modeled_cu_30d_range": [
+        887428800.0,
+        1578628800.0
+      ],
+      "modeled_usd_24h_range": [
+        15.530004000000002,
+        27.626004
+      ],
+      "modeled_usd_30d_range": [
+        465.90012,
+        828.78012
+      ],
+      "subscription_delivery_bytes_24h": 0.0,
+      "subscription_delivery_cu_24h": 0.0,
+      "known_physical_http_attempts_24h": 211680.0,
+      "known_physical_rps": 2.45,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.6470835,
+        1.1510835
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.032354175000000006,
+        0.057554175
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.19412505000000002,
+        0.34532504999999997
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 28432.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ]
+    },
+    {
+      "architecture": "B",
+      "scenario": "high_activity",
+      "window_blocks": 10,
+      "wider_range_status": "CURRENT_SAFE_FALLBACK",
+      "assumptions": {
+        "name": "high_activity",
+        "cohorts": 2,
+        "canonical_watch_hours": 24,
+        "funded_occupancy": 1,
+        "curve_events_per_hour": 7200,
+        "pool_events_per_hour": 2000,
+        "candidates_per_day": 480,
+        "qualified_per_day": 80,
+        "current_attempts_per_hour": 120,
+        "canonical_event_share": 0.5,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 13392000.0,
+        "warm_survivor_position_maintenance": 4377600.0,
+        "cold_graduation_authentication": 255360,
+        "eligible_survivor_quote_ladders": 36000,
+        "paid_observation_http": 16247631.302011961,
+        "subscription_byte_estimate": 0.0,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        11520000,
+        34560000
+      ],
+      "modeled_cu_24h_range": [
+        45828591.30201196,
+        68868591.30201197
+      ],
+      "modeled_cu_30d_range": [
+        1374857739.0603588,
+        2066057739.060359
+      ],
+      "modeled_usd_24h_range": [
+        24.06001043355628,
+        36.15601043355628
+      ],
+      "modeled_usd_30d_range": [
+        721.8003130066883,
+        1084.6803130066885
+      ],
+      "subscription_delivery_bytes_24h": 0.0,
+      "subscription_delivery_cu_24h": 0.0,
+      "known_physical_http_attempts_24h": 275815.3867184683,
+      "known_physical_rps": 3.1923077166489384,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        1.0025004347315116,
+        1.5065004347315119
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.050125021736575584,
+        0.07532502173657558
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.3007501304194535,
+        0.45195013041945353
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 28432.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ]
+    },
+    {
+      "architecture": "C",
+      "scenario": "high_activity",
+      "window_blocks": 10,
+      "wider_range_status": "CURRENT_SAFE_FALLBACK",
+      "assumptions": {
+        "name": "high_activity",
+        "cohorts": 2,
+        "canonical_watch_hours": 24,
+        "funded_occupancy": 1,
+        "curve_events_per_hour": 7200,
+        "pool_events_per_hour": 2000,
+        "candidates_per_day": 480,
+        "qualified_per_day": 80,
+        "current_attempts_per_hour": 120,
+        "canonical_event_share": 0.5,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 13392000.0,
+        "warm_survivor_position_maintenance": 4377600.0,
+        "cold_graduation_authentication": 255360,
+        "eligible_survivor_quote_ladders": 36000,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 8498249.810711665,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        11520000,
+        34560000
+      ],
+      "modeled_cu_24h_range": [
+        38079209.81071167,
+        61119209.81071167
+      ],
+      "modeled_cu_30d_range": [
+        1142376294.32135,
+        1833576294.32135
+      ],
+      "modeled_usd_24h_range": [
+        19.991585150623624,
+        32.087585150623624
+      ],
+      "modeled_usd_30d_range": [
+        599.7475545187089,
+        962.6275545187088
+      ],
+      "subscription_delivery_bytes_24h": 212455745.26779163,
+      "subscription_delivery_cu_24h": 8498249.810711665,
+      "known_physical_http_attempts_24h": 211680.0,
+      "known_physical_rps": 2.45,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.8329827146093177,
+        1.3369827146093176
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.041649135730465886,
+        0.06684913573046589
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.24989481438279532,
+        0.4010948143827953
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 28432.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "paid-stream periodic HTTP reconciliation, heartbeat and subscription/filter lifecycle work"
+      ]
+    },
+    {
+      "architecture": "D",
+      "scenario": "high_activity",
+      "window_blocks": 10,
+      "wider_range_status": "CURRENT_SAFE_FALLBACK",
+      "assumptions": {
+        "name": "high_activity",
+        "cohorts": 2,
+        "canonical_watch_hours": 24,
+        "funded_occupancy": 1,
+        "curve_events_per_hour": 7200,
+        "pool_events_per_hour": 2000,
+        "candidates_per_day": 480,
+        "qualified_per_day": 80,
+        "current_attempts_per_hour": 120,
+        "canonical_event_share": 0.5,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 13392000.0,
+        "warm_survivor_position_maintenance": 4377600.0,
+        "cold_graduation_authentication": 255360,
+        "eligible_survivor_quote_ladders": 36000,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 8498249.810711665,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        11520000,
+        34560000
+      ],
+      "modeled_cu_24h_range": [
+        38079209.81071167,
+        61119209.81071167
+      ],
+      "modeled_cu_30d_range": [
+        1142376294.32135,
+        1833576294.32135
+      ],
+      "modeled_usd_24h_range": [
+        19.991585150623624,
+        32.087585150623624
+      ],
+      "modeled_usd_30d_range": [
+        599.7475545187089,
+        962.6275545187088
+      ],
+      "subscription_delivery_bytes_24h": 212455745.26779163,
+      "subscription_delivery_cu_24h": 8498249.810711665,
+      "known_physical_http_attempts_24h": 211680.0,
+      "known_physical_rps": 2.45,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.8329827146093177,
+        1.3369827146093176
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.041649135730465886,
+        0.06684913573046589
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.24989481438279532,
+        0.4010948143827953
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 28432.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "paid-stream periodic HTTP reconciliation, heartbeat and subscription/filter lifecycle work"
+      ]
+    },
+    {
+      "architecture": "A",
+      "scenario": "high_activity",
+      "window_blocks": 40,
+      "wider_range_status": "CONDITIONAL_AFTER_AUTHORIZED_COMPARISON",
+      "assumptions": {
+        "name": "high_activity",
+        "cohorts": 2,
+        "canonical_watch_hours": 24,
+        "funded_occupancy": 1,
+        "curve_events_per_hour": 7200,
+        "pool_events_per_hour": 2000,
+        "candidates_per_day": 480,
+        "qualified_per_day": 80,
+        "current_attempts_per_hour": 120,
+        "canonical_event_share": 0.5,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 6480000.0,
+        "warm_survivor_position_maintenance": 4377600.0,
+        "cold_graduation_authentication": 255360,
+        "eligible_survivor_quote_ladders": 36000,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 0.0,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        11520000,
+        34560000
+      ],
+      "modeled_cu_24h_range": [
+        22668960.0,
+        45708960.0
+      ],
+      "modeled_cu_30d_range": [
+        680068800.0,
+        1371268800.0
+      ],
+      "modeled_usd_24h_range": [
+        11.901204,
+        23.997204
+      ],
+      "modeled_usd_30d_range": [
+        357.03612000000004,
+        719.9161200000001
+      ],
+      "subscription_delivery_bytes_24h": 0.0,
+      "subscription_delivery_cu_24h": 0.0,
+      "known_physical_http_attempts_24h": 211680.0,
+      "known_physical_rps": 2.45,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.4958835,
+        0.9998835
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.024794174999999998,
+        0.049994175
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.14876505,
+        0.29996505
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 14032.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ]
+    },
+    {
+      "architecture": "B",
+      "scenario": "high_activity",
+      "window_blocks": 40,
+      "wider_range_status": "CONDITIONAL_AFTER_AUTHORIZED_COMPARISON",
+      "assumptions": {
+        "name": "high_activity",
+        "cohorts": 2,
+        "canonical_watch_hours": 24,
+        "funded_occupancy": 1,
+        "curve_events_per_hour": 7200,
+        "pool_events_per_hour": 2000,
+        "candidates_per_day": 480,
+        "qualified_per_day": 80,
+        "current_attempts_per_hour": 120,
+        "canonical_event_share": 0.5,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 6480000.0,
+        "warm_survivor_position_maintenance": 4377600.0,
+        "cold_graduation_authentication": 255360,
+        "eligible_survivor_quote_ladders": 36000,
+        "paid_observation_http": 4703261.692687673,
+        "subscription_byte_estimate": 0.0,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        11520000,
+        34560000
+      ],
+      "modeled_cu_24h_range": [
+        27372221.69268767,
+        50412221.692687675
+      ],
+      "modeled_cu_30d_range": [
+        821166650.7806301,
+        1512366650.7806304
+      ],
+      "modeled_usd_24h_range": [
+        14.370416388661027,
+        26.46641638866103
+      ],
+      "modeled_usd_30d_range": [
+        431.1124916598308,
+        793.992491659831
+      ],
+      "subscription_delivery_bytes_24h": 0.0,
+      "subscription_delivery_cu_24h": 0.0,
+      "known_physical_http_attempts_24h": 275815.3867184683,
+      "known_physical_rps": 3.1923077166489384,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.5987673495275428,
+        1.102767349527543
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.02993836747637714,
+        0.05513836747637715
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.17963020485826284,
+        0.33083020485826287
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 14032.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ]
+    },
+    {
+      "architecture": "C",
+      "scenario": "high_activity",
+      "window_blocks": 40,
+      "wider_range_status": "CONDITIONAL_AFTER_AUTHORIZED_COMPARISON",
+      "assumptions": {
+        "name": "high_activity",
+        "cohorts": 2,
+        "canonical_watch_hours": 24,
+        "funded_occupancy": 1,
+        "curve_events_per_hour": 7200,
+        "pool_events_per_hour": 2000,
+        "candidates_per_day": 480,
+        "qualified_per_day": 80,
+        "current_attempts_per_hour": 120,
+        "canonical_event_share": 0.5,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 6480000.0,
+        "warm_survivor_position_maintenance": 4377600.0,
+        "cold_graduation_authentication": 255360,
+        "eligible_survivor_quote_ladders": 36000,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 8498249.810711665,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        11520000,
+        34560000
+      ],
+      "modeled_cu_24h_range": [
+        31167209.810711667,
+        54207209.81071167
+      ],
+      "modeled_cu_30d_range": [
+        935016294.32135,
+        1626216294.32135
+      ],
+      "modeled_usd_24h_range": [
+        16.362785150623626,
+        28.458785150623626
+      ],
+      "modeled_usd_30d_range": [
+        490.88355451870876,
+        853.7635545187088
+      ],
+      "subscription_delivery_bytes_24h": 212455745.26779163,
+      "subscription_delivery_cu_24h": 8498249.810711665,
+      "known_physical_http_attempts_24h": 211680.0,
+      "known_physical_rps": 2.45,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.6817827146093177,
+        1.1857827146093178
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.03408913573046589,
+        0.05928913573046589
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.20453481438279533,
+        0.3557348143827953
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 14032.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "paid-stream periodic HTTP reconciliation, heartbeat and subscription/filter lifecycle work"
+      ]
+    },
+    {
+      "architecture": "D",
+      "scenario": "high_activity",
+      "window_blocks": 40,
+      "wider_range_status": "CONDITIONAL_AFTER_AUTHORIZED_COMPARISON",
+      "assumptions": {
+        "name": "high_activity",
+        "cohorts": 2,
+        "canonical_watch_hours": 24,
+        "funded_occupancy": 1,
+        "curve_events_per_hour": 7200,
+        "pool_events_per_hour": 2000,
+        "candidates_per_day": 480,
+        "qualified_per_day": 80,
+        "current_attempts_per_hour": 120,
+        "canonical_event_share": 0.5,
+        "gap_blocks": 0,
+        "gaps_per_day": 0
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 6480000.0,
+        "warm_survivor_position_maintenance": 4377600.0,
+        "cold_graduation_authentication": 255360,
+        "eligible_survivor_quote_ladders": 36000,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 8498249.810711665,
+        "gap_log_repair": 0
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        11520000,
+        34560000
+      ],
+      "modeled_cu_24h_range": [
+        31167209.810711667,
+        54207209.81071167
+      ],
+      "modeled_cu_30d_range": [
+        935016294.32135,
+        1626216294.32135
+      ],
+      "modeled_usd_24h_range": [
+        16.362785150623626,
+        28.458785150623626
+      ],
+      "modeled_usd_30d_range": [
+        490.88355451870876,
+        853.7635545187088
+      ],
+      "subscription_delivery_bytes_24h": 212455745.26779163,
+      "subscription_delivery_cu_24h": 8498249.810711665,
+      "known_physical_http_attempts_24h": 211680.0,
+      "known_physical_rps": 2.45,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.6817827146093177,
+        1.1857827146093178
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.03408913573046589,
+        0.05928913573046589
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.20453481438279533,
+        0.3557348143827953
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 14032.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": null,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "paid-stream periodic HTTP reconciliation, heartbeat and subscription/filter lifecycle work"
+      ]
+    },
+    {
+      "architecture": "A",
+      "scenario": "recovery",
+      "window_blocks": 10,
+      "wider_range_status": "CURRENT_SAFE_FALLBACK",
+      "assumptions": {
+        "name": "recovery",
+        "cohorts": 1,
+        "canonical_watch_hours": 6,
+        "funded_occupancy": 0.25,
+        "curve_events_per_hour": 360,
+        "pool_events_per_hour": 120,
+        "candidates_per_day": 48,
+        "qualified_per_day": 8,
+        "current_attempts_per_hour": 12,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 35631,
+        "gaps_per_day": 1
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 1605600.0,
+        "warm_survivor_position_maintenance": 1094400.0,
+        "cold_graduation_authentication": 25536,
+        "eligible_survivor_quote_ladders": 3600,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 0.0,
+        "gap_log_repair": 213840
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        1152000,
+        3456000
+      ],
+      "modeled_cu_24h_range": [
+        4094976.0,
+        6398976.0
+      ],
+      "modeled_cu_30d_range": [
+        122849280.0,
+        191969280.0
+      ],
+      "modeled_usd_24h_range": [
+        2.1498624,
+        3.3594624000000004
+      ],
+      "modeled_usd_30d_range": [
+        64.495872,
+        100.783872
+      ],
+      "subscription_delivery_bytes_24h": 0.0,
+      "subscription_delivery_cu_24h": 0.0,
+      "known_physical_http_attempts_24h": 37848.6,
+      "known_physical_rps": 0.43806249999999997,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.0895776,
+        0.1399776
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.0447888,
+        0.0699888
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.2687328,
+        0.41993280000000005
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 33982.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": 213840.0,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ]
+    },
+    {
+      "architecture": "B",
+      "scenario": "recovery",
+      "window_blocks": 10,
+      "wider_range_status": "CURRENT_SAFE_FALLBACK",
+      "assumptions": {
+        "name": "recovery",
+        "cohorts": 1,
+        "canonical_watch_hours": 6,
+        "funded_occupancy": 0.25,
+        "curve_events_per_hour": 360,
+        "pool_events_per_hour": 120,
+        "candidates_per_day": 48,
+        "qualified_per_day": 8,
+        "current_attempts_per_hour": 12,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 35631,
+        "gaps_per_day": 1
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 1605600.0,
+        "warm_survivor_position_maintenance": 1094400.0,
+        "cold_graduation_authentication": 25536,
+        "eligible_survivor_quote_ladders": 3600,
+        "paid_observation_http": 11116800.3645345,
+        "subscription_byte_estimate": 0.0,
+        "gap_log_repair": 213840
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        1152000,
+        3456000
+      ],
+      "modeled_cu_24h_range": [
+        15211776.3645345,
+        17515776.364534497
+      ],
+      "modeled_cu_30d_range": [
+        456353290.936035,
+        525473290.9360349
+      ],
+      "modeled_usd_24h_range": [
+        7.986182591380612,
+        9.195782591380611
+      ],
+      "modeled_usd_30d_range": [
+        239.58547774141837,
+        275.87347774141836
+      ],
+      "subscription_delivery_bytes_24h": 0.0,
+      "subscription_delivery_cu_24h": 0.0,
+      "known_physical_http_attempts_24h": 101983.98671846828,
+      "known_physical_rps": 1.1803702166489385,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.3327576079741922,
+        0.3831576079741921
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.1663788039870961,
+        0.19157880398709606
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.9982728239225765,
+        1.1494728239225764
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 33982.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": 213840.0,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ]
+    },
+    {
+      "architecture": "C",
+      "scenario": "recovery",
+      "window_blocks": 10,
+      "wider_range_status": "CURRENT_SAFE_FALLBACK",
+      "assumptions": {
+        "name": "recovery",
+        "cohorts": 1,
+        "canonical_watch_hours": 6,
+        "funded_occupancy": 0.25,
+        "curve_events_per_hour": 360,
+        "pool_events_per_hour": 120,
+        "candidates_per_day": 48,
+        "qualified_per_day": 8,
+        "current_attempts_per_hour": 12,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 35631,
+        "gaps_per_day": 1
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 1605600.0,
+        "warm_survivor_position_maintenance": 1094400.0,
+        "cold_graduation_authentication": 25536,
+        "eligible_survivor_quote_ladders": 3600,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 444882.19691856205,
+        "gap_log_repair": 213840
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        1152000,
+        3456000
+      ],
+      "modeled_cu_24h_range": [
+        4539858.196918562,
+        6843858.196918562
+      ],
+      "modeled_cu_30d_range": [
+        136195745.90755686,
+        205315745.90755686
+      ],
+      "modeled_usd_24h_range": [
+        2.3834255533822453,
+        3.5930255533822453
+      ],
+      "modeled_usd_30d_range": [
+        71.50276660146736,
+        107.79076660146737
+      ],
+      "subscription_delivery_bytes_24h": 11121554.922964051,
+      "subscription_delivery_cu_24h": 444882.19691856205,
+      "known_physical_http_attempts_24h": 37848.6,
+      "known_physical_rps": 0.43806249999999997,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.09930939805759355,
+        0.14970939805759356
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.049654699028796774,
+        0.07485469902879678
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.29792819417278066,
+        0.44912819417278066
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 33982.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": 213840.0,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "paid-stream periodic HTTP reconciliation, heartbeat and subscription/filter lifecycle work"
+      ]
+    },
+    {
+      "architecture": "D",
+      "scenario": "recovery",
+      "window_blocks": 10,
+      "wider_range_status": "CURRENT_SAFE_FALLBACK",
+      "assumptions": {
+        "name": "recovery",
+        "cohorts": 1,
+        "canonical_watch_hours": 6,
+        "funded_occupancy": 0.25,
+        "curve_events_per_hour": 360,
+        "pool_events_per_hour": 120,
+        "candidates_per_day": 48,
+        "qualified_per_day": 8,
+        "current_attempts_per_hour": 12,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 35631,
+        "gaps_per_day": 1
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 1605600.0,
+        "warm_survivor_position_maintenance": 1094400.0,
+        "cold_graduation_authentication": 25536,
+        "eligible_survivor_quote_ladders": 3600,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 444882.19691856205,
+        "gap_log_repair": 213840
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        1152000,
+        3456000
+      ],
+      "modeled_cu_24h_range": [
+        4539858.196918562,
+        6843858.196918562
+      ],
+      "modeled_cu_30d_range": [
+        136195745.90755686,
+        205315745.90755686
+      ],
+      "modeled_usd_24h_range": [
+        2.3834255533822453,
+        3.5930255533822453
+      ],
+      "modeled_usd_30d_range": [
+        71.50276660146736,
+        107.79076660146737
+      ],
+      "subscription_delivery_bytes_24h": 11121554.922964051,
+      "subscription_delivery_cu_24h": 444882.19691856205,
+      "known_physical_http_attempts_24h": 37848.6,
+      "known_physical_rps": 0.43806249999999997,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.09930939805759355,
+        0.14970939805759356
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.049654699028796774,
+        0.07485469902879678
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.29792819417278066,
+        0.44912819417278066
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 33982.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": 213840.0,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "paid-stream periodic HTTP reconciliation, heartbeat and subscription/filter lifecycle work"
+      ]
+    },
+    {
+      "architecture": "A",
+      "scenario": "recovery",
+      "window_blocks": 40,
+      "wider_range_status": "CONDITIONAL_AFTER_AUTHORIZED_COMPARISON",
+      "assumptions": {
+        "name": "recovery",
+        "cohorts": 1,
+        "canonical_watch_hours": 6,
+        "funded_occupancy": 0.25,
+        "curve_events_per_hour": 360,
+        "pool_events_per_hour": 120,
+        "candidates_per_day": 48,
+        "qualified_per_day": 8,
+        "current_attempts_per_hour": 12,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 35631,
+        "gaps_per_day": 1
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 741600.0,
+        "warm_survivor_position_maintenance": 1094400.0,
+        "cold_graduation_authentication": 25536,
+        "eligible_survivor_quote_ladders": 3600,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 0.0,
+        "gap_log_repair": 53460
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        1152000,
+        3456000
+      ],
+      "modeled_cu_24h_range": [
+        3070596.0,
+        5374596.0
+      ],
+      "modeled_cu_30d_range": [
+        92117880.0,
+        161237880.0
+      ],
+      "modeled_usd_24h_range": [
+        1.6120629000000002,
+        2.8216629
+      ],
+      "modeled_usd_30d_range": [
+        48.361887,
+        84.64988699999999
+      ],
+      "subscription_delivery_bytes_24h": 0.0,
+      "subscription_delivery_cu_24h": 0.0,
+      "known_physical_http_attempts_24h": 37180.6,
+      "known_physical_rps": 0.4303310185185185,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.06716928750000001,
+        0.11756928750000001
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.033584643750000004,
+        0.058784643750000004
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.20150786250000002,
+        0.3527078625
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 15982.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": 53460.0,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ]
+    },
+    {
+      "architecture": "B",
+      "scenario": "recovery",
+      "window_blocks": 40,
+      "wider_range_status": "CONDITIONAL_AFTER_AUTHORIZED_COMPARISON",
+      "assumptions": {
+        "name": "recovery",
+        "cohorts": 1,
+        "canonical_watch_hours": 6,
+        "funded_occupancy": 0.25,
+        "curve_events_per_hour": 360,
+        "pool_events_per_hour": 120,
+        "candidates_per_day": 48,
+        "qualified_per_day": 8,
+        "current_attempts_per_hour": 12,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 35631,
+        "gaps_per_day": 1
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 741600.0,
+        "warm_survivor_position_maintenance": 1094400.0,
+        "cold_graduation_authentication": 25536,
+        "eligible_survivor_quote_ladders": 3600,
+        "paid_observation_http": 3420553.9583183075,
+        "subscription_byte_estimate": 0.0,
+        "gap_log_repair": 53460
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        1152000,
+        3456000
+      ],
+      "modeled_cu_24h_range": [
+        6491149.958318308,
+        8795149.958318308
+      ],
+      "modeled_cu_30d_range": [
+        194734498.74954924,
+        263854498.74954924
+      ],
+      "modeled_usd_24h_range": [
+        3.407853728117112,
+        4.617453728117113
+      ],
+      "modeled_usd_30d_range": [
+        102.23561184351335,
+        138.52361184351335
+      ],
+      "subscription_delivery_bytes_24h": 0.0,
+      "subscription_delivery_cu_24h": 0.0,
+      "known_physical_http_attempts_24h": 101315.98671846828,
+      "known_physical_rps": 1.172638735167457,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.14199390533821302,
+        0.19239390533821302
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.07099695266910651,
+        0.09619695266910651
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.425981716014639,
+        0.5771817160146391
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 15982.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": 53460.0,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "public sequencer transport and retention resource cost"
+      ]
+    },
+    {
+      "architecture": "C",
+      "scenario": "recovery",
+      "window_blocks": 40,
+      "wider_range_status": "CONDITIONAL_AFTER_AUTHORIZED_COMPARISON",
+      "assumptions": {
+        "name": "recovery",
+        "cohorts": 1,
+        "canonical_watch_hours": 6,
+        "funded_occupancy": 0.25,
+        "curve_events_per_hour": 360,
+        "pool_events_per_hour": 120,
+        "candidates_per_day": 48,
+        "qualified_per_day": 8,
+        "current_attempts_per_hour": 12,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 35631,
+        "gaps_per_day": 1
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 741600.0,
+        "warm_survivor_position_maintenance": 1094400.0,
+        "cold_graduation_authentication": 25536,
+        "eligible_survivor_quote_ladders": 3600,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 444882.19691856205,
+        "gap_log_repair": 213840
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        1152000,
+        3456000
+      ],
+      "modeled_cu_24h_range": [
+        3675858.196918562,
+        5979858.196918562
+      ],
+      "modeled_cu_30d_range": [
+        110275745.90755686,
+        179395745.90755686
+      ],
+      "modeled_usd_24h_range": [
+        1.9298255533822453,
+        3.1394255533822455
+      ],
+      "modeled_usd_30d_range": [
+        57.89476660146736,
+        94.18276660146735
+      ],
+      "subscription_delivery_bytes_24h": 11121554.922964051,
+      "subscription_delivery_cu_24h": 444882.19691856205,
+      "known_physical_http_attempts_24h": 37848.6,
+      "known_physical_rps": 0.43806249999999997,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.08040939805759355,
+        0.13080939805759356
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.040204699028796774,
+        0.06540469902879678
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.24122819417278066,
+        0.3924281941727807
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 15982.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": 213840.0,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "paid-stream periodic HTTP reconciliation, heartbeat and subscription/filter lifecycle work"
+      ]
+    },
+    {
+      "architecture": "D",
+      "scenario": "recovery",
+      "window_blocks": 40,
+      "wider_range_status": "CONDITIONAL_AFTER_AUTHORIZED_COMPARISON",
+      "assumptions": {
+        "name": "recovery",
+        "cohorts": 1,
+        "canonical_watch_hours": 6,
+        "funded_occupancy": 0.25,
+        "curve_events_per_hour": 360,
+        "pool_events_per_hour": 120,
+        "candidates_per_day": 48,
+        "qualified_per_day": 8,
+        "current_attempts_per_hour": 12,
+        "canonical_event_share": 0.25,
+        "gap_blocks": 35631,
+        "gaps_per_day": 1
+      },
+      "diagnostic_components_cu_24h": {
+        "canonical_reconstruction": 741600.0,
+        "warm_survivor_position_maintenance": 1094400.0,
+        "cold_graduation_authentication": 25536,
+        "eligible_survivor_quote_ladders": 3600,
+        "paid_observation_http": 0.0,
+        "subscription_byte_estimate": 444882.19691856205,
+        "gap_log_repair": 53460
+      },
+      "current_unmeasured_allowance_cu_24h": [
+        1152000,
+        3456000
+      ],
+      "modeled_cu_24h_range": [
+        3515478.196918562,
+        5819478.196918562
+      ],
+      "modeled_cu_30d_range": [
+        105464345.90755686,
+        174584345.90755686
+      ],
+      "modeled_usd_24h_range": [
+        1.8456260533822453,
+        3.0552260533822455
+      ],
+      "modeled_usd_30d_range": [
+        55.368781601467354,
+        91.65678160146736
+      ],
+      "subscription_delivery_bytes_24h": 11121554.922964051,
+      "subscription_delivery_cu_24h": 444882.19691856205,
+      "known_physical_http_attempts_24h": 37180.6,
+      "known_physical_rps": 0.4303310185185185,
+      "physical_demand_excludes_Current_and_retries": true,
+      "current_physical_and_deadline_capacity_certified": false,
+      "cost_per_coverage_hour_usd_range": [
+        0.07690108555759355,
+        0.12730108555759356
+      ],
+      "blended_cost_per_discovered_candidate_usd_range": [
+        0.038450542778796774,
+        0.06365054277879678
+      ],
+      "blended_cost_per_fully_qualified_candidate_usd_range": [
+        0.23070325667278066,
+        0.3819032566727807
+      ],
+      "canonical_reconstruction_cu_per_discovered_opportunity": 15982.0,
+      "warm_survivor_position_cu_per_position_hour": 182400.0,
+      "gap_log_repair_cu_per_missing_interval": 53460.0,
+      "actual_billed_cu": null,
+      "complete_production_forecast": false,
+      "unmeasured_additive_terms": [
+        "Current funded-position work",
+        "conditional entries/scaling/exits",
+        "canonical additional head/state checks",
+        "retries/timeouts/reorg churn",
+        "extra non-swap liquidity-event hydration",
+        "public fallback duration",
+        "notification retransmission and provider byte-meter basis",
+        "paid-stream periodic HTTP reconciliation, heartbeat and subscription/filter lifecycle work"
+      ]
+    }
+  ],
+  "observed_account": {
+    "source": "owner connectivity update, 2026-10-08",
+    "compute_units_approximately": 1730000,
+    "reported_usage_usd_approximately": 0.91,
+    "implied_rounded_usd_per_million_cu": 0.5260115606936416,
+    "billing_window": "not supplied; cannot normalize to 24 hours",
+    "pons_app": "v5h0vqr0wpp9zscj",
+    "pump_app": "9bin99s96t7ga5e9",
+    "per_app_numeric_breakdown": "visible to owner; not returned by this running connector session",
+    "solana_primary_drivers": [
+      "address history",
+      "WebSocket logs"
+    ]
+  },
+  "pricing": {
+    "published_usd_per_m_cu": 0.525,
+    "exact_account_tariff_independently_verified": false,
+    "rounded_account_value_consistent_with_published_rate": true,
+    "evm_subscription_cu_per_byte": 0.04,
+    "solana_subscription_cu_per_byte": 0.0002,
+    "solana_is_not_modeled_with_evm_byte_rate": true,
+    "sources": [
+      "https://www.alchemy.com/pricing",
+      "https://www.alchemy.com/docs/reference/compute-unit-costs"
+    ]
+  },
+  "payload_samples": {
+    "curve_and_factory": {
+      "samples": 87,
+      "mean_notification_payload_bytes": 940.8505747126437,
+      "minimum_bytes": 780,
+      "maximum_bytes": 948,
+      "basis": "authentic retained historical raw logs; synthetic subscription wrapper; not billed delivery bytes"
+    },
+    "pool_activity": {
+      "samples": 141,
+      "mean_notification_payload_bytes": 1039.099290780142,
+      "minimum_bytes": 913,
+      "maximum_bytes": 1040,
+      "basis": "synthetic ABI-shaped V4 Swap fixture; synthetic subscription wrapper; not billed delivery bytes"
+    }
+  },
+  "retained_block_header_pair": [
+    [
+      41443136,
+      1787231172
+    ],
+    [
+      82886255,
+      1791418430
+    ]
+  ],
+  "block_rate_assumption": 9.897436221985844,
+  "block_rate_is_a_current_measurement": false,
+  "live_activity_density_measured": false,
+  "coefficients": {
+    "graduation_authentication_methods": {
+      "eth_getBlockByNumber": 12,
+      "eth_getLogs": 1,
+      "eth_chainId": 2,
+      "eth_getCode": 5,
+      "eth_getTransactionReceipt": 3,
+      "eth_call": 2,
+      "eth_getBlockByHash": 1
+    },
+    "cold_authentication_cu": 532,
+    "eligible_survivor_execution_quote_cu": 450,
+    "warm_survivor_position_turn": {
+      "physical_http_attempts": 3,
+      "logical_rpc_elements": 7,
+      "response_bytes": 1136,
+      "methods": {
+        "eth_getBlockByNumber": 3,
+        "eth_getCode": 1,
+        "eth_call": 2,
+        "eth_gasPrice": 1
+      },
+      "diagnostic_cu": {
+        "estimated_cu_by_method": {
+          "eth_getBlockByNumber": 60,
+          "eth_getCode": 20,
+          "eth_call": 52,
+          "eth_gasPrice": 20
+        },
+        "estimated_cu": 152,
+        "known_estimated_cu": 152,
+        "unpriced_methods": {},
+        "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+        "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+        "logical_calls": 7,
+        "billing_estimate_only": true
+      },
+      "verified_billed_cu": null,
+      "scope": "native funded step, unchanged head with no economic delta; excludes new swaps and conditional exit/scaling work"
+    },
+    "current_cu_per_attempt_allowance_range": [
+      4000,
+      12000
+    ],
+    "current_allowance_basis": "UNMEASURED replaceable scenario allowance, not a measured or hard upper bound",
+    "forty_block_log_subscription_break_even_bytes_per_second": 371.1538583244691
+  },
+  "interpretation": "Conditional comparable ranges plus named unmeasured additions. Blended ratios are not marginal measured unit costs. Thirty days scales assumed rates, not a five-minute autonomy or billing certification.",
+  "spending_cutoff": null,
+  "ten_million_cu_is_acceptance_gate": false,
+  "provider_requests": 0
+}

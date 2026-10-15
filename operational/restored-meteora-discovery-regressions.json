@@ -1,0 +1,16 @@
+{
+  "historical_source_commit": "a1392c0698deba784e5f31ea16bc527c0765fd86",
+  "historical_path": "tests/lanes/meteora/test_meteora_discovery_scheduler.py",
+  "historical_sha256": "25f1377b70add6938700d26410fdbc5221951f331074c200bf334395f994b8ec",
+  "current_path": "tests/test_meteora_discovery_scheduler.py",
+  "adaptation": "None; original full source byte-for-byte.",
+  "coverage": [
+    "Blocked consumer cannot starve six frozen discovery segments or next census",
+    "Discovery receipt precedes handoff; handoff precedes complete census",
+    "Failed page preserves remaining segment work and explicit pending count",
+    "Late response and exhausted page cannot become successful evidence",
+    "Unexpected producer failure is fail-closed; restart observation dedup scoped to invocation"
+  ],
+  "suite": "OPERATIONAL",
+  "authority": "Offline mocked API and disposable spool only; no strategy economics or market/provider workload."
+}

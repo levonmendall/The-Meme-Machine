@@ -1,0 +1,92 @@
+{
+  "authorization_limit": "Owner standing authorization issue134 effective until revoked; execute only the original individual experiment bounds after focused validation/fresh preflight. No global attempt cap,24h expiry or routine per-run approval. No PAPER service start in this standalone diagnostic.",
+  "completed_result": "NATIVE_REPLAY_CAPABILITY_RESULT_20261015.md",
+  "current_unary_candidate": "2c8168b9d61e820da025956fbe8d4c31ce24ccc6",
+  "cursor": "One common from_slot = contemporaneous HTTP finalized tip minus256, matching current source semantics; record native finalized tip skew and advertised first_available. Abort streams if outside advertised native bounds; do not shift/unset/clamp the cursor.",
+  "limits": {
+    "diagnostic_output_bytes": 1048576,
+    "live_economic_writes": 0,
+    "maximum_messages_per_stream": 64,
+    "maximum_total_delivered_protobuf_bytes": 33554432,
+    "native_memory_accounting": "existing provider budget stream reservation/read/close, not a new ledger; never bypass capacity guards",
+    "per_frame_bytes": 16777216
+  },
+  "maximum_concurrent_subscriptions": 1,
+  "maximum_paper_starts": 0,
+  "maximum_subscription_attempts": 3,
+  "new_stream_driver": "engineering.diagnostics.native_replay_capability_20261015; executed exact5e4728ae2208a90fb027ce951d3a6830f93f18b2",
+  "outcomes": {
+    "all_forms_reject_despite_advertised_range": "Provider range alone is insufficient; request backend replay/cursor/skip-slot contract and stop. No cursor shift, broader retry or replacement architecture.",
+    "all_required_forms_accept": "Current request forms are accepted in sampled window only; historical failure not reproduced, no capacity/completeness/held-protection or correction claim.",
+    "changed_commitment_accepts": "Commitment-dependent behavior is a supported candidate explanation; load balancing remains a confound. Seek provider contract before changing production finality.",
+    "deadline_or_no_matching_messages": "INCONCLUSIVE for evidence delivery; no coverage or throughput assertion; no unchanged repeat.",
+    "one_required_form_rejects": "Identify exact form/status/details and compare one controlled commitment discriminator; do not attribute filter/commitment causally without backend equivalence."
+  },
+  "permitted_writes_if_separately_authorized": [
+    "Existing provider accounting and shared admission only",
+    "New private diagnostic output/terminal result"
+  ],
+  "prefer_provider_clarification": "Ask the precise sanitized contract question in NATIVE_REPLAY_CONTRACT_DECISION_20261015.md before requesting further streaming when possible; no support message has been sent.",
+  "preflight": [
+    "PAPER stopped/disabled/Restart=no, funding closed",
+    "No existing native/market actor or competing observation",
+    "Exact existing endpoint and credential binding, unchanged 2-RPS shared admission, durable usage and native-buffer accounting",
+    "Existing volume/reserve protections; no canonical/financial/history owner is constructed",
+    "New standalone driver must pass affected network-blocked failure/accounting tests before any separately authorized execution"
+  ],
+  "proposed_time_bounds_seconds": {
+    "absolute_including_close": 45,
+    "stream_close_each": 1,
+    "stream_duration_after_send_each": 3,
+    "unary_deadline_each": 5
+  },
+  "proposed_unary_reads": [
+    {
+      "maximum": 1,
+      "method": "geyser.Geyser/SubscribeReplayInfo",
+      "published_cu_each": 10
+    },
+    {
+      "commitment": "FINALIZED",
+      "maximum": 1,
+      "method": "geyser.Geyser/GetSlot",
+      "published_cu_each": 10
+    },
+    {
+      "commitment": "finalized",
+      "frozen_model_cu_each": 20,
+      "maximum": 1,
+      "method": "getSlot",
+      "transport": "existing authenticated Solana HTTP"
+    }
+  ],
+  "question": "Does the bound endpoint accept the exact required FINALIZED control and Pump account-scout replay combinations at a contemporaneous 256-slot overlap, and is any rejection specific to commitment/filter or shared backend replay state?",
+  "same_node_limit": "Reuse one TLS channel, capture safe backend/request identifiers if supplied; same channel/istio-envoy is not proof of same replay node.",
+  "schema": 1,
+  "sequential_requests": [
+    {
+      "maximum_calls": 1,
+      "name": "control_finalized",
+      "request": "Exact control_stream protobuf: blocks_meta b, slots f/filter_by_commitment=true, commitment FINALIZED, common from_slot"
+    },
+    {
+      "maximum_calls": 1,
+      "name": "scout_finalized",
+      "request": "Exact scout_request() with only active Pump BondingCurve owner/discriminator, 49-byte slice, commitment FINALIZED, common from_slot; Meteora/Ramses remain paused"
+    },
+    {
+      "maximum_calls": 1,
+      "name": "conditional_commitment_discriminator",
+      "request": "Repeat that one rejected form once with only commitment CONFIRMED changed, same common from_slot; diagnostic only, no authority or production commitment changes",
+      "when": "Only if one preceding exact form receives INVALID_ARGUMENT semantic rejection, required methods/identity/recorder remain available and no provider/resource safety stop occurred; UNIMPLEMENTED, throttling and transport failures stop instead"
+    }
+  ],
+  "status": "COMPLETED_ORIGINAL_BOUNDARY_NO_UNCHANGED_REPEAT",
+  "stops": [
+    "Any existing provider/resource safety failure",
+    "Transport/rejection evidence cannot be retained",
+    "Required method unsupported or identity unavailable",
+    "First terminal semantic rejection ends that stream; no reconnect or automatic retry",
+    "Absolute deadline or byte/message ceiling; incomplete data remains incomplete"
+  ]
+}

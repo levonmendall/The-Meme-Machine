@@ -1,0 +1,107 @@
+{
+  "PONS_FINALIZATION": "NOT_READY",
+  "acceptance_campaigns_started": [],
+  "branch": "engineering/pons-finalization-20261007",
+  "classification": "D: PONS_NOT_READY",
+  "criteria": {
+    "PONS_CAPITAL_INDEPENDENT_QUALIFICATION": {
+      "reason": "Whole Current/Survivor vectors identical across four real sleeve states; full/zero/partial quote-budget independence.",
+      "result": "PASS_OFFLINE"
+    },
+    "PONS_CURRENT_EVIDENCE_COMPLETENESS": {
+      "reason": "Canonical completeness/order tests pass; raw archive census and real deadline coverage absent.",
+      "result": "NOT_PROVEN"
+    },
+    "PONS_CURRENT_TO_SURVIVOR_PRESERVATION": {
+      "reason": "Current reject/exit/cash/provider/restart/retirement never supplies Survivor strategy authority.",
+      "result": "PASS_OFFLINE"
+    },
+    "PONS_EXECUTION_ECONOMICS": {
+      "reason": "Real delayed executable fills/slippage/gas/capacity chronology absent.",
+      "result": "NOT_PROVEN"
+    },
+    "PONS_NON_LOSSY_RETENTION": {
+      "reason": "4096 identities per strategy; 1025 fair history/qualification/restart domain.",
+      "result": "PASS_OFFLINE"
+    },
+    "PONS_POSITION_PRIORITY": {
+      "reason": "Depth257 position admitted with zero wait and 256 retained candidate tickets; real deadline starvation unproved.",
+      "result": "PASS_OFFLINE"
+    },
+    "PONS_PROVIDER_EFFICIENCY": {
+      "reason": "Reuse and batching engineering tests pass; actual before/after efficiency and billing unmeasurable.",
+      "result": "NOT_PROVEN"
+    },
+    "PONS_PROVIDER_FAIRNESS": {
+      "reason": "Offline fair-work/queue/governor tests pass; actual simultaneous provider latency/deadlines absent.",
+      "result": "NOT_PROVEN"
+    },
+    "PONS_REACTIVATION": {
+      "reason": "Fresh observation and canonical regraduation can reactivate without native rebasing.",
+      "result": "PASS_OFFLINE"
+    },
+    "PONS_RESTART_RECOVERY": {
+      "reason": "Candidate/history/controller/harvest/HWM/bridge/add/reopen/process-death engineering cases; operational acceptance not started.",
+      "result": "PASS_OFFLINE"
+    },
+    "PONS_RIGHT_TAIL_CAPTURE_AUDIT": {
+      "reason": "Frozen mechanics pass hypothetical paths; real historical winner capture unmeasurable.",
+      "result": "NOT_PROVEN"
+    },
+    "PONS_SURVIVOR_EVIDENCE_COMPLETENESS": {
+      "reason": "Incremental/reorg/atomic/dense-history tests pass; complete historical Survivor trace absent.",
+      "result": "NOT_PROVEN"
+    },
+    "PONS_TARGET_MARKET_RECALL": {
+      "reason": "No independent market census/recall denominator.",
+      "result": "NOT_PROVEN"
+    }
+  },
+  "current_strategy": {
+    "hash": "888904d0e58865f1a701560a5be8386f57d88f66a0c25d7094c994cafa7f448f",
+    "revision": "profitability-v1-profit-protection-v2-execution-capacity-v1-moderate-admission-v1-operational-nine-v1",
+    "version": "pons-selective-continuation-v1"
+  },
+  "deployed": false,
+  "economics_unchanged": true,
+  "final_commit_resolution": "The final response identifies the containing branch commit/tree after artifacts are committed; an artifact does not embed its own hash.",
+  "market_provider_calls": 0,
+  "merged": false,
+  "missing_performance": {
+    "average_executable_roundtrip_cost": "UNMEASURABLE",
+    "capital_utilization": "UNMEASURABLE",
+    "current_entries": "UNMEASURABLE",
+    "losses": "UNMEASURABLE",
+    "marked_pnl": "UNMEASURABLE",
+    "max_drawdown": "UNMEASURABLE",
+    "median_hold": "UNMEASURABLE",
+    "peak_deployment": "UNMEASURABLE",
+    "profit_factor": "UNMEASURABLE",
+    "qualified_but_unfunded": "UNMEASURABLE",
+    "realized_pnl": "UNMEASURABLE",
+    "right_tail_contribution": "UNMEASURABLE",
+    "staged_add_contribution": "UNMEASURABLE",
+    "survivor_entries": "UNMEASURABLE",
+    "survivor_qualifiers": "UNMEASURABLE",
+    "win_rate": "UNMEASURABLE",
+    "wins": "UNMEASURABLE"
+  },
+  "protected_lanes_unchanged": true,
+  "schema": "pons-finalization-status-v1",
+  "shared_capital_isolated": true,
+  "source": {
+    "archive_commit": "d1fc161401869522db9abbf50e3f6073e80a4374",
+    "archived_strategy_commit": "3de3d376847531ccb90e260cfcc96c37587ccb23",
+    "fixture_path": "certification/evidence/robinhood-runs-355-368.json.gz",
+    "fixture_sha256": "1be70cb9f53bfc9bce039f6913813a6d2a0a21dde39b6b10bf95b9123f47597f",
+    "fixture_source": "GitHub retained complete-review artifacts; exact values, no provider calls",
+    "operational_commit": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+    "operational_tree": "65c2f85f1c67676372ab2b449499d76a17bb224f",
+    "reference_offline_replay": "certification/robinhood/replay.py",
+    "reference_replay_note": "Read for fixture semantics; this audit independently reconstructs market vectors and never treats stored decisions as labels."
+  },
+  "survivor_strategy": {
+    "hash": "ed17402a75470801fda47877b6b1f3b1266793b7e0750b7a7cd821f327541e5f",
+    "version": "pons-postgrad-survivor-momentum-v1"
+  }
+}

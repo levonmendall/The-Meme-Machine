@@ -1,0 +1,11 @@
+# Maintenance orphan synopsis compatibility
+
+The only new durable structure is `maintenance_orphans`, a disposable index of the existing address/chunk/archive orphan predicates. It has no portfolio, epoch, position, reservation, journal or provider identity authority. Startup completes reconstruction before evidence source/consumer admission.
+
+The pre-repair housekeeping predicates scan live address dictionaries. An offline 50,000-live-address replay against `da197b1e64dea53a4e6ae67eeb63b4af5600daa4` reproduces `maintenance_observation_vm_bound`; current indexed witnesses satisfy the unchanged 250,000-step observation budget. This proves the engineering defect. Historical top-level `EvidenceUnavailable` logs omitted reason codes, so this replay does not fabricate an attribution for every original service failure.
+
+No prior orphan schema: clear any incomplete disposable synopsis, reconstruct in committed 512-key batches, then atomically install triggers and completion markers. Restart of an interrupted install clears partial witnesses and reconstructs again. A completed v2 installation verifies exact trigger definitions before trust. A v1 installation verifies its old trigger definitions and reconstructs because previously missing reference-update triggers could have left stale witnesses. Unrecognized trigger drift fails closed.
+
+The older address-reference primary-key migration atomically removes dependent orphan-address triggers and invalidates synopsis markers before replacing the table; reconstruction restores correct witnesses after the storage migration. Every source record, address key/reference, hot chunk/reference, archive, interest and cursor is preserved exactly in the upgrade regressions. No operational PAPER database was migrated during offline repair.
+
+Permanent tests: `tests.test_orphan_schema_compatibility`, `tests.test_maintenance_integrity`, and the legacy-address migration in `tests.test_retention_progress`. Tests cover committed-fact identity, restart idempotence, interrupted trigger installation, stale-v1 witness reconstruction, trigger drift, reference-delete rollback and bounded observation. Production maintenance integration is exercised by `tests.test_production_maintenance_arbiter` with mocked providers and temporary state.

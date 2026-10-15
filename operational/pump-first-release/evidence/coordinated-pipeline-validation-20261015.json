@@ -1,0 +1,303 @@
+{
+  "acceptance_minutes": 0,
+  "artifacts": [
+    {
+      "bytes": 25816,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_SCOUT_FACTS_20261015.json",
+      "sha256": "eb2a76fa3dfb771c865604796061aad61a7498b52370946950e919ae7b08107c"
+    },
+    {
+      "bytes": 4121,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/coordinated_scout_comparison_20261015.py",
+      "sha256": "be942ad66f2b37cdd050bec697cc1ba121b14c1543a833d7339bdd7e93707c66"
+    },
+    {
+      "bytes": 3453,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_SCOUT_REFERENCE_COMPARISON_20261015.json",
+      "sha256": "f5217cd81b5031ee20a62af17510eff6978bd818b6cf6d27d250870d076b1131"
+    },
+    {
+      "bytes": 1115,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_SCOUT_COMPARISON_20261015.json",
+      "sha256": "cbf0dabb266d1ef22e6e50b04c8b8a2f3a6725c2fdac463729d9899ed4196eec"
+    },
+    {
+      "bytes": 16742,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_MAINTENANCE_FOCUSED_20261015.log",
+      "sha256": "61abfa486bc2a034f473a5b0f2cc68d5d148137f72091006d63343067e8d4633"
+    },
+    {
+      "bytes": 12254,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PONS_FOCUSED_20261015.log",
+      "sha256": "fb864e341d9cde4be5c5f6615e69fcd6a494ecbc2b414749cfee79520ad0332c"
+    },
+    {
+      "bytes": 11901,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PONS_GUARD_CORRECTION_20261015.log",
+      "sha256": "f5e9ff3d9353985b51c26d0e52e71cda4e7a8a72ca9eaabb7880966e74d99e3f"
+    },
+    {
+      "bytes": 203,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PONS_GUARD_FINAL_20261015.log",
+      "sha256": "d95a4a9b968cd961406a4905e56ee478e3ae9a9e1ec4e49f9b152586d9f1ea7a"
+    },
+    {
+      "bytes": 1102,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PONS_CONTROLLER_INTEGRATION_20261015.log",
+      "sha256": "63b133695de11911527b65e37451776d0275a15b73d8e03bcc147beaf2f8c06f"
+    },
+    {
+      "bytes": 1443,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_DRAIN_FOCUSED_20261015.log",
+      "sha256": "f8ad18314057fb9ae36705e646625c1d2d988bcb960bedb5bc6952c75df71259"
+    },
+    {
+      "bytes": 1726,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_OWNER_DRAIN_FINAL_20261015.log",
+      "sha256": "013f46a576c00b92d54105082502773f8728d79b6b30833f149ee8c419e69970"
+    },
+    {
+      "bytes": 282,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_ARCHIVE_CORRECTION_20261015.log",
+      "sha256": "44fbe9f4fcdc42c090ea856943d0f1c8712c4ef87e77b227e5f9032b1a0f0022"
+    },
+    {
+      "bytes": 30241,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_INTEGRATION_20261015.log",
+      "sha256": "cf35c93961cf54a60342158ccdc03c94ea452441f3708a5851bae9075f3e4566"
+    },
+    {
+      "bytes": 9987,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_EXACT_CANDIDATE_INTEGRATION_20261015.log",
+      "sha256": "dbc20c5271a77320500fe554c247a3822b902cf50d82a17332b558ead06bacb9"
+    },
+    {
+      "bytes": 3731057,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_PREFLIGHT_20261015.json",
+      "sha256": "fd80efff5a607583e70c903e4838ca3017522a244dd1f4b0f28d0056aea26fc8"
+    },
+    {
+      "bytes": 38471,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/coordinated_pipeline_preflight_v1_20261015.py",
+      "sha256": "76ca417963ff110b15d30e6fea6fc51329a863f1e27045a6210505dc191cd67f"
+    },
+    {
+      "bytes": 38492,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/coordinated_pipeline_preflight_20261015.py",
+      "sha256": "94048402fabfcb19dedfb44e5d6d6599136986a41d57bae17830ac0d00672dcb"
+    }
+  ],
+  "branch": "repair/consolidated-startup-followup-20261014",
+  "executable": "a793bd580593a87d17a0ab6e5e8581943bec6886",
+  "failures_preserved": [
+    "Initial92Pons cases:5source-guard nesting failures; corrected successor5passed. Intermediate5guard failures preserved.",
+    "Initial9drain cases:1test expected incorrect unresolvedgap boundary; exactunsealed-slot boundary corrected and final17casespassed.",
+    "Sharedcapacity intermediate38cases:1in-progress standalone-worker fixture error; corrected and finalsource_sharedmodulepassed.",
+    "First new preflight verifier rejected Pons already_exited event while independent original exit0 proof is valid. No service/provider dispatch followed."
+  ],
+  "operating_state": "PAPER inactive/disabled/Restart=no and fundingclosed. No operational writes or market-provider calls yet in this correction phase.",
+  "performance": {
+    "archive": {
+      "exact_window_checks": 8,
+      "examined": 41,
+      "reuses": 33
+    },
+    "maintenance": {
+      "reads": [
+        118,
+        102
+      ],
+      "scopes": 2
+    },
+    "pons_fixture": {
+      "BEGIN_statements": [
+        195,
+        68
+      ],
+      "SELECT_statements": [
+        1134,
+        470
+      ],
+      "component_cpu_seconds": [
+        0.101127704,
+        0.052933165
+      ],
+      "component_wall_seconds": [
+        0.181424117,
+        0.100414596
+      ],
+      "events": 32,
+      "maintenance": [
+        33,
+        1
+      ],
+      "nominations": [
+        96,
+        32
+      ],
+      "scope": "Actual broker/scout/plane fixture with SQL trace; not authentic market throughput or held-position capacity.",
+      "synthetic": true
+    },
+    "scout": {
+      "authoritative_writes": 0,
+      "exact_rowid_state_equal": true,
+      "fixture_sha256": "eb2a76fa3dfb771c865604796061aad61a7498b52370946950e919ae7b08107c",
+      "provider_calls": 0,
+      "reference": "f52be1e134b3471470d47c181df63c71192cf50c",
+      "results": {
+        "corrected": [
+          {
+            "commits": 1,
+            "pair": 0,
+            "reads": 3,
+            "snapshot_sha256": "89e69bbbc963a51d6a39f6817986060073df3dab510f10d5bb0a4796a8cbd2e7",
+            "statements": 481,
+            "thread_cpu_seconds": 0.01813170799999997,
+            "traced": true,
+            "wall_seconds": 0.019046521047130227
+          },
+          {
+            "commits": null,
+            "pair": 1,
+            "reads": null,
+            "snapshot_sha256": "89e69bbbc963a51d6a39f6817986060073df3dab510f10d5bb0a4796a8cbd2e7",
+            "statements": null,
+            "thread_cpu_seconds": 0.01568770499999994,
+            "traced": false,
+            "wall_seconds": 0.016646496020257473
+          },
+          {
+            "commits": null,
+            "pair": 2,
+            "reads": null,
+            "snapshot_sha256": "89e69bbbc963a51d6a39f6817986060073df3dab510f10d5bb0a4796a8cbd2e7",
+            "statements": null,
+            "thread_cpu_seconds": 0.01540051600000003,
+            "traced": false,
+            "wall_seconds": 0.016448467038571835
+          },
+          {
+            "commits": null,
+            "pair": 3,
+            "reads": null,
+            "snapshot_sha256": "89e69bbbc963a51d6a39f6817986060073df3dab510f10d5bb0a4796a8cbd2e7",
+            "statements": null,
+            "thread_cpu_seconds": 0.015265218000000136,
+            "traced": false,
+            "wall_seconds": 0.01601221412420273
+          }
+        ],
+        "reference": [
+          {
+            "commits": 1,
+            "pair": 0,
+            "reads": 586,
+            "snapshot_sha256": "89e69bbbc963a51d6a39f6817986060073df3dab510f10d5bb0a4796a8cbd2e7",
+            "statements": 1064,
+            "thread_cpu_seconds": 0.02618928699999995,
+            "traced": true,
+            "wall_seconds": 0.027055982965976
+          },
+          {
+            "commits": null,
+            "pair": 1,
+            "reads": null,
+            "snapshot_sha256": "89e69bbbc963a51d6a39f6817986060073df3dab510f10d5bb0a4796a8cbd2e7",
+            "statements": null,
+            "thread_cpu_seconds": 0.021919876999999977,
+            "traced": false,
+            "wall_seconds": 0.02271654293872416
+          },
+          {
+            "commits": null,
+            "pair": 2,
+            "reads": null,
+            "snapshot_sha256": "89e69bbbc963a51d6a39f6817986060073df3dab510f10d5bb0a4796a8cbd2e7",
+            "statements": null,
+            "thread_cpu_seconds": 0.023301357999999994,
+            "traced": false,
+            "wall_seconds": 0.024313972098752856
+          },
+          {
+            "commits": null,
+            "pair": 3,
+            "reads": null,
+            "snapshot_sha256": "89e69bbbc963a51d6a39f6817986060073df3dab510f10d5bb0a4796a8cbd2e7",
+            "statements": null,
+            "thread_cpu_seconds": 0.022147306000000144,
+            "traced": false,
+            "wall_seconds": 0.02310950285755098
+          }
+        ]
+      },
+      "scope": "64 authentic retained scout projections inserted once per independent disposable store. Three untraced alternating pairs plus one separately traced pair; not raw market replay, sustained throughput, concurrent scheduling proof or a whole-machine speedup.",
+      "summary": {
+        "corrected": {
+          "median_cpu_seconds": 0.01540051600000003,
+          "median_wall_seconds": 0.016448467038571835
+        },
+        "reference": {
+          "median_cpu_seconds": 0.022147306000000144,
+          "median_wall_seconds": 0.02310950285755098
+        }
+      }
+    },
+    "whole_machine_improvement": "NOT_ESTABLISHED"
+  },
+  "pr": 133,
+  "reference": "f52be1e134b3471470d47c181df63c71192cf50c",
+  "remaining": [
+    "Live capacity/current-generation historyACKpublication not demonstrated.",
+    "Unsealed retained CONTROL session may require existing repair beyond replay; no falsecoverage.",
+    "Original BUSY/READONLY and replay-provider contract remain independently unresolved.",
+    "Pons USD/stale acquisition and held3/5second protection not established.",
+    "Backup currentcopy+reserve shortfall7.752GB minimum excludes otherstate/WAL/restore; wholeprocessfreeze protection compatibility unresolved."
+  ],
+  "scope": "Coordinated software correction and focused offline evidence; guarded current-market verification pending fresh preflight.",
+  "strategies": "Six opportunity-access-v1 and nine original economics/volume-quality unchanged; existing exact source guards retained.",
+  "tests": [
+    {
+      "cases": 230,
+      "passed": 230,
+      "scope": "Exact candidate startup/drain/replay/collector/source-owner integration with MM_OPERATION_COST_DIAGNOSTICS=1",
+      "seconds": 34.214
+    },
+    {
+      "cases": 361,
+      "disposition": "Handled-error rethrow and archive cursor-key shadow corrected; no-owner census fixture aligned. Affected paths passed final230 and focused2; original failure retained.",
+      "errors": 3,
+      "passed": 358,
+      "scope": "Earlier combined dependency run"
+    },
+    {
+      "cases": 68,
+      "passed": 68,
+      "scope": "Maintenance/retention invariants",
+      "seconds": 86.383
+    },
+    {
+      "cases": 115,
+      "passed": 115,
+      "scope": "Pons/controller integration",
+      "seconds": 16.666
+    },
+    {
+      "cases": 40,
+      "passed": 40,
+      "scope": "Focused owner/drain before final3race corrections",
+      "seconds": 7.649
+    },
+    {
+      "cases": 5,
+      "passed": 5,
+      "scope": "Final exact reversible policy/source guards, affected5",
+      "seconds": 7.578
+    },
+    {
+      "cases": 2,
+      "passed": 2,
+      "scope": "Archive mutation/new-pin/cursor regression after correction",
+      "seconds": 0.422
+    }
+  ]
+}

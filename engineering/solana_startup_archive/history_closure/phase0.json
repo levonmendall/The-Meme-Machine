@@ -1,0 +1,22 @@
+{
+  "verified_UTC": "2026-10-07T13:26:24.893596+00:00",
+  "PR": 121,
+  "head": "c8a980b69ca1d26a1d72e8554bc32fc9f73e8932",
+  "tree": "348ad500e397f53e3eff33c6412c138a6d7ceb2d",
+  "operational_base": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+  "draft": true,
+  "open": true,
+  "merged": false,
+  "source_capture": "final-shared14",
+  "canonical_snapshot_outside_git": "/tmp/mm-cert-cfv1fxrl/canonical.sqlite",
+  "endpoint_identity": "8f3feda9d10baa64d74b5ecb3a97cfa48af379982666f93a425e537668a51749",
+  "worker_count": 2,
+  "archive_workers": 8,
+  "provider_RPC_limit": 20,
+  "provider_queue": 256,
+  "owner_queue": 64,
+  "owner_urgent_reserved": 8,
+  "filter_entry_limit": 50,
+  "protected_services_started": false,
+  "no_provider_access_before_phase7_tests": true
+}

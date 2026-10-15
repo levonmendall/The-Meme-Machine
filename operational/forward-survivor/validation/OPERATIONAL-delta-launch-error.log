@@ -1,0 +1,60 @@
+test_disconnected_client_commit_retry_and_service_survival (tests.test_run369_runtime.Run369IPCTests.test_disconnected_client_commit_retry_and_service_survival) ... ERROR
+test_response_after_old_250ms_limit_is_acknowledged_once (tests.test_run369_runtime.Run369IPCTests.test_response_after_old_250ms_limit_is_acknowledged_once) ... ERROR
+test_eligible_reader_and_all_scopes_progress_under_source_pressure (tests.test_run381_archive_scheduling.BoundedArchiveRetirementTests.test_eligible_reader_and_all_scopes_progress_under_source_pressure) ... ok
+
+======================================================================
+ERROR: test_disconnected_client_commit_retry_and_service_survival (tests.test_run369_runtime.Run369IPCTests.test_disconnected_client_commit_retry_and_service_survival)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/tests/test_run369_runtime.py", line 297, in test_disconnected_client_commit_retry_and_service_survival
+    await asyncio.to_thread(disconnect);await asyncio.sleep(.2)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/tests/test_run369_runtime.py", line 296, in disconnect
+    stream.connect(str(path)+'.sock');stream.sendall((json.dumps(request)+'\n').encode())
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/tests/evidence_ipc_harness.py", line 26, in connect
+    if 'callback' not in state:raise ConnectionRefusedError()
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/tests/test_run369_runtime.py", line 307, in test_disconnected_client_commit_retry_and_service_survival
+    finally:stop.set();await task;loop.set_exception_handler(previous)
+                       ^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/meme_machine/solana_evidence_service.py", line 798, in serve
+    await asyncio.gather(*(asyncio.wrap_future(decoder_pool.submit(source_decoder_probe))
+concurrent.futures.process.BrokenProcessPool: A process in the process pool was terminated abruptly while the future was running or pending.
+
+======================================================================
+ERROR: test_response_after_old_250ms_limit_is_acknowledged_once (tests.test_run369_runtime.Run369IPCTests.test_response_after_old_250ms_limit_is_acknowledged_once)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/root/Documents/Codex/2026-10-08/the-meme-machine-pons-provider-economics/repo/tests/test_run369_runtime.py", line 278, in test_response_after_old_250ms_limit_is_acknowledged_once
+    finally: stop.set(); await task
+                         ^^^^^^^^^^
+concurrent.futures.process.BrokenProcessPool: A process in the process pool was terminated abruptly while the future was running or pending.
+
+----------------------------------------------------------------------
+Ran 3 tests in 10.970s
+
+FAILED (errors=2)

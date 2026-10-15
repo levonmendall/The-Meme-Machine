@@ -1,0 +1,7 @@
+STORAGE WARNING: root 75.3% used; 11.71 GiB available; nonessential bulk operations block at 85.0%.
+test_existing_survivor_workers_publish_pre_monitor_provider_failure_without_new_worker (tests.test_exceptional_winner_candidate.NativeSurvivorTests.test_existing_survivor_workers_publish_pre_monitor_provider_failure_without_new_worker) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.132s
+
+OK

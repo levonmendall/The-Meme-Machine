@@ -1,0 +1,9 @@
+{
+  "parent": "6575c9c7b270b760c418a9ebdac636178d8afc54",
+  "cause": "Authenticated combined observation 1791804166.8823547 terminated Pons at the synchronous 30-second Survivor.prime wait. Current management must continue while the owned recovery task waits.",
+  "change": "Continuous campaign schedules the existing Worker.tick(admit=False); bounded campaigns retain prime. Replay/handoff readiness remains false until the actual owned task completes.",
+  "safety": "No funding, evidence, quotation, capital, risk-policy, monitoring interval or resource-limit change.",
+  "FAST": {"tests": 74, "seconds": 15.904, "result": "PASS", "log": "/tmp/pons-nonblocking-recovery-fast.log"},
+  "OPERATIONAL": {"tests": 15, "seconds": 1.712, "result": "PASS", "log": "/tmp/pons-nonblocking-recovery-operational-fixed.log"},
+  "provider_validation": "Pending successor combined observation; previous failed receipt and provider counters preserved. Not a full protection or continuous acceptance pass."
+}

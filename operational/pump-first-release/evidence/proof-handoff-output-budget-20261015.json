@@ -1,0 +1,29 @@
+{
+  "at": "2026-10-15T07:46:39.047372+00:00",
+  "candidate": "76785b2a3e814ad456f3ad2d22befdcd68cb8a93",
+  "full_samples": 360,
+  "full_samples_observed": 174,
+  "guard_bytes": 1024,
+  "guard_samples": 1440,
+  "limitations": [
+    "Retained shape projection, not universal bound on future population or number of distinct counter keys.",
+    "Placeholder serialization values are not source events, evidence, or capacity proof.",
+    "Original32MiB output,64KiB terminal reservations,5s cadence and runtime loss/resource stops unchanged."
+  ],
+  "maximum_observed_full_bytes": 79231,
+  "metrics_bound_bytes": 33423360,
+  "normalized_base_bytes": 79231,
+  "projected_full_bytes": 86850,
+  "projected_metrics_bytes": 32740560,
+  "remaining_bytes": 682800,
+  "retained_metrics": "/var/lib/meme-machine-diagnostics/20261015-owner-retention-c281058e-070215/metrics.jsonl",
+  "retained_metrics_sha256": "8c8d38f62e2e2fe9eb385ef1f4b22a88035e982b3c4ba0899cdbe8560486b0e5",
+  "schema": 1,
+  "status": "OFFLINE_SERIALIZATION_PROJECTION_NOT_RUNTIME_PASS",
+  "transforms": [
+    "16 Pons thread records with20digit integers and80char wait channels",
+    "two program frontier rows with64bit slots and long finite float timestamps",
+    "released startup and two nonempty proof checkpoint entries"
+  ],
+  "within_bound": true
+}

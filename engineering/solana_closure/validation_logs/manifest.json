@@ -1,0 +1,38 @@
+{
+  "focused-final.log": {
+    "raw_bytes": 223,
+    "raw_sha256": "99285a27f44b40e1ea304f8fe588441c02c9743cfea443e1e8006caf8655cab0",
+    "stored_bytes": 46,
+    "stored_sha256": "d3841ee3fb5404c929da2544cc30c85b447e2c39f18a4941e371e665337b654b"
+  },
+  "FAST.log": {
+    "raw_bytes": 25579,
+    "raw_sha256": "8b2eeaf9e904dccfeb838580f8b75b5d62b7620d6ac7a8e397e5c54fba9b7465",
+    "stored_bytes": 1399,
+    "stored_sha256": "fa15210d7e3008fdc72f0f146ce898b43914192fea3abd5ef40bb1ae35bd280c"
+  },
+  "affected-OPERATIONAL.log": {
+    "raw_bytes": 498,
+    "raw_sha256": "5059861cf863ee8e37e3bb10e1488c8f12a2e52ba3caf4420b5ce347b0ea09d8",
+    "stored_bytes": 236,
+    "stored_sha256": "5355689330659652b3ba6485089f8bc9ef0586f7ba226a61edf20f640b6e1d71"
+  },
+  "OPERATIONAL.log": {
+    "raw_bytes": 38702,
+    "raw_sha256": "db122ab62333e080ac19401eab0dd97f7e1e96c022a6739e5003c8523a6b2a46",
+    "stored_bytes": 3242,
+    "stored_sha256": "c071ece99fb928cdf98f271453b3ed63e4c8947e5f73640f01547c2bec1e3ed0"
+  },
+  "gate1-retirement-affected.log": {
+    "raw_bytes": 179,
+    "raw_sha256": "42fd0c8c8ed76dd702ab4c7d38b043e1aac150bd84a242901a54ffaa029b100d",
+    "stored_bytes": 45,
+    "stored_sha256": "450eb9a11148aa4deb3345ff44a190b03e3f89917ea042f2e227041097c3094d"
+  },
+  "portable-measurements.log": {
+    "raw_bytes": 125,
+    "raw_sha256": "3c87f020e2ec7a67ecd5998f39a24ed95291ffd8fa9305cd3edeb3e837ccb7c7",
+    "stored_bytes": 116,
+    "stored_sha256": "82f74787b1179af4e62eedfe78aa6fe660c4e29471cede4811d42ffc5631a663"
+  }
+}

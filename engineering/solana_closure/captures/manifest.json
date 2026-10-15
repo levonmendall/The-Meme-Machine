@@ -1,0 +1,86 @@
+{
+  "delivery-20261007T023339Z/scout.frames": {
+    "raw_bytes": 602113,
+    "raw_sha256": "ca01ab37841957caf0141b213c3045f9c571f20b98d15cd0972eded69c6f41a4",
+    "stored_bytes": 207184,
+    "stored_sha256": "8a9e17d444acd4e25d63b78da5e9f648672c6fb3c545ebab29085ee3a38c3b2f",
+    "provenance": "Preserved authenticated read-only Alchemy provider capture 2026-10-07; filenames identify original UTC windows."
+  },
+  "routes-20261007T014803Z/raw.frames": {
+    "raw_bytes": 10476322,
+    "raw_sha256": "b57aaebae64679eaf3a8cd587f0c7ce3c8dd7df022a5e1d91d7ef52b1927df28",
+    "stored_bytes": 2481577,
+    "stored_sha256": "08f7994a41f4407950c3137f2b962f4c4a54cc7fa6b69a2cb91bfcfb63d05517",
+    "provenance": "Preserved authenticated read-only Alchemy provider capture 2026-10-07; filenames identify original UTC windows."
+  },
+  "routes-20261007T014803Z/bodies.json": {
+    "raw_bytes": 200254,
+    "raw_sha256": "12fe2b3e5c9b5117839a16ca789c52dfd96c47422dd34c7949b4ea5b6bc1b4ef",
+    "stored_bytes": 85880,
+    "stored_sha256": "fe5357bcbc7a6b16a5568ff8d6954c1d508df6a8cafade4bbede76f8f73afebc",
+    "provenance": "Preserved authenticated read-only Alchemy provider capture 2026-10-07; filenames identify original UTC windows."
+  },
+  "routes-20261007T014803Z/statuses.json": {
+    "raw_bytes": 337614,
+    "raw_sha256": "338e8c81a9f8c0f442eb04a1014a7f9a747d91f1f364d379c8f4ce143690ac6a",
+    "stored_bytes": 90678,
+    "stored_sha256": "507becc8f4e3114057b8bad1561cfe62d4ca3c1c01a879577ebeb0e95871047f",
+    "provenance": "Preserved authenticated read-only Alchemy provider capture 2026-10-07; filenames identify original UTC windows."
+  },
+  "pump-handoff-20261007T010733Z/backfill-completion.json": {
+    "raw_bytes": 1538025,
+    "raw_sha256": "32abdc01ca4bd095eb672190e0587cc9ec8c349f800bb306376b2a68f64b6980",
+    "stored_bytes": 180942,
+    "stored_sha256": "a0c6f335e9ac2180e9758d6e9dd070b12dd40b5eca54cc21d45c8ea84ec72ef7",
+    "provenance": "Preserved authenticated read-only Alchemy provider capture 2026-10-07; filenames identify original UTC windows."
+  },
+  "warming-20261007T041321Z/rpc.ndjson": {
+    "raw_bytes": 626387,
+    "raw_sha256": "fa2ffea4598d0965c4aa8088d3d341792330f42c8004d017b24b07abb6ca661f",
+    "stored_bytes": 122341,
+    "stored_sha256": "a6cd00b6848fbab58880077245278a2da81a0751a1f500a1dc204bfa8d52c067",
+    "provenance": "This task: bounded read-only native evidence probes. Monetary positions were never instantiated."
+  },
+  "warming-20261007T041321Z/result.json": {
+    "raw_bytes": 7524,
+    "raw_sha256": "a673415070721914f46852d7a44746893dd1854fa8bd660cdf6aa741f4351329",
+    "stored_bytes": 2072,
+    "stored_sha256": "46c13cb99ed83809e7f472808de7d66aad3b6977a906c68ac83a8f9e3a1b588d",
+    "provenance": "This task: bounded read-only native evidence probes. Monetary positions were never instantiated."
+  },
+  "warming-20261007T043221Z/rpc.ndjson": {
+    "raw_bytes": 69201,
+    "raw_sha256": "6d7035387cbdbcd022894f7574eee100a26b70ce8453aa3139ab781f397b453e",
+    "stored_bytes": 5125,
+    "stored_sha256": "bfc1c7eb3d9101cff9ad1d3227da5e7d7a16a907e8a6435bbd56060e3ee3f09b",
+    "provenance": "This task: bounded read-only native evidence probes. Monetary positions were never instantiated."
+  },
+  "warming-20261007T043221Z/position-result.json": {
+    "raw_bytes": 4359,
+    "raw_sha256": "c1211938987d8281192add2cba8db4b87d505a3b5ef762f16ad551e650502164",
+    "stored_bytes": 968,
+    "stored_sha256": "5c5ce9e2bdc8cdea09f9d1330e4bbe47d353f84c4b5fd6dd25aa73959cf86330",
+    "provenance": "This task: bounded read-only native evidence probes. Monetary positions were never instantiated."
+  },
+  "warming-20261007T044454Z/rpc.ndjson": {
+    "raw_bytes": 2485,
+    "raw_sha256": "94f5ac674f0eaefe85328eb3d100d5207f841ba7f7c657f4342e4b25882dea67",
+    "stored_bytes": 552,
+    "stored_sha256": "8d0aecf61647a707c04042407168255d41bb6996f725820dc71ad8ae990c17d6",
+    "provenance": "This task: bounded read-only native evidence probes. Monetary positions were never instantiated."
+  },
+  "warming-20261007T044454Z/position-transport.json": {
+    "raw_bytes": 1712,
+    "raw_sha256": "126074d9e4a193ebf87ce639b0e5d41037f2987405037dc5752fc6f9b124882e",
+    "stored_bytes": 562,
+    "stored_sha256": "e34905b35b6c8fab184b462343391d31d1768b5a51b983f00ae4e24bb0f2208a",
+    "provenance": "This task: bounded read-only native evidence probes. Monetary positions were never instantiated."
+  },
+  "warming-20261007T044454Z/native.frames": {
+    "raw_bytes": 32177,
+    "raw_sha256": "d571feabbd1a287ad7ffc22f01e400ed6fa7884fb9f1512d0399d199b711b25d",
+    "stored_bytes": 13463,
+    "stored_sha256": "c3d67b2adb81a579e0421b4e79969ad9df3e36bba49782f3b54286289e65a064",
+    "provenance": "This task: bounded read-only native evidence probes. Monetary positions were never instantiated."
+  }
+}

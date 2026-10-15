@@ -1,0 +1,14 @@
+{
+  "historical_path": "tests/lanes/meteora/test_dlmm_tape.py",
+  "historical_commit": "a1392c0698deba784e5f31ea16bc527c0765fd86",
+  "historical_sha256": "3d1fa1f9efde362194efcf81479b6fe7cc5869f2fedf318e5c5c8f6c2cc1dc73",
+  "current_path": "tests/test_meteora_tape.py",
+  "current_sha256": "580d10e44c525bdfbc15aaf5f5c28f07a80e8a9b8b7b19deb65bb66c64e17953",
+  "original_test_class_AST_sha256": "3a7340af3b6db2dc610ad3d6a4f660947637eec557620cf85d5588950d3521a1",
+  "test_count": 21,
+  "adaptation": "Only helper import relocation and removal of duplicate encode_state/transaction definitions already extracted unchanged into tests/meteora_tape_fixtures.py. Every original assertion and remaining synthetic builder unchanged.",
+  "suite": "OPERATIONAL",
+  "runtime_changes": false,
+  "state_changes": false,
+  "provider_calls": false
+}

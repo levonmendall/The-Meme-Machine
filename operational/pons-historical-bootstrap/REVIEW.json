@@ -1,0 +1,13 @@
+{
+  "schema": "pons-historical-final-review-v1",
+  "compiled_files": 11,
+  "json_valid": true,
+  "source_measurement_hashes_match": true,
+  "frozen_files_unchanged": true,
+  "source_databases_unchanged": true,
+  "test_receipts_match": true,
+  "diff_whitespace": "PASS",
+  "market_provider_calls": 0,
+  "production_economic_mutations": 0,
+  "startup_blocker_unchanged": true
+}

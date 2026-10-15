@@ -1,0 +1,8 @@
+test_unchanged_request_writes_nothing_and_never_renews_deadline (tests.test_provider_efficiency.RequestIdempotenceTests.test_unchanged_request_writes_nothing_and_never_renews_deadline) ... ok
+test_cold_history_slice_with_independent_boundary_and_reorg_witness_advances (tests.test_provider_efficiency.SurvivorWitnessCountTests.test_cold_history_slice_with_independent_boundary_and_reorg_witness_advances) ... ok
+test_missing_log_result_still_fails_closed_without_advancing (tests.test_provider_efficiency.SurvivorWitnessCountTests.test_missing_log_result_still_fails_closed_without_advancing) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.806s
+
+OK

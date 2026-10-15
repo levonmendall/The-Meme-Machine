@@ -1,0 +1,82 @@
+{
+  "verified_UTC": "2026-10-07T15:35:44.272009+00:00",
+  "legacy_commit": "c8a980b69ca1d26a1d72e8554bc32fc9f73e8932",
+  "legacy_startup_active": false,
+  "call_sites": [
+    {
+      "path": "meme_machine/solana_evidence_service.py:serve",
+      "classification": "NORMAL_STARTUP",
+      "disposition": "Legacy nested source()/repair() deleted; explicit Model B driver required"
+    },
+    {
+      "path": "meme_machine/lanes/pump/solana_evidence_service.py:serve",
+      "classification": "LEGACY_ONLY",
+      "disposition": "Archived lane-local producer removed; delegates to shared service"
+    },
+    {
+      "path": "meme_machine/lanes/meteora/solana_evidence_service.py:serve",
+      "classification": "LEGACY_ONLY",
+      "disposition": "Archived lane-local producer removed; delegates to shared service"
+    },
+    {
+      "path": "meme_machine/solana_evidence_service.py:ServiceState.repair_plan/repair_apply",
+      "classification": "LEGACY_ONLY",
+      "disposition": "Unused global historical startup planner deleted; characterization tests archived"
+    },
+    {
+      "path": "meme_machine/solana_selective_source.py:SelectiveSource.run",
+      "classification": "NORMAL_STARTUP",
+      "disposition": "Sole canonical owner boots durable state machine and release barrier; no cold candidate acquisition before release"
+    },
+    {
+      "path": "meme_machine/solana_selective_source.py:SelectiveSource.acquire/request_development",
+      "classification": "NORMAL_PROMOTION",
+      "disposition": "Rolling normalized coverage first; recent lower-bound race waits for publication; immutable first-sight deadline"
+    },
+    {
+      "path": "meme_machine/solana_candidate_lifecycle.py:promote",
+      "classification": "NORMAL_PROMOTION",
+      "disposition": "Candidate index uses reservoir; only explicitly missing lookback interval is requested"
+    },
+    {
+      "path": "meme_machine/solana_rolling_history.py:prepare/resume_boundaries",
+      "classification": "LATE_DISCOVERY",
+      "disposition": "Authenticated creation proof or durable rolling coverage deficit; cannot treat open newly arriving interval as loss"
+    },
+    {
+      "path": "meme_machine/solana_selective_source.py:SelectiveSource.live/repair_logs",
+      "classification": "RESTART_GAP",
+      "disposition": "Checkpoint-1 native overlap; only missing old logMessages fetched before ACK fence"
+    },
+    {
+      "path": "meme_machine/solana_selective_source.py:SelectiveSource.live/warm",
+      "classification": "PROVIDER_GAP",
+      "disposition": "Exact scoped checkpoint-to-ACK deficit repair; no rolling-program archive census"
+    },
+    {
+      "path": "meme_machine/solana_candidate_lifecycle.py:repair",
+      "classification": "RECOVERY",
+      "disposition": "Missing intervals only; original deadline and priority retained"
+    },
+    {
+      "path": "meme_machine/solana_selective_history.py:request/commit_page",
+      "classification": "RECOVERY",
+      "disposition": "Bounded scoped interval pages, explicit backfill reason, no implicit startup producer"
+    },
+    {
+      "path": "meme_machine/runtime/solana_warming.py:warm_source",
+      "classification": "NORMAL_PROMOTION",
+      "disposition": "Consumer release required; checkpoint plus delta; waits for complete trigger/delta history"
+    },
+    {
+      "path": "meme_machine/startup_storage.py:recover",
+      "classification": "RECOVERY",
+      "disposition": "Local archive/storage recovery, not provider historical cold reconstruction"
+    },
+    {
+      "path": "meme_machine/solana_evidence_service.py:prepare_selected_source/FinalizedFence",
+      "classification": "TEST_ONLY",
+      "disposition": "Decoder/shared durability fixtures; no active broad stream caller"
+    }
+  ]
+}

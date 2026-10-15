@@ -1,0 +1,205 @@
+{
+  "actual_verified_provider_bytes_saved": 0,
+  "canonical_digest": "ed2e970c41ee81c8955aa6a48eddfa63fd060cd0bb9700559c319118b6d3d037",
+  "canonical_events": 287,
+  "canonical_rows_exact": true,
+  "committed_failed_native_witnesses": 658,
+  "committed_native_witnesses": 1215,
+  "full_replay_locators": {
+    "full-reference": {
+      "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/validation/full-reference-parity.json",
+      "sha256": "e8b70b12766ccd4a896852a5ee9dc28698abb0989472346d999e0835aec39527"
+    },
+    "hypothetical-failed-omission": {
+      "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/validation/hypothetical-failed-omission-parity.json",
+      "sha256": "e8b70b12766ccd4a896852a5ee9dc28698abb0989472346d999e0835aec39527"
+    }
+  },
+  "full_result_locators": {
+    "full-reference": {
+      "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/validation/full-reference-result.json",
+      "sha256": "039c4d758a38aa5af698312ad73895d26bf694cc326f2188a64178cd98d0effd"
+    },
+    "hypothetical-failed-omission": {
+      "path": "/root/Documents/Codex/2026-10-08/the-meme-machine-pumpswap-provider-bandwidth/validation/hypothetical-failed-omission-result.json",
+      "sha256": "d869dfb915af6f740f7c896ffd6212d5a4a64d1c9026ad61415b654cce55c9a2"
+    }
+  },
+  "hypothetically_removed_ws_failed_bytes": 16441310,
+  "limitations": [
+    "Failed WS omission is unsupported by logsSubscribe; this is a conditional equivalence hypothesis.",
+    "Full success-only native transaction messages were not delivered in this capture.",
+    "All 5,211 decoded source economic events are audited before selection, but only 287 are independently canonical.",
+    "There is no canonical migration, complete candidate qualification window or funded-position sample in this capture.",
+    "No complete-market parity or original live candidate/position deadline performance is established."
+  ],
+  "measurements": {
+    "full-reference": {
+      "canonical_count": 287,
+      "canonical_digest": "ed2e970c41ee81c8955aa6a48eddfa63fd060cd0bb9700559c319118b6d3d037",
+      "counters": {
+        "websocket_received_bytes": 48501501,
+        "yellowstone_received_bytes": 1829265
+      },
+      "cpu_seconds": 8.012263973,
+      "hypothesis": null,
+      "limitations": [
+        "Replay executes captured deliveries serially; original scheduling and network/finality delays are not replayed.",
+        "Profiler overhead and hypothetical omission inspection are included; CPU is not a provider saving.",
+        "Missing tape tail remains pending and confers no completeness.",
+        "Consumer qualification and position economics require additional unchanged fixture tests.",
+        "Omitting failed WS packets offline does not model the full successful Yellowstone transaction payload."
+      ],
+      "output_digests": {
+        "candidate_checkpoints": "fa9757fbd22c29f9a1846adc95b819ed536237e3cec8dcdc093f1d03dd892023",
+        "candidate_coverage": "a3e418943c93583b005e90ccab00cd9d3a8f1de6410202537f145bef6989391e",
+        "candidate_gaps": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "candidate_lifecycle": "9d04afaa3650ba2297267bef0a03b69c3583ff6bd75184ec875eb0ccf28323ae",
+        "candidate_pending_proofs": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "committed_native_witnesses": "d36ce8b2852b13c91453aef57d3a7c3bc826049a5279f30dd3b5646d38193621",
+        "consumer:candidates": "a6653774756f3992f4b40e540a52092951d93ebbe691df1891d351b9b753159f",
+        "consumer:canonical_event_refs": "5c5ee9f5a665fea69a3c6b75b6603f149ceaeb5fd95ffcf39e9793dfe92c693b",
+        "consumer:work": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "evidence_bindings": "fbf41be12b0997d81d7c7110b4818377e7f17ef964310d459bdc71b80f57506a",
+        "market_observations": "5ed2db564b7140bc5f97b23671067d4b701ff91d3726e87cbe7bbc118712e7d7",
+        "rolling_origins": "fc0dc0c236b51dae7f5340f6ab0a16d4707fea622b101ef178a1b0b15f56e005"
+      },
+      "pending": {
+        "2f41d7ca1923436d8adbb109c6bfc13b": {
+          "bytes": 0,
+          "early_logs": 10210,
+          "missing_logs": 0,
+          "slots": 0
+        },
+        "d89d35c5c24b46c5aaaa2c3571fc4c33": {
+          "bytes": 0,
+          "early_logs": 0,
+          "missing_logs": 0,
+          "slots": 0
+        }
+      },
+      "process_io_delta": {
+        "cancelled_write_bytes": 28299264,
+        "rchar": 27645547,
+        "read_bytes": 0,
+        "syscr": 5396,
+        "syscw": 28992,
+        "wchar": 70510120,
+        "write_bytes": 87232512
+      },
+      "provider_bandwidth_savings_verified_bytes": 0,
+      "provider_calls": 0,
+      "rss_peak_kib": 110196,
+      "schema": "pump-provider-identical-tape-v1",
+      "sqlite_changes": 8440,
+      "wall_seconds": 9.81949577096384
+    },
+    "hypothetical-failed-omission": {
+      "canonical_count": 287,
+      "canonical_digest": "ed2e970c41ee81c8955aa6a48eddfa63fd060cd0bb9700559c319118b6d3d037",
+      "counters": {
+        "hypothetically_omitted_failed_ws_bytes": 16441310,
+        "hypothetically_omitted_failed_ws_messages": 11319,
+        "websocket_received_bytes": 48501501,
+        "yellowstone_received_bytes": 1829265
+      },
+      "cpu_seconds": 8.235961063,
+      "hypothesis": "FAILED_WS_OMISSION_NOT_SUPPORTED_BY_LOGSSUBSCRIBE",
+      "limitations": [
+        "Replay executes captured deliveries serially; original scheduling and network/finality delays are not replayed.",
+        "Profiler overhead and hypothetical omission inspection are included; CPU is not a provider saving.",
+        "Missing tape tail remains pending and confers no completeness.",
+        "Consumer qualification and position economics require additional unchanged fixture tests.",
+        "Omitting failed WS packets offline does not model the full successful Yellowstone transaction payload."
+      ],
+      "output_digests": {
+        "candidate_checkpoints": "fa9757fbd22c29f9a1846adc95b819ed536237e3cec8dcdc093f1d03dd892023",
+        "candidate_coverage": "a3e418943c93583b005e90ccab00cd9d3a8f1de6410202537f145bef6989391e",
+        "candidate_gaps": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "candidate_lifecycle": "9d04afaa3650ba2297267bef0a03b69c3583ff6bd75184ec875eb0ccf28323ae",
+        "candidate_pending_proofs": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "committed_native_witnesses": "d36ce8b2852b13c91453aef57d3a7c3bc826049a5279f30dd3b5646d38193621",
+        "consumer:candidates": "a6653774756f3992f4b40e540a52092951d93ebbe691df1891d351b9b753159f",
+        "consumer:canonical_event_refs": "5c5ee9f5a665fea69a3c6b75b6603f149ceaeb5fd95ffcf39e9793dfe92c693b",
+        "consumer:work": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "evidence_bindings": "fbf41be12b0997d81d7c7110b4818377e7f17ef964310d459bdc71b80f57506a",
+        "market_observations": "5ed2db564b7140bc5f97b23671067d4b701ff91d3726e87cbe7bbc118712e7d7",
+        "rolling_origins": "fc0dc0c236b51dae7f5340f6ab0a16d4707fea622b101ef178a1b0b15f56e005"
+      },
+      "pending": {
+        "2f41d7ca1923436d8adbb109c6bfc13b": {
+          "bytes": 0,
+          "early_logs": 10210,
+          "missing_logs": 0,
+          "slots": 0
+        },
+        "d89d35c5c24b46c5aaaa2c3571fc4c33": {
+          "bytes": 0,
+          "early_logs": 0,
+          "missing_logs": 0,
+          "slots": 0
+        }
+      },
+      "process_io_delta": {
+        "cancelled_write_bytes": 29511680,
+        "rchar": 27645547,
+        "read_bytes": 0,
+        "syscr": 5396,
+        "syscw": 28992,
+        "wchar": 70510120,
+        "write_bytes": 87232512
+      },
+      "provider_bandwidth_savings_verified_bytes": 0,
+      "provider_calls": 0,
+      "rss_peak_kib": 110196,
+      "schema": "pump-provider-identical-tape-v1",
+      "sqlite_changes": 8440,
+      "wall_seconds": 10.150929328985512
+    }
+  },
+  "output_counts": {
+    "candidate_checkpoints": 2,
+    "candidate_coverage": 2,
+    "candidate_gaps": 0,
+    "candidate_lifecycle": 169,
+    "candidate_pending_proofs": 0,
+    "committed_native_witnesses": 1215,
+    "consumer:candidates": 169,
+    "consumer:canonical_event_refs": 8,
+    "consumer:work": 0,
+    "evidence_bindings": 4,
+    "market_observations": 169,
+    "rolling_origins": 2
+  },
+  "output_rows_exact": {
+    "candidate_checkpoints": true,
+    "candidate_coverage": true,
+    "candidate_gaps": true,
+    "candidate_lifecycle": true,
+    "candidate_pending_proofs": true,
+    "committed_native_witnesses": true,
+    "consumer:candidates": true,
+    "consumer:canonical_event_refs": true,
+    "consumer:work": true,
+    "evidence_bindings": true,
+    "market_observations": true,
+    "rolling_origins": true
+  },
+  "production_files_changed": 0,
+  "published_reference_projection_checks": {
+    "candidate_checkpoints": true,
+    "candidate_coverage": true,
+    "candidate_gaps": true,
+    "candidate_lifecycle": true,
+    "candidate_pending_proofs": true,
+    "consumer:candidates": true,
+    "consumer:canonical_event_refs": true,
+    "consumer:work": true,
+    "evidence_bindings": true,
+    "market_observations": true,
+    "rolling_origins": true
+  },
+  "same_incomplete_successful_log_facts": 10210,
+  "schema": "pump-bandwidth-offline-equivalence-v1",
+  "whole_corrected_capture_replayed": true
+}

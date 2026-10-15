@@ -1,0 +1,452 @@
+"""Reuse authenticated native market evidence; never synthesize a USD rate."""
+from dataclasses import dataclass
+from datetime import datetime,timezone
+from decimal import Decimal
+from meme_machine.exact_money import arithmetic, money, exact
+import re
+import os
+import threading
+import time
+
+USDG_FEED='0x61B7e5650328764B076A108EFF5fa7282a1B9aD2'
+USDG_ASSET='0x5fc5360d0400a0fd4f2af552add042d716f1d168'
+USDG_HEARTBEAT=86400
+USDG_CACHE_SECONDS=60
+USDG_BLOCKER='VALUATION_UNAVAILABLE:USDG/USD: verified read-only oracle evidence required'
+
+# Exact current deployments, compiler verified through the existing identity
+# reader. This acquisition extension is inactive until provider equivalence and
+# shared protective deadlines pass; it grants no trading or valuation authority.
+PONS_USD_BRIDGES=(
+    ('pons_usd_r33','0x69e96a790b74c47ac64f65e23e0ea580a7c1903a',
+        '0x544c010194d904a152524455fd9f3de59bbac034'),
+    ('pons_usd_ram','0x6cefa6f3fb2b89aaa8eafba9739b265b2b7aa4da',
+        '0xe5c549d30eb7ac99dcaaddd4a7fec48c5d523a31'),
+)
+
+class ValuationUnavailable(ValueError):pass
+
+def utc(seconds):return datetime.fromtimestamp(seconds,timezone.utc).isoformat().replace('+00:00','Z')
+
+@dataclass(frozen=True)
+class USDValue:
+    asset: str
+    decimals: int
+    usd_per_unit: Decimal
+    observed_at: int
+    valid_until: int
+    evidence_id: str
+    evidence_hash: str
+
+    def amount(self,raw,at):
+        if type(raw) is not int or raw<0 or not self.observed_at<=at<=self.valid_until:
+            raise ValuationUnavailable('native_USD_value_missing_or_stale')
+        if self.usd_per_unit<=0:raise ValuationUnavailable('invalid_USD_rate')
+        with arithmetic():
+            return money(Decimal(raw)*self.usd_per_unit/(Decimal(10)**self.decimals))
+
+    def evidence(self,at):
+        self.amount(0,at)
+        from meme_machine.portfolio_lane_integration import usd_evidence
+        return usd_evidence(self.evidence_id,self.evidence_hash,utc(self.observed_at),utc(self.valid_until))
+
+
+@exact
+def sol_usd(account,*,now,slot,evidence_hash):
+    from meme_machine.lanes.pump.pumpswap_survivor_evidence import sol_usd_lower_micros,SOL_USD_ACCOUNT
+    micros=sol_usd_lower_micros(account,now=now,slot=slot)
+    # The existing decoder checks a <=120s publish age; caller validity never extends it.
+    import base64,struct
+    published=struct.unpack_from('<q',base64.b64decode(account['data'][0]),93)[0]
+    return USDValue('SOL',9,Decimal(micros)/Decimal(1000000),published,published+120,
+        'sol-usd:'+str(slot),evidence_hash)
+
+
+def _unavailable(reason):
+    return ValuationUnavailable('VALUATION_UNAVAILABLE:USDG/USD:'+reason)
+
+
+def _abi(raw,count):
+    from meme_machine.lanes.ramses.abi import words
+    if not isinstance(raw,str) or not re.fullmatch(r'0x[0-9a-fA-F]+',raw):
+        raise _unavailable('malformed_ABI')
+    result=words(raw)
+    if len(result)!=count:raise _unavailable('malformed_ABI_length')
+    return result
+
+
+def _integer(raw,bits=256):
+    from meme_machine.lanes.ramses.abi import scalar
+    return scalar('uint'+str(bits),_abi(raw,1)[0])
+
+
+def _description(raw):
+    parts=_abi(raw,3)
+    if int.from_bytes(parts[0],'big')!=32 or int.from_bytes(parts[1],'big')!=10:
+        raise _unavailable('wrong_feed_description')
+    if parts[2]!=b'USDG / USD'+bytes(22):
+        raise _unavailable('wrong_feed_description')
+
+
+def _code(raw):
+    if (not isinstance(raw,str) or not re.fullmatch(r'0x(?:[0-9a-fA-F]{2}){1,32768}',raw)
+            or int(raw,16)==0):
+        raise _unavailable('contract_code_missing_or_malformed')
+
+
+def _block(rpc,now):
+    block=rpc.call('eth_getBlockByNumber',['latest',False],scope='position_monitor')
+    if (not isinstance(block,dict) or not re.fullmatch(r'0x[0-9a-fA-F]{64}',str(block.get('hash')))):
+        raise _unavailable('malformed_block')
+    now=max(now,int(time.time()))  # Fresh completion clock after admission/transport.
+    number=int(block['number'],16);timestamp=int(block['timestamp'],16)
+    if number<=0 or not 0<timestamp<=now:raise _unavailable('invalid_block_time')
+    return number,timestamp,block['hash']
+
+
+def _canonical_usd_blocks(rpc, blocks):
+    """An ordered membership fence after all dependent numeric state reads."""
+    expected={}
+    for number, _timestamp, block_hash in blocks:
+        if number in expected and expected[number].lower()!=block_hash.lower():
+            raise _unavailable('canonical_block_changed')
+        expected[number]=block_hash
+    calls=[('eth_getBlockByNumber',[hex(number),False]) for number in expected]
+    replies=rpc.batch(calls,scope='position_monitor')
+    if not isinstance(replies,list) or len(replies)!=len(calls):
+        raise _unavailable('canonical_block_proof_incomplete')
+    for (number, block_hash), reply in zip(expected.items(),replies):
+        try:
+            matches=(isinstance(reply,dict) and int(reply.get('number',''),16)==number
+                and isinstance(reply.get('hash'),str) and reply['hash'].lower()==block_hash.lower())
+        except (TypeError,ValueError):matches=False
+        if not matches:
+            raise _unavailable('canonical_block_changed')
+
+
+def _round(raw,decimals,now):
+    from meme_machine.lanes.ramses.abi import scalar
+    parts=_abi(raw,5)
+    rid,answer,started,updated,answered=(scalar(typ,word) for typ,word in
+        zip(('uint80','int256','uint256','uint256','uint80'),parts))
+    # EAC proxy IDs contain a nonzero phase and aggregator round. Reject answers
+    # from an earlier round, future observations and incomplete rounds.
+    if (not rid>>64 or not rid&((1<<64)-1) or answered<rid
+            or answered>>64!=rid>>64 or not answered&((1<<64)-1)
+            or not 0<started<=updated<=now):
+        raise _unavailable('malformed_round')
+    if answer<=0:raise _unavailable('nonpositive_answer')
+    if now-updated>USDG_HEARTBEAT:raise _unavailable('stale_round')
+    if decimals!=8:raise _unavailable('wrong_feed_decimals')
+    with arithmetic():
+        price=Decimal(answer)/(Decimal(10)**decimals)
+    return rid,price,updated
+
+
+def _rpc(lane):
+    if lane=='pons':
+        from meme_machine.lanes.pons.provider_topology import configured_rpc as constructor
+    else:
+        from meme_machine.lanes.ramses.provider_topology import configured_dlmm_rpc as constructor
+    return constructor(limit=200,per_scope=200,retries=0)
+
+
+def robinhood_usd(rpc=None,*,now=None,_at_block=None):
+    """Read the pinned Robinhood Chain USDG/USD proxy; never assume parity."""
+    from meme_machine.lanes.ramses.abi import calldata,scalar
+    from meme_machine.runtime.journal import digest
+    now=int(time.time()) if now is None else now
+    try:
+        rpc=rpc if rpc is not None else _rpc('ramses')
+        # A supplied pinned block comes only from the reader's verified session.
+        if _at_block is None and rpc.verify_chain()!=4663:raise _unavailable('wrong_chain')
+        block,timestamp,block_hash=_block(rpc,now) if _at_block is None else _at_block
+        calls=[('eth_getCode',[USDG_FEED,hex(block)])]
+        calls.extend(('eth_call',[dict(to=USDG_FEED,data=calldata(name)),hex(block)])
+            for name in ('description()','decimals()','latestRoundData()','aggregator()','version()'))
+        calls.extend([('eth_getCode',[USDG_ASSET,hex(block)]),
+            ('eth_call',[dict(to=USDG_ASSET,data=calldata('decimals()')),hex(block)])])
+        code,description,decimals,raw,aggregator,version,token_code,token_decimals=rpc.batch(calls,scope='position_monitor')
+        _code(code);_description(description);_code(token_code)
+        decimals=_integer(decimals,8)
+        if _integer(token_decimals,8)!=6:raise _unavailable('wrong_USDG_token_decimals')
+        aggregator=scalar('address',_abi(aggregator,1)[0])
+        if int(aggregator,16)==0 or _integer(version)!=6:raise _unavailable('wrong_proxy_interface')
+        # AggregatorV3 compatibility is proved by the strict getter/round decode;
+        # the underlying aggregator must also be a deployed contract.
+        _code(rpc.call('eth_getCode',[aggregator,hex(block)],scope='position_monitor'))
+        now=max(now,int(time.time()))
+        rid,price,updated=_round(raw,decimals,now)
+        if updated>timestamp:raise _unavailable('round_after_pinned_block')
+        evidence=dict(chain_id=4663,proxy=USDG_FEED,asset=USDG_ASSET,
+            block=block,block_hash=block_hash,description='USDG / USD',decimals=decimals,
+            round_data=raw,aggregator=aggregator,heartbeat=USDG_HEARTBEAT)
+        return USDValue('USDG',6,price,updated,updated+USDG_HEARTBEAT,
+            'usdg-usd:'+USDG_FEED.lower()+':'+str(rid)+':'+str(block),digest(evidence))
+    except ValuationUnavailable:raise
+    except Exception:
+        # Provider exception strings can contain endpoints/credentials. Only a
+        # bounded diagnostic crosses the accounting/health boundary.
+        raise _unavailable('RPC_unavailable_or_invalid') from None
+
+
+def _pons_bridge_routes(rpc,factory,wnative,probe,block):
+    """Same-block hookless two-hop quotes through two verified ERC20 bridges.
+
+    Ordinary local transfers in the pinned OFT implementations debit and credit
+    the same raw quantity. Remote supply/peer changes are not price invariants:
+    both pool hooks, membership and quantity-specific quotes refresh every time.
+    No unknown bridge, pool discovery, replay or additional service is admitted.
+    """
+    from meme_machine.lanes.ramses.identity import authenticate,load
+    from meme_machine.lanes.ramses.ramses_costs import _decode_pairs,values
+    from meme_machine.lanes.ramses.ramses import authenticate_pool
+    from meme_machine.lanes.ramses.abi import calldata
+    pins=[load(role) for role,_,_ in PONS_USD_BRIDGES]
+    calls=[]
+    for pin in pins:
+        asset=pin['address'].lower()
+        calls.append(('eth_getCode',[asset,hex(block)]))
+        calls.extend(('eth_call',[dict(to=factory,data=calldata(
+            'getAllLBPairs(address,address)',asset,target)),hex(block)])
+            for target in (wnative,USDG_ASSET))
+    raw=rpc.batch(calls,scope='position_monitor')
+    selected=[]
+    for i,(role,first,second) in enumerate(PONS_USD_BRIDGES):
+        asset=pins[i]['address'].lower()
+        identity=authenticate(role,asset,raw[3*i])
+        pairs=[]
+        for j,pool in enumerate((first,second)):
+            eligible=[r for r in _decode_pairs(raw[3*i+j+1])
+                if r['pool']==pool and not r['ignored_for_routing']]
+            if len(eligible)!=1:break
+            pairs.append(eligible[0])
+        if len(pairs)==2:selected.append(dict(asset=asset,identity=identity,pairs=pairs))
+    if not selected:return []
+    calls=[]
+    for route in selected:
+        for pair in route['pairs']:
+            calls.extend((('eth_getCode',[pair['pool'],hex(block)]),
+                ('eth_call',[dict(to=pair['pool'],data=calldata('getLBHooksParameters()')),hex(block)])))
+    raw=rpc.batch(calls,scope='position_monitor')
+    eligible=[]
+    for i,route in enumerate(selected):
+        directions=[]
+        for j,(source,target) in enumerate(((wnative,route['asset']),(route['asset'],USDG_ASSET))):
+            code,hooks=raw[4*i+2*j:4*i+2*j+2]
+            if int(hooks,16):break
+            auth=authenticate_pool(code,factory_member=True)
+            if ({auth['token_x'],auth['token_y']}!={source,target}
+                    or auth['bin_step']!=route['pairs'][j]['bin_step']):
+                raise _unavailable('native_USDG_bridge_pool_identity')
+            directions.append(auth['token_x']==source)
+        if len(directions)==2:eligible.append(dict(route,directions=directions))
+    if not eligible:return []
+    raw=rpc.batch([('eth_call',[dict(to=r['pairs'][0]['pool'],data=calldata(
+        'getSwapOut(uint128,bool)',probe,int(r['directions'][0]))),hex(block)])
+        for r in eligible],scope='position_monitor')
+    first=[]
+    for route,quote in zip(eligible,raw):
+        q=values(quote)
+        if len(q)==3 and q[0]==0 and 0<q[1]<2**128 and 0<=q[2]<=probe:
+            first.append(dict(route,first_output=q[1],first_fee=q[2]))
+    if not first:return []
+    raw=rpc.batch([('eth_call',[dict(to=r['pairs'][1]['pool'],data=calldata(
+        'getSwapOut(uint128,bool)',r['first_output'],int(r['directions'][1]))),hex(block)])
+        for r in first],scope='position_monitor')
+    out=[]
+    for route,quote in zip(first,raw):
+        q=values(quote)
+        if len(q)!=3 or q[0]!=0 or not 0<q[1]<2**128 or not 0<=q[2]<=route['first_output']:continue
+        out.append(dict(amount_out=q[1],route_pool=route['pairs'][1]['pool'],
+            route_kind='verified_erc20_two_hop',bridge=route['asset'],
+            bridge_identity=route['identity'],first_pool=route['pairs'][0]['pool'],
+            first_quantity=probe,first_output=route['first_output'],first_fee=route['first_fee'],
+            second_fee=q[2],directions=route['directions']))
+    return out
+
+
+def _pons_usd(rpc,value,now,state,block_info):
+    """Reuse the authenticated executable WNATIVE -> USDG route reader."""
+    from meme_machine.lanes.ramses.identity import authenticate,load
+    from meme_machine.lanes.ramses.ramses_costs import _wnative,_factory_direct_routes
+    from meme_machine.runtime.journal import digest
+    mode=os.environ.get('MM_PONS_USD_BRIDGE_ROUTES','')
+    if mode not in ('','verified_two_hop_v1'):raise _unavailable('native_USDG_bridge_mode_invalid')
+    block,timestamp,block_hash=block_info
+    factory=load('ramses_factory')['address']
+    if not state.get('factory_verified'):
+        authenticate('ramses_factory',factory,rpc.call('eth_getCode',[factory,hex(block)],scope='position_monitor'))
+        state['factory_verified']=True
+    wnative=_wnative(rpc,block,state)
+    # A bounded executable reference quantity, not strategy sizing authority.
+    probe=10**15
+    routes=_factory_direct_routes(rpc,factory,wnative,USDG_ASSET,probe,block)
+    if not routes and mode=='verified_two_hop_v1':
+        routes=_pons_bridge_routes(rpc,factory,wnative,probe,block)
+    if not routes:raise _unavailable('native_USDG_executable_route_unavailable')
+    route=max(routes,key=lambda item:item['amount_out'])
+    output=route['amount_out']
+    if type(output) is not int or output<=0:raise _unavailable('native_USDG_invalid_quote')
+    with arithmetic():
+        price=Decimal(output)*Decimal(10**18)*value.usd_per_unit/(Decimal(probe)*Decimal(10**6))
+    result=USDValue('ETH',18,price,max(value.observed_at,timestamp),
+        min(value.valid_until,timestamp+5),
+        'native-usdg-usd:'+str(block)+':'+route['route_pool'],
+        digest(dict(oracle=value.evidence_hash,block_hash=block_hash,wnative=wnative,
+            quote=USDG_ASSET,probe_raw=probe,route=route)))
+    result.amount(0,max(now,int(time.time())))
+    return result
+
+
+class NativeValueReader:
+    """Read the existing authenticated account through shared read-only RPC."""
+    def __init__(self,lane,book=None,*,rpc=None):
+        self.lane=lane
+        self.book=book
+        self.rpc=rpc
+        self.cached=None
+        self.oracle=None
+        self.oracle_block=None
+        self.oracle_checked_at=None
+        self.route_state={}
+        self._lock=threading.RLock()
+
+    def _robinhood(self,now,valid_through=None):
+        now=max(now,int(time.time()))
+        deadline_rpc=None
+        try:
+            if self.lane=='ramses' and self.book is not None and self.book.quote_asset.lower()!=USDG_ASSET:
+                raise _unavailable('wrong_Ramses_quote_asset')
+            if (self.cached and self.cached.observed_at<=now<=self.cached.valid_until
+                    and (valid_through is None or valid_through<=self.cached.valid_until)
+                    and self.oracle_checked_at<=now<=self.oracle_checked_at+USDG_CACHE_SECONDS):
+                return self.cached
+            started=time.monotonic()
+            rpc=self.rpc if self.rpc is not None else _rpc(self.lane)
+            if self.lane=='pons' and valid_through is not None:
+                # The prefetch is required financial protection, not a
+                # default thirty-second connectivity task. Give every state,
+                # chain and final fence the actual consumer deadline in the
+                # existing priority/EDF governor. Never extend an outer one.
+                prior_deadline=getattr(rpc,'evidence_deadline',None)
+                deadline=started+max(0,valid_through-now)
+                rpc.evidence_deadline=min(deadline,prior_deadline) if prior_deadline is not None else deadline
+                deadline_rpc=rpc
+            block=None
+            if self.lane=='pons':
+                if rpc.verify_chain()!=4663:raise _unavailable('wrong_chain')
+                block=_block(rpc,now)
+            oracle=self.oracle;oracle_block=self.oracle_block;checked_at=self.oracle_checked_at
+            if not (oracle and oracle.observed_at<=now<=oracle.valid_until
+                    and self.oracle_checked_at<=now<=self.oracle_checked_at+USDG_CACHE_SECONDS):
+                oracle=robinhood_usd(rpc,now=now,_at_block=block)
+                checked_at=max(now,int(time.time()));oracle_block=block
+            result=_pons_usd(rpc,oracle,now,self.route_state,block) if self.lane=='pons' else oracle
+            if self.lane=='pons':
+                try:
+                    # Cached oracle evidence has its own canonical obligation.
+                    # A batch is safe here because it starts after every state
+                    # response; response ordering alone is never the proof.
+                    _canonical_usd_blocks(rpc,(block,oracle_block))
+                except Exception:
+                    self.cached=self.oracle=None
+                    self.oracle_block=self.oracle_checked_at=None
+                    self.route_state.clear()
+                    raise
+            # Transport/admission waits cannot extend a quote or oracle deadline.
+            result.amount(0,max(int(time.time()),now+int(time.monotonic()-started)))
+            self.oracle=oracle;self.oracle_block=oracle_block;self.oracle_checked_at=checked_at
+            self.cached=result
+            return result
+        except Exception as error:
+            failure=error if isinstance(error,ValuationUnavailable) else _unavailable('RPC_unavailable_or_invalid')
+            from meme_machine.runtime.status import update
+            update('VALUATION_UNAVAILABLE',asset='USDG/USD',reason=str(failure))
+            raise failure from None
+        finally:
+            if deadline_rpc is not None:deadline_rpc.evidence_deadline=prior_deadline
+
+    def __call__(self,now,*,valid_through=None):
+        # One unit-price acquisition serves compatible independently owned
+        # positions. Recheck the original validity after any local wait.
+        # A concurrent acquisition may consume this value after its native
+        # quote completes. Reuse only evidence that survives that caller's
+        # existing deadline; refresh early instead of extending its lifetime.
+        if valid_through is not None and (type(valid_through) is not int
+                or type(now) is not int or valid_through<now):
+            raise ValuationUnavailable('invalid_USD_consumption_deadline')
+        with self._lock:
+            value=self._read(now,valid_through)
+            value.amount(0,max(now,int(time.time()),valid_through or now))
+            return value
+
+    def _read(self,now,valid_through=None):
+        now=max(now,int(time.time()))
+        if self.lane in ('pons','ramses'):
+            return self._robinhood(now,valid_through)
+        if (self.cached and self.cached.observed_at<=now<=self.cached.valid_until
+                and (valid_through is None or valid_through<=self.cached.valid_until)):
+            return self.cached
+        from meme_machine.solana_read_rpc import new_rpc
+        from meme_machine.lanes.pump.pumpswap_survivor_evidence import SOL_USD_ACCOUNT
+        from meme_machine.runtime.journal import digest
+        rpc=new_rpc(limit=40)
+        response=rpc.call('getMultipleAccounts',[[SOL_USD_ACCOUNT],dict(encoding='base64',commitment='finalized')],priority=True)
+        self.cached=sol_usd(response['value'][0],now=max(now,int(time.time())),slot=response['context']['slot'],evidence_hash=digest(response))
+        return self.cached
+
+
+_readers={}
+_readers_lock=threading.Lock()
+def native_reader(lane):
+    with _readers_lock:
+        if lane not in _readers:_readers[lane]=NativeValueReader(lane)
+        return _readers[lane]
+
+
+_pons_prefetch_lock=threading.Lock()
+_pons_prefetch_pool=None
+_pons_prefetch_pending=None
+
+def prefetch_pons_usd(seconds,*,consumer):
+    """Move the existing required USD read alongside an already-due native turn.
+
+    One pending unit-price acquisition per process, without a work queue or
+    native-book connection on this thread. Every consumer still calls the same
+    reader and checks the original value lifetime at its accounting commit.
+    No quotation, economic decision or financial publication occurs here.
+    """
+    if os.environ.get('MM_PONS_USD_ACQUISITION_OVERLAP')!='1':return None
+    if type(seconds) is not int or not 0<seconds<=5:
+        raise ValuationUnavailable('invalid_USD_consumption_deadline')
+    from concurrent.futures import ThreadPoolExecutor
+    from contextvars import copy_context
+    global _pons_prefetch_pool,_pons_prefetch_pending
+    with _pons_prefetch_lock:
+        if _pons_prefetch_pending is not None and not _pons_prefetch_pending.done():
+            return _pons_prefetch_pending
+        reader=native_reader('pons');now=int(time.time());through=now+seconds
+        # No provider call or background work for a compatible original value.
+        if not reader._lock.acquire(blocking=False):return None
+        try:
+            value=reader.cached
+            if (value is not None and value.observed_at<=now<=through<=value.valid_until
+                    and reader.oracle_checked_at is not None
+                    and reader.oracle_checked_at<=now<=reader.oracle_checked_at+USDG_CACHE_SECONDS):
+                return None
+        finally:reader._lock.release()
+        if _pons_prefetch_pool is None:
+            _pons_prefetch_pool=ThreadPoolExecutor(max_workers=1,thread_name_prefix='pons-usd')
+        from meme_machine.lanes.pons.provider_admission import position_work
+        from meme_machine.runtime.provider_purchases import attributed_work
+        @position_work
+        @attributed_work('pons_held_protection',family='pons',consumer=consumer)
+        def acquire():return reader(now,valid_through=through)
+        _pons_prefetch_pending=_pons_prefetch_pool.submit(copy_context().run,acquire)
+        def report_failure(future):
+            if future.exception() is not None:
+                import logging
+                logging.getLogger(__name__).warning('pons_USD_prefetch_unavailable')
+        _pons_prefetch_pending.add_done_callback(report_failure)
+        return _pons_prefetch_pending

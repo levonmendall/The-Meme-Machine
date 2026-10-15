@@ -1,0 +1,31 @@
+{
+  "status": "FAIL_SUSTAINED_ECONOMIC_COVERAGE",
+  "source": "3659ffd59fe5e35e08b0a8b0ec620f56b5d0751e",
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-fresh-minimum-3659ffd5-1791751253756.sqlite",
+  "reason": "native_payload_stop",
+  "physical_starts": 51,
+  "logical_rpc_elements": 45,
+  "cu": 4100,
+  "http_bytes": 21852034,
+  "known_native_bytes": 84188283,
+  "uncertain_native_bytes": 436207616,
+  "native_openings": 6,
+  "accounted_native_bytes": 520395899,
+  "new_economic_records": {
+    "pump": 1743,
+    "pumpswap": 1860
+  },
+  "startup_phase": "STEADY_STATE",
+  "startup_released_at": 1791751338.2401526,
+  "log_failure": "candidate_log_buffer_pressure",
+  "log_pressure_bytes": 33552837,
+  "log_pressure_messages": 10094,
+  "last_join_completed_slot": 455786689,
+  "log_frontier_slot": 455786809,
+  "full_protection": false,
+  "funding": false,
+  "orders": false,
+  "previous_counters_reset": false,
+  "invoice_verified": false,
+  "modeled_public_upper_usd": "0.056794069395"
+}

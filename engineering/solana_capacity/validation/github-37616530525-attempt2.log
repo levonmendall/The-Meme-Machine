@@ -1,0 +1,368 @@
+fast	Set up job	﻿2026-10-07T12:03:41.1884821Z Current runner version: '2.337.0'
+fast	Set up job	2026-10-07T12:03:41.1910551Z ##[group]Runner Image Provisioner
+fast	Set up job	2026-10-07T12:03:41.1911481Z Hosted Compute Agent
+fast	Set up job	2026-10-07T12:03:41.1912205Z Version: 20260901.588
+fast	Set up job	2026-10-07T12:03:41.1913167Z Commit: f88ec8081b781fac6c440065ac7ff9e710ce3d0b
+fast	Set up job	2026-10-07T12:03:41.1913958Z Build Date: 2026-09-01T19:56:44Z
+fast	Set up job	2026-10-07T12:03:41.1914653Z Worker ID: {6d3dcf34-9777-4f15-a874-5242423ea791}
+fast	Set up job	2026-10-07T12:03:41.1915476Z Azure Region: westus
+fast	Set up job	2026-10-07T12:03:41.1916054Z ##[endgroup]
+fast	Set up job	2026-10-07T12:03:41.1917667Z ##[group]Operating System
+fast	Set up job	2026-10-07T12:03:41.1918337Z Ubuntu
+fast	Set up job	2026-10-07T12:03:41.1918848Z 24.04.5
+fast	Set up job	2026-10-07T12:03:41.1919438Z LTS
+fast	Set up job	2026-10-07T12:03:41.1919961Z ##[endgroup]
+fast	Set up job	2026-10-07T12:03:41.1920582Z ##[group]Runner Image
+fast	Set up job	2026-10-07T12:03:41.1921206Z Image: ubuntu-24.04
+fast	Set up job	2026-10-07T12:03:41.1921786Z Version: 20260927.320.1
+fast	Set up job	2026-10-07T12:03:41.1923231Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260927.320/images/ubuntu/Ubuntu2404-Readme.md
+fast	Set up job	2026-10-07T12:03:41.1925208Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260927.320
+fast	Set up job	2026-10-07T12:03:41.1926244Z ##[endgroup]
+fast	Set up job	2026-10-07T12:03:41.1927397Z ##[group]GITHUB_TOKEN Permissions
+fast	Set up job	2026-10-07T12:03:41.1929515Z Contents: read
+fast	Set up job	2026-10-07T12:03:41.1930182Z Metadata: read
+fast	Set up job	2026-10-07T12:03:41.1930930Z ##[endgroup]
+fast	Set up job	2026-10-07T12:03:41.1933324Z Secret source: Actions
+fast	Set up job	2026-10-07T12:03:41.1934430Z Cache mode: write
+fast	Set up job	2026-10-07T12:03:41.1935139Z Prepare workflow directory
+fast	Set up job	2026-10-07T12:03:41.2269682Z Prepare all required actions
+fast	Set up job	2026-10-07T12:03:41.2319238Z Getting action download info
+fast	Set up job	2026-10-07T12:03:41.6211030Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+fast	Set up job	2026-10-07T12:03:41.7318883Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+fast	Set up job	2026-10-07T12:03:41.9182684Z Complete job name: fast
+fast	Run actions/checkout@v4	﻿2026-10-07T12:03:41.9961242Z ##[group]Run actions/checkout@v4
+fast	Run actions/checkout@v4	2026-10-07T12:03:41.9962160Z with:
+fast	Run actions/checkout@v4	2026-10-07T12:03:41.9962687Z   repository: levonmendall/The-Meme-Machine
+fast	Run actions/checkout@v4	2026-10-07T12:03:41.9967574Z   token: ***
+fast	Run actions/checkout@v4	2026-10-07T12:03:41.9968053Z   ssh-strict: true
+fast	Run actions/checkout@v4	2026-10-07T12:03:41.9968520Z   ssh-user: git
+fast	Run actions/checkout@v4	2026-10-07T12:03:41.9968995Z   persist-credentials: true
+fast	Run actions/checkout@v4	2026-10-07T12:03:41.9969523Z   clean: true
+fast	Run actions/checkout@v4	2026-10-07T12:03:41.9969999Z   sparse-checkout-cone-mode: true
+fast	Run actions/checkout@v4	2026-10-07T12:03:41.9970559Z   fetch-depth: 1
+fast	Run actions/checkout@v4	2026-10-07T12:03:41.9971018Z   fetch-tags: false
+fast	Run actions/checkout@v4	2026-10-07T12:03:41.9971500Z   show-progress: true
+fast	Run actions/checkout@v4	2026-10-07T12:03:41.9971974Z   lfs: false
+fast	Run actions/checkout@v4	2026-10-07T12:03:41.9972414Z   submodules: false
+fast	Run actions/checkout@v4	2026-10-07T12:03:41.9973088Z   set-safe-directory: true
+fast	Run actions/checkout@v4	2026-10-07T12:03:41.9973643Z   allow-unsafe-pr-checkout: false
+fast	Run actions/checkout@v4	2026-10-07T12:03:41.9974478Z ##[endgroup]
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1000463Z Syncing repository: levonmendall/The-Meme-Machine
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1003564Z ##[group]Getting Git version info
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1004859Z Working directory is '/home/runner/work/The-Meme-Machine/The-Meme-Machine'
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1007016Z [command]/usr/bin/git version
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1082795Z git version 2.55.0
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1107055Z ##[endgroup]
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1129922Z Temporarily overriding HOME='/home/runner/work/_temp/000be2f5-5b07-49e5-a118-b6d997f85db6' before making global git config changes
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1134599Z Adding repository directory to the temporary git global config as a safe directory
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1137110Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/The-Meme-Machine/The-Meme-Machine
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1190668Z Deleting the contents of '/home/runner/work/The-Meme-Machine/The-Meme-Machine'
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1195627Z ##[group]Initializing the repository
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1200589Z [command]/usr/bin/git init /home/runner/work/The-Meme-Machine/The-Meme-Machine
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1327492Z hint: Using 'master' as the name for the initial branch. This default branch name
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1330043Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1333513Z hint: to use in all of your new repositories, which will suppress this warning,
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1336012Z hint: call:
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1337435Z hint:
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1339019Z hint: 	git config --global init.defaultBranch <name>
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1340947Z hint:
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1342254Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1344624Z hint: 'development'. The just-created branch can be renamed via this command:
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1346100Z hint:
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1347240Z hint: 	git branch -m <name>
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1348468Z hint:
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1349897Z hint: Disable this message with "git config set advice.defaultBranchName false"
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1352109Z Initialized empty Git repository in /home/runner/work/The-Meme-Machine/The-Meme-Machine/.git/
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1355546Z [command]/usr/bin/git remote add origin https://github.com/levonmendall/The-Meme-Machine
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1403552Z ##[endgroup]
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1405097Z ##[group]Disabling automatic garbage collection
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1408403Z [command]/usr/bin/git config --local gc.auto 0
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1441028Z ##[endgroup]
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1441916Z ##[group]Setting up auth
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1450408Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1487366Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1909347Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.1954249Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.2196000Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.2234719Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.2472175Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.2516625Z ##[endgroup]
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.2518113Z ##[group]Fetching the repository
+fast	Run actions/checkout@v4	2026-10-07T12:03:42.2529347Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +2a7e5a30690eed1d0350877685768462f89240d5:refs/remotes/pull/121/merge
+fast	Run actions/checkout@v4	2026-10-07T12:03:45.5734135Z From https://github.com/levonmendall/The-Meme-Machine
+fast	Run actions/checkout@v4	2026-10-07T12:03:45.5736188Z  * [new ref]         2a7e5a30690eed1d0350877685768462f89240d5 -> pull/121/merge
+fast	Run actions/checkout@v4	2026-10-07T12:03:45.5740187Z ##[endgroup]
+fast	Run actions/checkout@v4	2026-10-07T12:03:45.5741638Z ##[group]Determining the checkout info
+fast	Run actions/checkout@v4	2026-10-07T12:03:45.5745466Z ##[endgroup]
+fast	Run actions/checkout@v4	2026-10-07T12:03:45.5751029Z [command]/usr/bin/git sparse-checkout disable
+fast	Run actions/checkout@v4	2026-10-07T12:03:45.5815718Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+fast	Run actions/checkout@v4	2026-10-07T12:03:45.5847941Z ##[group]Checking out the ref
+fast	Run actions/checkout@v4	2026-10-07T12:03:45.5851231Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/121/merge
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2050347Z Note: switching to 'refs/remotes/pull/121/merge'.
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2051718Z 
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2052722Z You are in 'detached HEAD' state. You can look around, make experimental
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2055336Z changes and commit them, and you can discard any commits you make in this
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2057572Z state without impacting any branches by switching back to a branch.
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2058697Z 
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2059537Z If you want to create a new branch to retain commits you create, you may
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2061424Z do so (now or later) by using -c with the switch command. Example:
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2062572Z 
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2063673Z   git switch -c <new-branch-name>
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2064419Z 
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2064982Z Or undo this operation with:
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2065683Z 
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2066106Z   git switch -
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2066743Z 
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2067515Z Turn off this advice by setting config variable advice.detachedHead to false
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2068490Z 
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2069596Z HEAD is now at 2a7e5a3 Merge eb24401e622da28dfd5f46243cbf146edc7ba1ee into 5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2098981Z ##[endgroup]
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2149746Z [command]/usr/bin/git log -1 --format=%H
+fast	Run actions/checkout@v4	2026-10-07T12:03:46.2179894Z 2a7e5a30690eed1d0350877685768462f89240d5
+fast	Run actions/setup-python@v5	﻿2026-10-07T12:03:46.2538171Z ##[group]Run actions/setup-python@v5
+fast	Run actions/setup-python@v5	2026-10-07T12:03:46.2538641Z with:
+fast	Run actions/setup-python@v5	2026-10-07T12:03:46.2538976Z   python-version: 3.12.14
+fast	Run actions/setup-python@v5	2026-10-07T12:03:46.2539355Z   check-latest: false
+fast	Run actions/setup-python@v5	2026-10-07T12:03:46.2543211Z   token: ***
+fast	Run actions/setup-python@v5	2026-10-07T12:03:46.2543570Z   update-environment: true
+fast	Run actions/setup-python@v5	2026-10-07T12:03:46.2543985Z   allow-prereleases: false
+fast	Run actions/setup-python@v5	2026-10-07T12:03:46.2544368Z   freethreaded: false
+fast	Run actions/setup-python@v5	2026-10-07T12:03:46.2544706Z ##[endgroup]
+fast	Run actions/setup-python@v5	2026-10-07T12:03:46.3965424Z ##[group]Installed versions
+fast	Run actions/setup-python@v5	2026-10-07T12:03:46.4008743Z (node:2320) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+fast	Run actions/setup-python@v5	2026-10-07T12:03:46.4011361Z (Use `node --trace-deprecation ...` to show where the warning was created)
+fast	Run actions/setup-python@v5	2026-10-07T12:03:46.4013337Z Successfully set up CPython (3.12.14)
+fast	Run actions/setup-python@v5	2026-10-07T12:03:46.4015414Z ##[endgroup]
+fast	Run python -m pip install -r requirements.txt	﻿2026-10-07T12:03:46.4198056Z ##[group]Run python -m pip install -r requirements.txt
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:46.4198797Z [36;1mpython -m pip install -r requirements.txt[0m
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:46.4546079Z shell: /usr/bin/bash -e {0}
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:46.4546959Z env:
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:46.4547718Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:46.4548906Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:46.4550122Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:46.4551172Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:46.4552181Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:46.4553285Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:46.4554062Z ##[endgroup]
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:47.5139776Z Collecting websockets==17.1 (from -r requirements.txt (line 1))
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:47.5589436Z   Downloading websockets-17.1-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (6.3 kB)
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:47.6731668Z Collecting pysimdjson==7.0.2 (from -r requirements.txt (line 2))
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:47.6769099Z   Downloading pysimdjson-7.0.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (1.1 kB)
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.1348718Z Collecting grpcio==1.84.0 (from -r requirements.txt (line 3))
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.1384284Z   Downloading grpcio-1.84.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (3.8 kB)
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.2854974Z Collecting protobuf==7.36.2 (from -r requirements.txt (line 4))
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.2883437Z   Downloading protobuf-7.36.2-cp310-abi3-manylinux2014_x86_64.whl.metadata (595 bytes)
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.2988797Z Collecting based58==0.1.1 (from -r requirements.txt (line 5))
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.3025703Z   Downloading based58-0.1.1-cp37-abi3-manylinux_2_5_x86_64.manylinux1_x86_64.whl.metadata (2.2 kB)
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.3173863Z Collecting typing-extensions~=4.12 (from grpcio==1.84.0->-r requirements.txt (line 3))
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.3203546Z   Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.3278795Z Downloading websockets-17.1-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (224 kB)
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.3461908Z Downloading pysimdjson-7.0.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.2 MB)
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.3798364Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.2/3.2 MB 109.9 MB/s  0:00:00
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.3827592Z Downloading grpcio-1.84.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (7.2 MB)
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.4194359Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.2/7.2 MB 214.9 MB/s  0:00:00
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.4227300Z Downloading protobuf-7.36.2-cp310-abi3-manylinux2014_x86_64.whl (343 kB)
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.4289371Z Downloading based58-0.1.1-cp37-abi3-manylinux_2_5_x86_64.manylinux1_x86_64.whl (1.0 MB)
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.4831175Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.0/1.0 MB 29.4 MB/s  0:00:00
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.4860977Z Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:48.5532326Z Installing collected packages: websockets, typing-extensions, pysimdjson, protobuf, based58, grpcio
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:49.1109800Z 
+fast	Run python -m pip install -r requirements.txt	2026-10-07T12:03:49.1126760Z Successfully installed based58-0.1.1 grpcio-1.84.0 protobuf-7.36.2 pysimdjson-7.0.2 typing-extensions-4.16.0 websockets-17.1
+fast	Run python -m operational.tests FAST	﻿2026-10-07T12:03:49.1778596Z ##[group]Run python -m operational.tests FAST
+fast	Run python -m operational.tests FAST	2026-10-07T12:03:49.1779062Z [36;1mpython -m operational.tests FAST[0m
+fast	Run python -m operational.tests FAST	2026-10-07T12:03:49.1846181Z shell: /usr/bin/bash -e {0}
+fast	Run python -m operational.tests FAST	2026-10-07T12:03:49.1846541Z env:
+fast	Run python -m operational.tests FAST	2026-10-07T12:03:49.1846915Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+fast	Run python -m operational.tests FAST	2026-10-07T12:03:49.1847577Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+fast	Run python -m operational.tests FAST	2026-10-07T12:03:49.1848217Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+fast	Run python -m operational.tests FAST	2026-10-07T12:03:49.1848813Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+fast	Run python -m operational.tests FAST	2026-10-07T12:03:49.1849372Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+fast	Run python -m operational.tests FAST	2026-10-07T12:03:49.1849936Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+fast	Run python -m operational.tests FAST	2026-10-07T12:03:49.1850404Z ##[endgroup]
+fast	Run python -m operational.tests FAST	2026-10-07T12:03:56.1465996Z ...............................Executing <Task pending name='Task-12' coro=<StartupStorage.test_cold_records_retire_under_continuously_queued_source_work() running at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:33> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:181] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 0.511 seconds
+fast	Run python -m operational.tests FAST	2026-10-07T12:03:56.9223778Z .Executing <Task pending name='Task-17' coro=<StartupStorage.test_cold_return_discharges_expired_source_debt_without_renewing_deadline() running at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:56> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:181] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 0.224 seconds
+fast	Run python -m operational.tests FAST	2026-10-07T12:03:57.1227912Z .Executing <Task pending name='Task-22' coro=<StartupStorage.test_committed_final_slice_yield_keeps_receipt_and_recovery_deadline() running at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:152> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:181] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 0.111 seconds
+fast	Run python -m operational.tests FAST	2026-10-07T12:03:58.6695128Z ..Executing <Task pending name='Task-32' coro=<StartupStorage.test_dense_released_evidence_recovers_with_bounded_source_queue_waits() running at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:118> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/base_events.py:181] created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 1.489 seconds
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:03.7447054Z ........Executing <Task finished name='Task-72' coro=<StartupStorage.test_sparse_address_pin_observation_fits_existing_vm_budget() done, defined at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_startup_storage.py:304> result=None created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 3.014 seconds
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:28.3161487Z .........................................................F.FFFEFF.FEFF...................................................................................................................................Executing <Task finished name='Task-144' coro=<SourceLifetimeTests.test_partial_census_page_restart_does_not_advance_cursor_or_lose_pools() done, defined at /home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_solana_shared_capacity.py:249> result=None created at /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/asyncio/runners.py:100> took 0.137 seconds
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:29.3588718Z opportunity publication failed: IntegrityError
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:31.3916213Z opportunity schema unavailable: RuntimeError
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:31.3977431Z opportunity schema unavailable: RuntimeError
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:31.4386127Z opportunity publication failed: ValueError
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5847281Z .....................................................ss..............................................................................................................................................................................................................................................................................................................................
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5850202Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5852496Z ERROR: test_observer_can_verify_readonly_mount_without_relaxing_startup (tests.test_operational_storage_guard.StorageStartup.test_observer_can_verify_readonly_mount_without_relaxing_startup)
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5855094Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5856106Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5866013Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 93, in test_observer_can_verify_readonly_mount_without_relaxing_startup
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5867297Z     self.assertEqual(verify_storage(self.root, require_writable=False)['epoch_id'],
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5867857Z                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5868695Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/meme_machine/operational/storage_guard.py", line 40, in verify_storage
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5892753Z ##[error]    raise StorageGuardError('storage_configuration_permissions')
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5900772Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5901289Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5901435Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5902383Z ERROR: test_valid_existing_identity_is_read_only (tests.test_operational_storage_guard.StorageStartup.test_valid_existing_identity_is_read_only)
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5903485Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5904219Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5905130Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 55, in test_valid_existing_identity_is_read_only
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5906140Z     self.assertEqual(verify_storage(self.root)['epoch_id'], 'paper-preserved')
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5906634Z                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5907391Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/meme_machine/operational/storage_guard.py", line 40, in verify_storage
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5908733Z ##[error]    raise StorageGuardError('storage_configuration_permissions')
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5910024Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5910509Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5910645Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5911570Z FAIL: test_cloned_filesystem_uuid_on_wrong_volume_is_rejected (tests.test_operational_storage_guard.StorageStartup.test_cloned_filesystem_uuid_on_wrong_volume_is_rejected)
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5912691Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5913466Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5913910Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5914115Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5914431Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5914540Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5915414Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 83, in test_cloned_filesystem_uuid_on_wrong_volume_is_rejected
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5916361Z     self.assert_startup_rejected(dict(self.mounted, **{'maj:min':'8:1'}),
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5917221Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5918011Z     with self.assertRaisesRegex(StorageGuardError, reason):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5918401Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5918991Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5919483Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5919611Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5920442Z FAIL: test_missing_mount_never_creates_replacement_epoch (tests.test_operational_storage_guard.StorageStartup.test_missing_mount_never_creates_replacement_epoch)
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5921315Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5921900Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5922339Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5922541Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5923065Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5923197Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5924049Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 70, in test_missing_mount_never_creates_replacement_epoch
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5925010Z     self.assert_startup_rejected(dict(self.mounted, target='/', uuid='root-disk'),
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5925911Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5926685Z     with self.assertRaisesRegex(StorageGuardError, reason):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5927070Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5927657Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5928141Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5928261Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5929138Z FAIL: test_missing_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_missing_portfolio_cannot_reseed)
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5929893Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5930480Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5930917Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5931116Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5931426Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5931527Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5932258Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 108, in test_missing_portfolio_cannot_reseed
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5933263Z     self.assert_startup_rejected(self.mounted, 'existing_portfolio_required')
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5934075Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5934938Z     with self.assertRaisesRegex(StorageGuardError, reason):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5935303Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5935797Z AssertionError: "existing_portfolio_required" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5936212Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5936326Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5936916Z FAIL: test_nested_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_nested_mount_rejected)
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5937531Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5938072Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5938483Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5938670Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5938962Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5939070Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5939746Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 79, in test_nested_mount_rejected
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5940526Z     self.assert_startup_rejected(dict(self.mounted, target=str(self.root)),
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5941334Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5942086Z     with self.assertRaisesRegex(StorageGuardError, reason):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5942445Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5943123Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5943575Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5943693Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5944290Z FAIL: test_readonly_mount_rejected (tests.test_operational_storage_guard.StorageStartup.test_readonly_mount_rejected)
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5944938Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5945477Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5945883Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5946067Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5946356Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5946455Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5947157Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 87, in test_readonly_mount_rejected
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5947939Z     self.assert_startup_rejected(dict(self.mounted, options='ro,noatime'),
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5948729Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5949451Z     with self.assertRaisesRegex(StorageGuardError, reason):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5949958Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5950515Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5950974Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5951097Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5951917Z FAIL: test_readonly_observer_still_rejects_cloned_wrong_volume (tests.test_operational_storage_guard.StorageStartup.test_readonly_observer_still_rejects_cloned_wrong_volume)
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5952776Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5953502Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5953924Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5954115Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5954412Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5954521Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5955338Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 102, in test_readonly_observer_still_rejects_cloned_wrong_volume
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5956436Z     with self.assertRaisesRegex(StorageGuardError, 'expected_persistent_volume_not_mounted'):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5956979Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5957569Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5958026Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5958139Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5958812Z FAIL: test_unbound_portfolio_cannot_reseed (tests.test_operational_storage_guard.StorageStartup.test_unbound_portfolio_cannot_reseed)
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5959512Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5960055Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5960473Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5960665Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5960965Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5961065Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5961761Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 113, in test_unbound_portfolio_cannot_reseed
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5962585Z     self.assert_startup_rejected(self.mounted, 'existing_portfolio_inception_required')
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5963527Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5964223Z     with self.assertRaisesRegex(StorageGuardError, reason):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5964568Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5965087Z AssertionError: "existing_portfolio_inception_required" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5965533Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5965644Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5966684Z FAIL: test_wrong_epoch_leaves_valid_existing_database_untouched (tests.test_operational_storage_guard.StorageStartup.test_wrong_epoch_leaves_valid_existing_database_untouched)
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5967519Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5968050Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5968442Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5968624Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5968912Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5969010Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5969783Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 118, in test_wrong_epoch_leaves_valid_existing_database_untouched
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5970877Z     self.assert_startup_rejected(self.mounted, 'existing_PAPER_epoch_identity_mismatch')
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5971700Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5972387Z     with self.assertRaisesRegex(StorageGuardError, reason):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5972748Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5973697Z AssertionError: "existing_PAPER_epoch_identity_mismatch" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5974142Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5974265Z ======================================================================
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5974959Z FAIL: test_wrong_volume_rejected_before_any_writer (tests.test_operational_storage_guard.StorageStartup.test_wrong_volume_rejected_before_any_writer)
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5975681Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5976208Z meme_machine.operational.storage_guard.StorageGuardError: storage_configuration_permissions
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5976780Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5976964Z During handling of the above exception, another exception occurred:
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5977248Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5977348Z Traceback (most recent call last):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5978080Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 75, in test_wrong_volume_rejected_before_any_writer
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5978898Z     self.assert_startup_rejected(dict(self.mounted, uuid='wrong-filesystem'),
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5979667Z   File "/home/runner/work/The-Meme-Machine/The-Meme-Machine/tests/test_operational_storage_guard.py", line 62, in assert_startup_rejected
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5980356Z     with self.assertRaisesRegex(StorageGuardError, reason):
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5980706Z          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5981225Z AssertionError: "expected_persistent_volume_not_mounted" does not match "storage_configuration_permissions"
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5981671Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5981820Z ----------------------------------------------------------------------
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5982154Z Ran 617 tests in 46.652s
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5982298Z 
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.5982413Z FAILED (failures=9, errors=2, skipped=2)
+fast	Run python -m operational.tests FAST	2026-10-07T12:04:37.6353862Z ##[error]Process completed with exit code 1.
+fast	Post Run actions/checkout@v4	﻿2026-10-07T12:04:37.6515763Z Post job cleanup.
+fast	Post Run actions/checkout@v4	2026-10-07T12:04:37.7393412Z [command]/usr/bin/git version
+fast	Post Run actions/checkout@v4	2026-10-07T12:04:37.7439903Z git version 2.55.0
+fast	Post Run actions/checkout@v4	2026-10-07T12:04:37.7484106Z Temporarily overriding HOME='/home/runner/work/_temp/5986974e-2021-4c7d-8a82-5d7958172764' before making global git config changes
+fast	Post Run actions/checkout@v4	2026-10-07T12:04:37.7486321Z Adding repository directory to the temporary git global config as a safe directory
+fast	Post Run actions/checkout@v4	2026-10-07T12:04:37.7490252Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/The-Meme-Machine/The-Meme-Machine
+fast	Post Run actions/checkout@v4	2026-10-07T12:04:37.7534861Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+fast	Post Run actions/checkout@v4	2026-10-07T12:04:37.7573501Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+fast	Post Run actions/checkout@v4	2026-10-07T12:04:37.7844261Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+fast	Post Run actions/checkout@v4	2026-10-07T12:04:37.7872814Z http.https://github.com/.extraheader
+fast	Post Run actions/checkout@v4	2026-10-07T12:04:37.7895564Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+fast	Post Run actions/checkout@v4	2026-10-07T12:04:37.7924124Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+fast	Post Run actions/checkout@v4	2026-10-07T12:04:37.8206618Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+fast	Post Run actions/checkout@v4	2026-10-07T12:04:37.8250204Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+fast	Complete job	﻿2026-10-07T12:04:37.8659122Z Cleaning up orphan processes
+fast	Complete job	2026-10-07T12:04:37.8983427Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

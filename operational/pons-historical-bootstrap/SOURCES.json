@@ -1,0 +1,1150 @@
+{
+  "schema": "pons-history-source-audit-v1",
+  "screened_databases": 503,
+  "audited_sources": 33,
+  "isolated_distinct_copies": 19,
+  "complete_authenticated_seed_found": false,
+  "production_economic_state_mutation": false,
+  "sources": [
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/sc-proof-corrected-20261008/robinhood-evidence.sqlite",
+      "bytes": 167936,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "f03a300e2cdc2ccd8ce21b1b97c0a8048f8f53105f71a180451c86e9c742885b",
+        "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "copy_key": "e7b75d67d9ba071a3d8acb5e89a1e744a5dccd4cc676bc9fc06091eca6adbf93",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 10,
+        "eth_getTransactionReceipt": 14
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 10,
+      "header_bounds": {
+        "first": 41443136,
+        "last": 82886394,
+        "earliest": 1787231172,
+        "latest": 1791418445
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/sc-proof-corrected-20261008/pons/candidates.sqlite",
+      "bytes": 110592,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "685b73fa6ccbab36a8d45ab388b35143a05079222e26604a83505ae95eb1e57f",
+        "wal": null
+      },
+      "copy_key": "c3602d3f7351e4bb1d863e91846d6c9747874410a74e7b5cd5a33bacc04a0b62",
+      "integrity_check": "ok",
+      "schema": [
+        "observation_counts",
+        "candidates",
+        "observations",
+        "observation_archive",
+        "transitions",
+        "evidence",
+        "rolling",
+        "service",
+        "runtime",
+        "result_consumption",
+        "pons_attempts"
+      ],
+      "economic_state_reuse": false,
+      "counts": {
+        "candidates": 0,
+        "observations": 0,
+        "evidence": 0,
+        "rolling": 0
+      },
+      "complete_seed": false,
+      "reusable_complete_ranges": [],
+      "missing": "Current/candidate retention has no independent seven-day graduation census"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/sc-proof-corrected-20261008/pons/history.sqlite",
+      "bytes": 49152,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "7e3b7433d0cc1c0f2e9888db9d794e18c4f6798a6b3daf1fde0887a32243bb38",
+        "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "copy_key": "d666f7790ff9b44de5e57f8fc629d592216838018bae552e3138c1652d8525e3",
+      "integrity_check": "ok",
+      "schema": [
+        "meta",
+        "candidates",
+        "events",
+        "points",
+        "pons_graduation_intake"
+      ],
+      "economic_state_reuse": false,
+      "counts": {
+        "candidates": 0,
+        "events": 0,
+        "points": 0,
+        "pons_graduation_intake": 0
+      },
+      "meta": {
+        "policy": "ed17402a75470801fda47877b6b1f3b1266793b7e0750b7a7cd821f327541e5f",
+        "discovery_block": null,
+        "discovery_block_hash": null,
+        "discovery_bootstrap": {
+          "cutoff": 1790813632,
+          "high": 82886274,
+          "low": 41443136
+        },
+        "graduation_floor": null
+      },
+      "replay": "PASS",
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "no completed census or candidate histories"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-v1/shared/robinhood-evidence.sqlite",
+      "bytes": 2400256,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "59c74ef5f64aa30e655399b99b4ed90e7e0b06e81e7e248277858c58ae51c130",
+        "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "copy_key": "981ac15560166bf6ed702cfdb20ae94b49085b8d269ba98435f4265363d0e379",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 520
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 520,
+      "header_bounds": {
+        "first": 79692264,
+        "last": 81782454,
+        "earliest": 1791092124,
+        "latest": 1791305215
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-v1/shared/robinhood-evidence.candidates.sqlite",
+      "bytes": 811008,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "55c148044b921b8901fd91bb6906d7f5d614b2a2ec3032d15a6b096a65ba615e",
+        "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "copy_key": "bf23a50404bec8a0ac9c8e4de7004b6148681f6d35d8628f9acdc9687884bbe1",
+      "integrity_check": "ok",
+      "schema": [
+        "observation_counts",
+        "candidates",
+        "observations",
+        "observation_archive",
+        "transitions",
+        "evidence",
+        "rolling",
+        "service",
+        "runtime",
+        "result_consumption"
+      ],
+      "economic_state_reuse": false,
+      "counts": {
+        "candidates": 7,
+        "observations": 92,
+        "evidence": 97,
+        "rolling": 0
+      },
+      "complete_seed": false,
+      "reusable_complete_ranges": [],
+      "missing": "Current/candidate retention has no independent seven-day graduation census"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-backups/meme-machine-paper-20261007T040430-4d5600b2/shared/robinhood-evidence.sqlite",
+      "bytes": 2400256,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "0f7cb71ba85d7a63d28cde1b3a862fb0f9aab6f5f38b0e8a4d0ad378e4562bed",
+        "wal": null
+      },
+      "copy_key": "ca22198bee477f4ac7da5c21bb573f082b55fadf62b0a95a1a4046bb226bb6e3",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 520
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 520,
+      "header_bounds": {
+        "first": 79692264,
+        "last": 81782454,
+        "earliest": 1791092124,
+        "latest": 1791305215
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-backups/meme-machine-paper-20261007T040430-4d5600b2/shared/robinhood-evidence.candidates.sqlite",
+      "bytes": 811008,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "32c88422927bd46d6cf2ea40141dc663e21f200e3ff328532f5f3362e170bea2",
+        "wal": null
+      },
+      "copy_key": "3d81f59b4f4af546b6f5c097757269448bb2a6a165342e6fa20a5da759fdf677",
+      "integrity_check": "ok",
+      "schema": [
+        "observation_counts",
+        "candidates",
+        "observations",
+        "observation_archive",
+        "transitions",
+        "evidence",
+        "rolling",
+        "service",
+        "runtime",
+        "result_consumption"
+      ],
+      "economic_state_reuse": false,
+      "counts": {
+        "candidates": 7,
+        "observations": 92,
+        "evidence": 97,
+        "rolling": 0
+      },
+      "complete_seed": false,
+      "reusable_complete_ranges": [],
+      "missing": "Current/candidate retention has no independent seven-day graduation census"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-backups/pre-efficiency-start-20261006T162403Z/shared/robinhood-evidence.sqlite",
+      "bytes": 2248704,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "2d8491c28fd030d973c862a9790563605319dac956e076ae18b7196b151cff0c",
+        "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "copy_key": "ab7f4499d619923a8e0baf14dad13c23802badac9740a1adcff7fc980c202054",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 479
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 479,
+      "header_bounds": {
+        "first": 79692264,
+        "last": 81376088,
+        "earliest": 1791092124,
+        "latest": 1791263546
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-backups/pre-efficiency-start-20261006T162403Z/shared/robinhood-evidence.candidates.sqlite",
+      "bytes": 585728,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "6d8244ca97ca0adecabaf5f6b0061f97f691766882cce959b2b4afdec665c8fe",
+        "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "copy_key": "ef17a3719e2f2e57852d5cb240ba99e9422176a1fa55998be7544cba9b46a20d",
+      "integrity_check": "ok",
+      "schema": [
+        "observation_counts",
+        "candidates",
+        "observations",
+        "observation_archive",
+        "transitions",
+        "evidence",
+        "rolling",
+        "service",
+        "runtime",
+        "result_consumption"
+      ],
+      "economic_state_reuse": false,
+      "counts": {
+        "candidates": 7,
+        "observations": 89,
+        "evidence": 94,
+        "rolling": 0
+      },
+      "complete_seed": false,
+      "reusable_complete_ranges": [],
+      "missing": "Current/candidate retention has no independent seven-day graduation census"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-backups/meme-machine-paper-20261006T040416-e6b98fa4/shared/robinhood-evidence.sqlite",
+      "bytes": 2068480,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "5189fe166d39accfdec77436d98e32bba5acf7a41b4d1af803bd2fdb3069f331",
+        "wal": null
+      },
+      "copy_key": "9944a32bb315f5d6dfaed3a38aca64e442dc7a8ac73eea594bcdbefae3581158",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 425
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 425,
+      "header_bounds": {
+        "first": 79692264,
+        "last": 81331006,
+        "earliest": 1791092124,
+        "latest": 1791258919
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/meme-machine-backups/meme-machine-paper-20261006T040416-e6b98fa4/shared/robinhood-evidence.candidates.sqlite",
+      "bytes": 536576,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "0a40d4b344f96c809ac254aabc09668abcf207c03ddd37a9a23505e376e08b9e",
+        "wal": null
+      },
+      "copy_key": "4454def973c6a22d60bfcb89c4bc0acb0ed6fc88276553ee1e0c93ec907b9464",
+      "integrity_check": "ok",
+      "schema": [
+        "observation_counts",
+        "candidates",
+        "observations",
+        "observation_archive",
+        "transitions",
+        "evidence",
+        "rolling",
+        "service",
+        "runtime",
+        "result_consumption"
+      ],
+      "economic_state_reuse": false,
+      "counts": {
+        "candidates": 7,
+        "observations": 83,
+        "evidence": 89,
+        "rolling": 0
+      },
+      "complete_seed": false,
+      "reusable_complete_ranges": [],
+      "missing": "Current/candidate retention has no independent seven-day graduation census"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/sc-proof-20261007/robinhood-evidence.sqlite",
+      "bytes": 32768,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "69c2e7b2079f89d63dcd5ef717005f3dcae510ac697c6b88ce967e037f62f952",
+        "wal": null
+      },
+      "copy_key": "25eefdae884361f7744fbd1e257779bbed2c61305ceb38f961d7b69bc13c5aae",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 2
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 2,
+      "header_bounds": {
+        "first": 41436976,
+        "last": 82873954,
+        "earliest": 1787230554,
+        "latest": 1791417163
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/sc-proof-20261007/pons/candidates.sqlite",
+      "bytes": 110592,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "685b73fa6ccbab36a8d45ab388b35143a05079222e26604a83505ae95eb1e57f",
+        "wal": null
+      },
+      "copy_key": "c3602d3f7351e4bb1d863e91846d6c9747874410a74e7b5cd5a33bacc04a0b62",
+      "integrity_check": "ok",
+      "schema": [
+        "observation_counts",
+        "candidates",
+        "observations",
+        "observation_archive",
+        "transitions",
+        "evidence",
+        "rolling",
+        "service",
+        "runtime",
+        "result_consumption",
+        "pons_attempts"
+      ],
+      "economic_state_reuse": false,
+      "counts": {
+        "candidates": 0,
+        "observations": 0,
+        "evidence": 0,
+        "rolling": 0
+      },
+      "complete_seed": false,
+      "reusable_complete_ranges": [],
+      "missing": "Current/candidate retention has no independent seven-day graduation census"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/sc-proof-20261007/pons/history.sqlite",
+      "bytes": 49152,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "ec7100e166cb6ce6d80931bee62b0d04cb34c84126e36580990096ad7b6553f9",
+        "wal": null
+      },
+      "copy_key": "9ee92ba955f60193a2ac5c2fc611ebf95d2fcb1d759368c457eec65845332324",
+      "integrity_check": "ok",
+      "schema": [
+        "meta",
+        "candidates",
+        "events",
+        "points",
+        "pons_graduation_intake"
+      ],
+      "economic_state_reuse": false,
+      "counts": {
+        "candidates": 0,
+        "events": 0,
+        "points": 0,
+        "pons_graduation_intake": 0
+      },
+      "meta": {
+        "policy": "ed17402a75470801fda47877b6b1f3b1266793b7e0750b7a7cd821f327541e5f",
+        "discovery_block": null,
+        "discovery_block_hash": null,
+        "discovery_bootstrap": {
+          "cutoff": 1790812363,
+          "high": 82873954,
+          "low": 41436976
+        },
+        "graduation_floor": null
+      },
+      "replay": "PASS",
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "no completed census or candidate histories"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/pump-pons-provider-proof/robinhood-evidence.sqlite",
+      "bytes": 28672,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "d6a544f17827b6c0dcefc26842725fb6fad5266cca88c2bdbf5f5a6d069532a6",
+        "wal": null
+      },
+      "copy_key": "7cb87e45dbdfde9695c5dde274db4cc36b89a092a503ebe0cad618bb08263f2d",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {},
+      "domains": [],
+      "header_count": 0,
+      "header_bounds": null,
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/pump-pons-provider-proof/pons/candidates.sqlite",
+      "bytes": 110592,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "685b73fa6ccbab36a8d45ab388b35143a05079222e26604a83505ae95eb1e57f",
+        "wal": null
+      },
+      "copy_key": "c3602d3f7351e4bb1d863e91846d6c9747874410a74e7b5cd5a33bacc04a0b62",
+      "integrity_check": "ok",
+      "schema": [
+        "observation_counts",
+        "candidates",
+        "observations",
+        "observation_archive",
+        "transitions",
+        "evidence",
+        "rolling",
+        "service",
+        "runtime",
+        "result_consumption",
+        "pons_attempts"
+      ],
+      "economic_state_reuse": false,
+      "counts": {
+        "candidates": 0,
+        "observations": 0,
+        "evidence": 0,
+        "rolling": 0
+      },
+      "complete_seed": false,
+      "reusable_complete_ranges": [],
+      "missing": "Current/candidate retention has no independent seven-day graduation census"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/pump-pons-provider-proof/pons/history.sqlite",
+      "bytes": 49152,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "f2d162dde10b8b84f012db03ee5913e3646f87b4f4a4b8344896eaf7c0d65e90",
+        "wal": null
+      },
+      "copy_key": "36ac8e6c16c47da4c94836088344881cb1cd6e0747da3156cc7ffda6c09866f9",
+      "integrity_check": "ok",
+      "schema": [
+        "meta",
+        "candidates",
+        "events",
+        "points",
+        "pons_graduation_intake"
+      ],
+      "economic_state_reuse": false,
+      "counts": {
+        "candidates": 0,
+        "events": 0,
+        "points": 0,
+        "pons_graduation_intake": 0
+      },
+      "meta": {
+        "policy": "ed17402a75470801fda47877b6b1f3b1266793b7e0750b7a7cd821f327541e5f",
+        "discovery_block": null,
+        "discovery_block_hash": null,
+        "discovery_bootstrap": null,
+        "graduation_floor": null
+      },
+      "replay": "PASS",
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "no completed census or candidate histories"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/isolated-cutover/shared/robinhood-evidence.sqlite",
+      "bytes": 2400256,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "0f7cb71ba85d7a63d28cde1b3a862fb0f9aab6f5f38b0e8a4d0ad378e4562bed",
+        "wal": null
+      },
+      "copy_key": "ca22198bee477f4ac7da5c21bb573f082b55fadf62b0a95a1a4046bb226bb6e3",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 520
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 520,
+      "header_bounds": {
+        "first": 79692264,
+        "last": 81782454,
+        "earliest": 1791092124,
+        "latest": 1791305215
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/isolated-cutover/shared/robinhood-evidence.candidates.sqlite",
+      "bytes": 811008,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "32c88422927bd46d6cf2ea40141dc663e21f200e3ff328532f5f3362e170bea2",
+        "wal": null
+      },
+      "copy_key": "3d81f59b4f4af546b6f5c097757269448bb2a6a165342e6fa20a5da759fdf677",
+      "integrity_check": "ok",
+      "schema": [
+        "observation_counts",
+        "candidates",
+        "observations",
+        "observation_archive",
+        "transitions",
+        "evidence",
+        "rolling",
+        "service",
+        "runtime",
+        "result_consumption"
+      ],
+      "economic_state_reuse": false,
+      "counts": {
+        "candidates": 7,
+        "observations": 92,
+        "evidence": 97,
+        "rolling": 0
+      },
+      "complete_seed": false,
+      "reusable_complete_ranges": [],
+      "missing": "Current/candidate retention has no independent seven-day graduation census"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/migration-final/shared/robinhood-evidence.sqlite",
+      "bytes": 2400256,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "0f7cb71ba85d7a63d28cde1b3a862fb0f9aab6f5f38b0e8a4d0ad378e4562bed",
+        "wal": null
+      },
+      "copy_key": "ca22198bee477f4ac7da5c21bb573f082b55fadf62b0a95a1a4046bb226bb6e3",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 520
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 520,
+      "header_bounds": {
+        "first": 79692264,
+        "last": 81782454,
+        "earliest": 1791092124,
+        "latest": 1791305215
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/migration-final/shared/robinhood-evidence.candidates.sqlite",
+      "bytes": 811008,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "32c88422927bd46d6cf2ea40141dc663e21f200e3ff328532f5f3362e170bea2",
+        "wal": null
+      },
+      "copy_key": "3d81f59b4f4af546b6f5c097757269448bb2a6a165342e6fa20a5da759fdf677",
+      "integrity_check": "ok",
+      "schema": [
+        "observation_counts",
+        "candidates",
+        "observations",
+        "observation_archive",
+        "transitions",
+        "evidence",
+        "rolling",
+        "service",
+        "runtime",
+        "result_consumption"
+      ],
+      "economic_state_reuse": false,
+      "counts": {
+        "candidates": 7,
+        "observations": 92,
+        "evidence": 97,
+        "rolling": 0
+      },
+      "complete_seed": false,
+      "reusable_complete_ranges": [],
+      "missing": "Current/candidate retention has no independent seven-day graduation census"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/preserved-backup/shared/robinhood-evidence.sqlite",
+      "bytes": 2400256,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "0f7cb71ba85d7a63d28cde1b3a862fb0f9aab6f5f38b0e8a4d0ad378e4562bed",
+        "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "copy_key": "241e43c8778812c562a8583a5abd7eb70ae56a653a970d2c46ad226a869fa801",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 520
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 520,
+      "header_bounds": {
+        "first": 79692264,
+        "last": 81782454,
+        "earliest": 1791092124,
+        "latest": 1791305215
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/preserved-backup/shared/robinhood-evidence.candidates.sqlite",
+      "bytes": 811008,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "32c88422927bd46d6cf2ea40141dc663e21f200e3ff328532f5f3362e170bea2",
+        "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "copy_key": "f216c0dc063b7f1c427b4772454135f3ee5523f14995dac648d0d3e153ba8a22",
+      "integrity_check": "ok",
+      "schema": [
+        "observation_counts",
+        "candidates",
+        "observations",
+        "observation_archive",
+        "transitions",
+        "evidence",
+        "rolling",
+        "service",
+        "runtime",
+        "result_consumption"
+      ],
+      "economic_state_reuse": false,
+      "counts": {
+        "candidates": 7,
+        "observations": 92,
+        "evidence": 97,
+        "rolling": 0
+      },
+      "complete_seed": false,
+      "reusable_complete_ranges": [],
+      "missing": "Current/candidate retention has no independent seven-day graduation census"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/isolated-cutover-v2/shared/robinhood-evidence.sqlite",
+      "bytes": 2400256,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "0f7cb71ba85d7a63d28cde1b3a862fb0f9aab6f5f38b0e8a4d0ad378e4562bed",
+        "wal": null
+      },
+      "copy_key": "ca22198bee477f4ac7da5c21bb573f082b55fadf62b0a95a1a4046bb226bb6e3",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 520
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 520,
+      "header_bounds": {
+        "first": 79692264,
+        "last": 81782454,
+        "earliest": 1791092124,
+        "latest": 1791305215
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/mnt/volume_nyc1_1790918115030/shared-capital-validation-20261007/isolated-cutover-v2/shared/robinhood-evidence.candidates.sqlite",
+      "bytes": 811008,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "32c88422927bd46d6cf2ea40141dc663e21f200e3ff328532f5f3362e170bea2",
+        "wal": null
+      },
+      "copy_key": "3d81f59b4f4af546b6f5c097757269448bb2a6a165342e6fa20a5da759fdf677",
+      "integrity_check": "ok",
+      "schema": [
+        "observation_counts",
+        "candidates",
+        "observations",
+        "observation_archive",
+        "transitions",
+        "evidence",
+        "rolling",
+        "service",
+        "runtime",
+        "result_consumption"
+      ],
+      "economic_state_reuse": false,
+      "counts": {
+        "candidates": 7,
+        "observations": 92,
+        "evidence": 97,
+        "rolling": 0
+      },
+      "complete_seed": false,
+      "reusable_complete_ranges": [],
+      "missing": "Current/candidate retention has no independent seven-day graduation census"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-04/the-meme-machine-final-migration-completeness/paper-state-current-readers-176usy7d/shared/robinhood-evidence.sqlite",
+      "bytes": 143360,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "ae898b30f7913a188455b6ae56db9851f15d220c7b28796636bd213dad5490a2",
+        "wal": null
+      },
+      "copy_key": "5b7676d905b507d40723638408e8e482e273f5658362dfc32c5acbb74ffb289f",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 18
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 18,
+      "header_bounds": {
+        "first": 79692264,
+        "last": 80018654,
+        "earliest": 1791092124,
+        "latest": 1791125369
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-04/the-meme-machine-final-migration-completeness/paper-state-current-readers-z4scwkck/shared/robinhood-evidence.sqlite",
+      "bytes": 143360,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "ae898b30f7913a188455b6ae56db9851f15d220c7b28796636bd213dad5490a2",
+        "wal": null
+      },
+      "copy_key": "5b7676d905b507d40723638408e8e482e273f5658362dfc32c5acbb74ffb289f",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 18
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 18,
+      "header_bounds": {
+        "first": 79692264,
+        "last": 80018654,
+        "earliest": 1791092124,
+        "latest": 1791125369
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-04/the-meme-machine-final-migration-completeness/paper-state-current-readers/shared/robinhood-evidence.sqlite",
+      "bytes": 143360,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "ae898b30f7913a188455b6ae56db9851f15d220c7b28796636bd213dad5490a2",
+        "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "copy_key": "d6d9c8dd103d2e09094cf7c456effae80fbe63b22ff195304a69b633ff628c19",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 18
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 18,
+      "header_bounds": {
+        "first": 79692264,
+        "last": 80018654,
+        "earliest": 1791092124,
+        "latest": 1791125369
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-04/the-meme-machine-final-migration-completeness/paper-state-compatibility-snapshot/shared/robinhood-evidence.sqlite",
+      "bytes": 143360,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "ae898b30f7913a188455b6ae56db9851f15d220c7b28796636bd213dad5490a2",
+        "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "copy_key": "d6d9c8dd103d2e09094cf7c456effae80fbe63b22ff195304a69b633ff628c19",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 18
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 18,
+      "header_bounds": {
+        "first": 79692264,
+        "last": 80018654,
+        "earliest": 1791092124,
+        "latest": 1791125369
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-04/the-meme-machine-final-migration-completeness/paper-state-current-readers-c6z2q235/shared/robinhood-evidence.sqlite",
+      "bytes": 143360,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "ae898b30f7913a188455b6ae56db9851f15d220c7b28796636bd213dad5490a2",
+        "wal": null
+      },
+      "copy_key": "5b7676d905b507d40723638408e8e482e273f5658362dfc32c5acbb74ffb289f",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 18
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 18,
+      "header_bounds": {
+        "first": 79692264,
+        "last": 80018654,
+        "earliest": 1791092124,
+        "latest": 1791125369
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-05/the-meme-machine-resume-final-migration/paper-state-current-readers-8_4_tm6d/shared/robinhood-evidence.sqlite",
+      "bytes": 143360,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "ae898b30f7913a188455b6ae56db9851f15d220c7b28796636bd213dad5490a2",
+        "wal": null
+      },
+      "copy_key": "5b7676d905b507d40723638408e8e482e273f5658362dfc32c5acbb74ffb289f",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 18
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 18,
+      "header_bounds": {
+        "first": 79692264,
+        "last": 80018654,
+        "earliest": 1791092124,
+        "latest": 1791125369
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-05/the-meme-machine-resume-final-migration/paper-state-compatibility-snapshot/shared/robinhood-evidence.sqlite",
+      "bytes": 143360,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "ae898b30f7913a188455b6ae56db9851f15d220c7b28796636bd213dad5490a2",
+        "wal": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "copy_key": "d6d9c8dd103d2e09094cf7c456effae80fbe63b22ff195304a69b633ff628c19",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 18
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 18,
+      "header_bounds": {
+        "first": 79692264,
+        "last": 80018654,
+        "earliest": 1791092124,
+        "latest": 1791125369
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    },
+    {
+      "path": "/root/Documents/Codex/2026-10-05/the-meme-machine-post-migration-final/preserved-before-start/shared/robinhood-evidence.sqlite",
+      "bytes": 143360,
+      "wal_bytes": 0,
+      "sha256": {
+        "main": "ae898b30f7913a188455b6ae56db9851f15d220c7b28796636bd213dad5490a2",
+        "wal": null
+      },
+      "copy_key": "5b7676d905b507d40723638408e8e482e273f5658362dfc32c5acbb74ffb289f",
+      "integrity_check": "ok",
+      "schema": [
+        "evidence",
+        "gas_quotes",
+        "flights",
+        "reuse_events"
+      ],
+      "economic_state_reuse": false,
+      "methods": {
+        "eth_getBlockByHash": 18
+      },
+      "domains": [
+        "6a5edf79dc5086c02a4b60f01cad0d769ea4754d45da27b5700b649457f24c3b"
+      ],
+      "header_count": 18,
+      "header_bounds": {
+        "first": 79692264,
+        "last": 80018654,
+        "earliest": 1791092124,
+        "latest": 1791125369
+      },
+      "log_ranges": [],
+      "reusable_complete_ranges": [],
+      "complete_seed": false,
+      "missing": "isolated immutable facts do not establish a launch/graduation census or economic continuity"
+    }
+  ],
+  "limitation": "off-host snapshot content and unmounted/unavailable artifacts are not independently restored"
+}

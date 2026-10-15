@@ -1,0 +1,65 @@
+{
+  "contracts": {
+    "meteora": {
+      "policy_hash": "3d8c2cb1651efc104578d25c10311a4df32a1ca56e1f45d2bfc04335635d52e5",
+      "strategy_id": "meteora"
+    },
+    "pons_current": {
+      "policy_hash": "888904d0e58865f1a701560a5be8386f57d88f66a0c25d7094c994cafa7f448f",
+      "strategy_id": "pons-selective-continuation-v1"
+    },
+    "pons_survivor": {
+      "policy_hash": "ed17402a75470801fda47877b6b1f3b1266793b7e0750b7a7cd821f327541e5f",
+      "strategy_id": "pons-postgrad-survivor-momentum-v1"
+    },
+    "pump_current": {
+      "policy_hash": "89d2e6ac286e82f3d645feecc4de4193687cd9ba4e4f9006b7d57f1357c5b972",
+      "strategy_id": "pump-acceleration-independent-v1"
+    },
+    "pump_survivor": {
+      "policy_hash": "0d65e1023b5e7b586e9a71d060fe9da7954c964bfcc3fc986977b80979ea44a5",
+      "strategy_id": "pumpswap-survivor-momentum-v1"
+    },
+    "ramses": {
+      "policy_hash": "58d6ca2a911c4d27ea35da8c972f0a6b1c65c3e9192d811834b92d63d2c08b1e",
+      "strategy_id": "ramses"
+    }
+  },
+  "cursor_mapping": {},
+  "obligations": {},
+  "pending": {},
+  "position_meta": {},
+  "reservation_meta": {},
+  "retired": {
+    "meteora": {
+      "costs": "0",
+      "count": 0,
+      "pnl": "0"
+    },
+    "pons_current": {
+      "costs": "0",
+      "count": 0,
+      "pnl": "0"
+    },
+    "pons_survivor": {
+      "costs": "0",
+      "count": 0,
+      "pnl": "0"
+    },
+    "pump_current": {
+      "costs": "0",
+      "count": 0,
+      "pnl": "0"
+    },
+    "pump_survivor": {
+      "costs": "0",
+      "count": 0,
+      "pnl": "0"
+    },
+    "ramses": {
+      "costs": "0",
+      "count": 0,
+      "pnl": "0"
+    }
+  }
+}

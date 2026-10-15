@@ -1,0 +1,1 @@
+PASS: 15 lane pairs; two independent SQLite connections, identical allocation receipts, one grant, restart conservation.

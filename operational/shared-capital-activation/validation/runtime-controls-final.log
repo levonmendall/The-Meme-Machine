@@ -1,0 +1,8 @@
+.........................................................Executing <Task finished name='Task-37' coro=<SourceLifetimeTests.test_partial_census_page_restart_does_not_advance_cursor_or_lose_pools() done, defined at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_solana_shared_capacity.py:281> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.676 seconds
+.Executing <Task pending name='Task-42' coro=<SourceLifetimeTests.test_rpc_retry_counts_failed_delivery_without_resetting_candidate_deadline() running at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_solana_shared_capacity.py:236> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/futures.py:389, Task.task_wakeup()] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:448> cb=[_run_until_complete_cb() at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/base_events.py:181] created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.316 seconds
+..Executing <Task finished name='Task-52' coro=<SourceLifetimeTests.test_unsupported_archive_page_preserves_scope_gap_and_position_interest() done, defined at /mnt/volume_nyc1_1790918115030/shared-capital-integration-20261007/tests/test_solana_shared_capacity.py:245> result=None created at /workspace/stage-e-python-3.12.14/lib/python3.12/asyncio/runners.py:100> took 0.465 seconds
+...
+----------------------------------------------------------------------
+Ran 63 tests in 43.284s
+
+OK

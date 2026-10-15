@@ -1,0 +1,271 @@
+{
+  "activation_blockers": [],
+  "already_present": [
+    "exact-filter/cardinality adaptive planner in log_windows.py",
+    "canonical MarketScout fallback and selective V4 planner",
+    "canonical history reuse, shared provider governor and immutable evidence cache"
+  ],
+  "authenticated_factory_comparison": {
+    "actual_billed_cu": null,
+    "actual_billed_usd": null,
+    "app_id": "v5h0vqr0wpp9zscj",
+    "classification": "SUPPORTED_40_BLOCK_SAMPLE",
+    "comparison": {
+      "baseline_digest": "e56e341f5aa7bbb6a7b68c286bce99d78fcd413cb65515ab30d44fe0920507ea",
+      "candidate_digest": "e56e341f5aa7bbb6a7b68c286bce99d78fcd413cb65515ab30d44fe0920507ea",
+      "canonical_end_hash": "0xd86a4d3487a97d2bd8f114a23bad8743e34d872692b824daf191e4e94d018163",
+      "chain_id": 4663,
+      "elapsed_seconds": 1.4052446349523962,
+      "equal": true,
+      "event_count": 1,
+      "event_identities": [
+        "0x8aa57ccecd330af14e6a3e5947efa64c255e48c87fa172de377e795881229be7:0x1d49a28a0e27ecdd952094c4aaa9de2105253a2d62924ec36e761c13e43493c9:58"
+      ],
+      "event_order": [
+        [
+          56882711,
+          9,
+          58
+        ]
+      ],
+      "filter": {
+        "address": "0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e",
+        "topics": [
+          [
+            "0x8d4aad4953d0ca700d468f3753aa14432d1b35b43ec6409f051fb6aa43a89607",
+            "0x0a44ef75df69c534f43cd6c1aa3ef8983065fe5fe79ef9e79f6494e6f258c259"
+          ]
+        ]
+      },
+      "first": 56882701,
+      "last": 56882740,
+      "range_blocks": 40
+    },
+    "provider_fingerprint": "91ad0f2d5dfd637a3c38c64ab009abe28025e0b4c22085fcd73ecdf7093fd6bb",
+    "record": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_FACTORY_40_AUTHENTICATED_1791828581334/result.json",
+    "sha256": "6c52474f111fbe5b263f259040c2f8408fffa71ac6b2efded36a0631ceeba18f",
+    "stop_reason": "complete_canonical_equivalence",
+    "team_id_required": false
+  },
+  "capital_epoch_reinitialized": false,
+  "capital_or_private_configuration_changed": false,
+  "changes": [
+    "forward protected endpoint-bound log capability only to live Pons family workers",
+    "reuse adaptive planner for default factory forward/history packets with original forty-block turn bounds",
+    "persist range rejection and subdivide withdrawn wider pending work before dispatch",
+    "retain original header/receipt authentication, post-witness fence, gaps and atomic checkpoint publication",
+    "remove only mandatory Alchemy team_id; existing team metadata remains compatible",
+    "pin the exact approved acquisition file in the economic source-preservation contract",
+    "forward the protected factory capability in the prepared continuous deployment profile"
+  ],
+  "current_provider_binding": {
+    "app_id": "v5h0vqr0wpp9zscj",
+    "at": 1791823358.3723197,
+    "chain_id": 4663,
+    "credential_disclosed": false,
+    "private_configuration_sha256": "2ce4ec6d04629779bbd88ae1f673e40b41605ab762f1594ba0881dd95a7d6bb0",
+    "provider_fingerprint": "91ad0f2d5dfd637a3c38c64ab009abe28025e0b4c22085fcd73ecdf7093fd6bb",
+    "provider_requests": 0,
+    "runtime_admin_masked_binding_matches": true
+  },
+  "deployment": "source-only, quiescent guarded installation; separate installation receipt supplies exact commit/tree",
+  "economic_policy_changed": false,
+  "factory_activation": {
+    "activation": "prepared protected record and worker forwarding; exact installed source is recorded separately",
+    "filter_scope": "exact factory TokenLaunched/PoolGraduated OR filter only",
+    "protected_capability": "/etc/meme-machine/pons-log-windows.json",
+    "sha256": "b05b96860397884e8277c7a42d22345256d17432ccfdcb1c6560762c74a4fc9a",
+    "team_id_present": false,
+    "validated_blocks": 40
+  },
+  "fallback_filters": [
+    "unfiltered Current launch/graduation/curve trade union: exact filter not compared",
+    "V4 manager activity and all indexed pool-ID cardinalities: exact filter/cardinality not compared",
+    "all other credentials and static filters"
+  ],
+  "full_fast_local_attempt": {
+    "errors": 2,
+    "failure_evidence": "/tmp/mm-engineering-nwa0zrkn",
+    "failures": 2,
+    "passed": 1819,
+    "ran": 1823,
+    "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/continuous-paper-final-fast-pons-team-removal.log",
+    "required_final_github_fast": "pending publication",
+    "seconds": 2159.254,
+    "sha256": "ccfe880625bec60bf1d0f5c07b9c513f3880e7bc6a7d385c75f4157658423e65",
+    "status": "failed; exact failed cases and missing fixture passed after restoring required sparse checkout and cgroup I/O containment"
+  },
+  "funding_state_changed": false,
+  "live_log_query_efficiency_proven": true,
+  "new_market_provider_requests": 8,
+  "offline_equivalence": {
+    "actual_billed_cu": null,
+    "actual_billed_usd": null,
+    "economic_rules_changed": false,
+    "evidence_kind": "synthetic authenticated-shaped fixture, not a provider capability",
+    "protection_deadlines_changed": false,
+    "provider_requests": 0,
+    "public_model_cu_per_getLogs": 60,
+    "public_model_usd_per_million_cu": "0.525",
+    "queue_wait_or_provider_latency_measured": false,
+    "samples": [
+      {
+        "blocks": 30,
+        "optimized": {
+          "all_logical_elements": 12,
+          "canonical_event_count": 4,
+          "complete_frontier": {
+            "block": 56882712,
+            "block_hash": "0xbc43ede529ed444a63791ccd9a3d04a595bdebdb79235f0857eafaa7130bae92"
+          },
+          "event_digest": "7fee71232e406e60eb4953b3e71c965a9f1c4ffb7a77e6af308bf8ddee185b45",
+          "gaps": 0,
+          "log_cu_public_model": 60,
+          "logical_log_elements": 1,
+          "method_counts": {
+            "eth_getBlockByNumber": 7,
+            "eth_getLogs": 1,
+            "eth_getTransactionReceipt": 4
+          },
+          "pending_graduations": 2,
+          "physical_http_starts": 4,
+          "repeat_complete_interval_http_starts": 0
+        },
+        "original": {
+          "all_logical_elements": 14,
+          "canonical_event_count": 4,
+          "complete_frontier": {
+            "block": 56882712,
+            "block_hash": "0xbc43ede529ed444a63791ccd9a3d04a595bdebdb79235f0857eafaa7130bae92"
+          },
+          "event_digest": "7fee71232e406e60eb4953b3e71c965a9f1c4ffb7a77e6af308bf8ddee185b45",
+          "gaps": 0,
+          "log_cu_public_model": 180,
+          "logical_log_elements": 3,
+          "method_counts": {
+            "eth_getBlockByNumber": 7,
+            "eth_getLogs": 3,
+            "eth_getTransactionReceipt": 4
+          },
+          "pending_graduations": 2,
+          "physical_http_starts": 4,
+          "repeat_complete_interval_http_starts": 0
+        },
+        "saved_log_cu": 120,
+        "savings_usd_public_model": "0.000063"
+      },
+      {
+        "blocks": 40,
+        "optimized": {
+          "all_logical_elements": 12,
+          "canonical_event_count": 4,
+          "complete_frontier": {
+            "block": 56882722,
+            "block_hash": "0x9c90cd3f329c88477b8a52f5a5a95d591ab32fd43aab3195119fa289b69b1262"
+          },
+          "event_digest": "7fee71232e406e60eb4953b3e71c965a9f1c4ffb7a77e6af308bf8ddee185b45",
+          "gaps": 0,
+          "log_cu_public_model": 60,
+          "logical_log_elements": 1,
+          "method_counts": {
+            "eth_getBlockByNumber": 7,
+            "eth_getLogs": 1,
+            "eth_getTransactionReceipt": 4
+          },
+          "pending_graduations": 2,
+          "physical_http_starts": 4,
+          "repeat_complete_interval_http_starts": 0
+        },
+        "original": {
+          "all_logical_elements": 15,
+          "canonical_event_count": 4,
+          "complete_frontier": {
+            "block": 56882722,
+            "block_hash": "0x9c90cd3f329c88477b8a52f5a5a95d591ab32fd43aab3195119fa289b69b1262"
+          },
+          "event_digest": "7fee71232e406e60eb4953b3e71c965a9f1c4ffb7a77e6af308bf8ddee185b45",
+          "gaps": 0,
+          "log_cu_public_model": 240,
+          "logical_log_elements": 4,
+          "method_counts": {
+            "eth_getBlockByNumber": 7,
+            "eth_getLogs": 4,
+            "eth_getTransactionReceipt": 4
+          },
+          "pending_graduations": 2,
+          "physical_http_starts": 4,
+          "repeat_complete_interval_http_starts": 0
+        },
+        "saved_log_cu": 180,
+        "savings_usd_public_model": "0.0000945"
+      }
+    ],
+    "schema": "pons-wider-log-offline-equivalence-v1"
+  },
+  "owner_evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_WIDER_LOG_OWNER_EVIDENCE_20261012.json",
+  "parent": "cf443e860ee21795453fd7b6311732267562bf1a",
+  "price_basis": "accepted public method model; not authenticated contractual billing",
+  "production_activated_filters": [],
+  "provider_rate_or_budget_changed": false,
+  "schema": "pons-wider-log-integration-proof-v1",
+  "source_files": {
+    "meme_machine/lanes/pons/log_windows.py": "7cc289d0041c21b7758fa0a742e1b792ff96d5049954a063d823556088e8db48",
+    "meme_machine/lanes/pons/pons_historical.py": "eca0d582d42decee4bc767686284bc9b67448a4d5e22ec8d3be06694228407a9",
+    "meme_machine/operational/supervisor.py": "a0f47c05b57112ff3c2a28290ae66e98d669c1dcc42e1924b163737c0136c0aa",
+    "operational/pump-first-release/deployment/paper-continuous.conf": "7771c36a051694c45f5a613849f054c64ed8cc4cda94aa6040c0f67c90aea500",
+    "tests/test_operational_supervisor.py": "3b0fc12be46548e7f74a4fd81f2cdeb9de78748e3675e1d18a88dbdfa10223e1",
+    "tests/test_pons_historical.py": "77153aba9455f6d1706ba25b6ccf1f149ad8221fc4051ff808b6523cdbb76b0f",
+    "tests/test_robinhood_payg.py": "8749538bf600c4c8751e631719c60502cdb37c46f44790c8011aae2087b389a5",
+    "tests/test_robinhood_usd_valuation.py": "e2ba813f1872fb8db794b207087d7d66524e33271f798b352a27bcfb6defa859"
+  },
+  "source_integrity_contract": {
+    "negative_unapproved_edit_tests": true,
+    "original_source_and_all_other_economic_nodes_pinned": true,
+    "relative_file": "meme_machine/lanes/pons/log_windows.py",
+    "reviewed_sha256": "7cc289d0041c21b7758fa0a742e1b792ff96d5049954a063d823556088e8db48"
+  },
+  "tests": [
+    {
+      "kind": "FAST",
+      "passed": 88,
+      "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pons-wider-factory-history-fast.log",
+      "seconds": 44.143,
+      "sha256": "5598db8e229ff198ac9e4507115a36aaa66ebea43d52663dee78c825a04b0cf5"
+    },
+    {
+      "kind": "FAST_ADDED_CASES",
+      "passed": 3,
+      "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pons-wider-factory-history-added-fast.log",
+      "seconds": 1.933,
+      "sha256": "563f3a8a310c264eb982cb563fbe4931572c060459df26737119bc34f82f408c"
+    },
+    {
+      "kind": "OPERATIONAL",
+      "passed": 146,
+      "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pons-wider-factory-history-operational.log",
+      "seconds": 84.975,
+      "sha256": "95205aeb5731a6a6709e463f5ba0896e89b8c0525e3fe66298ce4c821740b8fd"
+    },
+    {
+      "kind": "OPERATIONAL",
+      "passed": 161,
+      "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pons-team-independent-capability-operational.log",
+      "seconds": 63.897,
+      "sha256": "2457a9e66c82dde384e2c86acd6aca02f7f6af6b4dbbce87192b7810ad91d7b6"
+    },
+    {
+      "kind": "FAST_FAILURE_RECHECK",
+      "passed": 3,
+      "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/final-fast-failure-targeted-recheck.log",
+      "seconds": 15.777,
+      "sha256": "eabc1cd71b5a4dbc7e42590b20e30ce8b9ea6b183064db55c9f205d04e985008"
+    },
+    {
+      "kind": "FAST_FIXTURE_RECHECK",
+      "passed": 4,
+      "receipt": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/final-shared-capital-fixture-recheck.log",
+      "seconds": 0.693,
+      "sha256": "b5d94e99e72b78a6d17d3a44faf744aaf56c78348330379518393c7cb8d96d36"
+    }
+  ]
+}

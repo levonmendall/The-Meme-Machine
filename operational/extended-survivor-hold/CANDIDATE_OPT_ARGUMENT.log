@@ -1,0 +1,4 @@
+usage: tests.py [-h] [--modules MODULES [MODULES ...]]
+                [--cases CASES [CASES ...]] [--verbose]
+                {FAST,OPERATIONAL}
+tests.py: error: case is outside the selected offline suite

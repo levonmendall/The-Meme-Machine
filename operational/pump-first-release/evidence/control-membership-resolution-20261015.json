@@ -1,0 +1,77 @@
+{
+  "artifacts": [
+    {
+      "bytes": 1574,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CONTROL_MEMBERSHIP_RETENTION_ORIGINAL_FAILURE_20261015.log",
+      "sha256": "437340423bad0134cceaa81000020169a2867511f9e6d18586d97654118f09ce"
+    },
+    {
+      "bytes": 388,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CONTROL_MEMBERSHIP_RETENTION_FOCUSED_20261015.log",
+      "sha256": "dac60146e8431e6512be0d4b7af539c3ddad8d106008a0db6ae16981e8a0df33"
+    },
+    {
+      "bytes": 461,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CONTROL_MEMBERSHIP_MAINTENANCE_INTEGRATION_20261015.log",
+      "sha256": "dd226c697d1c669f02690e1ba53164ed28fdec2185505fcb12956bb00d842471"
+    },
+    {
+      "bytes": 2297,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/DEVELOPMENT_PHASE_FOCUSED_20261015.log",
+      "sha256": "30a32edb95121d7fec1f746c59f7a2657bfd6f0e6c28ef1bbe07fb36764a6740"
+    },
+    {
+      "bytes": 2489,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/DEVELOPMENT_PHASE_OUTPUT_PROJECTION_20261015.json",
+      "sha256": "c67611311951bd242cfa4001272fbec0d5ae4333f94d49028633b44942e898d6"
+    },
+    {
+      "bytes": 2697,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_REACTIVATION_QUERY_PAIR_20261015.json",
+      "sha256": "b7ff92837d32e8e60feadd32f33be1abaa28cff67521b96b47fcc4f868f399ad"
+    },
+    {
+      "bytes": 6380,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_REACTIVATION_QUERY_PAIR_V2_20261015.json",
+      "sha256": "bf23256d8439cba70b23a1d8fa399af35ca6075598fc5e90be3f3bc71abfd532"
+    },
+    {
+      "bytes": 10346,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CONTROL_DEVELOPMENT_COMBINED_INTEGRATION_20261015.log",
+      "sha256": "c344fbe83105b0f644177f89a59ab050425825fcc9fb352522bf3d6dfb237598"
+    },
+    {
+      "bytes": 6925,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_REACTIVATION_READ_PHASE_PAIR_20261015.json",
+      "sha256": "92ee79c650720136685155a1b761a9d5092cf86404170a6af3d15a1143752cc9"
+    }
+  ],
+  "capacity": "NOT_ESTABLISHED",
+  "executable": "10ae127c399279847df908d555eceb1aaf46ef1d",
+  "limits": [
+    "Disposable contract tests do not establish which actor deleted the historical missing CONTROL row.",
+    "No throughput improvement, paidhardware necessity or fullrelease PASS established.",
+    "Mutation pages are bounded before proof filtering; selector/observer existence scans remain under existingVM/preemption bounds and may reportUNAVAILABLE.",
+    "Pons materialization query saved only.002095CPU seconds on1829identicalrows; rejectedasmaterialrepair; no productionPons change.",
+    "First query-driver attempt failed optional3.96MiBcohort probe against2MiBrecordbound before either query; original retained. Correcteddriver omits unnecessaryprobe, retainsallmeasurementbounds.",
+    "Actual read-phase receipt predicate pushdown: same1831rows/5SQL/firstDML andbindings, .035287\u2192.032796CPU seconds. Rejectedasmaterialrepair; noPonsbehaviorchange."
+  ],
+  "parent": "1bbe359ad81321234fa40ee7670416bfed0474a5",
+  "production_state": "PAPER inactive/disabled/Restart=no/fundingclosed; installedrollback66f85d61; no live start during this repair phase",
+  "retention_implementation": "27f9a19463aa51fdd0daffb084ed4b373642e311",
+  "schema": 1,
+  "source_status": "COMBINED_FOCUSED_VERIFIED_NOT_FULL_RELEASE",
+  "sources": {
+    "meme_machine/solana_candidate_lifecycle.py": "92f920efcc682187a70afa6c09c5a44ea7246d8644f9788f2509a2052b7ebb66",
+    "meme_machine/solana_evidence_plane.py": "0a83af968b1425ea711a4cef1916c35b2ecc2bfd1fa580aff9f0ecca92be1be9",
+    "meme_machine/solana_maintenance_state.py": "9b1bc76ef04247eb4006aea05cab6c484a039699e801c2fa55e5c85d8e68eac4",
+    "tests/test_pipeline_retention_boundary.py": "f65a76e3e7af9671fffd3278593f9612b77c116a677da634f13ac23f2f536946"
+  },
+  "test_results": {
+    "combined": "289PASS74.644s incl actual integrated startup/history/receipt/ACK/cancellation/sourceguards; overlaps previousfocusedchecks, not fullFAST/release",
+    "focused": "8PASS1.839s",
+    "maintenance": "79PASS27.956s incl8focused overlap",
+    "original_regression": "EXPECTED_FAIL: required receipts101/102/103 lost, publication2\u21920",
+    "phase_parent": "100PASS5.887s; finalcombinedsource stillpending"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "parent_source": "dd31954911c27b94474b77aa39a78f2fea41bd88",
+  "change": "A new WebSocket logs stream has no historical replay. Begin the joined market-wide tail at actual finalized feed boundaries, retaining every prior checkpoint and missing interval for original candidate/position recovery.",
+  "authority_unchanged": [
+    "No scout becomes economic evidence",
+    "Original metadata, status, log, canonical membership and finality join required",
+    "No historical gap marked complete by a fresh feed",
+    "Candidate and position exact recovery remains mandatory"
+  ],
+  "focused_test_receipt": {
+    "path": "/tmp/rolling-current-tail-focused-fixed.log",
+    "sha256": "9a70fe73dd83f1339421183be5bbcd48029adceb096ea79f88e5129da6381db2",
+    "tests": 137,
+    "seconds": "34.429",
+    "result": "PASS"
+  },
+  "prior_failed_test_receipt": "/tmp/rolling-current-tail-focused.log",
+  "live_protection_proven": false,
+  "remaining": "Latest steady-tail processing lag is separately unresolved. This change prevents historical WS replay assumptions on short reconnects; it is not full canonical capacity proof."
+}

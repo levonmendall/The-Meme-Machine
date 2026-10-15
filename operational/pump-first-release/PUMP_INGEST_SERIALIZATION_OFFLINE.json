@@ -1,0 +1,21 @@
+{
+  "baseline_source": "3c394784ee7f283e4586f86f68b3855a3757b72c",
+  "retained_authenticated_events": 512,
+  "input_sha256": "99193a9055db0605a46642c4b8f43b18c0d5907294200f5004f39116279829fc",
+  "baseline_seconds": 0.2957651289179921,
+  "optimized_seconds": 0.1807838958920911,
+  "reduction_percent": 38.87585850520677,
+  "identical_table_hashes": {
+    "rolling_economic_events": "f582a44ef39048fe1838caed52b4ff48fb135eeba397d7938d5d3bece9de3d73",
+    "rolling_economic_addresses": "b7b45070526fe9eb6b08a3b759ec6e145d89b11713efbf3aa9f7eadf1afcf752",
+    "rolling_event_lineage": "c15af3e076378e27427c6e0203fff3a3d3bad9aa12413d1b2339f956b192ef1a",
+    "candidate_content_receipts": "aa91759e03835aca30cb1c10cef0f485d9574d8c34c7a96c301e9f0b963f7cef",
+    "native_order_attestations": "79234d3519b1622f2ba635006e7dc2dc92f1ee2acde932202e611dfe3c4ab809",
+    "candidate_outbox": "77170c1dbb120fa91c27c9b89cfde7b70f81a3b653d9fabcc63bd0650f6f3099",
+    "cursors": "0af41086419b261d4e9f4d1578db09d60ebebd27e319992899d789e8ecfe0cd5",
+    "candidate_activity_receipts": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "provider_requests": 0,
+  "whole_machine_protection_pass": false,
+  "proof": "One offline sample on identical authenticated events; not provider latency or billing evidence"
+}

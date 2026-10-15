@@ -1,0 +1,254 @@
+{
+  "schema": "robinhood-scout-offline-comparison-v1",
+  "scenarios": [
+    {
+      "reference": "b1f215edd3dc079b623401c7e09e9c91a380e6a0",
+      "reference_source_sha256": "55adfa50954a1f096332ec54859d9058f0c181d2a84906790028cb49db06611f",
+      "candidates": 8,
+      "blocks": 20,
+      "canonical_normalized_tapes_equal": true,
+      "candidate_recall": 1.0,
+      "evidence_digest": "271fb7f7a486e2fa2f880ed1c245750aaf53e3d1a8040f9c5d4d2389a1100608",
+      "baseline": {
+        "physical_http_attempts": 12,
+        "logical_rpc_elements": 290,
+        "methods": {
+          "eth_chainId": 4,
+          "eth_getLogs": 2,
+          "eth_getBlockByHash": 20,
+          "eth_getTransactionReceipt": 132,
+          "eth_getTransactionByHash": 132
+        },
+        "request_bytes": 44591,
+        "response_bytes": 344527,
+        "diagnostic_cu": {
+          "estimated_cu_by_method": {
+            "eth_chainId": 0,
+            "eth_getLogs": 120,
+            "eth_getBlockByHash": 400,
+            "eth_getTransactionReceipt": 2640,
+            "eth_getTransactionByHash": 2640
+          },
+          "estimated_cu": 5800,
+          "known_estimated_cu": 5800,
+          "unpriced_methods": {},
+          "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "logical_calls": 290,
+          "billing_estimate_only": true
+        },
+        "verified_billed_cu": null,
+        "cache_hits": "not modeled in this HTTP comparison",
+        "cpu_seconds": 2.0592482569999997,
+        "wall_seconds": 3.90982370194979,
+        "maximum_rss_bytes": 35377152
+      },
+      "optimized": {
+        "physical_http_attempts": 6,
+        "logical_rpc_elements": 155,
+        "methods": {
+          "eth_chainId": 1,
+          "eth_getLogs": 2,
+          "eth_getBlockByHash": 20,
+          "eth_getTransactionReceipt": 132
+        },
+        "request_bytes": 24620,
+        "response_bytes": 303229,
+        "diagnostic_cu": {
+          "estimated_cu_by_method": {
+            "eth_chainId": 0,
+            "eth_getLogs": 120,
+            "eth_getBlockByHash": 400,
+            "eth_getTransactionReceipt": 2640
+          },
+          "estimated_cu": 3160,
+          "known_estimated_cu": 3160,
+          "unpriced_methods": {},
+          "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "logical_calls": 155,
+          "billing_estimate_only": true
+        },
+        "verified_billed_cu": null,
+        "cache_hits": "not modeled in this HTTP comparison",
+        "cpu_seconds": 0.48579278900000045,
+        "wall_seconds": 0.7938486139755696,
+        "maximum_rss_bytes": 35524608
+      },
+      "physical_savings": 6,
+      "response_byte_savings": 41298,
+      "diagnostic_cu_savings": 2640,
+      "measurement_basis": "real production Rpc code, in-memory HTTP replies; synthetic complete event tape",
+      "provider_latency": "UNMEASURED",
+      "billing": "UNMEASURED",
+      "production_capacity": "NOT_CERTIFIED",
+      "scenario": "normal"
+    },
+    {
+      "reference": "b1f215edd3dc079b623401c7e09e9c91a380e6a0",
+      "reference_source_sha256": "55adfa50954a1f096332ec54859d9058f0c181d2a84906790028cb49db06611f",
+      "candidates": 32,
+      "blocks": 40,
+      "canonical_normalized_tapes_equal": true,
+      "candidate_recall": 1.0,
+      "evidence_digest": "1c5866db5d14bfc80fd7a64f234f52e5282b6791133d2250723d4b317e10b3fa",
+      "baseline": {
+        "physical_http_attempts": 48,
+        "logical_rpc_elements": 1626,
+        "methods": {
+          "eth_chainId": 14,
+          "eth_getLogs": 4,
+          "eth_getBlockByHash": 40,
+          "eth_getTransactionReceipt": 784,
+          "eth_getTransactionByHash": 784
+        },
+        "request_bytes": 252647,
+        "response_bytes": 2027045,
+        "diagnostic_cu": {
+          "estimated_cu_by_method": {
+            "eth_chainId": 0,
+            "eth_getLogs": 240,
+            "eth_getBlockByHash": 800,
+            "eth_getTransactionReceipt": 15680,
+            "eth_getTransactionByHash": 15680
+          },
+          "estimated_cu": 32400,
+          "known_estimated_cu": 32400,
+          "unpriced_methods": {},
+          "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "logical_calls": 1626,
+          "billing_estimate_only": true
+        },
+        "verified_billed_cu": null,
+        "cache_hits": "not modeled in this HTTP comparison",
+        "cpu_seconds": 11.969829872,
+        "wall_seconds": 17.666879519005306,
+        "maximum_rss_bytes": 46206976
+      },
+      "optimized": {
+        "physical_http_attempts": 24,
+        "logical_rpc_elements": 834,
+        "methods": {
+          "eth_chainId": 6,
+          "eth_getLogs": 4,
+          "eth_getBlockByHash": 40,
+          "eth_getTransactionReceipt": 784
+        },
+        "request_bytes": 134663,
+        "response_bytes": 1781835,
+        "diagnostic_cu": {
+          "estimated_cu_by_method": {
+            "eth_chainId": 0,
+            "eth_getLogs": 240,
+            "eth_getBlockByHash": 800,
+            "eth_getTransactionReceipt": 15680
+          },
+          "estimated_cu": 16720,
+          "known_estimated_cu": 16720,
+          "unpriced_methods": {},
+          "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "logical_calls": 834,
+          "billing_estimate_only": true
+        },
+        "verified_billed_cu": null,
+        "cache_hits": "not modeled in this HTTP comparison",
+        "cpu_seconds": 2.5669284149999996,
+        "wall_seconds": 3.8457260909490287,
+        "maximum_rss_bytes": 46993408
+      },
+      "physical_savings": 24,
+      "response_byte_savings": 245210,
+      "diagnostic_cu_savings": 15680,
+      "measurement_basis": "real production Rpc code, in-memory HTTP replies; synthetic complete event tape",
+      "provider_latency": "UNMEASURED",
+      "billing": "UNMEASURED",
+      "production_capacity": "NOT_CERTIFIED",
+      "scenario": "busy_market"
+    },
+    {
+      "reference": "b1f215edd3dc079b623401c7e09e9c91a380e6a0",
+      "reference_source_sha256": "55adfa50954a1f096332ec54859d9058f0c181d2a84906790028cb49db06611f",
+      "candidates": 64,
+      "blocks": 40,
+      "canonical_normalized_tapes_equal": true,
+      "candidate_recall": 1.0,
+      "evidence_digest": "9a08672059b04f930e2e62e4fe63ab47da8ef430044335103ba1d44ec57ddb8a",
+      "baseline": {
+        "physical_http_attempts": 50,
+        "logical_rpc_elements": 1698,
+        "methods": {
+          "eth_chainId": 14,
+          "eth_getLogs": 4,
+          "eth_getBlockByHash": 40,
+          "eth_getTransactionReceipt": 820,
+          "eth_getTransactionByHash": 820
+        },
+        "request_bytes": 272425,
+        "response_bytes": 2119691,
+        "diagnostic_cu": {
+          "estimated_cu_by_method": {
+            "eth_chainId": 0,
+            "eth_getLogs": 240,
+            "eth_getBlockByHash": 800,
+            "eth_getTransactionReceipt": 16400,
+            "eth_getTransactionByHash": 16400
+          },
+          "estimated_cu": 33840,
+          "known_estimated_cu": 33840,
+          "unpriced_methods": {},
+          "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "logical_calls": 1698,
+          "billing_estimate_only": true
+        },
+        "verified_billed_cu": null,
+        "cache_hits": "not modeled in this HTTP comparison",
+        "cpu_seconds": 13.284546819999996,
+        "wall_seconds": 19.848950740066357,
+        "maximum_rss_bytes": 51183616
+      },
+      "optimized": {
+        "physical_http_attempts": 25,
+        "logical_rpc_elements": 870,
+        "methods": {
+          "eth_chainId": 6,
+          "eth_getLogs": 4,
+          "eth_getBlockByHash": 40,
+          "eth_getTransactionReceipt": 820
+        },
+        "request_bytes": 149050,
+        "response_bytes": 1863222,
+        "diagnostic_cu": {
+          "estimated_cu_by_method": {
+            "eth_chainId": 0,
+            "eth_getLogs": 240,
+            "eth_getBlockByHash": 800,
+            "eth_getTransactionReceipt": 16400
+          },
+          "estimated_cu": 17440,
+          "known_estimated_cu": 17440,
+          "unpriced_methods": {},
+          "schedule_sha256": "0fc313816f46dd8783fcda04db92a467d28fa5514b936ccf9c09502ef6d4edf9",
+          "schedule_source": "https://www.alchemy.com/docs/reference/compute-unit-costs",
+          "logical_calls": 870,
+          "billing_estimate_only": true
+        },
+        "verified_billed_cu": null,
+        "cache_hits": "not modeled in this HTTP comparison",
+        "cpu_seconds": 3.132082707000002,
+        "wall_seconds": 4.645621470059268,
+        "maximum_rss_bytes": 51970048
+      },
+      "physical_savings": 25,
+      "response_byte_savings": 256469,
+      "diagnostic_cu_savings": 16400,
+      "measurement_basis": "real production Rpc code, in-memory HTTP replies; synthetic complete event tape",
+      "provider_latency": "UNMEASURED",
+      "billing": "UNMEASURED",
+      "production_capacity": "NOT_CERTIFIED",
+      "scenario": "stress"
+    }
+  ]
+}

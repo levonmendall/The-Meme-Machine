@@ -1,0 +1,212 @@
+{
+  "purpose": "Current-block two-hop USDG route capability",
+  "assets_checked": [
+    "0x4e5195469a0360f5dfe811730c9ccacff0a0feee",
+    "0x5173d45a1191ee33cbb7d8c7e65f21b04ed54802",
+    "0xca9c78dd337a67f6e0077f65f5e9218719d30edf",
+    "0xcec185eb182c47d1ba1efc84e6959e18cd620be4",
+    "0xfdf085fc400504ca734e9ef89c68d2b98e604c2c"
+  ],
+  "source": "6d64f93e39fb6eeb54245386671b035e75a4714c",
+  "started_at": 1791745404.872261,
+  "funding": false,
+  "orders": false,
+  "financial_route_activated": false,
+  "full_protection": false,
+  "historical_counters_reset": false,
+  "excluded_pools": [],
+  "routes": [
+    {
+      "bridge": "0x4e5195469a0360f5dfe811730c9ccacff0a0feee",
+      "first_pool": "0x69e96a790b74c47ac64f65e23e0ea580a7c1903a",
+      "second_pool": "0xc7ce62cd2f1ad1874588ba5088bb2b8577802c28",
+      "first_input": 1000000000000000,
+      "first_output": 56979840838794118649,
+      "first_fee": 20000000000000,
+      "second_words": [
+        56918756628985527986,
+        10176,
+        152710524521477
+      ],
+      "usable": false
+    },
+    {
+      "bridge": "0x4e5195469a0360f5dfe811730c9ccacff0a0feee",
+      "first_pool": "0x69e96a790b74c47ac64f65e23e0ea580a7c1903a",
+      "second_pool": "0x5f2f44df395d61c776b8862470efe81711fbbc3f",
+      "first_input": 1000000000000000,
+      "first_output": 56979840838794118649,
+      "first_fee": 20000000000000,
+      "second_words": [
+        56979840838794118649,
+        0,
+        0
+      ],
+      "usable": false
+    },
+    {
+      "bridge": "0x4e5195469a0360f5dfe811730c9ccacff0a0feee",
+      "first_pool": "0x69e96a790b74c47ac64f65e23e0ea580a7c1903a",
+      "second_pool": "0x544c010194d904a152524455fd9f3de59bbac034",
+      "first_input": 1000000000000000,
+      "first_output": 56979840838794118649,
+      "first_fee": 20000000000000,
+      "second_words": [
+        0,
+        2026671,
+        1148398675491185396
+      ],
+      "usable": true
+    },
+    {
+      "bridge": "0x5173d45a1191ee33cbb7d8c7e65f21b04ed54802",
+      "first_pool": "0x6cefa6f3fb2b89aaa8eafba9739b265b2b7aa4da",
+      "second_pool": "0x2fbbc14b313ae19686f3ff37335ef1a0bff44eba",
+      "first_input": 1000000000000000,
+      "first_output": 16479176328791860620,
+      "first_fee": 20625000000000,
+      "second_words": [
+        16479176328791860620,
+        0,
+        0
+      ],
+      "usable": false
+    },
+    {
+      "bridge": "0x5173d45a1191ee33cbb7d8c7e65f21b04ed54802",
+      "first_pool": "0x6cefa6f3fb2b89aaa8eafba9739b265b2b7aa4da",
+      "second_pool": "0x9fa4ad568c0f06d32d8cc0948e05e4a38cdf8209",
+      "first_input": 1000000000000000,
+      "first_output": 16479176328791860620,
+      "first_fee": 20625000000000,
+      "second_words": [
+        16479176328791860620,
+        0,
+        0
+      ],
+      "usable": false
+    },
+    {
+      "bridge": "0x5173d45a1191ee33cbb7d8c7e65f21b04ed54802",
+      "first_pool": "0x6cefa6f3fb2b89aaa8eafba9739b265b2b7aa4da",
+      "second_pool": "0xe5c549d30eb7ac99dcaaddd4a7fec48c5d523a31",
+      "first_input": 1000000000000000,
+      "first_output": 16479176328791860620,
+      "first_fee": 20625000000000,
+      "second_words": [
+        0,
+        422835,
+        164791763287918607
+      ],
+      "usable": true
+    },
+    {
+      "bridge": "0x5173d45a1191ee33cbb7d8c7e65f21b04ed54802",
+      "first_pool": "0x6cefa6f3fb2b89aaa8eafba9739b265b2b7aa4da",
+      "second_pool": "0x4e862bbc1a00cf7653dcfe9bc030b3e6d4df0236",
+      "first_input": 1000000000000000,
+      "first_output": 16479176328791860620,
+      "first_fee": 20625000000000,
+      "second_words": [
+        16479176328791860620,
+        0,
+        0
+      ],
+      "usable": false
+    },
+    {
+      "bridge": "0xca9c78dd337a67f6e0077f65f5e9218719d30edf",
+      "first_pool": "0x3b46b4f0036a718329aa25bf1238392527a0800b",
+      "second_pool": "0x85eaa3a28c5a9ce56b95da74c1a43f125185e7f7",
+      "first_input": 1000000000000000,
+      "first_output": 3039170,
+      "first_fee": 22253363812286,
+      "second_words": [
+        3039170,
+        0,
+        0
+      ],
+      "usable": false
+    },
+    {
+      "bridge": "0xca9c78dd337a67f6e0077f65f5e9218719d30edf",
+      "first_pool": "0x3b46b4f0036a718329aa25bf1238392527a0800b",
+      "second_pool": "0x759cb56043e8c822454bd6d423f6d896111bc796",
+      "first_input": 1000000000000000,
+      "first_output": 3039170,
+      "first_fee": 22253363812286,
+      "second_words": [
+        3039170,
+        0,
+        0
+      ],
+      "usable": false
+    },
+    {
+      "bridge": "0xcec185eb182c47d1ba1efc84e6959e18cd620be4",
+      "first_pool": "0x06ffaa507a9c3e7025294a642f1e1c75da3dfb4a",
+      "second_pool": "0x0d00f6a71de9b2de9777ad40f442c044cb5cbf3b",
+      "first_input": 1000000000000000,
+      "first_output": 3026,
+      "first_fee": 400000000000,
+      "second_words": [
+        3026,
+        0,
+        0
+      ],
+      "usable": false
+    }
+  ],
+  "token_code_evidence": [
+    {
+      "asset": "0x4e5195469a0360f5dfe811730c9ccacff0a0feee",
+      "bytes": 10815,
+      "sha256": "cffaaaceb64237be053f03acaab5a429fe85223c2bd7078fd4ca2b84947d53ed",
+      "transfer_behavior_verified": false
+    },
+    {
+      "asset": "0x5173d45a1191ee33cbb7d8c7e65f21b04ed54802",
+      "bytes": 10815,
+      "sha256": "386126d9e9fbb3fa27937fce41094d30bea610c475af1bf952e18ad8ae66fe41",
+      "transfer_behavior_verified": false
+    },
+    {
+      "asset": "0xca9c78dd337a67f6e0077f65f5e9218719d30edf",
+      "bytes": 6432,
+      "sha256": "cdc02859b4648a5c35ed22cfc8c67de29b5646dd65bcb79aee802e3ef7fff23d",
+      "transfer_behavior_verified": false
+    },
+    {
+      "asset": "0xcec185eb182c47d1ba1efc84e6959e18cd620be4",
+      "bytes": 1182,
+      "sha256": "026992c5c78c450bab9192b0a511259bb6b802ca2ff6e273e1e4abd55f3d041d",
+      "transfer_behavior_verified": false
+    },
+    {
+      "asset": "0xfdf085fc400504ca734e9ef89c68d2b98e604c2c",
+      "bytes": 3248,
+      "sha256": "bbf132cd02914c22e2e29bfd50c0974c0d42ef21e732453c4d2c5c9043e81e69",
+      "transfer_behavior_verified": false
+    }
+  ],
+  "status": "PASS_ROUTE_CAPABILITY_ONLY",
+  "block": 86063734,
+  "block_hash": "0x281b2cff7821e314130d234f2311b64c5ff8820b98b79845d99a5149e7e71006",
+  "block_timestamp": 1791745405,
+  "current_pairs": 19,
+  "authenticated_hookless_pairs": 19,
+  "usable_routes": 2,
+  "canonical_membership": true,
+  "ended_at": 1791745407.2607474,
+  "duration_seconds": 2.3884871006011963,
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pons-second-hop-6d64f93e-1791745392154.sqlite",
+  "usage_delta": {
+    "http_attempts": 10,
+    "rpc_elements": 78,
+    "rpc_cu": 1834,
+    "http_bytes": 139362,
+    "native_opens": 0
+  },
+  "modeled_public_upper_usd": "0.00096285",
+  "invoice_verified": false
+}

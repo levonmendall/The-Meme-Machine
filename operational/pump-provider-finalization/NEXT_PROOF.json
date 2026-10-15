@@ -1,0 +1,114 @@
+{
+  "authorization": "NOT_GRANTED",
+  "billed_cu": "UNMEASURED",
+  "blockers": [
+    "complete_authenticated_pons_seven_day_seed_absent",
+    "finite_executor_with_warm_seed_and_full_clock_resource_stop_contract_not_yet_reviewed"
+  ],
+  "currency_cost": "UNMEASURED",
+  "current_harness_execution_allowed": false,
+  "deployment_allowed": false,
+  "estimate_basis": "Frozen Solana diagnostic method weights; Robinhood 100/element; native ceil(bytes/512), not authenticated billing",
+  "independent_signature_index_and_finality_witnesses_required": true,
+  "limits": {
+    "consecutive_candidate_original_deadline_violations_stop": 2,
+    "cumulative_process_write_bytes": 34359738368,
+    "estimated_native_cu": 20971520,
+    "estimated_rpc_cu": 6000000,
+    "minimum_free_volume_bytes": 4294967296,
+    "minimum_system_available_bytes": 2147483648,
+    "native_admission_rejections_allowed": 0,
+    "native_delivery_bytes": 10737418240,
+    "native_inflight_shutdown_reserve_bytes": 536870912,
+    "native_position_deadline_violations_allowed": 0,
+    "owner_queue_capacity": 64,
+    "owner_queue_stop_seconds": 5,
+    "owner_queue_sustained_stop_depth": 32,
+    "proof_group_rss_bytes": 4294967296,
+    "robinhood_rpc_elements": 10000,
+    "solana_rpc_elements": 50000,
+    "temporary_stock_bytes": 17179869184,
+    "total_estimated_cu": 26971520,
+    "total_rpc_elements": 60000
+  },
+  "old_authorizations_consumed": true,
+  "original_deadlines_renewed": false,
+  "pons_cold_projection": {
+    "absolute_optimistic_growing_chain_catchup_hours": 23.71909606201776,
+    "absolute_optimistic_single_request_turn_seconds": 0.5,
+    "actual_complete_domain_and_billed_cost": "UNMEASURED",
+    "average_blocks_per_second": 9.897436221985844,
+    "binary_search_header_steps_estimate": 27,
+    "block_header_pairs": [
+      [
+        41443136,
+        1787231172
+      ],
+      [
+        82886255,
+        1791418430
+      ]
+    ],
+    "cold_bootstrap_authorized": false,
+    "includes_candidate_hydration": false,
+    "initial_forty_block_turns": 149650,
+    "initial_logical_discovery_elements": 1047550,
+    "initial_physical_http_attempts": 299300,
+    "pacing_note": "The loop wait overlaps inter-request admission spacing; do not add it twice. Header/cache/Current/hydration work is uncertain.",
+    "seven_day_estimated_blocks": 5985970,
+    "two_fresh_request_growing_chain_catchup_hours": 55.23680496804967,
+    "two_fresh_request_turn_seconds": 1.0
+  },
+  "production_startup_blocker": "combined_position_and_candidate_provider_latency_not_certified",
+  "provider_dispatch_and_true_finality_clock": "UNMEASURED_UNLESS_AUTHENTICATED",
+  "readiness": "BLOCKED",
+  "result_contract": "NEXT_PROOF.md section 6; every criterion independently PASS/FAIL/INSUFFICIENT_SAMPLE/BLOCKED",
+  "retry_or_extension_allowed": false,
+  "samples": {
+    "all_candidates_retained": true,
+    "allocator_fixture_five_second_misses_allowed": 0,
+    "allocator_fixture_requests_per_half": 64,
+    "maintenance_cycles_per_regime": 30,
+    "maintenance_span_seconds_per_regime": 300,
+    "native_maintenance_cadence_unchanged": true,
+    "newly_witnessed_graduation_continuations": 1,
+    "pons_current_complete_vectors": 20,
+    "pons_survivor_complete_evaluations": 5,
+    "profitability_required": false,
+    "pump_current_complete_vectors": 20,
+    "pumpswap_survivor_complete_histories": 5
+  },
+  "schema": "pump-pons-next-proof-plan-v1",
+  "seed": {
+    "history_sha256": null,
+    "independent_coverage_receipt_sha256": null,
+    "max_discovery_tail_blocks": 1600,
+    "require_all_nominations_and_candidate_history": true
+  },
+  "source": {
+    "approved_policy_sha256": "e87385900145e53956df18956ee2390f0d95787e6ffc44243251f9b147eb65f2",
+    "engine_commit": "c7b347be9df2f2628ef17c39dc45269785d4f7fe",
+    "engine_tree": "753cdc1267c8c00ba0ccfa0e4903567ef62d8444",
+    "executor_commit": null,
+    "executor_tree": null,
+    "original_epoch": "paper-1791089005190643467",
+    "production_epoch_access": false,
+    "starting_commit": "510b61d1950ae54c8b0435b7b7cae3aad0bcc1fe"
+  },
+  "throughput_basis": {
+    "active_seconds": 13.764220476150513,
+    "capture_tape_sha256": "edc1ab35e5f2fc6bc4e9bfc35b4c9edd1cbe2103e2a67a57a40c9e4b29aed90c",
+    "captured_delivery_bytes": 50330766,
+    "conservative_bytes_per_second": 10495442,
+    "estimate_not_provider_capacity_guarantee": true,
+    "market_variability_factor": 2,
+    "peak_one_second_bytes": 5247721,
+    "projected_840_second_bytes": 8816171280
+  },
+  "time": {
+    "maximum_startup_seconds": 240,
+    "minimum_active_steady_seconds": 600,
+    "shutdown_seconds": 60,
+    "total_wall_seconds": 900
+  }
+}

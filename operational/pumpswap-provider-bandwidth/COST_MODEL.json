@@ -1,0 +1,1024 @@
+{
+  "as_of": "2026-10-08",
+  "limitations": [
+    "Activity rates are independent scenario assumptions, not capture time extrapolations.",
+    "Captured packet averages are traffic-mix estimates and may change with market conditions.",
+    "Full native transaction sizes, replay bodies and provider overhead are unmeasured.",
+    "No free-tier allowances, credits, taxes or custom account prices are assumed.",
+    "Published general WS 0.04 CU/byte is not the Solana-specific tariff.",
+    "No throughput/connection allowance is inferred; admission must pass on existing account capacity.",
+    "HTTP response bytes for selective acquisition are unmeasured; method CU counts remain separate.",
+    "Exceptional reactivation history RPCs are explicitly modeled, not required for already complete retained histories.",
+    "Capital availability never reduces the modeled discovery/economic universe.",
+    "Independent position subscriptions and their duplicate bytes are retained in both modeled configurations.",
+    "Position traffic rates are assumptions; the capture has no complete funded-position sample."
+  ],
+  "prices": {
+    "rpc_cu": {
+      "getBlockTime": 20,
+      "getGenesisHash": 10,
+      "getMultipleAccounts": 20,
+      "getSlot": 20,
+      "getTransaction": 40,
+      "getTransactionsForAddress": 100
+    },
+    "solana_ws_cu_per_byte": "0.0002",
+    "sources": [
+      "https://www.alchemy.com/docs/reference/compute-unit-costs",
+      "https://www.alchemy.com/pricing"
+    ],
+    "tb_bytes_assumed": "1000000000000",
+    "usd_per_million_cu": "0.525",
+    "yellowstone_usd_per_tb": "75"
+  },
+  "scenarios": [
+    {
+      "additional_paid_capacity_purchased": false,
+      "assumptions": {
+        "additional_position_events_per_second": {},
+        "additional_position_http": "0",
+        "alternative_native_subscribe_rpcs": 3,
+        "alternative_ws_connections": 1,
+        "archive_pages_per_reactivation_gap": 0,
+        "archive_transactions_per_page_assumed": 100,
+        "base_account_rpc_per_second": "0.01",
+        "baseline_native_subscribe_rpcs": 3,
+        "baseline_ws_connections": 1,
+        "events_per_second": {
+          "pump": {
+            "failed": "0.2",
+            "successful": "0.2"
+          },
+          "pumpswap": {
+            "failed": "1",
+            "successful": "2"
+          }
+        },
+        "exceptional_reactivation_history_gaps": 0,
+        "reactivation_history_seconds_assumed": 0,
+        "reactivation_pool_transactions_per_second_assumed": 0,
+        "reconnect_gap_seconds": 0,
+        "reconnects": 0,
+        "scout_updates_per_second": "0.1",
+        "startup_status_prefix_bytes_per_session": "1627766",
+        "startup_success_body_overlap_seconds_assumed": 1,
+        "unchanged_independent_position_native_bytes": "0",
+        "unchanged_independent_position_ws_bytes": "0"
+      },
+      "baseline": {
+        "http_request_elements": "25927.00",
+        "rpc_cu": "518510.00",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "25920.00",
+          "getSlot": "4",
+          "getTransaction": "0.0",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "0.27221775",
+        "total_streaming_bytes": "25842614453.71653258719254975",
+        "total_usage_usd": "2.863452552723690863918448964",
+        "ws_bytes": "21767957289.83169732930025773",
+        "ws_cu": "4353591.457966339465860051546",
+        "ws_usd": "2.285635515432328219576527062",
+        "yellowstone_bytes": "4074657163.884835257892292020",
+        "yellowstone_usd": "0.3055992872913626443419219015"
+      },
+      "classification": "MODELED_NOT_MARKET_MEASURED",
+      "retained_production_configuration": {
+        "http_request_elements": "25927.00",
+        "rpc_cu": "518510.00",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "25920.00",
+          "getSlot": "4",
+          "getTransaction": "0.0",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "0.27221775",
+        "total_streaming_bytes": "25842614453.71653258719254975",
+        "total_usage_usd": "2.863452552723690863918448964",
+        "ws_bytes": "21767957289.83169732930025773",
+        "ws_cu": "4353591.457966339465860051546",
+        "ws_usd": "2.285635515432328219576527062",
+        "yellowstone_bytes": "4074657163.884835257892292020",
+        "yellowstone_usd": "0.3055992872913626443419219015"
+      },
+      "scenario": "quiet",
+      "success_native_sensitivity": [
+        {
+          "http_request_elements": "25927.00",
+          "modeled_streaming_byte_difference": "3972390798.54522768526286749",
+          "modeled_usage_usd_difference": "0.883661213847248906952601087",
+          "native_success_mean_bytes_assumed": "3000",
+          "rpc_cu": "518510.00",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "25920.00",
+            "getSlot": "4",
+            "getTransaction": "0.0",
+            "getTransactionsForAddress": "0"
+          },
+          "rpc_usd": "0.27221775",
+          "total_streaming_bytes": "21870223655.17130490192968226",
+          "total_usage_usd": "1.979791338876441956965847877",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "2243560491.286469644037390237",
+          "ws_cu": "448712.0982572939288074780474",
+          "ws_usd": "0.2355738515850793126239259749",
+          "yellowstone_bytes": "19626663163.88483525789229202",
+          "yellowstone_usd": "1.471999737291362644341921902"
+        },
+        {
+          "http_request_elements": "25927.00",
+          "modeled_streaming_byte_difference": "-2248411601.45477231473713251",
+          "modeled_usage_usd_difference": "0.417101033847248906952601087",
+          "native_success_mean_bytes_assumed": "4200",
+          "rpc_cu": "518510.00",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "25920.00",
+            "getSlot": "4",
+            "getTransaction": "0.0",
+            "getTransactionsForAddress": "0"
+          },
+          "rpc_usd": "0.27221775",
+          "total_streaming_bytes": "28091026055.17130490192968226",
+          "total_usage_usd": "2.446351518876441956965847877",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "2243560491.286469644037390237",
+          "ws_cu": "448712.0982572939288074780474",
+          "ws_usd": "0.2355738515850793126239259749",
+          "yellowstone_bytes": "25847465563.88483525789229202",
+          "yellowstone_usd": "1.938559917291362644341921902"
+        },
+        {
+          "http_request_elements": "25927.00",
+          "modeled_streaming_byte_difference": "-11579615201.45477231473713251",
+          "modeled_usage_usd_difference": "-0.282739236152751093047398913",
+          "native_success_mean_bytes_assumed": "6000",
+          "rpc_cu": "518510.00",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "25920.00",
+            "getSlot": "4",
+            "getTransaction": "0.0",
+            "getTransactionsForAddress": "0"
+          },
+          "rpc_usd": "0.27221775",
+          "total_streaming_bytes": "37422229655.17130490192968226",
+          "total_usage_usd": "3.146191788876441956965847877",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "2243560491.286469644037390237",
+          "ws_cu": "448712.0982572939288074780474",
+          "ws_usd": "0.2355738515850793126239259749",
+          "yellowstone_bytes": "35178669163.88483525789229202",
+          "yellowstone_usd": "2.638400187291362644341921902"
+        }
+      ],
+      "universal_status_plus_http": {
+        "http_request_elements": "5209927.00",
+        "rpc_cu": "207878510.00",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "25920.00",
+          "getSlot": "4",
+          "getTransaction": "5184000.0",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "109.13621775",
+        "total_streaming_bytes": "6318217655.171304901929682257",
+        "total_usage_usd": "109.6773908888764419569658479",
+        "ws_bytes": "2243560491.286469644037390237",
+        "ws_cu": "448712.0982572939288074780474",
+        "ws_usd": "0.2355738515850793126239259749",
+        "yellowstone_bytes": "4074657163.884835257892292020",
+        "yellowstone_usd": "0.3055992872913626443419219015"
+      }
+    },
+    {
+      "additional_paid_capacity_purchased": false,
+      "assumptions": {
+        "additional_position_events_per_second": {},
+        "additional_position_http": "0",
+        "alternative_native_subscribe_rpcs": 3,
+        "alternative_ws_connections": 1,
+        "archive_pages_per_reactivation_gap": 0,
+        "archive_transactions_per_page_assumed": 100,
+        "base_account_rpc_per_second": "0.1",
+        "baseline_native_subscribe_rpcs": 3,
+        "baseline_ws_connections": 1,
+        "events_per_second": {
+          "pump": {
+            "failed": "2",
+            "successful": "2"
+          },
+          "pumpswap": {
+            "failed": "15",
+            "successful": "20"
+          }
+        },
+        "exceptional_reactivation_history_gaps": 0,
+        "reactivation_history_seconds_assumed": 0,
+        "reactivation_pool_transactions_per_second_assumed": 0,
+        "reconnect_gap_seconds": 0,
+        "reconnects": 0,
+        "scout_updates_per_second": "1",
+        "startup_status_prefix_bytes_per_session": "1627766",
+        "startup_success_body_overlap_seconds_assumed": 1,
+        "unchanged_independent_position_native_bytes": "0",
+        "unchanged_independent_position_ws_bytes": "0"
+      },
+      "baseline": {
+        "http_request_elements": "259207.0",
+        "rpc_cu": "5184110.0",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "259200.0",
+          "getSlot": "4",
+          "getTransaction": "0",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "2.72165775",
+        "total_streaming_bytes": "256582924971.6148950551262892",
+        "total_usage_usd": "29.24357178367060479785421745",
+        "ws_bytes": "242606488693.3162556239915251",
+        "ws_cu": "48521297.73866325112479830502",
+        "ws_usd": "25.47368131279820684051911014",
+        "yellowstone_bytes": "13976436278.29863943113476413",
+        "yellowstone_usd": "1.04823272087239795733510731"
+      },
+      "classification": "MODELED_NOT_MARKET_MEASURED",
+      "retained_production_configuration": {
+        "http_request_elements": "259207.0",
+        "rpc_cu": "5184110.0",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "259200.0",
+          "getSlot": "4",
+          "getTransaction": "0",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "2.72165775",
+        "total_streaming_bytes": "256582924971.6148950551262892",
+        "total_usage_usd": "29.24357178367060479785421745",
+        "ws_bytes": "242606488693.3162556239915251",
+        "ws_cu": "48521297.73866325112479830502",
+        "ws_usd": "25.47368131279820684051911014",
+        "yellowstone_bytes": "13976436278.29863943113476413",
+        "yellowstone_usd": "1.04823272087239795733510731"
+      },
+      "scenario": "normal",
+      "success_native_sensitivity": [
+        {
+          "http_request_elements": "259207.0",
+          "modeled_streaming_byte_difference": "64650824140.4515591836176227",
+          "modeled_usage_usd_difference": "11.45393833474741371427985039",
+          "native_success_mean_bytes_assumed": "3000",
+          "rpc_cu": "5184110.0",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "259200.0",
+            "getSlot": "4",
+            "getTransaction": "0",
+            "getTransactionsForAddress": "0"
+          },
+          "rpc_usd": "2.72165775",
+          "total_streaming_bytes": "191932100831.1633358715086665",
+          "total_usage_usd": "17.78963344892319108357436706",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "22435604552.86469644037390237",
+          "ws_cu": "4487120.910572939288074780474",
+          "ws_usd": "2.355738478050793126239259749",
+          "yellowstone_bytes": "169496496278.2986394311347641",
+          "yellowstone_usd": "12.71223722087239795733510731"
+        },
+        {
+          "http_request_elements": "259207.0",
+          "modeled_streaming_byte_difference": "2442800140.4515591836176227",
+          "modeled_usage_usd_difference": "6.78833653474741371427985039",
+          "native_success_mean_bytes_assumed": "4200",
+          "rpc_cu": "5184110.0",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "259200.0",
+            "getSlot": "4",
+            "getTransaction": "0",
+            "getTransactionsForAddress": "0"
+          },
+          "rpc_usd": "2.72165775",
+          "total_streaming_bytes": "254140124831.1633358715086665",
+          "total_usage_usd": "22.45523524892319108357436706",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "22435604552.86469644037390237",
+          "ws_cu": "4487120.910572939288074780474",
+          "ws_usd": "2.355738478050793126239259749",
+          "yellowstone_bytes": "231704520278.2986394311347641",
+          "yellowstone_usd": "17.37783902087239795733510731"
+        },
+        {
+          "http_request_elements": "259207.0",
+          "modeled_streaming_byte_difference": "-90869235859.5484408163823773",
+          "modeled_usage_usd_difference": "-0.21006616525258628572014961",
+          "native_success_mean_bytes_assumed": "6000",
+          "rpc_cu": "5184110.0",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "259200.0",
+            "getSlot": "4",
+            "getTransaction": "0",
+            "getTransactionsForAddress": "0"
+          },
+          "rpc_usd": "2.72165775",
+          "total_streaming_bytes": "347452160831.1633358715086665",
+          "total_usage_usd": "29.45363794892319108357436706",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "22435604552.86469644037390237",
+          "ws_cu": "4487120.910572939288074780474",
+          "ws_usd": "2.355738478050793126239259749",
+          "yellowstone_bytes": "325016556278.2986394311347641",
+          "yellowstone_usd": "24.37624172087239795733510731"
+        }
+      ],
+      "universal_status_plus_http": {
+        "http_request_elements": "52099207.0",
+        "rpc_cu": "2078784110.0",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "259200.0",
+          "getSlot": "4",
+          "getTransaction": "51840000",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "1091.36165775",
+        "total_streaming_bytes": "36412040831.16333587150866650",
+        "total_usage_usd": "1094.765628948923191083574367",
+        "ws_bytes": "22435604552.86469644037390237",
+        "ws_cu": "4487120.910572939288074780474",
+        "ws_usd": "2.355738478050793126239259749",
+        "yellowstone_bytes": "13976436278.29863943113476413",
+        "yellowstone_usd": "1.04823272087239795733510731"
+      }
+    },
+    {
+      "additional_paid_capacity_purchased": false,
+      "assumptions": {
+        "additional_position_events_per_second": {},
+        "additional_position_http": "0",
+        "alternative_native_subscribe_rpcs": 3,
+        "alternative_ws_connections": 1,
+        "archive_pages_per_reactivation_gap": 0,
+        "archive_transactions_per_page_assumed": 100,
+        "base_account_rpc_per_second": "1",
+        "baseline_native_subscribe_rpcs": 3,
+        "baseline_ws_connections": 1,
+        "events_per_second": {
+          "pump": {
+            "failed": "15",
+            "successful": "10"
+          },
+          "pumpswap": {
+            "failed": "150",
+            "successful": "100"
+          }
+        },
+        "exceptional_reactivation_history_gaps": 0,
+        "reactivation_history_seconds_assumed": 0,
+        "reactivation_pool_transactions_per_second_assumed": 0,
+        "reconnect_gap_seconds": 0,
+        "reconnects": 0,
+        "scout_updates_per_second": "5",
+        "startup_status_prefix_bytes_per_session": "1627766",
+        "startup_success_body_overlap_seconds_assumed": 1,
+        "unchanged_independent_position_native_bytes": "0",
+        "unchanged_independent_position_ws_bytes": "0"
+      },
+      "baseline": {
+        "http_request_elements": "2592007",
+        "rpc_cu": "51840110",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "2592000",
+          "getSlot": "4",
+          "getTransaction": "0",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "27.21605775",
+        "total_streaming_bytes": "1676275542210.930703967926779",
+        "total_usage_usd": "200.8165018136580946607264991",
+        "ws_bytes": "1595992613261.276395437733021",
+        "ws_cu": "319198522.6522552790875466042",
+        "ws_usd": "167.5792243924340215209619672",
+        "yellowstone_bytes": "80282928949.65430853019375805",
+        "yellowstone_usd": "6.021219671224073139764531854"
+      },
+      "classification": "MODELED_NOT_MARKET_MEASURED",
+      "retained_production_configuration": {
+        "http_request_elements": "2592007",
+        "rpc_cu": "51840110",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "2592000",
+          "getSlot": "4",
+          "getTransaction": "0",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "27.21605775",
+        "total_streaming_bytes": "1676275542210.930703967926779",
+        "total_usage_usd": "200.8165018136580946607264991",
+        "ws_bytes": "1595992613261.276395437733021",
+        "ws_cu": "319198522.6522552790875466042",
+        "ws_usd": "167.5792243924340215209619672",
+        "yellowstone_bytes": "80282928949.65430853019375805",
+        "yellowstone_usd": "6.021219671224073139764531854"
+      },
+      "scenario": "busy",
+      "success_native_sensitivity": [
+        {
+          "http_request_elements": "2592007",
+          "modeled_streaming_byte_difference": "697157868267.2470308829223327",
+          "modeled_usage_usd_difference": "96.5295851680609382427068450",
+          "native_success_mean_bytes_assumed": "3000",
+          "rpc_cu": "51840110",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "2592000",
+            "getSlot": "4",
+            "getTransaction": "0",
+            "getTransactionsForAddress": "0"
+          },
+          "rpc_usd": "27.21605775",
+          "total_streaming_bytes": "979117673943.6836730850044463",
+          "total_usage_usd": "104.2869166455971564180196541",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "121234444994.0293645548106883",
+          "ws_cu": "24246888.99880587291096213766",
+          "ws_usd": "12.72961672437308327825512227",
+          "yellowstone_bytes": "857883228949.6543085301937580",
+          "yellowstone_usd": "64.34124217122407313976453185"
+        },
+        {
+          "http_request_elements": "2592007",
+          "modeled_streaming_byte_difference": "386117748267.247030882922333",
+          "modeled_usage_usd_difference": "73.2015761680609382427068450",
+          "native_success_mean_bytes_assumed": "4200",
+          "rpc_cu": "51840110",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "2592000",
+            "getSlot": "4",
+            "getTransaction": "0",
+            "getTransactionsForAddress": "0"
+          },
+          "rpc_usd": "27.21605775",
+          "total_streaming_bytes": "1290157793943.683673085004446",
+          "total_usage_usd": "127.6149256455971564180196541",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "121234444994.0293645548106883",
+          "ws_cu": "24246888.99880587291096213766",
+          "ws_usd": "12.72961672437308327825512227",
+          "yellowstone_bytes": "1168923348949.654308530193758",
+          "yellowstone_usd": "87.66925117122407313976453185"
+        },
+        {
+          "http_request_elements": "2592007",
+          "modeled_streaming_byte_difference": "-80442431732.752969117077667",
+          "modeled_usage_usd_difference": "38.2095626680609382427068450",
+          "native_success_mean_bytes_assumed": "6000",
+          "rpc_cu": "51840110",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "2592000",
+            "getSlot": "4",
+            "getTransaction": "0",
+            "getTransactionsForAddress": "0"
+          },
+          "rpc_usd": "27.21605775",
+          "total_streaming_bytes": "1756717973943.683673085004446",
+          "total_usage_usd": "162.6069391455971564180196541",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "121234444994.0293645548106883",
+          "ws_cu": "24246888.99880587291096213766",
+          "ws_usd": "12.72961672437308327825512227",
+          "yellowstone_bytes": "1635483528949.654308530193758",
+          "yellowstone_usd": "122.6612646712240731397645318"
+        }
+      ],
+      "universal_status_plus_http": {
+        "http_request_elements": "261792007",
+        "rpc_cu": "10419840110",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "2592000",
+          "getSlot": "4",
+          "getTransaction": "259200000",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "5470.41605775",
+        "total_streaming_bytes": "201517373943.6836730850044464",
+        "total_usage_usd": "5489.166894145597156418019654",
+        "ws_bytes": "121234444994.0293645548106883",
+        "ws_cu": "24246888.99880587291096213766",
+        "ws_usd": "12.72961672437308327825512227",
+        "yellowstone_bytes": "80282928949.65430853019375805",
+        "yellowstone_usd": "6.021219671224073139764531854"
+      }
+    },
+    {
+      "additional_paid_capacity_purchased": false,
+      "assumptions": {
+        "additional_position_events_per_second": {},
+        "additional_position_http": "0",
+        "alternative_native_subscribe_rpcs": 3,
+        "alternative_ws_connections": 1,
+        "archive_pages_per_reactivation_gap": 0,
+        "archive_transactions_per_page_assumed": 100,
+        "base_account_rpc_per_second": "4",
+        "baseline_native_subscribe_rpcs": 3,
+        "baseline_ws_connections": 1,
+        "events_per_second": {
+          "pump": {
+            "failed": "120",
+            "successful": "40"
+          },
+          "pumpswap": {
+            "failed": "1600",
+            "successful": "400"
+          }
+        },
+        "exceptional_reactivation_history_gaps": 0,
+        "reactivation_history_seconds_assumed": 0,
+        "reactivation_pool_transactions_per_second_assumed": 0,
+        "reconnect_gap_seconds": 0,
+        "reconnects": 0,
+        "scout_updates_per_second": "20",
+        "startup_status_prefix_bytes_per_session": "1627766",
+        "startup_success_body_overlap_seconds_assumed": 1,
+        "unchanged_independent_position_native_bytes": "0",
+        "unchanged_independent_position_ws_bytes": "0"
+      },
+      "baseline": {
+        "http_request_elements": "10368007",
+        "rpc_cu": "207360110",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "10368000",
+          "getSlot": "4",
+          "getTransaction": "0",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "108.86405775",
+        "total_streaming_bytes": "12093659200185.31192520972657",
+        "total_usage_usd": "1360.229422498341373476249966",
+        "ws_bytes": "11478030824481.43263618401578",
+        "ws_cu": "2295606164.896286527236803156",
+        "ws_usd": "1205.193236570550426799321657",
+        "yellowstone_bytes": "615628375703.8792890257107867",
+        "yellowstone_usd": "46.172128177790946676928309"
+      },
+      "classification": "MODELED_NOT_MARKET_MEASURED",
+      "retained_production_configuration": {
+        "http_request_elements": "10368007",
+        "rpc_cu": "207360110",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "10368000",
+          "getSlot": "4",
+          "getTransaction": "0",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "108.86405775",
+        "total_streaming_bytes": "12093659200185.31192520972657",
+        "total_usage_usd": "1360.229422498341373476249966",
+        "ws_bytes": "11478030824481.43263618401578",
+        "ws_cu": "2295606164.896286527236803156",
+        "ws_usd": "1205.193236570550426799321657",
+        "yellowstone_bytes": "615628375703.8792890257107867",
+        "yellowstone_usd": "46.172128177790946676928309"
+      },
+      "scenario": "high_volume_stress",
+      "success_native_sensitivity": [
+        {
+          "http_request_elements": "10368007",
+          "modeled_streaming_byte_difference": "7774014775948.844589729478912",
+          "modeled_usage_usd_difference": "909.5835874746286819215952855",
+          "native_success_mean_bytes_assumed": "3000",
+          "rpc_cu": "207360110",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "10368000",
+            "getSlot": "4",
+            "getTransaction": "0",
+            "getTransactionsForAddress": "0"
+          },
+          "rpc_usd": "108.86405775",
+          "total_streaming_bytes": "4319644424236.467335480247658",
+          "total_usage_usd": "450.6458350237126915546546805",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "593614848532.5880464545368712",
+          "ws_cu": "118722969.7065176092909073742",
+          "ws_usd": "62.32955909592174487772637146",
+          "yellowstone_bytes": "3726029575703.879289025710787",
+          "yellowstone_usd": "279.452218177790946676928309"
+        },
+        {
+          "http_request_elements": "10368007",
+          "modeled_streaming_byte_difference": "6529854295948.844589729478912",
+          "modeled_usage_usd_difference": "816.2715514746286819215952855",
+          "native_success_mean_bytes_assumed": "4200",
+          "rpc_cu": "207360110",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "10368000",
+            "getSlot": "4",
+            "getTransaction": "0",
+            "getTransactionsForAddress": "0"
+          },
+          "rpc_usd": "108.86405775",
+          "total_streaming_bytes": "5563804904236.467335480247658",
+          "total_usage_usd": "543.9578710237126915546546805",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "593614848532.5880464545368712",
+          "ws_cu": "118722969.7065176092909073742",
+          "ws_usd": "62.32955909592174487772637146",
+          "yellowstone_bytes": "4970190055703.879289025710787",
+          "yellowstone_usd": "372.764254177790946676928309"
+        },
+        {
+          "http_request_elements": "10368007",
+          "modeled_streaming_byte_difference": "4663613575948.844589729478912",
+          "modeled_usage_usd_difference": "676.3034974746286819215952855",
+          "native_success_mean_bytes_assumed": "6000",
+          "rpc_cu": "207360110",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "10368000",
+            "getSlot": "4",
+            "getTransaction": "0",
+            "getTransactionsForAddress": "0"
+          },
+          "rpc_usd": "108.86405775",
+          "total_streaming_bytes": "7430045624236.467335480247658",
+          "total_usage_usd": "683.9259250237126915546546805",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "593614848532.5880464545368712",
+          "ws_cu": "118722969.7065176092909073742",
+          "ws_usd": "62.32955909592174487772637146",
+          "yellowstone_bytes": "6836430775703.879289025710787",
+          "yellowstone_usd": "512.732308177790946676928309"
+        }
+      ],
+      "universal_status_plus_http": {
+        "http_request_elements": "1047168007",
+        "rpc_cu": "41679360110",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "10368000",
+          "getSlot": "4",
+          "getTransaction": "1036800000",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "21881.66405775",
+        "total_streaming_bytes": "1209243224236.467335480247658",
+        "total_usage_usd": "21990.16574502371269155465468",
+        "ws_bytes": "593614848532.5880464545368712",
+        "ws_cu": "118722969.7065176092909073742",
+        "ws_usd": "62.32955909592174487772637146",
+        "yellowstone_bytes": "615628375703.8792890257107867",
+        "yellowstone_usd": "46.172128177790946676928309"
+      }
+    },
+    {
+      "additional_paid_capacity_purchased": false,
+      "assumptions": {
+        "additional_position_events_per_second": {},
+        "additional_position_http": "0",
+        "alternative_native_subscribe_rpcs": 3,
+        "alternative_ws_connections": 1,
+        "archive_pages_per_reactivation_gap": 216,
+        "archive_transactions_per_page_assumed": 100,
+        "base_account_rpc_per_second": "0.1",
+        "baseline_native_subscribe_rpcs": 3,
+        "baseline_ws_connections": 1,
+        "events_per_second": {
+          "pump": {
+            "failed": "2",
+            "successful": "2"
+          },
+          "pumpswap": {
+            "failed": "15",
+            "successful": "20"
+          }
+        },
+        "exceptional_reactivation_history_gaps": 30,
+        "reactivation_history_seconds_assumed": 21600,
+        "reactivation_pool_transactions_per_second_assumed": 1,
+        "reconnect_gap_seconds": 60,
+        "reconnects": 30,
+        "scout_updates_per_second": "1",
+        "startup_status_prefix_bytes_per_session": "1627766",
+        "startup_success_body_overlap_seconds_assumed": 1,
+        "unchanged_independent_position_native_bytes": "0",
+        "unchanged_independent_position_ws_bytes": "0"
+      },
+      "baseline": {
+        "http_request_elements": "305407.0",
+        "rpc_cu": "7418510.0",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "259200.0",
+          "getSlot": "124",
+          "getTransaction": "39600",
+          "getTransactionsForAddress": "6480"
+        },
+        "rpc_usd": "3.89471775",
+        "total_streaming_bytes": "256641465079.7484357769534662",
+        "total_usage_usd": "30.42102236378062035199125572",
+        "ws_bytes": "242606491093.3162556239915251",
+        "ws_cu": "48521298.21866325112479830502",
+        "ws_usd": "25.47368156479820684051911014",
+        "yellowstone_bytes": "14034973986.43218015296194105",
+        "yellowstone_usd": "1.052623048982413511472145579"
+      },
+      "classification": "MODELED_NOT_MARKET_MEASURED",
+      "retained_production_configuration": {
+        "http_request_elements": "305407.0",
+        "rpc_cu": "7418510.0",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "259200.0",
+          "getSlot": "124",
+          "getTransaction": "39600",
+          "getTransactionsForAddress": "6480"
+        },
+        "rpc_usd": "3.89471775",
+        "total_streaming_bytes": "256641465079.7484357769534662",
+        "total_usage_usd": "30.42102236378062035199125572",
+        "ws_bytes": "242606491093.3162556239915251",
+        "ws_cu": "48521298.21866325112479830502",
+        "ws_usd": "25.47368156479820684051911014",
+        "yellowstone_bytes": "14034973986.43218015296194105",
+        "yellowstone_usd": "1.052623048982413511472145579"
+      },
+      "scenario": "normal_reconnect_recovery",
+      "success_native_sensitivity": [
+        {
+          "http_request_elements": "305407.0",
+          "modeled_streaming_byte_difference": "64541025340.4515591836176228",
+          "modeled_usage_usd_difference": "11.44570346074741371427985039",
+          "native_success_mean_bytes_assumed": "3000",
+          "rpc_cu": "7418510.0",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "259200.0",
+            "getSlot": "124",
+            "getTransaction": "39600",
+            "getTransactionsForAddress": "6480"
+          },
+          "rpc_usd": "3.89471775",
+          "total_streaming_bytes": "192100439739.2968765933358434",
+          "total_usage_usd": "18.97531890303320663771140533",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "22435605752.86469644037390237",
+          "ws_cu": "4487121.150572939288074780474",
+          "ws_usd": "2.355738604050793126239259749",
+          "yellowstone_bytes": "169664833986.4321801529619410",
+          "yellowstone_usd": "12.72486254898241351147214558"
+        },
+        {
+          "http_request_elements": "305407.0",
+          "modeled_streaming_byte_difference": "2289081340.4515591836176228",
+          "modeled_usage_usd_difference": "6.77680766074741371427985039",
+          "native_success_mean_bytes_assumed": "4200",
+          "rpc_cu": "7418510.0",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "259200.0",
+            "getSlot": "124",
+            "getTransaction": "39600",
+            "getTransactionsForAddress": "6480"
+          },
+          "rpc_usd": "3.89471775",
+          "total_streaming_bytes": "254352383739.2968765933358434",
+          "total_usage_usd": "23.64421470303320663771140533",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "22435605752.86469644037390237",
+          "ws_cu": "4487121.150572939288074780474",
+          "ws_usd": "2.355738604050793126239259749",
+          "yellowstone_bytes": "231916777986.4321801529619410",
+          "yellowstone_usd": "17.39375834898241351147214558"
+        },
+        {
+          "http_request_elements": "305407.0",
+          "modeled_streaming_byte_difference": "-91088834659.5484408163823772",
+          "modeled_usage_usd_difference": "-0.22653603925258628572014961",
+          "native_success_mean_bytes_assumed": "6000",
+          "rpc_cu": "7418510.0",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "259200.0",
+            "getSlot": "124",
+            "getTransaction": "39600",
+            "getTransactionsForAddress": "6480"
+          },
+          "rpc_usd": "3.89471775",
+          "total_streaming_bytes": "347730299739.2968765933358434",
+          "total_usage_usd": "30.64755840303320663771140533",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "22435605752.86469644037390237",
+          "ws_cu": "4487121.150572939288074780474",
+          "ws_usd": "2.355738604050793126239259749",
+          "yellowstone_bytes": "325294693986.4321801529619410",
+          "yellowstone_usd": "24.39710204898241351147214558"
+        }
+      ],
+      "universal_status_plus_http": {
+        "http_request_elements": "52145407.0",
+        "rpc_cu": "2081018510.0",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "259200.0",
+          "getSlot": "124",
+          "getTransaction": "51879600",
+          "getTransactionsForAddress": "6480"
+        },
+        "rpc_usd": "1092.53471775",
+        "total_streaming_bytes": "36470579739.29687659333584342",
+        "total_usage_usd": "1095.943079403033206637711406",
+        "ws_bytes": "22435605752.86469644037390237",
+        "ws_cu": "4487121.150572939288074780474",
+        "ws_usd": "2.355738604050793126239259749",
+        "yellowstone_bytes": "14034973986.43218015296194105",
+        "yellowstone_usd": "1.052623048982413511472145579"
+      }
+    },
+    {
+      "additional_paid_capacity_purchased": false,
+      "assumptions": {
+        "additional_position_events_per_second": {
+          "failed": "2",
+          "successful": "5"
+        },
+        "additional_position_http": "2592000",
+        "alternative_native_subscribe_rpcs": 4,
+        "alternative_ws_connections": 2,
+        "archive_pages_per_reactivation_gap": 0,
+        "archive_transactions_per_page_assumed": 100,
+        "base_account_rpc_per_second": "0.1",
+        "baseline_native_subscribe_rpcs": 4,
+        "baseline_ws_connections": 2,
+        "events_per_second": {
+          "pump": {
+            "failed": "2",
+            "successful": "2"
+          },
+          "pumpswap": {
+            "failed": "15",
+            "successful": "20"
+          }
+        },
+        "exceptional_reactivation_history_gaps": 0,
+        "reactivation_history_seconds_assumed": 0,
+        "reactivation_pool_transactions_per_second_assumed": 0,
+        "reconnect_gap_seconds": 0,
+        "reconnects": 0,
+        "scout_updates_per_second": "1",
+        "startup_status_prefix_bytes_per_session": "1627766",
+        "startup_success_body_overlap_seconds_assumed": 1,
+        "unchanged_independent_position_native_bytes": "3351983761.296001891973564925",
+        "unchanged_independent_position_ws_bytes": "46318300284.86314098005827394"
+      },
+      "baseline": {
+        "http_request_elements": "2851209.0",
+        "rpc_cu": "57024150.0",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "2851200.0",
+          "getSlot": "6",
+          "getTransaction": "0",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "29.93767875",
+        "total_streaming_bytes": "306253209017.7740379271581281",
+        "total_usage_usd": "61.57441309567843474265835358",
+        "ws_bytes": "288924788978.1793966040497990",
+        "ws_cu": "57784957.79563587932080995980",
+        "ws_usd": "30.3371028427088366434252289",
+        "yellowstone_bytes": "17328420039.59464132310832906",
+        "yellowstone_usd": "1.29963150296959809923312468"
+      },
+      "classification": "MODELED_NOT_MARKET_MEASURED",
+      "retained_production_configuration": {
+        "http_request_elements": "2851209.0",
+        "rpc_cu": "57024150.0",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "2851200.0",
+          "getSlot": "6",
+          "getTransaction": "0",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "29.93767875",
+        "total_streaming_bytes": "306253209017.7740379271581281",
+        "total_usage_usd": "61.57441309567843474265835358",
+        "ws_bytes": "288924788978.1793966040497990",
+        "ws_cu": "57784957.79563587932080995980",
+        "ws_usd": "30.3371028427088366434252289",
+        "yellowstone_bytes": "17328420039.59464132310832906",
+        "yellowstone_usd": "1.29963150296959809923312468"
+      },
+      "scenario": "normal_open_position_maintenance",
+      "success_native_sensitivity": [
+        {
+          "http_request_elements": "2851209.0",
+          "modeled_streaming_byte_difference": "64650824140.4515591836176227",
+          "modeled_usage_usd_difference": "11.45393833474741371427985039",
+          "native_success_mean_bytes_assumed": "3000",
+          "rpc_cu": "57024150.0",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "2851200.0",
+            "getSlot": "6",
+            "getTransaction": "0",
+            "getTransactionsForAddress": "0"
+          },
+          "rpc_usd": "29.93767875",
+          "total_streaming_bytes": "241602384877.3224787435405054",
+          "total_usage_usd": "50.12047476093102102837850319",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "68753904837.72783742043217631",
+          "ws_cu": "13750780.96754556748408643526",
+          "ws_usd": "7.219160007961422929145378512",
+          "yellowstone_bytes": "172848480039.5946413231083291",
+          "yellowstone_usd": "12.96363600296959809923312468"
+        },
+        {
+          "http_request_elements": "2851209.0",
+          "modeled_streaming_byte_difference": "2442800140.4515591836176227",
+          "modeled_usage_usd_difference": "6.78833653474741371427985039",
+          "native_success_mean_bytes_assumed": "4200",
+          "rpc_cu": "57024150.0",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "2851200.0",
+            "getSlot": "6",
+            "getTransaction": "0",
+            "getTransactionsForAddress": "0"
+          },
+          "rpc_usd": "29.93767875",
+          "total_streaming_bytes": "303810408877.3224787435405054",
+          "total_usage_usd": "54.78607656093102102837850319",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "68753904837.72783742043217631",
+          "ws_cu": "13750780.96754556748408643526",
+          "ws_usd": "7.219160007961422929145378512",
+          "yellowstone_bytes": "235056504039.5946413231083291",
+          "yellowstone_usd": "17.62923780296959809923312468"
+        },
+        {
+          "http_request_elements": "2851209.0",
+          "modeled_streaming_byte_difference": "-90869235859.5484408163823773",
+          "modeled_usage_usd_difference": "-0.21006616525258628572014961",
+          "native_success_mean_bytes_assumed": "6000",
+          "rpc_cu": "57024150.0",
+          "rpc_methods": {
+            "getGenesisHash": "3",
+            "getMultipleAccounts": "2851200.0",
+            "getSlot": "6",
+            "getTransaction": "0",
+            "getTransactionsForAddress": "0"
+          },
+          "rpc_usd": "29.93767875",
+          "total_streaming_bytes": "397122444877.3224787435405054",
+          "total_usage_usd": "61.78447926093102102837850319",
+          "verified_provider_savings_bytes": 0,
+          "ws_bytes": "68753904837.72783742043217631",
+          "ws_cu": "13750780.96754556748408643526",
+          "ws_usd": "7.219160007961422929145378512",
+          "yellowstone_bytes": "328368540039.5946413231083291",
+          "yellowstone_usd": "24.62764050296959809923312468"
+        }
+      ],
+      "universal_status_plus_http": {
+        "http_request_elements": "54691209.0",
+        "rpc_cu": "2130624150.0",
+        "rpc_methods": {
+          "getGenesisHash": "3",
+          "getMultipleAccounts": "2851200.0",
+          "getSlot": "6",
+          "getTransaction": "51840000",
+          "getTransactionsForAddress": "0"
+        },
+        "rpc_usd": "1118.57767875",
+        "total_streaming_bytes": "86082324877.32247874354050537",
+        "total_usage_usd": "1127.096470260931021028378504",
+        "ws_bytes": "68753904837.72783742043217631",
+        "ws_cu": "13750780.96754556748408643526",
+        "ws_usd": "7.219160007961422929145378512",
+        "yellowstone_bytes": "17328420039.59464132310832906",
+        "yellowstone_usd": "1.29963150296959809923312468"
+      }
+    }
+  ],
+  "schema": "pump-provider-thirty-day-cost-model-v1"
+}

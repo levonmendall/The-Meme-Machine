@@ -1,0 +1,62 @@
+{
+  "parent": "b55984de8e13a6dffc2fcb895de034efad8c8c4e",
+  "scope": "Remaining authenticated Pump owner planning bottleneck; no strategy or provider changes",
+  "retained_failure": "PUMP_JOIN_RETIREMENT_d934820a-1791786798738.json",
+  "authenticated_owner_attribution": {
+    "request_development_calls": 79,
+    "execution_seconds": 38.2466,
+    "thread_cpu_seconds": 33.5383,
+    "diagnostic_seconds": 87.222,
+    "native_commit_cpu_seconds": 0.6526,
+    "retirement_cpu_seconds": 0.6852
+  },
+  "cause": [
+    "Publication waits repeatedly decode immutable proof cohorts above the former input-size cache cutoff, despite small compact unions",
+    "Overlapping unsealed outage intervals repeatedly split each proof branch"
+  ],
+  "repair": [
+    "Retain only fingerprinted compact unions in the existing eight-cohort 512-KiB cache; freshly hash every proof, read current gaps and apply original point-in-time availability",
+    "Subtract the freshly selected gap union with an ordered sweep independently for each authenticated source branch"
+  ],
+  "offline_same_state_profile": {
+    "historical_point": 1791786887,
+    "baseline_seconds": 0.6716704590944573,
+    "optimized_seconds": 0.4279764910461381,
+    "selected_job_equal": true,
+    "transaction_rolled_back": true,
+    "external_publication": false,
+    "provider_dispatch": false,
+    "baseline_log": "pump-planner-baseline.log",
+    "optimized_log": "pump-planner-optimized.log",
+    "instrumented_not_live_latency": true
+  },
+  "tests": [
+    {
+      "suite": "FAST",
+      "tests": 36,
+      "seconds": 6.624,
+      "log": "pump-planner-sweep-fast.log"
+    },
+    {
+      "suite": "OPERATIONAL",
+      "tests": 84,
+      "skipped": 4,
+      "seconds": 43.808,
+      "log": "pump-planner-sweep-operational-pass.log",
+      "skip_reason": "Previously retired Model A-only historical tests"
+    }
+  ],
+  "unchanged": [
+    "Native joins and event retention",
+    "Historical and canonical gap requirements",
+    "Corruption and original availability checks",
+    "Cache memory bound",
+    "Queue priorities and deadlines",
+    "Stops, trails, addition and qualification policy",
+    "Native USD and shared portfolio authority",
+    "Provider limits and subscriptions"
+  ],
+  "provider_incremental_requests": 0,
+  "authenticated_successor_validation": "PENDING",
+  "all_regime_readiness": "NOT_PROVED"
+}

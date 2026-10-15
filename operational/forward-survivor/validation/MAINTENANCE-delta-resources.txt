@@ -1,0 +1,39 @@
+Command exited with non-zero status 1
+	Command being timed: "../.venv/bin/python -c import unittest
+from operational.tests import network_guard
+from meme_machine.operational.artifact_storage import Scratch
+network_guard()
+names=["tests.test_production_maintenance_arbiter.ProductionServeTests.test_simultaneous_high_debt_and_three_scopes","tests.test_run381_archive_scheduling.BoundedArchiveRetirementTests.test_eligible_reader_and_all_scopes_progress_under_source_pressure","tests.test_run381_archive_scheduling.BoundedArchiveRetirementTests.test_sustained_ready_work_has_bounded_two_sided_service"]
+with Scratch() as scratch:
+    class Result(unittest.TextTestResult):
+        def stopTest(self,test):
+            scratch.check()
+            super().stopTest(test)
+    suite=unittest.defaultTestLoader.loadTestsFromNames(names)
+    result=unittest.TextTestRunner(verbosity=2,resultclass=Result).run(suite)
+    scratch.check()
+    scratch.success=result.wasSuccessful()
+    code=0 if scratch.success else 1
+raise SystemExit(code)"
+	User time (seconds): 25.75
+	System time (seconds): 1.84
+	Percent of CPU this job got: 80%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:34.33
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 97356
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 28380
+	Voluntary context switches: 22606
+	Involuntary context switches: 8724
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 813960
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

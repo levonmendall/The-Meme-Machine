@@ -1,0 +1,80 @@
+{
+  "portfolio_bps": 7500,
+  "regime_base_bps": {
+    "pump_current": 3000,
+    "pump_survivor": 3000,
+    "pons_current": 3000,
+    "pons_survivor": 3000,
+    "meteora": 1,
+    "ramses": 1
+  },
+  "regime_max_bps": {
+    "pump_current": 3000,
+    "pump_survivor": 3000,
+    "pons_current": 3000,
+    "pons_survivor": 3000,
+    "meteora": 1,
+    "ramses": 1
+  },
+  "family_max_bps": {
+    "pump": 4500,
+    "pons": 4500,
+    "meteora": 1,
+    "ramses": 1
+  },
+  "asset_bps": 250,
+  "group_bps": {
+    "crypto_beta": 7500,
+    "solana": 4500,
+    "robinhood": 4500,
+    "directional": 7500,
+    "lp": 1
+  },
+  "groups": {
+    "pump_current": [
+      "crypto_beta",
+      "solana",
+      "directional"
+    ],
+    "pump_survivor": [
+      "crypto_beta",
+      "solana",
+      "directional"
+    ],
+    "pons_current": [
+      "crypto_beta",
+      "robinhood",
+      "directional"
+    ],
+    "pons_survivor": [
+      "crypto_beta",
+      "robinhood",
+      "directional"
+    ],
+    "meteora": [
+      "crypto_beta",
+      "solana",
+      "lp"
+    ],
+    "ramses": [
+      "crypto_beta",
+      "robinhood",
+      "lp"
+    ]
+  },
+  "multiplier_min_bps": 8000,
+  "multiplier_max_bps": 12000,
+  "cooldown_seconds": 3600,
+  "hysteresis_bps": 250,
+  "maximum_step_bps": 500,
+  "confidence_trades": 20,
+  "confidence_capital_days": 500,
+  "recent_seconds": 604800,
+  "reference_seconds": 2592000,
+  "max_samples": 512,
+  "drawdown_stop_bps": 1000,
+  "cash_floor_bps": 1000,
+  "transaction_cost_floor": "5",
+  "sizing_basis": "effective_family_equivalence",
+  "adaptive": false
+}

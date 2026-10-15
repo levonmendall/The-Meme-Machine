@@ -1,0 +1,11 @@
+{
+  "allowed_exception": "existing Robinhood shared admission and usage ledger only",
+  "changes": [],
+  "content_checksummed": 56,
+  "epoch": "paper-1791089005190643467",
+  "files": 71,
+  "inception_usd": "500.00",
+  "production_blocker": "combined_position_and_candidate_provider_latency_not_certified",
+  "service_state": "inactive",
+  "stat_checked": 15
+}

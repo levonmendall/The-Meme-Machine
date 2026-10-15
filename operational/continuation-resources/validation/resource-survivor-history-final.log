@@ -1,0 +1,7 @@
+test_full_72_hour_survivor_actual_history_is_bounded_and_keeps_original_risk_age (tests.test_continuation_resource_efficiency.LongHoldHistoryTests.test_full_72_hour_survivor_actual_history_is_bounded_and_keeps_original_risk_age) ... STORAGE_TRACE {"survivor_monitor_turns": 86401, "maximum_retained_points": 28803, "maximum_retained_events": 2402, "sqlite_bytes": 9293824, "wal_bytes": 9405992, "cpu_seconds": 426.839887376, "original_opened_at": 100, "risk_high_water": 98400, "automatic_terminal_history_cleanup": true}
+ok
+
+----------------------------------------------------------------------
+Ran 1 test in 485.796s
+
+OK

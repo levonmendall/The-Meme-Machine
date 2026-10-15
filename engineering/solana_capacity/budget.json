@@ -1,0 +1,1577 @@
+{
+  "window_seconds": 3477.4070374965668,
+  "startup_seconds": 9.67493987083435,
+  "live_including_startup_seconds": 3487.081977367401,
+  "estimated_provider_cost_USD": 0.45438762991500004,
+  "framing_bound_USD": 0.47710701141075007,
+  "Yellowstone_bytes": 204573473,
+  "WebSocket_bytes": 149827328,
+  "RPC_CU": 806310,
+  "attempts": [
+    {
+      "attempt": "baseline",
+      "started_UTC": "2026-10-07T06:46:55.405754+00:00",
+      "window_seconds": 0.45024538040161133,
+      "startup_seconds": 0,
+      "calls": 1,
+      "CU": 10,
+      "HTTP_bytes": 81,
+      "native": 0,
+      "websocket": 0,
+      "errors": [
+        {
+          "task": "service",
+          "type": "OSError",
+          "reason": "OSError"
+        }
+      ],
+      "source_sha256": {},
+      "result_sha256": "b4ff6322a93cee94bc7d990b789e4d3e29b0e3733d761e8b4bdee2ecd6587170"
+    },
+    {
+      "attempt": "baseline2",
+      "started_UTC": "2026-10-07T06:47:25.755765+00:00",
+      "window_seconds": 9.210619688034058,
+      "startup_seconds": 0.43308496475219727,
+      "calls": 20,
+      "CU": 360,
+      "HTTP_bytes": 158408,
+      "native": 0,
+      "websocket": 0,
+      "errors": [
+        {
+          "task": 0,
+          "type": "DeliveredRPCError",
+          "reason": "repair_response_unavailable"
+        }
+      ],
+      "source_sha256": {},
+      "result_sha256": "ebd4cbc9d3cf224b7f252008dbd0a2eebe155b51bf22e74f1432b4e8d0ae49bb"
+    },
+    {
+      "attempt": "repaired-smoke",
+      "started_UTC": "2026-10-07T06:49:26.725084+00:00",
+      "window_seconds": 12.848875761032104,
+      "startup_seconds": 0.3799905776977539,
+      "calls": 127,
+      "CU": 3510,
+      "HTTP_bytes": 19003365,
+      "native": 0,
+      "websocket": 0,
+      "errors": [
+        {
+          "task": 0,
+          "type": "EvidenceUnavailable",
+          "reason": "evidence_background_yield"
+        }
+      ],
+      "source_sha256": {},
+      "result_sha256": "efc29a34bc30cf5c39597545319805d12310e3278bf19b956e32e4e1cc494f87"
+    },
+    {
+      "attempt": "repaired-smoke2",
+      "started_UTC": "2026-10-07T06:56:11.106228+00:00",
+      "window_seconds": 56.3332040309906,
+      "startup_seconds": 0.3466205596923828,
+      "calls": 357,
+      "CU": 9870,
+      "HTTP_bytes": 48479631,
+      "native": 0,
+      "websocket": 0,
+      "errors": [
+        {
+          "task": 0,
+          "type": "TypeError",
+          "reason": "TypeError",
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 115,
+              "function": "__call__"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 278,
+              "function": "run"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 229,
+              "function": "stream"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 267,
+              "function": "scouts"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 248,
+              "function": "resumable"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 838,
+              "function": "work"
+            },
+            {
+              "file": "solana_evidence_control.py",
+              "line": 138,
+              "function": "_run"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 830,
+              "function": "timed"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 267,
+              "function": "<lambda>"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 98,
+              "function": "commit_scout"
+            },
+            {
+              "file": "solana_selective_history.py",
+              "line": 164,
+              "function": "observe"
+            },
+            {
+              "file": "solana_candidate_lifecycle.py",
+              "line": 68,
+              "function": "observe"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {},
+      "result_sha256": "b158a557ed23a24113b9ec0c3922c1159d6b7dc3cfec8069fd01e905dfe2eb5a"
+    },
+    {
+      "attempt": "repaired-smoke3",
+      "started_UTC": "2026-10-07T07:02:31.432942+00:00",
+      "window_seconds": 66.45422768592834,
+      "startup_seconds": 0.28397107124328613,
+      "calls": 491,
+      "CU": 11850,
+      "HTTP_bytes": 54194167,
+      "native": 0,
+      "websocket": 0,
+      "errors": [
+        {
+          "task": 0,
+          "type": "EvidenceUnavailable",
+          "reason": "candidate_websocket_ack_timeout",
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 120,
+              "function": "__call__"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 278,
+              "function": "run"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 431,
+              "function": "live_manager"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 493,
+              "function": "live"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {},
+      "result_sha256": "d74bd03816b5e7df797209b815d629f636ec9e2ced865ad1b477591b4f95f1a1"
+    },
+    {
+      "attempt": "repaired-smoke4",
+      "started_UTC": "2026-10-07T07:10:55.573389+00:00",
+      "window_seconds": 82.56037473678589,
+      "startup_seconds": 0.261155366897583,
+      "calls": 779,
+      "CU": 22670,
+      "HTTP_bytes": 108821879,
+      "native": 0,
+      "websocket": 0,
+      "errors": [],
+      "source_sha256": {},
+      "result_sha256": "a5696ba9dbcbac10435423e24f956a986cd66e581ec5928d1112334f203e8863"
+    },
+    {
+      "attempt": "repaired-smoke5",
+      "started_UTC": "2026-10-07T07:15:48.769380+00:00",
+      "window_seconds": 15.86407470703125,
+      "startup_seconds": 0.34989047050476074,
+      "calls": 142,
+      "CU": 3730,
+      "HTTP_bytes": 18705056,
+      "native": 0,
+      "websocket": 0,
+      "errors": [
+        {
+          "task": "service",
+          "type": "EvidenceUnavailable",
+          "reason": "maintenance_service_deadline_exhausted",
+          "errno": null,
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 283,
+              "function": "main"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 1550,
+              "function": "serve"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 1422,
+              "function": "maintenance"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 838,
+              "function": "work"
+            },
+            {
+              "file": "solana_evidence_control.py",
+              "line": 138,
+              "function": "_run"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 830,
+              "function": "timed"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 1415,
+              "function": "turn"
+            },
+            {
+              "file": "solana_maintenance_runtime.py",
+              "line": 472,
+              "function": "turn"
+            },
+            {
+              "file": "solana_maintenance_arbiter.py",
+              "line": 184,
+              "function": "choose"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {},
+      "result_sha256": "f57c523d3b997d2c99f5b8dbbe50f1219746c957c59ccd8a88fee15250328a05"
+    },
+    {
+      "attempt": "repaired-smoke6",
+      "started_UTC": "2026-10-07T07:24:49.659903+00:00",
+      "window_seconds": 77.8007116317749,
+      "startup_seconds": 0.32691192626953125,
+      "calls": 546,
+      "CU": 21630,
+      "HTTP_bytes": 91201218,
+      "native": 0,
+      "websocket": 0,
+      "errors": [
+        {
+          "task": 0,
+          "type": "EvidenceUnavailable",
+          "reason": "yellowstone_census_buffer_bound",
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 120,
+              "function": "__call__"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 281,
+              "function": "run"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 441,
+              "function": "live_manager"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 538,
+              "function": "live"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 229,
+              "function": "stream"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 478,
+              "function": "native"
+            },
+            {
+              "file": "solana_candidate_join.py",
+              "line": 154,
+              "function": "feed"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {},
+      "result_sha256": "5479ff5058786db017a62dcfcd7de322749557c5437d3ccbabbaa80c3395592f"
+    },
+    {
+      "attempt": "repaired-smoke7",
+      "started_UTC": "2026-10-07T07:54:28.093537+00:00",
+      "window_seconds": 14.586174249649048,
+      "startup_seconds": 0.514021635055542,
+      "calls": 72,
+      "CU": 3410,
+      "HTTP_bytes": 6310639,
+      "native": 94143,
+      "websocket": 85721,
+      "errors": [
+        {
+          "task": 5,
+          "type": "OperationalError",
+          "reason": "OperationalError",
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 139,
+              "function": "__call__"
+            },
+            {
+              "file": "certify.py",
+              "line": 312,
+              "function": "pump_candidate_loop"
+            },
+            {
+              "file": "thread.py",
+              "line": 59,
+              "function": "run"
+            },
+            {
+              "file": "pump_candidates.py",
+              "line": 35,
+              "function": "tick"
+            },
+            {
+              "file": "solana_evidence_runtime.py",
+              "line": 238,
+              "function": "creation"
+            },
+            {
+              "file": "solana_selective_history.py",
+              "line": 522,
+              "function": "execute"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "37dc6287df077761504ec1cab4ee22fec2b5459747fda282c5b8fb47d8ec37fe",
+        "meme_machine/solana_candidate_lifecycle.py": "5748f01eb0c638df5f429a57aeefc37d604b821521c3098951ebbcea6a6f7d1f",
+        "meme_machine/runtime/governor.py": "8aac3040ed62e8e237a19bbcf6e79a78d2a6339d1891d929ca2a72c2ba896775",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "a4d929c20b5870e4668631d2995eb9b813b7eb7f92eb70e682ed6aba3bc107cd",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a"
+      },
+      "result_sha256": "e80c422098b263d2086996ea53139043ad167b05e975e153a0eebcda98818cd3"
+    },
+    {
+      "attempt": "repaired-smoke8",
+      "started_UTC": "2026-10-07T07:56:52.977196+00:00",
+      "window_seconds": 125.00310516357422,
+      "startup_seconds": 0.41142773628234863,
+      "calls": 732,
+      "CU": 26930,
+      "HTTP_bytes": 131328193,
+      "native": 1743136,
+      "websocket": 4123726,
+      "errors": [
+        {
+          "task": 0,
+          "type": "EvidenceUnavailable",
+          "reason": "candidate_native_internal",
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 139,
+              "function": "__call__"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 289,
+              "function": "run"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 449,
+              "function": "live_manager"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 561,
+              "function": "live"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 237,
+              "function": "stream"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "37dc6287df077761504ec1cab4ee22fec2b5459747fda282c5b8fb47d8ec37fe",
+        "meme_machine/solana_candidate_lifecycle.py": "5748f01eb0c638df5f429a57aeefc37d604b821521c3098951ebbcea6a6f7d1f",
+        "meme_machine/runtime/governor.py": "8aac3040ed62e8e237a19bbcf6e79a78d2a6339d1891d929ca2a72c2ba896775",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a"
+      },
+      "result_sha256": "609ed3012fe7f3ac5d1616fddb5994ca92600a7eb2ea2a85834ac81a58a00b18"
+    },
+    {
+      "attempt": "repaired-smoke9",
+      "started_UTC": "2026-10-07T08:04:34.550179+00:00",
+      "window_seconds": 101.78309202194214,
+      "startup_seconds": 0.436859130859375,
+      "calls": 691,
+      "CU": 28670,
+      "HTTP_bytes": 55309478,
+      "native": 27265300,
+      "websocket": 26369765,
+      "errors": [
+        {
+          "task": 0,
+          "type": "EvidenceUnavailable",
+          "reason": "candidate_log_buffer_pressure",
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 139,
+              "function": "__call__"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 322,
+              "function": "run"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 482,
+              "function": "live_manager"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 594,
+              "function": "live"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 555,
+              "function": "logs"
+            },
+            {
+              "file": "solana_candidate_join.py",
+              "line": 112,
+              "function": "feed_log"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "c97e2cf60b7cb0efbdebedd56ae63187095d373d241d7728beb665a7d35ad02c",
+        "meme_machine/solana_candidate_lifecycle.py": "5748f01eb0c638df5f429a57aeefc37d604b821521c3098951ebbcea6a6f7d1f",
+        "meme_machine/runtime/governor.py": "8aac3040ed62e8e237a19bbcf6e79a78d2a6339d1891d929ca2a72c2ba896775",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a"
+      },
+      "result_sha256": "0adc08b5910639ed4a11b4364e2de1971776015101e0afdadb05dbedf5d67df4"
+    },
+    {
+      "attempt": "repaired-smoke10",
+      "started_UTC": "2026-10-07T08:10:59.486964+00:00",
+      "window_seconds": 107.21755909919739,
+      "startup_seconds": 0.43126702308654785,
+      "calls": 672,
+      "CU": 25310,
+      "HTTP_bytes": 65685603,
+      "native": 32955248,
+      "websocket": 5845377,
+      "errors": [
+        {
+          "task": 0,
+          "type": "EvidenceUnavailable",
+          "reason": "candidate_native_internal",
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 139,
+              "function": "__call__"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 322,
+              "function": "run"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 269,
+              "function": "stream"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "2ec8e226e2d0b948fae25c0942e319f455f5ebd99d53249007ff6bd3fa492c6e",
+        "meme_machine/solana_candidate_lifecycle.py": "5748f01eb0c638df5f429a57aeefc37d604b821521c3098951ebbcea6a6f7d1f",
+        "meme_machine/runtime/governor.py": "8aac3040ed62e8e237a19bbcf6e79a78d2a6339d1891d929ca2a72c2ba896775",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a"
+      },
+      "result_sha256": "9cd55f9fcee13a1583be57fd4404800bcb3821801263709f2e68f400a9328422"
+    },
+    {
+      "attempt": "final-shared",
+      "started_UTC": "2026-10-07T08:20:32.681329+00:00",
+      "window_seconds": 93.75018501281738,
+      "startup_seconds": 0.3780934810638428,
+      "calls": 623,
+      "CU": 24630,
+      "HTTP_bytes": 63439650,
+      "native": 15590918,
+      "websocket": 8653343,
+      "errors": [
+        {
+          "task": 0,
+          "type": "ConnectionClosedError",
+          "reason": "no close frame received or sent",
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 139,
+              "function": "__call__"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 359,
+              "function": "run"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 519,
+              "function": "live_manager"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 632,
+              "function": "live"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 581,
+              "function": "logs"
+            },
+            {
+              "file": "connection.py",
+              "line": 317,
+              "function": "recv"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "654ac6e78f307adf66b10b5f33415cfc3d46d5891b2dae7a2cec669dd9a5abc0",
+        "meme_machine/solana_candidate_lifecycle.py": "5748f01eb0c638df5f429a57aeefc37d604b821521c3098951ebbcea6a6f7d1f",
+        "meme_machine/runtime/governor.py": "8aac3040ed62e8e237a19bbcf6e79a78d2a6339d1891d929ca2a72c2ba896775",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a"
+      },
+      "result_sha256": "b116b4f8267b1ec2b8fd96670ea35e73b8afa47e59c14cb602614c74601a064a"
+    },
+    {
+      "attempt": "final-shared2",
+      "started_UTC": "2026-10-07T08:28:23.268979+00:00",
+      "window_seconds": 151.89455437660217,
+      "startup_seconds": 0.3804206848144531,
+      "calls": 1027,
+      "CU": 38230,
+      "HTTP_bytes": 101445725,
+      "native": 4772880,
+      "websocket": 14383276,
+      "errors": [
+        {
+          "task": 0,
+          "type": "EvidenceUnavailable",
+          "reason": "candidate_page_lease_stale",
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 140,
+              "function": "__call__"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 360,
+              "function": "run"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 510,
+              "function": "acquire"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 330,
+              "function": "resumable"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 838,
+              "function": "work"
+            },
+            {
+              "file": "solana_evidence_control.py",
+              "line": 138,
+              "function": "_run"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 830,
+              "function": "timed"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 507,
+              "function": "commit"
+            },
+            {
+              "file": "solana_selective_history.py",
+              "line": 255,
+              "function": "commit_page"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "fdea32fb447d58aebb6262e5fd785d62d223dde1409f091d2f50ecd2469a9ebf",
+        "meme_machine/solana_candidate_lifecycle.py": "5748f01eb0c638df5f429a57aeefc37d604b821521c3098951ebbcea6a6f7d1f",
+        "meme_machine/solana_candidate_join.py": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230",
+        "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+        "meme_machine/runtime/governor.py": "8aac3040ed62e8e237a19bbcf6e79a78d2a6339d1891d929ca2a72c2ba896775",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/runtime/lifecycle_timing.py": "a75b7ace720813ee33122511444787d1e4d8843028e843d20ea38f46af720284",
+        "meme_machine/runtime/evidence_worker.py": "3508ddd2e4a00fae340f88b31cdd6ea2513d1f5edcbc8aebc297322a343454db",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a",
+        "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+        "engineering/solana_capacity/certify.py": "55d85ac32c1d6467136d785ae5193599791e7e09c4999d8819cf4dadf69425a7",
+        "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+        "engineering/solana_capacity/transport_meter.py": "12c56a6df2e8b3b0ad9b6759c1bdb64278185714ac896241ecaec4c59031288b"
+      },
+      "result_sha256": "56cc679a4d5516afa5e2de2518e941ad1ae1f3f539733ce153e1b8b9cc5c2258"
+    },
+    {
+      "attempt": "final-shared3",
+      "started_UTC": "2026-10-07T08:52:36.431301+00:00",
+      "window_seconds": 102.12882566452026,
+      "startup_seconds": 0.3949315547943115,
+      "calls": 743,
+      "CU": 30670,
+      "HTTP_bytes": 107574938,
+      "native": 26199731,
+      "websocket": 8969967,
+      "errors": [
+        {
+          "task": 0,
+          "type": "EvidenceUnavailable",
+          "reason": "candidate_native_internal",
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 140,
+              "function": "__call__"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 361,
+              "function": "run"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 312,
+              "function": "stream"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "d3fa58cd0ecdbcd17363a17341ab4e33d75a0f26425357bf6a614a0ef2382604",
+        "meme_machine/solana_selective_history.py": "402f0747e1172bb6c45316b623bb4846271dc218c6903a5bfa13c2788433ecb4",
+        "meme_machine/solana_candidate_lifecycle.py": "5748f01eb0c638df5f429a57aeefc37d604b821521c3098951ebbcea6a6f7d1f",
+        "meme_machine/solana_candidate_join.py": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230",
+        "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+        "meme_machine/runtime/governor.py": "8aac3040ed62e8e237a19bbcf6e79a78d2a6339d1891d929ca2a72c2ba896775",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/runtime/lifecycle_timing.py": "a75b7ace720813ee33122511444787d1e4d8843028e843d20ea38f46af720284",
+        "meme_machine/runtime/evidence_worker.py": "3508ddd2e4a00fae340f88b31cdd6ea2513d1f5edcbc8aebc297322a343454db",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a",
+        "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+        "engineering/solana_capacity/certify.py": "5c280bc21de35eaebc010c99a697c68e2268e6cbd1328f5948f356c18ea541eb",
+        "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+        "engineering/solana_capacity/transport_meter.py": "12c56a6df2e8b3b0ad9b6759c1bdb64278185714ac896241ecaec4c59031288b"
+      },
+      "result_sha256": "af75a04e68ed7d00049dadd0882fe835aaca95756a73e186f9c70652a0fafc6d"
+    },
+    {
+      "attempt": "final-shared4",
+      "started_UTC": "2026-10-07T08:59:25.095229+00:00",
+      "window_seconds": 134.31962394714355,
+      "startup_seconds": 0.3737049102783203,
+      "calls": 1051,
+      "CU": 40700,
+      "HTTP_bytes": 140264892,
+      "native": 14885561,
+      "websocket": 6066871,
+      "errors": [
+        {
+          "task": 0,
+          "type": "ValueError",
+          "reason": "candidate_history_event_conflict",
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 140,
+              "function": "__call__"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 382,
+              "function": "run"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 487,
+              "function": "acquire_pool"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 543,
+              "function": "acquire"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 352,
+              "function": "resumable"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 838,
+              "function": "work"
+            },
+            {
+              "file": "solana_evidence_control.py",
+              "line": 138,
+              "function": "_run"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 830,
+              "function": "timed"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 537,
+              "function": "commit"
+            },
+            {
+              "file": "solana_candidate_lifecycle.py",
+              "line": 260,
+              "function": "publish"
+            },
+            {
+              "file": "solana_candidate_lifecycle.py",
+              "line": 166,
+              "function": "flush"
+            },
+            {
+              "file": "candidate_history.py",
+              "line": 296,
+              "function": "retain_pump_source_history"
+            },
+            {
+              "file": "candidate_history.py",
+              "line": 241,
+              "function": "append_event"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "e443b7c962820021bf5adc1558e206a0c887fe5214f9a8c4ea11df9da461778a",
+        "meme_machine/solana_selective_history.py": "402f0747e1172bb6c45316b623bb4846271dc218c6903a5bfa13c2788433ecb4",
+        "meme_machine/solana_candidate_lifecycle.py": "5748f01eb0c638df5f429a57aeefc37d604b821521c3098951ebbcea6a6f7d1f",
+        "meme_machine/solana_candidate_join.py": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230",
+        "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+        "meme_machine/runtime/governor.py": "8aac3040ed62e8e237a19bbcf6e79a78d2a6339d1891d929ca2a72c2ba896775",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/runtime/lifecycle_timing.py": "a75b7ace720813ee33122511444787d1e4d8843028e843d20ea38f46af720284",
+        "meme_machine/runtime/evidence_worker.py": "3508ddd2e4a00fae340f88b31cdd6ea2513d1f5edcbc8aebc297322a343454db",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a",
+        "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+        "engineering/solana_capacity/certify.py": "c3d26379434f6d4d8405cd9074aa32343aa54d7c6f40216729691809c46f98de",
+        "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+        "engineering/solana_capacity/transport_meter.py": "12c56a6df2e8b3b0ad9b6759c1bdb64278185714ac896241ecaec4c59031288b"
+      },
+      "result_sha256": "373da20b9ec3b9768c346c5f07382a419cd194a7550850039f53faa9fde7a9aa"
+    },
+    {
+      "attempt": "final-shared5",
+      "started_UTC": "2026-10-07T09:10:45.318299+00:00",
+      "window_seconds": 127.04558682441711,
+      "startup_seconds": 0.37792158126831055,
+      "calls": 844,
+      "CU": 35540,
+      "HTTP_bytes": 145117379,
+      "native": 17162497,
+      "websocket": 5101990,
+      "errors": [
+        {
+          "task": 0,
+          "type": "ValueError",
+          "reason": "truncated trade event",
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 140,
+              "function": "__call__"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 382,
+              "function": "run"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 487,
+              "function": "acquire_pool"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 550,
+              "function": "acquire"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 352,
+              "function": "resumable"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 838,
+              "function": "work"
+            },
+            {
+              "file": "solana_evidence_control.py",
+              "line": 138,
+              "function": "_run"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 830,
+              "function": "timed"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 523,
+              "function": "commit"
+            },
+            {
+              "file": "solana_program_decoders.py",
+              "line": 54,
+              "function": "pump_events"
+            },
+            {
+              "file": "solana_program_decoders.py",
+              "line": 184,
+              "function": "_pump_trade_events"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "9d380543dd370d1fb4e422357dc4fd5d20afd69dfe3d466876763ed326d6bb0b",
+        "meme_machine/solana_selective_history.py": "7a587d2f7df732b270b52537f7c8f15bb8459e971b7409bbd5581404517e1a26",
+        "meme_machine/solana_candidate_lifecycle.py": "5748f01eb0c638df5f429a57aeefc37d604b821521c3098951ebbcea6a6f7d1f",
+        "meme_machine/solana_candidate_join.py": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230",
+        "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+        "meme_machine/runtime/governor.py": "8aac3040ed62e8e237a19bbcf6e79a78d2a6339d1891d929ca2a72c2ba896775",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/runtime/lifecycle_timing.py": "a75b7ace720813ee33122511444787d1e4d8843028e843d20ea38f46af720284",
+        "meme_machine/runtime/evidence_worker.py": "3508ddd2e4a00fae340f88b31cdd6ea2513d1f5edcbc8aebc297322a343454db",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a",
+        "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+        "engineering/solana_capacity/certify.py": "c3d26379434f6d4d8405cd9074aa32343aa54d7c6f40216729691809c46f98de",
+        "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+        "engineering/solana_capacity/transport_meter.py": "12c56a6df2e8b3b0ad9b6759c1bdb64278185714ac896241ecaec4c59031288b"
+      },
+      "result_sha256": "4a1606e9d896a7ed70373f11576c3b2a0446e08878058a203bf819651e3045bd"
+    },
+    {
+      "attempt": "final-shared6",
+      "started_UTC": "2026-10-07T09:26:16.898448+00:00",
+      "window_seconds": 8.037065744400024,
+      "startup_seconds": 0.3797156810760498,
+      "calls": 112,
+      "CU": 5940,
+      "HTTP_bytes": 21311993,
+      "native": 473469,
+      "websocket": 90635,
+      "errors": [
+        {
+          "task": 0,
+          "type": "EvidenceUnavailable",
+          "reason": "selective_archive_restore_required",
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 140,
+              "function": "__call__"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 383,
+              "function": "run"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 499,
+              "function": "acquire_pool"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 562,
+              "function": "acquire"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 353,
+              "function": "resumable"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 838,
+              "function": "work"
+            },
+            {
+              "file": "solana_evidence_control.py",
+              "line": 138,
+              "function": "_run"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 830,
+              "function": "timed"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 550,
+              "function": "commit"
+            },
+            {
+              "file": "solana_selective_history.py",
+              "line": 267,
+              "function": "commit_page"
+            },
+            {
+              "file": "solana_selective_history.py",
+              "line": 328,
+              "function": "ingest"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "3d36788e3ab5438d6ef9855b955854e689702a2889311eecef9f98d7c45d7a8c",
+        "meme_machine/solana_selective_history.py": "7a587d2f7df732b270b52537f7c8f15bb8459e971b7409bbd5581404517e1a26",
+        "meme_machine/solana_candidate_lifecycle.py": "5748f01eb0c638df5f429a57aeefc37d604b821521c3098951ebbcea6a6f7d1f",
+        "meme_machine/solana_candidate_join.py": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230",
+        "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+        "meme_machine/runtime/governor.py": "8aac3040ed62e8e237a19bbcf6e79a78d2a6339d1891d929ca2a72c2ba896775",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/runtime/lifecycle_timing.py": "a75b7ace720813ee33122511444787d1e4d8843028e843d20ea38f46af720284",
+        "meme_machine/runtime/evidence_worker.py": "3508ddd2e4a00fae340f88b31cdd6ea2513d1f5edcbc8aebc297322a343454db",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a",
+        "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+        "engineering/solana_capacity/certify.py": "c3d26379434f6d4d8405cd9074aa32343aa54d7c6f40216729691809c46f98de",
+        "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+        "engineering/solana_capacity/transport_meter.py": "12c56a6df2e8b3b0ad9b6759c1bdb64278185714ac896241ecaec4c59031288b"
+      },
+      "result_sha256": "d7663d26f05c60829f81a59f09c36e73feedb364283b9030787e76c3e772b5e0"
+    },
+    {
+      "attempt": "final-shared7",
+      "started_UTC": "2026-10-07T09:33:05.580039+00:00",
+      "window_seconds": 12.528231859207153,
+      "startup_seconds": 0.392254114151001,
+      "calls": 153,
+      "CU": 8100,
+      "HTTP_bytes": 21091022,
+      "native": 6091017,
+      "websocket": 147494,
+      "errors": [
+        {
+          "task": 0,
+          "type": "EvidenceUnavailable",
+          "reason": "candidate_page_lease_stale",
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 140,
+              "function": "__call__"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 383,
+              "function": "run"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 499,
+              "function": "acquire_pool"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 571,
+              "function": "acquire"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 353,
+              "function": "resumable"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 838,
+              "function": "work"
+            },
+            {
+              "file": "solana_evidence_control.py",
+              "line": 138,
+              "function": "_run"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 830,
+              "function": "timed"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 569,
+              "function": "expired"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "3d36788e3ab5438d6ef9855b955854e689702a2889311eecef9f98d7c45d7a8c",
+        "meme_machine/solana_selective_history.py": "e599cc210596f0799413676b1a9007b685d4a9186fa26922c8ca26665513f23c",
+        "meme_machine/solana_candidate_lifecycle.py": "5748f01eb0c638df5f429a57aeefc37d604b821521c3098951ebbcea6a6f7d1f",
+        "meme_machine/solana_candidate_join.py": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230",
+        "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+        "meme_machine/runtime/governor.py": "8aac3040ed62e8e237a19bbcf6e79a78d2a6339d1891d929ca2a72c2ba896775",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/runtime/lifecycle_timing.py": "a75b7ace720813ee33122511444787d1e4d8843028e843d20ea38f46af720284",
+        "meme_machine/runtime/evidence_worker.py": "3508ddd2e4a00fae340f88b31cdd6ea2513d1f5edcbc8aebc297322a343454db",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a",
+        "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+        "engineering/solana_capacity/certify.py": "c3d26379434f6d4d8405cd9074aa32343aa54d7c6f40216729691809c46f98de",
+        "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+        "engineering/solana_capacity/transport_meter.py": "12c56a6df2e8b3b0ad9b6759c1bdb64278185714ac896241ecaec4c59031288b"
+      },
+      "result_sha256": "a1bd7a5388e208fcfb019b0cefd86991ead387ba63c07aa7f1fe6ab2c786f8c0"
+    },
+    {
+      "attempt": "final-shared8",
+      "started_UTC": "2026-10-07T09:40:58.033373+00:00",
+      "window_seconds": 6.761503219604492,
+      "startup_seconds": 0.4194192886352539,
+      "calls": 94,
+      "CU": 4870,
+      "HTTP_bytes": 12962565,
+      "native": 162164,
+      "websocket": 61675,
+      "errors": [
+        {
+          "task": "service",
+          "type": "EvidenceUnavailable",
+          "reason": "maintenance_service_deadline_exhausted",
+          "errno": null,
+          "maintenance_failure": {
+            "side": "archive",
+            "units": 1,
+            "records": 1,
+            "deadline_seconds": -0.08899745187954977,
+            "safety_seconds": -0.08899745187954977,
+            "drought_seconds": 40.34085670270724,
+            "recovery_seconds": null,
+            "pins": 1,
+            "gaps": 0,
+            "vm_steps": 1002
+          },
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 391,
+              "function": "main"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 1550,
+              "function": "serve"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 1422,
+              "function": "maintenance"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 838,
+              "function": "work"
+            },
+            {
+              "file": "solana_evidence_control.py",
+              "line": 138,
+              "function": "_run"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 830,
+              "function": "timed"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 1415,
+              "function": "turn"
+            },
+            {
+              "file": "solana_maintenance_runtime.py",
+              "line": 472,
+              "function": "turn"
+            },
+            {
+              "file": "solana_maintenance_arbiter.py",
+              "line": 184,
+              "function": "choose"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "3d36788e3ab5438d6ef9855b955854e689702a2889311eecef9f98d7c45d7a8c",
+        "meme_machine/solana_selective_history.py": "9b0debffa18d8e1302290d20f85fb04a1ab7ba3237f9d43e0bf2c6521d4620c1",
+        "meme_machine/solana_candidate_lifecycle.py": "5748f01eb0c638df5f429a57aeefc37d604b821521c3098951ebbcea6a6f7d1f",
+        "meme_machine/solana_candidate_join.py": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230",
+        "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+        "meme_machine/runtime/governor.py": "8aac3040ed62e8e237a19bbcf6e79a78d2a6339d1891d929ca2a72c2ba896775",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/runtime/lifecycle_timing.py": "a75b7ace720813ee33122511444787d1e4d8843028e843d20ea38f46af720284",
+        "meme_machine/runtime/evidence_worker.py": "3508ddd2e4a00fae340f88b31cdd6ea2513d1f5edcbc8aebc297322a343454db",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a",
+        "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+        "engineering/solana_capacity/certify.py": "c3d26379434f6d4d8405cd9074aa32343aa54d7c6f40216729691809c46f98de",
+        "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+        "engineering/solana_capacity/transport_meter.py": "12c56a6df2e8b3b0ad9b6759c1bdb64278185714ac896241ecaec4c59031288b"
+      },
+      "result_sha256": "8dbe386ac6f74342e9b932ac025379b72b12252152e6d99e0860ddf123a82e2a"
+    },
+    {
+      "attempt": "final-shared9",
+      "started_UTC": "2026-10-07T09:54:43.828211+00:00",
+      "window_seconds": 164.856929063797,
+      "startup_seconds": 0.4402046203613281,
+      "calls": 1079,
+      "CU": 54580,
+      "HTTP_bytes": 244425117,
+      "native": 5910426,
+      "websocket": 6549775,
+      "errors": [
+        {
+          "task": 0,
+          "type": "EvidenceConflict",
+          "reason": "candidate_binding_conflict",
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 140,
+              "function": "__call__"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 383,
+              "function": "run"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 499,
+              "function": "acquire_pool"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 527,
+              "function": "acquire"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 353,
+              "function": "resumable"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 838,
+              "function": "work"
+            },
+            {
+              "file": "solana_evidence_control.py",
+              "line": 138,
+              "function": "_run"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 830,
+              "function": "timed"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 520,
+              "function": "request_development"
+            },
+            {
+              "file": "solana_candidate_lifecycle.py",
+              "line": 113,
+              "function": "promote"
+            },
+            {
+              "file": "solana_selective_history.py",
+              "line": 195,
+              "function": "bind"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "3d36788e3ab5438d6ef9855b955854e689702a2889311eecef9f98d7c45d7a8c",
+        "meme_machine/solana_selective_history.py": "a942ffae39ae66a73f0bb413dc46d34ea0387123ec3027d6259d1586a3e61393",
+        "meme_machine/solana_candidate_lifecycle.py": "5748f01eb0c638df5f429a57aeefc37d604b821521c3098951ebbcea6a6f7d1f",
+        "meme_machine/solana_candidate_join.py": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230",
+        "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+        "meme_machine/runtime/governor.py": "8aac3040ed62e8e237a19bbcf6e79a78d2a6339d1891d929ca2a72c2ba896775",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/runtime/lifecycle_timing.py": "a75b7ace720813ee33122511444787d1e4d8843028e843d20ea38f46af720284",
+        "meme_machine/runtime/evidence_worker.py": "3508ddd2e4a00fae340f88b31cdd6ea2513d1f5edcbc8aebc297322a343454db",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a",
+        "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+        "engineering/solana_capacity/certify.py": "c3d26379434f6d4d8405cd9074aa32343aa54d7c6f40216729691809c46f98de",
+        "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+        "engineering/solana_capacity/transport_meter.py": "12c56a6df2e8b3b0ad9b6759c1bdb64278185714ac896241ecaec4c59031288b"
+      },
+      "result_sha256": "8bcac4b6c88f1d98b1ddfde5db120b159b557d5af5e251aa3da86d27bd9c238c"
+    },
+    {
+      "attempt": "final-shared10",
+      "started_UTC": "2026-10-07T10:05:50.158745+00:00",
+      "window_seconds": 128.7071385383606,
+      "startup_seconds": 0.41475915908813477,
+      "calls": 849,
+      "CU": 42360,
+      "HTTP_bytes": 177902800,
+      "native": 5139931,
+      "websocket": 4335740,
+      "errors": [],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "3d36788e3ab5438d6ef9855b955854e689702a2889311eecef9f98d7c45d7a8c",
+        "meme_machine/solana_selective_history.py": "b51ce262065f349c37b89d3762f03c5fa9b7d62089131cab7fa8c3bc9f3e8206",
+        "meme_machine/solana_candidate_lifecycle.py": "5748f01eb0c638df5f429a57aeefc37d604b821521c3098951ebbcea6a6f7d1f",
+        "meme_machine/solana_candidate_join.py": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230",
+        "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+        "meme_machine/runtime/governor.py": "0d04f87d9c5f8b4a9bc025c8217ae8ce8dd39d802b9ac5e063c257a934401c53",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/runtime/lifecycle_timing.py": "a75b7ace720813ee33122511444787d1e4d8843028e843d20ea38f46af720284",
+        "meme_machine/runtime/evidence_worker.py": "3508ddd2e4a00fae340f88b31cdd6ea2513d1f5edcbc8aebc297322a343454db",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a",
+        "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+        "engineering/solana_capacity/certify.py": "2557cf72b69deadb03b7c9a5cbeb9a1f0d4a4beed7fa9f5e736492562f5d0851",
+        "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+        "engineering/solana_capacity/transport_meter.py": "12c56a6df2e8b3b0ad9b6759c1bdb64278185714ac896241ecaec4c59031288b"
+      },
+      "result_sha256": "f513be507e0a2f56d16fbcdd6fd51c80ae27992bacc3e2c6c67b306cacf8c4a2"
+    },
+    {
+      "attempt": "final-shared11",
+      "started_UTC": "2026-10-07T10:09:34.291318+00:00",
+      "window_seconds": 319.842134475708,
+      "startup_seconds": 0.4156966209411621,
+      "calls": 1826,
+      "CU": 78810,
+      "HTTP_bytes": 334891519,
+      "native": 7102367,
+      "websocket": 6455697,
+      "errors": [],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "3d36788e3ab5438d6ef9855b955854e689702a2889311eecef9f98d7c45d7a8c",
+        "meme_machine/solana_selective_history.py": "b51ce262065f349c37b89d3762f03c5fa9b7d62089131cab7fa8c3bc9f3e8206",
+        "meme_machine/solana_candidate_lifecycle.py": "5748f01eb0c638df5f429a57aeefc37d604b821521c3098951ebbcea6a6f7d1f",
+        "meme_machine/solana_candidate_join.py": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230",
+        "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+        "meme_machine/runtime/governor.py": "0d04f87d9c5f8b4a9bc025c8217ae8ce8dd39d802b9ac5e063c257a934401c53",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/runtime/lifecycle_timing.py": "a75b7ace720813ee33122511444787d1e4d8843028e843d20ea38f46af720284",
+        "meme_machine/runtime/evidence_worker.py": "3508ddd2e4a00fae340f88b31cdd6ea2513d1f5edcbc8aebc297322a343454db",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a",
+        "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+        "engineering/solana_capacity/certify.py": "07d5b6d257cb8d329edf7f0a9cad6457b9ffbb4672466e4a2897dcbfc1d9ebb2",
+        "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+        "engineering/solana_capacity/transport_meter.py": "12c56a6df2e8b3b0ad9b6759c1bdb64278185714ac896241ecaec4c59031288b"
+      },
+      "result_sha256": "bf910759c38ee50939b07cba3c7cf36c45aa7ccf804a8c780295e770102cd2c1"
+    },
+    {
+      "attempt": "final-shared12",
+      "started_UTC": "2026-10-07T10:20:16.911258+00:00",
+      "window_seconds": 376.26545691490173,
+      "startup_seconds": 0.38687801361083984,
+      "calls": 1846,
+      "CU": 77050,
+      "HTTP_bytes": 312549654,
+      "native": 4167285,
+      "websocket": 18830047,
+      "errors": [
+        {
+          "task": "service",
+          "type": "EvidenceUnavailable",
+          "reason": "maintenance_cannot_reserve_both_sides",
+          "errno": null,
+          "maintenance_failure": {
+            "side": "archive",
+            "units": 1,
+            "records": 1,
+            "deadline_seconds": 2.5079514756798744,
+            "safety_seconds": 17.507951475679874,
+            "drought_seconds": 2.5079514756798744,
+            "recovery_seconds": null,
+            "pins": 1,
+            "gaps": 0,
+            "vm_steps": 10525
+          },
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 398,
+              "function": "main"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 1550,
+              "function": "serve"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 1422,
+              "function": "maintenance"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 838,
+              "function": "work"
+            },
+            {
+              "file": "solana_evidence_control.py",
+              "line": 138,
+              "function": "_run"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 830,
+              "function": "timed"
+            },
+            {
+              "file": "solana_evidence_service.py",
+              "line": 1415,
+              "function": "turn"
+            },
+            {
+              "file": "solana_maintenance_runtime.py",
+              "line": 472,
+              "function": "turn"
+            },
+            {
+              "file": "solana_maintenance_arbiter.py",
+              "line": 207,
+              "function": "choose"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "3d36788e3ab5438d6ef9855b955854e689702a2889311eecef9f98d7c45d7a8c",
+        "meme_machine/solana_selective_history.py": "2cf0f338e22a3a82b7a924957ce2af4a08d95ab38b7e43453317ede76ddf89f8",
+        "meme_machine/solana_candidate_lifecycle.py": "a633c99a1ab3efe8a252a78a3f72a3d32bcbe68cc96a07ba4b886c884b450cd8",
+        "meme_machine/solana_candidate_join.py": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230",
+        "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+        "meme_machine/runtime/governor.py": "0d04f87d9c5f8b4a9bc025c8217ae8ce8dd39d802b9ac5e063c257a934401c53",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/runtime/lifecycle_timing.py": "a75b7ace720813ee33122511444787d1e4d8843028e843d20ea38f46af720284",
+        "meme_machine/runtime/evidence_worker.py": "3508ddd2e4a00fae340f88b31cdd6ea2513d1f5edcbc8aebc297322a343454db",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a",
+        "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+        "engineering/solana_capacity/certify.py": "9cb768a13b71a12689a73199183b39dcb7414e5b7d1e493e488d4bdeda24e60a",
+        "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+        "engineering/solana_capacity/transport_meter.py": "12c56a6df2e8b3b0ad9b6759c1bdb64278185714ac896241ecaec4c59031288b"
+      },
+      "result_sha256": "3ccffedc910510e926fe457ae65be0e5a7b4041bafb96b16d2f914b282332d94"
+    },
+    {
+      "attempt": "final-shared13",
+      "started_UTC": "2026-10-07T10:33:42.361173+00:00",
+      "window_seconds": 970.8503217697144,
+      "startup_seconds": 0.3678886890411377,
+      "calls": 4362,
+      "CU": 156260,
+      "HTTP_bytes": 679705455,
+      "native": 17790664,
+      "websocket": 25510953,
+      "errors": [
+        {
+          "task": 0,
+          "type": "DeliveredRPCError",
+          "reason": "repair_response_unavailable",
+          "frames": [
+            {
+              "file": "certify.py",
+              "line": 140,
+              "function": "__call__"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 383,
+              "function": "run"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 599,
+              "function": "live_manager"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 690,
+              "function": "live"
+            },
+            {
+              "file": "certify.py",
+              "line": 91,
+              "function": "labeled_rpc"
+            },
+            {
+              "file": "solana_selective_source.py",
+              "line": 281,
+              "function": "measured_rpc"
+            },
+            {
+              "file": "threads.py",
+              "line": 25,
+              "function": "to_thread"
+            },
+            {
+              "file": "thread.py",
+              "line": 59,
+              "function": "run"
+            },
+            {
+              "file": "evidence_worker.py",
+              "line": 76,
+              "function": "call_delivered"
+            }
+          ]
+        }
+      ],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "f7958a09ae5a19d863d9625a196827438b9db2e032fcaffcff75c562debd6f6c",
+        "meme_machine/solana_selective_history.py": "2cf0f338e22a3a82b7a924957ce2af4a08d95ab38b7e43453317ede76ddf89f8",
+        "meme_machine/solana_scoped_retirement.py": "2dde4a82f13188a44123c162f39e82fffcffc2b3773647985e329825432a408c",
+        "meme_machine/solana_candidate_lifecycle.py": "a633c99a1ab3efe8a252a78a3f72a3d32bcbe68cc96a07ba4b886c884b450cd8",
+        "meme_machine/solana_candidate_join.py": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230",
+        "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+        "meme_machine/runtime/governor.py": "0d04f87d9c5f8b4a9bc025c8217ae8ce8dd39d802b9ac5e063c257a934401c53",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/runtime/lifecycle_timing.py": "a75b7ace720813ee33122511444787d1e4d8843028e843d20ea38f46af720284",
+        "meme_machine/runtime/evidence_worker.py": "3508ddd2e4a00fae340f88b31cdd6ea2513d1f5edcbc8aebc297322a343454db",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a",
+        "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+        "engineering/solana_capacity/certify.py": "fc0fea28a7d17ab021daceb5429a7178f3e04abffb6e01f6ab92cdea3c03ea9b",
+        "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+        "engineering/solana_capacity/transport_meter.py": "12c56a6df2e8b3b0ad9b6759c1bdb64278185714ac896241ecaec4c59031288b"
+      },
+      "result_sha256": "79591a4666c9eb44f2f79d6507f0e3fff0ba0cf36c59945d2eec76aebb75fa8f"
+    },
+    {
+      "attempt": "final-shared14",
+      "started_UTC": "2026-10-07T10:58:12.636706+00:00",
+      "window_seconds": 210.30721592903137,
+      "startup_seconds": 0.3778510093688965,
+      "calls": 1202,
+      "CU": 50620,
+      "HTTP_bytes": 179209316,
+      "native": 17066736,
+      "websocket": 8245276,
+      "errors": [],
+      "source_sha256": {
+        "meme_machine/solana_selective_source.py": "e759b00a56b678c0381162751fd9588470b6393dbe763427cc81d68b208505cc",
+        "meme_machine/solana_selective_history.py": "2cf0f338e22a3a82b7a924957ce2af4a08d95ab38b7e43453317ede76ddf89f8",
+        "meme_machine/solana_scoped_retirement.py": "2dde4a82f13188a44123c162f39e82fffcffc2b3773647985e329825432a408c",
+        "meme_machine/solana_candidate_lifecycle.py": "a633c99a1ab3efe8a252a78a3f72a3d32bcbe68cc96a07ba4b886c884b450cd8",
+        "meme_machine/solana_candidate_join.py": "31afb76281d62713f5771a54bb9aad7bf41ee9db2cbf1fa5ba47250d41f8b230",
+        "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55",
+        "meme_machine/runtime/governor.py": "0d04f87d9c5f8b4a9bc025c8217ae8ce8dd39d802b9ac5e063c257a934401c53",
+        "meme_machine/runtime/solana_warming.py": "17e16c4623807c64f171fccf6adf41d8d5088091b71a966f4f6c1f3a9d9a3e5f",
+        "meme_machine/runtime/candidate_history.py": "9158b5be7ba9ed5ed4ad68342255c65ca4d2bb6ac023a5bc9d18918aa26ba54a",
+        "meme_machine/runtime/lifecycle_timing.py": "a75b7ace720813ee33122511444787d1e4d8843028e843d20ea38f46af720284",
+        "meme_machine/runtime/evidence_worker.py": "9b1b4b1e23156325dfff6a26d5c0ec0b87e3ffe0039ef282d044f3fffc939d1e",
+        "meme_machine/lanes/meteora/runner.py": "65f63a8bc8b16b5de649fca589c89813c6298c51a014a7ff50079e0a3fc8017a",
+        "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+        "engineering/solana_capacity/certify.py": "cf4ccd51428746a3b9843d8800403f0e5c8020e809a7161b80455db9b1e0ac0b",
+        "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+        "engineering/solana_capacity/transport_meter.py": "12c56a6df2e8b3b0ad9b6759c1bdb64278185714ac896241ecaec4c59031288b"
+      },
+      "result_sha256": "72999e7a6d68e4e7b625e5cf6a45937d89bcfa1bf29e541c42caf2371126257a"
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "classification": "OPERATIONAL_REFERENCE",
+  "historical_commit": "7a516a6a92be9347661ac0e7f560971c171a0931",
+  "sources": [
+    {
+      "path": "docs/run370-solana-capacity-repair.md",
+      "sha256": "1777ff365566d105a9f05b4a6bc64307fb0800d0a0197427effa14e72eff99d3"
+    },
+    {
+      "path": "docs/run371-infrastructure-repair.md",
+      "sha256": "7e575efb80d63c5fc34b5a40f6f2b52684953e3bd5868128b09588201c659282"
+    },
+    {
+      "path": "docs/run372-solana-large-frame-repair.md",
+      "sha256": "a91b91dc09ff42a1473da51f410fd5b3c4ec081efb1bb3c631585192bb427d39"
+    },
+    {
+      "path": "docs/run375-runtime-repair.md",
+      "sha256": "69b886f7a2f419bb583fa80f4046c4c6c5bb4b715be08f00fff70f017040a8f8"
+    },
+    {
+      "path": "certification/results/alchemy-cycle4-baseline.json",
+      "sha256": "11609d53b9aa360ee6b192934d0c976657134cab117da8a35d2c9a6c0fad60b6",
+      "preserved_information": "Measurement and evidence interpretation; historical observations, no current execution authority."
+    },
+    {
+      "path": "certification/results/hourly-35578433187-pons-rpc-attribution.json",
+      "sha256": "147356fa46efbbb723b02d914e576fc17f2cb4ae4d78c2c1a3c07e63dcbee6ad",
+      "preserved_information": "Measurement and evidence interpretation; historical observations, no current execution authority."
+    },
+    {
+      "path": "certification/results/hourly-35578433187-stream-admission.json",
+      "sha256": "a227a69920931b133ae0009f3f16c4520b0ea060bda11907eef4c25b06fadacb",
+      "preserved_information": "Measurement and evidence interpretation; historical observations, no current execution authority."
+    },
+    {
+      "path": "certification/results/hourly-35589047835-authenticated-event-counts.json",
+      "sha256": "a7340d027be4b86f0b310b1696fe732d2186a10c2957ea50f979a5e201f55c95",
+      "preserved_information": "Measurement and evidence interpretation; historical observations, no current execution authority."
+    },
+    {
+      "path": "certification/results/smoke-35480694517-capacity-strategy.json",
+      "sha256": "eacdf12869abd8e75007e70e497ca454fd6d068b3ad73d6501f7097d9c5bf38b",
+      "preserved_information": "Measurement and evidence interpretation; historical observations, no current execution authority."
+    },
+    {
+      "path": "certification/results/solana-prefetch-replay.json",
+      "sha256": "d2a1fcc1deb5b02dd7ea0ac5afc174bfaf34e6a6730f66a59173dbb23331dcd5",
+      "preserved_information": "Measurement and evidence interpretation; historical observations, no current execution authority."
+    }
+  ],
+  "current_tests": [
+    "tests/test_run370_storage.py",
+    "tests/test_provider_partial_batch_retry.py",
+    "tests/test_retention_outcomes.py",
+    "tests/test_retention_progress.py",
+    "tests/test_run372_large_frame_runtime.py",
+    "tests/test_run376_dispatch_pressure.py",
+    "tests/test_run381_subscription_progress.py",
+    "tests/lanes/ramses/test_ramses_scan_capacity_recovery.py",
+    "tests/test_provider_usage_wal_race.py",
+    "tests/test_run380_atomic_frame.py",
+    "tests/test_run380_production_pressure.py",
+    "tests/test_strategic_reference.py"
+  ],
+  "preserved_limits": [
+    "Generic historical ConnectionClosedError causes cannot be inferred.",
+    "Interrupted/coarsely sampled runs do not become completed/peak measurements.",
+    "Finite store may fail closed under indefinite evidence/retention obligations.",
+    "Run370 consumer/smoke regression obligations still require separate ledger review.",
+    "Run380 fixed-source pressure, atomic rollback and source-clock fences are permanent OPERATIONAL regressions; historical market-failure attribution remains unknown."
+  ],
+  "authority": "Information and engineering invariants only; no economic change, market workload, deployment or certification authority."
+}

@@ -1,0 +1,32 @@
+{
+  "source": "0952b85589fb79898ae4e7a65a5cf38602b67a16",
+  "started_at": 1791761664.734,
+  "failure_at": 1791761727.2092845,
+  "status": "FAIL_CANONICAL_INTAKE_CAPACITY",
+  "reason": "candidate_log_buffer_pressure",
+  "new_economic_events": {
+    "pump": 2603,
+    "pumpswap": 5923
+  },
+  "baseline_count_basis": "Derived by original retained first_seen, not a pre-dispatch count; earlier bookkeeping query used an absent table and made no provider request.",
+  "usage": {
+    "http_attempts": 71,
+    "rpc_elements": 67,
+    "rpc_cu": 6460,
+    "http_bytes": 23986081,
+    "native_opens": 4,
+    "native_bytes": 85786893,
+    "native_uncertain_bytes": 285212672,
+    "native_reserved": 0
+  },
+  "modeled_public_upper_usd": "0.042346454325",
+  "contractual_invoice_verified": false,
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-owner-repair-0952b855-1791761664734.sqlite",
+  "work_trace": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pump-startup-replay-0952b855-1791761664-work.json",
+  "group_trace": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pump-startup-replay-0952b855-1791761664-groups.json",
+  "log": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/pump-startup-replay-0952b855-1791761664.log",
+  "funding": false,
+  "orders": false,
+  "complete_protection": false,
+  "acceptance_healthy_minutes": 0
+}

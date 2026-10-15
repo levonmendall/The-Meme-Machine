@@ -1,0 +1,576 @@
+{
+  "actual_provider_savings_verified_bytes": 0,
+  "alternatives": {
+    "pump": {
+      "bandwidth_break_even_native_bytes_per_success": 3492.9825418994415,
+      "independent_statuses_and_continuity_retained": true,
+      "missing_full_transaction_and_envelope_bytes": "UNMEASURED",
+      "native_success_content_lower_bound_bytes": 4150504,
+      "provider_savings": "UNVERIFIED",
+      "replaced_ws_bytes": 5001951,
+      "residual_budget_bytes_per_success": 594.5858938547486,
+      "residual_full_transaction_budget_bytes": 851447,
+      "success_messages": 1432,
+      "targeted_getTransaction_cu_if_all_successes_acquired": 57280,
+      "targeted_getTransaction_requests_if_all_successes_acquired": 1432
+    },
+    "pumpswap": {
+      "bandwidth_break_even_native_bytes_per_success": 4578.550640581718,
+      "independent_statuses_and_continuity_retained": true,
+      "missing_full_transaction_and_envelope_bytes": "UNMEASURED",
+      "native_success_content_lower_bound_bytes": 35390390,
+      "provider_savings": "UNVERIFIED",
+      "replaced_ws_bytes": 52891417,
+      "residual_budget_bytes_per_success": 1514.978099030471,
+      "residual_full_transaction_budget_bytes": 17501027,
+      "success_messages": 11552,
+      "targeted_getTransaction_cu_if_all_successes_acquired": 462080,
+      "targeted_getTransaction_requests_if_all_successes_acquired": 11552
+    }
+  },
+  "capture": {
+    "endpoint_identity": "8f3feda9d10baa64d74b5ecb3a97cfa48af379982666f93a425e537668a51749",
+    "path": "/mnt/volume_nyc1_1790918115030/sc-proof-20261007",
+    "result_sha256": "ec60245a15785b77ef2613abb3f01cfeb8ca3c037db1e2c25e232c80bc1df200",
+    "source_commit": "9ee5d3a400227b0add3d80226430ced47f833590",
+    "source_sha256": {
+      "engineering/solana_capacity/certify.py": "dd88c5e01a985f99b64798395ddca3ca84015dea3629951defbb162fcc42a533",
+      "engineering/solana_capacity/final_mixed.py": "d1aa10dc78cbe7a304cdb6f1f5655291254e0cb03cbcef5fae4e83157d136c60",
+      "engineering/solana_capacity/live_probe.py": "8c643c938b06e00d859e16bd69c057ef403e914474886e001d81aac40d2d8588",
+      "engineering/solana_capacity/pump_candidates.py": "20fa90b30adf6c769803416e72fc953b45a8760e2fb70a6a24fb631ef9336f13",
+      "engineering/solana_capacity/pump_pons_proof.py": "b3ce5f9b76d3a0c1923838605fa7b2c2d090e13e89e8859ef300767e648923ac",
+      "engineering/solana_capacity/transport_meter.py": "936977b097c8351b8a877a175cc9ea37a417743c3d69077556d213a1cd029b54",
+      "meme_machine/lanes/meteora/runner.py": "b9bdfc2209485b430dc3d61b204f1935fe772d9c1bb9b4fe064551a481e3432b",
+      "meme_machine/lanes/pons/pons_selective_acquisition.py": "9671df69f7e61ec60c223cce888f1c843b194527b6e5d7c3c3572823fd459f13",
+      "meme_machine/lanes/pons/pons_selective_cohort.py": "17bd2b803f7877b6311afa05561ee460fd8bde815ef7351f5c79009a985ad615",
+      "meme_machine/lanes/pons/pons_selective_paper.py": "d483aa4f1241d102614cbba1073cef36499148c4396b5faa6c278e018d3556b8",
+      "meme_machine/lanes/pons/pons_survivor_runtime.py": "9dc886b33ed7bf11df3fafff97ac365176719e3257916dc25024cf5e83e19d72",
+      "meme_machine/lanes/pons/provider.py": "21e75b3dc7951d0657aade83cc1ed9f8ea5050d2bcaf00eb8a107346ab9ffcc1",
+      "meme_machine/lanes/pump/solana_evidence_runtime.py": "ccc53cbe9216df1e6317ccbae61c38dc76d126921139f33a298dd33f53130df0",
+      "meme_machine/runtime/candidate_history.py": "5446621a87cccaf28ba61d41dc6272437c5f830515523aff5dfab4a84ea2b7ea",
+      "meme_machine/runtime/evidence_worker.py": "e5a88fdcf48ef2105d3271e975c6a96c3acde34fd73860d9743c49e07ed2ecdd",
+      "meme_machine/runtime/governor.py": "ba77d183345037366333b7e7b81ceac9443b8d603254423d7be0e1ff61165034",
+      "meme_machine/runtime/lifecycle_timing.py": "1ceeae9b384768afc2c6a7faf1ddbb7913b59dc371381adb5770d72280c48070",
+      "meme_machine/runtime/solana_warming.py": "e129796e56ecd0b5f918e6ba080a7accfebb789f088d25ce5bb5d6d32b58f552",
+      "meme_machine/solana_candidate_join.py": "d35773573b7bbf75e4f56090b78470bc924b8cb576aca231b39e6c98602ffaaf",
+      "meme_machine/solana_candidate_lifecycle.py": "0bcf8f0e3b560b2fdacf9c286829b01b08ba4b9e97dd66bae649b6bfcd784575",
+      "meme_machine/solana_checkpoint.py": "63977d26d04bc2fd6f38e43e5fc7d6358ebe70d1bfe1c79a88036a87cc1d99e0",
+      "meme_machine/solana_evidence_control.py": "914941124cc5c2174969c928281061d92b1c18e050bf692d1ffe978eeb31db44",
+      "meme_machine/solana_evidence_service.py": "786860ce143badb54a7bb1550d119a0d544c333657463ffc238b21e5428f1df7",
+      "meme_machine/solana_prewarm_startup.py": "9291fac388444d0c3f4799cab81c9172aa8d8bf55f769dd616034b5d863b03c0",
+      "meme_machine/solana_rolling_history.py": "b2f165a780a7dbb432db6252e0db3e16c72527d01ad7c173061737f0f0d188b5",
+      "meme_machine/solana_scoped_retirement.py": "9082576aa9588145fdab400cbda1d0d88c5512d45a3cbc6a4adc4fbcbe4539ed",
+      "meme_machine/solana_selective_history.py": "ce6bfe39c68465b1fbe3a263ab964f630cff2fb019f7a39419f3dbcdac0eb6c0",
+      "meme_machine/solana_selective_source.py": "0c1a23908350dcf09eea5ceaec9fba11ad0f1220dd7e93c7a175401405e975a8",
+      "meme_machine/solana_stable_shards.py": "2fc4a974769983b98aa6b276b487d8c2f1f5c4702a0d7c906ba3f00db69e8f55"
+    },
+    "tape_sha256": "8ed77db5fedbea8b150a7a86fa035ca24929353f3c06aff889f0364808c41c38"
+  },
+  "captured_delivery": {
+    "duplicate_ws_bytes": 161541,
+    "native_subscriptions_started": 16,
+    "peak_native_subscriptions": 16,
+    "source_delivered_bytes": 67105406,
+    "websocket_bytes": 57920465,
+    "ws_connections_opened": 3,
+    "yellowstone_bytes": 9184941
+  },
+  "charged_application_bytes": 67115097,
+  "charged_but_uncaptured_bytes": 9691,
+  "components": {
+    "candidate_live:block_meta": {
+      "below_requested_floor_bytes": 90739,
+      "bytes": 146155,
+      "messages": 699
+    },
+    "candidate_live:slot": {
+      "below_requested_floor_bytes": 14212,
+      "bytes": 22917,
+      "messages": 700
+    },
+    "candidate_live:transaction": {
+      "below_requested_floor_bytes": 6266019,
+      "bytes": 7655257,
+      "messages": 801
+    },
+    "candidate_live:transaction_status": {
+      "below_requested_floor_bytes": 841976,
+      "bytes": 1225868,
+      "failed_bytes": 540378,
+      "failed_messages": 4888,
+      "messages": 12209,
+      "successful_bytes": 685490,
+      "successful_messages": 7321
+    },
+    "discovery:account": {
+      "below_requested_floor_bytes": 42311,
+      "bytes": 42311,
+      "messages": 175
+    },
+    "pump_failed": {
+      "bytes": 557112,
+      "messages": 604
+    },
+    "pump_successful": {
+      "bytes": 4444839,
+      "messages": 1432,
+      "required_success_content_lower_bound_bytes": 4150504
+    },
+    "pumpswap_failed": {
+      "bytes": 15086230,
+      "messages": 7780
+    },
+    "pumpswap_successful": {
+      "bytes": 37805187,
+      "messages": 11552,
+      "required_success_content_lower_bound_bytes": 35390390
+    },
+    "scoped_other_successful": {
+      "bytes": 26897,
+      "messages": 6,
+      "required_success_content_lower_bound_bytes": 25535
+    },
+    "shared:block_meta": {
+      "below_requested_floor_bytes": 6486,
+      "bytes": 79900,
+      "messages": 382
+    },
+    "shared:ping": {
+      "bytes": 15,
+      "messages": 1
+    },
+    "shared:pong": {
+      "bytes": 17,
+      "messages": 1
+    },
+    "shared:slot": {
+      "below_requested_floor_bytes": 1018,
+      "bytes": 12501,
+      "messages": 382
+    },
+    "ws_ack": {
+      "bytes": 200,
+      "messages": 5
+    }
+  },
+  "decoded_complete_source_success_population": {
+    "pump:create": 10,
+    "pump:migration": 1,
+    "pump:trade": 953,
+    "pumpswap:trade": 6375
+  },
+  "decoder_failures": {},
+  "http": {
+    "all_method_elements": {
+      "getBlockTime": 11,
+      "getGenesisHash": 10,
+      "getMultipleAccounts": 14,
+      "getProgramAccounts": 4,
+      "getProgramAccountsV2": 1,
+      "getSlot": 33,
+      "getTokenLargestAccounts": 5,
+      "getTransactionsForAddress": 20
+    },
+    "billed_provider_cu": "UNMEASURED",
+    "caveat": "Governor denied attempts are not sent physical provider requests; planning CU is not billing.",
+    "ceilings": {
+      "billed_provider_cu": "UNMEASURED",
+      "estimate_basis": "published Solana method weights; Robinhood planning weight 100/request; native planning weight ceil(bytes/512)",
+      "estimated_native_delivery_cu": 131085,
+      "estimated_rpc_cu": 4760,
+      "limits": {
+        "estimated_native_delivery_cu": 131072,
+        "estimated_rpc_cu": 149990,
+        "native_delivery_bytes": 67108864,
+        "native_errors": 32,
+        "robinhood_rpc_requests": 1000,
+        "solana_rpc_requests": 1999,
+        "steady_seconds": 180,
+        "storage_bytes": 536219359,
+        "wall_seconds": 481
+      },
+      "methods": {
+        "robinhood:eth_chainId": 2,
+        "robinhood:eth_getBlockByNumber": 4,
+        "robinhood:eth_getCode": 3,
+        "robinhood:eth_getLogs": 4,
+        "solana:getBlockTime": 11,
+        "solana:getGenesisHash": 10,
+        "solana:getMultipleAccounts": 14,
+        "solana:getProgramAccounts": 4,
+        "solana:getProgramAccountsV2": 1,
+        "solana:getSlot": 33,
+        "solana:getTokenLargestAccounts": 5,
+        "solana:getTransactionsForAddress": 20
+      },
+      "native_delivery_bytes": 67115097,
+      "physical_http_attempts": {
+        "robinhood": 9,
+        "solana": 98
+      },
+      "reason": "native_delivery_byte_ceiling",
+      "requests": {
+        "robinhood": 13,
+        "solana": 98
+      }
+    },
+    "recorded_solana_rpc": {
+      "blocks": 0,
+      "calls": 98,
+      "cu": 3460,
+      "errors": {
+        "CeilingReached": 6,
+        "RPC_-32600": 4
+      },
+      "http_bytes": 11051879,
+      "peak_http_concurrency": 2,
+      "scoped_archive_bodies": 1533,
+      "transaction_bodies": 0
+    },
+    "recorded_successful_batches": 98,
+    "solana_method_elements": {
+      "getBlockTime": 11,
+      "getGenesisHash": 10,
+      "getMultipleAccounts": 14,
+      "getProgramAccounts": 4,
+      "getProgramAccountsV2": 1,
+      "getSlot": 33,
+      "getTokenLargestAccounts": 5,
+      "getTransactionsForAddress": 20
+    },
+    "successful_solana_physical_batches": 98
+  },
+  "limitations": [
+    "Application payload excludes HTTP2/WS/TLS framing and NIC traffic.",
+    "Native status matches do not alone prove complete intervals.",
+    "Missing independent witnesses remain incomplete.",
+    "Native subscription counts are RPC streams, not measured TCP connections.",
+    "The protobuf lower bound is NOT a provider-supported log projection."
+  ],
+  "log_native_identity_comparison": {
+    "pump": {
+      "failed_unique_log_facts": 604,
+      "failed_with_matching_native_status": 109,
+      "failed_without_native_status": 495,
+      "successful_unique_log_facts": 1432,
+      "successful_with_matching_native_status": 261,
+      "successful_without_native_status": 1171
+    },
+    "pumpswap": {
+      "failed_unique_log_facts": 7780,
+      "failed_with_matching_native_status": 1377,
+      "failed_without_native_status": 6403,
+      "successful_unique_log_facts": 11552,
+      "successful_with_matching_native_status": 1842,
+      "successful_without_native_status": 9710
+    },
+    "scoped_other": {
+      "successful_unique_log_facts": 6,
+      "successful_without_native_status": 6
+    }
+  },
+  "native_pressure": {
+    "account_connection_limit": "UNVERIFIED_OFFLINE",
+    "native_status_counts": {},
+    "native_stream_peak": 16,
+    "tcp_connections": "UNMEASURED"
+  },
+  "provider_calls": 0,
+  "records": 36817,
+  "schema": "pump-provider-bandwidth-audit-v1",
+  "subscription_payload": {
+    "170fc2d5dd1743668d470c6a4597e453": {
+      "bytes": 8461,
+      "messages": 70
+    },
+    "22c7a3122f7d4fc4b63d78f1b1862671": {
+      "bytes": 92433,
+      "messages": 766
+    },
+    "2464118c6e39452ea779f401fbd533be": {
+      "bytes": 36285,
+      "messages": 300
+    },
+    "3352df33504a48d1a2251aa01392f9a2": {
+      "bytes": 7977,
+      "messages": 66
+    },
+    "40835040f01f41a89968f0840e29a072": {
+      "bytes": 8218,
+      "messages": 68
+    },
+    "4806eff71e1744b593400e119927a6cf": {
+      "bytes": 8814,
+      "messages": 73
+    },
+    "48f0d41cfc104ea6b0e67a0398549e30": {
+      "bytes": 57893448,
+      "messages": 21370
+    },
+    "4c6799f0aa964fa6aa0d04abcfbcbc45": {
+      "bytes": 8088,
+      "messages": 67
+    },
+    "538c7f28d4404da09098f1d5de94814d": {
+      "bytes": 80,
+      "messages": 2
+    },
+    "6cbb57fca4804e47a20a02fed4994a9f": {
+      "bytes": 7977,
+      "messages": 66
+    },
+    "6e70dd3cde1247208a816919b9255743": {
+      "bytes": 8702,
+      "messages": 72
+    },
+    "7880fbece2724738a70ca7d96bbb7462": {
+      "bytes": 42311,
+      "messages": 175
+    },
+    "836938d794e44612bd9072bec1986ee7": {
+      "bytes": 26937,
+      "messages": 7
+    },
+    "84ceadfebafe4c1584c2a3e8480aabb1": {
+      "bytes": 1094824,
+      "messages": 10893
+    },
+    "9db35c43c342462aad348ddac0351153": {
+      "bytes": 8702,
+      "messages": 72
+    },
+    "a152cc23c245489b95beb113a02d131a": {
+      "bytes": 1733954,
+      "messages": 486
+    },
+    "c0494fdd07784d3faa1837e942bf7bfc": {
+      "bytes": 6058340,
+      "messages": 1662
+    },
+    "ee1faab17d8c4c3094d481fcd4288bbe": {
+      "bytes": 7739,
+      "messages": 64
+    },
+    "f63ff8c7d43d4b5b8cc1ddb48f726ebd": {
+      "bytes": 52116,
+      "messages": 450
+    }
+  },
+  "subscriptions": {
+    "170fc2d5dd1743668d470c6a4597e453": {
+      "family": "candidate_live",
+      "filters": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 1,
+        "transactions_status": 47
+      },
+      "from_slot": 454375408,
+      "routes": {}
+    },
+    "22c7a3122f7d4fc4b63d78f1b1862671": {
+      "family": "shared",
+      "filters": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 0,
+        "transactions_status": 0
+      },
+      "from_slot": 454375091,
+      "routes": {}
+    },
+    "2464118c6e39452ea779f401fbd533be": {
+      "family": "candidate_live",
+      "filters": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 0,
+        "transactions_status": 2
+      },
+      "from_slot": 454375323,
+      "routes": {}
+    },
+    "3352df33504a48d1a2251aa01392f9a2": {
+      "family": "candidate_live",
+      "filters": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 1,
+        "transactions_status": 47
+      },
+      "from_slot": 454375415,
+      "routes": {}
+    },
+    "40835040f01f41a89968f0840e29a072": {
+      "family": "candidate_live",
+      "filters": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 1,
+        "transactions_status": 17
+      },
+      "from_slot": 454375408,
+      "routes": {}
+    },
+    "4806eff71e1744b593400e119927a6cf": {
+      "family": "candidate_live",
+      "filters": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 1,
+        "transactions_status": 47
+      },
+      "from_slot": 454375396,
+      "routes": {}
+    },
+    "4c6799f0aa964fa6aa0d04abcfbcbc45": {
+      "family": "candidate_live",
+      "filters": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 1,
+        "transactions_status": 34
+      },
+      "from_slot": 454375415,
+      "routes": {}
+    },
+    "6cbb57fca4804e47a20a02fed4994a9f": {
+      "family": "candidate_live",
+      "filters": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 1,
+        "transactions_status": 47
+      },
+      "from_slot": 454375415,
+      "routes": {}
+    },
+    "6e70dd3cde1247208a816919b9255743": {
+      "family": "candidate_live",
+      "filters": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 1,
+        "transactions_status": 47
+      },
+      "from_slot": 454375396,
+      "routes": {}
+    },
+    "7880fbece2724738a70ca7d96bbb7462": {
+      "family": "discovery",
+      "filters": {
+        "accounts": 4,
+        "blocks": 0,
+        "blocks_meta": 0,
+        "slots": 0,
+        "transactions": 0,
+        "transactions_status": 0
+      },
+      "from_slot": 454375091,
+      "routes": {}
+    },
+    "84ceadfebafe4c1584c2a3e8480aabb1": {
+      "family": "candidate_live",
+      "filters": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 0,
+        "transactions_status": 2
+      },
+      "from_slot": 454375352,
+      "routes": {
+        "0": [
+          "pump"
+        ],
+        "1": [
+          "pumpswap"
+        ]
+      }
+    },
+    "9db35c43c342462aad348ddac0351153": {
+      "family": "candidate_live",
+      "filters": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 1,
+        "transactions_status": 34
+      },
+      "from_slot": 454375397,
+      "routes": {}
+    },
+    "a152cc23c245489b95beb113a02d131a": {
+      "family": "candidate_live",
+      "filters": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 1,
+        "transactions_status": 47
+      },
+      "from_slot": 454375424,
+      "routes": {}
+    },
+    "c0494fdd07784d3faa1837e942bf7bfc": {
+      "family": "candidate_live",
+      "filters": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 1,
+        "transactions_status": 16
+      },
+      "from_slot": 454375378,
+      "routes": {}
+    },
+    "ee1faab17d8c4c3094d481fcd4288bbe": {
+      "family": "candidate_live",
+      "filters": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 1,
+        "transactions_status": 18
+      },
+      "from_slot": 454375424,
+      "routes": {}
+    },
+    "f63ff8c7d43d4b5b8cc1ddb48f726ebd": {
+      "family": "candidate_live",
+      "filters": {
+        "accounts": 0,
+        "blocks": 0,
+        "blocks_meta": 1,
+        "slots": 1,
+        "transactions": 0,
+        "transactions_status": 1
+      },
+      "from_slot": 454375327,
+      "routes": {}
+    }
+  }
+}

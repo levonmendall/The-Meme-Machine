@@ -1,0 +1,231 @@
+{
+  "artifacts": [
+    {
+      "bytes": 367,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/NATIVE_REPLAY_CAPABILITY_PREFLIGHT_CORRECTION_20261015.json",
+      "sha256": "7628a4837311f1a998caafd46a92cdd57212ceb6d95e37acefa85ea7d960f7fc"
+    },
+    {
+      "bytes": 1431,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/NATIVE_REPLAY_CAPABILITY_PREFLIGHT_20261015.json",
+      "sha256": "2d40188faa6d5167e0c01174c76a4111caa18542405751e93c6b522122dfbfc6"
+    },
+    {
+      "bytes": 8179,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/NATIVE_REPLAY_CAPABILITY_FOCUSED_20261015.log",
+      "sha256": "17224855b24cc654f084b22740016da732281c519d30619d47b30d0afbe43518"
+    },
+    {
+      "bytes": 2949,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/NATIVE_REPLAY_CAPABILITY_FOCUSED_FINAL_20261015.log",
+      "sha256": "b00c9c58da9f807eafb74573f5879747fafda61cfafce4c138062650e811bf39"
+    },
+    {
+      "bytes": 214,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/NATIVE_REPLAY_CAPABILITY_EXECUTION_20261015.log",
+      "sha256": "9f66137e3115bfcb05b3017ac3ba81b0bc49dad677e1c45653c84fecceeba800"
+    },
+    {
+      "bytes": 76478,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/NATIVE_REPLAY_CAPABILITY_20261015T012958Z/result.json",
+      "sha256": "a9bf7f38657927d88cc87741289226634c3d265646de304ef17739ff73f61396"
+    },
+    {
+      "bytes": 3324,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/NATIVE_REPLAY_CAPABILITY_RESPONSE_ANALYSIS_20261015.json",
+      "sha256": "e5feda48217457a3eeef321088e1aee8d1b47c9cd60c54b10f90b108f3ec7001"
+    },
+    {
+      "bytes": 58939,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_COMBINED_PREFLIGHT_NATIVE_FINANCIAL_20261015.json",
+      "sha256": "933d59bde7bc79ed1d199d6a016c4f297c64ebd3bc3dd5ff2795e877b6e4e050"
+    },
+    {
+      "bytes": 23087,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_NATIVE_ATTRIBUTION_INTEGRATION_20261015.log",
+      "sha256": "fcf429497c7188a9840935c6af7a13a47221ca9079ed42563cee2a1d664afdd8"
+    },
+    {
+      "bytes": 377,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_NATIVE_ATTRIBUTION_ECONOMIC_GUARD_20261015.log",
+      "sha256": "fb65a4c439b3da0e08b2a26ddc3b10a33a17e49354018245c82ae4f4d0f89de8"
+    }
+  ],
+  "causal_decision": "CURRENT_REQUEST_COMPATIBILITY_OBSERVED; ORIGINAL_REPLAY_FAILURE_AND_EXACT_CURSOR_CONTRACT_UNRESOLVED",
+  "executed_diagnostic": "5e4728ae2208a90fb027ce951d3a6830f93f18b2",
+  "installed_source_unchanged": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+  "invoice": "UNAVAILABLE",
+  "modeled_cost_basis": "Existing frozen CU/application-byte model including conservative uncertain SDK reservation; not invoice",
+  "modeled_cost_usd_including_uncertain": "0.014116254495",
+  "next_provider_action": "Prepared sanitized Alchemy support question; no more unchanged replay experiments. No offset/commitment/provider/architecture change justified yet.",
+  "offline_attribution_successor": "6b0b10edf729b4c1c13dd3b7a56916d4d6797bc4",
+  "pons_offline": {
+    "SQL_boundary": "Disposable real cohort SQL blocked briefly on held writer; cooperative shared replay checks occur after that boundary. Existing30s timeout unchanged; retained journals/pending exactly preserved. No actual-9 attribution.",
+    "SQL_or_timeout_repair": "NONE; actual blocked operation remains unknown",
+    "new_recording": "Once-only <=8 owned code-only main-thread frames from existing health thread on stop; no locals/path/SQL/source text; survives actual controller serializer; absent/failure honestly unavailable"
+  },
+  "provider_question_is_not_runtime_permission": "Standing runtime authorization exists. Missing provider semantics/causal evidence, not an attempt limit or approval.",
+  "recovery": {
+    "cash": "1000.00",
+    "current_checks": "15 VERIFIED/132 bounded queries/0.018s SQL;0.150s total",
+    "historical500": "PRESERVED",
+    "new_native_recovery_completion": "UNAVAILABLE",
+    "obligations": 0,
+    "prior_Pons_drain": "FAILED_RECONCILING_KILL_-9_UNCHANGED",
+    "raw_head": 8990,
+    "scope": "SAFE_TO_BEGIN_EXISTING_GUARDED_RECOVERY; no retrospective native drain PASS"
+  },
+  "response_analysis": {
+    "candidate": "5e4728ae2208a90fb027ce951d3a6830f93f18b2",
+    "created_at": "2026-10-15T01:31:47.016541+00:00",
+    "first_available": 456190360,
+    "from_slot": 457054847,
+    "http_finalized_slot": 457055103,
+    "limits": [
+      "64-message-per-stream truncation; no end-of-replay or completeness proof",
+      "No authoritative evidence owner or checkpoint writes",
+      "Same TLS channel does not prove same replay backend",
+      "Current exact forms accepted; prior failure remains unexplained, not repaired"
+    ],
+    "native_finalized_slot": 457055103,
+    "source_result": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/NATIVE_REPLAY_CAPABILITY_20261015T012958Z/result.json",
+    "source_sha256": "a9bf7f38657927d88cc87741289226634c3d265646de304ef17739ff73f61396",
+    "streams": [
+      {
+        "all_slots_at_or_above_cursor": false,
+        "commitment": "FINALIZED",
+        "filter_counts": {
+          "b": 32,
+          "f": 32
+        },
+        "from_slot": 457054847,
+        "kind_counts": {
+          "block_meta": 32,
+          "slot": 32
+        },
+        "messages": 64,
+        "name": "control_finalized",
+        "payload_filters_valid": true,
+        "payload_hashes_valid": true,
+        "payload_kinds_valid": true,
+        "payload_sizes_valid": true,
+        "protobuf_stream_sha256": "139ae9eebeeadcbcaed6c9cb5d0d52cb570883b042ce6bcfe697a14cd21861db",
+        "request_hash_matches": true,
+        "slot_ranges": {
+          "block_meta": {
+            "maximum": 457054847,
+            "minimum": 457054816,
+            "nondecreasing_in_kind": true,
+            "unique_slots": 32
+          },
+          "slot": {
+            "maximum": 457054847,
+            "minimum": 457054816,
+            "nondecreasing_in_kind": true,
+            "unique_slots": 32
+          }
+        },
+        "slot_status_counts": {
+          "SLOT_FINALIZED": 32
+        }
+      },
+      {
+        "account_owners": {
+          "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P": 64
+        },
+        "all_discriminators_match": true,
+        "all_slots_at_or_above_cursor": false,
+        "commitment": "FINALIZED",
+        "data_slice_lengths": {
+          "49": 64
+        },
+        "filter_counts": {
+          "p": 64
+        },
+        "from_slot": 457054847,
+        "kind_counts": {
+          "account": 64
+        },
+        "messages": 64,
+        "name": "scout_finalized",
+        "owner_matches_requested": true,
+        "payload_filters_valid": true,
+        "payload_hashes_valid": true,
+        "payload_kinds_valid": true,
+        "payload_sizes_valid": true,
+        "protobuf_stream_sha256": "99689fd8b597e96c24134afa8906e461ea1d118dc0be09a52af161888fcc5770",
+        "pubkey_lengths": {
+          "32": 64
+        },
+        "request_hash_matches": true,
+        "slot_ranges": {
+          "account": {
+            "maximum": 457054825,
+            "minimum": 457054816,
+            "nondecreasing_in_kind": true,
+            "unique_slots": 10
+          }
+        },
+        "startup_counts": {
+          "False": 64
+        },
+        "unique_account_pubkeys": 31
+      }
+    ],
+    "usage_delta": {
+      "alchemy_rpc_cu": 40,
+      "http_attempts": 5,
+      "http_bytes": 55,
+      "http_reserved": 0,
+      "http_uncertain_bytes": 0,
+      "native_bytes": 22791,
+      "native_opens": 2,
+      "native_reserved": 0,
+      "native_uncertain_bytes": 134217728,
+      "rpc_cu": 40,
+      "rpc_elements": 3,
+      "solana_rpc_elements": 3
+    }
+  },
+  "result": {
+    "absolute_boundary_met": true,
+    "channel_closed": true,
+    "completed_at": "2026-10-15T01:30:15.843529+00:00",
+    "delivered_protobuf_bytes": 22791,
+    "elapsed_seconds": 3.380368882091716,
+    "first_available": 456190360,
+    "from_slot": 457054847,
+    "http_finalized_slot": 457055103,
+    "http_minus_native_slots": 0,
+    "native_finalized_slot": 457055103,
+    "same_backend_node": "UNVERIFIED_LOAD_BALANCING_POSSIBLE",
+    "started_at": "2026-10-15T01:30:12.508203+00:00",
+    "status": "CAPABILITY_SAMPLE_COMPLETE_NOT_COVERAGE_PROOF",
+    "usage_delta": {
+      "alchemy_rpc_cu": 40,
+      "http_attempts": 5,
+      "http_bytes": 55,
+      "http_reserved": 0,
+      "http_uncertain_bytes": 0,
+      "native_bytes": 22791,
+      "native_opens": 2,
+      "native_reserved": 0,
+      "native_uncertain_bytes": 134217728,
+      "rpc_cu": 40,
+      "rpc_elements": 3,
+      "solana_rpc_elements": 3
+    }
+  },
+  "schema": 1,
+  "scope": "Standalone provider capability only; no PAPER start, no economic/canonical/history/policy writes, no acceptance credit",
+  "standing_authority_effective": "until revoked; no global attempt cap,24h expiry or routine per-run approval",
+  "standing_authorization": "https://github.com/levonmendall/The-Meme-Machine/issues/134",
+  "validation": {
+    "capability_and_SQL_boundary": "13 PASS/3.548s; initial13-case run failed5 assertions, retained; no assertions relaxed",
+    "economic_source_guard": "1 PASS/7.754s",
+    "full_FAST": "NOT_RERUN; final promotion remains gated",
+    "runtime": "CPython3.12.14 / linkedSQLite3.45.1; supported network-blocked contained runner",
+    "startup_lifecycle_diagnostics": "107 PASS/7.036s including13 actual integrated rehearsals"
+  },
+  "workflow_commit": "70e6e25c9329862da209136ae8a148b73e4895fd"
+}

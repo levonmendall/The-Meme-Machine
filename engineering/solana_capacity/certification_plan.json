@@ -1,0 +1,68 @@
+{
+  "repository": "levonmendall/The-Meme-Machine",
+  "pull_request": 121,
+  "verified_head_before_editing": "fe86d9a8b60a36de0f47a234f7d2291c2a33c629",
+  "verified_tree_before_editing": "c04392407151a48be34bb3f21f4d3c6c821f0127",
+  "operational_base": "5bd1a8bfb58b0a9e3df2b0a5194c6b11e0328bd0",
+  "remaining_blocker": "SIMULTANEOUS_PROVIDER_CAPACITY",
+  "preserved_pass_gates": [
+    "METEORA_STRUCTURAL_PROMOTION",
+    "CANDIDATE_REACTIVATION",
+    "SCOPED_COLD_RETIREMENT",
+    "ACK_REPLAY_HANDOFF",
+    "CANDIDATE_RESTART_RECOVERY",
+    "METEORA_POSITIVE_PARITY"
+  ],
+  "authorized_limits": {
+    "cumulative_live_seconds": 3600,
+    "additional_diagnostic_USD": 5
+  },
+  "bounded_procedure": {
+    "initial_seconds": 1200,
+    "normal_cohort_drain_seconds": 150,
+    "endpoint_identity": "8f3feda9d10baa64d74b5ecb3a97cfa48af379982666f93a425e537668a51749"
+  },
+  "worker_configuration": {
+    "expensive_candidate_workers_before": 2,
+    "expensive_candidate_workers_after": 2,
+    "archive_workers_before": 1,
+    "archive_workers_after": 8,
+    "shared_solana_RPS_before": 2,
+    "shared_solana_RPS_after": 20,
+    "other_provider_RPS": 2,
+    "provider_queue_limit": 256,
+    "owner_queue_limit": 64,
+    "owner_reserved_urgent_slots": 8
+  },
+  "filter_configuration": {
+    "maximum_filter_entries_per_shard": 50,
+    "basic_address_limit": 48,
+    "rich_address_limit": 47,
+    "stable_position_groups": true,
+    "candidate_count_is_not_eligibility_limit": true
+  },
+  "integrity": {
+    "deadline_reset_permitted": false,
+    "economic_policy_changes_permitted": false,
+    "real_portfolio_state_used": false,
+    "signing_or_submission_used": false,
+    "persistent_services_started": false
+  },
+  "source_capture": "Every attempt records SHA256 of exact production and harness files. Reports are not a substitute for the captured source hash.",
+  "billing_boundary": "All delivered native/WS payloads and HTTP responses are counted, including shard overlap. Local compression earns no billing credit.",
+  "completed_live_seconds_including_startup": 3487.081977367401,
+  "completed_diagnostic_estimated_USD": 0.45438762991500004,
+  "live_complete": true,
+  "last_bounded_attempt": {
+    "planned_seconds": 140,
+    "actual_seconds": 210.30721592903137,
+    "drain_seconds": 70.30721592903137,
+    "reason": "Remaining authorized cumulative live budget; no further provider capture after offline-only corrections."
+  },
+  "offline_validation_corrections_after_capture": [
+    "Move observation wrappers out of protected native strategy function bodies; retain original AST.",
+    "Only compute capture freshness retry deadline if required interval proof is unavailable.",
+    "Native adapter rotation supports absent fixture adapters without changing native lifecycle semantics.",
+    "Reverify method pricing: getAccountInfo 10 CU. No captured calls of this method, so final window CU is unchanged."
+  ]
+}

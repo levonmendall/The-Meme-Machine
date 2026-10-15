@@ -1,0 +1,28 @@
+[Unit]
+Description=Meme Machine localhost read-only metrics for DigitalOcean
+Wants=meme-machine-monitor.service
+After=meme-machine-monitor.service
+
+[Service]
+Type=exec
+User=do-agent
+Group=do-agent
+WorkingDirectory=/opt/meme-machine
+ExecStart=/opt/meme-machine/.venv/bin/python -m meme_machine.operational.metrics
+Restart=on-failure
+RestartSec=15
+NoNewPrivileges=true
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectProc=invisible
+RestrictAddressFamilies=AF_INET AF_UNIX
+IPAddressDeny=any
+IPAddressAllow=localhost
+MemoryMax=128M
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

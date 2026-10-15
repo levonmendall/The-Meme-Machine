@@ -1,0 +1,41 @@
+test_batch_request_uses_explicit_public_compatible_headers (tests.lanes.pons.test_provider.ProviderHeaderTests.test_batch_request_uses_explicit_public_compatible_headers) ... ok
+test_single_request_uses_explicit_public_compatible_headers (tests.lanes.pons.test_provider.ProviderHeaderTests.test_single_request_uses_explicit_public_compatible_headers) ... ok
+test_batch_preserves_logical_budget_and_reduces_transport_count (tests.lanes.pons.test_provider.ProviderTests.test_batch_preserves_logical_budget_and_reduces_transport_count) ... ok
+test_batch_rejects_write_method (tests.lanes.pons.test_provider.ProviderTests.test_batch_rejects_write_method) ... ok
+test_future_missing_secret_does_not_print_url (tests.lanes.pons.test_provider.ProviderTests.test_future_missing_secret_does_not_print_url) ... ok
+test_quota_no_retry (tests.lanes.pons.test_provider.ProviderTests.test_quota_no_retry) ... ok
+test_scope_exhaustion_does_not_starve_other_pool (tests.lanes.pons.test_provider.ProviderTests.test_scope_exhaustion_does_not_starve_other_pool) ... ok
+test_signing_and_submission_rejected (tests.lanes.pons.test_provider.ProviderTests.test_signing_and_submission_rejected) ... ok
+test_wrong_chain (tests.lanes.pons.test_provider.ProviderTests.test_wrong_chain) ... ok
+test_aged_research_precedes_new_candidate_but_never_exit (tests.lanes.pons.test_provider_admission.AdmissionFairnessTests.test_aged_research_precedes_new_candidate_but_never_exit) ... ok
+test_original_deadline_prevents_transport_and_records_wait (tests.lanes.pons.test_provider_admission.AdmissionFairnessTests.test_original_deadline_prevents_transport_and_records_wait) ... ok
+test_open_position_precedes_research_and_queue_is_bounded (tests.lanes.pons.test_provider_admission.SharedAdmissionTests.test_open_position_precedes_research_and_queue_is_bounded) ... ok
+test_two_sessions_share_physical_request_clock_and_cooldown (tests.lanes.pons.test_provider_admission.SharedAdmissionTests.test_two_sessions_share_physical_request_clock_and_cooldown) ... ok
+test_expired_consumer_never_enqueues_or_transports (tests.lanes.pons.test_shared_position_fairness.SustainedPositionFairnessTests.test_expired_consumer_never_enqueues_or_transports) ... ok
+test_foreground_authentication_retains_position_precedence_and_context_isolation (tests.lanes.pons.test_shared_position_fairness.SustainedPositionFairnessTests.test_foreground_authentication_retains_position_precedence_and_context_isolation) ... ok
+test_imminent_position_deadline_keeps_priority (tests.lanes.pons.test_shared_position_fairness.SustainedPositionFairnessTests.test_imminent_position_deadline_keeps_priority) ... ok
+test_lifecycle_scope_and_thread_exception_isolation (tests.lanes.pons.test_shared_position_fairness.SustainedPositionFairnessTests.test_lifecycle_scope_and_thread_exception_isolation) ... ok
+test_other_lane_bounded_service_preserves_ceiling (tests.lanes.pons.test_shared_position_fairness.SustainedPositionFairnessTests.test_other_lane_bounded_service_preserves_ceiling) ... ok
+test_same_lane_foreground_observation_has_bounded_service (tests.lanes.pons.test_shared_position_fairness.SustainedPositionFairnessTests.test_same_lane_foreground_observation_has_bounded_service) ... ok
+test_same_lane_research_cannot_bypass_position_and_never_transports (tests.lanes.pons.test_shared_position_fairness.SustainedPositionFairnessTests.test_same_lane_research_cannot_bypass_position_and_never_transports) ... ok
+test_batch_deduplicates_and_expired_miss_does_not_transport (tests.lanes.pons.test_immutable_rpc.ImmutableRpcTest.test_batch_deduplicates_and_expired_miss_does_not_transport) ... ok
+test_block_receipts_rule_throughput_and_size_guard (tests.lanes.pons.test_immutable_rpc.ImmutableRpcTest.test_block_receipts_rule_throughput_and_size_guard) ... ok
+test_concurrent_same_identity_executes_once (tests.lanes.pons.test_immutable_rpc.ImmutableRpcTest.test_concurrent_same_identity_executes_once) ... ok
+test_endpoint_domain_and_conflict_fail_closed (tests.lanes.pons.test_immutable_rpc.ImmutableRpcTest.test_endpoint_domain_and_conflict_fail_closed) ... ok
+test_exact_log_filter_and_immutable_bounds (tests.lanes.pons.test_immutable_rpc.ImmutableRpcTest.test_exact_log_filter_and_immutable_bounds) ... ok
+test_gas_quote_same_epoch_after_original_observation_only (tests.lanes.pons.test_immutable_rpc.ImmutableRpcTest.test_gas_quote_same_epoch_after_original_observation_only) ... ok
+test_hash_pinned_call_and_code_across_candidates (tests.lanes.pons.test_immutable_rpc.ImmutableRpcTest.test_hash_pinned_call_and_code_across_candidates) ... ok
+test_header_number_and_hash_share_identity (tests.lanes.pons.test_immutable_rpc.ImmutableRpcTest.test_header_number_and_hash_share_identity) ... ok
+test_header_reorg_cannot_poison_pinned_alias (tests.lanes.pons.test_immutable_rpc.ImmutableRpcTest.test_header_reorg_cannot_poison_pinned_alias) ... ok
+test_log_reorg_and_numeric_range_not_cached (tests.lanes.pons.test_immutable_rpc.ImmutableRpcTest.test_log_reorg_and_numeric_range_not_cached) ... ok
+test_numeric_pin_must_be_used_on_wire_not_only_cache_key (tests.lanes.pons.test_immutable_rpc.ImmutableRpcTest.test_numeric_pin_must_be_used_on_wire_not_only_cache_key) ... ok
+test_overrides_and_other_block_are_distinct (tests.lanes.pons.test_immutable_rpc.ImmutableRpcTest.test_overrides_and_other_block_are_distinct) ... ok
+test_raw_reuse_history_is_append_only (tests.lanes.pons.test_immutable_rpc.ImmutableRpcTest.test_raw_reuse_history_is_append_only) ... ok
+test_receipt_requires_expected_block (tests.lanes.pons.test_immutable_rpc.ImmutableRpcTest.test_receipt_requires_expected_block) ... ok
+test_session_chain_verified_once_not_across_new_session (tests.lanes.pons.test_immutable_rpc.ImmutableRpcTest.test_session_chain_verified_once_not_across_new_session) ... ok
+test_waiter_keeps_own_deadline (tests.lanes.pons.test_immutable_rpc.ImmutableRpcTest.test_waiter_keeps_own_deadline) ... ok
+
+----------------------------------------------------------------------
+Ran 36 tests in 0.117s
+
+OK

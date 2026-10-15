@@ -1,0 +1,45 @@
+{
+  "status": "FAIL_SUSTAINED_COVERAGE_WITH_CONTROL_CATCHUP",
+  "source": "236fc722860ed3976a5af69bbd39da95ddd10889",
+  "usage_db": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/shared/pump-control-first-236fc722-1791746964982.sqlite",
+  "started_at_utc": "2026-10-11T19:29:25+00:00",
+  "physical_starts": 49,
+  "logical_rpc_elements": 43,
+  "conservative_cu": 3900,
+  "http_bytes": 12479306,
+  "known_native_bytes": 83965754,
+  "uncertain_native_bytes": 436207347,
+  "native_reserved_bytes": 0,
+  "accounted_native_bytes": 520173101,
+  "native_boundary_bytes": 536870912,
+  "native_openings": 6,
+  "terminal_failure": "native_payload_stop",
+  "control_finalized_frontier": 455766953,
+  "last_program_block": 455766914,
+  "last_program_market_time": 1791747004,
+  "last_program_seen": 1791747020.1860266,
+  "new_rolling_economic_records": {
+    "pump": 654,
+    "pumpswap": 994
+  },
+  "proved_program_tail_intervals": [
+    [
+      455766788,
+      455766795
+    ],
+    [
+      455766911,
+      455766913
+    ]
+  ],
+  "log_buffer_failure_bytes": 33554068,
+  "log_buffer_failure_count": 10757,
+  "status_replay_prefix_bytes": 625811,
+  "full_protection": false,
+  "funding": false,
+  "orders": false,
+  "historical_counters_reset": false,
+  "invoice_verified": false,
+  "source_cause": "The control-order barrier closed the stale-header backlog. The rolling native status/log join still fell behind the incoming finalized log frontier and reached its original 32-MiB guard; no continuous coverage or full protection was established.",
+  "modeled_public_upper_usd": "0.056665675605"
+}
