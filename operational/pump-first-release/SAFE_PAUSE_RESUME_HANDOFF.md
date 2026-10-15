@@ -1,3 +1,49 @@
+## Current owner checkpoint — PAUSED FOR REVIEW (2026-10-15)
+
+The owner directs a pause after completing the active work. The diagnostic,
+analysis, financial/native post-review and compatible source/config rollback
+are complete. Do not automatically launch further engineering, tests, provider
+workloads or service starts. Wait for owner direction; issue134 standing
+scope remains unchanged for a future resumption.
+
+Read [the comprehensive findings](OWNER_REVIEW_PAUSE_FINDINGS_20261015.md) and
+[exact retained evidence index](evidence/operation-attribution-pause-result-20261015.json).
+Latest tested/executed engineering source:
+`b007217e7930fa728604df4aa2a96f68f998e1ec`; branch
+`repair/consolidated-startup-followup-20261014`, PR133 remains draft.
+Installed compatible rollback source: `66f85d61bf4d3ba9a01efdc0e9eb68949419bda8`.
+Its restored finite diagnostic unit is not a continuous-service launcher and must
+not be started unchanged. No database rewind or policy/economic change.
+
+PAPER inactive/disabled/MainPID0/Restart=no, fundingclosed, no market children,
+provider reservations/receipts/streams closed. Cash$1000, eight monetary
+obligation categories0, exact verified financial head12276:
+`4b6722660efa0e2c0fca72d8b867630e379715b32eda374d7846793c1757935c`.
+Historical$500 preserved. Current237namedcanonical identities:207exactauthenticACK,
+30pendingpreserved; older checked cohorts retained. Both current native lanes
+STOPPED/reconciled/TERM/exit0. Global accepted-source-frame drainage remains
+UNAVAILABLE; preserve that limitation and historical RECOVERY_REQUIRED outcomes.
+
+Run readinessFAIL, STARTUP_LIMITATION, stopped905.037s, acceptance0. Reliable
+post-native/pre-INTERNAL-error190.253s slice:CONTROLproxy3.710851 vsdurablehead
+1.508519, stored1.466469; proxygap1321to1748; evidenceage354.149to483.402s.
+A2207slot prospective-head jump after INTERNAL/reconnect invalidates raw9.467
+whole-post-native headrate as throughput. Verified program frontier unavailable;
+no capacity/speedup/heldprotection/autonomyPASS. Native recovery semantics,
+serial owner/CPU work, Pons stale/missingUSD acquisition and backup remain open.
+Current canonical-copy-plusreserve storage shortfall is at least7.752GB before
+otherstate/WAL/restore; no newbackup was manufactured. Existing verified recovery
+reference remains applicable; failedbackup unusable, timer unchanged.
+
+First resume task: review the pre-error reached-operation profile and coordinate
+candidate/owner work and ModelB recovery/drain contract. Use focused disposable
+proofs before a cause-supported changed live comparison. Do not reopen closed
+historical full-replay search or repeat unchanged diagnostics. Source guards,
+strategy/economics and original deadlines remain intact. No fullFAST was run for
+this narrow diagnostic; final promotion still requires its release gates.
+
+Earlier continuation entries below are historical and do not override this pause.
+
 ## Current continuation — operation attribution (2026-10-15)
 
 Executable `b007217e7930fa728604df4aa2a96f68f998e1ec`, same branch/draft PR133.

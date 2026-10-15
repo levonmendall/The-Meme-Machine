@@ -9,6 +9,8 @@
     "Fixed schemas survive collection/clipping; compact identical-value JSON and300s post-startup collection stay within original32MiB output/terminal reserves."
   ],
   "concurrent_runs": 1,
+  "consumed": true,
+  "continuation": "Owner requests completed-work pause. No additional diagnostic or repair iteration until further direction; standingissue134 unchanged.",
   "controller": "engineering.diagnostics.current_combined_observation_20261014",
   "controller_sha256": "3ebc4cc8c42234a6c39ebaae9bf24a1963e9edf605498c6010851a92327f51fe",
   "diagnostic_output": {
@@ -26,6 +28,7 @@
   },
   "diagnostic_startup_maximum_seconds": 900,
   "end_state": "Stopped, disabled, Restart=no, funding closed; verify actual native drain independently, preserve all pending evidence/accounting, compatible rollback without rewind. Global accepted-source-frame drain is independently UNAVAILABLE under current ModelB cancellation order; do not equate native stop with globalqueuecompletion. Retained replay/gap obligations remain preserved.",
+  "executed_output": "/var/lib/meme-machine-diagnostics/20261015-operation-attribution-b007217e-132123",
   "existing_provider_profiles": {
     "pons_observation_route": "canonical_primary existing bound app only",
     "robinhood_rps": 10,
@@ -69,9 +72,11 @@
     "pons_survivor_protection_seconds": 3,
     "rss_bytes": 6442450944
   },
+  "result_evidence": "evidence/operation-attribution-pause-result-20261015.json",
+  "result_handoff": "OWNER_REVIEW_PAUSE_FINDINGS_20261015.md",
   "schema": 1,
   "shutdown_reserve_seconds": 65,
-  "status": "PREPARED_STANDING_ISSUE134_FRESH_PREFLIGHT_REQUIRED",
+  "status": "CONSUMED_STARTUP_LIMITATION_OWNER_REVIEW_PAUSE",
   "tested_successor": "b007217e7930fa728604df4aa2a96f68f998e1ec",
   "validation": "122focusedPASS;294affectedintegrationPASS with flag1 includingactualstartup;140sourceguard/collectorPASS on finalsource. Initial113test2fixtureERROR and initial140test2sourceguardFAIL preserved privately. The294integration and initial140guard runs overlapped; durations are correctness evidence only. No fullFAST/release/capacityPASS.",
   "work_stop_seconds": 1800

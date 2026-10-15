@@ -1,0 +1,3836 @@
+{
+  "acceptance_minutes": 0,
+  "artifacts": {
+    "OPERATION_ATTRIBUTION_ACTIONS_CHECKPOINT_20261015.json": {
+      "bytes": 1330,
+      "sha256": "3685487b292c84d16fb58b267c9f3f762b757eba267d6babd4e2569d32c6b711"
+    },
+    "OPERATION_ATTRIBUTION_ANALYSIS_20261015.json": {
+      "bytes": 193961,
+      "sha256": "a35b76738cd04ad4840b2389313659ccc10cc6195c7daa6353982aaab14fa4d2"
+    },
+    "OPERATION_ATTRIBUTION_ANALYSIS_V2_20261015.json": {
+      "bytes": 153144,
+      "sha256": "9142c25c41468d84c8a7ea43441a7d2042ae58b38ce05cd2a87c5f45704fb014"
+    },
+    "OPERATION_ATTRIBUTION_DISPATCH_PREFLIGHT_20261015.json": {
+      "bytes": 992,
+      "sha256": "1c15c671f4f25fdbb3171efe74d6ada9fcb942651b2489a1ce0341753216ce3c"
+    },
+    "OPERATION_ATTRIBUTION_DRIVER_20261015.log": {
+      "bytes": 1089,
+      "sha256": "f069f5df56cee1b7512a17f76984388e40b15c5623958f2ef773df3be2eb64e2"
+    },
+    "OPERATION_ATTRIBUTION_DRIVER_V2_20261015.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "OPERATION_ATTRIBUTION_FINAL_STOPPED_20261015.json": {
+      "bytes": 1715,
+      "sha256": "fd821104f1560e8e8cc2fee7ab0dd82b6e1e61170bcc51fe9c56252d59fa2133"
+    },
+    "OPERATION_ATTRIBUTION_FIRST_FOCUSED_20261015.log": {
+      "bytes": 2100,
+      "sha256": "56ae04e6ae937fed48c16b560c677c3bfbea16a8472c46d9a456d1cf8febd9fc"
+    },
+    "OPERATION_ATTRIBUTION_FOCUSED_V2_20261015.log": {
+      "bytes": 960,
+      "sha256": "cf8f8869a618349959242d76db441f0c9d1f182104f7a1465ccf6cdf2b0f4e61"
+    },
+    "OPERATION_ATTRIBUTION_HELD_PROOF_CI_20261015.json": {
+      "bytes": 1223,
+      "sha256": "fb6fef1f43d2fe89e387d6a948e701aa35b222807ff1ea39957a1428cb48e8ef"
+    },
+    "OPERATION_ATTRIBUTION_INTEGRATION_20261015.log": {
+      "bytes": 22915,
+      "sha256": "86a0f8fa001777a55d99a8d50a27d82097d8e04e129e2c14181bfbcaae9ff3ba"
+    },
+    "OPERATION_ATTRIBUTION_PAUSE_STORAGE_20261015.json": {
+      "bytes": 385,
+      "sha256": "61072284b70455c69c0e0f3172f8137adc538932547b39229c6aeee02a4b07fc"
+    },
+    "OPERATION_ATTRIBUTION_PONS_COMPLETIONS_20261015.json": {
+      "bytes": 938,
+      "sha256": "db9fb30da997040ff64329e82c6ba8475f65848f6e60b320a287f0acda3ebbb5"
+    },
+    "OPERATION_ATTRIBUTION_PONS_COMPLETIONS_INITIAL_ERROR_20261015.json": {
+      "bytes": 308,
+      "sha256": "01895917bc67acaf5a20eeec5a5167fe958eab0025033c968b9bcf727ca038ba"
+    },
+    "OPERATION_ATTRIBUTION_POST_NATIVE_FINANCIAL_20261015.json": {
+      "bytes": 5091388,
+      "sha256": "3cf1741a860c7cbe1cd2e8af48e146f2d70d023dab2fae93c707600f51433f3b"
+    },
+    "OPERATION_ATTRIBUTION_PREFLIGHT_20261015.json": {
+      "bytes": 3559317,
+      "sha256": "2f67c34ad91a1581c38db992c28780b7a3f09cf1be5920b583145daa5cb3ccec"
+    },
+    "OPERATION_ATTRIBUTION_PREFLIGHT_V2_20261015.json": {
+      "bytes": 3559856,
+      "sha256": "be4c774eb0ff680d438bb66ff4cd97c86a58c2565640d245ec868fd768365974"
+    },
+    "OPERATION_ATTRIBUTION_PRIOR_FAST_CI_20261015.json": {
+      "bytes": 214,
+      "sha256": "75fe11bc4904bad59fe9869c89194214191f89b70fc4b83c0aeeac285d570c63"
+    },
+    "OPERATION_ATTRIBUTION_PROGRESS_DISCONTINUITY_20261015.json": {
+      "bytes": 4286,
+      "sha256": "312134007cf737f6d73ec3ebf40e17ccbb2a4900674d989f462f49d52fe0cd48"
+    },
+    "OPERATION_ATTRIBUTION_REACHED_FAILURES_20261015.json": {
+      "bytes": 1749,
+      "sha256": "66ecb2d60dd812caade580acb05eda4e61cf7dc3f157b42759b51cb584ad7493"
+    },
+    "OPERATION_ATTRIBUTION_ROLLBACK_20261015.json": {
+      "bytes": 1099,
+      "sha256": "729165631aee1cd605728c09c1379cab0b022b406c0b30fd064e5517a3379c54"
+    },
+    "OPERATION_ATTRIBUTION_SOURCE_COLLECTOR_20261015.log": {
+      "bytes": 114826,
+      "sha256": "d9ede30791697c199983df2a61fe6fdd9a8f027e477f4e996d802a7d5548cfa4"
+    },
+    "OPERATION_ATTRIBUTION_SOURCE_COLLECTOR_V2_20261015.log": {
+      "bytes": 541,
+      "sha256": "dc068939f55cf0a0c13a7efb157412d0d99904f9364f308de7dc03390627e613"
+    },
+    "OPERATION_ATTRIBUTION_UNIT_JOURNAL_20261015.jsonl": {
+      "bytes": 2406,
+      "sha256": "a86822ecf7abd127f2ffc541cecb166dd50b09a64a98386b4d6c519123b52c48"
+    },
+    "operation_attribution_install_20261015.py": {
+      "bytes": 7810,
+      "sha256": "0ea89b958194640ffcf64dacce8274c817ca5d05cd8ab4c7dbb99940f51b8b1b"
+    },
+    "operation_attribution_post_20261015.py": {
+      "bytes": 47683,
+      "sha256": "3c13b18e061b42e46ef664d0c0ffbfa30162361b27955d589c3235ab3d522351"
+    },
+    "operation_attribution_preflight_20261015.py": {
+      "bytes": 41045,
+      "sha256": "93b5ae310cd9cc6893df49d053edda25c9fb7cceb7a6b5e3ed678fccc57b7e93"
+    },
+    "operation_attribution_rollback_20261015.py": {
+      "bytes": 3649,
+      "sha256": "81d9330c6e0f0106ab39296b05d20d184e8a8b9398452bc5ed5694c0f022b47f"
+    },
+    "operation_cost_analysis_20261015.py": {
+      "bytes": 35287,
+      "sha256": "1750b983d13d62119c1ed4ebd0cab598ebb55cfd3552f459169d47ec9bcff2d5"
+    }
+  },
+  "current_cohort": {
+    "dispositions": {
+      "ACKED_WITH_AUTHENTIC_RECEIPT": 207,
+      "PENDING_PRESERVED": 30
+    },
+    "limitation": "Union of retained current-generation canonical diagnostic samples, not census, physical arrivals or complete coverage proof; replay stock is not counted as new arrivals.",
+    "named": 237
+  },
+  "diagnostic_scope": "Fundingclosed startup, not sustained capacity or held protection; no throughput behavior fix introduced.",
+  "executable": "b007217e7930fa728604df4aa2a96f68f998e1ec",
+  "final_stop": {
+    "at": 1792072163.236802,
+    "authoritative_writes": 0,
+    "cash": "1000.00",
+    "elapsed_seconds": 0.037311002844944596,
+    "epoch": "paper-shared-1000-20261011T071207Z",
+    "financial_head": [
+      12276,
+      "4b6722660efa0e2c0fca72d8b867630e379715b32eda374d7846793c1757935c"
+    ],
+    "financial_projection_sha256": "8ab2d4f90b88931acfef585ab2d8ce427ea0663d6eff10551b884c9a4831d328",
+    "funding": "CLOSED_OBSERVATION",
+    "global_source_frame_drain": "UNAVAILABLE; no retroactive/globalPASS",
+    "installed_source": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "last_executed_source": "b007217e7930fa728604df4aa2a96f68f998e1ec",
+    "market_children": [],
+    "native_lanes": "BothSTOPPED/reconciled/TERM/exit0 independentlyverified in postreceipt",
+    "obligations": {
+      "commitments": 0,
+      "obligations": 0,
+      "pending_backing": 0,
+      "pending_deliveries": 0,
+      "positions": 0,
+      "reservations": 0,
+      "runtime_inbox": 0,
+      "runtime_pending": 0
+    },
+    "owner_pause": "No further discretionary engineering/tests/providers/restarts after publication until ownerdirection; issue134 standingauthority retained",
+    "pending_preservation": "Current237namedcanonical:207exactACK/30pendingpreserved; all earlier checkedcohorts unchanged or authenticallyACKed",
+    "provider_reservations": {
+      "http_reserved": "0",
+      "native_reserved": "0",
+      "new_risk_ready": "false",
+      "open_http_receipts": 0,
+      "open_streams": 0,
+      "status": "VERIFIED"
+    },
+    "recovery": "Priorverifiedreference applicable; latestfailedbackup unusable; no newbulkcopy/integritycampaign",
+    "service": {
+      "ActiveState": "inactive",
+      "MainPID": "0",
+      "Restart": "no",
+      "UnitFileState": "disabled"
+    },
+    "sql_selects": 2
+  },
+  "financial": {
+    "admission": "OBSERVATION",
+    "bounded_tail_events": 338,
+    "cash": "1000.00",
+    "counts": {
+      "commitments": 0,
+      "obligations": 0,
+      "pending_backing": 0,
+      "pending_deliveries": 0,
+      "positions": 0,
+      "reservations": 0,
+      "runtime_inbox": 0,
+      "runtime_pending": 0
+    },
+    "epoch_id": "paper-shared-1000-20261011T071207Z",
+    "projection_sha256": "8ab2d4f90b88931acfef585ab2d8ce427ea0663d6eff10551b884c9a4831d328",
+    "raw_head": [
+      12276,
+      "4b6722660efa0e2c0fca72d8b867630e379715b32eda374d7846793c1757935c"
+    ],
+    "tail_replay_exact": true
+  },
+  "global_source_drain": {
+    "recommended_scope": "Existingowners:closeintake/settlehandlers/drainacceptedcommits/preservepartialreplaygaps/cancelidleworkers, underunchanged30s/outerdeadlines. Proposed only, not implemented.",
+    "source_contract": "ModelB run/live blanket cancellation precedes globalacceptedqueuejoin; nativeSTOPPED/exit0 is separate. No demonstrated durableloss, no universaldrainPASS.",
+    "status": "UNAVAILABLE"
+  },
+  "head_discontinuity": {
+    "limitation": "No skipped interval is subtracted or relabelled complete; a newest-row head is not continuous durable frontier. Correlation with transport failure does not establish complete error context.",
+    "metrics_sha256": "89a29e0ae148aa55298acbc49d1470a16b1e038de61b2ec50ac0965396c81440",
+    "scope": "ADJACENT_RETAINED_SAMPLE_DISCONTINUITIES_NOT_EVENT_CENSUS",
+    "threshold_slots": 100,
+    "transitions": [
+      {
+        "after": {
+          "durable": 457253124,
+          "elapsed": 124.62108567520045,
+          "generation": "a2e683e55c8a48e6b4f37422aa15af9d",
+          "joined_calls": 2,
+          "native_errors": {},
+          "native_slot": 457253126,
+          "native_streams": {
+            "pump": {
+              "attempts": 2,
+              "client_open": 2,
+              "delivering": 2
+            },
+            "shared": {
+              "attempts": 1,
+              "client_open": 1,
+              "delivering": 1
+            }
+          },
+          "prepared": 183,
+          "source_pid": 3027698,
+          "stored": 457253126
+        },
+        "before": {
+          "durable": null,
+          "elapsed": 119.46282901614904,
+          "generation": "a2e683e55c8a48e6b4f37422aa15af9d",
+          "joined_calls": null,
+          "native_errors": {},
+          "native_slot": 457253116,
+          "native_streams": {
+            "pump": {
+              "attempts": 2,
+              "client_open": 2,
+              "delivering": 2
+            },
+            "shared": {
+              "attempts": 1,
+              "client_open": 1,
+              "delivering": 1
+            }
+          },
+          "prepared": null,
+          "source_pid": 3027698,
+          "stored": 457195297
+        },
+        "stored_jump": 57829
+      },
+      {
+        "after": {
+          "durable": 457254274,
+          "elapsed": 824.2835218161345,
+          "generation": "a2e683e55c8a48e6b4f37422aa15af9d",
+          "joined_calls": 1158,
+          "native_errors": {
+            "pump:INTERNAL": 1
+          },
+          "native_slot": 457254282,
+          "native_streams": {
+            "pump": {
+              "attempts": 2,
+              "client_open": 1,
+              "delivering": 1
+            },
+            "shared": {
+              "attempts": 1,
+              "client_open": 1,
+              "delivering": 1
+            }
+          },
+          "prepared": 63645,
+          "source_pid": 3027698,
+          "stored": 457254278
+        },
+        "before": {
+          "durable": 457254274,
+          "elapsed": 818.9632960329764,
+          "generation": "a2e683e55c8a48e6b4f37422aa15af9d",
+          "joined_calls": 1157,
+          "native_errors": {},
+          "native_slot": 457254281,
+          "native_streams": {
+            "pump": {
+              "attempts": 2,
+              "client_open": 2,
+              "delivering": 2
+            },
+            "shared": {
+              "attempts": 1,
+              "client_open": 1,
+              "delivering": 1
+            }
+          },
+          "prepared": 63392,
+          "source_pid": 3027698,
+          "stored": 457254274
+        },
+        "stored_jump": 4
+      },
+      {
+        "after": {
+          "durable": 457254274,
+          "elapsed": 850.7532633750234,
+          "generation": "a2e683e55c8a48e6b4f37422aa15af9d",
+          "joined_calls": 1159,
+          "native_errors": {
+            "pump:INTERNAL": 1
+          },
+          "native_slot": 457256484,
+          "native_streams": {
+            "pump": {
+              "attempts": 3,
+              "client_open": 2,
+              "delivering": 2
+            },
+            "shared": {
+              "attempts": 1,
+              "client_open": 1,
+              "delivering": 1
+            }
+          },
+          "prepared": 63690,
+          "source_pid": 3027698,
+          "stored": 457256485
+        },
+        "before": {
+          "durable": 457254274,
+          "elapsed": 845.4773705420084,
+          "generation": "a2e683e55c8a48e6b4f37422aa15af9d",
+          "joined_calls": 1158,
+          "native_errors": {
+            "pump:INTERNAL": 1
+          },
+          "native_slot": 457256482,
+          "native_streams": {
+            "pump": {
+              "attempts": 3,
+              "client_open": 2,
+              "delivering": 2
+            },
+            "shared": {
+              "attempts": 1,
+              "client_open": 1,
+              "delivering": 1
+            }
+          },
+          "prepared": 63645,
+          "source_pid": 3027698,
+          "stored": 457254278
+        },
+        "stored_jump": 2207
+      }
+    ]
+  },
+  "historical500": {
+    "head": [
+      2036,
+      "c0cb1d5fd4a156378e4e53764c0f528707ee9a5af799662daf15f207be95723e"
+    ],
+    "inception_sha256": "3a1986fc4e755a75a93808815cec3d0cb9a930d0818e36ef2a3a93abf6190a9e",
+    "status": "VERIFIED"
+  },
+  "native_acquisition_contract": {
+    "decision": "Existing code deliberately retains missing-WebSocket-history gap and establishes fresh prospective tail; current head advance is not repaired coverage. Original provider replay semantics unresolved.",
+    "source": "solana_selective_source.rolling_replay_boundary"
+  },
+  "pons_completion_ring": {
+    "authoritative_writes": 0,
+    "boundaries": {
+      "evidence_deadline_during_transport": 2
+    },
+    "current_rows": 2154,
+    "earliest_retained_admitted_at": 1140373.608034214,
+    "elapsed_seconds": 0.0346650849096477,
+    "endpoint_fingerprints": [
+      "91ad0f2d5dfd637a3c38c64ab009abe28025e0b4c22085fcd73ecdf7093fd6bb"
+    ],
+    "http_status": {
+      "200": 2152,
+      "None": 2
+    },
+    "limits": "4096 retained completions,2sSQLdeadline,read-only connection closed; not every providerpath or heldprotection proof. Ring timestamp scope differs from global meter; missing status !=healthy.",
+    "maximum_admission_wait_seconds": 0.32512469007633626,
+    "physical_requests_sum": 2154,
+    "provider_calls": 0,
+    "retry_count_positive": 0,
+    "ring_covers_before_run_start": true,
+    "rows_read": 4096,
+    "rpc_code": {
+      "None": 2154
+    },
+    "run_origin": 1152745.018868666,
+    "scope": "RETAINED_TRANSPORT_COMPLETION_RING_SCOPED_BY_ACTUAL_ADMITTED_AT"
+  },
+  "pons_reached_failures": {
+    "boundaries": {
+      "evidence_deadline_before_transport": 3,
+      "evidence_deadline_during_transport": 1,
+      "native_USD_value_missing_or_stale": 13,
+      "stale_evidence_acquisition": 53
+    },
+    "current_rows": 70,
+    "last_native_errors": {
+      "pump:INTERNAL": 1
+    },
+    "last_proof_control_bounds": {
+      "60677d312290f2ae4cb29f8e8fb994e7c45610eeff6c2a7890241e544b33a5c0": [
+        null,
+        null
+      ],
+      "f233910b3fa6b38f546f74b190ba494aff5efd18840dc76ac400a30f46b66fa5": [
+        null,
+        null
+      ]
+    },
+    "last_proof_eligibility": "UNAVAILABLE_NOT_REEVALUATED",
+    "last_required_history_heads": {
+      "active": null,
+      "pending": [
+        "2f8546c099bb9b7a03a66fa44d90e3fd1d67f556841e41e8c98ae5752241c6bf",
+        1792071469.6633935,
+        1792071324.0209484
+      ]
+    },
+    "limitations": [
+      "Incomplete rows are reached fail-closed acquisition outcomes, not successful qualification or held protection.",
+      "The physical record snapshot may contain earlier runs; histogram is scoped by actual monotonic start.",
+      "Reasons identify observed boundary only, not the underlying USD failure mechanism.",
+      "Proof eligibility rows retain only bounded selected heads, not complete job population."
+    ],
+    "origin_monotonic": 1152745.018868666,
+    "queue_wait_seconds": {
+      "maximum": 12.661792980972677,
+      "minimum": 0.3491920283995569
+    },
+    "scope": "RETAINED_CURRENT_RUN_INCOMPLETE_PONS_ROWS_AND_LAST_PIPELINE_SAMPLE_ONLY",
+    "source_bytes": 158228,
+    "source_path": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/pons/pons-selective-continuation-v1-cohort/candidate-rows.jsonl",
+    "source_sha256": "14a7e246d0f4dfb620508ad7e4011e58bff40e2f29e77550f648c6f6d7f56361",
+    "statuses": {
+      "incomplete": 70
+    }
+  },
+  "post_review": {
+    "checks": 25,
+    "elapsed_seconds": 3.02158,
+    "errors": [],
+    "failed_or_unavailable": [],
+    "queries": 9572,
+    "verdict": "CHECKED_STATE_CONSISTENT_NATIVE_LANES_DRAIN_VERIFIED_REVIEW_REQUIRED"
+  },
+  "pr": 133,
+  "preceding_publication": "268a76fe1f6ea5cec15a6d2e80c565e1f4d5b745",
+  "prefault": {
+    "operations": {
+      "pons": {
+        "available": true,
+        "boundary_scope": "COMPLETED_CALL_COUNTERS_MAY_INCLUDE_CALLS_STARTED_BEFORE_THE_FIRST_SNAPSHOT",
+        "collection_first_monotonic": 1153370.1012784,
+        "collection_last_monotonic": 1153560.531122759,
+        "collection_seconds": 190.42984435893595,
+        "covers_all_requested_samples": true,
+        "fixed_row_status_counts": {
+          "UNEXERCISED": 5,
+          "VALID_COMPLETED_COUNTER_DELTA": 7
+        },
+        "generation_scope": "SOURCE_CAPTURE_FENCE_NOT_PER_OPERATION_OR_PONS_NATIVE_AUTHORITY",
+        "maximum_snapshot_age_seconds": 5.254348165122792,
+        "omitted_prefix_samples": 0,
+        "omitted_suffix_samples": 0,
+        "process_pid": 3027710,
+        "process_start_ticks": 115280007,
+        "rows": [
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 49,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 25.873546,
+              "wall_seconds": 144.746918
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "pons.current_discovery",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 49,
+              "measured_wait_seconds": 0.042576,
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 49,
+              "unmeasured_calls": 0,
+              "wait_seconds": 0.042576
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 430873,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 2.52427,
+                "measured_wall_seconds": 18.681017,
+                "thread_cpu_seconds": 2.52427,
+                "unmeasured_calls": 0,
+                "wall_seconds": 18.681017
+              },
+              "statement": {
+                "calls": 20279,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 12.545639,
+                "measured_wall_seconds": 39.154859,
+                "thread_cpu_seconds": 12.545639,
+                "unmeasured_calls": 0,
+                "wall_seconds": 39.154859
+              },
+              "statement_many": {
+                "calls": 548,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.034409,
+                "measured_wall_seconds": 0.18776,
+                "thread_cpu_seconds": 0.034409,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.18776
+              },
+              "transaction": {
+                "calls": 4468,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.453455,
+                "measured_wall_seconds": 29.034778,
+                "thread_cpu_seconds": 0.453455,
+                "unmeasured_calls": 0,
+                "wall_seconds": 29.034778
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 51.882263,
+              "measured_thread_cpu_seconds": 25.873546,
+              "measured_wall_seconds": 144.746918,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 49,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 51.882263,
+              "thread_cpu_seconds": 25.873546,
+              "unmeasured_calls": 0,
+              "wall_seconds": 144.746918,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 0,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 0.0,
+              "wall_seconds": 0.0
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "pons.current_prime",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "statement": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": "UNAVAILABLE",
+              "measured_thread_cpu_seconds": "UNAVAILABLE",
+              "measured_wall_seconds": "UNAVAILABLE",
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 0,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 0.0,
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 1,
+            "active_at_start": 1,
+            "calls": 23,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 25.256582,
+              "wall_seconds": 145.61731
+            },
+            "failed_calls": 23,
+            "nested_sql_calls": 0,
+            "operation": "pons.current_hydration",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 23,
+              "measured_wait_seconds": 0.052412,
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 23,
+              "unmeasured_calls": 0,
+              "wait_seconds": 0.052412
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 698686,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 3.69226,
+                "measured_wall_seconds": 24.278505,
+                "thread_cpu_seconds": 3.69226,
+                "unmeasured_calls": 0,
+                "wall_seconds": 24.278505
+              },
+              "statement": {
+                "calls": 5438,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.426247,
+                "measured_wall_seconds": 1.938765,
+                "thread_cpu_seconds": 0.426247,
+                "unmeasured_calls": 0,
+                "wall_seconds": 1.938765
+              },
+              "statement_many": {
+                "calls": 750,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.045719,
+                "measured_wall_seconds": 0.258974,
+                "thread_cpu_seconds": 0.045719,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.258974
+              },
+              "transaction": {
+                "calls": 2008,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.218724,
+                "measured_wall_seconds": 27.322314,
+                "thread_cpu_seconds": 0.218724,
+                "unmeasured_calls": 0,
+                "wall_seconds": 27.322314
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 52.020041,
+              "measured_thread_cpu_seconds": 25.256582,
+              "measured_wall_seconds": 145.61731,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 23,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 52.020041,
+              "thread_cpu_seconds": 25.256582,
+              "unmeasured_calls": 0,
+              "wall_seconds": 145.61731,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "calls": "UNAVAILABLE",
+            "operation": "pons.current_entry_turn",
+            "selected_sql": "UNAVAILABLE",
+            "status": "UNEXERCISED",
+            "timing": "UNAVAILABLE"
+          },
+          {
+            "calls": "UNAVAILABLE",
+            "operation": "pons.current_owner_turn",
+            "selected_sql": "UNAVAILABLE",
+            "status": "UNEXERCISED",
+            "timing": "UNAVAILABLE"
+          },
+          {
+            "calls": "UNAVAILABLE",
+            "operation": "pons.current_shared_acquire",
+            "selected_sql": "UNAVAILABLE",
+            "status": "UNEXERCISED",
+            "timing": "UNAVAILABLE"
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 0,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 0.0,
+              "wall_seconds": 0.0
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "pons.survivor_restore",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "statement": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": "UNAVAILABLE",
+              "measured_thread_cpu_seconds": "UNAVAILABLE",
+              "measured_wall_seconds": "UNAVAILABLE",
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 0,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 0.0,
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 1,
+            "active_at_start": 1,
+            "calls": 32,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 39.683418,
+              "wall_seconds": 177.453797
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "pons.survivor_step",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 3,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.004682,
+                "measured_wall_seconds": 0.042272,
+                "thread_cpu_seconds": 0.004682,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.042272
+              },
+              "fetch": {
+                "calls": 584810,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 3.520414,
+                "measured_wall_seconds": 25.883754,
+                "thread_cpu_seconds": 3.520414,
+                "unmeasured_calls": 0,
+                "wall_seconds": 25.883754
+              },
+              "statement": {
+                "calls": 7334,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.611817,
+                "measured_wall_seconds": 4.753857,
+                "thread_cpu_seconds": 0.611817,
+                "unmeasured_calls": 0,
+                "wall_seconds": 4.753857
+              },
+              "statement_many": {
+                "calls": 510,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.031057,
+                "measured_wall_seconds": 0.128427,
+                "thread_cpu_seconds": 0.031057,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.128427
+              },
+              "transaction": {
+                "calls": 1883,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 43,
+                "measured_thread_cpu_seconds": 0.210097,
+                "measured_wall_seconds": 22.405258,
+                "thread_cpu_seconds": 0.210097,
+                "unmeasured_calls": 0,
+                "wall_seconds": 22.405258
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 75.163393,
+              "measured_thread_cpu_seconds": 39.683418,
+              "measured_wall_seconds": 177.453797,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 32,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 75.163393,
+              "thread_cpu_seconds": 39.683418,
+              "unmeasured_calls": 0,
+              "wall_seconds": 177.453797,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 32,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 0.008335,
+              "wall_seconds": 0.046658
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "pons.survivor_enrich",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "statement": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 0.01033,
+              "measured_thread_cpu_seconds": 0.008335,
+              "measured_wall_seconds": 0.046658,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 32,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 0.01033,
+              "thread_cpu_seconds": 0.008335,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.046658,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 4178,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 3.763756,
+              "wall_seconds": 28.36784
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "pons.reporting",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 16712,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.221536,
+                "measured_wall_seconds": 1.547476,
+                "thread_cpu_seconds": 0.221536,
+                "unmeasured_calls": 0,
+                "wall_seconds": 1.547476
+              },
+              "statement": {
+                "calls": 20890,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.645745,
+                "measured_wall_seconds": 4.402213,
+                "thread_cpu_seconds": 0.645745,
+                "unmeasured_calls": 0,
+                "wall_seconds": 4.402213
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 8356,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.161613,
+                "measured_wall_seconds": 1.34496,
+                "thread_cpu_seconds": 0.161613,
+                "unmeasured_calls": 0,
+                "wall_seconds": 1.34496
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 6.76939,
+              "measured_thread_cpu_seconds": 3.763756,
+              "measured_wall_seconds": 28.36784,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 4178,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 6.76939,
+              "thread_cpu_seconds": 3.763756,
+              "unmeasured_calls": 0,
+              "wall_seconds": 28.36784,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "calls": "UNAVAILABLE",
+            "operation": "pons.usd_read",
+            "selected_sql": "UNAVAILABLE",
+            "status": "UNEXERCISED",
+            "timing": "UNAVAILABLE"
+          },
+          {
+            "calls": "UNAVAILABLE",
+            "operation": "pons.scale_prepare",
+            "selected_sql": "UNAVAILABLE",
+            "status": "UNEXERCISED",
+            "timing": "UNAVAILABLE"
+          }
+        ],
+        "sample_first": 628.7104263780639,
+        "sample_last": 818.9632960329764,
+        "samples": 37,
+        "source_generation": "a2e683e55c8a48e6b4f37422aa15af9d",
+        "source_pid": 3027698,
+        "source_session": "88b8608aa8484b078a8359e15dbf4080",
+        "sql_scope": "SELECTED_INSTRUMENTED_CONNECTIONS_IN_INNERMOST_OPERATION_NOT_ALL_SQLITE",
+        "totals": "NO_CROSS_PARENT_CHILD_OR_SQL_SUM",
+        "unavailable_delta_operations": []
+      },
+      "solana": {
+        "available": true,
+        "boundary_scope": "COMPLETED_CALL_COUNTERS_MAY_INCLUDE_CALLS_STARTED_BEFORE_THE_FIRST_SNAPSHOT",
+        "collection_first_monotonic": 1153371.095234953,
+        "collection_last_monotonic": 1153562.793375224,
+        "collection_seconds": 191.69814027100801,
+        "covers_all_requested_samples": true,
+        "fixed_row_status_counts": {
+          "UNEXERCISED": 1,
+          "VALID_COMPLETED_COUNTER_DELTA": 17
+        },
+        "generation_scope": "SOURCE_CAPTURE_FENCE_NOT_PER_OPERATION_OR_PONS_NATIVE_AUTHORITY",
+        "maximum_snapshot_age_seconds": 5.652448131004348,
+        "omitted_prefix_samples": 0,
+        "omitted_suffix_samples": 0,
+        "process_pid": 3027698,
+        "process_start_ticks": 115279888,
+        "rows": [
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 402,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 0.114386,
+              "wall_seconds": 0.479018
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.reactivation_lookup",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 724,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.007488,
+                "measured_wall_seconds": 0.045425,
+                "thread_cpu_seconds": 0.007488,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.045425
+              },
+              "statement": {
+                "calls": 724,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.048714,
+                "measured_wall_seconds": 0.207974,
+                "thread_cpu_seconds": 0.048714,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.207974
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 0.190998,
+              "measured_thread_cpu_seconds": 0.114386,
+              "measured_wall_seconds": 0.479018,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 402,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 0.190998,
+              "thread_cpu_seconds": 0.114386,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.479018,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 314,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 0.137232,
+              "wall_seconds": 0.488088
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.reactivation_cold",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 942,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.008703,
+                "measured_wall_seconds": 0.040474,
+                "thread_cpu_seconds": 0.008703,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.040474
+              },
+              "statement": {
+                "calls": 942,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.068663,
+                "measured_wall_seconds": 0.300894,
+                "thread_cpu_seconds": 0.068663,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.300894
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 0.260433,
+              "measured_thread_cpu_seconds": 0.137232,
+              "measured_wall_seconds": 0.488088,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 314,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 0.260433,
+              "thread_cpu_seconds": 0.137232,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.488088,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 314,
+            "direct_children": {
+              "calls": 628,
+              "measured_thread_cpu_seconds": 0.536357,
+              "measured_wall_seconds": 2.251174,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.536357,
+              "unmeasured_calls": 0,
+              "wall_seconds": 2.251174
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 0.770056,
+              "wall_seconds": 6.695113
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.reactivation_promote",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 628,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.005671,
+                "measured_wall_seconds": 0.051903,
+                "thread_cpu_seconds": 0.005671,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.051903
+              },
+              "statement": {
+                "calls": 1570,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.438629,
+                "measured_wall_seconds": 5.812319,
+                "thread_cpu_seconds": 0.438629,
+                "unmeasured_calls": 0,
+                "wall_seconds": 5.812319
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 628,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.041193,
+                "measured_wall_seconds": 0.209114,
+                "thread_cpu_seconds": 0.041193,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.209114
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 3.377379,
+              "measured_thread_cpu_seconds": 1.306413,
+              "measured_wall_seconds": 8.946287,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 314,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 3.377379,
+              "thread_cpu_seconds": 1.306413,
+              "unmeasured_calls": 0,
+              "wall_seconds": 8.946287,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 0,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 0.0,
+              "wall_seconds": 0.0
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.reactivation_demote",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "statement": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": "UNAVAILABLE",
+              "measured_thread_cpu_seconds": "UNAVAILABLE",
+              "measured_wall_seconds": "UNAVAILABLE",
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 0,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 0.0,
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 359,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 0.273579,
+              "wall_seconds": 1.463767
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.binding",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 1147,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.004064,
+                "measured_wall_seconds": 0.015564,
+                "thread_cpu_seconds": 0.004064,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.015564
+              },
+              "statement": {
+                "calls": 1541,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.089714,
+                "measured_wall_seconds": 0.840752,
+                "thread_cpu_seconds": 0.089714,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.840752
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 644,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.025312,
+                "measured_wall_seconds": 0.229181,
+                "thread_cpu_seconds": 0.025312,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.229181
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 0.731813,
+              "measured_thread_cpu_seconds": 0.273579,
+              "measured_wall_seconds": 1.463767,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 359,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 0.731813,
+              "thread_cpu_seconds": 0.273579,
+              "unmeasured_calls": 0,
+              "wall_seconds": 1.463767,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 322,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 0.315017,
+              "wall_seconds": 1.02433
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.history_enqueue",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 958,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.003343,
+                "measured_wall_seconds": 0.028334,
+                "thread_cpu_seconds": 0.003343,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.028334
+              },
+              "statement": {
+                "calls": 1586,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.118096,
+                "measured_wall_seconds": 0.473797,
+                "thread_cpu_seconds": 0.118096,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.473797
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 628,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.01907,
+                "measured_wall_seconds": 0.11303,
+                "thread_cpu_seconds": 0.01907,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.11303
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 0.529794,
+              "measured_thread_cpu_seconds": 0.315017,
+              "measured_wall_seconds": 1.02433,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 322,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 0.529794,
+              "thread_cpu_seconds": 0.315017,
+              "unmeasured_calls": 0,
+              "wall_seconds": 1.02433,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 287,
+            "direct_children": {
+              "calls": 611,
+              "measured_thread_cpu_seconds": 6.461242,
+              "measured_wall_seconds": 33.077295,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 6.461242,
+              "unmeasured_calls": 0,
+              "wall_seconds": 33.077295
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 3.827009,
+              "wall_seconds": 13.700092
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.economic_ingest",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 31421,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.224479,
+                "measured_wall_seconds": 1.415374,
+                "thread_cpu_seconds": 0.224479,
+                "unmeasured_calls": 0,
+                "wall_seconds": 1.415374
+              },
+              "statement": {
+                "calls": 49294,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 1.247494,
+                "measured_wall_seconds": 7.117556,
+                "thread_cpu_seconds": 1.247494,
+                "unmeasured_calls": 0,
+                "wall_seconds": 7.117556
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 20.872577,
+              "measured_thread_cpu_seconds": 10.288251,
+              "measured_wall_seconds": 46.777387,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 287,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 20.872577,
+              "thread_cpu_seconds": 10.288251,
+              "unmeasured_calls": 0,
+              "wall_seconds": 46.777387,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 287,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 4.101918,
+              "wall_seconds": 23.78208
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.rolling_store",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 1435,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.009716,
+                "measured_wall_seconds": 0.064514,
+                "thread_cpu_seconds": 0.009716,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.064514
+              },
+              "statement": {
+                "calls": 1722,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.475731,
+                "measured_wall_seconds": 1.938995,
+                "thread_cpu_seconds": 0.475731,
+                "unmeasured_calls": 0,
+                "wall_seconds": 1.938995
+              },
+              "statement_many": {
+                "calls": 1722,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 2.625495,
+                "measured_wall_seconds": 18.923385,
+                "thread_cpu_seconds": 2.625495,
+                "unmeasured_calls": 0,
+                "wall_seconds": 18.923385
+              },
+              "transaction": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 9.147074,
+              "measured_thread_cpu_seconds": 4.101918,
+              "measured_wall_seconds": 23.78208,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 287,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 9.147074,
+              "thread_cpu_seconds": 4.101918,
+              "unmeasured_calls": 0,
+              "wall_seconds": 23.78208,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "calls": "UNAVAILABLE",
+            "operation": "owner.order_attest",
+            "selected_sql": "UNAVAILABLE",
+            "status": "UNEXERCISED",
+            "timing": "UNAVAILABLE"
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 287,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 2.326278,
+              "wall_seconds": 9.137048
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.history_outbox",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 21514,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.196701,
+                "measured_wall_seconds": 0.815486,
+                "thread_cpu_seconds": 0.196701,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.815486
+              },
+              "statement": {
+                "calls": 21514,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.954567,
+                "measured_wall_seconds": 6.241984,
+                "thread_cpu_seconds": 0.954567,
+                "unmeasured_calls": 0,
+                "wall_seconds": 6.241984
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 4.491371,
+              "measured_thread_cpu_seconds": 2.326278,
+              "measured_wall_seconds": 9.137048,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 287,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 4.491371,
+              "thread_cpu_seconds": 2.326278,
+              "unmeasured_calls": 0,
+              "wall_seconds": 9.137048,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 23,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 0.99175,
+              "wall_seconds": 6.602108
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.checkpoint",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 86,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.953999,
+                "measured_wall_seconds": 6.494569,
+                "thread_cpu_seconds": 0.953999,
+                "unmeasured_calls": 0,
+                "wall_seconds": 6.494569
+              },
+              "fetch": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "statement": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 1.549322,
+              "measured_thread_cpu_seconds": 0.99175,
+              "measured_wall_seconds": 6.602108,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 23,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 1.549322,
+              "thread_cpu_seconds": 0.99175,
+              "unmeasured_calls": 0,
+              "wall_seconds": 6.602108,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 83,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 5.780271,
+              "wall_seconds": 23.00728
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.maintenance",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 37434,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.383128,
+                "measured_wall_seconds": 2.21882,
+                "thread_cpu_seconds": 0.383128,
+                "unmeasured_calls": 0,
+                "wall_seconds": 2.21882
+              },
+              "statement": {
+                "calls": 17575,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 4.115861,
+                "measured_wall_seconds": 16.268795,
+                "thread_cpu_seconds": 4.115861,
+                "unmeasured_calls": 0,
+                "wall_seconds": 16.268795
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 188,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.030555,
+                "measured_wall_seconds": 0.816923,
+                "thread_cpu_seconds": 0.030555,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.816923
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 12.018976,
+              "measured_thread_cpu_seconds": 5.780271,
+              "measured_wall_seconds": 23.00728,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 83,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 12.018976,
+              "thread_cpu_seconds": 5.780271,
+              "unmeasured_calls": 0,
+              "wall_seconds": 23.00728,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 1,
+            "active_at_start": 0,
+            "calls": 87,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 8.270739,
+              "wall_seconds": 41.755096
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.scout_commit",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 39867,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.311628,
+                "measured_wall_seconds": 2.300969,
+                "thread_cpu_seconds": 0.311628,
+                "unmeasured_calls": 0,
+                "wall_seconds": 2.300969
+              },
+              "statement": {
+                "calls": 68301,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 3.005623,
+                "measured_wall_seconds": 29.514231,
+                "thread_cpu_seconds": 3.005623,
+                "unmeasured_calls": 0,
+                "wall_seconds": 29.514231
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 174,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.468286,
+                "measured_wall_seconds": 2.506977,
+                "thread_cpu_seconds": 0.468286,
+                "unmeasured_calls": 0,
+                "wall_seconds": 2.506977
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 19.436251,
+              "measured_thread_cpu_seconds": 8.270739,
+              "measured_wall_seconds": 41.755096,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 87,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 19.436251,
+              "thread_cpu_seconds": 8.270739,
+              "unmeasured_calls": 0,
+              "wall_seconds": 41.755096,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 1,
+            "calls": 702,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 1.764362,
+              "wall_seconds": 6.75574
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.control_commit",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 6318,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.042141,
+                "measured_wall_seconds": 0.295937,
+                "thread_cpu_seconds": 0.042141,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.295937
+              },
+              "statement": {
+                "calls": 14742,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.47854,
+                "measured_wall_seconds": 3.310386,
+                "thread_cpu_seconds": 0.47854,
+                "unmeasured_calls": 0,
+                "wall_seconds": 3.310386
+              },
+              "statement_many": {
+                "calls": 702,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.010638,
+                "measured_wall_seconds": 0.113913,
+                "thread_cpu_seconds": 0.010638,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.113913
+              },
+              "transaction": {
+                "calls": 1404,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.067654,
+                "measured_wall_seconds": 0.372325,
+                "thread_cpu_seconds": 0.067654,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.372325
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 3.495451,
+              "measured_thread_cpu_seconds": 1.764362,
+              "measured_wall_seconds": 6.75574,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 702,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 3.495451,
+              "thread_cpu_seconds": 1.764362,
+              "unmeasured_calls": 0,
+              "wall_seconds": 6.75574,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 24,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 0.714542,
+              "wall_seconds": 3.274908
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.delivery_capture",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 7955,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.118807,
+                "measured_wall_seconds": 1.222992,
+                "thread_cpu_seconds": 0.118807,
+                "unmeasured_calls": 0,
+                "wall_seconds": 1.222992
+              },
+              "statement": {
+                "calls": 6443,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.215221,
+                "measured_wall_seconds": 1.218869,
+                "thread_cpu_seconds": 0.215221,
+                "unmeasured_calls": 0,
+                "wall_seconds": 1.218869
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 1.700777,
+              "measured_thread_cpu_seconds": 0.714542,
+              "measured_wall_seconds": 3.274908,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 24,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 1.700777,
+              "thread_cpu_seconds": 0.714542,
+              "unmeasured_calls": 0,
+              "wall_seconds": 3.274908,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 13,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 0.406376,
+              "wall_seconds": 1.899851
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.delivery_ack",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 2509,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.028303,
+                "measured_wall_seconds": 0.211071,
+                "thread_cpu_seconds": 0.028303,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.211071
+              },
+              "statement": {
+                "calls": 3354,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.155567,
+                "measured_wall_seconds": 1.103973,
+                "thread_cpu_seconds": 0.155567,
+                "unmeasured_calls": 0,
+                "wall_seconds": 1.103973
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 26,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.015126,
+                "measured_wall_seconds": 0.164645,
+                "thread_cpu_seconds": 0.015126,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.164645
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 0.894148,
+              "measured_thread_cpu_seconds": 0.406376,
+              "measured_wall_seconds": 1.899851,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 13,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 0.894148,
+              "thread_cpu_seconds": 0.406376,
+              "unmeasured_calls": 0,
+              "wall_seconds": 1.899851,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 50,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 2.375959,
+              "wall_seconds": 9.624877
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.proof_publish",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 24505,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.220709,
+                "measured_wall_seconds": 2.107399,
+                "thread_cpu_seconds": 0.220709,
+                "unmeasured_calls": 0,
+                "wall_seconds": 2.107399
+              },
+              "statement": {
+                "calls": 24530,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.803357,
+                "measured_wall_seconds": 4.255339,
+                "thread_cpu_seconds": 0.803357,
+                "unmeasured_calls": 0,
+                "wall_seconds": 4.255339
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 616,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.028517,
+                "measured_wall_seconds": 0.274461,
+                "thread_cpu_seconds": 0.028517,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.274461
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 5.014528,
+              "measured_thread_cpu_seconds": 2.375959,
+              "measured_wall_seconds": 9.624877,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 50,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 5.014528,
+              "thread_cpu_seconds": 2.375959,
+              "unmeasured_calls": 0,
+              "wall_seconds": 9.624877,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          },
+          {
+            "active_at_end": 0,
+            "active_at_start": 0,
+            "calls": 88,
+            "direct_children": {
+              "calls": 0,
+              "measured_thread_cpu_seconds": 0.0,
+              "measured_wall_seconds": 0.0,
+              "scope": "DIRECT_SYNCHRONOUS_CHILDREN_SAME_PID_TID",
+              "thread_cpu_seconds": 0.0,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.0
+            },
+            "exclusive_after_direct_children": {
+              "available": true,
+              "scope": "THIS_OPERATION_MINUS_ITS_DIRECT_CHILDREN_ONLY_PROBE_OVERHEAD_REMAINS",
+              "thread_cpu_seconds": 0.139516,
+              "wall_seconds": 0.517823
+            },
+            "failed_calls": 0,
+            "nested_sql_calls": 0,
+            "operation": "owner.history_plan",
+            "queue": {
+              "cancelled_before_execution_calls": 0,
+              "measured_calls": 0,
+              "measured_wait_seconds": "UNAVAILABLE",
+              "pending_at_end": 0,
+              "pending_at_start": 0,
+              "scope": "SUBMIT_HELPER_ONLY_NATIVE_DUE_QUEUE_DELAY_IS_SEPARATE",
+              "submitted_calls": 0,
+              "unmeasured_calls": 0,
+              "wait_seconds": "UNAVAILABLE"
+            },
+            "selected_connection_calls": 0,
+            "selected_sql": {
+              "checkpoint": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "fetch": {
+                "calls": 264,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.002096,
+                "measured_wall_seconds": 0.016842,
+                "thread_cpu_seconds": 0.002096,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.016842
+              },
+              "statement": {
+                "calls": 264,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.039776,
+                "measured_wall_seconds": 0.141342,
+                "thread_cpu_seconds": 0.039776,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.141342
+              },
+              "statement_many": {
+                "calls": 0,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.0,
+                "measured_wall_seconds": 0.0,
+                "thread_cpu_seconds": 0.0,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.0
+              },
+              "transaction": {
+                "calls": 176,
+                "completeness": "SELECTED_BOUNDARIES_MEASURED",
+                "failed_calls": 0,
+                "measured_thread_cpu_seconds": 0.004672,
+                "measured_wall_seconds": 0.041962,
+                "thread_cpu_seconds": 0.004672,
+                "unmeasured_calls": 0,
+                "wall_seconds": 0.041962
+              }
+            },
+            "status": "VALID_COMPLETED_COUNTER_DELTA",
+            "timing": {
+              "measured_runnable_wait_seconds": 0.270939,
+              "measured_thread_cpu_seconds": 0.139516,
+              "measured_wall_seconds": 0.517823,
+              "runnable_completeness": "COMPLETED_CALL_RUNNABLE_MEASURED",
+              "runnable_measured_calls": 88,
+              "runnable_unavailable_calls": 0,
+              "runnable_wait_seconds": 0.270939,
+              "thread_cpu_seconds": 0.139516,
+              "unmeasured_calls": 0,
+              "wall_seconds": 0.517823,
+              "wall_thread_cpu_completeness": "COMPLETED_CALL_TIMING_MEASURED"
+            },
+            "uninstrumented_connection_calls": 0,
+            "uninstrumented_cursor_calls": 0,
+            "uninstrumented_executor_calls": 0
+          }
+        ],
+        "sample_first": 628.7104263780639,
+        "sample_last": 818.9632960329764,
+        "samples": 37,
+        "source_generation": "a2e683e55c8a48e6b4f37422aa15af9d",
+        "source_pid": 3027698,
+        "source_session": "88b8608aa8484b078a8359e15dbf4080",
+        "sql_scope": "SELECTED_INSTRUMENTED_CONNECTIONS_IN_INNERMOST_OPERATION_NOT_ALL_SQLITE",
+        "totals": "NO_CROSS_PARENT_CHILD_OR_SQL_SUM",
+        "unavailable_delta_operations": []
+      }
+    },
+    "pipeline": {
+      "available": true,
+      "both_native_reconciled_samples": 37,
+      "candidate_phases": {
+        "candidate_phase:batch_commit": {
+          "calls": 78.0,
+          "cpu_seconds_total_microseconds": 1.014907,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 78.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 1.63988,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 4.348495
+        },
+        "candidate_phase:coverage_receipt": {
+          "calls": 287.0,
+          "cpu_seconds_total_microseconds": 0.21827,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 287.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 0.514906,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 0.668305
+        },
+        "candidate_phase:delivery_outbox": {
+          "calls": 287.0,
+          "cpu_seconds_total_microseconds": 4.192419,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 287.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 7.995697,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 15.487491
+        },
+        "candidate_phase:economic_store": {
+          "bulk_calls": 287.0,
+          "bulk_records": 16520.0,
+          "calls": 287.0,
+          "cpu_seconds_total_microseconds": 4.290337,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 287.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 9.546394,
+          "scalar_calls": 0.0,
+          "scalar_records": 0.0,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 24.449435
+        },
+        "candidate_phase:ingest_setup": {
+          "calls": 574.0,
+          "cpu_seconds_total_microseconds": 0.181804,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 574.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 0.289405,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 0.418889
+        },
+        "candidate_phase:rolling_adopt": {
+          "calls": 287.0,
+          "cpu_seconds_total_microseconds": 1.45776,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 287.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 2.790578,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 5.69452
+        },
+        "candidate_phase:validate": {
+          "calls": 287.0,
+          "cpu_seconds_total_microseconds": 0.303565,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 287.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 0.585538,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 0.949794
+        }
+      },
+      "checkpoint_admission_plus_hold_elapsed_seconds": 54.166638,
+      "checkpoint_owner_hold_seconds": 9.828993,
+      "cpu_cores": 1.7289203237597877,
+      "development_phases": {
+        "exclusive_cpu_seconds": 3.215118,
+        "exclusive_runnable_seconds": 7.395439,
+        "exclusive_wall_seconds": 17.211244,
+        "fields": [
+          "calls",
+          "failed_calls",
+          "unmeasured_calls",
+          "runnable_measured_calls",
+          "runnable_unavailable_calls",
+          "wall_seconds_total_microseconds",
+          "cpu_seconds_total_microseconds",
+          "runnable_wait_seconds_total_microseconds"
+        ],
+        "rows": {
+          "boundaries": {
+            "calls": 88.0,
+            "cpu_seconds_total_microseconds": 0.040685,
+            "failed_calls": 0.0,
+            "runnable_measured_calls": 88.0,
+            "runnable_unavailable_calls": 0.0,
+            "runnable_wait_seconds_total_microseconds": 0.053127,
+            "unmeasured_calls": 0.0,
+            "wall_seconds_total_microseconds": 0.078495
+          },
+          "commit": {
+            "calls": 88.0,
+            "cpu_seconds_total_microseconds": 0.114403,
+            "failed_calls": 0.0,
+            "runnable_measured_calls": 88.0,
+            "runnable_unavailable_calls": 0.0,
+            "runnable_wait_seconds_total_microseconds": 0.318773,
+            "unmeasured_calls": 0.0,
+            "wall_seconds_total_microseconds": 0.981031
+          },
+          "plan": {
+            "calls": 88.0,
+            "cpu_seconds_total_microseconds": 0.160457,
+            "failed_calls": 0.0,
+            "runnable_measured_calls": 88.0,
+            "runnable_unavailable_calls": 0.0,
+            "runnable_wait_seconds_total_microseconds": 0.302019,
+            "unmeasured_calls": 0.0,
+            "wall_seconds_total_microseconds": 0.599293
+          },
+          "publication": {
+            "calls": 88.0,
+            "cpu_seconds_total_microseconds": 0.036851,
+            "failed_calls": 0.0,
+            "runnable_measured_calls": 88.0,
+            "runnable_unavailable_calls": 0.0,
+            "runnable_wait_seconds_total_microseconds": 0.061496,
+            "unmeasured_calls": 0.0,
+            "wall_seconds_total_microseconds": 0.075585
+          },
+          "reactivation": {
+            "calls": 88.0,
+            "cpu_seconds_total_microseconds": 1.719303,
+            "failed_calls": 0.0,
+            "runnable_measured_calls": 88.0,
+            "runnable_unavailable_calls": 0.0,
+            "runnable_wait_seconds_total_microseconds": 4.067086,
+            "unmeasured_calls": 0.0,
+            "wall_seconds_total_microseconds": 10.416978
+          },
+          "selection": {
+            "calls": 176.0,
+            "cpu_seconds_total_microseconds": 1.143419,
+            "failed_calls": 0.0,
+            "runnable_measured_calls": 176.0,
+            "runnable_unavailable_calls": 0.0,
+            "runnable_wait_seconds_total_microseconds": 2.592938,
+            "unmeasured_calls": 0.0,
+            "wall_seconds_total_microseconds": 5.059862
+          }
+        },
+        "scope": "Fixed exclusive coarse development phases; selection may enter twice per command; commit is original transaction context exit. Overlaps owner callback totals."
+      },
+      "evidence_age_seconds": [
+        354.1487798690796,
+        483.40164947509766
+      ],
+      "first": 628.7104263780639,
+      "full_samples": 37,
+      "heads_end": {
+        "arrival": 457256022,
+        "durable": 457254274,
+        "joined": 457254280,
+        "prepared": 457254274,
+        "raw_cursor": 457254270,
+        "stored": 457254274,
+        "usable_publication": "UNAVAILABLE"
+      },
+      "heads_start": {
+        "arrival": 457255316,
+        "durable": 457253987,
+        "joined": 457253995,
+        "prepared": 457253991,
+        "raw_cursor": 457253987,
+        "stored": 457253995,
+        "usable_publication": "UNAVAILABLE"
+      },
+      "last": 818.9632960329764,
+      "long_owner_operations": [
+        {
+          "completed_monotonic": 1153385.1458198,
+          "component": "NONE",
+          "execution_cpu_microseconds": 181110,
+          "execution_microseconds": 1754739,
+          "native_thread_id": 3027702,
+          "origin_line": 1397,
+          "origin_module": "meme_machine.solana_selective_source",
+          "outcome": "COMPLETED",
+          "pid": 3027698,
+          "priority": 4,
+          "queue_microseconds": 1744250,
+          "sequence": 3476,
+          "stage": "candidate_development",
+          "started_monotonic": 1153383.391076687
+        },
+        {
+          "completed_monotonic": 1153392.559881205,
+          "component": "candidate",
+          "execution_cpu_microseconds": 170779,
+          "execution_microseconds": 1034130,
+          "native_thread_id": 3027702,
+          "origin_line": 793,
+          "origin_module": "meme_machine.solana_selective_source",
+          "outcome": "COMPLETED",
+          "pid": 3027698,
+          "priority": 2,
+          "queue_microseconds": 1352163,
+          "sequence": 3513,
+          "stage": "source_commit",
+          "started_monotonic": 1153391.525745798
+        },
+        {
+          "completed_monotonic": 1153406.516295367,
+          "component": "candidate",
+          "execution_cpu_microseconds": 232644,
+          "execution_microseconds": 1034413,
+          "native_thread_id": 3027702,
+          "origin_line": 793,
+          "origin_module": "meme_machine.solana_selective_source",
+          "outcome": "COMPLETED",
+          "pid": 3027698,
+          "priority": 2,
+          "queue_microseconds": 1222349,
+          "sequence": 3573,
+          "stage": "source_commit",
+          "started_monotonic": 1153405.481876416
+        },
+        {
+          "completed_monotonic": 1153447.839516418,
+          "component": "candidate",
+          "execution_cpu_microseconds": 222827,
+          "execution_microseconds": 1036068,
+          "native_thread_id": 3027702,
+          "origin_line": 793,
+          "origin_module": "meme_machine.solana_selective_source",
+          "outcome": "COMPLETED",
+          "pid": 3027698,
+          "priority": 2,
+          "queue_microseconds": 972439,
+          "sequence": 3772,
+          "stage": "source_commit",
+          "started_monotonic": 1153446.803443446
+        },
+        {
+          "completed_monotonic": 1153450.617457517,
+          "component": "candidate",
+          "execution_cpu_microseconds": 202659,
+          "execution_microseconds": 1059800,
+          "native_thread_id": 3027702,
+          "origin_line": 793,
+          "origin_module": "meme_machine.solana_selective_source",
+          "outcome": "COMPLETED",
+          "pid": 3027698,
+          "priority": 2,
+          "queue_microseconds": 986945,
+          "sequence": 3788,
+          "stage": "source_commit",
+          "started_monotonic": 1153449.557651496
+        },
+        {
+          "completed_monotonic": 1153526.518984688,
+          "component": "candidate",
+          "execution_cpu_microseconds": 221402,
+          "execution_microseconds": 1126137,
+          "native_thread_id": 3027702,
+          "origin_line": 793,
+          "origin_module": "meme_machine.solana_selective_source",
+          "outcome": "COMPLETED",
+          "pid": 3027698,
+          "priority": 2,
+          "queue_microseconds": 1931963,
+          "sequence": 4182,
+          "stage": "source_commit",
+          "started_monotonic": 1153525.392842303
+        },
+        {
+          "completed_monotonic": 1153549.399546659,
+          "component": "NONE",
+          "execution_cpu_microseconds": 257170,
+          "execution_microseconds": 2804910,
+          "native_thread_id": 3027702,
+          "origin_line": 1397,
+          "origin_module": "meme_machine.solana_selective_source",
+          "outcome": "COMPLETED",
+          "pid": 3027698,
+          "priority": 4,
+          "queue_microseconds": 1606727,
+          "sequence": 4291,
+          "stage": "candidate_development",
+          "started_monotonic": 1153546.594631456
+        },
+        {
+          "completed_monotonic": 1153559.692894807,
+          "component": "candidate",
+          "execution_cpu_microseconds": 213010,
+          "execution_microseconds": 1106097,
+          "native_thread_id": 3027702,
+          "origin_line": 793,
+          "origin_module": "meme_machine.solana_selective_source",
+          "outcome": "COMPLETED",
+          "pid": 3027698,
+          "priority": 2,
+          "queue_microseconds": 755087,
+          "sequence": 4346,
+          "stage": "source_commit",
+          "started_monotonic": 1153558.586792557
+        }
+      ],
+      "needed_to_match_arrival_factor": 2.45993031358885,
+      "owner_callback_and_hold_seconds": 191.292054,
+      "owner_exclusive_callback_wall_seconds": 181.463061,
+      "owner_stages": {
+        "candidate_delivery_ack": {
+          "calls": 13.0,
+          "execution_cpu_total_microseconds": 0.409181,
+          "execution_total_microseconds": 1.903926,
+          "queue_total_microseconds": 26.885822
+        },
+        "candidate_delivery_capture": {
+          "calls": 24.0,
+          "execution_cpu_total_microseconds": 0.719849,
+          "execution_total_microseconds": 3.314786,
+          "queue_total_microseconds": 44.691313
+        },
+        "candidate_development": {
+          "calls": 88.0,
+          "execution_cpu_total_microseconds": 3.349635,
+          "execution_total_microseconds": 17.867197,
+          "queue_total_microseconds": 152.555983
+        },
+        "checkpoint_finish": {
+          "calls": 24.0,
+          "execution_cpu_total_microseconds": 0.000117,
+          "execution_total_microseconds": 0.000119,
+          "queue_total_microseconds": 41.195017
+        },
+        "checkpoint_prepare": {
+          "calls": 31.0,
+          "execution_cpu_total_microseconds": 0.00032,
+          "execution_total_microseconds": 0.000326,
+          "queue_total_microseconds": 49.850643
+        },
+        "history_apply": {
+          "calls": 40.0,
+          "execution_cpu_total_microseconds": 0.043968,
+          "execution_total_microseconds": 0.331358,
+          "queue_total_microseconds": 76.961542
+        },
+        "history_dispatch": {
+          "calls": 39.0,
+          "execution_cpu_total_microseconds": 0.134676,
+          "execution_total_microseconds": 0.801593,
+          "queue_total_microseconds": 75.706993
+        },
+        "maintenance_decision": {
+          "calls": 86.0,
+          "execution_cpu_total_microseconds": 5.795777,
+          "execution_total_microseconds": 23.032985,
+          "queue_total_microseconds": 148.641094
+        },
+        "maintenance_health": {
+          "calls": 65.0,
+          "execution_cpu_total_microseconds": 1.109316,
+          "execution_total_microseconds": 4.045802,
+          "queue_total_microseconds": 111.20898
+        },
+        "retention": {
+          "calls": 74.0,
+          "execution_cpu_total_microseconds": 1.324336,
+          "execution_total_microseconds": 14.838563,
+          "queue_total_microseconds": 131.053564
+        },
+        "source_commit": {
+          "calls": 390.0,
+          "execution_cpu_total_microseconds": 24.977504,
+          "execution_total_microseconds": 114.414742,
+          "queue_total_microseconds": 673.727013
+        },
+        "source_commit.component.candidate": {
+          "calls": 78.0,
+          "execution_cpu_total_microseconds": 12.196604,
+          "execution_total_microseconds": 54.143197,
+          "queue_total_microseconds": 91.196504
+        },
+        "source_commit.component.control": {
+          "calls": 88.0,
+          "execution_cpu_total_microseconds": 1.968991,
+          "execution_total_microseconds": 7.893128,
+          "queue_total_microseconds": 172.864657
+        },
+        "source_commit.component.delivery_accounting": {
+          "calls": 87.0,
+          "execution_cpu_total_microseconds": 0.126079,
+          "execution_total_microseconds": 0.90733,
+          "queue_total_microseconds": 176.147851
+        },
+        "source_commit.component.history_publication": {
+          "calls": 50.0,
+          "execution_cpu_total_microseconds": 2.396139,
+          "execution_total_microseconds": 9.666568,
+          "queue_total_microseconds": 91.832195
+        },
+        "source_commit.component.scout": {
+          "calls": 87.0,
+          "execution_cpu_total_microseconds": 8.289691,
+          "execution_total_microseconds": 41.804519,
+          "queue_total_microseconds": 141.685806
+        }
+      },
+      "owner_thread_cpu_seconds": 37.759720505,
+      "owner_thread_runnable_seconds": 81.967262539,
+      "pons_threads": {
+        "3027710": {
+          "cpu_seconds": 35.551757724,
+          "io_delta": {
+            "rchar": 21088415164.0,
+            "read_bytes": 274432.0,
+            "syscr": 5171057.0,
+            "write_bytes": 310403072.0
+          },
+          "native_thread_id": 3027710,
+          "role": "main",
+          "runnable_seconds": 63.67898047
+        },
+        "3027714": {
+          "cpu_seconds": 0.148138346,
+          "io_delta": {
+            "rchar": 0.0,
+            "read_bytes": 0.0,
+            "syscr": 0.0,
+            "write_bytes": 1540096.0
+          },
+          "native_thread_id": 3027714,
+          "role": "health",
+          "runnable_seconds": 0.558470229
+        },
+        "3028114": {
+          "cpu_seconds": 40.444701754,
+          "io_delta": {
+            "rchar": 3635239556.0,
+            "read_bytes": 32768.0,
+            "syscr": 910459.0,
+            "write_bytes": 159793152.0
+          },
+          "native_thread_id": 3028114,
+          "role": "survivor",
+          "runnable_seconds": 76.122041755
+        },
+        "3028120": {
+          "cpu_seconds": 13.749343614,
+          "io_delta": {
+            "rchar": 9539089905.0,
+            "read_bytes": 28672.0,
+            "syscr": 2329311.0,
+            "write_bytes": 78036992.0
+          },
+          "native_thread_id": 3028120,
+          "role": "pons-discovery",
+          "runnable_seconds": 27.318883549
+        },
+        "3028121": {
+          "cpu_seconds": 12.087172436,
+          "io_delta": {
+            "rchar": 7490167029.0,
+            "read_bytes": 28672.0,
+            "syscr": 1827275.0,
+            "write_bytes": 80687104.0
+          },
+          "native_thread_id": 3028121,
+          "role": "pons-discovery",
+          "runnable_seconds": 24.352815363
+        },
+        "3028141": {
+          "cpu_seconds": 25.41340123,
+          "io_delta": {
+            "rchar": 503901654.0,
+            "read_bytes": 106496.0,
+            "syscr": 87751.0,
+            "write_bytes": 155176960.0
+          },
+          "native_thread_id": 3028141,
+          "role": "pons-hydration",
+          "runnable_seconds": 52.573482054
+        }
+      },
+      "pre_persistence_gaps": [
+        1321,
+        1748
+      ],
+      "preparation": {
+        "calls": 77.0,
+        "cpu_seconds_peak_microseconds": 0.0,
+        "cpu_seconds_total_microseconds": 11.381502,
+        "latest_slot": 283.0,
+        "records": 16259.0,
+        "transfer_and_wait_seconds_peak_microseconds": 0.0,
+        "transfer_and_wait_seconds_total_microseconds": 43.10229,
+        "wall_seconds_peak_microseconds": 0.0,
+        "wall_seconds_total_microseconds": 28.988887
+      },
+      "retention": {
+        "retention.calls": 73.0,
+        "retention.peak_microseconds": 0.0,
+        "retention.total_microseconds": 17.166551,
+        "retention.yielded": 0.0,
+        "retention_phase.housekeeping.cpu_us": 0.065683,
+        "retention_phase.housekeeping.runnable_us": 0.049647,
+        "retention_phase.housekeeping.wall_us": 0.125003,
+        "retention_phase.plan.cpu_us": 2.71944,
+        "retention_phase.plan.runnable_us": 5.638272,
+        "retention_phase.plan.wall_us": 10.496324,
+        "retention_phase.post.cpu_us": 0.021563,
+        "retention_phase.post.runnable_us": 0.136436,
+        "retention_phase.post.wall_us": 0.373207,
+        "retention_phase.transaction.cpu_us": 1.4611,
+        "retention_phase.transaction.runnable_us": 3.049417,
+        "retention_phase.transaction.wall_us": 5.978048,
+        "retention_phase.unmeasured": 0.0
+      },
+      "seconds": 190.2528696549125,
+      "slot_unit_rates": {
+        "arrival": 3.7108507287199832,
+        "durable": 1.5085186390122312,
+        "joined": 1.4980063140016928,
+        "prepared": 1.4874939889911547,
+        "raw_cursor": 1.4874939889911547,
+        "stored": 1.4664693389700783,
+        "usable_publication": "UNAVAILABLE"
+      },
+      "sql_transactions": {
+        "begin.calls": 853.0,
+        "begin.cpu_peak_microseconds": 0.0,
+        "begin.cpu_total_microseconds": 0.110432,
+        "begin.wall_peak_microseconds": 0.008658,
+        "begin.wall_total_microseconds": 0.504639,
+        "commit.calls": 853.0,
+        "commit.cpu_peak_microseconds": 0.0,
+        "commit.cpu_total_microseconds": 1.810396,
+        "commit.wall_peak_microseconds": 0.0,
+        "commit.wall_total_microseconds": 11.631804
+      },
+      "throttled_seconds": 13.889678,
+      "workers": {
+        "cgroup_pid_3027704": {
+          "cpu_cores": 0.0,
+          "cpu_seconds": 0.0,
+          "io_delta": {
+            "cancelled_write_bytes": 0.0,
+            "rchar": 0.0,
+            "read_bytes": 0.0,
+            "syscr": 0.0,
+            "syscw": 0.0,
+            "wchar": 0.0,
+            "write_bytes": 0.0
+          },
+          "kernel_main_runnable_seconds": 0.0,
+          "kernel_main_runtime_seconds": 0.0,
+          "pid": 3027704
+        },
+        "cgroup_pid_3027705": {
+          "cpu_cores": 0.03059086578066615,
+          "cpu_seconds": 5.82,
+          "io_delta": {
+            "cancelled_write_bytes": 0.0,
+            "rchar": 46866950.0,
+            "read_bytes": 0.0,
+            "syscr": 760.0,
+            "syscw": 64.0,
+            "wchar": 61403950.0,
+            "write_bytes": 0.0
+          },
+          "kernel_main_runnable_seconds": 8.377291153,
+          "kernel_main_runtime_seconds": 5.813566983,
+          "pid": 3027705
+        },
+        "cgroup_pid_3027708": {
+          "cpu_cores": 0.029855003029928474,
+          "cpu_seconds": 5.68,
+          "io_delta": {
+            "cancelled_write_bytes": 0.0,
+            "rchar": 45591409.0,
+            "read_bytes": 0.0,
+            "syscr": 744.0,
+            "syscw": 64.0,
+            "wchar": 60261745.0,
+            "write_bytes": 0.0
+          },
+          "kernel_main_runnable_seconds": 9.92428671,
+          "kernel_main_runtime_seconds": 5.679233551,
+          "pid": 3027708
+        },
+        "cgroup_pid_3028037": {
+          "cpu_cores": 0.024388594024448613,
+          "cpu_seconds": 4.64,
+          "io_delta": {
+            "cancelled_write_bytes": 0.0,
+            "rchar": 288661630.0,
+            "read_bytes": 73728.0,
+            "syscr": 70587.0,
+            "syscw": 41.0,
+            "wchar": 3651021.0,
+            "write_bytes": 0.0
+          },
+          "kernel_main_runnable_seconds": 18.218323997,
+          "kernel_main_runtime_seconds": 4.634884034,
+          "pid": 3028037
+        },
+        "pons": {
+          "cpu_cores": 0.669635103171283,
+          "cpu_seconds": 127.4,
+          "io_delta": {
+            "cancelled_write_bytes": 147443712.0,
+            "rchar": 42255518972.0,
+            "read_bytes": 471040.0,
+            "syscr": 10325537.0,
+            "syscw": 256990.0,
+            "wchar": 677119786.0,
+            "write_bytes": 785637376.0
+          },
+          "kernel_main_runnable_seconds": 63.67898047,
+          "kernel_main_runtime_seconds": 35.551091292,
+          "pid": 3027710
+        },
+        "pump": {
+          "cpu_cores": 0.33471242833553616,
+          "cpu_seconds": 63.68,
+          "io_delta": {
+            "cancelled_write_bytes": 58957824.0,
+            "rchar": 3116482184.0,
+            "read_bytes": 249233408.0,
+            "syscr": 761143.0,
+            "syscw": 123515.0,
+            "wchar": 317435113.0,
+            "write_bytes": 322011136.0
+          },
+          "kernel_main_runnable_seconds": 92.781937313,
+          "kernel_main_runtime_seconds": 61.293005176,
+          "pid": 3027709
+        },
+        "solana": {
+          "cpu_cores": 0.5445384355458786,
+          "cpu_seconds": 103.6,
+          "io_delta": {
+            "cancelled_write_bytes": 73728.0,
+            "rchar": 2732203553.0,
+            "read_bytes": 139997184.0,
+            "syscr": 756020.0,
+            "syscw": 705797.0,
+            "wchar": 1537959578.0,
+            "write_bytes": 1435648000.0
+          },
+          "kernel_main_runnable_seconds": 90.597019563,
+          "kernel_main_runtime_seconds": 54.228598139,
+          "pid": 3027698
+        },
+        "supervisor": {
+          "cpu_cores": 0.09529422622052874,
+          "cpu_seconds": 18.13,
+          "io_delta": {
+            "cancelled_write_bytes": 21417984.0,
+            "rchar": 756856564.0,
+            "read_bytes": 245760.0,
+            "syscr": 183546.0,
+            "syscw": 17403.0,
+            "wchar": 57631670.0,
+            "write_bytes": 86540288.0
+          },
+          "kernel_main_runnable_seconds": 30.296377301,
+          "kernel_main_runtime_seconds": 18.130410425,
+          "pid": 3027596
+        }
+      }
+    }
+  },
+  "private_evidence_root": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011",
+  "raw_cross_reconnect_rate_9_467": "REJECTED_AS_CONTINUOUS_THROUGHPUT: newestrowhead crosses2207slot prospective reconnect jump; no skippedinterval completion.",
+  "receiving_branch": "repair/consolidated-startup-followup-20261014",
+  "recovery_reference": {
+    "fresh_stat_entries": 301,
+    "later_failed_backup_unchanged_unusable": true,
+    "manifest_sha256": "f3a6b3f8d0b69a86c470cda0b307491d03ea05dff4959729f4c9d168a608adf0",
+    "missing_changed_or_symlink": [],
+    "not_a_restore_or_state_rewind": true,
+    "point": "/mnt/volume_nyc1_1790918115030/meme-machine-backups/meme-machine-paper-20261013T221423-5891a20c",
+    "prior_full_integrity_restore_replay_reused": true,
+    "status": "VERIFIED"
+  },
+  "result": {
+    "drained": true,
+    "elapsed_to_drain_seconds": 905.0365905279759,
+    "original_readiness": "FAIL",
+    "recovery_required": false,
+    "status": "STOPPED_REVIEW_REQUIRED",
+    "stop_reason": "STARTUP_LIMITATION"
+  },
+  "resume": "Waitforowner direction. Then workfromb007217e/thishandoff, reviewexactprefaultcosts andcoverage/reconnect/drain dependency; no unchangedlive retry, genericroutineapproval orobsoleteattemptcap.",
+  "rollback": {
+    "authoritative_state_rewound": false,
+    "environment_sha256": "75f4d3e42edcf099b2d00be6319c91aa1f0d496ca3c9c39226bb18b3ac70a0c5",
+    "executed": "b007217e7930fa728604df4aa2a96f68f998e1ec",
+    "funding": false,
+    "installed": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "post_review_sha256": "3cf1741a860c7cbe1cd2e8af48e146f2d70d023dab2fae93c707600f51433f3b",
+    "retained_evidence_sha256": {
+      "clock.json": "84978e3028dde30a67a1a27dfdd9ed092d9c2f37d329ec83cdd33316e43e50ad",
+      "metrics.jsonl": "89a29e0ae148aa55298acbc49d1470a16b1e038de61b2ec50ac0965396c81440",
+      "result.json": "eb778c6439a9411d185c61bc88a1daf9910b19d55eeb29e9dbd83bb8afdcfaf1"
+    },
+    "service": {
+      "ActiveState": "inactive",
+      "MainPID": "0",
+      "Restart": "no",
+      "UnitFileState": "disabled"
+    },
+    "service_start_requested": false,
+    "status": "COMPATIBLE_SOURCE_CONFIGURATION_RESTORED_STOPPED",
+    "unit_sha256": "5472f456883cef4552d2367168b96366fc7b7a6b2d09e18d72472f19aeadde80",
+    "warning": "Restored historical finite diagnostic configuration is never a normal-service launcher; do not start unchanged."
+  },
+  "run": "/var/lib/meme-machine-diagnostics/20261015-operation-attribution-b007217e-132123",
+  "schema": "owner-pause-operation-attribution-result-v1",
+  "status": "PAUSED_FOR_OWNER_REVIEW_NOT_OPERATIONALLY_READY",
+  "storage": {
+    "canonical_database_bytes": 18643267584,
+    "canonical_wal_bytes": 38101792,
+    "limitation": "Lowerbound only; excludes otherdatabases/state/WAL/temp/isolatedrestore. No newcopy,backup,integritypass orstoragepurchase.",
+    "one_canonical_copy_minimum_shortfall_bytes": 7751806976,
+    "reserve_bytes": 5368709120,
+    "root_free_bytes": 11778207744,
+    "volume_free_bytes": 16260169728
+  },
+  "tests": {
+    "all_final_verdicts": "PASS",
+    "counts_overlap_not_distinct_sum": true,
+    "final_source_collector": 140,
+    "focused": 122,
+    "integration": 294,
+    "prior_failures": "113case2fixtureERROR;140case2guardFAIL; all originals retained. No fullFAST/releasePASS."
+  },
+  "usage": {
+    "before_scope": "Exact SHA-authenticated fresh dispatch receipt captures all durable usage counters from its existing provider-guard query; retained O13 counters are a non-regression witness. Current-run delta only, no historical delta resumming or invoice verification.",
+    "cost_basis": "Existing frozen conservative model; uncertain bytes are accounted exposure, not confirmed delivery or invoice.",
+    "delta": {
+      "alchemy_rpc_cu": 266688,
+      "http_attempts": 2165,
+      "http_bytes": 12095557,
+      "http_uncertain_bytes": 16777216,
+      "native_bytes": 727554073,
+      "native_failures": 1,
+      "native_opens": 6,
+      "native_uncertain_bytes": 436207616,
+      "robinhood_rpc_elements": 7621,
+      "rpc_cu": 266688,
+      "rpc_elements": 7626,
+      "solana_rpc_elements": 5
+    },
+    "http_reserved": "0",
+    "modeled_cost_usd": "0.262206177345",
+    "native_openings_subset": 6,
+    "native_reserved": "0",
+    "non_native_http_starts": 2159,
+    "physical_starts_including_native": 2165,
+    "provider_invoice": "UNAVAILABLE",
+    "unclosed_http_receipts": [],
+    "unclosed_streams": []
+  }
+}
