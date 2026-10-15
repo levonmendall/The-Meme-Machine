@@ -45,18 +45,18 @@
   "poststartup_measurement_maximum_seconds": 900,
   "prepared_installation": {
     "environment_path": "/etc/meme-machine/volume-quality-service.observation.env",
-    "executable": "4b70109db89382e050ceeebb77ac352509f9fc82",
+    "executable": "5c9f8e823ee938aa45ab3c98c43bc3bbab9d05c7",
     "identities": {
-      "access_helper_sha256": "344207e85be57a4ee16559b71b07eba7570a04df6a87232c6a93dce3e8582989",
+      "access_helper_sha256": "06ed4835ca126c5291d86546d08c08580afa33c45f96c3178d31391e24aa8ee0",
       "base_unit_sha256": "7cd10c6c717a97f312c8718886bb09750b5498ccf96ef5bc74b52f8094bfe294",
       "continuous_profile_sha256": "5bfc1fe915df2f40dff8fc6fb1cc5f98a836fe41c7155bfd4ca15f0d563e39bd",
       "controller_sha256": "e53343ac9721872ef95c6b1af2ec25179800eb7886716f3ac8927e7fd8412e8c",
-      "environment_sha256": "3cccec37836bce379b79c434152da6187fcdbd2f0f303644a31a6c1c5714b44c",
-      "unit_sha256": "0a245d8e566fc61739eab09023ad8ed4bea71949c9ecd869bb81b5a4f0b0d5ec"
+      "environment_sha256": "59b1df1685b6c201568994216eb7f88e85f036bd4c7ca6e384d21846d7bf049f",
+      "unit_sha256": "185cc485561b2b8703c6a4f6a967e4f36ea6e2306f175864c90198632fc6ec37"
     },
     "installed_before": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
-    "output": "/var/lib/meme-machine-diagnostics/20261015-standing-creation-4b70109d-033702",
-    "preparation": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_CREATION_PREPARATION_20261015T033702Z",
+    "output": "/var/lib/meme-machine-diagnostics/20261015-standing-source-access-5c9f8e82-041347",
+    "preparation": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_SOURCE_ACCESS_PREPARATION_20261015T041347Z",
     "unit_path": "/etc/systemd/system/meme-machine-paper.service.d/validation-observation.conf"
   },
   "provider_contract_scope": "Original replay-position failure and long-term backend/cursor semantics remain unresolved. This is not another replay-capability experiment or a provider repair. Current exact required forms delivered matching evidence; joins reject pre-floor frames and independently require complete linked evidence. No cursor/commitment/provider change. Repeated semantic rejection stops this run; no unchanged retry.",
@@ -74,9 +74,10 @@
   "routine_per_run_owner_approval": false,
   "schema": 1,
   "shutdown_reserve_seconds": 65,
-  "status": "FOCUSED_TESTED_CREATION_CANCELLATION_AND_REPORT_ONLY_REUSE_PREPARED",
-  "tested_successor": "4b70109db89382e050ceeebb77ac352509f9fc82",
+  "source_access_correction": "O6 source Git guard failed before supervisor construction/no marketwork. Corrected enumerated Git/source installation modes; mandatory serviceUID/filesystem probe now verifies actual HEAD, cleanstatus and tree before realclock/start. Shared5s Gitbudget/unchanged10/15s accessprobe, bounded fixedfailure phase. Fresh output; no unchanged retry.",
+  "status": "SOURCE_ACCESS_GUARD_FOCUSED_TESTED_CAUSAL_RETRY_PREPARED",
+  "tested_successor": "5c9f8e823ee938aa45ab3c98c43bc3bbab9d05c7",
   "unchanged_resource_protection_contract": "https://github.com/levonmendall/The-Meme-Machine/blob/a32f49d2061e577644ef2d28f75fefd4a48ebe87/operational/pump-first-release/CONSOLIDATED_STARTUP_NEXT_OBSERVATION_SPEC_20261014.json",
-  "validation": "Combined affected offline 246PASS/50.809s before final diagnostic clock-bound and pending-fixture test refinement; final13PASS/21.635s cover exact current diagnostic clock, pending identity preservation/restart and four economic/source guards. Initial21PASS. Expected2FAIL baseline and fixture/loader errors preserved by reference. No fullFAST/general releasePASS.",
+  "validation": "Exact5c9f8e82 final13service-access testsPASS/1.286s including actualserviceUID/systemd linked-worktree HEAD/tree denial and corrected access. Initial86run84PASS/2fixtureERROR; fixedseams retained. Integratedstartup passed; unchanged4b runtime/economic proofs246PASS+final13 remain scoped valid. No new fullFAST/generalreleasePASS.",
   "work_stop_seconds": 1800
 }

@@ -105,6 +105,22 @@
     "returncode": 128
   },
   "funding": false,
+  "guard_validation": {
+    "final": "13actual/fault service-access casesPASS/1.286s; two fixture seams corrected; no production changes after initial86",
+    "initial": "86cases:84PASS/2fixtureERROR; actual integratedstartup and real linkedworktree case passed; retained as failedrun"
+  },
+  "guard_validation_logs": [
+    {
+      "bytes": 5934,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/INSTALLED_SOURCE_GUARD_FOCUSED_20261015.log",
+      "sha256": "53d6ff947fe764726c567696c138a8ae1fa9fb13d243c5e475ebcc3086f1f566"
+    },
+    {
+      "bytes": 412,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/INSTALLED_SOURCE_ACCESS_FINAL_20261015.log",
+      "sha256": "64a88a7d6cbde4faf024911b2d69971a8151a7820aed04f250b7c457e830fac4"
+    }
+  ],
   "native_drain": "UNAVAILABLE",
   "native_workers_started": false,
   "next_supported_action": "Finalize actual-service-user source-identity guard and focused offline tests; fresh source/access/native/financial/recovery/backup/resource preflight before any causal retry.",
@@ -165,6 +181,7 @@
   "status": "RECOVERY_REQUIRED",
   "stop_reason": "SUPERVISOR_ENDED",
   "supervisor_constructor_reached": false,
+  "tested_guard_successor": "5c9f8e823ee938aa45ab3c98c43bc3bbab9d05c7",
   "unresolved": [
     "Previous Pump SIGKILL cancellation remains failed; this no-native-start result does not repair it.",
     "Sustained canonical throughput and managed-Pons held quote/USD protection remain unmeasured here.",
