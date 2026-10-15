@@ -12,9 +12,13 @@ first. Exact diagnostic5e4728ae completed in3.380seconds: native/HTTP finalized 
 messages. No semantic rejection; conditional CONFIRMED test was not run. Both
 streams began31slots before the cursor. Truncated samples do not establish
 post-cursor coverage or the cause of the original replay-position rejection.
-The remaining boundary is the provider's exact cursor/skip-slot/backend contract,
-not runtime permission. The exact sanitized support question is prepared; no
-unchanged native experiment or arbitrary offset/architecture change is justified.
+The provider's exact cursor/skip-slot/backend contract remains a separate open
+question, not a generic runtime-permission gate. Its sanitized support question
+is prepared; no unchanged native capability experiment or arbitrary cursor change
+is justified. A distinct funding-closed combined observation is justified by the
+reproduced Pons constructor cancellation repair and new actual-thread attribution.
+It tests native recovery/cancellation and current-generation pipeline accumulation;
+it does not claim to establish long-term replay coverage or repair the provider.
 
 Offline successor `6b0b10edf729b4c1c13dd3b7a56916d4d6797bc4` preserves0000a4f8
 and adds bounded main-thread cancellation attribution through existing health and

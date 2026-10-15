@@ -30,7 +30,23 @@
   "per_invocation_one_start": true,
   "permitted_operational_writes": "Existing canonical/source/prewarm/session/historian/candidate-history/receiptACK/provider accounting/native recovery/reporting and OBSERVATION runtime-admission/owner records from unchanged run contract; no new position, reservation, fill, capital transfer, epoch or strategy-policy mutation",
   "poststartup_measurement_maximum_seconds": 900,
-  "prepared_installation": "NOT_PREPARED: installedsource66 remains stopped; create fresh compatible config/output under standing scope only after technical and safety conditions pass",
+  "prepared_installation": {
+    "dispatch": "Fresh preflight/access pending; no service start yet",
+    "environment_path": "/etc/meme-machine/volume-quality-service.observation.env",
+    "executable": "6b0b10edf729b4c1c13dd3b7a56916d4d6797bc4",
+    "identities": {
+      "access_helper_sha256": "344207e85be57a4ee16559b71b07eba7570a04df6a87232c6a93dce3e8582989",
+      "base_unit_sha256": "7cd10c6c717a97f312c8718886bb09750b5498ccf96ef5bc74b52f8094bfe294",
+      "continuous_profile_sha256": "5bfc1fe915df2f40dff8fc6fb1cc5f98a836fe41c7155bfd4ca15f0d563e39bd",
+      "controller_sha256": "cd673336e6096d427a29f49cd20e89e36ce699d6346a0294ff7e8175201dc0cf",
+      "environment_sha256": "e229ad6d3863b55f9fcf1f5543e64571a1429c89c5df6ef94f52e763ebf0ee60",
+      "unit_sha256": "f1bc9de6811a0261a6fa4ea4d2cde2081bd83727b2ad25121dcb85c0b52fd1d8"
+    },
+    "installed_before": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "output": "/var/lib/meme-machine-diagnostics/20261015-standing-combined-6b0b10ed-014738",
+    "preparation": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_COMBINED_PREPARATION_20261015T014738Z",
+    "unit_path": "/etc/systemd/system/meme-machine-paper.service.d/validation-observation.conf"
+  },
   "provider_contract_scope": "Original replay-position failure and long-term backend/cursor semantics remain unresolved. This is not another replay-capability experiment or a provider repair. Current exact required forms delivered matching evidence; joins reject pre-floor frames and independently require complete linked evidence. No cursor/commitment/provider change. Repeated semantic rejection stops this run; no unchanged retry.",
   "question": "On the repaired startup/cancellation implementation, does actual native recovery complete or cancel safely, and where does current-generation acquisition/join/preparation/owner/persistence/historyACK/publication accumulate?",
   "readiness_seconds": 300,
