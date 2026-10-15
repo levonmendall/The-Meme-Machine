@@ -1,4 +1,19 @@
-# Current checkpoint — standing combined observation and supported offline work
+# Current checkpoint — actionable retirement owner hold
+
+Read [STANDING_RETIREMENT_FAILURE_20261015.md](STANDING_RETIREMENT_FAILURE_20261015.md).
+Exact5c721092 ran once under standing issue134;488.107seconds, readinessFAIL,
+RECOVERY_REQUIRED unchanged. Retirement planning held the canonical owner
+53.806seconds; source raised maintenance_service_deadline_exhausted, Pump
+failed evidence_command_unacknowledged while RECONCILING. Pons reconciled and
+stopped normally. No one-hour minutes, native-drain or capacity PASS.
+Current head9340/$1,000/zeroobligations/historical$500 and pending work verified;
+compatible66f85d61/small overlays restored, stopped/disabled/Restart=no/fundingclosed.
+Offline retirement access-path and bounded-work correction is underway. Do not
+repeat unchanged conditions or relabel historical failures. Issue134 remains
+active without attempt-count/expiry/routine-approval gates; fresh safety checks
+and affected validation remain mandatory before any further start.
+
+# Previous checkpoint — standing combined observation and supported offline work
 
 Read [STANDING_COMBINED_OBSERVATION_RESULT_20261015.md](STANDING_COMBINED_OBSERVATION_RESULT_20261015.md).
 Exact6b0b10ed completed one funding-closed run under issue134 in529.206seconds.
