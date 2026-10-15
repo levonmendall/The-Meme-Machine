@@ -444,12 +444,19 @@ class CandidateLifecycle:
             changed(self.history)
 
     @defer_busy_consumer
-    def publish(self):
+    def publish(self,*,proof_ids=None):
         """Proofs become visible only after all source receipts are durable."""
         if self.db.in_transaction:raise EvidenceUnavailable('candidate_consumer_before_canonical_commit')
+        exact=proof_ids is not None
+        if exact and (not isinstance(proof_ids,(tuple,list)) or len(proof_ids)>64 or any(not isinstance(identity,str) or
+                len(identity)!=64 or any(c not in '0123456789abcdef' for c in identity)
+                for identity in proof_ids) or len(set(proof_ids))!=len(proof_ids)):
+            raise EvidenceUnavailable('candidate_proof_publication_batch_bound')
         self._consumer_retry_at=None;self._published_count=0
-        self.flush()
         separated=getattr(self,'delivery_separated',False)
+        if exact and not separated:raise EvidenceUnavailable('candidate_proof_publication_requires_separated_delivery')
+        if exact and not proof_ids:return
+        self.flush()
         if separated and (not self.path.exists() or not self.db.execute('SELECT 1 FROM candidate_pending_proofs LIMIT 1').fetchone()):return
         # A source turn must yield to ingestion and mandatory maintenance. Match
         # the existing 64-row external-receipt batch, without deleting or ACKing
@@ -462,14 +469,32 @@ class CandidateLifecycle:
             from .solana_history_delivery import readonly_history,verified_proof
         opener=readonly_history(self.path) if separated else CandidateHistory(self.path,clock=self.clock,write_wait_seconds=0)
         with closing(opener) as shared, self.writer.transaction():
-            if horizon is None:
-                horizon=self.db.execute('SELECT lo,hi,rowid FROM candidate_pending_proofs WHERE '+
-                    active_scope_sql('scope')+' ORDER BY lo DESC,hi DESC,rowid DESC LIMIT 1').fetchone()
-            after='' if cursor is None else ' AND (lo,hi,rowid)>(?,?,?)'
-            proofs=self.db.execute(
-                'SELECT rowid,* FROM candidate_pending_proofs WHERE '+active_scope_sql('scope')+
-                ' AND (lo,hi,rowid)<=(?,?,?)'+after+' ORDER BY lo,hi,rowid LIMIT 64',
-                (*(horizon or (-1,-1,-1)),*(cursor or ()))).fetchall()
+            if exact:
+                # The independent consumer just FULL-committed these receipts.
+                # An intervening source turn may already have moved the fair
+                # scan beyond them. Revisit only this same bounded batch by PK;
+                # its durable pending rows remain the restart authority.
+                proofs=[row for identity in proof_ids if (row:=self.db.execute(
+                    'SELECT rowid,* FROM candidate_pending_proofs WHERE id=? AND '+
+                    active_scope_sql('scope'),(identity,)).fetchone()) is not None]
+                proofs.sort(key=lambda row:(row[3],row[4],row[0]))
+            else:
+                if horizon is None:
+                    horizon=self.db.execute('SELECT lo,hi,rowid FROM candidate_pending_proofs WHERE '+
+                        active_scope_sql('scope')+' ORDER BY lo DESC,hi DESC,rowid DESC LIMIT 1').fetchone()
+                after='' if cursor is None else ' AND (lo,hi,rowid)>(?,?,?)'
+                proofs=self.db.execute(
+                    'SELECT rowid,* FROM candidate_pending_proofs WHERE '+active_scope_sql('scope')+
+                    ' AND (lo,hi,rowid)<=(?,?,?)'+after+' ORDER BY lo,hi,rowid LIMIT 64',
+                    (*(horizon or (-1,-1,-1)),*(cursor or ()))).fetchall()
+            verified=None
+            if separated:
+                # Authenticate all sibling contexts before any local gap repair.
+                # Repairing one interval changes the remaining gap rows/IDs;
+                # those expected owner-local changes must not invalidate another
+                # independently proved receipt in this same atomic publication.
+                verified={row[1] for row in proofs if not self.unconsumed(row[2],through=row[4])
+                          and verified_proof(self,shared.db,row)}
             # Pump's published intervals use the existing owner turn.
             # Keep external receipts durable before the canonical writer commits,
             # without a FULL fsync for every individual coverage/readiness fact.
@@ -479,8 +504,9 @@ class CandidateLifecycle:
             with shared.transaction() if batch and not separated else nullcontext():
                 for rowid,identity,scope,lo,hi,source,endpoint,raw,at in proofs:
                     family,address=scope.split(':',2)[1:]
-                    if self.unconsumed(scope,through=hi):continue
-                    if separated and not verified_proof(self,shared.db,(rowid,identity,scope,lo,hi,source,endpoint,raw,at)):continue
+                    if separated:
+                        if identity not in verified:continue
+                    elif self.unconsumed(scope,through=hi):continue
                     proof=IntervalProof(scope,lo,hi,source,endpoint,json.loads(raw),at)
                     proof.validate()
                     binding=self.db.execute('SELECT market_address FROM evidence_bindings WHERE family=? AND coverage_scope=? LIMIT 1',
@@ -523,6 +549,7 @@ class CandidateLifecycle:
                     self._published_count+=1
         # Both original commit fences have completed. Never skip failed work or
         # advance the round-robin cursor after a busy/failed canonical commit.
+        if exact:return
         last=None if not proofs else (proofs[-1][3],proofs[-1][4],proofs[-1][0])
         finished=len(proofs)<64 or last==horizon
         self._proof_publication_cursor=None if finished else last

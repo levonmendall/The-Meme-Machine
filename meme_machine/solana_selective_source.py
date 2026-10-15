@@ -1300,6 +1300,23 @@ class SelectiveSource:
                     job,reason,**diagnostic),2,label='history_apply')
                 await asyncio.sleep(.1)
 
+    async def _complete_history_delivery(self,snapshot,result):
+        """ACK then publish this exact durable proof batch, in separate turns.
+
+        The background proof cursor may have passed the batch while its
+        independent consumer FULL-committed. Revisit its pending identities,
+        never its untrusted result as completeness. Keep an owner admission
+        between ACK and proof publication so protective work can still win.
+        """
+        from .solana_history_delivery import acknowledge
+        accepted=await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
+            label='candidate_delivery_ack')
+        if accepted and snapshot['proofs']:
+            identities=tuple(proof['identity'] for proof in snapshot['proofs'])
+            await self.work(lambda state:install(state).lifecycle.publish(proof_ids=identities),2,
+                label='source_commit',component='history_publication')
+        return accepted
+
     async def candidate_history_delivery(self):
         """Mandatory bounded consumer work, independent of optional history."""
         from .solana_history_delivery import capture,deliver,acknowledge
@@ -1325,8 +1342,7 @@ class SelectiveSource:
                     await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
                         label='candidate_delivery_ack')
                     raise
-                accepted=await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,
-                    label='candidate_delivery_ack')
+                accepted=await self._complete_history_delivery(snapshot,result)
                 self.observe('history_delivery_timing',**result['metrics'])
                 # Noncritical short batches coalesce within the ORIGINAL 100-ms
                 # cadence. Canonical/proof work bypasses it; a full batch drains
