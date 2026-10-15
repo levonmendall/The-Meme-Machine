@@ -43,7 +43,10 @@
     "credential_environment": "/etc/meme-machine/paper.shared-1000.env (unchanged; binding recorded privately)",
     "environment_overlay": "/etc/meme-machine/volume-quality-service.observation.env",
     "environment_sha256": "431e69c15c966ccf126b3f0b7305ac467744acd5e018d0634eb35d2bb84970f6",
+    "installed_before_dispatch": "ba25499b26103ec5d14f1ce765c8e8f180695f33; clean detached worktree; actual service-user git/import verified",
     "output_directory": "/var/lib/meme-machine-diagnostics/20261015-campaign-attempt1-ba25499b-002832",
+    "source_gitconfig_sha256": "7d65a5559a6d09e2ff4b3ebb33be49785aed89fbac5ad748e9baf2f9e195d054",
+    "source_metadata_access": "Exact changed tracked source files and worktree HEAD are group-readable root:meme-machine; existing /etc/gitconfig contains only unchanged safe.directory=/opt/meme-machine and is root:meme-machine0640. No recursive chmod, database or credential permission change.",
     "source_revision": "ba25499b26103ec5d14f1ce765c8e8f180695f33",
     "unit_dropin": "/etc/systemd/system/meme-machine-paper.service.d/validation-observation.conf",
     "unit_sha256": "ac830c69453041a8cf1007ed5ba8094850db074ca694233171c6a575c0d8c1ee"
