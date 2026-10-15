@@ -1,4 +1,51 @@
-# Latest continuation — consolidated observation completed, 2026-10-14
+# Current checkpoint — native lifecycle repair, 2026-10-15 00:02 UTC
+
+Exact offline executable: `ba25499b26103ec5d14f1ce765c8e8f180695f33`, branch
+`repair/consolidated-startup-followup-20261014`, draft PR 133. Read
+[CONSOLIDATED_OBSERVATION_RESULT_20261014.md](CONSOLIDATED_OBSERVATION_RESULT_20261014.md)
+for exact scope and retained evidence. One resource owner now covers startup and
+normal/failed shutdown, including delayed Survivor failure. Constructor-only
+cancellation and bounded two-second shutdown reporting reuse existing mechanisms.
+Canonical ownership, strategies, provider routes and deadlines are unchanged.
+
+Final startup/lifecycle: **17 PASS / 2.128 s**. The affected 297-case run completed
+with one stale diagnostic-order assertion failure; the stronger corrected
+assertion and all nine actual rehearsal cases pass. Other 296 results are reused
+with unchanged production source; do not call this an uninterrupted 297-case PASS.
+The prior c8 FAST pass is baseline evidence, not full release validation of this
+successor. No new full suite, deployment or runtime workload was dispatched.
+
+The owner authorized up to three funding-closed starts over 24 hours, conditional
+on verified native recovery and no unresolved failed/unverified previous native
+shutdown. **Zero campaign starts consumed. STOP before dispatch:** the previous
+Pump TERM/15-second/KILL still requires native recovery review. No retry,
+installation, provider request or authoritative write occurred in this campaign.
+
+At 00:02:17 UTC, fresh read-only projection/head checks match the completed replay:
+8,982 journal events, $1,000.00 cash, no monetary obligations; provider ledger and
+original failed result are exactly unchanged. PAPER remains stopped/failed,
+disabled, `Restart=no`, funding closed. Historical $500 preservation proof is
+retained; this narrow check did not repeat its full verification.
+
+Existing terminal reconciliation verifies native economic books, not complete
+canonical pending work, history receipt/ACK ordering, interrupted restoration or
+the source recovery/drain boundary. The sampled preservation receipt cannot
+establish all those invariants. Actual recovery uses authoritative source/session,
+history lease and prewarm startup operations; no existing comprehensive read-only
+procedure supplies the missing recovery verdict. Offline cancellation regressions
+do not establish that actual retained-state recovery or a later drain completed.
+
+Owner review is required for a separately scoped native-recovery verification
+before the campaign can dispatch. An actual recovery-only start while the prior
+native boundary remains unverified is not covered by the new mandatory retry
+gate. It must not be presented as an ordinary authorized throughput retry or as
+an already safe boundary. Preserve the original RECOVERY_REQUIRED result.
+Private receipts: `blocker-repair-20261011/CAMPAIGN_NATIVE_RECOVERY_GATE_20261014T233022Z.json`
+and `NATIVE_LIFECYCLE_FINAL_SAFE_STATE_20261015.json`. Original attempt, REDs,
+failed 297-case run and intermediate handoff patch remain preserved. No sustained
+capacity or native recovery PASS is inferred. The historical-replay search stays closed.
+
+# Previous continuation — consolidated observation completed, 2026-10-14
 
 Read [CONSOLIDATED_OBSERVATION_RESULT_20261014.md](CONSOLIDATED_OBSERVATION_RESULT_20261014.md)
 first. The single authorized observation executed exact `1fe5a6f6` at 22:40:46 UTC
@@ -13,8 +60,9 @@ Two causally demonstrated repairs preserve Pons retained-watch/projection fences
 and Pump cancellation between completed restoration reads. Final affected 106
 tests pass, including the nine-case startup rehearsal and original source guards;
 the earlier 223-case integration proof remains applicable to unchanged paths.
-The already-dispatched FAST run 38652038787 is allowed to finish; local polling
-is stopped. Its result is recorded separately from scoped diagnostic validation;
+The already-dispatched FAST run 38652038787 completed on `c8beb2d1`: 2,165 tests
+in 1,515.638 seconds, zero failures/errors, one hosted service-identity skip.
+Local polling is stopped. This baseline proof is separate from later lifecycle edits;
 skipped draft CI is not a PASS. Follow the updated AGENTS/skill risk-based gate:
 affected checks, actual startup rehearsal, exact-source/economic guards,
 implicated safety regressions and fresh host preflight for an authorized start.

@@ -1,12 +1,98 @@
 # Consolidated observation and offline follow-up — 2026-10-14
 
 Executed source: `1fe5a6f62d37f84ad24f0b7413279c080e3424e5`.
-Offline repair executable: `c8beb2d1317084779f97214b6015b7c345242085`, branch
+Observation-followup baseline: `c8beb2d1317084779f97214b6015b7c345242085`, branch
 `repair/consolidated-startup-followup-20261014`, based on owned integration head
 `c1c3fd1662b1acbb917f57bfd0e578fc7a349bce` (includes workflow merge `893640f2`).
 Review: [PR 133](https://github.com/levonmendall/The-Meme-Machine/pull/133).
-Follow root `AGENTS.md` and the operational-resolution skill. No further live
-start is authorized; this attempt consumed the single-start authorization.
+Latest offline lifecycle executable: `ba25499b26103ec5d14f1ce765c8e8f180695f33`.
+Follow root `AGENTS.md` and the operational-resolution skill. This attempt
+consumed the preceding single-start authorization. The later conditional campaign
+has not dispatched; its mandatory native-recovery stop is recorded below.
+
+## Conditional campaign: stopped before dispatch
+
+The owner subsequently authorized three funding-closed starts within 24 hours,
+with an explicit stop if preceding native recovery cannot be established safely.
+**Zero campaign starts consumed.** At 23:30:22 UTC, a fresh read-only projection/
+journal check exactly matched the completed replay ($1,000.00, 8,982 events,
+no monetary obligations). Provider ledger and original failure-result bytes were
+unchanged; the service remained stopped/failed, disabled and `Restart=no`.
+
+Independent source review found the existing read-only native economic recovery
+in `runtime/terminal_reconciliation.py:148` and `runtime/directional_accounting.py:49`.
+It does not establish full canonical pending-work, exact receipt/ACK, interrupted
+candidate restoration or source recovery/drain invariants. The prior sampled
+receipt establishes preservation, not that complete verdict. Actual recovery
+uses authoritative `EvidenceWriter` startup, `HistoricalTasks` recovery and
+`PrewarmStartup.begin`; it is not an existing comprehensive read-only check.
+
+The native-recovery gate therefore cannot pass on present evidence. Preserve
+RECOVERY_REQUIRED and stop the live campaign for owner review, as required by
+its mandatory safety clause. No source correction is invented to replace this
+missing proof, and no additional offline defect was demonstrated in the Pons
+review. The repaired code's focused tests remain scoped evidence.
+
+Next decision: a separately scoped native-recovery verification must establish
+the missing boundary before another ordinary combined diagnostic can dispatch.
+A recovery-only start despite that unresolved prior boundary would need explicit
+owner review; the new campaign does not implicitly authorize this exception.
+Do not bypass the gate, replay historical searches or rerun the full suite to
+substitute for native recovery. The private gate receipt is
+`CAMPAIGN_NATIVE_RECOVERY_GATE_20261014T233022Z.json` under the evidence root.
+
+The latest root-cause addendum authorized the bounded offline evaluation below
+of the shared native-recovery/lifecycle contract. It compared the existing local
+cancellation correction, a coordinated subsystem correction, and replacement.
+The resulting fixtures demonstrate a separate ownership defect; the missing
+post-TERM trace does not attribute the historical kill. No exception to the
+native-recovery gate is assumed. Original runtime and safety boundaries remain.
+
+## Bounded subsystem correction completed offline
+
+Actual native-entrypoint/factory fixtures demonstrate a **Level-2 resource
+lifecycle defect** across pre-loop failure and delayed Survivor failure after
+loop entry. This does not attribute the historical 15-second stall or throughput.
+
+| Option | Disposition |
+| --- | --- |
+| Local cancellation checks only | Preserve c8, but reproduced ownership/future cuts remain. |
+| Coordinate existing lifecycle mechanisms | Selected: one owner throughout `main`, seven fixed acquired resources, idempotent closers in original order and constructor-only cancellation on the existing executor. |
+| Replace canonical owner/storage/orchestration | Unsupported by current causal evidence; unchanged. |
+
+Pump cleanup attempts every remaining owner after startup, asynchronous close or
+final-report failure, preserving the first exception and original return values.
+FILL clears only for the owned plane. Survivor cancellation resets before normal
+steps. Health retains immediate TERM facts and the original two-second cadence
+until terminal completion; the bounded collector recognizes only the new fixed
+cleanup/constructor operations. Exact byte reversals preserve all prior economic
+guards. No new process, database, provider route or authoritative writer exists.
+
+- Complete ownership regressions: **8 PASS / 0.440 s**.
+- Source reversal/final diagnostic serialization: **2 PASS / 1.066 s**.
+- Affected combined run: **297 tests / 95.045 s, one failure**. The sole failure
+  assumed the startup ERROR must be last; cleanup now follows it. Its strengthened
+  assertion requires the exact original ERROR/type, unfinished reconciliation,
+  unchanged pending work and each cleanup completion.
+- Final actual rehearsal plus ownership: **17 PASS / 2.128 s**, no skips/errors.
+  The other 296 passing results are reused with unchanged production source.
+  This is not an uninterrupted 297-case PASS or general release PASS.
+
+The 297-case run finished before its worker could be located for interruption;
+no interruption signal was sent. REDs and failures remain retained. No repeat
+full FAST was dispatched; the c8 baseline result below remains separate.
+Runtime: pinned CPython 3.12.14 / SQLite 3.45.1, network-blocked disposable state.
+
+At 00:02:17 UTC the verified $1,000 projection/head, provider ledger and original
+RECOVERY_REQUIRED bytes are unchanged. Campaign usage: **zero starts, zero
+provider calls, zero new provider spending**. Clean installed source remains
+`66f85d61`, stopped/failed, disabled, `Restart=no`. No epoch or database rewind.
+
+Individual constructors still own partial internals before returning. No actual
+retained-state recovery, sustained throughput, managed-provider suitability or
+held-position PASS is claimed. The strict native-recovery gate remains STOP;
+owner review must establish supported native recovery before another ordinary
+combined start. No exception to that gate is assumed or requested here.
 
 ## Observed result and safe state
 
@@ -17,7 +103,8 @@ Only the exact authorized source and temporary OBSERVATION configuration were
 installed. Funding remained closed. No allocation, reservation or fill occurred.
 
 Service start: **22:40:46 UTC**. First fatal marker: **22:44:41.616816 UTC**.
-Controller completed drainage at **250.071 seconds** from its monotonic start.
+The controller reported an empty process scope at **250.071 seconds** from its
+monotonic start; native drainage failed as detailed below.
 The startup failed before the original 300-second readiness deadline; the raw
 deadline-only `original_readiness` field remains null, not a fabricated timed
 verdict. Readiness was never established and no diagnostic minute counts toward
@@ -33,8 +120,12 @@ confirm this mechanism. The numeric discovery-executor thread ID is unavailable.
 Pump PID 2825109 received TERM while `pump.observed_candidate_events` was active.
 Supervisor PID/native thread 2824981 waited the unchanged 15 seconds, sent KILL,
 and recorded exit -9. This was not successful native drainage. The sampled
-operation had continued between completed history reads without a cancellation
-check. No OOM, SQLite lock holder or historical BUSY mechanism is inferred.
+operation was active shortly before TERM. Offline reproduction demonstrates
+missing cancellation checks between completed history reads, but the retained
+record does not establish which operation ran during the following 15 seconds.
+The correction covers that demonstrated cancellation boundary; it does not prove
+the final kill's complete mechanism. No OOM, SQLite lock holder or historical
+BUSY mechanism is inferred.
 
 Post-stop read-only monetary replay verified **8,982 journal events**, conservation,
 cash **$1,000.00**, and zero positions, reservations, commitments, obligations or
@@ -45,8 +136,8 @@ owner and 73 reporting publications; no economic entry action occurred.
 Original 24 sampled canonical/history/proof identities remain present. The final
 current 32-identity cohort has 21 authenticated receipt/exact ACK matches and 11
 pending deliveries. The authenticated source checkpoint remains unreleased in
-`WAIT_FOR_DURABLE_PUBLICATION`. These bounded checks preserve resumability; they
-are not a complete native-recovery or coverage PASS.
+`WAIT_FOR_DURABLE_PUBLICATION`. These bounded checks establish retained pending records; they
+are not a complete native-recovery, resumability or coverage PASS.
 
 Compatible source `66f85d61bf4d3ba9a01efdc0e9eb68949419bda8` and saved small
 unit/environment overlays were restored without starting anything. No database,
@@ -131,9 +222,12 @@ Meteora/Ramses remain paused. These repairs are not installed.
   all affected source guards, policy/Broker/native-owner cases and the existing
   nine-case integrated startup rehearsal. Unchanged earlier proofs are reused;
   these counts overlap and are not added.
-- Already-dispatched complete FAST: see exact terminal result of
+- Already-dispatched complete FAST: **2,165 tests / 1,515.638 s, PASS**, zero
+  failures/errors and one disclosed hosted service-identity skip. Exact source
+  `c8beb2d1`, terminal
   [run 38652038787](https://github.com/levonmendall/The-Meme-Machine/actions/runs/38652038787)
-  on `c8beb2d1`. The draft-PR skipped workflow is not a PASS.
+  result preserved. The draft-PR skipped workflow is not a PASS. This is a
+  baseline proof, not validation of subsequent lifecycle edits.
 
 Local checks use the supported OPERATIONAL/FAST runner, network guard and Scratch,
 CPython 3.12.14 with linked SQLite 3.45.1. Hosted build details are separate; no
@@ -146,10 +240,10 @@ exact source/economic guards, implicated safety regressions and fresh host
 preflight for a separately authorized diagnostic. Full FAST and applicable
 complete OPERATIONAL are reserved for the finalized one-hour/normal-operation
 candidate or demonstrated broad risk. Focused success is not a release PASS.
-Run 38652038787 was already useful and is allowed to finish; local polling and
-watch loops were stopped, with no replacement suite dispatched. These subsequent
-instruction/handoff-only edits do not change the executable or invalidate its
-recorded tests. No runtime authority, deadline, safety control or strategy changed.
+Run 38652038787 completed without cancellation; local polling and watch loops
+were stopped, with no replacement suite dispatched. The final handoff-only
+publication does not change the executable or invalidate its scoped tests.
+No runtime authority, deadline, safety control or strategy changed.
 
 ## Evidence and remaining single decision
 
