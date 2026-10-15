@@ -265,13 +265,15 @@ def required_counters(health, *, now_monotonic=None):
                  if isinstance(key, str) and aggregate_pattern.fullmatch(key) and finite_number(value)}
     pipeline_pattern = re.compile(
         r'(?:(?:joined_frame|economic_prepared|evidence_timing|publication_timing|history_delivery_timing|'
-        r'decode_timing):(?:shared|rolling|candidate)|native_frame:'
+        r'decode_timing):(?:shared|rolling|candidate)|candidate_phase:'
+        r'(?:validate|ingest_setup|rolling_adopt|economic_store|delivery_outbox|coverage_receipt|batch_commit)|native_frame:'
         r'(?:shared|pump|pumpswap|discovery|replay|candidate|rolling):'
         r'(?:slot|block_meta|transaction_status|transaction|account|ping|pong|unknown))')
     metric_pattern = re.compile(
         r'(?:calls|records|bytes|latest_slot|latest_durable_wall|latest_joined_wall|latest_received_wall|'
-        r'latest_provider_created_wall|unmeasured_calls|unmeasured_bytes_frames|'
-        r'(?:decode|decode_cpu|cpu_seconds|transfer_and_wait_seconds|wall_seconds|owner_queue|execution)'
+        r'latest_provider_created_wall|failed_calls|unmeasured_calls|unmeasured_bytes_frames|'
+        r'runnable_measured_calls|runnable_unavailable_calls|'
+        r'(?:decode|decode_cpu|cpu_seconds|transfer_and_wait_seconds|wall_seconds|runnable_wait_seconds|owner_queue|execution)'
         r'_(?:total|peak)_microseconds)')
     pipeline = {}
     source_pipeline = ipc.get('pipeline', {})
@@ -481,16 +483,24 @@ def pipeline_sample(root, expected_pid):
                 result['unavailable_reason'] = 'SOURCE_PID_MISMATCH'
                 return result
             generation = health.get('owner_scheduler', {}).get('owner_admission', {}).get('generation')
+            # The fixed schemas above retain required IPC counters before
+            # clipping. Do not serialize a second, partially clipped copy of
+            # the same IPC object; reserve the existing output budget for the
+            # actual phase/thread discriminator instead.
+            descriptive = {key: value for key, value in health.items()
+                           if key not in ('ipc', 'owner_scheduler')}
             result.update(available=True, source_pid=expected_pid, generation=generation,
                           generation_state='CURRENT' if generation is not None else 'UNAVAILABLE',
-                          required_counters=required_counters(health,now_monotonic=started), service_health=numeric(health))
+                          required_counters=required_counters(health,now_monotonic=started),
+                          service_health=numeric(descriptive),
+                          ipc_scope='EXPLICIT_REQUIRED_COUNTERS_ONLY_NOT_DUPLICATED_DESCRIPTIVE_IPC')
             # Each sample is bounded independently of retained historical stock.
             result['pending_outbox_head'] = db.execute(
                 'SELECT id,family,kind,created FROM candidate_history_outbox '
                 'INDEXED BY candidate_history_pending WHERE consumed IS NULL '
-                'ORDER BY created LIMIT 32').fetchall()
+                'ORDER BY created LIMIT 1').fetchall()
             result['pending_outbox_depth'] = 'UNAVAILABLE_NO_POPULATION_SCAN'
-            result['outbox_head_scope'] = 'INDEX_PREFIX_ALL_RETAINED_FAMILIES'
+            result['outbox_head_scope'] = 'OLDEST_ONE_ALL_RETAINED_FAMILIES_NOT_REQUIRED_PUMP_HISTORY'
             try:
                 # Newest canonical heads prevent old unrelated retained activity
                 # from consuming the whole diagnostic cohort. This existing index
@@ -746,7 +756,78 @@ def bounded_text(path, limit=8192):
     return value
 
 
-def counters(group, pids, owner=None):
+def pons_thread_counters(pid, owned, inventory, *, proc=Path('/proc')):
+    """One bounded kernel sample, never a profiler or a readiness verdict.
+
+    Process CPU includes these threads; the two scopes must not be added.
+    A health inventory supplies only fixed executor roles. Its real collection
+    clock is retained and stale/mismatched inventories never acquire new dates.
+    """
+    started = time.monotonic()
+    result = dict(available=False, collected_at=time.time(), collected_at_monotonic=started,
+                  limit=16, scope='PONS_NATIVE_THREADS_OVERLAP_PROCESS_TOTAL', threads=[])
+    if type(pid) is not int or pid <= 0 or pid not in owned:
+        return dict(result, reason='CURRENT_PONS_NOT_IN_OWNED_CGROUP')
+    roles = ('main', 'health', 'survivor', 'pons-hydration', 'pons-discovery')
+    mapping = {}; inventory_valid = False
+    if isinstance(inventory, dict):
+        sampled = inventory.get('collected_at_monotonic')
+        rows = inventory.get('threads')
+        inventory_valid = (inventory.get('pid') == pid and finite_number(sampled) and
+                           0 <= started - sampled <= 10 and isinstance(rows, list) and len(rows) <= 16)
+        if inventory_valid:
+            for row in rows:
+                if isinstance(row, dict) and type(row.get('native_thread_id')) is int:
+                    mapping[row['native_thread_id']] = row.get('role') if row.get('role') in roles else UNAVAILABLE
+        result['inventory'] = dict(available=inventory_valid,
+            collected_at_monotonic=sampled if finite_number(sampled) else UNAVAILABLE,
+            truncated=inventory.get('truncated') is True)
+    else:
+        result['inventory'] = dict(available=False, reason='MISSING_NATIVE_THREAD_INVENTORY')
+    folder = proc / str(pid)
+    try:
+        fields = bounded_text(folder / 'stat').rsplit(')', 1)[1].split()
+        process_start = int(fields[19])
+        tids = []
+        with os.scandir(folder / 'task') as entries:
+            for entry in entries:
+                if entry.name.isdecimal():
+                    tids.append(int(entry.name))
+                    if len(tids) == 17:break
+        result.update(pid=pid, process_start_ticks=process_start,
+                      observed_thread_count_lower_bound=len(tids), truncated=len(tids) > 16)
+        for tid in sorted(tids[:16]):
+            task = folder / 'task' / str(tid)
+            row = dict(native_thread_id=tid, role=mapping.get(tid, UNAVAILABLE))
+            try:
+                fields = bounded_text(task / 'stat').rsplit(')', 1)[1].split()
+                sched = [int(v) for v in bounded_text(task / 'schedstat').split()]
+                row.update(available=True, start_ticks=int(fields[19]), state=fields[0],
+                    user_ticks=int(fields[11]), system_ticks=int(fields[12]),
+                    runtime_ns=sched[0], runnable_wait_ns=sched[1], timeslices=sched[2])
+                try:
+                    io = dict(line.split(':', 1) for line in bounded_text(task / 'io').splitlines())
+                    row['io'] = {key: int(io[key]) for key in ('rchar', 'syscr', 'read_bytes', 'write_bytes')}
+                except (OSError, ValueError, KeyError):row['io'] = UNAVAILABLE
+                try:
+                    wait = bounded_text(task / 'wchan', 128).strip()
+                    row['wait_channel'] = wait if re.fullmatch(r'[A-Za-z0-9_.]{1,80}', wait) else UNAVAILABLE
+                except (OSError, ValueError):row['wait_channel'] = UNAVAILABLE
+            except (OSError, ValueError, IndexError):
+                row.update(available=False, reason='THREAD_EXITED_OR_COUNTER_UNAVAILABLE')
+            result['threads'].append(row)
+        after = bounded_text(folder / 'stat').rsplit(')', 1)[1].split()
+        if int(after[19]) != process_start:
+            return dict(result, available=False, reason='PONS_PROCESS_IDENTITY_CHANGED', threads=[])
+        result['available'] = True
+    except (OSError, ValueError, IndexError):
+        result.update(reason='THREAD_COUNTERS_UNAVAILABLE', available=False)
+    finally:
+        result['collection_seconds'] = time.monotonic() - started
+    return result
+
+
+def counters(group, pids, owner=None, *, lanes=None):
     result = {}
     for name, path in [('cpu_stat', group / 'cpu.stat'), ('io_stat', group / 'io.stat'),
                        ('cpu_pressure', group / 'cpu.pressure'), ('io_pressure', group / 'io.pressure'),
@@ -776,6 +857,7 @@ def counters(group, pids, owner=None):
             schedstat = [int(value) for value in bounded_text(folder / 'schedstat').split()]
             result['workers'][name] = dict(pid=pid, state=fields[0], user_ticks=int(fields[11]),
                 system_ticks=int(fields[12]), rss_pages=int(fields[21]),
+                process_start_ticks=int(fields[19]),
                 io=bounded_text(folder / 'io'), schedstat_scope='PROCESS_MAIN_THREAD_ONLY',
                 runtime_ns=schedstat[0], runnable_wait_ns=schedstat[1], timeslices=schedstat[2],
                 delayacct_blkio_ticks=int(fields[39]) if len(fields) > 39 else 'UNAVAILABLE',
@@ -802,6 +884,10 @@ def counters(group, pids, owner=None):
                     delayacct_scope='KERNEL_ACCOUNTING_AVAILABILITY_UNVERIFIED')
             except (OSError,ValueError,IndexError):
                 result['owner_thread_schedstat']='UNAVAILABLE_OWNER_THREAD_EXITED_OR_UNREADABLE'
+    if 'pons' in pids:
+        lane = (lanes or {}).get('pons', {})
+        inventory = lane.get('native_threads') if isinstance(lane, dict) else None
+        result['pons_threads'] = pons_thread_counters(pids['pons'], owned, inventory)
     return result
 
 
@@ -1028,7 +1114,7 @@ def observe_once(root, output, source_revision):
                     fixed_scope_frontiers=selected_frontiers(providers), pipeline=pipeline,
                     sqlite_coverage_scope='CANONICAL_PARENT_ONLY_CHILD_HEALTH_UNAVAILABLE')
                 sample['counters'] = counters(group, dict(pids, supervisor=main_pid),
-                    pipeline.get('required_counters',{}).get('owner_scheduler'))
+                    pipeline.get('required_counters',{}).get('owner_scheduler'), lanes=lanes)
                 sample['receipt_cohort'] = cohort.sample(root, pipeline)
                 append_sample(output / 'metrics.jsonl', sample)
             else:

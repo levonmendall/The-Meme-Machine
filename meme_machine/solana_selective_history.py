@@ -14,6 +14,7 @@ from functools import lru_cache
 from .solana_evidence_plane import FinalizedRecord,IntervalProof,EvidenceUnavailable,EvidenceConflict,canonical,digest,decode_body
 from .solana_program_decoders import pump_events,pumpswap_trade_events
 from .solana_native_evidence import normalize_zero_display
+from .solana_candidate_phases import phase as candidate_phase
 
 FAMILIES={'pump':'program:pump','pumpswap':'program:pumpswap','meteora':'program:meteora'}
 PROGRAMS={'pump':'6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P',
@@ -434,7 +435,7 @@ class SelectiveHistory:
                 (job['id'],job['pages'],input_hash,canonical(result),seen))
         return result
 
-    def ingest(self,rows,*,restored=None):
+    def ingest(self,rows,*,restored=None,timing=None):
         """One identity; a bounded shared cache permits late scoped backfill.
 
         The global hot-retention floor remains monotonic. It cannot prevent an
@@ -442,117 +443,122 @@ class SelectiveHistory:
         Existing archived bytes must be independently restored and verified;
         neither their immutable content nor original availability is rewritten.
         """
-        rows=tuple(rows);restored=restored or {}
-        from .solana_economic_preparation import PreparedEconomicRecord
-        prepared_rows=rows
-        rows=tuple(r.record if isinstance(r,PreparedEconomicRecord) else r for r in rows)
-        from .runtime.operating_families import require_scope
-        for row in rows:require_scope(row.scope)
-        if len(rows)>2048:
-            raise EvidenceUnavailable('ingestion_batch_bound')
-        # Validate/serialize once on this owner command. The same exact bytes
-        # establish its physical bound and immutable rolling-store hash. This
-        # is never a cache across calls, replay, blocks or mutable payloads.
-        serialized=[];retained_bytes=0
-        for row,product in zip(rows,prepared_rows):
-            if isinstance(product,PreparedEconomicRecord):
-                if not hasattr(self,'rolling'):raise EvidenceUnavailable('prepared_economic_store_required')
-                prepared=product;retained_bytes+=product.original_bytes
-            else:
-                prepared=row.serialized_body();retained_bytes+=len(prepared[1].encode())
-            if retained_bytes>16*1024*1024:raise EvidenceUnavailable('ingestion_batch_bound')
-            serialized.append(prepared)
-        from .solana_evidence_plane import require_storage
-        require_storage(self.writer.path,required_bytes=32*1024*1024)
-        hot=[];cached=[]
+        with candidate_phase(timing,'ingest_setup'):
+            rows=tuple(rows);restored=restored or {}
+            from .solana_economic_preparation import PreparedEconomicRecord
+            prepared_rows=rows
+            rows=tuple(r.record if isinstance(r,PreparedEconomicRecord) else r for r in rows)
+            from .runtime.operating_families import require_scope
+            for row in rows:require_scope(row.scope)
+            if len(rows)>2048:
+                raise EvidenceUnavailable('ingestion_batch_bound')
+            # Validate/serialize once on this owner command. The same exact bytes
+            # establish its physical bound and immutable rolling-store hash. This
+            # is never a cache across calls, replay, blocks or mutable payloads.
+            serialized=[];retained_bytes=0
+            for row,product in zip(rows,prepared_rows):
+                if isinstance(product,PreparedEconomicRecord):
+                    if not hasattr(self,'rolling'):raise EvidenceUnavailable('prepared_economic_store_required')
+                    prepared=product;retained_bytes+=product.original_bytes
+                else:
+                    prepared=row.serialized_body();retained_bytes+=len(prepared[1].encode())
+                if retained_bytes>16*1024*1024:raise EvidenceUnavailable('ingestion_batch_bound')
+                serialized.append(prepared)
+            from .solana_evidence_plane import require_storage
+            require_storage(self.writer.path,required_bytes=32*1024*1024)
+            hot=[];cached=[]
         with self.writer.transaction():
-            if hasattr(self,'rolling'):self.rolling.adopt(rows)
-            for row,prepared in zip(rows,serialized):
-                if hasattr(self,'rolling') and row.kind in ('event','transaction'):
-                    self.rolling.store(row,serialized=prepared)
-                    continue
-                incoming=prepared[0]
-                economic_hash=self.content_hash(incoming)
-                receipt=self.db.execute('SELECT economic_hash,transaction_index,first_seen FROM candidate_content_receipts WHERE identity=?',(row.identity,)).fetchone()
-                if receipt:
-                    if receipt[0]!=economic_hash:raise EvidenceConflict('candidate_economic_content_conflict')
-                    if receipt[1] is not None and row.transaction_index is not None and receipt[1]!=row.transaction_index:
-                        raise EvidenceConflict('candidate_native_order_conflict')
-                    # Global hot maintenance can remove a fully consumed record.
-                    # Its immutable receipt remains the original availability on
-                    # later selective reconstruction, not the new HTTP delivery.
-                    row=replace(row,observed_at=receipt[2])
-                old=self.db.execute('SELECT body,hash,first_seen,archive FROM records WHERE identity=?',(row.identity,)).fetchone()
-                previous_cache=self.db.execute('SELECT body,hash,first_seen FROM shared_history_cache WHERE identity=?',(row.identity,)).fetchone()
-                cold=(self.db.execute('SELECT body,hash,first_seen,archive FROM scoped_cold_records WHERE identity=?',(row.identity,)).fetchone()
-                      if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='scoped_cold_records'").fetchone() else None)
-                available=next((copy[2] for copy in (previous_cache,old,cold) if copy),row.observed_at)
-                self.db.execute('INSERT OR IGNORE INTO candidate_content_receipts VALUES(?,?,?,?)',
-                    (row.identity,economic_hash,row.transaction_index,available))
-                if row.transaction_index is not None:
-                    self.db.execute('UPDATE candidate_content_receipts SET transaction_index=? WHERE identity=? AND transaction_index IS NULL',
-                        (row.transaction_index,row.identity))
-                if old or previous_cache or cold:
-                    # A verified scoped cache is the current body pointer; an
-                    # older empty records row must not hide it. All durable
-                    # copies still have to agree on hash and first availability.
-                    prior=previous_cache if previous_cache and previous_cache[0] is not None else old or cold or previous_cache
-                    if any(tuple(copy[1:3])!=tuple(prior[1:3]) for copy in (old,previous_cache,cold) if copy):
-                        raise EvidenceConflict('local_evidence_hash_mismatch')
-                    if prior[0] is not None:body=decode_body(prior[0],self.db)
-                    else:
-                        body=restored.get(row.identity)
-                        if body is None and cold:
-                            from .solana_scoped_retirement import ScopedRetirement
-                            body=ScopedRetirement(self).body(row.identity)
-                        if body is None and receipt:
-                            # A selective physical refetch can restore a globally
-                            # archived body, but only as the exact old immutable
-                            # body. Native-order enrichment remains an attestation.
-                            table='records' if old else 'scoped_cold_records'
-                            original_index=self.db.execute('SELECT transaction_index FROM '+table+' WHERE identity=?',(row.identity,)).fetchone()[0]
-                            body=dict(incoming,transaction_index=original_index)
-                            if digest(body)!=prior[1]:raise EvidenceConflict('local_evidence_hash_mismatch')
-                        if body is None:raise EvidenceUnavailable('selective_archive_restore_required')
-                    if digest(body)!=prior[1]:raise EvidenceConflict('local_evidence_hash_mismatch')
-                    self._compatible(body,incoming)
+            with candidate_phase(timing,'rolling_adopt'):
+                if hasattr(self,'rolling'):self.rolling.adopt(rows)
+            with candidate_phase(timing,'economic_store'):
+                for row,prepared in zip(rows,serialized):
+                    if hasattr(self,'rolling') and row.kind in ('event','transaction'):
+                        self.rolling.store(row,serialized=prepared)
+                        continue
+                    incoming=prepared[0]
+                    economic_hash=self.content_hash(incoming)
+                    receipt=self.db.execute('SELECT economic_hash,transaction_index,first_seen FROM candidate_content_receipts WHERE identity=?',(row.identity,)).fetchone()
+                    if receipt:
+                        if receipt[0]!=economic_hash:raise EvidenceConflict('candidate_economic_content_conflict')
+                        if receipt[1] is not None and row.transaction_index is not None and receipt[1]!=row.transaction_index:
+                            raise EvidenceConflict('candidate_native_order_conflict')
+                        # Global hot maintenance can remove a fully consumed record.
+                        # Its immutable receipt remains the original availability on
+                        # later selective reconstruction, not the new HTTP delivery.
+                        row=replace(row,observed_at=receipt[2])
+                    old=self.db.execute('SELECT body,hash,first_seen,archive FROM records WHERE identity=?',(row.identity,)).fetchone()
+                    previous_cache=self.db.execute('SELECT body,hash,first_seen FROM shared_history_cache WHERE identity=?',(row.identity,)).fetchone()
+                    cold=(self.db.execute('SELECT body,hash,first_seen,archive FROM scoped_cold_records WHERE identity=?',(row.identity,)).fetchone()
+                          if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='scoped_cold_records'").fetchone() else None)
+                    available=next((copy[2] for copy in (previous_cache,old,cold) if copy),row.observed_at)
+                    self.db.execute('INSERT OR IGNORE INTO candidate_content_receipts VALUES(?,?,?,?)',
+                        (row.identity,economic_hash,row.transaction_index,available))
+                    if row.transaction_index is not None:
+                        self.db.execute('UPDATE candidate_content_receipts SET transaction_index=? WHERE identity=? AND transaction_index IS NULL',
+                            (row.transaction_index,row.identity))
+                    if old or previous_cache or cold:
+                        # A verified scoped cache is the current body pointer; an
+                        # older empty records row must not hide it. All durable
+                        # copies still have to agree on hash and first availability.
+                        prior=previous_cache if previous_cache and previous_cache[0] is not None else old or cold or previous_cache
+                        if any(tuple(copy[1:3])!=tuple(prior[1:3]) for copy in (old,previous_cache,cold) if copy):
+                            raise EvidenceConflict('local_evidence_hash_mismatch')
+                        if prior[0] is not None:body=decode_body(prior[0],self.db)
+                        else:
+                            body=restored.get(row.identity)
+                            if body is None and cold:
+                                from .solana_scoped_retirement import ScopedRetirement
+                                body=ScopedRetirement(self).body(row.identity)
+                            if body is None and receipt:
+                                # A selective physical refetch can restore a globally
+                                # archived body, but only as the exact old immutable
+                                # body. Native-order enrichment remains an attestation.
+                                table='records' if old else 'scoped_cold_records'
+                                original_index=self.db.execute('SELECT transaction_index FROM '+table+' WHERE identity=?',(row.identity,)).fetchone()[0]
+                                body=dict(incoming,transaction_index=original_index)
+                                if digest(body)!=prior[1]:raise EvidenceConflict('local_evidence_hash_mismatch')
+                            if body is None:raise EvidenceUnavailable('selective_archive_restore_required')
+                        if digest(body)!=prior[1]:raise EvidenceConflict('local_evidence_hash_mismatch')
+                        self._compatible(body,incoming)
+                        self.attest_order(row.scope,row.slot,row.signature,row.transaction_index)
+                        if old and old[0] is not None:continue
+                        cached.append((row,body,prior[2]))
+                        continue
+                    floor=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+row.scope,)).fetchone()
+                    from .solana_maintenance_state import PRESERVATION_SECONDS
+                    historical=row.market_time is not None and row.market_time<=self.clock()-PRESERVATION_SECONDS
+                    # Backfill and overlapping native replay may introduce evidence
+                    # whose market-age maintenance lease has already elapsed. Keep
+                    # its complete body in the candidate cache instead of creating
+                    # instantly overdue debt in the current global hot pipeline.
+                    # Both are part of canonical_evidence and use the same pins,
+                    # scoped retirement guards and physical storage limit.
+                    if historical or floor and row.slot<int(floor[0]):cached.append((row,incoming,row.observed_at))
+                    else:hot.append(row)
+                self.writer.ingest(hot)
+                for row,body,available in cached:
+                    raw=canonical(body)
+                    self.db.execute('''INSERT OR IGNORE INTO shared_history_cache VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)''',
+                        (row.identity,row.scope,row.slot,row.signature,row.program,row.market_time,
+                         body['event_index'],body['transaction_index'],row.kind,raw,digest(body),available))
+                    for address in body['addresses']:
+                        self.db.execute('INSERT OR IGNORE INTO cached_addresses VALUES(?,?)',(row.identity,address))
                     self.attest_order(row.scope,row.slot,row.signature,row.transaction_index)
-                    if old and old[0] is not None:continue
-                    cached.append((row,body,prior[2]))
-                    continue
-                floor=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+row.scope,)).fetchone()
-                from .solana_maintenance_state import PRESERVATION_SECONDS
-                historical=row.market_time is not None and row.market_time<=self.clock()-PRESERVATION_SECONDS
-                # Backfill and overlapping native replay may introduce evidence
-                # whose market-age maintenance lease has already elapsed. Keep
-                # its complete body in the candidate cache instead of creating
-                # instantly overdue debt in the current global hot pipeline.
-                # Both are part of canonical_evidence and use the same pins,
-                # scoped retirement guards and physical storage limit.
-                if historical or floor and row.slot<int(floor[0]):cached.append((row,incoming,row.observed_at))
-                else:hot.append(row)
-            self.writer.ingest(hot)
-            for row,body,available in cached:
-                raw=canonical(body)
-                self.db.execute('''INSERT OR IGNORE INTO shared_history_cache VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)''',
-                    (row.identity,row.scope,row.slot,row.signature,row.program,row.market_time,
-                     body['event_index'],body['transaction_index'],row.kind,raw,digest(body),available))
-                for address in body['addresses']:
-                    self.db.execute('INSERT OR IGNORE INTO cached_addresses VALUES(?,?)',(row.identity,address))
-                self.attest_order(row.scope,row.slot,row.signature,row.transaction_index)
-            for row in rows:
-                if row.kind=='event':
-                    available=self.db.execute('SELECT first_seen FROM canonical_evidence WHERE identity=?',(row.identity,)).fetchone()[0]
-                    # A distinct monotonic namespace preserves a consumer's old
-                    # records-rowid checkpoint across this one-way cutover.
-                    self.db.execute('''INSERT OR IGNORE INTO candidate_outbox
-                        SELECT COALESCE(MAX(sequence)+1,4611686018427387904),?,?,?,?
-                        FROM candidate_outbox''',(row.identity,row.scope,row.slot,available))
-            if hasattr(self,'lifecycle'):self.lifecycle.queue_records(rows)
+            with candidate_phase(timing,'delivery_outbox'):
+                for row in rows:
+                    if row.kind=='event':
+                        available=self.db.execute('SELECT first_seen FROM canonical_evidence WHERE identity=?',(row.identity,)).fetchone()[0]
+                        # A distinct monotonic namespace preserves a consumer's old
+                        # records-rowid checkpoint across this one-way cutover.
+                        self.db.execute('''INSERT OR IGNORE INTO candidate_outbox
+                            SELECT COALESCE(MAX(sequence)+1,4611686018427387904),?,?,?,?
+                            FROM candidate_outbox''',(row.identity,row.scope,row.slot,available))
+                if hasattr(self,'lifecycle'):self.lifecycle.queue_records(rows)
             # Retain the owner's same physical storage reservation and the
             # explicit file cap for offline/bounded synthetic stores.
-            if self.writer.hot_capacity_exceeded():
-                raise EvidenceUnavailable('hot_store_capacity')
+            with candidate_phase(timing,'ingest_setup'):
+                if self.writer.hot_capacity_exceeded():
+                    raise EvidenceUnavailable('hot_store_capacity')
 
     @staticmethod
     def content_hash(body):

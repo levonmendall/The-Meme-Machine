@@ -151,9 +151,12 @@ class DiagnosticCollectionTests(unittest.TestCase):
         sample = diagnostic.pipeline_sample(self.root, 44)
         self.assertTrue(sample['available'])
         self.assertEqual(sample['generation'], 'gen-1')
-        self.assertEqual(len(sample['pending_outbox_head']), 32)
+        self.assertEqual(len(sample['pending_outbox_head']), 1)
+        self.assertEqual(sample['pending_outbox_head'][0][0], '0')
+        self.assertEqual(sample['outbox_head_scope'], 'OLDEST_ONE_ALL_RETAINED_FAMILIES_NOT_REQUIRED_PUMP_HISTORY')
         self.assertEqual(sample['history_deadline_heads']['pending'], ('job', 20, 10))
-        self.assertEqual(sample['service_health']['ipc']['pipeline']['evidence_timing:rolling']['calls'], 10)
+        self.assertNotIn('ipc', sample['service_health'])
+        self.assertEqual(sample['ipc_scope'], 'EXPLICIT_REQUIRED_COUNTERS_ONLY_NOT_DUPLICATED_DESCRIPTIVE_IPC')
         self.assertEqual(sample['required_counters']['ipc_pipeline']['evidence_timing:rolling']['calls'], 10)
         self.assertEqual(sample['missing_edges']['sql_wait_actor'], 'UNAVAILABLE')
         with sqlite3.connect(self.path) as db:
@@ -207,8 +210,13 @@ class DiagnosticCollectionTests(unittest.TestCase):
         self.assertEqual(collect.call_count, 2)
 
     def test_retained_payload_shape_fits_output_at_corrected_cadence(self):
-        # Retained late-shutdown shape, not a guarantee of active/future size.
-        base_bytes, cohort_bytes = 22426, 19642
+        # O7's largest retained complete shape, transformed with the current
+        # fixed phases, sixteen thread rows/inventories and large counters.
+        # Not a universal future-size guarantee: the live output guard and
+        # independent terminal reserve remain necessary. Duplicate IPC/owner
+        # copies and thirty-one unrelated old outbox headers are omitted;
+        # all thirty-two canonical receipt/ACK cohort members remain.
+        base_bytes, cohort_bytes = 59812, 27573
         sampler = diagnostic.FiveSecondSampler(); full_count = 0; guard_count = 0
         for now in range(1800):
             _, due = sampler.read(now, lambda: {'collected_at_monotonic': now})
@@ -273,6 +281,57 @@ class DiagnosticCollectionTests(unittest.TestCase):
             result=diagnostic.counters(Path('/mock'),{'solana':44},dict(owner_pid=99,native_thread_id=55))
             self.assertEqual(result['owner_thread_schedstat'],'UNAVAILABLE_OWNER_IDENTITY_MISMATCH')
             self.assertFalse(any('/proc/99/' in str(c.args[0]) for c in reads.call_args_list))
+
+    def test_pons_thread_sample_is_owned_identity_bound_and_keeps_collection_clock(self):
+        proc = self.root / 'proc'; task = proc / '44' / 'task'
+        fields = ['0'] * 45; fields[0] = 'S'; fields[11] = '7'; fields[12] = '3'; fields[19] = '900'
+        (proc / '44').mkdir(parents=True)
+        (proc / '44' / 'stat').write_text('44 (python) ' + ' '.join(fields))
+        for tid in (44, 55):
+            folder = task / str(tid); folder.mkdir(parents=True)
+            (folder / 'stat').write_text(str(tid) + ' (python) ' + ' '.join(fields))
+            (folder / 'schedstat').write_text('1000 2000 3')
+            (folder / 'io').write_text('rchar: 400\nsyscr: 20\nread_bytes: 0\nwrite_bytes: 8\n')
+            (folder / 'wchan').write_text('futex_wait_queue\n')
+        inventory = dict(pid=44, collected_at_monotonic=95, truncated=False,
+            threads=[dict(native_thread_id=44, role='main'),
+                     dict(native_thread_id=55, role='pons-discovery')])
+        with patch.object(diagnostic.time, 'monotonic', return_value=100):
+            result = diagnostic.pons_thread_counters(44, [44], inventory, proc=proc)
+        self.assertTrue(result['available']); self.assertEqual(result['process_start_ticks'], 900)
+        self.assertEqual(result['inventory']['collected_at_monotonic'], 95)
+        self.assertEqual(result['threads'][1]['role'], 'pons-discovery')
+        self.assertEqual(result['threads'][1]['io']['rchar'], 400)
+        self.assertEqual(result['threads'][1]['runnable_wait_ns'], 2000)
+        self.assertEqual(result['threads'][1]['start_ticks'], 900)
+        with patch.object(diagnostic.os, 'scandir') as scan:
+            rejected = diagnostic.pons_thread_counters(44, [99], inventory, proc=proc)
+        self.assertFalse(rejected['available']); scan.assert_not_called()
+        with patch.object(diagnostic.time, 'monotonic', return_value=111):
+            stale = diagnostic.pons_thread_counters(44, [44], inventory, proc=proc)
+        self.assertFalse(stale['inventory']['available'])
+        self.assertEqual(stale['inventory']['collected_at_monotonic'], 95)
+        self.assertTrue(all(row['role'] == 'UNAVAILABLE' for row in stale['threads']))
+
+    def test_pons_thread_sample_truncation_disappearance_and_pid_reuse_are_explicit(self):
+        proc = self.root / 'proc'; folder = proc / '44'; folder.mkdir(parents=True)
+        fields = ['0'] * 45; fields[0] = 'R'; fields[19] = '900'
+        raw = '44 (python) ' + ' '.join(fields)
+        (folder / 'stat').write_text(raw)
+        for tid in range(44, 62):(folder / 'task' / str(tid)).mkdir(parents=True)
+        # Threads disappear between enumeration and individual counter reads.
+        result = diagnostic.pons_thread_counters(44, [44], None, proc=proc)
+        self.assertTrue(result['available']); self.assertTrue(result['truncated'])
+        self.assertEqual(result['observed_thread_count_lower_bound'], 17)
+        self.assertEqual(len(result['threads']), 16)
+        self.assertTrue(all(row['available'] is False for row in result['threads']))
+        changed = list(fields); changed[19] = '901'
+        with patch.object(diagnostic, 'bounded_text', side_effect=[raw, '44 (python) ' + ' '.join(changed)]), \
+                patch.object(diagnostic.os, 'scandir') as entries:
+            entries.return_value.__enter__.return_value = iter(())
+            result = diagnostic.pons_thread_counters(44, [44], None, proc=proc)
+        self.assertFalse(result['available']); self.assertEqual(result['reason'], 'PONS_PROCESS_IDENTITY_CHANGED')
+        self.assertEqual(result['threads'], [])
 
     def test_completed_owner_identity_and_slow_ring_survive_required_serialization(self):
         row=dict(stage='maintenance_decision',component='NONE',origin_module='meme_machine.solana_evidence_service',
@@ -385,7 +444,13 @@ class DiagnosticCollectionTests(unittest.TestCase):
                     'checkpoint.boundary_total_microseconds': 3456,
                     'secret_url': 'https://secret.invalid/?apikey=never-copy',
                     'pipeline': {'economic_prepared:rolling': {'calls': 7, 'records': 11,
-                        'cpu_seconds_total_microseconds': 4567},
+                        'cpu_seconds_total_microseconds': 4567, 'wall_seconds_total_microseconds': 5000},
+                        'candidate_phase:economic_store': {'calls': 8, 'failed_calls': 1,
+                            'wall_seconds_total_microseconds': 11000,
+                            'cpu_seconds_total_microseconds': 9000,
+                            'runnable_wait_seconds_total_microseconds': 1000,
+                            'runnable_measured_calls': 7, 'runnable_unavailable_calls': 1,
+                            'unmeasured_calls': 0, 'secret': 'do-not-copy'},
                         'evidence_timing:rolling': {'calls': 13, 'latest_slot': 101,
                             'owner_queue_total_microseconds': 5678},
                         'arbitrary-address-key': {'calls': 999}}})
@@ -400,11 +465,18 @@ class DiagnosticCollectionTests(unittest.TestCase):
             db.execute("UPDATE service_health SET value=? WHERE key='owner_scheduler'", (json.dumps(owner),))
             db.execute('INSERT INTO service_health VALUES(?,?)', ('storage_maintenance', json.dumps(storage)))
         sample = diagnostic.pipeline_sample(self.root, 44)
-        self.assertNotIn('pipeline', sample['service_health']['ipc'])  # Original clip still applies.
+        self.assertNotIn('ipc', sample['service_health'])  # Fixed fields retained once, before clipping.
         output = self.root / 'metrics.jsonl'
         diagnostic.append_sample(output, {'sample_kind': 'full', 'pipeline': sample})
         retained = json.loads(output.read_text())['pipeline']['required_counters']
         self.assertEqual(retained['ipc_pipeline']['economic_prepared:rolling']['records'], 11)
+        self.assertEqual(retained['ipc_pipeline']['economic_prepared:rolling']['wall_seconds_total_microseconds'], 5000)
+        phases = retained['ipc_pipeline']['candidate_phase:economic_store']
+        self.assertEqual(phases['wall_seconds_total_microseconds'], 11000)
+        self.assertEqual(phases['runnable_wait_seconds_total_microseconds'], 1000)
+        self.assertEqual(phases['failed_calls'], 1)
+        self.assertEqual(phases['runnable_unavailable_calls'], 1)
+        self.assertNotIn('secret', phases)
         self.assertEqual(retained['ipc_pipeline']['evidence_timing:rolling']['latest_slot'], 101)
         self.assertEqual(retained['ipc_aggregate']['checkpoint.boundary_total_microseconds'], 3456)
         self.assertEqual(retained['owner_sql_transactions']['commit.calls'], 19)
@@ -445,7 +517,7 @@ class DiagnosticCollectionTests(unittest.TestCase):
                 (json.dumps({'owner_admission':{'generation':'a'*32}}),))
         with patch.object(diagnostic.time,'monotonic',return_value=12):
             result=diagnostic.pipeline_sample(self.root,44)
-        self.assertNotIn('join_state',result['service_health']['ipc'])
+        self.assertNotIn('ipc',result['service_health'])
         output=self.root/'join-metrics.jsonl';diagnostic.append_sample(output,result)
         row=json.loads(output.read_text())['required_counters']['native_join_state']['rolling']
         self.assertEqual(row['status'],'SAMPLED_CURRENT_NOT_COVERAGE')

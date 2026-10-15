@@ -20,6 +20,7 @@ from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosed
 from .solana_activity_routes import ActivityRoutes,shards
 from .solana_candidate_join import CandidateTransactionJoin,candidate_subscription,MAX_PENDING_BYTES
+from .solana_candidate_phases import CandidatePhases,phase as candidate_phase
 from .solana_native_evidence import economic_transaction,pubkey,signature
 from .solana_evidence_plane import EvidenceUnavailable,IntervalProof,digest,canonical
 from .solana_evidence_transport import Subscription
@@ -219,64 +220,69 @@ def skipped_prefix(history,scope,frame):
         method='native_finalized_parent_proves_no_block_in_replay_prefix',native_order=True)
     history.lifecycle.defer_proof(IntervalProof(scope,lo,b.slot-1,'alchemy_finalized_stream',history.endpoint_identity,witness,frame.seen))
 
-def commit_candidates(state,frame,addresses,session,*,publish=True,prepared=None):
-    history=install(state);b=frame.update.block;seen=frame.seen
-    if prepared is not None:
-        from .solana_economic_preparation import PreparedCandidateFrame,coordinates
-        if (not isinstance(prepared,PreparedCandidateFrame) or prepared.coordinates!=
-                coordinates(frame,addresses,session,history.endpoint_identity)):
-            raise EvidenceUnavailable('candidate_preparation_source_changed')
-        rows=prepared.rows;censuses=prepared.censuses
-    else:
-        bodies={signature(tx.signature):economic_transaction(tx,slot=b.slot,
-            block_time=b.block_time.timestamp,rich=True) for tx in b.transactions}
-        bodies.update({tx['transaction']['signatures'][0]:tx for tx in frame.log_transactions})
-        rows={};censuses={scope:[] for scope in addresses.values()}
-    reverse={scope:address for address,scope in addresses.items()}
-    for scope in addresses.values():
-        old=state.writer.db.execute('SELECT slot,hash,session FROM candidate_blocks WHERE scope=?',(scope,)).fetchone()
-        if old and old[2]==session and b.slot>old[0] and (old[0]!=b.parent_slot or old[1]!=b.parent_blockhash):
-            # A discontinuity receipt must survive the aborted source frame.
-            history.gap(scope,old[0],b.slot-1,'candidate_native_parent_gap')
-            raise EvidenceUnavailable('candidate_native_parent_gap')
+def commit_candidates(state,frame,addresses,session,*,publish=True,prepared=None,timing=None):
+    with candidate_phase(timing,'validate'):
+        history=install(state);b=frame.update.block;seen=frame.seen
+        if prepared is not None:
+            from .solana_economic_preparation import PreparedCandidateFrame,coordinates
+            if (not isinstance(prepared,PreparedCandidateFrame) or prepared.coordinates!=
+                    coordinates(frame,addresses,session,history.endpoint_identity)):
+                raise EvidenceUnavailable('candidate_preparation_source_changed')
+            rows=prepared.rows;censuses=prepared.censuses
+        else:
+            bodies={signature(tx.signature):economic_transaction(tx,slot=b.slot,
+                block_time=b.block_time.timestamp,rich=True) for tx in b.transactions}
+            bodies.update({tx['transaction']['signatures'][0]:tx for tx in frame.log_transactions})
+            rows={};censuses={scope:[] for scope in addresses.values()}
+        reverse={scope:address for address,scope in addresses.items()}
+        for scope in addresses.values():
+            old=state.writer.db.execute('SELECT slot,hash,session FROM candidate_blocks WHERE scope=?',(scope,)).fetchone()
+            if old and old[2]==session and b.slot>old[0] and (old[0]!=b.parent_slot or old[1]!=b.parent_blockhash):
+                # A discontinuity receipt must survive the aborted source frame.
+                history.gap(scope,old[0],b.slot-1,'candidate_native_parent_gap')
+                raise EvidenceUnavailable('candidate_native_parent_gap')
     with state.writer.source_frame():
         if prepared is None:
-            for sig,index,scopes,error,available in frame.candidate_statuses:
-                for scope in scopes:
-                    address=reverse[scope];family=scope.split(':',2)[1]
-                    censuses[scope].append([sig,index,error])
-                    if error is not None:continue # failed attempts have no committed economic events
-                    tx=bodies.get(sig)
-                    if tx is None:raise EvidenceUnavailable('candidate_required_content_missing')
-                    for row in economic_records(family,address,tx,endpoint_identity=history.endpoint_identity,
-                                                 seen=available,source='alchemy_finalized_stream'):
-                        previous=rows.get(row.identity)
-                        if previous and previous.body()!=row.body():raise EvidenceUnavailable('candidate_economic_content_conflict')
-                        rows[row.identity]=row
-        history.ingest(rows if prepared is not None else rows.values())
-        for scope,census in censuses.items():
-            old=state.writer.db.execute('SELECT slot,parent,hash,previous_hash,market_time,seen,session,census_hash FROM candidate_blocks WHERE scope=?',(scope,)).fetchone()
-            census_hash=digest(census) if prepared is None else prepared.census_hashes[scope]
-            values=(b.slot,b.parent_slot,b.blockhash,b.parent_blockhash,b.block_time.timestamp,seen,session,census_hash)
-            if old and b.slot<=old[0]:
-                if b.slot==old[0] and (old[1:5],old[7])!=(values[1:5],values[7]):raise EvidenceUnavailable('candidate_replay_receipt_conflict')
-                if old[6]==session:continue
-                # The current session's actual replay receipt may precede the
-                # previous session's last block. Its own next linked child is
-                # required before this interval can be republished. Canonical
-                # event availability and historical checkpoints stay unchanged.
-            if old is None:skipped_prefix(history,scope,frame)
-            if old and old[6]==session:
-                witness=dict(finalized=True,complete=True,scope=scope,lower_slot=old[0],upper_slot=b.slot-1,
-                    lineage_hash=digest([scope,list(old),list(values)]),
-                    method='candidate_filtered_native_status_and_verified_content_with_linked_child',
-                    native_order=True,transaction_bodies_only_for_meteora=True)
-                history.lifecycle.defer_proof(IntervalProof(scope,old[0],b.slot-1,'alchemy_finalized_stream',history.endpoint_identity,witness,seen))
-            state.writer.db.execute('INSERT OR REPLACE INTO candidate_blocks VALUES(?,?,?,?,?,?,?,?,?)',(scope,*values))
+            with candidate_phase(timing,'validate'):
+                for sig,index,scopes,error,available in frame.candidate_statuses:
+                    for scope in scopes:
+                        address=reverse[scope];family=scope.split(':',2)[1]
+                        censuses[scope].append([sig,index,error])
+                        if error is not None:continue # failed attempts have no committed economic events
+                        tx=bodies.get(sig)
+                        if tx is None:raise EvidenceUnavailable('candidate_required_content_missing')
+                        for row in economic_records(family,address,tx,endpoint_identity=history.endpoint_identity,
+                                                     seen=available,source='alchemy_finalized_stream'):
+                            previous=rows.get(row.identity)
+                            if previous and previous.body()!=row.body():raise EvidenceUnavailable('candidate_economic_content_conflict')
+                            rows[row.identity]=row
+        material=rows if prepared is not None else rows.values()
+        if timing is None:history.ingest(material)
+        else:history.ingest(material,timing=timing)
+        with candidate_phase(timing,'coverage_receipt'):
+            for scope,census in censuses.items():
+                old=state.writer.db.execute('SELECT slot,parent,hash,previous_hash,market_time,seen,session,census_hash FROM candidate_blocks WHERE scope=?',(scope,)).fetchone()
+                census_hash=digest(census) if prepared is None else prepared.census_hashes[scope]
+                values=(b.slot,b.parent_slot,b.blockhash,b.parent_blockhash,b.block_time.timestamp,seen,session,census_hash)
+                if old and b.slot<=old[0]:
+                    if b.slot==old[0] and (old[1:5],old[7])!=(values[1:5],values[7]):raise EvidenceUnavailable('candidate_replay_receipt_conflict')
+                    if old[6]==session:continue
+                    # The current session's actual replay receipt may precede the
+                    # previous session's last block. Its own next linked child is
+                    # required before this interval can be republished. Canonical
+                    # event availability and historical checkpoints stay unchanged.
+                if old is None:skipped_prefix(history,scope,frame)
+                if old and old[6]==session:
+                    witness=dict(finalized=True,complete=True,scope=scope,lower_slot=old[0],upper_slot=b.slot-1,
+                        lineage_hash=digest([scope,list(old),list(values)]),
+                        method='candidate_filtered_native_status_and_verified_content_with_linked_child',
+                        native_order=True,transaction_bodies_only_for_meteora=True)
+                    history.lifecycle.defer_proof(IntervalProof(scope,old[0],b.slot-1,'alchemy_finalized_stream',history.endpoint_identity,witness,seen))
+                state.writer.db.execute('INSERT OR REPLACE INTO candidate_blocks VALUES(?,?,?,?,?,?,?,?,?)',(scope,*values))
     if publish:history.lifecycle.publish()
 
 
-def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publish=True,prepared=None):
+def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publish=True,prepared=None,timing=None):
     """The original ordered frames, under one atomic durable owner command."""
     if not 0<len(frames)<=CANDIDATE_COMMIT_BATCH:
         raise EvidenceUnavailable('candidate_commit_batch_bound')
@@ -284,11 +290,12 @@ def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publis
     if prepared is not None and (grouped or len(prepared)!=len(frames)):
         raise EvidenceUnavailable('candidate_preparation_batch_shape')
     try:
-        with state.writer.transaction():
+        transaction=state.writer.transaction()
+        with (transaction if timing is None else timing.transaction_exit(transaction)):
             for index,frame in enumerate(frames):
                 if grouped:commit_rolling_group(state,frame,addresses,session,publish=False)
                 else:commit_candidates(state,frame,addresses,session,publish=False,
-                    prepared=None if prepared is None else prepared[index])
+                    prepared=None if prepared is None else prepared[index],timing=timing)
     except Exception:
         # A discontinuity inside the enclosing batch rolls back with it.
         # Retain its unavailable interval outside that rollback, before retry.
@@ -476,6 +483,7 @@ class SelectiveSource:
         self.join_observed={}
         self.join_state={};self.diagnostic_generation=None
         self.pipeline_metrics={}
+        self.candidate_phases=CandidatePhases(self.pipeline_metrics)
         self.rolling_publications=0
         self.control_bootstrap_tip=None;self.control_committed_slot=None
         self.control_committed_market_time=None
@@ -553,7 +561,7 @@ class SelectiveSource:
                 return b-a if type(a) in (int,float) and type(b) in (int,float) else None
             durations={}
             if kind=='decode_timing':durations={'decode':values.get('seconds'),'decode_cpu':values.get('cpu_seconds')}
-            elif kind=='economic_prepared':durations={k:values.get(k) for k in ('cpu_seconds','transfer_and_wait_seconds')}
+            elif kind=='economic_prepared':durations={k:values.get(k) for k in ('cpu_seconds','wall_seconds','transfer_and_wait_seconds')}
             elif kind=='history_delivery_timing':durations={k:values.get(k) for k in ('wall_seconds','cpu_seconds')}
             elif kind=='publication_timing':
                 durations={'owner_queue':interval('work_ready_monotonic','owner_claim_monotonic'),
@@ -775,7 +783,7 @@ class SelectiveSource:
             def durable(state):
                 claimed.append(time.monotonic())
                 commit_candidate_batch(state,frames,addresses,session,
-                    grouped=grouped,publish=not self.batched,prepared=prepared)
+                    grouped=grouped,publish=not self.batched,prepared=prepared,timing=self.candidate_phases)
                 if rolling and not native_announced:
                     install(state).startup.native([s.split(':',2)[1] for s in addresses.values()])
                 claimed.append(time.monotonic());finished_wall.append(time.time())

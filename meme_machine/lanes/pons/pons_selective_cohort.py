@@ -887,10 +887,10 @@ def run(endpoint,*,campaign=False):
     startup_context=SelectiveEvidenceContext(endpoint,cache=durable_cache(queue.plane,domain))
     startup_enabled=campaign and (saved is None or queue.plane.checkpoint_read('pons_current_startup') is not None)
     startup_head=None
-    hydration_pool=ThreadPoolExecutor(max_workers=1)
+    hydration_pool=ThreadPoolExecutor(max_workers=1,thread_name_prefix='pons-hydration')
     # One live-discovery slot and one bounded startup slot; both retain the
     # existing physical governor. Neither waits for the other's provider work.
-    discovery_pool=ThreadPoolExecutor(max_workers=2)
+    discovery_pool=ThreadPoolExecutor(max_workers=2,thread_name_prefix='pons-discovery')
     discovery_future=None
     priming_future=None
     priming_resume_at=0.

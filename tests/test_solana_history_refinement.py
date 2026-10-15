@@ -16,13 +16,14 @@ from unittest.mock import patch
 from tests.test_solana_closure import NOW,state_at
 from tests.test_solana_selective_evidence import FIXTURE
 from meme_machine.solana_candidate_join import YellowstoneTransactionFrame
+from meme_machine.solana_candidate_phases import CandidatePhases,PHASES
 from meme_machine.solana_economic_preparation import prepare_candidate_frames,prepare_economic_record
 from meme_machine.solana_evidence_plane import EvidenceUnavailable,EvidenceConflict,IntervalProof,digest
 from meme_machine.solana_history_delivery import capture,deliver,acknowledge
 from meme_machine.solana_history_notifications import WorkPulse,install as notifications
 from meme_machine.solana_rolling_history import program_scope
 from meme_machine.solana_selective_history import PROGRAMS,economic_records
-from meme_machine.solana_selective_source import SelectiveSource,commit_candidates,CandidateCommitQueue
+from meme_machine.solana_selective_source import SelectiveSource,commit_candidates,commit_candidate_batch,CandidateCommitQueue
 from meme_machine.yellowstone import geyser_pb2 as pb
 
 
@@ -41,6 +42,94 @@ class PreparationTests(unittest.TestCase):
         self.state,self.h=state_at(Path(self.tmp.name)/'canonical.sqlite')
         self.addCleanup(self.state.writer.close)
     def addresses(self,family):return {PROGRAMS[family]:program_scope(family)}
+    def test_fixed_phases_preserve_economic_bytes_and_transaction_statement_order(self):
+        from itertools import count
+        other,h=state_at(Path(self.tmp.name)/'phase-comparison.sqlite')
+        original=[];measured=[];pipeline={}
+        runnable=count(0,1000)
+        timing=CandidatePhases(pipeline,wall=count(0,.1).__next__,cpu=count(0,.01).__next__,
+            runnable=lambda:(1,2,next(runnable)))
+        keys={name:set(row) for name,row in pipeline.items()}
+        f=frame(FIXTURE['pump'][0],'pump');addresses=self.addresses('pump')
+        products,_=prepare_candidate_frames((f,),addresses,'phase-session','a'*64)
+        def trace(target):return lambda sql:target.append(sql.lstrip().split(None,1)[0])
+        try:
+            other.writer.db.set_trace_callback(trace(original))
+            commit_candidate_batch(other,(f,),addresses,'phase-session',publish=False,prepared=products)
+            self.state.writer.db.set_trace_callback(trace(measured))
+            commit_candidate_batch(self.state,(f,),addresses,'phase-session',publish=False,
+                prepared=products,timing=timing)
+            self.assertEqual(measured,original)
+            for table,order in (('rolling_economic_events','identity'),('rolling_economic_addresses','identity,address'),
+                    ('candidate_content_receipts','identity'),('rolling_event_lineage','identity'),
+                    ('candidate_lifecycle','family,address'),('candidate_history_outbox','id'),
+                    ('candidate_outbox','sequence'),('native_order_attestations','scope,slot,signature'),
+                    ('candidate_blocks','scope')):
+                self.assertEqual(self.h.db.execute('SELECT * FROM '+table+' ORDER BY '+order).fetchall(),
+                    h.db.execute('SELECT * FROM '+table+' ORDER BY '+order).fetchall(),table)
+            self.assertEqual({name:set(row) for name,row in pipeline.items()},keys)
+            self.assertEqual(set(timing.rows),set(PHASES))
+            for name,row in timing.rows.items():
+                self.assertEqual(row['calls'],2 if name=='ingest_setup' else 1,name)
+                self.assertEqual(row['failed_calls'],0,name)
+                self.assertEqual(row['unmeasured_calls'],0,name)
+                self.assertEqual(row['runnable_measured_calls'],row['calls'],name)
+                self.assertEqual(row['runnable_unavailable_calls'],0,name)
+                self.assertGreater(row['wall_seconds_total_microseconds'],0,name)
+                self.assertGreater(row['cpu_seconds_total_microseconds'],0,name)
+                self.assertEqual(row['runnable_wait_seconds_total_microseconds'],row['calls'],name)
+        finally:other.writer.close()
+
+    def test_phase_failures_preserve_original_rollback_and_retry_obligations(self):
+        pipeline={};timing=CandidatePhases(pipeline,runnable=lambda:None)
+        f=frame(FIXTURE['pump'][0],'pump');addresses=self.addresses('pump')
+        products,_=prepare_candidate_frames((f,),addresses,'phase-failure','a'*64)
+        original=sqlite3.OperationalError('offline_original_store_failure')
+        with patch.object(self.h.rolling,'store',side_effect=original):
+            with self.assertRaises(sqlite3.OperationalError) as caught:
+                commit_candidate_batch(self.state,(f,),addresses,'phase-failure',publish=False,
+                    prepared=products,timing=timing)
+        self.assertIs(caught.exception,original)
+        for table in ('rolling_economic_events','candidate_outbox','candidate_blocks'):
+            self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM '+table).fetchone()[0],0)
+        self.assertEqual(self.h.db.execute('SELECT reason FROM candidate_gaps').fetchone()[0],
+            'candidate_native_batch_failed')
+        self.assertEqual(timing.rows['economic_store']['failed_calls'],1)
+        self.assertEqual(timing.rows['batch_commit']['calls'],1) # Original transaction rollback exit.
+        self.assertEqual(timing.rows['economic_store']['runnable_unavailable_calls'],1)
+        commit_candidate_batch(self.state,(f,),addresses,'phase-failure',publish=False,
+            prepared=products,timing=timing)
+        self.assertGreater(self.h.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+        self.assertGreater(self.h.db.execute('SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0],0)
+        self.assertEqual(timing.rows['economic_store']['calls'],2)
+        self.assertEqual(timing.rows['economic_store']['failed_calls'],1)
+
+    def test_phase_probe_loss_and_transaction_exit_preserve_original_exceptions(self):
+        from itertools import count
+        values=iter(((1,2,1000),(1,3,2000)))
+        timing=CandidatePhases({},wall=count(0,.1).__next__,cpu=count(0,.01).__next__,
+            runnable=lambda:next(values))
+        with timing.phase('validate'):pass
+        self.assertEqual(timing.rows['validate']['runnable_unavailable_calls'],1)
+        self.assertEqual(timing.rows['validate']['runnable_measured_calls'],0)
+        original=sqlite3.OperationalError('offline_original_commit_failure')
+        class Transaction:
+            def __enter__(self):return 'original-token'
+            def __exit__(self,*error):raise original
+        def failed_probe():raise OSError('offline_clock_probe')
+        timing=CandidatePhases({},wall=failed_probe,runnable=failed_probe)
+        with self.assertRaises(sqlite3.OperationalError) as caught:
+            with timing.transaction_exit(Transaction()) as token:self.assertEqual(token,'original-token')
+        self.assertIs(caught.exception,original)
+        self.assertEqual(timing.rows['batch_commit']['calls'],1)
+        self.assertEqual(timing.rows['batch_commit']['failed_calls'],1)
+        self.assertEqual(timing.rows['batch_commit']['unmeasured_calls'],1)
+        self.assertEqual(timing.rows['batch_commit']['runnable_unavailable_calls'],1)
+        before=set(timing.rows)
+        with self.assertRaisesRegex(ValueError,'candidate_phase_identity'):
+            with timing.phase('arbitrary_record_identity'):pass
+        self.assertEqual(set(timing.rows),before)
+
     def test_prepared_owner_path_preserves_all_economic_and_delivery_bytes(self):
         other,h=state_at(Path(self.tmp.name)/'comparison.sqlite')
         try:
@@ -143,6 +232,8 @@ class WakeupTests(unittest.IsolatedAsyncioTestCase):
             await self.source.candidate_commits(q,addresses,'small',priority=2)
         self.assertEqual(q.count,0)
         self.assertEqual(captured[-1][1]['preparation']['mode'],'off_owner_inline')
+        self.assertGreaterEqual(self.source.pipeline_metrics['economic_prepared:candidate']['wall_seconds_total_microseconds'],0)
+        self.assertEqual(self.source.pipeline_metrics['candidate_phase:economic_store']['calls'],1)
         pool=ThreadPoolExecutor(max_workers=1);self.source.preparation_executor=pool
         try:
             q=CandidateCommitQueue();await q.put(f)
@@ -150,6 +241,58 @@ class WakeupTests(unittest.IsolatedAsyncioTestCase):
                 await self.source.candidate_commits(q,addresses,'protective',priority=0)
             self.assertEqual(captured[-1][1]['preparation']['mode'],'existing_process_pool')
         finally:await asyncio.to_thread(pool.shutdown,wait=True)
+
+    async def test_phase_completion_survives_canceled_actual_owner_waiter(self):
+        from meme_machine.solana_evidence_control import PriorityOwner
+        from meme_machine.solana_candidate_phases import runnable_snapshot
+        entered=threading.Event();release=threading.Event();accepted=[];native={};sampled=[]
+        def factory():
+            state,h=state_at(Path(self.tmp.name)/'native-owner.sqlite')
+            state.close=state.writer.close;native['history']=h
+            return state
+        owner=PriorityOwner(factory)
+        await asyncio.wrap_future(owner.ready)
+        async def work(fn,priority=2,**options):
+            future=owner.submit(fn,priority=priority);accepted.append(future)
+            return await asyncio.shield(asyncio.wrap_future(future))
+        self.source.work=work;self.source.history_separated=True;self.source.batched=True
+        self.source.stop.set()
+        def sampled_scheduler():
+            sampled.append(threading.get_native_id())
+            return runnable_snapshot()
+        self.source.candidate_phases.runnable=sampled_scheduler
+        original=native['history'].rolling.store
+        def held_store(*args,**kwargs):
+            if not entered.is_set():
+                entered.set()
+                if not release.wait(2):raise RuntimeError('offline_owner_release_missing')
+            return original(*args,**kwargs)
+        f=frame(FIXTURE['pump'][0],'pump');q=CandidateCommitQueue();await q.put(f)
+        addresses={PROGRAMS['pump']:program_scope('pump')}
+        task=None
+        try:
+            with patch.object(native['history'].rolling,'store',held_store):
+                task=asyncio.create_task(self.source.candidate_commits(q,addresses,'canceled-phase'))
+                self.assertTrue(await asyncio.to_thread(entered.wait,1))
+                task.cancel()
+                with self.assertRaises(asyncio.CancelledError):await task
+                self.assertFalse(accepted[0].done())
+                self.assertEqual(self.source.pipeline_metrics['candidate_phase:economic_store']['calls'],0)
+                release.set();await asyncio.wrap_future(accepted[0])
+            row=self.source.pipeline_metrics['candidate_phase:economic_store']
+            self.assertEqual(row['calls'],1);self.assertEqual(row['failed_calls'],0)
+            self.assertEqual(set(sampled),{owner.telemetry()['native_thread_id']})
+            pending=await asyncio.wrap_future(owner.submit(lambda state:state.writer.db.execute(
+                'SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0]))
+            self.assertGreater(pending,0)
+            self.assertEqual(q.count,1) # Canceled consumer never acknowledges its in-memory batch.
+        finally:
+            release.set()
+            if task is not None and not task.done():
+                task.cancel()
+                try:await task
+                except asyncio.CancelledError:pass
+            await asyncio.to_thread(owner.close)
     async def test_preparation_failure_retains_witness_without_advancing_evidence(self):
         self.source.history_separated=True;self.source.batched=True;self.source.stop.set()
         f=frame(FIXTURE['pump'][0],'pump');q=CandidateCommitQueue();await q.put(f)

@@ -248,10 +248,17 @@ COHORT_AUTHORITY_DELTAS={
         )),
     'meme_machine/lanes/pons/pons_selective_cohort.py': (
         '01340dc4a2f0994f3c6508f8ab7d8e8e6f25a1a33b4e568b3013418793a34203',
-        '441b41802e0351976b97982549691a718934f09f29aba69a0fe2f07a10a0d0e5',
+        'c02656621b57e3c3a2533f79249d012c20ecddbfaf686c21683e989eded3aec8',
         ((b'    recovered=(recover_cohort(plane_path(ROOT/"candidate-evidence.sqlite"),POLICY_HASH) if occupied else None)\n',
           b'    recovered=(recover_cohort(plane_path(ROOT/"candidate-evidence.sqlite"),POLICY_HASH,\n'
-          b"        capital_path=ROOT/'pons-selective-cohort-capital.sqlite') if occupied else None)\n"),)),
+          b"        capital_path=ROOT/'pons-selective-cohort-capital.sqlite') if occupied else None)\n"),
+         # Diagnostic executor names only: identical worker counts, functions,
+         # deadlines and economic behavior. Reverse these exact bytes before
+         # applying the existing combined-source/economic assertions below.
+         (b'hydration_pool=ThreadPoolExecutor(max_workers=1)',
+          b"hydration_pool=ThreadPoolExecutor(max_workers=1,thread_name_prefix='pons-hydration')"),
+         (b'discovery_pool=ThreadPoolExecutor(max_workers=2)',
+          b"discovery_pool=ThreadPoolExecutor(max_workers=2,thread_name_prefix='pons-discovery')"))),
     'meme_machine/runtime/robinhood/pons.py': (
         '530108cf5539890547a5604c855ca49a75ae9a96d6e0c2630041dcb23f613209',
         'ad75892a39a0b6ca898f90a0f698e7eb80ad8c7928820286babc46f5b697028c',

@@ -1,5 +1,6 @@
 """Disposable native cancellation/reporting coverage; no market or real state."""
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack,closing
 import json
 import os
@@ -45,6 +46,76 @@ class PumpCancellationDiagnostics(unittest.TestCase):
         self.assertEqual(after['progress_at'],original)
         self.assertNotIn('native_operation',after)
         self.assertEqual(after['native_recent_operations'][-1]['state'],'COMPLETE')
+
+    def test_native_thread_inventory_has_fixed_private_roles_stable_bound_and_sample_clocks(self):
+        main=SimpleNamespace(native_id=100,name='private-main-name')
+        threads=[SimpleNamespace(native_id=n,name='/private/credential-'+str(n)) for n in range(101,124)]
+        threads[0].name='health';threads[1].name='survivor_0'
+        threads[2].name='pons-hydration_0';threads[3].name='pons-discovery_0'
+        threads[4].name='pons-discovery_1'
+        threads=[*reversed(threads),main]
+        with patch.object(status.threading,'main_thread',return_value=main), \
+             patch.object(status.threading,'enumerate',return_value=threads), \
+             patch.object(status.time,'time',return_value=1000), \
+             patch.object(status.time,'monotonic',return_value=2000):
+            observed=status.thread_inventory()
+        self.assertEqual((observed['pid'],observed['collected_at'],observed['collected_at_monotonic']),
+                         (os.getpid(),1000,2000))
+        self.assertEqual((observed['limit'],observed['total'],observed['truncated']),(16,24,True))
+        self.assertEqual([row['native_thread_id'] for row in observed['threads']],list(range(100,116)))
+        self.assertEqual([row['role'] for row in observed['threads'][:6]],
+                         ['main','health','survivor','pons-hydration','pons-discovery','pons-discovery'])
+        self.assertEqual(observed['threads'][6]['role'],'UNAVAILABLE')
+        self.assertNotIn('private',json.dumps(observed));self.assertEqual(observed['missing_native_thread_ids'],0)
+
+    def test_missing_or_failed_thread_inventory_never_renews_native_progress_or_reconciliation(self):
+        status.update('RECONCILING',reconciled=False);progress=status.state['progress_at']
+        missing=SimpleNamespace(native_id=None,name='private-missing-thread')
+        with patch.object(status.threading,'enumerate',return_value=[missing]):
+            value=status.snapshot();inventory=value['native_threads']
+        self.assertEqual(inventory['state'],'SAMPLED')
+        self.assertEqual(inventory['missing_native_thread_ids'],1)
+        self.assertEqual(inventory['threads'],[dict(native_thread_id='UNAVAILABLE',role='UNAVAILABLE')])
+        self.assertEqual(value['progress_at'],progress);self.assertFalse(value['reconciled'])
+        with patch.object(status.threading,'enumerate',side_effect=OSError('private-probe-error')):
+            value=status.snapshot()
+        self.assertEqual(value['native_threads']['state'],'UNAVAILABLE')
+        self.assertEqual(value['native_threads']['threads'],[])
+        self.assertEqual(value['progress_at'],progress);self.assertFalse(value['reconciled'])
+        self.assertNotIn('private-probe-error',json.dumps(value))
+
+    def test_actual_health_thread_retains_executor_roles_and_original_inventory_sample(self):
+        release=threading.Event();observed=[];worker_roles={};health_ids=[]
+        status.update('RECONCILING',reconciled=False);progress=status.state['progress_at']
+        def work(role,entered):
+            worker_roles[threading.get_native_id()]=role;entered.set();release.wait(2)
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as resources:
+            root=Path(directory);(root/'pons').mkdir()
+            for prefix,count,role in (('survivor',1,'survivor'),('pons-hydration',1,'pons-hydration'),
+                                      ('pons-discovery',2,'pons-discovery')):
+                pool=resources.enter_context(ThreadPoolExecutor(max_workers=count,thread_name_prefix=prefix))
+                for _ in range(count):
+                    entered=threading.Event();pool.submit(work,role,entered)
+                    self.assertTrue(entered.wait(1))
+            publisher=lane.NativeHealthPublisher(root,'pons');original=lane.health
+            def publish(*args,**facts):
+                original(*args,**facts);observed.append(facts['native_threads'])
+                health_ids.append(threading.get_native_id());publisher.terminal.set()
+            health=threading.Thread(target=publisher.heartbeat,
+                args=(SimpleNamespace(wait=lambda seconds:False),status),name='health')
+            try:
+                with patch.object(lane,'health',side_effect=publish):
+                    health.start();health.join(1)
+                self.assertFalse(health.is_alive());self.assertEqual(len(observed),1)
+                retained=json.loads((root/'pons'/'health.json').read_text())
+                self.assertEqual(retained['native_threads'],observed[0])
+                self.assertEqual(retained['progress_at'],progress);self.assertFalse(retained['reconciled'])
+                roles={row['native_thread_id']:row['role'] for row in observed[0]['threads']}
+                self.assertEqual(roles[threading.main_thread().native_id],'main')
+                self.assertEqual(roles[health_ids[0]],'health')
+                for tid,role in worker_roles.items():self.assertEqual(roles[tid],role)
+            finally:
+                release.set();publisher.terminal.set();health.join(1)
 
     def test_blocked_executor_and_cancellation_signal_are_separately_identified(self):
         entered=threading.Event();released=threading.Event();errors=[];executor=[]

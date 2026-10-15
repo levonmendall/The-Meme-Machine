@@ -89,10 +89,39 @@ def operation(identity):
 def update(phase,**fields):
     with lock:
         state.update(phase=phase,progress_at=time.time(),**fields)
+
+def thread_inventory():
+    """Bounded descriptive thread identities; no frames or native-work authority."""
+    row=dict(state='UNAVAILABLE',pid='UNAVAILABLE',collected_at='UNAVAILABLE',
+             collected_at_monotonic='UNAVAILABLE',limit=16,total='UNAVAILABLE',
+             truncated='UNAVAILABLE',missing_native_thread_ids='UNAVAILABLE',threads=[])
+    try:
+        row.update(pid=os.getpid(),collected_at=time.time(),collected_at_monotonic=time.monotonic())
+        main=threading.main_thread();threads=threading.enumerate()
+        def identity(thread):
+            tid=thread.native_id
+            return tid if type(tid) is int and tid>0 else None
+        threads.sort(key=lambda thread:(thread is not main,identity(thread) or float('inf')))
+        retained=[]
+        for thread in threads[:16]:
+            name=thread.name
+            role=('main' if thread is main else 'health' if name=='health' else
+                  'survivor' if name=='survivor_0' else
+                  'pons-hydration' if name=='pons-hydration_0' else
+                  'pons-discovery' if name in ('pons-discovery_0','pons-discovery_1') else 'UNAVAILABLE')
+            retained.append(dict(native_thread_id=identity(thread) or 'UNAVAILABLE',role=role))
+        row.update(state='SAMPLED',total=len(threads),truncated=len(threads)>16,
+                   missing_native_thread_ids=sum(identity(thread) is None for thread in threads),
+                   threads=retained)
+    except Exception:
+        row.update(state='UNAVAILABLE',threads=[])
+    return row
+
 def snapshot():
     with lock:
         value=dict(state)
         if _operations:value['native_operation']=dict(_operations[-1])
         if _completed:value['native_recent_operations']=[dict(row) for row in _completed]
     if _signal is not None:value['cancellation_signal']=dict(_signal)
+    value['native_threads']=thread_inventory()
     return value
