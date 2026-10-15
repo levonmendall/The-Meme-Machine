@@ -347,9 +347,66 @@ def pons_discovery_predecessor(test,relative,current):
     return current
 
 
+# Explicit host-capacity portability changes only the existing cgroup check.
+# Pin both full files and reverse the one reviewed method/import before every
+# existing economic/source comparison. No other Supervisor node is exempted.
+CPU_CAPACITY_REFERENCE='9bc778ff9237c0769aa6a6d2799bf513d677e333'
+CPU_CAPACITY_BEFORE='b2ffa2991607fef15fc1934682018d101a74ba21763702ca5d3757456a132982'
+CPU_CAPACITY_AFTER='20fda2428bca7758f2ee4987903c4b346d9b98833472d4d734702cdc8107d646'
+
+
+def cpu_capacity_predecessor(test,relative,current):
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!='meme_machine/operational/supervisor.py':return current
+    if b'configured_cpu=cpu_capacity(budget.envelope)' not in current:return current
+    test.assertEqual(hashlib.sha256(current).hexdigest(),CPU_CAPACITY_AFTER,
+        relative+':exact reviewed host-capacity successor')
+    prior=subprocess.check_output(['git','show',CPU_CAPACITY_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),CPU_CAPACITY_BEFORE)
+    def selected(raw):
+        tree=ast.parse(raw)
+        parent=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='Supervisor')
+        node=next(n for n in parent.body if isinstance(n,ast.FunctionDef) and n.name=='continuation_health')
+        return b''.join(raw.splitlines(keepends=True)[node.lineno-1:node.end_lineno])
+    original=selected(prior);reviewed=selected(current)
+    test.assertNotEqual(original,reviewed)
+    test.assertEqual(current.count(b'import math\n'),1)
+    current=current.replace(b'import math\n',b'',1)
+    test.assertEqual(current.count(reviewed),1)
+    current=current.replace(reviewed,original,1)
+    test.assertEqual(current,prior,relative+':all economics, priorities, deadlines and siblings preserved')
+    return prior
+
+
+# Explicit backup-file selection preserves credential redaction and policy
+# selection. Reverse the exact capture-only change before the original manifest.
+BACKUP_CONFIGURATION_BEFORE='c848672443076ba8f8f4facaf6bfad3a34ee719cb58f05675827e4d5237d0fa7'
+BACKUP_CONFIGURATION_AFTER='ce7a78e13e93ff1da76e957c4ff420becb42dc253368bf4d8a17ebe36a10c878'
+
+
+def backup_configuration_predecessor(test,relative,current):
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!='meme_machine/operational/configuration.py':return current
+    if b"env.get('MM_BACKUP_ENV_FILE'" not in current:return current
+    test.assertEqual(hashlib.sha256(current).hexdigest(),BACKUP_CONFIGURATION_AFTER)
+    prior=subprocess.check_output(['git','show',CPU_CAPACITY_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),BACKUP_CONFIGURATION_BEFORE)
+    def capture(raw):
+        selected=next(n for n in ast.parse(raw).body if isinstance(n,ast.FunctionDef) and n.name=='capture')
+        return b''.join(raw.splitlines(keepends=True)[selected.lineno-1:selected.end_lineno])
+    original=capture(prior);reviewed=capture(current)
+    test.assertEqual(current.count(reviewed),1)
+    current=current.replace(reviewed,original,1)
+    test.assertEqual(current,prior,relative+':all other credential, policy and identity bytes preserved')
+    return prior
+
+
 def operation_cost_predecessor(test,relative,current):
     import hashlib
     if isinstance(current,str):current=current.encode()
+    current=cpu_capacity_predecessor(test,relative,current)
     current=pons_discovery_predecessor(test,relative,current)
     reviewed=OPERATION_COST_DELTAS.get(relative)
     if reviewed is None:return current
@@ -368,6 +425,8 @@ def operation_cost_predecessor(test,relative,current):
 def reviewed_operation_costs(test,relative,current):
     import hashlib
     if isinstance(current,str):current=current.encode()
+    current=backup_configuration_predecessor(test,relative,current)
+    current=cpu_capacity_predecessor(test,relative,current)
     # Apply this outer layer only while its exact new helper remains present.
     # Original nested guards also visit several older, already-normalized
     # implementations; all their existing guards must run unchanged.
@@ -1003,6 +1062,33 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_backup_configuration_portability_keeps_exact_policy_and_redaction_guard(self):
+        relative='meme_machine/operational/configuration.py'
+        current=(ROOT/relative).read_bytes()
+        prior=subprocess.check_output(['git','show',CPU_CAPACITY_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(backup_configuration_predecessor(self,relative,current),prior)
+        self.assertEqual(opportunity_predecessor(self,relative,current),
+            opportunity_predecessor(self,relative,prior))
+        for changed in (current+b'\n# unreviewed change\n',
+                current.replace(b'environment(backup_env_file)',b'backup_env_file.read_text()',1)):
+            self.assertNotEqual(changed,current)
+            with self.assertRaises(AssertionError):backup_configuration_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
+    def test_host_cpu_portability_keeps_exact_supervisor_and_economic_guards(self):
+        relative='meme_machine/operational/supervisor.py'
+        current=(ROOT/relative).read_bytes()
+        prior=subprocess.check_output(['git','show',CPU_CAPACITY_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(cpu_capacity_predecessor(self,relative,current),prior)
+        self.assertEqual(opportunity_predecessor(self,relative,current),
+            opportunity_predecessor(self,relative,prior))
+        for changed in (current+b'\n# unreviewed change\n',
+                current.replace(b'maximum_queue_wait_seconds=5',b'maximum_queue_wait_seconds=6',1),
+                current.replace(b"within_cpu_limit",b"ignore_cpu_limit",1)):
+            self.assertNotEqual(changed,current)
+            with self.assertRaises(AssertionError):cpu_capacity_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_reviewed_discovery_nomination_delta_keeps_complete_strategy_guard(self):
         import hashlib
         relative=PONS_DISCOVERY_SOURCE;current=(ROOT/relative).read_bytes()
@@ -1021,6 +1107,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         import hashlib
         for relative,(_,after,_) in OPERATION_COST_DELTAS.items():
             current=(ROOT/relative).read_bytes()
+            current=cpu_capacity_predecessor(self,relative,current)
             current=pons_discovery_predecessor(self,relative,current)
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,
                 relative+':active source must contain exactly the reviewed instrumentation')

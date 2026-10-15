@@ -17,6 +17,7 @@ from meme_machine.solana_selective_history import PROGRAMS
 from meme_machine.solana_selective_source import SelectiveSource,CandidateCommitQueue
 from meme_machine.solana_source_drain import AcceptedQueue,next_owned,join_owned,settle_owned,receive_until_closed,INTAKE_CLOSED
 from meme_machine.solana_source_drain import CONTROL_RECOVERY_KEY,control_recovery,preserve_control_recovery,complete_control_recovery
+from meme_machine.solana_source_drain import finish_owned
 from meme_machine.yellowstone import geyser_pb2 as pb
 from tests.test_scout_commit_batches import update
 from tests.test_solana_closure import state_at,NOW
@@ -79,7 +80,7 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(EvidenceUnavailable,'late_commit_failure'):consumer.result()
         self.assertEqual(self.source.drain_snapshot()['queues']['scout'],dict(accepted=2,committed=0,pending=2))
 
-    async def actual_run(self,*,fail=False,startup='quiet'):
+    async def actual_run(self,*,fail=False,startup='quiet',repeated_cancel=False):
         source=self.source
         capacity_blocked=asyncio.Event()
         class Channel:
@@ -90,7 +91,11 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
             for number in range(1,131 if fail else 66):
                 if number==129:capacity_blocked.set()
                 await handler(update(1+(number-1)%65),1,NOW)
-            source.stop.set()
+            if startup=='unexpected_cancel':
+                # Keep this producer alive so its ordinary return cannot race
+                # the deliberately interrupted startup child under test.
+                await source.stop.wait()
+            else:source.stop.set()
         async def work(fn,priority=2,**options):
             if options.get('component')=='scout':
                 self.entered.set();await self.release.wait()
@@ -103,6 +108,8 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
             setattr(source,name,self.quiet)
         if startup!='quiet':
             async def interrupted_startup(*args):
+                if startup=='unexpected_cancel':
+                    await self.entered.wait();raise asyncio.CancelledError()
                 await source.stop.wait()
                 if startup=='cancel':raise asyncio.CancelledError()
                 raise EvidenceUnavailable('original_startup_dependency_failure')
@@ -118,11 +125,19 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
             # This is a real stop with a writer-held batch and one more queued
             # frame; financial flatness is irrelevant to this ownership proof.
             await asyncio.wait_for(source.stop.wait(),1)
+            if repeated_cancel:
+                for _ in range(100):
+                    if getattr(source,'global_teardown',None) is not None:break
+                    await asyncio.sleep(.005)
+                self.assertIsNotNone(source.global_teardown)
+                task.cancel();await asyncio.sleep(0);task.cancel()
             await asyncio.sleep(0);self.assertFalse(task.done());self.release.set()
             if fail:
                 with self.assertRaisesRegex(EvidenceUnavailable,'original_scout_commit_failure'):await asyncio.wait_for(task,2)
             elif startup=='fatal':
                 with self.assertRaisesRegex(EvidenceUnavailable,'original_startup_dependency_failure'):await asyncio.wait_for(task,2)
+            elif startup=='unexpected_cancel':
+                with self.assertRaises(asyncio.CancelledError):await asyncio.wait_for(task,2)
             else:await asyncio.wait_for(task,2)
 
     async def test_actual_driver_drains_capacity_blocked_scout_producer_after_stop(self):
@@ -156,7 +171,23 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         await self.actual_run(startup='fatal')
         self.assertEqual(self.source.drain_snapshot()['queues']['scout']['pending'],0)
 
-    async def actual_live(self,*,transport_failure=False,cancel=False,commit_failure=False):
+    async def test_repeated_source_cancel_joins_single_global_teardown_and_commits_accepted_frames(self):
+        await self.actual_run(repeated_cancel=True)
+        self.assertEqual(self.source.drain_snapshot()['state'],'DRAINED')
+        self.assertEqual(self.source.drain_snapshot()['queues']['scout'],dict(accepted=65,committed=65,pending=0))
+
+    async def test_first_startup_error_survives_repeated_source_cancellation_during_drain(self):
+        await self.actual_run(startup='fatal',repeated_cancel=True)
+        self.assertEqual(self.source.drain_snapshot()['queues']['scout']['pending'],0)
+
+    async def test_unexpected_child_cancellation_is_not_successful_global_drain(self):
+        await self.actual_run(startup='unexpected_cancel')
+        body=self.source.drain_snapshot()
+        self.assertTrue(body['unexpected_cancellation'])
+        self.assertEqual(body['state'],'RECOVERY_REQUIRED')
+        self.assertEqual(body['queues']['scout'],dict(accepted=65,committed=65,pending=0))
+
+    async def actual_live(self,*,transport_failure=False,cancel=False,commit_failure=False,repeated_cancel=False,cutoff=False):
         import based58
         source=self.source;tx=copy.deepcopy(FIXTURE['pump'][0]);slot=tx['slot'];index=tx['transactionIndex']
         addresses={PROGRAMS[f]:program_scope(f) for f in ('pump','pumpswap')}
@@ -202,11 +233,20 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         desired=[dict(family=f,address=PROGRAMS[f],scope=program_scope(f),priority=6,deadline=NOW+150,
             lower_slot=0,rolling=True) for f in ('pump','pumpswap')]
         local_stop=asyncio.Event()
-        with patch('meme_machine.solana_selective_source.connect',lambda *args,**kw:Connection()):
-            task=asyncio.create_task(source.live(None,desired,local_stop))
+        from contextlib import nullcontext
+        with patch('meme_machine.solana_selective_source.connect',lambda *args,**kw:Connection()), \
+                patch('meme_machine.operational.position_continuation.position_only',side_effect=native_accepted.is_set) if cutoff else nullcontext():
+            task=asyncio.create_task(source.rolling_programs(None) if cutoff else source.live(None,desired,local_stop))
             await asyncio.wait_for(native_accepted.wait(),1)
             if cancel:task.cancel()
             else:local_stop.set()
+            if repeated_cancel or cutoff:
+                for _ in range(100):
+                    if source.session_teardowns:break
+                    await asyncio.sleep(.005)
+                self.assertTrue(source.session_teardowns)
+                if repeated_cancel:task.cancel()
+                if cutoff:source.stop.set()
             await asyncio.sleep(0);self.assertFalse(task.done());self.release.set()
             if transport_failure:
                 with self.assertRaisesRegex(EvidenceUnavailable,'candidate_native_internal'):await asyncio.wait_for(task,2)
@@ -235,6 +275,17 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
     async def test_actual_live_cancellation_finishes_owner_before_returning_canceled(self):
         await self.actual_live(cancel=True)
         self.assertEqual(self.source.drain_snapshot()['queues']['rolling']['pending'],0)
+        self.assertGreater(self.history.db.execute('SELECT COUNT(*) FROM candidate_history_outbox').fetchone()[0],0)
+
+    async def test_repeated_coordinator_cancellation_does_not_cancel_accepted_owner_commit(self):
+        await self.actual_live(cancel=True,repeated_cancel=True)
+        self.assertEqual(self.source.drain_snapshot()['queues']['rolling']['pending'],0)
+        self.assertGreater(self.history.db.execute('SELECT COUNT(*) FROM candidate_history_outbox').fetchone()[0],0)
+        self.assertFalse(self.source.session_teardowns)
+
+    async def test_actual_optional_cutoff_cancels_coordinator_but_drains_owned_evidence(self):
+        await self.actual_live(cutoff=True)
+        self.assertEqual(self.source.drain_snapshot()['queues']['rolling'],dict(accepted=1,committed=1,pending=0))
         self.assertGreater(self.history.db.execute('SELECT COUNT(*) FROM candidate_history_outbox').fetchone()[0],0)
 
     async def test_actual_live_commit_failure_does_not_ack_or_clear_accepted_count(self):
@@ -316,6 +367,7 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(complete_control_recovery(self.state,CONTROL))
         self.assertEqual(self.history.db.execute('SELECT * FROM cursors').fetchall(),before)
 
+
     async def test_required_control_replay_outside_configured_window_fails_closed_before_dispatch(self):
         expected=preserve_control_recovery(self.state,100,102)
         self.source.work=self.work
@@ -356,3 +408,83 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         from dataclasses import replace
         self.state.writer._coverage(replace(p,witness=dict(p.witness,lineage_hash='second-350')))
         self.assertIsNone(complete_control_recovery(self.state,CONTROL))
+
+
+class NativeIntakeCancellationTests(unittest.IsolatedAsyncioTestCase):
+    async def stream(self,*,write_idle=False,accepted=False):
+        source=SelectiveSource(SimpleNamespace(credential='offline'),None)
+        source.stop=asyncio.Event();local=asyncio.Event();entered=asyncio.Event();release=asyncio.Event()
+        async def delivered(*args):pass
+        source.delivered=delivered
+        closed=[];read_cancelled=[];write_cancelled=[]
+        u=pb.SubscribeUpdate();u.block_meta.slot=123
+        class Call:
+            def __init__(self):self.reads=0
+            async def write(self,request):
+                if write_idle:
+                    entered.set()
+                    try:await asyncio.Event().wait()
+                    finally:write_cancelled.append(True)
+            async def read(self):
+                self.reads+=1
+                if accepted and self.reads==1:return u.SerializeToString()
+                entered.set()
+                try:await asyncio.Event().wait()
+                finally:read_cancelled.append(True)
+            def cancel(self):closed.append(True)
+        call=Call()
+        class Channel:
+            def stream_stream(self,*args,**kwargs):return lambda **kw:call
+        async def handler(update,size,seen):
+            entered.set();await release.wait()
+        task=asyncio.create_task(source.stream(Channel(),pb.SubscribeRequest(),handler,'shared',local))
+        try:
+            await asyncio.wait_for(entered.wait(),.5);local.set()
+            if accepted:
+                await asyncio.sleep(0);self.assertFalse(task.done());release.set()
+            await asyncio.wait_for(task,.5)
+            self.assertEqual(closed,[True])
+            body=source.drain_snapshot()
+            self.assertEqual((body['accepted_handlers'],body['settled_handlers']),(int(accepted),int(accepted)))
+            if write_idle:self.assertEqual(write_cancelled,[True])
+            elif not accepted:self.assertEqual(read_cancelled,[True])
+        finally:
+            if not task.done():task.cancel()
+            await asyncio.gather(task,return_exceptions=True)
+
+    async def test_idle_provider_read_is_cancelled_without_an_accepted_handler(self):
+        await self.stream()
+
+    async def test_idle_subscription_write_is_cancelled_without_fabricating_received_work(self):
+        await self.stream(write_idle=True)
+
+    async def test_closing_transport_waits_for_already_accepted_handler(self):
+        await self.stream(accepted=True)
+
+    async def test_owned_teardown_deadline_fails_instead_of_waiting_forever(self):
+        cancelled=[]
+        async def blocked():
+            try:await asyncio.Event().wait()
+            finally:cancelled.append(True)
+        task=asyncio.create_task(blocked());await asyncio.sleep(0)
+        with self.assertRaises(TimeoutError):
+            await finish_owned(task,asyncio.get_running_loop().time()+.02)
+        await asyncio.gather(task,return_exceptions=True)
+        self.assertEqual(cancelled,[True]);self.assertTrue(task.cancelled())
+
+    async def test_optional_child_ignoring_first_cancellation_remains_bounded_and_failed(self):
+        source=SelectiveSource(SimpleNamespace(credential='offline'),None)
+        source.stop=asyncio.Event();local=asyncio.Event();entered=asyncio.Event();release=asyncio.Event()
+        async def unresponsive():
+            entered.set()
+            try:await asyncio.Event().wait()
+            except asyncio.CancelledError:await release.wait()
+        task=asyncio.create_task(unresponsive());await entered.wait()
+        source.drain_deadline=asyncio.get_running_loop().time()+.02
+        try:
+            with self.assertRaises(TimeoutError):await asyncio.wait_for(source.close_optional_session(task,local),.5)
+            self.assertEqual(source.drain_snapshot()['state'],'RECOVERY_REQUIRED')
+            self.assertTrue(source.drain_snapshot()['terminal_record_unavailable'])
+            self.assertTrue(local.is_set())
+        finally:
+            release.set();task.cancel();await asyncio.gather(task,return_exceptions=True)

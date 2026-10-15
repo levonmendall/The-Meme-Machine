@@ -134,6 +134,28 @@ class DiagnosticOwnershipTests(unittest.TestCase):
 
 
 class DiagnosticCollectionTests(unittest.TestCase):
+    def test_handler_identity_and_disposition_survive_collection_without_arbitrary_error_text(self):
+        import asyncio
+        from meme_machine.solana_source_drain import HandlerLedger
+        async def interrupted():
+            ledger=HandlerLedger('a'*32)
+            number=ledger.accept('b'*32,'c'*32,'yellowstone','pump','block_meta',100.,slot=123)
+            ledger.phase('CANDIDATE_JOIN');ledger.fail(number,ValueError('api_key=do-not-publish'))
+            return ledger.snapshot()
+        accounting=asyncio.run(interrupted())
+        drain=dict(state='RECOVERY_REQUIRED',source_pid=accounting['pid'],run_identity='a'*32,
+            handler_accounting=accounting)
+        ipc={('generic_'+str(i)):dict(noise=i) for i in range(256)};ipc['source_drain']=drain
+        output=json.loads(json.dumps(diagnostic.required_counters(dict(pid=accounting['pid'],ipc=ipc))))
+        selected=output['source_drain']['handler_accounting']
+        self.assertEqual(selected,accounting);self.assertEqual(selected['records'][0]['slot'],123)
+        self.assertEqual(selected['records'][0]['phase'],'CANDIDATE_JOIN')
+        self.assertNotIn('api_key',json.dumps(output))
+        accounting['records'][0]['expanded_sql']='do-not-copy'
+        selected=diagnostic.required_source_drain(dict(pid=accounting['pid'],ipc=ipc))
+        self.assertEqual(selected['handler_accounting'],diagnostic.UNAVAILABLE)
+        self.assertNotIn('do-not-copy',json.dumps(selected))
+
     def test_current_source_drain_survives_fixed_selection_and_missing_stays_unavailable(self):
         queues={name:dict(accepted=10,committed=9,pending=1) for name in ('control','scout','rolling','candidate')}
         drain=dict(state='DRAINING',source_pid=123,run_identity='a'*32,started_at_monotonic=1.,terminal=False,

@@ -3,6 +3,7 @@ from datetime import datetime,timezone,timedelta
 from dataclasses import dataclass
 import fcntl
 import json
+import math
 import os
 from pathlib import Path
 import signal
@@ -694,7 +695,9 @@ class Supervisor:
             close_bootstrap(self,'bootstrap_readiness_not_demonstrated')
 
     def continuation_health(self,*,provider_sample=None):
-        from .position_continuation import outstanding,provider_failure,provider_recovered
+        from decimal import localcontext
+        from .position_continuation import cpu_capacity,outstanding,provider_failure,provider_recovered
+        from meme_machine.shared_capital.model import CapitalError
         budget=getattr(self,'provider_budget',None)
         if budget is None:return
         sample=provider_sample if provider_sample is not None else self.collect_provider_health()
@@ -718,20 +721,34 @@ class Supervisor:
             if row.get('phase')!='ACTIVE' or not 0<=now-row.get('heartbeat',0)<=15:
                 reason='authenticated_solana_position_evidence_unavailable'
         try:
+            configured_cpu=cpu_capacity(budget.envelope)
             group=Path('/sys/fs/cgroup/system.slice/meme-machine-paper.service')
             memory=int((group/'memory.current').read_text())
             use=int(dict(line.split() for line in (group/'cpu.stat').read_text().splitlines())['usage_usec'])
             prior=getattr(self,'resource_prior',(now,use))
             cpu=(use-prior[1])/1000000/max(.001,now-prior[0]);self.resource_prior=(now,use)
             quota,period=(group/'cpu.max').read_text().split()
-            verified=(quota!='max' and int(quota)/int(period)<=1.8 and
-                int((group/'memory.high').read_text())<=6*1024**3 and
-                int((group/'memory.max').read_text())<=7*1024**3)
+            period=int(period)
+            if period<=0:raise ValueError('invalid_cgroup_cpu_period')
+            quota=None if quota=='max' else int(quota)
+            actual_cpu=None if quota is None else quota/period
+            with localcontext() as context:
+                # Exact product without expanding a tiny decimal capacity into
+                # an arbitrarily large integer denominator.
+                context.prec=max(28,len(configured_cpu.as_tuple().digits)+len(str(period)))
+                within_cpu_limit=quota is not None and quota<=configured_cpu*period
+            memory_high=int((group/'memory.high').read_text())
+            memory_max=int((group/'memory.max').read_text())
+            verified=(actual_cpu is not None and math.isfinite(actual_cpu) and actual_cpu>0
+                and within_cpu_limit
+                and 0<memory_high<=6*1024**3 and 0<memory_max<=7*1024**3)
             self.resource_measurement=dict(cgroup_memory_bytes=memory,cpu_cores=cpu,
-                cpu_quota_cores=1.8,maximum_queue_depth=64,maximum_queue_wait_seconds=5,limits_verified=verified)
+                cpu_quota_cores=actual_cpu,configured_cpu_cores=str(configured_cpu),
+                cpu_quota_state='UNBOUNDED' if quota is None else 'FINITE',
+                maximum_queue_depth=64,maximum_queue_wait_seconds=5,limits_verified=verified)
             if not verified:reason='continuation_existing_service_resource_limits_unavailable'
             if memory>=budget.envelope['maximum_rss_bytes']:reason='continuation_cgroup_memory_exhausted'
-        except (OSError,ValueError,KeyError):
+        except (OSError,ValueError,KeyError,ArithmeticError,CapitalError):
             self.resource_measurement=dict(state='UNAVAILABLE',reason='existing_PAPER_cgroup_measurement_unavailable')
             reason=reason or 'continuation_cgroup_resource_measurement_unavailable'
         if outstanding(self.shared_capital.ledger()):

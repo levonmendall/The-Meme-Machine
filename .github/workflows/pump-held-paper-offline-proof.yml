@@ -7,6 +7,13 @@ on:
       - 'meme_machine/lanes/pump/pumpswap_survivor_runtime.py'
       - 'meme_machine/lanes/pump/runner.py'
       - 'meme_machine/operational/supervisor.py'
+      - 'meme_machine/solana_selective_source.py'
+      - 'meme_machine/solana_source_drain.py'
+      - 'meme_machine/solana_evidence_service.py'
+      - 'tests/test_solana_source_drain.py'
+      - 'tests/test_source_handler_recovery.py'
+      - 'tests/test_control_interrupted_recovery.py'
+      - 'tests/test_position_continuation.py'
       - 'tests/lanes/pump/test_postgrad_read_efficiency.py'
       - 'operational/tests.py'
       - '.github/workflows/pump-held-paper-offline-proof.yml'
@@ -41,3 +48,13 @@ jobs:
             tests.lanes.pump.test_pumpswap_survivor \
             tests.test_position_continuation \
             tests.test_final_acquisition
+      - name: Verify accepted-source cancellation and recovery contracts
+        env:
+          MM_MODE: PAPER
+        run: |
+          python -m operational.tests FAST --modules \
+            tests.test_solana_source_drain \
+            tests.test_source_handler_recovery \
+            tests.test_control_interrupted_recovery \
+            tests.test_current_combined_diagnostic \
+            tests.test_integrated_startup_rehearsal

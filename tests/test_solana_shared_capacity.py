@@ -604,7 +604,8 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
         from meme_machine.solana_evidence_plane import EvidenceUnavailable
         source=SelectiveSource(SimpleNamespace(credential='offline'),None);source.stop=asyncio.Event()
         checkpoints=iter((900,920));floors=[];phases=[]
-        state=SimpleNamespace(writer=SimpleNamespace(db=SimpleNamespace(execute=lambda *a:SimpleNamespace(fetchone=lambda:(next(checkpoints),)))),
+        from contextlib import nullcontext
+        state=SimpleNamespace(writer=SimpleNamespace(transaction=nullcontext,db=SimpleNamespace(execute=lambda *a:SimpleNamespace(fetchone=lambda:(next(checkpoints),)))),
                               fence=SimpleNamespace(_health=lambda *args:phases.append(args)))
         history=SimpleNamespace(_observation=lambda *a:None)
         async def work(fn,*a,**kw):return fn(state)

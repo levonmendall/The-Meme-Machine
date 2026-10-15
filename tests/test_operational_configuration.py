@@ -74,3 +74,22 @@ class Configuration(unittest.TestCase):
         env['MM_STORAGE_GUARD_CONFIG']=str(config/'storage.shared-1000.json')
         (config/'paper.shared-1000.env').unlink()
         with self.assertRaises(FileNotFoundError):self.inspect(source,config,units,env)
+
+    def test_explicit_backup_identity_does_not_require_digitalocean_credentials(self):
+        source,config,units=self.fixture()
+        (config/'digitalocean.env').unlink()
+        (config/'backup.json').unlink()
+        private=config/'maintenance.env';private.write_text('BACKUP_TOKEN=private-backup-token\n')
+        backup=config/'aws-backup.json';backup.write_text('{"destination":"reviewed"}')
+        value=self.inspect(source,config,units,dict(
+            MM_BACKUP_ENV_FILE=str(private),MM_BACKUP_CONFIG_FILE=str(backup)))
+        self.assertEqual(value['configuration_files']['backup_environment'],str(private))
+        self.assertEqual(value['configuration_files']['backup'],str(backup))
+        self.assertEqual(value['maintenance_environment']['variable_names'],['BACKUP_TOKEN'])
+        self.assertNotIn('private-backup-token',json.dumps(value))
+
+    def test_missing_explicit_backup_file_cannot_fall_back_to_legacy_identity(self):
+        source,config,units=self.fixture()
+        for field in ('MM_BACKUP_ENV_FILE','MM_BACKUP_CONFIG_FILE'):
+            with self.subTest(field=field),self.assertRaises(FileNotFoundError):
+                self.inspect(source,config,units,{field:str(config/'missing')})

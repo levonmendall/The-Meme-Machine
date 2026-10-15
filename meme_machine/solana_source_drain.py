@@ -5,8 +5,150 @@ may still be putting its last frame after the stop event has been set.
 """
 import asyncio
 import json
+import os
+import hashlib
+import threading
+import time
 
 CONTROL_RECOVERY_KEY='source_control_recovery'
+HANDLER_RECOVERY_KEY='source_handler_recovery'
+
+
+class HandlerLedger:
+    """Only active/interrupted callbacks, not another market-event journal.
+
+    Successful callbacks are counted and removed. Returning a callback is not
+    a durable commit: queue and session fences remain independently mandatory.
+    """
+    maximum_records=64
+    maximum_bytes=48*1024
+
+    def __init__(self,run):
+        self.run=run;self.accepted=0;self.returned=0;self.records={};self.tasks={}
+        self.valid=True;self.pid=os.getpid();self.native_thread_id=threading.get_native_id()
+
+    def accept(self,stream,session,transport,family,kind,seen,*,slot=None,identity=None,scopes=()):
+        from .solana_evidence_plane import EvidenceUnavailable
+        if len(self.records)>=self.maximum_records or (identity is not None and (not isinstance(identity,str) or len(identity)>128)):
+            self.valid=False;raise EvidenceUnavailable('source_handler_record_bound')
+        self.accepted+=1;number=self.accepted
+        row=dict(id=number,stream=stream,session=session,transport=transport,
+            family=family,kind=kind,slot=slot,identity=identity,seen=seen,
+            scope_hash=self.scope_hash(scopes),scope_count=len(set(scopes)),
+            started_monotonic=time.monotonic(),phase='HANDLER',state='ACTIVE')
+        self.records[number]=row;self.tasks[asyncio.current_task()]=number
+        return number
+
+    def phase(self,phase,**facts):
+        if not isinstance(phase,str) or not phase.isidentifier() or len(phase)>40 or set(facts)-{'slot','identity','scope'}:
+            raise ValueError('source_handler_phase')
+        if 'identity' in facts and (not isinstance(facts['identity'],str) or len(facts['identity'])>128):raise ValueError('source_handler_identity')
+        if 'scope' in facts:
+            scope=facts.pop('scope');facts.update(scope_hash=self.scope_hash((scope,)),scope_count=1)
+        number=self.tasks.get(asyncio.current_task())
+        if number is not None:self.records[number].update(phase=phase,**facts)
+
+    @staticmethod
+    def scope_hash(scopes):
+        return hashlib.sha256(json.dumps(sorted(set(scopes)),separators=(',',':')).encode()).hexdigest()
+
+    def finish(self,number):
+        self.records.pop(number);self.returned+=1
+        self.tasks.pop(asyncio.current_task(),None)
+
+    def fail(self,number,error):
+        # Never include third-party text, expanded SQL, raw packets or secrets.
+        row=self.records[number];row['state']='INTERRUPTED' if isinstance(error,asyncio.CancelledError) else 'FAILED'
+        row['failure_state']=row['state']
+        row['error_type']=type(error).__name__[:64]
+        self.tasks.pop(asyncio.current_task(),None)
+
+    def pending(self,session):
+        return [dict(row) for row in self.records.values() if row['session']==session and row['state']!='ACTIVE']
+
+    def preserved(self,rows):
+        for row in rows:
+            current=self.records.get(row['id'])
+            if current is not None:current.update(state=row['state'],recovery=row.get('recovery'))
+
+    def snapshot(self):
+        rows=[dict(r) for r in self.records.values()]
+        size=len(json.dumps(rows,separators=(',',':')).encode())
+        if size>self.maximum_bytes:self.valid=False
+        return dict(version=1,run=self.run,pid=self.pid,native_thread_id=self.native_thread_id,
+            valid=self.valid,accepted=self.accepted,returned=self.returned,
+            active=sum(r['state']=='ACTIVE' for r in rows),
+            recoverable=sum(r['state']=='RECOVERABLE' for r in rows),
+            failed=sum(r['state']=='FAILED' for r in rows),
+            unresolved=sum(r['state']=='INTERRUPTED' for r in rows),
+            records=rows if size<=self.maximum_bytes else None,record_bytes=size,
+            scope='RETURNED_CALLBACKS_REQUIRE_SEPARATE_QUEUE_COMMIT_AND_SESSION_RECOVERY_FENCES')
+
+
+def preserve_handlers(state,ledger,rows,recovery):
+    """Atomically associate interrupted identities with existing durable gaps.
+
+    This is a bounded diagnostic/recovery locator in existing canonical health,
+    never a coverage proof or a second acquisition/monetary authority. Old rows
+    are retained; this function cannot clear them on a prospective head jump.
+    """
+    if not rows:return []
+    from .solana_evidence_plane import EvidenceUnavailable,canonical
+    with state.writer.transaction():
+        prior=state.writer.db.execute('SELECT value FROM service_health WHERE key=?',(HANDLER_RECOVERY_KEY,)).fetchone()
+        body=json.loads(prior[0]) if prior else dict(version=1,records=[])
+        if body.get('version')!=1 or not isinstance(body.get('records'),list):
+            raise EvidenceUnavailable('source_handler_recovery_corrupt')
+        records={(r['run'],r['id']):r for r in body['records']}
+        retained=[]
+        for row in rows:
+            item=dict(row,run=ledger.run,source_pid=ledger.pid,native_thread_id=ledger.native_thread_id)
+            valid_slot=type(row.get('slot')) is int and row['slot']>0
+            if valid_slot and recovery is not None:
+                verified=False
+                if recovery.get('kind')=='CONTROL_REPLAY':
+                    current=state.writer.db.execute('SELECT value FROM service_health WHERE key=?',(CONTROL_RECOVERY_KEY,)).fetchone()
+                    required=control_recovery(current[0]) if current else None
+                    verified=(required is not None and recovery==dict(kind='CONTROL_REPLAY',**required)
+                        and required['lower_slot']<=row['slot']<=required['upper_slot']
+                        and row.get('scope_count')==1 and row.get('scope_hash')==ledger.scope_hash(('control:solana',)))
+                elif recovery.get('kind')=='CANDIDATE_GAPS':
+                    ids=recovery.get('gap_ids')
+                    if isinstance(ids,list) and 0<len(ids)<=48 and all(type(i) is int and i>0 for i in ids):
+                        gaps=[state.writer.db.execute('SELECT scope,lo,hi FROM candidate_gaps WHERE id=?',(i,)).fetchone() for i in ids]
+                        verified=(all(g is not None and g[1]<=row['slot'] and (g[2] is None or row['slot']<=g[2]) for g in gaps)
+                            and row.get('scope_count')==len({g[0] for g in gaps if g is not None})
+                            and row.get('scope_hash')==ledger.scope_hash(g[0] for g in gaps if g is not None))
+                if not verified:raise EvidenceUnavailable('source_handler_recovery_unverified')
+                item.update(state='RECOVERABLE',recovery=recovery)
+            else:item.update(recovery=None)
+            key=(ledger.run,row['id']);old=records.get(key)
+            if old is not None and old!=item:raise EvidenceUnavailable('source_handler_recovery_conflict')
+            records[key]=item;retained.append(item)
+        body=dict(version=1,records=list(records.values()))
+        if len(records)>ledger.maximum_records or len(canonical(body).encode())>ledger.maximum_bytes:
+            raise EvidenceUnavailable('source_handler_record_bound')
+        state.fence._health(HANDLER_RECOVERY_KEY,body)
+        return retained
+
+
+async def finish_owned(task,deadline):
+    """A repeated coordinator cancel cannot cut its one owned teardown in half.
+
+    The existing source shutdown deadline still ends this wait. A timeout is a
+    failed drain, never permission to return a successful terminal census.
+    """
+    while True:
+        remaining=deadline-asyncio.get_running_loop().time()
+        if remaining<=0:
+            task.cancel()
+            raise TimeoutError('source_owned_drain_deadline')
+        try:return await asyncio.wait_for(asyncio.shield(task),remaining)
+        except TimeoutError:
+            if not task.done():task.cancel()
+            raise
+        except asyncio.CancelledError:
+            if task.done():return task.result()
 
 
 def control_recovery(raw):

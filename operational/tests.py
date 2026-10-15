@@ -2,7 +2,10 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+    'tests.test_operational_cpu_capacity',
     'tests.test_solana_source_drain',
+    'tests.test_control_interrupted_recovery',
+    'tests.test_source_handler_recovery',
     'tests.test_operation_costs',
     'tests.test_pons_operation_costs',
     'tests.test_operation_owner_hooks',

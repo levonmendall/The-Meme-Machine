@@ -317,7 +317,7 @@ def required_source_drain(health):
                  'unpreserved_sessions','pending_handlers','source_pid','started_at_monotonic','terminal_at_monotonic'):
         value=row.get(name)
         result[name]=value if finite_number(value) and value>=0 else UNAVAILABLE
-    for name in ('terminal','all_accepted_committed','terminal_record_unavailable'):
+    for name in ('terminal','all_accepted_committed','terminal_record_unavailable','unexpected_cancellation'):
         value=row.get(name);result[name]=value if type(value) is bool else UNAVAILABLE
     run=row.get('run_identity')
     result['run_identity']=run if isinstance(run,str) and re.fullmatch(r'[0-9a-f]{32}',run) else UNAVAILABLE
@@ -331,6 +331,42 @@ def required_source_drain(health):
         selected[name]=({key:item[key] if type(item.get(key)) is int and item[key]>=0 else UNAVAILABLE
                          for key in ('accepted','committed','pending')} if isinstance(item,dict) else UNAVAILABLE)
     result['queues']=selected
+    accounting=row.get('handler_accounting')
+    if (isinstance(accounting,dict) and accounting.get('version')==1
+            and accounting.get('pid')==row['source_pid'] and accounting.get('run')==run
+            and type(accounting.get('valid')) is bool and isinstance(accounting.get('records'),list)
+            and len(accounting['records'])<=64 and len(json.dumps(accounting).encode())<=52*1024):
+        # This is a fixed source-defined schema, not arbitrary exception text or
+        # frame locals. Reject unknown fields instead of clipping away identities.
+        fixed={'version','run','pid','native_thread_id','valid','accepted','returned','active',
+            'recoverable','failed','unresolved','records','record_bytes','scope'}
+        record_fields={'id','stream','session','transport','family','kind','slot','identity','seen',
+            'scope_hash','scope_count','started_monotonic','phase','state','error_type','failure_state','recovery'}
+        counts=('accepted','returned','active','recoverable','failed','unresolved')
+        def safe_record(r):
+            if not isinstance(r,dict) or set(r)-record_fields:return False
+            if r.get('state') not in ('ACTIVE','INTERRUPTED','FAILED','RECOVERABLE'):return False
+            for key in ('stream','session','transport','family','kind','identity','phase','error_type','failure_state'):
+                value=r.get(key)
+                if value is not None and (not isinstance(value,str) or not re.fullmatch(r'[A-Za-z0-9_:-]{1,128}',value)):return False
+            recovery=r.get('recovery')
+            if recovery is not None:
+                if not isinstance(recovery,dict):return False
+                if recovery.get('kind')=='CANDIDATE_GAPS':
+                    if set(recovery)!={'kind','gap_ids'} or not isinstance(recovery['gap_ids'],list) or len(recovery['gap_ids'])>48:return False
+                    if any(type(i) is not int or i<=0 for i in recovery['gap_ids']):return False
+                elif recovery.get('kind')=='CONTROL_REPLAY':
+                    if set(recovery)!={'kind','lower_slot','upper_slot','coverage_after_id'}:return False
+                    if any(type(recovery[k]) is not int or recovery[k]<0 for k in ('lower_slot','upper_slot','coverage_after_id')):return False
+                else:return False
+            return True
+        if (set(accounting)==fixed and all(type(accounting[k]) is int and accounting[k]>=0 for k in counts)
+                and accounting['accepted']-accounting['returned']==len(accounting['records'])
+                and sum(accounting[k] for k in ('active','recoverable','failed','unresolved'))==len(accounting['records'])
+                and all(safe_record(r) for r in accounting['records'])):
+            result['handler_accounting']=accounting
+        else:result['handler_accounting']=UNAVAILABLE
+    else:result['handler_accounting']=UNAVAILABLE
     result['scope']='CURRENT_SOURCE_IPC_CENSUS_NOT_UNIVERSAL_RECOVERY_OR_HISTORY_COMPLETION'
     return result
 

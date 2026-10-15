@@ -46,6 +46,8 @@ def capture(source, *, configuration_root='/etc/meme-machine', unit_root='/etc/s
     env=os.environ if environ is None else environ
     paper_file=Path(env.get('MM_PAPER_ENV_FILE',configuration_root/'paper.env'))
     storage_file=Path(env.get('MM_STORAGE_GUARD_CONFIG',configuration_root/'storage.json'))
+    backup_env_file=Path(env.get('MM_BACKUP_ENV_FILE',configuration_root/'digitalocean.env'))
+    backup_file=Path(env.get('MM_BACKUP_CONFIG_FILE',configuration_root/'backup.json'))
     def git(*args):
         return subprocess.check_output(['git',*args],cwd=source,text=True,timeout=5).strip()
     if git('status','--porcelain'):raise ValueError('acceptance_requires_clean_deployed_source')
@@ -66,10 +68,12 @@ def capture(source, *, configuration_root='/etc/meme-machine', unit_root='/etc/s
         python=platform.python_version(),sqlite=sqlite3.sqlite_version,
         websockets=importlib.metadata.version('websockets'),requirements_sha256=sha(source/'requirements.txt'),
         installed_requirements=packages,units=units,storage=storage,
-        environment=paper,paper_policy=policy_selection,configuration_files=dict(paper=str(paper_file),storage=str(storage_file)),
-        maintenance_environment=environment(configuration_root/'digitalocean.env'),
+        environment=paper,paper_policy=policy_selection,configuration_files=dict(
+            paper=str(paper_file),storage=str(storage_file),
+            backup_environment=str(backup_env_file),backup=str(backup_file)),
+        maintenance_environment=environment(backup_env_file),
         block_device_identity=dict(major=os.major(device.st_rdev),minor=os.minor(device.st_rdev)),
-        backup_configuration_sha256=sha(configuration_root/'backup.json'),
+        backup_configuration_sha256=sha(backup_file),
         provider_networks=dict(solana='mainnet-beta',robinhood_chain_id=4663),
         authority='observation_only')
 

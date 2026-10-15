@@ -5,6 +5,7 @@ to the unchanged native journals and shared authority. Resource configuration
 does not grant operational permission; the owner authorizes the service start.
 """
 from contextlib import closing
+from decimal import Decimal
 import json
 import os
 from pathlib import Path
@@ -21,6 +22,23 @@ EXIT_RECOVERY_SECONDS=3600
 SHUTDOWN_SECONDS=65
 TOTAL_SECONDS=1200+HOLD_SECONDS+EXIT_RECOVERY_SECONDS+SHUTDOWN_SECONDS
 PHASES=('BOOTSTRAP','CONTINUATION','RECOVERY','FAULT','FLAT')
+
+
+def cpu_capacity(profile):
+    """Explicit physical CPU capacity, bounded by this process's host affinity."""
+    raw=profile.get('maximum_cpu_cores') if isinstance(profile,dict) else None
+    try:
+        if not isinstance(raw,str):raise ValueError()
+        capacity=Decimal(raw)
+        if not capacity.is_finite() or capacity<=0:raise ValueError()
+        available=os.cpu_count()
+        if hasattr(os,'sched_getaffinity'):
+            affinity=len(os.sched_getaffinity(0))
+            available=min(available,affinity) if type(available) is int and available>0 else affinity
+        if type(available) is not int or available<=0 or capacity>available:raise ValueError()
+    except (ValueError,ArithmeticError,OSError):
+        raise CapitalError('explicit_host_bounded_cpu_capacity_required') from None
+    return capacity
 
 
 def validate_continuous(row):
@@ -41,11 +59,11 @@ def validate_continuous(row):
             or any(type(v) is not int or not 6*16*1024**2<=v<=512*1024**2 for v in limits.values())):
         raise CapitalError('continuous_inflight_capacity_required')
     if (row['maximum_queue_depth']!=64 or row['maximum_queue_wait_seconds']!=5
-            or row['maximum_rss_bytes']!=6*1024**3 or row['maximum_cpu_cores']!='1.8'
+            or row['maximum_rss_bytes']!=6*1024**3
             or row['failure_window_seconds']!=60 or row['failures_before_backoff']!=8
             or row['reconnect_backoff_seconds']!=30):
         raise CapitalError('continuous_technical_health_profile_required')
-    from decimal import Decimal
+    cpu_capacity(row)
     try:
         for key in ('physical_http_start_interval_seconds','robinhood_http_start_interval_seconds'):
             value=row[key]
@@ -142,11 +160,11 @@ def validate_envelope(row):
                 or limits['native_inflight_bytes']<6*16*1024**2):
             raise CapitalError('continuation_native_shutdown_reserve_required')
     if (row.get('maximum_queue_depth')!=64 or row.get('maximum_queue_wait_seconds')!=5
-            or row.get('maximum_rss_bytes')!=6*1024**3 or row.get('maximum_cpu_cores')!='1.8'
+            or row.get('maximum_rss_bytes')!=6*1024**3
             or row.get('maximum_reconnects')!=32):
         raise CapitalError('continuation_existing_Droplet_and_latency_envelope_required')
+    cpu_capacity(row)
     for phase in ('continuation','recovery'):
-        from decimal import Decimal
         value=row.get(phase+'_modeled_spend_usd')
         if not isinstance(value,str) or not Decimal(value).is_finite() or Decimal(value)<=0:
             raise CapitalError('explicit_continuation_modeled_spend_required')

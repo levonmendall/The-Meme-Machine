@@ -82,6 +82,12 @@ STREAM_SUBSCRIPTION_SYNC_SECONDS=.25
 STREAM_WATCHDOG_SECONDS=.1
 STREAM_SOURCE_IDLE_SECONDS=20
 STREAM_COMMIT_STALL_SECONDS=15
+# Match the existing configured native replay window. This is a recorder bound,
+# not a claim that any provider can currently supply that historical interval.
+# Existing source request can include the 6,000-slot required range, its
+# unchanged 256-slot overlap, and the linked child. This is a memory bound,
+# never an assertion about a provider's actual replay availability.
+STREAM_CONTROL_REAUTH_MAX_RECEIPTS=6000+256+1
 
 
 def decode_source_message(raw,credential,program_addresses=(),endpoint_identity=None,observed_at=None):
@@ -201,6 +207,11 @@ class FinalizedFence:
         from .runtime.operating_families import evidence_scope_sql,enabled
         self.writer=writer;self.endpoint_identity=endpoint_identity
         self.decoders=decoders or {};self.session=uuid.uuid4().hex
+        # A fresh CONTROL replay must authenticate an old receipt again without
+        # rewriting its original session/availability. Eligibility is deliberately
+        # process-local: another interruption requires another authenticated
+        # replay; only the canonical coverage/seal transaction survives it.
+        self._control_reauthenticated={}
         # A thread-safe hint, never subscription/evidence authority. The owner
         # still reads durable interests at the original priority and cadence.
         self.subscriptions_dirty=threading.Event();self.subscriptions_dirty.set()
@@ -256,6 +267,7 @@ class FinalizedFence:
             bounds[scope]=min(bounds.get(scope,slot),slot)
         for scope,slot in bounds.items():self.writer.gap(scope,slot,None,reason)
         self.session=uuid.uuid4().hex
+        self._control_reauthenticated.clear()
 
     def _delivery(self,scope,slot,signature,payload,seen):
         self._delivery_hash(scope,slot,signature,digest(payload),seen)
@@ -350,10 +362,13 @@ class FinalizedFence:
             raise EvidenceUnavailable('filtered_census_shape')
         census=canonical(signatures);scope=subscription.scope
         with self.writer.transaction():
-            old=self.writer.db.execute('SELECT parent,hash,previous_hash,market_time,census FROM stream_receipts WHERE scope=? AND slot=?',(scope,slot)).fetchone()
+            old=self.writer.db.execute('SELECT parent,hash,previous_hash,market_time,census,session FROM stream_receipts WHERE scope=? AND slot=?',(scope,slot)).fetchone()
             values=(parent,block['blockhash'],block['previousBlockhash'],at,census)
-            if old and tuple(old)!=values:
+            if old and tuple(old[:5])!=values:
                 raise EvidenceConflict('conflicting_finalized_block_receipt')
+            if scope=='control:solana' and old and old[5]!=self.session:
+                if slot not in self._control_reauthenticated and len(self._control_reauthenticated)>=STREAM_CONTROL_REAUTH_MAX_RECEIPTS:
+                    raise EvidenceUnavailable('control_reauthentication_capacity')
             self.writer.db.execute('INSERT OR IGNORE INTO stream_receipts VALUES(?,?,?,?,?,?,?,?,?,0)',
                 (scope,slot,*values,self.session,seen))
             prior=self.writer.db.execute('SELECT MAX(slot) FROM stream_receipts WHERE scope=? AND slot<?',(scope,slot)).fetchone()[0]
@@ -363,6 +378,8 @@ class FinalizedFence:
                 self.writer._gap(scope,prior,parent,'missing_filtered_block_receipt')
             self.writer.db.execute('INSERT OR REPLACE INTO service_health VALUES(?,?)',
                 ('finalized_frontier:'+scope,canonical(dict(slot=slot,time=at,seen=seen))))
+        if scope=='control:solana' and old and old[5]!=self.session:
+            self._control_reauthenticated[slot]=(values,seen)
         # An overlap replay is allowed to arrive before an outstanding outage.
         # It cannot bound that later gap yet. Keep the strict writer guard and
         # wait for an authenticated receipt at or beyond every open gap floor.
@@ -372,11 +389,38 @@ class FinalizedFence:
         self.seal(scope,seen)
 
     def seal(self,scope,seen):
-        pairs=self.writer.db.execute('''SELECT p.slot,p.hash,p.census,p.seen,c.slot,c.hash,c.previous_hash,c.seen
+        selection='''SELECT p.slot,p.hash,p.census,p.seen,c.slot,c.hash,c.previous_hash,c.seen,
+            p.parent,p.previous_hash,p.market_time,p.session,c.parent,c.census,c.market_time,c.session
             FROM stream_receipts p JOIN stream_receipts c ON c.scope=p.scope AND c.parent=p.slot
-            WHERE p.scope=? AND p.sealed=0 AND p.session=? AND c.session=? ORDER BY p.slot LIMIT 64''',
-            (scope,self.session,self.session)).fetchall()
-        for slot,blockhash,census,pseen,child,chash,previous,cseen in pairs:
+            WHERE p.scope=? AND p.sealed=0'''
+        if scope=='control:solana' and self._control_reauthenticated:
+            # Exact sparse primary-key candidates, never a scan of retained old
+            # receipts. A child can have arrived before its replayed parent.
+            replayed=self._control_reauthenticated
+            slots=sorted(set(replayed)|{values[0] for values,_ in replayed.values()})
+            pairs=self.writer.db.execute(selection+' AND p.slot IN ('+','.join('?' for _ in slots)+') ORDER BY p.slot',
+                (scope,*slots)).fetchall()
+            current=self.writer.db.execute(selection+' AND p.session=? AND c.session=? ORDER BY p.slot LIMIT 64',
+                (scope,self.session,self.session)).fetchall()
+            pairs=sorted(set(pairs+current),key=lambda row:row[0])
+        else:
+            pairs=self.writer.db.execute(selection+' AND p.session=? AND c.session=? ORDER BY p.slot LIMIT 64',
+                (scope,self.session,self.session)).fetchall()
+        completed=0
+        for slot,blockhash,census,pseen,child,chash,previous,cseen,parent,p_previous,market_time,p_session,c_parent,c_census,c_time,c_session in pairs:
+            reauthenticated={}
+            for identity,values,original_session in (
+                    (slot,(parent,blockhash,p_previous,market_time,census),p_session),
+                    (child,(c_parent,chash,previous,c_time,c_census),c_session)):
+                if original_session==self.session:continue
+                fresh=self._control_reauthenticated.get(identity) if scope=='control:solana' else None
+                if fresh is None or fresh[0]!=values:break
+                reauthenticated[identity]=fresh[1]
+            # Both immutable receipts must actually be authenticated during
+            # this session. Merely finding an old linked pair is insufficient.
+            if (p_session!=self.session and slot not in reauthenticated
+                    or c_session!=self.session and child not in reauthenticated):continue
+            if completed>=64:break
             if previous!=blockhash:
                 self.writer.gap(scope,slot,child,'finalized_parent_hash_mismatch')
                 raise EvidenceConflict('finalized_parent_hash_mismatch')
@@ -389,13 +433,20 @@ class FinalizedFence:
                 source_contract='complete_filtered_block_census_with_linked_finalized_child',
                 parent_blockhash=blockhash,child_blockhash=chash,child_slot=child,
                 signature_count=len(expected),lineage_hash=digest([scope,slot,blockhash,census,child,chash]))
-            available=max([seen,pseen,cseen]+[delivered[s] for s in expected])
+            if reauthenticated:
+                witness['replayed_receipts']=dict(authenticated_session=self.session,
+                    parent_session=p_session,child_session=c_session,
+                    parent_observed_at=reauthenticated.get(slot,pseen),
+                    child_observed_at=reauthenticated.get(child,cseen))
+            available=max([seen,pseen,cseen,*reauthenticated.values()]+[delivered[s] for s in expected])
             proof=IntervalProof(scope,slot,child-1,'alchemy_finalized_stream',self.endpoint_identity,witness,available)
             self.writer.ingest([],proof=proof)
             with self.writer.transaction():
                 n=self.writer.db.execute("UPDATE gaps SET repaired=? WHERE scope=? AND lo=? AND hi=? AND reason='missing_filtered_delivery' AND repaired IS NULL",(available,scope,slot,slot)).rowcount
                 self.writer._count('gaps_repaired',n)
                 self.writer.db.execute('UPDATE stream_receipts SET sealed=1 WHERE scope=? AND slot=?',(scope,slot))
+            self._control_reauthenticated.pop(slot,None)
+            completed+=1
 
     def repair_records(self,record):
         """Same normalized economic bytes for stream and HTTP repair lineage."""
@@ -1143,10 +1194,15 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
         done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
         if stop.is_set():
             admission.close()
+            drain_deadline=asyncio.get_running_loop().time()+30
+            if source_driver is not None:
+                prior=getattr(source_driver,'drain_deadline',None)
+                if prior is not None:drain_deadline=min(drain_deadline,prior)
+                source_driver.drain_deadline=drain_deadline
             # The stop waiter/maintenance often wins FIRST_COMPLETED. Reception
             # stops immediately, but the source owns the admitted-frame drain.
             # Do not cancel that owner while decoded frames still await commit.
-            try:await asyncio.wait_for(asyncio.shield(tasks[0]),30)
+            try:await asyncio.wait_for(asyncio.shield(tasks[0]),max(0,drain_deadline-asyncio.get_running_loop().time()))
             except TimeoutError:
                 await work(lambda state:setattr(state,'failed',True),0)
                 await work(lambda state:state.fence.health('shutdown_boundary','admitted_frame_drain_timeout'),0)
