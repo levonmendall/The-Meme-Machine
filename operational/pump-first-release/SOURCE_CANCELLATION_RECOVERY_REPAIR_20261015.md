@@ -75,6 +75,7 @@ runner, CPython 3.12.14 / linked SQLite 3.45.1. Counts overlap and are not summe
 | Relevant strategy/source guards, policy, nine economics, shared-capital recovery/economics, volume quality | PASS, 158 / 158, 41.665 s |
 | Portable configuration identity and failure/redaction paths | PASS, 6 / 6, 0.077 s |
 | Explicit CPU capacity, portable configuration, full source guards, continuation, startup integration | PASS, 141 / 141, 52.603 s |
+| Final-suite failure corrections: checkpoint overlap, transport deadline, bounded diagnostic codes, SQLite attribution and startup | PASS, 80 selected / 75 passed / 5 existing archived-Model-A skips, 5.337 s |
 
 The 294 selection includes actual supervisor/child startup rehearsal and source
 owner/queue/session paths, idle reads/writes, repeated cancellation, full queues,
@@ -89,6 +90,37 @@ Each was corrected without weakening the original held-PAPER assertion or timeou
 Their logs and retained failed scratch scopes remain referenced by the release
 index. Full final-suite and exact-source CI outcomes are recorded separately in
 the final GitHub integration report; focused success alone is not a release PASS.
+
+## Complete-suite findings and corrections
+
+The initial complete FAST run [38771988024](https://github.com/levonmendall/The-Meme-Machine/actions/runs/38771988024)
+selected 2,427 tests (2 skips) and failed two subtests of one diagnostic-code case.
+The complete OPERATIONAL run [38771971950](https://github.com/levonmendall/The-Meme-Machine/actions/runs/38771971950)
+selected 3,937 tests (36 skips) and failed four subtests/cases. Neither is a PASS.
+The original held-PAPER selection and added recovery checks passed in
+[38771976014](https://github.com/levonmendall/The-Meme-Machine/actions/runs/38771976014):
+79 passed, then 147 selected / 145 passed / 2 hosted-systemd skips.
+
+All complete-suite failures were reproduced offline and consolidated:
+
+* Two existing fixed publication guard codes were absent from the bounded
+  failure-recording allowlist. Add only those exact source-defined identifiers;
+  arbitrary exception text remains excluded. Publication behavior is unchanged.
+* The checkpoint overlap fixture relied on a default SQLite factory hook, which
+  the explicit diagnostic connection factory bypasses. Its reader consequently
+  never released the old snapshot; SQLite correctly returned BUSY. The corrected
+  fixture executes real held-reader PASSIVE, committed tail, verified reader
+  release and owner TRUNCATE operations. Twelve cycles, exact restored bodies,
+  FULL durability, zero final WAL allocation and integrity checks remain.
+* The transport fixture expired on the second clock read, before legitimate
+  pre-dispatch revalidation completed. It now expires inside the mocked HTTP
+  attempt and verifies exactly one physical dispatch, the original remaining
+  timeout and unchanged absolute deadline. Both late success and timeout must
+  still fail specifically during transport; no production deadline is relaxed.
+
+The affected selection passed as recorded above. Final complete-suite reruns must
+validate the consolidated candidate before merge. These corrections make no claim
+about authentic market throughput, SQLite BUSY attribution or provider suitability.
 
 ## Operational and financial boundary
 

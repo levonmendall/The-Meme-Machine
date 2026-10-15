@@ -1,6 +1,32 @@
 {
   "ci_original_failure": 38753995554,
   "executed_unchanged": "a793bd580593a87d17a0ab6e5e8581943bec6886",
+  "initial_complete_ci": {
+    "FAST": {
+      "failed_subtests": 2,
+      "failed_test_cases": 1,
+      "run": 38771988024,
+      "selected": 2427,
+      "skipped": 2,
+      "verdict": "FAIL"
+    },
+    "OPERATIONAL": {
+      "failed_subtests_or_cases": 4,
+      "run": 38771971950,
+      "selected": 3937,
+      "skipped": 36,
+      "verdict": "FAIL"
+    },
+    "candidate": "9e93392c5f23de586933d7783eee57ad4593bb15",
+    "held": {
+      "added_passed": 145,
+      "added_selected": 147,
+      "added_skipped": 2,
+      "original_passed": 79,
+      "run": 38771976014,
+      "verdict": "PASS_WITH_DISCLOSED_HOST_SKIPS"
+    }
+  },
   "private_receipts": [
     {
       "bytes": 14375,
@@ -136,6 +162,46 @@
       "sha256": "50ac3c435dcb9f81df58a1c7f101480f522b968365aab488fbf7a501f6b35d51",
       "tests": 141,
       "verdict": "PASS"
+    },
+    {
+      "bytes": 3127,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_FAILURE_CODES_REPRO_R2_20261015.log",
+      "seconds": 0.081,
+      "sha256": "a0d0d564bf3389360c0ec51a4bfd4c9940a4e18ecf3d04cad5b029471d6b1d04",
+      "tests": 1,
+      "verdict": "FAIL"
+    },
+    {
+      "bytes": 12772,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_FAILURE_CODES_CORRECTION_20261015.log",
+      "seconds": 5.049,
+      "sha256": "8d9f75f677fb5696f7826b9d2aa89101abbfd7cf856a312fca9693f938808c12",
+      "tests": 61,
+      "verdict": "PASS"
+    },
+    {
+      "bytes": 2542,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_TIMING_FAILURE_REPRO_20261015.log",
+      "seconds": 0.081,
+      "sha256": "05765bf0db2d7410e0ce78a282ca541d2bc1eb5aa71683167cc22bc76a21ba50",
+      "tests": 2,
+      "verdict": "FAIL"
+    },
+    {
+      "bytes": 208,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_CONSOLIDATED_FAILURE_CORRECTIONS_20261015.log",
+      "seconds": null,
+      "sha256": "e37d90fb6f03420ea8b59efa6ae4fbf98654534b632d1aa3fdd33bdb57b09a5f",
+      "tests": null,
+      "verdict": "NOT_RUN_INVALID_MODULE_SELECTION"
+    },
+    {
+      "bytes": 16850,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_CONSOLIDATED_FAILURE_CORRECTIONS_R2_20261015.log",
+      "seconds": 5.337,
+      "sha256": "7b834d4ab6c1e2a386ac30c0bf2dd213956798dcb2129a22323782faf0c06da9",
+      "tests": 80,
+      "verdict": "PASS_WITH_5_EXISTING_ARCHIVE_SKIPS"
     }
   ]
 }

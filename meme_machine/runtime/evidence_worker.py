@@ -221,6 +221,8 @@ SAFE_CANDIDATE_REASONS=SAFE_CANDIDATE_REASONS | frozenset((
     'prewarm_startup_corrupt','prewarm_startup_feed_boundary',
     'prewarm_startup_transition_order','rolling_publication_pending',
     'candidate_checkpoint_ahead_of_history','candidate_decision_deadline_missed',
+    'candidate_proof_publication_requires_separated_delivery',
+    'candidate_proof_publication_batch_bound',
     'candidate_history_outbox_corrupt','candidate_history_store_must_be_separate'))
 
 

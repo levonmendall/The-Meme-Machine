@@ -137,10 +137,21 @@ class TransportDeadlineTests(unittest.TestCase):
             for timeout in (False,True):
                 rpc=Rpc('https://example.invalid');rpc.evidence_deadline=105
                 row={'id':1,'result':'0x1'}
-                with patch('meme_machine.lanes.pons.provider.time.monotonic',side_effect=[104,105]), \
-                     patch('meme_machine.lanes.pons.provider.urlopen',side_effect=TimeoutError() if timeout else None,
-                           return_value=self.Response([row] if batch else row)):
+                clock=SimpleNamespace(now=104)
+                def transport(*args,**kwargs):
+                    self.assertEqual(clock.now,104)
+                    self.assertEqual(kwargs['timeout'],1)
+                    # Admission and final dispatch revalidation may read the
+                    # clock repeatedly. Expiry belongs to the HTTP attempt,
+                    # rather than an incidental count of pre-dispatch reads.
+                    clock.now=105
+                    if timeout:raise TimeoutError()
+                    return self.Response([row] if batch else row)
+                with patch('meme_machine.lanes.pons.provider.time.monotonic',side_effect=lambda:clock.now), \
+                     patch('meme_machine.lanes.pons.provider.urlopen',side_effect=transport) as open_:
                     with self.assertRaisesRegex(BoundaryError,'evidence_deadline_during_transport'):self.call(rpc,batch)
+                    open_.assert_called_once()
                 self.assertFalse(rpc.cache)
+                self.assertEqual(rpc.timeout,10);self.assertEqual(rpc.evidence_deadline,105)
 
 if __name__=='__main__':unittest.main()

@@ -65,41 +65,41 @@ class CheckpointRecyclingTests(unittest.TestCase):
 
  def test_transient_reader_and_concurrent_tail_are_recycled_without_losing_commits(self):
   from meme_machine.solana_provider_config import AlchemyEndpoint
-  native_connect=sqlite3.connect
   with tempfile.TemporaryDirectory() as td:
    path=Path(td)/'db'
    state=service.ServiceState(path,AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline-test'))
-   reader=native_connect(path,isolation_level=None)
-   expected={};sizes=[];calls=[]
+   reader=sqlite3.connect(path,isolation_level=None)
+   expected={};sizes=[];passive_results=[]
    try:
     for cycle in range(12):
      # A short reader protects a prior snapshot while production source rows
      # commit. It ends just after the bulk copy, like an overlapping consumer.
-     reader.execute('BEGIN');reader.execute('SELECT COUNT(*) FROM records').fetchone()
+     reader.execute('BEGIN');snapshot=reader.execute('SELECT COUNT(*) FROM records').fetchone()
      rows=[replace(record(),identity='recycle:%d:%d'%(cycle,i),signature='s:%d:%d'%(cycle,i),
                    payload={'body':str(cycle)+':'+str(i)+'x'*1024}) for i in range(8)]
      state.writer.ingest(rows,proof=proof(10,10));expected.update({r.identity:r.body() for r in rows})
-     class Connection(sqlite3.Connection):
-      def execute(self,sql,*args,**kwargs):
-       cursor=super().execute(sql,*args,**kwargs)
-       calls.append(sql)
-       if sql=='PRAGMA wal_checkpoint(PASSIVE)':
-        # Append after this checkpoint's snapshot, before releasing the read
-        # mark. A lone PASSIVE pass cannot make this last committed tail reusable.
-        tail=replace(record(),identity='tail:'+str(cycle),signature='t:'+str(cycle))
-        state.writer.ingest([tail]);expected[tail.identity]=tail.body()
-        reader.execute('ROLLBACK')
-       return cursor
-     def connect(*args,**kwargs):
-      kwargs.setdefault('factory',Connection);return native_connect(*args,**kwargs)
-     with patch('sqlite3.connect',connect):
-      EvidenceWriter.checkpoint(path)
-      result=state.writer.finish_checkpoint()
-      self.assertEqual(result[0],0);self.assertEqual(result[1],result[2])
+     # Observe the actual completed PASSIVE operation, including its diagnostic
+     # connection factory. A sqlite.connect default-factory hook is bypassed
+     # when production explicitly requests that factory and leaves this reader
+     # pinned forever instead of exercising the intended released-reader case.
+     passive=EvidenceWriter.checkpoint(path);passive_results.append(passive)
+     self.assertEqual(passive[0],0)
+     self.assertLess(passive[2],passive[1],'fixture did not protect an older read mark')
+     self.assertTrue(reader.in_transaction)
+     self.assertEqual(reader.execute('SELECT COUNT(*) FROM records').fetchone(),snapshot)
+     # Commit the real tail after that snapshot and before releasing the read
+     # mark. The first PASSIVE cannot have copied this additional committed tail.
+     tail=replace(record(),identity='tail:'+str(cycle),signature='t:'+str(cycle))
+     state.writer.ingest([tail]);expected[tail.identity]=tail.body()
+     self.assertEqual(reader.execute('SELECT COUNT(*) FROM records').fetchone(),snapshot)
+     self.assertEqual(state.writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0],len(expected))
+     reader.execute('ROLLBACK');self.assertFalse(reader.in_transaction)
+     result=state.writer.finish_checkpoint()
+     self.assertEqual(result[0],0);self.assertEqual(result[1],result[2])
      sizes.append(Path(str(path)+'-wal').stat().st_size)
     self.assertEqual(sizes,[0]*12,
                      'owner-boundary completion left physical WAL allocation hot')
-    self.assertEqual(calls,['PRAGMA wal_checkpoint(PASSIVE)']*12)
+    self.assertEqual(len(passive_results),12)
     self.assertEqual(state.writer.db.execute('PRAGMA synchronous').fetchone()[0],2)
     self.assertEqual(state.writer.db.execute('PRAGMA integrity_check').fetchone(),('ok',))
    finally:reader.close();state.close()
