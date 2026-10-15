@@ -20,6 +20,20 @@
     "total_bytes": 33554432
   },
   "diagnostic_startup_maximum_seconds": 900,
+  "executed_result": {
+    "acceptance_minutes": 0,
+    "compatible_rollback_source": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "elapsed_to_drain_seconds": 904.6519620749168,
+    "evidence_index": "evidence/standing-phase-thread-result-20261015.json",
+    "financial_post": "CHECKED_STATE_CONSISTENT_NATIVE_LANES_DRAIN_VERIFIED_REVIEW_REQUIRED",
+    "native_drain": "VERIFIED_NATIVE_WORKER_STOP_ONLY",
+    "normal_funding": "CLOSED",
+    "original_readiness": "FAIL",
+    "output": "/var/lib/meme-machine-diagnostics/20261015-standing-phase-thread-1ee2d5fa-045539",
+    "result_handoff": "STANDING_PHASE_THREAD_RESULT_20261015.md",
+    "source": "1ee2d5fa6d660e696166f16b772d456b8c0a55d4",
+    "specification": "76a48e67fcb2ef53a2cb82e3c8d5db7d2812b2ee"
+  },
   "existing_provider_profiles": {
     "pons_observation_route": "canonical_primary existing bound app only",
     "robinhood_rps": 10,
@@ -116,7 +130,7 @@
     "original_log": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/EXCLUSIVE_PHASE_THREAD_EXECUTION_20261015.log",
     "root_cause": "Fifteen existing Git loose-object fanout directories created under private engineering umask prevented service clean-status reads. Fetch reused existing objects; checkout umask alone insufficient."
   },
-  "status": "FIXED_PHASE_THREAD_ATTRIBUTION_PREPARED_SOURCE_INSTALLED_FUNDING_CLOSED_NOT_STARTED",
+  "status": "CONSUMED_ONE_RUN_STOPPED_REVIEW_REQUIRED_NO_UNCHANGED_RETRY",
   "tested_successor": "1ee2d5fa6d660e696166f16b772d456b8c0a55d4",
   "unchanged_resource_protection_contract": "https://github.com/levonmendall/The-Meme-Machine/blob/a32f49d2061e577644ef2d28f75fefd4a48ebe87/operational/pump-first-release/CONSOLIDATED_STARTUP_NEXT_OBSERVATION_SPEC_20261014.json",
   "validation": "Risk-based focused gate:247cases246PASS/1stale duplicated-field assertionERROR57.453s; corrected affectedcollector+4exactsource/economic guards34PASS10.740s; final30collectorPASS. Actual integrated startup, original canonical/economic/order/rollback/pending-history/cancellation tests passed in247run. No new fullFAST; prior completeFAST38652038787 succeeded only on old c8beb2d source, not current releasePASS.",

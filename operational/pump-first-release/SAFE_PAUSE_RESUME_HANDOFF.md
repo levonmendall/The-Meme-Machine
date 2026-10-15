@@ -1,3 +1,29 @@
+# Latest checkpoint — phase/thread result; no unchanged retry
+
+Read [STANDING_PHASE_THREAD_RESULT_20261015.md](STANDING_PHASE_THREAD_RESULT_20261015.md)
+and its small evidence index. Exact1ee2d5fa ran once under76a48e67/standingissue134:
+904.652s, STARTUP_LIMITATION, original300sreadinessFAIL, acceptance0. Both current
+native workers STOPPED/reconciled/exit0 withoutKILL; historical RECOVERY_REQUIRED
+unchanged. Compatible clean66f85d61/saved overlays restored, no database rewind;
+PAPER inactive/disabled/Restart=no/fundingclosed.
+
+After both native declarations493.197→897.862s:arrival4.6038/durable2.1227,
+neweststored2.1030/published2.1005slotunits/s; gap1117→2129, marketage475.8s.
+Serial preparation97.832 +ownerqueue168.706 +callback137.165=403.703of404.665s.
+Largest exclusive candidatephase economic_store76.300wall/21.147CPU/33.036
+runnablewait; exact avoidable operation unproven. Pons0.715core is distributed
+across main/Survivor/hydration/discovery. One offline auditindexpair reduced
+logicalreads95.7% butCPUonly1.825→1.748s withmorewrites; rejected asmaterial
+repair, no production index. No wholemachine speedup or hardware verdict.
+
+463bounded postqueries/4.743s verified head10311/$1000/zeroeightobligation
+categories/historical500/allfourv1/exactpriorACKsand32currentpendingidentities.
+Nativeworkerstop is distinct fromglobalacceptedsourceframedrain, which remains
+unavailable. Backupstorage/protection, BUSY, READONLY, replaysemantics andheld
+quote/USD deadlines remainindependent. Latest spec is consumed, not reusable
+as another unchangedstart. Continue only evidence-supported offlinework orone
+precise bounded discriminator understanding authority; no routine approvalgate.
+
 # Current checkpoint — native stop verified; candidate drain still insufficient
 
 Read [STANDING_SOURCE_ACCESS_RESULT_20261015.md](STANDING_SOURCE_ACCESS_RESULT_20261015.md)

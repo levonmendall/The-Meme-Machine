@@ -1,0 +1,89 @@
+{
+  "artifacts": [
+    {
+      "bytes": 290874,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_PHASE_THREAD_POST_NATIVE_FINANCIAL_20261015.json",
+      "sha256": "622c92d6ecd2e052f428ce2b1edb6f209f5b44293085bb3e97d7fb70a627dbf4"
+    },
+    {
+      "bytes": 13853,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_PHASE_THREAD_CANDIDATE_ANALYSIS_20261015.json",
+      "sha256": "dac5009ce98422b6fb03b6cb2b8d275df1b923cf448351285dc4c496e387985f"
+    },
+    {
+      "bytes": 31581,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_PHASE_THREAD_PONS_ANALYSIS_20261015.json",
+      "sha256": "97aa8e2857272e9e8bf1ca222100960b9be760488341fb3908931ae46e893a97"
+    },
+    {
+      "bytes": 8876,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_PHASE_THREAD_UNIT_JOURNAL_20261015.jsonl",
+      "sha256": "f0d64725ff0b79b934c4a3e10e9971e0c8476b5fa4b16373d9100c96a15df8c6"
+    },
+    {
+      "bytes": 522,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_PHASE_THREAD_ROLLBACK_20261015.json",
+      "sha256": "4bf2b50de9f6d5184050d9f8b64fd99a93a90febbb160eee9be7a8b1d5a2fc2c"
+    },
+    {
+      "bytes": 5027,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/EXCLUSIVE_PHASE_THREAD_SOURCE_OBJECT_ACCESS_REPAIR_20261015.json",
+      "sha256": "6a3f6b5847c8e1d8b4d254b2107efaa8f9a2f3d169034b9df3235f53f6835b9e"
+    },
+    {
+      "bytes": 6109,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_AUDIT_BODY_LENGTH_SAMPLE_20261015.json",
+      "sha256": "3f3439161747dc3c66a57b18887db32a260a817f22d9946f4088b75daa2e1518"
+    },
+    {
+      "bytes": 9710,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_AUDIT_RING_INDEX_PAIR_20261015.json",
+      "sha256": "63f3d2f805adfa3b2c6040adcc28926221b6293960cb4caa4d0476f2e8154498"
+    },
+    {
+      "bytes": 790,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_AUDIT_RING_INDEX_PAIR_20261015.log",
+      "sha256": "3b9e791e25afaaf60a38f3f1fa3b6be2bfff0ae63ec7862b2a20261dc55568bd"
+    }
+  ],
+  "authority": "https://github.com/levonmendall/The-Meme-Machine/issues/134",
+  "branch": "repair/consolidated-startup-followup-20261014",
+  "claims": {
+    "acceptance_minutes": 0,
+    "financial": "CHECKED_STATE_VERIFIED",
+    "full_release": "NOT_CLAIMED",
+    "hardware_sufficiency": "UNPROVEN",
+    "held_protection": "NOT_TESTED",
+    "native_lanes": "CURRENT_PID_GRACEFUL_STOP_VERIFIED",
+    "readiness": "FAIL",
+    "source_frame_drain": "UNAVAILABLE_FROM_STATIC_FACTS",
+    "sustained_capacity": "FAILED"
+  },
+  "next": "STOP affected throughput/Pons micro-optimization branches: no supported material correction or decisive current fixture. Reopen only with operation-level causal evidence or a bounded discriminator; no unchanged live retry and no routine approval request.",
+  "offline_audit_index_decision": "REJECTED_AS_MATERIAL_CPU_OR_WHOLE_MACHINE_REPAIR_NO_PRODUCTION_INDEX",
+  "pr": 133,
+  "prior_result": "evidence/standing-source-access-result-20261015.json",
+  "raw_files": [
+    {
+      "bytes": 96,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-phase-thread-1ee2d5fa-045539/clock.json",
+      "sha256": "dd2040215e389cb10675835534b12189c998165b541783b774fb17193b26484e"
+    },
+    {
+      "bytes": 10219,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-phase-thread-1ee2d5fa-045539/result.json",
+      "sha256": "e3ce6a30ee42ddd358dbb20d40803ecc1691f91b2bb6c8c37fdbea5aa2292259"
+    },
+    {
+      "bytes": 12902234,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-phase-thread-1ee2d5fa-045539/metrics.jsonl",
+      "sha256": "2836af4716a5bfd8a70e4dbc192ed7c2656357193078adf4b9257012c4288d0b"
+    }
+  ],
+  "raw_output": "/var/lib/meme-machine-diagnostics/20261015-standing-phase-thread-1ee2d5fa-045539",
+  "schema": 1,
+  "source": "1ee2d5fa6d660e696166f16b772d456b8c0a55d4",
+  "specification": "76a48e67fcb2ef53a2cb82e3c8d5db7d2812b2ee",
+  "status": "STOPPED_REVIEW_REQUIRED_CAPACITY_FAILED_NATIVE_WORKER_STOP_VERIFIED",
+  "technical_stop": "STOP \u2014 INSUFFICIENT EVIDENCE FOR A JUSTIFIED CORRECTION OR DECISIVE TEST"
+}
