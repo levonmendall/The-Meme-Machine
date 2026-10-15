@@ -114,3 +114,41 @@ not full native manager restoration. The current full local fold was introduced
 to recover real creator/graduation/early-holder facts and remains a separate
 measured startup cost. Do not discard those facts, rebuild already-separated
 history machinery or infer an architectural regression from unlike timings.
+
+## Exact tested and published successor
+
+Executable **`bdc19709e7daad243b3e3e1c3d50874af79695c1`** contains the bounded
+hot-page planner, matching pin indexes, shared-owner join correction, stale-plan
+fences, same-transaction cursor advancement and live BUSY-deferral handling.
+Ten new focused tests pass, including equal-length near-end seeks while history
+grows4,096→16,384rows, fixed-ceiling wrap under continuous append, cold shadows,
+all shared pins/unbound rows, fresh/stale generations/cursors, transaction failure,
+interrupted preparation, byte-credit rejection and exact lossless restoration.
+On the identical metadata inputs the old candidate-selection query alone grows
+288,661→1,148,787VMsteps; the complete bounded plan remains10,586→10,574steps
+for48examined rows. Different housekeeping selection order is deliberate;
+canonical economic ordering, availability and evidence remain unchanged.
+
+Final exact candidate: **68selected combined tests PASS /22.417seconds**, including
+the actual integrated startup rehearsal, native cancellation, independent delivery,
+archival and existing retention/pin/canonical/restart paths. **Four exact economic
+and source guards PASS /20.439seconds**, unchanged assertions/manifests.
+No new fullFAST and no normal-release/capacity/held-protection PASS.
+New fixture10PASS /4.357seconds separately. Earlier115history/retention regressions
+passed before final explicit key ranges; their distinct source scope is retained.
+Original expected2reproductionFAIL and misnamed loaderERROR are preserved.
+
+Private focused logs: `SCOPED_RETIREMENT_ACCESS_BASELINE_20261015.log`,
+`SCOPED_RETIREMENT_ACCESS_CORRECTION_20261015.log`,
+`SCOPED_RETIREMENT_HOT_PAGES_COMPARISON_20261015.log`,
+`SCOPED_RETIREMENT_COMBINED_CANDIDATE_20261015.log` and
+`SCOPED_RETIREMENT_FINAL_SOURCE_GUARDS_20261015.log`.
+
+Fresh bounded preflight at02:56:57UTC: all checked invariants VERIFIED,
+265indexed queries/.158seconds, unchanged head9340/$1,000, zero obligations,
+exact retained pending/ACK state, inactive ownership, unchanged usable recovery
+reference, provider controls and backup/resource reserves. No authoritative writes,
+full replay, bulk copy or provider acquisition during that check. Actual installed
+source/configuration/access and final workload checks remain required before start.
+The published standing next-run specification pins the fresh output and exact
+executable. No routine owner reapproval is required under issue134.

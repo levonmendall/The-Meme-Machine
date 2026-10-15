@@ -24,43 +24,43 @@
   ],
   "funding": "CLOSED_DURING_DIAGNOSIS",
   "global_attempt_limit": null,
-  "independent_justification": "Real disposable reproduction32unchangedGROUPBYscans/25600VMsteps; exactreportingrepair0warmGROUPBY/224VMstepswithbyteequaloutputs. Confirmedacceptedownercompletionmetricslostwhencoroutinewaitercanceled; fixedinactualservicecallbackandtestedthroughfinalIPC. Distinctfrompriorunchangedretry. No throughputspeedupclaimedbeforemeasurement.",
+  "independent_justification": "Actual53.805663s retention ownercallback caused maintenance_service_deadline_exhausted. Disposablefixture reproduced unrelatedmetadata scans and candidate-local history amplification: oldselection288661\u21921148787VMsteps at4096\u219216384rows; complete boundedplan10586\u219210574steps/48metadata. Exact pin/ACK/canonical/source/cursor/restart invariants pass. No whole-machine speedup claimed before current-market measurement.",
   "measurement_limits": [
     "Livewindowsarenotmatchedmarketreplay; differencesarecurrentoperatingcomparisons,nocontrolledcausalspeedupclaim",
     "Ownerouterelapsedincludesfuturecompletioncallbacks; servicecallbacktimingexcludesunwinding; do not sumoverlappingmetrics",
     "Missingstrategyconsumption/oldestrequiredhistoryremainexplicitlyunavailablewhereexistingrecordscannotestablishthem",
     "Nohealthyreadinessorheldprotectionoronehourclaimfromflatfundingcloseddiagnosis"
   ],
-  "next_technical_fact": "Exactlong-owneroperationlabel/origin/completionCPUwallvsactualownerTIDschedstat/wchan; freshacquisition/join/stored/historyACK/publicationprogress, startup/recovery and managedPonsobservations.",
+  "next_technical_fact": "Actual retention owner hold and mandatory maintenance progress after bounded selection; current-run CONTROL/join/preparation/commit/history exactACK/publication rates before/after native recovery, actual owner CPU/scheduling/storage waits and managed-Pons capability naturally exercised.",
   "no_normal_transition_from_diagnostic_completion": true,
   "outcome_decisions": [
-    "Exactlongcallbackorblockedthread: useoperationandwait evidencefornarrowoffline mechanism reproduction/correction; no generic timeout/retry",
-    "ReducedPonsreportworkbutunchangedcanonicaldeficit: quantifyremainingowner/preparation/history dependency; noisolatedscanclaimaswholemachinePASS",
-    "Provider/controltransportfailureorsourcefreeze: retainfirsterror/contextandlimits; no cursor/providerworkaround or unchangedrerun",
-    "No meaningful discriminator: stop this branch and document exactmissingtechnicalfact; continue independently supportedofflinework"
+    "Retirement hold removed: quantify remaining pre-persistence and native restoration stages on this current workload; no controlledhistoricalspeedupclaim.",
+    "Retirement or apply remains slow: identify actual measured operation/wait and residual cardinality before another correction; no unchanged retry.",
+    "Provider/worker/native safety failure: preserve firsterror and pendingstate, stop, verify current resumability independently of financialflatness.",
+    "No meaningful discriminator: stop affected branch with exact missingtechnicalfact; continue independently supported offline work."
   ],
   "per_invocation_one_start": true,
-  "permitted_operational_writes": "Existing canonical/source/prewarm/session/historian/candidate-history/receiptACK/provider accounting/native recovery/reporting and OBSERVATION runtime-admission/owner records from unchanged run contract; no new position, reservation, fill, capital transfer, epoch or strategy-policy mutation",
+  "permitted_operational_writes": "Existing canonical/source/prewarm/session/historian/candidate-history/receiptACK/provider accounting/native recovery/reporting and OBSERVATION runtime-admission/owner records from unchanged run contract; no new position, reservation, fill, capital transfer, epoch or strategy-policy mutation; compatible additive metadata indexes and scoped_retirement_hot_cursor/table housekeeping metadata through the existing authoritative owner, no coverage/checkpoint advancement from archival cursors",
   "poststartup_measurement_maximum_seconds": 900,
   "prepared_installation": {
-    "dispatch": "Fresh financial/native and installed service-user access preflight required before start",
+    "dispatch": "Fresh financial/native applicability passed at02:56:57; actual installed source/configuration/service-user access and final nonoverlap required before start",
     "environment_path": "/etc/meme-machine/volume-quality-service.observation.env",
-    "executable": "5c72109288dd29fb113f86bc6ba15808884587a9",
+    "executable": "bdc19709e7daad243b3e3e1c3d50874af79695c1",
     "identities": {
       "access_helper_sha256": "344207e85be57a4ee16559b71b07eba7570a04df6a87232c6a93dce3e8582989",
       "base_unit_sha256": "7cd10c6c717a97f312c8718886bb09750b5498ccf96ef5bc74b52f8094bfe294",
       "continuous_profile_sha256": "5bfc1fe915df2f40dff8fc6fb1cc5f98a836fe41c7155bfd4ca15f0d563e39bd",
       "controller_sha256": "1c7fed8fa9bd595ed3e3b3b281c9c0b20613527d4f31a8fc878c8673a238524d",
-      "environment_sha256": "688d5662a8ee935868d66947623af6a20874bc490a8049b30e64800d45f9a636",
-      "unit_sha256": "bc564f17f6628a4f8645d82b9db4d298f7aab08cee54740634ba680104d53660"
+      "environment_sha256": "1e50aaa86e64bd2f502e842e9565cc01028d60404739d29949b074934814e885",
+      "unit_sha256": "0fc727ae3a054407a02f8c4abd3c2e7a8a5cb472add127ce483e71aa1c826b3c"
     },
     "installed_before": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
-    "output": "/var/lib/meme-machine-diagnostics/20261015-standing-owner-5c721092-022002",
-    "preparation": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_OWNER_RETRY_PREPARATION_20261015T022002Z",
+    "output": "/var/lib/meme-machine-diagnostics/20261015-standing-retirement-bdc19709-025742",
+    "preparation": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_RETIREMENT_PREPARATION_20261015T025742Z",
     "unit_path": "/etc/systemd/system/meme-machine-paper.service.d/validation-observation.conf"
   },
   "provider_contract_scope": "Original replay-position failure and long-term backend/cursor semantics remain unresolved. This is not another replay-capability experiment or a provider repair. Current exact required forms delivered matching evidence; joins reject pre-floor frames and independently require complete linked evidence. No cursor/commitment/provider change. Repeated semantic rejection stops this run; no unchanged retry.",
-  "question": "After eliminating repeated unchanged Pons coverage scans, where does current-generation evidence accumulate, and which exact completed owner operation / actual native-thread wait explains a long owner stall?",
+  "question": "Does bounded hot-page archival selection eliminate the long canonical-owner retention hold and maintenance deadline failure, and where does current required evidence accumulate before and after native restoration?",
   "readiness_seconds": 300,
   "resource_bounds": {
     "cpu_cores": 1.8,
@@ -74,9 +74,9 @@
   "routine_per_run_owner_approval": false,
   "schema": 1,
   "shutdown_reserve_seconds": 65,
-  "status": "PREPARING_MEASURED_REPORTING_REPAIR_AND_EXACT_OWNER_ATTRIBUTION",
-  "tested_successor": "5c72109288dd29fb113f86bc6ba15808884587a9",
+  "status": "FOCUSED_TESTED_BOUNDED_RETIREMENT_RETEST_PREPARED",
+  "tested_successor": "bdc19709e7daad243b3e3e1c3d50874af79695c1",
   "unchanged_resource_protection_contract": "https://github.com/levonmendall/The-Meme-Machine/blob/a32f49d2061e577644ef2d28f75fefd4a48ebe87/operational/pump-first-release/CONSOLIDATED_STARTUP_NEXT_OBSERVATION_SPEC_20261014.json",
-  "validation": "Finalaffected181tests/33.303s:180PASS,1existingLEGACY_ARCHIVE_CHARACTERIZATIONskip. Exacteconomic/sourceguards4PASS/11.767s. InitialClockfixturefailurespreservedanddirect2caseregressionPASS; nofullFASTrerun, no generalreleasePASS.",
+  "validation": "Exact bdc19709:68selected combined offline startup/lifecycle/delivery/retirement testsPASS/22.417s;4exacteconomic/sourceguardsPASS/20.439s. New10tests alsoPASS/4.357s. Prior115retention/history testsPASS before final range refinement; initial reproduction2FAIL and one misnamedcase loaderERROR retained. No fullFAST/no generalreleasePASS.",
   "work_stop_seconds": 1800
 }
