@@ -3,6 +3,29 @@
 Maintain the existing four committed lane implementations and shared portfolio.
 The supported entrypoint is `python -m meme_machine.operational`.
 
+Owner standing authorization is recorded in GitHub issue
+https://github.com/levonmendall/The-Meme-Machine/issues/134 and remains effective
+until revoked. It supersedes historical three-start limits, 24-hour expirations
+and per-run owner approvals. Continue cause-based offline repairs, focused tests,
+compatible deployment and sequential live-provider/PAPER diagnostics without a
+routine approval request. Preserve the individual controller's one-start guard,
+300-second readiness, 1,800-second work and 1,865-second shutdown boundaries;
+no overlapping attempts, automatic systemd restart or unchanged retry loops.
+
+Keep diagnosis funding closed. Once the original evidence, native recovery,
+accounting, resource, provider and protection gates actually pass, the standing
+scope permits normal simulated allocations, genuine one-hour acceptance and
+continued PAPER operation under the existing policy. Run final release gates
+before that promotion. Before each start, freshly verify current-state native
+resumability, financial obligations, source/configuration, retained receipts/ACKs,
+exclusive ownership, service access, recovery reference, backup non-overlap and
+provider/resource safeguards. Preserve historical RECOVERY_REQUIRED outcomes;
+never demand a retroactive graceful PASS. Stop live activity on a real unresolved
+safety/capability boundary and continue supported offline repairs. Escalate only
+for such a boundary or an action outside standing scope, not an attempt count or
+elapsed campaign timer. No real-money orders, capital/policy expansion, provider
+quota increases, infrastructure purchases or weakened safeguards are authorized.
+
 Use CPython 3.12.14 and the pinned runtime requirements. During development,
 run the smallest affected offline modules/cases using
 `python -m operational.tests FAST --modules <module>` (or `OPERATIONAL --modules`

@@ -6,7 +6,7 @@
     "Pons worker: Current and Survivor discovery, qualification/recovery, canonical evidence, native quote/USD paths where genuine work requires them.",
     "Existing mandatory maintenance/checkpoint/recovery, read-only monitoring/dashboard; protection/settlement retains priority if any actual obligation exists."
   ],
-  "authorization": "Owner three-start funding-closed campaign plus explicit2026-10-15 instruction to proceed toward attempt1 under amended current-state recovery gate. Zero starts consumed. No normal PAPER/funding/acceptance; no retry without causal correction and fresh mandatory safety preflight.",
+  "authorization": "Owner standing authorization issue134 supersedes previous global three-start/24h/one-time permission wording. Original per-run safety bounds, source pinning and fresh preflight remain.",
   "authorized_operations": [
     "Install this exact validated executable, fresh access/recovery/obligation preflight and one funding-closed start through the existing controller.",
     "Select only the existing canonical_primary observation route on the same bound Robinhood Alchemy application for this diagnostic. No new provider, routing fallback, quota increase or normal-PAPER admission.",
@@ -18,19 +18,6 @@
     "next_scheduled_backup_utc": "2026-10-15T04:03:35Z",
     "source": "read-only systemctl list-timers meme-machine*",
     "timers_modified": false
-  },
-  "campaign": {
-    "attempt": 1,
-    "authorization_exact_received_time": "not retained; do not invent or reset it",
-    "auto_systemd_restart": false,
-    "conservative_validity": "Campaign owner instruction followed already-dispatched FAST38652038787, whose retained log begins2026-10-14T23:06:44.0516813Z. Earliest possible expiry afterthat known ordering is2026-10-15T23:06:44Z; dispatch must occur earlier or reestablish/renew authority.",
-    "consumed_before": 0,
-    "duration_hours": 24,
-    "earliest_expiry_bound_utc": "2026-10-15T23:06:44Z",
-    "latest_preparation_utc": "2026-10-15T00:29:36.558718+00:00",
-    "maximum_starts": 3,
-    "normal_paper_authorized": false,
-    "single_start_per_controller": true
   },
   "candidate_revision": "ba25499b26103ec5d14f1ce765c8e8f180695f33",
   "comparison_limit": "Current integrated strategy workload only; no comparison to historical combined/isolated runs as a causal speedup. No diagnostic/held-position/full-capacity/one-hour PASS from a flat funding-closed run.",
@@ -70,6 +57,7 @@
     "umask": "0022 for root clock metadata via real atomic_json; all output remains inside service-owned0700 run directory underroot:meme-machine0710parent. ServiceUMask0077 unchanged; private controllerlog precreated0600."
   },
   "currently_deployed_revision": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+  "dispatch_status": "NOT_DISPATCH_READY: old ba254 run identities retained as historical reference; repin exact focused-validated successor and fresh configuration/output before any future PAPER invocation.",
   "engineering_branch": "repair/consolidated-startup-followup-20261014",
   "exact_executable": "ba25499b26103ec5d14f1ce765c8e8f180695f33",
   "executable_controller": "engineering.diagnostics.current_combined_observation_20261014; existing SingleAttemptSupervisor, access guard and one-attempt Window unchanged",
@@ -97,6 +85,7 @@
     "Current-source byte integrity and reviewed economic protections remain; no executable change for this specification/configuration identity update. Reuse ba254affectedproofs rather than rerun broad suites.",
     "Fresh service-user simulated-clock/atomicwrite/terminal-read access guard runs before actual observation clock/start; no cached success."
   ],
+  "historical_attempt_reference": "CAMPAIGN_ATTEMPT1_RESULT_20261015.md and immutable specification publication a32f49d2061e577644ef2d28f75fefd4a48ebe87 preserve executed identities/results; prior limits are superseded, no result rewritten.",
   "historical_baseline_receipt_source": "3ef0a6628780ff73dab68d933ca82851f61ea1f4",
   "historical_replay_route": "CLOSED: current retained inputs, state, Pons responses and actor timing are not faithful. No further directory search or replica request.",
   "integrated_policy": "paper-opportunity-access-v1; all six changes active; nine prior changes and volume attention preserved",
@@ -345,6 +334,16 @@
     "If retained66 cannot interpret successor state, keep newly tested candidate installed but stopped and restore only compatible small overlays. No selection-checkpoint erase, historical rewrite or forced rollback. Return for review."
   ],
   "single_decision_enabled": "Identify one measured limiting operation/dependency for a causal targeted intervention; or stop with the precise startup/provider/attribution limitation. No automatic retry or funding transition.",
+  "standing_authority": {
+    "campaign_expiration": null,
+    "effective": "until owner revokes",
+    "funding_for_diagnosis": "CLOSED",
+    "global_start_limit": null,
+    "individual_one_start_controller": true,
+    "issue": "https://github.com/levonmendall/The-Meme-Machine/issues/134",
+    "normal_paper": "Only after original readiness/recovery/protection/accounting and finalized release gates pass",
+    "routine_per_run_reapproval": false
+  },
   "status": "AUTHORIZED_CAMPAIGN_ATTEMPT1_PENDING_FRESH_PREFLIGHT",
   "stop_conditions": [
     "First fatal worker/SQLite error, mandatory protection/evidence/accounting/resource failure, unsafe provider boundary or uncontrolled reconnect/retry pattern.",
