@@ -42,6 +42,31 @@
   "reviewed": "9bc778ff9237c0769aa6a6d2799bf513d677e333",
   "schema": 1,
   "scope": "offline source repair; historical results unchanged; focused counts overlap",
+  "second_complete_ci": {
+    "FAST": {
+      "run": 38777600727,
+      "selected": 2427,
+      "skipped": 2,
+      "verdict": "PASS"
+    },
+    "OPERATIONAL": {
+      "cause": "direct native-genesis fixture did not own its descriptive health-thread lifetime",
+      "errors": 1,
+      "run": 38777597576,
+      "selected": 3937,
+      "skipped": 36,
+      "verdict": "FAIL"
+    },
+    "candidate": "bc725062abf9a9ee3f6752a1c30ebf0d8a0bed7f",
+    "held": {
+      "added_passed": 145,
+      "added_selected": 147,
+      "added_skipped": 2,
+      "original_passed": 79,
+      "run": 38777601421,
+      "verdict": "PASS_WITH_DISCLOSED_HOST_SKIPS"
+    }
+  },
   "tests": [
     {
       "bytes": 2599,
@@ -202,6 +227,22 @@
       "sha256": "7b834d4ab6c1e2a386ac30c0bf2dd213956798dcb2129a22323782faf0c06da9",
       "tests": 80,
       "verdict": "PASS_WITH_5_EXISTING_ARCHIVE_SKIPS"
+    },
+    {
+      "bytes": 407,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_GENESIS_CLEANUP_REPRO_20261015.log",
+      "seconds": 0.04,
+      "sha256": "d330be1b2e5c5d9ed52f4fb181ffa62abfb2c1f944e3bba95691bb688851863a",
+      "tests": 1,
+      "verdict": "PASS_ISOLATED_NOT_DISPROOF_OF_RACE"
+    },
+    {
+      "bytes": 13561,
+      "file": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/GITHUB_MAIN_GENESIS_FIXTURE_OWNERSHIP_20261015.log",
+      "seconds": 6.186,
+      "sha256": "6c7169855f725a077a9934d68d55f9d675890904595fc01233a30236f8292230",
+      "tests": 58,
+      "verdict": "PASS"
     }
   ]
 }

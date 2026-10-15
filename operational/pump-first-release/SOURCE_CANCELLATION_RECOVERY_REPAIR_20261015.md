@@ -76,6 +76,7 @@ runner, CPython 3.12.14 / linked SQLite 3.45.1. Counts overlap and are not summe
 | Portable configuration identity and failure/redaction paths | PASS, 6 / 6, 0.077 s |
 | Explicit CPU capacity, portable configuration, full source guards, continuation, startup integration | PASS, 141 / 141, 52.603 s |
 | Final-suite failure corrections: checkpoint overlap, transport deadline, bounded diagnostic codes, SQLite attribution and startup | PASS, 80 selected / 75 passed / 5 existing archived-Model-A skips, 5.337 s |
+| Native-genesis fixture ownership, deterministic active-publication disposal, cancellation and actual startup rehearsal | PASS, 58 / 58, 6.186 s |
 
 The 294 selection includes actual supervisor/child startup rehearsal and source
 owner/queue/session paths, idle reads/writes, repeated cancellation, full queues,
@@ -121,6 +122,30 @@ All complete-suite failures were reproduced offline and consolidated:
 The affected selection passed as recorded above. Final complete-suite reruns must
 validate the consolidated candidate before merge. These corrections make no claim
 about authentic market throughput, SQLite BUSY attribution or provider suitability.
+
+The next exact-source FAST run
+[38777600727](https://github.com/levonmendall/The-Meme-Machine/actions/runs/38777600727)
+passed 2,427 selected / 2,425 passed / 2 hosted-service skips. Held-PAPER
+[38777601421](https://github.com/levonmendall/The-Meme-Machine/actions/runs/38777601421)
+also passed (79, then 147 selected / 145 passed / 2 hosted-service skips).
+OPERATIONAL [38777597576](https://github.com/levonmendall/The-Meme-Machine/actions/runs/38777597576)
+completed 3,937 tests with 36 existing skips and one new cleanup error. All four
+previous failures were gone, but this run is still FAIL.
+
+The new error was a native-genesis direct-call fixture lifetime race: it removed
+its temporary Pons directory while the descriptive health daemon could still
+publish there. Production owns that daemon through the lane process boundary;
+this fixture keeps its process alive and must own disposal, as the integrated
+startup rehearsal already does. The correction explicitly retains the publisher
+and real health thread, fences and joins that exact thread before restoring
+patches/removing state, and asserts no live owner remains. A new event-gated case
+forces publication to be active at disposal, proving closure without relying on
+repeated attempts to trigger the race. All original two-wait, reconciliation,
+FAIL_CLOSED, no-genesis and exact portfolio assertions remain. The original case
+passed in isolation; that did not negate the preserved full-suite failure.
+The 58-test affected selection above passed. This is a test ownership correction,
+not a new native recovery, provider, throughput or shutdown-success claim.
+Production application bytes are unchanged from the preceding candidate.
 
 ## Operational and financial boundary
 

@@ -27,16 +27,37 @@ class NativeGenesisWait(unittest.TestCase):
                 self.assertNotIsInstance(failure.exception,NativeReconciliationUnavailable)
 
     def test_transient_read_waits_in_same_pons_process_without_genesis_or_discovery(self):
+        self.transient_read_fixture()
+
+    def test_direct_wait_fixture_joins_active_health_publication_before_removing_state(self):
+        self.transient_read_fixture(hold_health=True)
+
+    def transient_read_fixture(self,*,hold_health=False):
         from meme_machine.operational import lane
         from meme_machine.runtime import stop,status,usd_valuation
+        entered=threading.Event();release=threading.Event();publication_timeouts=[]
+        case=self
         class Stop:
             waits=[]
             def wait(self,seconds):
                 if threading.current_thread().name=='health':return True
+                if hold_health and not self.waits:
+                    case.assertTrue(entered.wait(2),'health publication never entered the fixture gate')
                 self.waits.append(seconds);return len(self.waits)==2
         requested=Stop()
         with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,{'MM_PAPER_EPOCH':'paper-fixture'}):
             root=Path(td);(root/'pons').mkdir();ids=dict(source_sha='a'*40,policy_hash='b'*64,config_hash='c'*64)
+            publisher=lane.NativeHealthPublisher(root,'pons');health_threads=[]
+            native_thread=threading.Thread;native_health=lane.health
+            def owned_thread(*args,**kwargs):
+                value=native_thread(*args,**kwargs)
+                if value.name=='health':health_threads.append(value)
+                return value
+            def health(*args,**kwargs):
+                if hold_health and threading.current_thread().name=='health':
+                    entered.set()
+                    if not release.wait(2):publication_timeouts.append(True)
+                return native_health(*args,**kwargs)
             with closing(PortfolioAccounting(root/'portfolio.sqlite')) as account:
                 account.establish_inception(inception_receipt('paper-fixture','2026-10-05T00:00:00Z','fixture'),portfolio_identities=ids,lane_identities={name:ids for name in LANES})
                 account.configure_family_sleeves()
@@ -47,14 +68,30 @@ class NativeGenesisWait(unittest.TestCase):
                 return native_check(*args)
             with patch.object(stop,'requested',requested),patch.object(status,'update') as update,\
                     patch.object(lane,'empty_native_reconciliation',side_effect=check),\
-                    patch.object(usd_valuation,'native_reader') as reader:
+                    patch.object(usd_valuation,'native_reader') as reader,\
+                    patch.object(lane.threading,'Thread',side_effect=owned_thread),\
+                    patch.object(lane,'health',side_effect=health):
                 reader.return_value.side_effect=usd_valuation.ValuationUnavailable('no_executable_route')
-                run_native(root,'pons')
+                try:run_native(root,'pons',publisher)
+                finally:
+                    # Production owns this daemon until its lane process exits.
+                    # This direct-call fixture keeps the process alive, so its
+                    # publisher must end before patches or state are removed.
+                    live_writer=entered.is_set() and any(thread.is_alive() for thread in health_threads)
+                    publisher.terminal.set();release.set()
+                    for thread in health_threads:thread.join(2)
+                    self.assertEqual(len(health_threads),1)
+                    self.assertFalse(any(thread.is_alive() for thread in health_threads),
+                        'disposable_native_health_thread_not_stopped')
+                    if hold_health:
+                        self.assertTrue(live_writer,'fixture did not hold a live publication at disposal')
+                        self.assertEqual(publication_timeouts,[])
             self.assertEqual(requested.waits,[15,15])
             self.assertEqual([call.kwargs['reconciled'] for call in update.call_args_list],[False,True])
             self.assertTrue(all(call.args==('FAIL_CLOSED',) and call.kwargs['discovery_enabled'] is False for call in update.call_args_list))
             self.assertEqual((root/'portfolio.sqlite').read_bytes(),before)
             self.assertFalse((root/'pons/native-genesis.json').exists())
+        self.assertFalse(root.exists(),'joined fixture publisher recreated removed state')
 
     def test_no_ramses_qualifier_is_reconciled_without_funding_or_replacing_native_state(self):
         import sqlite3
