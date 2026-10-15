@@ -1,74 +1,68 @@
-name: CI — fast deterministic tests
-# Development branches use focused offline tests; run the expensive complete FAST
-# suite at the final PR review/release gate, on main, or when dispatched explicitly.
-# Retain the existing full FAST job unchanged: a skipped/draft job is NOT a PASS.
+name: DigitalOcean migration bridge inventory
 on:
-  push:
-    branches: [main]
-  pull_request:
-    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
   workflow_dispatch:
-    inputs:
-      suite:
-        description: Complete offline release suite (finalized candidates only)
-        type: choice
-        options: [FAST, OPERATIONAL]
-        default: FAST
 permissions:
   contents: read
-# New commits cancel obsolete runs for the same PR/ref; the final revision must pass.
 concurrency:
-  group: fast-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: meme-machine-migration-source-inventory
+  cancel-in-progress: false
 jobs:
-  fast:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    runs-on: ubuntu-latest
-    timeout-minutes: ${{ inputs.suite == 'OPERATIONAL' && 90 || 45 }}
+  source-inventory:
+    if: github.ref == 'refs/heads/migration/do-bridge-20261015' && github.repository == 'levonmendall/The-Meme-Machine'
+    runs-on: meme-machine-stage-e-observer
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-        with:
-          # Source-equivalence checks retain the pinned source through later commits.
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12.14'
-      - run: python -m pip install -r requirements.txt
-      - name: Run complete offline suite with the required Linux containment
+      - name: Read-only original-host identity and migration prerequisites
+        shell: bash
         env:
-          OFFLINE_SUITE: ${{ inputs.suite || 'FAST' }}
+          ACTUAL_RUNNER: ${{ runner.name }}
         run: |
-          # The real containment regressions require cgroup v2 and exactly two
-          # CPUs. Supply those conditions on this disposable runner; retain the
-          # original tests, kernel limits and market-provider network guard.
-          sudo env CI=true PYTHONDONTWRITEBYTECODE=1 OFFLINE_SUITE="$OFFLINE_SUITE" "$(command -v python)" - <<'PY'
-          import os
-          from pathlib import Path
-          import runpy
-          import resource
-          import sys
-
-          # sudo's 1,024-descriptor default is insufficient for the unchanged
-          # multi-owner SQLite replay fixtures in the FAST parent. This does
-          # not change the contained workers' protective resource ceilings.
-          soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-          if hard < 4096:
-              raise RuntimeError('ci_replay_file_descriptors_required')
-          resource.setrlimit(resource.RLIMIT_NOFILE, (max(soft, 4096), hard))
-          cpus = sorted(os.sched_getaffinity(0))
-          if len(cpus) < 2:
-              raise RuntimeError('two_ci_cpus_required')
-          os.sched_setaffinity(0, set(cpus[:2]))
-          Path('/sys/fs/cgroup/cgroup.subtree_control').write_text('+cpu +memory +io')
-          from engineering.solana_capacity.proof_host import LinuxGroup
-          from engineering.solana_capacity.proof_limits import LIMITS
-          group = LinuxGroup(LIMITS)
-          group.close()
-          # Preserve the last reached regression if containment or the runner
-          # fails. This changes diagnostics only, not tests or their limits.
-          level = os.environ['OFFLINE_SUITE']
-          if level not in ('FAST', 'OPERATIONAL'):
-              raise RuntimeError('explicit_offline_suite_required')
-          sys.argv = ['operational.tests', level, '--verbose']
-          runpy.run_module('operational.tests', run_name='__main__')
-          PY
+          set -euo pipefail
+          test "$ACTUAL_RUNNER" = 'the meme machine'
+          python3 -I -B - <<'PYCODE'
+          import datetime,json,os,pathlib,platform,subprocess,urllib.request
+          def command(argv):
+              try:
+                  p=subprocess.run(argv,capture_output=True,text=True,timeout=30)
+                  return dict(exit=p.returncode,stdout=p.stdout.strip(),stderr=p.stderr.strip())
+              except Exception as error:return dict(unavailable=type(error).__name__)
+          def info(path):
+              p=pathlib.Path(path)
+              try:
+                  s=p.lstat();return dict(uid=s.st_uid,gid=s.st_gid,mode=oct(s.st_mode&0o7777),symlink=p.is_symlink(),bytes=s.st_size)
+              except Exception as error:return dict(unavailable=type(error).__name__)
+          if platform.node()!='ubuntu-gd-2vcpu-8gb-nyc1':raise RuntimeError('source_hostname_mismatch')
+          try:
+              with urllib.request.urlopen('http://169.254.169.254/metadata/v1/id',timeout=3) as response:
+                  droplet_id=response.read(100).decode().strip()
+              if droplet_id!='605465049':raise RuntimeError('source_droplet_mismatch')
+          except Exception as error:
+              raise RuntimeError('source_droplet_identity_unavailable') from None
+          volume=pathlib.Path('/mnt/volume_nyc1_1790918115030')
+          roots=[p for p in volume.glob('meme-machine-paper*') if p.is_dir()]
+          paths=['/opt/meme-machine','/opt/meme-machine/.venv/bin/python','/etc/meme-machine','/var/lib/meme-machine-handoff']
+          config=pathlib.Path('/etc/meme-machine')
+          files={str(p):info(p) for p in config.iterdir()} if config.is_dir() else {}
+          result=dict(captured_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),runner=os.environ['ACTUAL_RUNNER'],
+              droplet_id=droplet_id,hostname=platform.node(),identity=command(['id']),
+              sudo=command(['sudo','-n','-l']),disk_free=command(['df','-B1']),
+              devices=command(['lsblk','-J','-b','-o','NAME,PATH,SIZE,TYPE,FSTYPE,UUID,MOUNTPOINTS']),
+              paper=command(['systemctl','show','meme-machine-paper.service','-p','ActiveState','-p','SubState','-p','MainPID','-p','ControlGroup','-p','UnitFileState','-p','Restart','-p','User','-p','EnvironmentFiles']),
+              units=command(['systemctl','list-units','--all','meme-machine*','--no-pager']),
+              source=command(['git','-c','safe.directory=/opt/meme-machine','-C','/opt/meme-machine','rev-parse','HEAD','HEAD^{tree}']),
+              runtime=command(['/opt/meme-machine/.venv/bin/python','-I','-B','-c','import platform,sqlite3,json;print(json.dumps(dict(python=platform.python_version(),sqlite=sqlite3.sqlite_version)))']),
+              paths={p:info(p) for p in paths},configuration_metadata=files,
+              state_root_sizes={str(p):command(['du','-sb',str(p)]) for p in roots},
+              sealed_recovery_size=command(['du','-sb','/var/lib/meme-machine-handoff/20261006T053005Z-capacity-hold']),
+              economic_writes=False,provider_calls=False,protected_files_transferred=False)
+          print(json.dumps(result,indent=2))
+          pathlib.Path(os.environ['RUNNER_TEMP'],'do-migration-inventory.json').write_text(json.dumps(result,indent=2)+'\n')
+          PYCODE
+      - name: Preserve nonsecret source-host inventory only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: do-migration-inventory-${{ github.run_id }}
+          path: ${{ runner.temp }}/do-migration-inventory.json
+          if-no-files-found: error
+          retention-days: 90
