@@ -1,0 +1,25 @@
+{
+  "active_per_process": 16,
+  "additional_growth_allowance_per_full_bytes": 10000,
+  "counter_width_digits": 20,
+  "fixed_names_by_process": {
+    "pons": 12,
+    "solana": 18
+  },
+  "full_samples": 241,
+  "guard_records_overcounted_in_addition": 1201,
+  "maximum_work_seconds": 1200,
+  "metrics_limit_bytes": 33423360,
+  "post_startup_measurement_seconds": 300,
+  "projected_full_sample_bytes": 130900,
+  "projected_metrics_bytes": 32776724,
+  "remaining_margin_bytes": 646636,
+  "required_counter_bytes": 49522,
+  "required_counter_limit_bytes": 65536,
+  "retained_max_full_bytes": 83167,
+  "retained_max_guard_bytes": 545,
+  "scope": "OUTPUT_SERIALIZATION_ONLY_NOT_MARKET_THROUGHPUT",
+  "serialization": "COMPACT_IDENTICAL_JSON_VALUES",
+  "terminal_reserve_bytes": 131072,
+  "verdict": "WITHIN_UNCHANGED_LIMIT"
+}

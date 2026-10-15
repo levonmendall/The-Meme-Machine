@@ -1,3 +1,26 @@
+## Current continuation — operation attribution (2026-10-15)
+
+Executable `b007217e7930fa728604df4aa2a96f68f998e1ec`, same branch/draft PR133.
+Fixed reached-operation/source-SQL/Pons-executor attribution is focused-tested;
+no throughput correction or capacity PASS yet. See
+[the next bounded diagnostic](OPERATION_ATTRIBUTION_NEXT_OBSERVATION_20261015.json)
+and [validation](evidence/operation-attribution-validation-20261015.json).
+Issue134 remains standing authority. Next action: fresh current-state preflight,
+exact compatible installation/service-UID probe, then one changed-instrumentation
+funding-closed run. No competing tests/provider/backup workload. Original300s
+readiness/1800s work/1865s absolute limits and all safeguards remain; post-startup
+measurement shortened to300s for the unchanged32MiB diagnostic output bound.
+
+PAPER currently stopped/disabled/Restart=no, funding closed. Initial RO financial
+head11938 unchanged, cash$1000, obligations0; refresh beforedispatch. O13 native
+worker stop remains verified; global accepted-source-frame completion remains
+UNAVAILABLE. Source review found stop cancels ModelB producers/commit workers
+before a globalqueuejoin handshake; preserve this separate shutdown-order defect,
+partial replay/gap obligations and all historical RECOVERY_REQUIRED results.
+Backup minimum6.908GB shortfall and held-protection compatibility remain open.
+No original policy, strategy, economic, timeout, database durability or routing
+behavior changed. Earlier handoffs/results below remain authoritative history.
+
 # Current checkpoint — O13 preserved; measured throughput branch stopped
 
 Executed **10ae127c399279847df908d555eceb1aaf46ef1d**, published checkpoint71829097,
