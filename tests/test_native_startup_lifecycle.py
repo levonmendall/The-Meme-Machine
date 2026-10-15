@@ -10,6 +10,7 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import threading
+import time
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -327,6 +328,96 @@ class NativeStartupLifecycle(unittest.TestCase):
             self.assertIs(runner.PIPELINE,other)
             self.assertEqual(closed,['owned','owned'])
         self.assertIsNone(runner._STARTUP_RESOURCES.get())
+
+    def test_pons_cohort_sql_wait_precedes_cooperative_shared_replay_cancellation(self):
+        """Synthetic SQL-boundary characterization, not the retained -9 cause.
+
+        A disposable WAL writer blocks the real cohort genesis INSERT. Its
+        existing 30-second SQLite timeout is unchanged; this fixture releases
+        the lock within .25 seconds. The startup cancel scope cannot interrupt
+        that SQL wait, but the existing shared replay check observes it next.
+        This does not establish that production held any such lock.
+        """
+        from meme_machine.lanes.pons.pons_selective_capital import CohortCapital
+        from meme_machine.shared_capital import CapitalAuthority
+        from meme_machine.shared_capital import runtime
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
+            root=Path(directory);cohort_path=root/'cohort.sqlite';shared_path=root/'shared.sqlite'
+            stack.enter_context(patch.dict(os.environ,dict(PATH=os.environ.get('PATH','')),clear=True))
+            cohort=CohortCapital(cohort_path,1000)
+            cohort.reserve('retained-pending',100,at=1,decision_hash='fixture-decision',
+                           trial_path=root/'retained-native.sqlite')
+            with closing(cohort._connect()) as db:db.execute('PRAGMA journal_mode=WAL')
+            with closing(CapitalAuthority(shared_path)):pass
+            def rows(path,tables):
+                with closing(sqlite3.connect(path)) as db:
+                    return {table:db.execute('SELECT * FROM '+table+' ORDER BY rowid').fetchall()
+                            for table in tables}
+            native_tables=('capital_genesis','runtime_state','capital_positions','capital_journal')
+            shared_tables=('shared_capital_projection','shared_capital_events')
+            before_native=rows(cohort_path,native_tables);before_shared=rows(shared_path,shared_tables)
+            original_connect=sqlite3.connect
+            before_insert=threading.Event();permit_insert=threading.Event()
+            executing=threading.Event();finished=threading.Event()
+            phases=[];checks=[];timeouts=[];errors=[];opened=[]
+            class ObservedConnection(sqlite3.Connection):
+                def execute(self,sql,*args,**kwargs):
+                    if sql=='INSERT OR IGNORE INTO capital_genesis VALUES(1,?)':
+                        before_insert.set()
+                        if not permit_insert.wait(1):raise RuntimeError('fixture_insert_gate_expired')
+                        phases.append('cohort_genesis_sql');executing.set()
+                    return super().execute(sql,*args,**kwargs)
+            def connect(path,*args,**kwargs):
+                if Path(path)==cohort_path:
+                    timeouts.append(kwargs.get('timeout'))
+                    kwargs['factory']=ObservedConnection
+                    db=original_connect(path,*args,**kwargs);opened.append(db)
+                    self.assertEqual(db.execute('PRAGMA busy_timeout').fetchone()[0],30000)
+                    return db
+                return original_connect(path,*args,**kwargs)
+            def cancelled():
+                checks.append((phases[-1],stop.requested.is_set(),threading.get_native_id()))
+                return stop.requested.is_set()
+            def start():
+                try:
+                    with runtime.native_startup_replay(cancelled):
+                        CohortCapital(cohort_path,1000)
+                        phases.append('shared_replay')
+                        runtime.connection(shared_path)
+                except BaseException as error:errors.append(error)
+                finally:finished.set()
+            worker=threading.Thread(target=start,name='fixture-pons-sql-boundary')
+            with closing(original_connect(cohort_path,timeout=30,isolation_level=None)) as blocker, \
+                    patch('sqlite3.connect',side_effect=connect):
+                worker.start();locked_at=None
+                try:
+                    self.assertTrue(before_insert.wait(1))
+                    blocker.execute('BEGIN IMMEDIATE');locked_at=time.monotonic()
+                    permit_insert.set()
+                    self.assertTrue(executing.wait(.05))
+                    stop.requested.set()
+                    self.assertFalse(finished.wait(.025))
+                    self.assertEqual(checks,[])
+                finally:
+                    permit_insert.set()
+                    if blocker.in_transaction:blocker.execute('ROLLBACK')
+                    released_at=time.monotonic()
+                    worker.join(1)
+                self.assertIsNotNone(locked_at)
+                self.assertLess(released_at-locked_at,.25)
+                self.assertFalse(worker.is_alive())
+            self.assertEqual(timeouts,[30])
+            self.assertEqual(phases,['cohort_genesis_sql','shared_replay'])
+            self.assertEqual(len(errors),1);self.assertIsInstance(errors[0],stop.Shutdown)
+            self.assertEqual(len(checks),1)
+            self.assertEqual(checks[0][:2],('shared_replay',True))
+            self.assertNotEqual(checks[0][2],threading.get_native_id())
+            self.assertIsNone(runtime._STARTUP_REPLAY_CANCEL.get())
+            for db in opened:
+                with self.assertRaises(sqlite3.ProgrammingError):db.execute('SELECT 1')
+            self.assertEqual(rows(cohort_path,native_tables),before_native)
+            self.assertEqual(rows(shared_path,shared_tables),before_shared)
+            self.assertIs(status.snapshot()['reconciled'],False)
 
 
 if __name__=='__main__':unittest.main()

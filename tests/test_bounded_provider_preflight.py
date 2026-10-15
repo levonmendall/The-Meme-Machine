@@ -422,4 +422,225 @@ class ReplayUnaryDiagnosticTests(unittest.TestCase):
         self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
 
 
+class ReplayCapabilityDiagnosticTests(unittest.TestCase):
+    """Actual request/receipt boundaries, disposable ledgers and no network."""
+    def setUp(self):
+        from engineering.diagnostics import native_replay_capability_20261015 as diagnostic
+        from meme_machine.solana_provider_config import AlchemyEndpoint
+        self.diagnostic=diagnostic
+        self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
+        self.root=Path(self.tmp.name);self.serial=0
+        self.config=AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/disposable-secret')
+        context=patch.dict(os.environ,MM_OPERATIONAL_PHASE='OBSERVATION')
+        context.start();self.addCleanup(context.stop)
+
+    def fixture(self,actions=(),*,unary_error=None,hang_unary=False):
+        from meme_machine.yellowstone import geyser_pb2 as pb
+        self.serial+=1
+        budget=Budget.create(self.root/f'usage-{self.serial}.sqlite',limits=LIMITS,
+            wall_seconds=900,modeled_spend_limit='0.20',maximum_native_opens=8)
+        state=SimpleNamespace(unary=[],requests=[],stream_options=[],admissions=[],calls=[],
+            active=0,peak=0,closed=False,options=[],http_calls=0)
+        class UnaryCall:
+            def __init__(self,method,decode):self.method=method;self.decode=decode;self.finished=False;self.cancelled=False
+            def __await__(self):
+                async def get():
+                    if hang_unary:await asyncio.Event().wait()
+                    self.finished=True
+                    if unary_error is not None:raise unary_error
+                    value=(pb.SubscribeReplayInfoResponse(first_available=1000)
+                        if self.method.endswith('SubscribeReplayInfo') else pb.GetSlotResponse(slot=2000))
+                    return self.decode(value.SerializeToString())
+                return get().__await__()
+            def done(self):return self.finished
+            def cancel(self):self.cancelled=True;self.finished=True
+            async def initial_metadata(self):return (('server','fixture'),('x-token','disposable-secret'))
+            async def trailing_metadata(self):return (('request-id','offline'),)
+        class StreamCall:
+            def __init__(self,action,decode):
+                self.action=action;self.decode=decode;self.reads=0;self.cancelled=False
+                state.active+=1;state.peak=max(state.peak,state.active);state.calls.append(self)
+            async def write(self,request):
+                if self.action=='write_hang':await asyncio.Event().wait()
+            async def read(self):
+                if self.action=='read_hang':await asyncio.Event().wait()
+                if isinstance(self.action,BaseException):raise self.action
+                self.reads+=1
+                value=(self.action if isinstance(self.action,bytes)
+                    else pb.SubscribeUpdate(slot=pb.SubscribeUpdateSlot(slot=1800+self.reads)).SerializeToString())
+                return self.decode(value)
+            def cancel(self):
+                if not self.cancelled:state.active-=1
+                self.cancelled=True
+            async def code(self):
+                if self.action=='code_hang':await asyncio.Event().wait()
+                return grpc.StatusCode.CANCELLED if self.cancelled else grpc.StatusCode.OK
+            async def initial_metadata(self):return (('server','fixture'),)
+            async def trailing_metadata(self):return (('request-id','offline'),)
+        class Channel:
+            def unary_unary(self,path,request_serializer,response_deserializer):
+                def call(request,**options):
+                    state.unary.append((path,request.SerializeToString(),options))
+                    request_serializer(request)
+                    call=UnaryCall(path,response_deserializer);state.unary_call=call;return call
+                return call
+            def stream_stream(self,path,request_serializer,response_deserializer):
+                if path!='/geyser.Geyser/Subscribe':raise AssertionError('unexpected native method')
+                index=len(state.requests)
+                def call(**options):
+                    state.stream_options.append(options)
+                    raw=StreamCall(actions[index] if index<len(actions) else None,response_deserializer)
+                    write=raw.write
+                    async def captured(request):
+                        wire=request_serializer(request)
+                        state.requests.append(pb.SubscribeRequest.FromString(wire))
+                        await write(request)
+                    raw.write=captured
+                    return raw
+                return call
+            async def close(self,**kwargs):state.closed=True
+        channel=Channel()
+        def factory(target,credentials,**options):
+            self.assertEqual(target,self.diagnostic.HOST);state.options.extend(options['options']);return channel
+        def acquire(*args,**kwargs):state.admissions.append((args,kwargs));return 0
+        def http(config,ledger,governor,window):
+            state.http_calls+=1
+            class Response(io.BytesIO):
+                def getcode(self):return 200
+            def opener(request,timeout):
+                state.http_request=request;state.http_timeout=timeout
+                state.http_response=Response(b'{"jsonrpc":"2.0","id":1,"result":2000}')
+                return state.http_response
+            return self.diagnostic.http_tip(config,ledger,governor,window,opener=opener)
+        return budget,state,channel,factory,SimpleNamespace(acquire=acquire),http
+
+    def exercise(self,actions=(),*,unary_error=None,hang_unary=False,window=None):
+        budget,state,channel,factory,governor,http=self.fixture(actions,unary_error=unary_error,hang_unary=hang_unary)
+        result=asyncio.run(self.diagnostic.experiment(self.config,self.config.credential,
+            budget,governor,self.root/f'probe-{self.serial}',channel_factory=factory,http=http,window=window))
+        self.assertEqual(budget.snapshot()['native_reserved'],'0')
+        self.assertEqual(budget.snapshot()['http_reserved'],'0')
+        self.assertEqual(state.active,0);self.assertTrue(state.closed)
+        return result,budget,state
+
+    def test_exact_control_scout_requests_and_single_durable_dispatch_accounting(self):
+        from meme_machine.yellowstone import geyser_pb2 as pb
+        from meme_machine.solana_selective_source import scout_request
+        result,budget,state=self.exercise()
+        self.assertEqual(result['status'],'CAPABILITY_SAMPLE_COMPLETE_NOT_COVERAGE_PROOF')
+        self.assertEqual(len(state.requests),2);control,scout=state.requests
+        self.assertEqual(control.commitment,pb.FINALIZED);self.assertEqual(scout.commitment,pb.FINALIZED)
+        self.assertEqual(control.from_slot,1744);self.assertEqual(scout.from_slot,1744)
+        self.assertEqual(set(control.blocks_meta),{'b'});self.assertEqual(set(control.slots),{'f'})
+        self.assertTrue(control.slots['f'].filter_by_commitment)
+        self.assertFalse(control.accounts);self.assertFalse(control.transactions);self.assertFalse(control.transactions_status)
+        expected=scout_request();expected.from_slot=1744
+        self.assertEqual(scout,expected);self.assertEqual(set(scout.accounts),{'p'})
+        self.assertEqual([(s.offset,s.length) for s in scout.accounts_data_slice],[(0,49)])
+        self.assertEqual(state.peak,1);self.assertEqual([s.reads for s in state.calls],[64,64])
+        self.assertTrue(all(s.cancelled for s in state.calls))
+        self.assertEqual(result['usage_delta']['rpc_cu'],40)
+        self.assertEqual(result['usage_delta']['solana_rpc_elements'],3)
+        self.assertEqual(result['usage_delta']['http_attempts'],5)
+        self.assertEqual(result['usage_delta']['native_opens'],2)
+        self.assertEqual(result['usage_delta']['native_bytes'],result['delivered_protobuf_bytes'])
+        self.assertEqual(result['usage_delta']['native_uncertain_bytes'],8*MAX_FRAME)
+        self.assertEqual(len(state.admissions),5)
+        self.assertTrue(all(a[0]==('solana','pump',50) for a in state.admissions))
+        self.assertTrue(all(0<a[1]['deadline_seconds']<=3 for a in state.admissions))
+        self.assertTrue(all(not o['wait_for_ready'] and 0<o['timeout']<=4 for o in state.stream_options))
+        self.assertIn(('grpc.enable_retries',0),state.options)
+        self.assertNotIn('disposable-secret',(self.root/f'probe-{self.serial}/result.json').read_text())
+        self.assertEqual(result['paper_starts'],0);self.assertEqual(result['economic_history_writes'],0)
+
+    def test_semantic_rejections_allow_only_one_commitment_only_comparison(self):
+        from meme_machine.yellowstone import geyser_pb2 as pb
+        error=grpc.aio.AioRpcError(grpc.StatusCode.INVALID_ARGUMENT,(),(),details='failed replay; disposable-secret')
+        result,_,state=self.exercise((error,error))
+        self.assertEqual(len(state.requests),3);self.assertEqual(state.peak,1)
+        comparison=pb.SubscribeRequest();comparison.CopyFrom(state.requests[0]);comparison.commitment=pb.CONFIRMED
+        self.assertEqual(state.requests[2],comparison)
+        self.assertEqual([s['status'] for s in result['streams']],['INVALID_ARGUMENT','INVALID_ARGUMENT','MESSAGE_LIMIT'])
+        self.assertEqual(result['streams'][0]['details'],'failed replay; [REDACTED]')
+        self.assertEqual(result['usage_delta']['native_opens'],3)
+
+    def test_terminal_provider_errors_never_open_a_later_stream(self):
+        for status in (grpc.StatusCode.UNIMPLEMENTED,grpc.StatusCode.UNAVAILABLE,grpc.StatusCode.RESOURCE_EXHAUSTED):
+            with self.subTest(status=status):
+                error=grpc.aio.AioRpcError(status,(),(('retry-after','8'),),details='terminal provider response')
+                result,_,state=self.exercise((error,))
+                self.assertEqual(result['status'],'STOPPED');self.assertEqual(len(state.requests),1)
+                self.assertEqual(result['streams'][0]['status'],status.name)
+                self.assertEqual(result['streams'][0]['trailing_metadata'],{'retry-after':'8'})
+                self.assertEqual(result['usage_delta']['native_opens'],1)
+
+    def test_unsupported_unary_aborts_before_http_or_subscription(self):
+        error=grpc.aio.AioRpcError(grpc.StatusCode.UNIMPLEMENTED,(),(),details='unsupported; disposable-secret')
+        result,_,state=self.exercise(unary_error=error)
+        self.assertEqual(len(state.unary),1);self.assertEqual(state.http_calls,0);self.assertEqual(state.requests,[])
+        self.assertEqual(result['calls'][0]['status'],'UNIMPLEMENTED')
+        self.assertEqual(result['calls'][0]['details'],'unsupported; [REDACTED]')
+        self.assertEqual(result['usage_delta']['rpc_cu'],10)
+        self.assertEqual(result['usage_delta']['http_uncertain_bytes'],MAX_FRAME)
+
+    def test_aggregate_byte_credit_stops_without_an_extra_read_or_subscription(self):
+        from meme_machine.yellowstone import geyser_pb2 as pb
+        value=pb.SubscribeUpdate();value.account.account.data=b'x'*(MAX_FRAME-15)
+        raw=value.SerializeToString();self.assertEqual(len(raw),MAX_FRAME)
+        # Isolate native delivery credit from the independently smaller retained
+        # exact-response limit; do not create a 40-MiB diagnostic test artifact.
+        with patch.object(self.diagnostic,'OUTPUT_BYTES',128*MIB),patch.object(self.diagnostic,'record'):
+            result,_,state=self.exercise((raw,))
+        self.assertEqual(result['delivered_protobuf_bytes'],32*MIB)
+        self.assertEqual(result['streams'][0]['status'],'BYTE_CREDIT_STOP')
+        self.assertEqual(state.calls[0].reads,2);self.assertEqual(len(state.requests),1)
+        self.assertEqual(result['usage_delta']['native_bytes'],32*MIB)
+
+    def test_absolute_deadline_cancels_hung_unary_and_releases_receipt(self):
+        import time
+        origin=time.monotonic()-43.95
+        result,_,state=self.exercise(hang_unary=True,window=self.diagnostic.Window(origin))
+        self.assertEqual(result['status'],'STOPPED');self.assertEqual(len(state.unary),1)
+        self.assertTrue(state.unary_call.cancelled);self.assertEqual(state.requests,[])
+        self.assertLess(result['elapsed_seconds'],45)
+        budget,state,_,factory,governor,http=self.fixture()
+        window=self.diagnostic.Window()
+        def expired_admission(*args,**kwargs):window.origin-=45;return 0
+        governor.acquire=expired_admission
+        result=asyncio.run(self.diagnostic.experiment(self.config,self.config.credential,
+            budget,governor,self.root/f'probe-{self.serial}',channel_factory=factory,http=http,window=window))
+        self.assertEqual(result['status'],'STOPPED');self.assertEqual(state.unary,[])
+        self.assertEqual(state.http_calls,0);self.assertEqual(budget.snapshot()['http_attempts'],'0')
+        self.assertEqual(budget.snapshot()['http_reserved'],'0');self.assertTrue(state.closed)
+
+    def test_stream_write_read_and_close_deadlines_preserve_cleanup(self):
+        import time
+        for action in ('write_hang','read_hang','code_hang'):
+            with self.subTest(action=action):
+                budget,state,channel,_,governor,_=self.fixture((action,))
+                output=self.root/f'direct-{self.serial}';output.mkdir()
+                result=dict(streams=[],delivered_protobuf_bytes=0)
+                request=self.diagnostic.requests_at(1744)[0][1]
+                window=self.diagnostic.Window(time.monotonic()-43.9)
+                row=asyncio.run(self.diagnostic.stream_once(channel,'control_finalized',request,
+                    self.config.credential,self.config,budget,governor,window,output,result))
+                self.assertEqual(state.active,0);self.assertTrue(state.calls[0].cancelled)
+                self.assertTrue(row['reservation_closed']);self.assertEqual(budget.snapshot()['native_reserved'],'0')
+                self.assertEqual(budget.snapshot()['native_opens'],'1')
+                self.assertLessEqual(time.monotonic()-window.origin,45)
+                if action=='code_hang':self.assertIn('cleanup_failure',row)
+                else:self.assertEqual(row['messages_delivered'],0)
+
+    def test_http_tip_uses_actual_finalized_rpc_and_closes_response(self):
+        budget,state,_,_,governor,http=self.fixture()
+        row=http(self.config,budget,governor,self.diagnostic.Window())
+        request=json.loads(state.http_request.data)
+        self.assertEqual(request,dict(jsonrpc='2.0',id=1,method='getSlot',params=[dict(commitment='finalized')]))
+        self.assertEqual(row['slot'],2000);self.assertEqual(row['http_status'],200)
+        self.assertEqual(budget.snapshot()['rpc_cu'],'20');self.assertEqual(budget.snapshot()['http_attempts'],'1')
+        self.assertEqual(budget.snapshot()['http_reserved'],'0')
+        self.assertTrue(state.http_response.closed)
+        self.assertGreater(state.http_timeout,0);self.assertLessEqual(state.http_timeout,5)
+
+
 if __name__=='__main__':unittest.main()
