@@ -1,4 +1,32 @@
-# Current checkpoint — native resumability verified, 2026-10-15
+# Current checkpoint — campaign attempt 1 stopped, 2026-10-15
+
+**RECOVERY_REQUIRED; campaign live branch STOPPED, 1/3 starts consumed.** Read
+[CAMPAIGN_ATTEMPT1_RESULT_20261015.md](CAMPAIGN_ATTEMPT1_RESULT_20261015.md) and
+its exact evidence index first. The corrected specification publication
+`a32f49d2061e577644ef2d28f75fefd4a48ebe87` executed only validated ba25499b.
+Native provider replay at current HTTP finalized tip minus256 was rejected before
+any native market frame; this run supplies no throughput verdict. Pump cancelled
+accounting restoration and exited0/reconciled=false. Pons required KILL while
+RECONCILING; its blocking operation remains unavailable. Preserve this failure
+and the older failed shutdown unchanged.
+
+Focused-tested offline successor `0000a4f817107cff9b46a881b7f1ae00745aa384`
+repairs a reproduced Pons initial-authority cancellation-scope gap and records
+that exact startup operation. It is not deployed or claimed as the live -9 cause.
+Combined affected startup/lifecycle/diagnostic run:103PASS; economic/source
+guard:1PASS. No new complete FAST. All approved strategy economics remain intact.
+
+Fresh bounded post-attempt verification:20current-state checks VERIFIED,
+$1,000cash, rawhead8990 after an exact8-event tail replay, zero monetary
+obligations, historical$500 and named pending native work preserved. This permits
+existing guarded recovery in scope, not a retroactive graceful PASS or proof of
+future restoration/drain. Installed source66f85d61 and saved small overlays are
+compatibly restored, clean/stopped/disabled/Restart=no/funding closed; no state
+rewind. No attempt2 is justified until provider replay availability/semantics
+supports a causal next action and mandatory recovery/preflight pass. The campaign
+clock is not reset. No acceptance minutes accrued.
+
+# Previous checkpoint — native resumability verified, 2026-10-15
 
 **NATIVE_RECOVERY_VERIFIED — SAFE_TO_BEGIN_EXISTING_GUARDED_RECOVERY**.
 Read [NATIVE_RECOVERY_VERIFICATION_20261015.md](NATIVE_RECOVERY_VERIFICATION_20261015.md)
