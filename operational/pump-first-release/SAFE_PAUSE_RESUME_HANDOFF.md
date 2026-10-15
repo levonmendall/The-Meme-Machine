@@ -1,3 +1,33 @@
+# GitHub source consolidation — runtime remains safely paused
+
+The owner authorized source completion and final integration into `main`.
+Repair commit **3470bc43** completes accepted-handler identity/disposition,
+optional source cutoff and CONTROL old-session reauthentication contracts.
+It also makes backup identity files and CPU capacity explicit for portable AWS
+configuration without changing the installed host or selected profile.
+
+See [source repair and limits](SOURCE_CANCELLATION_RECOVERY_REPAIR_20261015.md),
+[branch inventory](evidence/github-main-integration-inventory-20261015.json),
+and the [AWS source-only installation runbook](../AWS_LIGHTSAIL_REPRODUCIBLE_INSTALL.md).
+PR [133](https://github.com/levonmendall/The-Meme-Machine/pull/133) records exact
+release-suite, merge and clean-checkout results. Its final terminal results and
+remote main SHA take precedence over a draft/queued CI state or an intermediate
+branch merge. Source promotion is separate from operational acceptance.
+
+**Runtime remains unchanged:** installed `a793bd580593a87d17a0ab6e5e8581943bec6886`,
+PAPER inactive/disabled, Restart=no, funding closed. No deployment, AWS setup,
+market workload, financial/state write or portfolio transfer is part of this
+release. Preserve original RECOVERY_REQUIRED, two historically unidentified
+handlers, CONTROL required slot457279885/coverage_after_id192778, receipts and ACKs.
+Offline contract tests cannot clear those production obligations. Full market
+throughput, publication, held-position protection, backup compatibility and the
+uninterrupted hour still require verified target-host recovery and live evidence.
+
+The historical checkpoint below remains the original record, not an instruction
+to restart its old installed candidate or an operational PASS.
+
+---
+
 # Current checkpoint — SAFE PAUSE FOR OWNER REVIEW (2026-10-15)
 
 The requested integrated campaign and independent results evaluation are complete.
