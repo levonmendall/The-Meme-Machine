@@ -1,0 +1,147 @@
+{
+  "accounting_scope": "Existing rpc_cu/alchemy_rpc_cu/rpc_elements/solana_rpc_elements/http_attempts/http_bytes and reservation/hourly ledgers; HTTP counters include unary HTTP2 transport; no native stream openings",
+  "advertised_first_available": 456183362,
+  "advertised_span_slot_difference": 864708,
+  "architecture_change": "NOT_JUSTIFIED_FROM_UNARY_RANGE_ALONE",
+  "artifacts": [
+    {
+      "bytes": 1081,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLAY_UNARY_PREFLIGHT_20261015.json",
+      "sha256": "fe2b8973342c4eccde9c0b8ae3f41a3464cf637dad134de7c846f44174af747c"
+    },
+    {
+      "bytes": 1346,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLAY_UNARY_PREFLIGHT_FINAL_20261015.json",
+      "sha256": "ae579045cf33eab399ca0316b84015e59ad251f99dc95081c014ae62d7e19449"
+    },
+    {
+      "bytes": 2907,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLAY_UNARY_CAPABILITY_20261015T0111Z/result.json",
+      "sha256": "d488d069fce971ccb00414f5ded8a3ea62848a9033cfee569c5d35765439c294"
+    },
+    {
+      "bytes": 196,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLAY_UNARY_EXECUTION_20261015.log",
+      "sha256": "1b8ec85e1fa79d32b87a6acba79288e27a66bb756a82b9097a568e24690a177d"
+    },
+    {
+      "bytes": 816,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLAY_UNARY_FOCUSED_20261015.log",
+      "sha256": "a27acefcb9cd5b1e0edca045d440056b25711cce808b5f8678bdb7199fc97adc"
+    },
+    {
+      "bytes": 1016,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLAY_UNARY_FOCUSED_FINAL_20261015.log",
+      "sha256": "ea93ad81a86e0846d1cd3f301474efb09c23fc701fb043989646b9ab5d5cc8e1"
+    },
+    {
+      "bytes": 1016,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/REPLAY_UNARY_FOCUSED_ACCOUNTING_FINAL_20261015.log",
+      "sha256": "1cf6ff41fa5335bdf86661ad166bb4b90318b0e64aee3a3c08e1dccfe9dfe296"
+    }
+  ],
+  "at": "2026-10-15T01:06:34.390658+00:00",
+  "calls": [
+    {
+      "accounted_cu": 10,
+      "admission_wait_seconds": 0.0077037818264216185,
+      "call_invoked_at": "2026-10-15T01:04:51.210094+00:00",
+      "call_invoked_monotonic": 1108463.790628427,
+      "completed_at": "2026-10-15T01:04:51.318693+00:00",
+      "completed_monotonic": 1108463.899226411,
+      "first_available": 456183362,
+      "initial_metadata": {
+        "date": "Thu, 15 Oct 2026 01:04:51 GMT",
+        "server": "istio-envoy"
+      },
+      "method": "geyser.Geyser/SubscribeReplayInfo",
+      "requested_at": "2026-10-15T01:04:51.177900+00:00",
+      "response_payload_bytes": 6,
+      "status": "OK",
+      "trailing_metadata": {}
+    },
+    {
+      "accounted_cu": 10,
+      "admission_wait_seconds": 0.3588633290491998,
+      "call_invoked_at": "2026-10-15T01:04:51.710658+00:00",
+      "call_invoked_monotonic": 1108464.291194283,
+      "commitment": "FINALIZED",
+      "completed_at": "2026-10-15T01:04:51.726010+00:00",
+      "completed_monotonic": 1108464.306541053,
+      "initial_metadata": {
+        "date": "Thu, 15 Oct 2026 01:04:51 GMT",
+        "server": "istio-envoy"
+      },
+      "method": "geyser.Geyser/GetSlot",
+      "requested_at": "2026-10-15T01:04:51.327438+00:00",
+      "response_payload_bytes": 6,
+      "slot": 457048070,
+      "status": "OK",
+      "trailing_metadata": {}
+    }
+  ],
+  "campaign_starts_after": 1,
+  "campaign_starts_before": 1,
+  "candidate": "2c8168b9d61e820da025956fbe8d4c31ce24ccc6",
+  "comparison_limit": "Probe occurred later than the original rejection; not same-time/same-backend proof. Range is not exact-slot/filter/commitment/coverage proof.",
+  "current_original_overlap_floor": 457047814,
+  "current_overlap_floor_above_advertised_first": 864452,
+  "decision": "PRECISE_REMAINING_PROVIDER_QUESTION",
+  "endpoint_host": "solana-mainnet.streaming.alchemy.com:443",
+  "endpoint_identity": "8f3feda9d10baa64d74b5ecb3a97cfa48af379982666f93a425e537668a51749",
+  "finalized_native_slot": 457048070,
+  "further_requests_this_scope": 0,
+  "model": "existing frozen application CU model, not provider invoice",
+  "modeled_incremental_cost_usd": "0.0000105",
+  "official_documentation": [
+    {
+      "observed_claim": "6000-slot historical replay; FINALIZED commitment value and filter fields documented",
+      "url": "https://www.alchemy.com/docs/reference/yellowstone-grpc-subscribe-request"
+    },
+    {
+      "observed_claim": "approximately432000-slot replay",
+      "url": "https://www.alchemy.com/docs/reference/yellowstone-grpc-historical-replay"
+    },
+    {
+      "observed_claim": "geyser.Geyser/SubscribeReplayInfo and GetSlot10CU each",
+      "url": "https://www.alchemy.com/docs/reference/compute-unit-costs"
+    }
+  ],
+  "original_attempt_executable": "ba25499b26103ec5d14f1ce765c8e8f180695f33",
+  "original_attempt_result": "RECOVERY_REQUIRED_UNCHANGED",
+  "original_rejected_floor": 457039819,
+  "original_rejected_floor_above_current_advertised_first": 856457,
+  "original_rejected_floor_behind_current_finalized": 8251,
+  "paper_starts": 0,
+  "pons_offline_review": {
+    "actual_kill": "UNATTRIBUTED",
+    "known_missing_fact": "Pons main-thread stack/active SQLite operation at TERM and during 15-second drain",
+    "proposed_smallest_discriminator": "If future runtime observation is authorized: single <=8-frame main-thread Python stack captured by existing health thread after TERM, no locals, fixed sanitized code fields. Not implemented or deployed.",
+    "reachable_not_proven_causes": [
+      "CapitalAuthority SQLite prelude precedes startup replay cancellation registration",
+      "CohortCapital own SQLite/schema/genesis/reconciliation lacks cooperative stop boundary"
+    ]
+  },
+  "probe_status": "TWO_AUTHORIZED_UNARY_CALLS_COMPLETE",
+  "production_correction": "NOT_JUSTIFIED_FROM_UNARY_RANGE_ALONE",
+  "provider_invoice": "UNAVAILABLE",
+  "question": "Why did both FINALIZED from_slot=457039819 account-scout and block-meta/slots subscriptions fail to obtain a replay position at original HTTP finalized tip457040075? Does this bound endpoint support those exact replay/filter/commitment combinations, skipped slots and load-balanced replay cursors, and what is its authoritative contract?",
+  "response_bytes_scope": "12 serialized protobuf application bytes; not HTTP2/TLS wire metering",
+  "same_channel": true,
+  "same_node": "UNVERIFIED; server only identifies istio-envoy; no backend instance ID",
+  "service": "Restart=no\nMainPID=0\nActiveState=failed\nUnitFileState=disabled\n",
+  "strategies_and_state": "No monetary/canonical/history/policy writes, installation, source rollback, funding or economic change. Existing deployed source66 unchanged; 0000a4f8 Pons repair preserved offline.",
+  "subscription_calls": 0,
+  "usage_delta": {
+    "alchemy_rpc_cu": 20,
+    "http_attempts": 2,
+    "http_bytes": 12,
+    "http_reserved": 0,
+    "http_uncertain_bytes": 0,
+    "native_bytes": 0,
+    "native_opens": 0,
+    "rpc_cu": 20,
+    "rpc_elements": 2,
+    "solana_rpc_elements": 2
+  }
+}

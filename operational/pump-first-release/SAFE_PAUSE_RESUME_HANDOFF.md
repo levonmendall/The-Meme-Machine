@@ -1,4 +1,20 @@
-# Current checkpoint — campaign attempt 1 stopped, 2026-10-15
+# Current checkpoint — native unary capability decision, 2026-10-15
+
+Read [NATIVE_REPLAY_CONTRACT_DECISION_20261015.md](NATIVE_REPLAY_CONTRACT_DECISION_20261015.md)
+first. Authorized exact two unary calls completed at01:04:51UTC on diagnostic
+source `2c8168b9d61e820da025956fbe8d4c31ce24ccc6`: first_available456183362,
+native FINALIZED slot457048070, bothOK,20CU/12protobufbytes. Advertised span864708
+does not support a simple present-window explanation for the earlier rejection;
+later sampling/load balancing/exact-filter and skipped-slot semantics remain
+unresolved. **PRECISE_REMAINING_PROVIDER_QUESTION; no source/recovery bypass or
+attempt2 justified.** A separate bounded capability proposal is prepared only,
+not implemented/authorized/executed. Four focused testsPASS; no fullsuite rerun.
+Pons actual -9 operation remains unknown; preserved0000a4f8 cancellation repair
+is unchanged. No new PAPER start/stream/deployment/economic write occurred.
+Campaign remains1/3, originalRECOVERY_REQUIRED unchanged. PAPER remains
+stopped/disabled/Restart=no/fundingclosed, installedsource66f85d61 unchanged.
+
+# Previous checkpoint — campaign attempt 1 stopped, 2026-10-15
 
 **RECOVERY_REQUIRED; campaign live branch STOPPED, 1/3 starts consumed.** Read
 [CAMPAIGN_ATTEMPT1_RESULT_20261015.md](CAMPAIGN_ATTEMPT1_RESULT_20261015.md) and
