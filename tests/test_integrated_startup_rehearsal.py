@@ -584,6 +584,160 @@ class IntegratedStartupRehearsal(unittest.TestCase):
             self.assertEqual(recovered.checkpoint_read('pons_cohort'), saved)
             self.assertEqual(recovered.db.execute('SELECT COUNT(*) FROM candidates').fetchone()[0], 1)
 
+    def pons_shared_authority(self, stack):
+        """Select the existing shared runtime using only this disposable root."""
+        from meme_machine.shared_capital import RiskPolicy
+        from meme_machine.shared_capital.cutover import install
+        from meme_machine.shared_capital.operational_candidate import prepare_plan
+        from meme_machine.runtime.directional_sleeve import policies
+        from tests.shared_capital_support import legacy_fixture, empty_mapping
+        old = legacy_fixture(self.root / 'portfolio.sqlite');old.close()
+        mapping = empty_mapping()
+        for family in ('pump', 'pons'):
+            for strategy, policy in policies(family).items():
+                regime = family + ('_survivor' if 'survivor' in strategy else '_current')
+                mapping['contracts'][regime] = dict(strategy_id=strategy, policy_hash=policy)
+        plan = prepare_plan(self.root / 'portfolio.sqlite', mapping, policy=RiskPolicy())
+        install(self.root, plan, approved_policy=plan['policy'], prerequisites={key: True
+            for key in ('writers_stopped', 'coherent_backup_verified', 'native_mapping_verified',
+                        'recovery_verified', 'provider_proof_verified')})
+        stack.enter_context(patch.dict(os.environ,
+            MM_PORTFOLIO_ACCOUNTING_DB=str(self.root / 'portfolio.sqlite'),
+            MM_PAPER_EPOCH=plan['seed']['epoch_id'],
+            MM_DIRECTIONAL_COHORT_ID=plan['seed']['epoch_id']))
+        shared = self.root / 'shared-capital.sqlite'
+        with closing(sqlite3.connect(shared)) as reader:
+            journal = reader.execute('SELECT * FROM shared_capital_events ORDER BY sequence').fetchall()
+        # connection() owns one verified client per executor. Dispose only
+        # this fixture's main-executor client after its actual native drain.
+        from meme_machine.shared_capital import runtime
+        def close_fixture_client():
+            cached = getattr(runtime._LOCAL, 'pool', {}).pop(str(shared.resolve()), None)
+            if cached is not None:cached[1].close()
+        stack.callback(close_fixture_client)
+        return shared, journal
+
+    def test_actual_pons_initial_shared_attach_cancels_before_native_reconciliation(self):
+        """TERM at the first real shared replay must preserve unfinished startup.
+
+        This is a controlled cancellation cut, not attribution of a retained
+        process timeout to this particular operation or a replay-speed proof.
+        """
+        from meme_machine.shared_capital import runtime
+        from meme_machine.runtime.robinhood.pons import Broker
+        from tests.lanes.pons.test_pons_candidate_plane import event
+        with ExitStack() as stack:
+            cohort, folder, plane = self.cohort_paths(stack)
+            shared, journal = self.pons_shared_authority(stack)
+            broker = Broker(plane, cohort.POLICY_HASH, clock=time.time)
+            broker.enqueue(event())
+            pending = broker.plane.db.execute('SELECT * FROM candidates ORDER BY rowid').fetchall()
+            broker.close()
+            observed = []
+            check = runtime.RuntimeCapital._check_startup_replay_cancel
+            def stop_at_initial_replay(authority):
+                observed.append((authority.path, authority._startup_replay_cancel,
+                                 threading.get_native_id(), status.snapshot()))
+                status.cancellation_signal(signal.SIGTERM);stop.requested.set()
+                check(authority)
+                self.fail('pons_initial_shared_capital_replay_ignored_shutdown')
+            stack.enter_context(patch.object(runtime.RuntimeCapital,
+                '_check_startup_replay_cancel', stop_at_initial_replay))
+            with patch.object(cohort, '_start_observation') as provider:
+                lane.main()
+            provider.assert_not_called()
+            final = json.loads((folder / 'health.json').read_text())
+            self.assertEqual(final['phase'], 'STOPPED')
+            self.assertIs(final['reconciled'], False)
+            self.assertEqual(len(observed), 1)
+            self.assertEqual(observed[0][0], shared)
+            self.assertTrue(callable(observed[0][1]))
+            self.assertEqual(observed[0][2], threading.get_native_id())
+            from engineering.diagnostics.current_combined_observation_20261014 import native_lifecycle
+            active = native_lifecycle({'pons': observed[0][3]})['pons']['native_operation']
+            self.assertEqual(active['operation'], 'pons.shared_capital_restore')
+            self.assertEqual(active['state'], 'ACTIVE')
+            terminal = native_lifecycle({'pons': final})['pons']['native_recent_operations']
+            self.assertEqual(len(terminal), 1)
+            self.assertEqual(terminal[0]['operation'], 'pons.shared_capital_restore')
+            self.assertEqual(terminal[0]['state'], 'CANCELLED')
+            self.assertIsNone(runtime._STARTUP_REPLAY_CANCEL.get())
+            with closing(sqlite3.connect(shared)) as reader:
+                self.assertEqual(reader.execute('SELECT * FROM shared_capital_events '
+                    'ORDER BY sequence').fetchall(), journal)
+            from meme_machine.runtime.robinhood.plane import Plane
+            with closing(Plane(plane)) as retained:
+                self.assertEqual(retained.db.execute('SELECT * FROM candidates ORDER BY rowid').fetchall(), pending)
+
+    def test_actual_pons_shared_attach_reuses_verified_owner_without_cancellation_scope_leak(self):
+        from meme_machine.shared_capital import runtime
+        from meme_machine.shared_capital.native_sleeve import SharedSleeve
+        from meme_machine.lanes.pons.pons_survivor_runtime import Runtime
+        from meme_machine.operational.offline import MockProvider
+        from engineering.diagnostics.current_combined_observation_20261014 import native_lifecycle
+        with ExitStack() as stack:
+            cohort, folder, _ = self.cohort_paths(stack)
+            shared, journal = self.pons_shared_authority(stack)
+            # Controlled USD evidence satisfies the real sizing gate. The
+            # offline provider returns the existing fixture's validated value;
+            # sizing and amount/lifetime checks still run without market I/O.
+            usd = MockProvider('pons')
+            stack.enter_context(patch('meme_machine.runtime.usd_valuation.native_reader',
+                return_value=usd.value))
+            main_thread = threading.get_native_id()
+            constructors = [];attachments = [];boundary = []
+            initialize = runtime.RuntimeCapital.__init__
+            attach = SharedSleeve.__init__
+            def initialized(authority, *args, **kwargs):
+                initialize(authority, *args, **kwargs)
+                if threading.get_native_id() == main_thread:
+                    constructors.append((authority, kwargs.get('startup_cancel')))
+            def attached(sleeve, *args, **kwargs):
+                attach(sleeve, *args, **kwargs)
+                if threading.get_native_id() == main_thread:attachments.append(sleeve.authority)
+            stack.enter_context(patch.object(runtime.RuntimeCapital, '__init__', initialized))
+            stack.enter_context(patch.object(SharedSleeve, '__init__', attached))
+            # The actual owned Survivor constructor remains real; its first
+            # history step is a provider boundary, as in the recovery rehearsal.
+            stack.enter_context(patch.object(Runtime, 'step', return_value=dict(
+                last_boundary='fixture_missing_provider_evidence',
+                accounting=dict(open_positions=0, reserved=0),
+                accounting_replay=dict(verified=True), durable_handoff=False)))
+            def provider_boundary(*args, **kwargs):
+                owner = runtime.connection(shared)
+                boundary.append((owner, runtime._STARTUP_REPLAY_CANCEL.get(), status.snapshot()))
+                self.assertIsNone(owner._startup_replay_cancel)
+                # Only the fixed Pons startup identifier is descriptive input.
+                with status.operation('pons.unreviewed'):
+                    self.assertNotIn('native_operation', status.snapshot())
+                self.assertEqual(native_lifecycle({'pons': dict(native_operation=dict(
+                    operation='pons.unreviewed', state='ACTIVE'))})['pons']['native_operation'],
+                    'UNAVAILABLE')
+                stop.requested.set();raise stop.Shutdown()
+            stack.enter_context(patch.object(cohort, '_start_observation', side_effect=provider_boundary))
+            lane.main()
+            self.assertEqual(len(constructors), 1)
+            owner, cancel = constructors[0]
+            self.assertTrue(callable(cancel))
+            self.assertTrue(attachments)
+            self.assertTrue(all(authority is owner for authority in attachments))
+            self.assertEqual(len(boundary), 1)
+            self.assertIs(boundary[0][0], owner)
+            self.assertIsNone(boundary[0][1])
+            self.assertIsNone(runtime._STARTUP_REPLAY_CANCEL.get())
+            self.assertIsNone(owner._startup_replay_cancel)
+            self.assertGreater(usd.calls, 0)
+            completed = native_lifecycle({'pons': boundary[0][2]})['pons']['native_recent_operations']
+            self.assertEqual(len(completed), 1)
+            self.assertEqual(completed[0]['operation'], 'pons.shared_capital_restore')
+            self.assertEqual(completed[0]['state'], 'COMPLETE')
+            final = json.loads((folder / 'health.json').read_text())
+            self.assertEqual(final['phase'], 'STOPPED')
+            self.assertTrue(final['reconciled'])  # Existing native empty-book restore only.
+            with closing(sqlite3.connect(shared)) as reader:
+                self.assertEqual(reader.execute('SELECT * FROM shared_capital_events '
+                    'ORDER BY sequence').fetchall(), journal)
+
     def test_actual_pons_cohort_unresolved_native_capital_stops_before_provider(self):
         with ExitStack() as stack:
             cohort, folder, plane = self.cohort_paths(stack)

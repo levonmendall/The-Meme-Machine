@@ -105,6 +105,14 @@ def run_native(root,lane,publish=None):
     from meme_machine.runtime import status
     from meme_machine.runtime.stop import requested
     threading.Thread(target=publish.heartbeat,args=(requested,status),daemon=True,name='health').start()
+    if lane=='pons':
+        from meme_machine.shared_capital.runtime import selected,connection,native_startup_replay
+        shared=selected(Path(root)/'portfolio.sqlite')
+        if shared is not None:
+            # Only the initial read-only verification observes startup TERM.
+            # Native recovery and later writes reuse this verified connection.
+            with status.operation('pons.shared_capital_restore'):
+                with native_startup_replay(requested.is_set):connection(shared)
     capital=None
     if lane in ('pump','pons','meteora'):
         from meme_machine.runtime.usd_valuation import native_reader

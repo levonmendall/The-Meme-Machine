@@ -438,5 +438,66 @@ class StartupAsyncTests(unittest.IsolatedAsyncioTestCase):
             await source.stream(channel,pb.SubscribeRequest(),None,'candidate_live')
         self.assertTrue(call.cancelled)
 
+    async def test_actual_replay_position_rejection_fails_closed_without_changing_pending_history(self):
+        import grpc
+        from meme_machine.solana_selective_source import SelectiveSource,CONTROL_OVERLAP
+        # Retained attempt 1: the HTTP finalized tip was current; replay at its
+        # 256-slot overlap was rejected before either subscription delivered.
+        tip=457040075;floor=457039819
+        details='failed to get replay position for slot 457039819'
+        self.assertEqual(tip-CONTROL_OVERLAP,floor)
+        for plane in ('scout','control'):
+            with self.subTest(plane=plane),tempfile.TemporaryDirectory() as directory:
+                state,h=state_at(Path(directory)/'canonical.sqlite')
+                h.writer.ingest([],proof=proof(CONTROL,457007864,457007865))
+                h.lifecycle.checkpoint(program_scope('pump'),457007865,digest(['pending']))
+                h.gap(program_scope('pump'),457007866,floor,'retained_outage')
+                h.request('pump','pending-pool',457007866,floor,priority=2,deadline=NOW+150)
+                h.lifecycle.defer_proof(proof(program_scope('pump'),457007864,457007865))
+                tables=('records','coverage','gaps','cursors','candidate_checkpoints',
+                    'candidate_gaps','candidate_history_outbox','candidate_pending_proofs',
+                    'acquisition_jobs','native_order_attestations')
+                def snapshot():
+                    return {table:h.db.execute('SELECT * FROM '+table+' ORDER BY rowid').fetchall()
+                        for table in tables}
+                before=snapshot();requests=[];handlers=[];calls=[]
+                class Call:
+                    cancelled=False
+                    async def write(self,request):requests.append(request)
+                    async def read(self):
+                        raise grpc.aio.AioRpcError(grpc.StatusCode.INVALID_ARGUMENT,(),(),details=details)
+                    def cancel(self):self.cancelled=True
+                call=Call()
+                channel=SimpleNamespace(stream_stream=lambda *a,**kw:lambda **options:call)
+                source=SelectiveSource(SimpleNamespace(credential='offline'),None)
+                source.stop=asyncio.Event()
+                async def work(fn,*a,**kw):return fn(state)
+                async def rpc(*a,**kw):
+                    calls.append(a);raise AssertionError('semantic rejection must not invent a replay retry')
+                async def handler(*a):handlers.append(a)
+                source.work=work;source.measured_rpc=rpc
+                try:
+                    with patch('meme_machine.solana_selective_source.enabled',lambda family:False):
+                        with self.assertRaisesRegex(EvidenceUnavailable,'^candidate_native_invalid_argument$'):
+                            if plane=='scout':await source.scout_stream(channel,tip,handler)
+                            else:await source.control_stream(channel,tip,asyncio.Queue())
+                    self.assertEqual(len(requests),1);request=requests[0]
+                    self.assertTrue(request.HasField('from_slot'));self.assertEqual(request.from_slot,floor)
+                    if plane=='scout':
+                        self.assertEqual(set(request.accounts),{'p'})
+                        self.assertEqual([(s.offset,s.length) for s in request.accounts_data_slice],[(0,49)])
+                    else:
+                        self.assertEqual(set(request.blocks_meta),{'b'});self.assertEqual(set(request.slots),{'f'})
+                        self.assertTrue(request.slots['f'].filter_by_commitment)
+                    self.assertEqual(handlers,[]);self.assertEqual(calls,[])
+                    self.assertTrue(call.cancelled);self.assertEqual(snapshot(),before)
+                    errors=[body for kind,body in source.pending_diagnostics if kind=='native_error']
+                    self.assertEqual(len(errors),1)
+                    self.assertEqual((errors[0]['status'],errors[0]['details'],errors[0]['phase']),
+                        ('INVALID_ARGUMENT',details,'stream_read'))
+                    self.assertEqual(errors[0]['request']['from_slot'],str(floor))
+                    self.assertEqual(errors[0]['messages'],{});self.assertEqual(errors[0]['samples'],[])
+                finally:state.writer.close()
+
 
 if __name__=='__main__':unittest.main()

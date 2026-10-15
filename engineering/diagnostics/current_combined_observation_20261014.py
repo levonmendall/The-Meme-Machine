@@ -47,7 +47,7 @@ NATIVE_OPERATIONS = frozenset('pump.' + name for name in (
     'startup_cleanup.candidate_history_open', 'startup_cleanup.accounting_restore',
     'startup_cleanup.pipeline_open', 'startup_cleanup.runtime_evidence_open',
     'startup_cleanup.evidence_broker_open', 'startup_cleanup.sessions_open',
-    'startup_cleanup.survivor_worker_open'))
+    'startup_cleanup.survivor_worker_open')) | frozenset(('pons.shared_capital_restore',))
 
 
 def native_lifecycle(lanes):
