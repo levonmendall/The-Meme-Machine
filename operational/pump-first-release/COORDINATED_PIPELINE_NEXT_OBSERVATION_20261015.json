@@ -11,8 +11,8 @@
     "Current-PID/run-identity terminalcensus and preserved finalIPC counters; no newwriter/spool, timeoutincrease or alteredcoverage."
   ],
   "concurrent_runs": 1,
-  "consumed": false,
-  "continuation": "Ownerresumeddefinedcoordinatedrepair understandingissue134. No routineattemptapproval; original per-invocation bounds and all safety gates remain.",
+  "consumed": true,
+  "continuation": "Latest owner directive: campaign completed, zero acceptance minutes; preserve source RECOVERY_REQUIRED and stopped service, publish evaluated findings, then STOP for owner review.",
   "controller": "engineering.diagnostics.current_combined_observation_20261014",
   "controller_sha256": "1c18f503c25d8950edd29cd205a24c705f1362f6f058eed0aa796ac26a786656",
   "diagnostic_output": {
@@ -30,6 +30,8 @@
   },
   "diagnostic_startup_maximum_seconds": 900,
   "end_state": "Stop/disabled/Restart=no/fundingclosed. Verify current native lanes AND current-PID/runUUID acceptedqueue census/partialrecovery obligations separately frommoney; preserve pendingwork/ACK/proofs. A fatalowner/storagefailure or unverifiedpendingwork remainsRECOVERY_REQUIRED. No rewind. Rollbacksource mayremainstopped; older source thatignoresnewpendingrecoveryrecord mustnotrestart untilcompatiblehandling isverified.",
+  "environment_sha256": "a2ca8e11dd2843046f490be96d7d793c9b27ba6ce9b805fbfbf24112f0042df3",
+  "executed_run": "/var/lib/meme-machine-diagnostics/20261015-coordinated-pipeline-a793bd58-144649",
   "existing_provider_profiles": {
     "pons_observation_route": "canonical_primary existing bound app only",
     "robinhood_rps": 10,
@@ -48,7 +50,8 @@
     "Naturalreconnect/headjump: segmentrates byactualnativeattempt/joincontinuity, nevercreditprospectivetail ascatch-up.",
     "Startup/safety/provider/recorder preventsmeaningfulinterval: retainFAIL/limitation andrepaironlycausalsupportedpath."
   ],
-  "outside_scope": "No hardware/servicespurchase, routing/policy/fundingchange, acceptance/autonomy promotion orbackup-timerchange in this invocation. Standing latercause-supportedwork remains authorized.",
+  "outside_scope": "Campaign complete. No further engineering, provider workloads, service starts, acceptance or autonomy until owner review and new direction. No purchase, funding, economics, quota, timer or state-rewind changes.",
+  "owner_review_pause": true,
   "per_invocation_one_start": true,
   "poststartup_measurement_maximum_seconds": 300,
   "preflight": "Fresh current-state24checks against authenticatedO14 head12276/zeroobligations/allnamedpriorcohorts, sourcepolicy/nativeownership/provider/resources/recovery/backupnonoverlap and actualserviceUID. OriginalRECOVERY_REQUIRED/globaldrainUNAVAILABLE preserved; no retroactivePASS. Newglobaldrain must be independently verified afterrun.",
@@ -75,10 +78,12 @@
     "pons_survivor_protection_seconds": 3,
     "rss_bytes": 6442450944
   },
+  "result_reference": "COORDINATED_PIPELINE_FINAL_EVALUATION_20261015.md",
   "schema": 1,
   "shutdown_reserve_seconds": 65,
-  "status": "VALIDATED_CHANGED_CANDIDATE_FRESH_PREFLIGHT_REQUIRED",
+  "status": "COMPLETED_READINESS_FAILED_SOURCE_RECOVERY_REQUIRED",
   "tested_successor": "a793bd580593a87d17a0ab6e5e8581943bec6886",
+  "unit_sha256": "ad8239060b22ba33793b91e183bb6e11c1f803d8d2feb9c47bbe62b7973f942b",
   "validation": "Finalexactcandidate230PASS34.214s withattributionon. Related68maintenance,115Pons/controller,5exactguards and2archivecorrection PASS. Prior361run had3errors; correctedaffectedpaths rerun, failurepreserved. No fullFAST/OPERATIONAL or release/capacityPASS.",
   "work_stop_seconds": 1800
 }

@@ -1,5 +1,11 @@
 # Coordinated processing and source recovery repair
 
+The campaign is complete. Read the
+[final independent evaluation and safe pause](COORDINATED_PIPELINE_FINAL_EVALUATION_20261015.md).
+Readiness/throughput failed and global source drain is RECOVERY_REQUIRED despite
+successful native worker stop. The specification below is consumed. Do not
+automatically continue engineering or observations; await owner review.
+
 Executable **a793bd580593a87d17a0ab6e5e8581943bec6886**, branch
 `repair/consolidated-startup-followup-20261014`, draft PR133. This continues
 from f52be1e under the owner's resumed scope and standing issue134. The original

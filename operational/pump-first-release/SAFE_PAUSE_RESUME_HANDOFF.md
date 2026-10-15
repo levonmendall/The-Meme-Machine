@@ -1,3 +1,61 @@
+# Current checkpoint — SAFE PAUSE FOR OWNER REVIEW (2026-10-15)
+
+The requested integrated campaign and independent results evaluation are complete.
+**STOP after publication. Do not begin another repair, test, provider workload,
+service start, acceptance phase or autonomous continuation until owner review
+and further direction.** Standing issue134 remains unchanged; this owner pause
+supersedes automatic continuation. All entries below are preserved history,
+not current dispatch authority.
+
+Read [the final evaluated findings](COORDINATED_PIPELINE_FINAL_EVALUATION_20261015.md)
+and [hashed final evidence](evidence/coordinated-pipeline-final-evaluation-20261015.json).
+Executable **a793bd580593a87d17a0ab6e5e8581943bec6886** is committed, installed
+clean and stopped on `repair/consolidated-startup-followup-20261014`, draft PR133.
+The consumed specification was published at
+**edb386c599e236179d3a9122201b9a7c7198b16c**. It is not a reusable start request.
+
+Run `20261015-coordinated-pipeline-a793bd58-144649` ended after907.782 seconds:
+original300-second readiness FAIL, STARTUP_LIMITATION, zero acceptance minutes.
+Final continuous post-native slice: CONTROL proxy3.223 versus durable1.336 slot
+units/s; stored gap419→874, age172→342s; no verified program frontier.
+Different historical intervals are not controlled performance comparisons.
+
+Both current native workers received TERM and exited0, STOPPED/reconciled.
+**Global source drain remains RECOVERY_REQUIRED:** all joined queues committed,
+but accepted handlers564488/settled564486 leave two unresolved dispositions.
+Pending history/proofs remain retained. Exact unfinished CONTROL range is
+slot457279885, coverage_after_id192778. No old failure is reclassified.
+Do not start previous66f85d61 code across this new obligation; exact a793 remains
+installed stopped, with prior rollback bytes preserved and no database rewind.
+
+PAPER is inactive/disabled, Restart=no, MainPID0, no service ControlGroup or
+recorded runtime children. Funding/allocation admission remains closed.
+Cash$1000.00, zero positions/reservations/commitments/obligations/pending monetary
+work; verified financial head12608, historical$500 head2036 preserved. Provider
+connections, queues and reservations are closed. Native worker stop and monetary
+reconciliation are not a global recovery PASS.
+
+Final focused integration230/230 passed, but automatic held-PAPER CI38753995554
+failed78/79 with optional-subscription cutoff cancellation timeout. Its result
+was retrieved after the market campaign: disclose this validation gap, preserve
+the failure and do not claim a complete release pass. Draft FAST runs skipped;
+full FAST/OPERATIONAL were not run on this non-promotion candidate.
+
+Managed Pons HTTP was mostly accepted with no429, but all66 detailed candidate
+attempts remained incomplete; held protection was not live tested. Original
+BUSY/READONLY, absent timely publication, backup capacity and backup/protection
+compatibility remain separate blockers. Current minimum single-canonical-copy
+storage shortfall is8.658GB before other state/restore needs. Existing valid
+recovery reference and scheduled backup are preserved; no timer changes.
+
+Recommended first task after owner review: complete the accepted-handler
+cancellation/recovery contract using the failing cutoff test and exact terminal
+census. Then resume the measured owner/Pons demand problem; no unchanged retry.
+
+---
+
+# Historical pre-dispatch continuation — superseded by pause above
+
 # Current continuation — coordinated processing and source recovery repair
 
 The owner resumed this defined scope from f52be1e. Executable

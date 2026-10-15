@@ -1,0 +1,1562 @@
+{
+  "artifacts": [
+    {
+      "bytes": 136,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-coordinated-pipeline-a793bd58-144649/clock.json",
+      "sha256": "09f0d2e0690d24fe6dd42c2ed478336513640adec0052d1f2b0f06c9ca1df20f"
+    },
+    {
+      "bytes": 14102855,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-coordinated-pipeline-a793bd58-144649/metrics.jsonl",
+      "sha256": "33303308847b6e0c4107512ae0b18151ff80fa5ce7da8d48c34b42c8084ebcd6"
+    },
+    {
+      "bytes": 10113,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-coordinated-pipeline-a793bd58-144649/result.json",
+      "sha256": "a7c6dbf70aa44a5c80eae1ea6590859403e8c4e94f274cec4d7b7023c82987fe"
+    },
+    {
+      "bytes": 95,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-coordinated-pipeline-a793bd58-144649/source-sqlite-terminal.txt",
+      "sha256": "d6addd2c52ce364ef5c7a50995e057eb098b4850cfa2dadc44ed23120e628941"
+    },
+    {
+      "bytes": 3730814,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_PREFLIGHT_R2_20261015.json",
+      "sha256": "22c02b20b100fbe002d6404e7a6a636467471c1d1cae5fd5e70141090fe67d1b"
+    },
+    {
+      "bytes": 937,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_DISPATCH_PREFLIGHT_20261015.json",
+      "sha256": "c7da009787dbd1806d78bd009c33e885443eb30705a83e250646c80b24052784"
+    },
+    {
+      "bytes": 5272618,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_POST_NATIVE_FINANCIAL_20261015.json",
+      "sha256": "1a2ddacb92cac044e9bf9dee085b1f30cab1866c5496cca7002552e3e6b924fc"
+    },
+    {
+      "bytes": 48764,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/coordinated_pipeline_post_v1_20261015.py",
+      "sha256": "e759b8006033b2141c52e1261333ba347788f70717dea4824b97dcb32e6ad2a2"
+    },
+    {
+      "bytes": 48937,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/coordinated_pipeline_post_20261015.py",
+      "sha256": "104d823c34b4924636fe06485d702b03d8c1c22283375daca69b712a4c524ff6"
+    },
+    {
+      "bytes": 249927,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_OPERATION_ANALYSIS_20261015.json",
+      "sha256": "9a75374e78bcea073e7a2a99df94b03d59bc7aa2bca76d8eca9bf73af9e9a263"
+    },
+    {
+      "bytes": 35287,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/operation_cost_analysis_20261015.py",
+      "sha256": "1750b983d13d62119c1ed4ebd0cab598ebb55cfd3552f459169d47ec9bcff2d5"
+    },
+    {
+      "bytes": 30958,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_FINAL_ANALYSIS_20261015.json",
+      "sha256": "6cfb369ea109848a09f08619d03f6bc24434ba22664324d18d054252ed928c88"
+    },
+    {
+      "bytes": 9367,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/coordinated_pipeline_final_analysis_20261015.py",
+      "sha256": "957972b40051c1022f443a5825c426c6f0afefd1eb062bbd71519043b79008c0"
+    },
+    {
+      "bytes": 31168,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PONS_PROVIDER_EVALUATION_20261015.json",
+      "sha256": "d9078c8afc97d109c65a884a9c8625ce0a277adc59403a48aca6232cd32c08d3"
+    },
+    {
+      "bytes": 6898,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/coordinated_pons_provider_evaluation_20261015.py",
+      "sha256": "20e65a3fa5103d194e8a1d47f6397c88b542fcdbe5ea4c42e537aff2253576b1"
+    },
+    {
+      "bytes": 2364,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_CI_JOBS_20261015.json",
+      "sha256": "126a0dfed1e28480b5492de21cb4483e240d63710053863ef2e1594ac7eca78e"
+    },
+    {
+      "bytes": 9435,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_CI_FAILED_20261015.log",
+      "sha256": "cb462870e2947ead06d2286e5d74133b4dfe6a09d2a2dd90e3873b08d419bd25"
+    },
+    {
+      "bytes": 10032,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_UNIT_JOURNAL_20261015.jsonl",
+      "sha256": "86fc840855b05a47b9f4785b9a3c079e6cf6e5cd61ce50321da213d16c415e97"
+    },
+    {
+      "bytes": 1512,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_FINAL_SAFE_PAUSE_20261015.json",
+      "sha256": "97065070e8345fe5b7ed9bb2cdbfc132a4d38b5e571c45bbba66954bbd29a61f"
+    },
+    {
+      "bytes": 1063,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_PREPARATION_20261015T144649Z/preparation.json",
+      "sha256": "9bc4b5cf0fbd46f9bb2d0961afea79011df963a79df7cf75577e5cc8433f978e"
+    },
+    {
+      "bytes": 550,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_PREPARATION_20261015T144649Z/installed.json",
+      "sha256": "ada2079bbdad57c62d19df8ac4fc1edbf3d97966cceb5e9f0a61e2874635dffc"
+    },
+    {
+      "bytes": 1103,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_PREPARATION_20261015T144649Z/installed-access-preflight.json",
+      "sha256": "103ae9528e25fdb815b9704e25ecb56c79aa5c033bde79688fbd26198e9edaa2"
+    },
+    {
+      "bytes": 341,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_PREPARATION_20261015T144649Z/unit-before",
+      "sha256": "5472f456883cef4552d2367168b96366fc7b7a6b2d09e18d72472f19aeadde80"
+    },
+    {
+      "bytes": 526,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_PREPARATION_20261015T144649Z/environment-before",
+      "sha256": "75f4d3e42edcf099b2d00be6319c91aa1f0d496ca3c9c39226bb18b3ac70a0c5"
+    },
+    {
+      "bytes": 611,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_PREPARATION_20261015T144649Z/unit-attempt",
+      "sha256": "ad8239060b22ba33793b91e183bb6e11c1f803d8d2feb9c47bbe62b7973f942b"
+    },
+    {
+      "bytes": 826,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/COORDINATED_PIPELINE_PREPARATION_20261015T144649Z/environment-attempt",
+      "sha256": "a2ca8e11dd2843046f490be96d7d793c9b27ba6ce9b805fbfbf24112f0042df3"
+    }
+  ],
+  "authority": "Owner directed one completed integrated campaign, final independent evaluation, safe shutdown then STOP for review. Issue134 standing authorization remains unchanged but discretionary execution is paused.",
+  "branch": "repair/consolidated-startup-followup-20261014",
+  "changed_files": [
+    "engineering/diagnostics/current_combined_observation_20261014.py",
+    "meme_machine/lanes/pons/pons_selective_cohort.py",
+    "meme_machine/solana_candidate_lifecycle.py",
+    "meme_machine/solana_evidence_service.py",
+    "meme_machine/solana_maintenance_state.py",
+    "meme_machine/solana_scoped_retirement.py",
+    "meme_machine/solana_scout_selection.py",
+    "meme_machine/solana_selective_history.py",
+    "meme_machine/solana_selective_source.py",
+    "meme_machine/solana_source_drain.py",
+    "operational/tests.py",
+    "tests/lanes/pons/test_pons_continuous_campaign.py",
+    "tests/test_current_combined_diagnostic.py",
+    "tests/test_maintenance_integrity.py",
+    "tests/test_robinhood_scout.py",
+    "tests/test_robinhood_usd_valuation.py",
+    "tests/test_rolling_ingest_serialization.py",
+    "tests/test_scout_commit_batches.py",
+    "tests/test_solana_history_separation.py",
+    "tests/test_solana_shared_capacity.py",
+    "tests/test_solana_source_drain.py"
+  ],
+  "comparisons": {
+    "component_only": {
+      "archive": {
+        "exact_window_checks": 8,
+        "examined": 41,
+        "reuses": 33
+      },
+      "maintenance": {
+        "reads": [
+          118,
+          102
+        ],
+        "scopes": 2
+      },
+      "pons_fixture": {
+        "BEGIN_statements": [
+          195,
+          68
+        ],
+        "SELECT_statements": [
+          1134,
+          470
+        ],
+        "component_cpu_seconds": [
+          0.101127704,
+          0.052933165
+        ],
+        "component_wall_seconds": [
+          0.181424117,
+          0.100414596
+        ],
+        "events": 32,
+        "maintenance": [
+          33,
+          1
+        ],
+        "nominations": [
+          96,
+          32
+        ],
+        "scope": "Actual broker/scout/plane fixture with SQL trace; not authentic market throughput or held-position capacity.",
+        "synthetic": true
+      },
+      "scout": {
+        "authoritative_writes": 0,
+        "exact_rowid_state_equal": true,
+        "fixture_sha256": "eb2a76fa3dfb771c865604796061aad61a7498b52370946950e919ae7b08107c",
+        "provider_calls": 0,
+        "reference": "f52be1e134b3471470d47c181df63c71192cf50c",
+        "results": {
+          "corrected": [
+            {
+              "commits": 1,
+              "pair": 0,
+              "reads": 3,
+              "snapshot_sha256": "89e69bbbc963a51d6a39f6817986060073df3dab510f10d5bb0a4796a8cbd2e7",
+              "statements": 481,
+              "thread_cpu_seconds": 0.01813170799999997,
+              "traced": true,
+              "wall_seconds": 0.019046521047130227
+            },
+            {
+              "commits": null,
+              "pair": 1,
+              "reads": null,
+              "snapshot_sha256": "89e69bbbc963a51d6a39f6817986060073df3dab510f10d5bb0a4796a8cbd2e7",
+              "statements": null,
+              "thread_cpu_seconds": 0.01568770499999994,
+              "traced": false,
+              "wall_seconds": 0.016646496020257473
+            },
+            {
+              "commits": null,
+              "pair": 2,
+              "reads": null,
+              "snapshot_sha256": "89e69bbbc963a51d6a39f6817986060073df3dab510f10d5bb0a4796a8cbd2e7",
+              "statements": null,
+              "thread_cpu_seconds": 0.01540051600000003,
+              "traced": false,
+              "wall_seconds": 0.016448467038571835
+            },
+            {
+              "commits": null,
+              "pair": 3,
+              "reads": null,
+              "snapshot_sha256": "89e69bbbc963a51d6a39f6817986060073df3dab510f10d5bb0a4796a8cbd2e7",
+              "statements": null,
+              "thread_cpu_seconds": 0.015265218000000136,
+              "traced": false,
+              "wall_seconds": 0.01601221412420273
+            }
+          ],
+          "reference": [
+            {
+              "commits": 1,
+              "pair": 0,
+              "reads": 586,
+              "snapshot_sha256": "89e69bbbc963a51d6a39f6817986060073df3dab510f10d5bb0a4796a8cbd2e7",
+              "statements": 1064,
+              "thread_cpu_seconds": 0.02618928699999995,
+              "traced": true,
+              "wall_seconds": 0.027055982965976
+            },
+            {
+              "commits": null,
+              "pair": 1,
+              "reads": null,
+              "snapshot_sha256": "89e69bbbc963a51d6a39f6817986060073df3dab510f10d5bb0a4796a8cbd2e7",
+              "statements": null,
+              "thread_cpu_seconds": 0.021919876999999977,
+              "traced": false,
+              "wall_seconds": 0.02271654293872416
+            },
+            {
+              "commits": null,
+              "pair": 2,
+              "reads": null,
+              "snapshot_sha256": "89e69bbbc963a51d6a39f6817986060073df3dab510f10d5bb0a4796a8cbd2e7",
+              "statements": null,
+              "thread_cpu_seconds": 0.023301357999999994,
+              "traced": false,
+              "wall_seconds": 0.024313972098752856
+            },
+            {
+              "commits": null,
+              "pair": 3,
+              "reads": null,
+              "snapshot_sha256": "89e69bbbc963a51d6a39f6817986060073df3dab510f10d5bb0a4796a8cbd2e7",
+              "statements": null,
+              "thread_cpu_seconds": 0.022147306000000144,
+              "traced": false,
+              "wall_seconds": 0.02310950285755098
+            }
+          ]
+        },
+        "scope": "64 authentic retained scout projections inserted once per independent disposable store. Three untraced alternating pairs plus one separately traced pair; not raw market replay, sustained throughput, concurrent scheduling proof or a whole-machine speedup.",
+        "summary": {
+          "corrected": {
+            "median_cpu_seconds": 0.01540051600000003,
+            "median_wall_seconds": 0.016448467038571835
+          },
+          "reference": {
+            "median_cpu_seconds": 0.022147306000000144,
+            "median_wall_seconds": 0.02310950285755098
+          }
+        }
+      },
+      "whole_machine_improvement": "NOT_ESTABLISHED"
+    },
+    "older_unmatched_window": {
+      "control_proxy": 3.710851,
+      "cpu_cores": 1.72892,
+      "durable": 1.508519,
+      "economic_age": [
+        354.149,
+        483.402
+      ],
+      "gap": [
+        1321,
+        1748
+      ],
+      "seconds": 190.253,
+      "source": "b007217e7930fa728604df4aa2a96f68f998e1ec"
+    },
+    "whole_machine_causal_improvement": "NOT_ESTABLISHED"
+  },
+  "continuous_window": {
+    "checkpoint_owner_hold_seconds": 11.964898,
+    "cpu_cores": 1.7150875549972622,
+    "development_phases": {
+      "exclusive_cpu_seconds": 5.973636,
+      "exclusive_runnable_seconds": 15.004525999999998,
+      "exclusive_wall_seconds": 39.663475,
+      "fields": [
+        "calls",
+        "failed_calls",
+        "unmeasured_calls",
+        "runnable_measured_calls",
+        "runnable_unavailable_calls",
+        "wall_seconds_total_microseconds",
+        "cpu_seconds_total_microseconds",
+        "runnable_wait_seconds_total_microseconds"
+      ],
+      "rows": {
+        "boundaries": {
+          "calls": 99.0,
+          "cpu_seconds_total_microseconds": 0.052859,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 99.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 0.109477,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 0.19214
+        },
+        "commit": {
+          "calls": 99.0,
+          "cpu_seconds_total_microseconds": 0.257473,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 99.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 0.529257,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 1.745275
+        },
+        "plan": {
+          "calls": 99.0,
+          "cpu_seconds_total_microseconds": 0.189679,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 99.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 0.35721,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 0.751785
+        },
+        "publication": {
+          "calls": 99.0,
+          "cpu_seconds_total_microseconds": 0.045775,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 99.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 0.091702,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 0.142591
+        },
+        "reactivation": {
+          "calls": 99.0,
+          "cpu_seconds_total_microseconds": 4.14093,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 99.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 11.058281,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 30.894768
+        },
+        "selection": {
+          "calls": 198.0,
+          "cpu_seconds_total_microseconds": 1.28692,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 198.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 2.858599,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 5.936916
+        }
+      },
+      "scope": "Fixed exclusive coarse development phases; selection may enter twice per command; commit is original transaction context exit. Overlaps owner callback totals."
+    },
+    "evidence_age_seconds": [
+      171.78690552711487,
+      342.0652461051941
+    ],
+    "first": 654.7592834727839,
+    "heads_end": {
+      "arrival": 457279861,
+      "durable": 457278978,
+      "joined": 457278986,
+      "prepared": 457278983,
+      "raw_cursor": 457278983,
+      "stored": 457278987,
+      "usable_publication": "UNAVAILABLE"
+    },
+    "heads_start": {
+      "arrival": 457279077,
+      "durable": 457278653,
+      "joined": 457278662,
+      "prepared": 457278658,
+      "raw_cursor": 457278658,
+      "stored": 457278658,
+      "usable_publication": "UNAVAILABLE"
+    },
+    "last": 898.0376238608733,
+    "needed_to_match_arrival_factor": 2.412307692307692,
+    "owner_exclusive_callback_wall_seconds": 230.072674,
+    "owner_stages": {
+      "candidate_delivery_ack": {
+        "calls": 15.0,
+        "execution_cpu_total_microseconds": 0.573657,
+        "execution_total_microseconds": 2.871505,
+        "queue_total_microseconds": 30.487456
+      },
+      "candidate_delivery_capture": {
+        "calls": 30.0,
+        "execution_cpu_total_microseconds": 1.236015,
+        "execution_total_microseconds": 4.582534,
+        "queue_total_microseconds": 61.362917
+      },
+      "candidate_development": {
+        "calls": 99.0,
+        "execution_cpu_total_microseconds": 6.128923,
+        "execution_total_microseconds": 40.445428,
+        "queue_total_microseconds": 186.188878
+      },
+      "checkpoint_finish": {
+        "calls": 27.0,
+        "execution_cpu_total_microseconds": 0.000137,
+        "execution_total_microseconds": 0.000144,
+        "queue_total_microseconds": 63.512778
+      },
+      "checkpoint_prepare": {
+        "calls": 34.0,
+        "execution_cpu_total_microseconds": 0.000285,
+        "execution_total_microseconds": 0.000853,
+        "queue_total_microseconds": 68.663183
+      },
+      "history_apply": {
+        "calls": 48.0,
+        "execution_cpu_total_microseconds": 0.091295,
+        "execution_total_microseconds": 0.68035,
+        "queue_total_microseconds": 103.255308
+      },
+      "history_dispatch": {
+        "calls": 47.0,
+        "execution_cpu_total_microseconds": 0.147225,
+        "execution_total_microseconds": 0.923634,
+        "queue_total_microseconds": 108.468243
+      },
+      "maintenance_decision": {
+        "calls": 96.0,
+        "execution_cpu_total_microseconds": 5.725248,
+        "execution_total_microseconds": 25.716196,
+        "queue_total_microseconds": 193.264298
+      },
+      "maintenance_health": {
+        "calls": 73.0,
+        "execution_cpu_total_microseconds": 1.233029,
+        "execution_total_microseconds": 4.518108,
+        "queue_total_microseconds": 158.559607
+      },
+      "retention": {
+        "calls": 82.0,
+        "execution_cpu_total_microseconds": 1.456957,
+        "execution_total_microseconds": 17.64722,
+        "queue_total_microseconds": 177.58715
+      },
+      "source_commit": {
+        "calls": 440.0,
+        "execution_cpu_total_microseconds": 26.864987,
+        "execution_total_microseconds": 131.510342,
+        "queue_total_microseconds": 887.954252
+      },
+      "source_commit.component.candidate": {
+        "calls": 80.0,
+        "execution_cpu_total_microseconds": 15.19144,
+        "execution_total_microseconds": 70.470579,
+        "queue_total_microseconds": 114.673477
+      },
+      "source_commit.component.control": {
+        "calls": 98.0,
+        "execution_cpu_total_microseconds": 2.226696,
+        "execution_total_microseconds": 9.38145,
+        "queue_total_microseconds": 220.841047
+      },
+      "source_commit.component.delivery_accounting": {
+        "calls": 103.0,
+        "execution_cpu_total_microseconds": 0.14026,
+        "execution_total_microseconds": 1.31347,
+        "queue_total_microseconds": 229.880867
+      },
+      "source_commit.component.history_publication": {
+        "calls": 60.0,
+        "execution_cpu_total_microseconds": 2.268147,
+        "execution_total_microseconds": 10.005686,
+        "queue_total_microseconds": 124.687297
+      },
+      "source_commit.component.scout": {
+        "calls": 99.0,
+        "execution_cpu_total_microseconds": 7.038444,
+        "execution_total_microseconds": 40.339157,
+        "queue_total_microseconds": 197.871564
+      }
+    },
+    "owner_thread_cpu_seconds": 43.987102954,
+    "owner_thread_runnable_seconds": 94.431953274,
+    "pre_persistence_gaps": [
+      419,
+      874
+    ],
+    "seconds": 243.27834038808942,
+    "slot_unit_rates": {
+      "arrival": 3.2226461211027875,
+      "durable": 1.3359183537734771,
+      "joined": 1.3318078357618663,
+      "prepared": 1.3359183537734771,
+      "raw_cursor": 1.3359183537734771,
+      "stored": 1.3523604258199198,
+      "usable_publication": "UNAVAILABLE"
+    },
+    "sql_transactions": {
+      "begin.calls": 967.0,
+      "begin.cpu_peak_microseconds": 2.3e-05,
+      "begin.cpu_total_microseconds": 0.122214,
+      "begin.wall_peak_microseconds": 0.0,
+      "begin.wall_total_microseconds": 0.668533,
+      "commit.calls": 967.0,
+      "commit.cpu_peak_microseconds": 0.0,
+      "commit.cpu_total_microseconds": 2.48766,
+      "commit.wall_peak_microseconds": 0.0,
+      "commit.wall_total_microseconds": 15.888089
+    },
+    "throttled_seconds": 16.647978,
+    "workers": {
+      "cgroup_pid_3046589": {
+        "cpu_cores": 0.0,
+        "cpu_seconds": 0.0,
+        "io_delta": {
+          "cancelled_write_bytes": 0.0,
+          "rchar": 0.0,
+          "read_bytes": 0.0,
+          "syscr": 0.0,
+          "syscw": 0.0,
+          "wchar": 0.0,
+          "write_bytes": 0.0
+        },
+        "kernel_main_runnable_seconds": 0.0,
+        "kernel_main_runtime_seconds": 0.0,
+        "pid": 3046589
+      },
+      "cgroup_pid_3046590": {
+        "cpu_cores": 0.02877362608127489,
+        "cpu_seconds": 7.0,
+        "io_delta": {
+          "cancelled_write_bytes": 0.0,
+          "rchar": 48722127.0,
+          "read_bytes": 0.0,
+          "syscr": 790.0,
+          "syscw": 60.0,
+          "wchar": 83713343.0,
+          "write_bytes": 0.0
+        },
+        "kernel_main_runnable_seconds": 11.167084856,
+        "kernel_main_runtime_seconds": 6.989265271,
+        "pid": 3046590
+      },
+      "cgroup_pid_3046593": {
+        "cpu_cores": 0.0282392587397655,
+        "cpu_seconds": 6.87,
+        "io_delta": {
+          "cancelled_write_bytes": 0.0,
+          "rchar": 49712240.0,
+          "read_bytes": 0.0,
+          "syscr": 807.0,
+          "syscw": 60.0,
+          "wchar": 75998666.0,
+          "write_bytes": 0.0
+        },
+        "kernel_main_runnable_seconds": 10.837841002,
+        "kernel_main_runtime_seconds": 6.870330872,
+        "pid": 3046593
+      },
+      "cgroup_pid_3047540": {
+        "cpu_cores": 0.012084922954135453,
+        "cpu_seconds": 2.94,
+        "io_delta": {
+          "cancelled_write_bytes": 0.0,
+          "rchar": 305448002.0,
+          "read_bytes": 208896.0,
+          "syscr": 74705.0,
+          "syscw": 48.0,
+          "wchar": 2008570.0,
+          "write_bytes": 0.0
+        },
+        "kernel_main_runnable_seconds": 11.898202916,
+        "kernel_main_runtime_seconds": 2.935983736,
+        "pid": 3047540
+      },
+      "pons": {
+        "cpu_cores": 0.6842779333928329,
+        "cpu_seconds": 166.47,
+        "io_delta": {
+          "cancelled_write_bytes": 187678720.0,
+          "rchar": 59099750002.0,
+          "read_bytes": 13651968.0,
+          "syscr": 14444731.0,
+          "syscw": 342445.0,
+          "wchar": 896187514.0,
+          "write_bytes": 1036259328.0
+        },
+        "kernel_main_runnable_seconds": 74.741722143,
+        "kernel_main_runtime_seconds": 43.237981273,
+        "pid": 3046596
+      },
+      "pump": {
+        "cpu_cores": 0.320825930806215,
+        "cpu_seconds": 78.05,
+        "io_delta": {
+          "cancelled_write_bytes": 92028928.0,
+          "rchar": 4038360976.0,
+          "read_bytes": 377548800.0,
+          "syscr": 988066.0,
+          "syscw": 170457.0,
+          "wchar": 439750549.0,
+          "write_bytes": 445448192.0
+        },
+        "kernel_main_runnable_seconds": 112.872622165,
+        "kernel_main_runtime_seconds": 76.063464596,
+        "pid": 3046595
+      },
+      "solana": {
+        "cpu_cores": 0.5499462047733953,
+        "cpu_seconds": 133.79,
+        "io_delta": {
+          "cancelled_write_bytes": 77824.0,
+          "rchar": 3603081024.0,
+          "read_bytes": 253235200.0,
+          "syscr": 979528.0,
+          "syscw": 906404.0,
+          "wchar": 2033477771.0,
+          "write_bytes": 1894875136.0
+        },
+        "kernel_main_runnable_seconds": 110.235264353,
+        "kernel_main_runtime_seconds": 75.369985843,
+        "pid": 3046583
+      },
+      "supervisor": {
+        "cpu_cores": 0.09100686877706086,
+        "cpu_seconds": 22.14,
+        "io_delta": {
+          "cancelled_write_bytes": 27897856.0,
+          "rchar": 220650127.0,
+          "read_bytes": 28672.0,
+          "syscr": 52279.0,
+          "syscw": 21768.0,
+          "wchar": 72229943.0,
+          "write_bytes": 109998080.0
+        },
+        "kernel_main_runnable_seconds": 39.066653705,
+        "kernel_main_runtime_seconds": 22.141897024,
+        "pid": 3046414
+      }
+    }
+  },
+  "continuous_window_same_source_and_rolling_session": true,
+  "detailed_pons_candidate_attempts": {
+    "complete": 0,
+    "incomplete": 66,
+    "reasons": {
+      "evidence_deadline_before_transport": 2,
+      "evidence_deadline_during_transport": 1,
+      "native_USD_value_missing_or_stale": 10,
+      "provider_shared_admission_deadline": 1,
+      "stale_evidence_acquisition": 52
+    },
+    "rows": 66,
+    "scope": "Candidate-rows current evidence_started_monotonic within observation; different population from stage/probe counts"
+  },
+  "draft_pr": "https://github.com/levonmendall/The-Meme-Machine/pull/133",
+  "executable": "a793bd580593a87d17a0ab6e5e8581943bec6886",
+  "failure_dispositions": [
+    "All original historical RECOVERY_REQUIRED, BUSY, READONLY and failed backups remain unchanged.",
+    "Source terminal preserves two unsettled handler dispositions; joined queue completion and worker exits do not clear them.",
+    "No original natural fatal SQLite mechanism was reproduced.",
+    "Post-review helper initially rejected equivalent relative/absolute pinned preflight paths before application checks; original helper retained, equivalent path normalization only.",
+    "Earlier source/fixture/guard failures and failed validation remain preserved by prior evidence index."
+  ],
+  "first_sampled_native_reconciliation": {
+    "pons": 264.95514030684717,
+    "pump": 654.7592834727839
+  },
+  "history": {
+    "authenticated_ack_delays_seconds": {
+      "maximum": 539.1917729377747,
+      "median": 228.68601214885712,
+      "minimum": 180.1969883441925,
+      "n": 66
+    },
+    "authoritative_post_check": {
+      "ACKED_WITH_AUTHENTIC_RECEIPT": 66,
+      "PENDING_PRESERVED": 30
+    },
+    "conflicting_identities": [],
+    "scope": "Bounded canonical identity sample union, not population, new arrivals, slot progress or full coverage.",
+    "unique_sampled": 96
+  },
+  "independent_review": {
+    "final_editorial_review": "Conclusions agreed. Corrected FULL-only memory maximum to all863-record maximum in public final index/report, retaining both scopes.",
+    "reviewers": [
+      "root integration/test/runtime owner",
+      "final_independent_evaluation read-only agent",
+      "final_pons_strategy_evaluation read-only agent"
+    ],
+    "scope": "No additional tests, provider traffic, repairs or application-state writes after campaign; independent retained-evidence evaluation and bounded read-only safety review."
+  },
+  "limitations": [
+    "CONTROL is a local arrival proxy and head units are not unique event counts.",
+    "Sampled history identities/ACK delays are not a population census or history throughput in slots.",
+    "Different market windows are not controlled before/after comparisons.",
+    "Operation/SQL/CPU/callback counters have overlapping scopes; no cross-sum or wall-minus-CPU lock/GIL inference.",
+    "No verified global program frontier does not mean every individual receipt failed.",
+    "No held position was admitted; native/worker service health cannot establish protection deadline behavior.",
+    "Old unsealed CONTROL session recovery remains unexecuted; post-stop read-only evidence is not future recovery proof.",
+    "Backup single-copy shortfall is a lower bound excluding other state and full isolated restore."
+  ],
+  "native_completed_operation_samples": {
+    "pons": {
+      "pons.shared_capital_restore": {
+        "max_seconds": 193.23830061708577,
+        "observed_completed_calls": 1,
+        "observed_wall_seconds": 193.23830061708577
+      }
+    },
+    "pump": {
+      "pump.accounting_genesis_read": {
+        "max_seconds": 0.0008486439473927021,
+        "observed_completed_calls": 1,
+        "observed_wall_seconds": 0.0008486439473927021
+      },
+      "pump.candidate_history_open": {
+        "max_seconds": 5.174800753593445e-05,
+        "observed_completed_calls": 1,
+        "observed_wall_seconds": 5.174800753593445e-05
+      },
+      "pump.confirmation_restore": {
+        "max_seconds": 0.0011087378952652216,
+        "observed_completed_calls": 1,
+        "observed_wall_seconds": 0.0011087378952652216
+      },
+      "pump.current_runtime_restore": {
+        "max_seconds": 0.00022322195582091808,
+        "observed_completed_calls": 1,
+        "observed_wall_seconds": 0.00022322195582091808
+      },
+      "pump.evidence_broker_open": {
+        "max_seconds": 0.0018210879061371088,
+        "observed_completed_calls": 1,
+        "observed_wall_seconds": 0.0018210879061371088
+      },
+      "pump.initial_report": {
+        "max_seconds": 0.0061129170935601,
+        "observed_completed_calls": 1,
+        "observed_wall_seconds": 0.0061129170935601
+      },
+      "pump.observed_candidate_events": {
+        "max_seconds": 2.2425526320002973,
+        "observed_completed_calls": 606,
+        "observed_wall_seconds": 40.40210132393986
+      },
+      "pump.observed_candidates_restore": {
+        "max_seconds": 391.5653552019503,
+        "observed_completed_calls": 1,
+        "observed_wall_seconds": 391.5653552019503
+      },
+      "pump.pipeline_open": {
+        "max_seconds": 0.01955254189670086,
+        "observed_completed_calls": 1,
+        "observed_wall_seconds": 0.01955254189670086
+      },
+      "pump.runtime_evidence_open": {
+        "max_seconds": 0.00043064518831670284,
+        "observed_completed_calls": 1,
+        "observed_wall_seconds": 0.00043064518831670284
+      },
+      "pump.sessions_open": {
+        "max_seconds": 0.04326212219893932,
+        "observed_completed_calls": 1,
+        "observed_wall_seconds": 0.04326212219893932
+      },
+      "pump.survivor_recovery_submit": {
+        "max_seconds": 0.013004572130739689,
+        "observed_completed_calls": 1,
+        "observed_wall_seconds": 0.013004572130739689
+      },
+      "pump.survivor_runtime_restore": {
+        "max_seconds": 5.294502391014248,
+        "observed_completed_calls": 1,
+        "observed_wall_seconds": 5.294502391014248
+      },
+      "pump.survivor_worker_open": {
+        "max_seconds": 0.0005510558839887381,
+        "observed_completed_calls": 1,
+        "observed_wall_seconds": 0.0005510558839887381
+      },
+      "pump.terminal_recovery": {
+        "max_seconds": 0.22219742904417217,
+        "observed_completed_calls": 1,
+        "observed_wall_seconds": 0.22219742904417217
+      }
+    }
+  },
+  "next_action": "Await owner review. Recommended resumption: complete accepted-handler cutoff/recovery contract using existing failed CI test and terminal two-handler evidence, before another runtime attempt. No further action automatically authorized by this checkpoint.",
+  "operating_result": {
+    "acceptance_minutes": 0,
+    "controller_elapsed_to_drain_seconds": 907.7817111099139,
+    "global_source_drain": "RECOVERY_REQUIRED",
+    "native_workers": "VERIFIED_CURRENT_WORKER_STOP_ONLY",
+    "original_readiness": "FAIL",
+    "overall": "FAIL",
+    "ready_for_autonomy": false,
+    "stop_reason": "STARTUP_LIMITATION"
+  },
+  "pons_pipeline": {
+    "active_policy_hashes": {
+      "e9c91d19522cedd3da27a4ef6287510c9eb163699a4faae3cda13e76e9809c78": 3814
+    },
+    "classification_unique_candidates": {
+      "None": 177,
+      "capacity_censored": 58,
+      "consumer_deadline": 104,
+      "stale_during_evidence": 63,
+      "superseded_generation": 41
+    },
+    "current_run_rows": 3814,
+    "earliest_projected_plane_at": 1792075954.4726143,
+    "full_current_run_retention": true,
+    "min_retained_monotonic": 1140616.360410157,
+    "overlap_notice": "Candidates may have multiple stages/classes/reasons; counts must not be summed as losses.",
+    "path": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/pons/pons-selective-continuation-v1-cohort/opportunity-pipeline.sqlite",
+    "projection_provenance_counts": {
+      "direct_pipeline_transition_no_plane_timestamp": 146,
+      "plane_transition_during_current_run": 3668
+    },
+    "reason_unique_candidates": {
+      "None": 100,
+      "completion_after_original_deadline": 59,
+      "evidence_deadline_before_transport": 2,
+      "evidence_deadline_during_transport": 1,
+      "interrupted_work_recovered": 15,
+      "latest_state_coalesced": 98,
+      "measured_service_exceeds_remaining_slack": 58,
+      "newer_candidate_state": 30,
+      "obsolete_completion": 21,
+      "original_deadline_expired": 50,
+      "pons_adapter_change_requires_fresh_canonical_state": 55,
+      "pons_retained_watch_requires_fresh_canonical_state": 3,
+      "pons_timer_requires_fresh_canonical_current_state": 80,
+      "stale_during_evidence": 63
+    },
+    "retained_rows": 7473,
+    "stage_transition_counts": {
+      "candidate_superseded": 850,
+      "candidate_watching": 2255,
+      "current_state_requested": 160,
+      "discovered": 40,
+      "terminal": 509
+    },
+    "stage_unique_candidates": {
+      "candidate_superseded": 41,
+      "candidate_watching": 160,
+      "current_state_requested": 80,
+      "discovered": 40,
+      "terminal": 122
+    },
+    "unique_candidates": 177,
+    "wall_end_derived": 1792076597.809333,
+    "wall_start_derived_from_first_metric": 1792075690.027622
+  },
+  "pons_provider": {
+    "admission": {
+      "failed": [
+        {
+          "_seq": 84338,
+          "created": 1158494.924574255,
+          "deadline": 1158494.7426021793,
+          "ended": 1158494.927036086,
+          "endpoint_fingerprint": "91ad0f2d5dfd637a3c38c64ab009abe28025e0b4c22085fcd73ecdf7093fd6bb",
+          "failure_domain": "local_admission",
+          "granted": false,
+          "lane": "pons",
+          "methods": [
+            "eth_chainId"
+          ],
+          "priority": 30,
+          "reason": "provider_shared_admission_deadline",
+          "scope": "connectivity",
+          "wait_seconds": 0.002462248085066676
+        }
+      ],
+      "failure_domains": {
+        "None": 2040,
+        "local_admission": 1
+      },
+      "granted": 2040,
+      "not_granted": 1,
+      "reasons": {
+        "granted": 2040,
+        "provider_shared_admission_deadline": 1
+      },
+      "records": 2041,
+      "wait_seconds": {
+        "max": 0.3466145049314946,
+        "min": 0.002462248085066676,
+        "n": 2041,
+        "p50": 0.02523821499198675,
+        "p95": 0.12354243919253349,
+        "p99": 0.19304012088105083,
+        "sum": 83.48380128806457
+      }
+    },
+    "retention": {
+      "current_run_rows": 2040,
+      "full_current_clock_coverage": true,
+      "max_retained_clock": 1158764.967264731,
+      "min_retained_clock": 1153022.734028639,
+      "retained_rows": 4096,
+      "selection_clock": "admitted_at"
+    },
+    "scope": "Managed route only; includes one undispatched logical element. No held position or original public429 quota proof.",
+    "through_drain": {
+      "actual_dispatch_spacing_by_endpoint": {
+        "91ad0f2d5dfd637a3c38c64ab009abe28025e0b4c22085fcd73ecdf7093fd6bb": {
+          "max": 3.510864223819226,
+          "min": 0.01229427894577384,
+          "n": 2038,
+          "p50": 0.25693449191749096,
+          "p95": 0.7664376911707222,
+          "p99": 1.1890252700541168,
+          "sum": 648.4251381959766
+        }
+      },
+      "boundary": {
+        "None": 2038,
+        "evidence_deadline_before_transport": 1,
+        "evidence_deadline_during_transport": 1
+      },
+      "category_records": {
+        "canonical_verification": 118,
+        "deep_watch": 504,
+        "diagnostics": 345,
+        "discovery": 537,
+        "final_qualification": 22,
+        "position_maintenance": 514
+      },
+      "completed_records": 2040,
+      "endpoint_fingerprints": {
+        "91ad0f2d5dfd637a3c38c64ab009abe28025e0b4c22085fcd73ecdf7093fd6bb": 2040
+      },
+      "inflight_at_dispatch": {
+        "max": 3,
+        "min": 1,
+        "n": 2039,
+        "p50": 2,
+        "p95": 3,
+        "p99": 3,
+        "sum": 3546
+      },
+      "latency_seconds": {
+        "max": 1.9107797727920115,
+        "min": 0.00021585705690085888,
+        "n": 2040,
+        "p50": 0.31911244499497116,
+        "p95": 0.7027953010983765,
+        "p99": 1.1920552579686046,
+        "sum": 746.979538415093
+      },
+      "logical_rpc_elements": 7196,
+      "methods": {
+        "eth_call": 2128,
+        "eth_chainId": 107,
+        "eth_getBlockByNumber": 1584,
+        "eth_getCode": 1028,
+        "eth_getLogs": 2312,
+        "eth_getTransactionReceipt": 37
+      },
+      "physical_requests": 2039,
+      "queue_depth_at_transport": {
+        "max": 2,
+        "min": 1,
+        "n": 2040,
+        "p50": 1,
+        "p95": 1,
+        "p99": 2,
+        "sum": 2088
+      },
+      "response_bytes": 11737355,
+      "retry_attempt_records": {
+        "0": 2040
+      },
+      "rpc_error_codes": {
+        "None": 2040
+      },
+      "scope_records": {
+        "connectivity": 107,
+        "pons_natural": 118,
+        "pons_scout_discovery": 537,
+        "pons_selective_current_recheck": 8,
+        "pons_selective_trajectory": 13,
+        "pons_selective_v4": 278,
+        "pons_survivor": 221,
+        "position_monitor": 514,
+        "universe_cost_conversion": 81,
+        "universe_cost_identity": 1,
+        "universe_cost_route": 162
+      },
+      "status": {
+        "200": 2038,
+        "None": 2
+      },
+      "wait_seconds": {
+        "max": 0.2874479480087757,
+        "min": 0.00303467595949769,
+        "n": 2040,
+        "p50": 0.016528089065104723,
+        "p95": 0.11315107881091535,
+        "p99": 0.18307551904581487,
+        "sum": 64.02406644378789
+      }
+    }
+  },
+  "provider_usage": {
+    "before_scope": "Exact SHA-authenticated fresh dispatch receipt captures all durable usage counters from its existing provider-guard query; retained O13 counters are a non-regression witness. Current-run delta only, no historical delta resumming or invoice verification.",
+    "cost_basis": "Existing frozen conservative model; uncertain bytes are accounted exposure, not confirmed delivery or invoice.",
+    "delta": {
+      "alchemy_rpc_cu": 247108,
+      "http_attempts": 2050,
+      "http_bytes": 11737570,
+      "http_uncertain_bytes": 0,
+      "native_bytes": 605151227,
+      "native_failures": 0,
+      "native_opens": 6,
+      "native_uncertain_bytes": 436207616,
+      "robinhood_rpc_elements": 7195,
+      "rpc_cu": 247108,
+      "rpc_elements": 7200,
+      "solana_rpc_elements": 5
+    },
+    "http_reserved": "0",
+    "modeled_cost_usd": "0.239074378515",
+    "native_openings_subset": 6,
+    "native_reserved": "0",
+    "non_native_http_starts": 2044,
+    "physical_starts_including_native": 2050,
+    "provider_invoice": "UNAVAILABLE",
+    "unclosed_http_receipts": [],
+    "unclosed_streams": []
+  },
+  "pump_opportunity_pipeline": {
+    "covers_current_run": true,
+    "current_run_rows": 0,
+    "last_existing_monotonic": 1140824.657407059,
+    "last_existing_sequence": 1732,
+    "limitation": "This native opportunity pipeline only; zero new rows does not mean zero acquired market facts or all possible strategy channels were censused.",
+    "path": "/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000/pump/pump-acceleration-natural-prospective.pipeline.sqlite",
+    "reasons": [],
+    "retained_tail": 1732,
+    "stage_counts": {},
+    "tail_limit": 4096
+  },
+  "report": "COORDINATED_PIPELINE_FINAL_EVALUATION_20261015.md",
+  "resource_details": {
+    "FULL_sample_maximum_memory_bytes": 2274529280,
+    "device": {
+      "busy_milliseconds": 110509,
+      "completed_reads": 102365,
+      "completed_writes": 304660,
+      "limitation": "Whole volume device totals, not per-owner wait, SQLite lock evidence, or a disk saturation verdict.",
+      "read_bytes": 644710400,
+      "read_milliseconds": 81176,
+      "scope": "DEVICE_AGGREGATE_NOT_ACTOR_WAIT",
+      "weighted_io_milliseconds": 935503,
+      "write_milliseconds": 790340,
+      "written_bytes": 3603533824
+    },
+    "hardware_adequacy": "NOT_VERIFIED; current two-vCPU/1.8-core operating configuration failed, but a minimum sufficient paid upgrade is not established",
+    "maximum_memory_bytes": 2278965248,
+    "maximum_memory_scope": "All 863 metric records; private final-analysis artifact retains FULL-only maximum separately.",
+    "pressure_delta_seconds": {
+      "cpu_pressure": {
+        "full": 22.370048,
+        "some": 185.495047
+      },
+      "io_pressure": {
+        "full": 7.411516,
+        "some": 50.631246
+      },
+      "memory_pressure": {
+        "full": 0.775882,
+        "some": 7.046497
+      }
+    }
+  },
+  "reviewed_predecessor": "f52be1e134b3471470d47c181df63c71192cf50c",
+  "safety": {
+    "actual_policy_bindings": {
+      "native": {
+        "pons_current": {
+          "decision_policy_hash": "e9c91d19522cedd3da27a4ef6287510c9eb163699a4faae3cda13e76e9809c78",
+          "financial_policy_hash": "888904d0e58865f1a701560a5be8386f57d88f66a0c25d7094c994cafa7f448f",
+          "revision": "paper-opportunity-access-v1",
+          "status": "VERIFIED"
+        },
+        "pons_survivor": {
+          "decision_policy_hash": "34f968df79aabef6e8fefaf022c69e2abbc334bfd18eff509d48cbbefff66ac4",
+          "financial_policy_hash": "ed17402a75470801fda47877b6b1f3b1266793b7e0750b7a7cd821f327541e5f",
+          "revision": "paper-opportunity-access-v1",
+          "status": "VERIFIED"
+        },
+        "pump_current": {
+          "decision_policy_hash": "d67d5560ea6738094c2cf32bc003ceba8918a93bb440f9e82236e60dcc9d8251",
+          "financial_policy_hash": "89d2e6ac286e82f3d645feecc4de4193687cd9ba4e4f9006b7d57f1357c5b972",
+          "revision": "paper-opportunity-access-v1",
+          "status": "VERIFIED"
+        },
+        "pump_survivor": {
+          "decision_policy_hash": "e4c0517e3284a18ce0e38feb79915b4220227efa6ff41fcaffb30d9dc8eecae9",
+          "financial_policy_hash": "0d65e1023b5e7b586e9a71d060fe9da7954c964bfcc3fc986977b80979ea44a5",
+          "revision": "paper-opportunity-access-v1",
+          "status": "VERIFIED"
+        }
+      },
+      "status": "VERIFIED"
+    },
+    "financial": {
+      "admission": "OBSERVATION",
+      "bounded_tail_events": 332,
+      "capital_policy_hash": "b91e83300994b6c02fe5e6bdbeb031cc391e6c8caa97af9fa6df1ecbc4aa979c",
+      "cash": "1000.00",
+      "counts": {
+        "commitments": 0,
+        "obligations": 0,
+        "pending_backing": 0,
+        "pending_deliveries": 0,
+        "positions": 0,
+        "reservations": 0,
+        "runtime_inbox": 0,
+        "runtime_pending": 0
+      },
+      "epoch_id": "paper-shared-1000-20261011T071207Z",
+      "inception_sha256": "aea262d34d976cddeddf83f57045508cf09f3c8e28cf8a2c73ae49d38cc261b1",
+      "new_actions_since_preflight": {
+        "runtime_admission": 1,
+        "runtime_owner": 20,
+        "runtime_publish": 311
+      },
+      "new_events_since_preflight": 332,
+      "projection_sha256": "12756b16cd16c8e452290537d63c1f79a324218303af8e96f1b0ce81a15a07a7",
+      "raw_head": [
+        12608,
+        "63570518d16a12e1071a9cb968f1f928b1e5dbf43c80159a93285424a31ca48c"
+      ],
+      "rederived_prior_append_events": 0,
+      "reused_completed_replay_head": 12276,
+      "runtime_owners": {
+        "pons_current": {
+          "alive": false,
+          "pid": 3046596,
+          "ready": true,
+          "start": "115791949"
+        },
+        "pons_survivor": {
+          "alive": false,
+          "pid": 3046596,
+          "ready": true,
+          "start": "115791949"
+        },
+        "pump_current": {
+          "alive": false,
+          "pid": 3046595,
+          "ready": true,
+          "start": "115791916"
+        },
+        "pump_survivor": {
+          "alive": false,
+          "pid": 3046595,
+          "ready": true,
+          "start": "115791916"
+        }
+      },
+      "status": "VERIFIED",
+      "tail_actions": {
+        "runtime_admission": 1,
+        "runtime_owner": 20,
+        "runtime_publish": 311
+      },
+      "tail_replay_exact": true
+    },
+    "historical500": {
+      "checkpoint_sha256": "30d64ef5185115aeeed14b5155ca68bb8ae9d0c3d653f937fe343cb645e61e99",
+      "empty_sidecars_preserved": true,
+      "exact_main_fingerprint": true,
+      "file_fingerprints": {
+        "portfolio.sqlite": {
+          "bytes": 770048,
+          "ctime_ns": 1791305244200775777,
+          "device": 2048,
+          "inode": 1572869,
+          "mtime_ns": 1791305244200775777
+        },
+        "portfolio.sqlite-wal": {
+          "bytes": 0,
+          "ctime_ns": 1792075600014269293,
+          "device": 2048,
+          "inode": 1572886,
+          "mtime_ns": 1791305244242776304
+        }
+      },
+      "head": [
+        2036,
+        "c0cb1d5fd4a156378e4e53764c0f528707ee9a5af799662daf15f207be95723e"
+      ],
+      "inception_sha256": "3a1986fc4e755a75a93808815cec3d0cb9a930d0818e36ef2a3a93abf6190a9e",
+      "reused_completed_replay": true,
+      "status": "VERIFIED"
+    },
+    "post_authoritative_writes": 0,
+    "post_queries": 9764,
+    "post_seconds": 2.884987,
+    "post_statuses": {
+      "accepted_source_frame_drain": "FAILED",
+      "all_four_actual_v1_bindings": "VERIFIED",
+      "canonical_session_and_frontiers": "VERIFIED",
+      "current_run_cohort": "VERIFIED",
+      "exact_delivery_ack_pending_preservation": "VERIFIED",
+      "exact_program_checkpoint_receipts": "VERIFIED",
+      "exclusive_native_ownership": "VERIFIED",
+      "financial_authority": "VERIFIED",
+      "historical500_preservation": "VERIFIED",
+      "host_service_backup_resources": "VERIFIED",
+      "native_pons_survivor": "VERIFIED",
+      "native_pump_current": "VERIFIED",
+      "native_pump_survivor": "VERIFIED",
+      "pons_capital": "VERIFIED",
+      "pons_native_recovery_boundary": "VERIFIED",
+      "preserved_o14_current_and_preceding": "VERIFIED",
+      "preserved_o14_prior_current": "VERIFIED",
+      "preserved_o14_prior_current_generation": "VERIFIED",
+      "preserved_o14_prior_earlier": "VERIFIED",
+      "preserved_o14_prior_preceding": "VERIFIED",
+      "provider_guards": "VERIFIED",
+      "provider_reservation_closure": "VERIFIED",
+      "read_only_application_state_observation": "VERIFIED",
+      "recovery_reference": "VERIFIED",
+      "sleeve_pons": "VERIFIED",
+      "sleeve_pump": "VERIFIED"
+    },
+    "provider_reservation_closure": {
+      "http_reserved": "0",
+      "native_reserved": "0",
+      "new_risk_ready": "false",
+      "open_http_receipts": 0,
+      "open_streams": 0,
+      "status": "VERIFIED"
+    },
+    "recovery_reference": {
+      "fresh_stat_entries": 301,
+      "later_failed_backup_unchanged_unusable": true,
+      "manifest_sha256": "f3a6b3f8d0b69a86c470cda0b307491d03ea05dff4959729f4c9d168a608adf0",
+      "missing_changed_or_symlink": [],
+      "not_a_restore_or_state_rewind": true,
+      "point": "/mnt/volume_nyc1_1790918115030/meme-machine-backups/meme-machine-paper-20261013T221423-5891a20c",
+      "prior_full_integrity_restore_replay_reused": true,
+      "status": "VERIFIED"
+    },
+    "service": {
+      "at": "2026-10-15T15:14:28.859868+00:00",
+      "authoritative_writes": 0,
+      "config_hashes": {
+        "controller": "1c18f503c25d8950edd29cd205a24c705f1362f6f058eed0aa796ac26a786656",
+        "environment": "a2ca8e11dd2843046f490be96d7d793c9b27ba6ce9b805fbfbf24112f0042df3",
+        "unit": "ad8239060b22ba33793b91e183bb6e11c1f803d8d2feb9c47bbe62b7973f942b"
+      },
+      "financial_head_unchanged_since_verified_post": [
+        12608,
+        "63570518d16a12e1071a9cb968f1f928b1e5dbf43c80159a93285424a31ca48c"
+      ],
+      "financial_projection_unchanged": "12756b16cd16c8e452290537d63c1f79a324218303af8e96f1b0ce81a15a07a7",
+      "funding": "CLOSED_OBSERVATION",
+      "future_execution": "PAUSED_FOR_OWNER_REVIEW_NO_RETRY_OR_REPAIR",
+      "installed_clean": true,
+      "installed_source": "a793bd580593a87d17a0ab6e5e8581943bec6886",
+      "known_runtime_pids_alive": {
+        "3046414": false,
+        "3046583": false,
+        "3046586": false,
+        "3046589": false,
+        "3046590": false,
+        "3046593": false,
+        "3046595": false,
+        "3046596": false,
+        "3047540": false
+      },
+      "provider_calls": 0,
+      "rollback": "Retain exact a793 installed stopped. Previous66f85d61 must not be started across new pending control-recovery obligation without compatible recovery review.",
+      "schema": "coordinated-final-safe-pause-v1",
+      "service": {
+        "ActiveState": "inactive",
+        "ControlGroup": "",
+        "MainPID": "0",
+        "Restart": "no",
+        "SubState": "dead",
+        "UnitFileState": "disabled"
+      },
+      "source_global_drain": "RECOVERY_REQUIRED_TWO_UNSETTLED_HANDLERS"
+    },
+    "writer_ownership": {
+      "expired_lease_requires_original_reclaim": true,
+      "future_owner_must_still_acquire_original_fences": true,
+      "leases": {
+        "consumer": {
+          "active": 0,
+          "complete": true,
+          "expired": 0,
+          "unexpired": 0
+        },
+        "historian": {
+          "active": 0,
+          "complete": true,
+          "expired": 0,
+          "unexpired": 0
+        }
+      },
+      "status": "VERIFIED",
+      "writer_lock": {
+        "held_at_observation": false,
+        "key": "08:00:720931",
+        "matching_locks": [],
+        "method": "/proc/locks device/inode observation; no lock acquired",
+        "race_free_future_acquisition": false,
+        "status": "VERIFIED"
+      }
+    }
+  },
+  "schema": "coordinated-pipeline-final-evaluated-evidence-v1",
+  "source_generation": "74e91f52ca674b9fa72fe3f80e8961f9",
+  "source_segments": [
+    {
+      "fence": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "first": 1.0734099498949945,
+      "last": 57.61075055599213
+    },
+    {
+      "fence": [
+        3046583,
+        null,
+        "88b8608aa8484b078a8359e15dbf4080",
+        null
+      ],
+      "first": 62.7828895249404,
+      "last": 62.7828895249404
+    },
+    {
+      "fence": [
+        3046583,
+        "74e91f52ca674b9fa72fe3f80e8961f9",
+        "28c83cbcaf744c4e9d204dc9902bc2fe",
+        null
+      ],
+      "first": 67.98506698478013,
+      "last": 88.72024480183609
+    },
+    {
+      "fence": [
+        3046583,
+        "74e91f52ca674b9fa72fe3f80e8961f9",
+        "28c83cbcaf744c4e9d204dc9902bc2fe",
+        "6b5b63b0e6cf4a04845a02a379ff14e7"
+      ],
+      "first": 93.93333475897089,
+      "last": 410.3464906499721
+    },
+    {
+      "fence": [
+        3046583,
+        "74e91f52ca674b9fa72fe3f80e8961f9",
+        "28c83cbcaf744c4e9d204dc9902bc2fe",
+        "5ae0d538775d4f88ae39f0e70d26f922"
+      ],
+      "first": 415.5603029138874,
+      "last": 898.0376238608733
+    }
+  ],
+  "specification_publication": "edb386c599e236179d3a9122201b9a7c7198b16c",
+  "storage": {
+    "candidate_history_bytes": 1870200832,
+    "canonical_WAL_bytes": 0,
+    "canonical_bytes": 19105742848,
+    "limitation": "Lower bound only: excludes other state, growth and isolated full restore. No copies, backups, cleanup or timer changes performed.",
+    "minimum_single_canonical_copy_shortfall_bytes": 8658030592,
+    "required_reserve_bytes": 5368709120,
+    "volume_available_bytes": 15816421376
+  },
+  "terminal_source": {
+    "canonical_terminal_matches_final_IPC": true,
+    "clocks_bound": true,
+    "independent_native_worker_stop_still_required": true,
+    "limitation": "Accepted joined queues and handlers only; partial joins/history/proofs are explicit durable obligations, not completed coverage. Actual subsequent replay of remaining work is not executed by this read-only review. Fatal storage errors cannot prove raw-frame preservation.",
+    "remaining_control_replay": {
+      "coverage_after_id": 192778,
+      "lower_slot": 457279885,
+      "upper_slot": 457279885
+    },
+    "run_identity": "85ce1aa8c9c54be0addd87a37e81784b",
+    "source_pid": 3046583,
+    "status": "FAILED",
+    "terminal_census": {
+      "accepted_handlers": 564488,
+      "all_accepted_committed": true,
+      "closed_sessions": 3,
+      "control_pending_replay": {
+        "coverage_after_id": 192778,
+        "lower_slot": 457279885,
+        "upper_slot": 457279885
+      },
+      "pending_handlers": 2,
+      "pending_history": 1480899,
+      "pending_proofs": 13819,
+      "preserved_partial_sessions": 2,
+      "queues": {
+        "candidate": {
+          "accepted": 0,
+          "committed": 0,
+          "pending": 0
+        },
+        "control": {
+          "accepted": 3483,
+          "committed": 3483,
+          "pending": 0
+        },
+        "rolling": {
+          "accepted": 1311,
+          "committed": 1311,
+          "pending": 0
+        },
+        "scout": {
+          "accepted": 29065,
+          "committed": 29065,
+          "pending": 0
+        }
+      },
+      "run_identity": "85ce1aa8c9c54be0addd87a37e81784b",
+      "scope": "JOINED_FRAME_COMMITS_AND_RECEIVED_HANDLERS_PARTIAL_JOINS_REMAIN_EXPLICIT_GAPS",
+      "settled_handlers": 564486,
+      "source_pid": 3046583,
+      "started_at_monotonic": 1157918.46363364,
+      "state": "RECOVERY_REQUIRED",
+      "terminal": true,
+      "terminal_at_monotonic": 1158766.039451443,
+      "unpreserved_sessions": 0
+    }
+  },
+  "validation": {
+    "automatic_ci": {
+      "cases": 79,
+      "disposition": "UNRESOLVED_REGRESSION; local selected scope missed this affected test; no further repair after owner campaign limit.",
+      "errors": 1,
+      "passed": 78,
+      "retrieved_after_campaign": true,
+      "seconds": 5.374,
+      "source": "a793bd580593a87d17a0ab6e5e8581943bec6886",
+      "status": "FAILED",
+      "test": "tests.test_position_continuation.SelectiveShutdownTests.test_running_optional_program_subscription_is_cancelled_at_cutoff",
+      "url": "https://github.com/levonmendall/The-Meme-Machine/actions/runs/38753995554"
+    },
+    "complete_OPERATIONAL": "NOT_RUN_ON_a793",
+    "draft_FAST": [
+      {
+        "run": 38754004711,
+        "source": "a793bd580593a87d17a0ab6e5e8581943bec6886",
+        "status": "SKIPPED"
+      },
+      {
+        "run": 38754329218,
+        "source": "edb386c599e236179d3a9122201b9a7c7198b16c",
+        "status": "SKIPPED"
+      }
+    ],
+    "earlier_combined": {
+      "cases": 361,
+      "errors": 3,
+      "passed": 358,
+      "seconds": 104.173,
+      "status": "FAILED_PRESERVED"
+    },
+    "final_focused": {
+      "cases": 230,
+      "passed": 230,
+      "seconds": 34.214,
+      "source": "a793bd580593a87d17a0ab6e5e8581943bec6886"
+    },
+    "full_FAST": "NOT_RUN_ON_a793",
+    "overlapping_counts": true,
+    "related_scoped_passes": [
+      {
+        "cases": 68,
+        "scope": "maintenance",
+        "seconds": 86.383
+      },
+      {
+        "cases": 115,
+        "scope": "Pons/controller",
+        "seconds": 16.666
+      },
+      {
+        "cases": 5,
+        "scope": "exact_guards",
+        "seconds": 7.578
+      },
+      {
+        "cases": 40,
+        "scope": "owner/drain",
+        "seconds": 7.649
+      },
+      {
+        "cases": 2,
+        "scope": "archive_correction",
+        "seconds": 0.422
+      }
+    ],
+    "release_pass": false
+  }
+}
