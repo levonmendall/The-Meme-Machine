@@ -1,3 +1,43 @@
+# Current checkpoint — O13 preserved; measured throughput branch stopped
+
+Executed **10ae127c399279847df908d555eceb1aaf46ef1d**, published checkpoint71829097,
+branch repair/consolidated-startup-followup-20261014, draftPR133. Read
+[DEVELOPMENT_PHASE_RESULT_20261015.md](DEVELOPMENT_PHASE_RESULT_20261015.md)
+and its hashed evidence. The exact O13 specification is consumed, never a retry.
+ReadinessFAIL/STARTUP_LIMITATION, acceptance0; source released197.187s,
+both native reconciled596.990s, stopped902.346s. Post-native303.481s:
+CONTROLproxy4.534054/durable2.112157, gap1404→2139, age312.279→478.760s;
+usable publicationUNAVAILABLE. Owner303.017/303.481s occupied, CPU56.710s,
+runnable117.963s; no causal lock/GIL/hardware conclusion. Reactivation30.863s,
+but all16 stopped-state cold reads absent/.001492CPU total: proposed substitution
+rejected. Exact current CONTROL child membership survives; genuine canonical
+receipts/ACK and last-parent proofs still pending. Shutdown-created gaps are not
+evidence of earlier blockage. No unchanged live start or speculative throughput
+patch is justified by this result. Missing fact: operation-level execution/wait
+attribution within reached promotion/demotion/planning and concurrent Pons executor
+work; no faithful full-market replay fixture exists. Continue only a discriminator
+that can choose a specific correction, not another rate-only observation.
+
+Both native workers STOPPED/reconciled/TERM/exit0; global accepted-source-frame
+drain UNAVAILABLE. Historical RECOVERY_REQUIRED remains. Post-review9098bounded
+ROqueries/3.455s passed; financialhead11938/$1000/zero8obligation categories,
+historical500/allfourv1 intact. Sample374canonical identities:347exactACK/27pending.
+Future preflight anchors11938 and retained current obligations, never stale11615.
+Compatible rollback66f85d61/source-config restored without DB rewind; PAPER
+inactive/disabled/Restart=no/fundingclosed. Restored old finite unit is not a normal
+continuous-service launcher and must not be started unchanged. Engineering exact
+289affectedPASS/79maintenancePASS overlap retained; not full release/capacityPASS.
+
+Backup/storage and protection remain separate: fresh10:23UTC canonicalDB alone
+18.249GB versus16.711GB available; plus5GiB reserve gives at least6.908GBshortfall,
+before other state/WAL. Failedbackup unusable; earlier applicable verified recovery
+point preserved. Timer active/unchanged. No cleanup/purchase or freeze bypass.
+BUSY/READONLY, managed-provider heldquoteUSD/protection, sustainable capacity and
+one-hour/autonomy remain unproven. Standingissue134 remains effective, with original
+safety gates; no new approval machinery or global retry cap.
+
+Historical checkpoints below retain their original results and scopes.
+
 # Current checkpoint — CONTROL retention repaired; exact owner attribution ready
 
 Executable **10ae127c399279847df908d555eceb1aaf46ef1d**, implementation27f9a194,

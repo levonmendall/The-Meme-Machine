@@ -1,0 +1,996 @@
+{
+  "acceptance_seconds": 0,
+  "after_both_native": {
+    "available": true,
+    "both_native_reconciled_samples": 58,
+    "candidate_phases": {
+      "candidate_phase:batch_commit": {
+        "calls": 164.0,
+        "cpu_seconds_total_microseconds": 1.743072,
+        "failed_calls": 0.0,
+        "runnable_measured_calls": 164.0,
+        "runnable_unavailable_calls": 0.0,
+        "runnable_wait_seconds_total_microseconds": 2.432024,
+        "unmeasured_calls": 0.0,
+        "wall_seconds_total_microseconds": 7.925875
+      },
+      "candidate_phase:coverage_receipt": {
+        "calls": 641.0,
+        "cpu_seconds_total_microseconds": 0.45044,
+        "failed_calls": 0.0,
+        "runnable_measured_calls": 641.0,
+        "runnable_unavailable_calls": 0.0,
+        "runnable_wait_seconds_total_microseconds": 0.670317,
+        "unmeasured_calls": 0.0,
+        "wall_seconds_total_microseconds": 1.016351
+      },
+      "candidate_phase:delivery_outbox": {
+        "calls": 641.0,
+        "cpu_seconds_total_microseconds": 3.774119,
+        "failed_calls": 0.0,
+        "runnable_measured_calls": 641.0,
+        "runnable_unavailable_calls": 0.0,
+        "runnable_wait_seconds_total_microseconds": 6.10003,
+        "unmeasured_calls": 0.0,
+        "wall_seconds_total_microseconds": 12.613414
+      },
+      "candidate_phase:economic_store": {
+        "bulk_calls": 641.0,
+        "bulk_records": 26703.0,
+        "calls": 641.0,
+        "cpu_seconds_total_microseconds": 6.657584,
+        "failed_calls": 0.0,
+        "runnable_measured_calls": 641.0,
+        "runnable_unavailable_calls": 0.0,
+        "runnable_wait_seconds_total_microseconds": 12.642001,
+        "scalar_calls": 0.0,
+        "scalar_records": 0.0,
+        "unmeasured_calls": 0.0,
+        "wall_seconds_total_microseconds": 32.787869
+      },
+      "candidate_phase:ingest_setup": {
+        "calls": 1282.0,
+        "cpu_seconds_total_microseconds": 0.362404,
+        "failed_calls": 0.0,
+        "runnable_measured_calls": 1282.0,
+        "runnable_unavailable_calls": 0.0,
+        "runnable_wait_seconds_total_microseconds": 0.510732,
+        "unmeasured_calls": 0.0,
+        "wall_seconds_total_microseconds": 0.879353
+      },
+      "candidate_phase:rolling_adopt": {
+        "calls": 641.0,
+        "cpu_seconds_total_microseconds": 1.080642,
+        "failed_calls": 0.0,
+        "runnable_measured_calls": 641.0,
+        "runnable_unavailable_calls": 0.0,
+        "runnable_wait_seconds_total_microseconds": 1.711929,
+        "unmeasured_calls": 0.0,
+        "wall_seconds_total_microseconds": 3.34508
+      },
+      "candidate_phase:validate": {
+        "calls": 641.0,
+        "cpu_seconds_total_microseconds": 0.354633,
+        "failed_calls": 0.0,
+        "runnable_measured_calls": 641.0,
+        "runnable_unavailable_calls": 0.0,
+        "runnable_wait_seconds_total_microseconds": 0.522602,
+        "unmeasured_calls": 0.0,
+        "wall_seconds_total_microseconds": 1.121954
+      }
+    },
+    "checkpoint_admission_plus_hold_elapsed_seconds": 80.802485,
+    "checkpoint_owner_hold_seconds": 15.752541,
+    "cpu_cores": 1.6949351579763914,
+    "development_phases": {
+      "exclusive_cpu_seconds": 6.041918,
+      "exclusive_runnable_seconds": 14.691521999999999,
+      "exclusive_wall_seconds": 42.682386,
+      "fields": [
+        "calls",
+        "failed_calls",
+        "unmeasured_calls",
+        "runnable_measured_calls",
+        "runnable_unavailable_calls",
+        "wall_seconds_total_microseconds",
+        "cpu_seconds_total_microseconds",
+        "runnable_wait_seconds_total_microseconds"
+      ],
+      "rows": {
+        "boundaries": {
+          "calls": 169.0,
+          "cpu_seconds_total_microseconds": 0.077204,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 169.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 0.107366,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 0.189863
+        },
+        "commit": {
+          "calls": 169.0,
+          "cpu_seconds_total_microseconds": 0.310628,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 169.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 0.749275,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 2.688827
+        },
+        "plan": {
+          "calls": 169.0,
+          "cpu_seconds_total_microseconds": 0.237879,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 169.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 0.359972,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 0.775023
+        },
+        "publication": {
+          "calls": 169.0,
+          "cpu_seconds_total_microseconds": 0.070158,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 169.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 0.141724,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 0.180639
+        },
+        "reactivation": {
+          "calls": 169.0,
+          "cpu_seconds_total_microseconds": 3.301228,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 169.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 9.131189,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 30.863309
+        },
+        "selection": {
+          "calls": 338.0,
+          "cpu_seconds_total_microseconds": 2.044821,
+          "failed_calls": 0.0,
+          "runnable_measured_calls": 338.0,
+          "runnable_unavailable_calls": 0.0,
+          "runnable_wait_seconds_total_microseconds": 4.201996,
+          "unmeasured_calls": 0.0,
+          "wall_seconds_total_microseconds": 7.984725
+        }
+      },
+      "scope": "Fixed exclusive coarse development phases; selection may enter twice per command; commit is original transaction context exit. Overlaps owner callback totals."
+    },
+    "evidence_age_seconds": [
+      312.27892422676086,
+      478.7600817680359
+    ],
+    "first": 596.9897811869159,
+    "full_samples": 58,
+    "heads_end": {
+      "arrival": 457197431,
+      "durable": 457195284,
+      "joined": 457195291,
+      "prepared": 457195289,
+      "raw_cursor": 457195289,
+      "stored": 457195292,
+      "usable_publication": "UNAVAILABLE"
+    },
+    "heads_start": {
+      "arrival": 457196055,
+      "durable": 457194643,
+      "joined": 457194648,
+      "prepared": 457194643,
+      "raw_cursor": 457194643,
+      "stored": 457194651,
+      "usable_publication": "UNAVAILABLE"
+    },
+    "last": 900.4709389051422,
+    "long_owner_operations": [
+      {
+        "completed_monotonic": 1140581.781633635,
+        "component": "NONE",
+        "execution_cpu_microseconds": 92864,
+        "execution_microseconds": 1093370,
+        "native_thread_id": 3002461,
+        "origin_line": 1394,
+        "origin_module": "meme_machine.solana_selective_source",
+        "outcome": "COMPLETED",
+        "pid": 3002458,
+        "priority": 4,
+        "queue_microseconds": 1435703,
+        "sequence": 5025,
+        "stage": "candidate_development",
+        "started_monotonic": 1140580.688255613
+      },
+      {
+        "completed_monotonic": 1140594.22948593,
+        "component": "NONE",
+        "execution_cpu_microseconds": 463209,
+        "execution_microseconds": 1338550,
+        "native_thread_id": 3002461,
+        "origin_line": 1554,
+        "origin_module": "meme_machine.solana_selective_source",
+        "outcome": "COMPLETED",
+        "pid": 3002458,
+        "priority": 2,
+        "queue_microseconds": 2357765,
+        "sequence": 5089,
+        "stage": "UNLABELLED",
+        "started_monotonic": 1140592.890930005
+      },
+      {
+        "completed_monotonic": 1140631.534250481,
+        "component": "NONE",
+        "execution_cpu_microseconds": 173152,
+        "execution_microseconds": 1900829,
+        "native_thread_id": 3002461,
+        "origin_line": 1394,
+        "origin_module": "meme_machine.solana_selective_source",
+        "outcome": "COMPLETED",
+        "pid": 3002458,
+        "priority": 4,
+        "queue_microseconds": 843527,
+        "sequence": 5304,
+        "stage": "candidate_development",
+        "started_monotonic": 1140629.633415828
+      },
+      {
+        "completed_monotonic": 1140654.030225931,
+        "component": "NONE",
+        "execution_cpu_microseconds": 319967,
+        "execution_microseconds": 4255654,
+        "native_thread_id": 3002461,
+        "origin_line": 1394,
+        "origin_module": "meme_machine.solana_selective_source",
+        "outcome": "COMPLETED",
+        "pid": 3002458,
+        "priority": 4,
+        "queue_microseconds": 840390,
+        "sequence": 5438,
+        "stage": "candidate_development",
+        "started_monotonic": 1140649.774567277
+      },
+      {
+        "completed_monotonic": 1140666.942146874,
+        "component": "NONE",
+        "execution_cpu_microseconds": 139105,
+        "execution_microseconds": 1503330,
+        "native_thread_id": 3002461,
+        "origin_line": 1394,
+        "origin_module": "meme_machine.solana_selective_source",
+        "outcome": "COMPLETED",
+        "pid": 3002458,
+        "priority": 4,
+        "queue_microseconds": 921693,
+        "sequence": 5514,
+        "stage": "candidate_development",
+        "started_monotonic": 1140665.438810879
+      },
+      {
+        "completed_monotonic": 1140672.551811666,
+        "component": "NONE",
+        "execution_cpu_microseconds": 315458,
+        "execution_microseconds": 3750297,
+        "native_thread_id": 3002461,
+        "origin_line": 1394,
+        "origin_module": "meme_machine.solana_selective_source",
+        "outcome": "COMPLETED",
+        "pid": 3002458,
+        "priority": 4,
+        "queue_microseconds": 1753266,
+        "sequence": 5525,
+        "stage": "candidate_development",
+        "started_monotonic": 1140668.801499787
+      },
+      {
+        "completed_monotonic": 1140688.367040573,
+        "component": "NONE",
+        "execution_cpu_microseconds": 145101,
+        "execution_microseconds": 1345265,
+        "native_thread_id": 3002461,
+        "origin_line": 1394,
+        "origin_module": "meme_machine.solana_selective_source",
+        "outcome": "COMPLETED",
+        "pid": 3002458,
+        "priority": 4,
+        "queue_microseconds": 1150588,
+        "sequence": 5632,
+        "stage": "candidate_development",
+        "started_monotonic": 1140687.021762705
+      },
+      {
+        "completed_monotonic": 1140729.682014925,
+        "component": "NONE",
+        "execution_cpu_microseconds": 285356,
+        "execution_microseconds": 2629778,
+        "native_thread_id": 3002461,
+        "origin_line": 1394,
+        "origin_module": "meme_machine.solana_selective_source",
+        "outcome": "COMPLETED",
+        "pid": 3002458,
+        "priority": 4,
+        "queue_microseconds": 1956434,
+        "sequence": 5887,
+        "stage": "candidate_development",
+        "started_monotonic": 1140727.052216001
+      },
+      {
+        "completed_monotonic": 1140808.411790858,
+        "component": "NONE",
+        "execution_cpu_microseconds": 155177,
+        "execution_microseconds": 1365948,
+        "native_thread_id": 3002461,
+        "origin_line": 1394,
+        "origin_module": "meme_machine.solana_selective_source",
+        "outcome": "COMPLETED",
+        "pid": 3002458,
+        "priority": 4,
+        "queue_microseconds": 1222941,
+        "sequence": 6387,
+        "stage": "candidate_development",
+        "started_monotonic": 1140807.045837285
+      }
+    ],
+    "needed_to_match_arrival_factor": 2.1466458658346337,
+    "owner_callback_and_hold_seconds": 303.017062,
+    "owner_exclusive_callback_wall_seconds": 287.264521,
+    "owner_stages": {
+      "candidate_delivery_ack": {
+        "calls": 25.0,
+        "execution_cpu_total_microseconds": 1.088308,
+        "execution_total_microseconds": 6.047132,
+        "queue_total_microseconds": 35.462778
+      },
+      "candidate_delivery_capture": {
+        "calls": 49.0,
+        "execution_cpu_total_microseconds": 2.015305,
+        "execution_total_microseconds": 7.338995,
+        "queue_total_microseconds": 76.289044
+      },
+      "candidate_development": {
+        "calls": 169.0,
+        "execution_cpu_total_microseconds": 6.313283,
+        "execution_total_microseconds": 43.810324,
+        "queue_total_microseconds": 229.23366
+      },
+      "checkpoint_finish": {
+        "calls": 41.0,
+        "execution_cpu_total_microseconds": 0.000316,
+        "execution_total_microseconds": 0.010685,
+        "queue_total_microseconds": 58.638744
+      },
+      "checkpoint_prepare": {
+        "calls": 55.0,
+        "execution_cpu_total_microseconds": 0.000424,
+        "execution_total_microseconds": 0.000556,
+        "queue_total_microseconds": 78.966054
+      },
+      "history_apply": {
+        "calls": 77.0,
+        "execution_cpu_total_microseconds": 0.104685,
+        "execution_total_microseconds": 0.843878,
+        "queue_total_microseconds": 115.691508
+      },
+      "history_dispatch": {
+        "calls": 76.0,
+        "execution_cpu_total_microseconds": 0.258636,
+        "execution_total_microseconds": 1.391459,
+        "queue_total_microseconds": 121.213642
+      },
+      "maintenance_decision": {
+        "calls": 165.0,
+        "execution_cpu_total_microseconds": 10.080345,
+        "execution_total_microseconds": 47.489703,
+        "queue_total_microseconds": 221.378505
+      },
+      "maintenance_health": {
+        "calls": 113.0,
+        "execution_cpu_total_microseconds": 1.657881,
+        "execution_total_microseconds": 6.136714,
+        "queue_total_microseconds": 166.028727
+      },
+      "retention": {
+        "calls": 134.0,
+        "execution_cpu_total_microseconds": 2.119784,
+        "execution_total_microseconds": 24.358835,
+        "queue_total_microseconds": 196.055998
+      },
+      "source_commit": {
+        "calls": 782.0,
+        "execution_cpu_total_microseconds": 31.458477,
+        "execution_total_microseconds": 145.164982,
+        "queue_total_microseconds": 1115.020488
+      },
+      "source_commit.component.candidate": {
+        "calls": 164.0,
+        "execution_cpu_total_microseconds": 15.440076,
+        "execution_total_microseconds": 63.593056,
+        "queue_total_microseconds": 170.134507
+      },
+      "source_commit.component.control": {
+        "calls": 172.0,
+        "execution_cpu_total_microseconds": 2.667274,
+        "execution_total_microseconds": 11.318779,
+        "queue_total_microseconds": 273.704362
+      },
+      "source_commit.component.delivery_accounting": {
+        "calls": 173.0,
+        "execution_cpu_total_microseconds": 0.234876,
+        "execution_total_microseconds": 1.931719,
+        "queue_total_microseconds": 283.091693
+      },
+      "source_commit.component.history_publication": {
+        "calls": 99.0,
+        "execution_cpu_total_microseconds": 3.793706,
+        "execution_total_microseconds": 15.802482,
+        "queue_total_microseconds": 148.83218
+      },
+      "source_commit.component.scout": {
+        "calls": 174.0,
+        "execution_cpu_total_microseconds": 9.322545,
+        "execution_total_microseconds": 52.518946,
+        "queue_total_microseconds": 239.257746
+      }
+    },
+    "owner_thread_cpu_seconds": 56.709621849,
+    "owner_thread_runnable_seconds": 117.963074451,
+    "pons_threads": {
+      "health": {
+        "cpu_seconds": 0.127190616,
+        "io_delta": {
+          "rchar": 0.0,
+          "read_bytes": 0.0,
+          "syscr": 0.0,
+          "write_bytes": 614400.0
+        },
+        "runnable_seconds": 0.596226757
+      },
+      "main": {
+        "cpu_seconds": 65.882164897,
+        "io_delta": {
+          "rchar": 44813575141.0,
+          "read_bytes": 716800.0,
+          "syscr": 10953015.0,
+          "write_bytes": 626036736.0
+        },
+        "runnable_seconds": 99.920783197
+      },
+      "pons-discovery": {
+        "cpu_seconds": 19.130479475,
+        "io_delta": {
+          "rchar": 16244076308.0,
+          "read_bytes": 36864.0,
+          "syscr": 3964006.0,
+          "write_bytes": 203309056.0
+        },
+        "runnable_seconds": 35.376533183
+      },
+      "pons-hydration": {
+        "cpu_seconds": 34.909344307,
+        "io_delta": {
+          "rchar": 1181681419.0,
+          "read_bytes": 253952.0,
+          "syscr": 242921.0,
+          "write_bytes": 391852032.0
+        },
+        "runnable_seconds": 68.467368729
+      },
+      "survivor": {
+        "cpu_seconds": 70.153056117,
+        "io_delta": {
+          "rchar": 8319057917.0,
+          "read_bytes": 90112.0,
+          "syscr": 2083278.0,
+          "write_bytes": 341393408.0
+        },
+        "runnable_seconds": 113.952913305
+      }
+    },
+    "pre_persistence_gaps": [
+      1404,
+      2139
+    ],
+    "preparation": {
+      "calls": 165.0,
+      "cpu_seconds_peak_microseconds": 0.006097,
+      "cpu_seconds_total_microseconds": 18.477549,
+      "latest_slot": 646.0,
+      "records": 26884.0,
+      "transfer_and_wait_seconds_peak_microseconds": 0.125205,
+      "transfer_and_wait_seconds_total_microseconds": 66.402105,
+      "wall_seconds_peak_microseconds": 0.135357,
+      "wall_seconds_total_microseconds": 47.666083
+    },
+    "retention": {
+      "retention.calls": 148.0,
+      "retention.peak_microseconds": 0.0,
+      "retention.total_microseconds": 38.740375,
+      "retention.yielded": 1.0,
+      "retention_phase.housekeeping.cpu_us": 0.095964,
+      "retention_phase.housekeeping.runnable_us": 0.104087,
+      "retention_phase.housekeeping.wall_us": 0.282065,
+      "retention_phase.plan.cpu_us": 4.823667,
+      "retention_phase.plan.runnable_us": 10.838428,
+      "retention_phase.plan.wall_us": 21.353751,
+      "retention_phase.post.cpu_us": 0.044627,
+      "retention_phase.post.runnable_us": 0.353604,
+      "retention_phase.post.wall_us": 1.184864,
+      "retention_phase.transaction.cpu_us": 3.04773,
+      "retention_phase.transaction.runnable_us": 7.179334,
+      "retention_phase.transaction.wall_us": 15.05637,
+      "retention_phase.unmeasured": 0.0
+    },
+    "seconds": 303.4811577182263,
+    "slot_unit_rates": {
+      "arrival": 4.534054141435618,
+      "durable": 2.112157488851912,
+      "joined": 2.118747683824929,
+      "prepared": 2.1286329762844542,
+      "raw_cursor": 2.1286329762844542,
+      "stored": 2.112157488851912,
+      "usable_publication": "UNAVAILABLE"
+    },
+    "sql_transactions": {
+      "begin.calls": 1680.0,
+      "begin.cpu_peak_microseconds": 0.0,
+      "begin.cpu_total_microseconds": 0.186375,
+      "begin.wall_peak_microseconds": 0.0,
+      "begin.wall_total_microseconds": 0.901249,
+      "commit.calls": 1680.0,
+      "commit.cpu_peak_microseconds": 0.00036,
+      "commit.cpu_total_microseconds": 3.213619,
+      "commit.wall_peak_microseconds": 0.19106,
+      "commit.wall_total_microseconds": 23.990887
+    },
+    "throttled_seconds": 16.539658,
+    "workers": {
+      "cgroup_pid_3002466": {
+        "cpu_cores": 0.0,
+        "cpu_seconds": 0.0,
+        "io_delta": {
+          "cancelled_write_bytes": 0.0,
+          "rchar": 0.0,
+          "read_bytes": 0.0,
+          "syscr": 0.0,
+          "syscw": 0.0,
+          "wchar": 0.0,
+          "write_bytes": 0.0
+        },
+        "kernel_main_runnable_seconds": 0.0,
+        "kernel_main_runtime_seconds": 0.0,
+        "pid": 3002466
+      },
+      "cgroup_pid_3002467": {
+        "cpu_cores": 0.01344399774495445,
+        "cpu_seconds": 4.08,
+        "io_delta": {
+          "cancelled_write_bytes": 0.0,
+          "rchar": 31186528.0,
+          "read_bytes": 0.0,
+          "syscr": 515.0,
+          "syscw": 50.0,
+          "wchar": 43433994.0,
+          "write_bytes": 0.0
+        },
+        "kernel_main_runnable_seconds": 7.259881691,
+        "kernel_main_runtime_seconds": 4.084457753,
+        "pid": 3002467
+      },
+      "cgroup_pid_3002470": {
+        "cpu_cores": 0.012916782147113098,
+        "cpu_seconds": 3.92,
+        "io_delta": {
+          "cancelled_write_bytes": 0.0,
+          "rchar": 30436662.0,
+          "read_bytes": 0.0,
+          "syscr": 503.0,
+          "syscw": 50.0,
+          "wchar": 42688595.0,
+          "write_bytes": 0.0
+        },
+        "kernel_main_runnable_seconds": 6.516145707,
+        "kernel_main_runtime_seconds": 3.916528904,
+        "pid": 3002470
+      },
+      "cgroup_pid_3002879": {
+        "cpu_cores": 0.031830641719671565,
+        "cpu_seconds": 9.66,
+        "io_delta": {
+          "cancelled_write_bytes": 0.0,
+          "rchar": 558777811.0,
+          "read_bytes": 204800.0,
+          "syscr": 136635.0,
+          "syscw": 81.0,
+          "wchar": 7202183.0,
+          "write_bytes": 0.0
+        },
+        "kernel_main_runnable_seconds": 32.612531628,
+        "kernel_main_runtime_seconds": 9.659198153,
+        "pid": 3002879
+      },
+      "pons": {
+        "cpu_cores": 0.6901252175743283,
+        "cpu_seconds": 209.44,
+        "io_delta": {
+          "cancelled_write_bytes": 293564416.0,
+          "rchar": 86934752553.0,
+          "read_bytes": 1159168.0,
+          "syscr": 21239572.0,
+          "syscw": 590730.0,
+          "wchar": 1550211801.0,
+          "write_bytes": 1762938880.0
+        },
+        "kernel_main_runnable_seconds": 99.920783197,
+        "kernel_main_runtime_seconds": 65.882164897,
+        "pid": 3002473
+      },
+      "pump": {
+        "cpu_cores": 0.316098701880755,
+        "cpu_seconds": 95.93,
+        "io_delta": {
+          "cancelled_write_bytes": 137519104.0,
+          "rchar": 5073981296.0,
+          "read_bytes": 635142144.0,
+          "syscr": 1240608.0,
+          "syscw": 220230.0,
+          "wchar": 579721031.0,
+          "write_bytes": 587427840.0
+        },
+        "kernel_main_runnable_seconds": 132.761311838,
+        "kernel_main_runtime_seconds": 90.478648559,
+        "pid": 3002471
+      },
+      "solana": {
+        "cpu_cores": 0.535090880834106,
+        "cpu_seconds": 162.39,
+        "io_delta": {
+          "cancelled_write_bytes": 299008.0,
+          "rchar": 5170840326.0,
+          "read_bytes": 338194432.0,
+          "syscr": 1387846.0,
+          "syscw": 1154109.0,
+          "wchar": 2560710983.0,
+          "write_bytes": 2458316800.0
+        },
+        "kernel_main_runnable_seconds": 129.313344232,
+        "kernel_main_runtime_seconds": 82.998379528,
+        "pid": 3002458
+      },
+      "supervisor": {
+        "cpu_cores": 0.09536012125955436,
+        "cpu_seconds": 28.94,
+        "io_delta": {
+          "cancelled_write_bytes": 35753984.0,
+          "rchar": 1201274313.0,
+          "read_bytes": 32768.0,
+          "syscr": 291594.0,
+          "syscw": 24786.0,
+          "wchar": 84054333.0,
+          "write_bytes": 131092480.0
+        },
+        "kernel_main_runnable_seconds": 44.39014234,
+        "kernel_main_runtime_seconds": 28.946227778,
+        "pid": 3002328
+      }
+    }
+  },
+  "alternatives": {
+    "hardware": "Not justified: runnable/throttle observed but unclassified blocking and serial dependencies remain. No paid expansion or assumption of sufficient2vCPU capacity.",
+    "model_scope": "Illustrative fixed-work-mix serialized-time counterfactual; impossible work removal, not measured speedup; overlapping budgets not added.",
+    "needed_before_backlog_headroom": true,
+    "needed_match_factor": 2.1466458658346337,
+    "refactor": "Existing off-owner preparation, single historian/delivery, bulk store and commit-safe publication retained. No supported new relocation until actual owner wait/execution operation is attributed.",
+    "remove_all_reactivation_model_factor": 1.1132108889609054,
+    "targeted": "Indexed selection/MIN/cold metadata and two Pons query candidates rejected as material. CONTROL retention correctness repaired, not throughput success."
+  },
+  "artifacts": {
+    "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CONTROL_DEVELOPMENT_COMBINED_INTEGRATION_20261015.log": {
+      "bytes": 10346,
+      "sha256": "c344fbe83105b0f644177f89a59ab050425825fcc9fb352522bf3d6dfb237598"
+    },
+    "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/DEVELOPMENT_PHASE_BACKUP_STORAGE_BOUNDARY_20261015.json": {
+      "bytes": 607,
+      "sha256": "dcfd3905cb259551028f5b5bb7afee9193b0d37a6d20a28bc91e3183554fb8dd"
+    },
+    "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/DEVELOPMENT_PHASE_PIPELINE_ANALYSIS_20261015.json": {
+      "bytes": 86618,
+      "sha256": "05745f92cfd29a26ac5e52e2ccd33e29a8524ce51ddbf9193cb84c222e0b5fe1"
+    },
+    "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/DEVELOPMENT_PHASE_PIPELINE_ANALYSIS_V2_20261015.json": {
+      "bytes": 86804,
+      "sha256": "c0443807951250470200adeb864e34bf059cfad05399154944c6d83abeb40769"
+    },
+    "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/DEVELOPMENT_PHASE_POST_NATIVE_FINANCIAL_20261015.json": {
+      "bytes": 4830738,
+      "sha256": "9c592e5278e8730e63387c89000625b616070abb22cdb18aae3da7d127a0cf40"
+    },
+    "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/DEVELOPMENT_PHASE_PUBLICATION_DEPENDENCY_20261015.json": {
+      "bytes": 30507,
+      "sha256": "c78659ac2baba7af36ad66f4fb04a14067c4c0382a6286018aeb8667edc9a7ec"
+    },
+    "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/DEVELOPMENT_PHASE_ROLLBACK_20261015.json": {
+      "bytes": 1099,
+      "sha256": "3a63d2da603dd8239214e9506b51267733b0f245406e3872fcc7765d0bff3394"
+    },
+    "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/DEVELOPMENT_PHASE_UNIT_JOURNAL_20261015.jsonl": {
+      "bytes": 8876,
+      "sha256": "e9254108f6d4178846a781b61ac8e10d04f933feac46591dba894a466ac6a67f"
+    },
+    "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/NATIVE_REACTIVATION_READ_BOUNDARIES_20261015.json": {
+      "bytes": 23296,
+      "sha256": "33759029480214b96153cbd120fec3e86b1cf3426782ce55f161ac97b3a20508"
+    },
+    "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/NATIVE_REACTIVATION_RETROSPECTIVE_READ_COST_20261015.json": {
+      "bytes": 4842,
+      "sha256": "1ea05221b60027169725899eabfe185319b7c915b4afe8e20a5b8a3ef5a79401"
+    },
+    "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/NATIVE_REACTIVATION_RETROSPECTIVE_READ_COST_V2_20261015.json": {
+      "bytes": 41312,
+      "sha256": "f80dd4148bb943059ba5508f15af717de34130e174ae19c748acbdf40383633e"
+    },
+    "/var/lib/meme-machine-diagnostics/20261015-development-phase-10ae127c-094856/clock.json": {
+      "bytes": 96,
+      "sha256": "652220eaa2d639c3f8c3a4a66b0b455fecc90b50d95fbce758532ee910df81cf"
+    },
+    "/var/lib/meme-machine-diagnostics/20261015-development-phase-10ae127c-094856/metrics.jsonl": {
+      "bytes": 13132683,
+      "sha256": "484cd41ed3eb8d647276b10f1ff1352171ece1e048dedc9b304924486aabfdca"
+    },
+    "/var/lib/meme-machine-diagnostics/20261015-development-phase-10ae127c-094856/result.json": {
+      "bytes": 10014,
+      "sha256": "2d62b42c6e04cf94594cfb2372ab56bfaed20e7da1e81bfb879c0b9f7fe50166"
+    }
+  },
+  "backup_protection": "Separate unresolved common-cut/snapshot and deadline compatibility; existing process-wide freeze may exceed protection. No timer alteration, deletion, bulk copy, failed point reuse or unsafe bypass.",
+  "backup_storage": {
+    "at": "2026-10-15T10:23:24.222222+00:00",
+    "backup": [
+      "MainPID=0",
+      "Result=exit-code",
+      "ActiveState=failed"
+    ],
+    "backup_minimum_shortfall_bytes": 6907551744,
+    "reserve_bytes": 5368709120,
+    "scope": "Fresh statvfs/single file metadata only, no bulk copy, cleanup or new recovery proof. This one database alone is a strict lower bound on total backup bytes; WAL and other required records add demand.",
+    "source_database_bytes": 18249457664,
+    "timer": [
+      "NextElapseUSecRealtime=Fri 2026-10-16 04:03:11 UTC",
+      "ActiveState=active"
+    ],
+    "volume_available_bytes": 16710615040
+  },
+  "branch": "repair/consolidated-startup-followup-20261014",
+  "comparison_scope": "Same O13 generation, post-native303.481s. Shared CONTROL is an arrival proxy; heads are not identity-matched cohorts. No controlled O12 comparison or steady-state capacity proof.",
+  "controller": {
+    "drained": true,
+    "elapsed_to_drain_seconds": 902.3461763979867,
+    "recovery_required": false,
+    "status": "STOPPED_REVIEW_REQUIRED",
+    "stop_reason": "STARTUP_LIMITATION"
+  },
+  "corrected_analysis": "V2 excludes old-stock raw cursor endpoints. Initial draft retained, invalid22.225 rate never credited.",
+  "current_feed_lower": 457193627,
+  "executed": "10ae127c399279847df908d555eceb1aaf46ef1d",
+  "financial": {
+    "active_four_regime_policy": "paper-opportunity-access-v1",
+    "cash": "1000.00",
+    "current_named_cohort": {
+      "distinct": 374,
+      "exact_ack": 347,
+      "pending_preserved": 27
+    },
+    "epoch_preserved": true,
+    "historical_500_preserved": true,
+    "scope": "Independent bounded RO snapshots, not atomic cross-DB or future preflight",
+    "sequence": 11938,
+    "suffix_events": 323,
+    "unexpected_obligations": 0
+  },
+  "first_both_native_reconciled_seconds": 596.9897811869159,
+  "first_source_release_seconds": 197.18672363297082,
+  "generation": "99f94a84380c442fad5af0891da90105",
+  "native_scope": "Current native workers STOPPED/reconciled/exit0 after TERM; global accepted-source-frame drain UNAVAILABLE, no historical RECOVERY_REQUIRED overwritten.",
+  "pr": 133,
+  "provider_usage": {
+    "before_scope": "Exact SHA-authenticated fresh dispatch receipt captures all durable usage counters from its existing provider-guard query; retained O12 counters are a non-regression witness. Current-run delta only, no historical delta resumming or invoice verification.",
+    "cost_basis": "Existing frozen conservative model; uncertain bytes are accounted exposure, not confirmed delivery or invoice.",
+    "delta": {
+      "alchemy_rpc_cu": 362372,
+      "http_attempts": 2723,
+      "http_bytes": 15480445,
+      "http_uncertain_bytes": 16777216,
+      "native_bytes": 675543096,
+      "native_failures": 0,
+      "native_opens": 4,
+      "native_uncertain_bytes": 285212672,
+      "robinhood_rpc_elements": 10524,
+      "rpc_cu": 362372,
+      "rpc_elements": 10527,
+      "solana_rpc_elements": 3
+    },
+    "http_reserved": "0",
+    "modeled_cost_usd": "0.291124655640",
+    "native_openings_subset": 4,
+    "native_reserved": "0",
+    "non_native_http_starts": 2719,
+    "physical_starts_including_native": 2723,
+    "provider_invoice": "UNAVAILABLE",
+    "unclosed_http_receipts": [],
+    "unclosed_streams": []
+  },
+  "publication_dependency": {
+    "programs": [
+      {
+        "candidate_checkpoint": null,
+        "control_membership": {
+          "current_only": true,
+          "exact_match": true,
+          "expected": [
+            457195296,
+            "7QX5A6reDwKQWXodFhQ3cPZLzWtUFm9tfiARE3xjKnMA",
+            "7RCRAtBgnjivSzNWtg3Dsd7NLfcG4WFM43qWsf8C4F6L"
+          ],
+          "scope": "control:solana",
+          "sealed_row": [
+            457195296,
+            "7QX5A6reDwKQWXodFhQ3cPZLzWtUFm9tfiARE3xjKnMA",
+            "7RCRAtBgnjivSzNWtg3Dsd7NLfcG4WFM43qWsf8C4F6L"
+          ],
+          "slot": 457195297
+        },
+        "family": "pump",
+        "guards": {
+          "canonical_through_target_all_acknowledged": false,
+          "exact_sealed_control_membership": true,
+          "linked_child_exists_newer_than_feed_and_startup_with_lower_parent": true,
+          "no_gap_feed_lo_through_target": false,
+          "rolling_parent_through_target_complete": false,
+          "target_covers_feed_and_available_control": true
+        },
+        "pending_canonical": {
+          "canonical_identity": "program:pump:457194768:3ptTNeQU514nX2kpLSxa6zRxnk44yeasZ7kgX7MsZEWA4gf97SAXekYiy4CcmdCXHqR3NMqDpNKixCfbFA4uVFi1:13",
+          "consumed": null,
+          "consumer_receipt": {
+            "present": false
+          },
+          "created": 1792058429.3085365,
+          "exact_ack_status": "PENDING_CANONICAL_ACK",
+          "outbox_identity": "5f10fbe06f472412b13db74103bd18907dea61cb6f46c58134176ebdbdb8a274",
+          "slot": 457194768
+        },
+        "post_final_sample_gap_ids": [
+          36356
+        ],
+        "proofs": [
+          {
+            "available": 1792058666.202059,
+            "consumer_receipt": {
+              "present": false
+            },
+            "fully_covers_required_tail": true,
+            "hi": 457195296,
+            "identity": "73016766516641ce571d93f91aa3ec13a3bb0ffbd525a45b1c4a991c91c3d8f4",
+            "lo": 457195296
+          }
+        ],
+        "rolling_missing_as_of_final_full_sample": [
+          [
+            457195296,
+            457195296
+          ]
+        ],
+        "target": 457195296
+      },
+      {
+        "candidate_checkpoint": null,
+        "control_membership": {
+          "current_only": true,
+          "exact_match": true,
+          "expected": [
+            457195296,
+            "7QX5A6reDwKQWXodFhQ3cPZLzWtUFm9tfiARE3xjKnMA",
+            "7RCRAtBgnjivSzNWtg3Dsd7NLfcG4WFM43qWsf8C4F6L"
+          ],
+          "scope": "control:solana",
+          "sealed_row": [
+            457195296,
+            "7QX5A6reDwKQWXodFhQ3cPZLzWtUFm9tfiARE3xjKnMA",
+            "7RCRAtBgnjivSzNWtg3Dsd7NLfcG4WFM43qWsf8C4F6L"
+          ],
+          "slot": 457195297
+        },
+        "family": "pumpswap",
+        "guards": {
+          "canonical_through_target_all_acknowledged": false,
+          "exact_sealed_control_membership": true,
+          "linked_child_exists_newer_than_feed_and_startup_with_lower_parent": true,
+          "no_gap_feed_lo_through_target": false,
+          "rolling_parent_through_target_complete": false,
+          "target_covers_feed_and_available_control": true
+        },
+        "pending_canonical": {
+          "canonical_identity": "program:pumpswap:457194772:nD6sydVWtj5dXNqzeySEsRxhRaxdcZxmWQpsbpGKW9EpFFg5toLxN3MQWC4w3xdr5iQmkDV6Ch2qxVvBBpvJvpF:49",
+          "consumed": null,
+          "consumer_receipt": {
+            "present": false
+          },
+          "created": 1792058432.0294387,
+          "exact_ack_status": "PENDING_CANONICAL_ACK",
+          "outbox_identity": "f5111d451f88ede2197cb9f7d295ab93f9e2c1862a8f52c3bd4aa4657fa31745",
+          "slot": 457194772
+        },
+        "post_final_sample_gap_ids": [
+          36357
+        ],
+        "proofs": [
+          {
+            "available": 1792058666.202059,
+            "consumer_receipt": {
+              "present": false
+            },
+            "fully_covers_required_tail": true,
+            "hi": 457195296,
+            "identity": "1b6b1e3e359670bcc4c27c74e4e89e34f56cdaafeb1840dd26ad49ddf910db65",
+            "lo": 457195296
+          }
+        ],
+        "rolling_missing_as_of_final_full_sample": [
+          [
+            457195296,
+            457195296
+          ]
+        ],
+        "target": 457195296
+      }
+    ],
+    "scope": "Current exact-source RO guards. Current childCONTROL sealed identity matches both programs; shutdown-created gaps after final sample cannot explain earlier readiness. Genuine current canonical receipts/ACK and proof coverage still pending.",
+    "status": "BOUNDED_CURRENT_PUBLICATION_PREDICATES"
+  },
+  "reactivation_read_discriminator": {
+    "cold_rows_present": 0,
+    "elapsed_seconds": 0.13748056604526937,
+    "exists_cpu_seconds": 0.00034352599999989963,
+    "metadata_cpu_seconds": 0.0014916640000000314,
+    "rows": 16,
+    "same_original_slice_verified": true,
+    "scope": "Same16 retained candidates active at final sample but expired by probe. Current RO metadata only, no runtime cursor recovery/renewal/job DML/archive read/market replay. Rejected material optimization. Initial diagnostic AttributeError on read-only clock property preserved; V2 corrects only helper assignment.",
+    "status": "BOUNDED_CURRENT_REACTIVATION_READ_FACTS"
+  },
+  "reviewed_published_checkpoint": "7182909711df7442a55d380e8bbcd85ca6ec22c7",
+  "rollback": {
+    "authoritative_state_rewound": false,
+    "environment_sha256": "75f4d3e42edcf099b2d00be6319c91aa1f0d496ca3c9c39226bb18b3ac70a0c5",
+    "executed": "10ae127c399279847df908d555eceb1aaf46ef1d",
+    "funding": false,
+    "installed": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "post_review_sha256": "9c592e5278e8730e63387c89000625b616070abb22cdb18aae3da7d127a0cf40",
+    "retained_evidence_sha256": {
+      "clock.json": "652220eaa2d639c3f8c3a4a66b0b455fecc90b50d95fbce758532ee910df81cf",
+      "metrics.jsonl": "484cd41ed3eb8d647276b10f1ff1352171ece1e048dedc9b304924486aabfdca",
+      "result.json": "2d62b42c6e04cf94594cfb2372ab56bfaed20e7da1e81bfb879c0b9f7fe50166"
+    },
+    "service": {
+      "ActiveState": "inactive",
+      "MainPID": "0",
+      "Restart": "no",
+      "UnitFileState": "disabled"
+    },
+    "service_start_requested": false,
+    "status": "COMPATIBLE_SOURCE_CONFIGURATION_RESTORED_STOPPED",
+    "unit_sha256": "5472f456883cef4552d2367168b96366fc7b7a6b2d09e18d72472f19aeadde80",
+    "warning": "Restored historical finite diagnostic configuration is never a normal-service launcher; do not start unchanged."
+  },
+  "schema": "development-phase-result-v1",
+  "tests": {
+    "affected_maintenance": "79PASS27.956s includes8contract tests",
+    "exact_executable_combined": "289PASS74.644s",
+    "full_fast_or_release_pass": false,
+    "new_tests_after_observation": 0
+  },
+  "throughput_branch": {
+    "minimum_evidence": "One predeclared fixed-boundary trace of those reached operations plus actual executor/off-CPU attribution, under the existing controller and fresh preflight. It must distinguish specific scheduling/persistence/computation interventions; another unchanged rate-only run is not justified. No historical full-machine replay search or synthetic capacity substitution.",
+    "missing_fact": "Exclusive cost and blocking mechanism within actual promotion/demotion/rolling planning and concurrent Pons executor work; present phase timers, commit counters and runnable totals cannot attribute remaining owner stalls to SQL, Python synchronization or I/O.",
+    "status": "STOP_INSUFFICIENT_EVIDENCE_FOR_A_JUSTIFIED_CORRECTION"
+  },
+  "verdict": "READINESS_FAIL_PRE_PERSISTENCE_DEFICIT_UNRESOLVED_NO_UNCHANGED_RETRY"
+}

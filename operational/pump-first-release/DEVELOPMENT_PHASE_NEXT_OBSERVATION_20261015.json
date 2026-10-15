@@ -8,6 +8,7 @@
     "Six exclusive fixed owner phase counters: selection/reactivation/boundaries/publication/plan/transactionexit; no scheduling/SQL/deadline change in attribution"
   ],
   "concurrent_runs": 1,
+  "consumed": true,
   "controller": "engineering.diagnostics.current_combined_observation_20261014",
   "controller_sha256": "1f09f640023b826c416d4a668472044a379bd90d9ff97afee75f7c416b511092",
   "diagnostic_output": {
@@ -22,6 +23,7 @@
   },
   "diagnostic_startup_maximum_seconds": 900,
   "end_state": "Stopped, disabled, Restart=no, funding closed; verify actual native drain independently, preserve all pending evidence/accounting, compatible rollback without rewind.",
+  "executed_output": "/var/lib/meme-machine-diagnostics/20261015-development-phase-10ae127c-094856",
   "existing_provider_profiles": {
     "pons_observation_route": "canonical_primary existing bound app only",
     "robinhood_rps": 10,
@@ -62,9 +64,11 @@
     "pons_survivor_protection_seconds": 3,
     "rss_bytes": 6442450944
   },
+  "result_evidence": "evidence/development-phase-result-20261015.json",
+  "result_handoff": "DEVELOPMENT_PHASE_RESULT_20261015.md",
   "schema": 1,
   "shutdown_reserve_seconds": 65,
-  "status": "CHANGED_RETENTION_CONTRACT_AND_DEVELOPMENT_ATTRIBUTION_FRESH_PREFLIGHT_REQUIRED",
+  "status": "CONSUMED_O13_READINESS_FAIL_NO_UNCHANGED_RETRY",
   "tested_successor": "10ae127c399279847df908d555eceb1aaf46ef1d",
   "validation": "289combinedaffectedPASS74.644s inclactualstartup/history/ACK/sourceguards;79maintenancePASS27.956s and8contractPASS1.839s overlap. Originalcontractfailure preserved. PinnedCPython3.12.14/SQLite3.45.1. No fullFAST/release/capacityPASS.",
   "work_stop_seconds": 1800
