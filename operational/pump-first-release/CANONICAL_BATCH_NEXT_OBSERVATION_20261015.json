@@ -28,6 +28,20 @@
     "sha256": "0eaa61c964d7dea44099a70f61ad8bb6a4d833bc0a90a3dbd181e358231e040c",
     "verdict": "CURRENT_REQUIRED_PREDISPATCH_FACTS_VERIFIED_O8_BASELINE_HISTORICAL_FAILURES_PRESERVED"
   },
+  "executed_result": {
+    "acceptance_minutes": 0,
+    "compatible_rollback_source": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "elapsed_to_drain_seconds": 907.9040290880948,
+    "evidence_index": "evidence/canonical-batch-result-20261015.json",
+    "native_drain": "VERIFIED_NATIVE_WORKER_STOP_ONLY",
+    "normal_funding": "CLOSED",
+    "original_readiness": "FAIL",
+    "output": "/var/lib/meme-machine-diagnostics/20261015-standing-bulk-f72a1740-055428",
+    "post_required_checks": "VERIFIED_CURRENT_RESUMABILITY_NOT_GLOBAL_FRAME_CENSUS",
+    "result_handoff": "CANONICAL_BATCH_RESULT_20261015.md",
+    "source": "f72a17409cc52c0c649c3fd8d1d95ad30e68e45f",
+    "specification": "7c981232"
+  },
   "existing_provider_profiles": {
     "pons_observation_route": "canonical_primary existing bound app only",
     "robinhood_rps": 10,
@@ -156,7 +170,7 @@
   "routine_per_run_owner_approval": false,
   "schema": 1,
   "shutdown_reserve_seconds": 65,
-  "status": "PREPARED_CAUSE_BASED_GUARDED_OBSERVATION_NOT_RELEASE_PASS",
+  "status": "CONSUMED_ONE_RUN_READINESS_FAIL_STOPPED_NO_UNCHANGED_RETRY",
   "tested_successor": "f72a17409cc52c0c649c3fd8d1d95ad30e68e45f",
   "unchanged_resource_protection_contract": "https://github.com/levonmendall/The-Meme-Machine/blob/a32f49d2061e577644ef2d28f75fefd4a48ebe87/operational/pump-first-release/CONSOLIDATED_STARTUP_NEXT_OBSERVATION_SPEC_20261014.json",
   "validation": "32backup/storagePASS;5PonsreportPASS;initial31canonical30PASS/1stale scalar-only cancellation fixtureFAIL, corrected affected8PASS. Initial166integration165PASS/1actual sourceindex accessERROR, corrected actualserviceUIDguard1PASS retaining indexSHA. Final171 integratedstartup/delivery/protectionPASS102.410s. Source/economicguardsPASS; modules overlap, no summed distinct claim. No fullFAST or general releasePASS.",

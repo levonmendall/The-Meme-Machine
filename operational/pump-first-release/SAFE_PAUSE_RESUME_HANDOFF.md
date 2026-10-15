@@ -1,3 +1,24 @@
+# Current checkpoint — bulk candidate measured; supported offline successor saved
+
+Read [CANONICAL_BATCH_RESULT_20261015.md](CANONICAL_BATCH_RESULT_20261015.md)
+and its hashed evidence index. Executedf72a1740 under7c981232 once:907.904s,
+readinessFAIL/STARTUP_LIMITATION/acceptance0. Both nativeSTOPPED/reconciled/exit0;
+591bounded postqueries verified head10634/$1000/zeroobligations/historical500,
+allfourv1 and exactACK/pendingwork witnesses. Compatible66f85d61/config restored,
+PAPERinactive/disabled/Restart=no/fundingclosed; no DBrewind. Historical failures
+stay unchanged. Current measured arrival4.6584/durable2.7148slotunits/s, growing
+gap1038→1892; owner439.398of440.920soccupied. Hardware capacity unproven.
+
+Offline successor **c5b9dc5472fa36983ef524d0b4b6189a2915713e** contains tested current-frontier
+index selection and authentic-parent skipped-prefix recovery across sessions.
+208integrationcases207PASS/1stale metricfixtureFAIL; correctedaffected20PASS,
+plus31frontier/3prefixPASS (overlap disclosed). No fullFAST or releasePASS.
+Native-retention64.551swall remains specifically unattributed; housekeeping and
+recentMIN were discriminated and rejected as material remedies. Continue only
+this precise measured boundary, not a prep-worker sweep or unchanged retry.
+Backup space/protection, originalBUSY/READONLY, replay/provider/heldprotection
+remain separately open. Standing issue134 remains; no routine approvalgate.
+
 # New engineering checkpoint — canonical batch correction ready for guarded verification
 
 Executable **f72a17409cc52c0c649c3fd8d1d95ad30e68e45f** is focused-tested and published. Read

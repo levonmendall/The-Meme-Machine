@@ -1,0 +1,124 @@
+{
+  "acceptance_minutes": 0,
+  "artifacts": [
+    {
+      "bytes": 24029,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_BULK_CANDIDATE_ANALYSIS_20261015.json",
+      "sha256": "31d9f1dca5d7f36cc54de6ba8f78ac70c9b78458d62e4044b5abbdb8e9cd6804"
+    },
+    {
+      "bytes": 20491,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_BULK_PONS_ANALYSIS_20261015.json",
+      "sha256": "69e3c785fd68bf7584bb45d8fcd124d1d56cd4a21799840566e3362b94c75383"
+    },
+    {
+      "bytes": 350452,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_BULK_POST_NATIVE_FINANCIAL_20261015.json",
+      "sha256": "803c425f1feb4c935cf560fc759c14b34a303f04df690b52c9ea512bf1b82d0d"
+    },
+    {
+      "bytes": 8876,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_BULK_UNIT_JOURNAL_20261015.jsonl",
+      "sha256": "fb6671a3bb83ecba1025c0f3502edab3a4763dbc464fe826b008f43a11772fe1"
+    },
+    {
+      "bytes": 540,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_BULK_ROLLBACK_20261015.json",
+      "sha256": "2c6a7689e350f890b0fd6b3dc4c0d6f8c379f956e06c49777f17f357b7763c41"
+    },
+    {
+      "bytes": 3397,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_BULK_PONS_TRANSPORTS_20261015.json",
+      "sha256": "ac03c2c930fbe6521e1f993b0217c0473e971ddb98d3220003433fffa2693ad8"
+    },
+    {
+      "bytes": 17819,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_BULK_STARTUP_AND_PONS_FAILURE_FACTS_20261015.json",
+      "sha256": "14f0eba359a68584526b7278771453c6215df79ae890598d9ccf3d51bafdf0e8"
+    },
+    {
+      "bytes": 3526,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_BULK_STARTUP_EXACT_DECISION_20261015.json",
+      "sha256": "7e7e50f0e99e341bbe3aa39df55a1d2a72887bc27be669c9906b04859dea8936"
+    },
+    {
+      "bytes": 1003,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_BULK_STARTUP_PREFIX_FACTS_20261015.json",
+      "sha256": "988f91e2daa57d03cce3f48a6c081ecefcec303f1704c47cb3b9098687d924e5"
+    },
+    {
+      "bytes": 1252,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_CONTROL_MAX_INDEX_DISCRIMINATOR_20261015.json",
+      "sha256": "1f993ef0ddf7d8672fa4eebfde1c1f0892ec7e277555d3c307f8049a565b7b41"
+    },
+    {
+      "bytes": 1189,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_CONTROL_MAX_FORCED_INDEX_20261015.json",
+      "sha256": "1681838cd89bc9bf11c7460b6b480d5e7ab5e354e87bc414384e2f7463bcdab0"
+    },
+    {
+      "bytes": 4468,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_HOUSEKEEPING_SELECTOR_DISCRIMINATOR_20261015.json",
+      "sha256": "450a261d47b1143efb6ac4c8669591dcd5c397a16c5519ad64b0ccbd598160c6"
+    },
+    {
+      "bytes": 3204,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_RETENTION_MIN_INDEX_DISCRIMINATOR_20261015.json",
+      "sha256": "49c9cf78be2641a2f94033c3561fc8c4b71e51b9343a0ce1b273d248ba9c0e85"
+    },
+    {
+      "bytes": 312199,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_BACKUP_FAILED_POINT_SIZES_20261015.json",
+      "sha256": "967b319eeaef302b1a812ece7253403962db69702ab87992c925484d53139708"
+    },
+    {
+      "bytes": 5346,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_CONTROL_FRONTIER_FOCUSED_20261015.log",
+      "sha256": "2fcdefacc38b2179279aadfcfa89794f22cacfe7f05fea211e08469f85fbb6dc"
+    },
+    {
+      "bytes": 201,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_STALE_SESSION_PREFIX_FOCUSED_20261015.log",
+      "sha256": "5a9778af4d93ffbbc6418ab3e452f0ee312fff38ab5b837b5cd56818f4d67425"
+    },
+    {
+      "bytes": 8884,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_OWNER_READ_AND_PREFIX_INTEGRATION_20261015.log",
+      "sha256": "2aa21991e890095baa6bc786960cd217a9c4c38de84d0278f65c0a16aca44e37"
+    },
+    {
+      "bytes": 1582,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_CANDIDATE_METRIC_ASSERTION_CORRECTED_20261015.log",
+      "sha256": "d78267403c95bd5d2fe6c8b5ae7ffbf9589a1062e421a09a5fb7f7266ece3b05"
+    },
+    {
+      "bytes": 40367,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/architecture_bulk_post_20261015.py",
+      "sha256": "4add70e3acbd36084a784ca30747c1083043af41da19764fb8435449b611148d"
+    }
+  ],
+  "executed_source": "f72a17409cc52c0c649c3fd8d1d95ad30e68e45f",
+  "next": "Continue only precise native-retention attribution: measured64.551s/294turns, empty housekeeping and recentMIN disproven as material cost. Preserve c5 successor proof/index fixes. No unchanged live start or arbitrary prep concurrency.",
+  "offline_successor": "c5b9dc5472fa36983ef524d0b4b6189a2915713e",
+  "raw_files": [
+    {
+      "bytes": 96,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-bulk-f72a1740-055428/clock.json",
+      "sha256": "b1628abcaa840043c33a3d9d3614f4eb6d0d10707858bd09f5649c0daa7d03ba"
+    },
+    {
+      "bytes": 9139,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-bulk-f72a1740-055428/result.json",
+      "sha256": "b960c687f17adaeb420f59feb49b292e24569bdffee9e7884839ed5003234ea4"
+    },
+    {
+      "bytes": 12819117,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-bulk-f72a1740-055428/metrics.jsonl",
+      "sha256": "ae5408a5071c13ffe7a38ca5ac34dbbadb5323590de12ed25a2ca9697ace6e43"
+    }
+  ],
+  "raw_output": "/var/lib/meme-machine-diagnostics/20261015-standing-bulk-f72a1740-055428",
+  "schema": 1,
+  "specification_publication": "7c981232",
+  "status": "READINESS_FAIL_NATIVE_WORKER_STOP_AND_CHECKED_RESUMABILITY_VERIFIED_CAPACITY_UNRESOLVED"
+}
