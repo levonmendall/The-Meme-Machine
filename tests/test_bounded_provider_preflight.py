@@ -325,4 +325,101 @@ class ProviderPreflightTests(unittest.TestCase):
         self.assertEqual(self.budget.snapshot()['native_opens'],'1')
         self.assertEqual(self.budget.snapshot()['native_reserved'],'0')
 
+class ReplayUnaryDiagnosticTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
+        self.root=Path(self.tmp.name)
+        self.budget=Budget.create(self.root/'usage.sqlite',limits=LIMITS,wall_seconds=900,
+            modeled_spend_limit='0.20',maximum_native_opens=8)
+
+    def exercise(self, *, unsupported=False):
+        from engineering.diagnostics.yellowstone_replay_contract_20261015 import probe,HOST
+        from meme_machine.solana_provider_config import AlchemyEndpoint
+        from meme_machine.yellowstone import geyser_pb2 as pb
+        endpoint=AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/disposable-secret')
+        requests=[];options=[];closed=[];governor=SimpleNamespace(acquire=lambda *a,**kw:0)
+        class Call:
+            def __init__(self, result=None, error=None):self.result=result;self.error=error
+            def __await__(self):
+                async def get():
+                    if self.error:raise self.error
+                    return self.result
+                return get().__await__()
+            async def initial_metadata(self):return (('server','fixture'),('x-token','disposable-secret'))
+            async def trailing_metadata(self):return ()
+            def done(self):return True
+        class Channel:
+            def unary_unary(self,path,request_serializer,response_deserializer):
+                def call(request,**kw):
+                    requests.append((path,request,kw))
+                    request_serializer(request)  # Actual protobuf request contract.
+                    if unsupported and path.endswith('SubscribeReplayInfo'):
+                        return Call(error=grpc.aio.AioRpcError(grpc.StatusCode.UNIMPLEMENTED,
+                            (),(),details='unsupported method; disposable-secret'))
+                    response=(pb.SubscribeReplayInfoResponse(first_available=1000)
+                        if path.endswith('SubscribeReplayInfo') else pb.GetSlotResponse(slot=2000))
+                    return Call(result=response_deserializer(response.SerializeToString()))
+                return call
+            async def close(self,**kw):closed.append(True)
+        def channel_factory(target,credentials,**kw):
+            self.assertEqual(target,HOST);options.extend(kw['options']);return Channel()
+        result=asyncio.run(probe(endpoint,endpoint.credential,self.budget,governor,
+            self.root/'probe',channel_factory=channel_factory))
+        return result,requests,options,closed
+
+    def test_exact_two_unary_reads_preserve_existing_durable_accounting(self):
+        from meme_machine.yellowstone import geyser_pb2 as pb
+        result,requests,options,closed=self.exercise()
+        self.assertEqual([r[0] for r in requests],['/geyser.Geyser/SubscribeReplayInfo','/geyser.Geyser/GetSlot'])
+        self.assertEqual(requests[1][1].commitment,pb.FINALIZED)
+        self.assertTrue(requests[1][1].HasField('commitment'))
+        self.assertTrue(all(r[2]['timeout']==5 and not r[2]['wait_for_ready'] for r in requests))
+        self.assertIn(('grpc.enable_retries',0),options);self.assertEqual(closed,[True])
+        self.assertEqual([r['status'] for r in result['calls']],['OK','OK'])
+        self.assertEqual(result['calls'][0]['first_available'],1000)
+        self.assertEqual(result['calls'][1]['slot'],2000)
+        self.assertEqual(result['usage_delta']['rpc_cu'],20)
+        self.assertEqual(result['usage_delta']['alchemy_rpc_cu'],20)
+        self.assertEqual(result['usage_delta']['http_attempts'],2)
+        self.assertEqual(result['usage_delta']['solana_rpc_elements'],2)
+        self.assertEqual(result['usage_delta']['http_reserved'],0)
+        self.assertEqual(result['usage_delta']['native_opens'],0)
+        self.assertEqual(result['usage_delta']['http_bytes'],sum(r['response_payload_bytes'] for r in result['calls']))
+        self.assertNotIn('disposable-secret',(self.root/'probe/result.json').read_text())
+        with self.assertRaises(FileExistsError):self.exercise()
+
+    def test_unsupported_method_is_preserved_without_retry_or_substitution(self):
+        result,requests,_,_=self.exercise(unsupported=True)
+        self.assertEqual(len(requests),2)
+        self.assertEqual(result['calls'][0]['status'],'UNIMPLEMENTED')
+        self.assertEqual(result['calls'][0]['details'],'unsupported method; [REDACTED]')
+        self.assertEqual(result['calls'][1]['status'],'OK')
+        self.assertEqual(result['usage_delta']['rpc_cu'],20)
+        self.assertEqual(result['usage_delta']['http_reserved'],0)
+        self.assertEqual(result['usage_delta']['http_uncertain_bytes'],MAX_FRAME)
+
+    def test_error_context_redacts_credentials_and_keeps_only_safe_headers(self):
+        from engineering.diagnostics.yellowstone_replay_contract_20261015 import safe,metadata
+        self.assertEqual(safe('key TOKEN; https://example.alchemy.com/v2/secret',('TOKEN',)),
+            'key [REDACTED]; [REDACTED_URL]')
+        self.assertLessEqual(len(safe('x'*20000,())),8192)
+        self.assertEqual(metadata((('x-token','secret'),('request-id','safe'),
+            ('server','secret')),('secret',)),{'request-id':'safe','server':'[REDACTED]'})
+
+    def test_local_recording_failure_closes_reservation_before_any_rpc(self):
+        from engineering.diagnostics import yellowstone_replay_contract_20261015 as diagnostic
+        real_save=diagnostic.save;injected=[]
+        def failed_once(path,value):
+            if value['calls'] and value['calls'][-1]['status']=='DISPATCH_READY' and not injected:
+                injected.append(True);raise OSError('fixture_output_failed')
+            real_save(path,value)
+        with patch.object(diagnostic,'save',failed_once):
+            with self.assertRaisesRegex(OSError,'fixture_output_failed'):self.exercise()
+        final=json.loads((self.root/'probe/result.json').read_text())
+        self.assertEqual(len(final['calls']),1)
+        self.assertEqual(final['calls'][0]['status'],'LOCAL_FAILURE')
+        self.assertNotIn('call_invoked_at',final['calls'][0])
+        self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
+
+
 if __name__=='__main__':unittest.main()
