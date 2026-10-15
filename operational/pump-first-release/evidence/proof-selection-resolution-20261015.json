@@ -1,0 +1,87 @@
+{
+  "artifacts": [
+    {
+      "bytes": 1094,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_SELECTION_ORIGINAL_FAILURE_20261015.log",
+      "sha256": "cb5326f7c711104a3d299d70fa11ad250a45943bb810e4d46e69de24775dc8a5"
+    },
+    {
+      "bytes": 1026,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_PRIORITY_ORIGINAL_REPRO_20261015.log",
+      "sha256": "0b2c5829e61994cfcedd04ddd9ffa35d4ff7bc77342d4a8dc730f6968c828c11"
+    },
+    {
+      "bytes": 13916,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_SELECTION_COMBINED_INTEGRATION_20261015.log",
+      "sha256": "c97c2f8c7ebfb76df126761d76fb304135887fda1958e8bf4a762c51a70aac58"
+    },
+    {
+      "bytes": 2069,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_SELECTION_REVIEW_EDGE_REPRO_20261015.log",
+      "sha256": "23a898d36b130df7023fbb9bfd8fcccfc946ed4d10d05bd3182d1da4ec3cc1ce"
+    },
+    {
+      "bytes": 1827,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_SELECTION_REVIEW_AFFECTED_20261015.log",
+      "sha256": "c6f209681922d2ea0f573563bf5bc9fc0af7acfbff6620c6d37311a9b573f9f6"
+    },
+    {
+      "bytes": 10999,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_SELECTION_FINAL_INTEGRATION_20261015.log",
+      "sha256": "0a0e26e1125eb970180197ab5e07264ca5e15045a3b128c45a48fde33cd23cd1"
+    },
+    {
+      "bytes": 298,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_REUSE_RING_DISCRIMINATOR_20261015.log",
+      "sha256": "14be13368883a6ed7e5ae3d8b3099b5c2dbf0277239af3d6607c0bc1166d0ad5"
+    }
+  ],
+  "bounds": {
+    "canonical_writers": 1,
+    "consumer_batches": 1,
+    "new_providers": 0,
+    "new_services": 0,
+    "proof_ids": 64,
+    "shared_input_bytes": 16777216
+  },
+  "candidate": "1385d289524b014b4142f53230f93c109d344931",
+  "capacity": "NOT_ESTABLISHED",
+  "implementation": "b0c30beab4ddba802b3152e7360c3321a2334be8",
+  "prior_executed": "76785b2a3e814ad456f3ad2d22befdcd68cb8a93",
+  "question": "Can independent durable proof consumption meet current startup and required-history obligations without sharing the publisher cursor?",
+  "schema": 1,
+  "sources": {
+    "meme_machine/solana_candidate_lifecycle.py": "6997b1c6c9628b784c854824a9b117c1dc21dbf73241e2d691e98ba28609cbd9",
+    "meme_machine/solana_history_delivery.py": "a5932bdb8a58b3ff80f249375af59bf8c25e44479522195b52bae3b3da66afab",
+    "meme_machine/solana_selective_source.py": "572226001b129a57f211d9124c7752d5d20d766c1e8323fc9dd8e05542ddc4ee",
+    "tests/test_solana_history_separation.py": "57679e52fb559609e7c7677e63a2aa61008c3384328d3bf1f76d915d4da47a47"
+  },
+  "strategy_economics": "Unchanged; six active v1, nine original and attention-only volume-quality retained. No new capital or policy change.",
+  "tests": {
+    "earlier_combined": {
+      "cases": 285,
+      "disposition": "Preserved original no-consumer-work assertions; explicit runtime scheduling turns fix all three.",
+      "result": "FAIL_3",
+      "seconds": 108.642
+    },
+    "final_affected": {
+      "cases": 287,
+      "includes": "actual integrated startup rehearsal, batching, closure, retention and source guards; imported fixtures overlap; not complete FAST",
+      "result": "PASS",
+      "seconds": 110.673
+    },
+    "history_affected": {
+      "cases": 78,
+      "overlaps_final": true,
+      "result": "PASS",
+      "seconds": 19.076
+    },
+    "review_edges": {
+      "cases": 6,
+      "disposition": "Five passed; covering interval predicate then corrected and all78/final287 passed.",
+      "result": "FAIL_1_EXPECTED_OVERLAPPING_WITNESS",
+      "seconds": 1.468
+    }
+  },
+  "verdict": "OFFLINE_REPRODUCED_AND_CORRECTED_LIVE_VERIFICATION_REQUIRED"
+}

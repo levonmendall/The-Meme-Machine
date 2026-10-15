@@ -1,3 +1,21 @@
+# Current checkpoint — independent proof scheduling corrected offline
+
+Executable **1385d289524b014b4142f53230f93c109d344931** (implementation b0c30bea); branch
+repair/consolidated-startup-followup-20261014, draftPR133. Read
+[PROOF_SELECTION_RESOLUTION_20261015.md](PROOF_SELECTION_RESOLUTION_20261015.md),
+its scoped evidence and exact PROOF_SELECTION_NEXT_OBSERVATION_20261015.json.
+287 affected integrationPASS110.673s/78 historyPASS19.076s overlap; not fullrelease.
+O11 preserved readinessFAIL, arrival4.6254/durable2.3846, missing first-feed
+consumerreceipts, bothnativeSTOPPED/reconciledexit0. Financialhead11290/$1000,
+zeroobligations/historical500/allfourv1 preserved. Shared publisher/consumer
+cursor reproduced; independent bounded ACKed selection now covers current,
+urgent and fair retained work, including late insert/invalidation edges.
+No wholemachine throughput, hardware, heldprotection or acceptancePASS.
+Installedrollback66f85d61 inactive/disabled/Restart=no/fundingclosed until fresh
+controlledcutover. Standingissue134 permits the exact changed guarded test after
+freshsafetypreflight; not unchangedretries. Backupspace/common-cut protection,
+BUSY/READONLY and global accepted-frame drain remain independent open issues.
+
 # Current checkpoint — exact durable-proof handoff repaired; guarded verification next
 
 Executable **76785b2a3e814ad456f3ad2d22befdcd68cb8a93**, branch

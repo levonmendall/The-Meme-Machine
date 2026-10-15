@@ -1,0 +1,712 @@
+{
+  "capacity_scope": "Startup interval, not steady state or controlled comparison with O10. Factor matches arrivals only, excluding burst/recovery surplus.",
+  "control_to_stored_gap_slots": [
+    1226,
+    2046
+  ],
+  "documentation_step": {
+    "authoritative_queries": 0,
+    "deployments": 0,
+    "provider_requests": 0,
+    "source_changes": 0,
+    "tests": 0
+  },
+  "evidence_market_age_seconds": [
+    279.0239026546478,
+    454.6418869495392
+  ],
+  "executed_source": "76785b2a3e814ad456f3ad2d22befdcd68cb8a93",
+  "heads_end": {
+    "arrival": 457163745,
+    "durable": 457161691,
+    "joined": 457161699,
+    "prepared": 457161695,
+    "raw_cursor": 457161691,
+    "stored": 457161699,
+    "usable_publication": null
+  },
+  "heads_start": {
+    "arrival": 457162040,
+    "durable": 457160812,
+    "joined": 457160813,
+    "prepared": 457160813,
+    "raw_cursor": 457160808,
+    "stored": 457160814,
+    "usable_publication": null
+  },
+  "interval": {
+    "both_native_reconciled": true,
+    "first": 529.5864670809824,
+    "full_samples": 72,
+    "last": 898.204451530939,
+    "seconds": 368.61798444995657
+  },
+  "metrics": {
+    "bytes": 11719655,
+    "path": "/var/lib/meme-machine-diagnostics/20261015-proof-handoff-76785b2a-074814/metrics.jsonl",
+    "sha256": "d76cc48ca14cffb9fd208f2a98549da597c64ddf61a0a8f538d707a543444d76"
+  },
+  "native": {
+    "pons": {
+      "exit_codes": [
+        0
+      ],
+      "phase": "STOPPED",
+      "reconciled": true,
+      "verdict": "VERIFIED_LANE_GRACEFUL_DRAIN"
+    },
+    "pump": {
+      "exit_codes": [
+        0
+      ],
+      "phase": "STOPPED",
+      "reconciled": true,
+      "verdict": "VERIFIED_LANE_GRACEFUL_DRAIN"
+    }
+  },
+  "needed_to_match_arrival_factor": 1.9397042093287828,
+  "negative_pons_discriminators": {
+    "production_pons_fixes_added": 0,
+    "projection_join": {
+      "boundaries": {
+        "after": 99315,
+        "batch_size": 256,
+        "lane": "pons",
+        "projection_source_sha256": "e6218f968dfa2113e97aadb171855b7f0bda56e0e79a33f3d5e573510590e3fb",
+        "through": 99315
+      },
+      "cleanup_error_types": [],
+      "decision": "REJECT_QUERY_ORDER_HYPOTHESIS; actual original first/tail plans already transition-first, with tiny measured CPU. No production SQL change, new test, or unchanged repeat.",
+      "elapsed_seconds": 0.08075170801021159,
+      "first_exact_equal": true,
+      "plans": {
+        "exists_first": [
+          [
+            4,
+            0,
+            0,
+            "SCAN t"
+          ],
+          [
+            7,
+            0,
+            0,
+            "CORRELATED SCALAR SUBQUERY 1"
+          ],
+          [
+            12,
+            7,
+            0,
+            "SEARCH c USING INDEX sqlite_autoindex_candidates_1 (id=?)"
+          ]
+        ],
+        "exists_tail": [
+          [
+            6,
+            0,
+            0,
+            "SEARCH t USING INTEGER PRIMARY KEY (rowid>? AND rowid<?)"
+          ],
+          [
+            12,
+            0,
+            0,
+            "CORRELATED SCALAR SUBQUERY 1"
+          ],
+          [
+            17,
+            12,
+            0,
+            "SEARCH c USING INDEX sqlite_autoindex_candidates_1 (id=?)"
+          ]
+        ],
+        "original_first": [
+          [
+            6,
+            0,
+            0,
+            "SCAN t"
+          ],
+          [
+            8,
+            0,
+            0,
+            "SEARCH c USING INDEX sqlite_autoindex_candidates_1 (id=?)"
+          ]
+        ],
+        "original_tail": [
+          [
+            8,
+            0,
+            0,
+            "SEARCH t USING INTEGER PRIMARY KEY (rowid>? AND rowid<?)"
+          ],
+          [
+            13,
+            0,
+            0,
+            "SEARCH c USING INDEX sqlite_autoindex_candidates_1 (id=?)"
+          ]
+        ]
+      },
+      "queries": {
+        "exists_first": {
+          "instrumentation_read_bytes_in_delta": 208,
+          "instrumentation_read_syscalls_in_delta": 2,
+          "logical_read_bytes": 0,
+          "raw_io_delta": {
+            "rchar": 208,
+            "read_bytes": 0,
+            "syscr": 2
+          },
+          "read_syscalls": 0,
+          "returned_bytes": 1150,
+          "returned_ordered_sha256": "8da856a1cd1948c4cac8708e725efaf7289e81659b157a713beb263f8c8084f0",
+          "rows": 1,
+          "thread_cpu_seconds": 0.000123481,
+          "vm_quantum": 1000,
+          "vm_steps_quantized": 0,
+          "wall_seconds": 0.000121987
+        },
+        "exists_tail": {
+          "instrumentation_read_bytes_in_delta": 104,
+          "instrumentation_read_syscalls_in_delta": 1,
+          "logical_read_bytes": 0,
+          "raw_io_delta": {
+            "rchar": 104,
+            "read_bytes": 0,
+            "syscr": 1
+          },
+          "read_syscalls": 0,
+          "returned_bytes": 0,
+          "returned_ordered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "rows": 0,
+          "thread_cpu_seconds": 4.2477e-05,
+          "vm_quantum": 1000,
+          "vm_steps_quantized": 0,
+          "wall_seconds": 4.1497e-05
+        },
+        "original_first": {
+          "instrumentation_read_bytes_in_delta": 208,
+          "instrumentation_read_syscalls_in_delta": 2,
+          "logical_read_bytes": 28672,
+          "raw_io_delta": {
+            "rchar": 28880,
+            "read_bytes": 0,
+            "syscr": 9
+          },
+          "read_syscalls": 7,
+          "returned_bytes": 1150,
+          "returned_ordered_sha256": "8da856a1cd1948c4cac8708e725efaf7289e81659b157a713beb263f8c8084f0",
+          "rows": 1,
+          "thread_cpu_seconds": 0.000128895,
+          "vm_quantum": 1000,
+          "vm_steps_quantized": 0,
+          "wall_seconds": 0.000124171
+        },
+        "original_tail": {
+          "instrumentation_read_bytes_in_delta": 104,
+          "instrumentation_read_syscalls_in_delta": 1,
+          "logical_read_bytes": 0,
+          "raw_io_delta": {
+            "rchar": 104,
+            "read_bytes": 0,
+            "syscr": 1
+          },
+          "read_syscalls": 0,
+          "returned_bytes": 0,
+          "returned_ordered_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "rows": 0,
+          "thread_cpu_seconds": 5.754e-05,
+          "vm_quantum": 1000,
+          "vm_steps_quantized": 0,
+          "wall_seconds": 5.6538e-05
+        }
+      },
+      "readers_closed": true,
+      "scope": "One sequential warm read-only query pair, not full report cost, market replay, or whole-machine capacity",
+      "source_pin": {
+        "meme_machine/runtime/robinhood/accounting.py": "e647846a2e95275c21d87b70455d38aade8354680ddc9a73af111fbb0a9fcfd1"
+      },
+      "status": "MEASURED_EQUIVALENT_QUERY_PAIRS",
+      "tail_exact_equal": true
+    },
+    "reuse_ring_sequence_index": {
+      "decision": "REJECT_INDEX_AS_MATERIAL; original projected0.00938core (~1.39% owner-reported Pons0.674core), saving~0.00170core with higher writes. No production index or accounting behavior changed.",
+      "estimated_cpu_core_saving": 0.0017032489237036128,
+      "fixture_ring_rows": 4096,
+      "focused_case": {
+        "cases": 1,
+        "result": "PASS",
+        "scope": "One opt-in contained offline case; not production throughput.",
+        "seconds": 0.195
+      },
+      "limitations": [
+        "sequential original then indexed; persistent connection warmed by identical seeding",
+        "trace/progress instrumentation identical in both variants; VM steps quantized",
+        "rchar/syscr include /proc probe overhead; no physical-disk or whole-machine inference",
+        "projection uses last retained278s event rate, not a complete O11 event census",
+        "no production index or accounting algorithm changed"
+      ],
+      "normalization": [
+        {
+          "fraction_of_reported_process_cpu": 0.013911569556669992,
+          "fraction_of_reported_process_rchar": 4.074443153507486e-05,
+          "indexed": false,
+          "projected_cpu_cores": 0.009376397881195575,
+          "projected_rchar_bytes_per_second": 11668.427001743088
+        },
+        {
+          "fraction_of_reported_process_cpu": 0.011384494002213592,
+          "fraction_of_reported_process_rchar": 7.733948725989873e-07,
+          "indexed": true,
+          "projected_cpu_cores": 0.007673148957491962,
+          "projected_rchar_bytes_per_second": 221.48552021581415
+        }
+      ],
+      "observation_reference": {
+        "cpu_cores": 0.674,
+        "rchar_bytes": 105560000000.0,
+        "rchar_bytes_per_second": 286380900.7053717,
+        "scope": "owner-reported rounded O11 process observations; not this fixture",
+        "seconds": 368.6
+      },
+      "physical_transports": 0,
+      "retained_event_rate_per_second": 14.70443287739845,
+      "retained_time_bounds": [
+        1792051128.4632244,
+        1792051406.9506733
+      ],
+      "scope": "authentic retained audit ring; synthetic32 session-hit calls; no market/capacity proof",
+      "source_sha256": {
+        "immutable_rpc": "a0f4cc8f58fbf67d061fcbf760a427157b8af872b0ed908e045f8ced5590069b",
+        "storage": "0cbe6ea56ed5eba9bc9e2ba895d1dcb0cab569a4c7d13b3f7b5b31f39ee31e9e",
+        "test": "fa60e148c577a81ae972bd7f745d228823f96cc2936cd7868916c2d9ea788f48"
+      },
+      "synthetic_session_hit_calls_per_variant": 32,
+      "variants": [
+        {
+          "calls": 32,
+          "cpu_seconds": 0.020405053000000034,
+          "indexed": false,
+          "logical_session_hits": 32,
+          "physical_transports": 0,
+          "query_plans": {
+            "boundary": [
+              [
+                8,
+                0,
+                0,
+                "SCAN reuse_events"
+              ]
+            ],
+            "count": [
+              [
+                4,
+                0,
+                0,
+                "SCAN reuse_events"
+              ]
+            ]
+          },
+          "retained_sha256": "56c1ced1c1e18ff85c7b293c641bf2211504c9c55a76ae9414c93a447bc54fb3",
+          "sql_operations": {
+            "BEGIN": 32,
+            "COMMIT": 32,
+            "CREATE": 32,
+            "DELETE": 32,
+            "DROP": 32,
+            "INSERT": 32,
+            "PRAGMA": 64,
+            "SELECT": 192,
+            "audit_boundary": 32,
+            "audit_count": 32
+          },
+          "thread_io": {
+            "cancelled_write_bytes": 0,
+            "rchar": 25393,
+            "read_bytes": 0,
+            "syscr": 10,
+            "syscw": 200,
+            "wchar": 412000,
+            "write_bytes": 544768
+          },
+          "vm_quantum": 1000,
+          "vm_steps_quantized": 265000,
+          "wall_seconds": 0.03763520414941013
+        },
+        {
+          "calls": 32,
+          "cpu_seconds": 0.016698418000000048,
+          "indexed": true,
+          "logical_session_hits": 32,
+          "physical_transports": 0,
+          "query_plans": {
+            "boundary": [
+              [
+                8,
+                0,
+                0,
+                "SCAN reuse_events USING COVERING INDEX probe_reuse_retention_sequence"
+              ]
+            ],
+            "count": [
+              [
+                4,
+                0,
+                0,
+                "SCAN reuse_events USING COVERING INDEX probe_reuse_retention_sequence"
+              ]
+            ]
+          },
+          "retained_sha256": "56c1ced1c1e18ff85c7b293c641bf2211504c9c55a76ae9414c93a447bc54fb3",
+          "sql_operations": {
+            "BEGIN": 32,
+            "COMMIT": 32,
+            "CREATE": 32,
+            "DELETE": 32,
+            "DROP": 32,
+            "INSERT": 32,
+            "PRAGMA": 64,
+            "SELECT": 192,
+            "audit_boundary": 32,
+            "audit_count": 32
+          },
+          "thread_io": {
+            "cancelled_write_bytes": 0,
+            "rchar": 482,
+            "read_bytes": 0,
+            "syscr": 8,
+            "syscw": 328,
+            "wchar": 675680,
+            "write_bytes": 806912
+          },
+          "vm_quantum": 1000,
+          "vm_steps_quantized": 265000,
+          "wall_seconds": 0.03444457007572055
+        }
+      ]
+    },
+    "whole_pipeline_gain": "NOT_ESTABLISHED"
+  },
+  "original_result_unchanged": true,
+  "owner": {
+    "actual_thread_cpu_seconds": 77.529502452,
+    "actual_thread_runnable_wait_seconds": 162.220030761,
+    "callback_plus_handoff_seconds": 366.549051,
+    "callback_wall_seconds": 351.04670600000003,
+    "candidate": {
+      "calls": 306.0,
+      "cpu_seconds": 20.731121,
+      "queue_seconds": 174.642164,
+      "wall_seconds": 98.055473
+    },
+    "candidate_serial_seconds": 349.174533,
+    "checkpoint_handoff_seconds": 15.502345,
+    "maintenance": {
+      "calls": 315.0,
+      "cpu_seconds": 18.596009,
+      "wall_seconds": 84.331503
+    },
+    "preparation": {
+      "calls": 305.0,
+      "parent_elapsed_seconds": 76.476896,
+      "records": 32609.0,
+      "worker_cpu_seconds": 22.98851,
+      "worker_wall_seconds": 57.402683
+    },
+    "scope": "Retained analysis normalizes raw microseconds to seconds despite historical field names. Components nest within source_commit; preparation worker wall/CPU overlap parent elapsed. No overlapping timing sums."
+  },
+  "post_review": {
+    "all_four_v1": "VERIFIED",
+    "bounded_queries": 7260,
+    "cash": "1000.00",
+    "current_sampled_cohort": {
+      "dispositions": {
+        "ACKED_WITH_AUTHENTIC_RECEIPT": 1670,
+        "PENDING_PRESERVED": 30
+      },
+      "named": 1700,
+      "scope": "Union of retained current-generation canonical diagnostic samples, not census, physical arrivals or complete coverage proof; replay stock is not counted as new arrivals."
+    },
+    "epoch_id": "paper-shared-1000-20261011T071207Z",
+    "failed_or_unavailable": [],
+    "historical500": "VERIFIED",
+    "journal_sequence": 11290,
+    "obligation_counts": {
+      "commitments": 0,
+      "obligations": 0,
+      "pending_backing": 0,
+      "pending_deliveries": 0,
+      "positions": 0,
+      "reservations": 0,
+      "runtime_inbox": 0,
+      "runtime_pending": 0
+    },
+    "provider_reservation_closure": {
+      "http_reserved": "0",
+      "native_reserved": "0",
+      "new_risk_ready": "false",
+      "open_http_receipts": 0,
+      "open_streams": 0,
+      "status": "VERIFIED"
+    },
+    "scope": "Retained actual post-stop review, not future exclusive acquisition or full-store integrity.",
+    "sql_seconds": 0.32728,
+    "total_seconds": 2.116139,
+    "verdict": "CHECKED_STATE_CONSISTENT_NATIVE_LANES_DRAIN_VERIFIED_REVIEW_REQUIRED"
+  },
+  "prior_evidence": "Earlier observations/RECOVERY_REQUIRED verdicts and offline scheduling test results unchanged. Exact handoff repair not a demonstrated whole-pipeline gain.",
+  "private_evidence": [
+    {
+      "bytes": 9917,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_HANDOFF_PIPELINE_ANALYSIS_20261015.json",
+      "sha256": "49bdaca496ecbc235f2630aea782941ab95db5508ea0b240fe54ad529e0baba6"
+    },
+    {
+      "bytes": 3747965,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_HANDOFF_POST_NATIVE_FINANCIAL_20261015.json",
+      "sha256": "a9c2562ab5b39fde328eb927866f7b90569a2d4122efda7fcbf0a61f2bb3dbdf"
+    },
+    {
+      "bytes": 18066,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_HANDOFF_STARTUP_DEPENDENCY_20261015.json",
+      "sha256": "15f4cfa3af796597a100d4f054f0a743e0cdb3f587f622d72ef517ee14863bbf"
+    },
+    {
+      "bytes": 751,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PROOF_HANDOFF_ROLLBACK_20261015.json",
+      "sha256": "7503e55e03b4c9ddc01a923716dfc7f6a3e658a2cc9a0d41761e46384ae5cc16"
+    },
+    {
+      "bytes": 4864,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_PROJECTION_JOIN_DISCRIMINATOR_20261015.json",
+      "sha256": "d9dbffac71f9d6fdd559cc0a967a7b4ce8ac8f4dc2bbb555c50709f9cd66aa6a"
+    },
+    {
+      "bytes": 3345,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_REUSE_RING_DISCRIMINATOR_20261015.json",
+      "sha256": "3e8f813be3296656e089bb17ffce2c817c9ec2cd3f442f0b5e92a9eab1653c5e"
+    },
+    {
+      "bytes": 298,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_REUSE_RING_DISCRIMINATOR_20261015.log",
+      "sha256": "14be13368883a6ed7e5ae3d8b3099b5c2dbf0277239af3d6607c0bc1166d0ad5"
+    }
+  ],
+  "provider": {
+    "held_quote_usd_protection": "NOT_EXERCISED_FLAT_FUNDING_CLOSED",
+    "pons_admission_states": [
+      "CURRENT"
+    ],
+    "pons_max_queue_wait_seconds": 1.2438860170077533,
+    "scope": "Admission observations do not establish full provider suitability, every request result or three/five-second held protection.",
+    "usage": {
+      "before_scope": "Exact SHA-authenticated fresh dispatch receipt captures all durable usage counters from its existing provider-guard query; retained O10 counters are a non-regression witness. Current-run delta only, no historical delta resumming or invoice verification.",
+      "cost_basis": "Existing frozen conservative model; uncertain bytes are accounted exposure, not confirmed delivery or invoice.",
+      "delta": {
+        "alchemy_rpc_cu": 352062,
+        "http_attempts": 2695,
+        "http_bytes": 15925279,
+        "http_uncertain_bytes": 16777216,
+        "native_bytes": 662156128,
+        "native_failures": 0,
+        "native_opens": 4,
+        "native_uncertain_bytes": 285212672,
+        "robinhood_rpc_elements": 10177,
+        "rpc_cu": 352062,
+        "rpc_elements": 10180,
+        "solana_rpc_elements": 3
+      },
+      "http_reserved": "0",
+      "modeled_cost_usd": "0.28430627400",
+      "native_openings_subset": 4,
+      "native_reserved": "0",
+      "non_native_http_starts": 2691,
+      "physical_starts_including_native": 2695,
+      "provider_invoice": "UNAVAILABLE",
+      "unclosed_http_receipts": [],
+      "unclosed_streams": []
+    }
+  },
+  "raw_controller_result": {
+    "acceptance_minutes": 0,
+    "drained": true,
+    "economic_continuity": true,
+    "elapsed_to_drain_seconds": 902.8965895480942,
+    "funding": false,
+    "native_drain": "VERIFIED_NATIVE_WORKER_STOP_ONLY",
+    "original_readiness": "FAIL",
+    "recovery_required": false,
+    "status": "STOPPED_REVIEW_REQUIRED",
+    "stop_reason": "STARTUP_LIMITATION"
+  },
+  "remaining_blockers_ranked": [
+    {
+      "blocker": "Startup coverage proof capture/publication scheduling contract; first-feed consumer receipts absent. Offline correction ongoing, not fixed by this handoff.",
+      "priority": 1
+    },
+    {
+      "blocker": "Measured pre-persistence deficit remains; no sustained operating capacity or usable evidence PASS.",
+      "priority": 2
+    },
+    {
+      "blocker": "Native workers drained, but accepted source-frame drainage remains unavailable; fresh safe-resumability gate still required before any run.",
+      "priority": 3
+    },
+    {
+      "blocker": "Managed Pons held quote/USD protective deadlines unexercised; original SQLite BUSY, Pons READONLY and native replay semantics remain separately open.",
+      "priority": 4
+    },
+    {
+      "blocker": "Later failed backup remains unusable; existing applicable older recovery proof does not resolve storage failure.",
+      "priority": 5
+    },
+    {
+      "blocker": "Full-process-group backup freeze compatibility with uninterrupted position protection remains an autonomous-operation blocker.",
+      "priority": 6
+    }
+  ],
+  "resource": {
+    "cgroup_average_cores": 1.7275288533472288,
+    "reported_throttled_seconds": 24.681296,
+    "scope": "No inferred lock holder, GIL contention, device saturation or hardware insufficiency."
+  },
+  "result_sha256": "a087b0429df73cd6b829f4400287881fd5a45b3675db18f5692c665f811168bb",
+  "retention": {
+    "calls": 309.0,
+    "outer_wall_seconds": 73.063862,
+    "phases": {
+      "housekeeping": {
+        "cpu_seconds": 0.206606,
+        "runnable_seconds": 0.469706,
+        "wall_seconds": 0.881335
+      },
+      "plan": {
+        "cpu_seconds": 8.71896,
+        "runnable_seconds": 18.727089,
+        "wall_seconds": 37.874009
+      },
+      "post": {
+        "cpu_seconds": 0.096755,
+        "runnable_seconds": 0.65845,
+        "wall_seconds": 2.198752
+      },
+      "transaction": {
+        "cpu_seconds": 6.600403,
+        "runnable_seconds": 14.793655,
+        "wall_seconds": 30.50262
+      }
+    },
+    "unmeasured_delta": 0.0,
+    "yielded": 1.0
+  },
+  "rollback": {
+    "at": "2026-10-15T08:05:41.594900+00:00",
+    "configuration_restored": {
+      "environment": {
+        "gid": 987,
+        "mode": 416,
+        "sha256": "75f4d3e42edcf099b2d00be6319c91aa1f0d496ca3c9c39226bb18b3ac70a0c5",
+        "uid": 0
+      },
+      "unit": {
+        "gid": 0,
+        "mode": 420,
+        "sha256": "5472f456883cef4552d2367168b96366fc7b7a6b2d09e18d72472f19aeadde80",
+        "uid": 0
+      }
+    },
+    "evidence_deleted": false,
+    "executed": "76785b2a3e814ad456f3ad2d22befdcd68cb8a93",
+    "post_verdict": "CHECKED_STATE_CONSISTENT_NATIVE_LANES_DRAIN_VERIFIED_REVIEW_REQUIRED",
+    "restored_source": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "service": "Restart=no\nMainPID=0\nActiveState=inactive\nUnitFileState=disabled",
+    "state_rewind": false
+  },
+  "schema": 1,
+  "slot_unit_rates": {
+    "arrival": 4.625384739554047,
+    "durable": 2.384582513822878,
+    "joined": 2.403572363193481,
+    "prepared": 2.3927210206959937,
+    "raw_cursor": 2.3954338563203654,
+    "stored": 2.4008595275691094,
+    "usable_publication": null
+  },
+  "source_frame_drain": "UNAVAILABLE_FROM_STATIC_REVIEW; source OFF/empty group does not alone prove all accepted in-memory frames completed.",
+  "startup": {
+    "actual_program_frontier_nonempty_samples": 0,
+    "phase": "WAIT_FOR_DURABLE_PUBLICATION",
+    "raw_cursor_is_usable_publication": false,
+    "released": false,
+    "strategy_usable_consumption": "UNAVAILABLE_STARTUP_NOT_RELEASED"
+  },
+  "startup_dependency": {
+    "exact_difference_from_O10": "O11 first-feed pending proofs have no consumer coverage receipt; O10 sampled first-current proofs had receipts. Completed-batch exact publication cannot publish work that capture never delivered.",
+    "executed_source": "76785b2a3e814ad456f3ad2d22befdcd68cb8a93",
+    "final_sample_at": 1792051403.641887,
+    "generation_matches_final_sample": true,
+    "limitation": "Stopped surviving predicates and original timestamps are not a reconstruction of every live cursor visit or historical mutation. Later disconnect gaps are not substituted for final-sample missing coverage.",
+    "next_action": "Focused offline scheduling-contract reproduction/correction with independent consumer progress, preserving stale context, exact ACKs, pending proof durability, fairness and one writer.",
+    "programs": [
+      {
+        "canonical_program_checkpoint": null,
+        "canonical_unconsumed_through_feed_hi": false,
+        "coverage_rows": [],
+        "family": "pump",
+        "feed_hi": 457159942,
+        "feed_lo": 457159942,
+        "missing_as_of_final_full_sample": [
+          [
+            457159942,
+            457159942
+          ]
+        ],
+        "pending_proofs": [
+          {
+            "available": 1792050586.039562,
+            "consumer_receipt_present": false,
+            "current_only": true,
+            "hi": 457159942,
+            "identity": "1630fff6062cc1f2e1f105204b8e503687326f6a2bc648edae5fd67d244bdf31",
+            "lo": 457159942
+          }
+        ],
+        "post_final_sample_gap_ids": [
+          36034
+        ]
+      },
+      {
+        "canonical_program_checkpoint": null,
+        "canonical_unconsumed_through_feed_hi": false,
+        "coverage_rows": [],
+        "family": "pumpswap",
+        "feed_hi": 457159942,
+        "feed_lo": 457159942,
+        "missing_as_of_final_full_sample": [
+          [
+            457159942,
+            457159942
+          ]
+        ],
+        "pending_proofs": [
+          {
+            "available": 1792050586.039562,
+            "consumer_receipt_present": false,
+            "current_only": true,
+            "hi": 457159942,
+            "identity": "8e8f6c7fc5cfe60f00aab48487f54d9bff229a919071afbe323153e3c5c220c7",
+            "lo": 457159942
+          }
+        ],
+        "post_final_sample_gap_ids": [
+          36035
+        ]
+      }
+    ],
+    "status": "BOUNDED_CURRENT_DEPENDENCY_FACTS",
+    "supported_contract_issue": "Capture and publication share a volatile cursor; publication progress can move consumer capture past an undelivered pending proof. Source-contract correction/reproduction ongoing, not marked fixed here."
+  },
+  "status": "O11_STARTUP_PUBLICATION_BLOCKED_NOT_CAPACITY_PASS"
+}

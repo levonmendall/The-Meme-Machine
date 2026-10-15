@@ -61,9 +61,10 @@
     "pons_survivor_protection_seconds": 3,
     "rss_bytes": 6442450944
   },
+  "result_reference": "PROOF_HANDOFF_RESULT_20261015.md",
   "schema": 1,
   "shutdown_reserve_seconds": 65,
-  "status": "CAUSE_SUPPORTED_PROOF_HANDOFF_SUCCESSOR_FRESH_PREFLIGHT_REQUIRED",
+  "status": "CONSUMED_O11_READINESS_FAIL_NATIVE_WORKER_DRAIN_VERIFIED",
   "tested_successor": "76785b2a3e814ad456f3ad2d22befdcd68cb8a93",
   "validation": "ab621aba246affected integration casesPASS102.915s; successor76785b2a69affected history/refinementPASS17.908s after accounting-fence correction. Overlap disclosed; no fullFAST/general releasePASS.",
   "work_stop_seconds": 1800
