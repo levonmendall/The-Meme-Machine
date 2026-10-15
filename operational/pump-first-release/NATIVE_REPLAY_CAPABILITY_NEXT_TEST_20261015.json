@@ -1,5 +1,6 @@
 {
   "authorization_limit": "Owner standing authorization issue134 effective until revoked; execute only the original individual experiment bounds after focused validation/fresh preflight. No global attempt cap,24h expiry or routine per-run approval. No PAPER service start in this standalone diagnostic.",
+  "completed_result": "NATIVE_REPLAY_CAPABILITY_RESULT_20261015.md",
   "current_unary_candidate": "2c8168b9d61e820da025956fbe8d4c31ce24ccc6",
   "cursor": "One common from_slot = contemporaneous HTTP finalized tip minus256, matching current source semantics; record native finalized tip skew and advertised first_available. Abort streams if outside advertised native bounds; do not shift/unset/clamp the cursor.",
   "limits": {
@@ -13,7 +14,7 @@
   "maximum_concurrent_subscriptions": 1,
   "maximum_paper_starts": 0,
   "maximum_subscription_attempts": 3,
-  "new_stream_driver": "engineering.diagnostics.native_replay_capability_20261015; exact tested revision recorded before execution",
+  "new_stream_driver": "engineering.diagnostics.native_replay_capability_20261015; executed exact5e4728ae2208a90fb027ce951d3a6830f93f18b2",
   "outcomes": {
     "all_forms_reject_despite_advertised_range": "Provider range alone is insufficient; request backend replay/cursor/skip-slot contract and stop. No cursor shift, broader retry or replacement architecture.",
     "all_required_forms_accept": "Current request forms are accepted in sampled window only; historical failure not reproduced, no capacity/completeness/held-protection or correction claim.",
@@ -80,7 +81,7 @@
       "when": "Only if one preceding exact form receives INVALID_ARGUMENT semantic rejection, required methods/identity/recorder remain available and no provider/resource safety stop occurred; UNIMPLEMENTED, throttling and transport failures stop instead"
     }
   ],
-  "status": "AUTHORIZED_DRIVER_UNDER_FOCUSED_VALIDATION",
+  "status": "COMPLETED_ORIGINAL_BOUNDARY_NO_UNCHANGED_REPEAT",
   "stops": [
     "Any existing provider/resource safety failure",
     "Transport/rejection evidence cannot be retained",

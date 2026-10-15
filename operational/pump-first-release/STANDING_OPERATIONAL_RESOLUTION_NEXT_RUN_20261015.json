@@ -1,0 +1,51 @@
+{
+  "absolute_start_to_drained_seconds": 1865,
+  "authority": "https://github.com/levonmendall/The-Meme-Machine/issues/134",
+  "authority_duration": "until revoked",
+  "auto_systemd_restart": false,
+  "campaign_expiration": null,
+  "concurrent_runs": 1,
+  "controller": "engineering.diagnostics.current_combined_observation_20261014",
+  "controller_sha256": "cd673336e6096d427a29f49cd20e89e36ce699d6346a0294ff7e8175201dc0cf",
+  "diagnostic_startup_maximum_seconds": 900,
+  "existing_provider_profiles": {
+    "pons_observation_route": "canonical_primary existing bound app only",
+    "robinhood_rps": 10,
+    "solana_rps": 2,
+    "spending": "Existing genuine provider/account controls; no obsolete fixed$2 ceiling; usage reporting retained"
+  },
+  "fresh_before_any_service_start": [
+    "Exact validated source/configuration and clock/output/controller identity",
+    "Current cash/obligations, native ownership and safe resumability, retained receipt/ACK/proof state",
+    "Exclusive owners/leases and unheld writer lock",
+    "Service-user access and required terminal/cancellation recording",
+    "Applicable usable recovery reference; failed backup is not recovery proof",
+    "Backup/workload nonoverlap, disk/RAM/CPU and original provider/resource limits"
+  ],
+  "funding": "CLOSED_DURING_DIAGNOSIS",
+  "global_attempt_limit": null,
+  "next_technical_fact": "Authoritative existing-provider cursor/skipped-slot/filter/commitment/backend replay contract or a supported causal correction; see prepared Alchemy support question. Do not shift/unset replay cursor or repeat unchanged native capability test.",
+  "no_normal_transition_from_diagnostic_completion": true,
+  "per_invocation_one_start": true,
+  "permitted_operational_writes": "Existing canonical/source/prewarm/session/historian/candidate-history/receiptACK/provider accounting/native recovery/reporting and OBSERVATION runtime-admission/owner records from unchanged run contract; no new position, reservation, fill, capital transfer, epoch or strategy-policy mutation",
+  "poststartup_measurement_maximum_seconds": 900,
+  "prepared_installation": "NOT_PREPARED: installedsource66 remains stopped; create fresh compatible config/output under standing scope only after technical and safety conditions pass",
+  "readiness_seconds": 300,
+  "resource_bounds": {
+    "cpu_cores": 1.8,
+    "disk_reserve_each_bytes": 5368709120,
+    "http_inflight_bytes": 134217728,
+    "native_inflight_bytes": 536870912,
+    "pons_current_protection_seconds": 5,
+    "pons_survivor_protection_seconds": 3,
+    "rss_bytes": 6442450944
+  },
+  "routine_per_run_owner_approval": false,
+  "schema": 1,
+  "shutdown_reserve_seconds": 65,
+  "status": "TECHNICAL_PROVIDER_CONTRACT_OPEN_NOT_READY_FOR_UNCHANGED_RETRY",
+  "tested_successor": "6b0b10edf729b4c1c13dd3b7a56916d4d6797bc4",
+  "unchanged_resource_protection_contract": "https://github.com/levonmendall/The-Meme-Machine/blob/a32f49d2061e577644ef2d28f75fefd4a48ebe87/operational/pump-first-release/CONSOLIDATED_STARTUP_NEXT_OBSERVATION_SPEC_20261014.json",
+  "validation": "107 affected startup/lifecycle/diagnostic PASS; exact economicguardPASS;13 diagnostic/SQLboundaryPASS. Not fullreleasePASS. Complete FAST/applicable release gates before normal acceptance promotion.",
+  "work_stop_seconds": 1800
+}

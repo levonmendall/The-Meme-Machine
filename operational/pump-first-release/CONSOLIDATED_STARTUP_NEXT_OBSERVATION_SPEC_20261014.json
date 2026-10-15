@@ -1,4 +1,5 @@
 {
+  "active_successor_specification": "STANDING_OPERATIONAL_RESOLUTION_NEXT_RUN_20261015.json",
   "actors": [
     "Existing supervisor in OBSERVATION mode, exact epoch/capital authority and durable reporting/admission accounting.",
     "Single canonical Solana evidence owner; existing native decoder/preparation pool, join/control paths, historian and one durable CandidateHistory delivery batch.",
@@ -57,7 +58,7 @@
     "umask": "0022 for root clock metadata via real atomic_json; all output remains inside service-owned0700 run directory underroot:meme-machine0710parent. ServiceUMask0077 unchanged; private controllerlog precreated0600."
   },
   "currently_deployed_revision": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
-  "dispatch_status": "NOT_DISPATCH_READY: old ba254 run identities retained as historical reference; repin exact focused-validated successor and fresh configuration/output before any future PAPER invocation.",
+  "dispatch_status": "SUPERSEDED_REFERENCE_ONLY: executed ba254 identities preserved at immutablea32; next active planning record is STANDING_OPERATIONAL_RESOLUTION_NEXT_RUN_20261015.json. No stale unit/output/source invocation.",
   "engineering_branch": "repair/consolidated-startup-followup-20261014",
   "exact_executable": "ba25499b26103ec5d14f1ce765c8e8f180695f33",
   "executable_controller": "engineering.diagnostics.current_combined_observation_20261014; existing SingleAttemptSupervisor, access guard and one-attempt Window unchanged",

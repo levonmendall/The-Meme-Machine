@@ -1,4 +1,37 @@
-# Current checkpoint — native unary capability decision, 2026-10-15
+# Current checkpoint — standing authority and completed replay capability, 2026-10-15
+
+Owner [issue134](https://github.com/levonmendall/The-Meme-Machine/issues/134) is
+effective until revoked. Global three-start limits,24-hour expiry and routine
+per-run approvals in historical sections below are superseded. Continue justified
+repairs and guarded sequential runtime work under standing scope, retaining every
+individual run's original safety/recovery bounds. Do not ask for routine approval.
+
+Read [NATIVE_REPLAY_CAPABILITY_RESULT_20261015.md](NATIVE_REPLAY_CAPABILITY_RESULT_20261015.md)
+first. Exact diagnostic5e4728ae completed in3.380seconds: native/HTTP finalized tips
+457055103, unchanged cursor457054847, both required FINALIZED forms returned64
+messages. No semantic rejection; conditional CONFIRMED test was not run. Both
+streams began31slots before the cursor. Truncated samples do not establish
+post-cursor coverage or the cause of the original replay-position rejection.
+The remaining boundary is the provider's exact cursor/skip-slot/backend contract,
+not runtime permission. The exact sanitized support question is prepared; no
+unchanged native experiment or arbitrary offset/architecture change is justified.
+
+Offline successor `6b0b10edf729b4c1c13dd3b7a56916d4d6797bc4` preserves0000a4f8
+and adds bounded main-thread cancellation attribution through existing health and
+actual controller serialization.107affectedstartup/lifecycle/diagnostictestsPASS;
+economic/sourceguard1PASS; diagnostic/SQLboundary13PASS. No new completeFAST.
+The actual prior Pons -9 remains unattributed/FAILED, never relabelled graceful.
+
+Fresh current-state applicability:15VERIFIED checks,132boundedqueries; $1,000cash,
+rawhead8990, zero obligations, historical$500 and named pending work/ACKs preserved.
+Owners/leases inactive, valid recovery reference remains applicable. This permits
+existing guarded recovery in checked scope, not a retroactive/future drain PASS.
+PAPER remains stopped/disabled/Restart=no/fundingclosed; installed66f85d61 unchanged.
+No service start or acceptance minute occurred. Future planning record:
+[STANDING_OPERATIONAL_RESOLUTION_NEXT_RUN_20261015.json](STANDING_OPERATIONAL_RESOLUTION_NEXT_RUN_20261015.json).
+Its actual technical/safety conditions must pass; no global count/expiry gate exists.
+
+# Previous checkpoint — native unary capability decision, 2026-10-15
 
 Read [NATIVE_REPLAY_CONTRACT_DECISION_20261015.md](NATIVE_REPLAY_CONTRACT_DECISION_20261015.md)
 first. Authorized exact two unary calls completed at01:04:51UTC on diagnostic
