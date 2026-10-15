@@ -1,4 +1,31 @@
-# Current checkpoint — actionable retirement owner hold
+# Current checkpoint — retirement exercised; Pump cancellation still failed
+
+Read [STANDING_RETIREMENT_RESULT_20261015.md](STANDING_RETIREMENT_RESULT_20261015.md).
+Exact bdc19709 ran once under standing issue134. Original readiness FAIL;
+915.985 seconds, acceptance zero. Preserve the immutable controller result, but
+the independent outcome is **RECOVERY_REQUIRED**: Pump's TERM wait exceeded
+15 seconds and SIGKILL produced exit -9. Pons stopped normally. Controller
+process drainage and financial continuity are not native drainage.
+
+The indexed archival planner/apply was exercised. Its completed owner callbacks
+peaked at .603 seconds; the previous 53.806-second hold did not recur. Whole-path
+capacity still failed: after native reconciliation, CONTROL 4.188 versus stored
+and published 1.822 slot units/second; pre-persistence gap 932 to 2,033. This is
+an uncontrolled current workload, not a historical causal speedup comparison.
+The captured Pump cancellation stack is LocalPumpTape._creation's rich-body
+fetchall; Pons also spends report-only work in full provider telemetry. Supported
+offline corrections and accurate current-run drain reporting are being validated.
+
+Bounded post-review verified $1,000 cash/head9660, zero monetary obligations,
+historical $500, all four v1 bindings, exact ACK/pending cohorts and inactive
+ownership. These checks do not cure the killed worker or prove future drainage.
+Installed clean66f85d61 and two small overlays restored compatibly; no database
+rewind. PAPER inactive/disabled/Restart=no/fundingclosed. Before another start,
+validate cancellation and fresh current-state resumability under standing scope.
+Native replay semantics, original BUSY, Pons READONLY, managed held protection and
+backup/protection remain independent open issues. No full release PASS.
+
+# Previous checkpoint — actionable retirement owner hold
 
 Read [STANDING_RETIREMENT_FAILURE_20261015.md](STANDING_RETIREMENT_FAILURE_20261015.md).
 Exact5c721092 ran once under standing issue134;488.107seconds, readinessFAIL,
