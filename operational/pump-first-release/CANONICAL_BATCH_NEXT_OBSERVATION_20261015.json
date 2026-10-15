@@ -20,6 +20,14 @@
     "total_bytes": 33554432
   },
   "diagnostic_startup_maximum_seconds": 900,
+  "dispatch_preflight": {
+    "at": "2026-10-15T05:58:00.999435+00:00",
+    "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_BULK_DISPATCH_PREFLIGHT_20261015.json",
+    "queries": 459,
+    "query_elapsed_seconds": 0.037856,
+    "sha256": "0eaa61c964d7dea44099a70f61ad8bb6a4d833bc0a90a3dbd181e358231e040c",
+    "verdict": "CURRENT_REQUIRED_PREDISPATCH_FACTS_VERIFIED_O8_BASELINE_HISTORICAL_FAILURES_PRESERVED"
+  },
   "existing_provider_profiles": {
     "pons_observation_route": "canonical_primary existing bound app only",
     "robinhood_rps": 10,
@@ -47,6 +55,15 @@
   "funding": "CLOSED_DURING_DIAGNOSIS",
   "global_attempt_limit": null,
   "independent_justification": "O8 attributed economic_store76.300wall/21.147CPU/33.036runnable seconds. Authentic3023event fresh-store comparison preserves exact records and reduces SQL APIcalls36404to896/scoped plainCPU.555194to.339636s. Corrected isolated Pons accounting comparisonCPU.450227to.270086s with unchanged accounting; earlier mixed timer preserved. This source changes the demonstrated repeated operation, not another unchanged diagnostic.",
+  "installed_source_access": {
+    "correction": "Thirty exact required source Git loose-object directories were private from earlier work; enumerated71reachable new objects, corrected directory traversal only, all source bytes unchanged. Actual serviceUID namespace/source/output guard passed before any real clock/start. No application permission change.",
+    "disposition": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_BULK_PREPARATION_20261015T055428Z/installed.json",
+    "disposition_sha256": "83faac25d05f5739cb627546e0b181df123285582dd037c4c21208ba8eca02ed",
+    "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_BULK_PREPARATION_20261015T055428Z/installed-access-preflight.json",
+    "sha256": "5c38f339d496bc28bdfe2b97b0c02fde8a5b5a645c86ea75cdf40e63e51129f1",
+    "source": "f72a17409cc52c0c649c3fd8d1d95ad30e68e45f",
+    "verified": true
+  },
   "measurement_limits": [
     "Livewindowsarenotmatchedmarketreplay; differencesarecurrentoperatingcomparisons,nocontrolledcausalspeedupclaim",
     "Ownerouterelapsedincludesfuturecompletioncallbacks; servicecallbacktimingexcludesunwinding; do not sumoverlappingmetrics",
