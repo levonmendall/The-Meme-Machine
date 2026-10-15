@@ -13,6 +13,9 @@ import os
 import threading
 import time
 from collections import Counter,deque
+from contextlib import ExitStack
+from contextvars import ContextVar
+from functools import wraps
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -74,6 +77,85 @@ FILL_PERSISTENCE_CONTEXT=None
 ACCOUNTING=None
 PIPELINE=None
 CANDIDATE_HISTORY=None
+_STARTUP_RESOURCES=ContextVar('pump_startup_resources',default=None)
+_STARTUP_OWNERSHIP={
+    # Preserve the normal native cleanup order, including when an earlier
+    # close or report operation fails before later owners are reached.
+    'pump.survivor_worker_open':('close',None),
+    'pump.sessions_open':('finish',None),
+    'pump.evidence_broker_open':('close',None),
+    'pump.runtime_evidence_open':('close',None),
+    'pump.candidate_history_open':('close','CANDIDATE_HISTORY'),
+    'pump.accounting_restore':('close','ACCOUNTING'),
+    'pump.pipeline_open':('close','PIPELINE')}
+
+
+def _close_startup_resources(resources):
+    first=None
+    for identity in _STARTUP_OWNERSHIP:
+        owned=resources.get(identity)
+        if owned is None:continue
+        try:owned[1]()
+        except BaseException as error:
+            if first is None:first=(error,error.__traceback__)
+    if first is not None:raise first[0].with_traceback(first[1])
+
+
+def _startup_lifecycle(call):
+    """One owner from acquisition through normal or failed native cleanup."""
+    @wraps(call)
+    def owned(*args,**kwargs):
+        resources={};cleanup=ExitStack();cleanup.callback(_close_startup_resources,resources)
+        token=_STARTUP_RESOURCES.set(resources)
+        try:
+            try:result=call(*args,**kwargs)
+            except BaseException:
+                from meme_machine.runtime.sqlite_failure import preserving_cleanup
+                with preserving_cleanup():cleanup.close()
+                raise
+            else:
+                cleanup.close()
+                return result
+        finally:_STARTUP_RESOURCES.reset(token)
+    return owned
+
+
+def _own_startup_resource(identity,value):
+    ownership=_STARTUP_OWNERSHIP.get(identity)
+    if ownership is None or value is None:return value
+    resources=_STARTUP_RESOURCES.get()
+    if resources is not None:
+        method,global_name=ownership
+        attempted=False;result=None;failure=None
+        def close():
+            nonlocal attempted,result,failure
+            if attempted:
+                if failure is not None:raise failure[0].with_traceback(failure[1])
+                return result
+            attempted=True
+            from meme_machine.runtime.status import operation
+            try:
+                with operation('pump.startup_cleanup.'+identity.split('.',1)[1]):
+                    result=getattr(value,method)()
+            except BaseException as error:
+                failure=(error,error.__traceback__)
+                raise
+            finally:
+                if global_name and globals()[global_name] is value:globals()[global_name]=None
+                if identity=='pump.runtime_evidence_open':
+                    context=globals()['FILL_PERSISTENCE_CONTEXT']
+                    if isinstance(context,dict) and context.get('plane') is value:
+                        globals()['FILL_PERSISTENCE_CONTEXT']=None
+            return result
+        resources[identity]=(value,close)
+    return value
+
+
+def _close_startup_resource(identity,value):
+    resources=_STARTUP_RESOURCES.get()
+    owned=None if resources is None else resources.get(identity)
+    if owned is not None and owned[0] is value:return owned[1]()
+    return getattr(value,_STARTUP_OWNERSHIP[identity][0])()
 
 def _startup_work(identity,call,*args,**kwargs):
     from meme_machine.runtime.status import operation
@@ -81,8 +163,9 @@ def _startup_work(identity,call,*args,**kwargs):
         if identity=='pump.accounting_restore':
             from meme_machine.shared_capital.runtime import native_startup_replay
             from meme_machine.runtime.stop import requested
-            with native_startup_replay(requested.is_set):return call(*args,**kwargs)
-        return call(*args,**kwargs)
+            with native_startup_replay(requested.is_set):value=call(*args,**kwargs)
+        else:value=call(*args,**kwargs)
+        return _own_startup_resource(identity,value)
 
 def _progress(candidate,stage,reason=None,**details):
     if PIPELINE is not None:
@@ -1336,6 +1419,7 @@ def restore_runtime(book,plane,confirmations,*,bind_allocation=True):
     return created,postgrad,pending,active,qualifiers
 
 
+@_startup_lifecycle
 def main(*,campaign=False,discovery_seconds=None):
     global ACCOUNTING,PIPELINE,FILL_PERSISTENCE_CONTEXT,CANDIDATE_HISTORY
     from meme_machine.lanes.pump.paper_accounting import PaperBook
@@ -1431,7 +1515,8 @@ def main(*,campaign=False,discovery_seconds=None):
         from meme_machine.runtime.survivor_history import Worker
         from meme_machine.lanes.pump.pumpswap_survivor_runtime import Runtime
         survivor=_startup_work('pump.survivor_worker_open',Worker,
-            lambda:Runtime(REPORT.parent/'pump-survivor',INITIAL_LAMPORTS,run_id,confirmations))
+            lambda:_startup_work('pump.survivor_runtime_restore',Runtime,
+                REPORT.parent/'pump-survivor',INITIAL_LAMPORTS,run_id,confirmations))
         report['active_regimes']=[STRATEGY_ID,'pumpswap-survivor-momentum-v1']
     cursor=0;full_attempts=0
     attempt_budget=RollingAttemptBudget()
@@ -1873,50 +1958,52 @@ def main(*,campaign=False,discovery_seconds=None):
                 _save(report);last_save=now
             _stop_sleep(1)
     finally:
-        if survivor is not None:report['survivor']=survivor.close()
-        sessions.finish()
-        report["sessions"]=sessions.history
-        report["pump_held_rpc"]=dict(
-            mode=held_rpc_mode(),
-            verified_pool_probe_reuses=sessions.postgrad.held_pumpswap_probe_reuses,
-            finalized_slot_time_reuses=sessions.postgrad.held_finalized_time_reuses,
-            pump_finalized_time_reuses=sessions.pump.local_finalized_time_reuses,
-            physical_http_requests=sessions.rpc.http_requests)
-        report["holder_scan_shadow"]=sessions.holder_probe_status()
-        report["stream"]=tape.status(int(time.time()))
-        report["pumpswap_stream"]=pumpswap_stream.status()
-        report["evidence_broker"]=broker.telemetry()
-        report["ended"]=int(time.time())
-        report["pending_entries"]=[dict(mint=k[0],mode=k[1],snapshot=v["lifecycle"].snapshot())
-                                    for k,v in pending.items()]
-        report["open_positions"]=[dict(mint=k[0],mode=k[1],snapshot=v["lifecycle"].snapshot())
-                                   for k,v in active.items()]
-        report["full_evidence_attempts"]=full_attempts
-        report["created_mints_observed"]=len(created)
-        report["postgrad_candidates"]=len(postgrad)
-        report["confirmation_evidence"]=confirmations.status()
-        report["postgrad_history_status"]={
-            mint:state["history"].status(int(time.time()))
-            for mint,state in postgrad.items() if state.get("history") is not None
-        }
-        report["pending_entries"]=[
-            dict(mint=k[0],mode=k[1],reserved_at=v["reserved_at"],
-                 due=v["due"],snapshot=v["lifecycle"].snapshot())
-            for k,v in pending.items()]
-        report["open_positions"]=[
-            dict(mint=k[0],mode=k[1],opened=v["opened"],
-                 marks=dict(v["marks"]),snapshot=v["lifecycle"].snapshot())
-            for k,v in active.items()]
-        report["threshold_changes_made"]=False
-        if CANDIDATE_HISTORY is not None:
-            report["candidate_history"]=CANDIDATE_HISTORY.telemetry()
-        _save(report)
-        broker.close();plane.close()
-        FILL_PERSISTENCE_CONTEXT=None
-        if CANDIDATE_HISTORY is not None:
-            CANDIDATE_HISTORY.close();CANDIDATE_HISTORY=None
-        ACCOUNTING.close();ACCOUNTING=None
-        PIPELINE.close();PIPELINE=None
+        from meme_machine.runtime.sqlite_failure import preserving_cleanup
+        with preserving_cleanup():
+            if survivor is not None:report['survivor']=_close_startup_resource('pump.survivor_worker_open',survivor)
+            _close_startup_resource('pump.sessions_open',sessions)
+            report["sessions"]=sessions.history
+            report["pump_held_rpc"]=dict(
+                mode=held_rpc_mode(),
+                verified_pool_probe_reuses=sessions.postgrad.held_pumpswap_probe_reuses,
+                finalized_slot_time_reuses=sessions.postgrad.held_finalized_time_reuses,
+                pump_finalized_time_reuses=sessions.pump.local_finalized_time_reuses,
+                physical_http_requests=sessions.rpc.http_requests)
+            report["holder_scan_shadow"]=sessions.holder_probe_status()
+            report["stream"]=tape.status(int(time.time()))
+            report["pumpswap_stream"]=pumpswap_stream.status()
+            report["evidence_broker"]=broker.telemetry()
+            report["ended"]=int(time.time())
+            report["pending_entries"]=[dict(mint=k[0],mode=k[1],snapshot=v["lifecycle"].snapshot())
+                                        for k,v in pending.items()]
+            report["open_positions"]=[dict(mint=k[0],mode=k[1],snapshot=v["lifecycle"].snapshot())
+                                       for k,v in active.items()]
+            report["full_evidence_attempts"]=full_attempts
+            report["created_mints_observed"]=len(created)
+            report["postgrad_candidates"]=len(postgrad)
+            report["confirmation_evidence"]=confirmations.status()
+            report["postgrad_history_status"]={
+                mint:state["history"].status(int(time.time()))
+                for mint,state in postgrad.items() if state.get("history") is not None
+            }
+            report["pending_entries"]=[
+                dict(mint=k[0],mode=k[1],reserved_at=v["reserved_at"],
+                     due=v["due"],snapshot=v["lifecycle"].snapshot())
+                for k,v in pending.items()]
+            report["open_positions"]=[
+                dict(mint=k[0],mode=k[1],opened=v["opened"],
+                     marks=dict(v["marks"]),snapshot=v["lifecycle"].snapshot())
+                for k,v in active.items()]
+            report["threshold_changes_made"]=False
+            if CANDIDATE_HISTORY is not None:
+                report["candidate_history"]=CANDIDATE_HISTORY.telemetry()
+            _save(report)
+            _close_startup_resource('pump.evidence_broker_open',broker);_close_startup_resource('pump.runtime_evidence_open',plane)
+            FILL_PERSISTENCE_CONTEXT=None
+            if CANDIDATE_HISTORY is not None:
+                _close_startup_resource('pump.candidate_history_open',CANDIDATE_HISTORY);CANDIDATE_HISTORY=None
+            _close_startup_resource('pump.accounting_restore',ACCOUNTING);ACCOUNTING=None
+            _close_startup_resource('pump.pipeline_open',PIPELINE);PIPELINE=None
     print(json.dumps(report,sort_keys=True))
     if report.get('infrastructure_failure'):raise Unavailable(report['infrastructure_failure'])
 

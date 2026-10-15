@@ -12,7 +12,15 @@ This skill standardizes investigations; it does not grant deployment, provider-w
 1. Read the latest owned branch/handoff and retained first-error, native-drain, portfolio, provider, and CI receipts. Confirm exact source, workload, identity, and freshness; do not reuse obsolete “ready” claims.
 2. Separate **monetary reconciliation**, **native recovery**, **graceful drainage**, **readiness**, **sustained throughput**, and **held protection**. One PASS never implies another.
 3. Build one causal failure chain for related problems. Mark each finding **observed**, **offline reproduced**, **hypothesis**, or **live evidence required**. Never fill missing counters with zero.
-4. Select the smallest evidence-supported source correction. Keep existing strategy economics (active opportunity-access v1, nine changes, volume-quality), deadlines, SQLite ownership, financial state and provider admission unchanged unless the owner explicitly approves a change.
+4. Classify the demonstrated cause as an isolated implementation defect, a shared subsystem contract defect, or a systemic architectural limitation. Select a complete evidence-supported correction with the least justified complexity, rather than automatically preferring a local patch. Keep existing strategy economics (active opportunity-access v1, nine changes, volume-quality), deadlines, financial authority/state and provider safeguards unchanged unless the owner explicitly approves a change.
+
+## Correct the shared cause when demonstrated
+
+Escalate to one bounded review of the affected subsystem when failures share an invariant/ownership/recovery path, two corrections fail to resolve the mechanism, fixes repeatedly cause connected failures, measured capacity remains inadequate, workarounds accumulate, or mandatory deadlines remain unattainable. Do not reopen unrelated completed investigations or infer a common cause from exceptions alone.
+
+Compare retaining the design with a targeted correction, refactoring the affected subsystem, and replacing its problematic mechanism. Evaluate causal evidence, end-to-end throughput/latency, CPU/storage/provider demand, recovery, persistent-state compatibility, opportunity/protection preservation, complexity, implementation/verification time and maintenance. Develop a justified subsystem solution offline without duplicating pipelines or authoritative writers. Material changes require affected integration and appropriate broader validation before live deployment; financial authority, economics, protective safeguards or incompatible state-contract changes require explicit design approval before deployment.
+
+Verify the full relevant outcome, not just absence of an exception: processing/commit/publication and backlog for throughput; restoration, pending-work preservation, cancellation and native drain for recovery; complete quote/USD deadlines for Pons; consistency and uninterrupted protection for maintenance. Synthetic proof remains synthetic. If the causal discriminator is missing, name it and stop that branch instead of adding another speculative patch. Never retry an unverified native shutdown under a campaign whose safety gate prohibits it.
 
 ## Evidence and testing tiers
 

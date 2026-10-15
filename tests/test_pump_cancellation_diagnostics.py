@@ -9,6 +9,7 @@ import sqlite3
 import subprocess
 import tempfile
 import threading
+import time
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -296,6 +297,77 @@ class PumpCancellationDiagnostics(unittest.TestCase):
         self.assertFalse(heartbeat.is_alive());self.assertFalse(terminal.is_alive())
         self.assertEqual([r['phase'] for r in published],['RECONCILING','STOPPED'])
         self.assertIs(published[-1]['reconciled'],False)
+
+    def test_native_heartbeat_continues_changed_operation_after_TERM_until_terminal(self):
+        captured=[];first=threading.Event();changed=threading.Event();errors=[]
+        original_health=lane.health
+        def record(root,name,phase,**facts):
+            original_health(root,name,phase,**facts)
+            captured.append((time.monotonic(),dict(phase=phase,**facts)))
+            operation=facts.get('native_operation',{}).get('operation')
+            if operation=='pump.accounting_restore':first.set()
+            if operation=='pump.observed_candidate_events':changed.set()
+        status.update('RECONCILING',reconciled=False)
+        original_progress=status.snapshot()['progress_at']
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);(root/'pump').mkdir()
+            publish=lane.NativeHealthPublisher(root,'pump')
+            def heartbeat():
+                try:publish.heartbeat(stop.requested,status)
+                except BaseException as error:errors.append(error)
+            thread=threading.Thread(target=heartbeat)
+            with patch.object(lane,'health',side_effect=record):
+                try:
+                    with status.operation('pump.accounting_restore'):
+                        thread.start()
+                        status.cancellation_signal(signal.SIGTERM);stop.requested.set()
+                        self.assertTrue(first.wait(1),'first_TERM_snapshot_missing')
+                    with status.operation('pump.observed_candidate_events'):
+                        self.assertTrue(changed.wait(4),'post_TERM_operation_snapshot_missing')
+                        row=json.loads((root/'pump'/'health.json').read_text())
+                        self.assertEqual(row['native_operation']['operation'],'pump.observed_candidate_events')
+                        self.assertEqual(row['cancellation_signal']['signal'],signal.SIGTERM)
+                        self.assertIs(row['reconciled'],False)
+                        self.assertEqual(row['progress_at'],original_progress)
+                        publish('STOPPED',reconciled=False)
+                    thread.join(1)
+                    terminal=json.loads((root/'pump'/'health.json').read_text())
+                    self.assertEqual(terminal['phase'],'STOPPED')
+                    self.assertIs(terminal['reconciled'],False)
+                    publish('RECONCILING',reconciled=False)
+                    self.assertEqual(json.loads((root/'pump'/'health.json').read_text()),terminal)
+                finally:
+                    publish.terminal.set();thread.join(1)
+        self.assertFalse(thread.is_alive());self.assertEqual(errors,[])
+        samples=[(at,row) for at,row in captured if row['phase']!='STOPPED']
+        self.assertEqual(len(samples),2)
+        self.assertGreaterEqual(samples[1][0]-samples[0][0],1.9)
+        self.assertTrue(all(row['progress_at']==original_progress for _,row in samples))
+
+    def test_native_heartbeat_after_TERM_waits_on_terminal_at_original_cadence(self):
+        waits=[];published=[]
+        class Terminal:
+            value=False
+            def is_set(self):return self.value
+            def set(self):self.value=True
+            def wait(self,seconds):
+                waits.append(('terminal',seconds))
+                return self.value
+        requested=SimpleNamespace(wait=lambda seconds:waits.append(('requested',seconds)) or True)
+        publish=lane.NativeHealthPublisher('/disposable','pump');publish.terminal=Terminal()
+        snapshots=iter([
+            dict(phase='RECONCILING',reconciled=False,progress_at=7,
+                native_operation=dict(operation='pump.accounting_restore')),
+            dict(phase='RECONCILING',reconciled=False,progress_at=7,
+                native_operation=dict(operation='pump.observed_candidate_events'))])
+        def record(root,name,phase,**facts):
+            published.append(dict(phase=phase,**facts))
+            if len(published)==2:publish.terminal.set()
+        with patch.object(lane,'health',side_effect=record):
+            publish.heartbeat(requested,SimpleNamespace(snapshot=lambda:next(snapshots)))
+        self.assertEqual(len(published),2)
+        self.assertEqual(waits,[('requested',2),('terminal',2)])
+        self.assertTrue(all(row['reconciled'] is False and row['progress_at']==7 for row in published))
 
     def test_health_write_failure_preserves_original_startup_exception(self):
         error=RuntimeError('original-startup-error-with-private-context')

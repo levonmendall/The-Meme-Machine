@@ -42,7 +42,12 @@ NATIVE_OPERATIONS = frozenset('pump.' + name for name in (
     'candidate_history_open', 'confirmation_restore', 'accounting_genesis_read', 'accounting_restore',
     'terminal_recovery', 'pipeline_open', 'initial_report', 'runtime_evidence_open', 'evidence_broker_open',
     'sessions_open', 'survivor_worker_open', 'survivor_recovery_submit', 'survivor_recovery_wait',
-    'current_runtime_restore', 'observed_candidates_restore', 'observed_candidate_events'))
+    'survivor_runtime_restore',
+    'current_runtime_restore', 'observed_candidates_restore', 'observed_candidate_events',
+    'startup_cleanup.candidate_history_open', 'startup_cleanup.accounting_restore',
+    'startup_cleanup.pipeline_open', 'startup_cleanup.runtime_evidence_open',
+    'startup_cleanup.evidence_broker_open', 'startup_cleanup.sessions_open',
+    'startup_cleanup.survivor_worker_open'))
 
 
 def native_lifecycle(lanes):

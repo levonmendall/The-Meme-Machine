@@ -236,6 +236,96 @@ COHORT_AUTHORITY_DELTAS={
 }
 
 
+# Startup resource ownership and constructor-only cancellation are explicitly
+# reviewed infrastructure changes. Reverse their exact additions to c8 before
+# retaining every previous strategy/source assertion. In particular, no part of
+# main's economic loop or Survivor's normal step is exempted.
+NATIVE_STARTUP_REFERENCE='c8beb2d1317084779f97214b6015b7c345242085'
+NATIVE_STARTUP_DELTAS={
+    'meme_machine/lanes/pump/runner.py': (
+        'f94dc8512ae8e7e0446040db08e4736aad9b32fdb1bd6e65d5d1d7670ec0b884',
+        'ca83600f6a54806b52c4f6625d1b30d482e922e82db17d086e1ca055485c6a41'),
+    'meme_machine/runtime/survivor_history.py': (
+        '69ccc56e918403a2d7939d71c76f84beaa34388f5975be9f5904fdcdd30e7b03',
+        '22ab2268bb4b23997314889c7e6936706a7a47a1e3301341e699acc51989ce40'),
+}
+
+
+def native_startup_predecessor(test,relative,current):
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    reviewed=NATIVE_STARTUP_DELTAS.get(relative)
+    if reviewed is None:return current
+    prior=subprocess.check_output(['git','show',NATIVE_STARTUP_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),reviewed[0],relative+':tested lifecycle predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),reviewed[1],relative+':exact lifecycle successor')
+    if relative=='meme_machine/lanes/pump/runner.py':
+        for line in (b'from contextlib import ExitStack\n',b'from contextvars import ContextVar\n',
+                     b'from functools import wraps\n',b'@_startup_lifecycle\n'):
+            test.assertEqual(current.count(line),1,relative+':one lifecycle addition')
+            current=current.replace(line,b'',1)
+        first=current.index(b"_STARTUP_RESOURCES=ContextVar('pump_startup_resources',default=None)")
+        last=current.index(b'def _startup_work(',first)
+        current=current[:first]+b'\n'+current[last:]
+        selected=next(n for n in ast.parse(current).body if isinstance(n,ast.FunctionDef) and n.name=='_startup_work')
+        original=next(n for n in ast.parse(prior).body if isinstance(n,ast.FunctionDef) and n.name=='_startup_work')
+        test.assertEqual(ast.dump(selected.args),ast.dump(original.args),relative+':unchanged startup interface')
+        lines=current.splitlines(keepends=True);old=prior.splitlines(keepends=True)
+        lines[selected.lineno-1:selected.end_lineno]=old[original.lineno-1:original.end_lineno]
+        current=b''.join(lines)
+        constructor=(b"            lambda:_startup_work('pump.survivor_runtime_restore',Runtime,\n"
+                     b"                REPORT.parent/'pump-survivor',INITIAL_LAMPORTS,run_id,confirmations))\n")
+        test.assertEqual(current.count(constructor),1,relative+':one owned factory attribution')
+        current=current.replace(constructor,
+            b"            lambda:Runtime(REPORT.parent/'pump-survivor',INITIAL_LAMPORTS,run_id,confirmations))\n",1)
+        main=next(n for n in ast.parse(current).body if isinstance(n,ast.FunctionDef) and n.name=='main')
+        loops=[n for n in main.body if isinstance(n,ast.Try)]
+        test.assertEqual(len(loops),1,relative+':one unchanged native loop')
+        final=loops[0].finalbody
+        test.assertEqual(len(final),2,relative+':only reviewed cleanup wrapper')
+        test.assertEqual(ast.dump(final[0]),ast.dump(ast.parse(
+            'from meme_machine.runtime.sqlite_failure import preserving_cleanup').body[0]))
+        test.assertIsInstance(final[1],ast.With)
+        test.assertEqual(ast.dump(final[1].items[0].context_expr),ast.dump(ast.parse(
+            'preserving_cleanup()',mode='eval').body))
+        test.assertEqual(len(final[1].items),1)
+        lines=current.splitlines(keepends=True)
+        body=lines[final[1].body[0].lineno-1:final[1].end_lineno]
+        test.assertTrue(all(not line.strip() or line.startswith(b'    ') for line in body))
+        lines[final[0].lineno-1:final[1].end_lineno]=[line[4:] if line.strip() else line for line in body]
+        current=b''.join(lines)
+        for identity,value,method in (
+            ('survivor_worker_open','survivor','close'),('sessions_open','sessions','finish'),
+            ('evidence_broker_open','broker','close'),('runtime_evidence_open','plane','close'),
+            ('candidate_history_open','CANDIDATE_HISTORY','close'),
+            ('accounting_restore','ACCOUNTING','close'),('pipeline_open','PIPELINE','close')):
+            owned=("_close_startup_resource('pump."+identity+"',"+value+")").encode()
+            test.assertEqual(current.count(owned),1,relative+':one owned normal cleanup '+identity)
+            current=current.replace(owned,(value+'.'+method+'()').encode(),1)
+    else:
+        addition=(b'        if self.service is None:\n'
+            b'            from meme_machine.shared_capital.runtime import native_startup_replay\n'
+            b'            from meme_machine.runtime.stop import requested\n'
+            b'            # The factory owns its SQLite objects on this executor. Only its\n'
+            b'            # initial read-only capital replay may observe startup cancellation;\n'
+            b'            # ordinary protection/settlement steps keep their existing behavior.\n'
+            b'            with native_startup_replay(requested.is_set):self.service=self.factory()\n')
+        test.assertEqual(current.count(addition),1,relative+':one constructor-only scope')
+        current=current.replace(addition,b'        if self.service is None:self.service=self.factory()\n',1)
+    test.assertEqual(current,prior,relative+':all other economic/source bytes unchanged')
+    return prior
+
+
+def reviewed_native_startup(test,relative,current):
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    reviewed=NATIVE_STARTUP_DELTAS.get(relative)
+    if reviewed and hashlib.sha256(current).hexdigest()==reviewed[1]:
+        return native_startup_predecessor(test,relative,current)
+    return current
+
+
 # Exact infrastructure deltas demonstrated by the 22:40:46 observation and
 # disposable crash/cancellation regressions. Reverse only these reviewed nodes
 # to the tested 1fe5 source before applying every existing economic/source guard.
@@ -257,6 +347,7 @@ def observation_followup_predecessor(test,relative,current):
     from copy import deepcopy
     import hashlib
     if isinstance(current,str):current=current.encode()
+    current=reviewed_native_startup(test,relative,current)
     reviewed=OBSERVATION_FOLLOWUP_DELTAS.get(relative)
     if reviewed is None:return current
     before,after,names=reviewed
@@ -338,6 +429,7 @@ def startup_cancel_predecessor(test,relative,current):
     from copy import deepcopy
     import hashlib
     if isinstance(current,str):current=current.encode()
+    current=reviewed_native_startup(test,relative,current)
     followup=OBSERVATION_FOLLOWUP_DELTAS.get(relative)
     if followup and hashlib.sha256(current).hexdigest()==followup[1]:
         current=observation_followup_predecessor(test,relative,current)
@@ -657,10 +749,25 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_native_startup_lifecycle_preserves_exact_prior_economics_and_rejects_other_changes(self):
+        import hashlib
+        for relative,(_,after) in NATIVE_STARTUP_DELTAS.items():
+            current=(ROOT/relative).read_bytes()
+            self.assertEqual(hashlib.sha256(current).hexdigest(),after)
+            prior=subprocess.check_output(['git','show',NATIVE_STARTUP_REFERENCE+':'+relative],cwd=ROOT)
+            self.assertEqual(native_startup_predecessor(self,relative,current),prior)
+            self.assertEqual(opportunity_predecessor(self,relative,current),
+                opportunity_predecessor(self,relative,prior))
+            for changed in (current+b'\n# unreviewed lifecycle change\n',b'',
+                            current.replace(b'close',b'unreviewed_close',1)):
+                with self.assertRaises(AssertionError):native_startup_predecessor(self,relative,changed)
+                with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_reviewed_observation_repairs_keep_exact_prior_economics_and_reject_other_changes(self):
         import hashlib
         for relative,(_,after,_) in OBSERVATION_FOLLOWUP_DELTAS.items():
             current=(ROOT/relative).read_bytes()
+            current=reviewed_native_startup(self,relative,current)
             self.assertEqual(hashlib.sha256(current).hexdigest(),after)
             prior=subprocess.check_output(['git','show',OBSERVATION_FOLLOWUP_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(observation_followup_predecessor(self,relative,current),prior)

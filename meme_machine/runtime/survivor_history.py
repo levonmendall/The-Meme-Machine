@@ -385,7 +385,13 @@ class Worker:
         self.closed=False;self.close_future=None;self.enrichment_enabled=enrichment_enabled
 
     def _step(self,admit):
-        if self.service is None:self.service=self.factory()
+        if self.service is None:
+            from meme_machine.shared_capital.runtime import native_startup_replay
+            from meme_machine.runtime.stop import requested
+            # The factory owns its SQLite objects on this executor. Only its
+            # initial read-only capital replay may observe startup cancellation;
+            # ordinary protection/settlement steps keep their existing behavior.
+            with native_startup_replay(requested.is_set):self.service=self.factory()
         from meme_machine.operational.position_continuation import position_only
         maintenance=position_only();admit=admit and not maintenance
         if maintenance:

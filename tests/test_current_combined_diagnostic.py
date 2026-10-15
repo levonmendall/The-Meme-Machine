@@ -692,6 +692,35 @@ class DiagnosticNativeRetentionTests(unittest.TestCase):
         self.assertEqual(retained['state'], 'ACTIVE')
         self.assertEqual(retained['native_thread_id'], 11)
 
+    def test_startup_cleanup_failures_survive_final_projection_and_serialization(self):
+        names=('candidate_history_open','accounting_restore','pipeline_open',
+               'runtime_evidence_open','evidence_broker_open','sessions_open','survivor_worker_open')
+        rows=[dict(operation='pump.startup_cleanup.'+name,state='ERROR',
+                   error_type='OSError',pid=10,native_thread_id=11,at=100,monotonic=200,
+                   arbitrary='private-cleanup-context') for name in names]
+        rows.append(dict(operation='pump.startup_cleanup.unreviewed',state='ERROR'))
+        lanes={'pump':dict(phase='STOPPED',reconciled=False,native_recent_operations=rows,
+            native_operation=dict(operation='pump.survivor_runtime_restore',state='CANCELLED',
+                                  pid=10,native_thread_id=12,at=100,monotonic=200))}
+        (self.root/'health.json').write_text(json.dumps(dict(pid=10,lanes=lanes)))
+        with patch.object(diagnostic.time,'monotonic',return_value=1800):
+            final=diagnostic.final_native_health(self.root,10,0)
+        output=self.root/'cleanup.jsonl'
+        diagnostic.append_sample(output,dict(native_lifecycle=final['native_lifecycle']))
+        retained=json.loads(output.read_text())['native_lifecycle']['pump']
+        self.assertIs(retained['reconciled'],False)
+        self.assertEqual(retained['phase'],'STOPPED')
+        self.assertEqual(retained['native_operation']['operation'],'pump.survivor_runtime_restore')
+        self.assertEqual(retained['native_operation']['native_thread_id'],12)
+        self.assertEqual(retained['native_operation']['state'],'CANCELLED')
+        for original,record in zip(rows[:7],retained['native_recent_operations'][:7]):
+            self.assertEqual(record['operation'],original['operation'])
+            self.assertEqual(record['state'],'ERROR')
+            self.assertEqual(record['error_type'],'OSError')
+            self.assertEqual(record['native_thread_id'],11)
+        self.assertEqual(retained['native_recent_operations'][7],diagnostic.UNAVAILABLE)
+        self.assertNotIn('private-cleanup-context',output.read_text())
+
 
 class DiagnosticDrainTests(unittest.TestCase):
     def test_failed_unit_is_recovery_required_even_with_no_children(self):

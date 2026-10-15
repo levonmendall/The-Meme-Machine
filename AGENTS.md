@@ -58,6 +58,15 @@ Do not alter strategy economics without an explicit owner instruction. Preserve
 historical branches and main. Deployment, genuine inception and market acceptance
 are separate authorized tasks. No GitHub workflow is a production scheduler.
 
+Choose corrections at the demonstrated failure's level: isolated implementation,
+shared subsystem, or systemic architecture. Recurring ownership/recovery failures,
+inadequate capacity after measured local improvements, or accumulating workarounds
+require a bounded review of the affected shared contract. Compare retaining,
+refactoring and replacing that mechanism; prefer the least justified complexity
+that resolves the full cause, not merely the smallest diff. Do not redesign on
+an unproven hypothesis. Financial authority, economics, safeguards and incompatible
+persistent-state changes still require their applicable explicit approval.
+
 For Pump/Pons startup, recovery, provider, SQLite, throughput or release tasks,
 use `.agents/skills/meme-machine-operational-resolution/SKILL.md`. Diagnose
 retained failures first, reproduce related code paths offline, and use a single

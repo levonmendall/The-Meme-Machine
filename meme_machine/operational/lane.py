@@ -59,14 +59,19 @@ class NativeHealthPublisher:
         finally:self.lock.release()
 
     def heartbeat(self,requested,status):
-        while True:
-            stopping=requested.wait(2)
+        stopping=False
+        while not self.terminal.is_set():
+            if stopping:
+                # A requested stop can still be draining accepted work. Keep
+                # the original cadence without spinning on the set signal.
+                if self.terminal.wait(2):return
+            else:stopping=requested.wait(2)
+            if self.terminal.is_set():return
             # TERM can precede the first periodic sample. Preserve the active
-            # executor/operation and original signal once before this thread
-            # exits; a terminal publisher prevents a late phase overwrite.
+            # executor/operation and original signal immediately, then retain
+            # changes until terminal publication fences further health writes.
             value=status.snapshot();phase=value.pop('phase')
             self(phase,**value)
-            if stopping:return
 
 
 def run_offline(root,lane,stop):

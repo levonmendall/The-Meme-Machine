@@ -57,13 +57,22 @@ class IntegratedStartupRehearsal(unittest.TestCase):
         self.addCleanup(lambda: [signal.signal(s, h) for s, h in self.signals.items()])
         self.health_threads_before = {thread for thread in threading.enumerate()
                                       if thread.name == 'health'}
-        # Runs before process-global status/event restoration. The production
-        # heartbeat remains unchanged; only this in-process fixture joins its
-        # newly constructed threads to prevent a late sample in the next test.
+        self.health_publishers=[]
+        publisher=lane.NativeHealthPublisher
+        def owned_publisher(*args,**kwargs):
+            value=publisher(*args,**kwargs)
+            self.health_publishers.append(value)
+            return value
+        publishers=patch.object(lane,'NativeHealthPublisher',side_effect=owned_publisher)
+        publishers.start();self.addCleanup(publishers.stop)
+        # Dispose only this fixture's publishers before restoring process-global
+        # status. TERM starts shutdown sampling; terminal completion ends it.
+        # Disposing a test publisher grants no reconciliation or readiness.
         self.addCleanup(self.join_fixture_health)
 
     def join_fixture_health(self):
         stop.requested.set()
+        for publisher in self.health_publishers:publisher.terminal.set()
         owned = [thread for thread in threading.enumerate()
                  if thread.name == 'health' and thread not in self.health_threads_before]
         for thread in owned:thread.join(2)
@@ -316,8 +325,8 @@ class IntegratedStartupRehearsal(unittest.TestCase):
         self.assertFalse(final.get('native_continuation', {}).get('survivor_handoff_ready', False))
 
     def test_actual_pump_startup_failure_preserves_operation_pending_and_unfinished_status(self):
-        # This deliberately stops before runner's loop-level finally. Its
-        # process-exit cleanup is not claimed to be a graceful native drain.
+        # Fail before the loop; the shared owner must clean acquired resources
+        # without erasing the original operation or granting native readiness.
         with ExitStack() as stack:
             runner, state, history = self.pump_setup(stack)
             before = state.writer.db.execute('SELECT id,hash FROM candidate_history_outbox '
@@ -329,15 +338,25 @@ class IntegratedStartupRehearsal(unittest.TestCase):
                 self.assertIs(caught.exception, error)
                 observed = status.snapshot()
                 self.assertIs(observed['reconciled'], False)
-                self.assertEqual(observed['native_recent_operations'][-1]['operation'],
-                                 'pump.runtime_evidence_open')
-                self.assertEqual(observed['native_recent_operations'][-1]['state'], 'ERROR')
+                failures=[row for row in observed['native_recent_operations']
+                          if row['operation']=='pump.runtime_evidence_open']
+                self.assertEqual(len(failures),1)
+                self.assertEqual(failures[0]['state'],'ERROR')
+                self.assertEqual(failures[0]['error_type'],'EvidenceUnavailable')
+                cleanup=[row for row in observed['native_recent_operations']
+                         if row['operation'].startswith('pump.startup_cleanup.')]
+                self.assertEqual([row['operation'] for row in cleanup],[
+                    'pump.startup_cleanup.candidate_history_open',
+                    'pump.startup_cleanup.accounting_restore',
+                    'pump.startup_cleanup.pipeline_open'])
+                self.assertTrue(all(row['state']=='COMPLETE' for row in cleanup))
+                for name in ('CANDIDATE_HISTORY','ACCOUNTING','PIPELINE'):
+                    self.assertIsNone(getattr(runner,name))
                 self.assertEqual(state.writer.db.execute('SELECT id,hash FROM candidate_history_outbox '
                                  'WHERE consumed IS NULL ORDER BY id').fetchall(), before)
             finally:
-                # Test-owned in-process resources only. A killed real worker's
-                # SQLite descriptors close on process exit; this test neither
-                # repairs production startup cleanup nor declares reconciliation.
+                # Test-owned fallback after the assertions if cleanup regresses;
+                # no production state or reconciliation claim is involved.
                 for name in ('CANDIDATE_HISTORY', 'ACCOUNTING', 'PIPELINE'):
                     resource = getattr(runner, name)
                     if resource is not None:resource.close()
