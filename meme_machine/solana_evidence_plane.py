@@ -721,6 +721,7 @@ class EvidenceWriter:
                 progress.interrupted=True;progress.yield_reason=yield_class
                 return archived
         source_yield_budget=[2]  # existing three separate 256-record transactions
+        continuity_unexamined=False
         from .runtime.operating_families import evidence_scope_sql
         with progress.phase('plan'):
             scopes=self.db.execute('SELECT scope,slot FROM cursors WHERE '+evidence_scope_sql('cursors.scope')+' ORDER BY scope').fetchall()
@@ -757,33 +758,56 @@ class EvidenceWriter:
                     candidates=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE '+where+' AND body IS NULL LIMIT ?',(*args,limit+1))]
                     ids=candidates[:limit]
                     # One extra key is a bounded lookahead, not a larger deletion.
-                    queries=[('coverage','id','scope=? AND hi<?',(scope,floor)),
-                             ('gaps','id','scope=? AND hi<? AND repaired IS NOT NULL',(scope,floor))]
-                    queries += [(name,'rowid','scope=? AND slot<?',(scope,floor)) for name in continuity_tables]
+                    from .solana_maintenance_state import (continuity_retirement_guards,
+                        continuity_retirement_page,continuity_retirement_advance)
+                    guards=continuity_retirement_guards(self,scope,continuity_tables)
+                    # The monotone marker remains unchanged. A replay dependency
+                    # below it still protects actual continuity/whole witnesses.
+                    tails=[args[0] for _,args in guards.values() if args]
+                    continuity_floor=min(floor,min(tails)) if tails else floor
+                    queries=[('coverage','id','scope=? AND hi<?',(scope,continuity_floor)),
+                             ('gaps','id','scope=? AND hi<? AND repaired IS NOT NULL',(scope,continuity_floor))]
+                    queries += [(name,'rowid','scope=? AND slot<?',(scope,floor))
+                        for name in continuity_tables if name not in guards]
                     if suffix is not None:
                         lo,hi=suffix
                         queries += [('coverage','id','scope=? AND lo>=? AND hi<?',(scope,lo,hi)),
                             ('gaps','id','scope=? AND lo>=? AND hi<? AND repaired IS NOT NULL',(scope,lo,hi))]
-                        queries += [(name,'rowid','scope=? AND slot>=? AND slot<?',(scope,lo,hi)) for name in continuity_tables]
+                        queries += [(name,'rowid','scope=? AND slot>=? AND slot<?',(scope,lo,hi))
+                            for name in continuity_tables if name not in guards]
                     plans=[]
                     for table,key,where,args in queries:
                         keys=[r[0] for r in self.db.execute(
                             'SELECT '+key+' FROM '+table+' WHERE '+where+' LIMIT ?',(*args,max_records+1))]
                         plans.append((table,key,where,args,keys))
-                    more_here=len(candidates)>limit or any(len(keys)>max_records for *_,keys in plans)
+                    page_updates=[];page_more=False
+                    for table,guard in guards.items():
+                        ranges=[('prefix',0,floor)]
+                        if suffix is not None:ranges.append(('suffix',max(floor,suffix[0]),suffix[1]))
+                        for kind,lo,hi in ranges:
+                            keys,update,more,unexamined=continuity_retirement_page(
+                                self,scope,table,kind,lo,hi,max_records,guard)
+                            page_updates.append(update);page_more|=more
+                            continuity_unexamined|=unexamined
+                            # These exact rowids already passed the same dependency
+                            # predicate used by observation on this sole owner.
+                            plans.append((table,'rowid',None,(),keys))
+                    more_here=page_more or len(candidates)>limit or any(len(keys)>max_records for *_,keys in plans)
                     floor_changed=old is None or floor!=int(old[0])
                     if not ids and not floor_changed and not any(keys for *_,keys in plans):
                         # No BEGIN/COMMIT and no fabricated "progress" for empty work.
                         progress.scope(scope,False)
+                        continuity_retirement_advance(self,page_updates)
                         self._retention_next_scope=next_scope
                         should_yield=getattr(self,'_retention_yield_requested',None)
                         if should_yield and should_yield()=='urgent':
                             progress.interrupted=True;progress.yield_reason='urgent'
                             raise EvidenceUnavailable('evidence_background_yield')
                         break
-                    resume_scope=[scope if more_here else next_scope]
+                    resume_scope=[scope if more_here or page_more else next_scope]
                     removed=[0]
                     def committed():
+                        continuity_retirement_advance(self,page_updates)
                         progress.commit(scope,len(ids),removed[0],int(floor_changed),more_here)
                 with progress.phase('transaction'), self._retention_transaction(
                         next_scope=lambda r=resume_scope:r[0],urgent_next_scope=next_scope,
@@ -799,9 +823,13 @@ class EvidenceWriter:
                         self.db.execute('INSERT OR REPLACE INTO meta VALUES(?,?)',('retention_floor:'+scope,str(floor)))
                     for table,key,where,args,keys in plans:
                         if keys:
-                            removed[0]+=self.db.execute(
-                                'DELETE FROM '+table+' WHERE '+key+' IN (SELECT '+key+
-                                ' FROM '+table+' WHERE '+where+' LIMIT ?)',(*args,max_records)).rowcount
+                            if where is None:
+                                removed[0]+=self.db.execute('DELETE FROM '+table+' WHERE rowid IN ('+
+                                    ','.join('?' for _ in keys)+')',keys).rowcount
+                            else:
+                                removed[0]+=self.db.execute(
+                                    'DELETE FROM '+table+' WHERE '+key+' IN (SELECT '+key+
+                                    ' FROM '+table+' WHERE '+where+' LIMIT ?)',(*args,max_records)).rowcount
                     if ids:
                         self._count('compacted_records',len(ids))
                         self._count('lifecycle.retired.'+lifecycle_scope(scope),len(ids))
@@ -809,7 +837,7 @@ class EvidenceWriter:
                         self._count('lifecycle.continuity.'+lifecycle_scope(scope),removed[0])
                     from .solana_maintenance_state import progress as maintenance_progress
                     maintenance_progress(self,scope,'retirement',len(ids)+removed[0]+int(floor_changed),len(ids))
-                if not more_here:break
+                if not more_here and not page_more:break
         if not housekeeping_first:
             with progress.phase('housekeeping'):
                 self._retention_housekeeping(max_records,progress)
@@ -818,7 +846,7 @@ class EvidenceWriter:
             self.db.execute('PRAGMA incremental_vacuum(256)')
         # Scope retirement after a prefix can orphan new operational rows.
         # They were not examined by that batch; do not claim an idle backlog.
-        progress.complete=not (housekeeping_first and progress.retired_records)
+        progress.complete=not (housekeeping_first and progress.retired_records or continuity_unexamined)
         return archived
 
     def _retention_housekeeping(self,max_records,progress):

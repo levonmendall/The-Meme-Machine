@@ -30,6 +30,109 @@ PROGRAM_SCOPES = ('program:meteora', 'program:pump', 'program:pumpswap')
 _RECENT_UNREAD=object()
 
 
+def continuity_retirement_guards(writer,scope,tables):
+    """Keep actual CONTROL dependencies, without pinning cold proof intervals.
+
+    Current program children anchor the unread live tail. An older pending
+    proof needs its exact lower receipt and the actual last receipt at/before
+    its upper bound, not every CONTROL row between those boundaries. These
+    predicates run on the sole owner with the existing bounded deletion slice;
+    no result is cached across commands or treated as evidence completeness.
+    """
+    if scope!='control:solana':return {}
+    db=writer.db
+    present={row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('candidate_blocks','candidate_pending_proofs','stream_receipts','prewarm_startup','prewarm_startup_feeds')")}
+    if 'stream_receipts' not in present:return {}
+    tail=None
+    if 'candidate_blocks' in present:
+        from .solana_rolling_history import program_scope
+        startup=db.execute('SELECT session,started FROM prewarm_startup WHERE id=1').fetchone() if 'prewarm_startup' in present else None
+        bounds=[]
+        for family in ('pump','pumpswap'):
+            child=db.execute('SELECT slot,seen FROM candidate_blocks WHERE scope=?',(program_scope(family),)).fetchone()
+            if child is not None and (startup is None or child[1]>=startup[1]):bounds.append(child[0])
+            elif startup is not None and 'prewarm_startup_feeds' in present:
+                feed=db.execute('SELECT lo FROM prewarm_startup_feeds WHERE session=? AND family=?',(startup[0],family)).fetchone()
+                if feed is not None:bounds.append(feed[0])
+        tail=min(bounds) if bounds else None
+    result={}
+    for table in tables:
+        if table not in ('stream_receipts','stream_deliveries','stream_order'):
+            raise EvidenceUnavailable('maintenance_continuity_table')
+        slot=table+'.slot';parts=[];args=()
+        if tail is not None:parts.append(slot+'<?');args=(tail,)
+        if 'candidate_pending_proofs' in present:
+            parts.append('NOT EXISTS(SELECT 1 FROM candidate_pending_proofs p WHERE p.lo='+slot+')')
+            parts.append('''NOT EXISTS(SELECT 1 FROM candidate_pending_proofs p
+                WHERE p.hi>='''+slot+''' AND p.hi<=COALESCE((SELECT n.slot-1 FROM stream_receipts n
+                WHERE n.scope='control:solana' AND n.slot>'''+slot+''' ORDER BY n.slot LIMIT 1),9223372036854775807))''')
+        if parts:result[table]=(' AND '+' AND '.join(parts),args)
+    return result
+
+
+def continuity_retirement_page(writer,scope,table,kind,lower,upper,limit,guard):
+    """Filter one indexed key page, never an unbounded protected population.
+
+    The volatile cursor is only a scheduling hint. Its fixed horizon lets old
+    protected pages wrap even while new CONTROL receipts continue to arrive.
+    Callers publish the returned hint only after a commit, or a fully examined
+    page with no mutations. A restart merely examines those retained keys again.
+    """
+    if table not in ('stream_receipts','stream_deliveries','stream_order') or kind not in ('prefix','suffix'):
+        raise EvidenceUnavailable('maintenance_continuity_page')
+    clause,guard_args=guard
+    # The only bound argument is the current child/recovery tail. Push it into
+    # the page's indexed range rather than examining protected live-tail rows.
+    if guard_args:upper=min(upper,guard_args[0])
+    key=(scope,table,kind)
+    if upper<=lower:return [],(key,None),False,False
+    signature=table!='stream_receipts'
+    columns='slot,signature' if signature else 'slot'
+    order=columns
+    width=2 if signature else 1
+    hints=getattr(writer,'_retention_continuity_pages',{})
+    after,horizon=hints.get(key,(None,None))
+    resumed=after is not None
+    if (after is not None and after[0]>=upper or
+            horizon is not None and horizon[0]<lower):
+        after=horizon=None
+    args=(scope,lower,upper)
+    base='scope=? AND slot>=? AND slot<?'
+    if horizon is None:
+        descending='slot DESC,signature DESC' if signature else 'slot DESC'
+        horizon=writer.db.execute('SELECT '+columns+' FROM '+table+' WHERE '+base+' ORDER BY '+descending+' LIMIT 1',args).fetchone()
+    if horizon is None:return [],(key,None),False,resumed
+    compare='('+columns+')' if signature else columns
+    markers='('+','.join('?' for _ in range(width))+')' if signature else '?'
+    where=base+' AND '+compare+'<='+markers
+    values=(*args,*horizon)
+    if after is not None:
+        where+=' AND '+compare+'>'+markers;values=(*values,*after)
+    rows=writer.db.execute('SELECT rowid,'+columns+' FROM '+table+' WHERE '+where+
+        ' ORDER BY '+order+' LIMIT ?',(*values,limit+1)).fetchall()
+    page=rows[:limit];more=len(rows)>limit
+    # One bounded validation statement, not one SQL round trip per receipt or
+    # signature. The IN set is already a fixed key page before filtering.
+    selected=[]
+    if page:
+        rowids=[row[0] for row in page]
+        selected=[row[0] for row in writer.db.execute('SELECT rowid FROM '+table+
+            ' WHERE rowid IN ('+','.join('?' for _ in rowids)+')'+clause,(*rowids,*guard_args))]
+    hint=(tuple(page[-1][1:]),tuple(horizon)) if more else None
+    # Earlier protected pages can become eligible between owner turns. Finishing
+    # a resumed horizon is not a new proof that its earlier pages are still idle.
+    return selected,(key,hint),more,resumed or more
+
+
+def continuity_retirement_advance(writer,updates):
+    if not updates:return
+    hints=dict(getattr(writer,'_retention_continuity_pages',{}))
+    for key,hint in updates:
+        if hint is None:hints.pop(key,None)
+        else:hints[key]=hint
+    writer._retention_continuity_pages=hints
+
+
 def retirement_suffix(writer,scope,top,before_time,*,recent_floor=_RECENT_UNREAD):
     """One expired disjoint range outside required gaps and whole witnesses.
 
@@ -61,6 +164,9 @@ def retirement_suffix(writer,scope,top,before_time,*,recent_floor=_RECENT_UNREAD
         recent_floor=db.execute('SELECT MIN(lo) FROM coverage INDEXED BY maintenance_recent_coverage WHERE scope=? AND available>=?',
             (scope,before_time)).fetchone()[0]
     continuity=[row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE name IN ('stream_receipts','stream_deliveries','stream_order')")]
+    guards=continuity_retirement_guards(writer,scope,continuity)
+    tails=[args[0] for _,args in guards.values() if args]
+    if tails:bound=min(bound,min(tails))
     def overlap_index(boundary):
         # Fresh receipt availability does not imply a small historical lo
         # prefix: a reconnect can freshly publish much older blocks. Probe a
@@ -79,9 +185,12 @@ def retirement_suffix(writer,scope,top,before_time,*,recent_floor=_RECENT_UNREAD
                     ('coverage','lo>=? AND lo<? AND hi<?'),
                     ('gaps','lo>=? AND lo<? AND hi<? AND repaired IS NOT NULL')]
         predicates += [(name,'slot>=? AND slot<?') for name in continuity]
-        return any(db.execute('SELECT 1 FROM '+table+' WHERE scope=? AND '+predicate+' LIMIT 1',
-                              (scope,start,end,end) if table in ('coverage','gaps') else
-                              (scope,start,end)).fetchone() for table,predicate in predicates)
+        for table,predicate in predicates:
+            guard,guard_args=guards.get(table,('',()))
+            args=(scope,start,end,end) if table in ('coverage','gaps') else (scope,start,end)
+            if db.execute('SELECT 1 FROM '+table+' WHERE scope=? AND '+predicate+guard+' LIMIT 1',
+                          (*args,*guard_args)).fetchone():return True
+        return False
     for index in range(len(merged)-1,-1,-1):
         start=merged[index][1]+1
         end=min(bound,merged[index+1][0] if index+1<len(merged) else top+1)
@@ -524,6 +633,10 @@ class DebtAgeAdapter:
                 if pins or gaps or account_floor is not None or recent is not None:
                     blocked_oldest = None
                 continuity = 0
+                guards=continuity_retirement_guards(writer,scope,
+                    [t for t in ('stream_receipts','stream_deliveries','stream_order') if t in tables])
+                tails=[args[0] for _,args in guards.values() if args]
+                continuity_floor=min(floor,min(tails)) if tails else floor
                 for table, field, predicate in [('coverage','hi',''), ('gaps','hi',' AND repaired IS NOT NULL'),
                         *[(t,'slot','') for t in ('stream_receipts','stream_deliveries','stream_order') if t in tables]]:
                     # Need a bounded work witness, not a full history count. A
@@ -535,8 +648,9 @@ class DebtAgeAdapter:
                     # and exhaust observation's unchanged VM safety budget.
                     interval=table in ('coverage','gaps')
                     prefix=' AND lo<?' if interval else ''
-                    args=(scope,floor,floor) if interval else (scope,floor)
-                    found = db.execute('SELECT 1 FROM '+table+' WHERE scope=? AND '+field+'<?'+prefix+predicate+' LIMIT 1', args).fetchone()
+                    args=(scope,continuity_floor,continuity_floor) if interval else (scope,continuity_floor)
+                    guard,guard_args=guards.get(table,('',()))
+                    found = db.execute('SELECT 1 FROM '+table+' WHERE scope=? AND '+field+'<?'+prefix+predicate+guard+' LIMIT 1', (*args,*guard_args)).fetchone()
                     continuity += int(found is not None)
                     if suffix is not None:
                         # Coverage/gap witnesses are retired only in their
@@ -544,8 +658,8 @@ class DebtAgeAdapter:
                         lower='lo' if table in ('coverage','gaps') else field
                         suffix_upper=' AND lo<?' if interval else ''
                         suffix_args=(scope,*suffix,suffix[1]) if interval else (scope,*suffix)
-                        found=db.execute('SELECT 1 FROM '+table+' WHERE scope=? AND '+lower+'>=? AND '+field+'<?'+suffix_upper+predicate+' LIMIT 1',
-                            suffix_args).fetchone()
+                        found=db.execute('SELECT 1 FROM '+table+' WHERE scope=? AND '+lower+'>=? AND '+field+'<?'+suffix_upper+predicate+guard+' LIMIT 1',
+                            (*suffix_args,*guard_args)).fetchone()
                         continuity+=int(found is not None)
                 source_at = self._source_frontier(scope, wall)
                 results.append(ScopeState(scope, hot_debt, hot_oldest,
