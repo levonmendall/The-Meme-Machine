@@ -43,6 +43,7 @@ class NativeHealthPublisher:
     def __init__(self,root,lane):
         self.root=root;self.lane=lane
         self.lock=threading.Lock();self.terminal=threading.Event()
+        self.cancellation_stack=None;self.cancellation_stack_attempted=False
 
     def __call__(self,phase,**fields):
         terminal=phase=='STOPPED'
@@ -53,6 +54,8 @@ class NativeHealthPublisher:
             return
         try:
             if not terminal and self.terminal.is_set():return
+            if self.cancellation_stack is not None:
+                fields['cancellation_stack']=self.cancellation_stack
             try:health(self.root,self.lane,phase,**fields)
             except Exception as error:
                 print('health publication unavailable:'+type(error).__name__,flush=True)
@@ -67,6 +70,13 @@ class NativeHealthPublisher:
                 if self.terminal.wait(2):return
             else:stopping=requested.wait(2)
             if self.terminal.is_set():return
+            if stopping and not self.cancellation_stack_attempted:
+                # Only this existing health thread probes the main executor.
+                # Failure is descriptive and must not obstruct cancellation.
+                self.cancellation_stack_attempted=True
+                try:self.cancellation_stack=status.cancellation_stack()
+                except Exception:
+                    self.cancellation_stack=dict(state='UNAVAILABLE',reason='probe_failed',frames=[])
             # TERM can precede the first periodic sample. Preserve the active
             # executor/operation and original signal immediately, then retain
             # changes until terminal publication fences further health writes.

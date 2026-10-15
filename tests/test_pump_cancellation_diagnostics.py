@@ -277,6 +277,135 @@ class PumpCancellationDiagnostics(unittest.TestCase):
         self.assertEqual(final['phase'],'STOPPED');self.assertIs(final['reconciled'],False)
         self.assertEqual(final['native_recent_operations'][-1]['state'],'CANCELLED')
 
+    def test_real_health_thread_captures_main_python_boundary_during_disposable_sql_wait(self):
+        """The Python caller is observable; its underlying SQL/lock is not inferred."""
+        from meme_machine.shared_capital import CapitalAuthority
+        from engineering.diagnostics import current_combined_observation_20261014 as diagnostic
+        entered=threading.Event();release=threading.Event();samples=[];errors=[];reporters=[]
+        status.update('RECONCILING',reconciled=False)
+        progress=status.snapshot()['progress_at'];main_id=threading.get_native_id()
+        original_health=lane.health;capture=status.cancellation_stack
+        def record(root,name,phase,**facts):
+            original_health(root,name,phase,**facts)
+            if phase!='STOPPED' and facts.get('cancellation_stack'):
+                samples.append(dict(phase=phase,**facts));reporters.append(threading.get_native_id())
+                release.set()
+        def request_stop():
+            if entered.wait(1):stop.requested.set()
+            else:errors.append('fixture_sql_boundary_not_reached');release.set()
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);(root/'pons').mkdir()
+            publish=lane.NativeHealthPublisher(root,'pons')
+            with closing(CapitalAuthority(root/'disposable-authority.sqlite')) as authority:
+                paused=[]
+                def progress_handler():
+                    if not paused:
+                        paused.append(True);entered.set()
+                        if not release.wait(1):return 1
+                    return 0
+                authority.db.set_progress_handler(progress_handler,1)
+                heartbeat=threading.Thread(target=publish.heartbeat,args=(stop.requested,status),
+                                           name='fixture-real-native-health')
+                requester=threading.Thread(target=request_stop,name='fixture-stop-request')
+                with patch.object(lane,'health',side_effect=record), \
+                        patch.object(status,'cancellation_stack',wraps=capture) as probe:
+                    heartbeat.start();requester.start()
+                    try:
+                        self.assertEqual(authority.snapshot()['state'],'NOT_INITIALIZED')
+                        self.assertEqual(len(samples),1)
+                        publish('STOPPED',reconciled=False)
+                    finally:
+                        release.set();publish.terminal.set()
+                        authority.db.set_progress_handler(None,0)
+                        heartbeat.join(1);requester.join(1)
+                    self.assertEqual(probe.call_count,1)
+                final=json.loads((root/'pons'/'health.json').read_text())
+            self.assertFalse(heartbeat.is_alive());self.assertFalse(requester.is_alive())
+            self.assertEqual(errors,[])
+            row=samples[0]['cancellation_stack']
+            self.assertEqual(row['state'],'CAPTURED')
+            self.assertEqual(row['target_native_thread_id'],main_id)
+            self.assertEqual(row['target_python_thread_id'],threading.main_thread().ident)
+            self.assertEqual(row['reporter_native_thread_id'],reporters[0])
+            self.assertNotEqual(reporters[0],main_id)
+            self.assertEqual(row['pid'],os.getpid())
+            self.assertTrue(any(frame['module']=='meme_machine.shared_capital.authority'
+                                and frame['function']=='snapshot' for frame in row['frames']))
+            self.assertLessEqual(len(row['frames']),8)
+            self.assertEqual(final['cancellation_stack'],row)
+            self.assertEqual(samples[0]['progress_at'],progress)
+            self.assertFalse(final['reconciled']);self.assertTrue(stop.requested.is_set())
+            output=root/'metrics.jsonl'
+            diagnostic.append_sample(output,dict(native_lifecycle=diagnostic.native_lifecycle({'pons':final})))
+            retained=json.loads(output.read_text())['native_lifecycle']['pons']['cancellation_stack']
+            self.assertEqual(retained['frames'],row['frames'])
+            self.assertEqual(retained['target_native_thread_id'],main_id)
+            self.assertEqual(retained['reporter_native_thread_id'],reporters[0])
+            self.assertFalse(json.loads(output.read_text())['native_lifecycle']['pons']['reconciled'])
+
+    def test_cancellation_stack_is_bounded_private_and_survives_actual_collector(self):
+        from engineering.diagnostics import current_combined_observation_20261014 as diagnostic
+        class Frame:
+            def __init__(self,index,previous):
+                self.f_globals={'__name__':'meme_machine.runtime.fixture'}
+                self.f_code=SimpleNamespace(co_name='owned_'+str(index))
+                self.f_lineno=index+1;self.f_back=previous
+            @property
+            def f_locals(self):raise AssertionError('frame_locals_must_never_be_read')
+        frame=None
+        for index in range(20):frame=Frame(index,frame)
+        with patch.object(status.sys,'_current_frames',return_value={threading.main_thread().ident:frame}):
+            row=status.cancellation_stack()
+        self.assertEqual(row['state'],'CAPTURED');self.assertEqual(len(row['frames']),8)
+        self.assertTrue(row['frames_truncated'])
+        for item in row['frames']:
+            self.assertEqual(set(item),{'module','function','line'})
+            item.update(filename='/private/credential',source='secret-source',locals='secret-local')
+        row.update(exception='private-error',bindings='private-bindings')
+        raw={f'unrelated{index}':index for index in range(160)}
+        raw.update(phase='RECONCILING',reconciled=False,cancellation_stack=row)
+        self.assertNotIn('cancellation_stack',diagnostic.numeric(raw))
+        with tempfile.TemporaryDirectory() as directory:
+            output=Path(directory)/'stack.jsonl'
+            diagnostic.append_sample(output,dict(native_lifecycle=diagnostic.native_lifecycle({'pons':raw})))
+            text=output.read_text();retained=json.loads(text)['native_lifecycle']['pons']['cancellation_stack']
+        self.assertEqual(retained['state'],'CAPTURED');self.assertEqual(len(retained['frames']),8)
+        self.assertTrue(retained['frames_truncated'])
+        for private in ('/private/credential','secret-source','secret-local','private-error','private-bindings'):
+            self.assertNotIn(private,text)
+        self.assertLess(len(json.dumps(retained)),4096)
+
+    def test_cancellation_stack_absent_frame_and_optional_failure_stay_unavailable(self):
+        with patch.object(status.sys,'_current_frames',return_value={}):
+            missing=status.cancellation_stack()
+        self.assertEqual(missing['state'],'UNAVAILABLE')
+        self.assertEqual(missing['reason'],'main_thread_frame_missing')
+        self.assertEqual(missing['frames'],[])
+        with patch.object(status.sys,'_current_frames',side_effect=OSError('private-probe-error')):
+            failed=status.cancellation_stack()
+        self.assertEqual(failed['state'],'UNAVAILABLE');self.assertEqual(failed['reason'],'probe_failed')
+        self.assertEqual(failed['frames'],[]);self.assertNotIn('private-probe-error',json.dumps(failed))
+        published=[];waits=[]
+        class Terminal:
+            value=False
+            def is_set(self):return self.value
+            def set(self):self.value=True
+            def wait(self,seconds):waits.append(seconds);return self.value
+        publish=lane.NativeHealthPublisher('/disposable','pons');publish.terminal=Terminal()
+        def record(root,name,phase,**facts):
+            published.append(dict(phase=phase,**facts))
+            if len(published)==2:publish.terminal.set()
+        stop.requested.set()
+        with patch.object(status,'cancellation_stack',side_effect=OSError('private-optional-error')) as probe, \
+                patch.object(lane,'health',side_effect=record):
+            publish.heartbeat(stop.requested,status)
+        self.assertEqual(probe.call_count,1);self.assertEqual(waits,[2])
+        self.assertEqual(len(published),2)
+        self.assertTrue(all(row['cancellation_stack']['state']=='UNAVAILABLE' for row in published))
+        self.assertTrue(all(row['phase']=='RECONCILING' and row['reconciled'] is False for row in published))
+        self.assertTrue(stop.requested.is_set())
+        self.assertNotIn('private-optional-error',json.dumps(published))
+
     def test_requested_heartbeat_cannot_overwrite_concurrent_terminal_health(self):
         published=[];entered=threading.Event();release=threading.Event()
         def record(root,name,phase,**facts):

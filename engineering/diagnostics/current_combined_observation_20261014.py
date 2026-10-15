@@ -52,6 +52,28 @@ NATIVE_OPERATIONS = frozenset('pump.' + name for name in (
 
 def native_lifecycle(lanes):
     """Essential native startup/cancellation facts before descriptive clipping."""
+    def cancellation_stack(row):
+        if not isinstance(row,dict):return UNAVAILABLE
+        frames=[];provided=row.get('frames')
+        for frame in provided[:8] if isinstance(provided,list) else ():
+            if not isinstance(frame,dict):continue
+            module=frame.get('module');function=frame.get('function');line=frame.get('line')
+            if (isinstance(module,str) and len(module)<=160 and
+                    re.fullmatch(r'meme_machine(?:\.[A-Za-z_][A-Za-z0-9_]*)+',module) and
+                    isinstance(function,str) and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,79}',function) and
+                    type(line) is int and 0<line<10**7):
+                frames.append(dict(module=module,function=function,line=line))
+        result={key:row.get(key) if finite_number(row.get(key)) else UNAVAILABLE for key in
+                ('at','monotonic','pid','reporter_native_thread_id',
+                 'target_native_thread_id','target_python_thread_id')}
+        captured=row.get('state')=='CAPTURED' and bool(frames)
+        reason=row.get('reason')
+        result.update(state='CAPTURED' if captured else UNAVAILABLE,
+            reason=reason if reason in ('owned_python_frames','probe_failed','main_thread_unavailable',
+                'main_thread_frame_missing','no_owned_frames') else UNAVAILABLE,
+            frames=frames,frames_truncated=row.get('frames_truncated') is True,
+            scope='MAIN_THREAD_PYTHON_FRAMES_NOT_SQL_OR_LOCK_ATTRIBUTION')
+        return result
     def operation(row):
         if not isinstance(row, dict) or row.get('operation') not in NATIVE_OPERATIONS:
             return UNAVAILABLE
@@ -76,7 +98,7 @@ def native_lifecycle(lanes):
             reconciled=lane['reconciled'] if type(lane.get('reconciled')) is bool else 'UNKNOWN',
             native_operation=operation(lane.get('native_operation')),
             native_recent_operations=[operation(row) for row in recent[:8]] if isinstance(recent, list) else UNAVAILABLE,
-            cancellation_signal=signal_facts)
+            cancellation_signal=signal_facts,cancellation_stack=cancellation_stack(lane.get('cancellation_stack')))
     return result
 
 
