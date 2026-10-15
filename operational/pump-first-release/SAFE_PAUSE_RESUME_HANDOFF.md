@@ -1,4 +1,24 @@
-# Current checkpoint — standing authority and completed replay capability, 2026-10-15
+# Current checkpoint — standing combined observation and supported offline work
+
+Read [STANDING_COMBINED_OBSERVATION_RESULT_20261015.md](STANDING_COMBINED_OBSERVATION_RESULT_20261015.md).
+Exact6b0b10ed completed one funding-closed run under issue134 in529.206seconds.
+Original300-second readinessFAIL; resultRECOVERY_REQUIRED unchanged. Pump exited1
+on evidence_heartbeat_stale after native restoration. Pons reconciled and stopped
+TERM→exit0in4.294seconds, withoutKILL; earlier failed drains remain unchanged.
+The source recorded INTERNAL/RST_STREAM. No long-term replay/protection/capacity
+PASS follows. Comparable startup control4.523vsstored1.838slotunits/s with
+pre-persistence gap76→536. A42.003-second ownerpriority4 operation lacks completed
+stage attribution; supported offline diagnostic/reporting corrections are underway.
+
+Fresh bounded post-review verifies current safe resumability, cash1000/head9173,
+zeroobligations, historical500, exactpending/ACKs, inactiveownership and original
+lease-reclaimability. Frame drainage remains independentlyUNAVAILABLE. Allfour
+native selections areactivepaper-opportunity-access-v1. Source66f85d61/savedsmall
+overlays restored compatibly, noDBrewind; stopped/disabled/Restart=no/fundingclosed.
+Nextguardedrun needs a materialcorrection/discriminator, affectedtests and fresh
+preflight, not routineownerreapproval. Standingissue134 remainsactiveuntilrevoked.
+
+# Previous checkpoint — standing authority and completed replay capability, 2026-10-15
 
 Owner [issue134](https://github.com/levonmendall/The-Meme-Machine/issues/134) is
 effective until revoked. Global three-start limits,24-hour expiry and routine

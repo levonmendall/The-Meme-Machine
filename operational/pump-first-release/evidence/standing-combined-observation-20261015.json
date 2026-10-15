@@ -1,0 +1,109 @@
+{
+  "Pons": "Actual reconciled=true, TERM thenexit0in4.294s; no heldpositions/protection proof",
+  "acceptance_minutes": 0,
+  "artifacts": [
+    {
+      "bytes": 6985,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-combined-6b0b10ed-014738/result.json",
+      "sha256": "7f253f94069704f5b2dce93331abe7c5a7b0290c796e6f1dc5a60027bbd962f2"
+    },
+    {
+      "bytes": 6781200,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-combined-6b0b10ed-014738/metrics.jsonl",
+      "sha256": "bae28aad121e4880e3898c72a9b9a4f0adab0dc310325e63e61365195878b5d8"
+    },
+    {
+      "bytes": 103,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-combined-6b0b10ed-014738/supervisor-fatal.json",
+      "sha256": "860cb7d553d533c58549ffd44be2fd18cc196b46fd73e2231ae96e50a3ec3e71"
+    },
+    {
+      "bytes": 58281,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_COMBINED_UNIT_JOURNAL_20261015.jsonl",
+      "sha256": "4e7325a32cdf600ff0fe595a3ae25ac3493e953dd3646e1382a2de5c337a1e95"
+    },
+    {
+      "bytes": 6056,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_COMBINED_SOURCE_JOURNAL_20261015.jsonl",
+      "sha256": "82bff5eace0ceefb3fc602aee4fe6d86cf7a6d700cf44d06f9ff894695885395"
+    },
+    {
+      "bytes": 71784,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_COMBINED_SOURCE_POST_BOUNDARY_20261015.json",
+      "sha256": "9fb22b93587dc412e1a259b13779f849f68758d9773c6544c89892eea5d098ba"
+    },
+    {
+      "bytes": 13118,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_COMBINED_PIPELINE_ANALYSIS_20261015.json",
+      "sha256": "aa77fab6af1072585abd1f32d2a92ffe6899c0b53f10d84efe7df970f405d474"
+    },
+    {
+      "bytes": 118193,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_COMBINED_POST_NATIVE_FINANCIAL_20261015.json",
+      "sha256": "bc1bcf07c8051b2ccb967d01956d014398758923d3fb83e61b8e6ec51dde4f15"
+    },
+    {
+      "bytes": 2128,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_COMBINED_POST_POLICY_SELECTION_20261015.json",
+      "sha256": "32463b8c5df51fdf6057ed4421b3b1fc94f33f251b26cc50d19bc1f67bacab10"
+    },
+    {
+      "bytes": 505,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_COMBINED_ROLLBACK_20261015.json",
+      "sha256": "683dd3b16fc4999f2d6ead89e6cc0fb719ea99f9103ce363e550fff25a01e165"
+    },
+    {
+      "bytes": 60627,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_COMBINED_PREFLIGHT_FINAL_REFRESH_20261015T0147.json",
+      "sha256": "cd2ebcc6e6b4289b1508f1646b62bccefb5fa3ca5d468ac8ce00e6a179dddae9"
+    }
+  ],
+  "authority": "https://github.com/levonmendall/The-Meme-Machine/issues/134",
+  "elapsed_seconds": 529.2060895608738,
+  "executed_revision": "6b0b10edf729b4c1c13dd3b7a56916d4d6797bc4",
+  "financial": "Exact tail replay to9173,cash1000,zeroobligations,historical500preserved",
+  "first_Pump_fatal": "evidence_heartbeat_stale",
+  "funding": false,
+  "native_frame_drain": "UNAVAILABLE independently; current-state recoverability verified in checkedscope",
+  "original_readiness": "FAIL",
+  "output": "/var/lib/meme-machine-diagnostics/20261015-standing-combined-6b0b10ed-014738",
+  "remaining_questions": [
+    "42.003421s owner priority4 execution lacks completed-stage attribution; ongoing offline recorder correction",
+    "Pre-persistence capacity remains insufficient during measuredstartup; exactwaitmechanismnotattributed",
+    "Pump startup observed-candidate reconstruction236.514s beforeCurrentprotectionloop; no new economic thresholds authorized",
+    "Original native replay contract, SQLiteBUSY, PonsREADONLY, managedheldprotection andbackup compatibility remain independentlyopen"
+  ],
+  "schema": 1,
+  "source_transport_error": "INTERNAL Stream removed (RST_STREAM error code2); cause not established",
+  "status": "RECOVERY_REQUIRED",
+  "usage": {
+    "at": "2026-10-15T02:02:50.889305+00:00",
+    "before_reference": "NATIVE_REPLAY_CAPABILITY_20261015T012958Z/result.json usage_after verified identical to fresh final-preflight counters; missing native_failures from final preflight and Robinhood elements derived by exact family partition.",
+    "cost_basis": "Existing frozen conservative model, not provider invoice; native uncertain bytes remain accounted reservations, not confirmed delivered bytes.",
+    "delta": {
+      "alchemy_rpc_cu": 233442,
+      "http_attempts": 1465,
+      "http_bytes": 9284899,
+      "http_uncertain_bytes": 0,
+      "native_bytes": 312935560,
+      "native_failures": 1,
+      "native_opens": 4,
+      "native_uncertain_bytes": 285212672,
+      "robinhood_rpc_elements": 6197,
+      "rpc_cu": 233442,
+      "rpc_elements": 6201,
+      "solana_rpc_elements": 4
+    },
+    "do_not_add_native_openings_to_physical_total": true,
+    "http_reserved_after": "0",
+    "modeled_cost_usd": "0.185362614360",
+    "native_reserved_after": "0",
+    "new_risk_ready": "false",
+    "open_http_receipt_rows": [],
+    "open_stream_rows": [],
+    "physical_native_openings": 4,
+    "physical_non_native_http_starts": 1461,
+    "physical_total_starts": 1465,
+    "provider_invoice": "UNAVAILABLE"
+  }
+}
