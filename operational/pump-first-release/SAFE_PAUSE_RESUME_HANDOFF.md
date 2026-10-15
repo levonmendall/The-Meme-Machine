@@ -1,4 +1,30 @@
-# Current checkpoint — exact cancellation/reporting repair prepared
+# Current checkpoint — service-identity installation contract corrected
+
+Read [STANDING_CREATION_INSTALLATION_FAILURE_20261015.md](STANDING_CREATION_INSTALLATION_FAILURE_20261015.md).
+The4b70109d start stopped before the supervisor constructor: root checkout had
+rewritten linked Git metadata/source access, and the service's exact revision
+guard failed128. Original20.199s RECOVERY_REQUIRED/native-drainUNAVAILABLE stays
+unchanged. No native worker, market provider workload or application write began;
+no throughput or cancellation measurement was obtained. Fresh22 scoped checks
+verify unchanged head9660/$1,000/zeroobligations/historical500/pending cohorts.
+Source66/saved overlays restored compatibly, stopped/disabled/Restart=no/fundingclosed.
+Scheduled backup separately failed ArtifactStorageFull; no new usable point.
+
+Offline successor **5c9f8e823ee938aa45ab3c98c43bc3bbab9d05c7** extends the existing
+network-disabled service-UID/filesystem probe to exact HEAD, clean-status and tree
+reads with one5s budget inside unchanged10/15s probe bounds, before clock/start.
+Fixed head/status/tree failure facts survive without stderr/private paths.
+Actual linked-worktree service-user regression reproduces root-only HEAD and
+object denial before any PAPER start, then validates corrected access, revision,
+dirty-source rejection, unchanged index and probe-only cleanup. Final13 access
+tests PASS/1.286s. Earlier86run had84PASS and2fixtureERROR; those seams corrected
+and retained. Integratedstartup passed in that run; unchanged4b246case/runtime
+and13source/economic proofs remain scoped valid. No fullFAST/general releasePASS.
+Root corrected only enumerated Git/source installation permissions, not database,
+credential or evidence permissions. Next cutover must use correct source umask,
+readable linked metadata and this actual service probe; no unchanged retry.
+
+# Previous checkpoint — exact cancellation/reporting repair prepared
 
 Read [STANDING_CREATION_REPAIR_20261015.md](STANDING_CREATION_REPAIR_20261015.md).
 Executable4b70109db89382e050ceeebb77ac352509f9fc82 replaces captured Pump

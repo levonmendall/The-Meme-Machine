@@ -1,0 +1,173 @@
+{
+  "acceptance_minutes": 0,
+  "application_state_writes_by_failed_start": 0,
+  "artifacts": [
+    {
+      "bytes": 1887,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-creation-4b70109d-033702/result.json",
+      "scope": "Original immutable RECOVERY_REQUIRED/SUPERVISOR_ENDED result; native_drain unavailable.",
+      "sha256": "7667a0d1c4c9fed150a68d14661bddf233e5b4a723c9dc6a9bee4e80332349a9"
+    },
+    {
+      "bytes": 96,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-creation-4b70109d-033702/clock.json",
+      "scope": "Original attempted exact-source diagnostic clock; no acceptance minutes.",
+      "sha256": "c7e41a5fc18410024b99653127a95b75ae39656d775c3cf8fb8bed3b596e4a6b"
+    },
+    {
+      "bytes": 1137,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_CREATION_FAILED_INSTALLATION_20261015.json",
+      "scope": "Supported first-error/install failure attribution.",
+      "sha256": "172a525f2b26d4f18b7a06879126f6f22fc750931bbc937d3b685bce034f724d"
+    },
+    {
+      "bytes": 28222,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_CREATION_UNIT_JOURNAL_20261015.jsonl",
+      "scope": "Original service journal: git rev-parse HEAD128 before supervisor constructor.",
+      "sha256": "b9787533010ff09fbd338b8ed5bc40f2afeca9f990db9cdd1a60b342b7437bf7"
+    },
+    {
+      "bytes": 155190,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_CREATION_POST_NO_NATIVE_START_20261015.json",
+      "scope": "Bounded22-check unchanged-head9660 financial/native preservation, not drain proof.",
+      "sha256": "726338b79e3f3aec871d2e16351d09ed3286c3f34f0363e9aabf6646a79141ff"
+    },
+    {
+      "bytes": 520,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_CREATION_ROLLBACK_20261015.json",
+      "scope": "Clean compatible source/small-overlay rollback; no authoritative state rewind.",
+      "sha256": "4543b61bd8b6adee6f04f0a3183696d7c6e97ef1d76db85a85edc4a768e2ea6a"
+    },
+    {
+      "bytes": 1872,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_CREATION_PREPARATION_LOCATOR_20261015.json",
+      "scope": "Exact attempted executable and intended source/controller/unit/environment identities.",
+      "sha256": "dc764aa43fd241cb27aac8033147c50ec3487490d51b7a76ec30549687a1fa97"
+    },
+    {
+      "bytes": 549,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_CREATION_PREPARATION_20261015T033702Z/linked-worktree-head-access-correction.json",
+      "scope": "Exact linked HEAD ownership/mode correction; actual service-user Git identity pass.",
+      "sha256": "19a6260eb99de65270248c080106608a7d32621396dce86b73799dbcccb07441"
+    },
+    {
+      "bytes": 4238,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_CREATION_PREPARATION_20261015T033702Z/complete-source-identity-access-correction.json",
+      "scope": "Enumerated source directories/files and3commit-pack access corrections; contents unchanged, no application/credential/evidence permission change.",
+      "sha256": "8cafea6256eaf80d2b6791801b72014e4f111fd76813362176872882ebc83b69"
+    },
+    {
+      "bytes": 467,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_CREATION_BACKUP_WINDOW_20261015.jsonl",
+      "scope": "Natural backup non-overlap timing only; does not itself attribute the backup exception.",
+      "sha256": "9a39e2906554f4539040280d9895bd7372be3453f066f06e9845e4d3f1eb2b5a"
+    },
+    {
+      "bytes": 450,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_SCHEDULED_BACKUP_FAILURE_20261015.json",
+      "scope": "Original scheduled04:01:56 backup ArtifactStorageFull failure; no completed point or snapshot.",
+      "sha256": "42182d61c70b18ea684b3078819d205e0f10480da9e16dc5ea9f63f6e631e356"
+    },
+    {
+      "bytes": 8513,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_SCHEDULED_BACKUP_JOURNAL_20261015.jsonl",
+      "scope": "Original scheduled04:01:56 backup ArtifactStorageFull failure; no completed point or snapshot.",
+      "sha256": "fc73dcf7e41c120e9f4a0b2702034b5714bb340b8b809abe2b3f1ec338d7e0a4"
+    }
+  ],
+  "attempted_revision": "4b70109db89382e050ceeebb77ac352509f9fc82",
+  "backup": {
+    "failure_evidence": "STANDING_SCHEDULED_BACKUP_FAILURE_20261015.json and STANDING_SCHEDULED_BACKUP_JOURNAL_20261015.jsonl",
+    "known_separate_failure": "Scheduled backup04:01:56ArtifactStorageFull; snapshot_id=null, no successful new recovery point",
+    "natural_window_log_scope": "Timer/service status only; exact failure attribution is retained separately in the original backup failure/journal records.",
+    "prior_verified_reference": "/mnt/volume_nyc1_1790918115030/meme-machine-backups/meme-machine-paper-20261013T221423-5891a20c",
+    "prior_verified_reference_status": "VERIFIED",
+    "timers_modified": false
+  },
+  "correction": {
+    "database_credential_evidence_permissions_changed": false,
+    "focused_test_verdict": "NOT_ASSERTED_BY_THIS_DOCUMENTATION_TASK",
+    "kind": "Enumerated installation access metadata only; private correction receipts preserved",
+    "manual_service_identity_git_pass": true,
+    "repeatable_pre_dispatch_probe": "UNDER_DEVELOPMENT",
+    "source_contents_unchanged": true,
+    "successor_executable": null
+  },
+  "elapsed_seconds": 20.199502795003355,
+  "first_failure": {
+    "command": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "mechanism": "Root checkout rewrote linked HEAD group/mode and fetched commit-pack/source permissions inaccessible to service identity; diagnostic-output probe did not establish full source identity access.",
+    "operation": "pre-supervisor exact revision check under actual service UID",
+    "returncode": 128
+  },
+  "funding": false,
+  "native_drain": "UNAVAILABLE",
+  "native_workers_started": false,
+  "next_supported_action": "Finalize actual-service-user source-identity guard and focused offline tests; fresh source/access/native/financial/recovery/backup/resource preflight before any causal retry.",
+  "original_readiness": null,
+  "original_result_unchanged": true,
+  "output": "/var/lib/meme-machine-diagnostics/20261015-standing-creation-4b70109d-033702",
+  "preserved_state": {
+    "all_four_native_v1_selection_verified": true,
+    "at": "2026-10-15T04:07:27.689992+00:00",
+    "cash": "1000.00",
+    "current_generation_cohort": {
+      "ACKED_WITH_AUTHENTIC_RECEIPT": 5,
+      "PENDING_PRESERVED": 27
+    },
+    "elapsed_seconds": 0.17762,
+    "epoch_id": "paper-shared-1000-20261011T071207Z",
+    "historical500_preserved": true,
+    "limits": "Scoped unchanged-state applicability, no full-store integrity scan, new native recovery or graceful-drain PASS.",
+    "new_tail_events": 0,
+    "obligations": {
+      "commitments": 0,
+      "obligations": 0,
+      "pending_backing": 0,
+      "pending_deliveries": 0,
+      "positions": 0,
+      "reservations": 0,
+      "runtime_inbox": 0,
+      "runtime_pending": 0
+    },
+    "projection_sha256": "e2699dcb8b3587e5e26b10b6e3341d3bafe56fa20a10dd7ff425e2084cab2cd6",
+    "provider_reservations": {
+      "http": "0",
+      "native": "0"
+    },
+    "query_count": 329,
+    "raw_head": [
+      9660,
+      "5d4485039e855e7675a9d8016639956ede975aadf112cac5d5a83c41ced5c614"
+    ],
+    "verified_checks": 22
+  },
+  "provider_workloads_started": false,
+  "rollback": {
+    "at": "2026-10-15T04:07:53.894787+00:00",
+    "disabled": true,
+    "funding": false,
+    "historical_results_unchanged": true,
+    "operational_writes_from_failed_start": "NONE: exact source guard failed before supervisor constructor",
+    "original_database_state_rewound": false,
+    "restart": "no",
+    "rollback": "Two saved overlays and compatible source restored; do not start restored finite launcher unchanged",
+    "service_stopped": true,
+    "source": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "source_clean": true
+  },
+  "schema": 1,
+  "standing_authority": "https://github.com/levonmendall/The-Meme-Machine/issues/134",
+  "status": "RECOVERY_REQUIRED",
+  "stop_reason": "SUPERVISOR_ENDED",
+  "supervisor_constructor_reached": false,
+  "unresolved": [
+    "Previous Pump SIGKILL cancellation remains failed; this no-native-start result does not repair it.",
+    "Sustained canonical throughput and managed-Pons held quote/USD protection remain unmeasured here.",
+    "Original SQLite BUSY/PonsREADONLY and backup/protection compatibility remain separate."
+  ]
+}
