@@ -38,6 +38,16 @@ def released(db):
 def require_released(db):
     if not released(db):raise EvidenceUnavailable('rolling_publication_pending')
 
+def _available_control_frontier(db,at):
+    # Availability's index makes SQLite scan every retained earlier receipt to
+    # compute MAX(hi). The existing end index can seek the newest eligible end
+    # instead. Keep the exact point-in-time predicate, including future rows;
+    # legacy/read-only fixtures without maintenance indexes keep the old query.
+    from .solana_selective_runtime import CONTROL
+    indexed=db.execute("SELECT 1 FROM sqlite_master WHERE type='index' AND name='maintenance_coverage_end' AND tbl_name='coverage'").fetchone()
+    hint=' INDEXED BY maintenance_coverage_end' if indexed else ''
+    return db.execute('SELECT MAX(hi) FROM coverage'+hint+' WHERE scope=? AND available<=?',(CONTROL,at)).fetchone()[0]
+
 def candidate_release(path):
     if not path:return True # Provider-free lifecycle unit tests have no plane.
     if not Path(path).exists():return False
@@ -68,7 +78,7 @@ def published_program_frontiers(db,*,now=None):
     history.rolling=rolling
     lifecycle=CandidateLifecycle.__new__(CandidateLifecycle);lifecycle.db=db;lifecycle.history=history
     rows=[]
-    control=db.execute('SELECT MAX(hi) FROM coverage WHERE scope=? AND available<=?',(CONTROL,at)).fetchone()[0]
+    control=_available_control_frontier(db,at)
     for family,lo,hi,_ in feeds:
         scope=program_scope(family)
         child=db.execute('SELECT slot,parent,market_time,seen,session,hash,previous_hash FROM candidate_blocks WHERE scope=?',(scope,)).fetchone()
@@ -173,8 +183,7 @@ class PrewarmStartup:
             self.transition('RECOVERY_OVERLAP',dict(feeds_connected_at=max(r[4] for r in feeds),
                 required_intervals={f:[lo,hi] for f,lo,hi,_,_ in feeds}))
             self.transition('WAIT_FOR_DURABLE_PUBLICATION')
-        from .solana_selective_runtime import CONTROL
-        control=self.db.execute('SELECT MAX(hi) FROM coverage WHERE scope=? AND available<=?',(CONTROL,self.clock())).fetchone()[0]
+        control=_available_control_frontier(self.db,self.clock())
         if control is None or control<max(r[2] for r in feeds):return self.snapshot()
         for family,lo,hi,_,_ in feeds:
             if self.history.rolling.missing(family,program_scope(family),lo,hi):return self.snapshot()

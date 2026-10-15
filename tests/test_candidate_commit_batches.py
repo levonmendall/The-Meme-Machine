@@ -97,10 +97,18 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_numeric_pipeline_diagnostics_are_bounded_and_do_not_write_on_each_event(self):
         source=SelectiveSource(SimpleNamespace(credential='offline'),None)
+        # The exclusive owner phase rows are fixed and allocated at startup;
+        # decode telemetry must neither mutate them nor add per-stream rows.
+        initial={key:dict(row) for key,row in source.pipeline_metrics.items()}
+        self.assertEqual(set(initial),{'candidate_phase:'+name for name in (
+            'validate','ingest_setup','rolling_adopt','economic_store',
+            'delivery_outbox','coverage_receipt','batch_commit')})
+        self.assertTrue(all(value==0 for row in initial.values() for value in row.values()))
         for i in range(1000):
             source.observe('decode_timing',seconds=.001,stream_id=str(i),family='pump')
-        self.assertEqual(source.pipeline_metrics,{'decode_timing:shared':dict(
-            calls=1000,decode_total_microseconds=1_000_000,decode_peak_microseconds=1000)})
+        expected=dict(initial)
+        expected['decode_timing:shared']=dict(calls=1000,decode_total_microseconds=1_000_000,decode_peak_microseconds=1000)
+        self.assertEqual(source.pipeline_metrics,expected)
         self.assertEqual(source.pending_diagnostics,[])
         self.assertEqual(source.native_streams,{})
 

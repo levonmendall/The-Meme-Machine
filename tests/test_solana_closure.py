@@ -1083,6 +1083,125 @@ class PositiveMeteoraTests(unittest.TestCase):
         self.assertEqual(result['transaction_body_rpc_fetches'],0)
 
 
+class NativeReplayPrefixTests(unittest.TestCase):
+    """Restart proof boundaries using actual disposable canonical commits."""
+    def setUp(self):
+        from meme_machine.solana_rolling_history import program_scope
+        from meme_machine.solana_selective_history import PROGRAMS
+        self.tmp=tempfile.TemporaryDirectory();self.now=[NOW];self.state=None
+        self.addresses={PROGRAMS[family]:program_scope(family) for family in ('pump','pumpswap')}
+
+    def tearDown(self):
+        if self.state is not None:self.state.writer.close()
+        self.tmp.cleanup()
+
+    def reset(self,name):
+        if self.state is not None:self.state.writer.close()
+        self.now[0]=NOW
+        self.path=Path(self.tmp.name)/name/'canonical.sqlite'
+        self.state,self.h=state_at(self.path,lambda:self.now[0])
+
+    def frame(self,slot=102,parent=99,*,logs=False):
+        from dataclasses import replace
+        from tests.test_candidate_commit_batches import frame
+        value=frame(slot,logs=logs)
+        value.update.block.parent_slot=parent
+        value.update.block.parent_blockhash=str(parent)
+        return replace(value,seen=self.now[0])
+
+    def prior(self,slot,*,session='old',conflict=False):
+        parent=99 if slot==102 else slot-1
+        with self.state.writer.transaction():
+            for scope in self.addresses.values():
+                self.h.db.execute('INSERT INTO candidate_blocks VALUES(?,?,?,?,?,?,?,?,?)',
+                    (scope,slot,parent,'different-bank' if conflict else str(slot),str(parent),
+                     int(NOW),NOW,session,digest([])))
+
+    def commit(self,frame,*,session='new',prepared=False):
+        from meme_machine.solana_economic_preparation import prepare_candidate_frames
+        from meme_machine.solana_selective_source import commit_candidates
+        product=None
+        if prepared:
+            products,_=prepare_candidate_frames((frame,),self.addresses,session,'a'*64)
+            product=products[0]
+        commit_candidates(self.state,frame,self.addresses,session,publish=False,prepared=product)
+
+    def test_stale_session_skip_proof_survives_restart_without_checkpoint_or_availability_change(self):
+        for prepared in (False,True):
+            for old_slot in (90,102,110):
+                with self.subTest(prepared=prepared,old_slot=old_slot):
+                    self.reset(str(prepared)+'-'+str(old_slot));self.prior(old_slot)
+                    self.commit(self.frame(),prepared=prepared)
+                    proofs=self.h.db.execute('''SELECT id,scope,lo,hi,source,endpoint,body,available
+                        FROM candidate_pending_proofs ORDER BY scope''').fetchall()
+                    self.assertEqual(len(proofs),2)
+                    for identity,scope,lo,hi,source,endpoint,raw,available in proofs:
+                        witness=json.loads(raw)
+                        self.assertEqual((lo,hi,source,endpoint,available),
+                            (100,101,'alchemy_finalized_stream','a'*64,NOW))
+                        self.assertEqual(witness,dict(finalized=True,complete=True,scope=scope,
+                            lower_slot=100,upper_slot=101,
+                            lineage_hash=digest([100,102,99,'102','99']),
+                            method='native_finalized_parent_proves_no_block_in_replay_prefix',native_order=True))
+                        self.assertEqual(identity,digest([scope,100,101,witness]))
+                        self.assertEqual(self.h.lifecycle.missing(scope,100,102),[(100,102)])
+                    self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone(),(0,))
+                    self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone(),(0,))
+                    self.state.writer.close();self.state,self.h=state_at(self.path,lambda:self.now[0])
+                    self.now[0]+=1
+                    self.commit(self.frame(),prepared=prepared)
+                    self.assertEqual(self.h.db.execute('''SELECT id,scope,lo,hi,source,endpoint,body,available
+                        FROM candidate_pending_proofs ORDER BY scope''').fetchall(),proofs)
+                    self.assertEqual(self.h.db.execute('SELECT DISTINCT session FROM candidate_blocks').fetchall(),[('new',)])
+                    self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone(),(0,))
+                    self.now[0]=NOW
+
+    def test_restart_prefix_keeps_parent_boundary_and_receipt_conflict_guards(self):
+        for parent in (100,101):
+            with self.subTest(parent=parent):
+                self.reset('parent-'+str(parent));self.prior(90)
+                self.commit(self.frame(parent=parent),prepared=True)
+                self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone(),(0,))
+                for scope in self.addresses.values():
+                    self.assertEqual(self.h.lifecycle.missing(scope,100,101),[(100,101)])
+        self.reset('conflicting-bank');self.prior(102,conflict=True)
+        before=self.h.db.execute('SELECT * FROM candidate_blocks ORDER BY scope').fetchall()
+        with self.assertRaisesRegex(EvidenceUnavailable,'candidate_replay_receipt_conflict'):
+            self.commit(self.frame(),prepared=True)
+        self.assertEqual(self.h.db.execute('SELECT * FROM candidate_blocks ORDER BY scope').fetchall(),before)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone(),(0,))
+        self.reset('same-session-gap');self.prior(90,session='new')
+        with self.assertRaisesRegex(EvidenceUnavailable,'candidate_native_parent_gap'):
+            self.commit(self.frame(),prepared=True)
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone(),(0,))
+        self.assertIsNotNone(self.h.db.execute("SELECT 1 FROM candidate_gaps WHERE reason='candidate_native_parent_gap'").fetchone())
+
+    def test_restart_skip_proof_cannot_publish_following_economics_before_exact_history_ack(self):
+        from meme_machine.solana_history_delivery import capture,deliver,acknowledge
+        from meme_machine.solana_rolling_history import program_scope
+        self.reset('consumer-ack');self.prior(90)
+        life=self.h.lifecycle;life.delivery_separated=True
+        self.commit(self.frame(logs=True),prepared=True)
+        self.commit(self.frame(slot=103,parent=102),prepared=True)
+        self.assertGreater(self.h.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE kind='canonical' AND consumed IS NULL").fetchone()[0],0)
+        snapshot=capture(life);self.assertIsNotNone(snapshot)
+        result=deliver(snapshot) # External commit alone does not ACK canonical rows.
+        life.publish()
+        self.assertEqual(life.missing(program_scope('pump'),100,101),[])
+        self.assertEqual(life.missing(program_scope('pump'),102,102),[(102,102)])
+        self.assertIsNotNone(life.unconsumed(program_scope('pump'),through=102))
+        self.assertTrue(acknowledge(life,snapshot,result))
+        life.publish()
+        # Canonical ACK alone is insufficient without this interval's exact
+        # independently committed consumer proof receipt.
+        self.assertEqual(life.missing(program_scope('pump'),102,102),[(102,102)])
+        proof_snapshot=capture(life);self.assertIsNotNone(proof_snapshot)
+        self.assertTrue(acknowledge(life,proof_snapshot,deliver(proof_snapshot)))
+        life.publish()
+        self.assertEqual(life.missing(program_scope('pump'),102,102),[])
+        self.assertIsNone(life.unconsumed(program_scope('pump'),through=102))
+
+
 def crash_child(path,boundary):
     state,h=state_at(path);tx=FIXTURE['pump'][0]
     event=next(e for e in __import__('meme_machine.solana_program_decoders',fromlist=['pump_events']).pump_events(tx) if e['event_type']=='create')

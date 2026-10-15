@@ -271,7 +271,10 @@ def commit_candidates(state,frame,addresses,session,*,publish=True,prepared=None
                     # previous session's last block. Its own next linked child is
                     # required before this interval can be republished. Canonical
                     # event availability and historical checkpoints stay unchanged.
-                if old is None:skipped_prefix(history,scope,frame)
+                # The first receipt of a restarted session can independently
+                # prove skipped replay-prefix slots. A prior session's receipt
+                # must not suppress that finalized-parent witness.
+                if old is None or old[6]!=session:skipped_prefix(history,scope,frame)
                 if old and old[6]==session:
                     witness=dict(finalized=True,complete=True,scope=scope,lower_slot=old[0],upper_slot=b.slot-1,
                         lineage_hash=digest([scope,list(old),list(values)]),

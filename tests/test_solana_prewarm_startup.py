@@ -1,7 +1,7 @@
 """Active Model B startup proofs; no legacy producer or market I/O."""
 import asyncio
 from contextlib import closing
-import json,os,tempfile,time,unittest
+import json,os,sqlite3,tempfile,time,unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -12,6 +12,54 @@ from meme_machine.solana_rolling_history import program_scope
 from meme_machine.solana_selective_runtime import CONTROL
 from meme_machine.solana_prewarm_startup import PHASES,candidate_release
 from meme_machine.runtime.candidate_history import CandidateHistory,CandidateDeadlineMissed
+
+
+class ControlFrontierQueryTests(unittest.TestCase):
+    def database(self,path=':memory:',indexed=True):
+        db=sqlite3.connect(path)
+        db.execute('CREATE TABLE coverage(scope TEXT,lo INTEGER,hi INTEGER,available REAL)')
+        db.execute('CREATE INDEX maintenance_recent_coverage ON coverage(scope,available,lo)')
+        if indexed:db.execute('CREATE INDEX maintenance_coverage_end ON coverage(scope,hi,lo)')
+        return db
+
+    def test_exact_availability_and_scope_with_nonmonotonic_ends(self):
+        from meme_machine.solana_prewarm_startup import _available_control_frontier
+        rows=[(CONTROL,1,100,20),(CONTROL,101,103,10),(CONTROL,104,105,30),
+              ('another-scope',1,10000,0)]
+        for indexed in (False,True):
+            with self.subTest(indexed=indexed),closing(self.database(indexed=indexed)) as db:
+                db.executemany('INSERT INTO coverage VALUES(?,?,?,?)',rows)
+                before=db.total_changes
+                for at in (-1,0,9,10,19,20,29,30,100):
+                    expected=max((hi for scope,_,hi,available in rows if scope==CONTROL and available<=at),default=None)
+                    self.assertEqual(_available_control_frontier(db,at),expected)
+                self.assertEqual(db.total_changes,before)
+
+    def test_fresh_committed_rows_and_future_availability_are_not_cached(self):
+        from meme_machine.solana_prewarm_startup import _available_control_frontier
+        with tempfile.TemporaryDirectory() as tmp:
+            path=str(Path(tmp)/'coverage.sqlite')
+            with closing(self.database(path)) as db,closing(sqlite3.connect(path)) as writer:
+                db.execute('INSERT INTO coverage VALUES(?,?,?,?)',(CONTROL,1,10,1));db.commit()
+                self.assertEqual(_available_control_frontier(db,2),10)
+                writer.execute('INSERT INTO coverage VALUES(?,?,?,?)',(CONTROL,11,20,3));writer.commit()
+                self.assertEqual(_available_control_frontier(db,2),10)
+                self.assertEqual(_available_control_frontier(db,3),20)
+
+    def test_existing_end_index_avoids_availability_prefix_walk(self):
+        from meme_machine.solana_prewarm_startup import _available_control_frontier
+        with closing(self.database()) as db:
+            db.executemany('INSERT INTO coverage VALUES(?,?,?,?)',
+                ((CONTROL,i,i,i) for i in range(4096)))
+            steps=[0]
+            def progress():steps[0]+=1;return 0
+            db.set_progress_handler(progress,1)
+            expected=db.execute('SELECT MAX(hi) FROM coverage INDEXED BY maintenance_recent_coverage WHERE scope=? AND available<=?',(CONTROL,4096)).fetchone()[0]
+            scan=steps[0];steps[0]=0;statements=[];db.set_trace_callback(statements.append)
+            self.assertEqual(_available_control_frontier(db,4096),expected)
+            seek=steps[0];db.set_progress_handler(None,0);db.set_trace_callback(None)
+            self.assertLess(seek,scan//20)
+            self.assertTrue(any('INDEXED BY maintenance_coverage_end' in sql for sql in statements))
 
 
 def proof(scope,lo,hi,at=NOW):
