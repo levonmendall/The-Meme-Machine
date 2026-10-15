@@ -8,6 +8,7 @@ from collections import deque
 from contextlib import ExitStack, closing
 import copy
 import json
+import multiprocessing
 import os
 from pathlib import Path
 import signal
@@ -32,6 +33,16 @@ from meme_machine.solana_selective_history import PROGRAMS, economic_records
 from meme_machine.solana_rolling_history import program_scope
 from tests.test_solana_closure import NOW, state_at
 from tests.test_solana_selective_evidence import FIXTURE
+
+
+def _history_result_before_process_loss(completed, operation, payload):
+    """Stop at a real off-owner result, before the canonical owner applies it."""
+    from operational.tests import network_guard
+    network_guard()
+    result = deliver(payload) if operation == 'delivery' else prepare_history(*payload)
+    completed.send((os.getpid(), result))
+    completed.close()
+    signal.pause()
 
 
 class IntegratedStartupRehearsal(unittest.TestCase):
@@ -176,6 +187,136 @@ class IntegratedStartupRehearsal(unittest.TestCase):
             seen=NOW, source='alchemy_finalized_stream')]
         history.ingest(records)
         return state, history, tasks, records
+
+    def interrupted_history_result(self, operation, payload):
+        # Spawn gives the disposable process its own SQLite/runtime globals.
+        # The result handshake identifies the exact completed commit/read cut;
+        # SIGKILL then prevents graceful cleanup or any subsequent owner ACK.
+        context = multiprocessing.get_context('spawn')
+        completed, sender = context.Pipe(duplex=False)
+        process = context.Process(target=_history_result_before_process_loss,
+                                  args=(sender, operation, payload))
+        process.start();sender.close()
+        try:
+            self.assertTrue(completed.poll(10), 'disposable_history_result_not_reached')
+            pid, result = completed.recv()
+            self.assertEqual(pid, process.pid)
+            self.assertNotEqual(pid, os.getpid())
+            self.assertTrue(process.is_alive())
+        finally:
+            if process.is_alive():process.kill()
+            process.join(5)
+            self.assertFalse(process.is_alive(), 'disposable_history_process_not_stopped')
+            exitcode = process.exitcode
+            completed.close();process.close()
+        self.assertEqual(exitcode, -signal.SIGKILL)
+        return result
+
+    def test_killed_consumer_commit_restarts_with_exact_receipts_then_current_session_ack(self):
+        from meme_machine.runtime.candidate_history import CandidateHistory
+        state, history, _, records = self.canonical()
+        history.startup.begin()
+        snapshot = capture(history.lifecycle)
+        pending = state.writer.db.execute('SELECT * FROM candidate_history_outbox ORDER BY rowid').fetchall()
+        self.assertTrue(pending)
+        path = state.writer.path;consumer_path = history.lifecycle.path
+        # Leave the sole canonical owner closed while the actual consumer
+        # FULL-commits, then kill that process before any canonical ACK.
+        state.writer.close()
+        old_result = self.interrupted_history_result('delivery', snapshot)
+        mint = next(row.payload['event']['mint'] for row in records
+                    if row.payload['event']['event_type'] == 'create')
+        ordered = sorted(records, key=lambda row: (row.slot, row.transaction_index is None,
+                         row.transaction_index or 0, row.event_index, row.identity))
+        with closing(CandidateHistory(consumer_path, clock=lambda: NOW)) as consumer:
+            committed = {table: consumer.db.execute('SELECT * FROM '+table+' ORDER BY rowid').fetchall()
+                         for table in ('events', 'canonical_event_refs', 'source_receipts')}
+            committed_events = consumer.events('pump', mint)
+            self.assertEqual([row['identity'] for row in committed_events],
+                             ['pump-source:'+row.identity for row in ordered])
+            self.assertEqual([(row['slot'], row['transaction_index'], row['event_index'])
+                              for row in committed_events],
+                             [(row.slot, row.transaction_index, row.event_index) for row in ordered])
+            self.assertEqual(len(committed['events']) + len(committed['canonical_event_refs']), len(records))
+            self.assertEqual(len(committed['source_receipts']), len(snapshot['rows']))
+        state, history = state_at(path)
+        self.addCleanup(state.writer.close)
+        history.lifecycle.delivery_separated = True
+        self.assertEqual(state.writer.db.execute('SELECT * FROM candidate_history_outbox ORDER BY rowid').fetchall(), pending)
+        # The production startup session changes on source restart. An old
+        # process's otherwise valid result cannot consume the retained queue.
+        history.startup.begin()
+        self.assertFalse(acknowledge(history.lifecycle, snapshot, old_result))
+        replay = capture(history.lifecycle)
+        result = deliver(replay)
+        wrong = copy.deepcopy(result)
+        index = next(i for i, row in enumerate(wrong['acknowledgements']) if row[1] is not None)
+        identity, raw, _ = wrong['acknowledgements'][index]
+        wrong['acknowledgements'][index] = (identity, raw, '0' * 64)
+        with self.assertRaisesRegex(EvidenceUnavailable, 'candidate_delivery_ack_content'):
+            acknowledge(history.lifecycle, replay, wrong)
+        self.assertEqual(state.writer.db.execute('SELECT * FROM candidate_history_outbox ORDER BY rowid').fetchall(), pending)
+        self.assertTrue(acknowledge(history.lifecycle, replay, result))
+        self.assertEqual(state.writer.db.execute('SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0], 0)
+        with closing(CandidateHistory(consumer_path, clock=lambda: NOW)) as consumer:
+            self.assertEqual({table: consumer.db.execute('SELECT * FROM '+table+' ORDER BY rowid').fetchall()
+                              for table in committed}, committed)
+            self.assertEqual(consumer.events('pump', mint), committed_events)
+        self.assertIs(status.snapshot()['reconciled'], False)
+
+    def test_killed_historian_result_is_reclaimed_and_rechecks_restart_dependencies(self):
+        state, history, tasks, _ = self.canonical()
+        now = [NOW]
+        history.clock = history.lifecycle.clock = lambda: now[0]
+        history.startup.begin()
+        scope = program_scope('pumpswap')
+        history.prove(IntervalProof(scope, 100, 110, 'alchemy_finalized_stream', 'a' * 64,
+            dict(finalized=True, complete=True, scope=scope, lower_slot=100, upper_slot=110,
+                 lineage_hash=digest([scope, 100, 110])), NOW))
+        history.bind('pumpswap', 'retained-pool')
+        pending = history.rolling.prepare('pumpswap', 'retained-pool', 100, 110,
+                                          priority=3, deadline=NOW + 150)
+        self.assertFalse(pending['entry_authority'])
+        old = tasks.claim();self.assertIsNotNone(old)
+        path = state.writer.path
+        outbox = state.writer.db.execute('SELECT * FROM candidate_history_outbox ORDER BY rowid').fetchall()
+        before = state.writer.db.execute('SELECT * FROM rolling_preparation_jobs WHERE id=?', (old['id'],)).fetchone()
+        old_result = self.interrupted_history_result('prepare', (path, old))
+        self.assertEqual(state.writer.db.execute('SELECT * FROM rolling_preparation_jobs WHERE id=?', (old['id'],)).fetchone(), before)
+        self.assertEqual(state.writer.db.execute('SELECT COUNT(*) FROM promotion_history_metrics').fetchone()[0], 0)
+        state.writer.close()
+        state, history = state_at(path, lambda: now[0])
+        self.addCleanup(state.writer.close)
+        history.lifecycle.delivery_separated = True
+        tasks = HistoricalTasks(history);history.historical_tasks = tasks
+        history.startup.begin()
+        row = state.writer.db.execute('SELECT status,token,deadline FROM rolling_preparation_jobs WHERE id=?', (old['id'],)).fetchone()
+        self.assertEqual(row, ('pending', None, NOW + 150))
+        current = tasks.claim();self.assertEqual(current['id'], old['id'])
+        self.assertNotEqual(current['token'], old['token'])
+        self.assertFalse(tasks.apply(old, old_result))
+        # Reclaimed work must still recheck real provider identity, startup
+        # session and canonical proof dependencies before publishing a metric.
+        for change in ('source', 'session', 'proof'):
+            with self.subTest(change=change):
+                result = prepare_history(path, current)
+                if change == 'source':
+                    state.fence.health('provider', dict(provider='alchemy', network='mainnet',
+                                                       endpoint_identity='b' * 64))
+                elif change == 'session':history.startup.begin()
+                else:history.gap(scope, 105, 107, 'disposable_restart_reorganization')
+                self.assertFalse(tasks.apply(current, result))
+                self.assertEqual(state.writer.db.execute('SELECT status,token,deadline FROM rolling_preparation_jobs WHERE id=?', (old['id'],)).fetchone(), ('pending', None, NOW + 150))
+                self.assertEqual(state.writer.db.execute('SELECT COUNT(*) FROM promotion_history_metrics').fetchone()[0], 0)
+                self.assertEqual(state.writer.db.execute('SELECT * FROM candidate_history_outbox ORDER BY rowid').fetchall(), outbox)
+                now[0] += .2
+                current = tasks.claim();self.assertIsNotNone(current)
+        metric = tasks.apply(current, prepare_history(path, current))
+        self.assertEqual(metric['missing_intervals'], [(105, 107)])
+        self.assertFalse(metric['entry_authority'])
+        self.assertFalse(tasks.apply(current, prepare_history(path, current)))
+        self.assertEqual(state.writer.db.execute('SELECT COUNT(*) FROM promotion_history_metrics').fetchone()[0], 1)
+        self.assertIs(status.snapshot()['reconciled'], False)
 
     def test_canonical_historian_consumer_restart_preserves_pending_then_exact_ack(self):
         state, history, tasks, records = self.canonical()
