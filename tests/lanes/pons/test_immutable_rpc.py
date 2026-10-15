@@ -1,3 +1,4 @@
+import os
 import tempfile
 import time
 import unittest
@@ -15,6 +16,136 @@ class ImmutableRpcTest(unittest.TestCase):
         self.assertTrue(r.lookup('eth_chainId',[])[0])
         self.assertFalse(Reuse('https://unit.invalid/key',self.store,'pons').lookup('eth_chainId',[])[0])
         with self.assertRaises(BoundaryError):r.remember('eth_chainId',[],'0x1',None)
+
+    @unittest.skipUnless(os.environ.get('MM_PONS_REUSE_RETAINED_FIXTURE'),
+        'opt-in retained audit discriminator; no production or provider access')
+    def test_retained_reuse_ring_index_discriminator(self):
+        """Actual cache accounting only; authentic audit rows are not market replay."""
+        from collections import Counter
+        from dataclasses import replace
+        import hashlib
+        import json
+        import signal
+        import socket
+        import threading
+        from meme_machine.operational.artifact_storage import Scratch,Policy,tree_bytes
+        self.assertTrue(getattr(socket.socket.connect,'meme_machine_offline',False),
+            'run through python -m operational.tests OPERATIONAL --cases')
+        fixture=Path(os.environ['MM_PONS_REUSE_RETAINED_FIXTURE'])
+        self.assertFalse(fixture.is_symlink());self.assertLessEqual(fixture.stat().st_size,1024**2)
+        raw=fixture.read_bytes();checksum=hashlib.sha256(raw).hexdigest()
+        self.assertEqual(checksum,'c397efb312c31522294d0ec50b326e2c0d8e6e78c86e3107fc0616099386b018')
+        source=json.loads(raw);columns=('sequence','lane','domain','method','outcome','at','key_digest','source_at')
+        self.assertEqual(source['columns'],list(columns));rows=source['rows']
+        self.assertEqual(len(rows),4096);self.assertTrue(all(len(row)==8 for row in rows))
+        self.assertEqual([row[0] for row in rows],list(range(277340,281436)))
+        self.assertEqual(source['provider_requests'],0)
+        first=min(row[5] for row in rows);last=max(row[5] for row in rows)
+        event_rate=(len(rows)-1)/(last-first)
+        def encoded(value):return json.dumps(value,sort_keys=True,separators=(',',':')).encode()
+        def io_counts():
+            path=Path('/proc/self/task')/str(threading.get_native_id())/'io'
+            return {key:int(value) for key,value in
+                (line.split(':',1) for line in path.read_text().splitlines())}
+        def deadline(signum,frame):raise TimeoutError('reuse_discriminator_absolute_10s')
+        self.assertEqual(signal.getitimer(signal.ITIMER_REAL),(0.,0.),
+            'discriminator must not replace an existing timer')
+        old_handler=signal.signal(signal.SIGALRM,deadline)
+        signal.setitimer(signal.ITIMER_REAL,10)
+        begun=time.monotonic();variants=[]
+        try:
+            policy=replace(Policy.environment(),scratch_max_bytes=16*1024**2)
+            with Scratch(policy=policy) as scratch:
+                fixed_at=last+1;domain=rows[-1][2]
+                for indexed in (False,True):
+                    scratch.check();path=scratch.path/('indexed.sqlite' if indexed else 'original.sqlite')
+                    store=EvidenceStore(path)
+                    try:
+                        with store.db:
+                            store.db.executemany('INSERT INTO reuse_events VALUES(?,?,?,?,?,?,?,?)',rows)
+                            if indexed:store.db.execute('CREATE INDEX probe_reuse_retention_sequence ON reuse_events(sequence)')
+                        plans={name:store.db.execute('EXPLAIN QUERY PLAN '+sql).fetchall() for name,sql in (
+                            ('count','SELECT COUNT(*) FROM reuse_events'),
+                            ('boundary','SELECT sequence FROM reuse_events WHERE 1=1 ORDER BY sequence DESC LIMIT 1 OFFSET 4095'))}
+                        reuse=Reuse('https://unit.invalid/retained-audit-probe',store,'pons')
+                        # The retained digest is an identity, never a credential.
+                        reuse.domain=domain
+                        with patch('meme_machine.lanes.pons.immutable_rpc.time.time',return_value=fixed_at):
+                            reuse.remember('eth_chainId',[],hex(CHAIN_ID),None)
+                            totals=dict(wall_seconds=0.,cpu_seconds=0.);io=Counter();operations=Counter();vm=[0]
+                            def trace(sql):
+                                operations[sql.lstrip().split(None,1)[0].upper()]+=1
+                                if sql.startswith('SELECT COUNT(*) FROM reuse_events'):operations['audit_count']+=1
+                                if 'OFFSET 4095' in sql or ('ORDER BY sequence DESC LIMIT 1 OFFSET ' in sql):operations['audit_boundary']+=1
+                            store.db.set_trace_callback(trace)
+                            store.db.set_progress_handler(lambda:vm.__setitem__(0,vm[0]+1000) or 0,1000)
+                            try:
+                                for offset in range(0,32,8):
+                                    # Guard scans and /proc probes are outside
+                                    # the measured actual lookup calls.
+                                    scratch.check();before=io_counts()
+                                    wall=time.perf_counter();cpu=time.thread_time()
+                                    answers=[reuse.lookup('eth_chainId',[]) for _ in range(8)]
+                                    totals['cpu_seconds']+=time.thread_time()-cpu
+                                    totals['wall_seconds']+=time.perf_counter()-wall
+                                    after=io_counts();io.update({key:after[key]-before[key] for key in after})
+                                    self.assertEqual(answers,[(True,hex(CHAIN_ID),None)]*8)
+                            finally:
+                                store.db.set_trace_callback(None);store.db.set_progress_handler(None,0)
+                        retained=store.db.execute('SELECT * FROM reuse_events ORDER BY sequence').fetchall()
+                        appended=[(281436+i,'pons',domain,'eth_chainId','session_hit',fixed_at,
+                            hashlib.sha256(b'session').hexdigest(),fixed_at) for i in range(32)]
+                        self.assertEqual(retained,[tuple(row) for row in rows[32:]]+appended)
+                        self.assertEqual(reuse.telemetry(),{'eth_chainId:session_hit':32})
+                        self.assertEqual(store.db.execute('SELECT COUNT(*) FROM flights').fetchone(),(0,))
+                        self.assertEqual(store.db.execute('SELECT COUNT(*) FROM evidence').fetchone(),(0,))
+                        self.assertTrue(store.db.execute("SELECT 1 FROM sqlite_master WHERE name='reuse_no_delete'").fetchone())
+                        variants.append(dict(indexed=indexed,calls=32,**totals,thread_io=dict(io),
+                            sql_operations=dict(operations),vm_steps_quantized=vm[0],vm_quantum=1000,
+                            retained_sha256=hashlib.sha256(encoded(retained)).hexdigest(),query_plans=plans,
+                            physical_transports=0,logical_session_hits=32))
+                    finally:store.db.close()
+                    scratch.check()
+                self.assertEqual(variants[0]['retained_sha256'],variants[1]['retained_sha256'])
+                observed=dict(scope='owner-reported rounded O11 process observations; not this fixture',
+                    rchar_bytes=105.56*10**9,seconds=368.6,cpu_cores=.674)
+                observed['rchar_bytes_per_second']=observed['rchar_bytes']/observed['seconds']
+                normalization=[]
+                for variant in variants:
+                    cpu_rate=variant['cpu_seconds']/32*event_rate
+                    read_rate=variant['thread_io']['rchar']/32*event_rate
+                    normalization.append(dict(indexed=variant['indexed'],
+                        projected_cpu_cores=cpu_rate,projected_rchar_bytes_per_second=read_rate,
+                        fraction_of_reported_process_cpu=cpu_rate/observed['cpu_cores'],
+                        fraction_of_reported_process_rchar=read_rate/observed['rchar_bytes_per_second']))
+                result=dict(schema='retained-reuse-audit-index-discriminator-v1',
+                    scope='authentic retained audit ring; synthetic32 session-hit calls; no market/capacity proof',
+                    fixture_sha256=checksum,fixture_bytes=len(raw),retained_event_rate=event_rate,
+                    retained_time_bounds=[first,last],variants=variants,normalization=normalization,
+                    observation_reference=observed,provider_requests=0,authoritative_writes=False,
+                    source_sha256={name:hashlib.sha256(path.read_bytes()).hexdigest() for name,path in (
+                        ('test',Path(__file__)),('immutable_rpc',Path(__import__(EvidenceStore.__module__,fromlist=['__file__']).__file__)),
+                        ('storage',Path(__import__('meme_machine.runtime.storage',fromlist=['__file__']).__file__)))},
+                    limitations=['sequential original then indexed; persistent connection warmed by identical seeding',
+                        'trace/progress instrumentation identical in both variants; VM steps quantized',
+                        'rchar/syscr include /proc probe overhead; no physical-disk or whole-machine inference',
+                        'projection uses last retained278s event rate, not a complete O11 event census',
+                        'no production index or accounting algorithm changed'],
+                    fixture_peak_bytes=tree_bytes(scratch.path),elapsed_seconds=time.monotonic()-begun,
+                    disposition='MEASURED_LOCAL_EFFECT_ONLY; reject as dominant cause if projected contribution is small')
+                self.assertLessEqual(result['fixture_peak_bytes'],16*1024**2)
+                self.assertLess(result['elapsed_seconds'],10)
+                output=os.environ.get('MM_PONS_REUSE_DISCRIMINATOR_RESULT')
+                if output:
+                    target=Path(output).absolute()
+                    self.assertEqual(target.parent,fixture.absolute().parent)
+                    self.assertNotIn(scratch.path,target.parents)
+                    payload=encoded(result)+b'\n';self.assertLess(len(payload),64*1024)
+                    descriptor=os.open(target,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+                    with os.fdopen(descriptor,'wb') as stream:stream.write(payload)
+                scratch.success=True
+        finally:
+            signal.setitimer(signal.ITIMER_REAL,0);signal.signal(signal.SIGALRM,old_handler)
     def test_hash_pinned_call_and_code_across_candidates(self):
         for m,p in [('eth_call',[{'to':'0xa','data':'0x12'},'0x1']),('eth_getCode',['0xa','0x1'])]:
             key=self.reuse.key(m,p,{'0x1':'0xh1'})
