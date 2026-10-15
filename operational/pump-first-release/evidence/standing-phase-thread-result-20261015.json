@@ -57,7 +57,7 @@
     "native_lanes": "CURRENT_PID_GRACEFUL_STOP_VERIFIED",
     "readiness": "FAIL",
     "source_frame_drain": "UNAVAILABLE_FROM_STATIC_FACTS",
-    "sustained_capacity": "FAILED"
+    "sustained_capacity": "NOT_ESTABLISHED_STARTUP_LIMITATION"
   },
   "next": "STOP affected throughput/Pons micro-optimization branches: no supported material correction or decisive current fixture. Reopen only with operation-level causal evidence or a bounded discriminator; no unchanged live retry and no routine approval request.",
   "offline_audit_index_decision": "REJECTED_AS_MATERIAL_CPU_OR_WHOLE_MACHINE_REPAIR_NO_PRODUCTION_INDEX",
@@ -84,6 +84,6 @@
   "schema": 1,
   "source": "1ee2d5fa6d660e696166f16b772d456b8c0a55d4",
   "specification": "76a48e67fcb2ef53a2cb82e3c8d5db7d2812b2ee",
-  "status": "STOPPED_REVIEW_REQUIRED_CAPACITY_FAILED_NATIVE_WORKER_STOP_VERIFIED",
+  "status": "STOPPED_REVIEW_REQUIRED_OBSERVED_PROCESSING_DEFICIT_NATIVE_WORKER_STOP_VERIFIED",
   "technical_stop": "STOP \u2014 INSUFFICIENT EVIDENCE FOR A JUSTIFIED CORRECTION OR DECISIVE TEST"
 }

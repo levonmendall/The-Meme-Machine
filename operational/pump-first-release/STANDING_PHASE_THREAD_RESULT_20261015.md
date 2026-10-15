@@ -1,4 +1,4 @@
-# Current operating checkpoint: cancellation verified; capacity still fails
+# Current operating checkpoint: cancellation verified; processing deficit remains
 
 Executed `1ee2d5fa6d660e696166f16b772d456b8c0a55d4` under specification
 `76a48e67fcb2ef53a2cb82e3c8d5db7d2812b2ee`. Receiving branch is
