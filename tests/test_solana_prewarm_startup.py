@@ -247,6 +247,54 @@ class StartupTests(unittest.TestCase):
 
 
 class StartupAsyncTests(unittest.IsolatedAsyncioTestCase):
+    async def test_canceled_waiter_retains_actual_owner_completion_and_operation_identity(self):
+        import threading,sqlite3
+        from meme_machine import solana_evidence_service as service,solana_evidence_control as control
+        from tests.maintenance_production_harness import NativeCompletionPool
+        from tests.evidence_ipc_harness import ipc_transport
+        entered=threading.Event();release=threading.Event();accepted=[];observed={};owners=[]
+        stop=asyncio.Event();original=control.PriorityOwner.__init__
+        def owner_init(owner,*args,**kwargs):
+            original(owner,*args,**kwargs);owners.append(owner)
+        async def driver(work,stop):
+            boot=asyncio.Event();boot.set();await quiet_model_b(work,boot)
+            def command(state):
+                observed['native_tid']=threading.get_native_id();entered.set()
+                if not release.wait(2):raise RuntimeError('offline_release_missing')
+                return 'original-result'
+            waiter=asyncio.create_task(work(command,4,label='source_commit',component='candidate',accepted=accepted.append))
+            try:
+                while not entered.is_set():await asyncio.sleep(.001)
+                active=owners[0].telemetry()['active_operation']
+                self.assertEqual(active['stage'],'source_commit');self.assertEqual(active['component'],'candidate')
+                self.assertEqual(active['native_thread_id'],observed['native_tid'])
+                self.assertEqual(owners[0].telemetry()['native_thread_id'],observed['native_tid'])
+                waiter.cancel()
+                with self.assertRaises(asyncio.CancelledError):await waiter
+                self.assertFalse(accepted[0].done())
+                await asyncio.sleep(.02);release.set()
+                self.assertEqual((await asyncio.wrap_future(accepted[0]))[0],'original-result')
+                for _ in range(1000):
+                    observed['completed']=owners[0].telemetry()
+                    if any(r['component']=='candidate' for r in observed['completed']['recent_slow_operations']):break
+                    await asyncio.sleep(.001)
+            finally:release.set();stop.set()
+        with tempfile.TemporaryDirectory() as t,ipc_transport(),patch.object(control.PriorityOwner,'__init__',owner_init), \
+                patch.object(control,'OWNER_SLOW_SECONDS',.01),patch('concurrent.futures.ProcessPoolExecutor',NativeCompletionPool):
+            path=Path(t)/'canonical.sqlite'
+            await asyncio.wait_for(service.serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',
+                stop=stop,source_driver=driver),10)
+            with closing(sqlite3.connect(path)) as db:
+                ipc=json.loads(db.execute("SELECT value FROM service_health WHERE key='ipc'").fetchone()[0])
+            key='owner.stage.source_commit.component.candidate'
+            self.assertEqual(ipc[key+'.calls'],1)
+            self.assertGreaterEqual(ipc[key+'.execution_total_microseconds'],10000)
+            self.assertGreaterEqual(ipc[key+'.execution_cpu_total_microseconds'],0)
+            records=[r for r in observed['completed']['recent_slow_operations'] if r['component']=='candidate']
+            self.assertEqual(len(records),1);self.assertEqual(records[0]['outcome'],'COMPLETED')
+            self.assertEqual(records[0]['native_thread_id'],observed['native_tid'])
+            self.assertNotEqual((observed['completed']['active_operation'] or {}).get('component'),'candidate')
+
     async def test_cold_maintenance_cannot_compete_with_initial_publication(self):
         from unittest.mock import MagicMock
         from meme_machine.solana_selective_source import SelectiveSource

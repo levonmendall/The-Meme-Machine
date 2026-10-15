@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import time
+from time import thread_time as owner_thread_time
 import uuid
 from .solana_evidence_plane import EvidenceUnavailable, EvidenceConflict, IntervalProof, digest, canonical
 from .solana_evidence_transport import FinalizedNotificationDecoder
@@ -846,17 +847,44 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
         source_driver.delivery_executor=delivery_executor
         source_driver.preparation_executor=decoder_pool
     source_program_addresses=tuple(sorted({s.address for s in program_subscriptions()}))
+    counts={}
+    def counter_snapshot():
+        # Owner completion updates and event-loop snapshots share its existing
+        # lock. Other counter keys remain event-loop-owned and never await here.
+        with owner.cv:return dict(counts)
     async def work(fn,priority=1,*,label=None,component=None,accepted=None,admit_before=None):
         if label not in (None,'source_commit','candidate_development','archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish','maintenance_decision','history_dispatch','history_apply','candidate_delivery_capture','candidate_delivery_ack'):
             raise EvidenceUnavailable('owner_stage_identity')
         if component not in (None,'control','candidate','scout','history_publication','delivery_accounting'):
             raise EvidenceUnavailable('owner_component_identity')
-        submitted=time.monotonic();execution=[None,None];cpu=[None,None]
+        submitted=time.monotonic()
         def timed(state):
-            started=time.monotonic();execution[0]=started;cpu[0]=time.thread_time()
+            started=time.monotonic();cpu_started=owner_thread_time()
             try:value=fn(state)
-            finally:execution[1]=time.monotonic();cpu[1]=time.thread_time()
-            return value,int((started-submitted)*1_000_000),int((execution[1]-started)*1_000_000)
+            finally:
+                finished=time.monotonic();cpu_finished=owner_thread_time()
+                # Accepted callbacks can outlive canceled asyncio waiters.
+                # Record exactly once at completion, including failed/yielded
+                # operations, before their future exposes the result.
+                with owner.cv:
+                    if label is not None:
+                        key='owner.stage.'+label
+                        keys=[key] if component is None else [key,key+'.component.'+component]
+                        for key in keys:
+                            counts[key+'.calls']=counts.get(key+'.calls',0)+1
+                            for stage,duration in (('queue',started-submitted),('execution',finished-started),
+                                    ('execution_cpu',cpu_finished-cpu_started)):
+                                metric=key+'.'+stage;micros=int(max(0,duration)*1_000_000)
+                                counts[metric+'_total_microseconds']=counts.get(metric+'_total_microseconds',0)+micros
+                                counts[metric+'_peak_microseconds']=max(counts.get(metric+'_peak_microseconds',0),micros)
+                    for stage,duration in (('queue',started-submitted),('execution',finished-started)):
+                        key=f'owner.priority{priority}.{stage}';micros=int(max(0,duration)*1_000_000)
+                        counts[key+'_total_microseconds']=counts.get(key+'_total_microseconds',0)+micros
+                        counts[key+'_peak_microseconds']=max(counts.get(key+'_peak_microseconds',0),micros)
+            return value,int((started-submitted)*1_000_000),int((finished-started)*1_000_000)
+        timed.owner_operation=dict(stage=label,component=component,
+            origin_module=getattr(fn,'__module__',None),
+            origin_line=getattr(getattr(fn,'__code__',None),'co_firstlineno',None))
         submit_options=dict(priority=priority)
         if admit_before is not None:submit_options['admit_before']=admit_before
         # Every producer keeps its one bounded outstanding command until the
@@ -866,36 +894,16 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
         future=await admit(owner,timed,**submit_options)
         if accepted is not None:accepted(future)
         wrapped=asyncio.wrap_future(future)
-        try:value,queued,executed=await asyncio.shield(wrapped)
+        try:value,_,_=await asyncio.shield(wrapped)
         except asyncio.CancelledError:
             # Accepted owner work outlives a cancelled maintenance waiter. Its
             # recorded outcome must be consumed even when cooperative SQL yield
             # finishes after shutdown has cancelled that background coroutine.
             wrapped.add_done_callback(lambda f:f.exception() if not f.cancelled() else None)
             raise
-        finally:
-            # Fixed labels distinguish archive scheduling from cleanup and health.
-            # Include completed cooperative yields, which aggregate success-only
-            # priority metrics otherwise miss. Never retain request/evidence text.
-            if label is not None and execution[1] is not None:
-                key='owner.stage.'+label
-                keys=[key] if component is None else [key,key+'.component.'+component]
-                for key in keys:
-                    counts[key+'.calls']=counts.get(key+'.calls',0)+1
-                    for stage,duration in (('queue',execution[0]-submitted),('execution',execution[1]-execution[0]),
-                            ('execution_cpu',cpu[1]-cpu[0])):
-                        metric=key+'.'+stage;micros=int(max(0,duration)*1_000_000)
-                        counts[metric+'_total_microseconds']=counts.get(metric+'_total_microseconds',0)+micros
-                        counts[metric+'_peak_microseconds']=max(counts.get(metric+'_peak_microseconds',0),micros)
-        # Separate scheduler wait from actual writer work; the prior "commit"
-        # metric included both and could not identify the saturated stage.
-        for stage,duration in (('queue',queued),('execution',executed)):
-            key=f'owner.priority{priority}.{stage}'
-            counts[key+'_total_microseconds']=counts.get(key+'_total_microseconds',0)+duration
-            counts[key+'_peak_microseconds']=max(counts.get(key+'_peak_microseconds',0),duration)
         return value
     stop=stop or asyncio.Event();socket_path=str(path)+'.sock';Path(socket_path).unlink(missing_ok=True)
-    clients=set();counts={}
+    clients=set()
     from .solana_owner_admission import OwnerAdmission,SourceState
     admission=OwnerAdmission(owner,clock=time.monotonic)
     if source_driver is not None:source_driver.diagnostic_generation=lambda:admission.generation
@@ -957,7 +965,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
             while not stop.is_set():
                 try:
                     http=repair_rpc.telemetry() if repair_rpc is not None and hasattr(repair_rpc,'telemetry') else {}
-                    snapshot=dict(counts)
+                    snapshot=counter_snapshot()
                     if source_driver is not None:
                         snapshot['pipeline']={k:dict(v) for k,v in getattr(source_driver,'pipeline_metrics',{}).items()}
                         # Two bounded existing join samples; copy their original
@@ -1159,7 +1167,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
         if clients:await asyncio.gather(*list(clients),return_exceptions=True)
         # Persist the final bounded counters after producers stop; a short drain
         # can otherwise finish between maintenance snapshots and hide pressure.
-        await work(lambda state:state.fence.health('ipc',dict(counts)),0)
+        await work(lambda state:state.fence.health('ipc',counter_snapshot()),0)
         scheduler=owner.telemetry()
         scheduler['owner_admission']=admission.telemetry()
         await work(lambda state:state.fence.health('owner_scheduler',scheduler),0)

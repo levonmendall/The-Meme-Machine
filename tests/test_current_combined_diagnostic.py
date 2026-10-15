@@ -9,6 +9,7 @@ import shutil
 import sqlite3
 import subprocess
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
@@ -250,6 +251,76 @@ class DiagnosticCollectionTests(unittest.TestCase):
         self.assertEqual(result['workers']['pump']['schedstat_scope'], 'PROCESS_MAIN_THREAD_ONLY')
         self.assertEqual(result['owner_thread_schedstat'], 'UNAVAILABLE_NO_EXPORTED_NATIVE_TID')
         self.assertFalse(any('/proc/999/' in str(call.args[0]) for call in reads.call_args_list))
+
+    def test_actual_owner_thread_counters_require_matching_owned_source(self):
+        fields=['0']*45;fields[0]='D';fields[39]='12'
+        def kernel(path,limit=8192):
+            if path.name=='cgroup.procs':return '44'
+            if path.name=='stat':return '44 (owner) '+' '.join(fields)
+            if path.name=='schedstat':return '1000 2000 3'
+            if path.name=='wchan':return 'folio_wait_bit_common\n'
+            if path.name=='io':return 'read_bytes: 4\n'
+            return 'some avg10=0.00 total=1\n'
+        with patch.object(diagnostic,'bounded_text',side_effect=kernel) as reads:
+            result=diagnostic.counters(Path('/mock'),{'solana':44},dict(owner_pid=44,native_thread_id=55))
+            owner=result['owner_thread_schedstat']
+            self.assertEqual(owner['native_thread_id'],55);self.assertEqual(owner['pid'],44)
+            self.assertEqual(owner['runnable_wait_ns'],2000);self.assertEqual(owner['state'],'D')
+            self.assertEqual(owner['wait_channel'],'folio_wait_bit_common')
+            self.assertEqual(owner['delayacct_blkio_ticks'],12)
+            self.assertTrue(any(str(c.args[0])=='/proc/44/task/55/schedstat' for c in reads.call_args_list))
+        with patch.object(diagnostic,'bounded_text',side_effect=kernel) as reads:
+            result=diagnostic.counters(Path('/mock'),{'solana':44},dict(owner_pid=99,native_thread_id=55))
+            self.assertEqual(result['owner_thread_schedstat'],'UNAVAILABLE_OWNER_IDENTITY_MISMATCH')
+            self.assertFalse(any('/proc/99/' in str(c.args[0]) for c in reads.call_args_list))
+
+    def test_completed_owner_identity_and_slow_ring_survive_required_serialization(self):
+        row=dict(stage='maintenance_decision',component='NONE',origin_module='meme_machine.solana_evidence_service',
+            origin_line=999,priority=4,sequence=12,pid=44,native_thread_id=55,
+            started_monotonic=10,completed_monotonic=52,execution_microseconds=42000000,
+            execution_cpu_microseconds=1000000,queue_microseconds=200000,outcome='COMPLETED',
+            unexpected_text='must-not-retain')
+        owner={f'unrelated_{i}':i for i in range(160)}
+        owner.update(owner_pid=44,native_thread_id=55,active_operation=row,
+            recent_slow_operations=[dict(row) for _ in range(8)])
+        with sqlite3.connect(self.path) as db:
+            db.execute("UPDATE service_health SET value=? WHERE key='owner_scheduler'",(json.dumps(owner),))
+        sample=diagnostic.pipeline_sample(self.root,44)
+        output=self.root/'owner-metrics.jsonl';diagnostic.append_sample(output,dict(sample_kind='full',pipeline=sample))
+        required=json.loads(output.read_text())['pipeline']['required_counters']
+        self.assertEqual(required['owner_scheduler']['native_thread_id'],55)
+        active=required['owner_operations']['active'];self.assertEqual(active['stage'],'maintenance_decision')
+        self.assertEqual(active['execution_microseconds'],42000000)
+        self.assertEqual(len(required['owner_operations']['recent']),8)
+        self.assertNotIn('must-not-retain',json.dumps(required))
+        owner['recent_slow_operations'].append(dict(row))
+        self.assertEqual(diagnostic.required_counters({'owner_scheduler':owner})['owner_operations']['recent'],'UNAVAILABLE')
+
+    def test_owner_telemetry_ring_bounds_and_preserves_original_failure(self):
+        from meme_machine import solana_evidence_control as control
+        clock=[100.0]
+        owner=control.PriorityOwner(lambda:SimpleNamespace(close=lambda:None),clock=lambda:clock[0])
+        owner.ready.result(timeout=1)
+        sentinel=RuntimeError('original callback error')
+        try:
+            for number in range(10):
+                def command(state):
+                    clock[0]+=2
+                    if number==9:raise sentinel
+                    return number
+                future=owner.submit(command,priority=4)
+                if number==9:
+                    with self.assertRaises(RuntimeError) as raised:future.result(timeout=1)
+                    self.assertIs(raised.exception,sentinel)
+                else:self.assertEqual(future.result(timeout=1),number)
+            # A following callback fences the preceding completed record.
+            owner.submit(lambda state:None,priority=4).result(timeout=1)
+            snapshot=owner.telemetry();self.assertEqual(len(snapshot['recent_slow_operations']),8)
+            self.assertEqual(snapshot['recent_slow_operations'][-1]['outcome'],'FAILED')
+            self.assertEqual(snapshot['recent_slow_operations'][-1]['execution_microseconds'],2000000)
+            snapshot['recent_slow_operations'].clear()
+            self.assertEqual(len(owner.telemetry()['recent_slow_operations']),8)
+        finally:owner.close()
 
     def test_required_recorder_registration_missing_false_and_pid_mismatch(self):
         coverage = diagnostic.RecorderCoverage()

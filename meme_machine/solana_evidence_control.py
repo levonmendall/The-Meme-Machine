@@ -4,9 +4,13 @@ Socket disconnect never cancels accepted work. A durable command receipt and the
 mutation share one commit. Expired requests cannot be replayed after receipt GC.
 """
 import concurrent.futures
+from collections import deque
 import heapq
+import os
+import re
 import threading
 import time
+from time import thread_time as owner_thread_time
 import sqlite3
 
 from .solana_evidence_plane import EvidenceUnavailable
@@ -15,6 +19,26 @@ COMMAND_SECONDS=3.0
 ATTEMPT_SECONDS=.5
 MAX_COMMAND_BYTES=32768
 MAX_RECEIPTS=8192
+OWNER_SLOW_SECONDS=1.0
+OWNER_OPERATION_LIMIT=8
+
+
+def owner_operation(fn):
+    """Fixed source identity only; never callback arguments, SQL or locals."""
+    identity=getattr(fn,'owner_operation',{})
+    identity=identity if isinstance(identity,dict) else {}
+    code=getattr(fn,'__code__',None)
+    module=identity.get('origin_module',getattr(fn,'__module__',None))
+    line=identity.get('origin_line',getattr(code,'co_firstlineno',None))
+    stage=identity.get('stage');component=identity.get('component')
+    return dict(stage=stage if stage in ('source_commit','candidate_development','archive_plan',
+        'archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler',
+        'checkpoint_prepare','checkpoint_finish','maintenance_decision','history_dispatch',
+        'history_apply','candidate_delivery_capture','candidate_delivery_ack') else 'UNLABELLED',
+        component=component if component in ('control','candidate','scout','history_publication',
+            'delivery_accounting') else 'NONE',
+        origin_module=module if isinstance(module,str) and re.fullmatch(r'meme_machine\.[A-Za-z0-9_.]{1,128}',module) else 'UNAVAILABLE',
+        origin_line=line if type(line)is int and 0<line<1000000 else None)
 
 
 async def admit(owner,fn,**options):
@@ -54,6 +78,7 @@ class PriorityOwner:
         self.capacity=capacity; self.reserved=reserved
         self.clock=clock;self.enqueued={}
         self.metrics={}
+        self.active_operation=None;self.recent_slow_operations=deque(maxlen=OWNER_OPERATION_LIMIT)
         self.cv=threading.Condition(); self.queue=[]; self.sequence=0
         self._urgent_queued=0
         self.closed=False; self.ready=concurrent.futures.Future()
@@ -93,6 +118,8 @@ class PriorityOwner:
         return future
 
     def _run(self,factory):
+        with self.cv:
+            self.metrics.update(owner_pid=os.getpid(),native_thread_id=threading.get_native_id())
         try:
             self.state=factory(); self.ready.set_result(True)
         except BaseException as exc:
@@ -127,6 +154,11 @@ class PriorityOwner:
                     self.metrics[prefix+'.queue_total_us']=self.metrics.get(prefix+'.queue_total_us',0)+wait
                     self._checkpoint_busy=True
                 started=self.clock()
+                cpu_started=owner_thread_time();outcome='FAILED'
+                with self.cv:
+                    self.active_operation=dict(owner_operation(fn),priority=priority,
+                        sequence=sequence,pid=os.getpid(),native_thread_id=threading.get_native_id(),
+                        started_monotonic=started,queue_microseconds=wait)
                 interrupted=False
                 try:
                     if expires is not None and time.time()>expires:
@@ -173,10 +205,16 @@ class PriorityOwner:
                             writer._owner_progress_handler=None
                             writer._retention_yield_requested=None
                 except BaseException as exc: future.set_exception(exc)
-                else: future.set_result(result)
+                else: outcome='COMPLETED';future.set_result(result)
                 finally:
                     elapsed=int(max(0,self.clock()-started)*1_000_000)
                     with self.cv:
+                        if elapsed>=OWNER_SLOW_SECONDS*1_000_000:
+                            self.recent_slow_operations.append(dict(self.active_operation,
+                                completed_monotonic=self.clock(),execution_microseconds=elapsed,
+                                execution_cpu_microseconds=int(max(0,owner_thread_time()-cpu_started)*1_000_000),
+                                outcome=outcome))
+                        self.active_operation=None
                         self._checkpoint_epoch+=1; self._checkpoint_busy=False
                         if interrupted:self.metrics['background_yields']=self.metrics.get('background_yields',0)+1
                         self.metrics[prefix+'.execution_peak_us']=max(self.metrics.get(prefix+'.execution_peak_us',0),elapsed)
@@ -235,7 +273,12 @@ class PriorityOwner:
             self._checkpoint_handoff=None;self.cv.notify_all()
 
     def telemetry(self):
-        with self.cv:return dict(self.metrics,queued=len(self.queue))
+        with self.cv:
+            active=None if self.active_operation is None else dict(self.active_operation,
+                observed_monotonic=self.clock(),elapsed_microseconds=int(max(0,
+                    self.clock()-self.active_operation['started_monotonic'])*1_000_000))
+            return dict(self.metrics,queued=len(self.queue),active_operation=active,
+                recent_slow_operations=[dict(row) for row in self.recent_slow_operations])
 
     def close(self):
         with self.cv: self.closed=True; self.cv.notify_all()

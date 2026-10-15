@@ -242,17 +242,34 @@ def required_counters(health, *, now_monotonic=None):
     storage_stages = {key: value for key, value in storage.items()
                       if isinstance(key, str) and storage_pattern.fullmatch(key) and finite_number(value)}
     owner = health.get('owner_scheduler', {})
-    owner_pattern = re.compile(r'(?:queued|queue_peak|rejected|admission_waited|aged_selections|'
+    owner_pattern = re.compile(r'(?:owner_pid|native_thread_id|queued|queue_peak|rejected|admission_waited|aged_selections|'
         r'nonurgent_fifo_selections|background_yields|checkpoint_handoffs|checkpoint_handoff_(?:total|peak)_us|'
         r'priority[0-6]\.(?:completed|(?:queue|execution)_(?:total|peak)_us))')
     owner_counters = {key: value for key, value in owner.items()
         if isinstance(key, str) and owner_pattern.fullmatch(key) and finite_number(value)
         } if isinstance(owner, dict) else {}
+    def operation(row):
+        if not isinstance(row,dict):return UNAVAILABLE
+        stage=row.get('stage');component=row.get('component');module=row.get('origin_module')
+        if stage not in (*stages,'UNLABELLED') or component not in (*components,'NONE'):
+            return UNAVAILABLE
+        result={key:row[key] for key in ('priority','sequence','pid','native_thread_id',
+            'origin_line','started_monotonic','observed_monotonic','completed_monotonic',
+            'queue_microseconds','elapsed_microseconds','execution_microseconds',
+            'execution_cpu_microseconds') if finite_number(row.get(key))}
+        result.update(stage=stage,component=component,
+            origin_module=module if isinstance(module,str) and re.fullmatch(r'meme_machine\.[A-Za-z0-9_.]{1,128}',module) else UNAVAILABLE)
+        if row.get('outcome') in ('COMPLETED','FAILED'):result['outcome']=row['outcome']
+        return result
+    recent=owner.get('recent_slow_operations') if isinstance(owner,dict) else None
+    operations=dict(active=operation(owner.get('active_operation')) if isinstance(owner,dict) else UNAVAILABLE,
+        recent=[operation(row) for row in recent] if isinstance(recent,list) and len(recent)<=8 else UNAVAILABLE)
     result = dict(ipc_pipeline=pipeline or UNAVAILABLE, ipc_aggregate=aggregate or UNAVAILABLE,
                   native_join_state=required_join_state(health,
                       time.monotonic() if now_monotonic is None else now_monotonic),
                   owner_sql_transactions=transactions or UNAVAILABLE,
                   owner_scheduler=owner_counters or UNAVAILABLE,
+                  owner_operations=operations,
                   storage_stages=storage_stages or UNAVAILABLE,
                   scope='EXPLICIT_FIXED_COUNTER_SCHEMAS_NOT_OVERLAPPING_STAGE_TOTAL')
     if len(json.dumps(result, sort_keys=True, allow_nan=False).encode()) > COUNTER_BYTES:
@@ -680,7 +697,7 @@ def bounded_text(path, limit=8192):
     return value
 
 
-def counters(group, pids):
+def counters(group, pids, owner=None):
     result = {}
     for name, path in [('cpu_stat', group / 'cpu.stat'), ('io_stat', group / 'io.stat'),
                        ('cpu_pressure', group / 'cpu.pressure'), ('io_pressure', group / 'io.pressure'),
@@ -716,6 +733,26 @@ def counters(group, pids):
                 delayacct_scope='KERNEL_ACCOUNTING_AVAILABILITY_UNVERIFIED')
         except (OSError, ValueError, IndexError):
             result['workers'][name] = dict(pid=pid, state='UNAVAILABLE')
+    if isinstance(owner,dict) and type(owner.get('native_thread_id'))is int:
+        pid=owner.get('owner_pid');tid=owner['native_thread_id']
+        if type(pid)is not int or pid!=pids.get('solana') or pid not in owned or tid<=0:
+            result['owner_thread_schedstat']='UNAVAILABLE_OWNER_IDENTITY_MISMATCH'
+        else:
+            try:
+                folder=Path('/proc/'+str(pid)+'/task/'+str(tid))
+                fields=bounded_text(folder/'stat').rsplit(')',1)[1].split()
+                schedstat=[int(value) for value in bounded_text(folder/'schedstat').split()]
+                try:
+                    wait=bounded_text(folder/'wchan',128).strip()
+                    wait=wait if re.fullmatch(r'[A-Za-z0-9_.]{1,80}',wait) else UNAVAILABLE
+                except (OSError,ValueError):wait=UNAVAILABLE
+                result['owner_thread_schedstat']=dict(pid=pid,native_thread_id=tid,state=fields[0],
+                    runtime_ns=schedstat[0],runnable_wait_ns=schedstat[1],timeslices=schedstat[2],
+                    wait_channel=wait,schedstat_scope='ACTUAL_CANONICAL_OWNER_NATIVE_THREAD',
+                    delayacct_blkio_ticks=int(fields[39]) if len(fields)>39 else UNAVAILABLE,
+                    delayacct_scope='KERNEL_ACCOUNTING_AVAILABILITY_UNVERIFIED')
+            except (OSError,ValueError,IndexError):
+                result['owner_thread_schedstat']='UNAVAILABLE_OWNER_THREAD_EXITED_OR_UNREADABLE'
     return result
 
 
@@ -932,7 +969,8 @@ def observe_once(root, output, source_revision):
                     native_lifecycle=native_lifecycle(lanes),
                     fixed_scope_frontiers=selected_frontiers(providers), pipeline=pipeline,
                     sqlite_coverage_scope='CANONICAL_PARENT_ONLY_CHILD_HEALTH_UNAVAILABLE')
-                sample['counters'] = counters(group, dict(pids, supervisor=main_pid))
+                sample['counters'] = counters(group, dict(pids, supervisor=main_pid),
+                    pipeline.get('required_counters',{}).get('owner_scheduler'))
                 sample['receipt_cohort'] = cohort.sample(root, pipeline)
                 append_sample(output / 'metrics.jsonl', sample)
             else:
