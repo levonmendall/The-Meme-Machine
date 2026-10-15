@@ -1,0 +1,25 @@
+{
+  "candidate": "c281058e5993bd7a35190010e9398c982ca7cd1e",
+  "controller_sha256": "074bc857abfd85962930bb85cbae243dd3896d149810d6798889afa097db6676",
+  "full_release": "NOT_RUN",
+  "prior_result": "canonical-batch-result-20261015.json",
+  "private_evidence": [
+    {
+      "bytes": 249,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/OWNER_RETENTION_SEMANTICS_FOCUSED_20261015.log",
+      "sha256": "81adfe5b19b0a911b6ae4cae7cb1d2fc55015709f77a1bff60049beb55091868"
+    },
+    {
+      "bytes": 489,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/OWNER_RETENTION_STARTUP_COLLECTION_INTEGRATION_20261015.log",
+      "sha256": "c0ff202c859ea50b6bec1adaf8854a5a8774fb55c3be452a42c5b58eb81a899d"
+    },
+    {
+      "bytes": 231,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/OWNER_RETENTION_COLLECTION_FOCUSED_20261015.log",
+      "sha256": "5c62e04b00d938b3a5d1d685a2771c02f72a580ecc556e1c5422b766183755e8"
+    }
+  ],
+  "review": "Independent source reviews approved exclusive instrumentation, unchanged SQL/transaction/yield/cancel/error and commit-only accounting; fixed startup declarations do not prove eligibility.",
+  "whole_path_improvement": "NOT_ESTABLISHED"
+}

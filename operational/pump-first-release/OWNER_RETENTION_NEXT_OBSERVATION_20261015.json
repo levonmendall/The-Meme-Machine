@@ -1,0 +1,69 @@
+{
+  "absolute_start_to_drained_seconds": 1865,
+  "allowed_writes": "Unchanged existing diagnostic canonical/native/provider/history/ACK/recovery/reporting/OBSERVATION ownership writes; no allocation, new position/reservation/fill, capital/epoch/policy change; retention facts are telemetry only.",
+  "authority": "https://github.com/levonmendall/The-Meme-Machine/issues/134",
+  "auto_systemd_restart": false,
+  "changes_under_test": [
+    "Existing c5 exact startup prefix/query changes, no economic or evidence-policy relaxation",
+    "Four exclusive retention phases with wall/threadCPU/kernel runnable counters and explicit unmeasured count",
+    "Fixed authenticated startup declaration and two feed acknowledgements selected before clipping; no observer proof recomputation"
+  ],
+  "concurrent_runs": 1,
+  "controller": "engineering.diagnostics.current_combined_observation_20261014",
+  "controller_sha256": "074bc857abfd85962930bb85cbae243dd3896d149810d6798889afa097db6676",
+  "diagnostic_output": {
+    "cadence_seconds": 5,
+    "canonical_cohort_limit": 32,
+    "pons_thread_limit": 16,
+    "projected_metrics_bytes": 33366240,
+    "projection_receipt": "evidence/owner-retention-output-budget-20261015.json",
+    "terminal_record_bytes": 65536,
+    "terminal_records": 2,
+    "total_bytes": 33554432
+  },
+  "diagnostic_startup_maximum_seconds": 900,
+  "end_state": "Stopped, disabled, Restart=no, funding closed; verify actual native drain independently, preserve all pending evidence/accounting, compatible rollback without rewind.",
+  "existing_provider_profiles": {
+    "pons_observation_route": "canonical_primary existing bound app only",
+    "robinhood_rps": 10,
+    "solana_rps": 2,
+    "spending": "Existing genuine provider/account controls; no obsolete fixed$2 ceiling; usage reporting retained"
+  },
+  "funding": "CLOSED_DURING_DIAGNOSIS",
+  "original_contract_reference": "https://github.com/levonmendall/The-Meme-Machine/blob/a32f49d2061e577644ef2d28f75fefd4a48ebe87/operational/pump-first-release/CONSOLIDATED_STARTUP_NEXT_OBSERVATION_SPEC_20261014.json",
+  "outcome_decisions": [
+    "Startup release/readiness succeeds and current durable progress catches arrivals/backlog: report only exercised workload and original remaining protection/release gates; no diagnostic acceptance minutes.",
+    "Retained counters identify dominant plan/transaction/housekeeping/post cost: select one source-supported correction preserving exact retention, ownership and deadlines; missing phase is not zero.",
+    "Startup gate remains blocked: use recorded phase/feed facts to identify exact dependency; do not call startup-only measurements sustained capacity.",
+    "Required attribution is unavailable, fatal/protection/resource/recovery fails or no causal discriminator emerges: preserve failure and stop live branch; no unchanged retry."
+  ],
+  "outside_scope": "No hardware/services purchase, strategy/provider-routing changes, funding transition, acceptance/autonomy promotion or backup-timer change.",
+  "per_invocation_one_start": true,
+  "poststartup_measurement_maximum_seconds": 900,
+  "preflight": "Fresh exact-source/config/service-access; O9head10634financial and native resumability/pendingACKs/ownership; provider/account/resource controls; applicable usable recovery point; backup and workload non-overlap. Existing checks only; root owns execution.",
+  "prior_evidence": "CANONICAL_BATCH_RESULT_20261015.md; original f72 readinessFAIL, native-worker drain verified, observed retention64.55s requires subphase attribution; no unchanged retry",
+  "question": "On the c5 startup-prefix/query correction plus fixed retention/startup facts, does native startup release correctly, and which retention phase\u2014plan, transaction, housekeeping or post\u2014accounts for the observed64.55-second owner occupancy and concurrent candidate queue?",
+  "readiness_seconds": 300,
+  "required_metrics": [
+    "Same current-generation arrivals/join/preparation/canonicalcommit/historyreceipt/exactACK/publication/strategy-consumption definitions and missing-data labels",
+    "Owner queue/execution, retention four phases, CPU/runnable waits, transaction timings, checkpoint handoffs",
+    "Startup phase/released/feed lo-hi/ACK/native timestamps; original300-second readiness verdict",
+    "Pons managed-route admission/errors and actual quote/USD timings only where exercised; unchanged provider accounting",
+    "Exact current native cancellation/shutdown and independent financial/current-state review"
+  ],
+  "resource_bounds": {
+    "cpu_cores": 1.8,
+    "disk_reserve_each_bytes": 5368709120,
+    "http_inflight_bytes": 134217728,
+    "native_inflight_bytes": 536870912,
+    "pons_current_protection_seconds": 5,
+    "pons_survivor_protection_seconds": 3,
+    "rss_bytes": 6442450944
+  },
+  "schema": 1,
+  "shutdown_reserve_seconds": 65,
+  "status": "EXACT_TESTED_CANDIDATE_FRESH_PREFLIGHT_REQUIRED",
+  "tested_successor": "c281058e5993bd7a35190010e9398c982ca7cd1e",
+  "validation": "49retention/outcome/progress/maintenancePASS13.327s;90actual integratedstartup+complete controllerPASS5.329s. Prior32collectionPASS overlap; c5 exact economic/source/ACK guards reused from208run207PASS/1stale assertion corrected20PASS. No fullFAST or general releasePASS.",
+  "work_stop_seconds": 1800
+}

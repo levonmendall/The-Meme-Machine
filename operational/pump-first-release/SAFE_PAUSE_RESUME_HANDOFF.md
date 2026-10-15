@@ -1,3 +1,14 @@
+# Current checkpoint — exact owner-retention discriminator ready
+
+Tested/published executable **c281058e5993bd7a35190010e9398c982ca7cd1e**.
+Read [OWNER_RETENTION_RESOLUTION_20261015.md](OWNER_RETENTION_RESOLUTION_20261015.md)
+and exact OWNER_RETENTION_NEXT_OBSERVATION_20261015.json.49focused/90combined
+PASS; no fullrelease claim. c5 startup/query fixes plus opt-in four-phase retention
+and bounded authenticated startup facts; original semantics and safeguards intact.
+PAPER remains stopped/disabled/Restart=no/fundingclosed at publication; installed
+rollback66f85d61. Fresh required preflight/access precedes any guarded issue134 run.
+Old f72 readinessFAIL and historical recovery failures remain unchanged.
+
 # Current checkpoint — bulk candidate measured; supported offline successor saved
 
 Read [CANONICAL_BATCH_RESULT_20261015.md](CANONICAL_BATCH_RESULT_20261015.md)
