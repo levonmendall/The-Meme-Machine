@@ -38,11 +38,11 @@
   "fresh_preflight": {
     "checks": 24,
     "historical_metadata_guard": "FAILED_PRESERVED; scoped financial/native/current-Pons facts independentlychecked; no whole-storePASS",
-    "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/EXCLUSIVE_PHASE_THREAD_PREFLIGHT_20261015.json",
+    "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/EXCLUSIVE_PHASE_THREAD_ACCESS_CORRECTED_PREFLIGHT_20261015.json",
     "queries": 395,
     "seconds": 0.110891,
     "service_access": "Existing mandatory network-disabled serviceUID/namespace/head/tree/output probe runs inside observe before real clock/start. Failure requests no PAPER start.",
-    "sha256": "0627b621947896e864c53fd8d949e700fb89a55e095acddbfad52e4f69aa0635",
+    "sha256": "2bac7e3820de5f64aa5099464e430be27b4c5d982aaa9b4290b8e52ea1aeb586",
     "verdict": "CURRENT_REQUIRED_PREDISPATCH_FACTS_VERIFIED_HISTORICAL_METADATA_UNATTRIBUTED"
   },
   "funding": "CLOSED_DURING_DIAGNOSIS",
@@ -79,12 +79,12 @@
       "base_unit_sha256": "7cd10c6c717a97f312c8718886bb09750b5498ccf96ef5bc74b52f8094bfe294",
       "continuous_profile_sha256": "5bfc1fe915df2f40dff8fc6fb1cc5f98a836fe41c7155bfd4ca15f0d563e39bd",
       "controller_sha256": "31c1c47197b56f41d4ddf835ef125d4b30e48551dc9cbc88eee2a34955f346e0",
-      "environment_sha256": "ef86c04932ac601cc3fe3ef1199b63bb2b0156408445d68dacbec69136f34006",
-      "unit_sha256": "48b0fe22daa4b4cb713422f3ebde8767779c2a0b959bcac3027381c2a0cc882c"
+      "environment_sha256": "1c6c9019d638afb3d424df120bfa01c3a2e779d4a2153990a68f854189b23914",
+      "unit_sha256": "646c88a95c8cd963135d39d24384164ae739be498a3c2052e7e9a45b9ac5ab3c"
     },
     "installed_before": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
-    "output": "/var/lib/meme-machine-diagnostics/20261015-standing-phase-thread-1ee2d5fa-045246",
-    "preparation": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/EXCLUSIVE_PHASE_THREAD_PREPARATION_20261015T045246Z",
+    "output": "/var/lib/meme-machine-diagnostics/20261015-standing-phase-thread-1ee2d5fa-045539",
+    "preparation": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/EXCLUSIVE_PHASE_THREAD_ACCESS_CORRECTED_PREPARATION_20261015T045539Z",
     "unit_path": "/etc/systemd/system/meme-machine-paper.service.d/validation-observation.conf"
   },
   "prior_observation": {
@@ -108,6 +108,14 @@
   "routine_per_run_owner_approval": false,
   "schema": 1,
   "shutdown_reserve_seconds": 65,
+  "source_access_pre_dispatch_failure": {
+    "access_preflight": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/EXCLUSIVE_PHASE_THREAD_ACCESS_CORRECTED_PREPARATION_20261015T045539Z/installed-access-preflight.json",
+    "correction": "Enumerated34reachable new sourceobjects; changed15requiredGitdirectory permissions only; no object content/database/credential/evidence permission change. ActualserviceUID/filesystem/source/output probe passed. FutureGitcommit/fetch/cutover and outercontroller invocation use umask0022; serviceUMask0077/private output unchanged.",
+    "evidence": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/EXCLUSIVE_PHASE_THREAD_SOURCE_OBJECT_ACCESS_REPAIR_20261015.json",
+    "no_paper_start": true,
+    "original_log": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/EXCLUSIVE_PHASE_THREAD_EXECUTION_20261015.log",
+    "root_cause": "Fifteen existing Git loose-object fanout directories created under private engineering umask prevented service clean-status reads. Fetch reused existing objects; checkout umask alone insufficient."
+  },
   "status": "FIXED_PHASE_THREAD_ATTRIBUTION_PREPARED_SOURCE_INSTALLED_FUNDING_CLOSED_NOT_STARTED",
   "tested_successor": "1ee2d5fa6d660e696166f16b772d456b8c0a55d4",
   "unchanged_resource_protection_contract": "https://github.com/levonmendall/The-Meme-Machine/blob/a32f49d2061e577644ef2d28f75fefd4a48ebe87/operational/pump-first-release/CONSOLIDATED_STARTUP_NEXT_OBSERVATION_SPEC_20261014.json",

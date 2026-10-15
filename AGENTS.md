@@ -60,6 +60,15 @@ independent lightweight offline work while CI runs, without competing heavy test
 or benchmarks. Retrieve the terminal result at a meaningful checkpoint. Draft
 skips, canceled runs and partial suites are not passes.
 
+The installed source shares Git objects with engineering worktrees. Use
+`umask 0022` before Git commits, fetches and cutovers: an existing private loose
+object directory is reused by fetch and is not repaired by a later checkout's
+umask. Preserve source bytes and limit any necessary access correction to the
+exact candidate's enumerated Git objects/ancestors; never recursively change
+permissions or touch credential/state permissions. The existing network-disabled
+service-identity HEAD/tree/clean-status probe must pass before the real clock
+and service-start request. Root-readable Git is insufficient.
+
 Preserve exact Decimal accounting, native reconciliation before discovery,
 idempotent reservations/delivery, bounded storage and maintenance fairness.
 `solana_owner_admission.py` schedules machine work; it is not human permission.
