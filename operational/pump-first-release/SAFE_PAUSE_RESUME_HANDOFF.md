@@ -1,3 +1,26 @@
+# Current checkpoint — CONTROL retention repaired; exact owner attribution ready
+
+Executable **10ae127c399279847df908d555eceb1aaf46ef1d**, implementation27f9a194,
+branch repair/consolidated-startup-followup-20261014, draftPR133. Read
+[CONTROL_MEMBERSHIP_RESOLUTION_20261015.md](CONTROL_MEMBERSHIP_RESOLUTION_20261015.md),
+[PROOF_SELECTION_RESULT_20261015.md](PROOF_SELECTION_RESULT_20261015.md), and exact
+DEVELOPMENT_PHASE_NEXT_OBSERVATION_20261015.json. Combined289PASS74.644s plus
+79maintenancePASS27.956s overlap; not fullrelease. O12 source released104.057s,
+readinessFAIL; after native581.647s arrival4.183124/durable1.776180, gap1271→2039.
+Native lanes STOPPED/reconciledexit0; currenthead11615/$1000/zero8obligations,
+historical$500/allfourv1 preserved. Global accepted-frame drain remains unavailable.
+New actual-retirement fixture proved required CONTROLreceiptloss/publication2→0;
+bounded hybrid contract now preserves genuine tail/boundaries, no fabricatedproof.
+Six fixed developmenttimers discriminate the remaining owner78.110s operation.
+Pons materialization/predicate patches rejected as immaterial; no behaviorchange.
+PAPER remains stopped/disabled/Restart=no/fundingclosed; installedrollback66f85d61.
+Standingissue134 permits this changed guarded discriminator only after fresh
+requiredpreflight/actualUIDaccess; no unchangedretry, hardwarepurchase or normal
+promotion. Backupstorage/protection, originalBUSY/READONLY, heldquoteUSD and
+sustainedcapacity remain separate unresolved issues. Acceptance0.
+
+Historical checkpoints below are preserved with their original scope/results.
+
 # Current checkpoint — independent proof scheduling corrected offline
 
 Executable **1385d289524b014b4142f53230f93c109d344931** (implementation b0c30bea); branch

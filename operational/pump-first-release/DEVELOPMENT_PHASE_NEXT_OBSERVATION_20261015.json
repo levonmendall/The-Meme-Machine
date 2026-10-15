@@ -1,0 +1,71 @@
+{
+  "absolute_start_to_drained_seconds": 1865,
+  "allowed_writes": "Unchanged existing diagnostic canonical/native/provider/history/exactACK/recovery/reporting/OBSERVATION ownership writes. Proof publication writes only validated pending proofs and original coverage/checkpoints; no allocation, new position/reservation/fill, capital/epoch/policy changes.",
+  "authority": "https://github.com/levonmendall/The-Meme-Machine/issues/134",
+  "auto_systemd_restart": false,
+  "changes_under_test": [
+    "Preserve unread current CONTROL tail and exact pending proof boundary witnesses through prefix/interior retirement; bounded indexed pages and commit-safe fair hints",
+    "Six exclusive fixed owner phase counters: selection/reactivation/boundaries/publication/plan/transactionexit; no scheduling/SQL/deadline change in attribution"
+  ],
+  "concurrent_runs": 1,
+  "controller": "engineering.diagnostics.current_combined_observation_20261014",
+  "controller_sha256": "1f09f640023b826c416d4a668472044a379bd90d9ff97afee75f7c416b511092",
+  "diagnostic_output": {
+    "cadence_seconds": 5,
+    "canonical_cohort_limit": 32,
+    "pons_thread_limit": 16,
+    "projected_metrics_bytes": 33210360,
+    "projection_receipt": "evidence/development-phase-output-budget-20261015.json",
+    "terminal_record_bytes": 65536,
+    "terminal_records": 2,
+    "total_bytes": 33554432
+  },
+  "diagnostic_startup_maximum_seconds": 900,
+  "end_state": "Stopped, disabled, Restart=no, funding closed; verify actual native drain independently, preserve all pending evidence/accounting, compatible rollback without rewind.",
+  "existing_provider_profiles": {
+    "pons_observation_route": "canonical_primary existing bound app only",
+    "robinhood_rps": 10,
+    "solana_rps": 2,
+    "spending": "Existing genuine provider/account controls; no obsolete fixed$2 ceiling; usage reporting retained"
+  },
+  "funding": "CLOSED_DURING_DIAGNOSIS",
+  "original_contract_reference": "https://github.com/levonmendall/The-Meme-Machine/blob/a32f49d2061e577644ef2d28f75fefd4a48ebe87/operational/pump-first-release/CONSOLIDATED_STARTUP_NEXT_OBSERVATION_SPEC_20261014.json",
+  "outcome_decisions": [
+    "A development phase dominates productiveCPU or database execution: identify only that exact operation for a focused faithful offline reproduction/correction; do not inferwholecallback from walltime.",
+    "Runnable/scheduling waits dominate with competing nativeCPU: quantify actual CPU, cgroupthrottle and sharedwaits; no GIL/lockholder or paidhardware verdict from wallminusCPU.",
+    "Current proofpublication survives retirement but requiredhistory/unconsumedwork still blocks readiness: preserve exact generation/receipt/ACK/coverage dependency; no fabricatedcoverage.",
+    "Startup/recorder/safety/nativefailure prevents meaningfulphase measurement: retain precise limitation, stop, no unchanged retry.",
+    "No SQLitefailure: not reproduced, not repaired. Flatportfolio: heldquote/USD/protection unexercised; noacceptance minutes."
+  ],
+  "outside_scope": "No hardware/services purchase, strategy/provider-routing changes, funding transition, acceptance/autonomy promotion or backup-timer change.",
+  "per_invocation_one_start": true,
+  "poststartup_measurement_maximum_seconds": 900,
+  "preflight": "Fresh24required checks against O12 financialhead11615 and all4104 retained named identities; native currentstate resumability/exclusiveownership/pendingexactACK/policy/provider/resource/recovery/access/backupnonoverlap. Actual serviceUID source/controller/output probe beforeclock. Rootsoleexecutionowner.",
+  "prior_evidence": "PROOF_SELECTION_RESULT_20261015.md: readinessFAIL, native lanes STOPPED/reconciledexit0; 4.183124arrivalproxy/1.776180canonicaldurable, gap1271\u21922039. Owner318.498/318.661s occupied; candidate_development78.110s. Small selection query and Pons local query changes rejected; h.plan stoppedstate hadnoeligiblejobs/inconclusive.",
+  "question": "Which exact candidate-development operation accounts for productiveCPU/wall/runnable delay in the measured owner bottleneck, and do actual current CONTROL publication/proof dependencies survive mandatory retirement?",
+  "readiness_seconds": 300,
+  "required_metrics": [
+    "Current-generation arrival/join/preparation/durablecommit/historyreceipt/exactACK; raw durable cursors distinct from actual program_frontiers/coverage/strategy consumption; missing remains unavailable",
+    "Owner queue/execution, retention four phases, CPU/runnable waits, transaction timings, checkpoint handoffs",
+    "Startup phase/released/feed lo-hi/ACK/native timestamps; original300-second readiness verdict",
+    "Pons managed-route admission/errors and actual quote/USD timings only where exercised; unchanged provider accounting",
+    "Exact current native cancellation/shutdown and independent financial/current-state review",
+    "Exact proof counts and current startup phase, feed interval, consumer receipt/ACK and publication progression; never stock as arrivals or overlapping progress sums",
+    "Fixed exclusive developmentphase totalwall/productiveCPU/kernelrunnable/calls/failure/unavailable fields retained beforeclipping; selection mayhave2entries, commitincludesoriginalexitcallback; noadditiontooverlappingownertotals."
+  ],
+  "resource_bounds": {
+    "cpu_cores": 1.8,
+    "disk_reserve_each_bytes": 5368709120,
+    "http_inflight_bytes": 134217728,
+    "native_inflight_bytes": 536870912,
+    "pons_current_protection_seconds": 5,
+    "pons_survivor_protection_seconds": 3,
+    "rss_bytes": 6442450944
+  },
+  "schema": 1,
+  "shutdown_reserve_seconds": 65,
+  "status": "CHANGED_RETENTION_CONTRACT_AND_DEVELOPMENT_ATTRIBUTION_FRESH_PREFLIGHT_REQUIRED",
+  "tested_successor": "10ae127c399279847df908d555eceb1aaf46ef1d",
+  "validation": "289combinedaffectedPASS74.644s inclactualstartup/history/ACK/sourceguards;79maintenancePASS27.956s and8contractPASS1.839s overlap. Originalcontractfailure preserved. PinnedCPython3.12.14/SQLite3.45.1. No fullFAST/release/capacityPASS.",
+  "work_stop_seconds": 1800
+}

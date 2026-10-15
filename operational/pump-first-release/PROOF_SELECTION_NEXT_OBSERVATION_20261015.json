@@ -62,9 +62,10 @@
     "pons_survivor_protection_seconds": 3,
     "rss_bytes": 6442450944
   },
+  "result": "PROOF_SELECTION_RESULT_20261015.md",
   "schema": 1,
   "shutdown_reserve_seconds": 65,
-  "status": "CAUSE_SUPPORTED_INDEPENDENT_PROOF_SELECTION_FRESH_PREFLIGHT_REQUIRED",
+  "status": "CONSUMED_O12_READINESS_FAIL_NATIVE_LANES_DRAIN_VERIFIED",
   "tested_successor": "1385d289524b014b4142f53230f93c109d344931",
   "validation": "287 affected integrated cases PASS110.673s incl actual startup rehearsal;78 history cases PASS19.076s overlap. Earlier3-failure combined result preserved and corrected without relaxing assertions. No complete FAST/release PASS.",
   "work_stop_seconds": 1800
