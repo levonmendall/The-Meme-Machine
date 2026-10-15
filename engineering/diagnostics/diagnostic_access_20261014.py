@@ -93,7 +93,7 @@ def probe_command(probe_dir, properties, identity, revision):
                 '--property=MemoryMax=128M', '--setenv=PYTHONDONTWRITEBYTECODE=1',
                 sys.executable, '-c', probe_payload(),
                 '--probe-dir', str(probe_dir), '--identity', json.dumps(identity),
-                '--revision', revision]
+                '--revision', revision, '--working-directory', properties['WorkingDirectory']]
     return command
 
 
@@ -101,14 +101,16 @@ def probe_payload():
     # A trusted, bounded program from the exact reviewed implementation. It does
     # not need the new helper installed or make /root visible to ProtectHome.
     # The existing installed atomic_json is the actual filesystem writer.
-    return ('import argparse, json, os, time\nfrom pathlib import Path\n'
+    return ('import argparse, json, os, subprocess, time\nfrom pathlib import Path\n'
             'from meme_machine.operational.observation import atomic_json\n'
             'PROBE_BYTES = 8192\nMAX_TERMINAL_BYTES = 65536\n' +
             inspect.getsource(write_terminal_record) + '\n' + inspect.getsource(read_probe) + '\n' +
-            inspect.getsource(service_probe) + '\n' +
+            inspect.getsource(installed_source_identity) + '\n' + inspect.getsource(service_probe) + '\n' +
             "p=argparse.ArgumentParser(); p.add_argument('--probe-dir', required=True); "
             "p.add_argument('--identity', required=True); p.add_argument('--revision', required=True); "
-            "a=p.parse_args(); service_probe(Path(a.probe_dir), json.loads(a.identity), a.revision)\n")
+            "p.add_argument('--working-directory', required=True); "
+            "a=p.parse_args(); service_probe(Path(a.probe_dir), json.loads(a.identity), a.revision, "
+            "Path(a.working_directory))\n")
 
 
 def read_probe(path):
@@ -157,17 +159,34 @@ def check_access(output, state_root, revision, properties, *, write_metadata, ru
             cleanup_allowed = True
             raise ValueError('diagnostic_access_service_probe_timeout') from None
         if completed.returncode != 0:
-            raise ValueError('diagnostic_access_service_probe_failed')
+            source_failure = None
+            try:
+                failure = json.loads(read_probe(probe_dir / 'probe-result.json'))
+                operation = failure.get('source_operation'); reason = failure.get('source_failure')
+                if (set(failure) == {'source_operation', 'source_failure'} and
+                        operation in ('head', 'status', 'tree') and reason in
+                        ('deadline', 'source_unavailable', 'revision_mismatch', 'source_not_clean', 'tree_unavailable')):
+                    source_failure = 'diagnostic_access_service_probe_failed:' + operation + ':' + reason
+            except (OSError, ValueError, TypeError, AttributeError):
+                pass
+            raise ValueError(source_failure or 'diagnostic_access_service_probe_failed')
         result = json.loads(read_probe(probe_dir / 'probe-result.json'))
+        source = result.get('installed_source', {})
+        tree = source.get('tree') if isinstance(source, dict) else None
+        if not isinstance(tree, str) or len(tree) != 40 or any(c not in '0123456789abcdef' for c in tree):
+            raise ValueError('diagnostic_access_installed_source_proof_unavailable')
+        source = dict(revision=revision, tree=tree, clean=True)
         if result != dict(identity, revision=revision, clock_read=True, atomic_replace=True,
-                          ancestors_traversable=True, clock_mode=clock_mode, run_mode=0o700):
+                          ancestors_traversable=True, clock_mode=clock_mode, run_mode=0o700,
+                          installed_source=source):
             raise ValueError('diagnostic_access_service_proof_mismatch')
         if (json.loads(read_probe(probe_dir / 'supervisor-fatal.json')) != dict(access_probe=True) or
                 read_probe(probe_dir / 'source-sqlite-terminal.txt') != b'diagnostic_access_probe\n'):
             raise ValueError('diagnostic_access_controller_read_failed')
         return dict(verified=True, identity=identity, network='DISABLED',
                     filesystem_properties={key: properties[key] for key in ACCESS_PROPERTIES},
-                    simulated_clock_only=True, controller_clock_mode=clock_mode, probe_run_mode=0o700)
+                    simulated_clock_only=True, controller_clock_mode=clock_mode, probe_run_mode=0o700,
+                    installed_source=source)
     finally:
         # Exact probe-owned files only; no recursive evidence deletion.
         if cleanup_allowed:
@@ -177,7 +196,39 @@ def check_access(output, state_root, revision, properties, *, write_metadata, ru
             probe_dir.rmdir()
 
 
-def service_probe(probe_dir, identity, revision):
+def installed_source_identity(working_directory, revision):
+    """The three installed read-only Git guards, under the service identity."""
+    working_directory = Path(working_directory)
+    if not working_directory.is_absolute():
+        raise ValueError('diagnostic_access_installed_working_directory_required')
+    deadline = time.monotonic() + 5
+    environment = dict(os.environ, GIT_OPTIONAL_LOCKS='0')
+    values = []
+    for operation, arguments in (('head', ('rev-parse', 'HEAD')), ('status', ('status', '--porcelain')),
+                                 ('tree', ('rev-parse', 'HEAD^{tree}'))):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise ValueError('diagnostic_access_installed_deadline:' + operation)
+        try:
+            result = subprocess.run(['git', *arguments], cwd=working_directory, env=environment,
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+                timeout=remaining, check=False)
+        except (OSError, subprocess.SubprocessError):
+            raise ValueError('diagnostic_access_installed_source_unavailable:' + operation) from None
+        if result.returncode != 0 or len(result.stdout) > PROBE_BYTES:
+            raise ValueError('diagnostic_access_installed_source_unavailable:' + operation)
+        values.append(result.stdout.strip())
+    head, status, tree = values
+    if head != revision:
+        raise ValueError('diagnostic_access_installed_revision_mismatch:head')
+    if status:
+        raise ValueError('diagnostic_access_installed_source_not_clean:status')
+    if len(tree) != 40 or any(c not in '0123456789abcdef' for c in tree):
+        raise ValueError('diagnostic_access_installed_tree_unavailable:tree')
+    return dict(revision=head, tree=tree, clean=True)
+
+
+def service_probe(probe_dir, identity, revision, working_directory):
     """Small bounded program executed under the installed service's identity."""
     probe_dir = Path(probe_dir)
     actual = dict(uid=os.geteuid(), gid=os.getegid(), groups=sorted(set(os.getgroups())))
@@ -189,13 +240,26 @@ def service_probe(probe_dir, identity, revision):
     clock = json.loads(read_probe(probe_dir / 'clock.json'))
     if clock != dict(access_probe=True, revision=revision, origin_monotonic=0):
         raise ValueError('diagnostic_access_simulated_clock_mismatch')
+    try:
+        source = installed_source_identity(working_directory, revision)
+    except ValueError as error:
+        # Preserve only reviewed operation/reason literals, never Git stderr,
+        # filenames or third-party exception text. This disposable record is
+        # optional and must not replace the original source-access failure.
+        for operation in ('head', 'status', 'tree'):
+            for reason in ('deadline', 'source_unavailable', 'revision_mismatch', 'source_not_clean', 'tree_unavailable'):
+                if str(error) == 'diagnostic_access_installed_' + reason + ':' + operation:
+                    try:atomic_json(probe_dir / 'probe-result.json',
+                                    dict(source_operation=operation, source_failure=reason))
+                    except Exception:pass
+        raise
     atomic_json(probe_dir / 'supervisor-fatal.json', dict(access_probe=False))
     atomic_json(probe_dir / 'supervisor-fatal.json', dict(access_probe=True))
     write_terminal_record(probe_dir / 'source-sqlite-terminal.txt', 'diagnostic_access_probe\n')
     atomic_json(probe_dir / 'probe-result.json', dict(identity, revision=revision,
                 clock_read=True, atomic_replace=True, ancestors_traversable=True,
                 clock_mode=(probe_dir / 'clock.json').stat().st_mode & 0o777,
-                run_mode=probe_dir.stat().st_mode & 0o777))
+                run_mode=probe_dir.stat().st_mode & 0o777, installed_source=source))
 
 
 if __name__ == '__main__':
@@ -203,5 +267,6 @@ if __name__ == '__main__':
     parser.add_argument('--probe-dir', required=True, type=Path)
     parser.add_argument('--identity', required=True)
     parser.add_argument('--revision', required=True)
+    parser.add_argument('--working-directory', required=True, type=Path)
     args = parser.parse_args()
-    service_probe(args.probe_dir, json.loads(args.identity), args.revision)
+    service_probe(args.probe_dir, json.loads(args.identity), args.revision, args.working_directory)

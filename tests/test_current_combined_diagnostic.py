@@ -1009,6 +1009,7 @@ class DiagnosticAccessTests(unittest.TestCase):
             self.assertIn('--property=' + value, command)
         self.assertNotIn(diagnostic.UNIT, command)
         self.assertNotIn('supervise', command)
+        self.assertEqual(command[command.index('--working-directory') + 1], '/opt/meme-machine')
         with self.assertRaisesRegex(ValueError, 'properties_incomplete'):
             access.probe_command('/private/probe', {}, self.identity, 'a' * 40)
 
@@ -1027,18 +1028,82 @@ class DiagnosticAccessTests(unittest.TestCase):
     def test_controller_can_read_service_outputs_and_probe_clock_is_disposable(self):
         output = self.mock_output(); owned = output.stat()
         identity = dict(uid=owned.st_uid, gid=owned.st_gid, groups=sorted(set(os.getgroups())))
+        trusted_payload = access.probe_payload()
         observed = []
         def execute(command, **kwargs):
             probe = Path(command[command.index('--probe-dir') + 1])
             observed.append(json.loads((probe / 'clock.json').read_text()))
-            access.service_probe(probe, identity, 'a' * 40)
+            access.service_probe(probe, identity, 'a' * 40, self.properties['WorkingDirectory'])
             return Mock(returncode=0)
         with patch.object(access, 'service_identity', return_value=identity), \
-             patch.object(access.os, 'chown'):
+             patch.object(access.os, 'chown'), \
+             patch.object(access, 'probe_payload', return_value=trusted_payload), \
+             patch.object(access, 'installed_source_identity', return_value=dict(
+                 revision='a' * 40, tree='b' * 40, clean=True)):
             verdict = access.check_access(output, self.root / 'economic', 'a' * 40, self.properties,
                 write_metadata=diagnostic.write_metadata, run=execute)
         self.assertTrue(verdict['verified']); self.assertTrue(verdict['simulated_clock_only'])
         self.assertEqual(observed, [dict(access_probe=True, revision='a' * 40, origin_monotonic=0)])
+        self.assertEqual(verdict['installed_source'], dict(revision='a' * 40, tree='b' * 40, clean=True))
+        self.assertEqual(list(output.iterdir()), [])
+
+    def test_installed_source_guard_uses_only_three_read_only_commands_and_one_deadline(self):
+        values = [Mock(returncode=0, stdout='a' * 40 + '\n'), Mock(returncode=0, stdout=''),
+                  Mock(returncode=0, stdout='b' * 40 + '\n')]
+        with patch.object(access.subprocess, 'run', side_effect=values) as run, \
+             patch.object(access.time, 'monotonic', side_effect=[10, 11, 12, 13]):
+            self.assertEqual(access.installed_source_identity('/installed/source', 'a' * 40),
+                             dict(revision='a' * 40, tree='b' * 40, clean=True))
+        self.assertEqual([call.args[0] for call in run.call_args_list], [
+            ['git', 'rev-parse', 'HEAD'], ['git', 'status', '--porcelain'],
+            ['git', 'rev-parse', 'HEAD^{tree}']])
+        self.assertEqual([call.kwargs['timeout'] for call in run.call_args_list], [4, 3, 2])
+        for call in run.call_args_list:
+            self.assertEqual(call.kwargs['env']['GIT_OPTIONAL_LOCKS'], '0')
+            self.assertEqual(call.kwargs['cwd'], Path('/installed/source'))
+            self.assertEqual(call.kwargs['stderr'], subprocess.DEVNULL)
+
+    def test_installed_source_errors_dirty_tree_and_mismatch_remain_unavailable(self):
+        cases = [([Mock(returncode=128, stdout='')], 'source_unavailable'),
+                 ([Mock(returncode=0, stdout='a' * 40), Mock(returncode=0, stdout=''),
+                   Mock(returncode=128, stdout='')], 'source_unavailable'),
+                 ([Mock(returncode=0, stdout='b' * 40), Mock(returncode=0, stdout=''),
+                   Mock(returncode=0, stdout='b' * 40)], 'revision_mismatch'),
+                 ([Mock(returncode=0, stdout='a' * 40), Mock(returncode=0, stdout=' M tracked'),
+                   Mock(returncode=0, stdout='b' * 40)], 'source_not_clean'),
+                 ([Mock(returncode=0, stdout='a' * 40), Mock(returncode=0, stdout=''),
+                   Mock(returncode=0, stdout='private tree failure')], 'tree_unavailable')]
+        for responses, expected in cases:
+            with self.subTest(expected=expected), \
+                 patch.object(access.subprocess, 'run', side_effect=responses), \
+                 self.assertRaisesRegex(ValueError, expected):
+                access.installed_source_identity('/installed/source', 'a' * 40)
+        with patch.object(access.subprocess, 'run', side_effect=subprocess.TimeoutExpired('git', 1)), \
+             self.assertRaisesRegex(ValueError, 'source_unavailable:head'):
+            access.installed_source_identity('/installed/source', 'a' * 40)
+        with patch.object(access.time, 'monotonic', side_effect=[10, 16]), \
+             patch.object(access.subprocess, 'run') as run, \
+             self.assertRaisesRegex(ValueError, 'installed_deadline:head'):
+            access.installed_source_identity('/installed/source', 'a' * 40)
+        run.assert_not_called()
+
+    def test_source_failure_phase_survives_service_probe_and_controller_cleanup(self):
+        output = self.mock_output(); owned = output.stat()
+        identity = dict(uid=owned.st_uid, gid=owned.st_gid, groups=sorted(set(os.getgroups())))
+        trusted_payload = access.probe_payload()
+        def execute(command, **kwargs):
+            probe = Path(command[command.index('--probe-dir') + 1])
+            try:access.service_probe(probe, identity, 'a' * 40, '/installed/source')
+            except ValueError:return Mock(returncode=1)
+            self.fail('source failure was not preserved')
+        with patch.object(access, 'service_identity', return_value=identity), \
+             patch.object(access.os, 'chown'), \
+             patch.object(access, 'probe_payload', return_value=trusted_payload), \
+             patch.object(access, 'installed_source_identity', side_effect=ValueError(
+                 'diagnostic_access_installed_source_unavailable:tree')), \
+             self.assertRaisesRegex(ValueError, 'service_probe_failed:tree:source_unavailable'):
+            access.check_access(output, self.root / 'economic', 'a' * 40, self.properties,
+                write_metadata=diagnostic.write_metadata, run=execute)
         self.assertEqual(list(output.iterdir()), [])
 
     def test_failure_precedes_real_clock_and_any_paper_start_request(self):
@@ -1123,6 +1188,8 @@ class DiagnosticAccessTests(unittest.TestCase):
             *(argument for key in access.ACCESS_PROPERTIES for argument in ('-p', key))],
             text=True, timeout=5)
         self.properties = dict(line.split('=', 1) for line in current.splitlines())
+        revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
+            cwd=self.properties['WorkingDirectory'], text=True, timeout=5).strip()
         identity = access.service_identity(self.properties)
         old_umask = os.umask(0o022)
         try:
@@ -1136,7 +1203,7 @@ class DiagnosticAccessTests(unittest.TestCase):
                 output = parent / 'fresh'; output.mkdir(mode=0o700)
                 os.chown(output, account.pw_uid, identity['gid'])
                 with self.assertRaisesRegex(ValueError, 'service_probe_failed'):
-                    access.check_access(output, scratch.path / 'economic', 'a' * 40,
+                    access.check_access(output, scratch.path / 'economic', revision,
                         self.properties, write_metadata=diagnostic.write_metadata)
                 self.assertEqual(list(output.iterdir()), [])
                 # Retain the prior failed directory; use a fresh run and repair
@@ -1145,14 +1212,14 @@ class DiagnosticAccessTests(unittest.TestCase):
                 access.prepare_output(corrected, self.properties, diagnostic_parent=parent)
                 self.assertEqual(parent.stat().st_mode & 0o777, 0o710)
                 self.assertEqual(parent.stat().st_gid, identity['gid'])
-                verdict = access.check_access(corrected, scratch.path / 'economic', 'a' * 40,
+                verdict = access.check_access(corrected, scratch.path / 'economic', revision,
                     self.properties, write_metadata=diagnostic.write_metadata)
                 self.assertTrue(verdict['verified']); self.assertEqual(list(corrected.iterdir()), [])
                 self.assertEqual(verdict['controller_clock_mode'], 0o644)
                 # An unreadable root-created clock must not pass actual UID checks.
                 os.umask(0o077)
                 with self.assertRaisesRegex(ValueError, 'service_probe_failed'):
-                    access.check_access(corrected, scratch.path / 'economic', 'a' * 40,
+                    access.check_access(corrected, scratch.path / 'economic', revision,
                         self.properties, write_metadata=diagnostic.write_metadata)
                 os.umask(0o022)
                 self.assertEqual(preserved.read_text(), 'unchanged')
@@ -1160,6 +1227,98 @@ class DiagnosticAccessTests(unittest.TestCase):
                 second = parent / 'second-fresh'; parent.chmod(0o700)
                 access.prepare_output(second, self.properties, diagnostic_parent=parent)
                 self.assertEqual(parent.stat().st_mode & 0o777, 0o710)
+                scratch.check(); scratch.success = True
+        finally:
+            os.umask(old_umask)
+
+    @unittest.skipUnless(os.geteuid() == 0 and shutil.which('systemd-run') and shutil.which('git') and
+                         Path('/run/systemd/system').exists(),
+                         'actual service identity/filesystem namespace need root/systemd/git')
+    def test_linked_worktree_git_access_and_exact_revision_are_required_before_start(self):
+        try:
+            pwd.getpwnam('meme-machine')
+        except KeyError:
+            self.skipTest('configured service identity is unavailable')
+        from meme_machine.operational.artifact_storage import Scratch
+        current = subprocess.check_output(['systemctl', 'show', diagnostic.UNIT,
+            *(argument for key in access.ACCESS_PROPERTIES for argument in ('-p', key))],
+            text=True, timeout=5)
+        properties = dict(line.split('=', 1) for line in current.splitlines())
+        identity = access.service_identity(properties)
+        if 0 in identity['groups']:
+            self.skipTest('root-group service cannot reproduce root:root 0660 denial')
+        installed_package = Path(properties['WorkingDirectory']) / 'meme_machine'
+        old_umask = os.umask(0o022)
+        try:
+            with Scratch(parent=Path('/var/lib')) as scratch:
+                scratch.path.chmod(0o711)
+                repo = scratch.path / 'repository'; installed = scratch.path / 'installed'
+                def git(*args):
+                    return subprocess.check_output(['git', *args], cwd=repo,
+                        text=True, stderr=subprocess.DEVNULL, timeout=5).strip()
+                subprocess.run(['git', 'init', '--quiet', str(repo)], check=True, timeout=5,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                (repo / 'fixture').write_text('retained fixture\n')
+                (repo / 'meme_machine').symlink_to(installed_package, target_is_directory=True)
+                git('add', 'fixture', 'meme_machine')
+                git('-c', 'user.name=Offline fixture', '-c', 'user.email=offline@example.invalid',
+                    'commit', '--no-gpg-sign', '--quiet', '-m', 'Disposable linked source')
+                revision = git('rev-parse', 'HEAD'); tree = git('rev-parse', 'HEAD^{tree}')
+                git('worktree', 'add', '--quiet', '--detach', str(installed), revision)
+                admin = repo / '.git' / 'worktrees' / 'installed'
+                # These exact disposable ownership assignments let Git perform
+                # its ordinary safe-directory checks, without a global override.
+                for path in (repo, repo / '.git', installed, installed / '.git', admin):
+                    os.chown(path, identity['uid'], identity['gid'])
+                head = admin / 'HEAD'; os.chown(head, 0, 0); head.chmod(0o660)
+                tree_object = repo / '.git' / 'objects' / tree[:2] / tree[2:]
+                index_before = (admin / 'index').read_bytes()
+                properties = dict(properties, WorkingDirectory=str(installed))
+                parent = scratch.path / 'diagnostics'; parent.mkdir(mode=0o700)
+                prior = parent / 'prior'; prior.mkdir(mode=0o700)
+                (prior / 'retained').write_text('unchanged')
+                output = parent / 'fresh'
+                access.prepare_output(output, properties, diagnostic_parent=parent)
+
+                def blocked_before_start(requested):
+                    def ctl(*args, **kwargs):
+                        if 'MainPID' in args:return '0'
+                        if 'UnitFileState' in args:return 'disabled'
+                        if 'ExecStart' in args:
+                            return f'current_combined_observation_20261014 supervise {scratch.path / "state"} {output} {requested}'
+                        keys = [args[i + 1] for i, value in enumerate(args[:-1]) if value == '-p']
+                        values = dict(properties, Restart='no', RuntimeMaxUSec='30min',
+                                      TimeoutStopUSec='1min 5s', KillMode='control-group')
+                        return '\n'.join(key + '=' + values[key] for key in keys)
+                    with patch.object(diagnostic, 'control', side_effect=ctl) as control, \
+                         patch.object(diagnostic.subprocess, 'check_output', return_value=requested), \
+                         patch.object(diagnostic, 'economic', return_value={}), \
+                         self.assertRaisesRegex(ValueError, 'service_probe_failed'):
+                        diagnostic.observe_once(scratch.path / 'state', output, requested)
+                    self.assertFalse(any('start' in call.args for call in control.call_args_list))
+                    self.assertEqual(list(output.iterdir()), [])
+                    self.assertFalse((output / 'clock.json').exists())
+
+                blocked_before_start(revision)
+                os.chown(head, 0, identity['gid']); head.chmod(0o640)
+                verdict = access.check_access(output, scratch.path / 'state', revision,
+                    properties, write_metadata=diagnostic.write_metadata)
+                self.assertEqual(verdict['installed_source'], dict(revision=revision, tree=tree, clean=True))
+                self.assertEqual(list(output.iterdir()), [])
+                # Unreadable Git objects are a separate source-identity failure,
+                # even when the worktree HEAD itself is readable.
+                os.chown(tree_object, 0, 0); tree_object.chmod(0o600)
+                blocked_before_start(revision)
+                os.chown(tree_object, 0, identity['gid']); tree_object.chmod(0o440)
+                verdict = access.check_access(output, scratch.path / 'state', revision,
+                    properties, write_metadata=diagnostic.write_metadata)
+                self.assertTrue(verdict['verified'])
+                blocked_before_start('0' * 40)
+                (installed / 'fixture').write_text('changed fixture\n')
+                blocked_before_start(revision)
+                self.assertEqual((admin / 'index').read_bytes(), index_before)
+                self.assertEqual((prior / 'retained').read_text(), 'unchanged')
+                self.assertEqual(list(output.iterdir()), [])
                 scratch.check(); scratch.success = True
         finally:
             os.umask(old_umask)
