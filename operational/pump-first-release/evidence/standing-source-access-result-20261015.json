@@ -1,0 +1,120 @@
+{
+  "artifacts": [
+    {
+      "bytes": 155183,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_SOURCE_ACCESS_PREFLIGHT_FINAL_20261015.json",
+      "sha256": "33da7e17df690a044f7a110a34cf5c8d0aa124f212b148529e07b7cd0509d255"
+    },
+    {
+      "bytes": 8877,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_SOURCE_ACCESS_UNIT_JOURNAL_20261015.jsonl",
+      "sha256": "eb3a3ad8f7d53d92b9f414e402630437d3151472d7fc019046f8364bd4829f1a"
+    },
+    {
+      "bytes": 235219,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_SOURCE_ACCESS_POST_NATIVE_FINANCIAL_20261015.json",
+      "sha256": "ae6a6d52533d5d9905a8ba1b5a692af48ac60b2706c0cb18b3164023328b81e4"
+    },
+    {
+      "bytes": 53273,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_SOURCE_ACCESS_METADATA_SUPPLEMENT_20261015.json",
+      "sha256": "884867248d1320c211992748ab5e7178b53a6872e13301df4d7687216abe61b0"
+    },
+    {
+      "bytes": 17420,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_SOURCE_ACCESS_METADATA_SUPPLEMENT2_20261015.json",
+      "sha256": "0af57d239d7377f946baa3fb7c6c774907ee40b150e516a4db8fa378161d2b67"
+    },
+    {
+      "bytes": 766,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_SOURCE_ACCESS_PONS_DECISION_FACTS_20261015.json",
+      "sha256": "95c179093887bc107f0e91b7c1cb2a71a85eaae829b702612cfbbb12152b557c"
+    },
+    {
+      "bytes": 13416,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_SOURCE_ACCESS_PIPELINE_ANALYSIS_20261015.json",
+      "sha256": "e910258e8be2378210d854a6fedc4bb65ab6b183d5b2c80a7b28aa68160b5383"
+    },
+    {
+      "bytes": 12853,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_SOURCE_ACCESS_PIPELINE_ANALYSIS_REVIEWED_20261015.json",
+      "sha256": "413365df09ed3b62fc9cd5cabfec7ce5a139203329441700bdfa56154dd50088"
+    },
+    {
+      "bytes": 7724,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_SOURCE_ACCESS_CANDIDATE_STAGE_BUDGET_20261015.json",
+      "sha256": "3105f1c20f121c13678e01a179c21103c6777c3ab5b9d426e02491ea6b54b897"
+    },
+    {
+      "bytes": 507,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_SOURCE_ACCESS_ROLLBACK_20261015.json",
+      "sha256": "2dad8619bcbb417ded788f300e84fdb0d687320aba737a593c59077be90a1596"
+    },
+    {
+      "bytes": 10925,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/EXCLUSIVE_PHASE_THREAD_FOCUSED_20261015.log",
+      "sha256": "125ae2107e1b63dbc38b0bbdb8347f8e25568dc91d5b08decc9e312bd684c90f"
+    },
+    {
+      "bytes": 234,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/EXCLUSIVE_PHASE_THREAD_FINAL_20261015.log",
+      "sha256": "a7af85abde6d3a259bc95449bc6eabdb227dc971c5dd09b070cb0fd182af9ac8"
+    },
+    {
+      "bytes": 229,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/EXCLUSIVE_PHASE_THREAD_COLLECTION_FINAL_20261015.log",
+      "sha256": "d1adda384912525b1020d8814c03285023eb9c618732279c2527e14b8bb6c6f1"
+    },
+    {
+      "bytes": 843,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/EXCLUSIVE_PHASE_THREAD_OUTPUT_BUDGET_20261015.json",
+      "sha256": "e1b6c766f524bfeb9750a3854cc7648ce6158d302f6b4a3b98a584c5b958aca8"
+    },
+    {
+      "bytes": 450,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_SCHEDULED_BACKUP_FAILURE_20261015.json",
+      "sha256": "42182d61c70b18ea684b3078819d205e0f10480da9e16dc5ea9f63f6e631e356"
+    },
+    {
+      "bytes": 8513,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_SCHEDULED_BACKUP_JOURNAL_20261015.jsonl",
+      "sha256": "fc73dcf7e41c120e9f4a0b2702034b5714bb340b8b809abe2b3f1ec338d7e0a4"
+    },
+    {
+      "bytes": 10230,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-source-access-5c9f8e82-041347/result.json",
+      "sha256": "ecd87ba873a037b493a3422f1b55ee03be40583021a2887f7470ce6020147022"
+    },
+    {
+      "bytes": 96,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-source-access-5c9f8e82-041347/clock.json",
+      "sha256": "9b0c559caba777865cfebd83a6714bad0a5d73ab74c07e862b03f2b949c528fa"
+    },
+    {
+      "bytes": 13994153,
+      "path": "/var/lib/meme-machine-diagnostics/20261015-standing-source-access-5c9f8e82-041347/metrics.jsonl",
+      "sha256": "405b44cf5a948425c74f32e151ae006d87dadb2905074fd21390ce8e10be141b"
+    }
+  ],
+  "branch": "repair/consolidated-startup-followup-20261014",
+  "ci": {
+    "conclusion": "success",
+    "id": 38652038787,
+    "scope": "Prior exact source only, not current releasePASS; terminal result retrieved once",
+    "source": "c8beb2d1317084779f97214b6015b7c345242085"
+  },
+  "domain_checks": "O7 financial/native ownership/pending/ACK/accounting/provider closure verified; metadata guard FAILED retained. Supplements retain rawctime differences/report-body bounds; current exact Pons decision facts separatelyverified.",
+  "executed": "5c9f8e823ee938aa45ab3c98c43bc3bbab9d05c7",
+  "native": "Current both matching PID/run healthSTOPPED/reconciledtrue/exit0; not global recovery/held-protection PASS",
+  "next_diagnostic": "Not yet installed or started. Fixed exclusive candidate phases + existing Pons executor-role/kernel CPU counters; no behavior, provider, strategy or persistent-state change.",
+  "next_diagnostic_executable": "1ee2d5fa6d660e696166f16b772d456b8c0a55d4",
+  "pr": "https://github.com/levonmendall/The-Meme-Machine/pull/133",
+  "raw_verdict": "STOPPED_REVIEW_REQUIRED / STARTUP_LIMITATION / readinessFAIL / acceptance0",
+  "specification": "a429518dbec3cb24ea29fc09af8158f7d348a220",
+  "validation": {
+    "corrected": "34PASS/10.740s including affectedcollector and4source/economic guards",
+    "final_collection": "30PASS/.679s after outputbudget projection refinement",
+    "initial": "247cases/246PASS/1ERROR stale duplicate-IPC assertion;57.453s",
+    "scope": "Risk-based diagnostic only, prior unaffected proofs reused; no new fullFAST/generalreleasePASS"
+  }
+}

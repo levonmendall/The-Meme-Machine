@@ -1,4 +1,36 @@
-# Current checkpoint — service-identity installation contract corrected
+# Current checkpoint — native stop verified; candidate drain still insufficient
+
+Read [STANDING_SOURCE_ACCESS_RESULT_20261015.md](STANDING_SOURCE_ACCESS_RESULT_20261015.md)
+and its small evidence index. Executed5c9f8e82 under a429518d, funding closed:
+readiness FAIL, STARTUP_LIMITATION,905.746s, acceptance0. Both actual native
+workers STOPPED/reconciled/exit0 within5s; historical failures stay unchanged.
+Post-restoration arrival4.2900 versus durable1.8862slotunits/s; pre-persistence
+gap1021→1977. Serial preparation/owner queue/candidate execution accounts for
+394.931of396.034s. Precise avoidable operation is not yet attributed. Most Pons
+CPU is on background threads; the report-only microfix established no whole-path
+gain. Do not repeat unchanged or infer hardware insufficiency.
+
+Financial head9982/$1000/zero eight-category obligations, historical500,
+allfourv1 bindings, exact prior ACKs and current pending records verified.
+Original metadata guard FAILED is retained, with supplemental ctime-only WAL
+findings and a3.9MiB reporting-body bound explicitly unavailable; required
+current Pons flat/policy facts separately verified. No silent integrity PASS.
+Source66f85d61 and saved overlays restored compatibly, no database rewind;
+PAPER stopped/disabled/Restart=no/fundingclosed. Failed scheduled backup remains
+unusable; applicable older recovery proof remains separate.
+
+Next offline-tested diagnostic executable
+**1ee2d5fa6d660e696166f16b772d456b8c0a55d4** adds fixed exclusive candidate
+phases, retains preparation worker wall time, and maps bounded Pons kernel
+threads to existing executor roles. No scheduling, deadline, SQL, retry, policy
+or persistent-state change. Initial247run246PASS/1stale-output-assertionERROR;
+corrected34PASS including source/economic guards; final30collection PASS.
+Prior integrated startup/canonical/cancellation cases passed in the247run.
+No full FAST was dispatched. Standing issue134 permits the next cause-based
+guarded diagnostic after exact source/configuration and fresh safety preflight;
+never start the restored old finite unit unchanged.
+
+# Prior checkpoint — service-identity installation contract corrected
 
 Read [STANDING_CREATION_INSTALLATION_FAILURE_20261015.md](STANDING_CREATION_INSTALLATION_FAILURE_20261015.md).
 The4b70109d start stopped before the supervisor constructor: root checkout had
