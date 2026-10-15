@@ -1,3 +1,31 @@
+# Current continuation — coordinated processing and source recovery repair
+
+The owner resumed this defined scope from f52be1e. Executable
+`a793bd580593a87d17a0ab6e5e8581943bec6886` is committed and focused-tested;
+branch `repair/consolidated-startup-followup-20261014`, draft PR133.
+Read [the repair/evidence handoff](COORDINATED_PIPELINE_REPAIR_20261015.md)
+and [the exact-source observation specification](COORDINATED_PIPELINE_NEXT_OBSERVATION_20261015.json).
+
+Scout selection/outbox/maintenance work is consolidated; Pons retains one
+immediate nomination per scout event; accepted source queues now drain across
+stop/reconnect/replacement with exact unresolved recovery obligations. Final
+230-case affected integration passed, including actual startup and cancellation;
+all earlier failed runs remain retained. No whole-machine improvement, held
+protection, final release or acceptance PASS is claimed.
+
+Standing issue134 permits the next changed guarded diagnostic after fresh
+preflight. PAPER remains stopped/disabled/Restart=no, funding closed. The installed
+stopped rollback is still 66f85d61 pending controlled cutover; never start it as
+normal autonomous operation. Financial head12276/$1000/zero obligations was freshly
+confirmed unchanged; recheck immediately before dispatch. Current native state,
+exact retained receipts/ACKs and recovery reference require fresh applicability
+checks. Backup storage and protection compatibility remain separate blockers.
+
+Original 300s readiness, 1800s work/1865s absolute limit, provider pacing and all
+strategy/economic protections remain. Root is the sole integration/test/runtime
+owner. Continue under the current resumed instruction; the owner-review pause
+and earlier continuation entries below are historical, preserved without rewrite.
+
 ## Current owner checkpoint — PAUSED FOR REVIEW (2026-10-15)
 
 The owner directs a pause after completing the active work. The diagnostic,
