@@ -1,0 +1,43 @@
+{
+  "candidate": "4b70109db89382e050ceeebb77ac352509f9fc82",
+  "engineering_scope": "Pump creation-lineage lookup/cancellation; report-only Pons request counters; truthful current-run native stop verdict",
+  "financial_writes": 0,
+  "logs": [
+    {
+      "bytes": 1799,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CREATION_CANCELLATION_BASELINE_20261015.log",
+      "sha256": "fccea977d8010cfc7f9867ace95f7a79de8eb1076a45370b7a9c561c6c4ac854"
+    },
+    {
+      "bytes": 3180,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CREATION_CANCELLATION_FOCUSED_20261015.log",
+      "sha256": "f4ef5d33f18044cc7102f175fd7b8d1a9c21e108d1d5f97d86f2249af21b00f5"
+    },
+    {
+      "bytes": 220,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CREATION_PONS_NATIVE_VERDICT_FOCUSED_20261015.log",
+      "sha256": "ef514b7f60e65ef6865d129fe2a7148545b648c6083a430f1e01489f02b90327"
+    },
+    {
+      "bytes": 1641,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CREATION_PONS_NATIVE_COMBINED_20261015.log",
+      "sha256": "b656aef8b54e8b9201208b5385c5983001a2a032c48ac2532591cb6215802610"
+    },
+    {
+      "bytes": 1563,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CREATION_PONS_SOURCE_FINAL_20261015.log",
+      "sha256": "e53c57106dfb1a0f047f4662294715c7e92f75feac13c87ee593b30b5b963480"
+    },
+    {
+      "bytes": 213,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/CREATION_PONS_REVIEWED_SOURCE_20261015.log",
+      "sha256": "840791c9a6b5efddedca33dc10f6cea4d38052e93b977b7499d9b1f38fd8bc87"
+    }
+  ],
+  "prior_observation": "bdc19709e7daad243b3e3e1c3d50874af79695c1",
+  "prior_observation_result": "STANDING_RETIREMENT_RESULT_20261015.md",
+  "provider_calls": 0,
+  "schema": 1,
+  "service_starts": 0,
+  "whole_machine_improvement": "NOT_ESTABLISHED"
+}

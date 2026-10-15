@@ -1,4 +1,21 @@
-# Current checkpoint — retirement exercised; Pump cancellation still failed
+# Current checkpoint — exact cancellation/reporting repair prepared
+
+Read [STANDING_CREATION_REPAIR_20261015.md](STANDING_CREATION_REPAIR_20261015.md).
+Executable4b70109db89382e050ceeebb77ac352509f9fc82 replaces captured Pump
+creation-body materialization with the existing verified origin receipt and
+cancellable legacy streaming; preserves nonempty pending canonical work through
+cancel/restart. Pons counter-only reporting avoids full endpoint/CU projections.
+Controller results now require current native stop evidence; empty process groups
+cannot conceal another killed worker. Combined246PASS plus final13PASS (including
+four exact economic/source guards), scoped evidence only; no full release PASS.
+Standing next-run spec pins exact executable/unit/controller/config/output.
+Fresh current-state safety/access checks and natural backup non-overlap required;
+routine owner reapproval is not. No new provider workload/start from this repair
+checkpoint. Installed66f85d61 remains inactive/disabled/Restart=no/fundingclosed.
+The prior O5 RECOVERY_REQUIRED and capacity deficit remain unchanged. No whole-path
+gain, held protection or acceptance minute is established by offline tests.
+
+# Previous checkpoint — retirement exercised; Pump cancellation still failed
 
 Read [STANDING_RETIREMENT_RESULT_20261015.md](STANDING_RETIREMENT_RESULT_20261015.md).
 Exact bdc19709 ran once under standing issue134. Original readiness FAIL;

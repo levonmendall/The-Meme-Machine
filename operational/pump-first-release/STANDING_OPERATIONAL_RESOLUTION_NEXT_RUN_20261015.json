@@ -6,7 +6,7 @@
   "campaign_expiration": null,
   "concurrent_runs": 1,
   "controller": "engineering.diagnostics.current_combined_observation_20261014",
-  "controller_sha256": "1c7fed8fa9bd595ed3e3b3b281c9c0b20613527d4f31a8fc878c8673a238524d",
+  "controller_sha256": "e53343ac9721872ef95c6b1af2ec25179800eb7886716f3ac8927e7fd8412e8c",
   "diagnostic_startup_maximum_seconds": 900,
   "existing_provider_profiles": {
     "pons_observation_route": "canonical_primary existing bound app only",
@@ -24,43 +24,43 @@
   ],
   "funding": "CLOSED_DURING_DIAGNOSIS",
   "global_attempt_limit": null,
-  "independent_justification": "Actual53.805663s retention ownercallback caused maintenance_service_deadline_exhausted. Disposablefixture reproduced unrelatedmetadata scans and candidate-local history amplification: oldselection288661\u21921148787VMsteps at4096\u219216384rows; complete boundedplan10586\u219210574steps/48metadata. Exact pin/ACK/canonical/source/cursor/restart invariants pass. No whole-machine speedup claimed before current-market measurement.",
+  "independent_justification": "O5 captured Pump at LocalPumpTape._creation fetchall before TERM15s/KILL; disposable dense authentic-shape canonical fixture reproduces missed creation and ignored cancellation. Existing exact rolling origin removes unrelated rich-body materialization, validates hash/identity/availability, preserves cancellable legacy fallback. Pons measured .678cores and full telemetry stack; actual context regression demonstrates same counters with no DB/CU-schedule reads. Controller now derives native-stop verdict from current process/generation/exit records, not empty cgroup.",
   "measurement_limits": [
     "Livewindowsarenotmatchedmarketreplay; differencesarecurrentoperatingcomparisons,nocontrolledcausalspeedupclaim",
     "Ownerouterelapsedincludesfuturecompletioncallbacks; servicecallbacktimingexcludesunwinding; do not sumoverlappingmetrics",
     "Missingstrategyconsumption/oldestrequiredhistoryremainexplicitlyunavailablewhereexistingrecordscannotestablishthem",
     "Nohealthyreadinessorheldprotectionoronehourclaimfromflatfundingcloseddiagnosis"
   ],
-  "next_technical_fact": "Actual retention owner hold and mandatory maintenance progress after bounded selection; current-run CONTROL/join/preparation/commit/history exactACK/publication rates before/after native recovery, actual owner CPU/scheduling/storage waits and managed-Pons capability naturally exercised.",
+  "next_technical_fact": "Native startup and actual stop; CONTROL/join/preparation/canonical commit/history receipt/exact ACK/publication and backlog after restoration; Pons process CPU/reporting cost and owner runnable wait. No matched historical speedup or held-protection inference.",
   "no_normal_transition_from_diagnostic_completion": true,
   "outcome_decisions": [
-    "Retirement hold removed: quantify remaining pre-persistence and native restoration stages on this current workload; no controlledhistoricalspeedupclaim.",
-    "Retirement or apply remains slow: identify actual measured operation/wait and residual cardinality before another correction; no unchanged retry.",
-    "Provider/worker/native safety failure: preserve firsterror and pendingstate, stop, verify current resumability independently of financialflatness.",
-    "No meaningful discriminator: stop affected branch with exact missingtechnicalfact; continue independently supported offline work."
+    "Pump stops normally: retain scoped current-native stop evidence separately from recoverability, financial reconciliation, readiness and capacity. If killed again, preserve exact active operation and stop live until current-state safety/cancellation supported.",
+    "Pons cost falls and required progress keeps up/backlog recovers: quantify current workload only and evaluate remaining original readiness/protection gates. No controlled historical speedup claim.",
+    "Pre-persistence gap still grows: use actual owner/suboperation CPU, runnable/device wait and cohort edges to identify a causal limiter. No repeated unchanged run or speculative rewrite.",
+    "History/ACK/publication lags independently: preserve missing identities and exact wait; never skip coverage.",
+    "Any failure or lost attribution: preserve first error, counters and original safety stop; verify native state before another causal test."
   ],
   "per_invocation_one_start": true,
   "permitted_operational_writes": "Existing canonical/source/prewarm/session/historian/candidate-history/receiptACK/provider accounting/native recovery/reporting and OBSERVATION runtime-admission/owner records from unchanged run contract; no new position, reservation, fill, capital transfer, epoch or strategy-policy mutation; compatible additive metadata indexes and scoped_retirement_hot_cursor/table housekeeping metadata through the existing authoritative owner, no coverage/checkpoint advancement from archival cursors",
   "poststartup_measurement_maximum_seconds": 900,
   "prepared_installation": {
-    "dispatch": "Fresh financial/native applicability passed at02:56:57; actual installed source/configuration/service-user access and final nonoverlap required before start",
     "environment_path": "/etc/meme-machine/volume-quality-service.observation.env",
-    "executable": "bdc19709e7daad243b3e3e1c3d50874af79695c1",
+    "executable": "4b70109db89382e050ceeebb77ac352509f9fc82",
     "identities": {
       "access_helper_sha256": "344207e85be57a4ee16559b71b07eba7570a04df6a87232c6a93dce3e8582989",
       "base_unit_sha256": "7cd10c6c717a97f312c8718886bb09750b5498ccf96ef5bc74b52f8094bfe294",
       "continuous_profile_sha256": "5bfc1fe915df2f40dff8fc6fb1cc5f98a836fe41c7155bfd4ca15f0d563e39bd",
-      "controller_sha256": "1c7fed8fa9bd595ed3e3b3b281c9c0b20613527d4f31a8fc878c8673a238524d",
-      "environment_sha256": "1e50aaa86e64bd2f502e842e9565cc01028d60404739d29949b074934814e885",
-      "unit_sha256": "0fc727ae3a054407a02f8c4abd3c2e7a8a5cb472add127ce483e71aa1c826b3c"
+      "controller_sha256": "e53343ac9721872ef95c6b1af2ec25179800eb7886716f3ac8927e7fd8412e8c",
+      "environment_sha256": "3cccec37836bce379b79c434152da6187fcdbd2f0f303644a31a6c1c5714b44c",
+      "unit_sha256": "0a245d8e566fc61739eab09023ad8ed4bea71949c9ecd869bb81b5a4f0b0d5ec"
     },
     "installed_before": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
-    "output": "/var/lib/meme-machine-diagnostics/20261015-standing-retirement-bdc19709-025742",
-    "preparation": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_RETIREMENT_PREPARATION_20261015T025742Z",
+    "output": "/var/lib/meme-machine-diagnostics/20261015-standing-creation-4b70109d-033702",
+    "preparation": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_CREATION_PREPARATION_20261015T033702Z",
     "unit_path": "/etc/systemd/system/meme-machine-paper.service.d/validation-observation.conf"
   },
   "provider_contract_scope": "Original replay-position failure and long-term backend/cursor semantics remain unresolved. This is not another replay-capability experiment or a provider repair. Current exact required forms delivered matching evidence; joins reject pre-floor frames and independently require complete linked evidence. No cursor/commitment/provider change. Repeated semantic rejection stops this run; no unchanged retry.",
-  "question": "Does bounded hot-page archival selection eliminate the long canonical-owner retention hold and maintenance deadline failure, and where does current required evidence accumulate before and after native restoration?",
+  "question": "Does the exact native creation-lineage correction permit graceful Pump cancellation, and does removing unnecessary Pons report-only endpoint snapshots reduce measured process cost and current pre-persistence backlog growth?",
   "readiness_seconds": 300,
   "resource_bounds": {
     "cpu_cores": 1.8,
@@ -74,9 +74,9 @@
   "routine_per_run_owner_approval": false,
   "schema": 1,
   "shutdown_reserve_seconds": 65,
-  "status": "FOCUSED_TESTED_BOUNDED_RETIREMENT_RETEST_PREPARED",
-  "tested_successor": "bdc19709e7daad243b3e3e1c3d50874af79695c1",
+  "status": "FOCUSED_TESTED_CREATION_CANCELLATION_AND_REPORT_ONLY_REUSE_PREPARED",
+  "tested_successor": "4b70109db89382e050ceeebb77ac352509f9fc82",
   "unchanged_resource_protection_contract": "https://github.com/levonmendall/The-Meme-Machine/blob/a32f49d2061e577644ef2d28f75fefd4a48ebe87/operational/pump-first-release/CONSOLIDATED_STARTUP_NEXT_OBSERVATION_SPEC_20261014.json",
-  "validation": "Exact bdc19709:68selected combined offline startup/lifecycle/delivery/retirement testsPASS/22.417s;4exacteconomic/sourceguardsPASS/20.439s. New10tests alsoPASS/4.357s. Prior115retention/history testsPASS before final range refinement; initial reproduction2FAIL and one misnamedcase loaderERROR retained. No fullFAST/no generalreleasePASS.",
+  "validation": "Combined affected offline 246PASS/50.809s before final diagnostic clock-bound and pending-fixture test refinement; final13PASS/21.635s cover exact current diagnostic clock, pending identity preservation/restart and four economic/source guards. Initial21PASS. Expected2FAIL baseline and fixture/loader errors preserved by reference. No fullFAST/general releasePASS.",
   "work_stop_seconds": 1800
 }
