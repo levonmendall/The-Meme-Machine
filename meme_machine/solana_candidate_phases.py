@@ -12,6 +12,7 @@ from time import monotonic,thread_time
 
 PHASES=('validate','ingest_setup','rolling_adopt','economic_store',
         'delivery_outbox','coverage_receipt','batch_commit')
+DEVELOPMENT_PHASES=('selection','reactivation','boundaries','publication','plan','commit')
 _FIELDS=('calls','failed_calls','unmeasured_calls','runnable_measured_calls',
          'runnable_unavailable_calls',*(name+'_'+kind+'_microseconds'
          for name in ('wall_seconds','cpu_seconds','runnable_wait_seconds')
@@ -35,12 +36,14 @@ def runnable_snapshot():
 
 
 class CandidatePhases:
-    def __init__(self,pipeline,*,wall=monotonic,cpu=thread_time,runnable=runnable_snapshot):
+    def __init__(self,pipeline,*,phases=PHASES,prefix='candidate_phase:',
+                 wall=monotonic,cpu=thread_time,runnable=runnable_snapshot):
         self.wall=wall;self.cpu=cpu;self.runnable=runnable
-        self.rows={name:pipeline.setdefault('candidate_phase:'+name,
-            {field:0 for field in _FIELDS}) for name in PHASES}
-        for name in ('bulk_calls','bulk_records','scalar_calls','scalar_records'):
-            self.rows['economic_store'].setdefault(name,0)
+        self.rows={name:pipeline.setdefault(prefix+name,
+            {field:0 for field in _FIELDS}) for name in phases}
+        if 'economic_store' in self.rows:
+            for name in ('bulk_calls','bulk_records','scalar_calls','scalar_records'):
+                self.rows['economic_store'].setdefault(name,0)
 
     def storage(self,bulk,records):
         """Executed storage path, not a committed-event/coverage counter."""
@@ -95,7 +98,7 @@ class CandidatePhases:
                 try:row['unmeasured_calls']+=1
                 except BaseException:pass
 
-    def transaction_exit(self,manager):
+    def transaction_exit(self,manager,*,phase_name='batch_commit'):
         """Time only the original outer context exit, including rollback.
 
         The transaction body has exclusive subphases; it is never included in
@@ -106,7 +109,7 @@ class CandidatePhases:
         class Exit:
             def __enter__(self):return manager.__enter__()
             def __exit__(self,*error):
-                with owner.phase('batch_commit'):return manager.__exit__(*error)
+                with owner.phase(phase_name):return manager.__exit__(*error)
         return Exit()
 
 

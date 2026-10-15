@@ -102,7 +102,9 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         initial={key:dict(row) for key,row in source.pipeline_metrics.items()}
         self.assertEqual(set(initial),{'candidate_phase:'+name for name in (
             'validate','ingest_setup','rolling_adopt','economic_store',
-            'delivery_outbox','coverage_receipt','batch_commit')})
+            'delivery_outbox','coverage_receipt','batch_commit')}|
+            {'development_phase:'+name for name in (
+                'selection','reactivation','boundaries','publication','plan','commit')})
         self.assertTrue(all(value==0 for row in initial.values() for value in row.values()))
         for i in range(1000):
             source.observe('decode_timing',seconds=.001,stream_id=str(i),family='pump')
@@ -111,6 +113,98 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(source.pipeline_metrics,expected)
         self.assertEqual(source.pending_diagnostics,[])
         self.assertEqual(source.native_streams,{})
+
+    async def test_development_phase_namespace_and_transaction_exit_keep_exclusive_timing(self):
+        from meme_machine.solana_candidate_phases import CandidatePhases,DEVELOPMENT_PHASES
+        pipeline={};clock=dict(wall=0,cpu=0)
+        timing=CandidatePhases(pipeline,phases=DEVELOPMENT_PHASES,prefix='development_phase:',
+            wall=lambda:clock['wall'],cpu=lambda:clock['cpu'],runnable=lambda:None)
+        self.assertEqual(set(timing.rows),{'selection','reactivation','boundaries','publication','plan','commit'})
+        self.assertEqual(set(pipeline),{'development_phase:'+name for name in DEVELOPMENT_PHASES})
+        self.assertTrue(all(set(row)==set(timing.rows['commit']) for row in timing.rows.values()))
+        error=RuntimeError('original-development-failure');exits=[]
+        class Transaction:
+            def __enter__(self):clock['wall']+=8;clock['cpu']+=2;return 'original-enter'
+            def __exit__(self,*failure):
+                exits.append(failure);clock['wall']+=2;clock['cpu']+=.5;return False
+        with self.assertRaises(RuntimeError) as caught:
+            with timing.transaction_exit(Transaction(),phase_name='commit') as entered:
+                self.assertEqual(entered,'original-enter')
+                with timing.phase('selection'):
+                    clock['wall']+=16;clock['cpu']+=4
+                    raise error
+        self.assertIs(caught.exception,error);self.assertIs(exits[0][1],error)
+        selection=timing.rows['selection'];commit=timing.rows['commit']
+        self.assertEqual((selection['calls'],selection['failed_calls'],selection['wall_seconds_total_microseconds'],selection['cpu_seconds_total_microseconds']),(1,1,16_000_000,4_000_000))
+        self.assertEqual((commit['calls'],commit['failed_calls'],commit['wall_seconds_total_microseconds'],commit['cpu_seconds_total_microseconds']),(1,0,2_000_000,500_000))
+        self.assertEqual(commit['runnable_unavailable_calls'],1)
+        def broken_clock():raise RuntimeError('optional-recorder-failure')
+        timing.wall=broken_clock
+        with self.assertRaises(RuntimeError) as caught:
+            with timing.phase('plan'):raise error
+        self.assertIs(caught.exception,error)
+        self.assertEqual((timing.rows['plan']['failed_calls'],timing.rows['plan']['unmeasured_calls']),(1,1))
+
+    async def test_actual_development_callback_records_fixed_operations_and_original_rollback(self):
+        from meme_machine.solana_candidate_phases import CandidatePhases,DEVELOPMENT_PHASES
+        for fail in (False,True):
+            source=SelectiveSource(SimpleNamespace(credential='offline'),None)
+            source.batched=True;source.stop=asyncio.Event();events=[];clock=[0]
+            source.development_phases=CandidatePhases(source.pipeline_metrics,
+                phases=DEVELOPMENT_PHASES,prefix='development_phase:',
+                wall=lambda:clock[0],cpu=lambda:clock[0]/2,runnable=lambda:None)
+            error=RuntimeError('original-boundary-failure')
+            def tick(name,value=None):events.append(name);clock[0]+=1;return value
+            class DB:
+                def execute(self,sql,args):
+                    if sql.startswith('SELECT MAX(hi)'):return SimpleNamespace(fetchone=lambda:tick('frontier',(100,)))
+                    if sql.startswith('SELECT first_seen'):return SimpleNamespace(fetchone=lambda:tick('first_seen',(NOW,)))
+                    if "state='reactivated'" in sql:return SimpleNamespace(fetchall=lambda:tick('reactivation',[]))
+                    raise AssertionError(sql)
+            class Transaction:
+                def __enter__(self):return tick('begin')
+                def __exit__(self,*failure):tick('rollback' if failure[0] else 'commit');return False
+            state=SimpleNamespace(writer=SimpleNamespace(db=DB(),transaction=Transaction))
+            def boundaries(**options):
+                self.assertEqual(options,dict(limit=16,after=0));tick('boundaries')
+                if fail:raise error
+                return 12
+            def publication(**options):
+                self.assertEqual(options,dict(limit=16,after=0));return tick('publication',13)
+            history=SimpleNamespace(startup=SimpleNamespace(snapshot=lambda:tick('released',dict(released=True))),
+                development_candidates=lambda *args:tick('selection',[('mint',)]),
+                bind=lambda *args:tick('bind'),rolling=SimpleNamespace(
+                    prepare=lambda *args,**options:tick('prepare'),resume_boundaries=boundaries,
+                    resume_publication=publication),active_families={'pump','pumpswap'},
+                plan=lambda **options:tick('plan'))
+            async def work(fn,priority,**options):
+                self.assertEqual((priority,options),(4,dict(label='candidate_development')))
+                result=fn(state);source.stop.set();return result
+            source.work=work
+            with patch('meme_machine.solana_selective_source.install',return_value=history),patch(
+                    'meme_machine.operational.position_continuation.position_only',return_value=False):
+                if fail:
+                    with self.assertRaises(RuntimeError) as caught:await source.acquire()
+                    self.assertIs(caught.exception,error)
+                else:await source.acquire()
+            rows=source.development_phases.rows
+            self.assertEqual(rows['selection']['calls'],2)
+            self.assertEqual(rows['selection']['wall_seconds_total_microseconds'],6_000_000)
+            self.assertEqual(rows['reactivation']['calls'],1)
+            self.assertEqual(rows['boundaries']['calls'],1)
+            self.assertEqual(rows['boundaries']['failed_calls'],int(fail))
+            self.assertEqual(rows['publication']['calls'],int(not fail))
+            self.assertEqual(rows['plan']['calls'],int(not fail))
+            self.assertEqual(rows['commit']['calls'],1)
+            self.assertEqual(rows['commit']['wall_seconds_total_microseconds'],1_000_000)
+            expected=['released','frontier','begin','selection','bind','first_seen','prepare','reactivation','boundaries']
+            self.assertEqual(events,expected+(['rollback'] if fail else ['publication','commit','plan']))
+            if fail:
+                self.assertFalse(hasattr(state,'development_cursors'))
+                self.assertFalse(hasattr(state,'development_poll_at'))
+            else:
+                self.assertEqual(state.development_cursors,dict(reactivated=0,boundary=12,publication=13))
+                self.assertTrue(hasattr(state,'development_poll_at'))
 
     async def test_native_input_progress_is_separate_and_missing_diagnostics_stay_unavailable(self):
         source=SelectiveSource(SimpleNamespace(credential='offline'),None)

@@ -536,9 +536,34 @@ class DiagnosticCollectionTests(unittest.TestCase):
         self.assertEqual(selected['ipc_aggregate'], 'UNAVAILABLE')
         self.assertEqual(selected['owner_sql_transactions'], 'UNAVAILABLE')
         self.assertEqual(selected['storage_stages'], 'UNAVAILABLE')
+        self.assertEqual(selected['development_phases'], 'UNAVAILABLE')
         with patch.object(diagnostic, 'COUNTER_BYTES', 1):
             self.assertEqual(diagnostic.required_counters({}),
                              {'available': False, 'reason': 'REQUIRED_COUNTER_BOUND'})
+
+    def test_development_attribution_survives_real_collection_with_fixed_private_schema(self):
+        ipc={f'unrelated_{i}':i for i in range(160)}
+        row={name:i+1 for i,name in enumerate(diagnostic.DEVELOPMENT_PHASE_FIELDS)}
+        row.update(secret='https://secret.invalid/?api_key=never-copy',unexpected=99)
+        phases={'development_phase:'+name:dict(row) for name in diagnostic.DEVELOPMENT_PHASE_NAMES}
+        phases['development_phase:arbitrary-address']={'calls':9}
+        phases['development_phase:plan']['cpu_seconds_total_microseconds']=float('nan')
+        del phases['development_phase:plan']['wall_seconds_total_microseconds']
+        ipc['pipeline']=phases
+        with sqlite3.connect(self.path) as db:
+            db.execute("UPDATE service_health SET value=? WHERE key='ipc'",(json.dumps(ipc),))
+        sample=diagnostic.pipeline_sample(self.root,44)
+        output=self.root/'development.jsonl'
+        diagnostic.append_sample(output,{'sample_kind':'full','pipeline':sample})
+        retained=json.loads(output.read_text())['pipeline']['required_counters']['development_phases']
+        self.assertEqual(retained['fields'],list(diagnostic.DEVELOPMENT_PHASE_FIELDS))
+        self.assertEqual(set(retained['rows']),set(diagnostic.DEVELOPMENT_PHASE_NAMES))
+        self.assertEqual(retained['rows']['selection'],list(range(1,9)))
+        for field in ('cpu_seconds_total_microseconds','wall_seconds_total_microseconds'):
+            self.assertEqual(retained['rows']['plan'][retained['fields'].index(field)],'UNAVAILABLE')
+        self.assertNotIn('secret.invalid',output.read_text())
+        self.assertNotIn('arbitrary-address',output.read_text())
+        self.assertNotIn('unexpected',output.read_text())
 
     def join_sample(self):
         return dict(plane='rolling',session='b'*32,source_pid=44,source_generation='a'*32,

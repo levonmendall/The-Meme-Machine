@@ -20,7 +20,7 @@ from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosed
 from .solana_activity_routes import ActivityRoutes,shards
 from .solana_candidate_join import CandidateTransactionJoin,candidate_subscription,MAX_PENDING_BYTES
-from .solana_candidate_phases import CandidatePhases,phase as candidate_phase
+from .solana_candidate_phases import CandidatePhases,DEVELOPMENT_PHASES,phase as candidate_phase
 from .solana_native_evidence import economic_transaction,pubkey,signature
 from .solana_evidence_plane import EvidenceUnavailable,IntervalProof,digest,canonical
 from .solana_evidence_transport import Subscription
@@ -487,6 +487,8 @@ class SelectiveSource:
         self.join_state={};self.diagnostic_generation=None
         self.pipeline_metrics={}
         self.candidate_phases=CandidatePhases(self.pipeline_metrics)
+        self.development_phases=CandidatePhases(self.pipeline_metrics,
+            phases=DEVELOPMENT_PHASES,prefix='development_phase:')
         self.rolling_publications=0
         self.control_bootstrap_tip=None;self.control_committed_slot=None
         self.control_committed_market_time=None
@@ -1391,11 +1393,13 @@ class SelectiveSource:
         while not self.stop.is_set():
             def request_development(state):
                 from .lanes.pump.pump_acceleration_strategy import POLICY
-                h=install(state);db=state.writer.db
-                if not hasattr(state,'acquisition_inflight'):state.acquisition_inflight=set()
-                if not h.startup.snapshot().get('released'):return None
-                if hasattr(h,'historical_recovery'):h.historical_recovery.resume_sync(limit=16)
-                frontier=db.execute('SELECT MAX(hi) FROM coverage WHERE scope=?',(CONTROL,)).fetchone()[0]
+                timing=self.development_phases
+                with timing.phase('selection'):
+                    h=install(state);db=state.writer.db
+                    if not hasattr(state,'acquisition_inflight'):state.acquisition_inflight=set()
+                    if not h.startup.snapshot().get('released'):return None
+                    if hasattr(h,'historical_recovery'):h.historical_recovery.resume_sync(limit=16)
+                    frontier=db.execute('SELECT MAX(hi) FROM coverage WHERE scope=?',(CONTROL,)).fetchone()[0]
                 # Eight acquisition workers share one owner and one development
                 # queue. Coalesce their duplicate housekeeping at the existing
                 # 100-ms polling cadence, while planning every individual job.
@@ -1406,29 +1410,33 @@ class SelectiveSource:
                     # binding, wait and reactivation. Original facts and absolute
                     # deadlines roll back together if this operation yields.
                     cursors=getattr(state,'development_cursors',{})
-                    with state.writer.transaction():
-                        for addr, in h.development_candidates(POLICY.min_curve_progress_bps,DEVELOPMENT_BATCH):
-                            h.bind('pump',addr)
-                            first=db.execute("SELECT first_seen FROM candidate_lifecycle WHERE family='pump' AND address=?",(addr,)).fetchone()[0]
-                            h.rolling.prepare('pump',addr,0,frontier,priority=3,deadline=first+150)
-                        query="SELECT rowid,family,address,lower_slot FROM candidate_lifecycle WHERE "+active_sql('family',solana=True)+" AND state='reactivated' AND rowid>? ORDER BY rowid LIMIT ?"
-                        reactivated=db.execute(query,(cursors.get('reactivated',0),DEVELOPMENT_BATCH)).fetchall()
-                        if not reactivated and cursors.get('reactivated',0):reactivated=db.execute(query,(0,DEVELOPMENT_BATCH)).fetchall()
-                        for _,family,addr,lo in reactivated:
-                            epoch=db.execute('SELECT epoch FROM candidate_lifecycle WHERE family=? AND address=?',(family,addr)).fetchone()[0]
-                            first=db.execute("SELECT MIN(json_extract(body,'$.seen')) FROM candidate_history_outbox WHERE family=? AND address=? AND kind='reactivated' AND json_extract(body,'$.epoch')=?",(family,addr,epoch)).fetchone()[0]
-                            deadline=(time.time() if first is None else first)+150
-                            if deadline<=time.time():
-                                h._observation(None,'promotion_deadline_missed',dict(family=family,address=addr,deadline=deadline,deadline_reset=False))
-                                h.lifecycle.demote(family,addr,reason='original_promotion_deadline_expired');continue
-                            if hasattr(h,'historical_tasks') and family in ('pump','pumpswap'):
-                                if not h.historical_tasks.cold_ready(family,addr,epoch=epoch,deadline=deadline):continue
-                            else:
-                                from .solana_scoped_retirement import ScopedRetirement
-                                ScopedRetirement(h).restore(family,addr)
-                            h.lifecycle.promote(family,addr,deadline=deadline,lower_slot=0 if family=='pump' else None if family=='meteora' else lo)
-                        boundary=h.rolling.resume_boundaries(limit=DEVELOPMENT_BATCH,after=cursors.get('boundary',0))
-                        publication=h.rolling.resume_publication(limit=DEVELOPMENT_BATCH,after=cursors.get('publication',0))
+                    with timing.transaction_exit(state.writer.transaction(),phase_name='commit'):
+                        with timing.phase('selection'):
+                            for addr, in h.development_candidates(POLICY.min_curve_progress_bps,DEVELOPMENT_BATCH):
+                                h.bind('pump',addr)
+                                first=db.execute("SELECT first_seen FROM candidate_lifecycle WHERE family='pump' AND address=?",(addr,)).fetchone()[0]
+                                h.rolling.prepare('pump',addr,0,frontier,priority=3,deadline=first+150)
+                        with timing.phase('reactivation'):
+                            query="SELECT rowid,family,address,lower_slot FROM candidate_lifecycle WHERE "+active_sql('family',solana=True)+" AND state='reactivated' AND rowid>? ORDER BY rowid LIMIT ?"
+                            reactivated=db.execute(query,(cursors.get('reactivated',0),DEVELOPMENT_BATCH)).fetchall()
+                            if not reactivated and cursors.get('reactivated',0):reactivated=db.execute(query,(0,DEVELOPMENT_BATCH)).fetchall()
+                            for _,family,addr,lo in reactivated:
+                                epoch=db.execute('SELECT epoch FROM candidate_lifecycle WHERE family=? AND address=?',(family,addr)).fetchone()[0]
+                                first=db.execute("SELECT MIN(json_extract(body,'$.seen')) FROM candidate_history_outbox WHERE family=? AND address=? AND kind='reactivated' AND json_extract(body,'$.epoch')=?",(family,addr,epoch)).fetchone()[0]
+                                deadline=(time.time() if first is None else first)+150
+                                if deadline<=time.time():
+                                    h._observation(None,'promotion_deadline_missed',dict(family=family,address=addr,deadline=deadline,deadline_reset=False))
+                                    h.lifecycle.demote(family,addr,reason='original_promotion_deadline_expired');continue
+                                if hasattr(h,'historical_tasks') and family in ('pump','pumpswap'):
+                                    if not h.historical_tasks.cold_ready(family,addr,epoch=epoch,deadline=deadline):continue
+                                else:
+                                    from .solana_scoped_retirement import ScopedRetirement
+                                    ScopedRetirement(h).restore(family,addr)
+                                h.lifecycle.promote(family,addr,deadline=deadline,lower_slot=0 if family=='pump' else None if family=='meteora' else lo)
+                        with timing.phase('boundaries'):
+                            boundary=h.rolling.resume_boundaries(limit=DEVELOPMENT_BATCH,after=cursors.get('boundary',0))
+                        with timing.phase('publication'):
+                            publication=h.rolling.resume_publication(limit=DEVELOPMENT_BATCH,after=cursors.get('publication',0))
                     # Advance scheduling cursors only after the whole bounded
                     # owner transaction commits. A yielded slice retries every
                     # original fact and deadline, without skipping obligations.
@@ -1437,12 +1445,13 @@ class SelectiveSource:
                     state.development_poll_at=time.monotonic()+.1
                 # The batched source already owns the ordered 100-ms publisher.
                 # Pending proofs still block false coverage in h.plan below.
-                if not self.batched:h.lifecycle.publish()
-                if 'meteora' in h.active_families:h.rolling.repair_required_checkpoint_prefixes()
-                result=h.plan(excluding=tuple(state.acquisition_inflight))
-                if result:
-                    state.acquisition_inflight.add(result[0]['id'])
-                    result[0]['finalized_hint']=frontier
+                with timing.phase('plan'):
+                    if not self.batched:h.lifecycle.publish()
+                    if 'meteora' in h.active_families:h.rolling.repair_required_checkpoint_prefixes()
+                    result=h.plan(excluding=tuple(state.acquisition_inflight))
+                    if result:
+                        state.acquisition_inflight.add(result[0]['id'])
+                        result[0]['finalized_hint']=frontier
                 return result
             # All archive workers use the same sole owner and pending queue.
             # After an empty plan, eight identical polls otherwise contend with

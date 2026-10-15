@@ -38,6 +38,11 @@ MISSING_EDGES = ('per_event_precommit_timing', 'proof_eligibility_reason', 'olde
 UNAVAILABLE = 'UNAVAILABLE'
 COUNTER_BYTES = 64 * 1024
 COHORT_SIZE = 32
+DEVELOPMENT_PHASE_NAMES = ('selection', 'reactivation', 'boundaries', 'publication', 'plan', 'commit')
+DEVELOPMENT_PHASE_FIELDS = ('calls', 'failed_calls', 'unmeasured_calls',
+    'runnable_measured_calls', 'runnable_unavailable_calls',
+    'wall_seconds_total_microseconds', 'cpu_seconds_total_microseconds',
+    'runnable_wait_seconds_total_microseconds')
 NATIVE_OPERATIONS = frozenset('pump.' + name for name in (
     'candidate_history_open', 'confirmation_restore', 'accounting_genesis_read', 'accounting_restore',
     'terminal_recovery', 'pipeline_open', 'initial_report', 'runtime_evidence_open', 'evidence_broker_open',
@@ -284,6 +289,16 @@ def required_counters(health, *, now_monotonic=None):
                 continue
             pipeline[key] = {name: value for name, value in values.items()
                              if isinstance(name, str) and metric_pattern.fullmatch(name) and finite_number(value)}
+    # Existing owner timers, compactly encoded once. Fixed names and ordered
+    # numeric fields retain attribution without expanding per-record logging
+    # or the original output budget. Missing timing is never a healthy zero.
+    development = {}
+    if isinstance(source_pipeline, dict):
+        for name in DEVELOPMENT_PHASE_NAMES:
+            row = source_pipeline.get('development_phase:' + name)
+            if isinstance(row, dict):
+                development[name] = [row[key] if finite_number(row.get(key)) else UNAVAILABLE
+                                     for key in DEVELOPMENT_PHASE_FIELDS]
     transaction_pattern = re.compile(r'(?:begin|commit)\.(?:calls|(?:wall|cpu)_(?:total|peak)_microseconds)')
     transactions = storage.get('owner_sql_transactions', {})
     transactions = {key: value for key, value in transactions.items()
@@ -319,6 +334,8 @@ def required_counters(health, *, now_monotonic=None):
     operations=dict(active=operation(owner.get('active_operation')) if isinstance(owner,dict) else UNAVAILABLE,
         recent=[operation(row) for row in recent] if isinstance(recent,list) and len(recent)<=8 else UNAVAILABLE)
     result = dict(ipc_pipeline=pipeline or UNAVAILABLE, ipc_aggregate=aggregate or UNAVAILABLE,
+                  development_phases=(dict(fields=list(DEVELOPMENT_PHASE_FIELDS), rows=development)
+                                      if development else UNAVAILABLE),
                   native_join_state=required_join_state(health,
                       time.monotonic() if now_monotonic is None else now_monotonic),
                   owner_sql_transactions=transactions or UNAVAILABLE,
