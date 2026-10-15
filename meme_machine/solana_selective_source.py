@@ -28,6 +28,8 @@ from .solana_evidence_transport import Subscription
 from .solana_selective_history import SelectiveHistory,FAMILIES,PROGRAMS,coverage_scope,economic_records
 from .solana_selective_runtime import CONTROL
 from .solana_source_intake import candidate_log_message
+from .solana_source_drain import AcceptedQueue,StopEither,next_owned,join_owned,settle_owned,receive_until_closed,INTAKE_CLOSED
+from .solana_source_drain import CONTROL_RECOVERY_KEY,control_recovery,preserve_control_recovery,complete_control_recovery
 from .yellowstone import geyser_pb2 as pb
 from .runtime.operating_families import enabled,active_sql,active_scope_sql,operational
 
@@ -181,9 +183,9 @@ def commit_scout(state,update,seen):
 @measured('owner.scout_commit')
 def commit_scout_batch(state,facts):
     if not 0<len(facts)<=SCOUT_COMMIT_BATCH:raise EvidenceUnavailable('candidate_scout_batch_bound')
-    install(state)
+    history=install(state)
     with state.writer.source_frame():
-        for fact in facts:commit_scout_fact(state,fact)
+        history.observe_many(facts)
 
 def block_message(frame):
     b=frame.update.block
@@ -336,9 +338,10 @@ async def wait_candidate_log_space(join,progress,stop,local_stop,slot,sig,logs):
 
 class CandidateCommitQueue:
     """FIFO verified frames; count and bytes include the owner-held batch."""
-    def __init__(self):
+    def __init__(self,changed=None):
         self.queue=asyncio.Queue(maxsize=CANDIDATE_COMMIT_BATCH)
         self.count=0;self.bytes=0;self.space=asyncio.Event()
+        self.changed=changed
 
     async def put(self,frame):
         # Native bodies are already included in source_bytes. Body-free WS
@@ -350,9 +353,12 @@ class CandidateCommitQueue:
             self.space.clear();await self.space.wait()
         self.count+=1;self.bytes+=size
         self.queue.put_nowait((frame,size,time.monotonic(),time.time()))
+        if self.changed:self.changed(1,0)
 
-    async def batch(self):
-        rows=[await self.queue.get()]
+    async def batch(self,producer_done=None):
+        first=await self.queue.get() if producer_done is None else await next_owned(self.queue,producer_done)
+        if first is None:return []
+        rows=[first]
         while len(rows)<CANDIDATE_COMMIT_BATCH:
             try:rows.append(self.queue.get_nowait())
             except asyncio.QueueEmpty:break
@@ -361,6 +367,7 @@ class CandidateCommitQueue:
     def done(self,rows):
         for _,size,_,_ in rows:
             self.count-=1;self.bytes-=size;self.queue.task_done()
+        if self.changed:self.changed(0,len(rows))
         self.space.set()
 
     async def join(self):await self.queue.join()
@@ -468,7 +475,7 @@ def source_work(work,stop,observe=None):
                 if retries and observe:observe('owner_backpressure',retries=retries,seconds=time.monotonic()-started,priority=priority)
                 return result
             except EvidenceUnavailable as exc:
-                if str(exc) not in ('evidence_background_yield','evidence_control_overloaded') or stop.is_set():raise
+                if str(exc) not in ('evidence_background_yield','evidence_control_overloaded'):raise
                 # Overload rejects before admission; a background yield rolls
                 # back its transaction. Neither case permits dropping a frame
                 # or changing its original work/deadline.
@@ -500,6 +507,24 @@ class SelectiveSource:
         from .solana_history_notifications import WorkPulse
         self.history_wakeup=WorkPulse();self.delivery_wakeup=WorkPulse()
         self.delivery_urgent=WorkPulse();self.delivery_revision=0
+        self.source_drain=dict(state='RUNNING',terminal=False,source_pid=os.getpid(),run_identity=uuid.uuid4().hex,
+            started_at_monotonic=time.monotonic(),terminal_at_monotonic=None,accepted_handlers=0,
+            settled_handlers=0,closed_sessions=0,preserved_partial_sessions=0,
+            unpreserved_sessions=0,queues={name:dict(accepted=0,committed=0)
+                for name in ('control','scout','rolling','candidate')})
+
+    def frame_census(self,plane,accepted,committed):
+        row=self.source_drain['queues'][plane]
+        row['accepted']+=accepted;row['committed']+=committed
+
+    def drain_snapshot(self):
+        body=dict(self.source_drain)
+        body['queues']={name:dict(row,pending=row['accepted']-row['committed'])
+            for name,row in body['queues'].items()}
+        body['pending_handlers']=body['accepted_handlers']-body['settled_handlers']
+        body['all_accepted_committed']=all(row['pending']==0 for row in body['queues'].values())
+        body['scope']='JOINED_FRAME_COMMITS_AND_RECEIVED_HANDLERS_PARTIAL_JOINS_REMAIN_EXPLICIT_GAPS'
+        return body
 
     def history_changed(self,*,publication=True,delivery=True,urgent_delivery=True):
         if publication:self.history_wakeup.notify()
@@ -723,9 +748,11 @@ class SelectiveSource:
             try:await asyncio.wait_for(self.stop.wait(),.1)
             except TimeoutError:pass
 
-    async def control_commits(self,queue):
-        while not self.stop.is_set():
-            first=await queue.get();batch=[first]
+    async def control_commits(self,queue,producer_done=None):
+        while producer_done is not None or not self.stop.is_set():
+            first=await queue.get() if producer_done is None else await next_owned(queue,producer_done)
+            if first is None:return
+            batch=[first]
             # The same eight-frame durable batch bound as the shared service.
             await asyncio.sleep(.01)
             while len(batch)<8:
@@ -734,6 +761,8 @@ class SelectiveSource:
             def commit(state):
                 with state.writer.transaction():
                     for frame in batch:commit_control(state,frame,active=self.control_connected)
+                    remaining=complete_control_recovery(state,CONTROL)
+                self.source_drain['control_pending_replay']=remaining
                 # Scheduling may follow only the durable authenticated receipt;
                 # a socket, raw slot notification or submitted command is not it.
                 return state.writer.db.execute('''SELECT slot,market_time FROM stream_receipts
@@ -741,12 +770,16 @@ class SelectiveSource:
             receipt=await self.work(commit,2,label='source_commit',component='control')
             if receipt is not None:
                 self.control_committed_slot,self.control_committed_market_time=receipt
-            for _ in batch:queue.task_done()
+            if isinstance(queue,AcceptedQueue):queue.committed(batch)
+            else:
+                for _ in batch:queue.task_done()
 
-    async def candidate_commits(self,queue,addresses,session,*,rolling=False,grouped=False,priority=2):
+    async def candidate_commits(self,queue,addresses,session,*,rolling=False,grouped=False,priority=2,producer_done=None):
         native_announced=False
-        while not self.stop.is_set() or queue.count:
-            rows=await queue.batch();frames=[r[0] for r in rows]
+        while producer_done is not None or not self.stop.is_set() or queue.count:
+            rows=await queue.batch(producer_done)
+            if not rows:return
+            frames=[r[0] for r in rows]
             prepared=None;preparation={}
             if getattr(self,'history_separated',False) and not grouped:
                 from .solana_economic_preparation import prepare_candidate_frames
@@ -817,8 +850,11 @@ class SelectiveSource:
                 # Reconnect after an ordinary outage uses a current provider
                 # replay boundary, not the process's original startup tip.
                 tip=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',2)
-            checkpoint=await self.work(lambda s:s.writer.db.execute(
-                'SELECT MAX(hi) FROM coverage WHERE scope=?',(CONTROL,)).fetchone()[0],2)
+            point=await self.work(lambda s:s.writer.db.execute('''SELECT MAX(hi),
+                (SELECT value FROM service_health WHERE key='source_control_recovery')
+                FROM coverage WHERE scope=?''',(CONTROL,)).fetchone(),2)
+            checkpoint=point[0];required=control_recovery(point[1] if len(point)>1 else None)
+            self.source_drain['control_pending_replay']=required
             # A stale checkpoint cannot request replay outside the supported
             # 6,000-slot window. The retained outage remains an explicit gap;
             # current linked receipts never assert that missing history exists.
@@ -828,6 +864,10 @@ class SelectiveSource:
             # authenticate the current linked control tail. Exact candidate and
             # position history obligations remain separately unavailable.
             floor=max(1,(tip if checkpoint is None or stale else checkpoint)-CONTROL_OVERLAP)
+            if required is not None:
+                if tip-required['lower_slot']>REPLAY_SLOTS:
+                    raise EvidenceUnavailable('control_required_replay_outside_configured_window')
+                floor=min(floor,max(1,required['lower_slot']-CONTROL_OVERLAP))
             if stale:self.diagnostic('control_current_tail',dict(checkpoint=checkpoint,
                 tip=tip,from_slot=floor,historical_gap_repaired=False))
             req=pb.SubscribeRequest(commitment=pb.FINALIZED,from_slot=floor)
@@ -850,8 +890,35 @@ class SelectiveSource:
                     state.fence._health('phase','DEGRADED')
                     h._observation(None,'control_reconnect',dict(reason=str(exc),attempt=retry,checkpoint=checkpoint))
                 await self.work(disconnected,0)
-                await queue.join()
+                worker=getattr(self,'control_commit_task',None)
+                if worker is None:await queue.join() # Standalone bounded adapter/tests.
+                else:await join_owned(queue,worker)
                 await asyncio.sleep(min(8,.5*2**min(retry-1,4)))
+            finally:
+                import sys
+                primary=sys.exc_info()[1];body=join.diagnostic()
+                def preserve(state):
+                    # Retain the original overlap and exact unfinished native
+                    # floor. The existing linked-receipt/reconnect machinery
+                    # owns gap validation; a partial next header is not itself
+                    # proof that a produced block or a history interval is lost.
+                    pending=self.source_drain['queues']['control']
+                    lows=[body['oldest_slot']] if body['oldest_slot'] is not None else []
+                    if pending['accepted']>pending['committed']:
+                        lows.append(floor if self.control_committed_slot is None else self.control_committed_slot+1)
+                    if lows:
+                        upper=max([*join.pending,join.completed,*lows])
+                        self.source_drain['control_pending_replay']=preserve_control_recovery(state,min(lows),upper)
+                    install(state)._observation(None,'control_session_drain',dict(**body,
+                        replay_from_slot=floor,unfinished_replay_floor=body['oldest_slot'],
+                        complete_history_claim=False))
+                try:
+                    await self.work(preserve,0,label='source_commit')
+                    if body['pending_slots']:self.source_drain['preserved_partial_sessions']+=1
+                except BaseException:
+                    self.source_drain['unpreserved_sessions']+=1
+                    if primary is None:raise
+                finally:self.source_drain['closed_sessions']+=1
     async def measured_rpc(self,method,params,family,priority=4):
         from .runtime.operating_families import require_active
         require_active(family)
@@ -893,10 +960,15 @@ class SelectiveSource:
             # handling rather than escape as an unclassified transport error.
             await call.write(request)
             phase='stream_read'
-            while not self.stop.is_set() and not (local_stop and local_stop.is_set()):
+            while True:
+                closing=self.stop.is_set() or (local_stop and local_stop.is_set())
+                # A read which completed just as the stop waiter won is already
+                # client-owned. Settle its handler before canceling the next
+                # outstanding network read; never drop that last delivery.
+                if closing and not (pending is not None and pending.done()):break
                 if optional:
                     from .operational.position_continuation import position_only
-                    if position_only():return
+                    if position_only() and not (pending is not None and pending.done()):return
                 ready=False
                 if pending is None:
                     # Only an explicitly implemented adapter fast path. Native
@@ -927,7 +999,9 @@ class SelectiveSource:
                 self.observe('decode_timing',stream_id=stream_id,family=family,transport='yellowstone',bytes=len(raw),seconds=time.monotonic()-decode_started)
                 if kind=='ping':await call.write(pb.SubscribeRequest(ping=pb.SubscribeRequestPing(id=1)));continue
                 if kind=='pong':continue
+                self.source_drain['accepted_handlers']+=1
                 await handler(update,len(raw),at)
+                self.source_drain['settled_handlers']+=1
         except grpc.aio.AioRpcError as exc:
             # Preserve the provider's reason separately from HTTP errors. This
             # observation grants no coverage, does not advance a checkpoint and
@@ -981,20 +1055,24 @@ class SelectiveSource:
                 await self.work(record,1)
                 await asyncio.sleep(min(8,.5*2**min(retry-1,4)))
 
-    async def scout_commits(self,queue):
+    async def scout_commits(self,queue,producer_done=None):
         """One ordered writer admission for an available burst; no batch timer.
 
         At most 64 small facts wait here (128 KiB serialized). Backpressure
         retains the current fact; control/protective commands keep priority.
         A failed atomic commit publishes no portion of the batch.
         """
-        while not self.stop.is_set():
-            batch=[await queue.get()]
+        while producer_done is not None or not self.stop.is_set():
+            first=await queue.get() if producer_done is None else await next_owned(queue,producer_done)
+            if first is None:return
+            batch=[first]
             while len(batch)<SCOUT_COMMIT_BATCH:
                 try:batch.append(queue.get_nowait())
                 except asyncio.QueueEmpty:break
             await self.work(lambda s:commit_scout_batch(s,batch),5,label='source_commit',component='scout')
-            for _ in batch:queue.task_done()
+            if isinstance(queue,AcceptedQueue):queue.committed(batch)
+            else:
+                for _ in batch:queue.task_done()
 
     async def __call__(self,work,stop):
         return await self.run(work,stop)
@@ -1027,52 +1105,101 @@ class SelectiveSource:
         self.control_bootstrap_tip=tip
         async with grpc.aio.secure_channel(HOST,grpc.ssl_channel_credentials(),options=[
                 ('grpc.max_receive_message_length',MAX_FRAME_BYTES),('grpc.max_send_message_length',4*1024*1024),('grpc.http2.bdp_probe',0)]) as channel:
-            control_queue=asyncio.Queue(maxsize=64)
-            scout_queue=asyncio.Queue(maxsize=SCOUT_COMMIT_BATCH)
+            control_queue=AcceptedQueue(64,lambda a,c:self.frame_census('control',a,c))
+            scout_queue=AcceptedQueue(SCOUT_COMMIT_BATCH,lambda a,c:self.frame_census('scout',a,c))
+            control_done=asyncio.Event();scout_done=asyncio.Event()
+            async def owned(coroutine,finished):
+                try:return await coroutine
+                finally:finished.set()
             async def scouts(update,size,seen):
                 if update.WhichOneof('update_oneof')!='account':raise EvidenceUnavailable('candidate_scout_filter')
                 fact=scout_fact(update,seen)
                 if fact is not None:await scout_queue.put(fact)
             census=asyncio.create_task(self.structural_census()) if enabled('meteora') else None
             stop_task=asyncio.create_task(stop.wait())
-            tasks=[asyncio.create_task(self.control_stream(channel,tip,control_queue)),
-                   asyncio.create_task(self.scout_stream(channel,tip,scouts)),
-                   asyncio.create_task(self.scout_commits(scout_queue)),
-                   asyncio.create_task(self.acquire_pool()),asyncio.create_task(self.live_manager(channel)),
-                   asyncio.create_task(self.rolling_programs(channel)),
-                   asyncio.create_task(self.cold_maintenance()),
-                   asyncio.create_task(self.publish_history()),
-                   asyncio.create_task(self.source_reporting()),
-                   asyncio.create_task(self.control_commits(control_queue)),
-                   stop_task]
+            self.control_commit_task=asyncio.create_task(self.control_commits(control_queue,control_done))
+            scout_commit=asyncio.create_task(self.scout_commits(scout_queue,scout_done))
+            producers=[asyncio.create_task(owned(self.control_stream(channel,tip,control_queue),control_done)),
+                asyncio.create_task(owned(self.scout_stream(channel,tip,scouts),scout_done)),
+                asyncio.create_task(self.live_manager(channel)),asyncio.create_task(self.rolling_programs(channel))]
+            background=[asyncio.create_task(self.acquire_pool()),asyncio.create_task(self.cold_maintenance()),
+                asyncio.create_task(self.publish_history()),asyncio.create_task(self.source_reporting())]
             if separated_history():
-                tasks.append(asyncio.create_task(self.historical_processing()))
-                tasks.append(asyncio.create_task(self.candidate_history_delivery()))
-            if census is not None:tasks.append(census)
-            if not operational():tasks.append(asyncio.create_task(self.activity_manager(channel)))
+                background.append(asyncio.create_task(self.historical_processing()))
+                background.append(asyncio.create_task(self.candidate_history_delivery()))
+            if census is not None:background.append(census)
+            if not operational():producers.append(asyncio.create_task(self.activity_manager(channel)))
+            consumers=[self.control_commit_task,scout_commit]
+            tasks=[*producers,*consumers,*background,stop_task];primary=None
             try:
                 remaining=set(tasks)
                 while not stop.is_set():
                     done,_=await asyncio.wait(remaining,return_when=asyncio.FIRST_COMPLETED)
-                    if stop.is_set():return
+                    # Inspect a failure racing with stop before accepting stop.
                     for task in done:
+                        if task.cancelled() and stop.is_set():continue
                         task.result()
-                        if task is stop_task:return
-                        if task is census:
-                            # The startup structural census is finite. Completing
-                            # it must not terminate discovery/positions/recovery.
-                            remaining.remove(task)
-                        else:raise EvidenceUnavailable('candidate_source_task_stopped')
-            except Exception as exc:
-                # The owner records a Model B defect before shutdown. There is
-                # no archived startup producer to fall back to.
-                from .runtime.evidence_worker import failure_diagnostic
-                await work(lambda s:install(s).startup.fail(failure_diagnostic(exc)),0)
+                        if task is census:remaining.remove(task)
+                        elif task is not stop_task and not stop.is_set():
+                            raise EvidenceUnavailable('candidate_source_task_stopped')
+            except BaseException as exc:
+                primary=exc;stop.set()
+                if not isinstance(exc,asyncio.CancelledError):
+                    from .runtime.evidence_worker import failure_diagnostic
+                    try:await work(lambda s:install(s).startup.fail(failure_diagnostic(exc)),0)
+                    except BaseException:pass # The first application error wins.
                 raise
             finally:
-                for task in tasks:task.cancel()
-                await asyncio.gather(*tasks,return_exceptions=True)
-                await self.flush_diagnostics()
+                stop.set();self.source_drain['state']='DRAINING'
+                drain_error=None
+                try:
+                    # Optional/history work stops first; its existing accepted
+                    # consumer future still FULL-commits/ACKs on cancellation.
+                    for task in background:task.cancel()
+                    background_results=await asyncio.gather(*background,return_exceptions=True)
+                    failures=[result for result in background_results
+                        if isinstance(result,BaseException) and not isinstance(result,asyncio.CancelledError)]
+                    results=await settle_owned(producers,consumers)
+                    for result in results:
+                        if isinstance(result,BaseException):
+                            # Stop waiters and producers canceled because their
+                            # consumer failed are secondary. Preserve the real
+                            # commit error below; the census still fails closed
+                            # for every incomplete accepted handler/frame.
+                            if isinstance(result,asyncio.CancelledError):continue
+                            failures.append(result)
+                    # An independent source failure must not abandon the other
+                    # healthy queue's already accepted durable work.
+                    for queue,worker in ((control_queue,self.control_commit_task),(scout_queue,scout_commit)):
+                        try:await join_owned(queue,worker)
+                        except BaseException as exc:failures.append(exc)
+                    results=await asyncio.gather(*consumers,return_exceptions=True)
+                    failures.extend(result for result in results if isinstance(result,BaseException))
+                    await self.flush_delivery();await self.flush_diagnostics()
+                    if failures:raise failures[0]
+                except BaseException as exc:
+                    drain_error=exc
+                finally:
+                    for task in tasks:
+                        if not task.done():task.cancel()
+                    await asyncio.gather(*tasks,return_exceptions=True)
+                    snapshot=self.drain_snapshot()
+                    complete=(drain_error is None and snapshot['all_accepted_committed']
+                        and snapshot['pending_handlers']==0 and not snapshot['unpreserved_sessions'])
+                    self.source_drain.update(state='DRAINED' if complete else 'RECOVERY_REQUIRED',terminal=True,
+                        terminal_at_monotonic=time.monotonic())
+                    if not complete and drain_error is None:
+                        drain_error=EvidenceUnavailable('accepted_source_frame_drain_incomplete')
+                    def terminal(state):
+                        h=install(state);body=self.drain_snapshot()
+                        body['pending_history']=h.db.execute('SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0]
+                        body['pending_proofs']=h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone()[0]
+                        state.fence._health('source_drain',body)
+                    try:await self.work(terminal,0,label='source_commit')
+                    except BaseException:
+                        self.source_drain.update(state='RECOVERY_REQUIRED',terminal_record_unavailable=True)
+                        if drain_error is None:drain_error=EvidenceUnavailable('source_drain_terminal_unavailable')
+                if primary is None and drain_error is not None:raise drain_error
 
     async def structural_census(self):
         """Exhaust both WSOL orientations. Quiet pools remain durable forever."""
@@ -1148,8 +1275,7 @@ class SelectiveSource:
                 if identity!=old:
                     if running:
                         local_stop.set()
-                        for task in running:task.cancel()
-                        await asyncio.gather(*running,return_exceptions=True)
+                        await asyncio.gather(*running)
                     old=identity;local_stop=asyncio.Event();running=[]
                     for route in shards(addresses):
                         async def activity(update,size,seen,route=route):
@@ -1167,8 +1293,11 @@ class SelectiveSource:
                             'pumpswap_activity',local_stop)))
                 await asyncio.sleep(.5)
         finally:
-            for task in running:task.cancel()
-            await asyncio.gather(*running,return_exceptions=True)
+            if local_stop is not None:local_stop.set()
+            results=await asyncio.gather(*running,return_exceptions=True)
+            if not __import__('sys').exc_info()[1]:
+                for result in results:
+                    if isinstance(result,BaseException):raise result
 
     async def rolling_programs(self,channel):
         """Fixed body-free filters, independent of candidate count or promotion.
@@ -1189,12 +1318,13 @@ class SelectiveSource:
                     deadline=h.clock()+120,lower_slot=0,rolling=True) for f in ('pump','pumpswap')]
             desired=await self.work(rows,6)
             published=self.rolling_publications
-            task=asyncio.create_task(self.live(channel,desired,self.stop))
+            local_stop=asyncio.Event();task=asyncio.create_task(self.live(channel,desired,local_stop));handled=None
             try:
                 while not task.done() and not self.stop.is_set() and not position_only():
                     await asyncio.sleep(.25)
                 if task.done():await task
             except (EvidenceUnavailable,ConnectionClosed,OSError) as exc:
+                handled=exc
                 reason=str(exc) if isinstance(exc,EvidenceUnavailable) else type(exc).__name__
                 self.observe('rolling_retry',reason=reason)
                 self.diagnostic('rolling_retry',dict(reason=reason,complete=False))
@@ -1202,8 +1332,16 @@ class SelectiveSource:
                 failures+=1
                 await asyncio.sleep(min(8,.5*2**min(failures-1,4)))
             finally:
-                if not task.done():task.cancel()
-                await asyncio.gather(task,return_exceptions=True)
+                import sys
+                primary=sys.exc_info()[1]
+                local_stop.set()
+                # The session owns its accepted queue until it durably drains;
+                # service shutdown's existing 30-second boundary remains the
+                # outer escalation limit.
+                results=await asyncio.gather(task,return_exceptions=True)
+                if primary is None:
+                    for result in results:
+                        if isinstance(result,BaseException) and result is not handled:raise result
 
     async def cold_maintenance(self):
         from .solana_scoped_retirement import ScopedRetirement
@@ -1583,7 +1721,11 @@ class SelectiveSource:
                         del running[number]
                         continue
                     if number not in groups or groups[number]['identity']!=identity:
-                        local_stop.set();task.cancel();await asyncio.gather(task,return_exceptions=True)
+                        local_stop.set()
+                        try:await asyncio.wait_for(asyncio.shield(task),30)
+                        except TimeoutError:
+                            task.cancel();await asyncio.gather(task,return_exceptions=True)
+                            raise EvidenceUnavailable('source_filter_rebuild_drain_timeout') from None
                         del running[number]
                 for number,group in groups.items():
                     if number in running or time.monotonic()<retry_at.get(number,0):continue
@@ -1592,8 +1734,11 @@ class SelectiveSource:
                     running[number]=(group['identity'],local_stop,asyncio.create_task(self.live(channel,group['rows'],local_stop)))
                 await asyncio.sleep(.25)
         finally:
-            for _,local_stop,task in running.values():local_stop.set();task.cancel()
-            await asyncio.gather(*(task for _,_,task in running.values()),return_exceptions=True)
+            for _,local_stop,task in running.values():local_stop.set()
+            results=await asyncio.gather(*(task for _,_,task in running.values()),return_exceptions=True)
+            if not __import__('sys').exc_info()[1]:
+                for result in results:
+                    if isinstance(result,BaseException):raise result
 
     def read_revision(self):
         import sqlite3
@@ -1630,6 +1775,8 @@ class SelectiveSource:
             except TimeoutError:pass
 
     async def live(self,channel,desired,local_stop):
+        session_stop=asyncio.Event();local_stop=StopEither(local_stop,session_stop)
+        if self.stop.is_set() or local_stop.is_set():return
         rolling=any(r.get('rolling') for r in desired);has_checkpoint=False;prospective_rolling=False
         tip=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',2)
         def replay_floor(state):
@@ -1653,6 +1800,7 @@ class SelectiveSource:
                 return tip+1
             return max(1,min(tip-WARM_OVERLAP,earliest-WARM_OVERLAP)) if tip-earliest<REPLAY_SLOTS else max(1,tip-WARM_OVERLAP)
         floor=await self.work(replay_floor,1 if any(r['priority']<=1 for r in desired) else 3)
+        if self.stop.is_set() or local_stop.is_set():return
         addresses={r['address']:r['scope'] for r in desired}
         full={r['address'] for r in desired if r['family']=='meteora'}
         # A fresh HTTP tip can be ahead of the finalized WS delivery frontier.
@@ -1662,7 +1810,9 @@ class SelectiveSource:
         fresh_rolling=rolling and prospective_rolling
         join=CandidateTransactionJoin(addresses,full,filtered_from_slot=1 if fresh_rolling else floor,max_join_seconds=120 if rolling else 10);session=uuid.uuid4().hex
         log_frontiers={};logs_available=asyncio.Event()
-        candidate_queue=CandidateCommitQueue();join_progress=asyncio.Event()
+        plane='rolling' if rolling else 'candidate'
+        candidate_queue=CandidateCommitQueue(lambda a,c:self.frame_census(plane,a,c));join_progress=asyncio.Event()
+        producer_done=asyncio.Event()
         async def commit(frame):
             if frame:
                 self.observe('joined_frame',plane='rolling' if rolling else 'candidate',
@@ -1688,42 +1838,51 @@ class SelectiveSource:
                 await self.work(lambda s:install(s)._observation(None,'join_failure',diagnostic),1)
                 raise
         async def logs():
-            async with connect(self.config.stream_url,max_size=MAX_FRAME_BYTES,max_queue=2,ping_interval=10,ping_timeout=None) as ws:
-                ws_id=uuid.uuid4().hex
-                self.observe('websocket_open',stream_id=ws_id,addresses=[r['address'] for r in desired if r['family']!='meteora'])
-                pending={};registered={}
-                for number,row in enumerate((r for r in sorted(desired,key=lambda r:r['priority']) if r['family']!='meteora'),1):
-                    pending[number]=row
-                    await ws.send(canonical(dict(jsonrpc='2.0',id=number,method='logsSubscribe',
-                        params=[dict(mentions=[row['address']]),dict(commitment='finalized')])))
-                if not pending:acknowledged.set()
-                while not self.stop.is_set() and not local_stop.is_set():
-                    raw=await ws.recv();seen=time.time();received=time.monotonic();size=len(raw.encode() if isinstance(raw,str) else raw)
-                    self.observe('delivery',stream_id=ws_id,family='candidate_logs',transport='websocket',raw=raw.encode() if isinstance(raw,str) else raw,seen=seen,received_monotonic=received)
-                    decode_started=time.monotonic();value=candidate_log_message(raw,max_bytes=MAX_FRAME_BYTES)
-                    self.observe('decode_timing',stream_id=ws_id,family='candidate_logs',transport='websocket',bytes=size,seconds=time.monotonic()-decode_started)
-                    await self.delivered('candidate_logs','websocket',size,seen,0 if 'id' in value else (0 if any(r['priority']<=1 for r in desired) else 2))
-                    if 'id' in value:
-                        if 'error' in value or value['id'] not in pending:raise EvidenceUnavailable('authoritative_subscription_rejected')
-                        registered[value['result']]=pending.pop(value['id'])
-                        if not pending:acknowledged.set()
-                        continue
-                    result=value['params']['result'];row=registered.get(value['params']['subscription'])
-                    if row is None:raise EvidenceUnavailable('unknown_source_subscription')
-                    v=result['value']
-                    if fresh_rolling:
-                        log_frontiers.setdefault(row['family'],result['context']['slot'])
-                        if len(log_frontiers)==len({r['family'] for r in desired}):logs_available.set()
-                    if v['err'] is None:
-                        await wait_candidate_log_space(join,join_progress,self.stop,local_stop,
-                            result['context']['slot'],v['signature'],v['logs'])
-                        try:await commit(join.feed_log(result['context']['slot'],v['signature'],v['logs'],None,seen))
-                        except EvidenceUnavailable as exc:
-                            self.diagnostic('log_join_failure',dict(reason=str(exc),**join.diagnostic()))
-                            raise
+            closed=asyncio.create_task(StopEither(self.stop,local_stop).wait())
+            try:
+                async with connect(self.config.stream_url,max_size=MAX_FRAME_BYTES,max_queue=2,ping_interval=10,ping_timeout=None) as ws:
+                    ws_id=uuid.uuid4().hex
+                    self.observe('websocket_open',stream_id=ws_id,addresses=[r['address'] for r in desired if r['family']!='meteora'])
+                    pending={};registered={}
+                    for number,row in enumerate((r for r in sorted(desired,key=lambda r:r['priority']) if r['family']!='meteora'),1):
+                        pending[number]=row
+                        await ws.send(canonical(dict(jsonrpc='2.0',id=number,method='logsSubscribe',
+                            params=[dict(mentions=[row['address']]),dict(commitment='finalized')])))
+                    if not pending:acknowledged.set()
+                    while not self.stop.is_set() and not local_stop.is_set():
+                        raw=await receive_until_closed(ws.recv,local_stop,closed_task=closed)
+                        if raw is INTAKE_CLOSED:return
+                        self.source_drain['accepted_handlers']+=1
+                        seen=time.time();received=time.monotonic();size=len(raw.encode() if isinstance(raw,str) else raw)
+                        self.observe('delivery',stream_id=ws_id,family='candidate_logs',transport='websocket',raw=raw.encode() if isinstance(raw,str) else raw,seen=seen,received_monotonic=received)
+                        decode_started=time.monotonic();value=candidate_log_message(raw,max_bytes=MAX_FRAME_BYTES)
+                        self.observe('decode_timing',stream_id=ws_id,family='candidate_logs',transport='websocket',bytes=size,seconds=time.monotonic()-decode_started)
+                        await self.delivered('candidate_logs','websocket',size,seen,0 if 'id' in value else (0 if any(r['priority']<=1 for r in desired) else 2))
+                        if 'id' in value:
+                            if 'error' in value or value['id'] not in pending:raise EvidenceUnavailable('authoritative_subscription_rejected')
+                            registered[value['result']]=pending.pop(value['id'])
+                            if not pending:acknowledged.set()
+                            self.source_drain['settled_handlers']+=1
+                            continue
+                        result=value['params']['result'];row=registered.get(value['params']['subscription'])
+                        if row is None:raise EvidenceUnavailable('unknown_source_subscription')
+                        v=result['value']
+                        if fresh_rolling:
+                            log_frontiers.setdefault(row['family'],result['context']['slot'])
+                            if len(log_frontiers)==len({r['family'] for r in desired}):logs_available.set()
+                        if v['err'] is None:
+                            await wait_candidate_log_space(join,join_progress,self.stop,local_stop,
+                                result['context']['slot'],v['signature'],v['logs'])
+                            try:await commit(join.feed_log(result['context']['slot'],v['signature'],v['logs'],None,seen))
+                            except EvidenceUnavailable as exc:
+                                self.diagnostic('log_join_failure',dict(reason=str(exc),**join.diagnostic()))
+                                raise
+                        self.source_drain['settled_handlers']+=1
+            finally:
+                closed.cancel();await asyncio.gather(closed,return_exceptions=True)
         tasks=[asyncio.create_task(self.candidate_commits(candidate_queue,addresses,session,
             rolling=rolling,grouped=all(r['family']=='meteora' and r['priority']>1 for r in desired),
-            priority=native_commit_priority(desired)))];waiter=None
+            priority=native_commit_priority(desired),producer_done=producer_done))];waiter=None
         if len(full)<len(desired):tasks.append(asyncio.create_task(logs()))
         else:acknowledged.set()
         try:
@@ -1734,8 +1893,10 @@ class SelectiveSource:
             if waiter not in done:
                 waiter.cancel();await asyncio.gather(waiter,return_exceptions=True)
                 for task in done:task.result()
+                if self.stop.is_set() or local_stop.is_set():return
                 raise EvidenceUnavailable('candidate_websocket_ack_timeout')
             tip=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'replay',1)
+            if self.stop.is_set() or local_stop.is_set():return
             if fresh_rolling:
                 try:await asyncio.wait_for(logs_available.wait(),8)
                 except TimeoutError:raise EvidenceUnavailable('rolling_delivery_frontier_unavailable') from None
@@ -1776,9 +1937,11 @@ class SelectiveSource:
             # The native replay supplies independent identity/order witnesses;
             # RPC supplies only the old log content unavailable from WS ACKs.
             for row in sorted(desired,key=lambda r:r['priority']):
+                if self.stop.is_set() or local_stop.is_set():return
                 if row['family']=='meteora' or row.get('rolling') or floor>tip:continue
                 token=None
                 while True:
+                    if self.stop.is_set() or local_stop.is_set():return
                     def published(state):
                         h=install(state)
                         return not rolling and all(r['family'] in ('pump','pumpswap') and r['priority']<5
@@ -1854,26 +2017,55 @@ class SelectiveSource:
                                     inflight.add(key);pending.add(asyncio.create_task(one(*key)))
                             await asyncio.sleep(.01)
                     finally:
-                        for task in pending:task.cancel()
-                        await asyncio.gather(*pending,return_exceptions=True)
+                        # An accepted HTTP result may complete the final native
+                        # join. Let its original deadline finish before closing
+                        # the commit queue; do not discard it on filter rebuild.
+                        results=await asyncio.gather(*pending,return_exceptions=True)
+                        for result in results:
+                            if isinstance(result,BaseException):raise result
                 tasks.append(asyncio.create_task(repair_logs()))
             consumer='pump' if not enabled('meteora') else 'candidate_live'
+            if self.stop.is_set() or local_stop.is_set():return
             tasks.append(asyncio.create_task(self.stream(channel,candidate_subscription(addresses,floor,full_addresses=full),native,consumer,local_stop)))
             done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
             for task in done:task.result()
-            await candidate_queue.join()
         finally:
-            plane='rolling' if rolling else 'candidate'
-            body=dict(plane=plane,session=session,**join.diagnostic())
-            self.retain_join_state(plane,session,body,candidate_queue,state='CLOSED',monotonic=time.monotonic())
-            self.diagnostic('native_join_closed',body)
+            import sys
+            primary=sys.exc_info()[1];drain_error=None;session_stop.set()
             if waiter is not None:waiter.cancel()
-            for task in tasks:task.cancel()
-            await asyncio.gather(*tasks,*([waiter] if waiter is not None else []),return_exceptions=True)
-            def disconnect(state):
-                h=install(state)
-                for row in desired:
-                    checkpoint=state.writer.db.execute('SELECT slot FROM candidate_checkpoints WHERE scope=?',(row['scope'],)).fetchone()
-                    h.gap(row['scope'],floor if checkpoint is None else checkpoint[0]+1,None,
-                        'candidate_live_disconnect_or_filter_rebuild')
-            await self.work(disconnect,1 if any(r['priority']<=1 for r in desired) else 3)
+            try:
+                results=await settle_owned(tasks[1:],tasks[:1])
+                producer_done.set()
+                await join_owned(candidate_queue,tasks[0]);await tasks[0]
+                for result in results:
+                    if isinstance(result,BaseException) and result is not primary:raise result
+            except BaseException as exc:drain_error=exc
+            finally:
+                producer_done.set()
+                for task in tasks:
+                    if not task.done():task.cancel()
+                await asyncio.gather(*tasks,*([waiter] if waiter is not None else []),return_exceptions=True)
+                body=dict(plane=plane,session=session,**join.diagnostic(),accepted_pending=candidate_queue.count,
+                    accepted_pending_bytes=candidate_queue.bytes,drained=candidate_queue.count==0 and drain_error is None)
+                self.retain_join_state(plane,session,body,candidate_queue,state='CLOSED',monotonic=time.monotonic())
+                self.diagnostic('native_join_closed',body)
+                def disconnect(state):
+                    h=install(state);obligations=[]
+                    for row in desired:
+                        checkpoint=state.writer.db.execute('SELECT slot FROM candidate_checkpoints WHERE scope=?',(row['scope'],)).fetchone()
+                        lower=floor if checkpoint is None else checkpoint[0]+1
+                        pending=[n for n in (body['oldest_slot'],body['early_log_min_slot']) if n is not None and n>0]
+                        if pending:lower=min(lower,*pending)
+                        h.gap(row['scope'],lower,None,'candidate_live_disconnect_or_filter_rebuild')
+                        obligations.append(dict(scope=row['scope'],lower_slot=lower,upper_slot=None))
+                    h._observation(None,'source_session_drain',dict(**body,replay_from_slot=floor,
+                        recovery_obligations=obligations,complete_history_claim=False))
+                try:
+                    await self.work(disconnect,1 if any(r['priority']<=1 for r in desired) else 3,label='source_commit')
+                    if body['pending_slots'] or body['early_log_count']:
+                        self.source_drain['preserved_partial_sessions']+=1
+                except BaseException as exc:
+                    self.source_drain['unpreserved_sessions']+=1
+                    if drain_error is None:drain_error=exc
+                self.source_drain['closed_sessions']+=1
+            if primary is None and drain_error is not None:raise drain_error

@@ -133,7 +133,24 @@ def continuity_retirement_advance(writer,updates):
     writer._retention_continuity_pages=hints
 
 
-def retirement_suffix(writer,scope,top,before_time,*,recent_floor=_RECENT_UNREAD):
+@dataclass(frozen=True)
+class _RetirementFences:
+    """Fresh inputs shared only by one read-only owner observation.
+
+    Nothing stores this view across owner commands. Native retirement still
+    reads its own mutable fences immediately before changing durable records.
+    """
+    scope: str
+    gaps: tuple
+    active_floor: int | None
+    open_gap_floor: int | None
+    account_floor: int | None
+    continuity: tuple
+    guards: tuple
+
+
+def retirement_suffix(writer,scope,top,before_time,*,recent_floor=_RECENT_UNREAD,
+                      _fences=None):
     """One expired disjoint range outside required gaps and whole witnesses.
 
     An unresolved gap does not reference all future history, or the history
@@ -142,8 +159,12 @@ def retirement_suffix(writer,scope,top,before_time,*,recent_floor=_RECENT_UNREAD
     so expired history cannot falsely answer a complete query with no records.
     """
     db=writer.db
-    gaps=db.execute('SELECT lo,hi FROM gaps WHERE scope=? AND repaired IS NULL AND hi IS NOT NULL ORDER BY lo,hi LIMIT ?',
-                    (scope,MAX_PINS+1)).fetchall()
+    if _fences is None:
+        gaps=db.execute('SELECT lo,hi FROM gaps WHERE scope=? AND repaired IS NULL AND hi IS NOT NULL ORDER BY lo,hi LIMIT ?',
+                        (scope,MAX_PINS+1)).fetchall()
+    else:
+        if _fences.scope!=scope:raise EvidenceUnavailable('maintenance_observation_scope_mismatch')
+        gaps=_fences.gaps
     if not gaps:return None
     if len(gaps)>MAX_PINS:raise EvidenceUnavailable('maintenance_gap_range_bound')
     merged=[]
@@ -151,11 +172,13 @@ def retirement_suffix(writer,scope,top,before_time,*,recent_floor=_RECENT_UNREAD
         if merged and lo<=merged[-1][1]+1:merged[-1]=(merged[-1][0],max(hi,merged[-1][1]))
         else:merged.append((lo,hi))
     bound=top+1
-    for query in ('SELECT MIN(lower_slot) FROM interests WHERE scope=? AND active=1',
-                  'SELECT MIN(lo) FROM gaps WHERE scope=? AND repaired IS NULL AND hi IS NULL'):
-        value=db.execute(query,(scope,)).fetchone()[0]
+    bounds=(_fences.active_floor,_fences.open_gap_floor) if _fences is not None else tuple(
+        db.execute(query,(scope,)).fetchone()[0] for query in (
+            'SELECT MIN(lower_slot) FROM interests WHERE scope=? AND active=1',
+            'SELECT MIN(lo) FROM gaps WHERE scope=? AND repaired IS NULL AND hi IS NULL'))
+    for value in bounds:
         if value is not None:bound=min(bound,value)
-    account=writer._account_floor(scope)
+    account=_fences.account_floor if _fences is not None else writer._account_floor(scope)
     if account is not None:bound=min(bound,account)
     # This readonly function and its observation run on the same sole owner.
     # Reuse the exact fresh minimum for older gap starts within this operation;
@@ -163,8 +186,9 @@ def retirement_suffix(writer,scope,top,before_time,*,recent_floor=_RECENT_UNREAD
     if recent_floor is _RECENT_UNREAD:
         recent_floor=db.execute('SELECT MIN(lo) FROM coverage INDEXED BY maintenance_recent_coverage WHERE scope=? AND available>=?',
             (scope,before_time)).fetchone()[0]
-    continuity=[row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE name IN ('stream_receipts','stream_deliveries','stream_order')")]
-    guards=continuity_retirement_guards(writer,scope,continuity)
+    continuity=(_fences.continuity if _fences is not None else
+        tuple(row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE name IN ('stream_receipts','stream_deliveries','stream_order')")))
+    guards=dict(_fences.guards) if _fences is not None else continuity_retirement_guards(writer,scope,continuity)
     tails=[args[0] for _,args in guards.values() if args]
     if tails:bound=min(bound,min(tails))
     def overlap_index(boundary):
@@ -204,6 +228,7 @@ def retirement_suffix(writer,scope,top,before_time,*,recent_floor=_RECENT_UNREAD
             if value is not None:end=min(end,value)
         if start>=end:continue
         if not has_work(start,end):continue
+        unfenced=(start,end)
         # Bound overlap-chain work. An unknown interval stays protected.
         for _ in range(64):
             index_name=overlap_index(start)
@@ -222,7 +247,10 @@ def retirement_suffix(writer,scope,top,before_time,*,recent_floor=_RECENT_UNREAD
         # gaps. These indexed lookups match the native retirement predicates.
         # Native intervals have lo<=hi. Give the slot index both ends instead
         # of scanning every later protected interval for a failed hi predicate.
-        if has_work(start,end):return start,end
+        # All intervening operations are reads on the same sole owner. When
+        # neither whole-witness fence moved, the exact initial work witness is
+        # still true; do not issue every table probe for a second time.
+        if (start,end)==unfenced or has_work(start,end):return start,end
     return None
 
 SCHEMA = '''
@@ -595,6 +623,7 @@ class DebtAgeAdapter:
             if len(known) > MAX_SCOPES:
                 raise EvidenceUnavailable('maintenance_scope_bound')
             tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            continuity_tables=tuple(t for t in ('stream_receipts','stream_deliveries','stream_order') if t in tables)
             for scope, top in sorted(known.items()):
                 pins = self.bounded('''SELECT i.owner,i.lower_slot,EXISTS(SELECT 1 FROM service_interests s WHERE s.owner=i.owner AND s.scope=i.scope)
                     FROM interests i WHERE i.scope=? AND i.active=1''', (scope,), MAX_PINS)
@@ -612,7 +641,17 @@ class DebtAgeAdapter:
                     floor = min(floor, min(p[1] for p in pins))
                 if account_floor is not None:
                     floor = min(floor, account_floor)
-                suffix=retirement_suffix(writer,scope,top,wall-PRESERVATION_SECONDS,recent_floor=recent)
+                guards=continuity_retirement_guards(writer,scope,continuity_tables)
+                # These exact pins, gaps, account floor and CONTROL guards were
+                # just read by this unchanged owner observation. Reuse them for
+                # suffix planning and continuity witnesses, never a later write.
+                fences=_RetirementFences(scope,
+                    tuple(sorted((lo,hi) for lo,hi in gaps if hi is not None)),
+                    min((p[1] for p in pins),default=None),
+                    min((lo for lo,hi in gaps if hi is None),default=None),
+                    account_floor,continuity_tables,tuple(guards.items()))
+                suffix=retirement_suffix(writer,scope,top,wall-PRESERVATION_SECONDS,
+                    recent_floor=recent,_fences=fences)
                 if gaps:
                     floor = min(floor, min(g[0] for g in gaps))
                 old = db.execute('SELECT value FROM meta WHERE key=?', ('retention_floor:'+scope,)).fetchone()
@@ -633,8 +672,6 @@ class DebtAgeAdapter:
                 if pins or gaps or account_floor is not None or recent is not None:
                     blocked_oldest = None
                 continuity = 0
-                guards=continuity_retirement_guards(writer,scope,
-                    [t for t in ('stream_receipts','stream_deliveries','stream_order') if t in tables])
                 tails=[args[0] for _,args in guards.values() if args]
                 continuity_floor=min(floor,min(tails)) if tails else floor
                 for table, field, predicate in [('coverage','hi',''), ('gaps','hi',' AND repaired IS NOT NULL'),

@@ -1,6 +1,7 @@
 """Retained economic fixtures; no provider traffic or installed epoch access."""
 import asyncio
 import copy
+from dataclasses import replace
 import hashlib
 import json
 import os
@@ -1012,6 +1013,39 @@ class ColdRestoreTests(unittest.TestCase):
         self.assertEqual(apply(self.h,plan,result)['retired_records'],len(result['selected']))
         for identity,body,checksum in before:
             self.assertEqual(retirement.body(identity),json.loads(body))
+
+    def test_archive_plan_reuses_exact_consumer_slot_checks_only_within_that_plan(self):
+        from meme_machine.solana_scoped_retirement import ScopedRetirement
+        mint,events=self.pump()
+        # Disposable distinct identities in one block exercise the real planning
+        # loop's repeated-window case. They are not a market-capacity replay.
+        template=events[0]
+        records=[replace(template,identity='offline-same-block-'+str(n),
+            signature='offline-same-block-'+str(n),transaction_index=n+100) for n in range(32)]
+        self.h.ingest(records);self.h.lifecycle.flush()
+        retirement=ScopedRetirement(self.h)
+        with patch.object(retirement,'pinned',wraps=retirement.pinned) as checked:
+            plan=retirement.retire(limit=64,measure_hot_bytes=False,plan_only=True)
+        self.assertTrue(set(r.identity for r in records)<=set(plan['selected']))
+        self.assertTrue(all(isinstance(key,str) and key.startswith('scoped_retirement_hot_cursor:')
+            for key in plan['hot_cursors']))
+        keys=[tuple(call.args[:4]) for call in checked.call_args_list]
+        self.assertEqual(len(keys),len(set(keys)))
+        self.assertEqual(plan['selection']['pin_checks'],len(keys))
+        self.assertGreaterEqual(plan['selection']['pin_check_reuses'],31)
+        print('ARCHIVE_PLAN_PIN_REUSE_COUNTS '+json.dumps(dict(
+            checks=len(keys),avoided_checks=plan['selection']['pin_check_reuses'],
+            examined=plan['selection']['metadata_rows'])),flush=True)
+        # The next owner command must reread the original slot's new pin. A
+        # prior unpinned plan is never authority to retire newly held evidence.
+        scope=coverage_scope('pump',mint)
+        self.h.lifecycle.pin(scope,'new-position','position',template.slot)
+        pinned=retirement.retire(limit=64,measure_hot_bytes=False,plan_only=True)
+        self.assertFalse(set(r.identity for r in records)&set(pinned['selected']))
+        self.assertTrue(set(r.identity for r in records)<=set(pinned['pinned']))
+        self.h.lifecycle.unpin(scope,'new-position','position')
+        following=retirement.retire(limit=64,measure_hot_bytes=False,plan_only=True)
+        self.assertEqual(set(following['selected']),set(plan['selected']))
 
 
 class HistoryCalculationTests(unittest.TestCase):

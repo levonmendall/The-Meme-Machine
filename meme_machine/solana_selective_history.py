@@ -191,25 +191,38 @@ class SelectiveHistory:
                 SELECT 1 FROM evidence_bindings b WHERE b.family='pump' AND b.address=m.address)
             ORDER BY first_seen,address LIMIT ?''',(minimum,limit)).fetchall()
 
-    def observe(self,family,address,*,slot,signature,fields,seen=None):
+    def observe_many(self,facts):
+        """Reuse mutable selection reads only within this atomic scout command."""
+        from .solana_scout_selection import ScoutSelection
+        selection=ScoutSelection(self,facts)
+        for fact in facts:
+            if fact is not None:self.observe(**fact,_selection=selection)
+
+    def observe(self,family,address,*,slot,signature,fields,seen=None,_selection=None):
         """Lossless cheap retention. This record cannot authorize qualification."""
         if family not in self.active_families:raise EvidenceUnavailable('paused_family_activity_forbidden')
         if family not in FAMILIES or not isinstance(fields,dict):raise EvidenceUnavailable('candidate_scout_shape')
         seen=self.clock() if seen is None else seen
-        body=canonical(fields);checksum=digest(fields)
+        # Validate incoming JSON even for an older locator, as the scalar path
+        # did. Reuse its bytes when no merge with retained fields is required.
+        body=canonical(fields)
         with self.writer.transaction():
-            prior=self.db.execute('SELECT last_slot,last_seen,fields FROM market_observations WHERE family=? AND address=?',(family,address)).fetchone()
+            prior=(_selection.market.get((family,address)) if _selection is not None else
+                self.db.execute('SELECT last_slot,last_seen,fields FROM market_observations WHERE family=? AND address=?',(family,address)).fetchone())
             if prior and (slot,seen)<tuple(prior[:2]):return
             if prior:
-                fields=dict(json.loads(prior[2]),**fields);body=canonical(fields);checksum=digest(fields)
+                fields=dict(json.loads(prior[2]),**fields)
+                body=canonical(fields)
+            checksum=hashlib.sha256(body.encode()).hexdigest()
             self.db.execute('''INSERT INTO market_observations VALUES(?,?,?,?,?,?,?,?,?)
                 ON CONFLICT(family,address) DO UPDATE SET last_slot=excluded.last_slot,
                 last_seen=excluded.last_seen,source_signature=excluded.source_signature,
                 fields=excluded.fields,hash=excluded.hash''',
                 (family,address,slot,slot,seen,seen,signature,body,checksum))
+            if _selection is not None:_selection.market[family,address]=(slot,seen,body)
             if hasattr(self,'lifecycle'):
                 self.lifecycle.observe(family,address,slot=slot,seen=seen,signature=signature,fields=fields,
-                    activity=fields.get('activity',False))
+                    activity=fields.get('activity',False),_selection=_selection)
 
     @measured('owner.binding')
     def bind(self,family,address,*,market_address=None,aliases=(),metadata=None):
@@ -556,20 +569,37 @@ class SelectiveHistory:
                         self.db.execute('INSERT OR IGNORE INTO cached_addresses VALUES(?,?)',(row.identity,address))
                     self.attest_order(row.scope,row.slot,row.signature,row.transaction_index)
             with candidate_phase(timing,'delivery_outbox'):
-                for row in rows:
-                    if row.kind=='event':
-                        available=self.db.execute('SELECT first_seen FROM canonical_evidence WHERE identity=?',(row.identity,)).fetchone()[0]
-                        # A distinct monotonic namespace preserves a consumer's old
-                        # records-rowid checkpoint across this one-way cutover.
-                        self.db.execute('''INSERT OR IGNORE INTO candidate_outbox
-                            SELECT COALESCE(MAX(sequence)+1,4611686018427387904),?,?,?,?
-                            FROM candidate_outbox''',(row.identity,row.scope,row.slot,available))
+                self._queue_events(rows)
                 if hasattr(self,'lifecycle'):self.lifecycle.queue_records(rows)
             # Retain the owner's same physical storage reservation and the
             # explicit file cap for offline/bounded synthetic stores.
             with candidate_phase(timing,'ingest_setup'):
                 if self.writer.hot_capacity_exceeded():
                     raise EvidenceUnavailable('hot_store_capacity')
+
+    def _queue_events(self,rows):
+        """Allocate the original ordered outbox sequence once per transaction.
+
+        Existing identities (including repeats within the batch) consume no
+        sequence, exactly as the scalar INSERT OR IGNORE/MAX path. Availability
+        comes from the committed canonical representation, never the new input.
+        """
+        events=[row for row in rows if row.kind=='event']
+        if not events:return
+        identities=tuple(dict.fromkeys(row.identity for row in events))
+        available={};existing=set()
+        for offset in range(0,len(identities),256):
+            group=identities[offset:offset+256];marks=','.join('?' for _ in group)
+            available.update(self.db.execute('SELECT identity,first_seen FROM canonical_evidence WHERE identity IN ('+marks+')',group))
+            existing.update(r[0] for r in self.db.execute('SELECT identity FROM candidate_outbox WHERE identity IN ('+marks+')',group))
+        top=self.db.execute('SELECT MAX(sequence) FROM candidate_outbox').fetchone()[0]
+        sequence=4611686018427387904 if top is None else top+1
+        pending=[]
+        for row in events:
+            if row.identity in existing:continue
+            pending.append((sequence,row.identity,row.scope,row.slot,available[row.identity]))
+            sequence+=1;existing.add(row.identity)
+        self.db.executemany('INSERT INTO candidate_outbox VALUES(?,?,?,?,?)',pending)
 
     @staticmethod
     def content_hash(body):

@@ -305,6 +305,36 @@ def required_join_state(health, now_monotonic):
     return result
 
 
+def required_source_drain(health):
+    """Select the current IPC census explicitly, never an older terminal row."""
+    ipc=health.get('ipc');row=ipc.get('source_drain') if isinstance(ipc,dict) else None
+    if not isinstance(row,dict):return UNAVAILABLE
+    if type(health.get('pid')) is not int or row.get('source_pid')!=health['pid']:return UNAVAILABLE
+    state=row.get('state')
+    if state not in ('RUNNING','DRAINING','DRAINED','RECOVERY_REQUIRED'):return UNAVAILABLE
+    result=dict(state=state)
+    for name in ('accepted_handlers','settled_handlers','closed_sessions','preserved_partial_sessions',
+                 'unpreserved_sessions','pending_handlers','source_pid','started_at_monotonic','terminal_at_monotonic'):
+        value=row.get(name)
+        result[name]=value if finite_number(value) and value>=0 else UNAVAILABLE
+    for name in ('terminal','all_accepted_committed','terminal_record_unavailable'):
+        value=row.get(name);result[name]=value if type(value) is bool else UNAVAILABLE
+    run=row.get('run_identity')
+    result['run_identity']=run if isinstance(run,str) and re.fullmatch(r'[0-9a-f]{32}',run) else UNAVAILABLE
+    required=row.get('control_pending_replay')
+    result['control_pending_replay']=(None if required is None and 'control_pending_replay' in row else
+        {name:required[name] if type(required.get(name)) is int and required[name]>=0 else UNAVAILABLE
+         for name in ('lower_slot','upper_slot','coverage_after_id')} if isinstance(required,dict) else UNAVAILABLE)
+    queues=row.get('queues');selected={}
+    for name in ('control','scout','rolling','candidate'):
+        item=queues.get(name) if isinstance(queues,dict) else None
+        selected[name]=({key:item[key] if type(item.get(key)) is int and item[key]>=0 else UNAVAILABLE
+                         for key in ('accepted','committed','pending')} if isinstance(item,dict) else UNAVAILABLE)
+    result['queues']=selected
+    result['scope']='CURRENT_SOURCE_IPC_CENSUS_NOT_UNIVERSAL_RECOVERY_OR_HISTORY_COMPLETION'
+    return result
+
+
 def required_counters(health, *, now_monotonic=None):
     """Select fixed diagnostic schemas before the descriptive 128-key clip.
 
@@ -400,6 +430,7 @@ def required_counters(health, *, now_monotonic=None):
     operations=dict(active=operation(owner.get('active_operation')) if isinstance(owner,dict) else UNAVAILABLE,
         recent=[operation(row) for row in recent] if isinstance(recent,list) and len(recent)<=8 else UNAVAILABLE)
     result = dict(ipc_pipeline=pipeline or UNAVAILABLE, ipc_aggregate=aggregate or UNAVAILABLE,
+                  source_drain=required_source_drain(health),
                   operation_costs=operation_costs(ipc.get('operation_costs'), health.get('pid')),
                   development_phases=(dict(fields=list(DEVELOPMENT_PHASE_FIELDS), rows=development)
                                       if development else UNAVAILABLE),

@@ -137,15 +137,21 @@ class ContinuousCampaignTests(unittest.TestCase):
         event=dict(transactionHash='transaction',logIndex='0x1',blockNumber='0x1',address='curve',transactionIndex='0x0',blockHash='block',
             topics=[cohort.topic('CurveBuy(address,address,uint256,uint256,uint256,uint256)')])
         polls=[0]
+        def observed(kwargs,rows):
+            # The actual scout durably nominates each returned curve page at
+            # receipt. A poll stub must honor that producer contract too.
+            if kwargs.get('nominate'):
+                for row in rows:kwargs['nominate'](row,100.)
+            return rows
         def poll(*args,**kwargs):
             polls[0]+=1
             if startup:
                 if polls[0]<30:return rpc,200,[]
                 future.set_result(dict(status='settled',final_position=dict(status='settled',entry_tokens=2),reconciliation=dict(open_exposure=0)))
                 raise BoundaryError('injected_discovery_failure')
-            if polls[0]==1:return rpc,2,[event]
+            if polls[0]==1:return rpc,2,observed(kwargs,[event])
             if polls[0]==2:return rpc,2,[]
-            if (blocked or worker_pressure) and polls[0]==3:return rpc,3,[dict(event,blockNumber='0x2',blockHash='block2',transactionHash='transaction2',address='curve2' if worker_pressure else event['address'])]
+            if (blocked or worker_pressure) and polls[0]==3:return rpc,3,observed(kwargs,[dict(event,blockNumber='0x2',blockHash='block2',transactionHash='transaction2',address='curve2' if worker_pressure else event['address'])])
             if (blocked or worker_pressure) and polls[0]==4:return rpc,3,[]
             future.set_result(dict(status='settled',final_position=dict(status='settled',entry_tokens=2),
                 reconciliation=dict(open_exposure=0)))

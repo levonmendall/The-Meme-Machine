@@ -100,10 +100,10 @@ class CandidateLifecycle:
             ON candidate_history_outbox(family,json_extract(body,'$.record.slot'))
             WHERE kind='canonical' AND consumed IS NULL''')
 
-    def emit(self,family,address,kind,body,*,at=None):
-        return self.emit_raw(family,address,kind,canonical(body),at=at)
+    def emit(self,family,address,kind,body,*,at=None,_selection=None):
+        return self.emit_raw(family,address,kind,canonical(body),at=at,_selection=_selection)
 
-    def emit_raw(self,family,address,kind,raw,*,at=None):
+    def emit_raw(self,family,address,kind,raw,*,at=None,_selection=None):
         """Reuse exact already-canonical bytes; event/receipt identities unchanged."""
         require_active(family)
         at=self.clock() if at is None else at
@@ -111,7 +111,8 @@ class CandidateLifecycle:
         # economic record. Serialize once for its body, checksum and receipt ID.
         identity=hashlib.sha256(('['+','.join(canonical(v) for v in (family,address,kind))+','+raw+']').encode()).hexdigest()
         priority=0 if kind=='canonical' else 1 if kind=='promotion' else 3
-        if priority==3:
+        if priority==3 and _selection is not None:priority=_selection.priority(family,address)
+        elif priority==3:
             active=self.db.execute("SELECT 1 FROM candidate_lifecycle WHERE family=? AND address=? AND state IN ('queued','warming','active')",(family,address)).fetchone()
             pinned=self.db.execute('SELECT 1 FROM service_interests s JOIN interests i ON i.owner=s.owner AND i.scope=s.scope WHERE i.active=1 AND s.address=? AND s.scope=? LIMIT 1',(address,FAMILIES[family])).fetchone()
             if active or pinned:priority=2
@@ -122,44 +123,53 @@ class CandidateLifecycle:
             changed(self.history,publication=False,urgent_delivery=priority<=1)
         return identity
 
-    def observe(self,family,address,*,slot,seen,fields,activity=False,signature=''):
+    def observe(self,family,address,*,slot,seen,fields,activity=False,signature='',_selection=None):
         """Retain every scope locator. Ranking and capital are absent."""
         require_active(family)
         with self.writer.transaction():
-            old=self.db.execute('SELECT state,epoch,last_slot FROM candidate_lifecycle WHERE family=? AND address=?',
-                (family,address)).fetchone()
+            old=(_selection.lifecycle.get((family,address)) if _selection is not None else
+                self.db.execute('SELECT state,epoch,last_slot,last_seen FROM candidate_lifecycle WHERE family=? AND address=?',
+                (family,address)).fetchone())
             if old and slot<old[2]:return
             self.db.execute('''INSERT INTO candidate_lifecycle VALUES(?,?,'cheap_retained',0,?,?,?,?,NULL,?)
                 ON CONFLICT(family,address) DO UPDATE SET last_slot=MAX(last_slot,excluded.last_slot),
                 last_seen=MAX(last_seen,excluded.last_seen)''',(family,address,slot,slot,seen,seen,slot))
-            self.emit(family,address,'scout',dict(slot=slot,seen=seen,fields=fields,signature=signature),at=seen)
+            if _selection is not None:
+                _selection.lifecycle[family,address]=(old[0],old[1],max(old[2],slot),max(old[3],seen)) if old else ('cheap_retained',0,slot,seen)
+            self.emit(family,address,'scout',dict(slot=slot,seen=seen,fields=fields,signature=signature),at=seen,_selection=_selection)
             if activity:
                 self.wake(family,address,slot=slot,seen=seen,signature=signature,
-                    evidence=dict(fields,source='finalized_account_write'))
+                    evidence=dict(fields,source='finalized_account_write'),_selection=_selection)
 
-    def wake(self,family,address,*,slot,seen,signature,evidence):
+    def wake(self,family,address,*,slot,seen,signature,evidence,_selection=None):
         """Accept a conservative activity superset without inventing an event."""
         require_active(family)
         with self.writer.transaction():
-            old=self.db.execute('SELECT state,epoch,last_slot FROM candidate_lifecycle WHERE family=? AND address=?',
-                (family,address)).fetchone()
+            old=(_selection.lifecycle.get((family,address)) if _selection is not None else
+                self.db.execute('SELECT state,epoch,last_slot FROM candidate_lifecycle WHERE family=? AND address=?',
+                (family,address)).fetchone())
             if old is None:return False
             if slot<old[2]:return False
             inserted=self.db.execute('INSERT OR IGNORE INTO candidate_activity_receipts VALUES(?,?,?,?)',
                 (family,address,slot,signature)).rowcount
             if not inserted:return False
             receipt=self.emit(family,address,'activity',dict(slot=slot,seen=seen,signature=signature,
-                evidence=evidence,economic_event=False,entry_authority=False),at=seen)
+                evidence=evidence,economic_event=False,entry_authority=False),at=seen,_selection=_selection)
             if old[0] in ('reactivated','queued','warming','active'):return False
             # A native bin-array locator alone does not certify WSOL pairing.
-            locator=self.db.execute('SELECT fields FROM market_observations WHERE family=? AND address=?',
-                (family,address)).fetchone()
-            if family=='meteora' and (not locator or not json.loads(locator[0]).get('wsol_pair_locator')):
-                return False
+            if family=='meteora':
+                locator=(_selection.market.get((family,address)) if _selection is not None else None)
+                raw=locator[2] if locator is not None else None
+                if _selection is None:
+                    locator=self.db.execute('SELECT fields FROM market_observations WHERE family=? AND address=?',
+                        (family,address)).fetchone()
+                    raw=locator[0] if locator else None
+                if raw is None or not json.loads(raw).get('wsol_pair_locator'):return False
             epoch=old[1]+1
             self.db.execute("UPDATE candidate_lifecycle SET state='reactivated',epoch=?,last_slot=?,last_seen=? WHERE family=? AND address=?",
                 (epoch,slot,seen,family,address))
-            self.emit(family,address,'reactivated',dict(epoch=epoch,slot=slot,seen=seen,receipt=receipt),at=seen)
+            if _selection is not None:_selection.lifecycle[family,address]=('reactivated',epoch,slot,seen)
+            self.emit(family,address,'reactivated',dict(epoch=epoch,slot=slot,seen=seen,receipt=receipt),at=seen,_selection=_selection)
             return True
 
     @measured('owner.reactivation_promote')

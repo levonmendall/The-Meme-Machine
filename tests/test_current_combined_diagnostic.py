@@ -134,6 +134,24 @@ class DiagnosticOwnershipTests(unittest.TestCase):
 
 
 class DiagnosticCollectionTests(unittest.TestCase):
+    def test_current_source_drain_survives_fixed_selection_and_missing_stays_unavailable(self):
+        queues={name:dict(accepted=10,committed=9,pending=1) for name in ('control','scout','rolling','candidate')}
+        drain=dict(state='DRAINING',source_pid=123,run_identity='a'*32,started_at_monotonic=1.,terminal=False,
+            accepted_handlers=40,settled_handlers=40,pending_handlers=0,
+            closed_sessions=1,preserved_partial_sessions=1,unpreserved_sessions=0,
+            all_accepted_committed=False,queues=queues,unreviewed_secret='must_not_copy')
+        ipc={('irrelevant_'+str(n)):n for n in range(256)};ipc['source_drain']=drain
+        output=json.loads(json.dumps(diagnostic.required_counters(dict(pid=123,ipc=ipc))))['source_drain']
+        self.assertEqual(output['queues'],queues);self.assertEqual(output['run_identity'],'a'*32)
+        self.assertEqual(output['terminal_at_monotonic'],diagnostic.UNAVAILABLE)
+        self.assertNotIn('unreviewed_secret',output)
+        # An old canonical terminal row is retained evidence, not a current IPC
+        # observation and cannot become a false current drain PASS.
+        self.assertEqual(diagnostic.required_counters(dict(source_drain=drain))['source_drain'],diagnostic.UNAVAILABLE)
+        queues['scout'].pop('committed')
+        self.assertEqual(diagnostic.required_source_drain(dict(pid=123,ipc=ipc))['queues']['scout']['committed'],diagnostic.UNAVAILABLE)
+        self.assertEqual(diagnostic.required_source_drain(dict(pid=124,ipc=ipc)),diagnostic.UNAVAILABLE)
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name); (self.root / 'shared').mkdir()

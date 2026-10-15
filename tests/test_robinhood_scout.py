@@ -22,6 +22,149 @@ from meme_machine.runtime.robinhood.pons import Broker
 from meme_machine.runtime.robinhood.plane import Plane
 
 
+class DiscoveryNominationTests(unittest.TestCase):
+    """Actual scout/broker/projector paths; no provider or capacity claim."""
+    def fixture(self,root,*,count=32):
+        from meme_machine.lanes.pons.pipeline import Pipeline
+        tape=ObservationTape();tape.top=tape.grad+3
+        clock=[float(int(tape.header(tape.top)['timestamp'],16))]
+        broker=Broker(root/'plane.sqlite',CURRENT_HASH,clock=lambda:clock[0],source='offline-scout')
+        scout=MarketScout(broker.plane)
+        tape.logs=[dict(address='0x'+f'{i%4+100:040x}',
+            topics=[scout.curve_topics[i%2]],data='0x',blockNumber=hex(tape.grad+i%4),
+            blockHash=tape.header(tape.grad+i%4)['hash'],transactionHash='0x'+f'{i+100:064x}',
+            transactionIndex=hex(i),logIndex=hex(i)) for i in range(count)]
+        pipeline=Pipeline(root/'pipeline.sqlite','pons',CURRENT_HASH)
+        return tape,clock,broker,scout,pipeline
+
+    def poll(self,tape,scout,*,after=None):
+        def run(*args,nominate=None,**kwargs):
+            rows=scout.read_market(tape,tape.grad,tape.top,nominate=nominate)
+            if after:after(rows)
+            return tape,tape.top,rows
+        return run
+
+    @staticmethod
+    def durable(broker,pipeline):
+        db=broker.plane.db
+        return dict(candidates=[tuple(r) for r in db.execute('SELECT * FROM candidates ORDER BY id')],
+            watches=[tuple(r) for r in db.execute('SELECT * FROM pons_current_watch ORDER BY candidate')],
+            observations=[tuple(r) for r in db.execute('SELECT * FROM observations ORDER BY candidate,observation')],
+            transitions=[tuple(r) for r in db.execute('SELECT * FROM transitions ORDER BY seq')],
+            progress=[tuple(r) for r in pipeline.db.execute('SELECT candidate,stage,reason,classification,details FROM progress ORDER BY sequence')])
+
+    def test_page_nomination_is_once_and_original_clock_survives_delayed_return(self):
+        with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,{},clear=True):
+            tape,clock,broker,scout,pipeline=self.fixture(Path(td))
+            self.addCleanup(broker.close);self.addCleanup(pipeline.close)
+            original=clock[0]
+            def delayed(_rows):clock[0]+=100
+            with patch.object(cohort,'_poll',side_effect=self.poll(tape,scout,after=delayed)), \
+                    patch.object(broker,'enqueue',wraps=broker.enqueue) as enqueue:
+                _,_,rows=cohort._collect_observations(queue=broker,scout=scout)
+            self.assertEqual(enqueue.call_count,len(rows))
+            self.assertEqual(broker.plane.db.execute("SELECT received FROM observation_counts WHERE lane='pons'").fetchone()[0],len(rows))
+            for row in broker.plane.db.execute('SELECT observed,deadline FROM candidates'):
+                self.assertEqual(tuple(row),(original,original+5))
+            for body, in broker.plane.db.execute('SELECT body FROM pons_current_watch'):
+                self.assertEqual(json.loads(body)['last_buy_observed_at'],original)
+            self.assertEqual(len(scout.events('curve')),len(rows))
+
+    def test_returned_old_cohort_cannot_overwrite_newer_or_claimed_generation(self):
+        with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,{},clear=True):
+            tape,clock,broker,scout,pipeline=self.fixture(Path(td),count=1)
+            self.addCleanup(broker.close);self.addCleanup(pipeline.close)
+            latest=[];claimed=[]
+            def concurrent(rows):
+                newer=dict(rows[0],blockNumber=hex(tape.top+1),transactionHash='0x'+'ff'*32)
+                clock[0]+=.1;broker.enqueue(newer,now=clock[0],needs_work=True)
+                work=broker.plane.claim(lane='pons',interpretation=broker.policy,estimate_seconds=0)
+                self.assertIsNotNone(work);claimed.append(work);latest.append(broker.plane.get(work['id']))
+            with patch.object(cohort,'_poll',side_effect=self.poll(tape,scout,after=concurrent)):
+                _,_,rows=cohort._collect_observations(queue=broker,scout=scout)
+            broker.report_to(pipeline,drain=True)
+            self.assertEqual(broker.plane.get(claimed[0]['id']),latest[0])
+            self.assertTrue(broker.plane.current(claimed[0]))
+            self.assertEqual(len(scout.events('curve')),len(rows))
+            broker.close();broker=Broker(Path(td)/'plane.sqlite',CURRENT_HASH,clock=lambda:clock[0],source='offline-scout')
+            self.addCleanup(broker.close)
+            self.assertEqual(broker.plane.get(claimed[0]['id']),latest[0])
+
+    def test_standalone_discovery_still_enqueues_every_event_once(self):
+        with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,{},clear=True):
+            tape,clock,broker,scout,pipeline=self.fixture(Path(td),count=4)
+            self.addCleanup(broker.close);self.addCleanup(pipeline.close)
+            rows=list(tape.logs)
+            with patch.object(cohort,'_poll',return_value=(tape,tape.top,rows)), \
+                    patch.object(cohort.time,'time',return_value=clock[0]), \
+                    patch.object(broker,'enqueue',wraps=broker.enqueue) as enqueue:
+                self.assertEqual(cohort._collect_observations(queue=broker),(tape,tape.top,rows))
+            self.assertEqual(enqueue.call_count,4)
+            self.assertEqual(len(broker.plane.db.execute('SELECT * FROM observations').fetchall()),4)
+
+    def test_failure_after_page_receipt_preserves_pending_nomination_and_original_error(self):
+        with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,{},clear=True):
+            tape,clock,broker,scout,pipeline=self.fixture(Path(td),count=1)
+            self.addCleanup(broker.close);self.addCleanup(pipeline.close)
+            failure=BoundaryError('provider_transport_failure')
+            def failed(*args,**kwargs):
+                self.poll(tape,scout)(*args,**kwargs)
+                raise failure
+            with patch.object(cohort,'_poll',side_effect=failed):
+                with self.assertRaises(BoundaryError) as raised:
+                    cohort._collect_observations(queue=broker,scout=scout)
+            self.assertIs(raised.exception,failure)
+            before=broker.plane.get(broker.identity(tape.logs[0]))
+            self.assertEqual(before['pending'],1)
+            self.assertEqual(before['deadline'],clock[0]+5)
+            broker.close();broker=Broker(Path(td)/'plane.sqlite',CURRENT_HASH,clock=lambda:clock[0],source='offline-scout')
+            self.addCleanup(broker.close)
+            self.assertEqual(broker.plane.get(before['id']),before)
+
+    def test_same_durable_outputs_without_repeated_nomination_or_per_event_projection(self):
+        # Recreate the exact old callback/return/controller sequence from the
+        # reviewed source on the same deterministic raw tape. Only duplicate
+        # local receive counters differ; raw records, fences and stages match.
+        outputs=[];counts=[]
+        with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,{},clear=True), \
+                patch('meme_machine.lanes.pons.pipeline.time.time',return_value=12345.), \
+                patch('meme_machine.lanes.pons.pipeline.time.monotonic',return_value=123.):
+            for old in (True,False):
+                root=Path(td)/str(old);root.mkdir()
+                tape,clock,broker,scout,pipeline=self.fixture(root)
+                statements=Counter();enqueues=[];maintains=[]
+                def trace(sql):statements[sql.split(None,1)[0]]+=1
+                broker.plane.db.set_trace_callback(trace)
+                enqueue=broker.enqueue;maintain=broker.plane.maintain
+                def nominated(*args,**kwargs):enqueues.append(1);return enqueue(*args,**kwargs)
+                def maintained():maintains.append(1);return maintain()
+                try:
+                    started_cpu=time.thread_time();started_wall=time.perf_counter()
+                    with patch.object(broker,'enqueue',side_effect=nominated), \
+                            patch.object(broker.plane,'maintain',side_effect=maintained), \
+                            patch.object(cohort.time,'time',return_value=clock[0]), \
+                            patch.object(cohort,'_poll',side_effect=self.poll(tape,scout)):
+                        _,_,rows=cohort._collect_observations(queue=broker,scout=scout)
+                        if old:
+                            for event in rows:broker.enqueue(event,now=clock[0],needs_work=event['topics'][0]==scout.curve_topics[0])
+                            for event in rows:
+                                broker.enqueue(event,now=clock[0],needs_work=event['topics'][0]==scout.curve_topics[0])
+                                broker.report_to(pipeline,drain=True)
+                        broker.report_to(pipeline,drain=True)
+                    elapsed=dict(cpu_seconds=time.thread_time()-started_cpu,
+                        wall_seconds=time.perf_counter()-started_wall)
+                    outputs.append(self.durable(broker,pipeline))
+                    counts.append(dict(enqueues=len(enqueues),maintenance=len(maintains),statements=dict(statements),**elapsed))
+                finally:broker.close();pipeline.close()
+        self.assertEqual(outputs[0],outputs[1])
+        self.assertEqual([r['enqueues'] for r in counts],[96,32])
+        self.assertEqual([r['maintenance'] for r in counts],[33,1])
+        self.assertLess(counts[1]['statements']['SELECT'],counts[0]['statements']['SELECT'])
+        self.assertLess(counts[1]['statements']['BEGIN'],counts[0]['statements']['BEGIN'])
+        print('Pons discovery component fixture (32 synthetic raw events; not market capacity): '+
+            json.dumps(dict(before=counts[0],after=counts[1]),sort_keys=True))
+
+
 class ObservationTape(Tape):
     """Same event tape, including topic-OR public and exact canonical filters."""
     def _read(self,method,params):

@@ -267,9 +267,90 @@ OPERATION_COST_DELTAS={'meme_machine/lanes/pons/evidence.py': ('841db7b20c4e5635
                                                    b"ok')\n"),))}
 
 
+# The reviewed Pons discovery successor removes duplicate nominations and
+# per-event reporting only. Reverse its exact bytes before the original
+# complete operation-cost and strategy/economic source checks below.
+PONS_DISCOVERY_REFERENCE='f52be1e134b3471470d47c181df63c71192cf50c'
+PONS_DISCOVERY_SOURCE='meme_machine/lanes/pons/pons_selective_cohort.py'
+PONS_DISCOVERY_BEFORE_SHA256='aa3ccf1884e6e80c274c967def3e481269c68f0c97bcc5bb333abb45ef03182b'
+PONS_DISCOVERY_AFTER_SHA256='62d60f608185713a69542e181cca9302cc9e224e61791bc502d8324e0b79c312'
+PONS_DISCOVERY_REPLACEMENTS=((b"    return len(result['rows'])-offset\n\n\ndef run(endpoint,*,campaign=False):\n    if type(campaign) is"
+  b" not bool:raise BoundaryError('selective_campaign_flag')\n    ROOT.mkdir(parents=True,exist_ok=True)\n",
+  b"    return len(result['rows'])-offset\n\n\ndef _collect_observations(*args,queue,scout=None,**kwargs):\n"
+  b'    """Nominate once, at the page\'s original receipt time.\n\n    The scout commits each page before n'
+  b'otifying Current. Its returned cohort\n    is already durable and can be older than a concurrently accept'
+  b'ed page;\n    replaying it here or in the controller adds no evidence or fresh deadline.\n    Standalo'
+  b'ne discovery has no page callback and retains its original enqueue.\n    """\n    def nominate(event,o'
+  b"bserved):\n        queue.enqueue(event,now=observed,needs_work=event['topics'][0].lower()==scout.curve_to"
+  b'pics[0])\n    discovered=_poll(*args,**kwargs,scout=scout,nominate=nominate if scout else None)\n    i'
+  b'f scout is None:\n        observed=time.time()\n        for event in discovered[2]:\n            is_buy'
+  b"=bool(event.get('topics') and event['topics'][0].lower()==topic(\n                'CurveBuy(address,addre"
+  b"ss,uint256,uint256,uint256,uint256)'))\n            queue.enqueue(event,now=observed,needs_work=is_bu"
+  b'y)\n    return discovered\n\n\ndef run(endpoint,*,campaign=False):\n    if type(campaign) is not bool:rai'
+  b"se BoundaryError('selective_campaign_flag')\n    ROOT.mkdir(parents=True,exist_ok=True)\n"),
+ (b'        )\n\n    def _discover_observations(*args,**kwargs):\n        def nominate(event,observed):\n   '
+  b"         queue.enqueue(event,now=observed,needs_work=event['topics'][0].lower()==scout.curve_topics[0])\n"
+  b'        discovered=_poll(*args,**kwargs,scout=scout,nominate=nominate if scout else None)\n        observ'
+  b"ed=time.time()\n        for event in discovered[2]:\n            is_buy=bool(event.get('topics') and e"
+  b"vent['topics'][0].lower()==topic(\n                'CurveBuy(address,address,uint256,uint256,uint256,uint"
+  b"256)'))\n            queue.enqueue(event,now=observed,needs_work=is_buy)\n        return discovered\n\n "
+  b'   pool=None;futures=[]\n    try:\n',
+  b'        )\n\n    def _discover_observations(*args,**kwargs):\n        return _collect_observations(*arg'
+  b's,**kwargs,queue=queue,scout=scout)\n\n    pool=None;futures=[]\n    try:\n'),
+ (b'                identity=(event["transactionHash"],event["logIndex"])\n                is_buy=bool(event.'
+  b'get(\'topics\') and event[\'topics\'][0].lower()==topic(\n                    "CurveBuy(address,address,u'
+  b'int256,uint256,uint256,uint256)"))\n                # Every newer event updates the durable curve, includ'
+  b'ing sells.\n                # Only buys nominate qualification; sells fence an older buy.\n           '
+  b'     queue.enqueue(event,now=now,needs_work=is_buy)\n                queue.report_to(pipeline,drain=True)'
+  b'\n                current=queue.plane.get(queue.identity(event))\n                if is_buy and curren'
+  b"t['latest_id']==event['transactionHash']+':'+event['logIndex']:\n                    pipeline.record(queu"
+  b"e.identity(event),'screened',candidate_generation=current['generation'])\n                    pipeline.re"
+  b"cord(queue.identity(event),'current_state_queued',candidate_generation=current['generation'],first_obser"
+  b'ved_at=now,\n                        original_deadline=now+5,sequencer_last_received_at=getattr(feed.stat'
+  b"e,'last_received_at',None))\n\n            coverage()\n            # These retained-history counts are "
+  b'reporting, never a readiness\n            # or protection witness. Recompute on real observations and the'
+  b'\n            # existing checkpoint cadence, rather than every empty poll.\n',
+  b'                identity=(event["transactionHash"],event["logIndex"])\n                is_buy=bool(event.'
+  b'get(\'topics\') and event[\'topics\'][0].lower()==topic(\n                    "CurveBuy(address,address,u'
+  b'int256,uint256,uint256,uint256)"))\n                # Discovery already committed every buy and sell, inc'
+  b'luding\n                # the original observation clock and generation fence.\n                curren'
+  b"t=queue.plane.get(queue.identity(event))\n                if is_buy and current['latest_id']==event['tran"
+  b"sactionHash']+':'+event['logIndex']:\n                    pipeline.record(queue.identity(event),'screened"
+  b"',candidate_generation=current['generation'])\n                    pipeline.record(queue.identity(event),"
+  b"'current_state_queued',candidate_generation=current['generation'],first_observed_at=now,\n               "
+  b"         original_deadline=now+5,sequencer_last_received_at=getattr(feed.state,'last_received_at',None))"
+  b'\n\n            # Project one captured high-water after the complete returned\n            # cohort, be'
+  b'fore qualification. Do not repeat full maintenance for\n            # each already-durable event while pe'
+  b'er acquisition is committing.\n            coverage(drain=bool(fresh))\n            # These retained-h'
+  b'istory counts are reporting, never a readiness\n            # or protection witness. Recompute on real ob'
+  b'servations and the\n            # existing checkpoint cadence, rather than every empty poll.\n'))
+
+
+def pons_discovery_predecessor(test,relative,current):
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=PONS_DISCOVERY_SOURCE:return current
+    prior=subprocess.check_output(['git','show',PONS_DISCOVERY_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),PONS_DISCOVERY_BEFORE_SHA256)
+    if current==prior:return prior
+    # Nested original guards also receive the exact predecessor after the
+    # separately reviewed operation-cost layer has already been reversed.
+    # Recognize only those pinned complete bytes, never arbitrary source.
+    instrument_prior=subprocess.check_output(['git','show',OPERATION_COST_REFERENCE+':'+relative],cwd=ROOT)
+    if current==instrument_prior:return current
+    test.assertEqual(hashlib.sha256(current).hexdigest(),PONS_DISCOVERY_AFTER_SHA256,
+        relative+':exact reviewed one-nomination discovery successor')
+    for old,new in PONS_DISCOVERY_REPLACEMENTS:
+        test.assertEqual(current.count(new),1,relative+':one exact discovery delta')
+        current=current.replace(new,old,1)
+    test.assertEqual(current,prior,relative+':all strategy, execution and recovery bytes preserved')
+    return current
+
+
 def operation_cost_predecessor(test,relative,current):
     import hashlib
     if isinstance(current,str):current=current.encode()
+    current=pons_discovery_predecessor(test,relative,current)
     reviewed=OPERATION_COST_DELTAS.get(relative)
     if reviewed is None:return current
     before,after,replacements=reviewed
@@ -287,6 +368,11 @@ def operation_cost_predecessor(test,relative,current):
 def reviewed_operation_costs(test,relative,current):
     import hashlib
     if isinstance(current,str):current=current.encode()
+    # Apply this outer layer only while its exact new helper remains present.
+    # Original nested guards also visit several older, already-normalized
+    # implementations; all their existing guards must run unchanged.
+    if relative==PONS_DISCOVERY_SOURCE and b'def _collect_observations(' in current:
+        current=pons_discovery_predecessor(test,relative,current)
     reviewed=OPERATION_COST_DELTAS.get(relative)
     if reviewed and hashlib.sha256(current).hexdigest()==reviewed[1]:
         return operation_cost_predecessor(test,relative,current)
@@ -917,10 +1003,25 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_reviewed_discovery_nomination_delta_keeps_complete_strategy_guard(self):
+        import hashlib
+        relative=PONS_DISCOVERY_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),PONS_DISCOVERY_AFTER_SHA256)
+        prior=subprocess.check_output(['git','show',PONS_DISCOVERY_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(pons_discovery_predecessor(self,relative,current),prior)
+        self.assertEqual(opportunity_predecessor(self,relative,current),opportunity_predecessor(self,relative,prior))
+        for changed in (current+b'\n# unreviewed nomination change\n',b'',
+                current.replace(b'if scout is None:',b'if scout is not None:',1),
+                current.replace(b'coverage(drain=bool(fresh))',b'coverage()',1)):
+            self.assertNotEqual(changed,current)
+            with self.assertRaises(AssertionError):pons_discovery_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_reviewed_operation_costs_reverse_exactly_before_all_original_guards(self):
         import hashlib
         for relative,(_,after,_) in OPERATION_COST_DELTAS.items():
             current=(ROOT/relative).read_bytes()
+            current=pons_discovery_predecessor(self,relative,current)
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,
                 relative+':active source must contain exactly the reviewed instrumentation')
             prior=subprocess.check_output(['git','show',OPERATION_COST_REFERENCE+':'+relative],cwd=ROOT)

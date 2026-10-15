@@ -984,6 +984,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
                         # Two bounded existing join samples; copy their original
                         # clocks/generation instead of refreshing stale facts.
                         snapshot['join_state']=source_join_snapshot(source_driver)
+                        drain=getattr(source_driver,'drain_snapshot',None)
+                        if callable(drain):snapshot['source_drain']=drain()
                         from .runtime.operation_costs import enabled as costs_enabled,snapshot as costs_snapshot
                         if costs_enabled():snapshot['operation_costs']=costs_snapshot()
                     scheduler=owner.telemetry()
@@ -1182,7 +1184,15 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
         if clients:await asyncio.gather(*list(clients),return_exceptions=True)
         # Persist the final bounded counters after producers stop; a short drain
         # can otherwise finish between maintenance snapshots and hide pressure.
-        await work(lambda state:state.fence.health('ipc',counter_snapshot()),0)
+        final_snapshot=counter_snapshot()
+        if source_driver is not None:
+            final_snapshot['pipeline']={k:dict(v) for k,v in getattr(source_driver,'pipeline_metrics',{}).items()}
+            final_snapshot['join_state']=source_join_snapshot(source_driver)
+            drain=getattr(source_driver,'drain_snapshot',None)
+            if callable(drain):final_snapshot['source_drain']=drain()
+            from .runtime.operation_costs import enabled as costs_enabled,snapshot as costs_snapshot
+            if costs_enabled():final_snapshot['operation_costs']=costs_snapshot()
+        await work(lambda state:state.fence.health('ipc',final_snapshot),0)
         scheduler=owner.telemetry()
         scheduler['owner_admission']=admission.telemetry()
         await work(lambda state:state.fence.health('owner_scheduler',scheduler),0)

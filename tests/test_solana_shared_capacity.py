@@ -636,7 +636,7 @@ class SourceLifetimeTests(unittest.IsolatedAsyncioTestCase):
             # This test has no database owner; retain the real publisher's
             # scheduling-result contract without fabricating economic evidence.
             return (False,{},None,0) if fn.__name__=='publish' else None
-        with patch('meme_machine.solana_selective_source.grpc.aio.secure_channel',return_value=Channel()),patch.object(source,'measured_rpc',rpc),patch.object(source,'structural_census',finite),patch.object(source,'stream',forever),patch.object(source,'acquire',forever),patch.object(source,'live_manager',forever),patch.object(source,'rolling_programs',forever),patch.object(source,'activity_manager',forever),patch.object(source,'cold_maintenance',forever):
+        with patch('meme_machine.solana_selective_source.grpc.aio.secure_channel',return_value=Channel()),patch.object(source,'measured_rpc',rpc),patch.object(source,'structural_census',finite),patch.object(source,'control_stream',forever),patch.object(source,'stream',forever),patch.object(source,'acquire',forever),patch.object(source,'live_manager',forever),patch.object(source,'rolling_programs',forever),patch.object(source,'activity_manager',forever),patch.object(source,'cold_maintenance',forever):
             task=asyncio.create_task(source.run(work,stop))
             await census.wait();await asyncio.sleep(.01)
             self.assertFalse(task.done())

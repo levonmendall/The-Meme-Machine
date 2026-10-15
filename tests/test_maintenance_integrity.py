@@ -1,6 +1,7 @@
 """E24: stale interruption flags and durable, fixed-cardinality lifecycle counts."""
 from contextlib import contextmanager
 from dataclasses import replace
+import json
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -23,6 +24,68 @@ class MaintenanceIntegrityTests(unittest.TestCase):
 
     def counts(self,state):
         return dict(state.writer.db.execute('SELECT key,value FROM counters WHERE key LIKE \'lifecycle.%\''))
+
+    def test_one_observation_reuses_only_its_fresh_retirement_fences(self):
+        from meme_machine import solana_maintenance_state as maintenance
+        from meme_machine.solana_selective_source import install
+        with self.state() as state:
+            install(state)
+            w=state.writer;db=w.db
+            w.interest('offline-open','control:solana',lower_slot=100,priority=0,lifecycle='open')
+            with w.transaction():
+                for scope in ('control:solana','account:offline'):
+                    db.execute('INSERT INTO cursors VALUES(?,?,?)',(scope,110,1000))
+                    db.executemany('INSERT INTO gaps(scope,lo,hi,reason,created,repaired) VALUES(?,?,?,?,?,?)',
+                        [(scope,1,20,'first-retained-gap',400,None),
+                         (scope,50,60,'second-retained-gap',400,None)])
+                    db.executemany('INSERT INTO coverage(scope,lo,hi,available,proof) VALUES(?,?,?,?,?)',
+                        [(scope,30,30,500,'eligible-prefix'),(scope,70,70,500,'eligible-suffix')])
+            suffix=maintenance.retirement_suffix
+            def unshared(*args,**kwargs):
+                kwargs.pop('_fences',None)
+                return suffix(*args,**kwargs)
+            def observe(*,shared):
+                statements=[]
+                db.set_trace_callback(statements.append)
+                try:
+                    with patch.object(maintenance,'retirement_suffix',suffix if shared else unshared):
+                        result=maintenance.DebtAgeAdapter(w,wall=lambda:1000).observe('fresh-owner-command')
+                finally:db.set_trace_callback(None)
+                return replace(result,monotonic=0,vm_steps=0,elapsed=0),len(statements)
+            before=db.total_changes
+            reference,old_reads=observe(shared=False)
+            current,new_reads=observe(shared=True)
+            self.assertEqual(current,reference)
+            # Two scopes have closed gaps; reuse removes their repeated gap,
+            # pin/account and schema/CONTROL-guard lookups, not evidence checks.
+            self.assertGreaterEqual(old_reads-new_reads,10)
+            print('MAINTENANCE_FENCE_REUSE_QUERY_COUNTS '+json.dumps(dict(
+                scopes_with_gaps=2,unshared_reads=old_reads,shared_reads=new_reads)),flush=True)
+            self.assertEqual(db.total_changes,before)
+            with w.transaction():
+                db.execute("INSERT INTO gaps(scope,lo,hi,reason,created,repaired) VALUES(?,?,?,?,?,?)",
+                    ('control:solana',25,None,'new-open-replay-gap',600,None))
+            following,_=observe(shared=True)
+            reference_following,_=observe(shared=False)
+            self.assertEqual(following,reference_following)
+            self.assertNotEqual(following.scopes,current.scopes)
+
+    def test_retirement_suffix_rechecks_work_when_a_whole_witness_moves_its_fence(self):
+        from meme_machine.solana_maintenance_state import retirement_suffix
+        with self.state() as state:
+            w=state.writer;db=w.db;scope='control:solana'
+            with w.transaction():
+                db.execute('INSERT INTO cursors VALUES(?,?,?)',(scope,100,1000))
+                db.executemany('INSERT INTO gaps(scope,lo,hi,reason,created,repaired) VALUES(?,?,?,?,?,?)',
+                    [(scope,1,20,'first-retained-gap',400,None),
+                     (scope,50,60,'second-retained-gap',400,None)])
+                db.execute('INSERT INTO coverage(scope,lo,hi,available,proof) VALUES(?,?,?,?,?)',
+                    (scope,18,35,500,'whole-boundary-witness'))
+                db.execute('INSERT INTO coverage(scope,lo,hi,available,proof) VALUES(?,?,?,?,?)',
+                    (scope,25,25,500,'nested-work-behind-fence'))
+            # The initial 21..50 witness exists, but the whole retained interval
+            # raises its lower fence to36. No work remains in that exact range.
+            self.assertIsNone(retirement_suffix(w,scope,100,820,recent_floor=None))
 
     def test_protected_future_coverage_does_not_exhaust_empty_retirement_prefix(self):
         from meme_machine.solana_maintenance_state import DebtAgeAdapter,OBSERVATION_VM_STEPS

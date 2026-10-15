@@ -21,6 +21,41 @@ class RollingSerializationTests(unittest.TestCase):
         self.rows=economic_records('pump',PROGRAMS['pump'],FIXTURE['pump'][0],
             endpoint_identity='a'*64,seen=NOW,source='alchemy_finalized_stream')
 
+    def test_grouped_event_outbox_matches_scalar_sequence_and_replay_availability(self):
+        from types import MethodType
+        from meme_machine.solana_economic_preparation import prepare_economic_record
+        original,h=state_at(Path(self.tmp.name)/'scalar-outbox.sqlite')
+        def scalar(target,rows):
+            for row in rows:
+                if row.kind!='event':continue
+                available=target.db.execute('SELECT first_seen FROM canonical_evidence WHERE identity=?',(row.identity,)).fetchone()[0]
+                target.db.execute('''INSERT OR IGNORE INTO candidate_outbox
+                    SELECT COALESCE(MAX(sequence)+1,4611686018427387904),?,?,?,?
+                    FROM candidate_outbox''',(row.identity,row.scope,row.slot,available))
+        h._queue_events=MethodType(scalar,h)
+        try:
+            base=self.rows[0]
+            products=[prepare_economic_record(replace(base,identity='outbox-'+str(n),slot=base.slot+n,
+                signature='outbox-signature-'+str(n),observed_at=NOW+n)) for n in range(64)]
+            for target in (h,self.history):
+                target.ingest(products[:8])
+                target.db.execute('DELETE FROM candidate_outbox WHERE identity=?',('outbox-3',))
+                target.ingest([products[3],*products[8:],products[2],products[3]])
+                target.ingest([prepare_economic_record(replace(products[2].record,observed_at=NOW+100))])
+            for table in ('candidate_outbox','candidate_content_receipts','native_order_attestations'):
+                self.assertEqual(self.history.db.execute('SELECT * FROM '+table+' ORDER BY rowid').fetchall(),
+                    h.db.execute('SELECT * FROM '+table+' ORDER BY rowid').fetchall(),table)
+            self.assertEqual(self.history.db.execute('SELECT first_seen FROM candidate_outbox WHERE identity=?',('outbox-2',)).fetchone(),(NOW+2,))
+            # Failure after allocation rolls back sequence and content together.
+            before=self.history.db.execute('SELECT * FROM candidate_outbox ORDER BY sequence').fetchall()
+            with self.assertRaisesRegex(RuntimeError,'after_outbox'):
+                with self.history.writer.transaction():
+                    self.history.db.execute("DELETE FROM candidate_outbox WHERE identity='outbox-0'")
+                    self.history._queue_events([products[0].record])
+                    raise RuntimeError('after_outbox')
+            self.assertEqual(self.history.db.execute('SELECT * FROM candidate_outbox ORDER BY sequence').fetchall(),before)
+        finally:original.writer.close()
+
     def test_one_validated_snapshot_retains_hash_addresses_and_original_availability(self):
         calls=[];original=FinalizedRecord.serialized_body
         expected={}

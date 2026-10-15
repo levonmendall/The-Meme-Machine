@@ -171,6 +171,7 @@ class ScopedRetirement:
         tables=['records','shared_history_cache','scoped_cold_records']
         if hasattr(self.history,'rolling'):tables.append('rolling_economic_events')
         cursors={};previous={};examined=0;scopes=set();seen=set();full=False
+        pin_checks={};pin_reuses=0
         enabled_scopes={FAMILIES[f] for f in solana_families()}
         table_key='scoped_retirement_hot_table'
         table_before=self.db.execute('SELECT value FROM meta WHERE key=?',(table_key,)).fetchone()
@@ -233,7 +234,16 @@ class ScopedRetirement:
                     owner_scope=owners[0][1]
                     for family,owner_scope in owners if reason is None else ():
                         scopes.add(owner_scope)
-                        reason=self.pinned(family,owner_scope.split(':',2)[2],slot,slot,shared)
+                        pin_key=(family,owner_scope,slot)
+                        if pin_key not in pin_checks:
+                            pin_checks[pin_key]=self.pinned(family,owner_scope.split(':',2)[2],slot,slot,shared)
+                        else:pin_reuses+=1
+                        # Several economic identities in one block can belong
+                        # to the exact same consumer/window. This plan performs
+                        # no owner writes. Reuse only that identical pin query;
+                        # archive.apply rechecks every current pin independently
+                        # before changing a hot pointer. No result survives here.
+                        reason=pin_checks[pin_key]
                         if reason:break
                     if reason is None and not self.db.execute('''SELECT 1 FROM candidate_history_outbox
                         WHERE kind='canonical' AND consumed IS NOT NULL
@@ -264,7 +274,8 @@ class ScopedRetirement:
             hot_table_next=(first+tables.index(last)+1)%len(tables),
             selection=dict(mode='indexed_hot_pages',metadata_rows=examined,
                 metadata_row_bound=budget,candidate_scopes=len(scopes),
-                preparation_bytes=size,oldest_domain='examined hot page only'))
+                preparation_bytes=size,pin_checks=len(pin_checks),pin_check_reuses=pin_reuses,
+                oldest_domain='examined hot page only'))
 
     @defer_busy_consumer
     def retire(self,*,limit=64,measure_hot_bytes=True,plan_only=False):

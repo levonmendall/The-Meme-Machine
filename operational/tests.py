@@ -2,6 +2,7 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+    'tests.test_solana_source_drain',
     'tests.test_operation_costs',
     'tests.test_pons_operation_costs',
     'tests.test_operation_owner_hooks',

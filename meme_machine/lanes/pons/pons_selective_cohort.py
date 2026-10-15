@@ -780,6 +780,26 @@ def _window_observations(result):
     return len(result['rows'])-offset
 
 
+def _collect_observations(*args,queue,scout=None,**kwargs):
+    """Nominate once, at the page's original receipt time.
+
+    The scout commits each page before notifying Current. Its returned cohort
+    is already durable and can be older than a concurrently accepted page;
+    replaying it here or in the controller adds no evidence or fresh deadline.
+    Standalone discovery has no page callback and retains its original enqueue.
+    """
+    def nominate(event,observed):
+        queue.enqueue(event,now=observed,needs_work=event['topics'][0].lower()==scout.curve_topics[0])
+    discovered=_poll(*args,**kwargs,scout=scout,nominate=nominate if scout else None)
+    if scout is None:
+        observed=time.time()
+        for event in discovered[2]:
+            is_buy=bool(event.get('topics') and event['topics'][0].lower()==topic(
+                'CurveBuy(address,address,uint256,uint256,uint256,uint256)'))
+            queue.enqueue(event,now=observed,needs_work=is_buy)
+    return discovered
+
+
 def run(endpoint,*,campaign=False):
     if type(campaign) is not bool:raise BoundaryError('selective_campaign_flag')
     ROOT.mkdir(parents=True,exist_ok=True)
@@ -909,15 +929,7 @@ def run(endpoint,*,campaign=False):
         )
 
     def _discover_observations(*args,**kwargs):
-        def nominate(event,observed):
-            queue.enqueue(event,now=observed,needs_work=event['topics'][0].lower()==scout.curve_topics[0])
-        discovered=_poll(*args,**kwargs,scout=scout,nominate=nominate if scout else None)
-        observed=time.time()
-        for event in discovered[2]:
-            is_buy=bool(event.get('topics') and event['topics'][0].lower()==topic(
-                'CurveBuy(address,address,uint256,uint256,uint256,uint256)'))
-            queue.enqueue(event,now=observed,needs_work=is_buy)
-        return discovered
+        return _collect_observations(*args,**kwargs,queue=queue,scout=scout)
 
     pool=None;futures=[]
     try:
@@ -1090,17 +1102,18 @@ def run(endpoint,*,campaign=False):
                 identity=(event["transactionHash"],event["logIndex"])
                 is_buy=bool(event.get('topics') and event['topics'][0].lower()==topic(
                     "CurveBuy(address,address,uint256,uint256,uint256,uint256)"))
-                # Every newer event updates the durable curve, including sells.
-                # Only buys nominate qualification; sells fence an older buy.
-                queue.enqueue(event,now=now,needs_work=is_buy)
-                queue.report_to(pipeline,drain=True)
+                # Discovery already committed every buy and sell, including
+                # the original observation clock and generation fence.
                 current=queue.plane.get(queue.identity(event))
                 if is_buy and current['latest_id']==event['transactionHash']+':'+event['logIndex']:
                     pipeline.record(queue.identity(event),'screened',candidate_generation=current['generation'])
                     pipeline.record(queue.identity(event),'current_state_queued',candidate_generation=current['generation'],first_observed_at=now,
                         original_deadline=now+5,sequencer_last_received_at=getattr(feed.state,'last_received_at',None))
 
-            coverage()
+            # Project one captured high-water after the complete returned
+            # cohort, before qualification. Do not repeat full maintenance for
+            # each already-durable event while peer acquisition is committing.
+            coverage(drain=bool(fresh))
             # These retained-history counts are reporting, never a readiness
             # or protection witness. Recompute on real observations and the
             # existing checkpoint cadence, rather than every empty poll.

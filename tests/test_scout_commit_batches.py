@@ -67,6 +67,54 @@ class ScoutCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         commit_scout_batch(self.state,facts)
         self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM market_observations').fetchone()[0],4)
 
+    async def test_same_command_selection_preserves_order_merges_activity_and_priority(self):
+        original,h=state_at(Path(self.tmp.name)/'ordered-original.sqlite')
+        try:
+            for target in (h,self.history):
+                for name in ('active','demoted','pinned','quiet'):
+                    target.observe('pump',name,slot=99,seen=NOW,signature='initial',fields=dict(retained=True))
+                target.db.execute("UPDATE candidate_lifecycle SET state='active' WHERE address='active'")
+                target.db.execute("UPDATE candidate_lifecycle SET state='demoted' WHERE address='demoted'")
+                target.writer.interest('position','program:pump',lower_slot=90,priority=1)
+                target.db.execute('INSERT INTO service_interests VALUES(?,?,?,?)',('position','program:pump','pinned','account'))
+            facts=[]
+            for slot,seen in ((100,NOW+2),(100,NOW+1),(101,NOW+3),(101,NOW+3),(102,NOW+2)):
+                for name in ('active','demoted','pinned','quiet'):
+                    facts.append(dict(family='pump',address=name,slot=slot,seen=seen,
+                        signature='activity-'+str(slot),fields=dict(activity=True,new=slot)))
+            for fact in facts:h.observe(**fact)
+            commit_scout_batch(self.state,[None,*facts])
+            for table,values in self.snapshot().items():
+                self.assertEqual(values,h.db.execute('SELECT * FROM '+table+' ORDER BY rowid').fetchall(),table)
+            self.assertEqual(self.history.db.execute("SELECT priority FROM candidate_history_outbox WHERE address='pinned' AND kind='activity' ORDER BY rowid DESC LIMIT 1").fetchone(),(2,))
+            # A later owner command observes a changed policy/interest state,
+            # never the previous command's selection view.
+            self.history.db.execute("UPDATE candidate_lifecycle SET state='active' WHERE address='quiet'")
+            commit_scout_batch(self.state,[dict(facts[-1],slot=103,signature='next')])
+            self.assertEqual(self.history.db.execute("SELECT priority FROM candidate_history_outbox WHERE address='quiet' ORDER BY rowid DESC LIMIT 1").fetchone(),(2,))
+        finally:original.writer.close()
+
+    async def test_selection_reads_are_bounded_per_command_and_no_nested_transactions(self):
+        facts=[scout_fact(update(n),NOW+n) for n in range(1,65)]
+        statements=[];self.history.db.set_trace_callback(statements.append)
+        commit_scout_batch(self.state,facts)
+        self.history.db.set_trace_callback(None)
+        selects=[s for s in statements if s.lstrip().upper().startswith(('SELECT','WITH REQUESTED'))]
+        self.assertEqual(len([s for s in selects if s.startswith('WITH requested')]),3)
+        self.assertFalse(any('SELECT state,epoch,last_slot' in s or 'SELECT last_slot,last_seen,fields' in s for s in selects))
+        self.assertEqual(sum(s=='COMMIT' for s in statements),1)
+        self.assertFalse(any(s.startswith('SAVEPOINT') for s in statements))
+
+    async def test_invalid_older_json_still_fails_and_cannot_leave_a_batch_view(self):
+        fact=scout_fact(update(1),NOW)
+        commit_scout_batch(self.state,[fact]);before=self.snapshot()
+        invalid=dict(fact,slot=fact['slot']-1,fields=dict(invalid=float('nan')))
+        for batch in (False,True):
+            with self.subTest(batch=batch),self.assertRaises(ValueError):
+                if batch:commit_scout_batch(self.state,[scout_fact(update(2),NOW),invalid])
+                else:self.history.observe(**invalid)
+            self.assertEqual(self.snapshot(),before)
+
     async def test_ready_burst_uses_one_fsync_without_waiting_for_quiet_stream(self):
         source=SelectiveSource(SimpleNamespace(credential='offline'),None);source.stop=asyncio.Event()
         q=asyncio.Queue(maxsize=SCOUT_COMMIT_BATCH);calls=[];statements=[]
