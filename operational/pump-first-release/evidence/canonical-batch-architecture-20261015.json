@@ -1,0 +1,99 @@
+{
+  "artifacts": [
+    {
+      "bytes": 248416,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_ARCHITECTURE_PREFLIGHT_20261015.json",
+      "sha256": "c8ecce774646ba911a717be1339eb68d014505381314626d707adfc1ed68a821"
+    },
+    {
+      "bytes": 7463164,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PUMP_AUTHENTIC_STORE_COHORT_20261015.json",
+      "sha256": "d48ac527dd5c2497c2385144a02ea6407af2fbcb6ce1230276c0c450d93ad4d7"
+    },
+    {
+      "bytes": 12460,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PUMP_AUTHENTIC_FRESH_STORE_COMPARISON_20261015.json",
+      "sha256": "0e0f1325702e6477f91ace72c605a36b1ecff702519e38799c6c4a280e5427f4"
+    },
+    {
+      "bytes": 13571,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PUMP_AUTHENTIC_FRESH_STORE_COMPARISON_SCOPED_20261015.json",
+      "sha256": "443ded8dd89fe500416da76f1006d4293dba2a063aaa29b60418a79909501914"
+    },
+    {
+      "bytes": 13679,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_AUDIT_RING_INDEX_PAIR_SCOPED_20261015.json",
+      "sha256": "4b8f18dc65442fe5d6de5ecf88838386b923b82f54af8c329625d2c83e7620c4"
+    },
+    {
+      "bytes": 12314,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_AUDIT_RING_INDEX_SCOPED_EXECUTED_DRIVER_20261015.py",
+      "sha256": "ae5fa1f20403aeee0805ef5cf1fe20d43e54ef1d7b69f6cd811d93d0ab4b5f3d"
+    },
+    {
+      "bytes": 41407,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_AUTHENTIC_FINAL_REPORT_COHORT_20261015.json",
+      "sha256": "db60cebd6129195e4ba621813f54cadb0abef399b499f6aaa4af3e8e87df27bf"
+    },
+    {
+      "bytes": 2502,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_AUTHENTIC_FINAL_REPORT_READER_COMPARISON_20261015.json",
+      "sha256": "a689e37e7ff90e16b709f8bdf5e320035084173609746670651825ea8ec1c149"
+    },
+    {
+      "bytes": 1837,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_BACKUP_ADMISSION_FOCUSED_20261015.log",
+      "sha256": "7d7095f1ca699bc6092b830b5744995637b8964f41488039a502f1ec7da7005a"
+    },
+    {
+      "bytes": 203,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_PONS_REPORTING_FOCUSED_20261015.log",
+      "sha256": "806e46fc4d2f9b19168330ac7c0a0b3678661b6fdde20aac6d93959d32c9f3db"
+    },
+    {
+      "bytes": 4553,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_CANONICAL_BULK_FOCUSED_20261015.log",
+      "sha256": "2c77daea7b370b8d7b27165269a07e0d414a5f2cf49603e88be830179363bf77"
+    },
+    {
+      "bytes": 561,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_CANONICAL_BULK_CORRECTED_20261015.log",
+      "sha256": "913762ed91be592b7c892f555d87d0ce96cde8c031751c2c43b33dd54249c03e"
+    },
+    {
+      "bytes": 3686,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_CANONICAL_PROVIDER_INTEGRATION_20261015.log",
+      "sha256": "70af6b4cc5a1090baa6e55b2d312fdc3a0006a87df682a1a5391b3bdb3396288"
+    },
+    {
+      "bytes": 298,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_SERVICE_IDENTITY_CORRECTED_20261015.log",
+      "sha256": "efe99ee9588162ad75b7356370036c82035a730616d79837a8ef87a0c70abb22"
+    },
+    {
+      "bytes": 6470,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_STARTUP_DELIVERY_PROTECTION_20261015.log",
+      "sha256": "5556d21fac2c14976e080cd06923c6c4f7924a099af48a3861faa2dfd1a26da4"
+    },
+    {
+      "bytes": 628,
+      "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_SOURCE_INDEX_ACCESS_DISPOSITION_20261015.json",
+      "sha256": "ef7710d4d2070fa3daf556dfcefa0f9fc0837ad4795933b4a741d4667b13167c"
+    }
+  ],
+  "not_claimed": [
+    "full_release",
+    "sustained_capacity",
+    "hardware_sufficiency",
+    "held_protection",
+    "backup_fix",
+    "acceptance"
+  ],
+  "preparation": {
+    "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_BULK_PREPARATION_20261015T055428Z/preparation.json",
+    "sha256": "1812251b18d8430036f53cb285be74b73b90b6487f14f1d97e58514996b1a1e8"
+  },
+  "schema": 1,
+  "source": "f72a17409cc52c0c649c3fd8d1d95ad30e68e45f",
+  "status": "OFFLINE_CORRECTION_VALIDATED_LIVE_CAPACITY_NOT_ESTABLISHED"
+}

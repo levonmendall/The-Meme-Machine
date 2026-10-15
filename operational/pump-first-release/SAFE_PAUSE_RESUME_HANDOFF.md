@@ -1,3 +1,16 @@
+# New engineering checkpoint — canonical batch correction ready for guarded verification
+
+Executable **f72a17409cc52c0c649c3fd8d1d95ad30e68e45f** is focused-tested and published. Read
+[CANONICAL_BATCH_ARCHITECTURE_20261015.md](CANONICAL_BATCH_ARCHITECTURE_20261015.md),
+its evidence index and the new exact-source observation specification. This
+supersedes only the affected throughput branch STOP below with newly measured
+authentic operation-level evidence. Original failed observations and their limits
+remain unchanged. Fresh24-check preflight passed; actual installed service-user
+access and source/configuration checks remain required before clock/start.
+No full-release, throughput, hardware or protection PASS is implied. Standing
+issue134 permits cause-based guarded verification, funding closed. Root is sole
+integration/test/runtime owner; PR133 draft. No automatic normal promotion.
+
 # Latest checkpoint — phase/thread result; no unchanged retry
 
 Read [STANDING_PHASE_THREAD_RESULT_20261015.md](STANDING_PHASE_THREAD_RESULT_20261015.md)

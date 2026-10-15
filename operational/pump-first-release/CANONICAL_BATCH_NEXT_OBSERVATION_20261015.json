@@ -1,0 +1,147 @@
+{
+  "absolute_start_to_drained_seconds": 1865,
+  "authority": "https://github.com/levonmendall/The-Meme-Machine/issues/134",
+  "authority_duration": "until revoked",
+  "auto_systemd_restart": false,
+  "campaign_expiration": null,
+  "concurrent_runs": 1,
+  "controller": "engineering.diagnostics.current_combined_observation_20261014",
+  "controller_sha256": "f346f9090e9875347e95c8278bc9c98f8c36ed565438b3eced8eb24a159c8cdc",
+  "diagnostic_output": {
+    "cadence_seconds": 5,
+    "canonical_cohort_limit": 32,
+    "duplicate_ipc_owner_copies": "Removed only from descriptive projection; explicitly selected required numeric schemas remain.",
+    "metrics_reserves_two_terminal_records": true,
+    "offline_budget_projection_bytes": 32985360,
+    "old_generic_outbox_head_limit": 1,
+    "pons_thread_limit": 16,
+    "projection_scope": "Prior retained O7+synthetic16thread maximum projection32933160 plus conservative 360samples of four unsigned64-bit counterfields in sole economic_store row. 32985360 bytes incl prior terminal margin; not universal future-size guarantee; unchanged runtime guards authoritative.",
+    "terminal_record_bytes": 65536,
+    "total_bytes": 33554432
+  },
+  "diagnostic_startup_maximum_seconds": 900,
+  "existing_provider_profiles": {
+    "pons_observation_route": "canonical_primary existing bound app only",
+    "robinhood_rps": 10,
+    "solana_rps": 2,
+    "spending": "Existing genuine provider/account controls; no obsolete fixed$2 ceiling; usage reporting retained"
+  },
+  "expected_improvement": "Less economic_store owner CPU/occupancy when bulk applies and less audit read traffic; actual current-run durable progress/backlog must establish practical effect. No controlled whole-machine speedup or hardware sufficiency claimed from offline results.",
+  "fresh_before_any_service_start": [
+    "Exact validated source/configuration and clock/output/controller identity",
+    "Current cash/obligations, native ownership and safe resumability, retained receipt/ACK/proof state",
+    "Exclusive owners/leases and unheld writer lock",
+    "Service-user access and required terminal/cancellation recording",
+    "Applicable usable recovery reference; failed backup is not recovery proof",
+    "Backup/workload nonoverlap, disk/RAM/CPU and original provider/resource limits"
+  ],
+  "fresh_preflight": {
+    "checks": 24,
+    "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_ARCHITECTURE_PREFLIGHT_20261015.json",
+    "queries": 459,
+    "seconds": 0.037773,
+    "service_access": "Mandatory installed exact-source actual UID/namespace/head/tree/output guard before real clock; not cached.",
+    "sha256": "c8ecce774646ba911a717be1339eb68d014505381314626d707adfc1ed68a821",
+    "verdict": "CURRENT_REQUIRED_PREDISPATCH_FACTS_VERIFIED_O8_BASELINE_HISTORICAL_FAILURES_PRESERVED"
+  },
+  "funding": "CLOSED_DURING_DIAGNOSIS",
+  "global_attempt_limit": null,
+  "independent_justification": "O8 attributed economic_store76.300wall/21.147CPU/33.036runnable seconds. Authentic3023event fresh-store comparison preserves exact records and reduces SQL APIcalls36404to896/scoped plainCPU.555194to.339636s. Corrected isolated Pons accounting comparisonCPU.450227to.270086s with unchanged accounting; earlier mixed timer preserved. This source changes the demonstrated repeated operation, not another unchanged diagnostic.",
+  "measurement_limits": [
+    "Livewindowsarenotmatchedmarketreplay; differencesarecurrentoperatingcomparisons,nocontrolledcausalspeedupclaim",
+    "Ownerouterelapsedincludesfuturecompletioncallbacks; servicecallbacktimingexcludesunwinding; do not sumoverlappingmetrics",
+    "Missingstrategyconsumption/oldestrequiredhistoryremainexplicitlyunavailablewhereexistingrecordscannotestablishthem",
+    "Nohealthyreadinessorheldprotectionoronehourclaimfromflatfundingcloseddiagnosis",
+    "Phases exclusive but not exhaustive; batch_commit includes original context exit/notification, not pure SQL fsync. Transaction counters remain separate overlapping metrics.",
+    "Kernel thread CPU overlaps process CPU; never add them. Pons role inventory retains its original timestamp and stale/unknown roles remain unavailable.",
+    "Root/read-only SQLite opens may touch coordination metadata; preserve failed guards and distinguish current domain checks from whole-file immutability. Pons3.9MiB reporting detail is not a new blanket admission gate."
+  ],
+  "next_technical_fact": "Retain bulk_calls/bulk_records/scalar_calls/scalar_records plus original exclusive phases/queue/preparation/threadCPU; compare current arrival/join/commit/historyACK/frontier/evidenceage within same generation, maintenance and Pons role/provider/protective observations. No extra profiling load.",
+  "no_normal_transition_from_diagnostic_completion": true,
+  "outcome_decisions": [
+    "Bulk materially used and store/owner cost falls with durable progress tracking arrivals and backlog recovery: establish exercised current workload only; next original readiness/protection/release gates remain.",
+    "Bulk unavailable/falls back: identify exact eligible/fallback evidence class before modifying compatibility; no evidence completeness relaxation.",
+    "Store reduced but serial preparation/queue/outbox or Pons scheduling dominates: use exclusive measurements to select one specific bounded subsystem correction; no worker sweep or unchanged retry.",
+    "Preparation dominates with owner slack: evaluate one bounded ordered prepare/commit overlap preserving shared byte/count credits and cancellation; do not add a writer.",
+    "Fresh stored economics outpace ACK/proof/publication: identify exact durable pending obligation and measured wait; no fabricated coverage.",
+    "Fatal SQLite: preserve first exact file/connection/operation/thread/transaction; no recurrence means not reproduced.",
+    "Startup, resource, safety, native drain or attribution failure: preserve original verdict, independent current native/financial review; stop live branch if unsafe or no causal next action."
+  ],
+  "per_invocation_one_start": true,
+  "permitted_operational_writes": "Existing canonical/source/prewarm/session/historian/candidate-history/receiptACK/provider accounting/native recovery/reporting and OBSERVATION runtime-admission/owner records from unchanged run contract; no new position, reservation, fill, capital transfer, epoch or strategy-policy mutation; compatible additive metadata indexes and scoped_retirement_hot_cursor/table housekeeping metadata through the existing authoritative owner, no coverage/checkpoint advancement from archival cursors; three additive provider audit seq indexes through existing Admission schema, bounded bulk writes within unchanged canonical owner transaction; no additional monetary authority or strategy changes",
+  "poststartup_measurement_maximum_seconds": 900,
+  "prepared_installation": {
+    "at": "2026-10-15T05:54:28.864310+00:00",
+    "authority": "https://github.com/levonmendall/The-Meme-Machine/issues/134",
+    "before": {
+      "environment": {
+        "gid": 987,
+        "mode": "0o640",
+        "sha256": "75f4d3e42edcf099b2d00be6319c91aa1f0d496ca3c9c39226bb18b3ac70a0c5",
+        "uid": 0
+      },
+      "unit": {
+        "gid": 0,
+        "mode": "0o644",
+        "sha256": "5472f456883cef4552d2367168b96366fc7b7a6b2d09e18d72472f19aeadde80",
+        "uid": 0
+      }
+    },
+    "environment_path": "/etc/meme-machine/volume-quality-service.observation.env",
+    "executable": "f72a17409cc52c0c649c3fd8d1d95ad30e68e45f",
+    "identities": {
+      "access_helper_sha256": "06ed4835ca126c5291d86546d08c08580afa33c45f96c3178d31391e24aa8ee0",
+      "base_unit_sha256": "7cd10c6c717a97f312c8718886bb09750b5498ccf96ef5bc74b52f8094bfe294",
+      "continuous_profile_sha256": "5bfc1fe915df2f40dff8fc6fb1cc5f98a836fe41c7155bfd4ca15f0d563e39bd",
+      "controller_sha256": "f346f9090e9875347e95c8278bc9c98f8c36ed565438b3eced8eb24a159c8cdc",
+      "environment_sha256": "44eb658e98b53e591d8d4c0641c52d6ce7cb6c116009aa156acbf5c98a6a8b4a",
+      "unit_sha256": "0468bcadd2f512162cf72fa32cbb5de2c899b446f12c25a5badbacd0f40b1155"
+    },
+    "installed_before": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
+    "intended": {
+      "access_helper_sha256": "06ed4835ca126c5291d86546d08c08580afa33c45f96c3178d31391e24aa8ee0",
+      "base_unit_sha256": "7cd10c6c717a97f312c8718886bb09750b5498ccf96ef5bc74b52f8094bfe294",
+      "continuous_profile_sha256": "5bfc1fe915df2f40dff8fc6fb1cc5f98a836fe41c7155bfd4ca15f0d563e39bd",
+      "controller_sha256": "f346f9090e9875347e95c8278bc9c98f8c36ed565438b3eced8eb24a159c8cdc",
+      "environment_sha256": "44eb658e98b53e591d8d4c0641c52d6ce7cb6c116009aa156acbf5c98a6a8b4a",
+      "unit_sha256": "0468bcadd2f512162cf72fa32cbb5de2c899b446f12c25a5badbacd0f40b1155"
+    },
+    "output": "/var/lib/meme-machine-diagnostics/20261015-standing-bulk-f72a1740-055428",
+    "preflight": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_ARCHITECTURE_PREFLIGHT_20261015.json",
+    "preparation": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/ARCHITECTURE_BULK_PREPARATION_20261015T055428Z",
+    "service_identity": {
+      "gid": 987,
+      "groups": [
+        987
+      ],
+      "uid": 997
+    },
+    "unit_path": "/etc/systemd/system/meme-machine-paper.service.d/validation-observation.conf"
+  },
+  "prior_observation": {
+    "evidence_index": "evidence/standing-phase-thread-result-20261015.json",
+    "result": "STARTUP_LIMITATION/readinessFAIL/native worker stop verified/acceptance0; unchanged",
+    "source": "1ee2d5fa6d660e696166f16b772d456b8c0a55d4",
+    "specification": "76a48e67fcb2ef53a2cb82e3c8d5db7d2812b2ee"
+  },
+  "provider_contract_scope": "Original replay-position failure and long-term backend/cursor semantics remain unresolved. This is not another replay-capability experiment or a provider repair. Current exact required forms delivered matching evidence; joins reject pre-floor frames and independently require complete linked evidence. No cursor/commitment/provider change. Repeated semantic rejection stops this run; no unchanged retry.",
+  "question": "Does verified fresh-record consolidation plus bounded Pons audit/report work reduce canonical store and shared scheduling cost sufficiently to improve complete current-generation evidence progress and backlog? Separate preparation, queue/execution, commit, history receipt/exactACK, publication and Pons CPU.",
+  "readiness_seconds": 300,
+  "resource_bounds": {
+    "cpu_cores": 1.8,
+    "disk_reserve_each_bytes": 5368709120,
+    "http_inflight_bytes": 134217728,
+    "native_inflight_bytes": 536870912,
+    "pons_current_protection_seconds": 5,
+    "pons_survivor_protection_seconds": 3,
+    "rss_bytes": 6442450944
+  },
+  "routine_per_run_owner_approval": false,
+  "schema": 1,
+  "shutdown_reserve_seconds": 65,
+  "status": "PREPARED_CAUSE_BASED_GUARDED_OBSERVATION_NOT_RELEASE_PASS",
+  "tested_successor": "f72a17409cc52c0c649c3fd8d1d95ad30e68e45f",
+  "unchanged_resource_protection_contract": "https://github.com/levonmendall/The-Meme-Machine/blob/a32f49d2061e577644ef2d28f75fefd4a48ebe87/operational/pump-first-release/CONSOLIDATED_STARTUP_NEXT_OBSERVATION_SPEC_20261014.json",
+  "validation": "32backup/storagePASS;5PonsreportPASS;initial31canonical30PASS/1stale scalar-only cancellation fixtureFAIL, corrected affected8PASS. Initial166integration165PASS/1actual sourceindex accessERROR, corrected actualserviceUIDguard1PASS retaining indexSHA. Final171 integratedstartup/delivery/protectionPASS102.410s. Source/economicguardsPASS; modules overlap, no summed distinct claim. No fullFAST or general releasePASS.",
+  "work_stop_seconds": 1800
+}
