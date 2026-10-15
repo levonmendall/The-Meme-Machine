@@ -62,9 +62,14 @@ existing provider is the first decision. A recovery architecture change is only
 justified if that contract proves the existing authenticated mechanisms insufficient.
 
 **No unchanged replay experiment or combined retry is justified by acceptance
-alone.** The current boundary is missing provider semantics/causal evidence, not
-missing routine owner authorization. Use issue134 automatically for a justified
-next step once that evidence and current safety gates permit it. Do not request
+alone.** Provider semantics/causal evidence remain missing, rather than routine
+owner authorization. A distinct funding-closed combined observation is justified
+by the reproduced Pons cancellation correction and new main-thread attribution,
+provided fresh safety preflight passes. Its question is actual native lifecycle
+and pipeline accumulation, not the long-term replay contract. Existing joins
+exclude pre-floor frames and require complete linked evidence; no gap or cursor
+is relabelled complete. Another semantic rejection ends collection safely.
+Proceed under issue134 for that independently justified next step. Do not request
 another generic resume approval or restore global attempt/expiry limits.
 
 ## Pons offline progress and safety
