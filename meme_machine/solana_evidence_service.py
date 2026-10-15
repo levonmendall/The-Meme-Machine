@@ -768,7 +768,8 @@ class ServiceState:
         from .solana_retention_outcome import RetentionProgress
         if self.writer.db.in_transaction:
             raise EvidenceUnavailable('retention_inside_source_transaction')
-        self.writer.last_retention_progress=RetentionProgress()
+        self.writer.last_retention_progress=RetentionProgress(
+            timing_enabled=os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1')
         housekeeping_first=housekeeping_first or getattr(self,'_housekeeping_retention',False)
         retention_options=dict(housekeeping_first=True) if housekeeping_first else {}
         try:
@@ -786,6 +787,18 @@ class ServiceState:
                 raise
             report=self.writer.last_retention_progress
             report.interrupted=True;report.yield_reason='urgent_sql'
+        finally:
+            # Optional fixed-size diagnostics include failed/rolled-back work,
+            # while the original outcome below still credits only commits.
+            # Recorder failure cannot replace an application/cleanup exception.
+            try:
+                for key,value in self.writer.last_retention_progress.timing_metrics().items():
+                    self.storage_metrics[key]=self.storage_metrics.get(key,0)+value
+            except BaseException:
+                try:
+                    key='retention_phase.unmeasured'
+                    self.storage_metrics[key]=self.storage_metrics.get(key,0)+1
+                except BaseException:pass
         outcome=self.writer.last_retention_progress.snapshot()
         for name in ('retired_records','continuity_rows','housekeeping_rows',
                      'floor_updates','committed_slices','examined_scopes'):

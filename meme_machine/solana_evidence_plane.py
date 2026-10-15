@@ -699,14 +699,19 @@ class EvidenceWriter:
         """
         from .solana_retention_outcome import RetentionProgress
         self._check()
-        progress=self.last_retention_progress=RetentionProgress()
+        progress=self.last_retention_progress=RetentionProgress(
+            timing_enabled=os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1')
         if not 1 <= max_records <= 1000:raise EvidenceUnavailable('retention_batch_bound')
+        # The service uses archive_first=False. Its separately scheduled archive
+        # has its own timer; a legacy inline archive is outside these four phases.
+        if archive_first and progress.timing_enabled:progress.timing_unmeasured=True
         archived=self.archive(before_time,max_records=max_records) if archive_first else 0
         if housekeeping_first:
             # Only the admitted turn's sole peer-blocking obligation is promoted.
             # Publish the existing batch's committed outcome before any yield;
             # keep its ordinary SQL interruptibility and the current scope cursor.
-            self._retention_housekeeping(max_records,progress)
+            with progress.phase('housekeeping'):
+                self._retention_housekeeping(max_records,progress)
             should_yield=getattr(self,'_retention_yield_requested',None)
             yield_class=should_yield() if should_yield else None
             # An urgent lifecycle still wins immediately. A queued source may
@@ -717,68 +722,70 @@ class EvidenceWriter:
                 return archived
         source_yield_budget=[2]  # existing three separate 256-record transactions
         from .runtime.operating_families import evidence_scope_sql
-        scopes=self.db.execute('SELECT scope,slot FROM cursors WHERE '+evidence_scope_sql('cursors.scope')+' ORDER BY scope').fetchall()
-        resume=getattr(self,'_retention_next_scope',None)
-        start=next((i for i,row in enumerate(scopes) if row[0]==resume),0)
-        scopes=scopes[start:]+scopes[:start]
-        continuity_tables=[name for name in ('stream_receipts','stream_deliveries','stream_order')
-            if self.db.execute('SELECT 1 FROM sqlite_master WHERE name=?',(name,)).fetchone()]
+        with progress.phase('plan'):
+            scopes=self.db.execute('SELECT scope,slot FROM cursors WHERE '+evidence_scope_sql('cursors.scope')+' ORDER BY scope').fetchall()
+            resume=getattr(self,'_retention_next_scope',None)
+            start=next((i for i,row in enumerate(scopes) if row[0]==resume),0)
+            scopes=scopes[start:]+scopes[:start]
+            continuity_tables=[name for name in ('stream_receipts','stream_deliveries','stream_order')
+                if self.db.execute('SELECT 1 FROM sqlite_master WHERE name=?',(name,)).fetchone()]
         for index,(scope,top) in enumerate(scopes):
             next_scope=scopes[(index+1)%len(scopes)][0]
             for offset in range(0,max_records,256):
-                limit=min(max_records-offset,256)
-                # Read-only preparation is preemptible by urgent work. The sole
-                # writer cannot interleave a pin/ingest operation before this
-                # callback's bounded mutation, and checkpoint workers own no rows.
-                floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
-                floor=top+1 if floor is None else floor
-                recent=self.db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?',(scope,before_time)).fetchone()[0]
-                if recent is not None:floor=min(floor,recent)
-                pins=[r[0] for r in self.db.execute('SELECT lower_slot FROM interests WHERE scope=? AND active=1',(scope,))]
-                if pins:floor=min(floor,min(pins))
-                account_floor=self._account_floor(scope)
-                if account_floor is not None:floor=min(floor,account_floor)
-                from .solana_maintenance_state import retirement_suffix
-                suffix=retirement_suffix(self,scope,top,before_time)
-                gaps=[r[0] for r in self.db.execute('SELECT lo FROM gaps WHERE scope=? AND repaired IS NULL',(scope,))]
-                if gaps:floor=min(floor,min(gaps))
-                old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
-                floor=max(int(old[0]) if old else 0,floor)
-                where='scope=? AND slot<?';args=(scope,floor)
-                if suffix is not None:
-                    where='scope=? AND (slot<? OR (slot>=? AND slot<?))';args=(scope,floor,*suffix)
-                candidates=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE '+where+' AND body IS NULL LIMIT ?',(*args,limit+1))]
-                ids=candidates[:limit]
-                # One extra key is a bounded lookahead, not a larger deletion.
-                queries=[('coverage','id','scope=? AND hi<?',(scope,floor)),
-                         ('gaps','id','scope=? AND hi<? AND repaired IS NOT NULL',(scope,floor))]
-                queries += [(name,'rowid','scope=? AND slot<?',(scope,floor)) for name in continuity_tables]
-                if suffix is not None:
-                    lo,hi=suffix
-                    queries += [('coverage','id','scope=? AND lo>=? AND hi<?',(scope,lo,hi)),
-                        ('gaps','id','scope=? AND lo>=? AND hi<? AND repaired IS NOT NULL',(scope,lo,hi))]
-                    queries += [(name,'rowid','scope=? AND slot>=? AND slot<?',(scope,lo,hi)) for name in continuity_tables]
-                plans=[]
-                for table,key,where,args in queries:
-                    keys=[r[0] for r in self.db.execute(
-                        'SELECT '+key+' FROM '+table+' WHERE '+where+' LIMIT ?',(*args,max_records+1))]
-                    plans.append((table,key,where,args,keys))
-                more_here=len(candidates)>limit or any(len(keys)>max_records for *_,keys in plans)
-                floor_changed=old is None or floor!=int(old[0])
-                if not ids and not floor_changed and not any(keys for *_,keys in plans):
-                    # No BEGIN/COMMIT and no fabricated "progress" for empty work.
-                    progress.scope(scope,False)
-                    self._retention_next_scope=next_scope
-                    should_yield=getattr(self,'_retention_yield_requested',None)
-                    if should_yield and should_yield()=='urgent':
-                        progress.interrupted=True;progress.yield_reason='urgent'
-                        raise EvidenceUnavailable('evidence_background_yield')
-                    break
-                resume_scope=[scope if more_here else next_scope]
-                removed=[0]
-                def committed():
-                    progress.commit(scope,len(ids),removed[0],int(floor_changed),more_here)
-                with self._retention_transaction(
+                with progress.phase('plan'):
+                    limit=min(max_records-offset,256)
+                    # Read-only preparation is preemptible by urgent work. The sole
+                    # writer cannot interleave a pin/ingest operation before this
+                    # callback's bounded mutation, and checkpoint workers own no rows.
+                    floor=self.db.execute('SELECT MIN(slot) FROM records WHERE scope=? AND body IS NOT NULL',(scope,)).fetchone()[0]
+                    floor=top+1 if floor is None else floor
+                    recent=self.db.execute('SELECT MIN(lo) FROM coverage WHERE scope=? AND available>=?',(scope,before_time)).fetchone()[0]
+                    if recent is not None:floor=min(floor,recent)
+                    pins=[r[0] for r in self.db.execute('SELECT lower_slot FROM interests WHERE scope=? AND active=1',(scope,))]
+                    if pins:floor=min(floor,min(pins))
+                    account_floor=self._account_floor(scope)
+                    if account_floor is not None:floor=min(floor,account_floor)
+                    from .solana_maintenance_state import retirement_suffix
+                    suffix=retirement_suffix(self,scope,top,before_time)
+                    gaps=[r[0] for r in self.db.execute('SELECT lo FROM gaps WHERE scope=? AND repaired IS NULL',(scope,))]
+                    if gaps:floor=min(floor,min(gaps))
+                    old=self.db.execute('SELECT value FROM meta WHERE key=?',('retention_floor:'+scope,)).fetchone()
+                    floor=max(int(old[0]) if old else 0,floor)
+                    where='scope=? AND slot<?';args=(scope,floor)
+                    if suffix is not None:
+                        where='scope=? AND (slot<? OR (slot>=? AND slot<?))';args=(scope,floor,*suffix)
+                    candidates=[r[0] for r in self.db.execute('SELECT identity FROM records WHERE '+where+' AND body IS NULL LIMIT ?',(*args,limit+1))]
+                    ids=candidates[:limit]
+                    # One extra key is a bounded lookahead, not a larger deletion.
+                    queries=[('coverage','id','scope=? AND hi<?',(scope,floor)),
+                             ('gaps','id','scope=? AND hi<? AND repaired IS NOT NULL',(scope,floor))]
+                    queries += [(name,'rowid','scope=? AND slot<?',(scope,floor)) for name in continuity_tables]
+                    if suffix is not None:
+                        lo,hi=suffix
+                        queries += [('coverage','id','scope=? AND lo>=? AND hi<?',(scope,lo,hi)),
+                            ('gaps','id','scope=? AND lo>=? AND hi<? AND repaired IS NOT NULL',(scope,lo,hi))]
+                        queries += [(name,'rowid','scope=? AND slot>=? AND slot<?',(scope,lo,hi)) for name in continuity_tables]
+                    plans=[]
+                    for table,key,where,args in queries:
+                        keys=[r[0] for r in self.db.execute(
+                            'SELECT '+key+' FROM '+table+' WHERE '+where+' LIMIT ?',(*args,max_records+1))]
+                        plans.append((table,key,where,args,keys))
+                    more_here=len(candidates)>limit or any(len(keys)>max_records for *_,keys in plans)
+                    floor_changed=old is None or floor!=int(old[0])
+                    if not ids and not floor_changed and not any(keys for *_,keys in plans):
+                        # No BEGIN/COMMIT and no fabricated "progress" for empty work.
+                        progress.scope(scope,False)
+                        self._retention_next_scope=next_scope
+                        should_yield=getattr(self,'_retention_yield_requested',None)
+                        if should_yield and should_yield()=='urgent':
+                            progress.interrupted=True;progress.yield_reason='urgent'
+                            raise EvidenceUnavailable('evidence_background_yield')
+                        break
+                    resume_scope=[scope if more_here else next_scope]
+                    removed=[0]
+                    def committed():
+                        progress.commit(scope,len(ids),removed[0],int(floor_changed),more_here)
+                with progress.phase('transaction'), self._retention_transaction(
                         next_scope=lambda r=resume_scope:r[0],urgent_next_scope=next_scope,
                         source_yield_budget=source_yield_budget,after_commit=committed):
                     if ids:
@@ -804,9 +811,11 @@ class EvidenceWriter:
                     maintenance_progress(self,scope,'retirement',len(ids)+removed[0]+int(floor_changed),len(ids))
                 if not more_here:break
         if not housekeeping_first:
-            self._retention_housekeeping(max_records,progress)
-        if checkpoint:self.db.execute('PRAGMA wal_checkpoint(PASSIVE)')
-        self.db.execute('PRAGMA incremental_vacuum(256)')
+            with progress.phase('housekeeping'):
+                self._retention_housekeeping(max_records,progress)
+        with progress.phase('post'):
+            if checkpoint:self.db.execute('PRAGMA wal_checkpoint(PASSIVE)')
+            self.db.execute('PRAGMA incremental_vacuum(256)')
         # Scope retirement after a prefix can orphan new operational rows.
         # They were not examined by that batch; do not claim an idle backlog.
         progress.complete=not (housekeeping_first and progress.retired_records)

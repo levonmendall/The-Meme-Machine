@@ -289,8 +289,10 @@ def required_counters(health, *, now_monotonic=None):
     transactions = {key: value for key, value in transactions.items()
                     if isinstance(key, str) and transaction_pattern.fullmatch(key) and finite_number(value)
                     } if isinstance(transactions, dict) else {}
-    storage_pattern = re.compile(r'(?:source_commit|archive_plan|archive_commit|retention|repair_apply)\.'
-                                 r'(?:calls|failed|yielded|total_microseconds|peak_microseconds)')
+    storage_pattern = re.compile(r'(?:(?:source_commit|archive_plan|archive_commit|retention|repair_apply)\.'
+                                 r'(?:calls|failed|yielded|total_microseconds|peak_microseconds)|'
+                                 r'retention_phase\.(?:plan|transaction|housekeeping|post)\.(?:wall|cpu|runnable)_us|'
+                                 r'retention_phase\.unmeasured)')
     storage_stages = {key: value for key, value in storage.items()
                       if isinstance(key, str) and storage_pattern.fullmatch(key) and finite_number(value)}
     owner = health.get('owner_scheduler', {})
@@ -459,10 +461,33 @@ class SingleAttemptSupervisor(Supervisor):
         self.fatal('solana', self.evidence)
 
 
+def startup_gate_facts(db,session,remaining_bytes):
+    """Fixed durable declaration only; never re-run proof work on the observer."""
+    from meme_machine.solana_prewarm_startup import PHASES
+    from meme_machine.solana_evidence_plane import digest
+    try:
+        row=db.execute('SELECT session,phase,released,CASE WHEN length(CAST(body AS BLOB))<=? '
+                       'THEN body END,hash FROM prewarm_startup WHERE id=1',
+                       (min(65536,max(0,remaining_bytes)),)).fetchone()
+        if (row is None or row[0]!=session or row[1] not in (*PHASES,'FAIL_CLOSED') or
+                row[2] not in (0,1) or row[3] is None or digest(json.loads(row[3]))!=row[4]):
+            return dict(available=False,reason='STARTUP_DECLARATION_UNVERIFIED')
+        feeds=db.execute('SELECT family,lo,hi,ack_at,native_at FROM prewarm_startup_feeds '
+                         'WHERE session=? ORDER BY family LIMIT 3',(session,)).fetchall()
+        if (len(feeds)>2 or len({r[0] for r in feeds})!=len(feeds) or any(
+                r[0] not in ('pump','pumpswap') or type(r[1]) is not int or type(r[2]) is not int or
+                not 0<r[1]<=r[2] or not finite_number(r[3]) or
+                (r[4] is not None and not finite_number(r[4])) for r in feeds)):
+            return dict(available=False,reason='STARTUP_FEED_FIELDS_UNAVAILABLE')
+        return dict(phase=row[1],released=bool(row[2]),feeds=feeds)
+    except (sqlite3.Error,ValueError,TypeError):
+        return dict(available=False,reason='STARTUP_FIELDS_UNAVAILABLE')
+
+
 def pipeline_sample(root, expected_pid):
     """PK/indexed reads only; no counts, population scans, payloads or SQL trace."""
     started = time.monotonic()
-    result = dict(available=False, collected_at=time.time(), collected_at_monotonic=started,
+    result = dict(available=False, collected_at=time.time(), collected_at_monotonic=started,startup_gate=UNAVAILABLE,
                   missing_edges={k: 'UNAVAILABLE' for k in MISSING_EDGES})
     try:
         path = Path(root) / 'shared/solana-evidence.sqlite'
@@ -530,6 +555,7 @@ def pipeline_sample(root, expected_pid):
             try:
                 session = db.execute('SELECT session FROM prewarm_startup WHERE id=1').fetchone()
                 result['source_session'] = None if session is None else session[0]
+                result['startup_gate'] = startup_gate_facts(db,result['source_session'],INPUT_BYTES-retained)
                 result['pending_proof_heads'] = db.execute(
                     'SELECT id,scope,lo,hi,available FROM candidate_pending_proofs '
                     'INDEXED BY candidate_proof_publication ORDER BY lo,hi LIMIT 2').fetchall()

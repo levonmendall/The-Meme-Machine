@@ -458,6 +458,13 @@ class DiagnosticCollectionTests(unittest.TestCase):
         storage = {f'unrelated_{i}': i for i in range(160)}
         storage.update({'owner_sql_transactions': {'commit.calls': 19,
             'commit.wall_total_microseconds': 6789}, 'source_commit.total_microseconds': 7890})
+        retention={f'retention_phase.{phase}.{clock}_us':n+1
+                   for n,(phase,clock) in enumerate((phase,clock)
+                   for phase in ('plan','transaction','housekeeping','post')
+                   for clock in ('wall','cpu','runnable'))}
+        retention['retention_phase.unmeasured']=1
+        storage.update(retention)
+        storage['retention_phase.plan.secret']='do-not-copy'
         owner = {f'unrelated_{i}': i for i in range(160)}
         owner.update(owner_admission={'generation': 'gen-1'}, queued=4)
         owner['priority5.queue_total_us'] = 8901
@@ -484,10 +491,44 @@ class DiagnosticCollectionTests(unittest.TestCase):
         self.assertEqual(retained['ipc_aggregate']['checkpoint.boundary_total_microseconds'], 3456)
         self.assertEqual(retained['owner_sql_transactions']['commit.calls'], 19)
         self.assertEqual(retained['storage_stages']['source_commit.total_microseconds'], 7890)
+        self.assertEqual({key:retained['storage_stages'][key] for key in retention},retention)
+        self.assertNotIn('retention_phase.plan.secret',retained['storage_stages'])
         self.assertEqual(retained['owner_scheduler']['priority5.queue_total_us'], 8901)
         self.assertEqual(retained['owner_scheduler']['queued'], 4)
         self.assertNotIn('secret.invalid', output.read_text())
         self.assertNotIn('arbitrary-address-key', retained['ipc_pipeline'])
+
+    def test_startup_declaration_and_exact_feed_window_survive_without_rechecking_proofs(self):
+        from meme_machine.solana_evidence_plane import digest
+        body={'required_intervals':{'pump':[100,100],'pumpswap':[100,100]},
+              'failure':'private-do-not-copy'}
+        with sqlite3.connect(self.path) as db:
+            for column in ('phase TEXT','released INTEGER','body TEXT','hash TEXT'):
+                db.execute('ALTER TABLE prewarm_startup ADD COLUMN '+column)
+            db.execute('UPDATE prewarm_startup SET phase=?,released=0,body=?,hash=?',
+                ('WAIT_FOR_DURABLE_PUBLICATION',json.dumps(body),digest(body)))
+            db.execute('CREATE TABLE prewarm_startup_feeds(session TEXT,family TEXT,lo INTEGER,hi INTEGER,ack_at REAL,native_at REAL,PRIMARY KEY(session,family))')
+            db.executemany('INSERT INTO prewarm_startup_feeds VALUES(?,?,?,?,?,?)',
+                [('session-1','pump',100,100,10,11),('session-1','pumpswap',100,100,10,None),
+                 ('old-session','pump',1,999,1,2)])
+        sample=diagnostic.pipeline_sample(self.root,44)
+        self.assertEqual(sample['source_session'],'session-1')
+        self.assertEqual(sample['startup_gate'],dict(phase='WAIT_FOR_DURABLE_PUBLICATION',released=False,
+            feeds=[('pump',100,100,10,11),('pumpswap',100,100,10,None)]))
+        output=self.root/'startup-metrics.jsonl'
+        diagnostic.append_sample(output,{'sample_kind':'full','pipeline':sample})
+        retained=json.loads(output.read_text())['pipeline']['startup_gate']
+        self.assertFalse(retained['released']);self.assertEqual(retained['feeds'][1][4],None)
+        self.assertNotIn('private-do-not-copy',output.read_text())
+        with sqlite3.connect(self.path) as db:db.execute("UPDATE prewarm_startup SET hash='bad'")
+        sample=diagnostic.pipeline_sample(self.root,44)
+        self.assertFalse(sample['startup_gate']['available'])
+        self.assertNotIn('released',sample['startup_gate'])
+
+    def test_missing_startup_detail_preserves_source_session_and_stays_unavailable(self):
+        sample=diagnostic.pipeline_sample(self.root,44)
+        self.assertEqual(sample['source_session'],'session-1')
+        self.assertEqual(sample['startup_gate'],dict(available=False,reason='STARTUP_FIELDS_UNAVAILABLE'))
 
     def test_missing_required_counter_groups_are_unavailable_not_zero(self):
         selected = diagnostic.required_counters({'ipc': {'pipeline': None}})
