@@ -52,7 +52,10 @@ jobs:
         env:
           MM_MODE: PAPER
         run: |
-          python -m operational.tests FAST --modules \
+          # Access preflight creates a disposable root-only parent and probes
+          # the actual unprivileged service identity. Keep those assertions;
+          # the supported runner still blocks provider networking and state.
+          sudo env MM_MODE=PAPER "$(command -v python)" -m operational.tests FAST --modules \
             tests.test_solana_source_drain \
             tests.test_source_handler_recovery \
             tests.test_control_interrupted_recovery \
