@@ -65,6 +65,68 @@
   "first_Pump_fatal": "evidence_heartbeat_stale",
   "funding": false,
   "native_frame_drain": "UNAVAILABLE independently; current-state recoverability verified in checkedscope",
+  "offline_followup": {
+    "artifacts": [
+      {
+        "bytes": 206,
+        "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_REPORTING_REUSE_BASELINE_20261015.log",
+        "sha256": "3f9b54a082b86c25e459ab8154d3798d4e21a983219a19666f9b3fd38aa5df38"
+      },
+      {
+        "bytes": 1183,
+        "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_REPORTING_REUSE_REPRODUCTION_20261015.log",
+        "sha256": "7634113e55cf6669f25da6b192bd8fd088a1d781c9017c2b663867f95b7dafd3"
+      },
+      {
+        "bytes": 316,
+        "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/PONS_REPORTING_REUSE_FOCUSED_20261015.log",
+        "sha256": "6bbb4e561043f828578b9baf1176b8b61950a5241308d12b1a2d08d549a8fb2f"
+      },
+      {
+        "bytes": 202,
+        "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/OWNER_COMPLETION_ATTRIBUTION_FOCUSED_20261015.log",
+        "sha256": "2f3036373f19d838ba26165ad879cfa8505051472637b9602252930fb92186ba"
+      },
+      {
+        "bytes": 9387,
+        "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_OWNER_REPORTING_INTEGRATION_20261015.log",
+        "sha256": "4604689e1b693b1d2bde3074fa3eb53eb934a1bea8bc5e039ac229db3297f8df"
+      },
+      {
+        "bytes": 44679,
+        "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_OWNER_REPORTING_INTEGRATION_FINAL_20261015.log",
+        "sha256": "5434cc1deacf7efb41e8f6e0b72b6d2830c594e9ef8adf6f7704f04dc460d464"
+      },
+      {
+        "bytes": 940,
+        "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/OWNER_CPU_CLOCK_ISOLATION_20261015.log",
+        "sha256": "bc3df73b37bc29aef5d4b96a873b6fd1166ddfe9c839e0ba786031b2deb83248"
+      },
+      {
+        "bytes": 43872,
+        "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_OWNER_REPORTING_INTEGRATION_VERIFIED_20261015.log",
+        "sha256": "40f60b13f958f4081dfd1cb5515d81f279dbd09dbbd37b032b7a92b7b5ab49f7"
+      },
+      {
+        "bytes": 2091,
+        "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_OWNER_REPORTING_ECONOMIC_GUARD_20261015.log",
+        "sha256": "e43652cd26db3966846f4dc9a6dd746c05828a80bb246edb852b5c47bb44852c"
+      },
+      {
+        "bytes": 203,
+        "path": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_OWNER_REPORTING_ECONOMIC_GUARDS_FINAL_20261015.log",
+        "sha256": "22cb36ba4bb1d01789ff5d58342af9ef85fb08214a916ff0db5d48ab3d773f65"
+      }
+    ],
+    "exact_economic_guards": "4PASS/11.767s",
+    "failed_results": "RetainedrunnerFASTselectionrejection,baselineexpectedrepeatedscanFAIL,initialsourceguardreject,andtwoClockfixturefailureintegrationruns;noassertionsweakened",
+    "final_scoped_integration": "181run/180PASS/1existinglegacyskip/33.303s",
+    "full_FAST": "NOT_DISPATCHED;finalnormalpromotionstillrequiresreleasegates",
+    "measurement": "32unchangedsnapshots/64rows:32GROUPBY+25600VMstepsbefore;0warmGROUPBY+224VMstepsafter,byteequaloutputs;wholemachinebenefitUNESTABLISHED",
+    "owner_completion_executable": "5c72109288dd29fb113f86bc6ba15808884587a9",
+    "pons_reporting_commit": "3884478f",
+    "review": "Independentread-onlyreviewnoblockingissue;overlappingownerouterandservicecallbacktimingmustnotsum"
+  },
   "original_readiness": "FAIL",
   "output": "/var/lib/meme-machine-diagnostics/20261015-standing-combined-6b0b10ed-014738",
   "remaining_questions": [

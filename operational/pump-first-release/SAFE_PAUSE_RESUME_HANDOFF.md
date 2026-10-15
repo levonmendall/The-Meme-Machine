@@ -18,6 +18,15 @@ overlays restored compatibly, noDBrewind; stopped/disabled/Restart=no/fundingclo
 Nextguardedrun needs a materialcorrection/discriminator, affectedtests and fresh
 preflight, not routineownerreapproval. Standingissue134 remainsactiveuntilrevoked.
 
+Focused-tested successor `5c72109288dd29fb113f86bc6ba15808884587a9` now removes
+repeated unchanged Pons reporting GROUPBY scans and retains accepted owner timing
+through canceled waiters, actual owner TID and bounded operation identities.
+Final affected integration181run/180PASS/1existinglegacyskip; exacteconomicguards4PASS.
+The original strategy manifest is unchanged; exact reporting-only byte reversal
+is registered in the existing guard. No fullFAST. No whole-machine gain yet.
+The updated standing next-run specification pins this candidate and fresh output;
+installation/access/fresh-state checks must pass. Routine approval is not required.
+
 # Previous checkpoint — standing authority and completed replay capability, 2026-10-15
 
 Owner [issue134](https://github.com/levonmendall/The-Meme-Machine/issues/134) is

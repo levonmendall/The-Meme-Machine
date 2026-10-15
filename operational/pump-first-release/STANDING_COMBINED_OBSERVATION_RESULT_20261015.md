@@ -110,3 +110,30 @@ counts toward acceptance; normal promotion retains final release gates.
 
 Exact private locators and hashes are in
 [standing-combined-observation-20261015.json](evidence/standing-combined-observation-20261015.json).
+
+## Focused-tested follow-up
+
+Reporting repair3884478f and owner-attribution executable
+`5c72109288dd29fb113f86bc6ba15808884587a9` are the next scoped candidate.
+32unchanged disposable snapshots over64rows now use0warmGROUPBY/224SQLiteVMsteps
+versus32/25,600, with byte-equal outputs. Local/external commits, rollback, restart,
+retention and concurrent-version changes invalidate reporting reuse correctly.
+No economic view or decision is cached.
+
+Accepted owner callbacks now record completion before exposing their future,
+independent of a canceled waiting coroutine. Existing telemetry retains eight slow
+operation identities and actual owner PID/nativeTID; the collector validates the
+service cgroup before reading that thread's scheduling/wait counters. No SQL,
+scheduler, deadline, source-cursor or provider behavior changed.
+
+Final contained, network-blocked affected integration:181run/180PASS/one existing
+LEGACY_ARCHIVE_CHARACTERIZATIONskip in33.303seconds. Exact economic/source guards:
+4PASS/11.767seconds. Initial fixture/guard failures remain indexed. Synthetic
+scheduler clocks now remain separate from real thread CPU clocks; no assertion
+was relaxed. The existing exact byte-delta guard pins/reverses only the reviewed
+reporting change; the approved strategy manifest is unchanged. No fullFAST was
+dispatched and no general release/capacity PASS is claimed.
+
+A new funding-closed run under issue134 must test complete current-run progress
+and identify a remaining long owner operation, with fresh safety preflight.
+Current market windows are not a controlled replay comparison.

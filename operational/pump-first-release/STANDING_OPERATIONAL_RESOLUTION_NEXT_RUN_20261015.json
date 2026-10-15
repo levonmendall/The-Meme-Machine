@@ -6,7 +6,7 @@
   "campaign_expiration": null,
   "concurrent_runs": 1,
   "controller": "engineering.diagnostics.current_combined_observation_20261014",
-  "controller_sha256": "cd673336e6096d427a29f49cd20e89e36ce699d6346a0294ff7e8175201dc0cf",
+  "controller_sha256": "1c7fed8fa9bd595ed3e3b3b281c9c0b20613527d4f31a8fc878c8673a238524d",
   "diagnostic_startup_maximum_seconds": 900,
   "existing_provider_profiles": {
     "pons_observation_route": "canonical_primary existing bound app only",
@@ -24,31 +24,43 @@
   ],
   "funding": "CLOSED_DURING_DIAGNOSIS",
   "global_attempt_limit": null,
-  "independent_justification": "Reproduced constructor-only Pons cancellation correction0000a4f8 plus tested once-only main-thread cancellation attribution6b0b10ed; current-state native resumability15checksVERIFIED; risk-based validation107startup/lifecycle/diagnosticPASS+economicguardPASS. Provider clarification is separate from safely collecting funding-closed lifecycle/pipeline evidence.",
-  "next_technical_fact": "Actual startup/reconciliation/cancellation operation and pipeline-stage rates with current-generation retained evidence; provider long-term contract remains separately open.",
+  "independent_justification": "Real disposable reproduction32unchangedGROUPBYscans/25600VMsteps; exactreportingrepair0warmGROUPBY/224VMstepswithbyteequaloutputs. Confirmedacceptedownercompletionmetricslostwhencoroutinewaitercanceled; fixedinactualservicecallbackandtestedthroughfinalIPC. Distinctfrompriorunchangedretry. No throughputspeedupclaimedbeforemeasurement.",
+  "measurement_limits": [
+    "Livewindowsarenotmatchedmarketreplay; differencesarecurrentoperatingcomparisons,nocontrolledcausalspeedupclaim",
+    "Ownerouterelapsedincludesfuturecompletioncallbacks; servicecallbacktimingexcludesunwinding; do not sumoverlappingmetrics",
+    "Missingstrategyconsumption/oldestrequiredhistoryremainexplicitlyunavailablewhereexistingrecordscannotestablishthem",
+    "Nohealthyreadinessorheldprotectionoronehourclaimfromflatfundingcloseddiagnosis"
+  ],
+  "next_technical_fact": "Exactlong-owneroperationlabel/origin/completionCPUwallvsactualownerTIDschedstat/wchan; freshacquisition/join/stored/historyACK/publicationprogress, startup/recovery and managedPonsobservations.",
   "no_normal_transition_from_diagnostic_completion": true,
+  "outcome_decisions": [
+    "Exactlongcallbackorblockedthread: useoperationandwait evidencefornarrowoffline mechanism reproduction/correction; no generic timeout/retry",
+    "ReducedPonsreportworkbutunchangedcanonicaldeficit: quantifyremainingowner/preparation/history dependency; noisolatedscanclaimaswholemachinePASS",
+    "Provider/controltransportfailureorsourcefreeze: retainfirsterror/contextandlimits; no cursor/providerworkaround or unchangedrerun",
+    "No meaningful discriminator: stop this branch and document exactmissingtechnicalfact; continue independently supportedofflinework"
+  ],
   "per_invocation_one_start": true,
   "permitted_operational_writes": "Existing canonical/source/prewarm/session/historian/candidate-history/receiptACK/provider accounting/native recovery/reporting and OBSERVATION runtime-admission/owner records from unchanged run contract; no new position, reservation, fill, capital transfer, epoch or strategy-policy mutation",
   "poststartup_measurement_maximum_seconds": 900,
   "prepared_installation": {
-    "dispatch": "Fresh preflight/access pending; no service start yet",
+    "dispatch": "Fresh financial/native and installed service-user access preflight required before start",
     "environment_path": "/etc/meme-machine/volume-quality-service.observation.env",
-    "executable": "6b0b10edf729b4c1c13dd3b7a56916d4d6797bc4",
+    "executable": "5c72109288dd29fb113f86bc6ba15808884587a9",
     "identities": {
       "access_helper_sha256": "344207e85be57a4ee16559b71b07eba7570a04df6a87232c6a93dce3e8582989",
       "base_unit_sha256": "7cd10c6c717a97f312c8718886bb09750b5498ccf96ef5bc74b52f8094bfe294",
       "continuous_profile_sha256": "5bfc1fe915df2f40dff8fc6fb1cc5f98a836fe41c7155bfd4ca15f0d563e39bd",
-      "controller_sha256": "cd673336e6096d427a29f49cd20e89e36ce699d6346a0294ff7e8175201dc0cf",
-      "environment_sha256": "e229ad6d3863b55f9fcf1f5543e64571a1429c89c5df6ef94f52e763ebf0ee60",
-      "unit_sha256": "f1bc9de6811a0261a6fa4ea4d2cde2081bd83727b2ad25121dcb85c0b52fd1d8"
+      "controller_sha256": "1c7fed8fa9bd595ed3e3b3b281c9c0b20613527d4f31a8fc878c8673a238524d",
+      "environment_sha256": "688d5662a8ee935868d66947623af6a20874bc490a8049b30e64800d45f9a636",
+      "unit_sha256": "bc564f17f6628a4f8645d82b9db4d298f7aab08cee54740634ba680104d53660"
     },
     "installed_before": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
-    "output": "/var/lib/meme-machine-diagnostics/20261015-standing-combined-6b0b10ed-014738",
-    "preparation": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_COMBINED_PREPARATION_20261015T014738Z",
+    "output": "/var/lib/meme-machine-diagnostics/20261015-standing-owner-5c721092-022002",
+    "preparation": "/root/Documents/Codex/2026-10-10/the-meme-machine-eliminate-redundant-data/blocker-repair-20261011/STANDING_OWNER_RETRY_PREPARATION_20261015T022002Z",
     "unit_path": "/etc/systemd/system/meme-machine-paper.service.d/validation-observation.conf"
   },
   "provider_contract_scope": "Original replay-position failure and long-term backend/cursor semantics remain unresolved. This is not another replay-capability experiment or a provider repair. Current exact required forms delivered matching evidence; joins reject pre-floor frames and independently require complete linked evidence. No cursor/commitment/provider change. Repeated semantic rejection stops this run; no unchanged retry.",
-  "question": "On the repaired startup/cancellation implementation, does actual native recovery complete or cancel safely, and where does current-generation acquisition/join/preparation/owner/persistence/historyACK/publication accumulate?",
+  "question": "After eliminating repeated unchanged Pons coverage scans, where does current-generation evidence accumulate, and which exact completed owner operation / actual native-thread wait explains a long owner stall?",
   "readiness_seconds": 300,
   "resource_bounds": {
     "cpu_cores": 1.8,
@@ -62,9 +74,9 @@
   "routine_per_run_owner_approval": false,
   "schema": 1,
   "shutdown_reserve_seconds": 65,
-  "status": "PREPARING_DISTINCT_NATIVE_LIFECYCLE_PIPELINE_OBSERVATION_FRESH_PREFLIGHT_REQUIRED",
-  "tested_successor": "6b0b10edf729b4c1c13dd3b7a56916d4d6797bc4",
+  "status": "PREPARING_MEASURED_REPORTING_REPAIR_AND_EXACT_OWNER_ATTRIBUTION",
+  "tested_successor": "5c72109288dd29fb113f86bc6ba15808884587a9",
   "unchanged_resource_protection_contract": "https://github.com/levonmendall/The-Meme-Machine/blob/a32f49d2061e577644ef2d28f75fefd4a48ebe87/operational/pump-first-release/CONSOLIDATED_STARTUP_NEXT_OBSERVATION_SPEC_20261014.json",
-  "validation": "107 affected startup/lifecycle/diagnostic PASS; exact economicguardPASS;13 diagnostic/SQLboundaryPASS. Not fullreleasePASS. Complete FAST/applicable release gates before normal acceptance promotion.",
+  "validation": "Finalaffected181tests/33.303s:180PASS,1existingLEGACY_ARCHIVE_CHARACTERIZATIONskip. Exacteconomic/sourceguards4PASS/11.767s. InitialClockfixturefailurespreservedanddirect2caseregressionPASS; nofullFASTrerun, no generalreleasePASS.",
   "work_stop_seconds": 1800
 }
