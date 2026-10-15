@@ -66,7 +66,8 @@
       "--source-revision",
       "ba25499b26103ec5d14f1ce765c8e8f180695f33"
     ],
-    "one_start": "observe issues one start only after fresh installed-identity/access preflight; same exact revision/directory in service supervise command. No old staged driver."
+    "one_start": "observe issues one start only after fresh installed-identity/access preflight; same exact revision/directory in service supervise command. No old staged driver.",
+    "umask": "0022 for root clock metadata via real atomic_json; all output remains inside service-owned0700 run directory underroot:meme-machine0710parent. ServiceUMask0077 unchanged; private controllerlog precreated0600."
   },
   "currently_deployed_revision": "66f85d61bf4d3ba9a01efdc0e9eb68949419bda8",
   "engineering_branch": "repair/consolidated-startup-followup-20261014",
