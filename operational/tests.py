@@ -16,6 +16,7 @@ FAST=[
     'tests.test_integrated_startup_rehearsal',
     'tests.test_pump_cancellation_diagnostics',
     'tests.test_native_startup_lifecycle',
+    'tests.test_structural_rally_reentry',
     'tests.test_paper_policy_compatibility',
     'tests.lanes.pump.test_paper_opportunity_access',
     'tests.test_current_combined_diagnostic',
