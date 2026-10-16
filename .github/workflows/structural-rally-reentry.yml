@@ -41,7 +41,13 @@ jobs:
             tests.lanes.pump.test_pumpswap_survivor \
             tests.lanes.pons.test_pons_postgrad_survivor \
             tests.test_current_survivor_independence \
-            tests.test_paper_policy_compatibility
+            tests.test_paper_policy_compatibility \
+            tests.lanes.pump.test_paper_opportunity_access \
+            tests.test_operational_nine \
+            tests.test_strategy_observability_runtime \
+            tests.test_shared_capital_strategy
           python -m operational.tests OPERATIONAL --modules \
             tests.test_survivor_commit \
-            tests.test_sleeve_prefix_recovery
+            tests.test_sleeve_prefix_recovery \
+            tests.test_survivor_history \
+            tests.test_survivor_risk_boundaries
