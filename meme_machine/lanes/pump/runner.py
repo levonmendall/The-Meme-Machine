@@ -584,12 +584,13 @@ def _restore_observed_pump_candidates(created,postgrad,pumpswap_stream,plane,con
     # Restoration consumes Pump observations only. Pool-only candidates and
     # their complete retained Swap histories remain available to Survivor;
     # decoding them here cannot produce a Current creation or graduation.
-    for candidate in CANDIDATE_HISTORY.candidates(lane='pump',event_prefix='pump_'):
+    for candidate in CANDIDATE_HISTORY.candidates(lane='pump',event_prefix='pump_',
+            cancelled=requested.is_set):
         if requested.is_set():raise Shutdown()
         mint=candidate['candidate']
         if mint in created:continue
         economic=_startup_work('pump.observed_candidate_events',
-            CANDIDATE_HISTORY.events,'pump',mint,kind_prefix='pump_')
+            CANDIDATE_HISTORY.events,'pump',mint,kind_prefix='pump_',cancelled=requested.is_set)
         # A completed read does not authorize more restart reconstruction after
         # TERM. Durable history/required work stays pending for a fresh resume.
         if requested.is_set():raise Shutdown()

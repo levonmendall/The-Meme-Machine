@@ -59,7 +59,7 @@ def cancellation_stack():
 def operation(identity):
     """Fixed startup identifiers; descriptive facts never change readiness."""
     if (not isinstance(identity,str) or len(identity)>80 or
-            not (identity.startswith('pump.') or identity=='pons.shared_capital_restore')):
+            not (identity.startswith('pump.') or identity in ('pons.shared_capital_restore','pons.cohort_recovery'))):
         yield;return
     try:
         row=dict(operation=identity,at=time.time(),monotonic=time.monotonic(),
