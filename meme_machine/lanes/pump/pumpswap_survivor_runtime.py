@@ -417,8 +417,11 @@ class Runtime:
                         regime['cycle']=pump_cycle(row['id'],f,at=state['market_time'])
                         blocked=row.get('extension_blocked_regime')
                         if blocked:
-                            from meme_machine.runtime.survivor_risk import new_regime
-                            if not (new_regime(blocked,regime) and blocked['base_id']!=regime['base_id']
+                            # The older extension-chase retry restriction applies
+                            # to a still-unfunded setup, not to post-settlement
+                            # Survivor re-entry. Preserve it independently.
+                            from meme_machine.runtime.rally_cycles import legacy_new_regime
+                            if not (legacy_new_regime(blocked,regime) and blocked['base_id']!=regime['base_id']
                                     and blocked['high_reset_cycle']!=regime['high_reset_cycle']):
                                 decision['candidate']=False;decision['all_rejections'].append('extension_requires_new_reset_base')
                         if any(reason in decision['all_rejections'] for reason in ('price_extension','base_range_extension')):
