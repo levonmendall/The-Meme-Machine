@@ -144,9 +144,12 @@ class SurvivorCommitTests(unittest.TestCase):
         p=self.book._load('run:one')
         from meme_machine.runtime.journal import digest
         self.sleeve.release('run:one',pnl=0,at=11,terminal_hash=digest(p),native_verified=True)
-        self.reopen();self.sleeve.observe('mint',strategy='survivor',at=4000,state='qualified',evidence={'new':True},regime=self.regime)
+        # Retain the original same-regime assertion under the exact new
+        # candidate-generation binding used by native funded reservations.
+        repeat=dict(self.regime,at=4000)
+        self.reopen();self.sleeve.observe('mint',strategy='survivor',at=4000,state='qualified',evidence={'new':True},regime=repeat)
         with self.assertRaisesRegex(ValueError,'same_survivor_regime'):
-            self.sleeve.reserve('run:two',strategy='survivor',amount=100,at=4000,candidate='mint',generation=2,regime=dict(self.regime,at=4000))
+            self.sleeve.reserve('run:two',strategy='survivor',amount=100,at=4000,candidate='mint',generation=2,regime=repeat)
 
     def test_unavailable_exit_preserves_full_exit_intent_after_restart(self):
         self.fill();self.adapter.at=11;self.adapter.quote_available=False
