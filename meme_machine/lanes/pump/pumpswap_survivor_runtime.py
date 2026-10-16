@@ -413,6 +413,8 @@ class Runtime:
                             high_reset_cycle=[f.get('peak_at'),f.get('reset_at')],base_id=[f.get('base_low'),f.get('base_high')],
                             buyer_population=f.get('buyer_groups'),independent_demand=f.get('independent_buyers'),
                             flow_regime='buy' if f.get('buy_flow',0)>f.get('sell_flow',0) else 'sell')
+                        from meme_machine.runtime.rally_cycles import pump_cycle,with_shadow_gate
+                        regime['cycle']=pump_cycle(row['id'],f,at=state['market_time'])
                         blocked=row.get('extension_blocked_regime')
                         if blocked:
                             from meme_machine.runtime.survivor_risk import new_regime
@@ -421,6 +423,11 @@ class Runtime:
                                 decision['candidate']=False;decision['all_rejections'].append('extension_requires_new_reset_base')
                         if any(reason in decision['all_rejections'] for reason in ('price_extension','base_range_extension')):
                             row['extension_blocked_regime']=regime;self.history.save(row)
+                        # Shadow comparison is recorded with the decision before
+                        # native qualification/funding; reservation independently
+                        # enforces the selected structural cycle under its writer.
+                        decision=with_shadow_gate(decision,self.sleeve,strategy=STRATEGY_ID,
+                            candidate=row['id'],regime=regime)
                         observed=self.sleeve.observe(row['id'],strategy=STRATEGY_ID,at=state['market_time'],
                             state='qualified' if decision['candidate'] else decision['stage'],evidence=decision,regime=regime)
                         self.sleeve.opportunity(row['id'],identity=row['id'],regime='survivor',
