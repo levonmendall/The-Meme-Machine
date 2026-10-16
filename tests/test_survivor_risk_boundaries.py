@@ -1,6 +1,7 @@
 """Frozen v1 exits, exact boundaries and durable observation identity."""
 import unittest
-from meme_machine.runtime.survivor_risk import mark,new_regime
+from meme_machine.runtime.survivor_risk import mark
+from meme_machine.runtime.rally_cycles import legacy_new_regime as new_regime
 
 POLICIES={
  'pump':dict(hard_stop_bps=-1200,first_profit_bps=2500,first_sell_bps=2500,trail_bps=2000,
@@ -74,7 +75,7 @@ class ExitBoundaries(unittest.TestCase):
     o=observation(1,0);o[key]=key!='exit_liquidity_valid'
     s,a=mark(state(),o,p);self.assertEqual(a['action'],'full_exit')
     self.assertEqual(mark(s,observation(2,100),p)[1],a)
- def test_new_regime_requires_time_and_multiple_known_changes(self):
+ def test_legacy_shadow_rule_requires_time_and_multiple_known_changes(self):
   old=dict(at=0,base_id='base',high_reset_cycle='cycle',buyer_population=['a'])
   self.assertFalse(new_regime(old,dict(old,at=3600)))
   self.assertFalse(new_regime(old,dict(old,at=3600,base_id='new')))
