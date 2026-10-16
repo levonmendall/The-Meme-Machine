@@ -5,6 +5,7 @@ on:
     paths:
       - 'meme_machine/runtime/rally_cycles.py'
       - 'meme_machine/runtime/survivor_risk.py'
+      - 'meme_machine/runtime/survivor_history.py'
       - 'meme_machine/runtime/policy_compatibility.py'
       - 'meme_machine/paper_policy_revision.py'
       - 'meme_machine/lanes/pump/pumpswap_survivor.py'
@@ -30,7 +31,7 @@ jobs:
         run: python -m pip install -r requirements.txt
       - name: Compile changed strategy paths
         run: |
-          python -m compileall -q meme_machine/runtime/rally_cycles.py meme_machine/runtime/survivor_risk.py meme_machine/runtime/policy_compatibility.py meme_machine/paper_policy_revision.py meme_machine/lanes/pump/pumpswap_survivor.py meme_machine/lanes/pump/pumpswap_survivor_runtime.py meme_machine/lanes/pons/pons_postgrad_survivor.py meme_machine/lanes/pons/pons_survivor_runtime.py tests/test_structural_rally_reentry.py
+          python -m compileall -q meme_machine/runtime/rally_cycles.py meme_machine/runtime/survivor_risk.py meme_machine/runtime/survivor_history.py meme_machine/runtime/policy_compatibility.py meme_machine/paper_policy_revision.py meme_machine/lanes/pump/pumpswap_survivor.py meme_machine/lanes/pump/pumpswap_survivor_runtime.py meme_machine/lanes/pons/pons_postgrad_survivor.py meme_machine/lanes/pons/pons_survivor_runtime.py tests/test_structural_rally_reentry.py
       - name: Run focused guarded PAPER-only offline tests
         env:
           MM_MODE: PAPER
