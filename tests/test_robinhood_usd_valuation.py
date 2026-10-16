@@ -198,7 +198,7 @@ RALLY_ADDED_SOURCES=('meme_machine/policy_history/opportunity_access_v1.json', '
 PROGRAM_GAP_OBSERVATION_REFERENCE='d06e37a050847e607db5d5649a00535beb1a58ee'
 PROGRAM_GAP_OBSERVATION_SOURCE='meme_machine/solana_source_drain.py'
 PROGRAM_GAP_OBSERVATION_BEFORE='b3b67f0bee582fc0a0054a6b591dd28ddb3b867df4a65b78604675cfb944bfba'
-PROGRAM_GAP_OBSERVATION_AFTER='655756f8b93bd516aaaf310e5113365881e73cef750858b4e3c5f568f8c77d16'
+PROGRAM_GAP_OBSERVATION_AFTER='f23c5307d7340d93187a94543790503c5ce3622a91b684de326c5ba869747da0'
 PROGRAM_GAP_OBSERVATION_ADDITIONS=(
     "PROGRAM_GAP_OBSERVATION_SHA256='948743b18d0a33cc85391d07ea4a4ae9dad34110c169ca95945a04473d6db228'",
     "PROGRAM_GAP_HANDLER_SHA256='29f00e3d71c40e1d306f50263b84f1ec25e455e20d112a5f04fdef25293d0fb0'",
@@ -1384,7 +1384,10 @@ class RobinhoodUSDTests(unittest.TestCase):
         changes=[current+b'\n# unreviewed recovery-boundary change\n',b'']
         for old,new in (
                 (b"current_handler_disposition_verified=False",b"current_handler_disposition_verified=True"),
-                (b"gap[4] is None",b"True"),
+                (b"AND created=? AND reason=? AND repaired IS NULL AND id>=?",
+                    b"AND created=? AND reason=? AND 1=1 AND id>=?"),
+                (b"observed['early_log_max_slot'],created,gap[5],identity)",
+                    b"observed['early_log_min_slot'],created,gap[5],identity)"),
                 (b"        _require_observation_funding_closed()\n",b"        pass\n"),
                 (b"accounting.get('returned')==60345",b"accounting.get('returned')==60346")):
             self.assertIn(old,current,relative+':negative mutation target exists')

@@ -12,7 +12,7 @@ import unittest
 from unittest.mock import patch
 
 from meme_machine import solana_source_drain as drain
-from meme_machine.solana_evidence_plane import EvidenceUnavailable
+from meme_machine.solana_evidence_plane import EvidenceUnavailable, IntervalProof, digest
 from meme_machine.solana_rolling_history import program_scope
 from tests import test_contained_source_observation as fixture_module
 
@@ -110,6 +110,17 @@ class ProgramGapObservationTests(fixture_module.ObservationFixture, unittest.Tes
     def archive_key(self, key, raw):
         return key + '_preserved.' + checksum(raw)
 
+    def prove_fixture_repair(self, family, lower, upper):
+        # Synthetic proof input exercises the unchanged production publication
+        # and SQLite gap-splitting path; it is not a provider-authenticated proof.
+        scope = program_scope(family)
+        proof = IntervalProof(scope, lower, upper, 'alchemy_finalized_repair', 'a' * 64,
+            dict(finalized=True, complete=True, scope=scope, lower_slot=lower,
+                upper_slot=upper, lineage_hash=digest(['offline-gap-repair', scope, lower, upper])),
+            SESSION_AT + 1)
+        self.history.prove(proof)
+        return proof
+
     def test_exact_production_hashes_are_asserted_before_synthetic_fixture_patches(self):
         self.assertEqual(self.production_program_hashes, PRODUCTION_HASHES)
         for key, expected in PRODUCTION_HASHES.items():
@@ -128,6 +139,11 @@ class ProgramGapObservationTests(fixture_module.ObservationFixture, unittest.Tes
         self.assertEqual(result['current_observation_state'], 'PRESERVED_PROGRAM_GAP')
         self.assertTrue(result['program_gap_unavailable'])
         self.assertTrue(result['unreturned_observation_retained'])
+        self.assertEqual(result['retained_missing_range_lower_slot'], 457794105)
+        self.assertEqual(result['retained_missing_range_upper_slot'], HANDLER_SLOT)
+        self.assertEqual(result['retained_missing_range_scope'],
+            'PUMP_AND_PUMPSWAP_PROGRAM_EARLY_LOG_BUFFER_ONLY')
+        self.assertTrue(result['preserved_lost_observation_range_unavailable'])
         self.assertEqual(result['retained_unreturned_observations'], 1)
         self.assertFalse(result['historical_callback_completion'])
         self.assertFalse(result['current_handler_disposition_verified'])
@@ -253,11 +269,92 @@ class ProgramGapObservationTests(fixture_module.ObservationFixture, unittest.Tes
                 self.db.execute('''UPDATE candidate_gaps SET scope=?,lo=?,hi=?,created=?,repaired=?,reason=?
                     WHERE id=39593''', original)
 
-    def test_repaired_original_gap_is_refused_even_if_an_open_residual_exists(self):
+    def test_repaired_original_flag_or_residual_missing_first_lost_slot_is_insufficient(self):
         self.db.execute('UPDATE candidate_gaps SET repaired=? WHERE id=39593', (SESSION_AT + 1,))
+        # A repaired flag without a retained covering residual proves nothing.
+        self.refused()
         self.db.execute('''INSERT INTO candidate_gaps(id,scope,lo,hi,created,repaired,reason)
             VALUES(39999,?,?,NULL,?,NULL,'candidate_live_disconnect_or_filter_rebuild')''',
-            (program_scope('pumpswap'), LOWER, 1792187653.352859))
+            (program_scope('pumpswap'), 457794106, 1792187653.352859))
+        # This residual covers the handler slot but omits actual early log 105.
+        self.refused()
+
+    def test_real_prefix_repairs_retain_origins_and_covering_unavailable_tails(self):
+        history_before = (self.value(drain.SOURCE_DRAIN_KEY),
+            self.value(drain.OBSERVATION_DRAIN_KEY), self.value(drain.HANDLER_RECOVERY_KEY))
+        checkpoints = self.db.execute('SELECT * FROM candidate_checkpoints').fetchall()
+        cursors = self.db.execute('SELECT * FROM cursors').fetchall()
+        for family, lower, identity, created in (
+                ('pump', 457794067, 39592, 1792187653.1304228),
+                ('pumpswap', 457794063, 39593, 1792187653.352859)):
+            proof = self.prove_fixture_repair(family, lower, 457794103)
+            origin = self.db.execute('''SELECT scope,lo,hi,created,repaired,reason
+                FROM candidate_gaps WHERE id=?''', (identity,)).fetchone()
+            self.assertEqual(origin[:4], (program_scope(family), LOWER, None, created))
+            self.assertEqual(origin[4], proof.observed_at)
+            self.assertEqual(origin[5], 'candidate_live_disconnect_or_filter_rebuild')
+            residuals = self.db.execute('''SELECT lo,hi,created,reason FROM candidate_gaps
+                WHERE scope=? AND repaired IS NULL AND id>? ORDER BY lo''',
+                (program_scope(family), identity)).fetchall()
+            self.assertEqual(residuals, [
+                (LOWER, lower - 1, created, 'candidate_live_disconnect_or_filter_rebuild'),
+                (457794104, None, created, 'candidate_live_disconnect_or_filter_rebuild')])
+            self.assertEqual(self.db.execute('''SELECT lo,hi,source FROM candidate_coverage
+                WHERE scope=?''', (program_scope(family),)).fetchall(),
+                [(lower, 457794103, 'alchemy_finalized_repair')])
+        result = drain.historical_observation_boundary(self.state)
+        self.assertTrue(result['eligible'])
+        self.assertTrue(result['program_gap_unavailable'])
+        self.assertEqual(result['retained_missing_range_lower_slot'], 457794105)
+        self.assertEqual(result['retained_missing_range_upper_slot'], HANDLER_SLOT)
+        self.assertTrue(result['preserved_lost_observation_range_unavailable'])
+        self.assertFalse(result['historical_callback_completion'])
+        self.assertFalse(result['current_handler_disposition_verified'])
+        self.assertEqual(result['retained_unreturned_observations'], 1)
+        self.assertEqual((self.value(drain.SOURCE_DRAIN_KEY),
+            self.value(drain.OBSERVATION_DRAIN_KEY), self.value(drain.HANDLER_RECOVERY_KEY)), history_before)
+        self.assertEqual((json.loads(history_before[1])['accepted_handlers'],
+            json.loads(history_before[1])['settled_handlers']), (60346, 60345))
+        self.assertEqual(self.db.execute('SELECT * FROM candidate_checkpoints').fetchall(), checkpoints)
+        self.assertEqual(self.db.execute('SELECT * FROM cursors').fetchall(), cursors)
+        self.assertEqual(self.db.execute('SELECT * FROM candidate_pending_proofs').fetchall(), self.pending_proofs)
+
+    def test_real_repair_cut_at_either_lost_interval_endpoint_refuses_observation(self):
+        for cut in (457794105, HANDLER_SLOT):
+            with self.subTest(cut=cut):
+                self.db.execute('SAVEPOINT fixture_lost_interval_cut')
+                try:
+                    self.prove_fixture_repair('pumpswap', cut, cut)
+                    residuals = self.db.execute('''SELECT lo,hi FROM candidate_gaps
+                        WHERE scope=? AND repaired IS NULL ORDER BY lo''',
+                        (program_scope('pumpswap'),)).fetchall()
+                    self.assertEqual(residuals, [(LOWER, cut - 1), (cut + 1, None)])
+                    self.assertFalse(any(lo <= 457794105 and (hi is None or hi >= HANDLER_SLOT)
+                        for lo, hi in residuals))
+                    self.refused()
+                finally:
+                    self.db.execute('ROLLBACK TO fixture_lost_interval_cut')
+                    self.db.execute('RELEASE fixture_lost_interval_cut')
+
+    def test_other_family_or_different_origin_residual_cannot_replace_the_required_tail(self):
+        self.db.execute('UPDATE candidate_gaps SET repaired=? WHERE id=39593', (SESSION_AT + 1,))
+        for scope, created, reason, identity in (
+                (program_scope('pump'), 1792187653.352859, 'candidate_live_disconnect_or_filter_rebuild', 39999),
+                (program_scope('pumpswap'), 1792187653.1304228, 'candidate_live_disconnect_or_filter_rebuild', 39999),
+                (program_scope('pumpswap'), 1792187653.352859, 'different_origin_reason', 39999),
+                (program_scope('pumpswap'), 1792187653.352859, 'candidate_live_disconnect_or_filter_rebuild', 39591)):
+            with self.subTest(scope=scope, created=created, reason=reason, identity=identity):
+                self.db.execute('''INSERT INTO candidate_gaps(id,scope,lo,hi,created,repaired,reason)
+                    VALUES(?,?,457794104,NULL,?,NULL,?)''', (identity, scope, created, reason))
+                self.refused()
+                self.db.execute('DELETE FROM candidate_gaps WHERE id=?', (identity,))
+
+    def test_ambiguous_same_origin_covering_residuals_refuse_instead_of_choosing_one(self):
+        self.db.execute('UPDATE candidate_gaps SET repaired=? WHERE id=39593', (SESSION_AT + 1,))
+        self.db.executemany('''INSERT INTO candidate_gaps(id,scope,lo,hi,created,repaired,reason)
+            VALUES(?,?,?,NULL,1792187653.352859,NULL,'candidate_live_disconnect_or_filter_rebuild')''',
+            [(39999, program_scope('pumpswap'), 457794104),
+             (40000, program_scope('pumpswap'), 457794105)])
         self.refused()
 
     def test_original_handoff_can_bound_open_gaps_without_repairing_or_hiding_old_slot(self):

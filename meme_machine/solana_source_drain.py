@@ -169,6 +169,7 @@ def _preserved_program_gap_observation(db,handlers,current):
         and observed.get('session')==record.get('session')=='41265de5e5164b90a108688caf6b1d73'
         and observed.get('drained') is False and observed.get('accepted_pending')==0
         and observed.get('pending_slots')==0 and observed.get('handler_dispositions')==records
+        and observed.get('early_log_min_slot')==457794105 and observed.get('early_log_max_slot')==457794201
         and observed.get('recovery_obligations')==[
             dict(scope=program_scope(family),lower_slot=457794040,upper_slot=None)
             for family in ('pump','pumpswap')])
@@ -176,15 +177,29 @@ def _preserved_program_gap_observation(db,handlers,current):
         gap=db.execute('SELECT scope,lo,hi,created,repaired,reason FROM candidate_gaps WHERE id=?',(identity,)).fetchone()
         require(gap is not None and gap[0]==program_scope(family) and gap[1]==457794040
             and (gap[2] is None or type(gap[2]) is int and gap[2]>=457794201)
-            and gap[3]==created and gap[3]<=session[1] and gap[4] is None
+            and gap[3]==created and gap[3]<=session[1]
             and gap[5]=='candidate_live_disconnect_or_filter_rebuild')
+        # Original publication may mark/split the origin after a genuine FULL
+        # consumer ACK. Its repaired flag proves neither completion nor loss:
+        # retain the origin and require an actual unrepaired same-origin tail
+        # covering this session's whole unavailable early-log interval.
+        residuals=db.execute('''SELECT id,lo,hi FROM candidate_gaps INDEXED BY candidate_gap_scope_bounds
+            WHERE scope=? AND lo>=? AND lo<=? AND (hi IS NULL OR hi>=?)
+                AND created=? AND reason=? AND repaired IS NULL AND id>=?
+            ORDER BY lo LIMIT 2''',(gap[0],gap[1],observed['early_log_min_slot'],
+                observed['early_log_max_slot'],created,gap[5],identity)).fetchall()
+        require(len(residuals)==1)
     # Original canonical consumer receipts/ACKs, without DDL or a new cursor.
     lifecycle=object.__new__(CandidateLifecycle);lifecycle.db=db
     require(all(lifecycle.unconsumed(program_scope(family)) is None for family in ('pump','pumpswap')))
     return dict(unreturned_observation_retained=True,retained_unreturned_observations=1,
         current_handler_disposition_verified=False,historical_callback_completion=False,
         preserved_observation_sha256=PROGRAM_GAP_OBSERVATION_SHA256,
-        preserved_handler_sha256=PROGRAM_GAP_HANDLER_SHA256,program_gap_unavailable=True)
+        preserved_handler_sha256=PROGRAM_GAP_HANDLER_SHA256,program_gap_unavailable=True,
+        retained_missing_range_lower_slot=observed['early_log_min_slot'],
+        retained_missing_range_upper_slot=observed['early_log_max_slot'],
+        retained_missing_range_scope='PUMP_AND_PUMPSWAP_PROGRAM_EARLY_LOG_BUFFER_ONLY',
+        preserved_lost_observation_range_unavailable=True)
 
 
 def historical_observation_boundary(state_or_db):
