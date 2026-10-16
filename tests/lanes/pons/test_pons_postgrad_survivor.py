@@ -46,6 +46,89 @@ def facts(**changes):
 
 
 class PonsPostgradSurvivorTests(unittest.TestCase):
+    def cycle_facts(self,**changes):
+        from meme_machine.lanes.pons import CHAIN_ID
+        from meme_machine.lanes.pons.pons_postgrad_survivor import POLICY_HASH
+        value=facts(**changes)
+        value['rally_cycle_context']=dict(candidate='native-token',venue='pons_v4',
+            chain=CHAIN_ID,pool='0x'+'12'*32,policy_hash=POLICY_HASH,
+            input_version='pons-v4-canonical-history-v1',
+            graduation=dict(at=value['graduation_at'],block=1,block_hash='graduation-block',
+                transition=dict(market='0x'+'12'*32,graduation_transaction='graduation-tx')),
+            evidence_id='authenticated-contiguous-history-and-state',authoritative=True)
+        return value
+
+    def test_native_cycle_uses_retained_peak_reset_base_and_breakout_clocks(self):
+        from meme_machine.lanes.pons.pons_survivor_runtime import Runtime
+        from meme_machine.runtime.rally_cycle import validate_cycle
+        adapter=object.__new__(Runtime)
+        out=adapter.qualify(self.cycle_facts())
+        self.assertTrue(out['candidate'],out['all_rejections'])
+        cycle=validate_cycle(out['rally_cycle'],candidate='native-token',observation_at=NOW)
+        self.assertEqual(cycle['peak_at'],NOW-8*3600)
+        self.assertEqual(cycle['reset_at'],NOW-2*3600)
+        self.assertEqual(cycle['base_start'],cycle['reset_at'])
+        self.assertEqual(cycle['base_end'],NOW-16*60)
+        self.assertEqual(cycle['breakout_at'],NOW-5*60)
+        self.assertEqual(cycle['minimum_base_seconds'],900)
+        self.assertEqual(cycle['chain'],4663)
+        self.assertEqual(cycle['pool'],'0x'+'12'*32)
+        self.assertEqual(cycle['policy_hash'],out['policy_hash'])
+        self.assertEqual(cycle['input_version'],'pons-v4-canonical-history-v1')
+        self.assertEqual(POLICY['trend']['base_seconds'],7200)
+        self.assertEqual(POLICY['trend']['breakout_exclusion_seconds'],900)
+        self.assertTrue(POLICY['reentry']['require_post_settlement_peak'])
+        self.assertFalse(POLICY['reentry']['setup_spacing_execution_veto'])
+        self.assertEqual(POLICY['reentry']['minimum_seconds'],3600)
+
+    def test_native_cycle_identity_survives_new_decision_buyer_and_flow_counts(self):
+        from unittest.mock import patch
+        from meme_machine.lanes.pons.pons_survivor_runtime import Runtime
+        adapter=object.__new__(Runtime)
+        with patch('meme_machine.lanes.pons.pons_survivor_runtime.time.time',return_value=NOW+10):
+            original=adapter.qualify(self.cycle_facts())
+        later=self.cycle_facts(now=NOW+60,price_points=winner_points()+[(NOW+60,12_910)])
+        later['flow_30m']=dict(later['flow_30m'],buy_quote=11*10**16,
+            buyer_groups=later['flow_30m']['buyer_groups']+['new-buyer'])
+        with patch('meme_machine.lanes.pons.pons_survivor_runtime.time.time',return_value=NOW+70):
+            updated=adapter.qualify(later)
+        self.assertTrue(updated['candidate'],updated['all_rejections'])
+        self.assertEqual(original['rally_cycle']['id'],updated['rally_cycle']['id'])
+        self.assertNotEqual(original['rally_cycle']['decision_at'],updated['rally_cycle']['decision_at'])
+
+    def test_native_cycle_rejects_unverified_lineage_and_short_post_reset_base(self):
+        from meme_machine.lanes.pons.pons_survivor_runtime import Runtime
+        adapter=object.__new__(Runtime)
+        unavailable=self.cycle_facts()
+        unavailable['rally_cycle_context']['authoritative']=False
+        out=adapter.qualify(unavailable)
+        self.assertFalse(out['candidate'])
+        self.assertIn('unverified_rally_cycle',out['all_rejections'])
+        points=winner_points()[:6]+[(NOW-2*3600,11_800),(NOW-20*60,11_300),
+            (NOW-16*60,11_800),(NOW-5*60,12_600),(NOW,12_900)]
+        late_reset=self.cycle_facts(price_points=points)
+        # The old complete two-hour window economics remain intact. The extra
+        # cycle gate requires a genuinely completed post-reset base as well.
+        self.assertTrue(evaluate_entry(late_reset)['candidate'])
+        out=adapter.qualify(late_reset)
+        self.assertFalse(out['candidate'])
+        self.assertIn('unverified_rally_cycle',out['all_rejections'])
+
+    def test_native_timestamp_accountability_preserves_canonical_and_observed_time(self):
+        from unittest.mock import patch
+        from meme_machine.lanes.pons.pons_survivor_runtime import Runtime,_quote_times
+        from types import SimpleNamespace
+        adapter=object.__new__(Runtime)
+        value=self.cycle_facts(market_time=NOW,evidence_acquired_at=NOW+5,
+            state_evidence_available_at=NOW+5.5,evidence_available_at=NOW+6)
+        with patch('meme_machine.lanes.pons.pons_survivor_runtime.time.time',return_value=NOW+7):
+            out=adapter.qualify(value)
+        self.assertEqual(out['timestamp_accountability'],dict(market_time=NOW,
+            evidence_acquired_at=NOW+5,state_evidence_available_at=NOW+5.5,
+            evidence_available_at=NOW+6,decision_at=NOW+7))
+        self.assertEqual(_quote_times(SimpleNamespace(stamp=SimpleNamespace(
+            event_at=NOW,observed_at=NOW+6))),dict(market_time=NOW,evidence_available_at=NOW+6))
+
     def young_facts(self,age=4*3600):
         return facts(graduation_at=NOW-age,price_points=[
             (NOW-age,10000),(NOW-150*60,12000),(NOW-2*3600,11400),

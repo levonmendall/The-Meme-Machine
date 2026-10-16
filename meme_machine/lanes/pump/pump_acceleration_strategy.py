@@ -14,7 +14,7 @@ from dataclasses import asdict, dataclass
 import hashlib
 import json
 
-from meme_machine.paper_policy_revision import ACTIVE_REVISION
+from meme_machine.paper_policy_revision import ACTIVE_REVISION,PREDECESSOR_REVISION
 
 
 STRATEGY_ID = "pump-acceleration-independent-v1"
@@ -477,7 +477,7 @@ def qualify(signal, policy=POLICY, *, purpose="entry"):
                 confirmations.append(reason)
             else:
                 demoted.append(reason)
-            if not policy.version.endswith(ACTIVE_REVISION) and (value is None or value < threshold):
+            if not policy.version.endswith((PREDECESSOR_REVISION,ACTIVE_REVISION)) and (value is None or value < threshold):
                 reasons.append(reason)
         if signal.net_buy_share_bps < policy.min_net_buy_share_bps:
             reasons.append("net_demand")

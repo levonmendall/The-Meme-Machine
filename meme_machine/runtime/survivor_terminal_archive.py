@@ -99,6 +99,15 @@ def _sleeve_commit(sleeve,plan):
             if any(json.loads(raw).get('candidate')==candidate for raw, in sleeve.db.execute('SELECT body FROM sleeve_positions')):
                 raise ValueError('retirement_candidate_referenced')
             anchor['candidates'].pop(candidate);sleeve.db.execute('DELETE FROM sleeve_candidates WHERE id=?',(candidate,))
+            # The same preserved retirement authority bounds structural metadata.
+            # Its full certificates remain in the digest-bound predecessor; the
+            # native graduation floor prevents this retired candidate returning.
+            for key,record in list(anchor.get('rallies',{}).items()):
+                if record['candidate']==candidate and record['strategy']==plan['strategy']:
+                    from meme_machine.runtime.rally_cycle import accumulate_outcomes
+                    totals['rally_outcomes']=accumulate_outcomes(totals.get('rally_outcomes'),record.get('outcomes',{}))
+                    anchor['rallies'].pop(key)
+                    sleeve.db.execute('DELETE FROM sleeve_rallies WHERE id=?',(key,))
         anchor.setdefault('archived_entry_scopes',{})[plan['strategy']]=plan['scope']
         anchor['retirement_receipt']=plan['hash'];_save(sleeve,anchor)
         if sleeve.reconcile()!=before:raise ValueError('retirement_sleeve_accounting_changed')

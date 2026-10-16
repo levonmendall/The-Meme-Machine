@@ -2,6 +2,8 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+    'tests.test_funded_rally_lifecycle',
+    'tests.test_rally_cycle_authority',
     'tests.test_pinned_runtime_checkout',
     'tests.test_provider_clock_domain',
     'tests.test_governor_clock_domain',

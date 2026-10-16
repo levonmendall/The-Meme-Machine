@@ -178,6 +178,106 @@ OPPORTUNITY_ADDED_SOURCES=(
 )
 
 
+# Issue #138 explicitly authorizes executable PAPER bridge/re-entry economics.
+# This is a new exact layer above the already-reviewed source, never a broad
+# strategy exemption. Its complete byte pins and individual method/statement
+# deltas must reverse to main 950852cb before every original guard runs.
+# Its contained-observation layer then reverses independently to its own exact
+# predecessor; neither authorization absorbs the other's source delta.
+RALLY_BASE='950852cb87516cd1c94f6762ec178b17232c346f'
+RALLY_MANIFEST=ROOT/'tests/fixtures/paper_postgrad_rally_source_delta.json'
+RALLY_SCHEMA='owner-selected-paper-postgrad-rally-source-delta-v1'
+RALLY_MANIFEST_SHA256='c99d39c2e542538271c8b1db9a995ab76d6801d16ade1e0d7689baaf10e90302'
+RALLY_CHANGED_SOURCES=('meme_machine/lanes/pons/pons_postgrad_survivor.py', 'meme_machine/lanes/pons/pons_survivor_runtime.py', 'meme_machine/lanes/pump/pump_acceleration_strategy.py', 'meme_machine/lanes/pump/pumpswap_survivor.py', 'meme_machine/lanes/pump/pumpswap_survivor_runtime.py', 'meme_machine/lanes/pump/runner.py', 'meme_machine/operational/supervisor.py', 'meme_machine/paper_policy_revision.py', 'meme_machine/runtime/directional_continuation.py', 'meme_machine/runtime/native_boundary.py', 'meme_machine/runtime/opportunity_telemetry.py', 'meme_machine/runtime/policy_compatibility.py', 'meme_machine/runtime/robinhood/pons.py', 'meme_machine/runtime/sleeve_reservations.py', 'meme_machine/runtime/survivor_commit.py', 'meme_machine/runtime/survivor_history.py', 'meme_machine/runtime/survivor_paper_book.py', 'meme_machine/runtime/survivor_risk.py', 'meme_machine/runtime/survivor_terminal_archive.py', 'meme_machine/shared_capital/native_sleeve.py', 'meme_machine/shared_capital/runtime.py', 'operational/strategy-change-audit.py')
+RALLY_ADDED_SOURCES=('meme_machine/policy_history/opportunity_access_v1.json', 'meme_machine/runtime/rally_cycle.py')
+
+
+def rally_manifest(test):
+    import hashlib,json
+    raw=RALLY_MANIFEST.read_bytes()
+    test.assertEqual(hashlib.sha256(raw).hexdigest(),RALLY_MANIFEST_SHA256,'exact reviewed rally manifest')
+    manifest=json.loads(raw)
+    test.assertEqual(manifest['schema'],RALLY_SCHEMA)
+    test.assertEqual(manifest['base'],RALLY_BASE)
+    test.assertEqual(manifest['revision'],'paper-postgrad-rally-v1')
+    test.assertEqual(set(manifest['files']),set(RALLY_CHANGED_SOURCES),'explicit changed rally sources')
+    test.assertEqual(set(manifest['added_sources']),set(RALLY_ADDED_SOURCES),'explicit added rally sources')
+    return manifest
+
+
+def rally_nodes(content):
+    """Hash every statement/method plus class headers and body ordering."""
+    from copy import deepcopy
+    import hashlib
+    result={};layouts={}
+    def walk(body,parent):
+        order=[];occurrences={}
+        for node in body:
+            if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef,ast.ClassDef)):
+                label=type(node).__name__+':'+node.name
+            elif isinstance(node,ast.Assign):label='Assign:'+','.join(ast.dump(t) for t in node.targets)
+            elif isinstance(node,ast.AnnAssign):label='AnnAssign:'+ast.dump(node.target)
+            elif isinstance(node,ast.ImportFrom):label='ImportFrom:'+str(node.level)+':'+str(node.module)
+            elif isinstance(node,ast.Import):label='Import:'+','.join(a.name for a in node.names)
+            elif isinstance(node,ast.Expr) and isinstance(node.value,ast.Constant) and isinstance(node.value.value,str):
+                label='docstring'
+            else:label=type(node).__name__+':'+ast.dump(node)
+            index=occurrences.get(label,0);occurrences[label]=index+1
+            key=parent+'/'+label+('#'+str(index) if index else '')
+            order.append(key)
+            protected=deepcopy(node)
+            if isinstance(node,ast.ClassDef):
+                protected.body=[]
+                walk(node.body,key)
+            result[key]=hashlib.sha256(ast.dump(protected).encode()).hexdigest()
+        layouts[parent]=order
+    walk(ast.parse(content).body,'module')
+    return result,layouts
+
+
+def rally_delta(before,after):
+    old_nodes,old_layouts=rally_nodes(before);new_nodes,new_layouts=rally_nodes(after)
+    def changed(old,new):
+        return {key:dict(before=old.get(key),after=new.get(key))
+            for key in sorted(old.keys()|new.keys()) if old.get(key)!=new.get(key)}
+    return dict(nodes=changed(old_nodes,new_nodes),layouts=changed(old_layouts,new_layouts))
+
+
+def rally_predecessor(test,relative,current,*,allow_previous_layers=False):
+    import hashlib,json
+    if isinstance(current,str):current=current.encode()
+    current=restored_provider_history_predecessor(test,relative,current)
+    manifest=rally_manifest(test)
+    record=manifest['files'].get(relative)
+    if record is None:return current
+    prior=subprocess.check_output(['git','show',RALLY_BASE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),record['before_sha256'],relative+':rally predecessor bytes')
+    if current==prior:return prior
+    current_hash=hashlib.sha256(current).hexdigest()
+    if allow_previous_layers and current_hash!=record['after_sha256']:
+        # Existing inner guards also consume their own older intermediate
+        # source. They retain their original exact pins and mutation failures.
+        return current
+    test.assertEqual(current_hash,record['after_sha256'],relative+':exact reviewed rally bytes')
+    actual=rally_delta(prior,current)
+    test.assertEqual(actual['nodes'],record['nodes'],relative+':exact rally methods/statements')
+    test.assertEqual(actual['layouts'],record['layouts'],relative+':exact rally ordering')
+    before_nodes,before_layouts=rally_nodes(prior)
+    after_nodes,after_layouts=rally_nodes(current)
+    for field,restored,original in (('nodes',after_nodes,before_nodes),('layouts',after_layouts,before_layouts)):
+        for key,change in record[field].items():
+            test.assertEqual(restored.get(key),change['after'],relative+':reviewed successor '+key)
+            if change['before'] is None:restored.pop(key,None)
+            else:restored[key]=change['before']
+        test.assertEqual(restored,original,relative+':all other protected '+field+' preserved')
+    return prior
+
+
+def guarded_source(test,relative):
+    """Apply the exact new layer, then let the original economic guards run."""
+    return rally_predecessor(test,relative,(ROOT/relative).read_bytes())
+
+
 # Fixed, opt-in reached-operation costs are descriptive infrastructure only.
 # Pin both complete sources, reverse these exact bytes to the ced262d4 checkpoint,
 # then apply every existing startup, opportunity, policy and economic assertion.
@@ -350,9 +450,9 @@ def pons_discovery_predecessor(test,relative,current):
 # Exact observed DO-to-AWS provider-history compatibility is one additional
 # reversible startup delta. Pin its complete helper as well as both Supervisor
 # files; then recover every earlier safety/economic source check unchanged.
-RESTORED_HISTORY_REFERENCE='950852cb87516cd1c94f6762ec178b17232c346f'
-RESTORED_HISTORY_BEFORE='5c0cd297633ab4575880eb0fdf94d93bfad27ae9575fb569aaebd48e6b9dd98c'
-RESTORED_HISTORY_AFTER='2fd3ff1027c0049c5a962efecddcc486e7dbd53cbf3a119b28538c88592256fe'
+RESTORED_HISTORY_REFERENCE='cfc25ba8e4378724c29256307af769c9350031bf'
+RESTORED_HISTORY_BEFORE='ccf7aba447c254eadea5915cf495560559251966cbc6769be524b37668fcd629'
+RESTORED_HISTORY_AFTER='4aa0f4eec6aa02514c223d13211bd2b211f0985f7a462baa50a15ceb82771033'
 RESTORED_HISTORY_HELPER='meme_machine/operational/restored_provider_history.py'
 RESTORED_HISTORY_HELPER_SHA256='23a9dd86812da4810d1f4abdaea130fbd62ea094a2caaf088179d1430e297684'
 RESTORED_HISTORY_OLD_BLOCK=(
@@ -875,6 +975,7 @@ def startup_cancel_predecessor(test,relative,current):
 def assert_opportunity_added_source(test,relative,current):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
+    current=rally_predecessor(test,relative,current,allow_previous_layers=True)
     manifest=json.loads(OPPORTUNITY_MANIFEST.read_text())
     test.assertEqual(manifest['strategy_implementation'],OPPORTUNITY_REFERENCE)
     test.assertEqual(set(manifest['added_sources']),set(OPPORTUNITY_ADDED_SOURCES))
@@ -891,6 +992,7 @@ def assert_opportunity_added_source(test,relative,current):
 def opportunity_predecessor(test,relative,current):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
+    current=rally_predecessor(test,relative,current,allow_previous_layers=True)
     if relative=='meme_machine/lanes/pons/evidence.py':
         # The complete lane-tree guard also protects this non-manifest source.
         current=operation_cost_predecessor(test,relative,current)
@@ -1024,7 +1126,7 @@ def pump_economic_tree(test,content,*,combined=False):
     return stripped
 
 def assert_attention_node(test,relative,name,node):
-    current=(ROOT/relative).read_bytes()
+    current=guarded_source(test,relative)
     prior=opportunity_predecessor(test,relative,current)
     if prior!=current:
         selected=ast.parse(current);previous=ast.parse(prior)
@@ -1182,11 +1284,38 @@ class RobinhoodUSDTests(unittest.TestCase):
             self.assertNotEqual(changed,helper)
             with self.assertRaises(AssertionError):restored_provider_helper(self,changed)
 
+    def test_rally_source_layer_reverses_exactly_and_rejects_unreviewed_bytes(self):
+        import json
+        manifest=rally_manifest(self)
+        self.assertTrue(manifest['files'])
+        for relative,record in manifest['files'].items():
+            source=(ROOT/relative).read_bytes()
+            prior=subprocess.check_output(['git','show',RALLY_BASE+':'+relative],cwd=ROOT)
+            self.assertNotEqual(source,prior,relative+':only actual reviewed deltas belong in this layer')
+            self.assertEqual(rally_predecessor(self,relative,source),prior)
+            self.assertTrue(record['nodes'] or record['layouts'],relative+':named structural delta required')
+            for mutation in (source+b'\n# unreviewed rally mutation\n',b''):
+                with self.assertRaises(AssertionError):rally_predecessor(self,relative,mutation)
+
+    def test_rally_added_policy_and_cycle_sources_have_exact_identities(self):
+        import hashlib,json
+        manifest=rally_manifest(self)
+        self.assertTrue(manifest['added_sources'])
+        for relative,record in manifest['added_sources'].items():
+            source=(ROOT/relative).read_bytes()
+            self.assertEqual(hashlib.sha256(source).hexdigest(),record['sha256'],relative)
+            self.assertNotEqual(subprocess.run(['git','cat-file','-e',RALLY_BASE+':'+relative],cwd=ROOT,
+                stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=False).returncode,0,
+                relative+':explicit new source must be absent from the predecessor')
+            for mutation in (source+b'\n',b''):
+                self.assertNotEqual(hashlib.sha256(mutation).hexdigest(),record['sha256'],relative)
+
     def test_contained_observation_reverses_only_exact_reviewed_phase_and_cache_authority(self):
         import hashlib
         for relative,(_,after,_) in CONTAINED_OBSERVATION_DELTAS.items():
-            current=(ROOT/relative).read_bytes()
-            current=restored_provider_history_predecessor(self,relative,current)
+            # The exact outer rally layer restores the PR139 source first.
+            # Its own full-byte/node guards reject every unreviewed combined edit.
+            current=guarded_source(self,relative)
             prior=subprocess.check_output(['git','show',CONTAINED_OBSERVATION_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,
                 relative+':active source must contain the exact reviewed safety correction')
@@ -1209,7 +1338,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_backup_configuration_portability_keeps_exact_policy_and_redaction_guard(self):
         relative='meme_machine/operational/configuration.py'
-        current=(ROOT/relative).read_bytes()
+        current=guarded_source(self,relative)
         prior=subprocess.check_output(['git','show',CPU_CAPACITY_REFERENCE+':'+relative],cwd=ROOT)
         self.assertEqual(backup_configuration_predecessor(self,relative,current),prior)
         self.assertEqual(opportunity_predecessor(self,relative,current),
@@ -1222,7 +1351,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_host_cpu_portability_keeps_exact_supervisor_and_economic_guards(self):
         relative='meme_machine/operational/supervisor.py'
-        current=(ROOT/relative).read_bytes()
+        current=guarded_source(self,relative)
         prior=subprocess.check_output(['git','show',CPU_CAPACITY_REFERENCE+':'+relative],cwd=ROOT)
         self.assertEqual(cpu_capacity_predecessor(self,relative,current),prior)
         self.assertEqual(opportunity_predecessor(self,relative,current),
@@ -1236,7 +1365,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_reviewed_discovery_nomination_delta_keeps_complete_strategy_guard(self):
         import hashlib
-        relative=PONS_DISCOVERY_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=PONS_DISCOVERY_SOURCE;current=guarded_source(self,relative)
         self.assertEqual(hashlib.sha256(current).hexdigest(),PONS_DISCOVERY_AFTER_SHA256)
         prior=subprocess.check_output(['git','show',PONS_DISCOVERY_REFERENCE+':'+relative],cwd=ROOT)
         self.assertEqual(pons_discovery_predecessor(self,relative,current),prior)
@@ -1251,7 +1380,7 @@ class RobinhoodUSDTests(unittest.TestCase):
     def test_reviewed_operation_costs_reverse_exactly_before_all_original_guards(self):
         import hashlib
         for relative,(_,after,_) in OPERATION_COST_DELTAS.items():
-            current=(ROOT/relative).read_bytes()
+            current=guarded_source(self,relative)
             current=cpu_capacity_predecessor(self,relative,current)
             current=pons_discovery_predecessor(self,relative,current)
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,
@@ -1283,7 +1412,7 @@ class RobinhoodUSDTests(unittest.TestCase):
     def test_native_startup_lifecycle_preserves_exact_prior_economics_and_rejects_other_changes(self):
         import hashlib
         for relative,(_,after) in NATIVE_STARTUP_DELTAS.items():
-            current=(ROOT/relative).read_bytes()
+            current=guarded_source(self,relative)
             current=operation_cost_predecessor(self,relative,current)
             self.assertEqual(hashlib.sha256(current).hexdigest(),after)
             prior=subprocess.check_output(['git','show',NATIVE_STARTUP_REFERENCE+':'+relative],cwd=ROOT)
@@ -1298,7 +1427,7 @@ class RobinhoodUSDTests(unittest.TestCase):
     def test_reviewed_observation_repairs_keep_exact_prior_economics_and_reject_other_changes(self):
         import hashlib
         for relative,(_,after,_) in OBSERVATION_FOLLOWUP_DELTAS.items():
-            current=(ROOT/relative).read_bytes()
+            current=guarded_source(self,relative)
             current=reviewed_native_startup(self,relative,current)
             self.assertEqual(hashlib.sha256(current).hexdigest(),after)
             prior=subprocess.check_output(['git','show',OBSERVATION_FOLLOWUP_REFERENCE+':'+relative],cwd=ROOT)
@@ -1312,7 +1441,7 @@ class RobinhoodUSDTests(unittest.TestCase):
     def test_reviewed_startup_cancellation_preserves_all_original_economic_source(self):
         import hashlib
         for relative,(_,after,*_) in STARTUP_CANCEL_DELTAS.items():
-            current=(ROOT/relative).read_bytes()
+            current=guarded_source(self,relative)
             current=observation_followup_predecessor(self,relative,current)
             self.assertEqual(hashlib.sha256(current).hexdigest(),after)
             prior=subprocess.check_output(['git','show',COHORT_AUTHORITY_REFERENCE+':'+relative],cwd=ROOT)
@@ -1326,7 +1455,7 @@ class RobinhoodUSDTests(unittest.TestCase):
     def test_reviewed_cohort_authority_path_preserves_exact_combined_economics(self):
         import hashlib
         for relative,(_,after,_) in COHORT_AUTHORITY_DELTAS.items():
-            current=(ROOT/relative).read_bytes()
+            current=guarded_source(self,relative)
             current=observation_followup_predecessor(self,relative,current)
             self.assertEqual(hashlib.sha256(current).hexdigest(),after)
             prior=subprocess.check_output(['git','show',COHORT_AUTHORITY_REFERENCE+':'+relative],cwd=ROOT)
@@ -1349,7 +1478,7 @@ class RobinhoodUSDTests(unittest.TestCase):
     def test_reviewed_observation_route_forwarding_preserves_exact_combined_source(self):
         import hashlib
         relative=OBSERVATION_ROUTE_SOURCE
-        current=(ROOT/relative).read_bytes()
+        current=guarded_source(self,relative)
         current=operation_cost_predecessor(self,relative,current)
         self.assertEqual(hashlib.sha256(current).hexdigest(),OBSERVATION_ROUTE_AFTER_SHA256,
             'the active source must contain the reviewed forwarding correction')
@@ -1372,7 +1501,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_added_opportunity_policy_and_recovery_sources_reject_unapproved_changes(self):
         for relative in OPPORTUNITY_ADDED_SOURCES:
-            source=(ROOT/relative).read_bytes()
+            source=guarded_source(self,relative)
             assert_opportunity_added_source(self,relative,source)
             with self.assertRaises(AssertionError):
                 assert_opportunity_added_source(self,relative,source+b'\n')
@@ -1394,7 +1523,7 @@ class RobinhoodUSDTests(unittest.TestCase):
             operational=subprocess.check_output(['git','show',OPPORTUNITY_BASE+':'+relative],cwd=ROOT)
             strategy_before=subprocess.check_output(['git','show',OPPORTUNITY_STRATEGY_BASE+':'+relative],cwd=ROOT)
             strategy_after=subprocess.check_output(['git','show',OPPORTUNITY_REFERENCE+':'+relative],cwd=ROOT)
-            combined=startup_cancel_predecessor(self,relative,(ROOT/relative).read_bytes())
+            combined=startup_cancel_predecessor(self,relative,guarded_source(self,relative))
             combined=cohort_authority_predecessor(self,relative,combined)
             combined=observation_route_predecessor(self,relative,combined)
             if operational==strategy_before:
@@ -1429,7 +1558,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         import json
         manifest=json.loads(OPPORTUNITY_MANIFEST.read_text())
         for relative in manifest['files']:
-            source=(ROOT/relative).read_bytes()
+            source=guarded_source(self,relative)
             opportunity_predecessor(self,relative,source)
             with self.assertRaises(AssertionError):
                 opportunity_predecessor(self,relative,source+b'\n# unapproved source mutation\n')
@@ -1455,12 +1584,12 @@ class RobinhoodUSDTests(unittest.TestCase):
         # All other functions, interfaces, constants, ordering and restoration
         # predicates must be byte-independent AST equivalents to e398.
         self.assertEqual(ast.dump(expected),ast.dump(pump_economic_tree(self,
-            opportunity_predecessor(self,relative,(ROOT/relative).read_bytes()))))
+            opportunity_predecessor(self,relative,guarded_source(self,relative)))))
 
     def test_reviewed_pump_startup_diagnostics_preserve_all_original_calls_and_reject_changes(self):
         from copy import deepcopy
         relative='meme_machine/lanes/pump/runner.py'
-        content=(ROOT/relative).read_bytes()
+        content=guarded_source(self,relative)
         original=subprocess.check_output(['git','show',OPPORTUNITY_REFERENCE+':'+relative],cwd=ROOT)
         self.assertEqual(ast.dump(pump_economic_tree(self,content,combined=True)),ast.dump(ast.parse(original)))
         predecessor=opportunity_predecessor(self,relative,content)
@@ -1912,7 +2041,7 @@ class RobinhoodUSDTests(unittest.TestCase):
                     'meme_machine/runtime/survivor_risk.py',
                     'operational/nine-change-implementation.json'):
             original=subprocess.check_output(['git','show',economic_reference+':'+rel],cwd=ROOT)
-            assert_holding_delta(self,rel,original,(ROOT/rel).read_bytes())
+            assert_holding_delta(self,rel,original,guarded_source(self,rel))
         rel='meme_machine/lanes/pons/pons_postgrad_survivor.py'
         original=subprocess.check_output(['git','show',economic_reference+':'+rel],cwd=ROOT)
         def survivor_economics(content):
@@ -1921,8 +2050,8 @@ class RobinhoodUSDTests(unittest.TestCase):
             # holding-age exit removal is separately pinned below.
             return [ast.dump(n) for n in ast.parse(content).body
                 if not isinstance(n,ast.FunctionDef) or n.name not in ('select_entries','exit_action')]
-        self.assertEqual(survivor_economics(original),survivor_economics(opportunity_predecessor(self,rel,(ROOT/rel).read_bytes())))
-        approved=ast.parse((ROOT/rel).read_bytes())
+        self.assertEqual(survivor_economics(original),survivor_economics(opportunity_predecessor(self,rel,guarded_source(self,rel))))
+        approved=ast.parse(guarded_source(self,rel))
         node=next(n for n in approved.body if isinstance(n,ast.FunctionDef) and n.name=='exit_action')
         self.assertEqual(__import__('hashlib').sha256(ast.dump(node).encode()).hexdigest(),HOLDING_DELTAS[rel]['exit_action'])
         active='e1070404849dfa86eb3e47d57cf24263b2fefc25'
@@ -1945,10 +2074,10 @@ class RobinhoodUSDTests(unittest.TestCase):
                         'meme_machine/lanes/pons/sequencer_feed.py',
                         'meme_machine/lanes/pons/abi.py'}
         for rel in paths:
-            if rel not in infrastructure:assert_holding_delta(self,rel,source(rel),(ROOT/rel).read_bytes())
+            if rel not in infrastructure:assert_holding_delta(self,rel,source(rel),guarded_source(self,rel))
         for rel in ('meme_machine/runtime/directional_continuation.py','meme_machine/runtime/survivor_risk.py',
                     'operational/nine-change-implementation.json'):
-            assert_holding_delta(self,rel,source(rel),(ROOT/rel).read_bytes())
+            assert_holding_delta(self,rel,source(rel),guarded_source(self,rel))
         rel='meme_machine/lanes/pons/pons_history.py'
         # The only history reducer change is transport work order near the
         # original expiry. All native append, recovery and retention math pins.
@@ -1962,9 +2091,9 @@ class RobinhoodUSDTests(unittest.TestCase):
             next(n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name=='__init__').body=[ast.Pass()]
             return {n.name:ast.dump(n) for n in cls.body if isinstance(n,ast.FunctionDef)
                     and n.name not in ('qualification_turn','_quality_rank')}
-        self.assertEqual(history_methods((ROOT/rel).read_bytes(),reviewed=True),history_methods(source(rel)))
+        self.assertEqual(history_methods(guarded_source(self,rel),reviewed=True),history_methods(source(rel)))
         rel='meme_machine/lanes/pons/pons_survivor_runtime.py'
-        original=ast.parse(source(rel));current=ast.parse(opportunity_predecessor(self,rel,(ROOT/rel).read_bytes()))
+        original=ast.parse(source(rel));current=ast.parse(opportunity_predecessor(self,rel,guarded_source(self,rel)))
         def functions(tree):
             return {n.name:n for n in tree.body if isinstance(n,(ast.FunctionDef,ast.ClassDef))}
         old=functions(original);new=functions(current)
@@ -2021,7 +2150,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         reviewed={relative:{**ATTENTION_DELTAS.get(relative,{}),**OPERATION_DELTAS.get(relative,{})}
                   for relative in ATTENTION_DELTAS.keys()|OPERATION_DELTAS.keys()}
         for relative,methods in reviewed.items():
-            tree=ast.parse((ROOT/relative).read_text())
+            tree=ast.parse(guarded_source(self,relative))
             for name in methods:
                 node=tree
                 for part in name.split('.'):
@@ -2037,7 +2166,7 @@ class RobinhoodUSDTests(unittest.TestCase):
             delta=b"and row.get('app_id') and row.get('team_id')"
             self.assertEqual(approved.count(delta),1)
             approved=approved.replace(delta,b"and row.get('app_id')")
-            self.assertEqual(approved,(ROOT/relative).read_bytes())
+            self.assertEqual(approved,guarded_source(self,relative))
             assert_holding_delta(self,relative,original,approved)
             for changed in (approved+b'\n# unreviewed change\n',
                     approved.replace(b'SAFE_BLOCKS = 10',b'SAFE_BLOCKS = 40'),
@@ -2050,8 +2179,8 @@ class RobinhoodUSDTests(unittest.TestCase):
         for relative in LIFECYCLE_SOURCE_DELTAS:
             original=subprocess.check_output(['git','show','e1070404849dfa86eb3e47d57cf24263b2fefc25:'+relative],cwd=ROOT)
             published=subprocess.check_output(['git','show',LIFECYCLE_PACKAGE_REFERENCE+':'+relative],cwd=ROOT)
-            self.assertEqual(published,opportunity_predecessor(self,relative,(ROOT/relative).read_bytes()))
-            assert_holding_delta(self,relative,original,(ROOT/relative).read_bytes())
+            self.assertEqual(published,opportunity_predecessor(self,relative,guarded_source(self,relative)))
+            assert_holding_delta(self,relative,original,guarded_source(self,relative))
             for changed in (published+b'\n# unreviewed change\n',published.replace(b'False',b'True',1)):
                 self.assertNotEqual(changed,published)
                 with self.assertRaises(AssertionError):assert_holding_delta(self,relative,original,changed)
@@ -2067,7 +2196,7 @@ class RobinhoodUSDTests(unittest.TestCase):
                             nodes[target.id]=ast.dump(node)
             return nodes
         prior=subprocess.check_output(['git','show',LIFECYCLE_PACKAGE_BASE+':'+relative],cwd=ROOT)
-        before=economic_nodes(prior);after=economic_nodes(opportunity_predecessor(self,relative,(ROOT/relative).read_bytes()))
+        before=economic_nodes(prior);after=economic_nodes(opportunity_predecessor(self,relative,guarded_source(self,relative)))
         self.assertEqual(set(before),{'reentry_regime_reset','REENTRY_POLICY','ENTRY_THRESHOLDS','EXIT_POLICY','POLICY'})
         self.assertEqual(before,after)
 

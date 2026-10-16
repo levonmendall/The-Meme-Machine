@@ -1,4 +1,4 @@
-"""One explicit PAPER decision transition, independent of financial identities.
+"""Versioned PAPER decision transitions, independent of financial identities.
 
 This is recovery compatibility on the existing owners' checkpoints. It never
 changes a genesis, balance, journal event, portfolio epoch, or holding policy.
@@ -10,9 +10,14 @@ from pathlib import Path
 import sqlite3
 
 from meme_machine.runtime.journal import canonical, digest
-from meme_machine.paper_policy_revision import ACTIVE_REVISION, previous_hash
+from meme_machine.paper_policy_revision import (ACTIVE_REVISION, historical_hashes,
+    current_hashes,revision_for_hash)
 
-SELECTION_KEY = 'paper_decision_policy_selection'
+LEGACY_SELECTION_KEY = 'paper_decision_policy_selection'
+# Each revision proves its own flat, reconciled native/portfolio boundary. Keep
+# the original selection bytes as evidence; an old selection cannot authorize
+# a newer decision policy on an open historical holding.
+SELECTION_KEY = LEGACY_SELECTION_KEY+':'+ACTIVE_REVISION
 SELECTION_NAMESPACE = '__paper_decision_policy__'
 
 
@@ -39,14 +44,14 @@ def active_hash(regime):
 
 
 def known_hash(regime,value):
-    """Historical joins may use either exact source policy, never an arbitrary hash."""
-    return value in (previous_hash(regime),active_hash(regime))
+    """Historical joins require an exact reviewed policy, never an arbitrary hash."""
+    return value==active_hash(regime) or value in historical_hashes(regime)
 
 
 def compatible_identity(stored,requested,*,regime,field='policy_hash'):
     old=dict(stored);new=dict(requested)
     old_hash=old.pop(field,None);new_hash=new.pop(field,None)
-    return (old==new and old_hash==previous_hash(regime)
+    return (old==new and old_hash in historical_hashes(regime)
         and new_hash==active_hash(regime) and old_hash!=new_hash)
 
 
@@ -55,6 +60,29 @@ def selection(financial_identity,decision_identity):
         financial_identity=financial_identity,decision_identity=decision_identity,
         financial_identity_hash=digest(financial_identity),
         decision_identity_hash=digest(decision_identity))
+
+
+def validate_prior_selection(value,financial_identity):
+    """Validate retained selection evidence without updating or relabeling it."""
+    if (not isinstance(financial_identity,dict) or not isinstance(value,dict)
+            or value.get('schema')!='paper-decision-policy-selection-v1'
+            or value.get('financial_identity')!=financial_identity
+            or value.get('financial_identity_hash')!=digest(financial_identity)
+            or not isinstance(value.get('decision_identity'),dict)
+            or value.get('decision_identity_hash')!=digest(value['decision_identity'])):
+        raise ValueError('paper_policy_selection_checkpoint_conflict')
+    old=dict(financial_identity);new=dict(value['decision_identity'])
+    if 'policies' in old:
+        before=old.pop('policies');after=new.pop('policies',{})
+        valid=(isinstance(before,dict) and isinstance(after,dict) and set(before)==set(after)
+            and all(known_hash(regime_for(strategy),before[strategy])
+                and known_hash(regime_for(strategy),after[strategy])
+                and revision_for_hash(after[strategy])==value.get('revision') for strategy in before))
+    else:
+        before=old.pop('policy_hash',None);after=new.pop('policy_hash',None)
+        valid=(revision_for_hash(after)==value.get('revision') and value.get('revision') is not None
+            and any(known_hash(regime,before) and known_hash(regime,after) for regime in current_hashes()))
+    if old!=new or not valid:raise ValueError('paper_policy_selection_checkpoint_conflict')
 
 
 def require_flat_rows(rows,*,kind):
@@ -82,6 +110,47 @@ def require_flat_rows(rows,*,kind):
             raise ValueError('paper_policy_transition_unresolved_'+kind+':'+str(row.get('id','unavailable')))
 
 
+def _terminal_native_position(state,life,position):
+    """A retained terminal is history only after an exact native delivery ACK.
+
+    Older native delivery fingerprints can prove terminal accounting without
+    supplying the later versioned re-entry receipt or manufacturing its clocks.
+    The native adapter still separately replays its own book/history before it
+    selects a new decision policy.
+    """
+    from meme_machine.exact_money import money
+    try:
+        if (not isinstance(position,dict) or position.get('id')!=life
+                or position.get('status')!='SETTLED' or money(position.get('basis'))!=0
+                or type(position.get('settled_at')) is not int
+                or not isinstance(state.get('native_aliases'),dict)
+                or life not in state['native_aliases'].values()):return False
+        regime=position['regime'];contract=state['contracts'][regime]
+        if position.get('strategy_id')!=contract.get('strategy_id'):return False
+        sequence=state['native_cursors'][regime+':'+life]
+        deliveries=state['native_deliveries']
+        if type(sequence) is not int or sequence<=0 or not isinstance(deliveries,dict):return False
+        def matches(event_id,journal_hash,native_sequence):
+            if (not isinstance(event_id,str) or not isinstance(journal_hash,str)
+                    or len(journal_hash)!=64 or any(c not in '0123456789abcdef' for c in journal_hash)
+                    or type(native_sequence) is not int or native_sequence!=sequence):return False
+            native=dict(epoch_id=state['epoch_id'],regime=regime,lifecycle_id=life,
+                event_id=event_id,sequence=sequence,journal_sha256=journal_hash)
+            return deliveries.get(regime+':'+life+':'+event_id)==digest(native)
+        receipt=position.get('terminal_receipt')
+        if receipt is not None:
+            return (isinstance(receipt,dict) and receipt.get('version')==1
+                and receipt.get('lifecycle_id')==life and receipt.get('terminal_at')==position['settled_at']
+                and type(receipt.get('global_ack_at')) is int
+                and receipt['global_ack_at']>=receipt['terminal_at']
+                and matches(receipt.get('native_event_id'),receipt.get('native_journal_hash'),receipt.get('native_sequence')))
+        prefix=regime+':'+life+':native:'
+        return any(matches('native:'+key[len(prefix):],key[len(prefix):],sequence)
+            for key in deliveries if key.startswith(prefix))
+    except (KeyError,TypeError,ValueError,ArithmeticError):
+        return False
+
+
 def require_flat_portfolio(state):
     """Pure check reused by supervisor preflight and the native transition boundary."""
     if (not isinstance(state,dict) or not isinstance(state.get('positions'),dict)
@@ -91,7 +160,10 @@ def require_flat_portfolio(state):
                 'pending_deliveries','pending_backing'):
         if key in state and not isinstance(state[key],list if key=='pending_deliveries' else dict):
             raise ValueError('paper_policy_transition_portfolio_evidence_unavailable:'+key)
-        if state.get(key):raise ValueError('paper_policy_transition_unresolved_'+key)
+        if key=='positions':
+            if any(not _terminal_native_position(state,life,position) for life,position in state[key].items()):
+                raise ValueError('paper_policy_transition_unresolved_positions')
+        elif state.get(key):raise ValueError('paper_policy_transition_unresolved_'+key)
 
 
 def assert_shared_transition(root,state):
@@ -183,6 +255,11 @@ def require_external_flat():
 
 
 def runtime_selection(db,expected):
+    for raw,checksum in db.execute('SELECT body,hash FROM runtime_state WHERE identity=? AND (key=? OR key LIKE ?)',
+            (SELECTION_NAMESPACE,LEGACY_SELECTION_KEY,LEGACY_SELECTION_KEY+':%')):
+        retained=json.loads(raw)
+        if digest(retained)!=checksum:raise ValueError('paper_policy_selection_checkpoint_conflict')
+        validate_prior_selection(retained,expected['financial_identity'])
     row=db.execute('SELECT body,hash FROM runtime_state WHERE identity=? AND key=?',
         (SELECTION_NAMESPACE,SELECTION_KEY)).fetchone()
     if row is None:return False

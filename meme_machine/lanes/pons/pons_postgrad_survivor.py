@@ -7,7 +7,7 @@ accounting may be supplied by adapters, but no pre-graduation qualification,
 position, wallet score or outcome is an input.
 
 The policy was designed from open-market Pons post-graduation behavior observed
-2026-09-19..2026-09-26.  It is PAPER ONLY until separately certified.
+2026-09-19..2026-09-26. Native funded execution remains PAPER ONLY.
 """
 from __future__ import annotations
 
@@ -59,7 +59,11 @@ POLICY=dict(
     ),
     confirmation=dict(repeat_window_seconds=1800,hard_repeat_threshold=None,
         ranking_tiebreak=['repeat_independent_buyers_30m','repeat_buyer_share_bps']),
-    reentry=dict(minimum_seconds=3600,minimum_changed_dimensions=2),
+    reentry=dict(minimum_seconds=3600,minimum_changed_dimensions=2,
+        cycle_identity='rally-cycle-v1',minimum_completed_base_seconds=900,
+        require_distinct_post_breakout_peak=True,require_verified_settlement=True,
+        require_post_settlement_peak=True,setup_spacing_execution_veto=False,
+        require_global_release_ack=True,require_no_pending_financial_obligations=True),
     execution=dict(
         target_capital_bps=500,
         minimum_capital_bps=5,
@@ -214,6 +218,14 @@ def _feature_set(facts):
         None if older_peak is None or base_low is None or base_low>=older_peak
         else (older_peak-base_low)*10_000//older_peak
     )
+    # These are actual retained canonical observation times. Price magnitudes,
+    # buyer counts and rolling window edges cannot identify a new rally.
+    peak_at=next((at for at,price in older if price==older_peak),None)
+    reset_at=next((at for at,price in prior_base if price==base_low),None)
+    base_end=prior_base[-1][0] if prior_base else None
+    breakout_at=next((at for at,price in points if base_end is not None
+        and at>base_end and prior_high is not None
+        and return_bps(prior_high,price)>=POLICY['trend']['min_breakout_bps']),None)
 
     flow=facts.get("flow_30m") or {}
     prev=facts.get("flow_previous_30m") or {}
@@ -260,6 +272,8 @@ def _feature_set(facts):
         short_window=short_window,medium_window=medium_window,long_window=long_window,
         reset_pullback_bps=pullback,breakout_bps=breakout,
         base_low=base_low,base_high=prior_high,older_peak=older_peak,
+        peak_at=peak_at,reset_at=reset_at,base_start=reset_at,base_end=base_end,
+        breakout_at=breakout_at,
         buy_quote_30m=buy,sell_quote_30m=sell,buy_sell_ratio_bps=ratio,
         buy_acceleration_bps=acceleration,
         previous_buyer_population_available=previous_population_available,

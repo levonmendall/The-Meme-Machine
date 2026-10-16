@@ -168,7 +168,7 @@ class PaperBook:
                 if p['status'] != 'reserved' or amount > p['reserved'] or not amount or not tokens:
                     raise ValueError('invalid_paper_fill')
                 p.update(status='open', reserved=0, basis=amount, mark=amount,
-                         tokens=tokens, capital_at_risk=amount)
+                         tokens=tokens, capital_at_risk=amount, entry_fill_at=at, entry_basis=amount)
             elif action == 'cancelled':
                 if p['status'] != 'reserved':
                     raise ValueError('invalid_paper_cancel')

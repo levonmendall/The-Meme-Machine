@@ -1,5 +1,6 @@
 """Synthetic exact-boundary fixtures; these are not market profitability evidence."""
 from copy import deepcopy
+from contextlib import contextmanager
 import unittest
 from meme_machine.lanes.pump.pumpswap_survivor import evaluate_entry, POLICY
 
@@ -23,6 +24,25 @@ def facts():
                 mayhem=dict(status='never'),liquidity_usd_micros=30_000_000_000,
                 base_end=24400,price_points=[dict(at=t,price=str(p)) for t,p in points],
                 recovery_vwap='155',demand_events=events,demand_complete=True)
+
+
+def bridge_facts(age=600,quote_scale=1):
+    """Complete, synthetic canonical graduation-to-breakout tape at each tier."""
+    tier=next(t for t in POLICY['bridge_tiers'] if t['minimum_age_seconds']<=age<t['maximum_age_seconds'])
+    duration=tier['base_seconds'];end=age-60;start=end-duration;previous=start-duration
+    points=[(0,100),(previous-40,200),(previous-20,140),(previous,145),
+            (previous+duration//2,160),(start,150),(start+duration//3,153),
+            (start+2*duration//3,156),(end,160),(age,162)]
+    window=tier['demand_window_seconds']
+    f=facts();f.update(now=age,base_end=end,price_points=[dict(at=t,price=str(p)) for t,p in points],
+                      recovery_vwap='155',demand_events=[])
+    for i,g in enumerate(('a','b','c')):
+        f['demand_events'].append(dict(id='prior'+g,at=age-window-window//2+i,
+            group=g,quote=1000*quote_scale,buy=True,authenticated=True))
+    for i,g in enumerate(('a','b','d','e','f','g')):
+        f['demand_events'].append(dict(id='current'+g,at=age-window//2+i,
+            group=g,quote=1000*quote_scale,buy=True,authenticated=True))
+    return f
 
 
 class SurvivorTests(unittest.TestCase):
@@ -103,7 +123,7 @@ class SurvivorTests(unittest.TestCase):
                 self.assertIn(reason,evaluate_entry(f)['all_rejections'])
 
     def test_age_inclusive_exact_bounds(self):
-        for age,passes in [(14399,False),(14400,True),(604800,True),(604801,False)]:
+        for age,passes in [(599,False),(600,True),(14399,True),(14400,True),(604800,True),(604801,False)]:
             f=facts();f['graduation_at']=f['now']-age
             self.assertEqual('age' not in evaluate_entry(f)['all_rejections'],passes)
 
@@ -203,6 +223,343 @@ class SurvivorTests(unittest.TestCase):
         self.assertIn('base_compression',evaluate_entry(f)['all_rejections'])
         f=facts();f['price_points'][10]['low']='139'
         self.assertIn('reset_low_breakdown',evaluate_entry(f)['all_rejections'])
+
+
+class PumpPostgradBridgeTests(unittest.TestCase):
+    def test_exact_maturity_tiers_have_complete_canonical_funded_decisions(self):
+        for age,tier in ((600,'10m-30m'),(1799,'10m-30m'),(1800,'30m-2h'),
+                         (7199,'30m-2h'),(7200,'2h-4h'),(14399,'2h-4h')):
+            with self.subTest(age=age):
+                d=evaluate_entry(bridge_facts(age))
+                self.assertTrue(d['candidate'],d)
+                self.assertEqual(d['features']['execution_profile'],'pump_postgrad_bridge')
+                self.assertEqual(d['features']['maturity_tier'],tier)
+                window=d['features']['long_structure_window']
+                self.assertEqual((window['effective_seconds'],window['window_start'],window['complete']),
+                                 (age,0,True))
+                self.assertEqual(d['features']['base_end']-d['features']['base_start'],d['features']['base_seconds'])
+        f=bridge_facts();f['now']=599;f['price_points'][-1]['at']=599
+        self.assertIn('age',evaluate_entry(f)['all_rejections'])
+
+    def test_breakout_clock_uses_first_canonical_post_base_crossing_and_extrema(self):
+        for price,high in (('161','161'),('159','161')):
+            with self.subTest(price=price,high=high):
+                f=bridge_facts();f['price_points'].insert(-1,dict(at=570,price=price,high=high))
+                decision=evaluate_entry(f)
+                self.assertTrue(decision['candidate'],decision)
+                self.assertEqual(decision['features']['breakout_at'],570)
+                self.assertEqual(decision['features']['market_time'],600)
+        # Mature predecessor decisions keep their original recorded semantics.
+        from meme_machine.paper_policy_revision import predecessor_policies
+        old=predecessor_policies()['pump_survivor']['policy']
+        f=facts();f['price_points'].insert(-1,dict(at=24800,price='161'))
+        self.assertEqual(evaluate_entry(f)['features']['breakout_at'],24800)
+        self.assertEqual(evaluate_entry(f,old)['features']['breakout_at'],25000)
+
+    def test_bridge_comparison_uses_exact_predecessor_age_and_existing_predicates(self):
+        from meme_machine.paper_policy_revision import predecessor_hash
+        admitted=evaluate_entry(bridge_facts())
+        comparison=admitted['policy_comparison']
+        self.assertEqual(comparison['predecessor_policy_hash'],predecessor_hash('pump_survivor'))
+        self.assertEqual(comparison['predecessor_minimum_age_seconds'],14400)
+        self.assertEqual(comparison['predecessor_decisive_rejection'],'age')
+        self.assertFalse(comparison['predecessor_minimum_age_pass'])
+        self.assertTrue(comparison['newly_admitted_bridge'])
+        rejected=bridge_facts();rejected['hard_concentration_pass']=False
+        comparison=evaluate_entry(rejected)['policy_comparison']
+        self.assertFalse(comparison['newly_admitted_bridge'])
+        self.assertFalse(comparison['evaluated_shared_predicates']['hard_concentration'])
+        mature=evaluate_entry(facts())['policy_comparison']
+        self.assertTrue(mature['predecessor_minimum_age_pass'])
+        self.assertEqual(mature['scope'],'evaluated_shared_entry_predicates')
+        self.assertEqual(mature['complete_predecessor_decision'],'not_replayed')
+
+    def test_denied_bridge_uses_existing_funding_event_for_missed_eligibility(self):
+        from types import SimpleNamespace
+        from meme_machine.lanes.pump.pumpswap_survivor_runtime import Runtime
+        runtime=object.__new__(Runtime);runtime.now=lambda:600;events=[]
+        runtime.candidate_history=SimpleNamespace(record_funding=lambda *args,**kwargs:events.append((args,kwargs)))
+        row=dict(id='mint',decision_id='qualified-decision',decision=evaluate_entry(bridge_facts()))
+        runtime._funding(row,'denied','fresh_quote_unavailable')
+        self.assertEqual(len(events),1)
+        self.assertTrue(events[0][1]['details']['missed_eligible_bridge'])
+        self.assertEqual(events[0][1]['reason'],'fresh_quote_unavailable')
+        self.assertTrue(events[0][1]['details']['policy_comparison']['newly_admitted_bridge'])
+
+    def test_bridge_unknown_history_structure_demand_and_safety_are_closed(self):
+        mutations=[
+            (lambda f:f.update(authoritative=False),'authoritative_evidence'),
+            (lambda f:f.update(continuity_complete=False),'authoritative_evidence'),
+            (lambda f:f.update(demand_complete=False),'incomplete_structure_or_demand'),
+            (lambda f:f['price_points'].pop(0),'complete_graduation_history'),
+            (lambda f:f.update(hard_concentration_pass=False),'hard_concentration'),
+            (lambda f:f.update(creator_distribution_safe=False),'creator_distribution'),
+            (lambda f:f.update(exit_liquidity_available=False),'exit_liquidity'),
+            (lambda f:f.update(mayhem={'status':'active'}),'active_mayhem'),
+            (lambda f:f['price_points'][-1].update(price='160'),'no_continuation'),
+            (lambda f:f['demand_events'].pop(),'bridge_buyer_breadth'),
+            (lambda f:f['demand_events'][-1].update(quote=100000),'bridge_demand_concentration'),
+            (lambda f:f['demand_events'][-1].update(authenticated=False),'incomplete_structure_or_demand'),
+        ]
+        for mutate,reason in mutations:
+            with self.subTest(reason=reason):
+                f=bridge_facts();mutate(f)
+                d=evaluate_entry(f)
+                self.assertFalse(d['candidate'],d)
+                self.assertIn(reason,d['all_rejections'])
+
+    def test_bridge_pre_two_x_trail_and_right_tail_match_current_boundaries(self):
+        from meme_machine.runtime.survivor_risk import mark
+        from tests.test_survivor_risk_boundaries import state,observation
+        policy=POLICY['bridge_exits']
+        # A positive peak below +15% still arms Current's 14% price drawdown.
+        peak,_=mark(state(),observation(1,1000),policy)
+        self.assertEqual(mark(peak,observation(2,-539),policy)[1]['action'],'hold')
+        self.assertEqual(mark(peak,observation(2,-540),policy)[1]['reason'],'runner_trail')
+        tail,_=mark(state(),observation(1,10000),policy)
+        tail.update(realization_taken=True,remaining_quantity=301)
+        self.assertEqual(mark(tail,observation(2,6001),policy)[1]['action'],'hold')
+        self.assertEqual(mark(tail,observation(2,6000),policy)[1]['reason'],'tail_gain_giveback')
+
+    def test_original_bridge_exit_profile_survives_fill_across_four_hour_boundary(self):
+        from meme_machine.runtime.survivor_commit import risk_record
+        from meme_machine.lanes.pump.pumpswap_survivor_runtime import Runtime
+        decision=evaluate_entry(bridge_facts(14399))
+        fresh=evaluate_entry(facts())
+        self.assertTrue(decision['candidate']);self.assertTrue(fresh['candidate'])
+        risk=risk_record(None,dict(action='filled',at=14400,
+            position=dict(tokens=400,basis=100),evidence=dict(decision=decision,fill=fresh)))
+        self.assertEqual(risk['execution_profile'],'pump_postgrad_bridge')
+        runtime=object.__new__(Runtime)
+        self.assertEqual(runtime.position_policy(risk,POLICY['exits']),POLICY['bridge_exits'])
+
+    def test_bridge_keeps_native_quote_capacity_and_full_financial_lifecycle(self):
+        from fractions import Fraction
+        import os,tempfile
+        from pathlib import Path
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from meme_machine.lanes.pump.pumpswap_survivor import POLICY_HASH,STRATEGY_ID
+        from meme_machine.lanes.pump.pumpswap_survivor_runtime import Runtime,Quotes
+        from meme_machine.lanes.pump.postgrad import PostGraduationAdapter,buy_quote,sell_quote
+        from meme_machine.runtime.directional_sleeve import open_sleeve
+        from meme_machine.runtime.survivor_history import History
+        from meme_machine.runtime.survivor_paper_book import PaperBook
+        from meme_machine.runtime.survivor_commit import monitor,restore_risk
+        from tests.lanes.pump.test_postgrad_read_efficiency import MeteredRPC
+        from tests.lanes.pump.test_postgrad import MINT
+        # Real native integer quotes on decoded account layouts; no provider IO.
+        rpc=MeteredRPC();state=PostGraduationAdapter(rpc,scan_rpc=object()).pumpswap_snapshot(
+            MINT,101,reuse_verified_pool=True,held_curve_inline=True)
+        state.update(market_time=600,available_time=600)
+        f=bridge_facts(quote_scale=100000)
+        ratio=Fraction(state['state']['quote_reserve'],state['state']['base_reserve'])/162
+        for point in f['price_points']:point['price']=str(Fraction(point['price'])*ratio)
+        f['migration_price']=str(100*ratio);f['recovery_vwap']=str(155*ratio)
+        with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,dict(
+                MM_DIRECTIONAL_SLEEVE_DB=td+'/sleeve.sqlite',MM_DIRECTIONAL_COHORT_ID='bridge-offline'),clear=True):
+            rt=object.__new__(Runtime);rt.root=Path(td);rt.run_id='bridge';rt.last_error=None
+            rt.candidate_history=None;rt.adapter=None;rt.rpc=None;rt.clock=600;rt.now=lambda:rt.clock
+            rt.sleeve=open_sleeve('pump',10_000_000_000)
+            rt.book=PaperBook(td+'/paper',run_id=rt.run_id,lane=STRATEGY_ID,
+                              policy_hash=POLICY_HASH,initial=10_000_000_000)
+            rt.history=History(td+'/history',policy=POLICY_HASH)
+            rt.history.graduate(MINT,dict(at=0,pool=state['pool'],identity='canonical-migration',
+                signature='finalized-migration',quote_amount=100,mint_amount=1))
+            rt.plane=SimpleNamespace(frontier=lambda scope:state['slot'],block_time=lambda slot:600,
+                                     require_usable=lambda scope:None)
+            rt.discover=lambda:None;rt._increment=lambda *args:None
+            rt.fresh_state=lambda candidate,**kw:state
+            rt.reconstruct=lambda *args,**kw:deepcopy(f)
+            try:
+                with patch('meme_machine.runtime.storage.compact_survivor'):
+                    status=rt.step(admit=True)
+                self.assertIsNone(status['last_boundary'],status)
+                self.assertEqual(status['accounting']['open_positions'],1)
+                work=status['execution_work_model']
+                self.assertEqual((work['additional_workers'],work['additional_broad_market_scans'],
+                                  work['counterfactual_full_history_evaluations']),(0,0,0))
+                row=rt.history.get(MINT);identity=row['position'];position=rt.book._load(identity)
+                cycle=row['regime']['rally_cycle']
+                self.assertEqual((cycle['chain'],cycle['pool'],cycle['policy_hash'],cycle['input_version']),
+                    ('solana-mainnet',state['pool'],POLICY_HASH,'pump-postgrad-canonical-history-v1'))
+                self.assertGreater(position['basis'],0)
+                self.assertEqual(position['status'],'open')
+                self.assertLessEqual(position['basis'],evaluate_entry(f)['features']['turnover_cap'])
+                risk=restore_risk(rt.book,identity)
+                self.assertEqual(risk['execution_profile'],'pump_postgrad_bridge')
+                self.assertEqual(rt.position_policy(risk,POLICY['exits']),POLICY['bridge_exits'])
+                # Policy follows the original fill even after age four hours.
+                f['now']=20000
+                self.assertEqual(rt.position_policy(risk,POLICY['exits'])['hard_stop_bps'],-800)
+                original_tokens=position['tokens'];original_basis=position['basis']
+                rt.clock=601;rt.exit_quote=lambda qty:dict(quantity=qty,net_proceeds=original_basis*115//400,
+                    acquired=rt.clock,market_time=rt.clock,slot=state['slot'])
+                action=monitor(book=rt.book,sleeve=rt.sleeve,identity=identity,adapter=rt,
+                    policy=POLICY['exits'],observation=dict(id='harvest',at=601,
+                    after_cost_return_bps=1500,net_exit_proceeds=original_basis*115//100,exit_liquidity_valid=True))
+                self.assertEqual(action['action'],'partial_exit')
+                self.assertEqual(action['quantity'],original_tokens//4)
+                rt.book.close();rt.book=PaperBook(td+'/paper',run_id=rt.run_id,lane=STRATEGY_ID,
+                    policy_hash=POLICY_HASH,initial=10_000_000_000)
+                self.assertTrue(restore_risk(rt.book,identity)['realization_taken'])
+                rt.clock=602;remaining=rt.book._load(identity)
+                rt.exit_quote=lambda qty:dict(quantity=qty,net_proceeds=remaining['basis']*92//100,
+                    acquired=rt.clock,market_time=rt.clock,slot=state['slot'])
+                action=monitor(book=rt.book,sleeve=rt.sleeve,identity=identity,adapter=rt,
+                    policy=POLICY['exits'],observation=dict(id='stop',at=602,
+                    after_cost_return_bps=-800,net_exit_proceeds=remaining['basis']*92//100,exit_liquidity_valid=True))
+                self.assertEqual((action['action'],action['reason']),('full_exit','hard_stop'))
+                terminal=rt.book._load(identity);native=rt.book.reconcile();capital=rt.sleeve.reconcile()
+                self.assertEqual(terminal['status'],'settled')
+                self.assertEqual((native['basis'],native['reserved'],native['open_positions']),(0,0,0))
+                self.assertEqual(capital['reserved'],0)
+                self.assertEqual(capital['available'],10_000_000_000+terminal['realized'])
+                self.assertTrue(rt.book.replay()['verified'])
+            finally:rt.book.close();rt.history.close();rt.sleeve.close()
+
+
+class PumpRejectedEntryControllerTests(unittest.TestCase):
+    @contextmanager
+    def runtime(self):
+        from fractions import Fraction
+        import os,tempfile
+        from pathlib import Path
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from meme_machine.lanes.pump.pumpswap_survivor import POLICY_HASH,STRATEGY_ID
+        from meme_machine.lanes.pump.pumpswap_survivor_runtime import Runtime
+        from meme_machine.lanes.pump.postgrad import PostGraduationAdapter
+        from meme_machine.runtime.directional_sleeve import open_sleeve
+        from meme_machine.runtime.survivor_history import History
+        from meme_machine.runtime.survivor_paper_book import PaperBook
+        from tests.lanes.pump.test_postgrad_read_efficiency import MeteredRPC
+        from tests.lanes.pump.test_postgrad import MINT
+        rpc=MeteredRPC();state=PostGraduationAdapter(rpc,scan_rpc=object()).pumpswap_snapshot(
+            MINT,101,reuse_verified_pool=True,held_curve_inline=True)
+        with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,dict(
+                MM_DIRECTIONAL_SLEEVE_DB=td+'/sleeve',MM_DIRECTIONAL_COHORT_ID='rejection-offline'),clear=True), \
+                patch('meme_machine.runtime.storage.compact_survivor'):
+            rt=object.__new__(Runtime);rt.root=Path(td);rt.run_id='bridge-rejection';rt.last_error=None
+            rt.candidate_history=None;rt.adapter=None;rt.rpc=None;rt.clock=600;rt.now=lambda:rt.clock
+            rt.sleeve=open_sleeve('pump',10_000_000_000)
+            rt.book=PaperBook(td+'/paper',run_id=rt.run_id,lane=STRATEGY_ID,
+                              policy_hash=POLICY_HASH,initial=10_000_000_000)
+            rt.history=History(td+'/history',policy=POLICY_HASH)
+            rt.mint=MINT;rt.quote_state=state;rt.hydrations=[]
+            rt.history.graduate(MINT,dict(at=0,pool=state['pool'],identity='canonical-migration',
+                signature='finalized-migration',quote_amount=100,mint_amount=1))
+            rt.plane=SimpleNamespace(frontier=lambda scope:state['slot'],block_time=lambda slot:rt.clock,
+                                     require_usable=lambda scope:None)
+            rt.discover=lambda:None;rt._increment=lambda *args:None
+            def fresh(candidate,**kwargs):
+                rt.hydrations.append((rt.clock,kwargs))
+                state.update(market_time=rt.clock,available_time=rt.clock,slot=1001+rt.clock)
+                return state
+            rt.fresh_state=fresh
+            ratio=Fraction(state['state']['quote_reserve'],state['state']['base_reserve'])/162
+            def new_facts(age):
+                f=bridge_facts(age,quote_scale=100000)
+                for point in f['price_points']:point['price']=str(Fraction(point['price'])*ratio)
+                f['migration_price']=str(100*ratio);f['recovery_vwap']=str(155*ratio)
+                rt.entry_facts=f;rt.clock=age
+            rt.new_facts=new_facts;new_facts(600)
+            rt.reconstruct=lambda *args,**kwargs:deepcopy(rt.entry_facts)
+            try:yield rt
+            finally:rt.book.close();rt.history.close();rt.sleeve.close()
+
+    def test_actual_step_rejects_old_cycle_then_funds_new_cycle_without_stranded_pointer(self):
+        from meme_machine.runtime.journal import digest
+        with self.runtime() as rt:
+            self.assertIsNone(rt.step(admit=True)['last_boundary'])
+            first=rt.history.get(rt.mint)['position'];position=rt.book._load(first)
+            rt.book.transition(first,'settled',610,amount=position['basis'],tokens=position['tokens'])
+            terminal=rt.book._load(first)
+            rt.sleeve.reentry_verified=lambda identity:dict(terminal_at=610,global_ack_at=610,
+                obligations_clear=True) if identity==first else None
+            rt.sleeve.release(first,pnl=terminal['realized'],at=610,terminal_hash=digest(terminal),native_verified=True)
+            rt.clock=620;rt.entry_facts['now']=620
+            rt.entry_facts['price_points'].append(dict(at=620,price=rt.entry_facts['price_points'][-1]['price']))
+            before=len(rt.hydrations);status=rt.step(admit=True)
+            row=rt.history.get(rt.mint)
+            self.assertIsNone(status['last_boundary'])
+            self.assertIsNone(row['position'])
+            self.assertEqual(row['state'],'breakout_watch')
+            self.assertEqual(row['entry_rejection']['reason'],'same_survivor_regime')
+            self.assertTrue(row['entry_rejection']['native_absence_verified'])
+            rejected=row['entry_rejection']['identity']
+            self.assertIsNone(rt.sleeve.get(rejected))
+            self.assertIsNone(rt.book.db.execute('SELECT id FROM positions WHERE id=?',(rejected,)).fetchone())
+            # The rejection happens before commit hydration or any native hold.
+            self.assertEqual(len(rt.hydrations)-before,1)
+            self.assertEqual(status['accounting']['open_positions'],0)
+            self.assertEqual(status['sleeve']['reserved'],0)
+            # Reproduce a restored provisional pointer from the former code.
+            # It must be repaired locally before this turn's fresh qualification.
+            row.update(position=rejected,state='reserved');rt.history.save(row)
+            rt.new_facts(1200)
+            restored=rt.step(admit=True)
+            self.assertEqual(restored['last_boundary'],'same_survivor_regime')
+            self.assertIsNone(rt.history.get(rt.mint)['position'])
+            status=rt.step(admit=True);row=rt.history.get(rt.mint)
+            self.assertIsNone(status['last_boundary'])
+            self.assertNotEqual(row['position'],rejected)
+            self.assertEqual(rt.book._load(row['position'])['status'],'open')
+            self.assertEqual(status['accounting']['open_positions'],1)
+            self.assertEqual(status['accounting']['settled'],1)
+            self.assertEqual(rt.sleeve.rally(rt.mint,strategy=rt.book.identity['lane'])['traded_count'],2)
+            self.assertTrue(rt.book.replay()['verified'])
+
+    def test_actual_step_keeps_real_native_holds_and_unknown_admission_outcomes(self):
+        from unittest.mock import patch
+        for kind in ('book_reservation','sleeve_reservation','unknown_failure'):
+            with self.subTest(kind=kind),self.runtime() as rt:
+                reserve=rt.sleeve.reserve
+                def failure(identity,**kwargs):
+                    if kind=='book_reservation':
+                        rt.book.reserve(identity,kwargs['amount'],kwargs['at'],dict(candidate=rt.mint))
+                    elif kind=='sleeve_reservation':reserve(identity,**kwargs)
+                    raise ValueError('unclassified_admission_failure' if kind=='unknown_failure' else 'same_survivor_regime')
+                with patch.object(rt.sleeve,'reserve',side_effect=failure):status=rt.step(admit=True)
+                row=rt.history.get(rt.mint)
+                self.assertIsNotNone(row['position'])
+                self.assertEqual(row['state'],'reserved')
+                self.assertNotIn('entry_rejection',row)
+                self.assertEqual(status['last_boundary'],
+                    'unclassified_admission_failure' if kind=='unknown_failure' else 'same_survivor_regime')
+                self.assertFalse(status['durable_handoff'])
+
+    def test_actual_step_keeps_shared_pending_or_unknown_request_without_full_shared_scan(self):
+        import json,sqlite3
+        from contextlib import nullcontext
+        from types import SimpleNamespace
+        from unittest.mock import Mock,patch
+        for kind in ('reserved','queued','open_alias','unknown_request'):
+            with self.subTest(kind=kind),self.runtime() as rt:
+                db=sqlite3.connect(':memory:')
+                db.execute('CREATE TABLE shared_capital_projection(id INTEGER PRIMARY KEY,body TEXT)')
+                def failure(identity,**kwargs):
+                    key='pump:'+identity;request='unresolved-request';life='native-life'
+                    state=dict(runtime_native_requests={key:request},native_aliases={key:life},
+                        requests={request:dict(status='RESERVED' if kind=='reserved' else 'CANCELLED')},
+                        runtime_inbox={},runtime_pending={},reservations={},commitments={},obligations={},positions={})
+                    if kind=='queued':state['runtime_inbox'][request]=dict(native=identity)
+                    if kind=='open_alias':state['positions'][life]=dict(status='OPEN')
+                    if kind=='unknown_request':state['requests']={}
+                    db.execute('INSERT OR REPLACE INTO shared_capital_projection VALUES(1,?)',(json.dumps(state),))
+                    raise ValueError('same_survivor_regime')
+                authority=SimpleNamespace(db=db,_transaction=lambda **kwargs:nullcontext(),
+                    ledger=Mock(side_effect=AssertionError('full_shared_read_forbidden')),
+                    snapshot=Mock(side_effect=AssertionError('shared_valuation_forbidden')))
+                rt.sleeve.authority=authority
+                try:
+                    with patch.object(rt.sleeve,'reserve',side_effect=failure):status=rt.step(admit=True)
+                    row=rt.history.get(rt.mint)
+                    self.assertIsNotNone(row['position'])
+                    self.assertEqual(status['last_boundary'],'same_survivor_regime')
+                    self.assertNotIn('entry_rejection',row)
+                    authority.ledger.assert_not_called();authority.snapshot.assert_not_called()
+                finally:db.close()
 
 
 if __name__=='__main__':unittest.main()

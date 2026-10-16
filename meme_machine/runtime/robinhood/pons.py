@@ -124,9 +124,9 @@ class Broker:
         identity=('schema','chain','policy','factory','factory_runtime','deployer_source','curve_template')
         policy_changed=old.get('policy')!=self.policy.get('policy')
         if policy_changed:
-            from meme_machine.paper_policy_revision import previous_hash
+            from meme_machine.paper_policy_revision import historical_hashes
             from meme_machine.runtime.policy_compatibility import active_hash
-            if old.get('policy')!=previous_hash('pons_current') or self.policy.get('policy')!=active_hash('pons_current'):
+            if old.get('policy') not in historical_hashes('pons_current') or self.policy.get('policy')!=active_hash('pons_current'):
                 return False
         if any(old.get(k)!=self.policy.get(k) for k in identity if k!='policy'):return False
         if ((row is not None and (row['claim'] is not None or row['state'] in ('entry_confirmation','entry_reserved')))
@@ -763,9 +763,9 @@ def recover_cohort(path,policy,*,capital_path=None):
         controller_anchor(result)
         stored_policy=result.get('policy_hash')
         if stored_policy!=policy:
-            from meme_machine.paper_policy_revision import previous_hash,ACTIVE_REVISION
+            from meme_machine.paper_policy_revision import historical_hashes,ACTIVE_REVISION
             from meme_machine.runtime.policy_compatibility import active_hash,require_flat_rows,require_external_flat
-            if stored_policy!=previous_hash('pons_current') or policy!=active_hash('pons_current'):
+            if stored_policy not in historical_hashes('pons_current') or policy!=active_hash('pons_current'):
                 raise BoundaryError('selective_existing_run_requires_explicit_recovery')
             # No original lifecycle may adopt the new holding policy. The
             # verified old cohort is terminal and all releases are acknowledged.

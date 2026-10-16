@@ -97,7 +97,7 @@ def vector(**overrides):
 class PonsSelectivePolicyTests(unittest.TestCase):
     def test_policy_is_distinct_and_versioned(self):
         self.assertEqual(POLICY,"pons-selective-continuation-v1")
-        self.assertEqual(POLICY_REVISION,'paper-opportunity-access-v1')
+        self.assertEqual(POLICY_REVISION,'paper-postgrad-rally-v1')
         from meme_machine.paper_policy_revision import previous_hash
         self.assertEqual(previous_hash('pons_current'),'888904d0e58865f1a701560a5be8386f57d88f66a0c25d7094c994cafa7f448f')
         self.assertNotEqual(POLICY_HASH,previous_hash('pons_current'))
