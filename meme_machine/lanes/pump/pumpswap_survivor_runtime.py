@@ -375,6 +375,14 @@ class Runtime:
             if not materialized:
                 self._funding(row,'denied',str(exc),dict(lifecycle_id=identity,sizing=sizing,
                     phase='native_reservation_or_fresh_execution_validation'))
+            from meme_machine.runtime.survivor_commit import unmaterialized_entry_rejection
+            if unmaterialized_entry_rejection(self.book,self.sleeve,identity,exc):
+                current=self.history.get(row['id'])
+                if current.get('position')==identity and current.get('state')=='reserved':
+                    current.update(position=None,state='breakout_watch')
+                    current['entry_rejection']=dict(identity=identity,reason=str(exc),at=self.now(),
+                        native_absence_verified=True)
+                    self.history.save(current)
             raise
         self._funding(row,'funded',details=dict(lifecycle_id=identity,sizing=sizing))
         return result
@@ -501,12 +509,14 @@ class Runtime:
                                 try:
                                     self._enter(row,decision,observed['generation'],regime,row['position'])
                                 except ValueError as exc:
-                                    from meme_machine.shared_capital.native_sleeve import FundingDenied
-                                    if not isinstance(exc,FundingDenied) and str(exc) not in ('survivor_minimum_capital','sleeve_capital_exhausted'):
-                                        raise
                                     row=self.history.get(row['id'])
-                                    row['position']=None
-                                    row['state']='qualified_but_capital_unavailable'
+                                    # _enter alone may clear a proved unused
+                                    # identity. Real or uncertain native work
+                                    # retains its controller and recovery path.
+                                    if row.get('position') is not None:raise
+                                    from meme_machine.shared_capital.native_sleeve import FundingDenied
+                                    if isinstance(exc,FundingDenied) or str(exc) in ('survivor_minimum_capital','sleeve_capital_exhausted'):
+                                        row['state']='qualified_but_capital_unavailable'
                                     self._funding(row,'denied',str(exc),sizing)
                                     self.sleeve.opportunity(
                                         row['id'],identity=row['id'],regime='survivor',

@@ -7,7 +7,7 @@ import threading
 import unittest
 from unittest.mock import patch
 
-from meme_machine.runtime.rally_cycle import accumulate_outcomes,build_cycle,validate_cycle
+from meme_machine.runtime.rally_cycle import accumulate_outcomes,build_cycle,setup_spacing_shadow,validate_cycle
 from meme_machine.runtime.journal import digest
 from meme_machine.runtime.sleeve_reservations import SleeveReservations
 from meme_machine.runtime.survivor_risk import new_regime
@@ -105,6 +105,40 @@ class RallyAuthority(unittest.TestCase):
         old=dict(at=0,base_id='a',buyer_population=['one'])
         self.assertTrue(new_regime(old,dict(at=3600,base_id='b',buyer_population=['two'])))
         self.assertFalse(new_regime(old,dict(at=3599,base_id='b',buyer_population=['two'])))
+
+    def test_complete_legacy_shadow_preserves_two_known_changes_without_cycle_authority(self):
+        old=dict(at=100,base_id='base',buyer_population=['one'],independent_demand=1)
+        current=dict(at=3700,base_id='new-base',buyer_population=['one'],independent_demand=2)
+        shadow=setup_spacing_shadow(old,current['at'],current_regime=current)
+        self.assertEqual(shadow['changed_dimensions'],['base_id','independent_demand'])
+        self.assertTrue(shadow['legacy3600pass']);self.assertTrue(shadow['legacy_two_feature_pass'])
+        self.assertTrue(shadow['legacy_allows']);self.assertFalse(shadow['execution_veto'])
+        self.assertEqual(shadow['authority'],'comparison_only')
+        early=setup_spacing_shadow(old,3699,current_regime=current)
+        self.assertTrue(early['legacy_two_feature_pass']);self.assertFalse(early['legacy_allows'])
+        # Preserve the exact old dependent dimensions rather than silently
+        # improving a historical comparator. They never supply cycle authority.
+        numeric=dict(at=3700,base_id='base',buyer_population=['two','three'],independent_demand=2)
+        dependent=setup_spacing_shadow(old,numeric['at'],current_regime=numeric)
+        self.assertEqual(dependent['changed_dimensions'],['buyer_population','independent_demand'])
+        self.assertTrue(dependent['legacy_allows']);self.assertFalse(dependent['execution_veto'])
+        self.assertFalse(new_regime(regime(cycle()),dict(regime(cycle()),at=3700,
+            buyer_population=numeric['buyer_population'],independent_demand=numeric['independent_demand']),
+            settlement=dict(terminal_at=100,global_ack_at=101,obligations_clear=True)))
+        missing=setup_spacing_shadow(dict(old,independent_demand=None),numeric['at'],current_regime=numeric)
+        self.assertEqual(missing['changed_dimensions'],['buyer_population'])
+        self.assertFalse(missing['legacy_two_feature_pass']);self.assertFalse(missing['legacy_allows'])
+
+    def test_legacy_shadow_unknown_previous_or_clocks_remains_unknown(self):
+        current=dict(at=3700,base_id='new',buyer_population=['two'])
+        for previous,at,regime_context in ((None,3700,current),
+                (dict(base_id='old',buyer_population=['one']),3700,current),
+                (dict(at=100,base_id='old',buyer_population=['one']),None,current),
+                (dict(at=100,base_id='old',buyer_population=['one']),3700,None)):
+            with self.subTest(previous=previous,at=at,regime_context=regime_context):
+                shadow=setup_spacing_shadow(previous,at,current_regime=regime_context)
+                self.assertIsNone(shadow['legacy_allows'])
+                self.assertFalse(shadow['execution_veto'])
 
     def _sleeve(self,path):
         return SleeveReservations(path,lane='pump',capital=1000,
@@ -219,8 +253,10 @@ class RallyAuthority(unittest.TestCase):
             self.assertEqual(sleeve.rally('mint',strategy=STRATEGY)['traded_count'],1)
             second=self._observe(sleeve,cycle(200));self._reserve(sleeve,'second',second)
             shadow=second['regime']['setup_spacing_shadow']
-            self.assertEqual(shadow,dict(prior_setup_at=50,current_setup_at=240,spacing=190,
-                legacy3600pass=False,execution_veto=False))
+            self.assertEqual({key:shadow[key] for key in ('prior_setup_at','current_setup_at','spacing',
+                'legacy3600pass','execution_veto')},dict(prior_setup_at=50,current_setup_at=240,spacing=190,
+                    legacy3600pass=False,execution_veto=False))
+            self.assertFalse(shadow['legacy_allows']);self.assertFalse(shadow['legacy_two_feature_pass'])
             self.assertEqual(second['regime']['prior_cycle']['id'],observed['regime']['rally_cycle']['id'])
             report=sleeve.rally_report()
             self.assertEqual(report['rows'][0]['setup_spacing_shadow'],shadow)

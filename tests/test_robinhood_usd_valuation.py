@@ -185,7 +185,7 @@ OPPORTUNITY_ADDED_SOURCES=(
 RALLY_BASE='893b8dd281f4282aed82573db8334c25605755c9'
 RALLY_MANIFEST=ROOT/'tests/fixtures/paper_postgrad_rally_source_delta.json'
 RALLY_SCHEMA='owner-selected-paper-postgrad-rally-source-delta-v1'
-RALLY_MANIFEST_SHA256='8855115730a56b6d8f2d3e055d32002fdaa75499aec2414b26efd9cc4b946918'
+RALLY_MANIFEST_SHA256='a5af6238599f06a7b47414f19e2cae8005caf4e3e6f0830d0c3e4cf62f057199'
 RALLY_CHANGED_SOURCES=('meme_machine/lanes/pons/pons_postgrad_survivor.py', 'meme_machine/lanes/pons/pons_survivor_runtime.py', 'meme_machine/lanes/pump/pump_acceleration_strategy.py', 'meme_machine/lanes/pump/pumpswap_survivor.py', 'meme_machine/lanes/pump/pumpswap_survivor_runtime.py', 'meme_machine/lanes/pump/runner.py', 'meme_machine/operational/supervisor.py', 'meme_machine/paper_policy_revision.py', 'meme_machine/runtime/directional_continuation.py', 'meme_machine/runtime/native_boundary.py', 'meme_machine/runtime/opportunity_telemetry.py', 'meme_machine/runtime/policy_compatibility.py', 'meme_machine/runtime/robinhood/pons.py', 'meme_machine/runtime/sleeve_reservations.py', 'meme_machine/runtime/survivor_commit.py', 'meme_machine/runtime/survivor_history.py', 'meme_machine/runtime/survivor_paper_book.py', 'meme_machine/runtime/survivor_risk.py', 'meme_machine/runtime/survivor_terminal_archive.py', 'meme_machine/shared_capital/native_sleeve.py', 'meme_machine/shared_capital/runtime.py')
 RALLY_ADDED_SOURCES=('meme_machine/policy_history/opportunity_access_v1.json', 'meme_machine/runtime/rally_cycle.py')
 

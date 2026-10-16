@@ -401,3 +401,154 @@ class ForwardSurvivorTests(unittest.TestCase):
                 worker.tick(100+interval,admit=True);worker.future.result(timeout=1)
                 self.assertEqual(len(calls),3)
             finally:worker.close()
+
+
+class RejectedPonsEntryTests(unittest.TestCase):
+    """Actual Pons worker decisions and shared funding on synthetic native data."""
+    def setUp(self):
+        from tests.test_pump_pons_capital_preparation import RuntimeIntegrationTests
+        from tests.test_shared_portfolio_epoch import shared_risk_candidate
+        from tests.lanes.pons.test_pons_finalization import address,graduation
+        from tests.lanes.pons.test_pons_postgrad_survivor import NOW,winner_points
+        root,self.authority,self.at,_=RuntimeIntegrationTests.fixture(self,
+            policy=shared_risk_candidate(),new_epoch=True)
+        self.origin=self.at;self.block=100;self.token=address(1)
+        self.enterContext(patch('time.time',side_effect=lambda:self.at))
+        self.enterContext(patch.dict(os.environ,MM_DIRECTIONAL_SLEEVE_DB=str(root/'pons/sleeve.sqlite')))
+        self.runtime=Runtime(root/'pons/survivor',1_000_000,'rejected-pons',
+            'https://robinhood-mainnet.g.alchemy.com/v2/offline-fixture')
+        self.addCleanup(self.runtime.close)
+        self.runtime.now=lambda:self.at
+        self.runtime.rpc=SimpleNamespace(used=0,chain_verified=True,provider_fingerprint='synthetic-pons',
+            call=self.rpc_call)
+        self.runtime._provider=lambda:None;self.runtime.discover=lambda:None
+        self.runtime._increment=lambda *args:None
+        self.runtime._increment_candidates=lambda *args:None
+        self.runtime.fresh_state=self.fresh_state
+        self.runtime.fresh_quotes=lambda state,budget:SimpleNamespace(loss=lambda size:100,
+            entry=lambda size:dict(cost=size,quantity=size,gas=0,block=self.block,
+                block_hash=self.header()['hash'],acquired=time.monotonic()))
+        graduated=graduation(1,at=self.at-30*3600,block=1)
+        row=self.runtime.history.graduate(self.token,graduated)
+        row.update(block=1,block_hash=graduated['block_hash']);self.runtime.history.save(row)
+        self.seed_market([(at+self.at-NOW,price) for at,price in winner_points()])
+
+    def header(self):
+        return dict(number=hex(self.block),hash='0x'+f'{self.block:064x}',timestamp=hex(self.at))
+
+    def rpc_call(self,method,params,**kwargs):
+        self.assertEqual(method,'eth_getBlockByNumber')
+        self.assertIn(params[0],('latest',hex(self.block)))
+        return self.header()
+
+    def fresh_state(self,candidate):
+        self.assertEqual(candidate,self.token)
+        self.runtime.current=self.runtime.history.get(candidate)
+        points,_=self.runtime.history.facts(candidate,self.at)
+        return dict(block=self.block,block_hash=self.header()['hash'],at=self.at,
+            market_time=self.at,evidence_acquired_at=self.at,evidence_available_at=self.at,
+            price_index=int(points[-1]['price']),acquired=time.monotonic())
+
+    def seed_market(self,points):
+        events=[]
+        for n in range(6):
+            events.append(dict(id=f'{self.block}:recent:{n}',at=self.at-1000+n,
+                group=f'buyer:{n}',buy=True,quote=1_000_000,tokens=100,authenticated=True))
+            if n<3:
+                events.append(dict(id=f'{self.block}:prior:{n}',at=self.at-2000+n,
+                    group=f'buyer:{n}',buy=True,quote=1_000_000,tokens=100,authenticated=True))
+        events.append(dict(id=f'{self.block}:sell',at=self.at-900,group='seller',
+            buy=False,quote=3_000_000,tokens=100,authenticated=True))
+        self.runtime.history.append_block(self.token,block=self.block,header=self.header(),
+            events=events,points=[(at,str(price*10**18//10000)) for at,price in points])
+
+    def step(self):
+        with patch('meme_machine.runtime.storage.compact_survivor'):
+            return self.runtime.step(admit=True)
+
+    def provisional(self):
+        with patch.object(self.runtime,'_enter',side_effect=ValueError('synthetic-provisional-stop')):
+            self.assertEqual(self.step()['last_boundary'],'synthetic-provisional-stop')
+        row=self.runtime.history.get(self.token)
+        self.assertTrue(row['decision']['candidate'],row['decision'])
+        self.assertEqual(row['state'],'reserved');self.assertIsNotNone(row['position'])
+        return row
+
+    def test_rejected_consumed_cycle_returns_to_fresh_qualification_and_funds_next_cycle(self):
+        from meme_machine.runtime.survivor_commit import monitor
+        from meme_machine.lanes.pons.pons_postgrad_survivor import risk_policy
+        self.assertIsNone(self.step()['last_boundary'])
+        first=self.runtime.history.get(self.token)['position']
+        position=self.runtime.book._load(first);self.assertEqual(position['status'],'open')
+        self.at+=1;self.block+=1
+        execution=dict(quantity=position['tokens'],net_proceeds=position['basis'],gas=0,
+            block=self.block,block_hash=self.header()['hash'],acquired=time.monotonic())
+        with patch.object(self.runtime,'exit_quote',return_value=execution):
+            action=monitor(book=self.runtime.book,sleeve=self.runtime.sleeve,identity=first,
+                adapter=self.runtime,policy=risk_policy(),observation=dict(id='synthetic-terminal',
+                    at=self.at,after_cost_return_bps=0,net_exit_proceeds=position['basis'],
+                    creator_distribution=True,exit_liquidity_valid=True))
+        self.assertEqual(action['action'],'full_exit')
+        self.assertTrue(self.runtime.sleeve.reentry_verified(first)['obligations_clear'])
+        self.seed_market([(self.at,12900)])
+        before_requests=set(self.authority.ledger()['requests'])
+        rejected=self.step();row=self.runtime.history.get(self.token)
+        self.assertEqual(rejected['last_boundary'],'same_survivor_regime')
+        self.assertTrue(row['decision']['candidate'])
+        self.assertIsNone(row['position']);self.assertEqual(row['state'],'breakout_watch')
+        self.assertTrue(row['entry_rejection']['verified_unmaterialized'])
+        self.assertEqual(row['entry_rejection']['reason'],'same_survivor_regime')
+        self.assertEqual(set(self.authority.ledger()['requests']),before_requests)
+        self.assertEqual(self.runtime.book.reconcile()['open_positions'],0)
+        self.at=self.origin+12*3600;self.block+=1
+        self.seed_market([(self.origin+offset,price) for offset,price in (
+            (4*3600,14000),(8*3600,14500),(9*3600,20000),(10*3600,16000),
+            (10*3600+1800,16200),(11*3600,16500),(12*3600-960,16600),
+            (12*3600-300,17700),(12*3600,18000))])
+        resumed=self.step();row=self.runtime.history.get(self.token)
+        self.assertIsNone(resumed['last_boundary'],resumed)
+        second=row['position'];self.assertNotEqual(first,second)
+        self.assertEqual(self.runtime.book._load(second)['status'],'open')
+        self.assertEqual(self.runtime.book.reconcile()['open_positions'],1)
+        self.assertEqual(self.runtime.book.reconcile()['settled'],1)
+        self.assertTrue(self.runtime.book.replay()['verified'])
+        self.assertTrue(self.authority.snapshot()['capital']['conservation'])
+
+    def test_known_rejection_keeps_real_native_reservation_and_sleeve_hold(self):
+        row=self.provisional();identity=row['position']
+        self.runtime.sleeve.reserve(identity,strategy=row['decision']['strategy'],amount=50_000,
+            at=self.at,candidate=self.token,generation=row['generation'],regime=row['regime'])
+        self.runtime.book.reserve(identity,50_000,self.at,dict(candidate=self.token,decision=row['decision']))
+        with patch('meme_machine.lanes.pons.pons_survivor_runtime.commit',side_effect=ValueError('same_survivor_regime')):
+            with self.assertRaisesRegex(ValueError,'same_survivor_regime'):self.runtime._enter(row)
+        self.assertEqual(self.runtime.history.get(self.token)['position'],identity)
+        self.assertEqual(self.runtime.book._load(identity)['status'],'reserved')
+        self.assertEqual(self.runtime.sleeve.get(identity)['held'],50_000)
+
+    def test_known_rejection_keeps_global_pending_intent_without_local_rows(self):
+        from meme_machine.runtime.usd_valuation import utc
+        row=self.provisional();identity=row['position']
+        self.runtime.sleeve._grant(identity,strategy=row['decision']['strategy'],units=50_000,
+            at=self.at,asset=self.token,evidence=row['decision'],generation=row['generation'])
+        self.runtime.book.portfolio.client.prepare(identity,event_key='synthetic-pending',
+            journal_hash='f'*64,kind='reserve',at=utc(self.at),data=dict(amount='50'),
+            metadata=dict(native_basis_units=50_000))
+        pending=deepcopy(self.authority.ledger()['runtime_pending'])
+        self.assertIn('pons:'+identity,pending)
+        with patch('meme_machine.lanes.pons.pons_survivor_runtime.commit',side_effect=ValueError('same_survivor_regime')):
+            with self.assertRaisesRegex(ValueError,'same_survivor_regime'):self.runtime._enter(row)
+        self.assertEqual(self.runtime.history.get(self.token)['position'],identity)
+        self.assertIsNone(self.runtime.sleeve.get(identity))
+        self.assertIsNone(self.runtime.book.db.execute('SELECT 1 FROM positions WHERE id=?',(identity,)).fetchone())
+        self.assertEqual(self.authority.ledger()['runtime_pending'],pending)
+
+    def test_unknown_or_shared_recovery_failure_keeps_unmaterialized_pointer(self):
+        from meme_machine.shared_capital.model import CapitalError
+        row=self.provisional();identity=row['position']
+        for error in (BoundaryError('provider_transport_failure'),
+                      CapitalError('native_reservation_grant_reconciliation_required')):
+            with self.subTest(error=type(error).__name__), \
+                 patch('meme_machine.lanes.pons.pons_survivor_runtime.commit',side_effect=error):
+                with self.assertRaises(type(error)):self.runtime._enter(row)
+            self.assertEqual(self.runtime.history.get(self.token)['position'],identity)
+            self.assertEqual(self.runtime.history.get(self.token)['state'],'reserved')

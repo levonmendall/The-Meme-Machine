@@ -4,7 +4,7 @@
       "sha256": "f2724991c79ba7ae3a22b8e67e3ac22287e71f034b8c9ff74874629475f4b2c3"
     },
     "meme_machine/runtime/rally_cycle.py": {
-      "sha256": "6dd1e8ce689784dbf2afff7dadf1995f8f4d3bffc4739388765d52ee2d125868"
+      "sha256": "c3d0e9eb0df4a6aafba925d8ed494481de6c067736eec4fd4b515f3d402f1a61"
     }
   },
   "base": "893b8dd281f4282aed82573db8334c25605755c9",
@@ -29,7 +29,7 @@
       }
     },
     "meme_machine/lanes/pons/pons_survivor_runtime.py": {
-      "after_sha256": "d396b6d0035511e68e48b42412b88e403b485b33f30aa15b89277d94e8255e9e",
+      "after_sha256": "68eb6419a08a4b2fc30f5414aaa610f1b0dc413b89a8904f9e5f762eecc55163",
       "before_sha256": "dd126e490b53bba0b414355d12ab617c56b9adc09438457ff630e0ee281202b8",
       "layouts": {
         "module": {
@@ -108,6 +108,10 @@
         "module/ClassDef:Quotes/FunctionDef:_acquire": {
           "after": "244db54f628decdff133304903dcafa4ce5f1f395648840d87a1e4465401e276",
           "before": "77fd9741ba4427b87df8918a7e556c8b655cf36d018ea56a187c5548cfd39fc6"
+        },
+        "module/ClassDef:Runtime/FunctionDef:_enter": {
+          "after": "a6b318188d2bdba380777985b5ca0242e81bbd439263a6fdf2b588d061c63403",
+          "before": "da3195d5d64cd24635ba8c3501248d337572f4b6526d5c17b918afde54c3fcb8"
         },
         "module/ClassDef:Runtime/FunctionDef:_held_observation": {
           "after": "fed9f3f83c595e0edaa6299923b6c840cf7e55050e8b1da92ad6cbbac89e2651",
@@ -190,7 +194,7 @@
       }
     },
     "meme_machine/lanes/pump/pumpswap_survivor_runtime.py": {
-      "after_sha256": "cc489eb17603069c11e58339e8d9e7317f58cd20d7b035edd558fc665cb29bb4",
+      "after_sha256": "a57f3f2b8f44c611b38e02c4bbf648198d1229cab77f2d8c135b3e195f202a46",
       "before_sha256": "8790ad97bc5dea4b579e65b017e96b8fa38ee1c2fc56ca70c9bb34564b56c090",
       "layouts": {
         "module/ClassDef:Runtime": {
@@ -251,7 +255,7 @@
       },
       "nodes": {
         "module/ClassDef:Runtime/FunctionDef:_enter": {
-          "after": "b732f5461de99a1380d5c2edaed0657bc7943cf4f93130e2d745a379afd91895",
+          "after": "0c781f917a7659bc1ff6bbf57bb480ad9e1890a7bfb389f7f0dda0b29e8e9994",
           "before": "e14e2d3960bbb28c7963811b9b878729ae5e3f9a6df45c6d1387c0e7ef97cd1c"
         },
         "module/ClassDef:Runtime/FunctionDef:_funding": {
@@ -271,7 +275,7 @@
           "before": "85605b2c66f52413bc05a9ad0bd0647241976a25144ff336c7cda4bfcf5dc84d"
         },
         "module/ClassDef:Runtime/FunctionDef:step": {
-          "after": "e967c3284f9ce712468079e15499e2c0bffa145679bc25942118cd13291c1272",
+          "after": "9b163b55ecc7c2a86f21e7f6a1b0bfd660931dad539610a2dfb48164ed42edfd",
           "before": "aeca30c345bd2d1955a268853b43a3787dea93fac9fc20441c1d37dd9507622f"
         }
       }
@@ -556,7 +560,7 @@
       }
     },
     "meme_machine/runtime/sleeve_reservations.py": {
-      "after_sha256": "6a09a1ac72fcf8ac1ca3d7d7cbdd133964358ecc19e8778b0fe75f3db4d91561",
+      "after_sha256": "489bedd30cb1018cc7e61e8b9c0b93ecd663b9f47fad9c3a2230bc3fdce6bb3f",
       "before_sha256": "34e97241836137e535077a9345121ae2fb3e3063ba8a688aa44cecd65b0f5821",
       "layouts": {
         "module/ClassDef:SleeveReservations": {
@@ -629,7 +633,7 @@
           "before": "04281cd8cf38e0e2700a16e97394b6c95c1088c5862dacb19f495b46fc036150"
         },
         "module/ClassDef:SleeveReservations/FunctionDef:_observe_rally": {
-          "after": "c1da98faf0ed75b4b56c5118b07405bdfaf286c33f96e7928c7e111c8d8c1a4a",
+          "after": "3cdeff609e1b70fa2353a076e504de131e6f1f55dee41109000e68e43b68589a",
           "before": null
         },
         "module/ClassDef:SleeveReservations/FunctionDef:_open": {
@@ -679,9 +683,47 @@
       }
     },
     "meme_machine/runtime/survivor_commit.py": {
-      "after_sha256": "79b4d623504016fafe8402dcd34c5c44f807d802eb6c032638008c748a708ae8",
+      "after_sha256": "01f8234ee4e039c7661238f604fdcc6cc65512612ccb606af69f9967c6ee9f31",
       "before_sha256": "f34bd5b20575f454cf5a7e77e4ef0075d2e849b4ef956b4bce37a0cc85d74aca",
-      "layouts": {},
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/ImportFrom:0:meme_machine.runtime.provider_purchases",
+            "module/ImportFrom:0:contextlib",
+            "module/ImportFrom:0:meme_machine.runtime.execution_capacity",
+            "module/ImportFrom:0:meme_machine.runtime.journal",
+            "module/ImportFrom:0:meme_machine.runtime.survivor_risk",
+            "module/FunctionDef:handoff_ready",
+            "module/FunctionDef:unmaterialized_entry_rejection",
+            "module/FunctionDef:commit",
+            "module/FunctionDef:restore_risk",
+            "module/FunctionDef:_fold_risk",
+            "module/FunctionDef:restore_risks",
+            "module/FunctionDef:risk_record",
+            "module/FunctionDef:monitor",
+            "module/FunctionDef:exceptional_evidence_failure",
+            "module/FunctionDef:scale"
+          ],
+          "before": [
+            "module/docstring",
+            "module/ImportFrom:0:meme_machine.runtime.provider_purchases",
+            "module/ImportFrom:0:contextlib",
+            "module/ImportFrom:0:meme_machine.runtime.execution_capacity",
+            "module/ImportFrom:0:meme_machine.runtime.journal",
+            "module/ImportFrom:0:meme_machine.runtime.survivor_risk",
+            "module/FunctionDef:handoff_ready",
+            "module/FunctionDef:commit",
+            "module/FunctionDef:restore_risk",
+            "module/FunctionDef:_fold_risk",
+            "module/FunctionDef:restore_risks",
+            "module/FunctionDef:risk_record",
+            "module/FunctionDef:monitor",
+            "module/FunctionDef:exceptional_evidence_failure",
+            "module/FunctionDef:scale"
+          ]
+        }
+      },
       "nodes": {
         "module/FunctionDef:commit": {
           "after": "bd7776bb3ba01518acb40d96ec5186532f72beb2d7f463c5f25d1c461c347651",
@@ -694,6 +736,10 @@
         "module/FunctionDef:risk_record": {
           "after": "9759b6086dc0aa6773321e108a93a4b066907576eb1e4df21d173b31d5352cc4",
           "before": "39ac858c7ede20d304f3357ec12e14dc7b7766df15567e29296bf8d45cb23243"
+        },
+        "module/FunctionDef:unmaterialized_entry_rejection": {
+          "after": "c0fd1487c16ff3e1790569bf0c6b5f4c2f18502f99a2edf07786aa24a3a6d178",
+          "before": null
         }
       }
     },

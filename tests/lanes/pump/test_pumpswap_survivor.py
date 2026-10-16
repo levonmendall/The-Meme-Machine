@@ -1,5 +1,6 @@
 """Synthetic exact-boundary fixtures; these are not market profitability evidence."""
 from copy import deepcopy
+from contextlib import contextmanager
 import unittest
 from meme_machine.lanes.pump.pumpswap_survivor import evaluate_entry, POLICY
 
@@ -416,6 +417,149 @@ class PumpPostgradBridgeTests(unittest.TestCase):
                 self.assertEqual(capital['available'],10_000_000_000+terminal['realized'])
                 self.assertTrue(rt.book.replay()['verified'])
             finally:rt.book.close();rt.history.close();rt.sleeve.close()
+
+
+class PumpRejectedEntryControllerTests(unittest.TestCase):
+    @contextmanager
+    def runtime(self):
+        from fractions import Fraction
+        import os,tempfile
+        from pathlib import Path
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from meme_machine.lanes.pump.pumpswap_survivor import POLICY_HASH,STRATEGY_ID
+        from meme_machine.lanes.pump.pumpswap_survivor_runtime import Runtime
+        from meme_machine.lanes.pump.postgrad import PostGraduationAdapter
+        from meme_machine.runtime.directional_sleeve import open_sleeve
+        from meme_machine.runtime.survivor_history import History
+        from meme_machine.runtime.survivor_paper_book import PaperBook
+        from tests.lanes.pump.test_postgrad_read_efficiency import MeteredRPC
+        from tests.lanes.pump.test_postgrad import MINT
+        rpc=MeteredRPC();state=PostGraduationAdapter(rpc,scan_rpc=object()).pumpswap_snapshot(
+            MINT,101,reuse_verified_pool=True,held_curve_inline=True)
+        with tempfile.TemporaryDirectory() as td,patch.dict(os.environ,dict(
+                MM_DIRECTIONAL_SLEEVE_DB=td+'/sleeve',MM_DIRECTIONAL_COHORT_ID='rejection-offline'),clear=True), \
+                patch('meme_machine.runtime.storage.compact_survivor'):
+            rt=object.__new__(Runtime);rt.root=Path(td);rt.run_id='bridge-rejection';rt.last_error=None
+            rt.candidate_history=None;rt.adapter=None;rt.rpc=None;rt.clock=600;rt.now=lambda:rt.clock
+            rt.sleeve=open_sleeve('pump',10_000_000_000)
+            rt.book=PaperBook(td+'/paper',run_id=rt.run_id,lane=STRATEGY_ID,
+                              policy_hash=POLICY_HASH,initial=10_000_000_000)
+            rt.history=History(td+'/history',policy=POLICY_HASH)
+            rt.mint=MINT;rt.quote_state=state;rt.hydrations=[]
+            rt.history.graduate(MINT,dict(at=0,pool=state['pool'],identity='canonical-migration',
+                signature='finalized-migration',quote_amount=100,mint_amount=1))
+            rt.plane=SimpleNamespace(frontier=lambda scope:state['slot'],block_time=lambda slot:rt.clock,
+                                     require_usable=lambda scope:None)
+            rt.discover=lambda:None;rt._increment=lambda *args:None
+            def fresh(candidate,**kwargs):
+                rt.hydrations.append((rt.clock,kwargs))
+                state.update(market_time=rt.clock,available_time=rt.clock,slot=1001+rt.clock)
+                return state
+            rt.fresh_state=fresh
+            ratio=Fraction(state['state']['quote_reserve'],state['state']['base_reserve'])/162
+            def new_facts(age):
+                f=bridge_facts(age,quote_scale=100000)
+                for point in f['price_points']:point['price']=str(Fraction(point['price'])*ratio)
+                f['migration_price']=str(100*ratio);f['recovery_vwap']=str(155*ratio)
+                rt.entry_facts=f;rt.clock=age
+            rt.new_facts=new_facts;new_facts(600)
+            rt.reconstruct=lambda *args,**kwargs:deepcopy(rt.entry_facts)
+            try:yield rt
+            finally:rt.book.close();rt.history.close();rt.sleeve.close()
+
+    def test_actual_step_rejects_old_cycle_then_funds_new_cycle_without_stranded_pointer(self):
+        from meme_machine.runtime.journal import digest
+        with self.runtime() as rt:
+            self.assertIsNone(rt.step(admit=True)['last_boundary'])
+            first=rt.history.get(rt.mint)['position'];position=rt.book._load(first)
+            rt.book.transition(first,'settled',610,amount=position['basis'],tokens=position['tokens'])
+            terminal=rt.book._load(first)
+            rt.sleeve.reentry_verified=lambda identity:dict(terminal_at=610,global_ack_at=610,
+                obligations_clear=True) if identity==first else None
+            rt.sleeve.release(first,pnl=terminal['realized'],at=610,terminal_hash=digest(terminal),native_verified=True)
+            rt.clock=620;rt.entry_facts['now']=620
+            rt.entry_facts['price_points'].append(dict(at=620,price=rt.entry_facts['price_points'][-1]['price']))
+            before=len(rt.hydrations);status=rt.step(admit=True)
+            row=rt.history.get(rt.mint)
+            self.assertIsNone(status['last_boundary'])
+            self.assertIsNone(row['position'])
+            self.assertEqual(row['state'],'breakout_watch')
+            self.assertEqual(row['entry_rejection']['reason'],'same_survivor_regime')
+            self.assertTrue(row['entry_rejection']['native_absence_verified'])
+            rejected=row['entry_rejection']['identity']
+            self.assertIsNone(rt.sleeve.get(rejected))
+            self.assertIsNone(rt.book.db.execute('SELECT id FROM positions WHERE id=?',(rejected,)).fetchone())
+            # The rejection happens before commit hydration or any native hold.
+            self.assertEqual(len(rt.hydrations)-before,1)
+            self.assertEqual(status['accounting']['open_positions'],0)
+            self.assertEqual(status['sleeve']['reserved'],0)
+            # Reproduce a restored provisional pointer from the former code.
+            # It must be repaired locally before this turn's fresh qualification.
+            row.update(position=rejected,state='reserved');rt.history.save(row)
+            rt.new_facts(1200)
+            restored=rt.step(admit=True)
+            self.assertEqual(restored['last_boundary'],'same_survivor_regime')
+            self.assertIsNone(rt.history.get(rt.mint)['position'])
+            status=rt.step(admit=True);row=rt.history.get(rt.mint)
+            self.assertIsNone(status['last_boundary'])
+            self.assertNotEqual(row['position'],rejected)
+            self.assertEqual(rt.book._load(row['position'])['status'],'open')
+            self.assertEqual(status['accounting']['open_positions'],1)
+            self.assertEqual(status['accounting']['settled'],1)
+            self.assertEqual(rt.sleeve.rally(rt.mint,strategy=rt.book.identity['lane'])['traded_count'],2)
+            self.assertTrue(rt.book.replay()['verified'])
+
+    def test_actual_step_keeps_real_native_holds_and_unknown_admission_outcomes(self):
+        from unittest.mock import patch
+        for kind in ('book_reservation','sleeve_reservation','unknown_failure'):
+            with self.subTest(kind=kind),self.runtime() as rt:
+                reserve=rt.sleeve.reserve
+                def failure(identity,**kwargs):
+                    if kind=='book_reservation':
+                        rt.book.reserve(identity,kwargs['amount'],kwargs['at'],dict(candidate=rt.mint))
+                    elif kind=='sleeve_reservation':reserve(identity,**kwargs)
+                    raise ValueError('unclassified_admission_failure' if kind=='unknown_failure' else 'same_survivor_regime')
+                with patch.object(rt.sleeve,'reserve',side_effect=failure):status=rt.step(admit=True)
+                row=rt.history.get(rt.mint)
+                self.assertIsNotNone(row['position'])
+                self.assertEqual(row['state'],'reserved')
+                self.assertNotIn('entry_rejection',row)
+                self.assertEqual(status['last_boundary'],
+                    'unclassified_admission_failure' if kind=='unknown_failure' else 'same_survivor_regime')
+                self.assertFalse(status['durable_handoff'])
+
+    def test_actual_step_keeps_shared_pending_or_unknown_request_without_full_shared_scan(self):
+        import json,sqlite3
+        from contextlib import nullcontext
+        from types import SimpleNamespace
+        from unittest.mock import Mock,patch
+        for kind in ('reserved','queued','open_alias','unknown_request'):
+            with self.subTest(kind=kind),self.runtime() as rt:
+                db=sqlite3.connect(':memory:')
+                db.execute('CREATE TABLE shared_capital_projection(id INTEGER PRIMARY KEY,body TEXT)')
+                def failure(identity,**kwargs):
+                    key='pump:'+identity;request='unresolved-request';life='native-life'
+                    state=dict(runtime_native_requests={key:request},native_aliases={key:life},
+                        requests={request:dict(status='RESERVED' if kind=='reserved' else 'CANCELLED')},
+                        runtime_inbox={},runtime_pending={},reservations={},commitments={},obligations={},positions={})
+                    if kind=='queued':state['runtime_inbox'][request]=dict(native=identity)
+                    if kind=='open_alias':state['positions'][life]=dict(status='OPEN')
+                    if kind=='unknown_request':state['requests']={}
+                    db.execute('INSERT OR REPLACE INTO shared_capital_projection VALUES(1,?)',(json.dumps(state),))
+                    raise ValueError('same_survivor_regime')
+                authority=SimpleNamespace(db=db,_transaction=lambda **kwargs:nullcontext(),
+                    ledger=Mock(side_effect=AssertionError('full_shared_read_forbidden')),
+                    snapshot=Mock(side_effect=AssertionError('shared_valuation_forbidden')))
+                rt.sleeve.authority=authority
+                try:
+                    with patch.object(rt.sleeve,'reserve',side_effect=failure):status=rt.step(admit=True)
+                    row=rt.history.get(rt.mint)
+                    self.assertIsNotNone(row['position'])
+                    self.assertEqual(status['last_boundary'],'same_survivor_regime')
+                    self.assertNotIn('entry_rejection',row)
+                    authority.ledger.assert_not_called();authority.snapshot.assert_not_called()
+                finally:db.close()
 
 
 if __name__=='__main__':unittest.main()

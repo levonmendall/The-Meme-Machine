@@ -163,7 +163,7 @@ class SleeveReservations:
         old=self.rally(candidate,strategy=strategy)
         traded=(old or {}).get('last_traded') or {}
         prior=traded.get('cycle')
-        spacing=setup_spacing_shadow(traded.get('regime'),at)
+        spacing=setup_spacing_shadow(traded.get('regime'),at,current_regime=regime)
         prior_cycle=(None if prior is None else
             dict(id=prior['id'],peak_at=prior['peak_at'],breakout_at=prior['breakout_at']))
         regime=dict(regime,setup_spacing_shadow=spacing,prior_cycle=prior_cycle)

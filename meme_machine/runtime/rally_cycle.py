@@ -41,12 +41,27 @@ def accumulate_outcomes(previous, additions):
     return result
 
 
-def setup_spacing_shadow(previous, current_at):
-    """The historical spacing predicate is measured without entry authority."""
-    prior_at=(previous or {}).get('at')
-    spacing=None if type(prior_at) is not int else current_at-prior_at
+def setup_spacing_shadow(previous, current_at, *, current_regime=None):
+    """Measure the exact historical predicate without granting entry authority.
+
+    The legacy rule counted all five named dimensions, including the dependent
+    population and buyer-count fields. Retain that behavior for comparison;
+    neither those changes nor this receipt can certify a structural rally.
+    """
+    prior_at=previous.get('at') if isinstance(previous,dict) else None
+    spacing=(current_at-prior_at if type(prior_at) is int and type(current_at) is int else None)
+    dimensions=('high_reset_cycle','base_id','buyer_population','independent_demand','flow_regime')
+    comparable=isinstance(previous,dict) and isinstance(current_regime,dict)
+    known=([key for key in dimensions if previous.get(key) is not None
+        and current_regime.get(key) is not None] if comparable else [])
+    changed=[key for key in known if previous[key]!=current_regime[key]]
+    two_features=len(changed)>=2 if comparable else None
+    legacy_allows=(None if spacing is None or two_features is None else spacing>=3600 and two_features)
     return dict(prior_setup_at=prior_at,current_setup_at=current_at,spacing=spacing,
-        legacy3600pass=None if spacing is None else spacing>=3600,execution_veto=False)
+        legacy3600pass=None if spacing is None else spacing>=3600,
+        changed_dimensions=changed,known_dimensions=known,legacy_two_feature_pass=two_features,
+        legacy_allows=legacy_allows,authority='comparison_only',
+        scope='same_observation_no_execution_or_profit_counterfactual',execution_veto=False)
 
 
 def build_cycle(*, candidate, venue, chain, pool, policy_hash, input_version,

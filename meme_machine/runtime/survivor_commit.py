@@ -21,6 +21,53 @@ def handoff_ready(book, rows):
     return True
 
 
+def unmaterialized_entry_rejection(book,sleeve,identity,error):
+    """A known failed admission may discard only an unused controller identity.
+
+    This never cancels money or native work. The shared sleeve owns grant
+    compensation and replaces an uncertain outcome with its stronger recovery
+    exception. Its already-verified authority projection is inspected by exact
+    native/request keys only; no portfolio valuation or full ledger replay runs.
+    The caller remains the sole native controller owner and persists the reset.
+    """
+    from meme_machine.shared_capital.native_sleeve import FundingDenied
+    known={'same_survivor_regime','same_asset_exposure','superseded_reservation',
+           'superseded_rally_cycle','survivor_minimum_capital','sleeve_capital_exhausted'}
+    if not identity or not (isinstance(error,FundingDenied)
+            or type(error) is ValueError and str(error) in known):return False
+    with book.lock:
+        if book.replay().get('verified') is not True:raise ValueError('native_replay_required')
+        if book.db.execute('SELECT 1 FROM positions WHERE id=?',(identity,)).fetchone():return False
+    with sleeve.lock:
+        sleeve.reconcile()
+        if sleeve.get(identity) is not None:return False
+    authority=getattr(sleeve,'authority',None)
+    if authority is None:return True
+    import json
+    def path(bucket,key):return '$.'+bucket+'.'+json.dumps(key)
+    key=sleeve.identity['lane']+':'+identity
+    with authority._transaction(write=False):
+        row=authority.db.execute('SELECT json_extract(body,?),json_extract(body,?),json_type(body,?),'
+            'json_type(body,?) FROM shared_capital_projection WHERE id=1',
+            (path('runtime_native_requests',key),path('native_aliases',key),
+             path('runtime_pending',key),path('runtime_native_requests',key+':scale'))).fetchone()
+        if row is None:return False
+        request,life,pending,scale=row
+        if pending is not None or scale is not None:return False
+        if request is None:
+            # Every native delivery/grant first installs this durable binding.
+            # An alias without its request cannot establish verified absence.
+            return life is None
+        status,queued,reserved,committed,obligation,position=authority.db.execute(
+            'SELECT json_extract(body,?),json_type(body,?),json_type(body,?),json_type(body,?),'
+            'json_type(body,?),json_type(body,?) FROM shared_capital_projection WHERE id=1',
+            (path('requests',request)+'.status',path('runtime_inbox',request),
+             path('reservations',request),path('commitments',request),path('obligations',request),
+             path('positions',life or ''))).fetchone()
+        return (status in ('CANCELLED','SUPERSEDED','QUALIFIED_BUT_CAPITAL_UNAVAILABLE')
+                and all(value is None for value in (queued,reserved,committed,obligation,position)))
+
+
 def commit(*,book,sleeve,identity,candidate,generation,strategy,policy_hash,
            decision,regime,at,target,minimum,retention_bps,ordinary_limit,
            stress_limit,adapter,qualify):

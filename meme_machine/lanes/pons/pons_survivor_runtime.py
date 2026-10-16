@@ -754,7 +754,20 @@ class Runtime:
                 target=sizing["target"],minimum=sizing["minimum"],retention_bps=5000,
                 ordinary_limit=450,stress_limit=650,adapter=self,qualify=self.qualify)
         except (ValueError,BoundaryError) as exc:
-            self._failure(row,str(exc),phase='funding');raise
+            self._failure(row,str(exc),phase='funding')
+            current=self.history.get(row['id'])
+            if (current is not None and current.get('state')=='reserved'
+                    and current.get('position')==row['position']):
+                from meme_machine.runtime.survivor_commit import unmaterialized_entry_rejection
+                if unmaterialized_entry_rejection(self.book,self.sleeve,row['position'],exc):
+                    # A durable qualification is candidate work when its exact
+                    # admission failed before any native/shared ownership.
+                    # Keep every real or uncertain lifecycle on recovery duty.
+                    current.update(position=None,state='breakout_watch',entry_rejection=dict(
+                        identity=row['position'],reason=str(exc),at=self.now(),
+                        verified_unmaterialized=True,exposure_increased=False))
+                    self.history.save(current)
+            raise
         self.attempts.record(row['id'],row['generation'],'funding','OTHER_EXPLICIT_REASON',at=row['regime']['at'],
             reason=result['status'],execution=dict(position=row['position']))
         return result

@@ -52,6 +52,17 @@ Native/sleeve/shared obligations,
 pending exits and already-traded cycles block admission. An unfilled cancelled
 setup preserves the existing retry pathway. Legacy scalar regimes remain legacy.
 
+The comparator records all five original known/changed dimensions and the exact
+spacing-plus-two-feature result. Dependent buyer fields retain their historical
+comparison meaning and confer no structural or financial authority. Unknown
+prior setup clocks remain unknown.
+
+After a deterministic entry rejection, both native controllers return a provisional
+candidate to fresh qualification only when native replay and bounded exact-identity
+shared-state checks prove no position, hold or pending obligation. Real and uncertain
+work retains its recovery pointer. Controller regressions cover old-cycle denial,
+restored-pointer repair, a newly funded independent cycle and uncertainty preservation.
+
 Native journals persist setup, fill, first realization/exit intent and settlement
 clocks. Global receipts distinguish native settlement, financial valuation
 consumption and ACK publication. The rally report publishes bounded completed
@@ -93,21 +104,20 @@ tool, not an automatic runtime exception.
 
 ## Validation and runtime status
 
-Focused core: 158 tests passed on CPython 3.12.14, SQLite 3.53.1, with the
-repository network guard and temporary state. The actual shared authority and
-native commit/monitor paths execute three distinct entries after positive, loss
-and cancelled first setups, partial realization, pending exits, lost fill/partial/
-terminal ACK recovery and exact native+sleeve+global reconciliation. These tapes
-are synthetic execution proofs, never market-performance observations.
+The current combined checkpoint passed 236 native/shared lifecycle, controller,
+policy compatibility, recovery, structural shadow and exact source-guard tests in
+73.717 seconds. A separate 71-test fixture/parity checkpoint and 53 administration
+source/deploy/configuration tests passed. Actual native/shared paths execute three
+distinct entries after profitable, loss and cancelled first setups; partial
+realization, pending exits, lost ACKs, restored rejected-controller recovery and
+exact reconciliation are covered. These tapes are synthetic execution proofs,
+never market-performance observations.
 
-The expanded 377-test affected batch also passed before the final temporal
-refinement. The final combined candidate passed 260 focused integration,
-compatibility, recovery, policy/startup and exact source-guard tests in 70.734
-seconds, including the refined temporal rules and retained terminal-state upgrade.
-Complete release FAST and OPERATIONAL results must be recorded on the frozen
-candidate before promotion. This workspace lacks `/proc/self/ns/time` and writable
+Complete FAST and OPERATIONAL release results must pass on the frozen candidate
+before merge and deployment. This workspace lacks `/proc/self/ns/time` and writable
 cgroup delegation, so real Linux clock/containment cases must pass on the existing
-privileged GitHub runner; unavailable local cases are not passes.
+privileged GitHub runner. Existing CI service-identity skips require the actual
+AWS service-user source/configuration guard; unavailable cases are not passes.
 
 AWS read-only preflight [38944655118](https://github.com/levonmendall/meme-machine-admin/actions/runs/38944655118)
 at 2026-10-16 18:06 UTC verified the original $1,000 inception, cash $1,000,
