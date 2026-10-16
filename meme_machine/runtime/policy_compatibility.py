@@ -110,6 +110,47 @@ def require_flat_rows(rows,*,kind):
             raise ValueError('paper_policy_transition_unresolved_'+kind+':'+str(row.get('id','unavailable')))
 
 
+def _terminal_native_position(state,life,position):
+    """A retained terminal is history only after an exact native delivery ACK.
+
+    Older native delivery fingerprints can prove terminal accounting without
+    supplying the later versioned re-entry receipt or manufacturing its clocks.
+    The native adapter still separately replays its own book/history before it
+    selects a new decision policy.
+    """
+    from meme_machine.exact_money import money
+    try:
+        if (not isinstance(position,dict) or position.get('id')!=life
+                or position.get('status')!='SETTLED' or money(position.get('basis'))!=0
+                or type(position.get('settled_at')) is not int
+                or not isinstance(state.get('native_aliases'),dict)
+                or life not in state['native_aliases'].values()):return False
+        regime=position['regime'];contract=state['contracts'][regime]
+        if position.get('strategy_id')!=contract.get('strategy_id'):return False
+        sequence=state['native_cursors'][regime+':'+life]
+        deliveries=state['native_deliveries']
+        if type(sequence) is not int or sequence<=0 or not isinstance(deliveries,dict):return False
+        def matches(event_id,journal_hash,native_sequence):
+            if (not isinstance(event_id,str) or not isinstance(journal_hash,str)
+                    or len(journal_hash)!=64 or any(c not in '0123456789abcdef' for c in journal_hash)
+                    or type(native_sequence) is not int or native_sequence!=sequence):return False
+            native=dict(epoch_id=state['epoch_id'],regime=regime,lifecycle_id=life,
+                event_id=event_id,sequence=sequence,journal_sha256=journal_hash)
+            return deliveries.get(regime+':'+life+':'+event_id)==digest(native)
+        receipt=position.get('terminal_receipt')
+        if receipt is not None:
+            return (isinstance(receipt,dict) and receipt.get('version')==1
+                and receipt.get('lifecycle_id')==life and receipt.get('terminal_at')==position['settled_at']
+                and type(receipt.get('global_ack_at')) is int
+                and receipt['global_ack_at']>=receipt['terminal_at']
+                and matches(receipt.get('native_event_id'),receipt.get('native_journal_hash'),receipt.get('native_sequence')))
+        prefix=regime+':'+life+':native:'
+        return any(matches('native:'+key[len(prefix):],key[len(prefix):],sequence)
+            for key in deliveries if key.startswith(prefix))
+    except (KeyError,TypeError,ValueError,ArithmeticError):
+        return False
+
+
 def require_flat_portfolio(state):
     """Pure check reused by supervisor preflight and the native transition boundary."""
     if (not isinstance(state,dict) or not isinstance(state.get('positions'),dict)
@@ -119,7 +160,10 @@ def require_flat_portfolio(state):
                 'pending_deliveries','pending_backing'):
         if key in state and not isinstance(state[key],list if key=='pending_deliveries' else dict):
             raise ValueError('paper_policy_transition_portfolio_evidence_unavailable:'+key)
-        if state.get(key):raise ValueError('paper_policy_transition_unresolved_'+key)
+        if key=='positions':
+            if any(not _terminal_native_position(state,life,position) for life,position in state[key].items()):
+                raise ValueError('paper_policy_transition_unresolved_positions')
+        elif state.get(key):raise ValueError('paper_policy_transition_unresolved_'+key)
 
 
 def assert_shared_transition(root,state):

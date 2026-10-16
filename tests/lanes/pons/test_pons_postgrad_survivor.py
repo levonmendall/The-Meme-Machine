@@ -47,10 +47,14 @@ def facts(**changes):
 
 class PonsPostgradSurvivorTests(unittest.TestCase):
     def cycle_facts(self,**changes):
+        from meme_machine.lanes.pons import CHAIN_ID
+        from meme_machine.lanes.pons.pons_postgrad_survivor import POLICY_HASH
         value=facts(**changes)
         value['rally_cycle_context']=dict(candidate='native-token',venue='pons_v4',
+            chain=CHAIN_ID,pool='0x'+'12'*32,policy_hash=POLICY_HASH,
+            input_version='pons-v4-canonical-history-v1',
             graduation=dict(at=value['graduation_at'],block=1,block_hash='graduation-block',
-                transition=dict(market='authenticated-pool',graduation_transaction='graduation-tx')),
+                transition=dict(market='0x'+'12'*32,graduation_transaction='graduation-tx')),
             evidence_id='authenticated-contiguous-history-and-state',authoritative=True)
         return value
 
@@ -67,8 +71,15 @@ class PonsPostgradSurvivorTests(unittest.TestCase):
         self.assertEqual(cycle['base_end'],NOW-16*60)
         self.assertEqual(cycle['breakout_at'],NOW-5*60)
         self.assertEqual(cycle['minimum_base_seconds'],900)
+        self.assertEqual(cycle['chain'],4663)
+        self.assertEqual(cycle['pool'],'0x'+'12'*32)
+        self.assertEqual(cycle['policy_hash'],out['policy_hash'])
+        self.assertEqual(cycle['input_version'],'pons-v4-canonical-history-v1')
         self.assertEqual(POLICY['trend']['base_seconds'],7200)
         self.assertEqual(POLICY['trend']['breakout_exclusion_seconds'],900)
+        self.assertTrue(POLICY['reentry']['require_post_settlement_peak'])
+        self.assertFalse(POLICY['reentry']['setup_spacing_execution_veto'])
+        self.assertEqual(POLICY['reentry']['minimum_seconds'],3600)
 
     def test_native_cycle_identity_survives_new_decision_buyer_and_flow_counts(self):
         from unittest.mock import patch

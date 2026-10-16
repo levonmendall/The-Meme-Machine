@@ -272,6 +272,61 @@ class PaperPolicyCompatibilityTests(unittest.TestCase):
         self.assertEqual(history.facts('candidate',100000)[0],raw)
         self.assertEqual(history.get_meta('archive_prefix:candidate'),archive);history.close()
 
+    def test_immediate_predecessor_archived_reset_uses_provenance_bound_compatible_view(self):
+        from meme_machine.runtime.survivor_history import History
+        from meme_machine.lanes.pump.pumpswap_survivor import reduce_reset_history
+        old=predecessor_hash('pump_survivor');policy=predecessor_policies()['pump_survivor']['policy']
+        path=self.root/'compatible-history.sqlite'
+        history=History(path,policy=old)
+        history.graduate('candidate',dict(at=0,identity='graduation'))
+        history.append('candidate',through=100000,events=[],points=[
+            (0,'100'),(60,'96'),(1000,'100'),(100000,'105')],complete=True)
+        history.compact_archived(dict(state_hash='preserved-opportunity-authority'),
+            reducer=lambda rows,prefix:reduce_reset_history(rows,prefix,policy=policy))
+        archive=history.get_meta('archive_prefix:candidate')
+        archive_bytes=history.db.execute("SELECT body,hash FROM meta WHERE key='archive_prefix:candidate'").fetchone()
+        raw=history.facts('candidate',100000);history.close()
+        history=History(path,policy=active_hash('pump_survivor'))
+        self.assertNotIn('policy_recomputation_blocker',history.get('candidate'))
+        self.assertEqual(history.db.execute("SELECT body,hash FROM meta WHERE key='archive_prefix:candidate'").fetchone(),archive_bytes)
+        self.assertEqual(history.get_meta('previous_archive_prefix:'+old+':candidate'),archive)
+        self.assertEqual(history.facts('candidate',100000),raw)
+        view=history.get_meta('compatible_reset_prefix:candidate')
+        self.assertEqual(view['source_archive_hash'],digest(archive))
+        self.assertEqual(view['source_policy_hash'],old)
+        self.assertEqual(view['target_policy_hash'],active_hash('pump_survivor'))
+        prefix=history.prefix('candidate')
+        self.assertEqual(prefix,dict(archive['reducer_state'],policy_hash=active_hash('pump_survivor')))
+        _,_,calculated=history.calculation_facts('candidate',100000,
+            reducer=reduce_reset_history,policy=active_hash('pump_survivor'))
+        self.assertEqual(calculated,prefix)
+        history.append('candidate',through=200000,events=[],points=[(200000,'110')],complete=True)
+        history.compact_archived(dict(state_hash='new-preserved-authority'),reducer=reduce_reset_history)
+        current=history.get_meta('archive_prefix:candidate')
+        self.assertEqual(current['reducer_state']['policy_hash'],active_hash('pump_survivor'))
+        self.assertEqual(current['previous_prefix_hash'],digest(archive))
+        self.assertEqual(history.get_meta('previous_archive_prefix:'+old+':candidate'),archive)
+        self.assertEqual(history.get_meta('compatible_reset_prefix:candidate'),view)
+        history.close();history=History(path,policy=active_hash('pump_survivor'))
+        self.assertEqual(history.prefix('candidate'),current['reducer_state']);history.close()
+
+    def test_immediate_predecessor_reset_adapter_rejects_rebound_source_provenance(self):
+        from meme_machine.runtime.survivor_history import History
+        from meme_machine.lanes.pump.pumpswap_survivor import reduce_reset_history
+        old=predecessor_hash('pump_survivor');policy=predecessor_policies()['pump_survivor']['policy']
+        path=self.root/'rebound-prefix.sqlite';history=History(path,policy=old)
+        history.graduate('candidate',dict(at=0,identity='graduation'))
+        history.append('candidate',through=100000,events=[],points=[
+            (0,'100'),(60,'96'),(1000,'100'),(100000,'105')],complete=True)
+        history.compact_archived(dict(state_hash='preserved-authority'),
+            reducer=lambda rows,prefix:reduce_reset_history(rows,prefix,policy=policy));history.close()
+        history=History(path,policy=active_hash('pump_survivor'))
+        saved=history.get_meta('compatible_reset_prefix:candidate')
+        history.set_meta('compatible_reset_prefix:candidate',dict(saved,source_archive_hash='0'*64))
+        with self.assertRaisesRegex(ValueError,'survivor_reset_prefix_compatibility'):
+            history.prefix('candidate')
+        history.close()
+
     def test_history_pending_position_refuses_selection(self):
         from meme_machine.runtime.survivor_history import History
         history=self.history();row=history.get('candidate');row.update(position='pending',state='runner');history.save(row);history.close()
@@ -288,6 +343,84 @@ class PaperPolicyCompatibilityTests(unittest.TestCase):
         for unavailable in ({},dict(positions=[],reservations={}),dict(positions={},reservations={},runtime_pending=None)):
             with self.assertRaisesRegex(ValueError,'evidence_unavailable'):
                 assert_shared_transition(self.root,unavailable)
+
+    def retained_predecessor_terminal(self,*,legacy_ack=False):
+        from tests.test_pump_pons_capital_preparation import RuntimeIntegrationTests
+        from meme_machine.runtime.directional_sleeve import policies,open_sleeve,native_terminal
+        from meme_machine.runtime.directional_continuation import native_sync
+        active={family:policies(family) for family in ('pump','pons')}
+        old={family:{strategy:predecessor_hash(family+('_survivor' if 'survivor' in strategy else '_current'))
+            for strategy in values} for family,values in active.items()}
+        with patch('meme_machine.runtime.directional_sleeve.policies',side_effect=lambda family:old[family]):
+            root,authority,now,_=RuntimeIntegrationTests.fixture(self)
+            book,sleeve,identity=RuntimeIntegrationTests.native_position(self,root,now,survivor=True)
+            def original_ack(native,*,event_key,journal_hash):
+                return authority.command('ack:pump:'+journal_hash,'runtime_commit',dict(
+                    lane='pump',native_id=native,event_key=event_key,journal_hash=journal_hash),authority.ledger()['at'])
+            from contextlib import nullcontext
+            with patch.object(book.portfolio.client,'committed',side_effect=original_ack) if legacy_ack else nullcontext():
+                book.transition(identity,'settled',now+1,amount=7000)
+            native_sync(book,sleeve,identity)
+            native_terminal(sleeve,identity,book._load(identity),now+1,verified=book.replay()['verified'])
+            path=Path(book.db.execute('PRAGMA database_list').fetchone()[2])
+            genesis=book.db.execute('SELECT body FROM genesis').fetchone()[0]
+            accounting=book.reconcile()
+        return root,authority,book,sleeve,identity,active,path,genesis,accounting
+
+    def test_retained_funded_predecessor_terminal_permits_first_new_revision_selection(self):
+        from meme_machine.runtime.directional_sleeve import open_sleeve
+        from meme_machine.runtime.survivor_paper_book import PaperBook
+        root,authority,book,sleeve,identity,active,path,genesis,accounting=self.retained_predecessor_terminal()
+        before=authority.ledger()
+        self.assertEqual(len(before['positions']),1)
+        from decimal import Decimal
+        self.assertTrue(all(p['status']=='SETTLED' and Decimal(p['basis'])==0 for p in before['positions'].values()))
+        require_flat_portfolio(before)
+        revised=open_sleeve('pump',125000);self.addCleanup(revised.close)
+        strategy=next(s for s in active['pump'] if 'survivor' in s)
+        native=PaperBook(path,run_id=identity.split(':')[0],lane=strategy,
+            policy_hash=active['pump'][strategy],initial=125000);self.addCleanup(native.close)
+        self.assertEqual(native.db.execute('SELECT body FROM genesis').fetchone()[0],genesis)
+        self.assertEqual(native.reconcile(),accounting)
+        self.assertEqual(authority.ledger(),before)
+        self.assertEqual(revised.get(identity)['status'],'settled')
+        self.assertTrue(native.replay()['verified']);authority.verify_replay()
+
+    def test_legacy_terminal_native_ack_permits_upgrade_without_fabricating_reentry_clock(self):
+        from meme_machine.runtime.directional_sleeve import open_sleeve
+        root,authority,book,sleeve,identity,_,_,_,_=self.retained_predecessor_terminal(legacy_ack=True)
+        before=authority.ledger();position=next(iter(before['positions'].values()))
+        self.assertNotIn('terminal_receipt',position)
+        self.assertIsNone(sleeve.reentry_verified(identity))
+        require_flat_portfolio(before)
+        revised=open_sleeve('pump',125000);self.addCleanup(revised.close)
+        self.assertEqual(revised.get(identity)['status'],'settled')
+        self.assertIsNone(revised.reentry_verified(identity))
+        self.assertEqual(authority.ledger(),before)
+        self.assertNotIn('terminal_receipt',next(iter(authority.ledger()['positions'].values())))
+        self.assertTrue(book.replay()['verified']);authority.verify_replay()
+
+    def test_retained_terminal_upgrade_rejects_unproven_native_state_and_pending_obligations(self):
+        from copy import deepcopy
+        _,authority,_,_,_,_,_,_,_=self.retained_predecessor_terminal()
+        before=authority.ledger();life=next(iter(before['positions']))
+        mutations=(lambda s:s['positions'][life].update(status='OPEN'),
+            lambda s:s['positions'][life].update(basis='0.01'),
+            lambda s:s.update(native_aliases={}),lambda s:s.update(native_cursors={}),
+            lambda s:s.update(native_deliveries={}),
+            lambda s:s['positions'][life]['terminal_receipt'].update(native_journal_hash='0'*64),
+            lambda s:s['positions'][life]['terminal_receipt'].update(native_sequence=999),
+            lambda s:s['positions'][life]['terminal_receipt'].update(terminal_at=-1))
+        for index,mutate in enumerate(mutations):
+            with self.subTest(mutation=index):
+                state=deepcopy(before);mutate(state)
+                with self.assertRaisesRegex(ValueError,'transition_unresolved_positions'):require_flat_portfolio(state)
+        legacy=deepcopy(before);legacy['positions'][life].pop('terminal_receipt');legacy['native_deliveries']={}
+        with self.assertRaisesRegex(ValueError,'transition_unresolved_positions'):require_flat_portfolio(legacy)
+        for bucket in ('reservations','commitments','obligations','runtime_pending','runtime_inbox','pending_deliveries','pending_backing'):
+            with self.subTest(bucket=bucket):
+                state=deepcopy(before);state[bucket]=[{}] if bucket=='pending_deliveries' else {'retained':{}}
+                with self.assertRaisesRegex(ValueError,'transition_unresolved_'+bucket):require_flat_portfolio(state)
 
     def test_history_and_accounting_reject_an_unrecognized_policy(self):
         from meme_machine.runtime.survivor_history import History

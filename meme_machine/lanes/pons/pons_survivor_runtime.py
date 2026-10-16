@@ -22,7 +22,7 @@ from meme_machine.runtime.survivor_paper_book import PaperBook
 from meme_machine.runtime.robinhood.plane import Plane
 from meme_machine.runtime.robinhood.pons import plane_path
 from meme_machine.runtime.robinhood.provider_usage import evidence_work
-from . import BoundaryError
+from . import BoundaryError,CHAIN_ID
 from .abi import calldata,words,scalar
 from .identity import metadata as load,authenticate
 from .keccak import keccak256
@@ -527,6 +527,8 @@ class Runtime:
             market_time=state.get('market_time',now),evidence_acquired_at=state.get('evidence_acquired_at'),
             state_evidence_available_at=state.get('evidence_available_at'),
             rally_cycle_context=dict(candidate=row['id'],venue='pons_v4',
+                chain=CHAIN_ID,pool=row['graduation']['transition']['market'],
+                policy_hash=POLICY_HASH,input_version='pons-v4-canonical-history-v1',
                 graduation=row['graduation'],canonical_generation=canonical_generation,
                 evidence_id=digest(dict(
                     graduation=row['graduation'],block=state['block'],block_hash=state['block_hash'],
@@ -822,7 +824,7 @@ class Runtime:
             row=self.history.get(row['id'])
             return self._enter(row)
         if p['status'] in ('settled','cancelled'):
-            self.sleeve.release(row['position'],pnl=p['realized'],at=max(self.now(),p['last_at']),
+            self.sleeve.release(row['position'],pnl=p['realized'],at=p['last_at'],
                 terminal_hash=digest(p),native_verified=self.book.replay()['verified'],cancelled=p['status']=='cancelled')
             row.update(position=None,state='settled');self.history.save(row);return
         if p['status']=='reserved':

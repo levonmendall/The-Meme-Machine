@@ -319,7 +319,7 @@ class Runtime:
             if not admit:raise ValueError('survivor_continuation_unfilled_controller')
             return self._enter(row,row['decision'],row['generation'],row['regime'],row['position'])
         if position['status'] in ('settled','cancelled'):
-            self.sleeve.release(row['position'],pnl=position['realized'],at=max(self.now(),position['last_at']),
+            self.sleeve.release(row['position'],pnl=position['realized'],at=position['last_at'],
                 terminal_hash=digest(position),native_verified=self.book.replay()['verified'],cancelled=position['status']=='cancelled')
             row.update(position=None,state='settled');self.history.save(row);return
         if position['status']=='reserved':
@@ -446,6 +446,8 @@ class Runtime:
                         if decision['candidate']:
                             from meme_machine.runtime.rally_cycle import build_cycle
                             regime['rally_cycle']=build_cycle(candidate=row['id'],venue='pumpswap',
+                                chain='solana-mainnet',pool=row['graduation']['pool'],
+                                policy_hash=POLICY_HASH,input_version='pump-postgrad-canonical-history-v1',
                                 graduation=row['graduation'],peak_at=f['peak_at'],reset_at=f['reset_at'],
                                 base_start=f['base_start'],base_end=f['base_end'],breakout_at=f['breakout_at'],
                                 decision_at=self.now(),evidence_id=digest(dict(

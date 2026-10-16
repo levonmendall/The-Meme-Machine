@@ -415,9 +415,11 @@ class RuntimeIntegrationTests(unittest.TestCase):
         sleeve=open_sleeve(family,125000);self.addCleanup(sleeve.close)
         return sleeve
 
-    def _grant_test_regime(self,candidate,now):
+    def _grant_test_regime(self,candidate,now,*,policy_hash):
         from meme_machine.runtime.rally_cycle import build_cycle
         cycle=build_cycle(candidate=candidate,venue='offline-native-venue',
+            chain='synthetic-offline',pool='synthetic-pool',policy_hash=policy_hash,
+            input_version='synthetic-canonical-history-v1',
             graduation=dict(at=now-12000,native_receipt='authenticated-offline-fixture'),peak_at=now-10000,
             reset_at=now-8000,base_start=now-7000,base_end=now-1000,breakout_at=now-60,decision_at=now,
             evidence_id='offline-canonical-rally',authoritative=True,complete=True,minimum_base_seconds=3600)
@@ -431,7 +433,8 @@ class RuntimeIntegrationTests(unittest.TestCase):
             with self.subTest(family=family):
                 root,a,now,_=self.fixture();sleeve=self._grant_test_sleeve(root,family)
                 strategy=next(s for s in policies(family) if 'survivor' in s)
-                candidate='survivor-repeat:'+family;prior_regime=self._grant_test_regime(candidate,now)
+                candidate='survivor-repeat:'+family;prior_regime=self._grant_test_regime(candidate,now,
+                    policy_hash=policies(family)[strategy])
                 observed=sleeve.observe(candidate,strategy=strategy,at=now,state='qualified',
                     evidence={'qualified':True},regime=prior_regime)
                 prior_regime=observed['regime']
@@ -524,7 +527,7 @@ class RuntimeIntegrationTests(unittest.TestCase):
         from meme_machine.runtime.directional_sleeve import policies
         root,a,now,_=self.fixture();sleeve=self._grant_test_sleeve(root,'pump')
         strategy=next(s for s in policies('pump') if 'survivor' in s)
-        regime=self._grant_test_regime('candidate',now)
+        regime=self._grant_test_regime('candidate',now,policy_hash=policies('pump')[strategy])
         observed=sleeve.observe('candidate',strategy=strategy,at=now,state='qualified',evidence={'qualified':True},regime=regime)
         regime=observed['regime']
         original=sleeve._grant

@@ -41,10 +41,14 @@ journal and authenticated prefix retain consumed cycles and their frontier throu
 restart, reorg supersession and history compaction; native retirement alone folds
 obsolete candidate metadata.
 
-Setup observations retain their existing one-hour spacing. This is independent
-of settlement: the next distinct breakout must occur at/after actual native
-settlement, and a fresh decision must occur after the terminal global ACK. There
-is no additional one-hour wait after an exit. Native/sleeve/shared obligations,
+The old one-hour/two-dimension setup rule remains a shadow comparator. Versioned
+execution requires a whole new peak/reset/base/breakout sequence beginning
+at/after actual native settlement, and a fresh decision after the terminal global
+ACK. This conservative first policy prevents a sliding base from relabeling a
+pre-settlement rally and needs no extra historical detector or fixed delay.
+Pump uses the actual first authenticated crossing after its selected completed
+base, including high extrema, rather than the current hydration time.
+Native/sleeve/shared obligations,
 pending exits and already-traded cycles block admission. An unfilled cancelled
 setup preserves the existing retry pathway. Legacy scalar regimes remain legacy.
 
@@ -53,7 +57,9 @@ clocks. Global receipts distinguish native settlement, financial valuation
 consumption and ACK publication. The rally report publishes bounded completed
 lifecycles plus first/second/third/later aggregate after-cost returns, using actual
 filled basis, and separately retains retired aggregates. Unknown legacy clocks or
-basis stay unknown. Existing opportunity and funding events include bridge
+basis stay unknown. Bucket P&L and basis use native quote units; the canonical
+shared report supplies USD results joined through the terminal receipt's global
+lifecycle identity. Existing opportunity and funding events include bridge
 comparison and missed eligible funding outcomes. Baseline age comparisons are
 exact; an unevaluated complete predecessor decision is explicitly labeled.
 
@@ -94,6 +100,10 @@ and cancelled first setups, partial realization, pending exits, lost fill/partia
 terminal ACK recovery and exact native+sleeve+global reconciliation. These tapes
 are synthetic execution proofs, never market-performance observations.
 
+The expanded 377-test affected batch also passed before the final temporal
+refinement. The final combined candidate passed 260 focused integration,
+compatibility, recovery, policy/startup and exact source-guard tests in 70.734
+seconds, including the refined temporal rules and retained terminal-state upgrade.
 Complete release FAST and OPERATIONAL results must be recorded on the frozen
 candidate before promotion. This workspace lacks `/proc/self/ns/time` and writable
 cgroup delegation, so real Linux clock/containment cases must pass on the existing

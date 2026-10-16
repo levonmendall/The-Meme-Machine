@@ -37,6 +37,7 @@ POLICY = dict(
                trail_arm_bps=1, trail_bps=1400, tight_arm_bps=6000, tight_trail_bps=1400,
                soft_confirmations=2, maximum_hold_seconds=259200),
     reentry=dict(verified_settlement_required=True,distinct_rally_cycle_required=True,
+                 require_post_settlement_peak=True,setup_spacing_execution_veto=False,
                  minimum_seconds=3600, minimum_changed_dimensions=2),
 )
 def policy_hash(policy=POLICY):
@@ -214,7 +215,11 @@ def evaluate_entry(facts, policy=POLICY):
         features.update(flow, age_seconds=age, price=str(price), base_low=str(low),base_high=str(high),
                         base_range=str(span),reset_low=None if reset is None else str(reset),
                         reset_at=reset_at,peak_at=peak_at,base_start=base_end-base_seconds,base_end=base_end,
-                        breakout_at=now,
+                        # A later hydration cannot relabel an earlier canonical
+                        # crossing of this completed base as a fresh breakout.
+                        # Retain explicit predecessor policy timestamp semantics.
+                        breakout_at=(next((t for t,p in points if t>base_end and extrema[t][1]>high),None)
+                                     if policy.get('revision')==ACTIVE_REVISION else now),
                         reset_depth_bps=None if reset is None else int((Fraction(structure['peak'])-reset)*10000/Fraction(structure['peak'])),
                         preceding_base_range=str(prior_span),base_compression_bps=None if prior_span<=0 else int(span*10000/prior_span),
                         breakout_distance=str(price-high), extension_bps=int((price-high)*10000/high),

@@ -158,9 +158,15 @@ class SleeveReservations:
         return json.loads(row[0]) if row else None
 
     def _observe_rally(self,candidate,strategy,regime,at):
-        from meme_machine.runtime.rally_cycle import validate_cycle
+        from meme_machine.runtime.rally_cycle import setup_spacing_shadow,validate_cycle
         cycle=validate_cycle(regime['rally_cycle'],candidate=candidate,observation_at=at)
         old=self.rally(candidate,strategy=strategy)
+        traded=(old or {}).get('last_traded') or {}
+        prior=traded.get('cycle')
+        spacing=setup_spacing_shadow(traded.get('regime'),at)
+        prior_cycle=(None if prior is None else
+            dict(id=prior['id'],peak_at=prior['peak_at'],breakout_at=prior['breakout_at']))
+        regime=dict(regime,setup_spacing_shadow=spacing,prior_cycle=prior_cycle)
         if old:
             previous=old['cycle']
             if cycle['lineage']!=previous['lineage']:
@@ -176,7 +182,8 @@ class SleeveReservations:
             if cycle['id']!=previous['id'] and cycle['peak_at']==previous['peak_at']:
                 raise ValueError('rally_cycle_peak_conflict')
         row=dict(old or {},id=canonical([strategy,self.asset_key(candidate)]),
-            candidate=candidate,strategy=strategy,cycle=cycle,last_observed_at=at)
+            candidate=candidate,strategy=strategy,cycle=cycle,last_observed_at=at,
+            setup_spacing_shadow=spacing,prior_cycle=prior_cycle)
         row.setdefault('traded_count',0);row.setdefault('cancelled_count',0)
         self._event('rally',row)
         return dict(regime,rally_cycle=cycle,decision_at=cycle['decision_at'],
@@ -233,7 +240,15 @@ class SleeveReservations:
         if type(limit) is not int or not 0<limit<=1000:raise ValueError('rally_report_limit')
         with self.lock:
             total=self.db.execute('SELECT COUNT(*) FROM sleeve_rallies').fetchone()[0]
-            rows=[json.loads(raw) for raw, in self.db.execute('SELECT body FROM sleeve_rallies ORDER BY id LIMIT ?',(limit,))]
+            rows=[]
+            for raw,observed in self.db.execute('''SELECT r.body,c.body FROM sleeve_rallies r
+                    LEFT JOIN sleeve_candidates c ON c.id=json_extract(r.body,'$.candidate')
+                    ORDER BY r.id LIMIT ?''',(limit,)):
+                row=json.loads(raw);candidate=json.loads(observed) if observed else None
+                if candidate and candidate['strategy']==row['strategy']:
+                    for field in ('setup_spacing_shadow','prior_cycle'):
+                        if field in (candidate.get('regime') or {}):row[field]=candidate['regime'][field]
+                rows.append(row)
             archive=self._archive()
             folded=(archive or {}).get('folded',{}).get('rally_outcomes',{})
         return dict(schema='rally-lifecycle-report-v1',candidates=total,truncated=total>limit,
@@ -364,6 +379,8 @@ class SleeveReservations:
             if cycle:
                 from meme_machine.runtime.rally_cycle import validate_cycle
                 validate_cycle(cycle,candidate=candidate,observation_at=current['at'])
+                if modern_survivor and cycle['policy_hash']!=self.decision_policies[strategy]:
+                    raise ValueError('rally_cycle_policy_mismatch')
                 if (not rally or rally['cycle']!=cycle or current['regime']!=regime):
                     raise ValueError('superseded_rally_cycle')
                 prior=(rally.get('last_traded') or {})

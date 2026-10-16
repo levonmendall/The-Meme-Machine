@@ -240,6 +240,21 @@ class PumpPostgradBridgeTests(unittest.TestCase):
         f=bridge_facts();f['now']=599;f['price_points'][-1]['at']=599
         self.assertIn('age',evaluate_entry(f)['all_rejections'])
 
+    def test_breakout_clock_uses_first_canonical_post_base_crossing_and_extrema(self):
+        for price,high in (('161','161'),('159','161')):
+            with self.subTest(price=price,high=high):
+                f=bridge_facts();f['price_points'].insert(-1,dict(at=570,price=price,high=high))
+                decision=evaluate_entry(f)
+                self.assertTrue(decision['candidate'],decision)
+                self.assertEqual(decision['features']['breakout_at'],570)
+                self.assertEqual(decision['features']['market_time'],600)
+        # Mature predecessor decisions keep their original recorded semantics.
+        from meme_machine.paper_policy_revision import predecessor_policies
+        old=predecessor_policies()['pump_survivor']['policy']
+        f=facts();f['price_points'].insert(-1,dict(at=24800,price='161'))
+        self.assertEqual(evaluate_entry(f)['features']['breakout_at'],24800)
+        self.assertEqual(evaluate_entry(f,old)['features']['breakout_at'],25000)
+
     def test_bridge_comparison_uses_exact_predecessor_age_and_existing_predicates(self):
         from meme_machine.paper_policy_revision import predecessor_hash
         admitted=evaluate_entry(bridge_facts())
@@ -364,6 +379,9 @@ class PumpPostgradBridgeTests(unittest.TestCase):
                 self.assertEqual((work['additional_workers'],work['additional_broad_market_scans'],
                                   work['counterfactual_full_history_evaluations']),(0,0,0))
                 row=rt.history.get(MINT);identity=row['position'];position=rt.book._load(identity)
+                cycle=row['regime']['rally_cycle']
+                self.assertEqual((cycle['chain'],cycle['pool'],cycle['policy_hash'],cycle['input_version']),
+                    ('solana-mainnet',state['pool'],POLICY_HASH,'pump-postgrad-canonical-history-v1'))
                 self.assertGreater(position['basis'],0)
                 self.assertEqual(position['status'],'open')
                 self.assertLessEqual(position['basis'],evaluate_entry(f)['features']['turnover_cap'])

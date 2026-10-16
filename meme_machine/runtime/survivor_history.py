@@ -15,6 +15,33 @@ from contextlib import contextmanager
 from meme_machine.runtime.journal import canonical,digest
 
 
+def _compatible_pump_reset_prefix(archive,*,source_policy,target_policy):
+    """An explicit derived view for the unchanged opportunity-v1 reset fold.
+
+    The source archive and its policy identity stay byte-for-byte historical.
+    Only this typed view may bridge the exact reviewed 3% reducer contract; the
+    original pre-opportunity 18% fold cannot recover discarded 3% reset detail.
+    """
+    from meme_machine.paper_policy_revision import predecessor_hash,predecessor_policies
+    from meme_machine.lanes.pump.pumpswap_survivor import POLICY,policy_hash,reduce_reset_history
+    if (source_policy!=predecessor_hash('pump_survivor') or target_policy!=policy_hash()
+            or archive.get('schema')!='survivor-archived-prefix-v1'
+            or not isinstance(archive.get('authority'),dict) or not archive['authority'].get('state_hash')
+            or not isinstance(archive.get('reducer_state'),dict)
+            or archive['reducer_state'].get('policy_hash')!=source_policy):
+        return None
+    original=predecessor_policies()['pump_survivor']['policy']
+    if original['minimum_reset_bps']!=300 or POLICY['minimum_reset_bps']!=300:return None
+    state=reduce_reset_history([],archive['reducer_state'],policy=original)
+    if state['through']!=archive.get('through'):raise ValueError('survivor_reset_prefix_archive_boundary')
+    derived=reduce_reset_history([],dict(state,policy_hash=target_policy))
+    return dict(schema='pump-reset-prefix-compatibility-v1',
+        reducer_contract='pump-reset-prefix-v1-minimum-reset-300bps',
+        source_policy_hash=source_policy,target_policy_hash=target_policy,
+        source_archive_hash=digest(archive),source_state_hash=digest(state),
+        state=derived,state_hash=digest(derived))
+
+
 class History:
     def __init__(self,path,*,policy,maximum_candidates=None,maximum_points=100000):
         self.path=Path(path)
@@ -92,8 +119,13 @@ class History:
                     self.db.execute('DELETE FROM meta WHERE key=?',('calculation_prefix:'+identity,))
                 archive=self.get_meta('archive_prefix:'+identity)
                 if regime=='pump_survivor' and archive is not None and archive.get('reducer_state') is not None:
-                    row['policy_recomputation_blocker']='reset_history_revision_detail_unavailable'
-                    row['policy_recomputation_source_policy']=old
+                    compatible=_compatible_pump_reset_prefix(archive,source_policy=old,target_policy=policy)
+                    if compatible is None:
+                        row['policy_recomputation_blocker']='reset_history_revision_detail_unavailable'
+                        row['policy_recomputation_source_policy']=old
+                    else:
+                        self.set_meta('previous_archive_prefix:'+old+':'+identity,archive)
+                        self.set_meta('compatible_reset_prefix:'+identity,compatible)
                 if row.get('decision') is not None:
                     self.set_meta('previous_candidate_decision:'+old+':'+identity,row['decision'])
                 row['last_checked']=0
@@ -265,7 +297,7 @@ class History:
         saved=self.get_meta('calculation_prefix:'+identity)
         cut=now-86400
         if saved and (saved['source']!=source or saved['through']>cut):saved=None
-        before=(None if archive is None else archive['reducer_state']) if saved is None else saved['state']
+        before=self.prefix(identity) if saved is None else saved['state']
         lower=None if before is None else before['through']
         examined=0
         inputs_hash=digest(archive) if saved is None else saved['inputs_hash']
@@ -295,7 +327,15 @@ class History:
 
     def prefix(self,identity):
         value=self.get_meta('archive_prefix:'+identity)
-        return None if value is None else value['reducer_state']
+        if value is None or value['reducer_state'] is None:return None
+        state=value['reducer_state'];policy=self.get_meta('policy')
+        if state.get('policy_hash')==policy:return state
+        compatible=self.get_meta('compatible_reset_prefix:'+identity)
+        if compatible is None:return state
+        expected=_compatible_pump_reset_prefix(value,source_policy=state.get('policy_hash'),target_policy=policy)
+        if expected is None or compatible!=expected:
+            raise ValueError('survivor_reset_prefix_compatibility')
+        return compatible['state']
 
     def compact_archived(self,authority,*,reducer=None):
         """Replace already-preserved old observations with exact sufficient state.
@@ -321,7 +361,7 @@ class History:
                 from meme_machine.runtime.learning import survivor
                 survivor(self.db,row,((p['at'],p) for p in older))
                 previous=self.get_meta('archive_prefix:'+identity)
-                before=None if previous is None else previous['reducer_state']
+                before=self.prefix(identity)
                 folded=[p for p in older if previous is None or p['at']>previous['through']]
                 state=None if reducer is None else reducer(folded,before)
                 removed=older[1:-1]

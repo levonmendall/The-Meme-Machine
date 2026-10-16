@@ -255,7 +255,7 @@ class ConsolidationTests(unittest.TestCase):
         self.assertEqual(predecessor_hash('pons_current'),'e9c91d19522cedd3da27a4ef6287510c9eb163699a4faae3cda13e76e9809c78')
         self.assertEqual(predecessor_hash('pons_survivor'),'34f968df79aabef6e8fefaf022c69e2abbc334bfd18eff509d48cbbefff66ac4')
         self.assertEqual(current.POLICY_HASH,'909738760e6f722b8668a99493f698c3a415867f77f08199a61b0fb047381be7')
-        self.assertEqual(survivor.POLICY_HASH,'50291f35eba44cafb3eea04474036c198187531941fcf35068c758955def1ce2')
+        self.assertEqual(survivor.POLICY_HASH,'a7d0dc7c4304605392b8fa593e27537007649aeb19a40c8fb97e3b22eab9f515')
         self.assertEqual(current.POLICY_REVISION,ACTIVE_REVISION)
 
 

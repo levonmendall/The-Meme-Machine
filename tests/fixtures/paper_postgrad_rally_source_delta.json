@@ -4,18 +4,18 @@
       "sha256": "f2724991c79ba7ae3a22b8e67e3ac22287e71f034b8c9ff74874629475f4b2c3"
     },
     "meme_machine/runtime/rally_cycle.py": {
-      "sha256": "1744f8d84b1c9924d7e31ea62d1fe94dbe09254f1dbef95cafc27eeee1a6f0f3"
+      "sha256": "6dd1e8ce689784dbf2afff7dadf1995f8f4d3bffc4739388765d52ee2d125868"
     }
   },
   "base": "893b8dd281f4282aed82573db8334c25605755c9",
   "files": {
     "meme_machine/lanes/pons/pons_postgrad_survivor.py": {
-      "after_sha256": "0c3b459a8889b94c53b6a57fef109f33f89c71ed9563d35122a48beb9f8fbaa4",
+      "after_sha256": "2b74663a26a90a1df29ce716545ed59d6f516840460238c49c8d9928db51cd0f",
       "before_sha256": "b24fc5baacb143af208a5f6112a7ded5375ca0b98f955fff3221e65d19b30bb4",
       "layouts": {},
       "nodes": {
         "module/Assign:Name(id='POLICY', ctx=Store())": {
-          "after": "4aeda7bd08a4a60ace9dc1601452db5722be17ea9fb5b717780dc1eb657b9643",
+          "after": "9555935e3335768d51a3189c0c1c9985db01fd6d732e925dd7f0094e9f77e612",
           "before": "505e35ef8deedcdec6b683fce9bc6647b1db89c7bf998a11bebdac74985a2287"
         },
         "module/FunctionDef:_feature_set": {
@@ -29,7 +29,7 @@
       }
     },
     "meme_machine/lanes/pons/pons_survivor_runtime.py": {
-      "after_sha256": "574be073fd4e90bd3ed739610c8e43c179554e59d8b679fd1ad4ff0de9b7895b",
+      "after_sha256": "d396b6d0035511e68e48b42412b88e403b485b33f30aa15b89277d94e8255e9e",
       "before_sha256": "dd126e490b53bba0b414355d12ab617c56b9adc09438457ff630e0ee281202b8",
       "layouts": {
         "module": {
@@ -113,6 +113,10 @@
           "after": "fed9f3f83c595e0edaa6299923b6c840cf7e55050e8b1da92ad6cbbac89e2651",
           "before": "e0d73d2baa57ff8bff5ece436932df6348bb941ef168bd5acd03533d263bca3e"
         },
+        "module/ClassDef:Runtime/FunctionDef:_manage_position": {
+          "after": "06a0c70a3b900eded298228f7ae6e83335769c0a29828bda93ffedd57ef4f3de",
+          "before": "c122fde19eaa6a76be8e90316df0e9f84d93eb4bd05afb05497d986d6012b7e7"
+        },
         "module/ClassDef:Runtime/FunctionDef:exit_quote": {
           "after": "7b3be23a23506b7a3bc8aea26cf719b1ca918d8e941adfacf591969203f6ac37",
           "before": "638a483d092578a43a5bfdac1fe0d70526a52cba0a0c37cc827a3c94eacfdff9"
@@ -126,7 +130,7 @@
           "before": "c31c8368b10706b6baae18f97f84761aa908e0eadc43deb67a871632ba22df0e"
         },
         "module/ClassDef:Runtime/FunctionDef:reconstruct": {
-          "after": "a3ab61934b3f9aa1ccca9e4480510318bc922ed64533d498b45bb71fe7552f5b",
+          "after": "d2a7fd2a4b73c51b517c8fbedac48e1c61dcc3899e8ef2c19b9ff811f737abda",
           "before": "d390240fd43c69ff367a313f21c936165f76f26d9e4b0bb120a8b4c1f8af9f35"
         },
         "module/ClassDef:Runtime/FunctionDef:step": {
@@ -136,6 +140,10 @@
         "module/FunctionDef:_quote_times": {
           "after": "6fb6d3da14cac76de6d2f8f67139613bc9210dce196371b67e6e03ab9d4d288f",
           "before": null
+        },
+        "module/ImportFrom:1:None": {
+          "after": "7acd1a419d7dceb774776db01e1d3d209a97b140000438373c6b488c64b7feba",
+          "before": "26a04f2ea72a81f1e7d535ad58e45356bd49799fbf9111ac28f0ec722abfaa56"
         }
       }
     },
@@ -155,12 +163,12 @@
       }
     },
     "meme_machine/lanes/pump/pumpswap_survivor.py": {
-      "after_sha256": "5d8d6e1cc56e2b4605dc02b46cd19301130036290d8338683969a7fd86fbedf0",
+      "after_sha256": "a64303cb2e39929214cfde030c047ed2f67aa3e347e87a47c469d6dc891d524e",
       "before_sha256": "7c92f9ab7b83a3ddbb3e7c94a28bc57f4a29c922b7beed59452cf42beed85281",
       "layouts": {},
       "nodes": {
         "module/Assign:Name(id='POLICY', ctx=Store())": {
-          "after": "708bbe8be5237556cb310026b2788debc44d5c353b8ffc990bed00bd75e7e559",
+          "after": "6aa0332f39f0e8eaf268244946852a55eb35fb3f487bcdae91cf8903bb577dba",
           "before": "dba62aea62f5f36bf9c7547eadc40e913da8efacc3479a1c4131d945e3518c2d"
         },
         "module/FunctionDef:_decision": {
@@ -168,7 +176,7 @@
           "before": "c4343639caa7a444a7cc1149db26382f6d2186c7f7596e8ca440821165db4aae"
         },
         "module/FunctionDef:evaluate_entry": {
-          "after": "5045d8124cc62da6c25da27ca6eb9216b5a3e551a8f518e54692d7f71528a71a",
+          "after": "cad1a7d941a81ffd9bce3853ae831a5cb24b5f3320e4f2f9535abfd6858f6720",
           "before": "3beba104f591809762826b786e13df021b69216a607c340805d95763581ea005"
         },
         "module/ImportFrom:0:meme_machine.paper_policy_revision": {
@@ -182,7 +190,7 @@
       }
     },
     "meme_machine/lanes/pump/pumpswap_survivor_runtime.py": {
-      "after_sha256": "59cc986adaa5d4033d837f8332f035a24938aef7180f8dc3dd3d03374a5a1e08",
+      "after_sha256": "cc489eb17603069c11e58339e8d9e7317f58cd20d7b035edd558fc665cb29bb4",
       "before_sha256": "8790ad97bc5dea4b579e65b017e96b8fa38ee1c2fc56ca70c9bb34564b56c090",
       "layouts": {
         "module/ClassDef:Runtime": {
@@ -250,6 +258,10 @@
           "after": "a16648ba22ff2bd3f86c40fd337978e5988e6986cf650d764bdd812b0451b08a",
           "before": "d81262c0cb3aa6aea0e758600eb3457c4ed0d69cc742e34a603042a6c90b8023"
         },
+        "module/ClassDef:Runtime/FunctionDef:_position": {
+          "after": "9ebd92fd189b0d5420a9bfaa098208a2aabf6249aa647743bd605deb28056c46",
+          "before": "eb6a182cd92506c80c0506dcef8894a7c14bdd698bbf7eec63a35fe39038dcf2"
+        },
         "module/ClassDef:Runtime/FunctionDef:position_policy": {
           "after": "35a9c48d7d35633994f36fb3d0508e78c496e82cead9ed61e0ec7bc4cb203e3b",
           "before": null
@@ -259,8 +271,19 @@
           "before": "85605b2c66f52413bc05a9ad0bd0647241976a25144ff336c7cda4bfcf5dc84d"
         },
         "module/ClassDef:Runtime/FunctionDef:step": {
-          "after": "ae328ba9e8a4f9e09e2394943a52e9e1bae9f27608fd64672465b0aa5135b007",
+          "after": "e967c3284f9ce712468079e15499e2c0bffa145679bc25942118cd13291c1272",
           "before": "aeca30c345bd2d1955a268853b43a3787dea93fac9fc20441c1d37dd9507622f"
+        }
+      }
+    },
+    "meme_machine/lanes/pump/runner.py": {
+      "after_sha256": "148ec23e41195ad1464236873ffe2d1ae6bf96e1ddc5cf401a703703c49ef40e",
+      "before_sha256": "ca83600f6a54806b52c4f6625d1b30d482e922e82db17d086e1ca055485c6a41",
+      "layouts": {},
+      "nodes": {
+        "module/Assign:Name(id='FROZEN_POLICY_HASH', ctx=Store())": {
+          "after": "0764677137a948a4c0181e815e640ea72ae78b6c189f78ddd2e755287b687744",
+          "before": "08804a75ec1b8f4020b416c66a4780db020193e3ba94c27827797b0fd74730c3"
         }
       }
     },
@@ -419,7 +442,7 @@
       }
     },
     "meme_machine/runtime/policy_compatibility.py": {
-      "after_sha256": "84cdbf0fa8e02775cbd777905d6e7a560bbd5ce5ae95c978b1c2e245582de175",
+      "after_sha256": "67dd40a7aaebe385f87c290cb6fd43d7500b9397603b435a177fcea02d5a194c",
       "before_sha256": "1c600e0ff03aa77aaf9ceddfb15a902e4d17c2ae2f49d0e6d0171f6c47511c53",
       "layouts": {
         "module": {
@@ -442,6 +465,7 @@
             "module/FunctionDef:selection",
             "module/FunctionDef:validate_prior_selection",
             "module/FunctionDef:require_flat_rows",
+            "module/FunctionDef:_terminal_native_position",
             "module/FunctionDef:require_flat_portfolio",
             "module/FunctionDef:assert_shared_transition",
             "module/FunctionDef:require_external_flat",
@@ -482,6 +506,10 @@
           "after": "8edb06fde462abc84a048dea51c3cb3f5c80519c89b9bf99c07b2c25c07fde82",
           "before": "2ea8e73a7303043c9efb6bf46153edcd7b9ff96d3b41d253dfd8fed2b4072706"
         },
+        "module/FunctionDef:_terminal_native_position": {
+          "after": "4275fb972671962d7f5f2a5d08ffedc4eae2d06076790fffe600ef63f48ccfd3",
+          "before": null
+        },
         "module/FunctionDef:compatible_identity": {
           "after": "3a74942ae196faaa452bf27c63006baddcacf8c40ffacc5c53cafb9cde5e61ad",
           "before": "2c523a274381c61c4924a6321e29880a3e24f81c8877c88e77d9c33336d235d6"
@@ -489,6 +517,10 @@
         "module/FunctionDef:known_hash": {
           "after": "fdd76c011c6600c7b111e52ee9e9ccd94ddbac6ca13ab7bb3711e60d29f11692",
           "before": "4017deef54a6998a094ce1700570b9601c8f89e164fbc9a9b7317cc3fd70e0e3"
+        },
+        "module/FunctionDef:require_flat_portfolio": {
+          "after": "fefa3dba4fe4164249f7e089b7645f073b9b06e3464bedc450fbfa5f82e3137d",
+          "before": "c54b08651e3a2698c915cdd1f4e794825487e05160de71807bd87863850cd078"
         },
         "module/FunctionDef:runtime_selection": {
           "after": "57f0895db3436b81d641b128c2a708443e05e928ca848b084c14f773854fe501",
@@ -524,7 +556,7 @@
       }
     },
     "meme_machine/runtime/sleeve_reservations.py": {
-      "after_sha256": "a42171559e289b3f9cd2aa8a533b65aa4562ea1e9f1aa54109544418904e6ab6",
+      "after_sha256": "6a09a1ac72fcf8ac1ca3d7d7cbdd133964358ecc19e8778b0fe75f3db4d91561",
       "before_sha256": "34e97241836137e535077a9345121ae2fb3e3063ba8a688aa44cecd65b0f5821",
       "layouts": {
         "module/ClassDef:SleeveReservations": {
@@ -597,7 +629,7 @@
           "before": "04281cd8cf38e0e2700a16e97394b6c95c1088c5862dacb19f495b46fc036150"
         },
         "module/ClassDef:SleeveReservations/FunctionDef:_observe_rally": {
-          "after": "97a6f7582eeb499b241b2cba91be3c8ce632a3f6f9b2dc91cef70947f939028d",
+          "after": "c1da98faf0ed75b4b56c5118b07405bdfaf286c33f96e7928c7e111c8d8c1a4a",
           "before": null
         },
         "module/ClassDef:SleeveReservations/FunctionDef:_open": {
@@ -613,7 +645,7 @@
           "before": "ad523b10bc030e40d3326646db145d00c5af63bd9d8f4b8ec64d32eaa3ccbf71"
         },
         "module/ClassDef:SleeveReservations/FunctionDef:_reservation_preflight": {
-          "after": "83ad8129f47ae030c24c356a6ac41d20e7a97c6aef3c7ec2b6fdbb88fb47b274",
+          "after": "c875d02bf08ed66af88c07eeee95c86800ec6ca0bf8d5f1eb3d8ca2ae0faaa32",
           "before": null
         },
         "module/ClassDef:SleeveReservations/FunctionDef:acknowledge_native": {
@@ -633,7 +665,7 @@
           "before": null
         },
         "module/ClassDef:SleeveReservations/FunctionDef:rally_report": {
-          "after": "488b24eac4c0ac073de50375284b0721c2f43eddd67e61f8f70ef1e98e2b48ed",
+          "after": "3f63ef359f88242e290ac66c86109202b97abcda66cc5bfd6f8d3fe9371ad846",
           "before": null
         },
         "module/ClassDef:SleeveReservations/FunctionDef:release": {
@@ -666,13 +698,63 @@
       }
     },
     "meme_machine/runtime/survivor_history.py": {
-      "after_sha256": "3b2bf1497b2eb355500ad97ef3fa9be10acacd235c06ff6e0adaa3dd163450fe",
+      "after_sha256": "3543f77391118073aafefba34e5bcf954b764175b381f810d4b41f842f407a38",
       "before_sha256": "5a0e1d111898748014f1412c84ab193ffe4ce5207fbece903613db05faf14350",
-      "layouts": {},
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/Import:json",
+            "module/Import:hashlib",
+            "module/Import:os",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:time",
+            "module/Import:sqlite3",
+            "module/ImportFrom:0:fractions",
+            "module/ImportFrom:0:contextlib",
+            "module/ImportFrom:0:meme_machine.runtime.journal",
+            "module/FunctionDef:_compatible_pump_reset_prefix",
+            "module/ClassDef:History",
+            "module/FunctionDef:compact_restored_history",
+            "module/ClassDef:Worker"
+          ],
+          "before": [
+            "module/docstring",
+            "module/Import:json",
+            "module/Import:hashlib",
+            "module/Import:os",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:time",
+            "module/Import:sqlite3",
+            "module/ImportFrom:0:fractions",
+            "module/ImportFrom:0:contextlib",
+            "module/ImportFrom:0:meme_machine.runtime.journal",
+            "module/ClassDef:History",
+            "module/FunctionDef:compact_restored_history",
+            "module/ClassDef:Worker"
+          ]
+        }
+      },
       "nodes": {
         "module/ClassDef:History/FunctionDef:_select_policy": {
-          "after": "89113a90083243a08ce5b29bf14a9c867e031bb3c13c87473f3051b51aaf3e26",
+          "after": "58ce403f0ba5bddabe6b4638f2c5ae878019c45edffc6746fb657027d4b463dd",
           "before": "7a73f630d2db8fa0dd4f29583b346d8048c456a16f60e51699bc1ba36ce1522f"
+        },
+        "module/ClassDef:History/FunctionDef:calculation_facts": {
+          "after": "04f9b64355d7a1770deae314eecec02f9583d5fb0526a1d7109f9ec69590153f",
+          "before": "9b14575ea120d818b40f3b1aae98a60d10a4377f59f2eedc278090da86b7ca18"
+        },
+        "module/ClassDef:History/FunctionDef:compact_archived": {
+          "after": "85cd541067a76f11975cdcee09b1cd570a57f735d64416a7acced9c46ef4ca67",
+          "before": "74979f6abcdddf51f4c69e19f24287aa38135f4c19f9e34d9968e616a5305d10"
+        },
+        "module/ClassDef:History/FunctionDef:prefix": {
+          "after": "ec638a5492de59f550ed6aedb1b1432ee192a66c11bc19d6ebf73ed2314612f9",
+          "before": "66b4a54c1606ea0fb315926e37d99625b163483f3ddabff294910f371b66296c"
+        },
+        "module/FunctionDef:_compatible_pump_reset_prefix": {
+          "after": "166eab2875432c8150d1b0a040dc49fea85274ad1e14f03985b3d2e5faf47f13",
+          "before": null
         }
       }
     },

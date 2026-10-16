@@ -62,6 +62,7 @@ POLICY=dict(
     reentry=dict(minimum_seconds=3600,minimum_changed_dimensions=2,
         cycle_identity='rally-cycle-v1',minimum_completed_base_seconds=900,
         require_distinct_post_breakout_peak=True,require_verified_settlement=True,
+        require_post_settlement_peak=True,setup_spacing_execution_veto=False,
         require_global_release_ack=True,require_no_pending_financial_obligations=True),
     execution=dict(
         target_capital_bps=500,

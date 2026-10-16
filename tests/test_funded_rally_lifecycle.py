@@ -72,7 +72,9 @@ class FundedRallyLifecycles(unittest.TestCase):
         self.assertTrue(decision['candidate'],decision)
         cycle=build_cycle(candidate='synthetic-asset',venue=family,graduation=dict(at=graduation,
             canonical_event='synthetic-graduation'),**times,decision_at=at,
-            evidence_id=digest(f),authoritative=True,complete=True,minimum_base_seconds=base_seconds)
+            evidence_id=digest(f),authoritative=True,complete=True,minimum_base_seconds=base_seconds,
+            chain='synthetic-offline',pool='synthetic-pool',policy_hash=decision['policy_hash'],
+            input_version='synthetic-canonical-history-v1')
         regime=dict(at=at,rally_cycle=cycle,buyer_population=['synthetic-demand'],independent_demand=6)
         return f,qualify,decision,regime,exit_policy
 
@@ -181,13 +183,15 @@ class FundedRallyLifecycles(unittest.TestCase):
                     # Restart recovery from immutable native journal at every fill.
                     risk=restore_risk(book,identity)
                     self.assertEqual(risk['lifecycle_clocks']['entry_fill_at'],at)
-                    self.exit(book,sleeve,identity,adapter,policy,at+(12*3600-600 if index<2 else 10),
+                    self.exit(book,sleeve,identity,adapter,policy,at+(100 if index<2 else 10),
                         partial=index==0 and not initial_loss,
                         loss=index==1 or index==0 and initial_loss,lose_ack=index==2)
                     a.verify_replay();snapshot=a.snapshot()
                     self.assertTrue(snapshot['capital']['conservation'])
                     self.assertEqual(Decimal(snapshot['capital']['deployed_basis']),0)
                     self.assertEqual(Decimal(snapshot['capital']['active_reservations']),0)
+                    self.assertEqual(Decimal(snapshot['capital']['realized_equity']),
+                        Decimal(before['initial_capital'])+Decimal(book.reconcile()['realized'])/1000)
                     self.assertFalse(a.ledger()['runtime_pending'])
                     # Same cycle remains blocked even if demand counts/populations change.
                     repeated=dict(regime,at=at+12*3600,buyer_population=['changed'],independent_demand=99)
@@ -219,7 +223,7 @@ class FundedRallyLifecycles(unittest.TestCase):
                 self.assertEqual(Decimal(a.snapshot()['capital']['free_cash']),1000)
                 self.assertEqual(sleeve.rally_report()['rows'][0]['traded_count'],0)
                 for index in range(1,4):
-                    at=now+index*8*3600
+                    at=now+index*(8*3600+2)
                     identity,adapter,regime,policy=self.enter(family,at,graduation,sleeve,book,strategy,index)
                     self.exit(book,sleeve,identity,adapter,policy,at+1)
                 a.verify_replay()
@@ -227,4 +231,26 @@ class FundedRallyLifecycles(unittest.TestCase):
                 self.assertEqual(sleeve.rally_report()['rows'][0]['cancelled_count'],1)
                 self.assertFalse(a.ledger()['runtime_pending'])
                 self.assertEqual(Decimal(a.snapshot()['capital']['free_cash']),1000)
+
+    def test_delayed_native_terminal_recovery_keeps_actual_settlement_time(self):
+        from types import SimpleNamespace
+        for family in ('pump','pons'):
+            with self.subTest(family=family):
+                a,now,plan,sleeve,book,strategy=self.opened(family)
+                graduation=now-(25000 if family=='pump' else 30*3600)
+                identity,adapter,regime,policy=self.enter(family,now,graduation,sleeve,book,strategy,0)
+                book.transition(identity,'settled',now+10,amount=book._load(identity)['basis'])
+                self.assertEqual(sleeve.get(identity)['status'],'filled')
+                if family=='pump':
+                    from meme_machine.lanes.pump.pumpswap_survivor_runtime import Runtime
+                    method=Runtime._position
+                else:
+                    from meme_machine.lanes.pons.pons_survivor_runtime import Runtime
+                    method=Runtime._manage_position
+                runtime=object.__new__(Runtime);runtime.book=book;runtime.sleeve=sleeve
+                runtime.history=SimpleNamespace(save=lambda row:None);runtime.now=lambda:now+1000
+                method(runtime,dict(id='synthetic-asset',position=identity),admit=False)
+                self.assertEqual(sleeve.get(identity)['terminal_at'],now+10)
+                self.assertEqual(sleeve.reentry_verified(identity)['terminal_at'],now+10)
+                a.verify_replay()
 
