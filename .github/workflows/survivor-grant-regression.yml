@@ -1,0 +1,33 @@
+name: Survivor funding reservation offline regression
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - 'meme_machine/runtime/sleeve_reservations.py'
+      - 'meme_machine/shared_capital/native_sleeve.py'
+      - 'tests/test_pump_pons_capital_preparation.py'
+      - '.github/workflows/survivor-grant-regression.yml'
+permissions:
+  contents: read
+jobs:
+  focused-capital:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.14'
+      - name: Install pinned runtime dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Validate shared-native grants with offline provider guard
+        env:
+          MM_MODE: PAPER
+        run: |
+          python -m compileall -q meme_machine/shared_capital/native_sleeve.py meme_machine/runtime/sleeve_reservations.py tests/test_pump_pons_capital_preparation.py
+          python -m operational.tests FAST --modules \
+            tests.test_pump_pons_capital_preparation \
+            tests.test_current_survivor_independence \
+            tests.test_shared_capital_recovery
