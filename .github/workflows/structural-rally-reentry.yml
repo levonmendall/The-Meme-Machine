@@ -37,8 +37,10 @@ jobs:
         run: |
           python -m operational.tests FAST --modules \
             tests.test_structural_rally_reentry \
-            tests.test_survivor_commit \
             tests.lanes.pump.test_pumpswap_survivor \
             tests.lanes.pons.test_pons_postgrad_survivor \
             tests.test_current_survivor_independence \
+            tests.test_paper_policy_compatibility
+          python -m operational.tests OPERATIONAL --modules \
+            tests.test_survivor_commit \
             tests.test_sleeve_prefix_recovery
