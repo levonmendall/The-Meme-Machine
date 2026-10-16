@@ -186,6 +186,42 @@ class SharedSleeve(SleeveReservations):
         from .authority import _size_equity
         return _size_equity(state,r)
 
+    def _cancel_rejected_native_reservation(self,identity):
+        """Release an orphaned grant only with an exact, durable native-absence proof.
+
+        The sleeve writer lock excludes a racing native reservation commit.
+        Uncertain native deliveries and authoritative commitments stay funded,
+        and the caller must reconcile them through existing startup recovery.
+        """
+        with self.transaction():
+            # Verify native integrity before treating absence as financial proof.
+            self.reconcile()
+            if self.get(identity) is not None:
+                return False
+            state=self.authority.ledger()
+            key=self.identity['lane']+':'+identity
+            req_id=state.get('runtime_native_requests',{}).get(key)
+            if not req_id:return False
+            req=state['requests'].get(req_id)
+            queued=state.get('runtime_inbox',{}).get(req_id)
+            if key in state.get('runtime_pending',{}) or (req and req['status'] in ('COMMITTED','CONSUMED')):
+                raise CapitalError('native_reservation_grant_reconciliation_required')
+            if not queued and (not req or req['status']!='RESERVED'):
+                return False
+            frontier=self.db.execute('SELECT seq,hash FROM sleeve_journal ORDER BY seq DESC LIMIT 1').fetchone()
+            proof=digest(['verified_unmaterialized_native_reservation',self.identity['lane'],identity,
+                req_id,frontier])
+            self.authority.command('native-reservation-absence:'+req_id,'runtime_cancel',
+                dict(request_id=req_id,at=state['at'],proof_sha256=proof,
+                    proof_kind='VERIFIED_NATIVE_ABSENCE'),state['at'])
+            after=self.authority.ledger()
+            checked=after['requests'].get(req_id)
+            if (not checked or checked['status']!='CANCELLED'
+                    or req_id in after['reservations'] or req_id in after['commitments']
+                    or req_id in after.get('runtime_inbox',{})):
+                raise CapitalError('native_reservation_grant_reconciliation_required')
+            return True
+
     def reserve(self,identity,*,strategy,amount,at,candidate=None,generation=None,regime=None,asset=None,funding_evidence=None):
         if candidate is not None:
             row=self.candidate(candidate)
@@ -195,12 +231,26 @@ class SharedSleeve(SleeveReservations):
         else:
             evidence=funding_evidence
             if not evidence:raise CapitalError('authentic_native_qualification_required')
-        grant=self._grant(identity,strategy=strategy,units=amount,at=at,asset=asset or candidate,
-            evidence=evidence,generation=generation or 1)
-        self._grant_receipt=grant
-        try:return super().reserve(identity,strategy=strategy,amount=amount,at=at,candidate=candidate,
+        # No global grant is created for an already-rejected native opportunity.
+        # The same checks run again in the eventual native writer transaction.
+        self.preflight_reservation(identity,strategy=strategy,amount=amount,candidate=candidate,
             generation=generation,regime=regime,asset=asset)
-        finally:self._grant_receipt=None
+        try:
+            grant=self._grant(identity,strategy=strategy,units=amount,at=at,asset=asset or candidate,
+                evidence=evidence,generation=generation or 1)
+            self._grant_receipt=grant
+            try:
+                return super().reserve(identity,strategy=strategy,amount=amount,at=at,candidate=candidate,
+                    generation=generation,regime=regime,asset=asset)
+            finally:
+                self._grant_receipt=None
+        except BaseException:
+            # Handles both a failed native commit after the grant and an
+            # interrupted global queue/allocate. Never blindly expire a claim.
+            try:self._cancel_rejected_native_reservation(identity)
+            except BaseException as cancellation_error:
+                raise CapitalError('native_reservation_grant_reconciliation_required') from cancellation_error
+            raise
 
     def reserve_scale(self,identity,*,amount,original_basis,at,request,scale_state=None,scale_facts=None):
         row=self.get(identity)
@@ -239,7 +289,15 @@ class SharedSleeve(SleeveReservations):
 
     def _shared_reserved(self,identity,units):
         grant=getattr(self,'_grant_receipt',None)
-        return bool(grant and units<=grant['maximum_native_units'])
+        if not grant or units>grant['maximum_native_units']:return False
+        state=self.authority.ledger()
+        req=state['requests'].get(grant['request_id'])
+        kind=(req or {}).get('value',{}).get('kind')
+        key=self.identity['lane']+':'+identity+(':scale' if kind=='scale' else '')
+        return bool(req and req['status']=='RESERVED'
+            and state['epoch_id']==grant['epoch_id']
+            and state.get('runtime_native_requests',{}).get(key)==grant['request_id']
+            and req['value'].get('native_requested_units')==grant['maximum_native_units'])
 
     def recover_unmaterialized(self,native_ids,*,strategy,verified):
         """Startup-only absence proof, before this regime admits any workers."""
