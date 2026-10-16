@@ -427,15 +427,18 @@ class RuntimeIntegrationTests(unittest.TestCase):
                 self.addCleanup(book.close)
                 book.reserve(identity,6250,now,dict(qualified=True))
                 book.transition(identity,'filled',now,amount=6250,tokens=100,evidence=dict(execution={'gas':0}))
+                book.transition(identity,'mark',now,amount=6250)
+                native_sync(book,sleeve,identity)
+                self.assertEqual(Decimal(a.snapshot()['capital']['active_reservations']),Decimal(0))
                 book.transition(identity,'settled',now+1,amount=6250)
                 native_sync(book,sleeve,identity)
-                self.assertEqual(a.snapshot()['capital']['active_reservations'],'0')
+                self.assertEqual(Decimal(a.snapshot()['capital']['active_reservations']),Decimal(0))
                 second=family+':second'
                 with self.assertRaisesRegex(ValueError,'same_survivor_regime'):
                     sleeve.reserve(second,strategy=strategy,amount=6250,at=now+2,candidate=candidate,
                         generation=observed['generation'],regime=dict(prior_regime,at=now+2))
                 self.assertIsNone(sleeve.get(second))
-                self.assertEqual(a.snapshot()['capital']['active_reservations'],'0')
+                self.assertEqual(Decimal(a.snapshot()['capital']['active_reservations']),Decimal(0))
                 self.assertNotIn(family+':'+second,a.ledger()['runtime_native_requests'])
                 a.verify_replay()
 
@@ -468,8 +471,8 @@ class RuntimeIntegrationTests(unittest.TestCase):
         state=a.ledger();key='pons:reject-now';req_id=state['runtime_native_requests'][key]
         self.assertIsNone(sleeve.get('reject-now'))
         self.assertEqual(state['requests'][req_id]['status'],'CANCELLED')
-        self.assertEqual(a.snapshot()['capital']['active_reservations'],'0')
-        self.assertEqual(a.snapshot()['capital']['free_cash'],'500')
+        self.assertEqual(Decimal(a.snapshot()['capital']['active_reservations']),Decimal(0))
+        self.assertEqual(Decimal(a.snapshot()['capital']['free_cash']),Decimal(500))
         a.verify_replay()
 
     def test_failed_cancellation_retains_funding_until_verified_recovery(self):
@@ -489,11 +492,11 @@ class RuntimeIntegrationTests(unittest.TestCase):
                         funding_evidence=dict(qualified=True))
         state=a.ledger();req_id=state['runtime_native_requests']['pump:needs-recovery']
         self.assertEqual(state['requests'][req_id]['status'],'RESERVED')
-        self.assertEqual(a.snapshot()['capital']['active_reservations'],'6.25')
+        self.assertEqual(Decimal(a.snapshot()['capital']['active_reservations']),Decimal('6.25'))
         # Only startup with verified native absence can resolve an interrupted cancellation.
         sleeve.recover_unmaterialized(set(),strategy=strategy,verified=True)
         self.assertEqual(a.ledger()['requests'][req_id]['status'],'CANCELLED')
-        self.assertEqual(a.snapshot()['capital']['free_cash'],'500')
+        self.assertEqual(Decimal(a.snapshot()['capital']['free_cash']),Decimal(500))
         a.verify_replay()
 
 
