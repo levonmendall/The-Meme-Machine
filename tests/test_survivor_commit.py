@@ -205,3 +205,95 @@ class SurvivorCommitTests(unittest.TestCase):
         self.assertEqual(result['quantity'],100);self.reopen()
         p=self.book._load('run:one');self.assertEqual((p['tokens'],p['basis'],p['realized']),(300,75,5))
         self.assertTrue(restore_risk(self.book,'run:one')['realization_taken'])
+
+    def test_partial_harvest_replays_committed_state_once_before_native_ack(self):
+        self.fill(6000);self.adapter.at=11;self.adapter.proceeds=30
+        from tests.test_survivor_risk_boundaries import POLICIES
+        from meme_machine.runtime.journal import digest
+        events=[];replay=self.book.replay;ack=self.sleeve.acknowledge_native
+        def verified_replay():
+            result=replay()
+            events.append(('replay',self.book._load('run:one')['tokens'],result['verified']))
+            return result
+        def verified_ack(identity,**kwargs):
+            position=self.book._load(identity)
+            self.assertEqual(events[-1],('replay',position['tokens'],True))
+            self.assertEqual(kwargs['native_hash'],digest(position))
+            self.assertIs(kwargs['native_verified'],True)
+            events.append(('ack',position['tokens'],kwargs['basis'],kwargs['pnl']))
+            return ack(identity,**kwargs)
+        self.book.replay=verified_replay;self.sleeve.acknowledge_native=verified_ack
+        observation=dict(id='profit',at=11,after_cost_return_bps=2000,
+            net_exit_proceeds=120,exit_liquidity_valid=True)
+        action=monitor(book=self.book,sleeve=self.sleeve,identity='run:one',
+            observation=observation,policy=POLICIES['pons'],adapter=self.adapter)
+        self.assertEqual(action['action'],'partial_exit')
+        self.assertEqual([event for event in events if event[1]==300],
+            [('replay',300,True),('ack',300,75,5)])
+        self.assertEqual((self.sleeve.get('run:one')['held'],self.sleeve.get('run:one')['pnl']),(75,5))
+        self.reopen();self.assertTrue(self.book.replay()['verified'])
+        self.assertEqual(self.book._load('run:one')['tokens'],300)
+
+    def test_corrupt_committed_partial_harvest_cannot_acknowledge_sleeve(self):
+        self.fill(6000);self.adapter.at=11;self.adapter.proceeds=30
+        from tests.test_survivor_risk_boundaries import POLICIES
+        transition=self.book.transition;saved={}
+        def corrupt_after_commit(identity,action,*args,**kwargs):
+            result=transition(identity,action,*args,**kwargs)
+            if action=='partial_harvest':
+                saved['seq'],saved['hash']=self.book.db.execute('SELECT seq,hash FROM journal ORDER BY seq DESC LIMIT 1').fetchone()
+                self.book.db.execute('DROP TRIGGER journal_no_update')
+                self.book.db.execute("UPDATE journal SET hash=? WHERE seq=(SELECT MAX(seq) FROM journal)",('0'*64,))
+            return result
+        self.book.transition=corrupt_after_commit
+        observation=dict(id='profit',at=11,after_cost_return_bps=2000,
+            net_exit_proceeds=120,exit_liquidity_valid=True)
+        try:
+            with self.assertRaisesRegex(ValueError,'paper_journal_corruption'):
+                monitor(book=self.book,sleeve=self.sleeve,identity='run:one',
+                    observation=observation,policy=POLICIES['pons'],adapter=self.adapter)
+            self.assertEqual((self.book._load('run:one')['tokens'],self.book._load('run:one')['realized']),(300,5))
+            self.assertEqual((self.sleeve.get('run:one')['held'],self.sleeve.get('run:one')['pnl']),(100,0))
+            with self.assertRaisesRegex(ValueError,'paper_journal_corruption'):self.book.replay()
+        finally:
+            if saved:
+                self.book.db.execute('UPDATE journal SET hash=? WHERE seq=?',(saved['hash'],saved['seq']))
+                self.book.db.execute("CREATE TRIGGER journal_no_update BEFORE UPDATE ON journal BEGIN SELECT RAISE(ABORT,'append_only'); END")
+        self.reopen()
+        self.assertTrue(self.book.replay()['verified'])
+        self.assertEqual((self.sleeve.get('run:one')['held'],self.sleeve.get('run:one')['pnl']),(100,0))
+
+    def test_partial_harvest_without_sleeve_still_verifies_committed_journal(self):
+        self.fill(6000);self.adapter.at=11;self.adapter.proceeds=30
+        from tests.test_survivor_risk_boundaries import POLICIES
+        replay=self.book.replay;verified=[]
+        def verified_replay():
+            result=replay();verified.append(self.book._load('run:one')['tokens']);return result
+        self.book.replay=verified_replay
+        observation=dict(id='profit',at=11,after_cost_return_bps=2000,
+            net_exit_proceeds=120,exit_liquidity_valid=True)
+        monitor(book=self.book,sleeve=None,identity='run:one',observation=observation,
+            policy=POLICIES['pons'],adapter=self.adapter)
+        self.assertEqual(verified.count(300),1)
+        self.assertEqual(self.book._load('run:one')['realized'],5)
+
+    def test_settlement_replays_committed_state_before_releasing_sleeve(self):
+        self.fill(6000);self.adapter.at=11;self.adapter.proceeds=90
+        from tests.test_survivor_risk_boundaries import POLICIES
+        replay=self.book.replay;release=self.sleeve.release;events=[]
+        def verified_replay():
+            result=replay();events.append(('replay',self.book._load('run:one')['status'],result['verified']))
+            return result
+        def verified_release(identity,**kwargs):
+            self.assertEqual(events[-1],('replay','settled',True))
+            events.append(('release',kwargs['pnl']))
+            return release(identity,**kwargs)
+        self.book.replay=verified_replay;self.sleeve.release=verified_release
+        observation=dict(id='stop',at=11,after_cost_return_bps=-1000,
+            net_exit_proceeds=90,exit_liquidity_valid=True)
+        monitor(book=self.book,sleeve=self.sleeve,identity='run:one',observation=observation,
+            policy=POLICIES['pons'],adapter=self.adapter)
+        self.assertEqual([event for event in events if event[0]=='replay' and event[1]=='settled'],
+            [('replay','settled',True)])
+        self.assertEqual(events[-1],('release',-10))
+        self.assertEqual(self.sleeve.reconcile()['available'],990)

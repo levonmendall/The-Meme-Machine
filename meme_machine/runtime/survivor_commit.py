@@ -279,8 +279,10 @@ def monitor(*,book,sleeve,identity,observation,policy,adapter,exceptional_contex
     native_action='settled' if action['action']=='full_exit' else 'partial_harvest'
     book.transition(identity,native_action,now,amount=execution['net_proceeds'],tokens=qty,
                     evidence=dict(exit_reason=action['reason'],execution=execution))
-    book.replay()
-    if native_action=='partial_harvest':native_sync(book,sleeve,identity)
+    if native_action=='partial_harvest' and sleeve is not None:
+        # native_sync independently replays this committed harvest before ACK.
+        native_sync(book,sleeve,identity)
+    else:book.replay()
     if native_action=='settled':
         final=book._load(identity)
         sleeve.release(identity,pnl=final['realized'],at=now,terminal_hash=digest(final),native_verified=True)

@@ -192,6 +192,43 @@ RALLY_CHANGED_SOURCES=('meme_machine/lanes/pons/pons_postgrad_survivor.py', 'mem
 RALLY_ADDED_SOURCES=('meme_machine/policy_history/opportunity_access_v1.json', 'meme_machine/runtime/rally_cycle.py')
 
 
+# A partial harvest's native_sync already performs its fresh monetary replay
+# before ACK. Pin only the reviewed removal of the immediately duplicate
+# replay; every other monitor, financial, strategy and source byte stays pinned.
+SURVIVOR_MONITOR_REPLAY_REFERENCE='be26e3a8793686cec229fb51ddb6314569da7949'
+SURVIVOR_MONITOR_REPLAY_SOURCE='meme_machine/runtime/survivor_commit.py'
+SURVIVOR_MONITOR_REPLAY_BEFORE='01f8234ee4e039c7661238f604fdcc6cc65512612ccb606af69f9967c6ee9f31'
+SURVIVOR_MONITOR_REPLAY_AFTER='68c1256edccacecf35e23afe3ddcc0cd914123dd66e14534eeb3ec6cadd9fcca'
+SURVIVOR_MONITOR_REPLAY_OLD_BLOCK=(
+    b"    book.replay()\n"
+    b"    if native_action=='partial_harvest':native_sync(book,sleeve,identity)\n")
+SURVIVOR_MONITOR_REPLAY_NEW_BLOCK=(
+    b"    if native_action=='partial_harvest' and sleeve is not None:\n"
+    b"        # native_sync independently replays this committed harvest before ACK.\n"
+    b"        native_sync(book,sleeve,identity)\n"
+    b"    else:book.replay()\n")
+
+
+def survivor_monitor_replay_predecessor(test,relative,current,*,allow_previous_layers=False):
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=SURVIVOR_MONITOR_REPLAY_SOURCE:return current
+    prior=subprocess.check_output(['git','show',SURVIVOR_MONITOR_REPLAY_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),SURVIVOR_MONITOR_REPLAY_BEFORE,
+        relative+':exact monitor replay predecessor')
+    if current==prior:return prior
+    current_hash=hashlib.sha256(current).hexdigest()
+    if allow_previous_layers and current_hash==rally_manifest(test)['files'][relative]['before_sha256']:
+        earlier=subprocess.check_output(['git','show',RALLY_BASE+':'+relative],cwd=ROOT)
+        test.assertEqual(current,earlier,relative+':exact older rally intermediate')
+        return current
+    test.assertEqual(current_hash,SURVIVOR_MONITOR_REPLAY_AFTER,relative+':exact monitor replay successor')
+    test.assertEqual(current.count(SURVIVOR_MONITOR_REPLAY_NEW_BLOCK),1,relative+':one exact post-harvest replay delta')
+    restored=current.replace(SURVIVOR_MONITOR_REPLAY_NEW_BLOCK,SURVIVOR_MONITOR_REPLAY_OLD_BLOCK,1)
+    test.assertEqual(restored,prior,relative+':all other monitor, financial and strategy bytes retained')
+    return prior
+
+
 # Preserve the exact failed program-log observation without declaring its
 # callback complete. This one-file boundary delta reverses to D06 before any
 # earlier guard runs; its entire financial/source mutation surface stays pinned.
@@ -350,6 +387,8 @@ def rally_delta(before,after):
 def rally_predecessor(test,relative,current,*,allow_previous_layers=False):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
+    current=survivor_monitor_replay_predecessor(test,relative,current,
+        allow_previous_layers=allow_previous_layers)
     current=program_gap_observation_predecessor(test,relative,current)
     current=startup_history_cancellation_predecessor(test,relative,current,
         allow_previous_layers=allow_previous_layers)
@@ -1371,6 +1410,31 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_survivor_monitor_replay_delta_preserves_fresh_proof_and_exact_prior_economics(self):
+        import hashlib
+        relative=SURVIVOR_MONITOR_REPLAY_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),SURVIVOR_MONITOR_REPLAY_AFTER,
+            relative+':active exact reviewed post-harvest replay source')
+        prior=subprocess.check_output(['git','show',SURVIVOR_MONITOR_REPLAY_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(survivor_monitor_replay_predecessor(self,relative,current),prior)
+        self.assertEqual(rally_predecessor(self,relative,current),rally_predecessor(self,relative,prior))
+        self.assertEqual(opportunity_predecessor(self,relative,current),
+            opportunity_predecessor(self,relative,prior))
+        changes=[current+b'\n# unreviewed monetary replay change\n',b'']
+        for old,new in (
+                (b"if native_action=='partial_harvest' and sleeve is not None:",b"if False:"),
+                (SURVIVOR_MONITOR_REPLAY_NEW_BLOCK,SURVIVOR_MONITOR_REPLAY_NEW_BLOCK.replace(
+                    b"        native_sync(book,sleeve,identity)\n",b"        pass\n",1)),
+                (b"    else:book.replay()\n",b"    else:pass\n"),
+                (b"terminal_hash=digest(final),native_verified=True",b"terminal_hash=digest(final),native_verified=False")):
+            self.assertIn(old,current,relative+':negative mutation target exists')
+            changes.append(current.replace(old,new,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):survivor_monitor_replay_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):rally_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_program_gap_boundary_reverses_exactly_without_weakening_recovery_or_funding(self):
         import hashlib
         relative=PROGRAM_GAP_OBSERVATION_SOURCE;current=(ROOT/relative).read_bytes()
