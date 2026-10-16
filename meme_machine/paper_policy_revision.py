@@ -11,6 +11,14 @@ PREVIOUS_REVISION = 'pre-paper-opportunity-access-v1'
 PREVIOUS_SOURCE = 'a048ee8cbeb87bff9c589a0b6f587fd909c23ed5'
 PREVIOUS_SNAPSHOT_SHA256 = '9e30348778689f945f0a3faa18b7b45a3badbdda207ab38966dc1c91d7ec2303'
 
+# Exact hashes of the already-published opportunity-access Survivors, before
+# structural re-entry. These are recovery/flat-transition identities ONLY.
+# They never authorize new decisions or restore the previous entry predicate.
+SUPERSEDED_ACTIVE_SURVIVOR_HASHES = {
+    'pump_survivor': 'e4c0517e3284a18ce0e38feb79915b4220227efa6ff41fcaffb30d9dc8eecae9',
+    'pons_survivor': '34f968df79aabef6e8fefaf022c69e2abbc334bfd18eff509d48cbbefff66ac4',
+}
+
 
 @lru_cache(maxsize=1)
 def _previous_policies():
@@ -59,6 +67,6 @@ def decision_metadata(environ=None):
 
 
 def revision_for_hash(policy_hash):
-    if policy_hash in current_hashes().values():return ACTIVE_REVISION
+    if policy_hash in current_hashes().values() or policy_hash in SUPERSEDED_ACTIVE_SURVIVOR_HASHES.values():return ACTIVE_REVISION
     if policy_hash in (value['policy_hash'] for value in _previous_policies().values()):return PREVIOUS_REVISION
     return None
