@@ -9,6 +9,8 @@ from unittest.mock import patch
 
 from meme_machine.lanes.pons import BoundaryError,pons_survivor_runtime as runtime
 from meme_machine.lanes.pons.pons_quotes import shared_v4_quotes
+from meme_machine.runtime.directional_continuation import native_sync
+from meme_machine.runtime.journal import digest
 from meme_machine.runtime.survivor_commit import restore_risk
 from tests.lanes.pons import test_pons_finalization as fixture
 from tests.shared_rally_support import observe_survivor
@@ -59,10 +61,23 @@ class SharedNativeAcquisitionTests(unittest.TestCase):
                 candidate=token,generation=observed['generation'],regime=observed['regime'])
             r.book.reserve(identity,amount,95,dict(candidate=token))
             r.book.transition(identity,'filled',96,amount=amount,tokens=qty,evidence=dict(execution=dict(gas=0)))
-            r.sleeve.acknowledge_native(identity,basis=amount,pnl=0,at=96,native_hash='offline-native-replay',native_verified=r.book.replay()['verified'])
+            native_sync(r.book,r.sleeve,identity)
+            position=r.book._load(identity);held=r.sleeve.get(identity)
+            self.assertEqual((position['entry_fill_at'],position['entry_basis']),(96,amount))
+            self.assertEqual(held['native_hash'],digest(position))
+            self.assertEqual((held['entry_fill_at'],held['entry_basis']),
+                (position['entry_fill_at'],position['entry_basis']))
+            self.assertEqual((held['held'],held['pnl']),(position['basis'],position['realized']))
             row.update(position=identity,state='open',generation=0,block=100,block_hash=rpc.value('eth_getBlockByNumber',['0x64',False])['hash'])
             if pending and i==1:row['position_safety']=dict(pending_exit=True)
             r.history.save(row)
+        accounting=r.book.reconcile();capital=r.sleeve.reconcile()
+        self.assertTrue(r.book.replay()['verified'])
+        self.assertEqual((accounting['basis'],accounting['reserved'],accounting['realized']),
+            (count*10**16,0,0))
+        self.assertEqual(accounting['cash'],accounting['initial']-accounting['basis'])
+        self.assertEqual((capital['reserved'],capital['realized']),(accounting['basis'],0))
+        self.assertEqual(capital['available'],capital['capital']-capital['reserved'])
         if before_step is not None:before_step(r,rpc)
         with ExitStack() as stack:
             if predecessor:

@@ -86,21 +86,53 @@ class ActiveRPC(shared.TraceRPC):
 
 
 def replay(test,count,*,predecessor=False,proved=True,latency=.1,price_factor=1.,paced=True,before_step=None,rps=2):
+    boundary={}
     def rpc(**kw):
         obj=ActiveRPC(**kw,count=count,latency=latency,price_factor=price_factor,paced=paced,rps=rps)
         test.addCleanup(obj.close);return obj
+    def prepared(runtime,rpc):
+        if before_step is not None:before_step(runtime,rpc)
+        boundary['seq']=runtime.book.db.execute('SELECT COALESCE(MAX(seq),0) FROM journal').fetchone()[0]
     with patch.object(shared,'TraceRPC',side_effect=rpc):
-        return test.run_positions(count,proved=proved,predecessor=predecessor,moving_clock=True,before_step=before_step)
+        result=test.run_positions(count,proved=proved,predecessor=predecessor,moving_clock=True,before_step=prepared)
+    positions,risks,_,_=result
+    clocks={}
+    for seq,raw in test.native_runtime.book.db.execute('SELECT seq,body FROM journal ORDER BY seq'):
+        event=json.loads(raw);identity=event['position']['id'];action=event['action']
+        if action=='filled':
+            clocks[identity]=dict(event['evidence'].get('lifecycle_clocks') or dict(entry_fill_at=event['at']))
+            test.assertEqual(clocks[identity]['entry_fill_at'],event['at'])
+        elif action=='mark':
+            state=event['evidence']['risk_state']
+            if seq<=boundary['seq']:
+                clocks[identity]=dict(state.get('lifecycle_clocks') or clocks[identity])
+            else:
+                intent={'full_exit':'exit_intent_at','partial_exit':'first_realization_intent_at'}.get(
+                    state['last_action']['action'])
+                if intent is not None:clocks[identity].setdefault(intent,event['at'])
+        elif action=='settled':clocks[identity]['native_settlement_at']=event['at']
+    for position,risk in zip(positions,risks):
+        # Audit the real clocks against this run's native events. Paced and
+        # zero-latency execution may legitimately cross different seconds.
+        test.assertEqual(risk['lifecycle_clocks'],clocks[position['id']])
+    return result
 
 
 class ProtectiveCapacityTests(shared.SharedNativeAcquisitionTests):
     def economic(self,positions,risks):
         # RTT changes genuine observation/settlement time and capital-time
-        # integrals. Never alter those clocks to manufacture byte parity.
+        # integrals. replay() verifies every lifecycle clock against the actual
+        # native journal before this economic-only comparison. Preserve clock
+        # keys and the immutable entry clock; only audited event times vary.
+        def risk_value(risk):
+            value={k:v for k,v in risk.items() if k not in ('last_at','high_at','first_tail_crossed_at')}
+            value['lifecycle_clocks']={key:('verified_native_event_time' if key in (
+                'exit_intent_at','first_realization_intent_at','native_settlement_at') else at)
+                for key,at in risk['lifecycle_clocks'].items()}
+            return value
         return ([{k:v for k,v in p.items() if k not in ('last_at','risk_at','capital_unit_seconds')}
                     for p in positions],
-                [{k:v for k,v in r.items() if k not in ('last_at','high_at','first_tail_crossed_at')}
-                    for r in risks])
+                [risk_value(r) for r in risks])
 
     def test_one_active_native_survivor_finishes_hold_and_full_stop_inside_original_window(self):
         for factor,action,starts in ((1.,'hold',4),(.6,'full_exit',4),(2.2,'partial_exit',6)):
