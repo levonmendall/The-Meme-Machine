@@ -232,39 +232,63 @@ class SleeveReservations:
                 return row['id']
         return None
 
-    @_opportunity_native
-    def reserve(self,identity,*,strategy,amount,at,candidate=None,generation=None,regime=None,asset=None,funding_evidence=None):
+    def _check_reservation_locked(self,identity,*,strategy,amount,candidate,generation,regime,asset,preflight=False):
+        """Pure native admission while holding the sleeve's SQLite writer fence.
+
+        Shared preflight checks the exact final duplicate, regime and asset
+        predicates before the global allocator receives a request. The native
+        transaction checks them again when persisting the reservation, because
+        another worker may have changed the local state in between.
+        """
         if strategy not in self.identity['policies'] or type(amount) is not int or amount<=0:
             raise ValueError('sleeve_reservation')
-        with self.transaction():
-            old=self.get(identity)
-            if old:
-                if old['status']=='settled':raise ValueError('terminal_reservation_reused')
-                if all(old[k]==v for k,v in dict(strategy=strategy,amount=amount,candidate=candidate,generation=generation).items()):
-                    return old
-                raise ValueError('sleeve_reservation_conflict')
-            from meme_machine.operational.admission import legacy_funding_guard
-            legacy_funding_guard(self)
-            from meme_machine.runtime.lifecycle_identity import validate_new
-            archive=self._archive()
-            validate_new(identity,archived=(archive or {}).get('archived_entry_scopes',{}).get(strategy))
-            if candidate is not None:
-                current=self.candidate(candidate)
-                if not current or current['generation']!=generation or current['state']!='qualified':
-                    raise ValueError('superseded_reservation')
-                from meme_machine.runtime.survivor_risk import new_regime
-                prior=[json.loads(raw) for raw, in self.db.execute('SELECT body FROM sleeve_positions')]
-                for p in prior:
-                    if p['strategy']==strategy and p['candidate']==candidate:
-                        if p.get('cancelled'):continue
-                        if p['status']!='settled' or not new_regime(p['regime'],regime):
-                            raise ValueError('same_survivor_regime')
-            if amount>self.reconcile()['available'] and not (
-                    hasattr(self,'_shared_reserved') and self._shared_reserved(identity,amount)):
+        old=self.get(identity)
+        if old:
+            if old['status']=='settled':raise ValueError('terminal_reservation_reused')
+            if all(old[k]==v for k,v in dict(strategy=strategy,amount=amount,candidate=candidate,generation=generation).items()):
+                return old
+            raise ValueError('sleeve_reservation_conflict')
+        from meme_machine.operational.admission import legacy_funding_guard
+        legacy_funding_guard(self)
+        from meme_machine.runtime.lifecycle_identity import validate_new
+        archive=self._archive()
+        validate_new(identity,archived=(archive or {}).get('archived_entry_scopes',{}).get(strategy))
+        if candidate is not None:
+            current=self.candidate(candidate)
+            if not current or current['generation']!=generation or current['state']!='qualified':
+                raise ValueError('superseded_reservation')
+            from meme_machine.runtime.survivor_risk import new_regime
+            prior=[json.loads(raw) for raw, in self.db.execute('SELECT body FROM sleeve_positions')]
+            for p in prior:
+                if p['strategy']==strategy and p['candidate']==candidate:
+                    if p.get('cancelled'):continue
+                    if p['status']!='settled' or not new_regime(p['regime'],regime):
+                        raise ValueError('same_survivor_regime')
+        if not preflight:
+            grant=getattr(self,'_grant_receipt',None)
+            shared=hasattr(self,'_shared_reserved') and self._shared_reserved(identity,amount)
+            if grant and not shared:
+                raise ValueError('native_shared_funding_receipt_invalid')
+            if amount>self.reconcile()['available'] and not shared:
                 raise ValueError('sleeve_capital_exhausted')
+        key=self.asset_key(asset or candidate)
+        if self.fill_blocker(key,except_identity=identity):
+            raise ValueError('same_asset_exposure')
+        return None
+
+    def preflight_reservation(self,identity,*,strategy,amount,candidate=None,generation=None,regime=None,asset=None):
+        """Repeatable native-only fence; does not allocate, reserve, or trade."""
+        with self.transaction():
+            return self._check_reservation_locked(identity,strategy=strategy,amount=amount,
+                candidate=candidate,generation=generation,regime=regime,asset=asset,preflight=True)
+
+    @_opportunity_native
+    def reserve(self,identity,*,strategy,amount,at,candidate=None,generation=None,regime=None,asset=None,funding_evidence=None):
+        with self.transaction():
+            old=self._check_reservation_locked(identity,strategy=strategy,amount=amount,
+                candidate=candidate,generation=generation,regime=regime,asset=asset)
+            if old:return old
             key=self.asset_key(asset or candidate)
-            if self.fill_blocker(key,except_identity=identity):
-                raise ValueError('same_asset_exposure')
             row=dict(id=identity,strategy=strategy,amount=amount,held=amount,at=at,
                      candidate=candidate,generation=generation,regime=regime,status='reserved',pnl=0,
                      asset=key,scale_committed=False)
