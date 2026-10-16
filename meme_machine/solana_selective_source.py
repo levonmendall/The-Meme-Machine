@@ -31,6 +31,7 @@ from .solana_source_intake import candidate_log_message
 from .solana_source_drain import AcceptedQueue,StopEither,next_owned,join_owned,settle_owned,receive_until_closed,INTAKE_CLOSED
 from .solana_source_drain import CONTROL_RECOVERY_KEY,control_recovery,preserve_control_recovery,complete_control_recovery
 from .solana_source_drain import HandlerLedger,HANDLER_RECOVERY_KEY,preserve_handlers,finish_owned
+from .solana_source_drain import retained_source_drain,assert_source_drain_boundary,publish_source_drain
 from .yellowstone import geyser_pb2 as pb
 from .runtime.operating_families import enabled,active_sql,active_scope_sql,operational
 
@@ -86,6 +87,42 @@ def rolling_replay_boundary(state,desired,tip):
     # Actual finalized WS observations for BOTH programs replace this
     # scheduling placeholder before any native subscription is opened.
     return tip+1,True,bool(present)
+
+def preserve_subscription_handoff(state,desired,tip,*,rolling_floor=None):
+    """Retain the unavailable prefix before an observed rolling WS floor.
+
+    The post-ACK HTTP tip only bounds the old disconnect. Fresh rolling starts
+    exclude the partially subscribed slots through the latest first WS delivery;
+    those slots need their own gap even when no old disconnect exists. Neither
+    boundary proves economics, repairs history or advances a checkpoint.
+    """
+    h=install(state);scopes=tuple({row['scope'] for row in desired})
+    with state.writer.transaction():
+        state.writer.db.execute('UPDATE candidate_gaps SET hi=? WHERE hi IS NULL AND lo<=? AND scope IN ('+
+            ','.join('?' for _ in scopes)+')',(tip,tip,*scopes))
+        if rolling_floor is not None and rolling_floor>tip+1:
+            for row in desired:
+                if row.get('rolling'):
+                    h.gap(row['scope'],tip+1,rolling_floor-1,'rolling_partial_subscription_prefix')
+
+def subscription_disconnect_lower(history,row,floor,session,*,fresh_rolling=False):
+    """Preserve a proved current island without advancing its global cursor."""
+    checkpoint=history.db.execute('SELECT slot FROM candidate_checkpoints WHERE scope=?',
+        (row['scope'],)).fetchone()
+    lower=floor if checkpoint is None else checkpoint[0]+1
+    if fresh_rolling and row.get('rolling'):
+        child=history.db.execute('SELECT slot,parent,session FROM candidate_blocks WHERE scope=?',
+            (row['scope'],)).fetchone()
+        # An older unresolved gap can correctly prevent a global checkpoint
+        # while this session's linked child already sealed the current prefix.
+        # The unsealed child slot is not coverage. Retain the prefix only after
+        # the original economic publication and consumer fences actually pass.
+        if (child is not None and child[2]==session and floor<=child[1]<child[0]
+                and not history.rolling.missing(row['family'],row['scope'],floor,child[1])
+                and history.lifecycle.unconsumed(row['scope'],through=child[1]) is None):
+            lower=max(lower,child[1]+1)
+    return lower
+
 STATE_SCHEMA='''
 CREATE TABLE IF NOT EXISTS candidate_blocks(scope TEXT PRIMARY KEY,slot INTEGER NOT NULL,
  parent INTEGER NOT NULL,hash TEXT NOT NULL,previous_hash TEXT NOT NULL,
@@ -1161,9 +1198,12 @@ class SelectiveSource:
         self.work=work;self.stop=stop;self.batched=True
         loop=asyncio.get_running_loop()
         def boot(state):
+            # Refuse unidentified old callbacks before history/startup writes or
+            # any provider dispatch. A new run's empty ledger cannot erase them.
+            self.retained_source_drain=retained_source_drain(state)
             from .operational.position_continuation import position_only
-            h=install(state)
             retained=state.writer.db.execute('SELECT value FROM service_health WHERE key=?',(HANDLER_RECOVERY_KEY,)).fetchone()
+            self.retained_handler_recovery=None if retained is None else retained[0]
             if retained:
                 if len(retained[0].encode())>self.handlers.maximum_bytes:raise EvidenceUnavailable('source_handler_record_bound')
                 value=json.loads(retained[0])
@@ -1172,6 +1212,7 @@ class SelectiveSource:
                 self.source_drain['inherited_handler_recovery']=dict(records=len(value['records']),
                     sha256=hashlib.sha256(retained[0].encode()).hexdigest(),
                     status='RETAINED_NOT_REACQUIRED_BY_STARTUP',key=HANDLER_RECOVERY_KEY)
+            h=install(state)
             from .solana_history_notifications import install as notifications
             notifications(h,loop,self.history_changed)
             if not position_only():h.startup.begin()
@@ -1285,10 +1326,13 @@ class SelectiveSource:
                         def terminal(state):
                             h=install(state);body=self.drain_snapshot()
                             with state.writer.transaction():
+                                assert_source_drain_boundary(state,self.retained_source_drain,
+                                    handler_boundary=self.retained_handler_recovery)
                                 preserve_handlers(state,self.handlers,unresolved,None)
                                 body['pending_history']=h.db.execute('SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0]
                                 body['pending_proofs']=h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone()[0]
-                                state.fence._health('source_drain',body)
+                                publish_source_drain(state,self.retained_source_drain,body,
+                                    handler_boundary=self.retained_handler_recovery)
                         try:await self.work(terminal,0,label='source_commit')
                         except BaseException:
                             self.source_drain.update(state='RECOVERY_REQUIRED',terminal_record_unavailable=True)
@@ -2028,9 +2072,8 @@ class SelectiveSource:
                 for row in desired:cold.restore(row['family'],row['address'])
                 # A subscription ACK supplies an upper fence for this handoff
                 # only. It cannot close another shard's outstanding disconnect.
-                scopes=tuple({row['scope'] for row in desired})
-                state.writer.db.execute('UPDATE candidate_gaps SET hi=? WHERE hi IS NULL AND lo<=? AND scope IN ('+
-                    ','.join('?' for _ in scopes)+')',(tip,tip,*scopes))
+                preserve_subscription_handoff(state,desired,tip,
+                    rolling_floor=floor if fresh_rolling else None)
                 # The native feed will replay full Meteora deltas from floor.
                 # Before its durable publication, missing rows are convergence,
                 # not evidence of a provider/history gap. Required checkpoint
@@ -2173,8 +2216,7 @@ class SelectiveSource:
                         with state.writer.transaction():
                             gap_ids=[];gap_scopes={}
                             for row in desired:
-                                checkpoint=state.writer.db.execute('SELECT slot FROM candidate_checkpoints WHERE scope=?',(row['scope'],)).fetchone()
-                                lower=floor if checkpoint is None else checkpoint[0]+1
+                                lower=subscription_disconnect_lower(h,row,floor,session,fresh_rolling=fresh_rolling)
                                 pending=[n for n in (body['oldest_slot'],body['early_log_min_slot']) if n is not None and n>0]
                                 pending.extend(r['slot'] for r in interrupted if type(r.get('slot')) is int and r['slot']>0)
                                 if pending:lower=min(lower,*pending)

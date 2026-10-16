@@ -12,6 +12,119 @@ import time
 
 CONTROL_RECOVERY_KEY='source_control_recovery'
 HANDLER_RECOVERY_KEY='source_handler_recovery'
+SOURCE_DRAIN_KEY='source_drain'
+SOURCE_DRAIN_BYTES=128*1024
+
+
+def _retained_health(state,key,maximum):
+    from .solana_evidence_plane import EvidenceUnavailable
+    row=state.writer.db.execute('SELECT length(CAST(value AS BLOB)),CASE WHEN '
+        'length(CAST(value AS BLOB))<=? THEN value END FROM service_health WHERE key=?',
+        (maximum,key)).fetchone()
+    if row is None:return None
+    if (type(row[0]) is not int or not 0<=row[0]<=maximum or not isinstance(row[1],str)):
+        raise EvidenceUnavailable('source_drain_retained_record_bound')
+    return row[1]
+
+
+def _retained_json(raw):
+    from .solana_evidence_plane import EvidenceUnavailable
+    def unique(pairs):
+        result={}
+        for key,value in pairs:
+            if key in result:raise ValueError()
+            result[key]=value
+        return result
+    try:return json.loads(raw,object_pairs_hook=unique,
+        parse_constant=lambda value:(_ for _ in ()).throw(ValueError()))
+    except (ValueError,TypeError,RecursionError):
+        raise EvidenceUnavailable('source_drain_retained_record_corrupt') from None
+
+
+def _retained_census(raw):
+    from .solana_evidence_plane import EvidenceUnavailable
+    body=_retained_json(raw)
+    fields=('accepted_handlers','settled_handlers','pending_handlers')
+    if (not isinstance(body,dict) or body.get('state') not in ('RUNNING','DRAINING','DRAINED','RECOVERY_REQUIRED')
+            or any(type(body.get(key)) is not int or body[key]<0 for key in fields)
+            or body['accepted_handlers']-body['settled_handlers']!=body['pending_handlers']
+            or body['state']=='DRAINED' and body['pending_handlers']):
+        raise EvidenceUnavailable('source_drain_retained_census_corrupt')
+    return body
+
+
+def _retained_handlers(raw):
+    from .solana_evidence_plane import EvidenceUnavailable
+    body=_retained_json(raw)
+    if (not isinstance(body,dict) or body.get('version')!=1
+            or not isinstance(body.get('records'),list) or len(body['records'])>HandlerLedger.maximum_records
+            or any(not isinstance(row,dict) for row in body['records'])):
+        raise EvidenceUnavailable('source_handler_recovery_corrupt')
+    return body['records']
+
+
+def retained_source_drain(state):
+    """Read the old census before startup can overwrite its missing locators.
+
+    A same-count ledger from another run supplies no disposition. Known durable
+    rows retain their existing recovery semantics; this grants no recovery PASS.
+    """
+    from .solana_evidence_plane import EvidenceUnavailable
+    raw=_retained_health(state,SOURCE_DRAIN_KEY,SOURCE_DRAIN_BYTES)
+    handlers=_retained_health(state,HANDLER_RECOVERY_KEY,HandlerLedger.maximum_bytes)
+    records=[] if handlers is None else _retained_handlers(handlers)
+    if raw is None:return None
+    body=_retained_census(raw)
+    if not body['pending_handlers']:return raw
+    run=body.get('run_identity');pid=body.get('source_pid')
+    matches=[row for row in records if row.get('run')==run and row.get('source_pid')==pid]
+    identities=[row.get('id') for row in matches]
+    if (not isinstance(run,str) or not run or len(run)>128 or type(pid) is not int or pid<=0
+            or len(matches)!=body['pending_handlers']
+            or any(type(number) is not int or not 1<=number<=body['accepted_handlers'] for number in identities)
+            or len(set(identities))!=len(identities)
+            or any(row.get('state') not in ('ACTIVE','FAILED','INTERRUPTED','RECOVERABLE') for row in matches)):
+        raise EvidenceUnavailable('source_drain_historical_handlers_unlocated')
+    return raw
+
+
+def assert_source_drain_boundary(state,boundary,*,handler_boundary=None):
+    """The old exact bytes and known identities cannot change underneath us."""
+    from .solana_evidence_plane import EvidenceUnavailable
+    if _retained_health(state,SOURCE_DRAIN_KEY,SOURCE_DRAIN_BYTES)!=boundary:
+        raise EvidenceUnavailable('source_drain_retained_boundary_changed')
+    if handler_boundary is not None:
+        original=_retained_handlers(handler_boundary)
+        current=_retained_health(state,HANDLER_RECOVERY_KEY,HandlerLedger.maximum_bytes)
+        records=[] if current is None else _retained_handlers(current)
+        for old in original:
+            matches=[row for row in records if (row.get('run'),row.get('id'))==(old.get('run'),old.get('id'))]
+            if matches!=[old]:raise EvidenceUnavailable('source_drain_retained_handlers_changed')
+
+
+def _preserve_drain_bytes(state,key,raw,maximum):
+    from .solana_evidence_plane import EvidenceUnavailable
+    encoded=raw.encode()
+    if len(encoded)>maximum:raise EvidenceUnavailable('source_drain_retained_record_bound')
+    archive=key+'_preserved.'+hashlib.sha256(encoded).hexdigest()
+    prior=_retained_health(state,archive,maximum)
+    if prior is not None and prior!=raw:
+        raise EvidenceUnavailable('source_drain_preserved_record_conflict')
+    if prior is None:state.writer.db.execute('INSERT INTO service_health VALUES(?,?)',(archive,raw))
+
+
+def publish_source_drain(state,boundary,body,*,handler_boundary=None):
+    """Archive a prior failed terminal and publish this run in one owner commit."""
+    with state.writer.transaction():
+        retained_source_drain(state)
+        assert_source_drain_boundary(state,boundary,handler_boundary=handler_boundary)
+        if boundary is not None:
+            old=_retained_census(boundary)
+            if old['state']!='DRAINED' or old['pending_handlers']:
+                _preserve_drain_bytes(state,SOURCE_DRAIN_KEY,boundary,SOURCE_DRAIN_BYTES)
+        if handler_boundary is not None:
+            _preserve_drain_bytes(state,HANDLER_RECOVERY_KEY,handler_boundary,HandlerLedger.maximum_bytes)
+        state.fence._health(SOURCE_DRAIN_KEY,body)
 
 
 class HandlerLedger:

@@ -8,6 +8,8 @@ FAST=[
     'tests.lanes.pons.test_provider_clock_domain',
     'tests.test_operational_cpu_capacity',
     'tests.test_solana_source_drain',
+    'tests.test_source_drain_preservation',
+    'tests.test_rolling_startup_gap_boundary',
     'tests.test_control_interrupted_recovery',
     'tests.test_source_handler_recovery',
     'tests.test_operation_costs',
