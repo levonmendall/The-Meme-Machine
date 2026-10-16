@@ -62,6 +62,53 @@ def selection(financial_identity,decision_identity):
         decision_identity_hash=digest(decision_identity))
 
 
+def selection_successor(old,new):
+    """One exact, nonfinancial second selection; caller MUST prove all-flat.
+
+    Prior pre-opportunity -> opportunity-access checkpoints are preserved as
+    audit history, not silently reinterpreted or accepted as current authority.
+    Every changed strategy must be a specifically pinned Survivor hash.
+    """
+    if not isinstance(old,dict) or not isinstance(new,dict):
+        return False
+    for value in (old,new):
+        if (value.get('schema')!='paper-decision-policy-selection-v1'
+                or value.get('revision')!=ACTIVE_REVISION
+                or value.get('financial_identity_hash')!=digest(value.get('financial_identity'))
+                or value.get('decision_identity_hash')!=digest(value.get('decision_identity'))):
+            return False
+    if old['financial_identity']!=new['financial_identity']:
+        return False
+    prior=dict(old['decision_identity']);current=dict(new['decision_identity'])
+    if set(prior)!=set(current):
+        return False
+    changes=0
+    if 'policies' in prior:
+        before=prior.pop('policies');after=current.pop('policies')
+        if prior!=current or not isinstance(before,dict) or not isinstance(after,dict) or set(before)!=set(after):
+            return False
+        for strategy,old_hash in before.items():
+            if old_hash==after[strategy]:
+                if not known_hash(regime_for(strategy),old_hash):return False
+                continue
+            regime=regime_for(strategy)
+            if (regime not in SUPERSEDED_ACTIVE_SURVIVOR_HASHES
+                    or old_hash!=SUPERSEDED_ACTIVE_SURVIVOR_HASHES[regime]
+                    or after[strategy]!=active_hash(regime)):
+                return False
+            changes+=1
+    elif 'policy_hash' in prior:
+        before=prior.pop('policy_hash');after=current.pop('policy_hash')
+        if prior!=current:return False
+        eligible=(regime for regime,hash_value in SUPERSEDED_ACTIVE_SURVIVOR_HASHES.items()
+                  if before==hash_value and after==active_hash(regime))
+        if not any(eligible):return False
+        changes=1
+    else:
+        return False
+    return changes>0
+
+
 def require_flat_rows(rows,*,kind):
     """Only explicit terminal zero quantities establish a transition boundary."""
     for row in rows:
@@ -192,11 +239,25 @@ def runtime_selection(db,expected):
         (SELECTION_NAMESPACE,SELECTION_KEY)).fetchone()
     if row is None:return False
     value=json.loads(row[0])
-    if digest(value)!=row[1] or value!=expected:
+    if digest(value)!=row[1]:
         raise ValueError('paper_policy_selection_checkpoint_conflict')
-    return True
+    if value==expected:return True
+    if selection_successor(value,expected):return False
+    raise ValueError('paper_policy_selection_checkpoint_conflict')
 
 
 def save_runtime_selection(db,value):
+    row=db.execute('SELECT body,hash FROM runtime_state WHERE identity=? AND key=?',
+        (SELECTION_NAMESPACE,SELECTION_KEY)).fetchone()
+    if row is not None:
+        old=json.loads(row[0])
+        if digest(old)!=row[1] or not selection_successor(old,value):
+            raise ValueError('paper_policy_selection_checkpoint_conflict')
+        historical_key=SELECTION_KEY+':previous:'+digest(old)
+        db.execute('INSERT OR IGNORE INTO runtime_state VALUES(?,?,?,?)',
+            (SELECTION_NAMESPACE,historical_key,canonical(old),digest(old)))
+        db.execute('UPDATE runtime_state SET body=?,hash=? WHERE identity=? AND key=?',
+            (canonical(value),digest(value),SELECTION_NAMESPACE,SELECTION_KEY))
+        return
     db.execute('INSERT INTO runtime_state VALUES(?,?,?,?)',
         (SELECTION_NAMESPACE,SELECTION_KEY,canonical(value),digest(value)))
