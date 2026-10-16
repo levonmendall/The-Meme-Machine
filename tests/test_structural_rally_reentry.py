@@ -147,6 +147,64 @@ class StructuralCycleTests(unittest.TestCase):
             self.assertTrue(compatible_identity({'policy_hash':h},{'policy_hash':h},regime=current))
 
 
+    def test_flat_existing_opportunity_access_history_selects_new_policy(self):
+        from meme_machine.runtime.survivor_history import History
+        from meme_machine.runtime.policy_compatibility import active_hash
+        from meme_machine.paper_policy_revision import SUPERSEDED_ACTIVE_SURVIVOR_HASHES
+        with tempfile.TemporaryDirectory() as directory:
+            for family in ('pump_survivor','pons_survivor'):
+                with self.subTest(family=family):
+                    path=Path(directory)/(family+'.sqlite')
+                    old=SUPERSEDED_ACTIVE_SURVIVOR_HASHES[family]
+                    new=active_hash(family)
+                    history=History(path,policy=old)
+                    history.graduate('token',dict(at=0,identity='native-graduation'))
+                    history.append('token',through=100,events=[],points=[(0,'100'),(100,'110')],complete=True)
+                    original=history.facts('token',100)[0]
+                    history.close()
+                    history=History(path,policy=new)
+                    self.assertEqual(history.get_meta('policy'),new)
+                    self.assertEqual(history.facts('token',100)[0],original)
+                    self.assertEqual(history.get_meta('previous_policy:'+old)['revision'],
+                                     'paper-opportunity-access-v1')
+                    history.close()
+
+    def test_open_existing_opportunity_access_history_refuses_switch(self):
+        from meme_machine.runtime.survivor_history import History
+        from meme_machine.runtime.policy_compatibility import active_hash
+        from meme_machine.paper_policy_revision import SUPERSEDED_ACTIVE_SURVIVOR_HASHES
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'blocked.sqlite'
+            history=History(path,policy=SUPERSEDED_ACTIVE_SURVIVOR_HASHES['pump_survivor'])
+            row=history.graduate('token',dict(at=0,identity='native'))
+            row['position']='unresolved-existing-trade'
+            row['state']='runner'
+            history.save(row)
+            history.close()
+            with self.assertRaisesRegex(ValueError,'transition_unresolved_survivor_history'):
+                History(path,policy=active_hash('pump_survivor'))
+
+    def test_flat_sleeve_can_select_only_exact_known_prior_survivor_hashes(self):
+        from meme_machine.paper_policy_revision import SUPERSEDED_ACTIVE_SURVIVOR_HASHES
+        from meme_machine.runtime.policy_compatibility import active_hash
+        with tempfile.TemporaryDirectory() as directory:
+            for family in ('pump','pons'):
+                with self.subTest(family=family):
+                    path=Path(directory)/(family+'.sqlite')
+                    reg=family+'_survivor'
+                    original=dict(current=active_hash(family+'_current'),
+                                  survivor=SUPERSEDED_ACTIVE_SURVIVOR_HASHES[reg])
+                    requested=dict(current=original['current'],survivor=active_hash(reg))
+                    base=dict(lane=family,capital=1000,cohort='existing')
+                    sleeve=SleeveReservations(path,policies=original,**base)
+                    sleeve.close()
+                    sleeve=SleeveReservations(path,policies=requested,**base)
+                    self.assertEqual(sleeve.identity['policies'],original)
+                    self.assertEqual(sleeve.decision_policies,requested)
+                    self.assertEqual(sleeve.reconcile()['available'],1000)
+                    sleeve.close()
+
+
 class DurableSleeveRallyTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory()
