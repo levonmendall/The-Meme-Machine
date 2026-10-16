@@ -192,6 +192,50 @@ RALLY_CHANGED_SOURCES=('meme_machine/lanes/pons/pons_postgrad_survivor.py', 'mem
 RALLY_ADDED_SOURCES=('meme_machine/policy_history/opportunity_access_v1.json', 'meme_machine/runtime/rally_cycle.py')
 
 
+# Preserve the exact failed program-log observation without declaring its
+# callback complete. This one-file boundary delta reverses to D06 before any
+# earlier guard runs; its entire financial/source mutation surface stays pinned.
+PROGRAM_GAP_OBSERVATION_REFERENCE='d06e37a050847e607db5d5649a00535beb1a58ee'
+PROGRAM_GAP_OBSERVATION_SOURCE='meme_machine/solana_source_drain.py'
+PROGRAM_GAP_OBSERVATION_BEFORE='b3b67f0bee582fc0a0054a6b591dd28ddb3b867df4a65b78604675cfb944bfba'
+PROGRAM_GAP_OBSERVATION_AFTER='655756f8b93bd516aaaf310e5113365881e73cef750858b4e3c5f568f8c77d16'
+PROGRAM_GAP_OBSERVATION_ADDITIONS=(
+    "PROGRAM_GAP_OBSERVATION_SHA256='948743b18d0a33cc85391d07ea4a4ae9dad34110c169ca95945a04473d6db228'",
+    "PROGRAM_GAP_HANDLER_SHA256='29f00e3d71c40e1d306f50263b84f1ec25e455e20d112a5f04fdef25293d0fb0'",
+    "PROGRAM_GAP_SESSION_SHA256='886dc272c37139e53dac962fda1473fc6eca4e8b2daf462495cb50509a831333'",
+)
+
+
+def program_gap_observation_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=PROGRAM_GAP_OBSERVATION_SOURCE:return current
+    prior=subprocess.check_output(['git','show',PROGRAM_GAP_OBSERVATION_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),PROGRAM_GAP_OBSERVATION_BEFORE,
+        relative+':exact preserved-program-gap predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),PROGRAM_GAP_OBSERVATION_AFTER,
+        relative+':exact preserved-program-gap successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def function(root,name):
+        return next(n for n in root.body if isinstance(n,ast.FunctionDef) and n.name==name)
+    for name in ('historical_observation_boundary','begin_source_observation'):
+        selected=function(tree,name);original=function(old,name)
+        test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':explicit boundary node '+name)
+        tree.body[tree.body.index(selected)]=deepcopy(original)
+    added=function(tree,'_preserved_program_gap_observation');tree.body.remove(added)
+    with test.assertRaises(StopIteration):function(old,'_preserved_program_gap_observation')
+    for source in PROGRAM_GAP_OBSERVATION_ADDITIONS:
+        addition=ast.parse(source).body[0]
+        matches=[n for n in tree.body if ast.dump(n)==ast.dump(addition)]
+        test.assertEqual(len(matches),1,relative+':one exact incident identity')
+        test.assertNotIn(ast.dump(addition),[ast.dump(n) for n in old.body])
+        tree.body.remove(matches[0])
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':all other recovery and financial source nodes retained')
+    return prior
+
+
 # The measured startup cancellation repair changes only the selected idle
 # candidate reads, their Pump caller, Pons's existing startup replay scope and
 # one descriptive status identifier. Pin each complete source and reverse only
@@ -306,6 +350,7 @@ def rally_delta(before,after):
 def rally_predecessor(test,relative,current,*,allow_previous_layers=False):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
+    current=program_gap_observation_predecessor(test,relative,current)
     current=startup_history_cancellation_predecessor(test,relative,current,
         allow_previous_layers=allow_previous_layers)
     current=restored_provider_history_predecessor(test,relative,current)
@@ -1326,6 +1371,29 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_program_gap_boundary_reverses_exactly_without_weakening_recovery_or_funding(self):
+        import hashlib
+        relative=PROGRAM_GAP_OBSERVATION_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),PROGRAM_GAP_OBSERVATION_AFTER,
+            relative+':active exact preserved-program-gap source')
+        prior=subprocess.check_output(['git','show',PROGRAM_GAP_OBSERVATION_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(program_gap_observation_predecessor(self,relative,current),prior)
+        self.assertEqual(guarded_source(self,relative),prior)
+        self.assertEqual(opportunity_predecessor(self,relative,current),
+            opportunity_predecessor(self,relative,prior))
+        changes=[current+b'\n# unreviewed recovery-boundary change\n',b'']
+        for old,new in (
+                (b"current_handler_disposition_verified=False",b"current_handler_disposition_verified=True"),
+                (b"gap[4] is None",b"True"),
+                (b"        _require_observation_funding_closed()\n",b"        pass\n"),
+                (b"accounting.get('returned')==60345",b"accounting.get('returned')==60346")):
+            self.assertIn(old,current,relative+':negative mutation target exists')
+            changes.append(current.replace(old,new,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):program_gap_observation_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_startup_history_cancellation_reverses_only_exact_reviewed_sources(self):
         import hashlib
         mutations={

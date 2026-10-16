@@ -16,6 +16,9 @@ SOURCE_DRAIN_KEY='source_drain'
 SOURCE_DRAIN_BYTES=128*1024
 OBSERVATION_DRAIN_KEY='source_drain_observation'
 HISTORICAL_OBSERVATION_SHA256='5431d349aa8539ba935861cccb93c1f4c164bce9b0173bf4c77be7b562ffa8c9'
+PROGRAM_GAP_OBSERVATION_SHA256='948743b18d0a33cc85391d07ea4a4ae9dad34110c169ca95945a04473d6db228'
+PROGRAM_GAP_HANDLER_SHA256='29f00e3d71c40e1d306f50263b84f1ec25e455e20d112a5f04fdef25293d0fb0'
+PROGRAM_GAP_SESSION_SHA256='886dc272c37139e53dac962fda1473fc6eca4e8b2daf462495cb50509a831333'
 
 
 def _retained_health(state,key,maximum):
@@ -111,30 +114,106 @@ def _current_observation_identity(body):
         and accounting.get('returned')==body['settled_handlers'] and accounting.get('records')==[])
 
 
+def _preserved_program_gap_observation(db,handlers,current):
+    """One unreturned rolling log stays unavailable, never retrospectively ACKed.
+
+    LOG_BUFFER_WAIT precedes feed_log/economic queue publication in the pinned
+    source. Its exact failed census and gap remain evidence, while the original
+    fresh rolling/prewarm path must establish a different current interval.
+    """
+    from .solana_evidence_plane import EvidenceUnavailable
+    from .solana_candidate_lifecycle import CandidateLifecycle
+    from .solana_rolling_history import program_scope
+    def require(condition):
+        if not condition:raise EvidenceUnavailable('source_observation_program_gap_unverified')
+    require(isinstance(handlers,str) and hashlib.sha256(handlers.encode()).hexdigest()==PROGRAM_GAP_HANDLER_SHA256)
+    records=_retained_handlers(handlers);require(len(records)==1)
+    raw=current if (isinstance(current,str) and hashlib.sha256(current.encode()).hexdigest()==PROGRAM_GAP_OBSERVATION_SHA256) else \
+        _health_from_db(db,OBSERVATION_DRAIN_KEY+'_preserved.'+PROGRAM_GAP_OBSERVATION_SHA256,SOURCE_DRAIN_BYTES)
+    require(isinstance(raw,str) and hashlib.sha256(raw.encode()).hexdigest()==PROGRAM_GAP_OBSERVATION_SHA256)
+    body=_retained_census(raw);record=records[0];accounting=body.get('handler_accounting')
+    require(body['state']=='RECOVERY_REQUIRED' and _observation_reference(body) and _committed_census(body)
+        and (body['accepted_handlers'],body['settled_handlers'],body['pending_handlers'])==(60346,60345,1)
+        and body.get('closed_sessions')==2 and body.get('preserved_partial_sessions')==1
+        and body.get('unexpected_cancellation',False) is False
+        and body.get('terminal_record_unavailable',False) is False
+        and isinstance(accounting,dict) and accounting.get('version')==1 and accounting.get('valid') is True
+        and accounting.get('run')==body.get('run_identity')==record.get('run')
+        and isinstance(record.get('run'),str) and len(record['run'])==32
+        and all(c in '0123456789abcdef' for c in record['run'])
+        and type(record.get('source_pid')) is int and record['source_pid']>0
+        and accounting.get('pid')==body.get('source_pid')==record['source_pid']
+        and accounting.get('accepted')==60346 and accounting.get('returned')==60345
+        and all(accounting.get(key)==value for key,value in
+            (('active',0),('recoverable',1),('failed',0),('unresolved',0))))
+    current_rows=accounting.get('records')
+    require(isinstance(current_rows,list) and len(current_rows)==1 and isinstance(current_rows[0],dict)
+        and all(record.get(key)==value for key,value in current_rows[0].items()))
+    require(all(body['queues'][name]['accepted']==count for name,count in
+        (('control',556),('rolling',65),('scout',4120),('candidate',0))))
+    scope=program_scope('pumpswap')
+    require(all(record.get(key)==value for key,value in (
+        ('id',60266),('slot',457794201),('family','candidate_logs'),('transport','websocket'),
+        ('kind','log_or_ack'),('phase','LOG_BUFFER_WAIT'),('state','RECOVERABLE'),
+        ('failure_state','INTERRUPTED'),('error_type','CancelledError'),('scope_count',1),
+        ('scope_hash',HandlerLedger.scope_hash((scope,))),
+        ('recovery',dict(kind='CANDIDATE_GAPS',gap_ids=[39593])))))
+    session=db.execute('''SELECT kind,at,length(CAST(body AS BLOB)),CASE WHEN
+        length(CAST(body AS BLOB))<=? THEN body END FROM acquisition_observations WHERE id=231522''',
+        (SOURCE_DRAIN_BYTES,)).fetchone()
+    require(session is not None and session[0]=='source_session_drain'
+        and isinstance(session[3],str) and session[2]<=SOURCE_DRAIN_BYTES
+        and hashlib.sha256(session[3].encode()).hexdigest()==PROGRAM_GAP_SESSION_SHA256)
+    observed=_retained_json(session[3])
+    require(isinstance(observed,dict) and observed.get('plane')=='rolling'
+        and observed.get('session')==record.get('session')=='41265de5e5164b90a108688caf6b1d73'
+        and observed.get('drained') is False and observed.get('accepted_pending')==0
+        and observed.get('pending_slots')==0 and observed.get('handler_dispositions')==records
+        and observed.get('recovery_obligations')==[
+            dict(scope=program_scope(family),lower_slot=457794040,upper_slot=None)
+            for family in ('pump','pumpswap')])
+    for identity,family,created in ((39592,'pump',1792187653.1304228),(39593,'pumpswap',1792187653.352859)):
+        gap=db.execute('SELECT scope,lo,hi,created,repaired,reason FROM candidate_gaps WHERE id=?',(identity,)).fetchone()
+        require(gap is not None and gap[0]==program_scope(family) and gap[1]==457794040
+            and (gap[2] is None or type(gap[2]) is int and gap[2]>=457794201)
+            and gap[3]==created and gap[3]<=session[1] and gap[4] is None
+            and gap[5]=='candidate_live_disconnect_or_filter_rebuild')
+    # Original canonical consumer receipts/ACKs, without DDL or a new cursor.
+    lifecycle=object.__new__(CandidateLifecycle);lifecycle.db=db
+    require(all(lifecycle.unconsumed(program_scope(family)) is None for family in ('pump','pumpswap')))
+    return dict(unreturned_observation_retained=True,retained_unreturned_observations=1,
+        current_handler_disposition_verified=False,historical_callback_completion=False,
+        preserved_observation_sha256=PROGRAM_GAP_OBSERVATION_SHA256,
+        preserved_handler_sha256=PROGRAM_GAP_HANDLER_SHA256,program_gap_unavailable=True)
+
+
 def historical_observation_boundary(state_or_db):
     """Observe one retained incident; never discharge its unknown callbacks.
 
-    The ordinary source guard still refuses this incident. A previous current
-    observation must itself have fully drained; RUNNING also contains crashes
-    that never reached their original terminal transaction.
+    The ordinary source guard still refuses these incidents. A previous current
+    observation must have fully drained or match the exact preserved unavailable
+    program-log boundary. RUNNING still contains crashes without a terminal.
     """
     from .solana_evidence_plane import EvidenceUnavailable
     db=state_or_db.writer.db if hasattr(state_or_db,'writer') else state_or_db
     _historical_observation_record(db)
     handlers=_health_from_db(db,HANDLER_RECOVERY_KEY,HandlerLedger.maximum_bytes)
-    if handlers is not None and _retained_handlers(handlers):
-        raise EvidenceUnavailable('source_observation_current_handlers_unresolved')
     current=_health_from_db(db,OBSERVATION_DRAIN_KEY,SOURCE_DRAIN_BYTES)
+    program_gap={}
+    if handlers is not None and _retained_handlers(handlers):
+        program_gap=_preserved_program_gap_observation(db,handlers,current)
+    preserved_current=bool(program_gap) and hashlib.sha256((current or '').encode()).hexdigest()==PROGRAM_GAP_OBSERVATION_SHA256
     if current is not None:
         body=_retained_census(current)
-        if (not _observation_reference(body) or body['state']!='DRAINED'
+        if not preserved_current and (not _observation_reference(body) or body['state']!='DRAINED'
                 or body['pending_handlers'] or not _committed_census(body)
                 or not _current_observation_identity(body)):
             raise EvidenceUnavailable('source_observation_current_drain_unresolved')
+    elif program_gap:raise EvidenceUnavailable('source_observation_current_drain_unresolved')
     return dict(eligible=True,historical_source_drain_sha256=HISTORICAL_OBSERVATION_SHA256,
         historical_unknown_handlers=2,historical_recovery_verified=False,
-        source_drain_preserved_in_place=True,current_observation_state='ABSENT' if current is None else 'DRAINED',
-        current_observation_sha256=None if current is None else hashlib.sha256(current.encode()).hexdigest())
+        source_drain_preserved_in_place=True,current_observation_state='PRESERVED_PROGRAM_GAP' if preserved_current else 'ABSENT' if current is None else 'DRAINED',
+        current_observation_sha256=None if current is None else hashlib.sha256(current.encode()).hexdigest(),**program_gap)
 
 
 def _require_observation_funding_closed():
@@ -239,13 +318,21 @@ def begin_source_observation(state,boundary,body,*,handler_boundary=None):
     """Retain a current RUNNING census before any provider admission."""
     from .solana_evidence_plane import EvidenceUnavailable
     with state.writer.transaction():
-        historical_observation_boundary(state)
+        previous=historical_observation_boundary(state)
         assert_source_drain_boundary(state,boundary,handler_boundary=handler_boundary)
         current=_retained_census(json.dumps(body))
         if (current['state']!='RUNNING' or current.get('terminal') is not False
                 or current['pending_handlers'] or not _current_observation_identity(current)
                 or not _observation_reference(current)):
             raise EvidenceUnavailable('source_observation_start_census_unverified')
+        if previous.get('unreturned_observation_retained'):
+            if (not isinstance(handler_boundary,str)
+                    or hashlib.sha256(handler_boundary.encode()).hexdigest()!=PROGRAM_GAP_HANDLER_SHA256):
+                raise EvidenceUnavailable('source_observation_program_gap_handler_boundary_required')
+            failed=_health_from_db(state.writer.db,OBSERVATION_DRAIN_KEY,SOURCE_DRAIN_BYTES)
+            if hashlib.sha256(failed.encode()).hexdigest()==PROGRAM_GAP_OBSERVATION_SHA256:
+                _preserve_drain_bytes(state,OBSERVATION_DRAIN_KEY,failed,SOURCE_DRAIN_BYTES)
+            _preserve_drain_bytes(state,HANDLER_RECOVERY_KEY,handler_boundary,HandlerLedger.maximum_bytes)
         state.fence._health(OBSERVATION_DRAIN_KEY,current)
         return _retained_health(state,OBSERVATION_DRAIN_KEY,SOURCE_DRAIN_BYTES)
 
