@@ -50,9 +50,11 @@ class History:
         """
         from meme_machine.runtime.policy_compatibility import (active_hash,selection,
             require_flat_rows,require_external_flat,SELECTION_KEY)
-        from meme_machine.paper_policy_revision import previous_hash
+        from meme_machine.paper_policy_revision import previous_hash,SUPERSEDED_ACTIVE_SURVIVOR_HASHES
         regimes=('pump_survivor','pons_survivor')
-        regime=next((r for r in regimes if old==previous_hash(r) and policy==active_hash(r)),None)
+        regime=next((r for r in regimes
+            if old in (previous_hash(r),SUPERSEDED_ACTIVE_SURVIVOR_HASHES.get(r))
+            and policy==active_hash(r)),None)
         if regime is None:raise ValueError('survivor_history_policy_drift')
         with self.transaction():
             rows=self.rows(include_retired=True)
@@ -76,7 +78,9 @@ class History:
             require_external_flat()
             expected=selection(dict(policy_hash=old),dict(policy_hash=policy))
             self.set_meta(SELECTION_KEY,expected)
-            self.set_meta('previous_policy:'+old,dict(policy_hash=old,revision='pre-paper-opportunity-access-v1'))
+            self.set_meta('previous_policy:'+old,dict(policy_hash=old,revision=(
+                'paper-opportunity-access-v1' if old==SUPERSEDED_ACTIVE_SURVIVOR_HASHES.get(regime)
+                else 'pre-paper-opportunity-access-v1')))
             for row in rows:
                 identity=row['id'];saved=self.get_meta('calculation_prefix:'+identity)
                 if saved is not None:
