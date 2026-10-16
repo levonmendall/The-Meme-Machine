@@ -238,12 +238,16 @@ class SharedSleeve(SleeveReservations):
         try:
             grant=self._grant(identity,strategy=strategy,units=amount,at=at,asset=asset or candidate,
                 evidence=evidence,generation=generation or 1)
-            self._grant_receipt=grant
-            try:
-                return super().reserve(identity,strategy=strategy,amount=amount,at=at,candidate=candidate,
-                    generation=generation,regime=regime,asset=asset)
-            finally:
-                self._grant_receipt=None
+            # The transient receipt is instance state. Pin its lifetime under
+            # the same reentrant native lock used by the final SQLite writer,
+            # so another worker cannot swap or clear a concurrent grant.
+            with self.lock:
+                self._grant_receipt=grant
+                try:
+                    return super().reserve(identity,strategy=strategy,amount=amount,at=at,candidate=candidate,
+                        generation=generation,regime=regime,asset=asset)
+                finally:
+                    self._grant_receipt=None
         except BaseException:
             # Handles both a failed native commit after the grant and an
             # interrupted global queue/allocate. Never blindly expire a claim.
@@ -259,9 +263,10 @@ class SharedSleeve(SleeveReservations):
         grant=self._grant(identity,strategy=row['strategy'],units=amount,at=at,asset=row['asset'],
             evidence=dict(request=request,scale_state=scale_state,scale_facts=scale_facts),kind='scale',
             scale_state=scale_state,scale_facts=scale_facts)
-        self._grant_receipt=grant
-        try:return super().reserve_scale(identity,amount=amount,original_basis=original_basis,at=at,request=request)
-        finally:self._grant_receipt=None
+        with self.lock:
+            self._grant_receipt=grant
+            try:return super().reserve_scale(identity,amount=amount,original_basis=original_basis,at=at,request=request)
+            finally:self._grant_receipt=None
 
     def recover_scale(self,identity,*,request,committed,native_verified):
         if native_verified is not True:raise CapitalError('scale_recovery_proof')
