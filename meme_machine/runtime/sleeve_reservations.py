@@ -265,6 +265,11 @@ class SleeveReservations:
                 current=self.candidate(candidate)
                 if not current or current['generation']!=generation or current['state']!='qualified':
                     raise ValueError('superseded_reservation')
+                # The native writer must bind its funded cycle to the exact
+                # already-journaled qualification generation, not a caller's
+                # later recomputed or substituted rally identity.
+                if current.get('regime')!=regime:
+                    raise ValueError('superseded_candidate_regime')
                 from meme_machine.runtime.survivor_risk import new_regime
                 prior=[json.loads(raw) for raw, in self.db.execute('SELECT body FROM sleeve_positions')]
                 for p in prior:
