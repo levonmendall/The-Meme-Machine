@@ -2,6 +2,9 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+    'tests.test_provider_clock_domain',
+    'tests.test_governor_clock_domain',
+    'tests.lanes.pons.test_provider_clock_domain',
     'tests.test_operational_cpu_capacity',
     'tests.test_solana_source_drain',
     'tests.test_control_interrupted_recovery',

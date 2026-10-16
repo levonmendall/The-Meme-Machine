@@ -15,6 +15,9 @@ from contextvars import ContextVar
 from contextlib import contextmanager
 from functools import wraps
 from . import BoundaryError
+from meme_machine.runtime.provider_clock import (
+    ProviderClockError, bind_clock_domain, validate_timer,
+)
 
 
 POSITION_BURST = 8
@@ -308,6 +311,138 @@ class OfflineProfile:
 
 
 class Admission:
+    @staticmethod
+    def _clock_validate_schema(db):
+        for table, expected in (
+                ('limits', ('endpoint', 'next_at', 'cooldown', 'interval')),
+                ('public_pacing', ('endpoint', 'interval', 'last_dispatch')),
+                ('queue', ('id', 'endpoint', 'priority', 'created', 'deadline')),
+                ('queue_meta', ('id', 'lane')),
+                ('position_service', ('endpoint', 'lane', 'consecutive')),
+                ('provider_usage', ('endpoint', 'lane', 'metric', 'value')),
+                ('transport_starts', ('seq', 'body')),
+                ('admissions', ('seq', 'body')),
+                ('transports', ('seq', 'body'))):
+            if tuple(row[1] for row in db.execute('PRAGMA table_info(' + table + ')')) != expected:
+                raise ProviderClockError('provider_clock_schema_invalid')
+
+    @staticmethod
+    def _clock_snapshot(db):
+        """Archive leases exactly; audit history and provider totals remain intact."""
+        archive = {}
+        has_state = False
+        for table, columns in (
+                ('limits', 'endpoint,next_at,cooldown,interval'),
+                ('public_pacing', 'endpoint,interval,last_dispatch'),
+                ('queue', 'id,endpoint,priority,created,deadline'),
+                ('queue_meta', 'id,lane'),
+                ('position_service', 'endpoint,lane,consecutive'),
+                ('provider_usage', 'endpoint,lane,metric,value')):
+            rows = db.execute('SELECT ' + columns + ' FROM ' + table +
+                              ' ORDER BY 1,2 LIMIT 4097').fetchall()
+            if len(rows) > 4096:
+                raise ProviderClockError('provider_clock_snapshot_bound')
+            archive[table] = rows
+            has_state = has_state or bool(rows)
+        for _, next_at, cooldown, interval in archive['limits']:
+            validate_timer(next_at); validate_timer(cooldown)
+            if validate_timer(interval) <= 0:
+                raise ProviderClockError('provider_clock_timer_invalid')
+        for _, interval, last_dispatch in archive['public_pacing']:
+            if not .04 <= validate_timer(interval) <= 5:
+                raise ProviderClockError('provider_clock_timer_invalid')
+            # The established never-dispatched sentinel carries no clock debt.
+            if last_dispatch != -1e30:
+                validate_timer(last_dispatch)
+        endpoints = {row[0] for row in archive['limits']}
+        if any(row[0] not in endpoints for row in archive['public_pacing']):
+            raise ProviderClockError('provider_clock_state_invalid')
+        for _, endpoint, priority_value, created, deadline in archive['queue']:
+            if endpoint not in endpoints or type(priority_value) is not int:
+                raise ProviderClockError('provider_clock_state_invalid')
+            if validate_timer(deadline) < validate_timer(created):
+                raise ProviderClockError('provider_clock_timer_invalid')
+        # Preserve bounded identities for immutable retained history. Hash raw
+        # bodies with their sequence/length framing; do not interpret old clocks
+        # as a current lease, rewrite receipts, or reset cumulative accounting.
+        for table in ('transport_starts', 'admissions', 'transports'):
+            digest = hashlib.sha256(); count = 0; size = 0; first = last = None
+            for sequence, body in db.execute('SELECT seq,body FROM ' + table +
+                                             ' ORDER BY seq LIMIT 16385'):
+                count += 1
+                if count > 16384 or not isinstance(body, str):
+                    raise ProviderClockError('provider_clock_snapshot_bound')
+                raw = body.encode('utf-8'); size += len(raw)
+                if size > 32 * 1024 * 1024:
+                    raise ProviderClockError('provider_clock_snapshot_bound')
+                digest.update(str(sequence).encode('ascii') + b':' +
+                              str(len(raw)).encode('ascii') + b':' + raw)
+                if first is None: first = sequence
+                last = sequence
+            archive[table] = dict(count=count, first_sequence=first,
+                last_sequence=last, bytes=size, sha256=digest.hexdigest())
+            has_state = has_state or bool(count)
+        # Offline resource contracts contain their own leases and are not part
+        # of a production provider-clock adoption. Never silently discard them.
+        for table in ('offline_resource_accounts', 'offline_inflight',
+                      'offline_protective_phases'):
+            if (db.execute('SELECT 1 FROM sqlite_master WHERE type=\'table\' AND name=?',
+                           (table,)).fetchone() and
+                    db.execute('SELECT 1 FROM ' + table + ' LIMIT 1').fetchone()):
+                raise ProviderClockError('provider_clock_offline_state_unsupported')
+        return has_state, archive
+
+    @staticmethod
+    def _clock_quiet(db):
+        adaptive = dict(db.execute('SELECT endpoint,interval FROM public_pacing'))
+        return max((max(interval, adaptive.get(endpoint, 0.0),
+                        8.0 if cooldown > 0 else 0.0)
+                    for endpoint, cooldown, interval in db.execute(
+                        'SELECT endpoint,cooldown,interval FROM limits')), default=0.0)
+
+    @staticmethod
+    def _clock_rebase(db, now, quiet_until):
+        """Retain policy; reissue only debts whose old clock is incomparable."""
+        adaptive = dict(db.execute('SELECT endpoint,interval FROM public_pacing'))
+        for endpoint, cooldown, interval in db.execute(
+                'SELECT endpoint,cooldown,interval FROM limits').fetchall():
+            spacing = max(interval, adaptive.get(endpoint, 0.0))
+            db.execute('UPDATE limits SET next_at=?,cooldown=? WHERE endpoint=?',
+                       (now + spacing, now + 8.0 if cooldown > 0 else 0.0, endpoint))
+        db.execute('UPDATE public_pacing SET last_dispatch=?', (now,))
+        # The external stopped/no-inflight fence, not apparent queue age,
+        # establishes that these archived old-domain admission tickets died.
+        db.execute('DELETE FROM queue')
+        db.execute('DELETE FROM queue_meta')
+
+    @classmethod
+    def adopt_legacy_clock(cls, path, *, audit_identity, clock=time.monotonic):
+        """Bind an existing ledger under an externally held stopped-owner fence.
+
+        This does not acquire that fence or authorize provider work. Ordinary
+        construction cannot opt into legacy adoption or create a replacement
+        ledger if the intended state path is absent.
+        """
+        from pathlib import Path
+        if audit_identity is None:
+            raise ProviderClockError('provider_clock_adoption_identity_invalid')
+        db = sqlite3.connect(Path(path).resolve().as_uri() + '?mode=rw',
+                             uri=True, timeout=10, isolation_level=None)
+        try:
+            if db.execute('PRAGMA journal_mode').fetchone()[0] != 'wal':
+                raise ProviderClockError('provider_clock_ledger_wal_required')
+            db.execute('PRAGMA synchronous=FULL')
+            db.execute('BEGIN IMMEDIATE')
+            cls._clock_validate_schema(db)
+            result = bind_clock_domain(db, component='pons_admission', clock=clock,
+                quiet_seconds=cls._clock_quiet, snapshot=cls._clock_snapshot,
+                rebase=cls._clock_rebase, adoption_identity=audit_identity)
+            db.execute('COMMIT')
+            return result
+        finally:
+            if db.in_transaction: db.execute('ROLLBACK')
+            db.close()
+
     def __init__(self,path,endpoint,*,lane,interval=0.5,clock=time.monotonic,sleeper=time.sleep,offline_profile=None):
         from meme_machine.runtime.operating_families import require_active
         require_active(lane)
@@ -327,54 +462,64 @@ class Admission:
         self.operating_interval=operating_interval
         self.session=uuid.uuid4().hex
         db=self.connect()
-        db.executescript('''
-            CREATE TABLE IF NOT EXISTS transport_starts(seq INTEGER PRIMARY KEY,body TEXT NOT NULL);
-            CREATE TRIGGER IF NOT EXISTS no_start_update BEFORE UPDATE ON transport_starts BEGIN SELECT RAISE(ABORT,'append_only'); END;
-            CREATE TRIGGER IF NOT EXISTS no_start_delete BEFORE DELETE ON transport_starts BEGIN SELECT RAISE(ABORT,'append_only'); END;
-            CREATE TABLE IF NOT EXISTS provider_usage(endpoint TEXT,lane TEXT,metric TEXT,value REAL,PRIMARY KEY(endpoint,lane,metric));
-            CREATE TABLE IF NOT EXISTS limits(endpoint TEXT PRIMARY KEY,next_at REAL NOT NULL,
-                cooldown REAL NOT NULL,interval REAL NOT NULL);
-            CREATE TABLE IF NOT EXISTS public_pacing(endpoint TEXT PRIMARY KEY,
-                interval REAL NOT NULL,last_dispatch REAL NOT NULL);
-            CREATE TABLE IF NOT EXISTS queue(id TEXT PRIMARY KEY,endpoint TEXT NOT NULL,
-                priority INTEGER NOT NULL,created REAL NOT NULL,deadline REAL NOT NULL);
-            CREATE TABLE IF NOT EXISTS queue_meta(id TEXT PRIMARY KEY,lane TEXT NOT NULL);
-            CREATE TABLE IF NOT EXISTS position_service(endpoint TEXT PRIMARY KEY,lane TEXT,consecutive INTEGER NOT NULL);
-            CREATE TABLE IF NOT EXISTS admissions(seq INTEGER PRIMARY KEY,body TEXT NOT NULL);
-            CREATE TRIGGER IF NOT EXISTS no_admission_update BEFORE UPDATE ON admissions BEGIN SELECT RAISE(ABORT,'append_only'); END;
-            CREATE TRIGGER IF NOT EXISTS no_admission_delete BEFORE DELETE ON admissions BEGIN SELECT RAISE(ABORT,'append_only'); END;
-            CREATE TABLE IF NOT EXISTS transports(seq INTEGER PRIMARY KEY,body TEXT NOT NULL);
-            CREATE TRIGGER IF NOT EXISTS no_transport_update BEFORE UPDATE ON transports
-                BEGIN SELECT RAISE(ABORT,'append_only'); END;
-            CREATE TRIGGER IF NOT EXISTS no_transport_delete BEFORE DELETE ON transports
-                BEGIN SELECT RAISE(ABORT,'append_only'); END;
-            CREATE INDEX IF NOT EXISTS usage_start_endpoint_seq
-                ON transport_starts(json_extract(body,'$.endpoint_fingerprint'),seq DESC);
-            CREATE INDEX IF NOT EXISTS usage_start_endpoint_time
-                ON transport_starts(json_extract(body,'$.endpoint_fingerprint'),json_extract(body,'$.admitted_at'),seq);
-            CREATE INDEX IF NOT EXISTS usage_start_without_clock
-                ON transport_starts(json_extract(body,'$.endpoint_fingerprint'),seq)
-                WHERE json_type(body,'$.admitted_at') IS NULL;
-            CREATE INDEX IF NOT EXISTS usage_admission_endpoint_seq
-                ON admissions(json_extract(body,'$.endpoint_fingerprint'),seq DESC);
-            CREATE INDEX IF NOT EXISTS usage_admission_created
-                ON admissions(json_extract(body,'$.endpoint_fingerprint'),json_extract(body,'$.created'),seq);
-            CREATE INDEX IF NOT EXISTS usage_admission_ended
-                ON admissions(json_extract(body,'$.endpoint_fingerprint'),json_extract(body,'$.ended'),seq);
-            -- Exact whole-ring retention walks seq, independently of endpoint.
-            -- A narrow covering tree avoids reading wide audit bodies merely
-            -- to find that unchanged 4,096-row boundary. No retention or
-            -- accounting transaction changes; append-only guards stay intact.
-            CREATE INDEX IF NOT EXISTS usage_start_retention_seq ON transport_starts(seq);
-            CREATE INDEX IF NOT EXISTS usage_admission_retention_seq ON admissions(seq);
-            CREATE INDEX IF NOT EXISTS usage_transport_retention_seq ON transports(seq);
-        ''')
-        # An explicitly installed operating profile replaces the development
-        # pace, while preserving the next grant, cooldown and all usage records.
-        expression='excluded.interval' if offline_profile is None and operating_interval is not None else 'MAX(interval,excluded.interval)'
-        db.execute('INSERT INTO limits VALUES(?,0,0,?) ON CONFLICT(endpoint) DO UPDATE SET interval='+expression,(self.endpoint,interval))
-        if offline_profile is not None:offline_profile.initialize(db,self.endpoint,self.clock())
-        db.close()
+        try:
+            db.executescript('''
+                CREATE TABLE IF NOT EXISTS transport_starts(seq INTEGER PRIMARY KEY,body TEXT NOT NULL);
+                CREATE TRIGGER IF NOT EXISTS no_start_update BEFORE UPDATE ON transport_starts BEGIN SELECT RAISE(ABORT,'append_only'); END;
+                CREATE TRIGGER IF NOT EXISTS no_start_delete BEFORE DELETE ON transport_starts BEGIN SELECT RAISE(ABORT,'append_only'); END;
+                CREATE TABLE IF NOT EXISTS provider_usage(endpoint TEXT,lane TEXT,metric TEXT,value REAL,PRIMARY KEY(endpoint,lane,metric));
+                CREATE TABLE IF NOT EXISTS limits(endpoint TEXT PRIMARY KEY,next_at REAL NOT NULL,
+                    cooldown REAL NOT NULL,interval REAL NOT NULL);
+                CREATE TABLE IF NOT EXISTS public_pacing(endpoint TEXT PRIMARY KEY,
+                    interval REAL NOT NULL,last_dispatch REAL NOT NULL);
+                CREATE TABLE IF NOT EXISTS queue(id TEXT PRIMARY KEY,endpoint TEXT NOT NULL,
+                    priority INTEGER NOT NULL,created REAL NOT NULL,deadline REAL NOT NULL);
+                CREATE TABLE IF NOT EXISTS queue_meta(id TEXT PRIMARY KEY,lane TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS position_service(endpoint TEXT PRIMARY KEY,lane TEXT,consecutive INTEGER NOT NULL);
+                CREATE TABLE IF NOT EXISTS admissions(seq INTEGER PRIMARY KEY,body TEXT NOT NULL);
+                CREATE TRIGGER IF NOT EXISTS no_admission_update BEFORE UPDATE ON admissions BEGIN SELECT RAISE(ABORT,'append_only'); END;
+                CREATE TRIGGER IF NOT EXISTS no_admission_delete BEFORE DELETE ON admissions BEGIN SELECT RAISE(ABORT,'append_only'); END;
+                CREATE TABLE IF NOT EXISTS transports(seq INTEGER PRIMARY KEY,body TEXT NOT NULL);
+                CREATE TRIGGER IF NOT EXISTS no_transport_update BEFORE UPDATE ON transports
+                    BEGIN SELECT RAISE(ABORT,'append_only'); END;
+                CREATE TRIGGER IF NOT EXISTS no_transport_delete BEFORE DELETE ON transports
+                    BEGIN SELECT RAISE(ABORT,'append_only'); END;
+                CREATE INDEX IF NOT EXISTS usage_start_endpoint_seq
+                    ON transport_starts(json_extract(body,'$.endpoint_fingerprint'),seq DESC);
+                CREATE INDEX IF NOT EXISTS usage_start_endpoint_time
+                    ON transport_starts(json_extract(body,'$.endpoint_fingerprint'),json_extract(body,'$.admitted_at'),seq);
+                CREATE INDEX IF NOT EXISTS usage_start_without_clock
+                    ON transport_starts(json_extract(body,'$.endpoint_fingerprint'),seq)
+                    WHERE json_type(body,'$.admitted_at') IS NULL;
+                CREATE INDEX IF NOT EXISTS usage_admission_endpoint_seq
+                    ON admissions(json_extract(body,'$.endpoint_fingerprint'),seq DESC);
+                CREATE INDEX IF NOT EXISTS usage_admission_created
+                    ON admissions(json_extract(body,'$.endpoint_fingerprint'),json_extract(body,'$.created'),seq);
+                CREATE INDEX IF NOT EXISTS usage_admission_ended
+                    ON admissions(json_extract(body,'$.endpoint_fingerprint'),json_extract(body,'$.ended'),seq);
+                -- Exact whole-ring retention walks seq, independently of endpoint.
+                -- A narrow covering tree avoids reading wide audit bodies merely
+                -- to find that unchanged 4,096-row boundary. No retention or
+                -- accounting transaction changes; append-only guards stay intact.
+                CREATE INDEX IF NOT EXISTS usage_start_retention_seq ON transport_starts(seq);
+                CREATE INDEX IF NOT EXISTS usage_admission_retention_seq ON admissions(seq);
+                CREATE INDEX IF NOT EXISTS usage_transport_retention_seq ON transports(seq);
+            ''')
+            db.execute('BEGIN IMMEDIATE')
+            self.clock_domain = bind_clock_domain(db, component='pons_admission',
+                clock=clock, quiet_seconds=self._clock_quiet,
+                snapshot=self._clock_snapshot, rebase=self._clock_rebase)
+            # An explicitly installed operating profile replaces the development
+            # pace, while preserving the next grant, cooldown and all usage records.
+            expression='excluded.interval' if offline_profile is None and operating_interval is not None else 'MAX(interval,excluded.interval)'
+            db.execute('INSERT INTO limits VALUES(?,0,0,?) ON CONFLICT(endpoint) DO UPDATE SET interval='+expression,(self.endpoint,interval))
+            db.execute('COMMIT')
+            # The offline model owns its existing schema/account initialization;
+            # its executescript must not implicitly commit the clock transition.
+            if offline_profile is not None:offline_profile.initialize(db,self.endpoint,self.clock())
+        finally:
+            if db.in_transaction: db.execute('ROLLBACK')
+            db.close()
 
     def public_interval(self, initial_interval=None):
         """Initialize once; new public sessions inherit endpoint backpressure."""

@@ -208,7 +208,9 @@ class ProviderDemandCallerTests(unittest.TestCase):
             for index in indexes.values():db.execute('DROP INDEX '+index)
             before={table:db.execute('SELECT * FROM '+table+' ORDER BY 1').fetchall()
                     for table in (*indexes,'provider_usage','limits','logical_demand')}
-        Admission(self.path,self.endpoint,lane='pons',clock=self.now,sleeper=self.advance)
+        # Reopen in the constructor's original kernel clock domain. This case
+        # checks schema indexes without dispatching or advancing a fake lease.
+        Admission(self.path,self.endpoint,lane='pons')
         with sqlite3.connect(self.path) as db:
             for table,index in indexes.items():
                 plan=db.execute('EXPLAIN QUERY PLAN SELECT seq FROM '+table+
