@@ -77,6 +77,21 @@ class History:
                     require_flat_rows([json.loads(raw) for raw, in db.execute('SELECT body FROM positions')],kind='pump')
             require_external_flat()
             expected=selection(dict(policy_hash=old),dict(policy_hash=policy))
+            first=self.get_meta(SELECTION_KEY)
+            if first is not None and first!=expected:
+                # History is an observational derived store, not financial
+                # genesis. Its first migration used the original old policy as
+                # the comparison anchor. A second migration must chain from
+                # that previous *decision* policy, preserving that receipt.
+                predecessor=first.get('decision_identity') or {}
+                if (first.get('schema')!='paper-decision-policy-selection-v1'
+                        or first.get('revision')!='paper-opportunity-access-v1'
+                        or first.get('financial_identity_hash')!=digest(first.get('financial_identity'))
+                        or first.get('decision_identity_hash')!=digest(predecessor)
+                        or predecessor!=expected['financial_identity']
+                        or old!=SUPERSEDED_ACTIVE_SURVIVOR_HASHES.get(regime)):
+                    raise ValueError('paper_policy_selection_checkpoint_conflict')
+                self.set_meta('previous_policy_selection:'+digest(first),first)
             self.set_meta(SELECTION_KEY,expected)
             self.set_meta('previous_policy:'+old,dict(policy_hash=old,revision=(
                 'paper-opportunity-access-v1' if old==SUPERSEDED_ACTIVE_SURVIVOR_HASHES.get(regime)
