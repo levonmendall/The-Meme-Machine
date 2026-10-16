@@ -56,4 +56,5 @@ def native_sync(book,sleeve,identity):
             committed=p.get('scale_request')==reservation['request'],native_verified=proof['verified'])
     if p['status']=='open':
         sleeve.acknowledge_native(identity,basis=p['basis'],pnl=p['realized'],at=p['last_at'],
-            native_hash=digest(p),native_verified=proof['verified'])
+            native_hash=digest(p),native_verified=proof['verified'],entry_fill_at=p.get('entry_fill_at'),
+            entry_basis=p.get('entry_basis'))

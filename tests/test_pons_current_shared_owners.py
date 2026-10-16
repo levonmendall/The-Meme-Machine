@@ -167,6 +167,7 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                 # physical account admission and mock endpoint, not books.
                 from meme_machine.lanes.pons import pons_survivor_runtime as survivor
                 from meme_machine.runtime.survivor_commit import restore_risk
+                from tests.shared_rally_support import observe_survivor
                 r=None
                 try:
                     with patch.dict(os.environ,dict(MM_DIRECTIONAL_SLEEVE_DB=str(root/'survivor-sleeve'),
@@ -177,11 +178,14 @@ class CurrentSharedOwnerTests(unittest.TestCase):
                     for i in range(1,survivor_count+1):
                         token=native.address(i);row=r.history.graduate(token,native.graduation(i))
                         identity='mixed-survivor:position:'+str(i);amount=10**16;qty=10**18+i*10000
-                        r.sleeve.reserve(identity,strategy=survivor.STRATEGY_VERSION,amount=amount,at=95,asset=token)
-                        r.book.reserve(identity,amount,95,dict(candidate=token))
+                        qualified=observe_survivor(r.sleeve,survivor.STRATEGY_VERSION,token,95)
+                        r.sleeve.reserve(identity,strategy=survivor.STRATEGY_VERSION,amount=amount,at=95,asset=token,
+                            candidate=token,generation=qualified['generation'],regime=qualified['regime'])
+                        r.book.reserve(identity,amount,95,dict(candidate=token,
+                            generation=qualified['generation'],regime=qualified['regime']))
                         r.book.transition(identity,'filled',96,amount=amount,tokens=qty,evidence=dict(execution=dict(gas=0)))
                         r.sleeve.acknowledge_native(identity,basis=amount,pnl=0,at=96,native_hash='offline-native-replay',
-                            native_verified=r.book.replay()['verified'])
+                            native_verified=r.book.replay()['verified'],entry_fill_at=96,entry_basis=amount)
                         row.update(position=identity,state='open',generation=0,block=100,
                             block_hash=r.rpc.value('eth_getBlockByNumber',['0x64',False])['hash']);r.history.save(row)
                     transition=r.book.transition

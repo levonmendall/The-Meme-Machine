@@ -34,6 +34,7 @@ from meme_machine.runtime.sleeve_reservations import SleeveReservations
 from meme_machine.runtime.survivor_commit import commit
 from meme_machine.runtime.survivor_history import History
 from meme_machine.runtime.survivor_paper_book import PaperBook
+from meme_machine.paper_policy_revision import previous_policies,predecessor_policies
 from tests.lanes.pump import test_pump_acceleration_strategy as current_fixtures
 from tests.lanes.pump.test_pumpswap_survivor import facts
 
@@ -102,11 +103,17 @@ class OpportunityAccessPumpTests(unittest.TestCase):
                 self.assertFalse(decision.qualified);self.assertIn(reason,decision.reasons)
 
     def test_previous_repeat_rule_remains_available_as_an_explicit_previous_policy(self):
-        old=replace(CURRENT_POLICY,version=CURRENT_POLICY.version.rsplit('-paper-opportunity-access-v1',1)[0],
+        old=replace(CURRENT_POLICY,**previous_policies()['pump_current']['policy'],
                     revision='pre-opportunity-access-v1')
         decision=qualify(self.late(repeat_buyer_clusters=0,repeat_buy_share_bps=0),old)
         self.assertFalse(decision.qualified)
         self.assertIn('repeat_buyers',decision.reasons);self.assertIn('repeat_buy_share',decision.reasons)
+
+    def test_immediate_predecessor_retains_repeat_diagnostic_economics(self):
+        old=replace(CURRENT_POLICY,**predecessor_policies()['pump_current']['policy'])
+        decision=qualify(self.late(repeat_buyer_clusters=0,repeat_buy_share_bps=0),old)
+        self.assertTrue(decision.qualified,decision.reasons)
+        self.assertEqual(decision.demoted_conditions,('repeat_buyers','repeat_buy_share'))
 
     def test_current_ongoing_requalification_keeps_demand_without_entry_age_deadline(self):
         signal=SignalVector(mint='M',observed_at=10000,surface='pumpswap',phase=MODE_POSTGRAD,
@@ -441,7 +448,7 @@ class OpportunityAccessPumpTests(unittest.TestCase):
         self.assertIn('authoritative_evidence',evaluate_entry(f)['all_rejections'])
 
     def test_entry_age_bounds_and_held_requalification_are_separate(self):
-        for age,valid in ((14399,False),(14400,True),(604800,True),(604801,False)):
+        for age,valid in ((599,False),(600,True),(14399,True),(14400,True),(604800,True),(604801,False)):
             decision=evaluate_entry(shallow_survivor(age))
             self.assertEqual('age' not in decision['all_rejections'],valid)
         f=shallow_survivor(604801);f['qualification_purpose']='ongoing'
@@ -486,8 +493,17 @@ class OpportunityAccessPumpTests(unittest.TestCase):
                 policy_hash=POLICY_HASH,initial=1000)
             self.addCleanup(sleeve.close)
             regime=dict(at=f['now'],base_id='base',high_reset_cycle='peak/reset',buyer_population=['a','b'])
-            sleeve.observe('mint',strategy=STRATEGY_ID,at=f['now'],state='qualified',
+            from meme_machine.runtime.rally_cycle import build_cycle
+            features=decision['features']
+            regime['rally_cycle']=build_cycle(candidate='mint',venue='pumpswap',
+                chain='synthetic-offline',pool='synthetic-pool',policy_hash=POLICY_HASH,
+                input_version='synthetic-canonical-history-v1',graduation=dict(at=f['graduation_at']),
+                **{key:features[key] for key in ('peak_at','reset_at','base_start','base_end','breakout_at')},
+                decision_at=f['now'],evidence_id='synthetic-acquired-history',authoritative=True,
+                complete=True,minimum_base_seconds=POLICY['base_seconds'])
+            observed=sleeve.observe('mint',strategy=STRATEGY_ID,at=f['now'],state='qualified',
                 evidence=decision,regime=regime)
+            regime=observed['regime']
             kwargs=dict(sleeve=sleeve,identity='fixture:one',candidate='mint',generation=1,
                 strategy=STRATEGY_ID,policy_hash=POLICY_HASH,decision=decision,regime=regime,
                 at=f['now'],target=100,minimum=10,retention_bps=5000,ordinary_limit=600,

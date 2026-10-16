@@ -1,0 +1,1054 @@
+{
+  "added_sources": {
+    "meme_machine/policy_history/opportunity_access_v1.json": {
+      "sha256": "f2724991c79ba7ae3a22b8e67e3ac22287e71f034b8c9ff74874629475f4b2c3"
+    },
+    "meme_machine/runtime/rally_cycle.py": {
+      "sha256": "c3d0e9eb0df4a6aafba925d8ed494481de6c067736eec4fd4b515f3d402f1a61"
+    }
+  },
+  "base": "950852cb87516cd1c94f6762ec178b17232c346f",
+  "files": {
+    "meme_machine/lanes/pons/pons_postgrad_survivor.py": {
+      "after_sha256": "2b74663a26a90a1df29ce716545ed59d6f516840460238c49c8d9928db51cd0f",
+      "before_sha256": "b24fc5baacb143af208a5f6112a7ded5375ca0b98f955fff3221e65d19b30bb4",
+      "layouts": {},
+      "nodes": {
+        "module/Assign:Name(id='POLICY', ctx=Store())": {
+          "after": "9555935e3335768d51a3189c0c1c9985db01fd6d732e925dd7f0094e9f77e612",
+          "before": "505e35ef8deedcdec6b683fce9bc6647b1db89c7bf998a11bebdac74985a2287"
+        },
+        "module/FunctionDef:_feature_set": {
+          "after": "6440b8400a2039747a7317cd6b25fb77625adba42026ed352bb7c4d4db0083d6",
+          "before": "661491faae7176964657e175c4fc730ebdc63ecf4e674654f4ed4034cd28bac1"
+        },
+        "module/docstring": {
+          "after": "b155b116ec9b3a245714dac8b3998395510f1dca7934cd04caa675ba32d13fd1",
+          "before": "332ae1b987aff82e549599d12f2e70c9b72e7178f8b7c2b2b5652b76646d4a3c"
+        }
+      }
+    },
+    "meme_machine/lanes/pons/pons_survivor_runtime.py": {
+      "after_sha256": "68eb6419a08a4b2fc30f5414aaa610f1b0dc413b89a8904f9e5f762eecc55163",
+      "before_sha256": "dd126e490b53bba0b414355d12ab617c56b9adc09438457ff630e0ee281202b8",
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/ImportFrom:0:meme_machine.runtime.provider_purchases",
+            "module/ImportFrom:0:collections",
+            "module/ImportFrom:0:contextlib",
+            "module/ImportFrom:0:dataclasses",
+            "module/Import:os",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:time",
+            "module/ImportFrom:0:meme_machine.runtime.directional_sleeve",
+            "module/ImportFrom:0:meme_machine.runtime.execution_capacity",
+            "module/ImportFrom:0:meme_machine.runtime.journal",
+            "module/ImportFrom:0:meme_machine.runtime.survivor_commit",
+            "module/ImportFrom:1:pons_history",
+            "module/ImportFrom:1:pons_attempts",
+            "module/ImportFrom:0:meme_machine.runtime.survivor_paper_book",
+            "module/ImportFrom:0:meme_machine.runtime.robinhood.plane",
+            "module/ImportFrom:0:meme_machine.runtime.robinhood.pons",
+            "module/ImportFrom:0:meme_machine.runtime.robinhood.provider_usage",
+            "module/ImportFrom:1:None",
+            "module/ImportFrom:1:abi",
+            "module/ImportFrom:1:identity",
+            "module/ImportFrom:1:keccak",
+            "module/ImportFrom:1:protocols",
+            "module/ImportFrom:1:provider_topology",
+            "module/ImportFrom:1:provider_admission",
+            "module/ImportFrom:1:pons_natural_observation",
+            "module/ImportFrom:1:pons_natural_paper",
+            "module/ImportFrom:1:pons_selective_v4",
+            "module/ImportFrom:1:pons_postgrad_survivor",
+            "module/FunctionDef:price_index",
+            "module/FunctionDef:_quote_times",
+            "module/ClassDef:Quotes",
+            "module/ClassDef:Runtime"
+          ],
+          "before": [
+            "module/docstring",
+            "module/ImportFrom:0:meme_machine.runtime.provider_purchases",
+            "module/ImportFrom:0:collections",
+            "module/ImportFrom:0:contextlib",
+            "module/ImportFrom:0:dataclasses",
+            "module/Import:os",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:time",
+            "module/ImportFrom:0:meme_machine.runtime.directional_sleeve",
+            "module/ImportFrom:0:meme_machine.runtime.execution_capacity",
+            "module/ImportFrom:0:meme_machine.runtime.journal",
+            "module/ImportFrom:0:meme_machine.runtime.survivor_commit",
+            "module/ImportFrom:1:pons_history",
+            "module/ImportFrom:1:pons_attempts",
+            "module/ImportFrom:0:meme_machine.runtime.survivor_paper_book",
+            "module/ImportFrom:0:meme_machine.runtime.robinhood.plane",
+            "module/ImportFrom:0:meme_machine.runtime.robinhood.pons",
+            "module/ImportFrom:0:meme_machine.runtime.robinhood.provider_usage",
+            "module/ImportFrom:1:None",
+            "module/ImportFrom:1:abi",
+            "module/ImportFrom:1:identity",
+            "module/ImportFrom:1:keccak",
+            "module/ImportFrom:1:protocols",
+            "module/ImportFrom:1:provider_topology",
+            "module/ImportFrom:1:provider_admission",
+            "module/ImportFrom:1:pons_natural_observation",
+            "module/ImportFrom:1:pons_natural_paper",
+            "module/ImportFrom:1:pons_selective_v4",
+            "module/ImportFrom:1:pons_postgrad_survivor",
+            "module/FunctionDef:price_index",
+            "module/ClassDef:Quotes",
+            "module/ClassDef:Runtime"
+          ]
+        }
+      },
+      "nodes": {
+        "module/ClassDef:Quotes/FunctionDef:_acquire": {
+          "after": "244db54f628decdff133304903dcafa4ce5f1f395648840d87a1e4465401e276",
+          "before": "77fd9741ba4427b87df8918a7e556c8b655cf36d018ea56a187c5548cfd39fc6"
+        },
+        "module/ClassDef:Runtime/FunctionDef:_enter": {
+          "after": "a6b318188d2bdba380777985b5ca0242e81bbd439263a6fdf2b588d061c63403",
+          "before": "da3195d5d64cd24635ba8c3501248d337572f4b6526d5c17b918afde54c3fcb8"
+        },
+        "module/ClassDef:Runtime/FunctionDef:_held_observation": {
+          "after": "fed9f3f83c595e0edaa6299923b6c840cf7e55050e8b1da92ad6cbbac89e2651",
+          "before": "e0d73d2baa57ff8bff5ece436932df6348bb941ef168bd5acd03533d263bca3e"
+        },
+        "module/ClassDef:Runtime/FunctionDef:_manage_position": {
+          "after": "06a0c70a3b900eded298228f7ae6e83335769c0a29828bda93ffedd57ef4f3de",
+          "before": "c122fde19eaa6a76be8e90316df0e9f84d93eb4bd05afb05497d986d6012b7e7"
+        },
+        "module/ClassDef:Runtime/FunctionDef:exit_quote": {
+          "after": "7b3be23a23506b7a3bc8aea26cf719b1ca918d8e941adfacf591969203f6ac37",
+          "before": "638a483d092578a43a5bfdac1fe0d70526a52cba0a0c37cc827a3c94eacfdff9"
+        },
+        "module/ClassDef:Runtime/FunctionDef:fresh_state": {
+          "after": "f93142c43565f7d2abd73a1d6e1d98f16899700066bc152257e4cfe7f851b070",
+          "before": "1347f4defb281be7019eb12af342efbf1f41791d57c6dc911bcc25d37f1f97a6"
+        },
+        "module/ClassDef:Runtime/FunctionDef:qualify": {
+          "after": "9ed902d017a51ce22710b673354f8ffbf51409e989f2040bca2af1369d84e0ed",
+          "before": "c31c8368b10706b6baae18f97f84761aa908e0eadc43deb67a871632ba22df0e"
+        },
+        "module/ClassDef:Runtime/FunctionDef:reconstruct": {
+          "after": "d2a7fd2a4b73c51b517c8fbedac48e1c61dcc3899e8ef2c19b9ff811f737abda",
+          "before": "d390240fd43c69ff367a313f21c936165f76f26d9e4b0bb120a8b4c1f8af9f35"
+        },
+        "module/ClassDef:Runtime/FunctionDef:step": {
+          "after": "d1242f79b03bc236e68edad390055bd22b83d765804c8a1f37e665b0e466639a",
+          "before": "2286434f1beef0d821201f83294f194cae6adf3a960bb66ce1c886bb87cc3006"
+        },
+        "module/FunctionDef:_quote_times": {
+          "after": "6fb6d3da14cac76de6d2f8f67139613bc9210dce196371b67e6e03ab9d4d288f",
+          "before": null
+        },
+        "module/ImportFrom:1:None": {
+          "after": "7acd1a419d7dceb774776db01e1d3d209a97b140000438373c6b488c64b7feba",
+          "before": "26a04f2ea72a81f1e7d535ad58e45356bd49799fbf9111ac28f0ec722abfaa56"
+        }
+      }
+    },
+    "meme_machine/lanes/pump/pump_acceleration_strategy.py": {
+      "after_sha256": "0540c8a03f09e2bd9ed19b1b9c94a0d7485a030b82ad078ccb586c24a341d7ed",
+      "before_sha256": "b0c7b0b1d753c9acbe993c437f6ff2d26310ea986dfd684ca662653ee83e3f9a",
+      "layouts": {},
+      "nodes": {
+        "module/FunctionDef:qualify": {
+          "after": "92e21d05bf3825d99ed8de5209661410097a44aeee5a745e2aa72e3528f2c2ca",
+          "before": "00b434baf04099ddfecca120067b4cd24797cf6622d4b22bdd11cd3f74e6ff49"
+        },
+        "module/ImportFrom:0:meme_machine.paper_policy_revision": {
+          "after": "fd4698459e003f9d5dd74286688d80c509880989ec24e954ed36070c45bb8dec",
+          "before": "4b60410b88689cf8a0b835cd0fb46d3e239cd6e77bf76faaea9b0b50a5f74262"
+        }
+      }
+    },
+    "meme_machine/lanes/pump/pumpswap_survivor.py": {
+      "after_sha256": "a64303cb2e39929214cfde030c047ed2f67aa3e347e87a47c469d6dc891d524e",
+      "before_sha256": "7c92f9ab7b83a3ddbb3e7c94a28bc57f4a29c922b7beed59452cf42beed85281",
+      "layouts": {},
+      "nodes": {
+        "module/Assign:Name(id='POLICY', ctx=Store())": {
+          "after": "6aa0332f39f0e8eaf268244946852a55eb35fb3f487bcdae91cf8903bb577dba",
+          "before": "dba62aea62f5f36bf9c7547eadc40e913da8efacc3479a1c4131d945e3518c2d"
+        },
+        "module/FunctionDef:_decision": {
+          "after": "cf9798f44a1b3e10f40edba5145d2bc374a9fbe722db9b855c9bfc7075b34afb",
+          "before": "c4343639caa7a444a7cc1149db26382f6d2186c7f7596e8ca440821165db4aae"
+        },
+        "module/FunctionDef:evaluate_entry": {
+          "after": "cad1a7d941a81ffd9bce3853ae831a5cb24b5f3320e4f2f9535abfd6858f6720",
+          "before": "3beba104f591809762826b786e13df021b69216a607c340805d95763581ea005"
+        },
+        "module/ImportFrom:0:meme_machine.paper_policy_revision": {
+          "after": "fd4698459e003f9d5dd74286688d80c509880989ec24e954ed36070c45bb8dec",
+          "before": "4b60410b88689cf8a0b835cd0fb46d3e239cd6e77bf76faaea9b0b50a5f74262"
+        },
+        "module/docstring": {
+          "after": "e7f4db414d4f9be943c752ec899f136d5dad0a0305db287445ec0122fe744403",
+          "before": "b6797c1d3e038bdeedcec03f7d0247743f84e69d5614c9c7078dc3488ad0c7b9"
+        }
+      }
+    },
+    "meme_machine/lanes/pump/pumpswap_survivor_runtime.py": {
+      "after_sha256": "a57f3f2b8f44c611b38e02c4bbf648198d1229cab77f2d8c135b3e195f202a46",
+      "before_sha256": "8790ad97bc5dea4b579e65b017e96b8fa38ee1c2fc56ca70c9bb34564b56c090",
+      "layouts": {
+        "module/ClassDef:Runtime": {
+          "after": [
+            "module/ClassDef:Runtime/FunctionDef:__init__",
+            "module/ClassDef:Runtime/FunctionDef:now",
+            "module/ClassDef:Runtime/FunctionDef:_quality_rank",
+            "module/ClassDef:Runtime/FunctionDef:_provider",
+            "module/ClassDef:Runtime/FunctionDef:discover",
+            "module/ClassDef:Runtime/FunctionDef:_increment",
+            "module/ClassDef:Runtime/FunctionDef:_ack_history_checkpoint",
+            "module/ClassDef:Runtime/FunctionDef:_local_finalized_time",
+            "module/ClassDef:Runtime/FunctionDef:fresh_state",
+            "module/ClassDef:Runtime/FunctionDef:fresh_quotes",
+            "module/ClassDef:Runtime/FunctionDef:position_policy",
+            "module/ClassDef:Runtime/FunctionDef:necessary_scale_return",
+            "module/ClassDef:Runtime/FunctionDef:reconstruct",
+            "module/ClassDef:Runtime/FunctionDef:_qualification_purpose",
+            "module/ClassDef:Runtime/FunctionDef:turnover_cap",
+            "module/ClassDef:Runtime/FunctionDef:generation_fence",
+            "module/ClassDef:Runtime/FunctionDef:validate_current",
+            "module/ClassDef:Runtime/FunctionDef:exit_quote",
+            "module/ClassDef:Runtime/FunctionDef:validate_exit",
+            "module/ClassDef:Runtime/FunctionDef:_position",
+            "module/ClassDef:Runtime/FunctionDef:_enter",
+            "module/ClassDef:Runtime/FunctionDef:_decision",
+            "module/ClassDef:Runtime/FunctionDef:_funding",
+            "module/ClassDef:Runtime/FunctionDef:step",
+            "module/ClassDef:Runtime/FunctionDef:close"
+          ],
+          "before": [
+            "module/ClassDef:Runtime/FunctionDef:__init__",
+            "module/ClassDef:Runtime/FunctionDef:now",
+            "module/ClassDef:Runtime/FunctionDef:_quality_rank",
+            "module/ClassDef:Runtime/FunctionDef:_provider",
+            "module/ClassDef:Runtime/FunctionDef:discover",
+            "module/ClassDef:Runtime/FunctionDef:_increment",
+            "module/ClassDef:Runtime/FunctionDef:_ack_history_checkpoint",
+            "module/ClassDef:Runtime/FunctionDef:_local_finalized_time",
+            "module/ClassDef:Runtime/FunctionDef:fresh_state",
+            "module/ClassDef:Runtime/FunctionDef:fresh_quotes",
+            "module/ClassDef:Runtime/FunctionDef:necessary_scale_return",
+            "module/ClassDef:Runtime/FunctionDef:reconstruct",
+            "module/ClassDef:Runtime/FunctionDef:_qualification_purpose",
+            "module/ClassDef:Runtime/FunctionDef:turnover_cap",
+            "module/ClassDef:Runtime/FunctionDef:generation_fence",
+            "module/ClassDef:Runtime/FunctionDef:validate_current",
+            "module/ClassDef:Runtime/FunctionDef:exit_quote",
+            "module/ClassDef:Runtime/FunctionDef:validate_exit",
+            "module/ClassDef:Runtime/FunctionDef:_position",
+            "module/ClassDef:Runtime/FunctionDef:_enter",
+            "module/ClassDef:Runtime/FunctionDef:_decision",
+            "module/ClassDef:Runtime/FunctionDef:_funding",
+            "module/ClassDef:Runtime/FunctionDef:step",
+            "module/ClassDef:Runtime/FunctionDef:close"
+          ]
+        }
+      },
+      "nodes": {
+        "module/ClassDef:Runtime/FunctionDef:_enter": {
+          "after": "0c781f917a7659bc1ff6bbf57bb480ad9e1890a7bfb389f7f0dda0b29e8e9994",
+          "before": "e14e2d3960bbb28c7963811b9b878729ae5e3f9a6df45c6d1387c0e7ef97cd1c"
+        },
+        "module/ClassDef:Runtime/FunctionDef:_funding": {
+          "after": "a16648ba22ff2bd3f86c40fd337978e5988e6986cf650d764bdd812b0451b08a",
+          "before": "d81262c0cb3aa6aea0e758600eb3457c4ed0d69cc742e34a603042a6c90b8023"
+        },
+        "module/ClassDef:Runtime/FunctionDef:_position": {
+          "after": "9ebd92fd189b0d5420a9bfaa098208a2aabf6249aa647743bd605deb28056c46",
+          "before": "eb6a182cd92506c80c0506dcef8894a7c14bdd698bbf7eec63a35fe39038dcf2"
+        },
+        "module/ClassDef:Runtime/FunctionDef:position_policy": {
+          "after": "35a9c48d7d35633994f36fb3d0508e78c496e82cead9ed61e0ec7bc4cb203e3b",
+          "before": null
+        },
+        "module/ClassDef:Runtime/FunctionDef:reconstruct": {
+          "after": "4e004d12c313ed75181d0ed83823ad711bad44b711f29c8140ae3d02703d6474",
+          "before": "85605b2c66f52413bc05a9ad0bd0647241976a25144ff336c7cda4bfcf5dc84d"
+        },
+        "module/ClassDef:Runtime/FunctionDef:step": {
+          "after": "9b163b55ecc7c2a86f21e7f6a1b0bfd660931dad539610a2dfb48164ed42edfd",
+          "before": "aeca30c345bd2d1955a268853b43a3787dea93fac9fc20441c1d37dd9507622f"
+        }
+      }
+    },
+    "meme_machine/lanes/pump/runner.py": {
+      "after_sha256": "148ec23e41195ad1464236873ffe2d1ae6bf96e1ddc5cf401a703703c49ef40e",
+      "before_sha256": "ca83600f6a54806b52c4f6625d1b30d482e922e82db17d086e1ca055485c6a41",
+      "layouts": {},
+      "nodes": {
+        "module/Assign:Name(id='FROZEN_POLICY_HASH', ctx=Store())": {
+          "after": "0764677137a948a4c0181e815e640ea72ae78b6c189f78ddd2e755287b687744",
+          "before": "08804a75ec1b8f4020b416c66a4780db020193e3ba94c27827797b0fd74730c3"
+        }
+      }
+    },
+    "meme_machine/operational/supervisor.py": {
+      "after_sha256": "ccf7aba447c254eadea5915cf495560559251966cbc6769be524b37668fcd629",
+      "before_sha256": "5c0cd297633ab4575880eb0fdf94d93bfad27ae9575fb569aaebd48e6b9dd98c",
+      "layouts": {},
+      "nodes": {
+        "module/ClassDef:Supervisor/FunctionDef:initialize": {
+          "after": "de98f65245459e803adda7f8715f3dcd2dff7ebaa2d8dd4d70301a78bec4e64e",
+          "before": "2d898fc87148da14445ed517277ca995dbd19d49ea14a61674fb55682c7b8d99"
+        }
+      }
+    },
+    "meme_machine/paper_policy_revision.py": {
+      "after_sha256": "837112c6840163da772c9dc1652712f784edc1593c8f57b6721c0e673e8462a0",
+      "before_sha256": "0f855c6ce3d597e993b525bfeeac19b0d17f99c9b0a47efeabd8e0a2c2fcbf52",
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/ImportFrom:0:pathlib",
+            "module/ImportFrom:0:copy",
+            "module/ImportFrom:0:functools",
+            "module/Import:hashlib",
+            "module/Import:json",
+            "module/Import:os",
+            "module/Assign:Name(id='ACTIVE_REVISION', ctx=Store())",
+            "module/Assign:Name(id='PREVIOUS_REVISION', ctx=Store())",
+            "module/Assign:Name(id='PREVIOUS_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PREVIOUS_SNAPSHOT_SHA256', ctx=Store())",
+            "module/Assign:Name(id='PREDECESSOR_REVISION', ctx=Store())",
+            "module/Assign:Name(id='PREDECESSOR_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PREDECESSOR_SNAPSHOT_SHA256', ctx=Store())",
+            "module/FunctionDef:_snapshot",
+            "module/FunctionDef:_previous_policies",
+            "module/FunctionDef:_predecessor_policies",
+            "module/FunctionDef:previous_policies",
+            "module/FunctionDef:previous_hash",
+            "module/FunctionDef:predecessor_policies",
+            "module/FunctionDef:predecessor_hash",
+            "module/FunctionDef:historical_hashes",
+            "module/FunctionDef:current_hashes",
+            "module/FunctionDef:selected_revision",
+            "module/FunctionDef:decision_metadata",
+            "module/FunctionDef:revision_for_hash"
+          ],
+          "before": [
+            "module/docstring",
+            "module/ImportFrom:0:pathlib",
+            "module/ImportFrom:0:copy",
+            "module/ImportFrom:0:functools",
+            "module/Import:hashlib",
+            "module/Import:json",
+            "module/Import:os",
+            "module/Assign:Name(id='ACTIVE_REVISION', ctx=Store())",
+            "module/Assign:Name(id='PREVIOUS_REVISION', ctx=Store())",
+            "module/Assign:Name(id='PREVIOUS_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PREVIOUS_SNAPSHOT_SHA256', ctx=Store())",
+            "module/FunctionDef:_previous_policies",
+            "module/FunctionDef:previous_policies",
+            "module/FunctionDef:previous_hash",
+            "module/FunctionDef:current_hashes",
+            "module/FunctionDef:selected_revision",
+            "module/FunctionDef:decision_metadata",
+            "module/FunctionDef:revision_for_hash"
+          ]
+        }
+      },
+      "nodes": {
+        "module/Assign:Name(id='ACTIVE_REVISION', ctx=Store())": {
+          "after": "d9967e1ad710b189a8f2a109041cdcd0fa05d80695c2b3321485e65280bc82b6",
+          "before": "c85e720acb32a9a06ebe7d214c72424718e20a1b911311a3d8c38ab7ae522989"
+        },
+        "module/Assign:Name(id='PREDECESSOR_REVISION', ctx=Store())": {
+          "after": "a047851883f1291689b90a03ec31fe963573973abe0f5bac95fd8b31e8878875",
+          "before": null
+        },
+        "module/Assign:Name(id='PREDECESSOR_SNAPSHOT_SHA256', ctx=Store())": {
+          "after": "da931f9c54a50e6cf39afab877e05c71c39ffbdff72e01f630590fec3184b72d",
+          "before": null
+        },
+        "module/Assign:Name(id='PREDECESSOR_SOURCE', ctx=Store())": {
+          "after": "7ffcef84f3ec9b76bf75ab965a80baffad0d1561dcfc62664e68adb1b2f9ab50",
+          "before": null
+        },
+        "module/FunctionDef:_predecessor_policies": {
+          "after": "18d0a9d3b763d90ea2ab8d07b38d25b2ec234490fc8ca6453cada94551d8af39",
+          "before": null
+        },
+        "module/FunctionDef:_previous_policies": {
+          "after": "4f54c2cde9cd6e03ff6fa087a6299d7e2b00db2efa3b7be27e8020362ff9f08e",
+          "before": "7f38ce0c24fb4bd9b15dbca8afde5ef248f6f55733403c9c5db4d265e8544c90"
+        },
+        "module/FunctionDef:_snapshot": {
+          "after": "01e8a572c452a373bdb7af66b88133967efb83cfb90768bbfa9a1c825c2279d3",
+          "before": null
+        },
+        "module/FunctionDef:decision_metadata": {
+          "after": "8e6ec4b81f689eeb5acb593abbf72550547376f280b9080ddf0c8a7dcb13d4d8",
+          "before": "d41cacfadc053b75ed8f95b0681ef677677e3cbe4d5d20845d1c02c645efbf3d"
+        },
+        "module/FunctionDef:historical_hashes": {
+          "after": "01b59fbf1d621ba6040eed1395ec04696571c8bb47d9527e5ccf3730472ce9ce",
+          "before": null
+        },
+        "module/FunctionDef:predecessor_hash": {
+          "after": "ceac5e6b8f44792221f06f4c87fbb2d4c51e8077155e560729a2a4e068140644",
+          "before": null
+        },
+        "module/FunctionDef:predecessor_policies": {
+          "after": "208fff00ca9fe73c662b70d9d48129522c9c98afb1bd2254cd8b3834d7cb57f9",
+          "before": null
+        },
+        "module/FunctionDef:revision_for_hash": {
+          "after": "41d3721fb12753334f4912c0b5993768d21a19029af8d97ea7f8016e627ac368",
+          "before": "065a73860374d4751dc33e4bff7d6e87c0cb0c19ae029d2f27ece875bcede71e"
+        }
+      }
+    },
+    "meme_machine/runtime/directional_continuation.py": {
+      "after_sha256": "7d800a2d5d7d7c65d8aad4609e09fdd52b81943f6e0b13344e9e4388af0b6b7c",
+      "before_sha256": "4b5aba1259011a33de56e3f3e26686199596e9b50c0b3aaa2f854009c58c4a02",
+      "layouts": {},
+      "nodes": {
+        "module/FunctionDef:native_sync": {
+          "after": "cb19a0c84e10615df40eda46b0ea909ea217bbecf3c940946ad65722dc87b2ae",
+          "before": "7c1c0455fd4381762bcd69e2a5d36470df421a66681697d7543e4ac73260fa1f"
+        }
+      }
+    },
+    "meme_machine/runtime/native_boundary.py": {
+      "after_sha256": "2da1392cd8310e9ca7e04aa817dfaae784e17ced37e8f5e996778584f9fd920f",
+      "before_sha256": "4f5360604a020413783c0e24abb9459429fc504d6ca09b083583140e76124e72",
+      "layouts": {},
+      "nodes": {
+        "module/ClassDef:NativeBoundary/FunctionDef:record": {
+          "after": "108eda858d3dc0464dd1be91cfc0385072df55c95d6f1280e2bdabe076c398d2",
+          "before": "040c99b53225aa338b412c0d04c43946ccf7f29cfaea700fd4a2f3bbb42ea891"
+        }
+      }
+    },
+    "meme_machine/runtime/opportunity_telemetry.py": {
+      "after_sha256": "1bc4d1c599812c58509921075a327bf1f5b7551b040a622b21470b1c32e11f62",
+      "before_sha256": "7dd8de2b67be2502c9293b857d8e08d0e559e09278931a85681938f9cdbbabf1",
+      "layouts": {},
+      "nodes": {
+        "module/FunctionDef:measurable_gates": {
+          "after": "bc0f38e6a78167ac4dbd370659b307240823dbfba348765f8f630be8443ccd0c",
+          "before": "32cff96e50d0f4713d43b01c183d1b30543ae910a37ff1a71a7b7c818a2c0035"
+        },
+        "module/ImportFrom:0:meme_machine.paper_policy_revision": {
+          "after": "6115af2ce3a07b96bd759533064adeb31fc45df1df4baaa35403af24b582eeb0",
+          "before": "22705731422c422d2fcf0332d7667c3f61dd8abab7d99fce9246b61fb1328721"
+        }
+      }
+    },
+    "meme_machine/runtime/policy_compatibility.py": {
+      "after_sha256": "67dd40a7aaebe385f87c290cb6fd43d7500b9397603b435a177fcea02d5a194c",
+      "before_sha256": "1c600e0ff03aa77aaf9ceddfb15a902e4d17c2ae2f49d0e6d0171f6c47511c53",
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/ImportFrom:0:contextlib",
+            "module/Import:json",
+            "module/Import:os",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:sqlite3",
+            "module/ImportFrom:0:meme_machine.runtime.journal",
+            "module/ImportFrom:0:meme_machine.paper_policy_revision",
+            "module/Assign:Name(id='LEGACY_SELECTION_KEY', ctx=Store())",
+            "module/Assign:Name(id='SELECTION_KEY', ctx=Store())",
+            "module/Assign:Name(id='SELECTION_NAMESPACE', ctx=Store())",
+            "module/FunctionDef:regime_for",
+            "module/FunctionDef:active_hash",
+            "module/FunctionDef:known_hash",
+            "module/FunctionDef:compatible_identity",
+            "module/FunctionDef:selection",
+            "module/FunctionDef:validate_prior_selection",
+            "module/FunctionDef:require_flat_rows",
+            "module/FunctionDef:_terminal_native_position",
+            "module/FunctionDef:require_flat_portfolio",
+            "module/FunctionDef:assert_shared_transition",
+            "module/FunctionDef:require_external_flat",
+            "module/FunctionDef:runtime_selection",
+            "module/FunctionDef:save_runtime_selection"
+          ],
+          "before": [
+            "module/docstring",
+            "module/ImportFrom:0:contextlib",
+            "module/Import:json",
+            "module/Import:os",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:sqlite3",
+            "module/ImportFrom:0:meme_machine.runtime.journal",
+            "module/ImportFrom:0:meme_machine.paper_policy_revision",
+            "module/Assign:Name(id='SELECTION_KEY', ctx=Store())",
+            "module/Assign:Name(id='SELECTION_NAMESPACE', ctx=Store())",
+            "module/FunctionDef:regime_for",
+            "module/FunctionDef:active_hash",
+            "module/FunctionDef:known_hash",
+            "module/FunctionDef:compatible_identity",
+            "module/FunctionDef:selection",
+            "module/FunctionDef:require_flat_rows",
+            "module/FunctionDef:require_flat_portfolio",
+            "module/FunctionDef:assert_shared_transition",
+            "module/FunctionDef:require_external_flat",
+            "module/FunctionDef:runtime_selection",
+            "module/FunctionDef:save_runtime_selection"
+          ]
+        }
+      },
+      "nodes": {
+        "module/Assign:Name(id='LEGACY_SELECTION_KEY', ctx=Store())": {
+          "after": "2af3e38a103b07299bddde14b7adb1883a46387f8ada115847694651b1bf1448",
+          "before": null
+        },
+        "module/Assign:Name(id='SELECTION_KEY', ctx=Store())": {
+          "after": "8edb06fde462abc84a048dea51c3cb3f5c80519c89b9bf99c07b2c25c07fde82",
+          "before": "2ea8e73a7303043c9efb6bf46153edcd7b9ff96d3b41d253dfd8fed2b4072706"
+        },
+        "module/FunctionDef:_terminal_native_position": {
+          "after": "4275fb972671962d7f5f2a5d08ffedc4eae2d06076790fffe600ef63f48ccfd3",
+          "before": null
+        },
+        "module/FunctionDef:compatible_identity": {
+          "after": "3a74942ae196faaa452bf27c63006baddcacf8c40ffacc5c53cafb9cde5e61ad",
+          "before": "2c523a274381c61c4924a6321e29880a3e24f81c8877c88e77d9c33336d235d6"
+        },
+        "module/FunctionDef:known_hash": {
+          "after": "fdd76c011c6600c7b111e52ee9e9ccd94ddbac6ca13ab7bb3711e60d29f11692",
+          "before": "4017deef54a6998a094ce1700570b9601c8f89e164fbc9a9b7317cc3fd70e0e3"
+        },
+        "module/FunctionDef:require_flat_portfolio": {
+          "after": "fefa3dba4fe4164249f7e089b7645f073b9b06e3464bedc450fbfa5f82e3137d",
+          "before": "c54b08651e3a2698c915cdd1f4e794825487e05160de71807bd87863850cd078"
+        },
+        "module/FunctionDef:runtime_selection": {
+          "after": "57f0895db3436b81d641b128c2a708443e05e928ca848b084c14f773854fe501",
+          "before": "f7f84d6149c4c2f4935bf1e40ebed803c3ffff0b18a7f3ab7b99bbf10c5381b5"
+        },
+        "module/FunctionDef:validate_prior_selection": {
+          "after": "d22a6802fc103ed5ffa85aa95610f614c4c6ff85d8927e27d5e3b6edf53299ec",
+          "before": null
+        },
+        "module/ImportFrom:0:meme_machine.paper_policy_revision": {
+          "after": "9329657f12f9f5aa01a1d7e4a481ab1e3394224c066e8e9eb54529f25411ec67",
+          "before": "10c12f24ac91b604b5e6aa88113b857a941122a0e709e513d36fde2fd9c365e0"
+        },
+        "module/docstring": {
+          "after": "c10618bba13cb4e145dd1f7722ba080aaae17acbe1f4f6ed4520db10f90a4426",
+          "before": "72efbae23c8c114b91dd8ce6dbaf1dc51fde6b8f655947edf50ca811e55ecdfa"
+        }
+      }
+    },
+    "meme_machine/runtime/robinhood/pons.py": {
+      "after_sha256": "3622c77c59aed69fb9358a88a92522b5a7ee53849ec3f6be6f10b119669c8f93",
+      "before_sha256": "2ca1a6a84f52691e37cb15c7d9c4b574a9b95115492ac874f4710d32ed35d526",
+      "layouts": {},
+      "nodes": {
+        "module/ClassDef:Broker/FunctionDef:_renew_retained_interpretation": {
+          "after": "2df5e28610ff5e086aef6c546db4a3f416ac762a5cf3adb74742ff62bc07485f",
+          "before": "e15b9cf3e0358e2870a58d4f74965bbaa1a6e513e6ddbe28eadda545c257d0c0"
+        },
+        "module/FunctionDef:recover_cohort": {
+          "after": "283b78a222410d19d89c6291262d0ce3ee28685a34b90fb04c56ddc622b37e50",
+          "before": "dfff28d8dafb3899c39d10abe6f62671a7dd8b6a1a351d6c184ca6cb5911c780"
+        }
+      }
+    },
+    "meme_machine/runtime/sleeve_reservations.py": {
+      "after_sha256": "489bedd30cb1018cc7e61e8b9c0b93ecd663b9f47fad9c3a2230bc3fdce6bb3f",
+      "before_sha256": "34e97241836137e535077a9345121ae2fb3e3063ba8a688aa44cecd65b0f5821",
+      "layouts": {
+        "module/ClassDef:SleeveReservations": {
+          "after": [
+            "module/ClassDef:SleeveReservations/FunctionDef:__init__",
+            "module/ClassDef:SleeveReservations/FunctionDef:_open",
+            "module/ClassDef:SleeveReservations/FunctionDef:transaction",
+            "module/ClassDef:SleeveReservations/FunctionDef:_event",
+            "module/ClassDef:SleeveReservations/FunctionDef:get",
+            "module/ClassDef:SleeveReservations/FunctionDef:candidate",
+            "module/ClassDef:SleeveReservations/FunctionDef:rally",
+            "module/ClassDef:SleeveReservations/FunctionDef:_observe_rally",
+            "module/ClassDef:SleeveReservations/FunctionDef:_rally_lifecycle",
+            "module/ClassDef:SleeveReservations/FunctionDef:rally_report",
+            "module/ClassDef:SleeveReservations/FunctionDef:opportunity",
+            "module/ClassDef:SleeveReservations/FunctionDef:_opportunity",
+            "module/ClassDef:SleeveReservations/FunctionDef:observe",
+            "module/ClassDef:SleeveReservations/FunctionDef:sizing_basis",
+            "module/ClassDef:SleeveReservations/FunctionDef:asset_key",
+            "module/ClassDef:SleeveReservations/FunctionDef:fill_blocker",
+            "module/ClassDef:SleeveReservations/FunctionDef:_reservation_preflight",
+            "module/ClassDef:SleeveReservations/FunctionDef:reserve",
+            "module/ClassDef:SleeveReservations/FunctionDef:commit_fence",
+            "module/ClassDef:SleeveReservations/FunctionDef:release",
+            "module/ClassDef:SleeveReservations/FunctionDef:acknowledge_native",
+            "module/ClassDef:SleeveReservations/FunctionDef:reserve_scale",
+            "module/ClassDef:SleeveReservations/FunctionDef:scale_fence",
+            "module/ClassDef:SleeveReservations/FunctionDef:recover_scale",
+            "module/ClassDef:SleeveReservations/FunctionDef:_archive",
+            "module/ClassDef:SleeveReservations/FunctionDef:_compact_preserved",
+            "module/ClassDef:SleeveReservations/FunctionDef:reconcile",
+            "module/ClassDef:SleeveReservations/FunctionDef:_reconcile",
+            "module/ClassDef:SleeveReservations/FunctionDef:close"
+          ],
+          "before": [
+            "module/ClassDef:SleeveReservations/FunctionDef:__init__",
+            "module/ClassDef:SleeveReservations/FunctionDef:_open",
+            "module/ClassDef:SleeveReservations/FunctionDef:transaction",
+            "module/ClassDef:SleeveReservations/FunctionDef:_event",
+            "module/ClassDef:SleeveReservations/FunctionDef:get",
+            "module/ClassDef:SleeveReservations/FunctionDef:candidate",
+            "module/ClassDef:SleeveReservations/FunctionDef:opportunity",
+            "module/ClassDef:SleeveReservations/FunctionDef:_opportunity",
+            "module/ClassDef:SleeveReservations/FunctionDef:observe",
+            "module/ClassDef:SleeveReservations/FunctionDef:sizing_basis",
+            "module/ClassDef:SleeveReservations/FunctionDef:asset_key",
+            "module/ClassDef:SleeveReservations/FunctionDef:fill_blocker",
+            "module/ClassDef:SleeveReservations/FunctionDef:reserve",
+            "module/ClassDef:SleeveReservations/FunctionDef:commit_fence",
+            "module/ClassDef:SleeveReservations/FunctionDef:release",
+            "module/ClassDef:SleeveReservations/FunctionDef:acknowledge_native",
+            "module/ClassDef:SleeveReservations/FunctionDef:reserve_scale",
+            "module/ClassDef:SleeveReservations/FunctionDef:scale_fence",
+            "module/ClassDef:SleeveReservations/FunctionDef:recover_scale",
+            "module/ClassDef:SleeveReservations/FunctionDef:_archive",
+            "module/ClassDef:SleeveReservations/FunctionDef:_compact_preserved",
+            "module/ClassDef:SleeveReservations/FunctionDef:reconcile",
+            "module/ClassDef:SleeveReservations/FunctionDef:_reconcile",
+            "module/ClassDef:SleeveReservations/FunctionDef:close"
+          ]
+        }
+      },
+      "nodes": {
+        "module/ClassDef:SleeveReservations/FunctionDef:_compact_preserved": {
+          "after": "3c4611ab92f9e32a96ce612bead540e4b55904ffff6fa4dd6a95f8a12f1b7890",
+          "before": "2a45bf5d64cfe4a06b7ff150b2bdddc9f6063fed717c7b707a86dfc8243ed409"
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:_event": {
+          "after": "5cb9ccc716942a5c0de7c8861595c2025d9aff5fe99517c119c73985b771b010",
+          "before": "04281cd8cf38e0e2700a16e97394b6c95c1088c5862dacb19f495b46fc036150"
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:_observe_rally": {
+          "after": "3cdeff609e1b70fa2353a076e504de131e6f1f55dee41109000e68e43b68589a",
+          "before": null
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:_open": {
+          "after": "4e1feea70492cf96f0990dbf5795d21862608cf92f89be2e68a35b5b4acae38d",
+          "before": "53af934c05c3425d930d8187f2a5eb1a5a8b6e66b7c3074ed29f25a98b3043be"
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:_rally_lifecycle": {
+          "after": "86992179e1828ed7eb233955ddc615b62b204b3e837f71cb801142d96fe4cad4",
+          "before": null
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:_reconcile": {
+          "after": "e560f559844d074b07a44653802781ff12163ae690f572edd4b9817d647cc1a4",
+          "before": "ad523b10bc030e40d3326646db145d00c5af63bd9d8f4b8ec64d32eaa3ccbf71"
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:_reservation_preflight": {
+          "after": "c875d02bf08ed66af88c07eeee95c86800ec6ca0bf8d5f1eb3d8ca2ae0faaa32",
+          "before": null
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:acknowledge_native": {
+          "after": "f2aa0173d725424253a1d933b9a867ff6e761c78f00e129b5156f155a7dbb820",
+          "before": "389147488092c9d72c041bc8b31ba5dd3c0a66ae88ea9c317c222ef1c179e7f6"
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:commit_fence": {
+          "after": "5aab4d527497b5ffefa3e2f9c4ee76221b6c3abe4d95d621da892f7853dbce80",
+          "before": "88734fc4c6649a7f0873bb405d4867f8d8f3e7561ad06ce8d0bee35cf3246843"
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:observe": {
+          "after": "22006672c2126de119ba61f5c6e3a4c02be2ba33a3fb6966d9ed3fe5e81ae5c2",
+          "before": "093fcbbd266474055ca6885f1d7d84313b6aaa0c7338e3c9ef870a0f488e84d8"
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:rally": {
+          "after": "4f4202e7b1b7cc3ff19df4e27a4291a1212d5d063532a51fda63ff5b17fbed59",
+          "before": null
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:rally_report": {
+          "after": "3f63ef359f88242e290ac66c86109202b97abcda66cc5bfd6f8d3fe9371ad846",
+          "before": null
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:release": {
+          "after": "8becba70820677694fb52c24096378ea685eb002c08cf86307cd256afd5a552b",
+          "before": "862f9dedcde9ee82fe580104e4375c749418f6f710b7f0ddb3476993425e6e69"
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:reserve": {
+          "after": "164e75743868ee158b383ff19c7fc2c704291ff28af3a9047d042bb24d99d1f1",
+          "before": "74d5ca9177a15f461ef9b9037e31ebda7b6101b1320ede03a21c26fc5a256422"
+        }
+      }
+    },
+    "meme_machine/runtime/survivor_commit.py": {
+      "after_sha256": "01f8234ee4e039c7661238f604fdcc6cc65512612ccb606af69f9967c6ee9f31",
+      "before_sha256": "f34bd5b20575f454cf5a7e77e4ef0075d2e849b4ef956b4bce37a0cc85d74aca",
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/ImportFrom:0:meme_machine.runtime.provider_purchases",
+            "module/ImportFrom:0:contextlib",
+            "module/ImportFrom:0:meme_machine.runtime.execution_capacity",
+            "module/ImportFrom:0:meme_machine.runtime.journal",
+            "module/ImportFrom:0:meme_machine.runtime.survivor_risk",
+            "module/FunctionDef:handoff_ready",
+            "module/FunctionDef:unmaterialized_entry_rejection",
+            "module/FunctionDef:commit",
+            "module/FunctionDef:restore_risk",
+            "module/FunctionDef:_fold_risk",
+            "module/FunctionDef:restore_risks",
+            "module/FunctionDef:risk_record",
+            "module/FunctionDef:monitor",
+            "module/FunctionDef:exceptional_evidence_failure",
+            "module/FunctionDef:scale"
+          ],
+          "before": [
+            "module/docstring",
+            "module/ImportFrom:0:meme_machine.runtime.provider_purchases",
+            "module/ImportFrom:0:contextlib",
+            "module/ImportFrom:0:meme_machine.runtime.execution_capacity",
+            "module/ImportFrom:0:meme_machine.runtime.journal",
+            "module/ImportFrom:0:meme_machine.runtime.survivor_risk",
+            "module/FunctionDef:handoff_ready",
+            "module/FunctionDef:commit",
+            "module/FunctionDef:restore_risk",
+            "module/FunctionDef:_fold_risk",
+            "module/FunctionDef:restore_risks",
+            "module/FunctionDef:risk_record",
+            "module/FunctionDef:monitor",
+            "module/FunctionDef:exceptional_evidence_failure",
+            "module/FunctionDef:scale"
+          ]
+        }
+      },
+      "nodes": {
+        "module/FunctionDef:commit": {
+          "after": "bd7776bb3ba01518acb40d96ec5186532f72beb2d7f463c5f25d1c461c347651",
+          "before": "7ddb2abc585bc3c48416d9619fd174a65adb3291c873a690bccf52099f0b5718"
+        },
+        "module/FunctionDef:monitor": {
+          "after": "211a1244fb5ee7b94cfef07c47ba181f675860620b1fe3a5eae23f2a94640a82",
+          "before": "64ca802acee902735f376ca1a3807f7657852c2b4d251afea763de79af3f22d2"
+        },
+        "module/FunctionDef:risk_record": {
+          "after": "9759b6086dc0aa6773321e108a93a4b066907576eb1e4df21d173b31d5352cc4",
+          "before": "39ac858c7ede20d304f3357ec12e14dc7b7766df15567e29296bf8d45cb23243"
+        },
+        "module/FunctionDef:unmaterialized_entry_rejection": {
+          "after": "c0fd1487c16ff3e1790569bf0c6b5f4c2f18502f99a2edf07786aa24a3a6d178",
+          "before": null
+        }
+      }
+    },
+    "meme_machine/runtime/survivor_history.py": {
+      "after_sha256": "3543f77391118073aafefba34e5bcf954b764175b381f810d4b41f842f407a38",
+      "before_sha256": "5a0e1d111898748014f1412c84ab193ffe4ce5207fbece903613db05faf14350",
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/Import:json",
+            "module/Import:hashlib",
+            "module/Import:os",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:time",
+            "module/Import:sqlite3",
+            "module/ImportFrom:0:fractions",
+            "module/ImportFrom:0:contextlib",
+            "module/ImportFrom:0:meme_machine.runtime.journal",
+            "module/FunctionDef:_compatible_pump_reset_prefix",
+            "module/ClassDef:History",
+            "module/FunctionDef:compact_restored_history",
+            "module/ClassDef:Worker"
+          ],
+          "before": [
+            "module/docstring",
+            "module/Import:json",
+            "module/Import:hashlib",
+            "module/Import:os",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:time",
+            "module/Import:sqlite3",
+            "module/ImportFrom:0:fractions",
+            "module/ImportFrom:0:contextlib",
+            "module/ImportFrom:0:meme_machine.runtime.journal",
+            "module/ClassDef:History",
+            "module/FunctionDef:compact_restored_history",
+            "module/ClassDef:Worker"
+          ]
+        }
+      },
+      "nodes": {
+        "module/ClassDef:History/FunctionDef:_select_policy": {
+          "after": "58ce403f0ba5bddabe6b4638f2c5ae878019c45edffc6746fb657027d4b463dd",
+          "before": "7a73f630d2db8fa0dd4f29583b346d8048c456a16f60e51699bc1ba36ce1522f"
+        },
+        "module/ClassDef:History/FunctionDef:calculation_facts": {
+          "after": "04f9b64355d7a1770deae314eecec02f9583d5fb0526a1d7109f9ec69590153f",
+          "before": "9b14575ea120d818b40f3b1aae98a60d10a4377f59f2eedc278090da86b7ca18"
+        },
+        "module/ClassDef:History/FunctionDef:compact_archived": {
+          "after": "85cd541067a76f11975cdcee09b1cd570a57f735d64416a7acced9c46ef4ca67",
+          "before": "74979f6abcdddf51f4c69e19f24287aa38135f4c19f9e34d9968e616a5305d10"
+        },
+        "module/ClassDef:History/FunctionDef:prefix": {
+          "after": "ec638a5492de59f550ed6aedb1b1432ee192a66c11bc19d6ebf73ed2314612f9",
+          "before": "66b4a54c1606ea0fb315926e37d99625b163483f3ddabff294910f371b66296c"
+        },
+        "module/FunctionDef:_compatible_pump_reset_prefix": {
+          "after": "166eab2875432c8150d1b0a040dc49fea85274ad1e14f03985b3d2e5faf47f13",
+          "before": null
+        }
+      }
+    },
+    "meme_machine/runtime/survivor_paper_book.py": {
+      "after_sha256": "6876c26cb513fb8a5982d265d3b90044701dec9b5714e0552e53b9eeae0ef1df",
+      "before_sha256": "0593b88ab84cb4ce7d9aa2a4f177d42ff933a2950a179cd42e72662ee2c0135d",
+      "layouts": {},
+      "nodes": {
+        "module/ClassDef:PaperBook/FunctionDef:transition": {
+          "after": "1d11bc672aa30fa32d3325c9fd64fea0d0ef95bc61964c863889e63546c3e0a0",
+          "before": "501c9a8193f0183f75a5b66ef237e40eb9dcb9dff96200f9d61422aeb6e63d3c"
+        }
+      }
+    },
+    "meme_machine/runtime/survivor_risk.py": {
+      "after_sha256": "ea4bf925048336d55dd840a8acfc134ad0c53992b36488a358643461d44977b9",
+      "before_sha256": "2b70cf5bb67605e64bd22f7fd82c239e0f0cd6025c0867f406bb79546b0b2743",
+      "layouts": {},
+      "nodes": {
+        "module/FunctionDef:mark": {
+          "after": "618abe5cab0d598801bd7416ef96d5aff6818449cc0b3f6f144d75bc6a94d132",
+          "before": "f3b06981eddd1e839624db849fe8c80fbfa2d520f0c17ed73f37922ce8581d19"
+        },
+        "module/FunctionDef:new_regime": {
+          "after": "b811365a7b1bbe1fdb0c47a3e38993e3ad9932aff4706083924df39c76685250",
+          "before": "64760724a29f64c2fa61427571832bc7624134f92ad878e2414da4a2a5ec2dca"
+        }
+      }
+    },
+    "meme_machine/runtime/survivor_terminal_archive.py": {
+      "after_sha256": "8c3708a1782d0070fe47c4b7eb10a9414848d78e1811c463f3e09e70aff81224",
+      "before_sha256": "5824724802d5c8638194c1d91cdbf0c237147337687b67b8ec25eee7e8841980",
+      "layouts": {},
+      "nodes": {
+        "module/FunctionDef:_sleeve_commit": {
+          "after": "b53cf5c5858e2accce103c7fb0b65eb9754c92c6629d4405db13b9741cc5792f",
+          "before": "8ed651bbeb2cde2d533450f5b176afa859185f9cc4f20d52bbf6aa9268d601e3"
+        }
+      }
+    },
+    "meme_machine/shared_capital/native_sleeve.py": {
+      "after_sha256": "7fdc35b7ee5ee69a36a929c1950ae8faea118fe2bbe15f6f6d1b5271a3c9e3ba",
+      "before_sha256": "a837057782f02846a46329f477c9c69e35e849364383066358582231a100d4e7",
+      "layouts": {
+        "module/ClassDef:SharedSleeve": {
+          "after": [
+            "module/ClassDef:SharedSleeve/FunctionDef:__init__",
+            "module/ClassDef:SharedSleeve/FunctionDef:_grant",
+            "module/ClassDef:SharedSleeve/FunctionDef:_family_equity",
+            "module/ClassDef:SharedSleeve/FunctionDef:reserve",
+            "module/ClassDef:SharedSleeve/FunctionDef:reserve_scale",
+            "module/ClassDef:SharedSleeve/FunctionDef:_compensate_failed_reservation",
+            "module/ClassDef:SharedSleeve/FunctionDef:reentry_verified",
+            "module/ClassDef:SharedSleeve/FunctionDef:recover_scale",
+            "module/ClassDef:SharedSleeve/FunctionDef:release",
+            "module/ClassDef:SharedSleeve/FunctionDef:_shared_reserved",
+            "module/ClassDef:SharedSleeve/FunctionDef:recover_unmaterialized",
+            "module/ClassDef:SharedSleeve/FunctionDef:_shared_attribution",
+            "module/ClassDef:SharedSleeve/FunctionDef:sizing_basis"
+          ],
+          "before": [
+            "module/ClassDef:SharedSleeve/FunctionDef:__init__",
+            "module/ClassDef:SharedSleeve/FunctionDef:_grant",
+            "module/ClassDef:SharedSleeve/FunctionDef:_family_equity",
+            "module/ClassDef:SharedSleeve/FunctionDef:reserve",
+            "module/ClassDef:SharedSleeve/FunctionDef:reserve_scale",
+            "module/ClassDef:SharedSleeve/FunctionDef:recover_scale",
+            "module/ClassDef:SharedSleeve/FunctionDef:release",
+            "module/ClassDef:SharedSleeve/FunctionDef:_shared_reserved",
+            "module/ClassDef:SharedSleeve/FunctionDef:recover_unmaterialized",
+            "module/ClassDef:SharedSleeve/FunctionDef:_shared_attribution",
+            "module/ClassDef:SharedSleeve/FunctionDef:sizing_basis"
+          ]
+        }
+      },
+      "nodes": {
+        "module/ClassDef:SharedSleeve/FunctionDef:_compensate_failed_reservation": {
+          "after": "adaf1ec6aaa67da47860e9591156e707cfd8ac9dc24eb536858f7dbc7547ab5b",
+          "before": null
+        },
+        "module/ClassDef:SharedSleeve/FunctionDef:_shared_reserved": {
+          "after": "6a5d7e2f298016af61f7d3a1b2e12d7f796e053b9f8c7d6c87ea0d8a5b66614a",
+          "before": "7db44d8ddc8cc0e54b8a2ef97f69562bbe661645184638d2fd54e58c0412a7c8"
+        },
+        "module/ClassDef:SharedSleeve/FunctionDef:recover_unmaterialized": {
+          "after": "f3591d915df63c424d20e464f3638a99c1c131acccd855352e352258e06717b1",
+          "before": "113a22ea8391101e9f7a5cb96ebeda6ae65660aad2f04e8ed5152c7cf269dd6d"
+        },
+        "module/ClassDef:SharedSleeve/FunctionDef:reentry_verified": {
+          "after": "595b02415af88c5196fc5d7c49fa147f539dbecf2d0dabd685cedffa01c9f9f8",
+          "before": null
+        },
+        "module/ClassDef:SharedSleeve/FunctionDef:reserve": {
+          "after": "deb207b6e283b18b36a2d462440ab8c749bdd9a55f07218552f150bff429c4ff",
+          "before": "576932673770fde8fb008819408048ac6ca4819f70148b69288eb9e1c867dff2"
+        },
+        "module/ClassDef:SharedSleeve/FunctionDef:reserve_scale": {
+          "after": "1771d72a0fcfbd0f480e4591f7f72ed67a91a8e16daece443b72dfb1ec96e176",
+          "before": "3bb123dc3399cfaf2619b45f6beafc75594f56d1d5c0a8b54aecd31cd37e1b57"
+        }
+      }
+    },
+    "meme_machine/shared_capital/runtime.py": {
+      "after_sha256": "79e365483d156cfcd3e51d3df32162e92e50b35ff896e910b5a5beac793ce154",
+      "before_sha256": "a8905fb779a02c4721b6fa0858eb3716eca2d63e9e407a31f97a1f18c384738a",
+      "layouts": {},
+      "nodes": {
+        "module/ClassDef:RuntimeCapital/FunctionDef:_apply": {
+          "after": "290b2baa7f138ae023a647570fcceccdd134683039618736a71e7630c0d8921e",
+          "before": "dcebb4ca87118c67ef1ae6240ef242901ceaf5e05c35362b4e9dab52487a9754"
+        },
+        "module/ClassDef:RuntimeCapital/FunctionDef:_duplicate_matches": {
+          "after": "c828c3190dc67603d9819c8d3cff027c5563cdb3b69200700818450430337187",
+          "before": "e7a51d7d57fda1447f6d406437d495e2710f6bebee62c93881c678597eeb3724"
+        },
+        "module/ClassDef:SharedNativePortfolio/FunctionDef:committed": {
+          "after": "a5515ea2a60fb9ccedd50928501c14bd11806f43e202844479aa22d194187f55",
+          "before": "7df96a3f22075178c0ea16fc1789c92ac064f25efebda1a22a89a54c7c027c25"
+        }
+      }
+    },
+    "operational/strategy-change-audit.py": {
+      "after_sha256": "fff7d81c0d4c315ab1c241d0e1f13da779758ddf343811cd56cf752024cb0a31",
+      "before_sha256": "f468852f02136350782368874b8c794daf99e2e5ecd21c9234b98288cef8fe67",
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/Import:ast,json,subprocess,sys,unittest",
+            "module/ImportFrom:0:pathlib",
+            "module/Assign:Name(id='ROOT', ctx=Store())",
+            "module/Assign:Name(id='BASE', ctx=Store())",
+            "module/Expr:Expr(value=Call(func=Attribute(value=Attribute(value=Name(id='sys', ctx=Load()), attr='path', ctx=Load()), attr='insert', ctx=Load()), args=[Constant(value=0), Call(func=Name(id='str', ctx=Load()), args=[Name(id='ROOT', ctx=Load())], keywords=[])], keywords=[]))",
+            "module/ImportFrom:0:tests.test_robinhood_usd_valuation",
+            "module/Assign:Name(id='source_guard', ctx=Store())",
+            "module/Assign:Name(id='decision_manifest', ctx=Store())",
+            "module/Expr:Expr(value=Call(func=Name(id='guarded_source', ctx=Load()), args=[Name(id='source_guard', ctx=Load()), Constant(value='operational/strategy-change-audit.py')], keywords=[]))",
+            "module/FunctionDef:reviewed_current",
+            "module/FunctionDef:before",
+            "module/FunctionDef:value",
+            "module/FunctionDef:check",
+            "module/Assign:Name(id='p', ctx=Store())",
+            "module/Expr:Expr(value=Call(func=Name(id='check', ctx=Load()), args=[Name(id='p', ctx=Load()), Constant(value='ENTRY_THRESHOLDS'), Dict(keys=[Constant(value='capital_size_bps'), Constant(value='require_curve_acceleration'), Constant(value='require_flow_acceleration')], values=[Tuple(elts=[Constant(value=25), Constant(value=500)], ctx=Load()), Tuple(elts=[Constant(value=True), Constant(value=False)], ctx=Load()), Tuple(elts=[Constant(value=True), Constant(value=False)], ctx=Load())])], keywords=[]))",
+            "module/For:For(target=Name(id='name', ctx=Store()), iter=Tuple(elts=[Constant(value='POST_GRAD_THRESHOLDS'), Constant(value='REENTRY_POLICY'), Constant(value='BREAKOUT_THRESHOLDS')], ctx=Load()), body=[Expr(value=Call(func=Name(id='check', ctx=Load()), args=[Name(id='p', ctx=Load()), Name(id='name', ctx=Load()), Dict(keys=[], values=[])], keywords=[]))], orelse=[])",
+            "module/Expr:Expr(value=Call(func=Name(id='check', ctx=Load()), args=[Name(id='p', ctx=Load()), Constant(value='EXIT_POLICY'), Dict(keys=[Constant(value='first_profit_sell_bps'), Constant(value='runner_trailing_drawdown_bps'), Constant(value='positive_demand_slowing_exit_authority'), Constant(value='stale_high_breadth_exit_authority'), Constant(value='min_adverse_sell_buy_ratio_bps'), Constant(value='tail_arm_bps'), Constant(value='tail_gain_giveback_bps')], values=[Tuple(elts=[Constant(value=3333), Constant(value=2500)], ctx=Load()), Tuple(elts=[Constant(value=1000), Constant(value=1200)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=False)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=False)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=12000)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=10000)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=4000)], ctx=Load())])], keywords=[]))",
+            "module/For:For(target=Name(id='rel', ctx=Store()), iter=Tuple(elts=[Constant(value='pump/pumpswap_survivor.py'), Constant(value='pons/pons_postgrad_survivor.py')], ctx=Load()), body=[Assign(targets=[Name(id='path', ctx=Store())], value=BinOp(left=Constant(value='meme_machine/lanes/'), op=Add(), right=Name(id='rel', ctx=Load()))), Assign(targets=[Name(id='a', ctx=Store())], value=Call(func=Name(id='value', ctx=Load()), args=[Call(func=Name(id='before', ctx=Load()), args=[Name(id='path', ctx=Load())], keywords=[]), Constant(value='POLICY')], keywords=[])), Assign(targets=[Name(id='b', ctx=Store())], value=Call(func=Name(id='value', ctx=Load()), args=[Call(func=Name(id='reviewed_current', ctx=Load()), args=[Name(id='path', ctx=Load())], keywords=[]), Constant(value='POLICY')], keywords=[])), If(test=Call(func=Attribute(value=Name(id='rel', ctx=Load()), attr='startswith', ctx=Load()), args=[Constant(value='pump')], keywords=[]), body=[Expr(value=Call(func=Attribute(value=Name(id='a', ctx=Load()), attr='update', ctx=Load()), args=[], keywords=[keyword(arg='target_sleeve_bps', value=Constant(value=500)), keyword(arg='minimum_reset_bps', value=Constant(value=300)), keyword(arg='compression_bps', value=Constant(value=10000))]))], orelse=[Assign(targets=[Subscript(value=Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='execution'), ctx=Load()), slice=Constant(value='target_capital_bps'), ctx=Store())], value=Constant(value=500)), Assign(targets=[Subscript(value=Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='demand'), ctx=Load()), slice=Constant(value='require_buy_acceleration'), ctx=Store())], value=Constant(value=False))]), Assign(targets=[Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='revision'), ctx=Store())], value=Constant(value='paper-opportunity-access-v1')), Assert(test=Compare(left=Name(id='a', ctx=Load()), ops=[Eq()], comparators=[Name(id='b', ctx=Load())]), msg=Name(id='path', ctx=Load()))], orelse=[])",
+            "module/Assign:Name(id='path', ctx=Store())",
+            "module/FunctionDef:scalars",
+            "module/Assign:Name(id='a', ctx=Store())",
+            "module/Assign:Name(id='b', ctx=Store())",
+            "module/Assert:Assert(test=Compare(left=SetComp(elt=Name(id='k', ctx=Load()), generators=[comprehension(target=Name(id='k', ctx=Store()), iter=BinOp(left=Call(func=Attribute(value=Name(id='a', ctx=Load()), attr='keys', ctx=Load()), args=[], keywords=[]), op=BitOr(), right=Call(func=Attribute(value=Name(id='b', ctx=Load()), attr='keys', ctx=Load()), args=[], keywords=[])), ifs=[Compare(left=Call(func=Attribute(value=Name(id='a', ctx=Load()), attr='get', ctx=Load()), args=[Name(id='k', ctx=Load())], keywords=[]), ops=[NotEq()], comparators=[Call(func=Attribute(value=Name(id='b', ctx=Load()), attr='get', ctx=Load()), args=[Name(id='k', ctx=Load())], keywords=[])])], is_async=0)]), ops=[Eq()], comparators=[Set(elts=[Constant(value='version'), Constant(value='revision'), Constant(value='trailing_drawdown_bps'), Constant(value='tail_arm_bps'), Constant(value='tail_gain_giveback_bps')])]))",
+            "module/Assert:Assert(test=Compare(left=Subscript(value=Name(id='b', ctx=Load()), slice=Constant(value='revision'), ctx=Load()), ops=[Eq()], comparators=[Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='dump', ctx=Load()), args=[Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='Name', ctx=Load()), args=[], keywords=[keyword(arg='id', value=Constant(value='ACTIVE_REVISION')), keyword(arg='ctx', value=Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='Load', ctx=Load()), args=[], keywords=[]))])], keywords=[])]))",
+            "module/ImportFrom:0:operational.ramses_attribution",
+            "module/Assign:Name(id='checked', ctx=Store())",
+            "module/Assign:Name(id='plumbing', ctx=Store())",
+            "module/For:For(target=Name(id='p', ctx=Store()), iter=Call(func=Name(id='sorted', ctx=Load()), args=[Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Constant(value='meme_machine/lanes/ramses')), attr='rglob', ctx=Load()), args=[Constant(value='*.py')], keywords=[])], keywords=[]), body=[Assign(targets=[Name(id='rel', ctx=Store())], value=Call(func=Name(id='str', ctx=Load()), args=[Call(func=Attribute(value=Name(id='p', ctx=Load()), attr='relative_to', ctx=Load()), args=[Name(id='ROOT', ctx=Load())], keywords=[])], keywords=[])), Assign(targets=[Name(id='old', ctx=Store())], value=Call(func=Name(id='before', ctx=Load()), args=[Name(id='rel', ctx=Load())], keywords=[])), Assign(targets=[Name(id='new', ctx=Store())], value=Call(func=Attribute(value=Name(id='p', ctx=Load()), attr='read_text', ctx=Load()), args=[], keywords=[])), Assert(test=Compare(left=Call(func=Name(id='economic_ast', ctx=Load()), args=[Name(id='old', ctx=Load()), Name(id='rel', ctx=Load())], keywords=[]), ops=[Eq()], comparators=[Call(func=Name(id='economic_ast', ctx=Load()), args=[Name(id='new', ctx=Load()), Name(id='rel', ctx=Load())], keywords=[])]), msg=Name(id='rel', ctx=Load())), Expr(value=Call(func=Attribute(value=Name(id='checked', ctx=Load()), attr='append', ctx=Load()), args=[Name(id='rel', ctx=Load())], keywords=[])), If(test=Compare(left=Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='dump', ctx=Load()), args=[Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='parse', ctx=Load()), args=[Name(id='old', ctx=Load())], keywords=[])], keywords=[]), ops=[NotEq()], comparators=[Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='dump', ctx=Load()), args=[Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='parse', ctx=Load()), args=[Name(id='new', ctx=Load())], keywords=[])], keywords=[])]), body=[Expr(value=Call(func=Attribute(value=Name(id='plumbing', ctx=Load()), attr='append', ctx=Load()), args=[Name(id='rel', ctx=Load())], keywords=[]))], orelse=[])], orelse=[])",
+            "module/For:For(target=Name(id='name', ctx=Store()), iter=Tuple(elts=[Constant(value='RAMSES_THETA_HARVEST_V3.json'), Constant(value='RAMSES_WIDE_MAKER_V4.json')], ctx=Load()), body=[Assign(targets=[Name(id='rel', ctx=Store())], value=BinOp(left=Constant(value='meme_machine/lanes/ramses/'), op=Add(), right=Name(id='name', ctx=Load()))), If(test=Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='rel', ctx=Load())), attr='exists', ctx=Load()), args=[], keywords=[]), body=[Assert(test=Compare(left=Call(func=Name(id='before', ctx=Load()), args=[Name(id='rel', ctx=Load())], keywords=[]), ops=[Eq()], comparators=[Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='rel', ctx=Load())), attr='read_text', ctx=Load()), args=[], keywords=[])]), msg=Name(id='rel', ctx=Load()))], orelse=[])], orelse=[])",
+            "module/Assert:Assert(test=Compare(left=Call(func=Attribute(value=Name(id='subprocess', ctx=Load()), attr='check_output', ctx=Load()), args=[List(elts=[Constant(value='git'), Constant(value='show'), Constant(value='7a516a6a92be9347661ac0e7f560971c171a0931:meme_machine/solana_owner_admission.py')], ctx=Load())], keywords=[keyword(arg='cwd', value=Name(id='ROOT', ctx=Load()))]), ops=[Eq()], comparators=[Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Constant(value='meme_machine/solana_owner_admission.py')), attr='read_bytes', ctx=Load()), args=[], keywords=[])]))",
+            "module/Expr:Expr(value=Call(func=Name(id='print', ctx=Load()), args=[Call(func=Attribute(value=Name(id='json', ctx=Load()), attr='dumps', ctx=Load()), args=[Call(func=Name(id='dict', ctx=Load()), args=[], keywords=[keyword(arg='result', value=Constant(value='PASS')), keyword(arg='pre_change_commit', value=Name(id='BASE', ctx=Load())), keyword(arg='ramses_economic_modules_unchanged', value=Call(func=Name(id='len', ctx=Load()), args=[Name(id='checked', ctx=Load())], keywords=[])), keyword(arg='ramses_plumbing_modules', value=Name(id='plumbing', ctx=Load())), keyword(arg='entry_and_survivor_policies_only_approved_deltas', value=Constant(value=True)), keyword(arg='decision_policy_layer', value=Call(func=Name(id='dict', ctx=Load()), args=[], keywords=[keyword(arg='schema', value=Name(id='RALLY_SCHEMA', ctx=Load())), keyword(arg='revision', value=Subscript(value=Name(id='decision_manifest', ctx=Load()), slice=Constant(value='revision'), ctx=Load())), keyword(arg='predecessor_commit', value=Name(id='RALLY_BASE', ctx=Load())), keyword(arg='manifest_sha256', value=Name(id='RALLY_MANIFEST_SHA256', ctx=Load())), keyword(arg='verified', value=Constant(value=True))])), keyword(arg='owner_admission_scheduler_byte_identical_to_engineering_base', value=Constant(value=True))])], keywords=[])], keywords=[]))"
+          ],
+          "before": [
+            "module/docstring",
+            "module/Import:ast,json,subprocess,sys",
+            "module/ImportFrom:0:pathlib",
+            "module/Assign:Name(id='ROOT', ctx=Store())",
+            "module/Assign:Name(id='BASE', ctx=Store())",
+            "module/FunctionDef:before",
+            "module/FunctionDef:value",
+            "module/FunctionDef:check",
+            "module/Assign:Name(id='p', ctx=Store())",
+            "module/Expr:Expr(value=Call(func=Name(id='check', ctx=Load()), args=[Name(id='p', ctx=Load()), Constant(value='ENTRY_THRESHOLDS'), Dict(keys=[Constant(value='capital_size_bps'), Constant(value='require_curve_acceleration'), Constant(value='require_flow_acceleration')], values=[Tuple(elts=[Constant(value=25), Constant(value=500)], ctx=Load()), Tuple(elts=[Constant(value=True), Constant(value=False)], ctx=Load()), Tuple(elts=[Constant(value=True), Constant(value=False)], ctx=Load())])], keywords=[]))",
+            "module/For:For(target=Name(id='name', ctx=Store()), iter=Tuple(elts=[Constant(value='POST_GRAD_THRESHOLDS'), Constant(value='REENTRY_POLICY'), Constant(value='BREAKOUT_THRESHOLDS')], ctx=Load()), body=[Expr(value=Call(func=Name(id='check', ctx=Load()), args=[Name(id='p', ctx=Load()), Name(id='name', ctx=Load()), Dict(keys=[], values=[])], keywords=[]))], orelse=[])",
+            "module/Expr:Expr(value=Call(func=Name(id='check', ctx=Load()), args=[Name(id='p', ctx=Load()), Constant(value='EXIT_POLICY'), Dict(keys=[Constant(value='first_profit_sell_bps'), Constant(value='runner_trailing_drawdown_bps'), Constant(value='positive_demand_slowing_exit_authority'), Constant(value='stale_high_breadth_exit_authority'), Constant(value='min_adverse_sell_buy_ratio_bps'), Constant(value='tail_arm_bps'), Constant(value='tail_gain_giveback_bps')], values=[Tuple(elts=[Constant(value=3333), Constant(value=2500)], ctx=Load()), Tuple(elts=[Constant(value=1000), Constant(value=1200)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=False)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=False)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=12000)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=10000)], ctx=Load()), Tuple(elts=[Constant(value=None), Constant(value=4000)], ctx=Load())])], keywords=[]))",
+            "module/For:For(target=Name(id='rel', ctx=Store()), iter=Tuple(elts=[Constant(value='pump/pumpswap_survivor.py'), Constant(value='pons/pons_postgrad_survivor.py')], ctx=Load()), body=[Assign(targets=[Name(id='path', ctx=Store())], value=BinOp(left=Constant(value='meme_machine/lanes/'), op=Add(), right=Name(id='rel', ctx=Load()))), Assign(targets=[Name(id='a', ctx=Store())], value=Call(func=Name(id='value', ctx=Load()), args=[Call(func=Name(id='before', ctx=Load()), args=[Name(id='path', ctx=Load())], keywords=[]), Constant(value='POLICY')], keywords=[])), Assign(targets=[Name(id='b', ctx=Store())], value=Call(func=Name(id='value', ctx=Load()), args=[Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='path', ctx=Load())), attr='read_text', ctx=Load()), args=[], keywords=[]), Constant(value='POLICY')], keywords=[])), If(test=Call(func=Attribute(value=Name(id='rel', ctx=Load()), attr='startswith', ctx=Load()), args=[Constant(value='pump')], keywords=[]), body=[Expr(value=Call(func=Attribute(value=Name(id='a', ctx=Load()), attr='update', ctx=Load()), args=[], keywords=[keyword(arg='target_sleeve_bps', value=Constant(value=500)), keyword(arg='minimum_reset_bps', value=Constant(value=300)), keyword(arg='compression_bps', value=Constant(value=10000))]))], orelse=[Assign(targets=[Subscript(value=Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='execution'), ctx=Load()), slice=Constant(value='target_capital_bps'), ctx=Store())], value=Constant(value=500)), Assign(targets=[Subscript(value=Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='demand'), ctx=Load()), slice=Constant(value='require_buy_acceleration'), ctx=Store())], value=Constant(value=False))]), Assign(targets=[Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='revision'), ctx=Store())], value=Constant(value='paper-opportunity-access-v1')), Assert(test=Compare(left=Name(id='a', ctx=Load()), ops=[Eq()], comparators=[Name(id='b', ctx=Load())]), msg=Name(id='path', ctx=Load()))], orelse=[])",
+            "module/Assign:Name(id='path', ctx=Store())",
+            "module/FunctionDef:scalars",
+            "module/Assign:Name(id='a', ctx=Store())",
+            "module/Assign:Name(id='b', ctx=Store())",
+            "module/Assert:Assert(test=Compare(left=SetComp(elt=Name(id='k', ctx=Load()), generators=[comprehension(target=Name(id='k', ctx=Store()), iter=BinOp(left=Call(func=Attribute(value=Name(id='a', ctx=Load()), attr='keys', ctx=Load()), args=[], keywords=[]), op=BitOr(), right=Call(func=Attribute(value=Name(id='b', ctx=Load()), attr='keys', ctx=Load()), args=[], keywords=[])), ifs=[Compare(left=Call(func=Attribute(value=Name(id='a', ctx=Load()), attr='get', ctx=Load()), args=[Name(id='k', ctx=Load())], keywords=[]), ops=[NotEq()], comparators=[Call(func=Attribute(value=Name(id='b', ctx=Load()), attr='get', ctx=Load()), args=[Name(id='k', ctx=Load())], keywords=[])])], is_async=0)]), ops=[Eq()], comparators=[Set(elts=[Constant(value='version'), Constant(value='revision'), Constant(value='trailing_drawdown_bps'), Constant(value='tail_arm_bps'), Constant(value='tail_gain_giveback_bps')])]))",
+            "module/Assert:Assert(test=Compare(left=Subscript(value=Name(id='b', ctx=Load()), slice=Constant(value='revision'), ctx=Load()), ops=[Eq()], comparators=[Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='dump', ctx=Load()), args=[Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='Name', ctx=Load()), args=[], keywords=[keyword(arg='id', value=Constant(value='ACTIVE_REVISION')), keyword(arg='ctx', value=Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='Load', ctx=Load()), args=[], keywords=[]))])], keywords=[])]))",
+            "module/Expr:Expr(value=Call(func=Attribute(value=Attribute(value=Name(id='sys', ctx=Load()), attr='path', ctx=Load()), attr='insert', ctx=Load()), args=[Constant(value=0), Call(func=Name(id='str', ctx=Load()), args=[Name(id='ROOT', ctx=Load())], keywords=[])], keywords=[]))",
+            "module/ImportFrom:0:operational.ramses_attribution",
+            "module/Assign:Name(id='checked', ctx=Store())",
+            "module/Assign:Name(id='plumbing', ctx=Store())",
+            "module/For:For(target=Name(id='p', ctx=Store()), iter=Call(func=Name(id='sorted', ctx=Load()), args=[Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Constant(value='meme_machine/lanes/ramses')), attr='rglob', ctx=Load()), args=[Constant(value='*.py')], keywords=[])], keywords=[]), body=[Assign(targets=[Name(id='rel', ctx=Store())], value=Call(func=Name(id='str', ctx=Load()), args=[Call(func=Attribute(value=Name(id='p', ctx=Load()), attr='relative_to', ctx=Load()), args=[Name(id='ROOT', ctx=Load())], keywords=[])], keywords=[])), Assign(targets=[Name(id='old', ctx=Store())], value=Call(func=Name(id='before', ctx=Load()), args=[Name(id='rel', ctx=Load())], keywords=[])), Assign(targets=[Name(id='new', ctx=Store())], value=Call(func=Attribute(value=Name(id='p', ctx=Load()), attr='read_text', ctx=Load()), args=[], keywords=[])), Assert(test=Compare(left=Call(func=Name(id='economic_ast', ctx=Load()), args=[Name(id='old', ctx=Load()), Name(id='rel', ctx=Load())], keywords=[]), ops=[Eq()], comparators=[Call(func=Name(id='economic_ast', ctx=Load()), args=[Name(id='new', ctx=Load()), Name(id='rel', ctx=Load())], keywords=[])]), msg=Name(id='rel', ctx=Load())), Expr(value=Call(func=Attribute(value=Name(id='checked', ctx=Load()), attr='append', ctx=Load()), args=[Name(id='rel', ctx=Load())], keywords=[])), If(test=Compare(left=Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='dump', ctx=Load()), args=[Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='parse', ctx=Load()), args=[Name(id='old', ctx=Load())], keywords=[])], keywords=[]), ops=[NotEq()], comparators=[Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='dump', ctx=Load()), args=[Call(func=Attribute(value=Name(id='ast', ctx=Load()), attr='parse', ctx=Load()), args=[Name(id='new', ctx=Load())], keywords=[])], keywords=[])]), body=[Expr(value=Call(func=Attribute(value=Name(id='plumbing', ctx=Load()), attr='append', ctx=Load()), args=[Name(id='rel', ctx=Load())], keywords=[]))], orelse=[])], orelse=[])",
+            "module/For:For(target=Name(id='name', ctx=Store()), iter=Tuple(elts=[Constant(value='RAMSES_THETA_HARVEST_V3.json'), Constant(value='RAMSES_WIDE_MAKER_V4.json')], ctx=Load()), body=[Assign(targets=[Name(id='rel', ctx=Store())], value=BinOp(left=Constant(value='meme_machine/lanes/ramses/'), op=Add(), right=Name(id='name', ctx=Load()))), If(test=Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='rel', ctx=Load())), attr='exists', ctx=Load()), args=[], keywords=[]), body=[Assert(test=Compare(left=Call(func=Name(id='before', ctx=Load()), args=[Name(id='rel', ctx=Load())], keywords=[]), ops=[Eq()], comparators=[Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='rel', ctx=Load())), attr='read_text', ctx=Load()), args=[], keywords=[])]), msg=Name(id='rel', ctx=Load()))], orelse=[])], orelse=[])",
+            "module/Assert:Assert(test=Compare(left=Call(func=Attribute(value=Name(id='subprocess', ctx=Load()), attr='check_output', ctx=Load()), args=[List(elts=[Constant(value='git'), Constant(value='show'), Constant(value='7a516a6a92be9347661ac0e7f560971c171a0931:meme_machine/solana_owner_admission.py')], ctx=Load())], keywords=[keyword(arg='cwd', value=Name(id='ROOT', ctx=Load()))]), ops=[Eq()], comparators=[Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Constant(value='meme_machine/solana_owner_admission.py')), attr='read_bytes', ctx=Load()), args=[], keywords=[])]))",
+            "module/Expr:Expr(value=Call(func=Name(id='print', ctx=Load()), args=[Call(func=Attribute(value=Name(id='json', ctx=Load()), attr='dumps', ctx=Load()), args=[Call(func=Name(id='dict', ctx=Load()), args=[], keywords=[keyword(arg='result', value=Constant(value='PASS')), keyword(arg='pre_change_commit', value=Name(id='BASE', ctx=Load())), keyword(arg='ramses_economic_modules_unchanged', value=Call(func=Name(id='len', ctx=Load()), args=[Name(id='checked', ctx=Load())], keywords=[])), keyword(arg='ramses_plumbing_modules', value=Name(id='plumbing', ctx=Load())), keyword(arg='entry_and_survivor_policies_only_approved_deltas', value=Constant(value=True)), keyword(arg='owner_admission_scheduler_byte_identical_to_engineering_base', value=Constant(value=True))])], keywords=[])], keywords=[]))"
+          ]
+        }
+      },
+      "nodes": {
+        "module/Assign:Name(id='b', ctx=Store())": {
+          "after": "9f7aa06707f96c712a1effcbde68cf28cb432b05afa3b81c7d4791d2f2ec6910",
+          "before": "265253bb9c86d7ec2e76a8adcc090034bbbf5deaa1dd2fa3ff4ea5f891dfe419"
+        },
+        "module/Assign:Name(id='decision_manifest', ctx=Store())": {
+          "after": "cf1581c7ada2518c22d14fc32d0c8b96027d58d3b790345155b56f1e7e226270",
+          "before": null
+        },
+        "module/Assign:Name(id='source_guard', ctx=Store())": {
+          "after": "9cbd79f4cb90705212a4698d7ee2be9adfaafbbefc9d68db3e056505abe0e4a6",
+          "before": null
+        },
+        "module/Expr:Expr(value=Call(func=Name(id='guarded_source', ctx=Load()), args=[Name(id='source_guard', ctx=Load()), Constant(value='operational/strategy-change-audit.py')], keywords=[]))": {
+          "after": "1ec268858dbf65fd92069fc1cd742c2eb743ad6963f2edef726f23e3d9a4d930",
+          "before": null
+        },
+        "module/Expr:Expr(value=Call(func=Name(id='print', ctx=Load()), args=[Call(func=Attribute(value=Name(id='json', ctx=Load()), attr='dumps', ctx=Load()), args=[Call(func=Name(id='dict', ctx=Load()), args=[], keywords=[keyword(arg='result', value=Constant(value='PASS')), keyword(arg='pre_change_commit', value=Name(id='BASE', ctx=Load())), keyword(arg='ramses_economic_modules_unchanged', value=Call(func=Name(id='len', ctx=Load()), args=[Name(id='checked', ctx=Load())], keywords=[])), keyword(arg='ramses_plumbing_modules', value=Name(id='plumbing', ctx=Load())), keyword(arg='entry_and_survivor_policies_only_approved_deltas', value=Constant(value=True)), keyword(arg='decision_policy_layer', value=Call(func=Name(id='dict', ctx=Load()), args=[], keywords=[keyword(arg='schema', value=Name(id='RALLY_SCHEMA', ctx=Load())), keyword(arg='revision', value=Subscript(value=Name(id='decision_manifest', ctx=Load()), slice=Constant(value='revision'), ctx=Load())), keyword(arg='predecessor_commit', value=Name(id='RALLY_BASE', ctx=Load())), keyword(arg='manifest_sha256', value=Name(id='RALLY_MANIFEST_SHA256', ctx=Load())), keyword(arg='verified', value=Constant(value=True))])), keyword(arg='owner_admission_scheduler_byte_identical_to_engineering_base', value=Constant(value=True))])], keywords=[])], keywords=[]))": {
+          "after": "5c2e9be2d589519e8e7b32c4aef0552febff58e83aa31e4214b1d708ed59f201",
+          "before": null
+        },
+        "module/Expr:Expr(value=Call(func=Name(id='print', ctx=Load()), args=[Call(func=Attribute(value=Name(id='json', ctx=Load()), attr='dumps', ctx=Load()), args=[Call(func=Name(id='dict', ctx=Load()), args=[], keywords=[keyword(arg='result', value=Constant(value='PASS')), keyword(arg='pre_change_commit', value=Name(id='BASE', ctx=Load())), keyword(arg='ramses_economic_modules_unchanged', value=Call(func=Name(id='len', ctx=Load()), args=[Name(id='checked', ctx=Load())], keywords=[])), keyword(arg='ramses_plumbing_modules', value=Name(id='plumbing', ctx=Load())), keyword(arg='entry_and_survivor_policies_only_approved_deltas', value=Constant(value=True)), keyword(arg='owner_admission_scheduler_byte_identical_to_engineering_base', value=Constant(value=True))])], keywords=[])], keywords=[]))": {
+          "after": null,
+          "before": "706cca06d2ebcfd71a8e4c49568746c199a2d5d2ae04525df3474025e135783d"
+        },
+        "module/For:For(target=Name(id='rel', ctx=Store()), iter=Tuple(elts=[Constant(value='pump/pumpswap_survivor.py'), Constant(value='pons/pons_postgrad_survivor.py')], ctx=Load()), body=[Assign(targets=[Name(id='path', ctx=Store())], value=BinOp(left=Constant(value='meme_machine/lanes/'), op=Add(), right=Name(id='rel', ctx=Load()))), Assign(targets=[Name(id='a', ctx=Store())], value=Call(func=Name(id='value', ctx=Load()), args=[Call(func=Name(id='before', ctx=Load()), args=[Name(id='path', ctx=Load())], keywords=[]), Constant(value='POLICY')], keywords=[])), Assign(targets=[Name(id='b', ctx=Store())], value=Call(func=Name(id='value', ctx=Load()), args=[Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='path', ctx=Load())), attr='read_text', ctx=Load()), args=[], keywords=[]), Constant(value='POLICY')], keywords=[])), If(test=Call(func=Attribute(value=Name(id='rel', ctx=Load()), attr='startswith', ctx=Load()), args=[Constant(value='pump')], keywords=[]), body=[Expr(value=Call(func=Attribute(value=Name(id='a', ctx=Load()), attr='update', ctx=Load()), args=[], keywords=[keyword(arg='target_sleeve_bps', value=Constant(value=500)), keyword(arg='minimum_reset_bps', value=Constant(value=300)), keyword(arg='compression_bps', value=Constant(value=10000))]))], orelse=[Assign(targets=[Subscript(value=Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='execution'), ctx=Load()), slice=Constant(value='target_capital_bps'), ctx=Store())], value=Constant(value=500)), Assign(targets=[Subscript(value=Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='demand'), ctx=Load()), slice=Constant(value='require_buy_acceleration'), ctx=Store())], value=Constant(value=False))]), Assign(targets=[Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='revision'), ctx=Store())], value=Constant(value='paper-opportunity-access-v1')), Assert(test=Compare(left=Name(id='a', ctx=Load()), ops=[Eq()], comparators=[Name(id='b', ctx=Load())]), msg=Name(id='path', ctx=Load()))], orelse=[])": {
+          "after": null,
+          "before": "4802601f3a9b8b7d16e95c0c6c3afc26cc81f39d675d38a9e0333bc4323f3ad8"
+        },
+        "module/For:For(target=Name(id='rel', ctx=Store()), iter=Tuple(elts=[Constant(value='pump/pumpswap_survivor.py'), Constant(value='pons/pons_postgrad_survivor.py')], ctx=Load()), body=[Assign(targets=[Name(id='path', ctx=Store())], value=BinOp(left=Constant(value='meme_machine/lanes/'), op=Add(), right=Name(id='rel', ctx=Load()))), Assign(targets=[Name(id='a', ctx=Store())], value=Call(func=Name(id='value', ctx=Load()), args=[Call(func=Name(id='before', ctx=Load()), args=[Name(id='path', ctx=Load())], keywords=[]), Constant(value='POLICY')], keywords=[])), Assign(targets=[Name(id='b', ctx=Store())], value=Call(func=Name(id='value', ctx=Load()), args=[Call(func=Name(id='reviewed_current', ctx=Load()), args=[Name(id='path', ctx=Load())], keywords=[]), Constant(value='POLICY')], keywords=[])), If(test=Call(func=Attribute(value=Name(id='rel', ctx=Load()), attr='startswith', ctx=Load()), args=[Constant(value='pump')], keywords=[]), body=[Expr(value=Call(func=Attribute(value=Name(id='a', ctx=Load()), attr='update', ctx=Load()), args=[], keywords=[keyword(arg='target_sleeve_bps', value=Constant(value=500)), keyword(arg='minimum_reset_bps', value=Constant(value=300)), keyword(arg='compression_bps', value=Constant(value=10000))]))], orelse=[Assign(targets=[Subscript(value=Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='execution'), ctx=Load()), slice=Constant(value='target_capital_bps'), ctx=Store())], value=Constant(value=500)), Assign(targets=[Subscript(value=Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='demand'), ctx=Load()), slice=Constant(value='require_buy_acceleration'), ctx=Store())], value=Constant(value=False))]), Assign(targets=[Subscript(value=Name(id='a', ctx=Load()), slice=Constant(value='revision'), ctx=Store())], value=Constant(value='paper-opportunity-access-v1')), Assert(test=Compare(left=Name(id='a', ctx=Load()), ops=[Eq()], comparators=[Name(id='b', ctx=Load())]), msg=Name(id='path', ctx=Load()))], orelse=[])": {
+          "after": "2c210e683a454beea3d364b216a3c8db407aaf3a57c072d810a2459fffd3f4ee",
+          "before": null
+        },
+        "module/FunctionDef:check": {
+          "after": "feff322672ec90d06baa8b63461b08566bc11b51df1f49ca2ea2a7bfa5dfb74a",
+          "before": "77f2b508bf31421cf847b09014b62407df947e65f23c37005d65f95786ebefdd"
+        },
+        "module/FunctionDef:reviewed_current": {
+          "after": "57e9b3c466fd5b308404c2262dcc6234c188f4a2f3f224de785375fab5661219",
+          "before": null
+        },
+        "module/Import:ast,json,subprocess,sys": {
+          "after": null,
+          "before": "ebfffce26621c2ec3a4d583264cf14059de10890384de33a401f3f7921d7c652"
+        },
+        "module/Import:ast,json,subprocess,sys,unittest": {
+          "after": "15f5e20f7ffbd5351a567fad3adb920858a65fbd6d69abbbe41049e04d2270db",
+          "before": null
+        },
+        "module/ImportFrom:0:tests.test_robinhood_usd_valuation": {
+          "after": "770701242cba5be4e9bd6dbe4f16145576192592f283b3b6bdd3cc8321077c52",
+          "before": null
+        }
+      }
+    }
+  },
+  "owner_issue": "https://github.com/levonmendall/The-Meme-Machine/issues/138",
+  "revision": "paper-postgrad-rally-v1",
+  "schema": "owner-selected-paper-postgrad-rally-source-delta-v1"
+}

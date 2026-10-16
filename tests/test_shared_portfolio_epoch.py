@@ -544,6 +544,21 @@ class SharedRiskPolicyTests(unittest.TestCase):
 
 class NewNativeEpochTests(unittest.TestCase):
     fixture=native_fixtures.RuntimeIntegrationTests.fixture
+    def test_modern_survivor_cannot_fund_without_durable_candidate_and_cycle(self):
+        from meme_machine.runtime.directional_sleeve import open_sleeve,policies
+        root,a,now,plan=self.fixture(policy=shared_risk_candidate(),new_epoch=True)
+        for family in ('pump','pons'):
+            (root/family).mkdir(exist_ok=True)
+            with patch.dict(os.environ,MM_DIRECTIONAL_SLEEVE_DB=str(root/family/'directional-sleeve.sqlite')):
+                sleeve=open_sleeve(family,1_000_000);self.addCleanup(sleeve.close)
+                strategy=next(s for s in policies(family) if 'survivor' in s)
+                before=deepcopy(a.ledger())
+                with self.assertRaisesRegex(ValueError,'survivor_candidate_required'):
+                    sleeve.reserve('bypass:'+family,strategy=strategy,amount=50_000,at=now,
+                        asset='synthetic-asset',funding_evidence=dict(qualified=True))
+                self.assertEqual(a.ledger(),before)
+                self.assertEqual(sleeve.reconcile()['reserved'],0)
+
     def test_long_held_native_protection_survives_readonly_transport_and_fails_closed_on_staleness(self):
         from meme_machine.lanes.pump.paper_accounting import PaperBook
         from meme_machine.runtime.directional_sleeve import open_sleeve,policies
@@ -553,7 +568,10 @@ class NewNativeEpochTests(unittest.TestCase):
             strategy=next(k for k in policies('pump') if 'survivor' in k);policy=policies('pump')[strategy]
             book=PaperBook(root/'pump/native-long.sqlite',run_id='long',lane=strategy,policy_hash=policy,initial=1_000_000)
             self.addCleanup(book.close);identity='long:original'
-            sleeve.reserve(identity,strategy=strategy,amount=50_000,at=now,asset='asset:long',funding_evidence=dict(qualified=True))
+            from tests.shared_rally_support import observe_survivor
+            qualified=observe_survivor(sleeve,strategy,'asset:long',now)
+            sleeve.reserve(identity,strategy=strategy,amount=50_000,at=now,asset='asset:long',
+                candidate='asset:long',generation=qualified['generation'],regime=qualified['regime'])
             book.reserve(identity,50_000,now,dict(qualified=True))
             book.transition(identity,'filled',now,amount=50_000,tokens=400,evidence=dict(execution={'gas':0}))
             age=30*86400;at=now+age
@@ -616,7 +634,12 @@ class NewNativeEpochTests(unittest.TestCase):
                 for strategy,policy in policies(family).items():
                     book=PaperBook(root/family/(strategy+'.sqlite'),run_id='new-test',lane=strategy,policy_hash=policy,initial=1_000_000)
                     self.addCleanup(book.close);identity='new-test:'+strategy
-                    sleeve.reserve(identity,strategy=strategy,amount=50_000,at=now,asset=identity,funding_evidence=dict(qualified=True))
+                    candidate_args=dict(funding_evidence=dict(qualified=True))
+                    if 'survivor' in strategy:
+                        from tests.shared_rally_support import observe_survivor
+                        qualified=observe_survivor(sleeve,strategy,identity,now)
+                        candidate_args=dict(candidate=identity,generation=qualified['generation'],regime=qualified['regime'])
+                    sleeve.reserve(identity,strategy=strategy,amount=50_000,at=now,asset=identity,**candidate_args)
                     book.reserve(identity,50_000,now,dict(qualified=True))
                     book.transition(identity,'filled',now,amount=50_000,tokens=100,evidence=dict(execution={'gas':0}))
                     book.transition(identity,'mark',now,amount=50_000);native_sync(book,sleeve,identity)

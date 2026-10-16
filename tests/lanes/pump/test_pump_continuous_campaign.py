@@ -10,6 +10,14 @@ from meme_machine.lanes.pump import runner as strategy
 
 
 class CampaignTests(unittest.TestCase):
+    def test_selected_active_policy_pin_matches_exact_revision_and_keeps_history(self):
+        from meme_machine.paper_policy_revision import predecessor_hash
+        self.assertEqual(strategy.FROZEN_POLICY_HASH,
+            'e2ae5fbbc3109df2b80b353f9454de6bcca4468b0bdd1414af068a6b623e55e7')
+        self.assertEqual(strategy.policy_hash(),strategy.FROZEN_POLICY_HASH)
+        self.assertEqual(predecessor_hash('pump_current'),
+            'd67d5560ea6738094c2cf32bc003ceba8918a93bb440f9e82236e60dcc9d8251')
+
     def test_rolling_budget_preserves_the_original_rate(self):
         budget=strategy.RollingAttemptBudget(limit=2)
         self.assertTrue(budget.take(1));self.assertTrue(budget.take(2))

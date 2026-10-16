@@ -199,8 +199,10 @@ class Supervisor:
                     raise RuntimeError('offline_and_operational_state_must_be_separate')
                 self.epoch=account.binding()['receipt']['epoch_id']
                 binding=account.binding()
-                from meme_machine.paper_policy_revision import previous_hash
-                if any(binding['identities']['lanes'][lane]['policy_hash']==previous_hash(lane+'_current')
+                from meme_machine.paper_policy_revision import historical_hashes, current_hashes
+                active_hashes=current_hashes()
+                if any(binding['identities']['lanes'][lane]['policy_hash'] in
+                        historical_hashes(lane+'_current')-{active_hashes[lane+'_current']}
                         for lane in ('pump','pons')):
                     from meme_machine.runtime.policy_compatibility import require_flat_portfolio
                     require_flat_portfolio(account.snapshot())

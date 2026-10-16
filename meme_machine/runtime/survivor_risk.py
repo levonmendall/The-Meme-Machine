@@ -39,7 +39,7 @@ def mark(state, observation, policy):
         reason = 'invalid_exit_liquidity'
     elif current is not None and current <= policy['hard_stop_bps']:
         reason = 'hard_stop'
-    elif current is not None and high >= policy['first_profit_bps']:
+    elif current is not None and high >= policy.get('trail_arm_bps',policy['first_profit_bps']):
         if high >= 10000:
             if current*10000 <= high*6000:reason='tail_gain_giveback'
         else:
@@ -74,7 +74,12 @@ def mark(state, observation, policy):
     return updated, action
 
 
-def new_regime(previous, current, *, minimum_seconds=3600, minimum_changes=2):
+def new_regime(previous, current, *, minimum_seconds=3600, minimum_changes=2, settlement=None):
+    # A legacy record keeps its original meaning on replay. The versioned
+    # contract alone grants repeated execution from authenticated structure.
+    if (previous or {}).get('rally_cycle') or (current or {}).get('rally_cycle'):
+        from meme_machine.runtime.rally_cycle import reentry
+        return reentry(previous,current,settlement=settlement,minimum_seconds=minimum_seconds)
     if current['at']-previous['at'] < minimum_seconds:
         return False
     dimensions = ('high_reset_cycle','base_id','buyer_population','independent_demand','flow_regime')

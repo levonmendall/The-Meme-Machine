@@ -110,6 +110,28 @@ class OpportunityTelemetryTests(unittest.TestCase):
         gates={g['name']:g for g in telemetry.measurable_gates('pump',decision)}
         self.assertEqual(gates['repeat_buyers']['category'],'alpha')
         self.assertTrue(gates['repeat_buyers']['blocking'])
+
+    def test_historical_opportunity_policy_keeps_confirmation_classification_and_original_identity(self):
+        from meme_machine.paper_policy_revision import PREDECESSOR_REVISION,predecessor_policies
+        saved=predecessor_policies()['pump_current']
+        decision=dict(policy=saved['policy'],qualification=dict(policy_hash=saved['policy_hash'],
+            policy_revision=PREDECESSOR_REVISION,qualified=True),vector=dict(
+                phase='late_curve_acceleration',repeat_buyer_clusters=0,repeat_buy_share_bps=None))
+        original=copy.deepcopy(decision)
+        body=telemetry.current_receipt(dict(lane='pump',cohort='original-epoch'),
+            'pump:historical','original-decision','qualified',100,decision)
+        gates={g['name']:g for g in body['gates']}
+        self.assertEqual(gates['repeat_buyers']['category'],'confirmation')
+        self.assertFalse(gates['repeat_buyers']['blocking'])
+        self.assertEqual(gates['repeat_share']['category'],'confirmation')
+        self.assertIsNone(gates['repeat_share']['passed'])
+        self.assertEqual(body['policy_hash'],saved['policy_hash'])
+        self.assertEqual(body['policy_revision'],PREDECESSOR_REVISION)
+        self.assertEqual(body['previous_predicate_failures'],['repeat_buyers'])
+        self.assertIn('repeat_share',body['optional_diagnostics_unavailable'])
+        self.assertFalse(body['newly_qualified_by_revision'])
+        self.assertEqual(decision,original)
+
     def test_replay_conflicting_duplicate_and_immutable_hash_chain(self):
         self.reject();before=telemetry.verify(self.sleeve.db)
         self.reject();self.assertEqual(before,telemetry.verify(self.sleeve.db))

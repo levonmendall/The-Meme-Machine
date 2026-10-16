@@ -89,10 +89,16 @@ class HistoricalTests(unittest.TestCase):
         runtime.current = runtime.history.get(token)
         class Quotes:
             def loss(self, n):return 100
+        market_at=int(self.tape.header(self.tape.top)['timestamp'],16)
         state = dict(block=self.tape.top, block_hash=self.tape.header(self.tape.top)['hash'],
-                     at=int(self.tape.header(self.tape.top)['timestamp'],16), acquired=1, price_index=10**18)
-        with patch('meme_machine.lanes.pons.pons_survivor_runtime.collect_v4_activity', side_effect=self.activity):
+                     at=market_at,market_time=market_at,evidence_acquired_at=market_at+.1,
+                     evidence_available_at=market_at+.2,acquired=1,price_index=10**18)
+        with patch('meme_machine.lanes.pons.pons_survivor_runtime.collect_v4_activity', side_effect=self.activity), \
+             patch('meme_machine.lanes.pons.pons_survivor_runtime.time.time',return_value=market_at+.5):
             facts = runtime.reconstruct(state, Quotes())
+        self.assertEqual((facts['market_time'],facts['evidence_acquired_at'],
+            facts['state_evidence_available_at'],facts['evidence_available_at']),
+            (market_at,market_at+.1,market_at+.2,market_at+.5))
         facts.pop('evidence_acquired_monotonic')
         return facts
 

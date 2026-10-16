@@ -188,9 +188,12 @@ class FundedProtectionTests(unittest.TestCase):
             policy_hash=policies(family)[strategy],initial=1_000_000);self.addCleanup(lambda:book.close())
         sleeve=open_sleeve(family,1_000_000);self.addCleanup(sleeve.close)
         identity='crash:original'
+        from tests.shared_rally_support import observe_survivor
+        qualified=observe_survivor(sleeve,strategy,identity,now)
         sleeve.reserve(identity,strategy=strategy,amount=50_000,at=now,asset=identity,
-            funding_evidence=dict(qualified=True))
-        book.reserve(identity,50_000,now,dict(qualified=True))
+            candidate=identity,generation=qualified['generation'],regime=qualified['regime'])
+        book.reserve(identity,50_000,now,dict(qualified=True,candidate=identity,
+            generation=qualified['generation'],regime=qualified['regime']))
         book.transition(identity,'filled',now,amount=50_000,tokens=1000,evidence=dict(execution={'gas':0}))
         native_sync(book,sleeve,identity)
         if family=='pump':

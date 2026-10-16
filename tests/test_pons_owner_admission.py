@@ -15,6 +15,7 @@ from meme_machine.runtime.robinhood.pons import Broker
 from tests.lanes.pons.test_pons_candidate_plane import event
 from tests.lanes.pons.test_pons_postgrad_survivor import facts
 from tests import test_forward_survivor as forward_fixture
+from tests.shared_rally_support import observe_survivor
 
 
 class OwnerAdmissionTests(unittest.TestCase):
@@ -51,10 +52,17 @@ class OwnerAdmissionTests(unittest.TestCase):
                 'MM_DIRECTIONAL_SLEEVE_DB':td+'/sleeve','MM_DIRECTIONAL_COHORT_ID':'owner-cap'},clear=True):
             sleeve=open_sleeve('pons',1000)
             try:
-                for i in range(20):sleeve.reserve('position:'+str(i),strategy=strategy.STRATEGY_VERSION,amount=50,at=100)
+                for i in range(20):
+                    identity='position:'+str(i)
+                    observed=observe_survivor(sleeve,strategy.STRATEGY_VERSION,identity,100)
+                    sleeve.reserve(identity,strategy=strategy.STRATEGY_VERSION,amount=50,at=100,
+                        candidate=identity,generation=observed['generation'],regime=observed['regime'])
                 self.assertEqual(sleeve.reconcile()['reserved'],1000)
                 self.assertEqual(sleeve.reconcile()['available'],0)
-                with self.assertRaises(ValueError):sleeve.reserve('overflow',strategy=strategy.STRATEGY_VERSION,amount=1,at=100)
+                observed=observe_survivor(sleeve,strategy.STRATEGY_VERSION,'overflow',100)
+                with self.assertRaisesRegex(ValueError,'sleeve_capital_exhausted'):
+                    sleeve.reserve('overflow',strategy=strategy.STRATEGY_VERSION,amount=1,at=100,
+                        candidate='overflow',generation=observed['generation'],regime=observed['regime'])
             finally:sleeve.close()
             sleeve=open_sleeve('pons',1000)
             try:

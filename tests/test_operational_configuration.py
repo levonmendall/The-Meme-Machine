@@ -54,7 +54,11 @@ class Configuration(unittest.TestCase):
         self.assertNotIn('private-key',json.dumps(new))
         self.assertNotIn('private-admin-token',json.dumps(new))
         self.assertNotEqual(old['configuration_files'],new['configuration_files'])
-        self.assertEqual(new['paper_policy']['policy_revision'],'paper-opportunity-access-v1')
+        self.assertEqual(new['paper_policy']['policy_revision'],'paper-postgrad-rally-v1')
+        self.assertEqual(new['paper_policy']['predecessor_revision'],'paper-opportunity-access-v1')
+        self.assertEqual(new['paper_policy']['funded_execution'],dict(pump_postgraduation_bridge=True,
+            pump_verified_rallies=True,pons_verified_rallies=True,market_evidence='canonical-native',
+            cycle_schema='rally-cycle-v1'))
         self.assertFalse(new['paper_policy']['portfolio_epoch_changed'])
         self.assertFalse(new['paper_policy']['financial_policy_changed'])
         self.assertEqual(set(new['paper_policy']['regime_policy_hashes']),

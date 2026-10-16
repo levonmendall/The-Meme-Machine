@@ -21,6 +21,53 @@ def handoff_ready(book, rows):
     return True
 
 
+def unmaterialized_entry_rejection(book,sleeve,identity,error):
+    """A known failed admission may discard only an unused controller identity.
+
+    This never cancels money or native work. The shared sleeve owns grant
+    compensation and replaces an uncertain outcome with its stronger recovery
+    exception. Its already-verified authority projection is inspected by exact
+    native/request keys only; no portfolio valuation or full ledger replay runs.
+    The caller remains the sole native controller owner and persists the reset.
+    """
+    from meme_machine.shared_capital.native_sleeve import FundingDenied
+    known={'same_survivor_regime','same_asset_exposure','superseded_reservation',
+           'superseded_rally_cycle','survivor_minimum_capital','sleeve_capital_exhausted'}
+    if not identity or not (isinstance(error,FundingDenied)
+            or type(error) is ValueError and str(error) in known):return False
+    with book.lock:
+        if book.replay().get('verified') is not True:raise ValueError('native_replay_required')
+        if book.db.execute('SELECT 1 FROM positions WHERE id=?',(identity,)).fetchone():return False
+    with sleeve.lock:
+        sleeve.reconcile()
+        if sleeve.get(identity) is not None:return False
+    authority=getattr(sleeve,'authority',None)
+    if authority is None:return True
+    import json
+    def path(bucket,key):return '$.'+bucket+'.'+json.dumps(key)
+    key=sleeve.identity['lane']+':'+identity
+    with authority._transaction(write=False):
+        row=authority.db.execute('SELECT json_extract(body,?),json_extract(body,?),json_type(body,?),'
+            'json_type(body,?) FROM shared_capital_projection WHERE id=1',
+            (path('runtime_native_requests',key),path('native_aliases',key),
+             path('runtime_pending',key),path('runtime_native_requests',key+':scale'))).fetchone()
+        if row is None:return False
+        request,life,pending,scale=row
+        if pending is not None or scale is not None:return False
+        if request is None:
+            # Every native delivery/grant first installs this durable binding.
+            # An alias without its request cannot establish verified absence.
+            return life is None
+        status,queued,reserved,committed,obligation,position=authority.db.execute(
+            'SELECT json_extract(body,?),json_type(body,?),json_type(body,?),json_type(body,?),'
+            'json_type(body,?),json_type(body,?) FROM shared_capital_projection WHERE id=1',
+            (path('requests',request)+'.status',path('runtime_inbox',request),
+             path('reservations',request),path('commitments',request),path('obligations',request),
+             path('positions',life or ''))).fetchone()
+        return (status in ('CANCELLED','SUPERSEDED','QUALIFIED_BUT_CAPITAL_UNAVAILABLE')
+                and all(value is None for value in (queued,reserved,committed,obligation,position)))
+
+
 def commit(*,book,sleeve,identity,candidate,generation,strategy,policy_hash,
            decision,regime,at,target,minimum,retention_bps,ordinary_limit,
            stress_limit,adapter,qualify):
@@ -63,6 +110,10 @@ def commit(*,book,sleeve,identity,candidate,generation,strategy,policy_hash,
         fresh=qualify(facts)
         if not fresh['candidate']:
             raise ValueError('survivor_fill_qualification:'+','.join(fresh['all_rejections']))
+        cycle=(regime or {}).get('rally_cycle')
+        if cycle and (fresh['features'].get('peak_at')!=cycle['peak_at']
+                or fresh['features'].get('breakout_at',adapter.now())<cycle['breakout_at']):
+            raise ValueError('survivor_fill_rally_cycle_changed')
         fill_breadth=fresh['features']['independent_buyers']
         if not breadth_retained(breadth,fill_breadth,retention_bps):
             raise ValueError('survivor_breadth_retention')
@@ -76,7 +127,9 @@ def commit(*,book,sleeve,identity,candidate,generation,strategy,policy_hash,
                        capacity=dict(capacity.telemetry(),decision_size=target,capital_cap=budget,
                            turnover_cap=adapter.turnover_cap(facts,fresh),final_size=capacity.final_size,
                            binding_cap=capacity.binding_reason if capacity.final_size<cap else
-                               'turnover' if cap<budget else 'capital'),generation=generation)
+                               'turnover' if cap<budget else 'capital'),generation=generation,
+                       lifecycle_clocks=dict(setup_at=regime.get('at'),entry_fill_at=now,
+                           latest_independent_breakout_at=(regime.get('rally_cycle') or {}).get('breakout_at')))
         # Both locks forbid supersession while the native fill transaction commits.
         with adapter.generation_fence(candidate,generation), sleeve.commit_fence(identity):
             adapter.validate_current(state,execution,now)
@@ -171,13 +224,18 @@ def risk_record(state,row):
     if action=='filled':
         state=dict(opened_at=row['at'],original_quantity=p['tokens'],remaining_quantity=p['tokens'],
                    original_basis=p['basis'],high_water_bps=0,high_at=row['at'],
-                   realization_taken=False,tightened=False,deterioration_streak=0)
+                   realization_taken=False,tightened=False,deterioration_streak=0,
+                   execution_profile=e.get('decision',{}).get('features',{}).get('execution_profile',
+                       e.get('fill',{}).get('features',{}).get('execution_profile')),
+                   lifecycle_clocks=dict(e.get('lifecycle_clocks') or dict(entry_fill_at=row['at'])))
     elif action=='mark' and state is not None:state=dict(e['risk_state'])
     elif action=='partial_harvest' and state is not None:
         state.update(realization_taken=True,remaining_quantity=p['tokens'])
     elif action=='scale_add' and state is not None:
         state.update(scale_committed=True,scale_request=e['request'],remaining_quantity=p['tokens'])
-    elif action=='settled' and state is not None:state.update(settled=True,remaining_quantity=0)
+    elif action=='settled' and state is not None:
+        state.update(settled=True,remaining_quantity=0,
+            lifecycle_clocks=dict(state.get('lifecycle_clocks') or {},native_settlement_at=row['at']))
     return state
 
 
@@ -186,6 +244,7 @@ def monitor(*,book,sleeve,identity,observation,policy,adapter,exceptional_contex
     native_sync(book,sleeve,identity)
     state=restore_risk(book,identity)
     if state.get('settled'):return dict(action='settled')
+    policy=getattr(adapter,'position_policy',lambda risk,policy:policy)(state,policy)
     position=book._load(identity)
     if state.get('scale_committed') and observation.get('after_cost_return_bps') is not None:
         observation=dict(observation,after_cost_return_bps=reference_return(
@@ -198,6 +257,11 @@ def monitor(*,book,sleeve,identity,observation,policy,adapter,exceptional_contex
         state=dict(state,realized_profit=position['realized'])
         next_state,action=survivor_mark(state,observation,policy,family=family,context=exceptional_context)
     else:next_state,action=mark(state,observation,policy)
+    if action['action'] in ('full_exit','partial_exit'):
+        clocks=dict(next_state.get('lifecycle_clocks') or {})
+        key='exit_intent_at' if action['action']=='full_exit' else 'first_realization_intent_at'
+        clocks.setdefault(key,observation['at'])
+        next_state=dict(next_state,lifecycle_clocks=clocks)
     if next_state!=state:
         # Return uses the remaining cost basis and full executable remaining exit.
         book.transition(identity,'mark',observation['at'],

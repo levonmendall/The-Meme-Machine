@@ -134,6 +134,11 @@ class RuntimeCapital(PumpPonsCapital):
             # The retry clock is not economic identity. Check inside the same
             # SQLite writer transaction even when independent clients race.
             prior.pop('at');new.pop('at')
+            # Recovery may redeliver an ACK committed by the previous source.
+            # Receipt versioning adds metadata, never a new native event.
+            if (new['action']=='runtime_commit' and 'terminal_receipt_version' not in prior['data']
+                    and new['data'].get('terminal_receipt_version')==1):
+                new['data'].pop('terminal_receipt_version')
             return prior==new
         return super()._duplicate_matches(previous,current)
 
@@ -207,6 +212,26 @@ class RuntimeCapital(PumpPonsCapital):
             if queued:
                 state['requests'][req_id]=dict(value=queued,status='CANCELLED',reason='VERIFIED_NATIVE_ABSENCE')
             return state,apply('cancel',data)
+        if action=='runtime_compensate':
+            # Check exact identity and native uncertainty in the shared writer,
+            # rather than releasing from a stale caller snapshot. No timeout or
+            # exception alone proves that a native commit did not happen.
+            req_id=data['request_id'];key=data['native_key']
+            if state.get('runtime_native_requests',{}).get(key)!=req_id:
+                raise CapitalError('native_compensation_identity_conflict')
+            req=state['requests'].get(req_id);queued=state.get('runtime_inbox',{}).get(req_id)
+            native_key=key[:-6] if key.endswith(':scale') else key
+            if (native_key in state.get('runtime_pending',{}) or req_id in state['commitments']
+                    or req and (req['status'] in ('COMMITTED','CONSUMED') or req.get('bound_lifecycle_id'))
+                    or any(p['lane']+':'+p['native']==native_key for p in state.get('pending_deliveries',[]))):
+                raise CapitalError('native_reservation_grant_reconciliation_required')
+            if not queued and (not req or req['status']!='RESERVED'):
+                return state,dict(status=(req or {}).get('status','ABSENT'),released=False)
+            state.get('runtime_inbox',{}).pop(req_id,None)
+            if queued:state['requests'][req_id]=dict(value=queued,status='CANCELLED',reason='VERIFIED_NATIVE_ABSENCE')
+            apply('cancel',dict(request_id=req_id,at=at,proof_sha256=data['proof_sha256'],
+                proof_kind='VERIFIED_NATIVE_ABSENCE'))
+            return state,dict(status='CANCELLED',released=True)
         if action=='runtime_queue':
             q=deepcopy(data['request']);r=q['regime'];owner=state.get('runtime_owners',{}).get(r)
             q['native_requested_units']=data['evidence']['native_requested_units']
@@ -321,6 +346,18 @@ class RuntimeCapital(PumpPonsCapital):
                 apply('realize',dict(lifecycle_id=life,basis_released=basis,gross_proceeds=facts['gross_proceeds'],
                     cost=facts.get('fee','0'),included_cost=facts.get('included_fee','0'),native=item['native'],valuation=v,terminal=kind=='settle'))
                 state['at']=max(publication_at,state['at'])
+                if kind=='settle' and data.get('terminal_receipt_version')==1:
+                    receipt=dict(version=1,lifecycle_id=life,
+                        terminal_at=economic_at,global_ack_at=publication_at,native_event_id=item['event_key'],
+                        native_journal_hash=item['journal_hash'],native_sequence=item['native']['sequence'])
+                    # The USD observation may arrive after the native journal
+                    # event. Retain both clocks; old events replay unchanged.
+                    if 'native_event_at' in item.get('metadata',{}):
+                        native_at=item['metadata']['native_event_at']
+                        if type(native_at) is not int or native_at>economic_at:
+                            raise CapitalError('native_settlement_time_invalid')
+                        receipt['native_settlement_at']=native_at
+                    state['positions'][life]['terminal_receipt']=receipt
             elif kind=='release':
                 self._native(state,life,item['native'])
                 apply('cancel',dict(request_id=req_id,at=at,proof_kind='DEFINITIVELY_CANCELLED',proof_sha256=data['journal_hash']))
@@ -390,7 +427,8 @@ class SharedNativePortfolio:
 
     def committed(self,native,*,event_key,journal_hash):
         return self.authority.command('ack:'+self.lane+':'+journal_hash,'runtime_commit',dict(
-            lane=self.lane,native_id=native,event_key=event_key,journal_hash=journal_hash),self.authority.ledger()['at'])
+            lane=self.lane,native_id=native,event_key=event_key,journal_hash=journal_hash,terminal_receipt_version=1),
+            max(self.authority.ledger()['at'],int(time.time())))
 
     def abort(self,native,event):
         return self.authority.command('abort:'+self.lane+':'+event.native_journal_hash,'runtime_abort',dict(
