@@ -74,9 +74,12 @@ def mark(state, observation, policy):
     return updated, action
 
 
-def new_regime(previous, current, *, minimum_seconds=3600, minimum_changes=2):
-    if current['at']-previous['at'] < minimum_seconds:
-        return False
-    dimensions = ('high_reset_cycle','base_id','buyer_population','independent_demand','flow_regime')
-    return sum(previous.get(k) is not None and current.get(k) is not None
-               and previous[k] != current[k] for k in dimensions) >= minimum_changes
+def new_regime(previous, current):
+    """The selected PAPER repeat-entry predicate has no arbitrary time delay.
+
+    Native reserve separately checks prior terminal state and same-asset exposure.
+    The old 3,600-second/two-feature predicate remains available ONLY as a
+    read-only comparison in runtime.rally_cycles.legacy_new_regime.
+    """
+    from .rally_cycles import structural_new_regime
+    return structural_new_regime(previous, current)

@@ -50,9 +50,11 @@ class History:
         """
         from meme_machine.runtime.policy_compatibility import (active_hash,selection,
             require_flat_rows,require_external_flat,SELECTION_KEY)
-        from meme_machine.paper_policy_revision import previous_hash
+        from meme_machine.paper_policy_revision import previous_hash,SUPERSEDED_ACTIVE_SURVIVOR_HASHES
         regimes=('pump_survivor','pons_survivor')
-        regime=next((r for r in regimes if old==previous_hash(r) and policy==active_hash(r)),None)
+        regime=next((r for r in regimes
+            if old in (previous_hash(r),SUPERSEDED_ACTIVE_SURVIVOR_HASHES.get(r))
+            and policy==active_hash(r)),None)
         if regime is None:raise ValueError('survivor_history_policy_drift')
         with self.transaction():
             rows=self.rows(include_retired=True)
@@ -75,8 +77,25 @@ class History:
                     require_flat_rows([json.loads(raw) for raw, in db.execute('SELECT body FROM positions')],kind='pump')
             require_external_flat()
             expected=selection(dict(policy_hash=old),dict(policy_hash=policy))
+            first=self.get_meta(SELECTION_KEY)
+            if first is not None and first!=expected:
+                # History is an observational derived store, not financial
+                # genesis. Its first migration used the original old policy as
+                # the comparison anchor. A second migration must chain from
+                # that previous *decision* policy, preserving that receipt.
+                predecessor=first.get('decision_identity') or {}
+                if (first.get('schema')!='paper-decision-policy-selection-v1'
+                        or first.get('revision')!='paper-opportunity-access-v1'
+                        or first.get('financial_identity_hash')!=digest(first.get('financial_identity'))
+                        or first.get('decision_identity_hash')!=digest(predecessor)
+                        or predecessor!=expected['financial_identity']
+                        or old!=SUPERSEDED_ACTIVE_SURVIVOR_HASHES.get(regime)):
+                    raise ValueError('paper_policy_selection_checkpoint_conflict')
+                self.set_meta('previous_policy_selection:'+digest(first),first)
             self.set_meta(SELECTION_KEY,expected)
-            self.set_meta('previous_policy:'+old,dict(policy_hash=old,revision='pre-paper-opportunity-access-v1'))
+            self.set_meta('previous_policy:'+old,dict(policy_hash=old,revision=(
+                'paper-opportunity-access-v1' if old==SUPERSEDED_ACTIVE_SURVIVOR_HASHES.get(regime)
+                else 'pre-paper-opportunity-access-v1')))
             for row in rows:
                 identity=row['id'];saved=self.get_meta('calculation_prefix:'+identity)
                 if saved is not None:

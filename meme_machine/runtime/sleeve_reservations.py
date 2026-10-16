@@ -78,7 +78,7 @@ class SleeveReservations:
             stored=json.loads(self.db.execute('SELECT body FROM sleeve_genesis').fetchone()[0])
             if stored!=self.identity:
                 from meme_machine.runtime.policy_compatibility import (compatible_identity,regime_for,
-                    selection,require_flat_rows,require_external_flat,SELECTION_KEY)
+                    selection,selection_successor,require_flat_rows,require_external_flat,SELECTION_KEY)
                 requested=dict(self.identity)
                 if (dict(stored,policies=requested['policies'])!=requested
                         or set(stored['policies'])!=set(requested['policies'])
@@ -95,7 +95,20 @@ class SleeveReservations:
                 selected=self.db.execute('SELECT value FROM opportunity_meta_v1 WHERE key=?',(SELECTION_KEY,)).fetchone()
                 if selected:
                     saved=json.loads(selected[0]);checksum=saved.pop('checksum',None)
-                    if checksum!=digest(saved) or saved!=expected:raise ValueError('paper_policy_selection_checkpoint_conflict')
+                    if checksum!=digest(saved):raise ValueError('paper_policy_selection_checkpoint_conflict')
+                    if saved!=expected:
+                        if not selection_successor(saved,expected):
+                            raise ValueError('paper_policy_selection_checkpoint_conflict')
+                        # A second policy choice is only legal after ALL former
+                        # positions/allocations and external obligations are flat.
+                        # Retain the first immutable decision-selection proof.
+                        require_flat_rows([json.loads(raw) for raw, in self.db.execute('SELECT body FROM sleeve_positions')],kind='sleeve')
+                        require_external_flat()
+                        previous_key=SELECTION_KEY+':previous:'+digest(saved)
+                        self.db.execute('INSERT OR IGNORE INTO opportunity_meta_v1 VALUES(?,?)',
+                            (previous_key,canonical(dict(saved,checksum=digest(saved)))))
+                        self.db.execute('UPDATE opportunity_meta_v1 SET value=? WHERE key=?',
+                            (canonical(dict(expected,checksum=digest(expected))),SELECTION_KEY))
                 else:
                     require_flat_rows([json.loads(raw) for raw, in self.db.execute('SELECT body FROM sleeve_positions')],kind='sleeve')
                     require_external_flat()
@@ -252,6 +265,11 @@ class SleeveReservations:
                 current=self.candidate(candidate)
                 if not current or current['generation']!=generation or current['state']!='qualified':
                     raise ValueError('superseded_reservation')
+                # The native writer must bind its funded cycle to the exact
+                # already-journaled qualification generation, not a caller's
+                # later recomputed or substituted rally identity.
+                if current.get('regime')!=regime:
+                    raise ValueError('superseded_candidate_regime')
                 from meme_machine.runtime.survivor_risk import new_regime
                 prior=[json.loads(raw) for raw, in self.db.execute('SELECT body FROM sleeve_positions')]
                 for p in prior:

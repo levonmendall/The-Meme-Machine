@@ -966,6 +966,12 @@ class Runtime:
                         regime=dict(at=state['at'],high_reset_cycle=f['reset_pullback_bps'],
                             base_id=[f.get('base_low'),f.get('base_high')],buyer_population=self.facts['organic_flow']['buyer_groups'],
                             independent_demand=f['independent_buyers_30m'],flow_regime=f['buy_sell_ratio_bps']//10000)
+                        from meme_machine.runtime.rally_cycles import pons_cycle,with_shadow_gate
+                        regime['cycle']=pons_cycle(row['id'],f,at=state['at'])
+                        # Both decisions are journaled; only the structural
+                        # predicate authorizes a later funded rally.
+                        decision=with_shadow_gate(decision,self.sleeve,
+                            strategy=STRATEGY_VERSION,candidate=row['id'],regime=regime)
                         key='pons:survivor:'+row['id']
                         self.plane.observe(key,'pons',state['block_hash'],decision,ordering=(state['block'],),
                             watermark=dict(block=state['block'],hash=state['block_hash']),interpretation=dict(policy=POLICY_HASH),

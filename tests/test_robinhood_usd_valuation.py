@@ -772,9 +772,43 @@ def startup_cancel_predecessor(test,relative,current):
     return prior
 
 
+# Exact second, owner-requested PAPER Survivor cycle-policy delta. Preserve the
+# original nine-change and opportunity-access source guards byte for byte: first
+# strip ONLY these pinned, reviewed files to the exact pre-implementation main
+# commit, then run every original byte/AST/economic invariant unmodified.
+# This is not a generic policy-change exemption. Even a whitespace mutation to
+# one named source still fails until independently reviewed and pinned.
+STRUCTURAL_RALLY_REVIEW_COMMIT = 'edd5ccc37159532f3cd588bfbced759273b47875'
+STRUCTURAL_RALLY_BASE_COMMIT = '893b8dd281f4282aed82573db8334c25605755c9'
+STRUCTURAL_RALLY_REVIEWED_PATHS = frozenset((
+    'meme_machine/lanes/pump/pumpswap_survivor.py',
+    'meme_machine/lanes/pump/pumpswap_survivor_runtime.py',
+    'meme_machine/lanes/pons/pons_postgrad_survivor.py',
+    'meme_machine/lanes/pons/pons_survivor_runtime.py',
+    'meme_machine/runtime/sleeve_reservations.py',
+    'meme_machine/runtime/survivor_history.py',
+    'meme_machine/runtime/survivor_risk.py',
+    'meme_machine/runtime/policy_compatibility.py',
+    'meme_machine/paper_policy_revision.py',
+))
+
+
+def structural_rally_predecessor(test,relative,current):
+    if relative not in STRUCTURAL_RALLY_REVIEWED_PATHS:
+        return current
+    if isinstance(current,str):current=current.encode()
+    published=subprocess.check_output(
+        ['git','show',STRUCTURAL_RALLY_REVIEW_COMMIT+':'+relative],cwd=ROOT)
+    test.assertEqual(current,published,relative+':exact approved structural rally source')
+    old=subprocess.check_output(
+        ['git','show',STRUCTURAL_RALLY_BASE_COMMIT+':'+relative],cwd=ROOT)
+    return old
+
+
 def assert_opportunity_added_source(test,relative,current):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
+    current=structural_rally_predecessor(test,relative,current)
     manifest=json.loads(OPPORTUNITY_MANIFEST.read_text())
     test.assertEqual(manifest['strategy_implementation'],OPPORTUNITY_REFERENCE)
     test.assertEqual(set(manifest['added_sources']),set(OPPORTUNITY_ADDED_SOURCES))
@@ -791,6 +825,7 @@ def assert_opportunity_added_source(test,relative,current):
 def opportunity_predecessor(test,relative,current):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
+    current=structural_rally_predecessor(test,relative,current)
     if relative=='meme_machine/lanes/pons/evidence.py':
         # The complete lane-tree guard also protects this non-manifest source.
         current=operation_cost_predecessor(test,relative,current)

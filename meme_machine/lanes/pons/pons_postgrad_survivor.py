@@ -59,7 +59,9 @@ POLICY=dict(
     ),
     confirmation=dict(repeat_window_seconds=1800,hard_repeat_threshold=None,
         ranking_tiebreak=['repeat_independent_buyers_30m','repeat_buyer_share_bps']),
-    reentry=dict(minimum_seconds=3600,minimum_changed_dimensions=2),
+    reentry=dict(rule='authenticated_distinct_completed_cycle_v1',
+                 baseline_shadow='previous_setup_3600s_two_feature_changes',
+                 additional_post_settlement_delay_seconds=0),
     execution=dict(
         target_capital_bps=500,
         minimum_capital_bps=5,
@@ -209,6 +211,11 @@ def _feature_set(facts):
     prior_high=(None if not prior_base else max(p for _,p in prior_base))
     older_peak=(None if not older else max(p for _,p in older))
     base_low=(None if not prior_base else min(p for _,p in prior_base))
+    # Exact chronological witnesses for independent peak/reset/base/breakout identity.
+    # These are optional derived features; no absent timestamp can become a pass.
+    older_peak_at=next((t for t,p in older if p==older_peak),None)
+    reset_at=next((t for t,p in prior_base if p==base_low),None)
+    base_end_at=None if not prior_base else prior_base[-1][0]
     breakout=(None if prior_high is None else return_bps(prior_high,current))
     pullback=(
         None if older_peak is None or base_low is None or base_low>=older_peak
@@ -260,6 +267,8 @@ def _feature_set(facts):
         short_window=short_window,medium_window=medium_window,long_window=long_window,
         reset_pullback_bps=pullback,breakout_bps=breakout,
         base_low=base_low,base_high=prior_high,older_peak=older_peak,
+        older_peak_at=older_peak_at,reset_at=reset_at,
+        base_start_at=now-base_seconds,base_end_at=base_end_at,
         buy_quote_30m=buy,sell_quote_30m=sell,buy_sell_ratio_bps=ratio,
         buy_acceleration_bps=acceleration,
         previous_buyer_population_available=previous_population_available,
