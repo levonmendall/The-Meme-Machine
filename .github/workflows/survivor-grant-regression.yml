@@ -30,4 +30,13 @@ jobs:
           python -m operational.tests FAST --modules \
             tests.test_pump_pons_capital_preparation \
             tests.test_current_survivor_independence \
-            tests.test_shared_capital_recovery
+            tests.test_shared_capital_recovery \
+            tests.test_shared_capital_strategy \
+            tests.test_shared_portfolio_epoch \
+            tests.test_sleeve_reconciliation_snapshot \
+            tests.test_native_startup_lifecycle
+          python -m operational.tests OPERATIONAL --modules \
+            tests.test_directional_accounting \
+            tests.test_survivor_commit \
+            tests.test_sleeve_prefix_recovery \
+            tests.test_survivor_terminal_retirement
