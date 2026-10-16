@@ -186,15 +186,15 @@ class StructuralCycleTests(unittest.TestCase):
 
     def test_flat_sleeve_can_select_only_exact_known_prior_survivor_hashes(self):
         from meme_machine.paper_policy_revision import SUPERSEDED_ACTIVE_SURVIVOR_HASHES
-        from meme_machine.runtime.policy_compatibility import active_hash
+        from meme_machine.runtime.directional_sleeve import policies
         with tempfile.TemporaryDirectory() as directory:
             for family in ('pump','pons'):
                 with self.subTest(family=family):
                     path=Path(directory)/(family+'.sqlite')
-                    reg=family+'_survivor'
-                    original=dict(current=active_hash(family+'_current'),
-                                  survivor=SUPERSEDED_ACTIVE_SURVIVOR_HASHES[reg])
-                    requested=dict(current=original['current'],survivor=active_hash(reg))
+                    requested=policies(family)
+                    original={strategy:(SUPERSEDED_ACTIVE_SURVIVOR_HASHES[family+'_survivor']
+                        if 'survivor' in strategy else active)
+                        for strategy,active in requested.items()}
                     base=dict(lane=family,capital=1000,cohort='existing')
                     sleeve=SleeveReservations(path,policies=original,**base)
                     sleeve.close()
