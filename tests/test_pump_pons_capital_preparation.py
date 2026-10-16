@@ -397,4 +397,104 @@ class RuntimeIntegrationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'recovery_lost_position'):verify_recovery_identity(before,corrupt)
 
 
+    def _grant_test_sleeve(self,root,family):
+        from pathlib import Path
+        from unittest.mock import patch
+        import os
+        from meme_machine.runtime.directional_sleeve import open_sleeve
+        (root/family).mkdir(exist_ok=True)
+        setting=patch.dict(os.environ,{'MM_DIRECTIONAL_SLEEVE_DB':str(root/family/'directional-sleeve.sqlite')})
+        setting.start();self.addCleanup(setting.stop)
+        sleeve=open_sleeve(family,125000);self.addCleanup(sleeve.close)
+        return sleeve
+
+    def test_rejected_survivor_same_regime_never_leaves_global_grant(self):
+        from meme_machine.runtime.directional_sleeve import policies
+        from meme_machine.runtime.survivor_paper_book import PaperBook
+        from meme_machine.runtime.directional_continuation import native_sync
+        for family in ('pump','pons'):
+            with self.subTest(family=family):
+                root,a,now,_=self.fixture();sleeve=self._grant_test_sleeve(root,family)
+                strategy=next(s for s in policies(family) if 'survivor' in s)
+                candidate='survivor-repeat:'+family;prior_regime=dict(at=now,base_id='first-base')
+                observed=sleeve.observe(candidate,strategy=strategy,at=now,state='qualified',
+                    evidence={'qualified':True},regime=prior_regime)
+                identity=family+':first'
+                sleeve.reserve(identity,strategy=strategy,amount=6250,at=now,candidate=candidate,
+                    generation=observed['generation'],regime=prior_regime)
+                book=PaperBook(root/family/'survivor-native.sqlite',run_id=family,lane=strategy,
+                    policy_hash=policies(family)[strategy],initial=125000)
+                self.addCleanup(book.close)
+                book.reserve(identity,6250,now,dict(qualified=True))
+                book.transition(identity,'filled',now,amount=6250,tokens=100,evidence=dict(execution={'gas':0}))
+                book.transition(identity,'settled',now+1,amount=6250)
+                native_sync(book,sleeve,identity)
+                self.assertEqual(a.snapshot()['capital']['active_reservations'],'0')
+                second=family+':second'
+                with self.assertRaisesRegex(ValueError,'same_survivor_regime'):
+                    sleeve.reserve(second,strategy=strategy,amount=6250,at=now+2,candidate=candidate,
+                        generation=observed['generation'],regime=dict(prior_regime,at=now+2))
+                self.assertIsNone(sleeve.get(second))
+                self.assertEqual(a.snapshot()['capital']['active_reservations'],'0')
+                self.assertNotIn(family+':'+second,a.ledger()['runtime_native_requests'])
+                a.verify_replay()
+
+    def test_native_same_asset_fence_precedes_shared_grant(self):
+        from unittest.mock import patch
+        from meme_machine.runtime.directional_sleeve import policies
+        root,a,now,_=self.fixture();sleeve=self._grant_test_sleeve(root,'pump')
+        strategy=next(s for s in policies('pump') if 'survivor' in s)
+        sleeve.reserve('old',strategy=strategy,amount=6250,at=now,asset='identical-mint',
+            funding_evidence=dict(qualified=True))
+        before=a.snapshot()['capital']['active_reservations']
+        with patch.object(sleeve,'_grant',wraps=sleeve._grant) as grant:
+            with self.assertRaisesRegex(ValueError,'same_asset_exposure'):
+                sleeve.reserve('new',strategy=strategy,amount=6250,at=now,asset='identical-mint',
+                    funding_evidence=dict(qualified=True))
+            self.assertEqual(grant.call_count,0)
+        self.assertEqual(a.snapshot()['capital']['active_reservations'],before)
+        a.verify_replay()
+
+    def test_native_failure_after_global_grant_cancels_and_reconciles(self):
+        from unittest.mock import patch
+        from meme_machine.runtime.sleeve_reservations import SleeveReservations
+        from meme_machine.runtime.directional_sleeve import policies
+        root,a,now,_=self.fixture();sleeve=self._grant_test_sleeve(root,'pons')
+        strategy=next(s for s in policies('pons') if 'survivor' in s)
+        with patch.object(SleeveReservations,'reserve',side_effect=ValueError('injected_native_rejection')):
+            with self.assertRaisesRegex(ValueError,'injected_native_rejection'):
+                sleeve.reserve('reject-now',strategy=strategy,amount=6250,at=now,asset='rejected',
+                    funding_evidence=dict(qualified=True))
+        state=a.ledger();key='pons:reject-now';req_id=state['runtime_native_requests'][key]
+        self.assertIsNone(sleeve.get('reject-now'))
+        self.assertEqual(state['requests'][req_id]['status'],'CANCELLED')
+        self.assertEqual(a.snapshot()['capital']['active_reservations'],'0')
+        self.assertEqual(a.snapshot()['capital']['free_cash'],'500')
+        a.verify_replay()
+
+    def test_failed_cancellation_retains_funding_until_verified_recovery(self):
+        from unittest.mock import patch
+        from meme_machine.runtime.sleeve_reservations import SleeveReservations
+        from meme_machine.runtime.directional_sleeve import policies
+        root,a,now,_=self.fixture();sleeve=self._grant_test_sleeve(root,'pump')
+        strategy=next(s for s in policies('pump') if 'survivor' in s)
+        original=sleeve.authority.command
+        def fail_cancel(op,action,data,at):
+            if action=='runtime_cancel':raise OSError('injected_cancel_storage_failure')
+            return original(op,action,data,at)
+        with patch.object(sleeve.authority,'command',side_effect=fail_cancel):
+            with patch.object(SleeveReservations,'reserve',side_effect=ValueError('injected_native_rejection')):
+                with self.assertRaisesRegex(CapitalError,'reconciliation_required'):
+                    sleeve.reserve('needs-recovery',strategy=strategy,amount=6250,at=now,asset='orphan',
+                        funding_evidence=dict(qualified=True))
+        state=a.ledger();req_id=state['runtime_native_requests']['pump:needs-recovery']
+        self.assertEqual(state['requests'][req_id]['status'],'RESERVED')
+        self.assertEqual(a.snapshot()['capital']['active_reservations'],'6.25')
+        # Only startup with verified native absence can resolve an interrupted cancellation.
+        sleeve.recover_unmaterialized(set(),strategy=strategy,verified=True)
+        self.assertEqual(a.ledger()['requests'][req_id]['status'],'CANCELLED')
+        self.assertEqual(a.snapshot()['capital']['free_cash'],'500')
+        a.verify_replay()
+
+
 if __name__=='__main__':unittest.main()
