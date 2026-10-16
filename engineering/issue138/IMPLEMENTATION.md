@@ -98,8 +98,9 @@ are preserved.
 
 The exact production delta is pinned by
 `tests/fixtures/paper_postgrad_rally_source_delta.json` against main
-`893b8dd281f4282aed82573db8334c25605755c9`; prior source guards still validate the
-unchanged predecessor. `generate_source_manifest.py` is the deliberate freeze
+`950852cb87516cd1c94f6762ec178b17232c346f`; the independently pinned
+contained-observation correction and all earlier source guards still validate
+their exact predecessors. `generate_source_manifest.py` is the deliberate freeze
 tool, not an automatic runtime exception.
 
 ## Validation and runtime status
@@ -118,6 +119,13 @@ before merge and deployment. This workspace lacks `/proc/self/ns/time` and writa
 cgroup delegation, so real Linux clock/containment cases must pass on the existing
 privileged GitHub runner. Existing CI service-identity skips require the actual
 AWS service-user source/configuration guard; unavailable cases are not passes.
+
+The subsequent integration with main's PR 139 retains its source-drain, canonical
+cache and funding-closed observation safeguards. Its combined affected checkpoint
+selected 196 tests: 195 passed and the existing real provider clock case was
+unavailable in this workspace. All exact source guards passed. Administration
+source, recovery and deployment checks passed 92 tests. Complete release checks
+must run on this combined source; earlier branch results cannot substitute.
 
 AWS read-only preflight [38944655118](https://github.com/levonmendall/meme-machine-admin/actions/runs/38944655118)
 at 2026-10-16 18:06 UTC verified the original $1,000 inception, cash $1,000,

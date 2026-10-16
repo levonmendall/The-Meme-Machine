@@ -7,7 +7,7 @@
       "sha256": "c3d0e9eb0df4a6aafba925d8ed494481de6c067736eec4fd4b515f3d402f1a61"
     }
   },
-  "base": "893b8dd281f4282aed82573db8334c25605755c9",
+  "base": "950852cb87516cd1c94f6762ec178b17232c346f",
   "files": {
     "meme_machine/lanes/pons/pons_postgrad_survivor.py": {
       "after_sha256": "2b74663a26a90a1df29ce716545ed59d6f516840460238c49c8d9928db51cd0f",
@@ -292,8 +292,8 @@
       }
     },
     "meme_machine/operational/supervisor.py": {
-      "after_sha256": "dc14f86005626a19abfd47da5d98e7824db36fe9b519d547bdfc852e17c90bed",
-      "before_sha256": "20fda2428bca7758f2ee4987903c4b346d9b98833472d4d734702cdc8107d646",
+      "after_sha256": "ccf7aba447c254eadea5915cf495560559251966cbc6769be524b37668fcd629",
+      "before_sha256": "5c0cd297633ab4575880eb0fdf94d93bfad27ae9575fb569aaebd48e6b9dd98c",
       "layouts": {},
       "nodes": {
         "module/ClassDef:Supervisor/FunctionDef:initialize": {

@@ -329,6 +329,17 @@ class ReconstructionGateTests(unittest.TestCase):
             self.assertEqual(len(self.h.events('pump','mint')),3)
             self.h.close();self.h=CandidateHistory(self.path,clock=lambda:100.)
             writer.db.execute('UPDATE records SET body=NULL')
+            # The live fallback retains the original health gate as well as
+            # immutable cache coverage. Give this disposable archived-source
+            # fixture a genuinely covered current frontier, not an absent actor.
+            writer.db.execute('ALTER TABLE stream_receipts ADD COLUMN parent INTEGER')
+            writer.db.execute('ALTER TABLE stream_receipts ADD COLUMN seen REAL')
+            writer.db.execute('UPDATE stream_receipts SET parent=slot-1')
+            writer.db.execute('UPDATE stream_receipts SET seen=100')
+            writer.db.execute('CREATE TABLE IF NOT EXISTS service_health(key TEXT PRIMARY KEY,value TEXT NOT NULL)')
+            writer.db.executemany('INSERT OR REPLACE INTO service_health VALUES(?,?)',[
+                ('phase',json.dumps('ACTIVE')),('heartbeat',json.dumps(100)),
+                ('finalized_frontier:'+PUMP_SCOPE,json.dumps(dict(slot=3,time=100,seen=100)))])
             def unavailable(*args,**kwargs):raise LaneUnavailable('evidence_requires_offline_archive_restore')
             plane.pump_events=unavailable
             restored_creation=tape.creation('mint')
@@ -339,7 +350,7 @@ class ReconstructionGateTests(unittest.TestCase):
             curve=SimpleNamespace(real_token=200,sol=150,token=100)
             self.assertEqual(late_curve_trajectory(restored_creation,restored,curve,100),
                              late_curve_trajectory(creation,trades,curve,100))
-            with self.assertRaisesRegex(LaneUnavailable,'continuity_missing'):
+            with self.assertRaisesRegex(LaneUnavailable,'unresolved_evidence_gap'):
                 tape.window('mint',105,max_slot=4)
 
     def test_history_commit_failure_cannot_acknowledge_source_consumption(self):
