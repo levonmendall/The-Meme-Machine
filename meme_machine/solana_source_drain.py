@@ -14,11 +14,17 @@ CONTROL_RECOVERY_KEY='source_control_recovery'
 HANDLER_RECOVERY_KEY='source_handler_recovery'
 SOURCE_DRAIN_KEY='source_drain'
 SOURCE_DRAIN_BYTES=128*1024
+OBSERVATION_DRAIN_KEY='source_drain_observation'
+HISTORICAL_OBSERVATION_SHA256='5431d349aa8539ba935861cccb93c1f4c164bce9b0173bf4c77be7b562ffa8c9'
 
 
 def _retained_health(state,key,maximum):
+    return _health_from_db(state.writer.db,key,maximum)
+
+
+def _health_from_db(db,key,maximum):
     from .solana_evidence_plane import EvidenceUnavailable
-    row=state.writer.db.execute('SELECT length(CAST(value AS BLOB)),CASE WHEN '
+    row=db.execute('SELECT length(CAST(value AS BLOB)),CASE WHEN '
         'length(CAST(value AS BLOB))<=? THEN value END FROM service_health WHERE key=?',
         (maximum,key)).fetchone()
     if row is None:return None
@@ -63,7 +69,119 @@ def _retained_handlers(raw):
     return body['records']
 
 
-def retained_source_drain(state):
+def _committed_census(body):
+    queues=body.get('queues')
+    return (body.get('terminal') is True and body.get('all_accepted_committed') is True
+        and type(body.get('unpreserved_sessions')) is int and body['unpreserved_sessions']==0
+        and isinstance(queues,dict) and set(queues)=={'control','scout','rolling','candidate'}
+        and all(isinstance(row,dict) and all(type(row.get(key)) is int and row[key]>=0
+            for key in ('accepted','committed','pending'))
+            and row['accepted']==row['committed'] and row['pending']==0 for row in queues.values()))
+
+
+def _historical_observation_record(db,*,check_control=True):
+    from .solana_evidence_plane import EvidenceUnavailable
+    raw=_health_from_db(db,SOURCE_DRAIN_KEY,SOURCE_DRAIN_BYTES)
+    if raw is None or hashlib.sha256(raw.encode()).hexdigest()!=HISTORICAL_OBSERVATION_SHA256:
+        raise EvidenceUnavailable('source_observation_historical_boundary_unverified')
+    body=_retained_census(raw)
+    if (body['state']!='RECOVERY_REQUIRED' or not _committed_census(body)
+            or (body['accepted_handlers'],body['settled_handlers'],body['pending_handlers'])!=(564488,564486,2)):
+        raise EvidenceUnavailable('source_observation_historical_census_unverified')
+    if check_control:
+        marker=_health_from_db(db,CONTROL_RECOVERY_KEY,SOURCE_DRAIN_BYTES)
+        if control_recovery(marker) is not None:
+            raise EvidenceUnavailable('source_observation_control_recovery_required')
+    return raw
+
+
+def _observation_reference(body):
+    return (body.get('historical_source_drain_sha256')==HISTORICAL_OBSERVATION_SHA256
+        and type(body.get('historical_unknown_handlers')) is int and body['historical_unknown_handlers']==2
+        and body.get('historical_recovery_verified') is False)
+
+
+def _current_observation_identity(body):
+    run=body.get('run_identity');accounting=body.get('handler_accounting')
+    return (isinstance(run,str) and len(run)==32 and all(c in '0123456789abcdef' for c in run)
+        and type(body.get('source_pid')) is int and body['source_pid']>0
+        and isinstance(accounting,dict) and accounting.get('version')==1 and accounting.get('valid') is True
+        and accounting.get('run')==run and accounting.get('pid')==body['source_pid']
+        and accounting.get('accepted')==body['accepted_handlers']
+        and accounting.get('returned')==body['settled_handlers'] and accounting.get('records')==[])
+
+
+def historical_observation_boundary(state_or_db):
+    """Observe one retained incident; never discharge its unknown callbacks.
+
+    The ordinary source guard still refuses this incident. A previous current
+    observation must itself have fully drained; RUNNING also contains crashes
+    that never reached their original terminal transaction.
+    """
+    from .solana_evidence_plane import EvidenceUnavailable
+    db=state_or_db.writer.db if hasattr(state_or_db,'writer') else state_or_db
+    _historical_observation_record(db)
+    handlers=_health_from_db(db,HANDLER_RECOVERY_KEY,HandlerLedger.maximum_bytes)
+    if handlers is not None and _retained_handlers(handlers):
+        raise EvidenceUnavailable('source_observation_current_handlers_unresolved')
+    current=_health_from_db(db,OBSERVATION_DRAIN_KEY,SOURCE_DRAIN_BYTES)
+    if current is not None:
+        body=_retained_census(current)
+        if (not _observation_reference(body) or body['state']!='DRAINED'
+                or body['pending_handlers'] or not _committed_census(body)
+                or not _current_observation_identity(body)):
+            raise EvidenceUnavailable('source_observation_current_drain_unresolved')
+    return dict(eligible=True,historical_source_drain_sha256=HISTORICAL_OBSERVATION_SHA256,
+        historical_unknown_handlers=2,historical_recovery_verified=False,
+        source_drain_preserved_in_place=True,current_observation_state='ABSENT' if current is None else 'DRAINED',
+        current_observation_sha256=None if current is None else hashlib.sha256(current.encode()).hexdigest())
+
+
+def _require_observation_funding_closed():
+    """Read the existing selected PAPER admission and Budget; never create one."""
+    from contextlib import closing
+    from pathlib import Path
+    import sqlite3
+    from .solana_evidence_plane import EvidenceUnavailable
+    try:
+        if os.environ.get('MM_MODE')!='PAPER' or os.environ.get('MM_OPERATIONAL_PHASE')!='OBSERVATION':
+            raise ValueError()
+        from .operational.admission import require_normal
+        profile=require_normal(startup=True)
+        root=Path(os.environ['MM_STATE_ROOT']);path=Path(os.environ['MM_PROVIDER_USAGE_DB'])
+        if root.resolve()!=root or path.resolve()!=path or path.is_symlink() or not path.is_file():
+            raise ValueError()
+        from .operational.bounded_provider import Budget,resource_configuration
+        # A Budget constructor can preserve a configuration failure by writing
+        # it. This guard uses its original verifier on an existing read-only
+        # snapshot instead, without schema setup, orphan reaping or admission.
+        budget=object.__new__(Budget);budget.prefix='';budget.continuous=True
+        budget.envelope=profile
+        budget.configuration=resource_configuration(profile['limits'],None,None,None,continuous=True)
+        with closing(sqlite3.connect(path.as_uri()+'?mode=ro',uri=True,timeout=0)) as db:
+            db.execute('PRAGMA query_only=ON');db.execute('BEGIN')
+            usage=budget.read(db)
+            if (budget.verify_configuration(usage) or usage.get('new_risk_ready')!='false'
+                    or usage.get('reason')!=''):
+                raise ValueError()
+        from .shared_capital.runtime import selected
+        from .shared_capital.reporting import read_authority
+        from .runtime.policy_compatibility import require_flat_portfolio
+        shared=selected(root/'portfolio.sqlite')
+        if shared is None or shared!=root/'shared-capital.sqlite':raise ValueError()
+        with closing(sqlite3.connect(shared.as_uri()+'?mode=ro',uri=True,timeout=0)) as db:
+            db.execute('PRAGMA query_only=ON');db.execute('BEGIN')
+            ledger=read_authority(db).ledger()
+            require_flat_portfolio(ledger)
+            scope=ledger.get('runtime_admission',{})
+            if (ledger.get('epoch_id')!=os.environ.get('MM_PAPER_EPOCH') or scope.get('mode')!='OBSERVATION'
+                    or scope.get('provider_db')!=str(path) or scope.get('continuous_provider_db')!=str(path)):
+                raise ValueError()
+    except Exception:
+        raise EvidenceUnavailable('source_observation_funding_closed_unverified') from None
+
+
+def retained_source_drain(state,*,contained_observation=False):
     """Read the old census before startup can overwrite its missing locators.
 
     A same-count ledger from another run supplies no disposition. Known durable
@@ -73,6 +191,10 @@ def retained_source_drain(state):
     raw=_retained_health(state,SOURCE_DRAIN_KEY,SOURCE_DRAIN_BYTES)
     handlers=_retained_health(state,HANDLER_RECOVERY_KEY,HandlerLedger.maximum_bytes)
     records=[] if handlers is None else _retained_handlers(handlers)
+    if contained_observation:
+        _require_observation_funding_closed()
+        historical_observation_boundary(state)
+        return raw
     if raw is None:return None
     body=_retained_census(raw)
     if not body['pending_handlers']:return raw
@@ -113,9 +235,42 @@ def _preserve_drain_bytes(state,key,raw,maximum):
     if prior is None:state.writer.db.execute('INSERT INTO service_health VALUES(?,?)',(archive,raw))
 
 
-def publish_source_drain(state,boundary,body,*,handler_boundary=None):
-    """Archive a prior failed terminal and publish this run in one owner commit."""
+def begin_source_observation(state,boundary,body,*,handler_boundary=None):
+    """Retain a current RUNNING census before any provider admission."""
+    from .solana_evidence_plane import EvidenceUnavailable
     with state.writer.transaction():
+        historical_observation_boundary(state)
+        assert_source_drain_boundary(state,boundary,handler_boundary=handler_boundary)
+        current=_retained_census(json.dumps(body))
+        if (current['state']!='RUNNING' or current.get('terminal') is not False
+                or current['pending_handlers'] or not _current_observation_identity(current)
+                or not _observation_reference(current)):
+            raise EvidenceUnavailable('source_observation_start_census_unverified')
+        state.fence._health(OBSERVATION_DRAIN_KEY,current)
+        return _retained_health(state,OBSERVATION_DRAIN_KEY,SOURCE_DRAIN_BYTES)
+
+
+def publish_source_drain(state,boundary,body,*,handler_boundary=None,
+        contained_observation=False,observation_boundary=None):
+    """Publish this run atomically without hiding its retained historical drain."""
+    with state.writer.transaction():
+        if contained_observation:
+            from .solana_evidence_plane import EvidenceUnavailable
+            # Current teardown may legitimately preserve its own new replay
+            # obligation. Record it honestly; only a subsequent start demands
+            # that the original canonical recovery mechanism has completed it.
+            _historical_observation_record(state.writer.db,check_control=False)
+            assert_source_drain_boundary(state,boundary,handler_boundary=handler_boundary)
+            current=_retained_health(state,OBSERVATION_DRAIN_KEY,SOURCE_DRAIN_BYTES)
+            if observation_boundary is None or current!=observation_boundary:
+                raise EvidenceUnavailable('source_observation_current_boundary_changed')
+            started=_retained_census(current)
+            if (started['state']!='RUNNING' or not _observation_reference(body)
+                    or any(started.get(key)!=body.get(key) for key in ('source_pid','run_identity'))):
+                raise EvidenceUnavailable('source_observation_current_identity_changed')
+            _retained_census(json.dumps(body))
+            state.fence._health(OBSERVATION_DRAIN_KEY,body)
+            return
         retained_source_drain(state)
         assert_source_drain_boundary(state,boundary,handler_boundary=handler_boundary)
         if boundary is not None:

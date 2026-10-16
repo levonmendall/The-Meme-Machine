@@ -32,6 +32,7 @@ from .solana_source_drain import AcceptedQueue,StopEither,next_owned,join_owned,
 from .solana_source_drain import CONTROL_RECOVERY_KEY,control_recovery,preserve_control_recovery,complete_control_recovery
 from .solana_source_drain import HandlerLedger,HANDLER_RECOVERY_KEY,preserve_handlers,finish_owned
 from .solana_source_drain import retained_source_drain,assert_source_drain_boundary,publish_source_drain
+from .solana_source_drain import begin_source_observation
 from .yellowstone import geyser_pb2 as pb
 from .runtime.operating_families import enabled,active_sql,active_scope_sql,operational
 
@@ -551,6 +552,7 @@ class SelectiveSource:
             unpreserved_sessions=0,queues={name:dict(accepted=0,committed=0)
                 for name in ('control','scout','rolling','candidate')})
         self.handlers=HandlerLedger(self.source_drain['run_identity'])
+        self.contained_observation=False;self.observation_drain_boundary=None
         self.session_teardowns={};self.session_deadlines={};self.optional_stops=set()
 
     def shutdown_deadline(self,coordinator=None):
@@ -1200,7 +1202,17 @@ class SelectiveSource:
         def boot(state):
             # Refuse unidentified old callbacks before history/startup writes or
             # any provider dispatch. A new run's empty ledger cannot erase them.
-            self.retained_source_drain=retained_source_drain(state)
+            try:self.retained_source_drain=retained_source_drain(state)
+            except EvidenceUnavailable as exc:
+                if (str(exc)!='source_drain_historical_handlers_unlocated'
+                        or os.environ.get('MM_MODE')!='PAPER'
+                        or os.environ.get('MM_OPERATIONAL_PHASE')!='OBSERVATION'):
+                    raise
+                self.retained_source_drain=retained_source_drain(state,contained_observation=True)
+                self.contained_observation=True
+                self.source_drain.update(historical_unknown_handlers=2,
+                    historical_source_drain_sha256=hashlib.sha256(self.retained_source_drain.encode()).hexdigest(),
+                    historical_recovery_verified=False)
             from .operational.position_continuation import position_only
             retained=state.writer.db.execute('SELECT value FROM service_health WHERE key=?',(HANDLER_RECOVERY_KEY,)).fetchone()
             self.retained_handler_recovery=None if retained is None else retained[0]
@@ -1212,6 +1224,9 @@ class SelectiveSource:
                 self.source_drain['inherited_handler_recovery']=dict(records=len(value['records']),
                     sha256=hashlib.sha256(retained[0].encode()).hexdigest(),
                     status='RETAINED_NOT_REACQUIRED_BY_STARTUP',key=HANDLER_RECOVERY_KEY)
+            if self.contained_observation:
+                self.observation_drain_boundary=begin_source_observation(state,self.retained_source_drain,
+                    self.drain_snapshot(),handler_boundary=self.retained_handler_recovery)
             h=install(state)
             from .solana_history_notifications import install as notifications
             notifications(h,loop,self.history_changed)
@@ -1332,7 +1347,9 @@ class SelectiveSource:
                                 body['pending_history']=h.db.execute('SELECT COUNT(*) FROM candidate_history_outbox WHERE consumed IS NULL').fetchone()[0]
                                 body['pending_proofs']=h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone()[0]
                                 publish_source_drain(state,self.retained_source_drain,body,
-                                    handler_boundary=self.retained_handler_recovery)
+                                    handler_boundary=self.retained_handler_recovery,
+                                    contained_observation=self.contained_observation,
+                                    observation_boundary=self.observation_drain_boundary)
                         try:await self.work(terminal,0,label='source_commit')
                         except BaseException:
                             self.source_drain.update(state='RECOVERY_REQUIRED',terminal_record_unavailable=True)

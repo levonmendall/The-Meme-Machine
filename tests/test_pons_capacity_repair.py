@@ -577,22 +577,68 @@ class PendingExitSharingTests(unittest.TestCase):
 
     def test_real_clock_twenty_pending_exits_complete_at_default_rate_and_reconcile(self):
         import time
+        from meme_machine.lanes.pons import pons_survivor_runtime as native_runtime
         original=capacity.ActiveRPC
+        original_exit_quote=native_runtime.Runtime.exit_quote
         class RealRPC(original):
             def __init__(self,**kwargs):
                 self.origin=time.perf_counter();super().__init__(**kwargs);self.real_latency=True
+                self.pending_quote_trace=[];self.pending_full_quantities={}
             @property
             def clock(self):return 100+time.perf_counter()-self.origin
             @clock.setter
             def clock(self,value):pass
             def sleep(self,seconds):time.sleep(seconds)
+        def traced_exit_quote(runtime,qty):
+            rpc=runtime.rpc
+            # The prior failed intent is zero-RTT fixture setup. Buffer only
+            # measured owner work; printing here would alter its freshness.
+            if not isinstance(rpc,RealRPC) or rpc.governor is None:
+                return original_exit_quote(runtime,qty)
+            owner=runtime.current.get('id');entered=rpc.clock
+            full=rpc.pending_full_quantities.setdefault(owner,qty)
+            prepared=getattr(runtime,'shared_held_quotes',{}).get(owner)
+            execution=getattr(runtime,'shared_held_executions',{}).get(owner)
+            proof=None if execution is None else execution.get('canonical_read')
+            row=dict(owner=owner,quantity_kind='full' if qty==full else 'partial',
+                entered=entered,physical_before=len(rpc.starts),
+                prepared_age=None if prepared is None else entered-prepared['acquired'],
+                shared_execution_age=None if execution is None else entered-execution['acquired'],
+                shared_execution_sequence=None if proof is None else proof.get('sequence'),
+                provider_sequence=rpc.used,
+                shared_execution_is_latest=proof is not None and proof is getattr(rpc,'last_canonical_read',None),
+                held_boundary=getattr(runtime,'shared_held_boundary',None),
+                execution_boundary=getattr(runtime,'shared_exit_boundary',None))
+            try:
+                result=original_exit_quote(runtime,qty)
+                row.update(available=result is not None,
+                    returned_age=None if result is None else rpc.clock-result['acquired'])
+                return result
+            except BaseException as error:
+                row['error_type']=type(error).__name__;raise
+            finally:
+                row.update(completed=rpc.clock,physical_after=len(rpc.starts),
+                    fallback_starts=rpc.starts[row['physical_before']:])
+                rpc.pending_quote_trace.append(row)
         for factor,starts in ((.6,3),(2.2,5)):
             with self.subTest(factor=factor):
+                transports=[];t=None
                 def rpc_factory(**kw):
                     rpc=RealRPC(**kw,count=20,price_factor=factor,latency=.1,rps=2)
-                    self.addCleanup(rpc.close);return rpc
-                p,r,rpc,result,t=self.replay_pending(20,factor=factor,latency=.1,paced=True,rps=2,
-                    real_seed=True,rpc_factory=rpc_factory)
+                    transports.append(rpc);self.addCleanup(rpc.close);return rpc
+                try:
+                    with patch.object(native_runtime.Runtime,'exit_quote',traced_exit_quote):
+                        p,r,rpc,result,t=self.replay_pending(20,factor=factor,latency=.1,paced=True,rps=2,
+                            real_seed=True,rpc_factory=rpc_factory)
+                finally:
+                    # Keep the discriminator even when an unchanged assertion
+                    # fails, after the original timed native workload finishes.
+                    print('REAL_CLOCK_PENDING_EXIT_DIAGNOSTIC',json.dumps(dict(factor=factor,
+                        trace=t,owners=[row for transport in transports for row in transport.pending_quote_trace],
+                        transports=[dict(starts=transport.starts,responses=transport.responses,
+                            methods=dict(transport.methods),native_completed_at=getattr(transport,'native_completed_at',None),
+                            local_wall_seconds=getattr(transport,'local_wall_seconds',None),
+                            local_cpu_seconds=getattr(transport,'local_cpu_seconds',None)) for transport in transports])),flush=True)
                 self.assertEqual(t['physical_starts'],starts)
                 # Real elapsed clock already contains local work; do not add
                 # it twice or reset the original acquisition/required clock.
