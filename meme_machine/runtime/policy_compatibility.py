@@ -10,7 +10,7 @@ from pathlib import Path
 import sqlite3
 
 from meme_machine.runtime.journal import canonical, digest
-from meme_machine.paper_policy_revision import ACTIVE_REVISION, previous_hash
+from meme_machine.paper_policy_revision import ACTIVE_REVISION, previous_hash, SUPERSEDED_ACTIVE_SURVIVOR_HASHES
 
 SELECTION_KEY = 'paper_decision_policy_selection'
 SELECTION_NAMESPACE = '__paper_decision_policy__'
@@ -39,15 +39,20 @@ def active_hash(regime):
 
 
 def known_hash(regime,value):
-    """Historical joins may use either exact source policy, never an arbitrary hash."""
-    return value in (previous_hash(regime),active_hash(regime))
+    """Only pinned previous or current source identities are replay compatible."""
+    return value in (previous_hash(regime),active_hash(regime),
+                     SUPERSEDED_ACTIVE_SURVIVOR_HASHES.get(regime))
 
 
 def compatible_identity(stored,requested,*,regime,field='policy_hash'):
     old=dict(stored);new=dict(requested)
     old_hash=old.pop(field,None);new_hash=new.pop(field,None)
-    return (old==new and old_hash==previous_hash(regime)
-        and new_hash==active_hash(regime) and old_hash!=new_hash)
+    # An existing sleeve holds both Current and Survivor hashes. Unchanged
+    # Current policies must compare identically while the Survivor alone moves
+    # to the versioned structural rule at a fully settled, flat boundary.
+    return (old==new and new_hash==active_hash(regime) and
+        (old_hash==new_hash or old_hash in (
+            previous_hash(regime),SUPERSEDED_ACTIVE_SURVIVOR_HASHES.get(regime))))
 
 
 def selection(financial_identity,decision_identity):
