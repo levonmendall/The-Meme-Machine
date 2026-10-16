@@ -1,4 +1,4 @@
-"""One explicit PAPER decision transition, independent of financial identities.
+"""Versioned PAPER decision transitions, independent of financial identities.
 
 This is recovery compatibility on the existing owners' checkpoints. It never
 changes a genesis, balance, journal event, portfolio epoch, or holding policy.
@@ -10,9 +10,14 @@ from pathlib import Path
 import sqlite3
 
 from meme_machine.runtime.journal import canonical, digest
-from meme_machine.paper_policy_revision import ACTIVE_REVISION, previous_hash
+from meme_machine.paper_policy_revision import (ACTIVE_REVISION, historical_hashes,
+    current_hashes,revision_for_hash)
 
-SELECTION_KEY = 'paper_decision_policy_selection'
+LEGACY_SELECTION_KEY = 'paper_decision_policy_selection'
+# Each revision proves its own flat, reconciled native/portfolio boundary. Keep
+# the original selection bytes as evidence; an old selection cannot authorize
+# a newer decision policy on an open historical holding.
+SELECTION_KEY = LEGACY_SELECTION_KEY+':'+ACTIVE_REVISION
 SELECTION_NAMESPACE = '__paper_decision_policy__'
 
 
@@ -39,14 +44,14 @@ def active_hash(regime):
 
 
 def known_hash(regime,value):
-    """Historical joins may use either exact source policy, never an arbitrary hash."""
-    return value in (previous_hash(regime),active_hash(regime))
+    """Historical joins require an exact reviewed policy, never an arbitrary hash."""
+    return value==active_hash(regime) or value in historical_hashes(regime)
 
 
 def compatible_identity(stored,requested,*,regime,field='policy_hash'):
     old=dict(stored);new=dict(requested)
     old_hash=old.pop(field,None);new_hash=new.pop(field,None)
-    return (old==new and old_hash==previous_hash(regime)
+    return (old==new and old_hash in historical_hashes(regime)
         and new_hash==active_hash(regime) and old_hash!=new_hash)
 
 
@@ -55,6 +60,29 @@ def selection(financial_identity,decision_identity):
         financial_identity=financial_identity,decision_identity=decision_identity,
         financial_identity_hash=digest(financial_identity),
         decision_identity_hash=digest(decision_identity))
+
+
+def validate_prior_selection(value,financial_identity):
+    """Validate retained selection evidence without updating or relabeling it."""
+    if (not isinstance(financial_identity,dict) or not isinstance(value,dict)
+            or value.get('schema')!='paper-decision-policy-selection-v1'
+            or value.get('financial_identity')!=financial_identity
+            or value.get('financial_identity_hash')!=digest(financial_identity)
+            or not isinstance(value.get('decision_identity'),dict)
+            or value.get('decision_identity_hash')!=digest(value['decision_identity'])):
+        raise ValueError('paper_policy_selection_checkpoint_conflict')
+    old=dict(financial_identity);new=dict(value['decision_identity'])
+    if 'policies' in old:
+        before=old.pop('policies');after=new.pop('policies',{})
+        valid=(isinstance(before,dict) and isinstance(after,dict) and set(before)==set(after)
+            and all(known_hash(regime_for(strategy),before[strategy])
+                and known_hash(regime_for(strategy),after[strategy])
+                and revision_for_hash(after[strategy])==value.get('revision') for strategy in before))
+    else:
+        before=old.pop('policy_hash',None);after=new.pop('policy_hash',None)
+        valid=(revision_for_hash(after)==value.get('revision') and value.get('revision') is not None
+            and any(known_hash(regime,before) and known_hash(regime,after) for regime in current_hashes()))
+    if old!=new or not valid:raise ValueError('paper_policy_selection_checkpoint_conflict')
 
 
 def require_flat_rows(rows,*,kind):
@@ -183,6 +211,11 @@ def require_external_flat():
 
 
 def runtime_selection(db,expected):
+    for raw,checksum in db.execute('SELECT body,hash FROM runtime_state WHERE identity=? AND (key=? OR key LIKE ?)',
+            (SELECTION_NAMESPACE,LEGACY_SELECTION_KEY,LEGACY_SELECTION_KEY+':%')):
+        retained=json.loads(raw)
+        if digest(retained)!=checksum:raise ValueError('paper_policy_selection_checkpoint_conflict')
+        validate_prior_selection(retained,expected['financial_identity'])
     row=db.execute('SELECT body,hash FROM runtime_state WHERE identity=? AND key=?',
         (SELECTION_NAMESPACE,SELECTION_KEY)).fetchone()
     if row is None:return False

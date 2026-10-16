@@ -1,0 +1,801 @@
+{
+  "added_sources": {
+    "meme_machine/policy_history/opportunity_access_v1.json": {
+      "sha256": "f2724991c79ba7ae3a22b8e67e3ac22287e71f034b8c9ff74874629475f4b2c3"
+    },
+    "meme_machine/runtime/rally_cycle.py": {
+      "sha256": "1744f8d84b1c9924d7e31ea62d1fe94dbe09254f1dbef95cafc27eeee1a6f0f3"
+    }
+  },
+  "base": "893b8dd281f4282aed82573db8334c25605755c9",
+  "files": {
+    "meme_machine/lanes/pons/pons_postgrad_survivor.py": {
+      "after_sha256": "0c3b459a8889b94c53b6a57fef109f33f89c71ed9563d35122a48beb9f8fbaa4",
+      "before_sha256": "b24fc5baacb143af208a5f6112a7ded5375ca0b98f955fff3221e65d19b30bb4",
+      "layouts": {},
+      "nodes": {
+        "module/Assign:Name(id='POLICY', ctx=Store())": {
+          "after": "4aeda7bd08a4a60ace9dc1601452db5722be17ea9fb5b717780dc1eb657b9643",
+          "before": "505e35ef8deedcdec6b683fce9bc6647b1db89c7bf998a11bebdac74985a2287"
+        },
+        "module/FunctionDef:_feature_set": {
+          "after": "6440b8400a2039747a7317cd6b25fb77625adba42026ed352bb7c4d4db0083d6",
+          "before": "661491faae7176964657e175c4fc730ebdc63ecf4e674654f4ed4034cd28bac1"
+        },
+        "module/docstring": {
+          "after": "b155b116ec9b3a245714dac8b3998395510f1dca7934cd04caa675ba32d13fd1",
+          "before": "332ae1b987aff82e549599d12f2e70c9b72e7178f8b7c2b2b5652b76646d4a3c"
+        }
+      }
+    },
+    "meme_machine/lanes/pons/pons_survivor_runtime.py": {
+      "after_sha256": "574be073fd4e90bd3ed739610c8e43c179554e59d8b679fd1ad4ff0de9b7895b",
+      "before_sha256": "dd126e490b53bba0b414355d12ab617c56b9adc09438457ff630e0ee281202b8",
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/ImportFrom:0:meme_machine.runtime.provider_purchases",
+            "module/ImportFrom:0:collections",
+            "module/ImportFrom:0:contextlib",
+            "module/ImportFrom:0:dataclasses",
+            "module/Import:os",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:time",
+            "module/ImportFrom:0:meme_machine.runtime.directional_sleeve",
+            "module/ImportFrom:0:meme_machine.runtime.execution_capacity",
+            "module/ImportFrom:0:meme_machine.runtime.journal",
+            "module/ImportFrom:0:meme_machine.runtime.survivor_commit",
+            "module/ImportFrom:1:pons_history",
+            "module/ImportFrom:1:pons_attempts",
+            "module/ImportFrom:0:meme_machine.runtime.survivor_paper_book",
+            "module/ImportFrom:0:meme_machine.runtime.robinhood.plane",
+            "module/ImportFrom:0:meme_machine.runtime.robinhood.pons",
+            "module/ImportFrom:0:meme_machine.runtime.robinhood.provider_usage",
+            "module/ImportFrom:1:None",
+            "module/ImportFrom:1:abi",
+            "module/ImportFrom:1:identity",
+            "module/ImportFrom:1:keccak",
+            "module/ImportFrom:1:protocols",
+            "module/ImportFrom:1:provider_topology",
+            "module/ImportFrom:1:provider_admission",
+            "module/ImportFrom:1:pons_natural_observation",
+            "module/ImportFrom:1:pons_natural_paper",
+            "module/ImportFrom:1:pons_selective_v4",
+            "module/ImportFrom:1:pons_postgrad_survivor",
+            "module/FunctionDef:price_index",
+            "module/FunctionDef:_quote_times",
+            "module/ClassDef:Quotes",
+            "module/ClassDef:Runtime"
+          ],
+          "before": [
+            "module/docstring",
+            "module/ImportFrom:0:meme_machine.runtime.provider_purchases",
+            "module/ImportFrom:0:collections",
+            "module/ImportFrom:0:contextlib",
+            "module/ImportFrom:0:dataclasses",
+            "module/Import:os",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:time",
+            "module/ImportFrom:0:meme_machine.runtime.directional_sleeve",
+            "module/ImportFrom:0:meme_machine.runtime.execution_capacity",
+            "module/ImportFrom:0:meme_machine.runtime.journal",
+            "module/ImportFrom:0:meme_machine.runtime.survivor_commit",
+            "module/ImportFrom:1:pons_history",
+            "module/ImportFrom:1:pons_attempts",
+            "module/ImportFrom:0:meme_machine.runtime.survivor_paper_book",
+            "module/ImportFrom:0:meme_machine.runtime.robinhood.plane",
+            "module/ImportFrom:0:meme_machine.runtime.robinhood.pons",
+            "module/ImportFrom:0:meme_machine.runtime.robinhood.provider_usage",
+            "module/ImportFrom:1:None",
+            "module/ImportFrom:1:abi",
+            "module/ImportFrom:1:identity",
+            "module/ImportFrom:1:keccak",
+            "module/ImportFrom:1:protocols",
+            "module/ImportFrom:1:provider_topology",
+            "module/ImportFrom:1:provider_admission",
+            "module/ImportFrom:1:pons_natural_observation",
+            "module/ImportFrom:1:pons_natural_paper",
+            "module/ImportFrom:1:pons_selective_v4",
+            "module/ImportFrom:1:pons_postgrad_survivor",
+            "module/FunctionDef:price_index",
+            "module/ClassDef:Quotes",
+            "module/ClassDef:Runtime"
+          ]
+        }
+      },
+      "nodes": {
+        "module/ClassDef:Quotes/FunctionDef:_acquire": {
+          "after": "244db54f628decdff133304903dcafa4ce5f1f395648840d87a1e4465401e276",
+          "before": "77fd9741ba4427b87df8918a7e556c8b655cf36d018ea56a187c5548cfd39fc6"
+        },
+        "module/ClassDef:Runtime/FunctionDef:_held_observation": {
+          "after": "fed9f3f83c595e0edaa6299923b6c840cf7e55050e8b1da92ad6cbbac89e2651",
+          "before": "e0d73d2baa57ff8bff5ece436932df6348bb941ef168bd5acd03533d263bca3e"
+        },
+        "module/ClassDef:Runtime/FunctionDef:exit_quote": {
+          "after": "7b3be23a23506b7a3bc8aea26cf719b1ca918d8e941adfacf591969203f6ac37",
+          "before": "638a483d092578a43a5bfdac1fe0d70526a52cba0a0c37cc827a3c94eacfdff9"
+        },
+        "module/ClassDef:Runtime/FunctionDef:fresh_state": {
+          "after": "f93142c43565f7d2abd73a1d6e1d98f16899700066bc152257e4cfe7f851b070",
+          "before": "1347f4defb281be7019eb12af342efbf1f41791d57c6dc911bcc25d37f1f97a6"
+        },
+        "module/ClassDef:Runtime/FunctionDef:qualify": {
+          "after": "9ed902d017a51ce22710b673354f8ffbf51409e989f2040bca2af1369d84e0ed",
+          "before": "c31c8368b10706b6baae18f97f84761aa908e0eadc43deb67a871632ba22df0e"
+        },
+        "module/ClassDef:Runtime/FunctionDef:reconstruct": {
+          "after": "a3ab61934b3f9aa1ccca9e4480510318bc922ed64533d498b45bb71fe7552f5b",
+          "before": "d390240fd43c69ff367a313f21c936165f76f26d9e4b0bb120a8b4c1f8af9f35"
+        },
+        "module/ClassDef:Runtime/FunctionDef:step": {
+          "after": "d1242f79b03bc236e68edad390055bd22b83d765804c8a1f37e665b0e466639a",
+          "before": "2286434f1beef0d821201f83294f194cae6adf3a960bb66ce1c886bb87cc3006"
+        },
+        "module/FunctionDef:_quote_times": {
+          "after": "6fb6d3da14cac76de6d2f8f67139613bc9210dce196371b67e6e03ab9d4d288f",
+          "before": null
+        }
+      }
+    },
+    "meme_machine/lanes/pump/pump_acceleration_strategy.py": {
+      "after_sha256": "0540c8a03f09e2bd9ed19b1b9c94a0d7485a030b82ad078ccb586c24a341d7ed",
+      "before_sha256": "b0c7b0b1d753c9acbe993c437f6ff2d26310ea986dfd684ca662653ee83e3f9a",
+      "layouts": {},
+      "nodes": {
+        "module/FunctionDef:qualify": {
+          "after": "92e21d05bf3825d99ed8de5209661410097a44aeee5a745e2aa72e3528f2c2ca",
+          "before": "00b434baf04099ddfecca120067b4cd24797cf6622d4b22bdd11cd3f74e6ff49"
+        },
+        "module/ImportFrom:0:meme_machine.paper_policy_revision": {
+          "after": "fd4698459e003f9d5dd74286688d80c509880989ec24e954ed36070c45bb8dec",
+          "before": "4b60410b88689cf8a0b835cd0fb46d3e239cd6e77bf76faaea9b0b50a5f74262"
+        }
+      }
+    },
+    "meme_machine/lanes/pump/pumpswap_survivor.py": {
+      "after_sha256": "5d8d6e1cc56e2b4605dc02b46cd19301130036290d8338683969a7fd86fbedf0",
+      "before_sha256": "7c92f9ab7b83a3ddbb3e7c94a28bc57f4a29c922b7beed59452cf42beed85281",
+      "layouts": {},
+      "nodes": {
+        "module/Assign:Name(id='POLICY', ctx=Store())": {
+          "after": "708bbe8be5237556cb310026b2788debc44d5c353b8ffc990bed00bd75e7e559",
+          "before": "dba62aea62f5f36bf9c7547eadc40e913da8efacc3479a1c4131d945e3518c2d"
+        },
+        "module/FunctionDef:_decision": {
+          "after": "cf9798f44a1b3e10f40edba5145d2bc374a9fbe722db9b855c9bfc7075b34afb",
+          "before": "c4343639caa7a444a7cc1149db26382f6d2186c7f7596e8ca440821165db4aae"
+        },
+        "module/FunctionDef:evaluate_entry": {
+          "after": "5045d8124cc62da6c25da27ca6eb9216b5a3e551a8f518e54692d7f71528a71a",
+          "before": "3beba104f591809762826b786e13df021b69216a607c340805d95763581ea005"
+        },
+        "module/ImportFrom:0:meme_machine.paper_policy_revision": {
+          "after": "fd4698459e003f9d5dd74286688d80c509880989ec24e954ed36070c45bb8dec",
+          "before": "4b60410b88689cf8a0b835cd0fb46d3e239cd6e77bf76faaea9b0b50a5f74262"
+        },
+        "module/docstring": {
+          "after": "e7f4db414d4f9be943c752ec899f136d5dad0a0305db287445ec0122fe744403",
+          "before": "b6797c1d3e038bdeedcec03f7d0247743f84e69d5614c9c7078dc3488ad0c7b9"
+        }
+      }
+    },
+    "meme_machine/lanes/pump/pumpswap_survivor_runtime.py": {
+      "after_sha256": "59cc986adaa5d4033d837f8332f035a24938aef7180f8dc3dd3d03374a5a1e08",
+      "before_sha256": "8790ad97bc5dea4b579e65b017e96b8fa38ee1c2fc56ca70c9bb34564b56c090",
+      "layouts": {
+        "module/ClassDef:Runtime": {
+          "after": [
+            "module/ClassDef:Runtime/FunctionDef:__init__",
+            "module/ClassDef:Runtime/FunctionDef:now",
+            "module/ClassDef:Runtime/FunctionDef:_quality_rank",
+            "module/ClassDef:Runtime/FunctionDef:_provider",
+            "module/ClassDef:Runtime/FunctionDef:discover",
+            "module/ClassDef:Runtime/FunctionDef:_increment",
+            "module/ClassDef:Runtime/FunctionDef:_ack_history_checkpoint",
+            "module/ClassDef:Runtime/FunctionDef:_local_finalized_time",
+            "module/ClassDef:Runtime/FunctionDef:fresh_state",
+            "module/ClassDef:Runtime/FunctionDef:fresh_quotes",
+            "module/ClassDef:Runtime/FunctionDef:position_policy",
+            "module/ClassDef:Runtime/FunctionDef:necessary_scale_return",
+            "module/ClassDef:Runtime/FunctionDef:reconstruct",
+            "module/ClassDef:Runtime/FunctionDef:_qualification_purpose",
+            "module/ClassDef:Runtime/FunctionDef:turnover_cap",
+            "module/ClassDef:Runtime/FunctionDef:generation_fence",
+            "module/ClassDef:Runtime/FunctionDef:validate_current",
+            "module/ClassDef:Runtime/FunctionDef:exit_quote",
+            "module/ClassDef:Runtime/FunctionDef:validate_exit",
+            "module/ClassDef:Runtime/FunctionDef:_position",
+            "module/ClassDef:Runtime/FunctionDef:_enter",
+            "module/ClassDef:Runtime/FunctionDef:_decision",
+            "module/ClassDef:Runtime/FunctionDef:_funding",
+            "module/ClassDef:Runtime/FunctionDef:step",
+            "module/ClassDef:Runtime/FunctionDef:close"
+          ],
+          "before": [
+            "module/ClassDef:Runtime/FunctionDef:__init__",
+            "module/ClassDef:Runtime/FunctionDef:now",
+            "module/ClassDef:Runtime/FunctionDef:_quality_rank",
+            "module/ClassDef:Runtime/FunctionDef:_provider",
+            "module/ClassDef:Runtime/FunctionDef:discover",
+            "module/ClassDef:Runtime/FunctionDef:_increment",
+            "module/ClassDef:Runtime/FunctionDef:_ack_history_checkpoint",
+            "module/ClassDef:Runtime/FunctionDef:_local_finalized_time",
+            "module/ClassDef:Runtime/FunctionDef:fresh_state",
+            "module/ClassDef:Runtime/FunctionDef:fresh_quotes",
+            "module/ClassDef:Runtime/FunctionDef:necessary_scale_return",
+            "module/ClassDef:Runtime/FunctionDef:reconstruct",
+            "module/ClassDef:Runtime/FunctionDef:_qualification_purpose",
+            "module/ClassDef:Runtime/FunctionDef:turnover_cap",
+            "module/ClassDef:Runtime/FunctionDef:generation_fence",
+            "module/ClassDef:Runtime/FunctionDef:validate_current",
+            "module/ClassDef:Runtime/FunctionDef:exit_quote",
+            "module/ClassDef:Runtime/FunctionDef:validate_exit",
+            "module/ClassDef:Runtime/FunctionDef:_position",
+            "module/ClassDef:Runtime/FunctionDef:_enter",
+            "module/ClassDef:Runtime/FunctionDef:_decision",
+            "module/ClassDef:Runtime/FunctionDef:_funding",
+            "module/ClassDef:Runtime/FunctionDef:step",
+            "module/ClassDef:Runtime/FunctionDef:close"
+          ]
+        }
+      },
+      "nodes": {
+        "module/ClassDef:Runtime/FunctionDef:_enter": {
+          "after": "b732f5461de99a1380d5c2edaed0657bc7943cf4f93130e2d745a379afd91895",
+          "before": "e14e2d3960bbb28c7963811b9b878729ae5e3f9a6df45c6d1387c0e7ef97cd1c"
+        },
+        "module/ClassDef:Runtime/FunctionDef:_funding": {
+          "after": "a16648ba22ff2bd3f86c40fd337978e5988e6986cf650d764bdd812b0451b08a",
+          "before": "d81262c0cb3aa6aea0e758600eb3457c4ed0d69cc742e34a603042a6c90b8023"
+        },
+        "module/ClassDef:Runtime/FunctionDef:position_policy": {
+          "after": "35a9c48d7d35633994f36fb3d0508e78c496e82cead9ed61e0ec7bc4cb203e3b",
+          "before": null
+        },
+        "module/ClassDef:Runtime/FunctionDef:reconstruct": {
+          "after": "4e004d12c313ed75181d0ed83823ad711bad44b711f29c8140ae3d02703d6474",
+          "before": "85605b2c66f52413bc05a9ad0bd0647241976a25144ff336c7cda4bfcf5dc84d"
+        },
+        "module/ClassDef:Runtime/FunctionDef:step": {
+          "after": "ae328ba9e8a4f9e09e2394943a52e9e1bae9f27608fd64672465b0aa5135b007",
+          "before": "aeca30c345bd2d1955a268853b43a3787dea93fac9fc20441c1d37dd9507622f"
+        }
+      }
+    },
+    "meme_machine/operational/supervisor.py": {
+      "after_sha256": "dc14f86005626a19abfd47da5d98e7824db36fe9b519d547bdfc852e17c90bed",
+      "before_sha256": "20fda2428bca7758f2ee4987903c4b346d9b98833472d4d734702cdc8107d646",
+      "layouts": {},
+      "nodes": {
+        "module/ClassDef:Supervisor/FunctionDef:initialize": {
+          "after": "de98f65245459e803adda7f8715f3dcd2dff7ebaa2d8dd4d70301a78bec4e64e",
+          "before": "2d898fc87148da14445ed517277ca995dbd19d49ea14a61674fb55682c7b8d99"
+        }
+      }
+    },
+    "meme_machine/paper_policy_revision.py": {
+      "after_sha256": "837112c6840163da772c9dc1652712f784edc1593c8f57b6721c0e673e8462a0",
+      "before_sha256": "0f855c6ce3d597e993b525bfeeac19b0d17f99c9b0a47efeabd8e0a2c2fcbf52",
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/ImportFrom:0:pathlib",
+            "module/ImportFrom:0:copy",
+            "module/ImportFrom:0:functools",
+            "module/Import:hashlib",
+            "module/Import:json",
+            "module/Import:os",
+            "module/Assign:Name(id='ACTIVE_REVISION', ctx=Store())",
+            "module/Assign:Name(id='PREVIOUS_REVISION', ctx=Store())",
+            "module/Assign:Name(id='PREVIOUS_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PREVIOUS_SNAPSHOT_SHA256', ctx=Store())",
+            "module/Assign:Name(id='PREDECESSOR_REVISION', ctx=Store())",
+            "module/Assign:Name(id='PREDECESSOR_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PREDECESSOR_SNAPSHOT_SHA256', ctx=Store())",
+            "module/FunctionDef:_snapshot",
+            "module/FunctionDef:_previous_policies",
+            "module/FunctionDef:_predecessor_policies",
+            "module/FunctionDef:previous_policies",
+            "module/FunctionDef:previous_hash",
+            "module/FunctionDef:predecessor_policies",
+            "module/FunctionDef:predecessor_hash",
+            "module/FunctionDef:historical_hashes",
+            "module/FunctionDef:current_hashes",
+            "module/FunctionDef:selected_revision",
+            "module/FunctionDef:decision_metadata",
+            "module/FunctionDef:revision_for_hash"
+          ],
+          "before": [
+            "module/docstring",
+            "module/ImportFrom:0:pathlib",
+            "module/ImportFrom:0:copy",
+            "module/ImportFrom:0:functools",
+            "module/Import:hashlib",
+            "module/Import:json",
+            "module/Import:os",
+            "module/Assign:Name(id='ACTIVE_REVISION', ctx=Store())",
+            "module/Assign:Name(id='PREVIOUS_REVISION', ctx=Store())",
+            "module/Assign:Name(id='PREVIOUS_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PREVIOUS_SNAPSHOT_SHA256', ctx=Store())",
+            "module/FunctionDef:_previous_policies",
+            "module/FunctionDef:previous_policies",
+            "module/FunctionDef:previous_hash",
+            "module/FunctionDef:current_hashes",
+            "module/FunctionDef:selected_revision",
+            "module/FunctionDef:decision_metadata",
+            "module/FunctionDef:revision_for_hash"
+          ]
+        }
+      },
+      "nodes": {
+        "module/Assign:Name(id='ACTIVE_REVISION', ctx=Store())": {
+          "after": "d9967e1ad710b189a8f2a109041cdcd0fa05d80695c2b3321485e65280bc82b6",
+          "before": "c85e720acb32a9a06ebe7d214c72424718e20a1b911311a3d8c38ab7ae522989"
+        },
+        "module/Assign:Name(id='PREDECESSOR_REVISION', ctx=Store())": {
+          "after": "a047851883f1291689b90a03ec31fe963573973abe0f5bac95fd8b31e8878875",
+          "before": null
+        },
+        "module/Assign:Name(id='PREDECESSOR_SNAPSHOT_SHA256', ctx=Store())": {
+          "after": "da931f9c54a50e6cf39afab877e05c71c39ffbdff72e01f630590fec3184b72d",
+          "before": null
+        },
+        "module/Assign:Name(id='PREDECESSOR_SOURCE', ctx=Store())": {
+          "after": "7ffcef84f3ec9b76bf75ab965a80baffad0d1561dcfc62664e68adb1b2f9ab50",
+          "before": null
+        },
+        "module/FunctionDef:_predecessor_policies": {
+          "after": "18d0a9d3b763d90ea2ab8d07b38d25b2ec234490fc8ca6453cada94551d8af39",
+          "before": null
+        },
+        "module/FunctionDef:_previous_policies": {
+          "after": "4f54c2cde9cd6e03ff6fa087a6299d7e2b00db2efa3b7be27e8020362ff9f08e",
+          "before": "7f38ce0c24fb4bd9b15dbca8afde5ef248f6f55733403c9c5db4d265e8544c90"
+        },
+        "module/FunctionDef:_snapshot": {
+          "after": "01e8a572c452a373bdb7af66b88133967efb83cfb90768bbfa9a1c825c2279d3",
+          "before": null
+        },
+        "module/FunctionDef:decision_metadata": {
+          "after": "8e6ec4b81f689eeb5acb593abbf72550547376f280b9080ddf0c8a7dcb13d4d8",
+          "before": "d41cacfadc053b75ed8f95b0681ef677677e3cbe4d5d20845d1c02c645efbf3d"
+        },
+        "module/FunctionDef:historical_hashes": {
+          "after": "01b59fbf1d621ba6040eed1395ec04696571c8bb47d9527e5ccf3730472ce9ce",
+          "before": null
+        },
+        "module/FunctionDef:predecessor_hash": {
+          "after": "ceac5e6b8f44792221f06f4c87fbb2d4c51e8077155e560729a2a4e068140644",
+          "before": null
+        },
+        "module/FunctionDef:predecessor_policies": {
+          "after": "208fff00ca9fe73c662b70d9d48129522c9c98afb1bd2254cd8b3834d7cb57f9",
+          "before": null
+        },
+        "module/FunctionDef:revision_for_hash": {
+          "after": "41d3721fb12753334f4912c0b5993768d21a19029af8d97ea7f8016e627ac368",
+          "before": "065a73860374d4751dc33e4bff7d6e87c0cb0c19ae029d2f27ece875bcede71e"
+        }
+      }
+    },
+    "meme_machine/runtime/directional_continuation.py": {
+      "after_sha256": "7d800a2d5d7d7c65d8aad4609e09fdd52b81943f6e0b13344e9e4388af0b6b7c",
+      "before_sha256": "4b5aba1259011a33de56e3f3e26686199596e9b50c0b3aaa2f854009c58c4a02",
+      "layouts": {},
+      "nodes": {
+        "module/FunctionDef:native_sync": {
+          "after": "cb19a0c84e10615df40eda46b0ea909ea217bbecf3c940946ad65722dc87b2ae",
+          "before": "7c1c0455fd4381762bcd69e2a5d36470df421a66681697d7543e4ac73260fa1f"
+        }
+      }
+    },
+    "meme_machine/runtime/native_boundary.py": {
+      "after_sha256": "2da1392cd8310e9ca7e04aa817dfaae784e17ced37e8f5e996778584f9fd920f",
+      "before_sha256": "4f5360604a020413783c0e24abb9459429fc504d6ca09b083583140e76124e72",
+      "layouts": {},
+      "nodes": {
+        "module/ClassDef:NativeBoundary/FunctionDef:record": {
+          "after": "108eda858d3dc0464dd1be91cfc0385072df55c95d6f1280e2bdabe076c398d2",
+          "before": "040c99b53225aa338b412c0d04c43946ccf7f29cfaea700fd4a2f3bbb42ea891"
+        }
+      }
+    },
+    "meme_machine/runtime/opportunity_telemetry.py": {
+      "after_sha256": "1bc4d1c599812c58509921075a327bf1f5b7551b040a622b21470b1c32e11f62",
+      "before_sha256": "7dd8de2b67be2502c9293b857d8e08d0e559e09278931a85681938f9cdbbabf1",
+      "layouts": {},
+      "nodes": {
+        "module/FunctionDef:measurable_gates": {
+          "after": "bc0f38e6a78167ac4dbd370659b307240823dbfba348765f8f630be8443ccd0c",
+          "before": "32cff96e50d0f4713d43b01c183d1b30543ae910a37ff1a71a7b7c818a2c0035"
+        },
+        "module/ImportFrom:0:meme_machine.paper_policy_revision": {
+          "after": "6115af2ce3a07b96bd759533064adeb31fc45df1df4baaa35403af24b582eeb0",
+          "before": "22705731422c422d2fcf0332d7667c3f61dd8abab7d99fce9246b61fb1328721"
+        }
+      }
+    },
+    "meme_machine/runtime/policy_compatibility.py": {
+      "after_sha256": "84cdbf0fa8e02775cbd777905d6e7a560bbd5ce5ae95c978b1c2e245582de175",
+      "before_sha256": "1c600e0ff03aa77aaf9ceddfb15a902e4d17c2ae2f49d0e6d0171f6c47511c53",
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/ImportFrom:0:contextlib",
+            "module/Import:json",
+            "module/Import:os",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:sqlite3",
+            "module/ImportFrom:0:meme_machine.runtime.journal",
+            "module/ImportFrom:0:meme_machine.paper_policy_revision",
+            "module/Assign:Name(id='LEGACY_SELECTION_KEY', ctx=Store())",
+            "module/Assign:Name(id='SELECTION_KEY', ctx=Store())",
+            "module/Assign:Name(id='SELECTION_NAMESPACE', ctx=Store())",
+            "module/FunctionDef:regime_for",
+            "module/FunctionDef:active_hash",
+            "module/FunctionDef:known_hash",
+            "module/FunctionDef:compatible_identity",
+            "module/FunctionDef:selection",
+            "module/FunctionDef:validate_prior_selection",
+            "module/FunctionDef:require_flat_rows",
+            "module/FunctionDef:require_flat_portfolio",
+            "module/FunctionDef:assert_shared_transition",
+            "module/FunctionDef:require_external_flat",
+            "module/FunctionDef:runtime_selection",
+            "module/FunctionDef:save_runtime_selection"
+          ],
+          "before": [
+            "module/docstring",
+            "module/ImportFrom:0:contextlib",
+            "module/Import:json",
+            "module/Import:os",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:sqlite3",
+            "module/ImportFrom:0:meme_machine.runtime.journal",
+            "module/ImportFrom:0:meme_machine.paper_policy_revision",
+            "module/Assign:Name(id='SELECTION_KEY', ctx=Store())",
+            "module/Assign:Name(id='SELECTION_NAMESPACE', ctx=Store())",
+            "module/FunctionDef:regime_for",
+            "module/FunctionDef:active_hash",
+            "module/FunctionDef:known_hash",
+            "module/FunctionDef:compatible_identity",
+            "module/FunctionDef:selection",
+            "module/FunctionDef:require_flat_rows",
+            "module/FunctionDef:require_flat_portfolio",
+            "module/FunctionDef:assert_shared_transition",
+            "module/FunctionDef:require_external_flat",
+            "module/FunctionDef:runtime_selection",
+            "module/FunctionDef:save_runtime_selection"
+          ]
+        }
+      },
+      "nodes": {
+        "module/Assign:Name(id='LEGACY_SELECTION_KEY', ctx=Store())": {
+          "after": "2af3e38a103b07299bddde14b7adb1883a46387f8ada115847694651b1bf1448",
+          "before": null
+        },
+        "module/Assign:Name(id='SELECTION_KEY', ctx=Store())": {
+          "after": "8edb06fde462abc84a048dea51c3cb3f5c80519c89b9bf99c07b2c25c07fde82",
+          "before": "2ea8e73a7303043c9efb6bf46153edcd7b9ff96d3b41d253dfd8fed2b4072706"
+        },
+        "module/FunctionDef:compatible_identity": {
+          "after": "3a74942ae196faaa452bf27c63006baddcacf8c40ffacc5c53cafb9cde5e61ad",
+          "before": "2c523a274381c61c4924a6321e29880a3e24f81c8877c88e77d9c33336d235d6"
+        },
+        "module/FunctionDef:known_hash": {
+          "after": "fdd76c011c6600c7b111e52ee9e9ccd94ddbac6ca13ab7bb3711e60d29f11692",
+          "before": "4017deef54a6998a094ce1700570b9601c8f89e164fbc9a9b7317cc3fd70e0e3"
+        },
+        "module/FunctionDef:runtime_selection": {
+          "after": "57f0895db3436b81d641b128c2a708443e05e928ca848b084c14f773854fe501",
+          "before": "f7f84d6149c4c2f4935bf1e40ebed803c3ffff0b18a7f3ab7b99bbf10c5381b5"
+        },
+        "module/FunctionDef:validate_prior_selection": {
+          "after": "d22a6802fc103ed5ffa85aa95610f614c4c6ff85d8927e27d5e3b6edf53299ec",
+          "before": null
+        },
+        "module/ImportFrom:0:meme_machine.paper_policy_revision": {
+          "after": "9329657f12f9f5aa01a1d7e4a481ab1e3394224c066e8e9eb54529f25411ec67",
+          "before": "10c12f24ac91b604b5e6aa88113b857a941122a0e709e513d36fde2fd9c365e0"
+        },
+        "module/docstring": {
+          "after": "c10618bba13cb4e145dd1f7722ba080aaae17acbe1f4f6ed4520db10f90a4426",
+          "before": "72efbae23c8c114b91dd8ce6dbaf1dc51fde6b8f655947edf50ca811e55ecdfa"
+        }
+      }
+    },
+    "meme_machine/runtime/robinhood/pons.py": {
+      "after_sha256": "3622c77c59aed69fb9358a88a92522b5a7ee53849ec3f6be6f10b119669c8f93",
+      "before_sha256": "2ca1a6a84f52691e37cb15c7d9c4b574a9b95115492ac874f4710d32ed35d526",
+      "layouts": {},
+      "nodes": {
+        "module/ClassDef:Broker/FunctionDef:_renew_retained_interpretation": {
+          "after": "2df5e28610ff5e086aef6c546db4a3f416ac762a5cf3adb74742ff62bc07485f",
+          "before": "e15b9cf3e0358e2870a58d4f74965bbaa1a6e513e6ddbe28eadda545c257d0c0"
+        },
+        "module/FunctionDef:recover_cohort": {
+          "after": "283b78a222410d19d89c6291262d0ce3ee28685a34b90fb04c56ddc622b37e50",
+          "before": "dfff28d8dafb3899c39d10abe6f62671a7dd8b6a1a351d6c184ca6cb5911c780"
+        }
+      }
+    },
+    "meme_machine/runtime/sleeve_reservations.py": {
+      "after_sha256": "a42171559e289b3f9cd2aa8a533b65aa4562ea1e9f1aa54109544418904e6ab6",
+      "before_sha256": "34e97241836137e535077a9345121ae2fb3e3063ba8a688aa44cecd65b0f5821",
+      "layouts": {
+        "module/ClassDef:SleeveReservations": {
+          "after": [
+            "module/ClassDef:SleeveReservations/FunctionDef:__init__",
+            "module/ClassDef:SleeveReservations/FunctionDef:_open",
+            "module/ClassDef:SleeveReservations/FunctionDef:transaction",
+            "module/ClassDef:SleeveReservations/FunctionDef:_event",
+            "module/ClassDef:SleeveReservations/FunctionDef:get",
+            "module/ClassDef:SleeveReservations/FunctionDef:candidate",
+            "module/ClassDef:SleeveReservations/FunctionDef:rally",
+            "module/ClassDef:SleeveReservations/FunctionDef:_observe_rally",
+            "module/ClassDef:SleeveReservations/FunctionDef:_rally_lifecycle",
+            "module/ClassDef:SleeveReservations/FunctionDef:rally_report",
+            "module/ClassDef:SleeveReservations/FunctionDef:opportunity",
+            "module/ClassDef:SleeveReservations/FunctionDef:_opportunity",
+            "module/ClassDef:SleeveReservations/FunctionDef:observe",
+            "module/ClassDef:SleeveReservations/FunctionDef:sizing_basis",
+            "module/ClassDef:SleeveReservations/FunctionDef:asset_key",
+            "module/ClassDef:SleeveReservations/FunctionDef:fill_blocker",
+            "module/ClassDef:SleeveReservations/FunctionDef:_reservation_preflight",
+            "module/ClassDef:SleeveReservations/FunctionDef:reserve",
+            "module/ClassDef:SleeveReservations/FunctionDef:commit_fence",
+            "module/ClassDef:SleeveReservations/FunctionDef:release",
+            "module/ClassDef:SleeveReservations/FunctionDef:acknowledge_native",
+            "module/ClassDef:SleeveReservations/FunctionDef:reserve_scale",
+            "module/ClassDef:SleeveReservations/FunctionDef:scale_fence",
+            "module/ClassDef:SleeveReservations/FunctionDef:recover_scale",
+            "module/ClassDef:SleeveReservations/FunctionDef:_archive",
+            "module/ClassDef:SleeveReservations/FunctionDef:_compact_preserved",
+            "module/ClassDef:SleeveReservations/FunctionDef:reconcile",
+            "module/ClassDef:SleeveReservations/FunctionDef:_reconcile",
+            "module/ClassDef:SleeveReservations/FunctionDef:close"
+          ],
+          "before": [
+            "module/ClassDef:SleeveReservations/FunctionDef:__init__",
+            "module/ClassDef:SleeveReservations/FunctionDef:_open",
+            "module/ClassDef:SleeveReservations/FunctionDef:transaction",
+            "module/ClassDef:SleeveReservations/FunctionDef:_event",
+            "module/ClassDef:SleeveReservations/FunctionDef:get",
+            "module/ClassDef:SleeveReservations/FunctionDef:candidate",
+            "module/ClassDef:SleeveReservations/FunctionDef:opportunity",
+            "module/ClassDef:SleeveReservations/FunctionDef:_opportunity",
+            "module/ClassDef:SleeveReservations/FunctionDef:observe",
+            "module/ClassDef:SleeveReservations/FunctionDef:sizing_basis",
+            "module/ClassDef:SleeveReservations/FunctionDef:asset_key",
+            "module/ClassDef:SleeveReservations/FunctionDef:fill_blocker",
+            "module/ClassDef:SleeveReservations/FunctionDef:reserve",
+            "module/ClassDef:SleeveReservations/FunctionDef:commit_fence",
+            "module/ClassDef:SleeveReservations/FunctionDef:release",
+            "module/ClassDef:SleeveReservations/FunctionDef:acknowledge_native",
+            "module/ClassDef:SleeveReservations/FunctionDef:reserve_scale",
+            "module/ClassDef:SleeveReservations/FunctionDef:scale_fence",
+            "module/ClassDef:SleeveReservations/FunctionDef:recover_scale",
+            "module/ClassDef:SleeveReservations/FunctionDef:_archive",
+            "module/ClassDef:SleeveReservations/FunctionDef:_compact_preserved",
+            "module/ClassDef:SleeveReservations/FunctionDef:reconcile",
+            "module/ClassDef:SleeveReservations/FunctionDef:_reconcile",
+            "module/ClassDef:SleeveReservations/FunctionDef:close"
+          ]
+        }
+      },
+      "nodes": {
+        "module/ClassDef:SleeveReservations/FunctionDef:_compact_preserved": {
+          "after": "3c4611ab92f9e32a96ce612bead540e4b55904ffff6fa4dd6a95f8a12f1b7890",
+          "before": "2a45bf5d64cfe4a06b7ff150b2bdddc9f6063fed717c7b707a86dfc8243ed409"
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:_event": {
+          "after": "5cb9ccc716942a5c0de7c8861595c2025d9aff5fe99517c119c73985b771b010",
+          "before": "04281cd8cf38e0e2700a16e97394b6c95c1088c5862dacb19f495b46fc036150"
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:_observe_rally": {
+          "after": "97a6f7582eeb499b241b2cba91be3c8ce632a3f6f9b2dc91cef70947f939028d",
+          "before": null
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:_open": {
+          "after": "4e1feea70492cf96f0990dbf5795d21862608cf92f89be2e68a35b5b4acae38d",
+          "before": "53af934c05c3425d930d8187f2a5eb1a5a8b6e66b7c3074ed29f25a98b3043be"
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:_rally_lifecycle": {
+          "after": "86992179e1828ed7eb233955ddc615b62b204b3e837f71cb801142d96fe4cad4",
+          "before": null
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:_reconcile": {
+          "after": "e560f559844d074b07a44653802781ff12163ae690f572edd4b9817d647cc1a4",
+          "before": "ad523b10bc030e40d3326646db145d00c5af63bd9d8f4b8ec64d32eaa3ccbf71"
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:_reservation_preflight": {
+          "after": "83ad8129f47ae030c24c356a6ac41d20e7a97c6aef3c7ec2b6fdbb88fb47b274",
+          "before": null
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:acknowledge_native": {
+          "after": "f2aa0173d725424253a1d933b9a867ff6e761c78f00e129b5156f155a7dbb820",
+          "before": "389147488092c9d72c041bc8b31ba5dd3c0a66ae88ea9c317c222ef1c179e7f6"
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:commit_fence": {
+          "after": "5aab4d527497b5ffefa3e2f9c4ee76221b6c3abe4d95d621da892f7853dbce80",
+          "before": "88734fc4c6649a7f0873bb405d4867f8d8f3e7561ad06ce8d0bee35cf3246843"
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:observe": {
+          "after": "22006672c2126de119ba61f5c6e3a4c02be2ba33a3fb6966d9ed3fe5e81ae5c2",
+          "before": "093fcbbd266474055ca6885f1d7d84313b6aaa0c7338e3c9ef870a0f488e84d8"
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:rally": {
+          "after": "4f4202e7b1b7cc3ff19df4e27a4291a1212d5d063532a51fda63ff5b17fbed59",
+          "before": null
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:rally_report": {
+          "after": "488b24eac4c0ac073de50375284b0721c2f43eddd67e61f8f70ef1e98e2b48ed",
+          "before": null
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:release": {
+          "after": "8becba70820677694fb52c24096378ea685eb002c08cf86307cd256afd5a552b",
+          "before": "862f9dedcde9ee82fe580104e4375c749418f6f710b7f0ddb3476993425e6e69"
+        },
+        "module/ClassDef:SleeveReservations/FunctionDef:reserve": {
+          "after": "164e75743868ee158b383ff19c7fc2c704291ff28af3a9047d042bb24d99d1f1",
+          "before": "74d5ca9177a15f461ef9b9037e31ebda7b6101b1320ede03a21c26fc5a256422"
+        }
+      }
+    },
+    "meme_machine/runtime/survivor_commit.py": {
+      "after_sha256": "79b4d623504016fafe8402dcd34c5c44f807d802eb6c032638008c748a708ae8",
+      "before_sha256": "f34bd5b20575f454cf5a7e77e4ef0075d2e849b4ef956b4bce37a0cc85d74aca",
+      "layouts": {},
+      "nodes": {
+        "module/FunctionDef:commit": {
+          "after": "bd7776bb3ba01518acb40d96ec5186532f72beb2d7f463c5f25d1c461c347651",
+          "before": "7ddb2abc585bc3c48416d9619fd174a65adb3291c873a690bccf52099f0b5718"
+        },
+        "module/FunctionDef:monitor": {
+          "after": "211a1244fb5ee7b94cfef07c47ba181f675860620b1fe3a5eae23f2a94640a82",
+          "before": "64ca802acee902735f376ca1a3807f7657852c2b4d251afea763de79af3f22d2"
+        },
+        "module/FunctionDef:risk_record": {
+          "after": "9759b6086dc0aa6773321e108a93a4b066907576eb1e4df21d173b31d5352cc4",
+          "before": "39ac858c7ede20d304f3357ec12e14dc7b7766df15567e29296bf8d45cb23243"
+        }
+      }
+    },
+    "meme_machine/runtime/survivor_history.py": {
+      "after_sha256": "3b2bf1497b2eb355500ad97ef3fa9be10acacd235c06ff6e0adaa3dd163450fe",
+      "before_sha256": "5a0e1d111898748014f1412c84ab193ffe4ce5207fbece903613db05faf14350",
+      "layouts": {},
+      "nodes": {
+        "module/ClassDef:History/FunctionDef:_select_policy": {
+          "after": "89113a90083243a08ce5b29bf14a9c867e031bb3c13c87473f3051b51aaf3e26",
+          "before": "7a73f630d2db8fa0dd4f29583b346d8048c456a16f60e51699bc1ba36ce1522f"
+        }
+      }
+    },
+    "meme_machine/runtime/survivor_paper_book.py": {
+      "after_sha256": "6876c26cb513fb8a5982d265d3b90044701dec9b5714e0552e53b9eeae0ef1df",
+      "before_sha256": "0593b88ab84cb4ce7d9aa2a4f177d42ff933a2950a179cd42e72662ee2c0135d",
+      "layouts": {},
+      "nodes": {
+        "module/ClassDef:PaperBook/FunctionDef:transition": {
+          "after": "1d11bc672aa30fa32d3325c9fd64fea0d0ef95bc61964c863889e63546c3e0a0",
+          "before": "501c9a8193f0183f75a5b66ef237e40eb9dcb9dff96200f9d61422aeb6e63d3c"
+        }
+      }
+    },
+    "meme_machine/runtime/survivor_risk.py": {
+      "after_sha256": "ea4bf925048336d55dd840a8acfc134ad0c53992b36488a358643461d44977b9",
+      "before_sha256": "2b70cf5bb67605e64bd22f7fd82c239e0f0cd6025c0867f406bb79546b0b2743",
+      "layouts": {},
+      "nodes": {
+        "module/FunctionDef:mark": {
+          "after": "618abe5cab0d598801bd7416ef96d5aff6818449cc0b3f6f144d75bc6a94d132",
+          "before": "f3b06981eddd1e839624db849fe8c80fbfa2d520f0c17ed73f37922ce8581d19"
+        },
+        "module/FunctionDef:new_regime": {
+          "after": "b811365a7b1bbe1fdb0c47a3e38993e3ad9932aff4706083924df39c76685250",
+          "before": "64760724a29f64c2fa61427571832bc7624134f92ad878e2414da4a2a5ec2dca"
+        }
+      }
+    },
+    "meme_machine/runtime/survivor_terminal_archive.py": {
+      "after_sha256": "8c3708a1782d0070fe47c4b7eb10a9414848d78e1811c463f3e09e70aff81224",
+      "before_sha256": "5824724802d5c8638194c1d91cdbf0c237147337687b67b8ec25eee7e8841980",
+      "layouts": {},
+      "nodes": {
+        "module/FunctionDef:_sleeve_commit": {
+          "after": "b53cf5c5858e2accce103c7fb0b65eb9754c92c6629d4405db13b9741cc5792f",
+          "before": "8ed651bbeb2cde2d533450f5b176afa859185f9cc4f20d52bbf6aa9268d601e3"
+        }
+      }
+    },
+    "meme_machine/shared_capital/native_sleeve.py": {
+      "after_sha256": "7fdc35b7ee5ee69a36a929c1950ae8faea118fe2bbe15f6f6d1b5271a3c9e3ba",
+      "before_sha256": "a837057782f02846a46329f477c9c69e35e849364383066358582231a100d4e7",
+      "layouts": {
+        "module/ClassDef:SharedSleeve": {
+          "after": [
+            "module/ClassDef:SharedSleeve/FunctionDef:__init__",
+            "module/ClassDef:SharedSleeve/FunctionDef:_grant",
+            "module/ClassDef:SharedSleeve/FunctionDef:_family_equity",
+            "module/ClassDef:SharedSleeve/FunctionDef:reserve",
+            "module/ClassDef:SharedSleeve/FunctionDef:reserve_scale",
+            "module/ClassDef:SharedSleeve/FunctionDef:_compensate_failed_reservation",
+            "module/ClassDef:SharedSleeve/FunctionDef:reentry_verified",
+            "module/ClassDef:SharedSleeve/FunctionDef:recover_scale",
+            "module/ClassDef:SharedSleeve/FunctionDef:release",
+            "module/ClassDef:SharedSleeve/FunctionDef:_shared_reserved",
+            "module/ClassDef:SharedSleeve/FunctionDef:recover_unmaterialized",
+            "module/ClassDef:SharedSleeve/FunctionDef:_shared_attribution",
+            "module/ClassDef:SharedSleeve/FunctionDef:sizing_basis"
+          ],
+          "before": [
+            "module/ClassDef:SharedSleeve/FunctionDef:__init__",
+            "module/ClassDef:SharedSleeve/FunctionDef:_grant",
+            "module/ClassDef:SharedSleeve/FunctionDef:_family_equity",
+            "module/ClassDef:SharedSleeve/FunctionDef:reserve",
+            "module/ClassDef:SharedSleeve/FunctionDef:reserve_scale",
+            "module/ClassDef:SharedSleeve/FunctionDef:recover_scale",
+            "module/ClassDef:SharedSleeve/FunctionDef:release",
+            "module/ClassDef:SharedSleeve/FunctionDef:_shared_reserved",
+            "module/ClassDef:SharedSleeve/FunctionDef:recover_unmaterialized",
+            "module/ClassDef:SharedSleeve/FunctionDef:_shared_attribution",
+            "module/ClassDef:SharedSleeve/FunctionDef:sizing_basis"
+          ]
+        }
+      },
+      "nodes": {
+        "module/ClassDef:SharedSleeve/FunctionDef:_compensate_failed_reservation": {
+          "after": "adaf1ec6aaa67da47860e9591156e707cfd8ac9dc24eb536858f7dbc7547ab5b",
+          "before": null
+        },
+        "module/ClassDef:SharedSleeve/FunctionDef:_shared_reserved": {
+          "after": "6a5d7e2f298016af61f7d3a1b2e12d7f796e053b9f8c7d6c87ea0d8a5b66614a",
+          "before": "7db44d8ddc8cc0e54b8a2ef97f69562bbe661645184638d2fd54e58c0412a7c8"
+        },
+        "module/ClassDef:SharedSleeve/FunctionDef:recover_unmaterialized": {
+          "after": "f3591d915df63c424d20e464f3638a99c1c131acccd855352e352258e06717b1",
+          "before": "113a22ea8391101e9f7a5cb96ebeda6ae65660aad2f04e8ed5152c7cf269dd6d"
+        },
+        "module/ClassDef:SharedSleeve/FunctionDef:reentry_verified": {
+          "after": "595b02415af88c5196fc5d7c49fa147f539dbecf2d0dabd685cedffa01c9f9f8",
+          "before": null
+        },
+        "module/ClassDef:SharedSleeve/FunctionDef:reserve": {
+          "after": "deb207b6e283b18b36a2d462440ab8c749bdd9a55f07218552f150bff429c4ff",
+          "before": "576932673770fde8fb008819408048ac6ca4819f70148b69288eb9e1c867dff2"
+        },
+        "module/ClassDef:SharedSleeve/FunctionDef:reserve_scale": {
+          "after": "1771d72a0fcfbd0f480e4591f7f72ed67a91a8e16daece443b72dfb1ec96e176",
+          "before": "3bb123dc3399cfaf2619b45f6beafc75594f56d1d5c0a8b54aecd31cd37e1b57"
+        }
+      }
+    },
+    "meme_machine/shared_capital/runtime.py": {
+      "after_sha256": "79e365483d156cfcd3e51d3df32162e92e50b35ff896e910b5a5beac793ce154",
+      "before_sha256": "a8905fb779a02c4721b6fa0858eb3716eca2d63e9e407a31f97a1f18c384738a",
+      "layouts": {},
+      "nodes": {
+        "module/ClassDef:RuntimeCapital/FunctionDef:_apply": {
+          "after": "290b2baa7f138ae023a647570fcceccdd134683039618736a71e7630c0d8921e",
+          "before": "dcebb4ca87118c67ef1ae6240ef242901ceaf5e05c35362b4e9dab52487a9754"
+        },
+        "module/ClassDef:RuntimeCapital/FunctionDef:_duplicate_matches": {
+          "after": "c828c3190dc67603d9819c8d3cff027c5563cdb3b69200700818450430337187",
+          "before": "e7a51d7d57fda1447f6d406437d495e2710f6bebee62c93881c678597eeb3724"
+        },
+        "module/ClassDef:SharedNativePortfolio/FunctionDef:committed": {
+          "after": "a5515ea2a60fb9ccedd50928501c14bd11806f43e202844479aa22d194187f55",
+          "before": "7df96a3f22075178c0ea16fc1789c92ac064f25efebda1a22a89a54c7c027c25"
+        }
+      }
+    }
+  },
+  "owner_issue": "https://github.com/levonmendall/The-Meme-Machine/issues/138",
+  "revision": "paper-postgrad-rally-v1",
+  "schema": "owner-selected-paper-postgrad-rally-source-delta-v1"
+}

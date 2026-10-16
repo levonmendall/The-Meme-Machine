@@ -7,9 +7,10 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from meme_machine.paper_policy_revision import ACTIVE_REVISION,previous_hash,previous_policies
+from meme_machine.paper_policy_revision import (ACTIVE_REVISION,previous_hash,previous_policies,
+    PREDECESSOR_REVISION,predecessor_hash,predecessor_policies,historical_hashes,revision_for_hash)
 from meme_machine.runtime.policy_compatibility import (active_hash,known_hash,require_flat_portfolio,
-    SELECTION_KEY,assert_shared_transition)
+    SELECTION_KEY,LEGACY_SELECTION_KEY,SELECTION_NAMESPACE,assert_shared_transition,selection)
 from meme_machine.runtime.journal import digest
 
 
@@ -32,6 +33,123 @@ class PaperPolicyCompatibilityTests(unittest.TestCase):
             else:
                 from meme_machine.lanes.pons.pons_postgrad_survivor import STRATEGY_VERSION as STRATEGY_ID
         return PaperBook,dict(run_id='fixture',lane=STRATEGY_ID,initial=1000)
+
+    def retain_predecessor_selection(self,book,regime):
+        financial=dict(book.identity);decision=dict(financial,policy_hash=predecessor_hash(regime))
+        saved=dict(selection(financial,decision),revision=PREDECESSOR_REVISION)
+        raw=json.dumps(saved,sort_keys=True,separators=(',',':'))
+        book.db.execute('INSERT INTO runtime_state VALUES(?,?,?,?)',
+            (SELECTION_NAMESPACE,LEGACY_SELECTION_KEY,raw,digest(saved)))
+        book.decision_policy_hash=predecessor_hash(regime)
+        return raw
+
+    def test_funded_revision_retains_both_exact_historical_policy_sets(self):
+        self.assertEqual(ACTIVE_REVISION,'paper-postgrad-rally-v1')
+        self.assertNotEqual(SELECTION_KEY,LEGACY_SELECTION_KEY)
+        historical=predecessor_policies()
+        for regime in historical:
+            self.assertEqual(historical[regime]['policy_hash'],predecessor_hash(regime))
+            self.assertEqual(historical_hashes(regime),{previous_hash(regime),predecessor_hash(regime)})
+            self.assertEqual(revision_for_hash(predecessor_hash(regime)),PREDECESSOR_REVISION)
+            self.assertTrue(known_hash(regime,predecessor_hash(regime)))
+            self.assertNotEqual(active_hash(regime),predecessor_hash(regime))
+        historical['pump_current']['policy']['entry_fraction_bps']=9999
+        self.assertEqual(predecessor_policies()['pump_current']['policy']['entry_fraction_bps'],500)
+
+    def test_original_500_and_1000_finance_and_predecessor_checkpoint_survive_new_selection(self):
+        for initial in (500,1000):
+            for regime in ('pump_current','pump_survivor','pons_survivor'):
+                with self.subTest(initial=initial,regime=regime):
+                    book_type,args=self.book_case(regime);args['initial']=initial
+                    path=self.root/(str(initial)+regime+'.sqlite')
+                    book=book_type(path,policy_hash=previous_hash(regime),**args)
+                    retained=self.retain_predecessor_selection(book,regime)
+                    book.reserve('fixture:1',100,10,dict(policy_hash=predecessor_hash(regime)))
+                    book.transition('fixture:1','filled',11,amount=100,tokens=1000)
+                    book.transition('fixture:1','partial_harvest',12,amount=70,tokens=500)
+                    book.transition('fixture:1','settled',13,amount=80)
+                    finance=book.reconcile()
+                    before={table:book.db.execute('SELECT * FROM '+table).fetchall()
+                        for table in ('genesis','journal','positions','journal_archive')}
+                    book.close()
+                    book=book_type(path,policy_hash=active_hash(regime),**args)
+                    self.assertEqual(book.reconcile(),finance)
+                    self.assertEqual({table:book.db.execute('SELECT * FROM '+table).fetchall() for table in before},before)
+                    self.assertEqual(book.db.execute('SELECT body FROM runtime_state WHERE identity=? AND key=?',
+                        (SELECTION_NAMESPACE,LEGACY_SELECTION_KEY)).fetchone()[0],retained)
+                    selected=json.loads(book.db.execute('SELECT body FROM runtime_state WHERE identity=? AND key=?',
+                        (SELECTION_NAMESPACE,SELECTION_KEY)).fetchone()[0])
+                    self.assertEqual(selected['revision'],ACTIVE_REVISION)
+                    self.assertEqual(selected['financial_identity']['initial'],initial)
+                    self.assertEqual(selected['financial_identity']['policy_hash'],previous_hash(regime))
+                    book.reserve('fixture:2',100,14,dict(policy_hash=active_hash(regime)))
+                    book.transition('fixture:2','filled',15,amount=100,tokens=1000)
+                    opened=book.reconcile();book.close()
+                    book=book_type(path,policy_hash=active_hash(regime),**args)
+                    self.assertEqual(book.reconcile(),opened);self.assertTrue(book.replay()['verified']);book.close()
+
+    def test_predecessor_selection_cannot_authorize_new_policy_on_unsettled_native_trade(self):
+        for regime in ('pump_current','pump_survivor','pons_survivor'):
+            with self.subTest(regime=regime):
+                book_type,args=self.book_case(regime);path=self.root/(regime+'.unsettled')
+                book=book_type(path,policy_hash=previous_hash(regime),**args)
+                retained=self.retain_predecessor_selection(book,regime)
+                book.reserve('fixture:1',100,10,{})
+                book.transition('fixture:1','filled',11,amount=100,tokens=1000);book.close()
+                with self.assertRaisesRegex(ValueError,'paper_policy_transition_unresolved_pump'):
+                    book_type(path,policy_hash=active_hash(regime),**args)
+                with sqlite3.connect(path) as db:
+                    self.assertEqual(db.execute('SELECT body FROM runtime_state WHERE key=?',(LEGACY_SELECTION_KEY,)).fetchone()[0],retained)
+                    self.assertIsNone(db.execute('SELECT body FROM runtime_state WHERE key=?',(SELECTION_KEY,)).fetchone())
+
+    def test_new_selection_rejects_corrupted_or_rebound_predecessor_checkpoint(self):
+        for corruption in ('checksum','financial','decision_revision'):
+            with self.subTest(corruption=corruption):
+                book_type,args=self.book_case('pump_current');path=self.root/(corruption+'.prior')
+                book=book_type(path,policy_hash=previous_hash('pump_current'),**args)
+                raw=self.retain_predecessor_selection(book,'pump_current');saved=json.loads(raw)
+                if corruption=='financial':saved['financial_identity']['initial']=2000
+                if corruption=='decision_revision':saved['revision']=ACTIVE_REVISION
+                book.db.execute('UPDATE runtime_state SET body=?,hash=? WHERE key=?',
+                    (json.dumps(saved,sort_keys=True,separators=(',',':')),
+                        '0'*64 if corruption=='checksum' else digest(saved),LEGACY_SELECTION_KEY));book.close()
+                with self.assertRaisesRegex(ValueError,'selection_checkpoint_conflict'):
+                    book_type(path,policy_hash=active_hash('pump_current'),**args)
+
+    def test_immediate_predecessor_native_genesis_selects_without_relabeling_finance(self):
+        for regime in ('pump_current','pump_survivor','pons_survivor'):
+            with self.subTest(regime=regime):
+                book_type,args=self.book_case(regime);path=self.root/(regime+'.predecessor')
+                book=book_type(path,policy_hash=predecessor_hash(regime),**args)
+                finance=book.reconcile();genesis=book.db.execute('SELECT body FROM genesis').fetchone()[0];book.close()
+                book=book_type(path,policy_hash=active_hash(regime),**args)
+                self.assertEqual(book.reconcile(),finance)
+                self.assertEqual(book.db.execute('SELECT body FROM genesis').fetchone()[0],genesis)
+                self.assertEqual(book.identity['policy_hash'],predecessor_hash(regime));book.close()
+
+    def test_immediate_predecessor_pons_capital_preserves_both_inceptions_and_blocks_unresolved(self):
+        from contextlib import closing
+        from meme_machine.lanes.pons import pons_selective_capital as capital
+        for initial in (500,1000):
+            for pending in (False,True):
+                with self.subTest(initial=initial,pending=pending):
+                    path=self.root/(str(initial)+str(pending)+'.cohort')
+                    with patch.object(capital,'POLICY_HASH',predecessor_hash('pons_current')):
+                        old=capital.CohortCapital(path,initial)
+                        if pending:old.reserve('old',100,at=10,decision_hash='decision',trial_path='retained-trial')
+                    with closing(sqlite3.connect(path)) as db:
+                        before={table:db.execute('SELECT * FROM '+table).fetchall()
+                            for table in ('capital_genesis','capital_journal','capital_positions')}
+                    if pending:
+                        with self.assertRaisesRegex(ValueError,'transition_unresolved_capital'):
+                            capital.CohortCapital(path,initial)
+                    else:
+                        revised=capital.CohortCapital(path,initial)
+                        self.assertEqual(revised.reconcile()['genesis'],initial)
+                        self.assertEqual(revised.financial_policy_hash,predecessor_hash('pons_current'))
+                        self.assertEqual(revised.decision_policy_hash,active_hash('pons_current'))
+                    with closing(sqlite3.connect(path)) as db:
+                        self.assertEqual({table:db.execute('SELECT * FROM '+table).fetchall() for table in before},before)
 
     def test_three_native_books_keep_original_genesis_and_accounting_on_revision_restart(self):
         for regime in ('pump_current','pump_survivor','pons_survivor'):
@@ -590,8 +708,12 @@ class PaperPolicyCompatibilityTests(unittest.TestCase):
                     path=root/family/(strategy+'.sqlite')
                     book=PaperBook(path,run_id='revised-native',lane=strategy,policy_hash=policy,initial=1_000_000)
                     self.addCleanup(book.close);identity='revised-native:'+strategy
-                    sleeve.reserve(identity,strategy=strategy,amount=50_000,at=now,asset=identity,
-                        funding_evidence=dict(qualified=True,policy_hash=policy))
+                    reservation=dict(asset=identity,funding_evidence=dict(qualified=True,policy_hash=policy))
+                    if 'survivor' in strategy:
+                        from tests.shared_rally_support import observe_survivor
+                        observed=observe_survivor(sleeve,strategy,identity,now)
+                        reservation.update(candidate=observed['id'],generation=observed['generation'],regime=observed['regime'])
+                    sleeve.reserve(identity,strategy=strategy,amount=50_000,at=now,**reservation)
                     book.reserve(identity,50_000,now,dict(qualified=True,policy_hash=policy))
                     book.transition(identity,'filled',now,amount=50_000,tokens=100,evidence=dict(execution={'gas':0}))
                     book.transition(identity,'mark',now,amount=50_000);native_sync(book,sleeve,identity)

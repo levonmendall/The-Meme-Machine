@@ -16,6 +16,7 @@ import unittest
 from unittest.mock import patch
 
 from meme_machine.runtime import status,stop
+from meme_machine.paper_policy_revision import ACTIVE_REVISION
 
 
 class NativeStartupLifecycle(unittest.TestCase):
@@ -45,7 +46,7 @@ class NativeStartupLifecycle(unittest.TestCase):
         from meme_machine.lanes.pump.pump_acceleration_confirmations import ConfirmationBook
         epoch='offline-native-startup-lifecycle'
         stack.enter_context(patch.dict(os.environ,dict(PATH=os.environ.get('PATH',''),
-            MM_PAPER_EPOCH=epoch,MM_PAPER_POLICY_REVISION='paper-opportunity-access-v1',
+            MM_PAPER_EPOCH=epoch,MM_PAPER_POLICY_REVISION=ACTIVE_REVISION,
             MM_DIRECTIONAL_COMPOSITE_REQUIRED='1',
             MM_DIRECTIONAL_SLEEVE_DB=str(root/'sleeve.sqlite'),
             MM_DIRECTIONAL_COHORT_ID=epoch,

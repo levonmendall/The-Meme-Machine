@@ -34,6 +34,7 @@ from meme_machine.runtime.sleeve_reservations import SleeveReservations
 from meme_machine.runtime.survivor_commit import commit
 from meme_machine.runtime.survivor_history import History
 from meme_machine.runtime.survivor_paper_book import PaperBook
+from meme_machine.paper_policy_revision import previous_policies,predecessor_policies
 from tests.lanes.pump import test_pump_acceleration_strategy as current_fixtures
 from tests.lanes.pump.test_pumpswap_survivor import facts
 
@@ -102,11 +103,17 @@ class OpportunityAccessPumpTests(unittest.TestCase):
                 self.assertFalse(decision.qualified);self.assertIn(reason,decision.reasons)
 
     def test_previous_repeat_rule_remains_available_as_an_explicit_previous_policy(self):
-        old=replace(CURRENT_POLICY,version=CURRENT_POLICY.version.rsplit('-paper-opportunity-access-v1',1)[0],
+        old=replace(CURRENT_POLICY,**previous_policies()['pump_current']['policy'],
                     revision='pre-opportunity-access-v1')
         decision=qualify(self.late(repeat_buyer_clusters=0,repeat_buy_share_bps=0),old)
         self.assertFalse(decision.qualified)
         self.assertIn('repeat_buyers',decision.reasons);self.assertIn('repeat_buy_share',decision.reasons)
+
+    def test_immediate_predecessor_retains_repeat_diagnostic_economics(self):
+        old=replace(CURRENT_POLICY,**predecessor_policies()['pump_current']['policy'])
+        decision=qualify(self.late(repeat_buyer_clusters=0,repeat_buy_share_bps=0),old)
+        self.assertTrue(decision.qualified,decision.reasons)
+        self.assertEqual(decision.demoted_conditions,('repeat_buyers','repeat_buy_share'))
 
     def test_current_ongoing_requalification_keeps_demand_without_entry_age_deadline(self):
         signal=SignalVector(mint='M',observed_at=10000,surface='pumpswap',phase=MODE_POSTGRAD,

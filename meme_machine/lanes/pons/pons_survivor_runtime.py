@@ -41,6 +41,13 @@ def price_index(sqrt,token,key):
     return sqrt*sqrt*10**18//(1<<192) if token==key.currency0 else (1<<192)*10**18//(sqrt*sqrt)
 
 
+def _quote_times(quote):
+    """Keep the original canonical and acquisition clocks through quote reuse."""
+    stamp=getattr(quote,'stamp',None)
+    return dict(market_time=getattr(stamp,'event_at',None),
+        evidence_available_at=getattr(stamp,'observed_at',None))
+
+
 class Quotes:
     """Exact bounded probes, quoted at one authenticated block.
 
@@ -109,6 +116,9 @@ capacity. Searching cached quotes issues zero additional provider calls.
             self.cache[n]=dict(cost=cost,quantity=b[0],net_proceeds=max(0,s[0]-exit_gas),
                 gas=entry_gas,roundtrip_gas=entry_gas+exit_gas,
                 block=state['block'],block_hash=state['block_hash'],acquired=time.monotonic(),
+                market_time=state.get('market_time',state['at']),
+                evidence_acquired_at=state.get('evidence_acquired_at'),
+                evidence_available_at=state.get('evidence_available_at'),quote_available_at=time.time(),
                 loss_bps=max(0,(cost-max(0,s[0]-exit_gas))*10000//cost))
 
     def loss(self,n):
@@ -462,7 +472,7 @@ class Runtime:
     def fresh_state(self,candidate):
         self._provider();self.current=self.history.get(candidate)
         from .pons_quotes import pinned_block,quote_deadline
-        acquired=time.monotonic()
+        acquired=time.monotonic();acquired_wall=time.time()
         with quote_deadline(self.rpc,acquired):header=_latest_header(self.rpc)
         block=int(header['number'],16)
         if block-self.current['block']>40:raise BoundaryError('survivor_monitoring_not_caught_up')
@@ -477,6 +487,8 @@ class Runtime:
         sqrt=scalar('uint256',value[0])&((1<<160)-1)
         key=PoolKey(**self.current['graduation']['key'])
         return dict(block=block,block_hash=header['hash'],at=int(header['timestamp'],16),
+                    market_time=int(header['timestamp'],16),evidence_acquired_at=acquired_wall,
+                    evidence_available_at=time.time(),
                     price_index=price_index(sqrt,candidate,key),acquired=acquired)
 
     def fresh_quotes(self,state,budget):return Quotes(self,state,budget)
@@ -509,8 +521,18 @@ class Runtime:
         cap=min(sizing['target'],flow['turnover']//POLICY['execution']['min_turnover_multiple'])
         readiness=self.candidate_readiness(row['id'],through_block=state['block'],through_hash=state['block_hash'])
         current_row=self.history.get(row['id'])
+        canonical_generation=self.history.get_meta('pons_reorg:'+row['id'])
         self.facts=dict(now=now,graduation_at=row['graduation']['at'],lineage_proven=True,native_quote=True,
             evidence_acquired_monotonic=state['acquired'],
+            market_time=state.get('market_time',now),evidence_acquired_at=state.get('evidence_acquired_at'),
+            state_evidence_available_at=state.get('evidence_available_at'),
+            rally_cycle_context=dict(candidate=row['id'],venue='pons_v4',
+                graduation=row['graduation'],canonical_generation=canonical_generation,
+                evidence_id=digest(dict(
+                    graduation=row['graduation'],block=state['block'],block_hash=state['block_hash'],
+                    history_checkpoint=current_row.get('evidence_checkpoint'),
+                    canonical_history_recovery=canonical_generation)),
+                authoritative=readiness['ready']),
             price_points=[dict(at=p['at'],price_index=int(p['price'])) for p in points],
             flow_30m=window(now-1800,now+1),flow_previous_30m=window(now-3600,now-1800),
             capital_quote=sizing['realized_equity'],continuity_complete=readiness['ready'],
@@ -539,6 +561,7 @@ class Runtime:
                 double_size_roundtrip_loss_bps=capacity.double_loss_bps,capacity=capacity.telemetry())
         self.facts['execution_evidence_status']='COMPLETE' if market_ready else 'PENDING_EVIDENCE'
         if vq.enabled():self.facts['volume_quality']=row.get('volume_quality')
+        self.facts['evidence_available_at']=time.time()
         return self.facts
 
     def qualify(self,facts):
@@ -549,6 +572,26 @@ class Runtime:
         result['features'].update(independent_buyers=result['features']['independent_buyers_30m'])
         if facts.get('continuity_complete') is not True:
             result['candidate']=False;result['all_rejections'].append('incomplete_continuity')
+        context=facts.get('rally_cycle_context')
+        if context is not None:
+            from meme_machine.runtime.rally_cycle import build_cycle
+            f=result['features']
+            try:
+                context=dict(context,evidence_id=digest([context['evidence_id'],
+                    {key:f[key] for key in ('peak_at','older_peak','reset_at','base_low',
+                        'base_high','base_start','base_end','breakout_at')}]))
+                result['rally_cycle']=build_cycle(**context,peak_at=f['peak_at'],reset_at=f['reset_at'],
+                    base_start=f['base_start'],base_end=f['base_end'],breakout_at=f['breakout_at'],
+                    decision_at=int(time.time()),complete=facts.get('continuity_complete') is True,
+                    minimum_base_seconds=POLICY['reentry']['minimum_completed_base_seconds'],
+                    peak_price=f['older_peak'],reset_price=f['base_low'])
+            except (ValueError,TypeError):
+                result['candidate']=False;result['all_rejections'].append('unverified_rally_cycle')
+                if result['stage']=='qualified':result['stage']='breakout_watch'
+        result['timestamp_accountability']=dict(market_time=facts.get('market_time',facts['now']),
+            evidence_acquired_at=facts.get('evidence_acquired_at'),
+            state_evidence_available_at=facts.get('state_evidence_available_at'),
+            evidence_available_at=facts.get('evidence_available_at'),decision_at=time.time())
         if acquired is not None and time.monotonic()-acquired>5:raise BoundaryError('survivor_stale_qualification')
         return result
 
@@ -593,7 +636,8 @@ class Runtime:
                 self.position_exit_head=(prepared['header'],prepared['acquired'],
                     id(getattr(self.rpc,'_current',self.rpc)),getattr(self.rpc,'provider_fingerprint',None))
                 result=dict(net_proceeds=max(0,q.amount_out-q.gas_quote),quantity=qty,
-                    acquired=prepared['acquired'],block=meta['block'],block_hash=meta['block_hash'],gas=q.gas_quote)
+                    acquired=prepared['acquired'],block=meta['block'],block_hash=meta['block_hash'],gas=q.gas_quote,
+                    **_quote_times(q))
                 if cache is not None:cache[qty]=dict(result,amount_out=q.amount_out,gas_units=meta['gas_units_proxy'],
                     execution=result,canonical_read=getattr(self.rpc,'last_canonical_read',None))
                 return result
@@ -607,7 +651,8 @@ class Runtime:
                     and 0<=time.monotonic()-shared['acquired']<=5
                     and unchanged_canonical_read(self.rpc,shared['canonical_read'],shared['header'])):
                 result=dict(net_proceeds=max(0,q.amount_out-q.gas_quote),quantity=qty,
-                    acquired=shared['acquired'],block=meta['block'],block_hash=meta['block_hash'],gas=q.gas_quote)
+                    acquired=shared['acquired'],block=meta['block'],block_hash=meta['block_hash'],gas=q.gas_quote,
+                    **_quote_times(q))
                 self.final_exit_quote_check=(result,shared['canonical_read'])
                 return result
         if cached and 0<=time.monotonic()-cached['acquired']<=5:
@@ -631,7 +676,8 @@ class Runtime:
                 # provider operation invalidates this reuse immediately.
                 gas=cached['gas_units']*common['gas_price']
                 result=dict(net_proceeds=max(0,cached['amount_out']-gas),quantity=qty,
-                    acquired=cached['acquired'],block=cached['block'],block_hash=cached['block_hash'],gas=gas)
+                    acquired=cached['acquired'],block=cached['block'],block_hash=cached['block_hash'],gas=gas,
+                    market_time=cached.get('market_time'),evidence_available_at=cached.get('evidence_available_at'))
                 self.final_exit_quote_check=(result,common['canonical_read'])
                 return result
             # Reuse only within this one evaluation at an unchanged current
@@ -647,7 +693,8 @@ class Runtime:
                         and 0<=time.monotonic()-cached['acquired']<=5):
                     price=int(gas,16);gas=cached['gas_units']*price
                     result=dict(net_proceeds=max(0,cached['amount_out']-gas),quantity=qty,
-                        acquired=cached['acquired'],block=cached['block'],block_hash=cached['block_hash'],gas=gas)
+                        acquired=cached['acquired'],block=cached['block'],block_hash=cached['block_hash'],gas=gas,
+                        market_time=cached.get('market_time'),evidence_available_at=cached.get('evidence_available_at'))
                     self.pending_exit_market=(result,dict(header=header,gas_price=price,acquired=gas_at))
                     return result
             except BoundaryError:
@@ -672,7 +719,8 @@ class Runtime:
                 fresh_head=fresh_head)
             q.check(self.now(),q.market,'sell',qty,q.stamp.kind,finality_ledger=ledger)
             result=dict(net_proceeds=max(0,q.amount_out-q.gas_quote),quantity=qty,
-                acquired=acquired,block=meta['block'],block_hash=meta['block_hash'],gas=q.gas_quote)
+                acquired=acquired,block=meta['block'],block_hash=meta['block_hash'],gas=q.gas_quote,
+                **_quote_times(q))
             self.final_exit_quote_check=(result,getattr(self.rpc,'last_canonical_read',None))
             if cache is not None:cache[qty]=dict(result,amount_out=q.amount_out,gas_units=meta['gas_units_proxy'])
             return result
@@ -818,6 +866,8 @@ class Runtime:
         net=None if q is None else q['net_proceeds']
         record=row['graduation']['record'];creators={record.get('deployer'),record.get('creatorFeeRecipient')}
         return dict(id=header['hash'] if header else 'unavailable:'+str(self.now()),at=self.now(),
+            market_time=None if q is None else q.get('market_time'),
+            evidence_available_at=None if q is None else q.get('evidence_available_at'),
             evidence_current=header is not None and flow is not None and q is not None,
             after_cost_return_bps=None if net is None else (net-p['basis'])*10000//p['basis'],
             net_exit_proceeds=p['mark'] if net is None else net,exit_liquidity_valid=True if q is not None else None,
@@ -963,7 +1013,7 @@ class Runtime:
                         signal=self.scout.signal(row['graduation']['transition']['market']) if getattr(self,'scout',None) else None
                         state=self.fresh_state(row['id']);quotes=self.fresh_quotes(state,self.sleeve.sizing_basis(500)["target"])
                         decision=self.qualify(self.reconstruct(state,quotes));f=decision['features']
-                        regime=dict(at=state['at'],high_reset_cycle=f['reset_pullback_bps'],
+                        regime=dict(at=state['at'],rally_cycle=decision.get('rally_cycle'),
                             base_id=[f.get('base_low'),f.get('base_high')],buyer_population=self.facts['organic_flow']['buyer_groups'],
                             independent_demand=f['independent_buyers_30m'],flow_regime=f['buy_sell_ratio_bps']//10000)
                         key='pons:survivor:'+row['id']
@@ -974,6 +1024,7 @@ class Runtime:
                             decision_category(decision),at=state['at'],decision=decision)
                         observed=self.sleeve.observe(row['id'],strategy=STRATEGY_VERSION,at=state['at'],
                             state='qualified' if decision['candidate'] else decision['stage'],evidence=decision,regime=regime)
+                        regime=observed['regime']
                         self.sleeve.opportunity(row['id'],identity=row['id'],regime='survivor',
                             status=observed['state'],at=state.get('market_time',state.get('at')),decision=decision)
                         row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
@@ -1003,6 +1054,7 @@ class Runtime:
         final_rows=self.history.rows()
         self.attempts.maintain(self.now(),protected=(r['id'] for r in final_rows))
         return dict(strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,active=True,paper_only=True,
+                    rally_lifecycles=self.sleeve.rally_report(),
                     admission=dict(position_count_limit=None,capital_authority='native_shared_sleeve',
                         legacy_policy_count_is_not_enforced=True,owner_change='2026-10-09'),
                     position_safety=[r.get('position_safety',dict(at=0,evidence_current=False,

@@ -335,7 +335,8 @@ class ForwardSurvivorTests(unittest.TestCase):
     def test_pump_uses_complete_maturity_bounded_long_structure(self):
         from tests.lanes.pump.test_pumpswap_survivor import facts
         from meme_machine.lanes.pump.pumpswap_survivor import evaluate_entry as pump_entry, POLICY as pump_policy
-        self.assertEqual(pump_policy['minimum_age_seconds'],14400)
+        self.assertEqual(pump_policy['minimum_age_seconds'],600)
+        self.assertEqual(pump_policy['mature_age_seconds'],14400)
         for age,passes in ((14400,True),(21600,True)):
             f=facts();offset=f['now']-age
             f['now']=age;f['base_end']-=offset

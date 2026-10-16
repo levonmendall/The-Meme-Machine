@@ -63,6 +63,10 @@ def commit(*,book,sleeve,identity,candidate,generation,strategy,policy_hash,
         fresh=qualify(facts)
         if not fresh['candidate']:
             raise ValueError('survivor_fill_qualification:'+','.join(fresh['all_rejections']))
+        cycle=(regime or {}).get('rally_cycle')
+        if cycle and (fresh['features'].get('peak_at')!=cycle['peak_at']
+                or fresh['features'].get('breakout_at',adapter.now())<cycle['breakout_at']):
+            raise ValueError('survivor_fill_rally_cycle_changed')
         fill_breadth=fresh['features']['independent_buyers']
         if not breadth_retained(breadth,fill_breadth,retention_bps):
             raise ValueError('survivor_breadth_retention')
@@ -76,7 +80,9 @@ def commit(*,book,sleeve,identity,candidate,generation,strategy,policy_hash,
                        capacity=dict(capacity.telemetry(),decision_size=target,capital_cap=budget,
                            turnover_cap=adapter.turnover_cap(facts,fresh),final_size=capacity.final_size,
                            binding_cap=capacity.binding_reason if capacity.final_size<cap else
-                               'turnover' if cap<budget else 'capital'),generation=generation)
+                               'turnover' if cap<budget else 'capital'),generation=generation,
+                       lifecycle_clocks=dict(setup_at=regime.get('at'),entry_fill_at=now,
+                           latest_independent_breakout_at=(regime.get('rally_cycle') or {}).get('breakout_at')))
         # Both locks forbid supersession while the native fill transaction commits.
         with adapter.generation_fence(candidate,generation), sleeve.commit_fence(identity):
             adapter.validate_current(state,execution,now)
@@ -171,13 +177,18 @@ def risk_record(state,row):
     if action=='filled':
         state=dict(opened_at=row['at'],original_quantity=p['tokens'],remaining_quantity=p['tokens'],
                    original_basis=p['basis'],high_water_bps=0,high_at=row['at'],
-                   realization_taken=False,tightened=False,deterioration_streak=0)
+                   realization_taken=False,tightened=False,deterioration_streak=0,
+                   execution_profile=e.get('decision',{}).get('features',{}).get('execution_profile',
+                       e.get('fill',{}).get('features',{}).get('execution_profile')),
+                   lifecycle_clocks=dict(e.get('lifecycle_clocks') or dict(entry_fill_at=row['at'])))
     elif action=='mark' and state is not None:state=dict(e['risk_state'])
     elif action=='partial_harvest' and state is not None:
         state.update(realization_taken=True,remaining_quantity=p['tokens'])
     elif action=='scale_add' and state is not None:
         state.update(scale_committed=True,scale_request=e['request'],remaining_quantity=p['tokens'])
-    elif action=='settled' and state is not None:state.update(settled=True,remaining_quantity=0)
+    elif action=='settled' and state is not None:
+        state.update(settled=True,remaining_quantity=0,
+            lifecycle_clocks=dict(state.get('lifecycle_clocks') or {},native_settlement_at=row['at']))
     return state
 
 
@@ -186,6 +197,7 @@ def monitor(*,book,sleeve,identity,observation,policy,adapter,exceptional_contex
     native_sync(book,sleeve,identity)
     state=restore_risk(book,identity)
     if state.get('settled'):return dict(action='settled')
+    policy=getattr(adapter,'position_policy',lambda risk,policy:policy)(state,policy)
     position=book._load(identity)
     if state.get('scale_committed') and observation.get('after_cost_return_bps') is not None:
         observation=dict(observation,after_cost_return_bps=reference_return(
@@ -198,6 +210,11 @@ def monitor(*,book,sleeve,identity,observation,policy,adapter,exceptional_contex
         state=dict(state,realized_profit=position['realized'])
         next_state,action=survivor_mark(state,observation,policy,family=family,context=exceptional_context)
     else:next_state,action=mark(state,observation,policy)
+    if action['action'] in ('full_exit','partial_exit'):
+        clocks=dict(next_state.get('lifecycle_clocks') or {})
+        key='exit_intent_at' if action['action']=='full_exit' else 'first_realization_intent_at'
+        clocks.setdefault(key,observation['at'])
+        next_state=dict(next_state,lifecycle_clocks=clocks)
     if next_state!=state:
         # Return uses the remaining cost basis and full executable remaining exit.
         book.transition(identity,'mark',observation['at'],

@@ -64,6 +64,7 @@ class SleeveReservations:
           CREATE TABLE IF NOT EXISTS sleeve_genesis(id INTEGER PRIMARY KEY,body TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS sleeve_positions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS sleeve_candidates(id TEXT PRIMARY KEY,generation INTEGER NOT NULL,body TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS sleeve_rallies(id TEXT PRIMARY KEY,body TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS sleeve_journal(seq INTEGER PRIMARY KEY,body TEXT NOT NULL,previous TEXT NOT NULL,hash TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS sleeve_archive(id INTEGER PRIMARY KEY CHECK(id=1),body TEXT NOT NULL,hash TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS opportunity_links(asset TEXT PRIMARY KEY,body TEXT NOT NULL,at INTEGER NOT NULL);
@@ -91,6 +92,12 @@ class SleeveReservations:
                 # This existing nonfinancial metadata table also retains the
                 # opportunity journal prefix. Financial genesis stays immutable.
                 self.db.execute('CREATE TABLE IF NOT EXISTS opportunity_meta_v1(key TEXT PRIMARY KEY,value TEXT NOT NULL)')
+                from meme_machine.runtime.policy_compatibility import LEGACY_SELECTION_KEY,validate_prior_selection
+                prior=self.db.execute('SELECT value FROM opportunity_meta_v1 WHERE key=?',(LEGACY_SELECTION_KEY,)).fetchone()
+                if prior:
+                    selected_prior=json.loads(prior[0]);checksum=selected_prior.pop('checksum',None)
+                    if checksum!=digest(selected_prior):raise ValueError('paper_policy_selection_checkpoint_conflict')
+                    validate_prior_selection(selected_prior,stored)
                 expected=selection(stored,requested)
                 selected=self.db.execute('SELECT value FROM opportunity_meta_v1 WHERE key=?',(SELECTION_KEY,)).fetchone()
                 if selected:
@@ -130,7 +137,9 @@ class SleeveReservations:
             seq,prev=(anchor['seq']+1,anchor['final_hash']) if anchor else (1,'0'*64)
         body=dict(kind=kind,row=row,identity=self.identity)
         self.db.execute('INSERT INTO sleeve_journal VALUES(?,?,?,?)',(seq,canonical(body),prev,digest([seq,prev,body])))
-        if kind=='candidate':
+        if kind=='rally':
+            self.db.execute('INSERT OR REPLACE INTO sleeve_rallies VALUES(?,?)',(row['id'],canonical(row)))
+        elif kind=='candidate':
             self.db.execute('INSERT OR REPLACE INTO sleeve_candidates VALUES(?,?,?)',(row['id'],row['generation'],canonical(row)))
         else:
             self.db.execute('INSERT OR REPLACE INTO sleeve_positions VALUES(?,?)',(row['id'],canonical(row)))
@@ -142,6 +151,93 @@ class SleeveReservations:
     def candidate(self,identity):
         row=self.db.execute('SELECT body FROM sleeve_candidates WHERE id=?',(identity,)).fetchone()
         return json.loads(row[0]) if row else None
+
+    def rally(self,candidate,*,strategy):
+        key=canonical([strategy,self.asset_key(candidate)])
+        row=self.db.execute('SELECT body FROM sleeve_rallies WHERE id=?',(key,)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def _observe_rally(self,candidate,strategy,regime,at):
+        from meme_machine.runtime.rally_cycle import validate_cycle
+        cycle=validate_cycle(regime['rally_cycle'],candidate=candidate,observation_at=at)
+        old=self.rally(candidate,strategy=strategy)
+        if old:
+            previous=old['cycle']
+            if cycle['lineage']!=previous['lineage']:
+                raise ValueError('rally_cycle_lineage_changed')
+            if cycle['peak_at']<previous['peak_at']:
+                raise ValueError('rally_cycle_time_regression')
+            if (cycle['id']==previous['id']
+                    and cycle.get('canonical_generation')==previous.get('canonical_generation')):
+                # Freeze the first completed base/breakout certificate. A later
+                # decision cannot relabel an already-observed breakout as new.
+                return dict(regime,rally_cycle=previous,decision_at=cycle['decision_at'],
+                    decision_evidence_id=cycle['evidence_id'])
+            if cycle['id']!=previous['id'] and cycle['peak_at']==previous['peak_at']:
+                raise ValueError('rally_cycle_peak_conflict')
+        row=dict(old or {},id=canonical([strategy,self.asset_key(candidate)]),
+            candidate=candidate,strategy=strategy,cycle=cycle,last_observed_at=at)
+        row.setdefault('traded_count',0);row.setdefault('cancelled_count',0)
+        self._event('rally',row)
+        return dict(regime,rally_cycle=cycle,decision_at=cycle['decision_at'],
+            decision_evidence_id=cycle['evidence_id'])
+
+    def _rally_lifecycle(self,position,*,kind):
+        regime=position.get('regime') or {}
+        if not regime.get('rally_cycle'):return
+        row=self.rally(position['candidate'],strategy=position['strategy'])
+        if not row:raise ValueError('rally_cycle_projection_missing')
+        row=dict(row)
+        if kind=='filled':
+            if (row.get('last_traded') or {}).get('identity')==position['id']:return
+            row['traded_count']+=1
+            row['last_traded']=dict(identity=position['id'],cycle=regime['rally_cycle'],regime=regime,
+                ordinal=row['traded_count'],status='filled',original_basis=position.get('entry_basis'),
+                reservation_amount=position['amount'],
+                reservation_at=position['at'])
+        elif kind=='native':
+            if (row.get('last_traded') or {}).get('identity')!=position['id']:return
+            if position.get('entry_fill_at') is None and position.get('entry_basis') is None:return
+            native=dict(row['last_traded'])
+            if position.get('entry_fill_at') is not None:native['entry_fill_at']=position['entry_fill_at']
+            if position.get('entry_basis') is not None:native['original_basis']=position['entry_basis']
+            if native==row['last_traded']:return
+            row['last_traded']=native
+        elif kind=='settled':
+            if position.get('cancelled'):
+                row['cancelled_count']+=1
+                row['last_cancelled']=dict(identity=position['id'],at=position['terminal_at'])
+            else:
+                if (row.get('last_traded') or {}).get('identity')!=position['id']:
+                    raise ValueError('rally_cycle_terminal_identity')
+                outcome=dict(row['last_traded'],status='settled',realized_pnl=position['pnl'],
+                    native_settlement_at=position['terminal_at'],terminal_hash=position['terminal_hash'])
+                outcome['after_cost_return_bps']=(None if outcome.get('original_basis') is None else
+                    position['pnl']*10000//outcome['original_basis'])
+                verifier=getattr(self,'reentry_verified',None)
+                proof=verifier(position['id']) if verifier else None
+                if proof:outcome['settlement']=proof
+                row['last_traded']=outcome
+                from meme_machine.runtime.rally_cycle import accumulate_outcomes
+                ordinal=outcome['ordinal']
+                bucket=('first','second','third')[ordinal-1] if ordinal<=3 else 'later'
+                row['outcomes']=accumulate_outcomes(row.get('outcomes'),{bucket:dict(
+                    terminal_count=1,realized_pnl=outcome['realized_pnl'],
+                    original_basis=outcome.get('original_basis') or 0,
+                    missing_original_basis=int(outcome.get('original_basis') is None))})
+                row['completed']=(row.get('completed',[])+[outcome])[-3:]
+        self._event('rally',row)
+
+    def rally_report(self,*,limit=256):
+        """Bounded read-only lifecycle telemetry; never a funding authority."""
+        if type(limit) is not int or not 0<limit<=1000:raise ValueError('rally_report_limit')
+        with self.lock:
+            total=self.db.execute('SELECT COUNT(*) FROM sleeve_rallies').fetchone()[0]
+            rows=[json.loads(raw) for raw, in self.db.execute('SELECT body FROM sleeve_rallies ORDER BY id LIMIT ?',(limit,))]
+            archive=self._archive()
+            folded=(archive or {}).get('folded',{}).get('rally_outcomes',{})
+        return dict(schema='rally-lifecycle-report-v1',candidates=total,truncated=total>limit,
+            retired_outcomes=folded,rows=rows)
 
     def opportunity(self,asset,*,identity,regime,status,at,decision=None,outcome=None):
         """Observation-only links. No Current outcome retires Survivor eligibility."""
@@ -186,6 +282,8 @@ class SleeveReservations:
             old=self.candidate(identity)
             if old and at<old['at']:
                 raise ValueError('candidate_time_regression')
+            if (regime or {}).get('rally_cycle'):
+                regime=self._observe_rally(identity,strategy,regime,at)
             payload=dict(strategy=strategy,at=at,state=state,evidence=evidence,regime=regime)
             if old and all(old[k]==v for k,v in payload.items()):
                 return old
@@ -232,39 +330,73 @@ class SleeveReservations:
                 return row['id']
         return None
 
-    @_opportunity_native
-    def reserve(self,identity,*,strategy,amount,at,candidate=None,generation=None,regime=None,asset=None,funding_evidence=None):
+    def _reservation_preflight(self,identity,*,strategy,amount,at,candidate=None,generation=None,regime=None,asset=None,funding_evidence=None):
+        """Deterministic native rejection before shared money is reserved.
+
+        The caller owns a transaction. The same checks run again after a shared
+        grant so another connection cannot invalidate native admission silently.
+        """
         if strategy not in self.identity['policies'] or type(amount) is not int or amount<=0:
             raise ValueError('sleeve_reservation')
+        old=self.get(identity)
+        if old:
+            if old['status']=='settled':raise ValueError('terminal_reservation_reused')
+            if all(old[k]==v for k,v in dict(strategy=strategy,amount=amount,candidate=candidate,generation=generation).items()):
+                return old
+            raise ValueError('sleeve_reservation_conflict')
+        from meme_machine.paper_policy_revision import ACTIVE_REVISION,revision_for_hash
+        modern_survivor=('survivor' in strategy
+            and revision_for_hash(self.decision_policies[strategy])==ACTIVE_REVISION)
+        if modern_survivor and candidate is None:
+            raise ValueError('survivor_candidate_required')
+        from meme_machine.operational.admission import legacy_funding_guard
+        legacy_funding_guard(self)
+        from meme_machine.runtime.lifecycle_identity import validate_new
+        archive=self._archive()
+        validate_new(identity,archived=(archive or {}).get('archived_entry_scopes',{}).get(strategy))
+        if candidate is not None:
+            current=self.candidate(candidate)
+            if not current or current['generation']!=generation or current['state']!='qualified':
+                raise ValueError('superseded_reservation')
+            from meme_machine.runtime.survivor_risk import new_regime
+            cycle=(regime or {}).get('rally_cycle')
+            rally=self.rally(candidate,strategy=strategy)
+            if cycle:
+                from meme_machine.runtime.rally_cycle import validate_cycle
+                validate_cycle(cycle,candidate=candidate,observation_at=current['at'])
+                if (not rally or rally['cycle']!=cycle or current['regime']!=regime):
+                    raise ValueError('superseded_rally_cycle')
+                prior=(rally.get('last_traded') or {})
+                if prior:
+                    verifier=getattr(self,'reentry_verified',None)
+                    proof=verifier(prior['identity']) if verifier else None
+                    if (prior['status']!='settled' or not new_regime(prior['regime'],regime,settlement=proof)):
+                        raise ValueError('same_survivor_regime')
+            if modern_survivor and not cycle:
+                raise ValueError('rally_cycle_certificate_required')
+            for raw, in self.db.execute('SELECT body FROM sleeve_positions'):
+                prior=json.loads(raw)
+                if prior['strategy']!=strategy or prior['candidate']!=candidate or prior.get('cancelled'):continue
+                verifier=getattr(self,'reentry_verified',None)
+                proof=verifier(prior['id']) if verifier and cycle else None
+                if (prior['status']!='settled' or not new_regime(prior['regime'],regime,settlement=proof)):
+                    raise ValueError('same_survivor_regime')
+        if self.fill_blocker(asset or candidate,except_identity=identity):
+            raise ValueError('same_asset_exposure')
+        return None
+
+    @_opportunity_native
+    def reserve(self,identity,*,strategy,amount,at,candidate=None,generation=None,regime=None,asset=None,funding_evidence=None):
         with self.transaction():
-            old=self.get(identity)
-            if old:
-                if old['status']=='settled':raise ValueError('terminal_reservation_reused')
-                if all(old[k]==v for k,v in dict(strategy=strategy,amount=amount,candidate=candidate,generation=generation).items()):
-                    return old
-                raise ValueError('sleeve_reservation_conflict')
-            from meme_machine.operational.admission import legacy_funding_guard
-            legacy_funding_guard(self)
-            from meme_machine.runtime.lifecycle_identity import validate_new
-            archive=self._archive()
-            validate_new(identity,archived=(archive or {}).get('archived_entry_scopes',{}).get(strategy))
-            if candidate is not None:
-                current=self.candidate(candidate)
-                if not current or current['generation']!=generation or current['state']!='qualified':
-                    raise ValueError('superseded_reservation')
-                from meme_machine.runtime.survivor_risk import new_regime
-                prior=[json.loads(raw) for raw, in self.db.execute('SELECT body FROM sleeve_positions')]
-                for p in prior:
-                    if p['strategy']==strategy and p['candidate']==candidate:
-                        if p.get('cancelled'):continue
-                        if p['status']!='settled' or not new_regime(p['regime'],regime):
-                            raise ValueError('same_survivor_regime')
-            if amount>self.reconcile()['available'] and not (
-                    hasattr(self,'_shared_reserved') and self._shared_reserved(identity,amount)):
+            old=self._reservation_preflight(identity,strategy=strategy,amount=amount,at=at,
+                candidate=candidate,generation=generation,regime=regime,asset=asset,funding_evidence=funding_evidence)
+            if old:return old
+            grant=getattr(self,'_grant_receipt',None)
+            shared=hasattr(self,'_shared_reserved') and self._shared_reserved(identity,amount)
+            if grant and not shared:raise ValueError('native_shared_funding_receipt_invalid')
+            if amount>self.reconcile()['available'] and not shared:
                 raise ValueError('sleeve_capital_exhausted')
             key=self.asset_key(asset or candidate)
-            if self.fill_blocker(key,except_identity=identity):
-                raise ValueError('same_asset_exposure')
             row=dict(id=identity,strategy=strategy,amount=amount,held=amount,at=at,
                      candidate=candidate,generation=generation,regime=regime,status='reserved',pnl=0,
                      asset=key,scale_committed=False)
@@ -292,6 +424,7 @@ class SleeveReservations:
             yield row
             row=dict(row,status='filled')
             self._event('filled',row)
+            self._rally_lifecycle(row,kind='filled')
 
     @_opportunity_native
     def release(self,identity,*,pnl,at,terminal_hash,native_verified,cancelled=False):
@@ -306,12 +439,14 @@ class SleeveReservations:
                 return row
             if pnl < -row['amount'] or at<row['at']:
                 raise ValueError('sleeve_terminal_invariant')
-            row=dict(row,status='settled',held=0,pnl=pnl,terminal_at=at,terminal_hash=terminal_hash,cancelled=cancelled)
+            row=dict(row,status='settled',held=0,pnl=pnl,terminal_at=at,native_settlement_at=at,
+                terminal_hash=terminal_hash,cancelled=cancelled)
             self._event('settle',row)
+            self._rally_lifecycle(row,kind='settled')
             return row
 
     @_opportunity_native
-    def acknowledge_native(self,identity,*,basis,pnl,at,native_hash,native_verified):
+    def acknowledge_native(self,identity,*,basis,pnl,at,native_hash,native_verified,entry_fill_at=None,entry_basis=None):
         """Only replayed native cash flows release basis or compound realized P&L."""
         if (native_verified is not True or type(basis) is not int or basis<0
                 or type(pnl) is not int or not native_hash):
@@ -325,8 +460,16 @@ class SleeveReservations:
             if basis>row['amount'] or pnl < -row['amount']:
                 raise ValueError('native_cash_flow_invariant')
             if row.get('native_hash')==native_hash:return row
+            if entry_fill_at is not None and (type(entry_fill_at) is not int or not row['at']<=entry_fill_at<=at):
+                raise ValueError('native_entry_fill_time')
+            if entry_basis is not None and (type(entry_basis) is not int or not 0<entry_basis<=row['amount']):
+                raise ValueError('native_entry_basis')
             row=dict(row,status='filled',held=held,pnl=pnl,native_hash=native_hash,native_at=at)
+            if entry_fill_at is not None:row.setdefault('entry_fill_at',entry_fill_at)
+            if entry_basis is not None:row.setdefault('entry_basis',entry_basis)
             self._event('native_sync',row)
+            self._rally_lifecycle(row,kind='filled')
+            self._rally_lifecycle(row,kind='native')
             self.reconcile()
             return row
 
@@ -410,6 +553,8 @@ class SleeveReservations:
             anchor=dict(identity=self.identity,seq=seq,final_hash=proof['final_hash'],
                 positions={i:json.loads(b) for i,b in source.db.execute('SELECT * FROM sleeve_positions')},
                 candidates={i:json.loads(b) for i,_,b in source.db.execute('SELECT * FROM sleeve_candidates')},
+                rallies={i:json.loads(b) for i,b in source.db.execute('SELECT * FROM sleeve_rallies')}
+                    if source.db.execute("SELECT 1 FROM sqlite_master WHERE name='sleeve_rallies'").fetchone() else {},
                 authority=authority,previous_archive_hash=digest(prior) if prior else None)
             if prior:
                 for key in ('folded','archived_entry_scopes','retirement_receipt'):
@@ -448,11 +593,12 @@ class SleeveReservations:
         archive=self._archive()
         positions,candidates,previous,offset=({}, {},'0'*64,0) if archive is None else (
             archive['positions'],archive['candidates'],archive['final_hash'],archive['seq'])
+        rallies={} if archive is None else dict(archive.get('rallies',{}))
         for expected,(seq,raw,prev,checksum) in enumerate(self.db.execute('SELECT * FROM sleeve_journal ORDER BY seq'),offset+1):
             body=json.loads(raw);row=body['row'];kind=body['kind']
             if seq!=expected or prev!=previous or checksum!=digest([seq,prev,body]) or body['identity']!=self.identity:
                 raise ValueError('sleeve_journal_corruption')
-            target=candidates if kind=='candidate' else positions
+            target=rallies if kind=='rally' else candidates if kind=='candidate' else positions
             old=target.get(row['id'])
             if kind=='reserve' and old is not None:raise ValueError('sleeve_replay_duplicate')
             if kind in ('filled','settle') and (not old or old['status']=='settled'):
@@ -464,6 +610,10 @@ class SleeveReservations:
             raise ValueError('sleeve_projection_corruption')
         if candidates!={i:json.loads(b) for i,_,b in self.db.execute('SELECT * FROM sleeve_candidates')}:
             raise ValueError('sleeve_candidate_corruption')
+        stored_rallies=({i:json.loads(b) for i,b in self.db.execute('SELECT * FROM sleeve_rallies')}
+            if self.db.execute("SELECT 1 FROM sqlite_master WHERE name='sleeve_rallies'").fetchone() else {})
+        if rallies!=stored_rallies:
+            raise ValueError('sleeve_rally_corruption')
         folded=archive.get('folded',{}) if archive else {}
         held=sum(p['held'] for p in positions.values());realized=folded.get('realized',0)+sum(p['pnl'] for p in positions.values())
         available=self.identity['capital']+realized-held

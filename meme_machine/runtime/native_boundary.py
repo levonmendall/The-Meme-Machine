@@ -220,7 +220,7 @@ class NativeBoundary:
             if getattr(self.client,'shared',False):
                 units=position.get('basis',position.get('remaining_cost',position.get('reserved',0)))
                 if action=='scale_add':units=raw
-                extra['metadata']=dict(native_basis_units=int(units))
+                extra['metadata']=dict(native_basis_units=int(units),native_event_at=native_at)
             event = self.client.prepare(native,event_key="native:"+checksum,journal_hash=checksum,kind=kind,at=utc(at),data=facts,
                 value_evidence=evidence if kind not in ("reserve","release") and facts.get("state")!="UNAVAILABLE" else None,**extra)
         except BaseException:

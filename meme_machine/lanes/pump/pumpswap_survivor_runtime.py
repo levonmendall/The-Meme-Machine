@@ -191,6 +191,11 @@ class Runtime:
 
     def fresh_quotes(self,state,budget):return Quotes(state,self.now())
 
+    def position_policy(self,risk,policy):
+        # The original filled native journal owns this profile. Maturing beyond
+        # four hours, scaling and restarting cannot loosen a bridge's protection.
+        return POLICY['bridge_exits'] if risk.get('execution_profile')=='pump_postgrad_bridge' else policy
+
     def necessary_scale_return(self,state,position,risk):
         """Exact native sell arithmetic; no extra acquisition or retained quote."""
         try:
@@ -226,7 +231,11 @@ class Runtime:
             row['volume_quality_requalification_due']=False
             self.history.save(row)
         organic=[e for e in events if e['group'] not in agents and e['group']!=creator]
-        recent=[e for e in organic if at-1800<=e['at']<=at]
+        age=at-grad['at']
+        tier=next((t for t in POLICY['bridge_tiers']
+                   if t['minimum_age_seconds']<=age<t['maximum_age_seconds']),None)
+        demand_seconds=POLICY['demand_window_seconds'] if tier is None else tier['demand_window_seconds']
+        recent=[e for e in organic if at-demand_seconds<=e['at']<=at]
         tokens=sum(e['tokens'] for e in recent)
         vwap=None if tokens<=0 else str(Fraction(sum(e['quote'] for e in recent),tokens))
         from meme_machine.lanes.pump.runner import _postgrad_concentration
@@ -254,6 +263,9 @@ class Runtime:
             reset_history_prefix=reset_prefix,qualification_evidence_complete=not maintenance,
             reset_history_revision_detail_unavailable=recomputation_blocker,
             qualification_purpose=self._qualification_purpose(row),
+            evidence_acquired_at=state['available_time'],evidence_available_at=self.now(),
+            decision_at=self.now(),canonical_slot=state['slot'],
+            canonical_evidence_checkpoint=row.get('evidence_checkpoint'),
             recovery_vwap=vwap,demand_events=organic,holder_concentration_bps=concentration)
         if vq.enabled() and not maintenance:facts['volume_quality']=row.get('volume_quality')
         self.facts=facts;return facts
@@ -349,10 +361,21 @@ class Runtime:
     @attributed_work('pump_survivor_qualification')
     def _enter(self,row,decision,generation,regime,identity):
         sizing=self.sleeve.sizing_basis(POLICY["target_sleeve_bps"])
-        result=commit(book=self.book,sleeve=self.sleeve,identity=identity,candidate=row['id'],generation=generation,
-            strategy=STRATEGY_ID,policy_hash=POLICY_HASH,decision=decision,regime=regime,at=self.now(),
-            target=sizing["target"],minimum=GAS*2+1,retention_bps=5000,
-            ordinary_limit=600,stress_limit=600,adapter=self,qualify=evaluate_entry)
+        try:
+            result=commit(book=self.book,sleeve=self.sleeve,identity=identity,candidate=row['id'],generation=generation,
+                strategy=STRATEGY_ID,policy_hash=POLICY_HASH,decision=decision,regime=regime,at=self.now(),
+                target=sizing["target"],minimum=GAS*2+1,retention_bps=5000,
+                ordinary_limit=600,stress_limit=600,adapter=self,qualify=evaluate_entry)
+        except (ValueError,Unavailable) as exc:
+            # Use the existing qualification's one durable funding disposition.
+            # A fresh safety/quote failure is also a missed eligible opportunity;
+            # it is never relabeled as a fill or sent to another strategy worker.
+            try:materialized=self.book._load(identity)['status'] in ('open','settled')
+            except ValueError:materialized=False
+            if not materialized:
+                self._funding(row,'denied',str(exc),dict(lifecycle_id=identity,sizing=sizing,
+                    phase='native_reservation_or_fresh_execution_validation'))
+            raise
         self._funding(row,'funded',details=dict(lifecycle_id=identity,sizing=sizing))
         return result
 
@@ -366,6 +389,12 @@ class Runtime:
     def _funding(self,row,status,reason=None,details=None):
         shared=getattr(self,'candidate_history',None)
         if shared is not None and row.get('decision_id'):
+            decision=row.get('decision') or {}
+            bridge=decision.get('features',{}).get('execution_profile')=='pump_postgrad_bridge'
+            details=dict(details or {})
+            details.update(execution_profile=decision.get('features',{}).get('execution_profile'),
+                missed_eligible_bridge=bridge and decision.get('candidate') is True and status=='denied',
+                policy_comparison=decision.get('policy_comparison'))
             shared.record_funding(row['decision_id'],'pump',row['id'],
                 status=status,at=self.now(),reason=reason,details=details)
 
@@ -401,28 +430,50 @@ class Runtime:
                     self.plane.command(op='release',owner='pump:survivor:'+row['id'],scope=SWAP_SCOPE,resolved=False)
                 else:
                     # Incremental local monitoring starts at graduation, without
-                    # RPC hydration or entry authority before the frozen age floor.
+                    # RPC hydration or entry authority before the ten-minute floor.
                     top=self.plane.frontier(SWAP_SCOPE);at=self.plane.block_time(top)
                     self._increment(row,at,top)
                     if age<POLICY['minimum_age_seconds']:row=self.history.get(row['id']);row['state']='aging';self.history.save(row)
                     else:
                         state=self.fresh_state(row['id'],priority=30)
-                        decision=evaluate_entry(self.reconstruct(state,Quotes(state,self.now())))
+                        qualification_facts=self.reconstruct(state,Quotes(state,self.now()))
+                        decision=evaluate_entry(qualification_facts)
                         row=self.history.get(row['id'])
                         f=decision['features'];regime=dict(at=state['market_time'],
                             high_reset_cycle=[f.get('peak_at'),f.get('reset_at')],base_id=[f.get('base_low'),f.get('base_high')],
                             buyer_population=f.get('buyer_groups'),independent_demand=f.get('independent_buyers'),
                             flow_regime='buy' if f.get('buy_flow',0)>f.get('sell_flow',0) else 'sell')
+                        if decision['candidate']:
+                            from meme_machine.runtime.rally_cycle import build_cycle
+                            regime['rally_cycle']=build_cycle(candidate=row['id'],venue='pumpswap',
+                                graduation=row['graduation'],peak_at=f['peak_at'],reset_at=f['reset_at'],
+                                base_start=f['base_start'],base_end=f['base_end'],breakout_at=f['breakout_at'],
+                                decision_at=self.now(),evidence_id=digest(dict(
+                                    slot=state['slot'],checkpoint=row.get('evidence_checkpoint'),
+                                    historical_evidence_hash=digest(dict(
+                                        graduation=row['graduation'],points=qualification_facts['price_points'],
+                                        prefix=qualification_facts.get('reset_history_prefix'))))),
+                                authoritative=True,complete=row['complete'],
+                                minimum_base_seconds=f['base_seconds'])
                         blocked=row.get('extension_blocked_regime')
                         if blocked:
-                            from meme_machine.runtime.survivor_risk import new_regime
-                            if not (new_regime(blocked,regime) and blocked['base_id']!=regime['base_id']
-                                    and blocked['high_reset_cycle']!=regime['high_reset_cycle']):
+                            # This is an untraded overextension watch, so it has
+                            # no native settlement. Preserve its original hour
+                            # spacing plus changed reset AND base; settlement
+                            # verification belongs to an actually traded cycle.
+                            changed=(regime['at']-blocked['at']>=POLICY['reentry']['minimum_seconds']
+                                     and blocked['base_id']!=regime['base_id']
+                                     and blocked['high_reset_cycle']!=regime['high_reset_cycle'])
+                            if not changed:
                                 decision['candidate']=False;decision['all_rejections'].append('extension_requires_new_reset_base')
                         if any(reason in decision['all_rejections'] for reason in ('price_extension','base_range_extension')):
                             row['extension_blocked_regime']=regime;self.history.save(row)
                         observed=self.sleeve.observe(row['id'],strategy=STRATEGY_ID,at=state['market_time'],
                             state='qualified' if decision['candidate'] else decision['stage'],evidence=decision,regime=regime)
+                        # The sleeve freezes a cycle's first observed breakout.
+                        # Later canonical observations cannot mint another cycle
+                        # from a moving decision time or completed base window.
+                        regime=observed['regime']
                         self.sleeve.opportunity(row['id'],identity=row['id'],regime='survivor',
                             status=observed['state'],at=state.get('market_time',state.get('at')),decision=decision)
                         row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
@@ -468,6 +519,12 @@ class Runtime:
             from meme_machine.runtime.survivor_commit import exceptional_evidence_failure
             exceptional_evidence_failure(self,family='pump_survivor',blocker=str(exc))
         return dict(strategy=STRATEGY_ID,policy_hash=POLICY_HASH,active=True,paper_only=True,
+                    rally_lifecycles=self.sleeve.rally_report(),
+                    execution_work_model=dict(owner='existing_pump_survivor_worker',
+                        intake='canonical_solana_evidence_plane',additional_workers=0,
+                        additional_broad_market_scans=0,new_candidates_per_turn_limit=1,
+                        commit_state_refresh_limit=2,counterfactual_full_history_evaluations=0,
+                        comparison_cost='existing_predicates_and_constant_age_comparison'),
                     pump_held_rpc=dict(
                         mode=held_rpc_mode(),
                         verified_pool_probe_reuses=getattr(getattr(self,'adapter',None),

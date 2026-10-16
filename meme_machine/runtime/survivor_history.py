@@ -49,10 +49,11 @@ class History:
         Pump reset prefix cannot prove a new 3% reset after its detail retired.
         """
         from meme_machine.runtime.policy_compatibility import (active_hash,selection,
-            require_flat_rows,require_external_flat,SELECTION_KEY)
-        from meme_machine.paper_policy_revision import previous_hash
+            require_flat_rows,require_external_flat,SELECTION_KEY,LEGACY_SELECTION_KEY,
+            validate_prior_selection)
+        from meme_machine.paper_policy_revision import historical_hashes,revision_for_hash
         regimes=('pump_survivor','pons_survivor')
-        regime=next((r for r in regimes if old==previous_hash(r) and policy==active_hash(r)),None)
+        regime=next((r for r in regimes if old in historical_hashes(r) and policy==active_hash(r)),None)
         if regime is None:raise ValueError('survivor_history_policy_drift')
         with self.transaction():
             rows=self.rows(include_retired=True)
@@ -74,9 +75,16 @@ class History:
                     book.replay()
                     require_flat_rows([json.loads(raw) for raw, in db.execute('SELECT body FROM positions')],kind='pump')
             require_external_flat()
+            prior=self.get_meta(LEGACY_SELECTION_KEY)
+            if prior is not None:
+                # History's original financial policy remains in its immutable
+                # selection evidence while the current policy metadata advances.
+                validate_prior_selection(prior,prior.get('financial_identity') if isinstance(prior,dict) else None)
+                if prior['decision_identity'].get('policy_hash')!=old:
+                    raise ValueError('paper_policy_selection_checkpoint_conflict')
             expected=selection(dict(policy_hash=old),dict(policy_hash=policy))
             self.set_meta(SELECTION_KEY,expected)
-            self.set_meta('previous_policy:'+old,dict(policy_hash=old,revision='pre-paper-opportunity-access-v1'))
+            self.set_meta('previous_policy:'+old,dict(policy_hash=old,revision=revision_for_hash(old)))
             for row in rows:
                 identity=row['id'];saved=self.get_meta('calculation_prefix:'+identity)
                 if saved is not None:

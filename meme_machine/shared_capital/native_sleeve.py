@@ -187,31 +187,99 @@ class SharedSleeve(SleeveReservations):
         return _size_equity(state,r)
 
     def reserve(self,identity,*,strategy,amount,at,candidate=None,generation=None,regime=None,asset=None,funding_evidence=None):
-        if candidate is not None:
-            row=self.candidate(candidate)
-            if not row or row['state']!='qualified' or row['generation']!=generation:raise ValueError('superseded_reservation')
-            evidence=row['evidence']
-            asset=asset or row.get('asset')
-        else:
-            evidence=funding_evidence
-            if not evidence:raise CapitalError('authentic_native_qualification_required')
-        grant=self._grant(identity,strategy=strategy,units=amount,at=at,asset=asset or candidate,
-            evidence=evidence,generation=generation or 1)
-        self._grant_receipt=grant
-        try:return super().reserve(identity,strategy=strategy,amount=amount,at=at,candidate=candidate,
-            generation=generation,regime=regime,asset=asset)
-        finally:self._grant_receipt=None
+        # Reject deterministic native conflicts before asking the shared writer
+        # for cash. The native transaction repeats this check after the grant:
+        # independent processes can supersede a candidate or win its asset.
+        with self.lock:
+            with self.transaction():
+                prior=self._reservation_preflight(identity,strategy=strategy,amount=amount,at=at,
+                    candidate=candidate,generation=generation,regime=regime,asset=asset,
+                    funding_evidence=funding_evidence)
+            if prior:return prior
+            if candidate is not None:
+                row=self.candidate(candidate);evidence=row['evidence']
+                asset=asset or row.get('asset')
+            else:
+                evidence=funding_evidence
+                if not evidence:raise CapitalError('authentic_native_qualification_required')
+            try:
+                self._grant_receipt=self._grant(identity,strategy=strategy,units=amount,at=at,
+                    asset=asset or candidate,evidence=evidence,generation=generation or 1)
+                return super().reserve(identity,strategy=strategy,amount=amount,at=at,candidate=candidate,
+                    generation=generation,regime=regime,asset=asset,funding_evidence=funding_evidence)
+            except BaseException as error:
+                self._compensate_failed_reservation(identity,kind='new',error=error)
+                raise
+            finally:self._grant_receipt=None
 
     def reserve_scale(self,identity,*,amount,original_basis,at,request,scale_state=None,scale_facts=None):
-        row=self.get(identity)
-        if not row or row['status']!='filled' or row.get('scale_committed'):raise ValueError('scale_lifecycle_state')
-        if scale_state is None or scale_facts is None:raise CapitalError('verified_scale_evidence_required')
-        grant=self._grant(identity,strategy=row['strategy'],units=amount,at=at,asset=row['asset'],
-            evidence=dict(request=request,scale_state=scale_state,scale_facts=scale_facts),kind='scale',
-            scale_state=scale_state,scale_facts=scale_facts)
-        self._grant_receipt=grant
-        try:return super().reserve_scale(identity,amount=amount,original_basis=original_basis,at=at,request=request)
-        finally:self._grant_receipt=None
+        with self.lock:
+            if type(amount) is not int or amount<=0 or not request:raise ValueError('scale_reservation')
+            row=self.get(identity)
+            if not row or row['status']!='filled' or row.get('scale_committed'):raise ValueError('scale_lifecycle_state')
+            prior=row.get('scale_reservation') or {}
+            if prior.get('status')=='reserved':
+                if (prior['amount'],prior['request'])==(amount,request):return prior
+                raise ValueError('scale_reservation_conflict')
+            if scale_state is None or scale_facts is None:raise CapitalError('verified_scale_evidence_required')
+            try:
+                self._grant_receipt=self._grant(identity,strategy=row['strategy'],units=amount,at=at,asset=row['asset'],
+                    evidence=dict(request=request,scale_state=scale_state,scale_facts=scale_facts),kind='scale',
+                    scale_state=scale_state,scale_facts=scale_facts)
+                return super().reserve_scale(identity,amount=amount,original_basis=original_basis,at=at,request=request)
+            except BaseException as error:
+                self._compensate_failed_reservation(identity,kind='scale',error=error)
+                raise
+            finally:self._grant_receipt=None
+
+    def _compensate_failed_reservation(self,identity,*,kind,error):
+        """Release only an exact grant that never became a native sleeve hold.
+
+        A process death cannot run this compensation; verified startup replay
+        remains the recovery authority. A lost reply after either commit is
+        harmless because native materialization and the compensation operation
+        both have durable, immutable identities.
+        """
+        try:
+            with self.transaction():
+                row=self.get(identity)
+                if (kind=='new' and row is not None or kind=='scale' and
+                        (row or {}).get('scale_reservation',{}).get('status') in ('reserved','committed')):
+                    return
+                state=self.authority.ledger();key=self.identity['lane']+':'+identity+(':scale' if kind=='scale' else '')
+                req_id=state.get('runtime_native_requests',{}).get(key)
+                if req_id is None:return
+                req=state['requests'].get(req_id)
+                if req and req['status'] not in ('RESERVED','COMMITTED','CONSUMED'):return
+                proof=dict(native_id=identity,kind=kind,local_hold_absent=True,
+                    sleeve_journal_hash=self.reconcile()['final_hash'])
+                self.authority.command('native-compensation:'+req_id,'runtime_compensate',dict(
+                    request_id=req_id,native_key=key,proof_sha256=digest(proof)),state['at'])
+        except Exception as recovery_error:
+            # The retained request remains funded until authenticated startup
+            # replay. Surface the stronger recovery boundary to the caller.
+            raise CapitalError('native_reservation_grant_reconciliation_required') from recovery_error
+
+    def reentry_verified(self,identity):
+        """Read the exact global settlement ACK, never infer it from flat cash."""
+        state=self.authority.ledger();key=self.identity['lane']+':'+identity
+        life=state['native_aliases'].get(key);position=state['positions'].get(life)
+        receipt=(position or {}).get('terminal_receipt')
+        if (not position or position['status']!='SETTLED' or money(position['basis'])!=0 or not receipt
+                or receipt.get('lifecycle_id')!=life or receipt.get('terminal_at')!=position.get('settled_at')):
+            return None
+        if key in state.get('runtime_pending',{}):return None
+        if any(p['lane']+':'+p['native']==key for p in state.get('pending_deliveries',[])):return None
+        requests={req_id for req_key,req_id in state.get('runtime_native_requests',{}).items()
+            if req_key in (key,key+':scale')}
+        if any(h.get('lifecycle_id')==life or hold_id in requests or h.get('request_id') in requests
+                for bucket in ('reservations','commitments','obligations') for hold_id,h in state[bucket].items()):return None
+        if requests & set(state.get('runtime_inbox',{})):return None
+        if any(state['requests'].get(req_id,{}).get('status') in ('SUBMITTED','RESERVED','COMMITTED')
+                for req_id in requests):return None
+        return dict(terminal_at=receipt.get('native_settlement_at',receipt['terminal_at']),
+            financial_settlement_at=receipt['terminal_at'],global_ack_at=receipt['global_ack_at'],
+            obligations_clear=True,lifecycle_id=life,global_receipt_hash=digest(receipt))
 
     def recover_scale(self,identity,*,request,committed,native_verified):
         if native_verified is not True:raise CapitalError('scale_recovery_proof')
@@ -239,7 +307,13 @@ class SharedSleeve(SleeveReservations):
 
     def _shared_reserved(self,identity,units):
         grant=getattr(self,'_grant_receipt',None)
-        return bool(grant and units<=grant['maximum_native_units'])
+        if not grant or units>grant['maximum_native_units']:return False
+        state=self.authority.ledger();req=state['requests'].get(grant['request_id'])
+        kind=(req or {}).get('value',{}).get('kind')
+        key=self.identity['lane']+':'+identity+(':scale' if kind=='scale' else '')
+        return bool(req and req['status']=='RESERVED' and state['epoch_id']==grant['epoch_id']
+            and state.get('runtime_native_requests',{}).get(key)==grant['request_id']
+            and req['value'].get('native_requested_units')==grant['maximum_native_units'])
 
     def recover_unmaterialized(self,native_ids,*,strategy,verified):
         """Startup-only absence proof, before this regime admits any workers."""
@@ -253,9 +327,14 @@ class SharedSleeve(SleeveReservations):
             if (req['value'] if req else queued)['regime']!=r:continue
             scale=key.endswith(':scale');native=key[len(family)+1:]
             if scale:native=native[:-6]
+            native_key=family+':'+native
+            if native_key in state.get('runtime_pending',{}):continue
+            if any(p['lane']+':'+p['native']==native_key for p in state.get('pending_deliveries',[])):continue
+            life=state['native_aliases'].get(native_key)
+            if not scale and state['positions'].get(life,{}).get('status')=='OPEN':continue
             held=self.get(native)
             absent=(native not in native_ids if not scale else
-                not (held or {}).get('scale_reservation') and family+':'+native not in state.get('runtime_pending',{}))
+                (held or {}).get('scale_reservation',{}).get('status') not in ('reserved','committed'))
             if absent and (queued or req['status'] in ('RESERVED','COMMITTED')):
                 proof=digest([native,sorted(native_ids),'verified_startup_native_absence'])
                 self.authority.command('startup-absence:'+req_id,'runtime_cancel',dict(request_id=req_id,at=state['at'],

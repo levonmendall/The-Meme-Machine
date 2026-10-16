@@ -247,13 +247,15 @@ class ConsolidationTests(unittest.TestCase):
     def test_frozen_pons_policy_identities(self):
         from meme_machine.lanes.pons import pons_selective_continuation as current
         from meme_machine.lanes.pons import pons_postgrad_survivor as survivor
-        from meme_machine.paper_policy_revision import ACTIVE_REVISION,previous_hash
+        from meme_machine.paper_policy_revision import ACTIVE_REVISION,previous_hash,predecessor_hash
         # Historical identities remain exact for replay; the intended next
         # PAPER release must also retain its explicitly reviewed active hashes.
         self.assertEqual(previous_hash('pons_current'),'888904d0e58865f1a701560a5be8386f57d88f66a0c25d7094c994cafa7f448f')
         self.assertEqual(previous_hash('pons_survivor'),'ed17402a75470801fda47877b6b1f3b1266793b7e0750b7a7cd821f327541e5f')
-        self.assertEqual(current.POLICY_HASH,'e9c91d19522cedd3da27a4ef6287510c9eb163699a4faae3cda13e76e9809c78')
-        self.assertEqual(survivor.POLICY_HASH,'34f968df79aabef6e8fefaf022c69e2abbc334bfd18eff509d48cbbefff66ac4')
+        self.assertEqual(predecessor_hash('pons_current'),'e9c91d19522cedd3da27a4ef6287510c9eb163699a4faae3cda13e76e9809c78')
+        self.assertEqual(predecessor_hash('pons_survivor'),'34f968df79aabef6e8fefaf022c69e2abbc334bfd18eff509d48cbbefff66ac4')
+        self.assertEqual(current.POLICY_HASH,'909738760e6f722b8668a99493f698c3a415867f77f08199a61b0fb047381be7')
+        self.assertEqual(survivor.POLICY_HASH,'50291f35eba44cafb3eea04474036c198187531941fcf35068c758955def1ce2')
         self.assertEqual(current.POLICY_REVISION,ACTIVE_REVISION)
 
 

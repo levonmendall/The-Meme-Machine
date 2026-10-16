@@ -6,7 +6,7 @@ unknown; this module never obtains a provider quote or changes a qualification.
 from fractions import Fraction
 import json
 from meme_machine.runtime.journal import canonical,digest
-from meme_machine.paper_policy_revision import ACTIVE_REVISION,revision_for_hash
+from meme_machine.paper_policy_revision import ACTIVE_REVISION,PREDECESSOR_REVISION,revision_for_hash
 
 SCHEMA='directional-opportunity-telemetry-v1'
 WINDOWS=(300,900,3600,21600,86400)
@@ -178,7 +178,7 @@ def measurable_gates(lane,decision):
         qualification=decision.get('qualification') or {}
         revision=qualification.get('policy_revision',policy.get('revision'))
         for name,path,key,op,category,reason in rows:
-            if revision==ACTIVE_REVISION and name in ('repeat_buyers','repeat_share'):
+            if revision in (PREDECESSOR_REVISION,ACTIVE_REVISION) and name in ('repeat_buyers','repeat_share'):
                 category='confirmation'
             if name=='age_max' and qualification.get('qualification_purpose')=='ongoing':
                 category='context'
