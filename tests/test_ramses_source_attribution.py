@@ -73,5 +73,31 @@ class RamsesSourceAttributionTests(unittest.TestCase):
                                  cwd=ROOT,env={},capture_output=True,text=True,check=True)
         result=json.loads(completed.stdout)
         self.assertEqual(result['result'],'PASS')
+        self.assertEqual(result['pre_change_commit'],'e34c38c78061834ad2892a897fcdd52fc438b061')
         self.assertEqual(result['ramses_economic_modules_unchanged'],44)
         self.assertTrue(result['entry_and_survivor_policies_only_approved_deltas'])
+        self.assertTrue(result['owner_admission_scheduler_byte_identical_to_engineering_base'])
+        from tests.test_robinhood_usd_valuation import RALLY_BASE,RALLY_SCHEMA,RALLY_MANIFEST_SHA256
+        self.assertEqual(result['decision_policy_layer'],dict(schema=RALLY_SCHEMA,
+            revision='paper-postgrad-rally-v1',predecessor_commit=RALLY_BASE,
+            manifest_sha256=RALLY_MANIFEST_SHA256,verified=True))
+
+    def test_strategy_audit_rejects_unapproved_decision_and_audit_source_changes(self):
+        import runpy
+        from unittest.mock import patch
+        audit=ROOT/'operational/strategy-change-audit.py'
+        original_read=Path.read_bytes
+        mutations={
+            'operational/strategy-change-audit.py':lambda raw:raw+b'\n# unreviewed audit mutation\n',
+            'meme_machine/lanes/pump/pumpswap_survivor.py':lambda raw:raw.replace(
+                b'minimum_age_seconds=600',b'minimum_age_seconds=599',1),
+            'meme_machine/lanes/pons/pons_postgrad_survivor.py':lambda raw:raw.replace(
+                b'max_creator_sell_quote=0',b'max_creator_sell_quote=1',1),
+        }
+        for relative,mutate in mutations.items():
+            with self.subTest(source=relative):
+                target=ROOT/relative;original=original_read(target);changed=mutate(original)
+                self.assertNotEqual(changed,original,'negative mutation must change protected source')
+                def read(path):return changed if path==target else original_read(path)
+                with patch.object(Path,'read_bytes',new=read),self.assertRaises(AssertionError):
+                    runpy.run_path(str(audit),run_name='__main__')

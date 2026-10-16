@@ -101,9 +101,18 @@ The exact production delta is pinned by
 `950852cb87516cd1c94f6762ec178b17232c346f`; the independently pinned
 contained-observation correction and all earlier source guards still validate
 their exact predecessors. `generate_source_manifest.py` is the deliberate freeze
-tool, not an automatic runtime exception.
+tool, not an automatic runtime exception. The manifest covers 22 changed sources
+(21 runtime files and the offline strategy audit) and two added policy/cycle
+sources. The audit verifies this exact versioned layer before applying every
+original economic, 44-module Ramses and owner-scheduler comparison to its exact
+predecessor; its JSON report identifies the reviewed revision/base/manifest.
 
 ## Validation and runtime status
+
+The final audit/source-guard correction passed all 72 focused attribution and
+exact-source tests in 56.129 seconds, including negative audit/Pump/Pons mutations.
+It changes the offline comparison tool and its verification metadata only; runtime
+strategy, funding, provider, protection and accounting behavior are unchanged.
 
 The current combined checkpoint passed 236 native/shared lifecycle, controller,
 policy compatibility, recovery, structural shadow and exact source-guard tests in
@@ -126,6 +135,15 @@ selected 196 tests: 195 passed and the existing real provider clock case was
 unavailable in this workspace. All exact source guards passed. Administration
 source, recovery and deployment checks passed 92 tests. Complete release checks
 must run on this combined source; earlier branch results cannot substitute.
+
+The complete OPERATIONAL run on `a8828a20` executed 4,111 tests in 1,968.315
+seconds with 36 skips, zero assertion failures and one audit error: the offline
+strategy audit still compared the new policy directly to its original
+opportunity-only literal. All functional/protection cases passed in that run.
+The audit now uses the existing exact rally-source normalization and retains all
+original comparisons, with negative mutation coverage. This correction changes
+no runtime trading behavior; complete release validation remains required on the
+corrected candidate.
 
 AWS read-only preflight [38944655118](https://github.com/levonmendall/meme-machine-admin/actions/runs/38944655118)
 at 2026-10-16 18:06 UTC verified the original $1,000 inception, cash $1,000,
