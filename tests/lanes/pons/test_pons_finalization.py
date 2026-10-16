@@ -558,7 +558,14 @@ class CapitalIndependenceTests(RuntimeCase):
         points=[(at,original*price//10000) for at,price in winner_points()]
         self.runtime.history.append(address(1),through=NOW,events=trades,points=points,complete=True)
         return dict(block=100,block_hash=block_header(100)['hash'],at=NOW,
+            market_time=NOW,evidence_acquired_at=NOW+.1,evidence_available_at=NOW+.2,
             price_index=original*12900//10000,acquired=time.monotonic())
+
+    def assert_survivor_clocks(self,decision):
+        self.assertEqual(decision['timestamp_accountability'],dict(market_time=NOW,
+            evidence_acquired_at=NOW+.1,state_evidence_available_at=NOW+.2,
+            evidence_available_at=NOW+1,decision_at=NOW+1))
+        self.assertEqual(decision['rally_cycle']['decision_at'],NOW+1)
 
     def test_current_and_survivor_vectors_are_identical_across_four_cash_states(self):
         from meme_machine.lanes.pons.pons_selective_cohort import _current_pons_realized_equity
@@ -571,7 +578,9 @@ class CapitalIndependenceTests(RuntimeCase):
             if amount:self.runtime.sleeve.reserve(label,strategy='pons-selective-continuation-v1',amount=amount,at=NOW,asset=label)
             self.runtime.current=self.runtime.history.get(address(1))
             current=vector(strategy_capital_quote=_current_pons_realized_equity())
-            survivor=self.runtime.qualify(self.runtime.reconstruct(state,quotes))
+            with patch(MODULE+'.time.time',return_value=NOW+1):
+                survivor=self.runtime.qualify(self.runtime.reconstruct(state,quotes))
+            self.assert_survivor_clocks(survivor)
             results.append((current,survivor))
             if amount:self.runtime.sleeve.release(label,pnl=0,at=NOW,terminal_hash=label,native_verified=True,cancelled=True)
         self.assertTrue(results[0][0]['current_threshold_pass'])
@@ -585,7 +594,9 @@ class CapitalIndependenceTests(RuntimeCase):
         for budget in (5*10**16,0,10**15):
             context=Quotes(self.runtime,state,budget)
             before=len(rpc.transports)
-            decision=self.runtime.qualify(self.runtime.reconstruct(state,context));decisions.append(decision)
+            with patch(MODULE+'.time.time',return_value=NOW+1):
+                decision=self.runtime.qualify(self.runtime.reconstruct(state,context))
+            self.assert_survivor_clocks(decision);decisions.append(decision)
             cap=self.runtime.facts['organic_flow']['turnover']//30
             self.assertTrue(decision['candidate'],decision['all_rejections'])
             self.assertEqual(self.runtime.facts['execution']['capacity']['final_size'],cap)

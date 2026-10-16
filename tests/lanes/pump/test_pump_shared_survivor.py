@@ -7,6 +7,7 @@ from meme_machine.lanes.pump.paper_accounting import PaperBook
 from meme_machine.lanes.pump.pump_acceleration_paper import PumpAccelerationPaperLifecycle
 from meme_machine.lanes.pump.pumpswap_survivor import STRATEGY_ID
 from tests.lanes.pump.test_pump_acceleration_paper import qualification
+from tests.shared_rally_support import observe_survivor
 
 class SharedPump(unittest.TestCase):
  def test_native_current_reservation_and_survivor_ceiling_survive_restart(self):
@@ -14,9 +15,14 @@ class SharedPump(unittest.TestCase):
    book=PaperBook(td+'/current',run_id='r',lane='pump',policy_hash='current-test',initial=1000)
    current=PumpAccelerationPaperLifecycle(book=book,lifecycle_id='r:current')
    current.reserve(qualification(),900,100)
-   sleeve=open_sleeve('pump',1000);sleeve.reserve('r:survivor',strategy=STRATEGY_ID,amount=100,at=100)
+   sleeve=open_sleeve('pump',1000)
+   observed=observe_survivor(sleeve,STRATEGY_ID,'survivor-mint',100)
+   sleeve.reserve('r:survivor',strategy=STRATEGY_ID,amount=100,at=100,
+       candidate='survivor-mint',generation=observed['generation'],regime=observed['regime'])
+   overflow=observe_survivor(sleeve,STRATEGY_ID,'overflow-mint',100)
    with self.assertRaisesRegex(ValueError,'capital_exhausted'):
-    sleeve.reserve('r:overflow',strategy=STRATEGY_ID,amount=1,at=100)
+    sleeve.reserve('r:overflow',strategy=STRATEGY_ID,amount=1,at=100,
+        candidate='overflow-mint',generation=overflow['generation'],regime=overflow['regime'])
    sleeve.close();sleeve=open_sleeve('pump',1000)
    self.assertEqual((sleeve.reconcile()['capital'],sleeve.reconcile()['reserved']),(1000,1000))
    current.fill(100,850,102,'pump.fun');current.mark(900,110,80);current.mark(700,120,20);current.settle(700,122)
@@ -28,7 +34,9 @@ class SharedPump(unittest.TestCase):
    sleeve=open_sleeve('pump',1000)
    current=next(s for s in sleeve.identity['policies'] if 'survivor' not in s)
    sleeve.reserve('r:orphan',strategy=current,amount=900,at=100)
-   sleeve.reserve('r:survivor',strategy=STRATEGY_ID,amount=100,at=100)
+   observed=observe_survivor(sleeve,STRATEGY_ID,'survivor-mint',100)
+   sleeve.reserve('r:survivor',strategy=STRATEGY_ID,amount=100,at=100,
+       candidate='survivor-mint',generation=observed['generation'],regime=observed['regime'])
    recover_pump_terminals(book)
    self.assertEqual(sleeve.reconcile()['reserved'],100)
    self.assertTrue(sleeve.get('r:orphan')['cancelled'])

@@ -11,6 +11,7 @@ from meme_machine.lanes.pons import BoundaryError,pons_survivor_runtime as runti
 from meme_machine.lanes.pons.pons_quotes import shared_v4_quotes
 from meme_machine.runtime.survivor_commit import restore_risk
 from tests.lanes.pons import test_pons_finalization as fixture
+from tests.shared_rally_support import observe_survivor
 
 
 class TraceRPC(fixture.ExactQuoteRPC):
@@ -53,7 +54,9 @@ class SharedNativeAcquisitionTests(unittest.TestCase):
         for i in range(1,count+1):
             token=fixture.address(i);row=r.history.graduate(token,fixture.graduation(i))
             identity='pons-finalization:position:'+str(i);amount=10**16;qty=10**18+i*10000
-            r.sleeve.reserve(identity,strategy=runtime.STRATEGY_VERSION,amount=amount,at=95,asset=token)
+            observed=observe_survivor(r.sleeve,runtime.STRATEGY_VERSION,token,95)
+            r.sleeve.reserve(identity,strategy=runtime.STRATEGY_VERSION,amount=amount,at=95,asset=token,
+                candidate=token,generation=observed['generation'],regime=observed['regime'])
             r.book.reserve(identity,amount,95,dict(candidate=token))
             r.book.transition(identity,'filled',96,amount=amount,tokens=qty,evidence=dict(execution=dict(gas=0)))
             r.sleeve.acknowledge_native(identity,basis=amount,pnl=0,at=96,native_hash='offline-native-replay',native_verified=r.book.replay()['verified'])
