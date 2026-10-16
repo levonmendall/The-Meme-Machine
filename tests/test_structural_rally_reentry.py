@@ -205,6 +205,125 @@ class StructuralCycleTests(unittest.TestCase):
                     sleeve.close()
 
 
+    def test_existing_decision_checkpoint_second_transition_preserves_original(self):
+        """Current live epochs can have already selected opportunity-access v1."""
+        from meme_machine.runtime.policy_compatibility import (
+            active_hash,selection,SELECTION_KEY,SELECTION_NAMESPACE,selection_successor,
+            save_runtime_selection,runtime_selection,regime_for)
+        from meme_machine.paper_policy_revision import previous_hash,SUPERSEDED_ACTIVE_SURVIVOR_HASHES
+        from meme_machine.runtime.directional_sleeve import policies
+        from meme_machine.runtime.survivor_paper_book import PaperBook
+        from meme_machine.runtime.survivor_history import History
+        from meme_machine.runtime.journal import canonical,digest
+        from meme_machine.lanes.pump.pumpswap_survivor import STRATEGY_ID as PUMP_STRATEGY
+        from meme_machine.lanes.pons.pons_postgrad_survivor import STRATEGY_VERSION as PONS_STRATEGY
+        import json
+        with tempfile.TemporaryDirectory() as directory:
+            for family in ('pump','pons'):
+                with self.subTest(family=family):
+                    regime=family+'_survivor'
+                    selected=SUPERSEDED_ACTIVE_SURVIVOR_HASHES[regime]
+                    newest=active_hash(regime)
+                    financial=previous_hash(regime)
+                    strategy=PUMP_STRATEGY if family=='pump' else PONS_STRATEGY
+                    book_path=Path(directory)/(family+'-paper.sqlite')
+                    native=PaperBook(book_path,run_id='old-run',lane=strategy,
+                                     policy_hash=financial,initial=1000)
+                    identity=dict(native.identity)
+                    initial=selection(identity,dict(identity,policy_hash=selected))
+                    old_money=native.reconcile()
+                    save_runtime_selection(native.db,initial)
+                    native.close()
+                    successor=selection(identity,dict(identity,policy_hash=newest))
+                    self.assertTrue(selection_successor(initial,successor))
+                    native=PaperBook(book_path,run_id='old-run',lane=strategy,
+                                     policy_hash=newest,initial=1000)
+                    self.assertEqual(native.identity,identity)
+                    self.assertEqual(native.decision_policy_hash,newest)
+                    self.assertEqual(native.reconcile(),old_money)
+                    self.assertTrue(runtime_selection(native.db,successor))
+                    archived=native.db.execute(
+                        'SELECT body FROM runtime_state WHERE identity=? AND key=?',
+                        (SELECTION_NAMESPACE,SELECTION_KEY+':previous:'+digest(initial))).fetchone()
+                    self.assertIsNotNone(archived)
+                    self.assertEqual(json.loads(archived[0]),initial)
+                    native.close()
+                    # A separate preserved strategy-history projection has
+                    # chained decision identities, not a rewritten genesis.
+                    history_path=Path(directory)/(family+'-history.sqlite')
+                    history=History(history_path,policy=selected)
+                    history.graduate('token',dict(at=0,identity='verified-grad'))
+                    history.append('token',through=100,events=[],
+                        points=[(0,'100'),(100,'110')],complete=True)
+                    history_first=selection(dict(policy_hash=financial),dict(policy_hash=selected))
+                    history.set_meta(SELECTION_KEY,history_first)
+                    raw=history.facts('token',100)
+                    history.close()
+                    history=History(history_path,policy=newest)
+                    self.assertEqual(history.get_meta(SELECTION_KEY),
+                        selection(dict(policy_hash=selected),dict(policy_hash=newest)))
+                    self.assertEqual(history.get_meta('previous_policy_selection:'+digest(history_first)),history_first)
+                    self.assertEqual(history.facts('token',100),raw)
+                    history.close()
+
+                    path=Path(directory)/(family+'-sleeve.sqlite')
+                    strategy_new=policies(family)
+                    start={name:previous_hash(regime_for(name)) for name in strategy_new}
+                    first_strategy={name:(selected if 'survivor' in name else active_hash(regime_for(name)))
+                        for name in strategy_new}
+                    args=dict(lane=family,capital=1000,cohort='old')
+                    sleeve=SleeveReservations(path,policies=start,**args)
+                    stored=dict(sleeve.identity)
+                    old_policy_selection=selection(stored,dict(stored,policies=first_strategy))
+                    sleeve.db.execute('INSERT OR REPLACE INTO opportunity_meta_v1 VALUES(?,?)',
+                        (SELECTION_KEY,canonical(dict(old_policy_selection,checksum=digest(old_policy_selection)))))
+                    sleeve.close()
+                    sleeve=SleeveReservations(path,policies=strategy_new,**args)
+                    self.assertEqual(sleeve.identity,stored)
+                    self.assertEqual(sleeve.decision_policies,strategy_new)
+                    self.assertEqual(sleeve.reconcile()['available'],1000)
+                    saved=json.loads(sleeve.db.execute(
+                        'SELECT value FROM opportunity_meta_v1 WHERE key=?',(SELECTION_KEY,)).fetchone()[0])
+                    self.assertEqual(saved['decision_identity']['policies'],strategy_new)
+                    archive=json.loads(sleeve.db.execute(
+                        'SELECT value FROM opportunity_meta_v1 WHERE key=?',
+                        (SELECTION_KEY+':previous:'+digest(old_policy_selection),)).fetchone()[0])
+                    checksum=archive.pop('checksum')
+                    self.assertEqual(checksum,digest(archive))
+                    self.assertEqual(archive,old_policy_selection)
+                    sleeve.close()
+
+    def test_existing_selection_cannot_cross_unsettled_reservation(self):
+        from meme_machine.runtime.policy_compatibility import (
+            active_hash,selection,regime_for,SELECTION_KEY)
+        from meme_machine.paper_policy_revision import previous_hash,SUPERSEDED_ACTIVE_SURVIVOR_HASHES
+        from meme_machine.runtime.directional_sleeve import policies
+        from meme_machine.runtime.journal import canonical,digest
+        with tempfile.TemporaryDirectory() as directory:
+            family='pump';path=Path(directory)/'blocked.sqlite'
+            newest=policies(family)
+            financial={name:previous_hash(regime_for(name)) for name in newest}
+            previous={name:(SUPERSEDED_ACTIVE_SURVIVOR_HASHES['pump_survivor']
+                if 'survivor' in name else active_hash(regime_for(name))) for name in newest}
+            args=dict(lane=family,capital=1000,cohort='old')
+            sleeve=SleeveReservations(path,policies=financial,**args)
+            prior=selection(dict(sleeve.identity),dict(sleeve.identity,policies=previous))
+            sleeve.db.execute('INSERT OR REPLACE INTO opportunity_meta_v1 VALUES(?,?)',
+                (SELECTION_KEY,canonical(dict(prior,checksum=digest(prior)))))
+            strategy=next(name for name in newest if 'survivor' in name)
+            sleeve.reserve('open-unresolved',strategy=strategy,amount=100,at=1)
+            sleeve.close()
+            with self.assertRaisesRegex(ValueError,'transition_unresolved_sleeve'):
+                SleeveReservations(path,policies=newest,**args)
+            sleeve=SleeveReservations(path,policies=financial,**args)
+            self.assertEqual(sleeve.get('open-unresolved')['held'],100)
+            self.assertEqual(sleeve.reconcile()['available'],900)
+            saved=sleeve.db.execute('SELECT value FROM opportunity_meta_v1 WHERE key=?',(SELECTION_KEY,)).fetchone()[0]
+            self.assertEqual(saved,canonical(dict(prior,checksum=digest(prior))))
+            sleeve.close()
+
+
+
 class DurableSleeveRallyTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory()
