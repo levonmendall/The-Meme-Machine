@@ -15,6 +15,7 @@ FAST=[
     'tests.test_prospective_prewarm_consumption',
     'tests.test_stale_pump_cache_boundary',
     'tests.test_contained_source_observation',
+    'tests.test_restored_provider_history',
     'tests.test_pump_cache_source_authority',
     'tests.test_control_interrupted_recovery',
     'tests.test_source_handler_recovery',
