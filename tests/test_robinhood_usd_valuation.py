@@ -350,6 +350,63 @@ def pons_discovery_predecessor(test,relative,current):
 # Explicit host-capacity portability changes only the existing cgroup check.
 # Pin both full files and reverse the one reviewed method/import before every
 # existing economic/source comparison. No other Supervisor node is exempted.
+# The later funding-closed contained observation adds one source-only phase
+# binding and authenticates the retained Pump cache against current canonical
+# coverage. Reverse only those exact reviewed bytes before the older guards;
+# their complete predecessor hashes, economics and negative checks stay pinned.
+CONTAINED_OBSERVATION_REFERENCE='738e8b5842ef6f3a27bc4f9e91b8c975d280822f'
+CONTAINED_OBSERVATION_DELTAS={
+    'meme_machine/operational/supervisor.py':(
+        '20fda2428bca7758f2ee4987903c4b346d9b98833472d4d734702cdc8107d646',
+        '5c0cd297633ab4575880eb0fdf94d93bfad27ae9575fb569aaebd48e6b9dd98c',
+        b"if lane=='solana' and getattr(self,'admission','NORMAL')"),
+    'meme_machine/lanes/pump/solana_evidence_runtime.py':(
+        '8fa56503e2d5c14c1fea7406a8bba2c4ea4d90380c088efcca60b2c0299a16ba',
+        '470f1f610a8a9533bf4fd8218dbcef8e36bbd14dde22ce21f3b88b14e94deca3',
+        b'def _cached_window_authority('),
+}
+CONTAINED_OBSERVATION_PHASE=(
+    b"        if lane=='solana' and getattr(self,'admission','NORMAL')=='OBSERVATION':env['MM_OPERATIONAL_PHASE']='OBSERVATION'\n")
+CONTAINED_CACHE_WINDOW_BEFORE=(
+    b"                with closing(history):rows=history.covered_events(\n"
+    b"                    'pump',mint,PUMP_SCOPE,int(now)-60,int(now),upper_slot=max_slot)\n")
+CONTAINED_CACHE_WINDOW_AFTER=(
+    b"                with closing(history),self._cached_window_authority(\n"
+    b"                        mint,int(now)-60,int(now),max_slot) as authority:\n"
+    b"                    rows=history.covered_events('pump',mint,PUMP_SCOPE,int(now)-60,int(now),\n"
+    b"                        upper_slot=max_slot,source_authority=authority)\n")
+
+
+def contained_observation_predecessor(test,relative,current):
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    reviewed=CONTAINED_OBSERVATION_DELTAS.get(relative)
+    if reviewed is None or reviewed[2] not in current:return current
+    before,after,_=reviewed
+    test.assertEqual(hashlib.sha256(current).hexdigest(),after,
+        relative+':exact reviewed contained observation successor')
+    prior=subprocess.check_output(['git','show',CONTAINED_OBSERVATION_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),before,
+        relative+':unchanged contained observation predecessor')
+    if relative=='meme_machine/operational/supervisor.py':
+        test.assertEqual(current.count(CONTAINED_OBSERVATION_PHASE),1)
+        current=current.replace(CONTAINED_OBSERVATION_PHASE,b'',1)
+    else:
+        test.assertEqual(current.count(b'from contextlib import contextmanager\n'),1)
+        current=current.replace(b'from contextlib import contextmanager\n',b'',1)
+        parent=next(n for n in ast.parse(current).body if isinstance(n,ast.ClassDef) and n.name=='LocalPumpTape')
+        helper=next(n for n in parent.body if isinstance(n,ast.FunctionDef) and n.name=='_cached_window_authority')
+        test.assertEqual([ast.dump(n) for n in helper.decorator_list],
+            [ast.dump(ast.Name(id='contextmanager',ctx=ast.Load()))])
+        lines=current.splitlines(keepends=True)
+        del lines[min(helper.lineno,*(n.lineno for n in helper.decorator_list))-1:helper.end_lineno]
+        current=b''.join(lines)
+        test.assertEqual(current.count(CONTAINED_CACHE_WINDOW_AFTER),1)
+        current=current.replace(CONTAINED_CACHE_WINDOW_AFTER,CONTAINED_CACHE_WINDOW_BEFORE,1)
+    test.assertEqual(current,prior,relative+':all original source bytes and safeguards preserved')
+    return prior
+
+
 CPU_CAPACITY_REFERENCE='9bc778ff9237c0769aa6a6d2799bf513d677e333'
 CPU_CAPACITY_BEFORE='b2ffa2991607fef15fc1934682018d101a74ba21763702ca5d3757456a132982'
 CPU_CAPACITY_AFTER='20fda2428bca7758f2ee4987903c4b346d9b98833472d4d734702cdc8107d646'
@@ -359,6 +416,7 @@ def cpu_capacity_predecessor(test,relative,current):
     import hashlib
     if isinstance(current,str):current=current.encode()
     if relative!='meme_machine/operational/supervisor.py':return current
+    current=contained_observation_predecessor(test,relative,current)
     if b'configured_cpu=cpu_capacity(budget.envelope)' not in current:return current
     test.assertEqual(hashlib.sha256(current).hexdigest(),CPU_CAPACITY_AFTER,
         relative+':exact reviewed host-capacity successor')
@@ -425,6 +483,7 @@ def operation_cost_predecessor(test,relative,current):
 def reviewed_operation_costs(test,relative,current):
     import hashlib
     if isinstance(current,str):current=current.encode()
+    current=contained_observation_predecessor(test,relative,current)
     current=backup_configuration_predecessor(test,relative,current)
     current=cpu_capacity_predecessor(test,relative,current)
     # Apply this outer layer only while its exact new helper remains present.
@@ -1062,6 +1121,30 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_contained_observation_reverses_only_exact_reviewed_phase_and_cache_authority(self):
+        import hashlib
+        for relative,(_,after,_) in CONTAINED_OBSERVATION_DELTAS.items():
+            current=(ROOT/relative).read_bytes()
+            prior=subprocess.check_output(['git','show',CONTAINED_OBSERVATION_REFERENCE+':'+relative],cwd=ROOT)
+            self.assertEqual(hashlib.sha256(current).hexdigest(),after,
+                relative+':active source must contain the exact reviewed safety correction')
+            self.assertEqual(contained_observation_predecessor(self,relative,current),prior)
+            self.assertEqual(opportunity_predecessor(self,relative,current),
+                opportunity_predecessor(self,relative,prior))
+            if relative=='meme_machine/operational/supervisor.py':
+                changes=(current.replace(b"=='OBSERVATION':env['MM_OPERATIONAL_PHASE']",
+                        b"=='NORMAL':env['MM_OPERATIONAL_PHASE']",1),
+                    current.replace(b'maximum_queue_wait_seconds=5',b'maximum_queue_wait_seconds=6',1))
+            else:
+                changes=(current.replace(b'if callable(usable):usable(PUMP_SCOPE)',
+                        b'if callable(usable):pass',1),
+                    current.replace(b'if not candidate.covered(target,lo,hi,as_of=at):',b'if False:',1),
+                    current.replace(b'upper_slot=max_slot,source_authority=authority)',b'upper_slot=max_slot)',1))
+            for changed in (current+b'\n# unreviewed contained observation change\n',*changes):
+                self.assertNotEqual(changed,current,relative+':negative mutation must change source')
+                with self.assertRaises(AssertionError):contained_observation_predecessor(self,relative,changed)
+                with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_backup_configuration_portability_keeps_exact_policy_and_redaction_guard(self):
         relative='meme_machine/operational/configuration.py'
         current=(ROOT/relative).read_bytes()
