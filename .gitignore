@@ -10,3 +10,5 @@ __pycache__/
 *.sqlite.lock
 config.local.json
 .venv/
+# AWS releases bind the pinned interpreter with a root-level symlink.
+/.venv
