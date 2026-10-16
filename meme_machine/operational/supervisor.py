@@ -261,6 +261,7 @@ class Supervisor:
             MM_STATE_ROOT=str(self.root),MM_OPERATIONAL_PHASE='continuous',
             MM_DIRECTIONAL_SLEEVE_DB=str(self.root/lane/'directional-sleeve.sqlite'),
             MM_DIRECTIONAL_COHORT_ID=self.epoch,MM_DIRECTIONAL_COMPOSITE_REQUIRED='1')
+        if lane=='solana' and getattr(self,'admission','NORMAL')=='OBSERVATION':env['MM_OPERATIONAL_PHASE']='OBSERVATION'
         if lane in ('pons','solana'):
             env['MM_OPERATION_COST_DIAGNOSTICS']='1' if os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1' else '0'
         from meme_machine.paper_policy_revision import ACTIVE_REVISION

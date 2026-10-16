@@ -557,7 +557,8 @@ class CandidateHistory:
                 (identity,scope,lower_slot,upper_slot,lower_time,upper_time,canonical(body),digest(body)))
         return identity
 
-    def covered_events(self,lane,candidate,scope,lower_time,upper_time,*,upper_slot=None):
+    def covered_events(self,lane,candidate,scope,lower_time,upper_time,*,upper_slot=None,
+            source_authority=None):
         windows=[]
         # Candidate-filtered delivery proves this identity only. The legacy
         # program-wide coverage remains valid for the earlier full source, but
@@ -570,12 +571,47 @@ class CandidateHistory:
             windows.append(body)
         lower=next((w for w in reversed(windows) if w['lower_time']<=lower_time),None)
         if lower is None:raise ValueError('candidate_history_continuity_missing')
-        end=lower['upper_slot'];end_time=lower['upper_time']
+        end=lower['upper_slot'];end_time=lower['upper_time'];used=[lower]
         for window in windows:
+            if end_time>=upper_time and (upper_slot is None or end>=upper_slot):break
             if lower['lower_slot']<=window['lower_slot']<=end+1:
                 end=max(end,window['upper_slot']);end_time=max(end_time,window['upper_time'])
+                if window not in used:used.append(window)
+                if end_time>=upper_time and (upper_slot is None or end>=upper_slot):break
         if end_time<upper_time or (upper_slot is not None and end<upper_slot):
             raise ValueError('candidate_history_continuity_missing')
+        if source_authority is not None:
+            if not self.db.execute("SELECT 1 FROM sqlite_master WHERE name='source_receipts'").fetchone():
+                raise ValueError('candidate_history_source_proof_missing')
+            from meme_machine.solana_evidence_plane import IntervalProof
+            for window in used:
+                receipt=self.db.execute('SELECT body,hash FROM source_receipts WHERE id=?',
+                    ('coverage:'+window['proof_hash'],)).fetchone()
+                if receipt is None or hashlib.sha256(receipt[0].encode()).hexdigest()!=receipt[1]:
+                    raise ValueError('candidate_history_source_proof_missing')
+                proof=json.loads(receipt[0]);family=scope.split(':',1)[1]
+                required={'identity','scope','family','lo','hi','endpoint','source','witness','observed_at','lower','upper'}
+                if (not isinstance(proof,dict) or required-set(proof)
+                        or not isinstance(proof['witness'],dict)
+                        or any(not isinstance(proof[key],(list,tuple)) or len(proof[key])!=1
+                            or type(proof[key][0]) is not int for key in ('lower','upper'))):
+                    raise ValueError('candidate_history_source_proof_mismatch')
+                expected_scope=source_authority['candidate_scope' if coverage_scope==scoped else 'program_scope']
+                if (proof.get('identity')!=window['proof_hash'] or proof.get('family')!=family
+                        or proof.get('scope')!=expected_scope
+                        or proof.get('endpoint')!=source_authority['endpoint']
+                        or proof.get('lo')!=window['lower_slot'] or proof.get('hi')!=window['upper_slot']
+                        or not proof.get('lower') or not proof.get('upper')
+                        or int(proof['lower'][0])!=window['lower_time']
+                        or int(proof['upper'][0])!=window['upper_time']
+                        or coverage_scope==scoped and proof.get('candidate')!=candidate):
+                    raise ValueError('candidate_history_source_proof_mismatch')
+                if digest([proof['scope'],proof['lo'],proof['hi'],proof['witness']])!=window['proof_hash']:
+                    raise ValueError('candidate_history_source_proof_mismatch')
+                if 'generation' in source_authority and digest(proof.get('generation'))!=digest(source_authority['generation']):
+                    raise ValueError('candidate_history_source_generation_mismatch')
+                IntervalProof(proof['scope'],proof['lo'],proof['hi'],proof['source'],proof['endpoint'],
+                    proof['witness'],proof['observed_at']).validate()
         rows=[r for r in self.events(lane,candidate,through=upper_time)
               if lower_time<=r['market_time'] and (upper_slot is None or r['slot']<=upper_slot)
               and (r['kind'].startswith('pumpswap_') if scope=='program:pumpswap'

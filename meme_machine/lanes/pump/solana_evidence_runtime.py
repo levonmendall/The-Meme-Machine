@@ -10,6 +10,7 @@ import time
 import uuid
 import sqlite3
 import threading
+from contextlib import contextmanager
 from .solana_evidence_plane import EvidenceReader,EvidenceUnavailable,canonical,decode_body
 from .solana_evidence_queries import PumpEvidenceView,MeteoraEvidenceView
 
@@ -220,6 +221,54 @@ class LocalPumpTape:
         # callers keep their existing event shape; candidate-history persistence
         # consumes this side channel so promotion has complete pre-grad economics.
         self.candidate_history_rows=[]
+    @contextmanager
+    def _cached_window_authority(self,mint,lower_time,upper_time,upper_slot):
+        """A retained cache cannot overrule current canonical unavailability."""
+        from meme_machine.solana_selective_runtime import selective,CONTROL
+        from meme_machine.solana_selective_history import CandidateReader,ConsumerReader
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable as CanonicalUnavailable
+        reader=getattr(self.plane,'reader',None)
+        if reader is None:raise EvidenceUnavailable('cached_history_canonical_authority_required')
+        original=reader.original if isinstance(reader,ConsumerReader) else reader
+        db=original.db
+        at=self.plane.clock()
+        db.execute('BEGIN')
+        try:
+            scoped=selective(original)
+            scope=CONTROL if scoped else PUMP_SCOPE
+            usable=getattr(self.plane,'require_usable',None)
+            if callable(usable):usable(PUMP_SCOPE)
+            else:
+                from meme_machine.solana_evidence_health import evidence_health
+                health=evidence_health(original,scope,at)
+                if health.get('usable') is not True:
+                    raise EvidenceUnavailable(health.get('reason','cached_history_health_unverified'))
+            # Use the original block-time boundary and completeness predicates;
+            # neither the cache's first trade nor its largest slot is a witness.
+            from types import SimpleNamespace
+            fixed=SimpleNamespace(reader=reader,clock=lambda:at)
+            lo,hi=BaseRuntimeEvidence.bounds(fixed,scope,lower_time,upper_time,
+                upper_slot=upper_slot)
+            candidate=CandidateReader(original,'pump',mint) if scoped else original
+            target=candidate.scope if scoped else PUMP_SCOPE
+            if not candidate.covered(target,lo,hi,as_of=at):
+                raise EvidenceUnavailable('unresolved_evidence_gap')
+            authority=None
+            if scoped:
+                from meme_machine.solana_provider_config import AlchemyEndpoint
+                from meme_machine.solana_rolling_history import program_scope
+                endpoint=AlchemyEndpoint.parse(os.environ['MM_SOLANA_READ_RPC_URL']).identity
+                authority=dict(candidate_scope=target,program_scope=program_scope('pump'),endpoint=endpoint)
+                if db.execute("SELECT 1 FROM service_health WHERE key='source_drain_observation'").fetchone():
+                    stat=original.path.stat()
+                    session=db.execute('SELECT session FROM prewarm_startup WHERE id=1').fetchone()
+                    authority['generation']=(session,endpoint,stat.st_dev,stat.st_ino)
+            # Keep this canonical snapshot through the cache read. A cache is
+            # not an independent way to move past a newly unavailable interval.
+            yield authority
+        except CanonicalUnavailable as exc:
+            raise EvidenceUnavailable(str(exc)) from exc
+        finally:db.execute('ROLLBACK')
     def window(self,mint,now,max_slot=None):
         try:rows=self.plane.pump_events(PUMP_SCOPE,mint,int(now)-60,int(now),upper_slot=max_slot)
         except EvidenceUnavailable:
@@ -228,8 +277,10 @@ class LocalPumpTape:
             history=open_candidate_history()
             if history is None:raise
             try:
-                with closing(history):rows=history.covered_events(
-                    'pump',mint,PUMP_SCOPE,int(now)-60,int(now),upper_slot=max_slot)
+                with closing(history),self._cached_window_authority(
+                        mint,int(now)-60,int(now),max_slot) as authority:
+                    rows=history.covered_events('pump',mint,PUMP_SCOPE,int(now)-60,int(now),
+                        upper_slot=max_slot,source_authority=authority)
             except ValueError as exc:raise EvidenceUnavailable(str(exc)) from exc
         return [e for e in rows if e.get('event_type') not in ('create','migration')]
     def creation(self,mint):
