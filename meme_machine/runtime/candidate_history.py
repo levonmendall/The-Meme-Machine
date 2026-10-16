@@ -355,7 +355,36 @@ class CandidateHistory:
         if any(c in value for c in '*?[]'):raise ValueError('candidate_history_kind_prefix')
         return value+'*'
 
-    def candidates(self,*,lane=None,event_prefix=None):
+    @contextmanager
+    def _startup_read(self,cancelled):
+        """Cooperative cancellation only for an explicitly selected idle read.
+
+        A long SQLite step can defer Python's TERM handler until its next
+        callback. The progress callback lets that handler run and interrupts
+        only this startup query. Never attach it to a mutation transaction.
+        """
+        if cancelled is None:
+            yield lambda:None
+            return
+        if not callable(cancelled):raise ValueError('candidate_history_startup_cancel_check')
+        def check():
+            if cancelled():
+                from .stop import Shutdown
+                raise Shutdown()
+        check()
+        if self.db.in_transaction:raise ValueError('candidate_history_startup_read_requires_idle_connection')
+        self.db.set_progress_handler(lambda:int(bool(cancelled())),1000)
+        try:
+            yield check
+            check()
+        except sqlite3.OperationalError as error:
+            if (getattr(error,'sqlite_errorcode',0)&255)==sqlite3.SQLITE_INTERRUPT:
+                check()
+            raise
+        finally:
+            with preserving_cleanup():self.db.set_progress_handler(None,0)
+
+    def candidates(self,*,lane=None,event_prefix=None,cancelled=None):
         sql="SELECT body,hash FROM candidates AS c"
         args=[];where=[]
         if lane is not None:
@@ -370,10 +399,12 @@ class CandidateHistory:
         if where:sql+=' WHERE '+' AND '.join(where)
         sql+=" ORDER BY first_observed,lane,candidate"
         result=[]
-        for raw,checksum in self.db.execute(sql,args):
-            body=json.loads(raw)
-            if digest(body)!=checksum:raise ValueError("candidate_history_corruption")
-            result.append(body)
+        with self._startup_read(cancelled) as check:
+            for raw,checksum in self.db.execute(sql,args):
+                check()
+                body=json.loads(raw)
+                if digest(body)!=checksum:raise ValueError("candidate_history_corruption")
+                result.append(body)
         return result
 
     def append_event(self,lane,candidate,*,identity,slot,transaction_index,event_index,
@@ -410,7 +441,7 @@ class CandidateHistory:
                  market_time,kind,encoded,checksum))
         return body
 
-    def events(self,lane,candidate,*,since=None,through=None,kind=None,kind_prefix=None):
+    def events(self,lane,candidate,*,since=None,through=None,kind=None,kind_prefix=None,cancelled=None):
         sql="""SELECT body,hash FROM events WHERE lane=? AND candidate=?"""
         args=[lane,candidate]
         if since is not None:
@@ -423,23 +454,26 @@ class CandidateHistory:
             sql+=' AND kind GLOB ?';args.append(self._event_prefix(kind_prefix))
         # Unknown transaction order sorts after proven order in the same slot.
         sql+=" ORDER BY slot,(COALESCE(json_extract(body,'$.payload._economic_order'),transaction_index) IS NULL),COALESCE(json_extract(body,'$.payload._economic_order'),transaction_index),event_index,identity"
-        result=[]
-        for raw,checksum in self.db.execute(sql,args):
-            body=json.loads(raw)
-            if digest(body)!=checksum:raise ValueError("candidate_history_corruption")
-            result.append(body)
         refs='SELECT identity,kind,body,hash FROM canonical_event_refs WHERE lane=? AND candidate=?'
         params=[lane,candidate]
         if since is not None:refs+=' AND market_time>=?';params.append(int(since))
         if through is not None:refs+=' AND market_time<=?';params.append(int(through))
         if kind is not None:refs+=' AND kind=?';params.append(kind)
         if kind_prefix is not None:refs+=' AND kind GLOB ?';params.append(self._event_prefix(kind_prefix))
-        for identity,kind,raw,checksum in self.db.execute(refs,params):
-            ref=json.loads(raw)
-            if digest(ref)!=checksum:raise ValueError('candidate_history_corruption')
-            result.append(self._reference_body(lane,candidate,identity,kind,ref))
-        result.sort(key=lambda r:(r['slot'],r['payload'].get('_economic_order',r['transaction_index']) is None,
-            r['payload'].get('_economic_order',r['transaction_index']) or 0,r['event_index'],r['identity']))
+        result=[]
+        with self._startup_read(cancelled) as check:
+            for raw,checksum in self.db.execute(sql,args):
+                check()
+                body=json.loads(raw)
+                if digest(body)!=checksum:raise ValueError("candidate_history_corruption")
+                result.append(body)
+            for identity,kind,raw,checksum in self.db.execute(refs,params):
+                check()
+                ref=json.loads(raw)
+                if digest(ref)!=checksum:raise ValueError('candidate_history_corruption')
+                result.append(self._reference_body(lane,candidate,identity,kind,ref))
+            result.sort(key=lambda r:(r['slot'],r['payload'].get('_economic_order',r['transaction_index']) is None,
+                r['payload'].get('_economic_order',r['transaction_index']) or 0,r['event_index'],r['identity']))
         return result
 
     def event(self,lane,candidate,identity):

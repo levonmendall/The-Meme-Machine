@@ -514,6 +514,7 @@ class CandidateHistoryTests(unittest.TestCase):
     def test_actual_pump_restore_excludes_unconsumed_swap_reads_preserving_later_eligibility(self):
         from meme_machine.lanes.pump import runner
         from meme_machine.lanes.pump.pump_acceleration_confirmations import ConfirmationBook
+        from meme_machine.runtime.stop import requested
         from unittest.mock import Mock
         for mint,kind,payload,slot in (
             ('current','pump_other_create',{'event_type':'create','mint':'current','creator':'creator','market_time':1000},10),
@@ -532,7 +533,8 @@ class CandidateHistoryTests(unittest.TestCase):
                     created,postgrad,stream,object(),confirm,1020),1)
                 self.assertEqual(reads.call_args_list[0].args,('pump','current'))
                 self.assertEqual(reads.call_count,1)
-                self.assertEqual(reads.call_args.kwargs,{'kind_prefix':'pump_'})
+                self.assertEqual(reads.call_args.kwargs,{'kind_prefix':'pump_','cancelled':requested.is_set})
+                self.assertIs(reads.call_args.kwargs['cancelled'].__self__,requested)
             self.assertEqual(created['current']['pregrad_wallets'],{'buyer'})
             self.assertEqual(len(self.history.candidates(lane='pump')),2)
             self.assertEqual(len(self.history.events('pump','future-survivor')),1)

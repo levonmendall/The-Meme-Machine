@@ -949,6 +949,24 @@ class DiagnosticNativeRetentionTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
 
+    def test_pons_cohort_recovery_operation_is_retained_without_admitting_unknown_labels(self):
+        operation=dict(operation='pons.cohort_recovery',state='ACTIVE',pid=10,
+            native_thread_id=11,at=100,monotonic=200,arbitrary='private-context')
+        lane=dict(phase='RECONCILING',reconciled=False,native_operation=operation,
+            native_recent_operations=[dict(operation,state='COMPLETE'),
+                dict(operation,operation='pons.unreviewed_recovery')])
+        output=self.root/'pons-recovery.jsonl'
+        diagnostic.append_sample(output,dict(native_lifecycle=diagnostic.native_lifecycle({'pons':lane})))
+        retained=json.loads(output.read_text())['native_lifecycle']['pons']
+        self.assertEqual(retained['native_operation']['operation'],'pons.cohort_recovery')
+        self.assertEqual(retained['native_operation']['state'],'ACTIVE')
+        self.assertEqual(retained['native_operation']['native_thread_id'],11)
+        self.assertEqual(retained['native_recent_operations'][0]['operation'],'pons.cohort_recovery')
+        self.assertEqual(retained['native_recent_operations'][1],'UNAVAILABLE')
+        self.assertFalse(retained['reconciled'])
+        self.assertNotIn('private-context',output.read_text())
+        self.assertNotIn('unreviewed_recovery',output.read_text())
+
     def test_native_operations_and_signal_survive_descriptive_clipping(self):
         lane = {f'unrelated{i}': i for i in range(160)}
         lane.update(phase='RECONCILING', reconciled=False,

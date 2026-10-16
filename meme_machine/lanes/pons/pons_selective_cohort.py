@@ -807,8 +807,20 @@ def run(endpoint,*,campaign=False):
     occupied=list(ROOT.glob("trial-*.sqlite*"))
     occupied += [p for p in (PROGRESS,ROWS_LOG,QUALIFIERS_LOG,PROVIDER_LOG,RECOVERY_LOG,REPORT,
                             ROOT/"pons-selective-cohort-capital.sqlite") if p.exists()]
-    recovered=(recover_cohort(plane_path(ROOT/"candidate-evidence.sqlite"),POLICY_HASH,
-        capital_path=ROOT/'pons-selective-cohort-capital.sqlite') if occupied else None)
+    recovered=None
+    if occupied:
+        from meme_machine.runtime import status
+        from meme_machine.runtime.stop import requested,Shutdown
+        from meme_machine.shared_capital.runtime import native_startup_replay
+        if requested.is_set():raise Shutdown()
+        # Only a newly opened shared journal's existing read-only verification
+        # observes this scope. Plane setup, financial recovery and later native
+        # mutations retain their original atomic behavior; no global interrupt.
+        with status.operation('pons.cohort_recovery'):
+            with native_startup_replay(requested.is_set):
+                recovered=recover_cohort(plane_path(ROOT/"candidate-evidence.sqlite"),POLICY_HASH,
+                    capital_path=ROOT/'pons-selective-cohort-capital.sqlite')
+        if requested.is_set():raise Shutdown()
 
     from .pons_selective_capital import CohortCapital
     CohortCapital(ROOT/'pons-selective-cohort-capital.sqlite',STRATEGY_CAPITAL_QUOTE).recover_shared_terminals(release_absent=True)

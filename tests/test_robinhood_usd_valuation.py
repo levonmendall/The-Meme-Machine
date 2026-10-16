@@ -192,6 +192,66 @@ RALLY_CHANGED_SOURCES=('meme_machine/lanes/pons/pons_postgrad_survivor.py', 'mem
 RALLY_ADDED_SOURCES=('meme_machine/policy_history/opportunity_access_v1.json', 'meme_machine/runtime/rally_cycle.py')
 
 
+# The measured startup cancellation repair changes only the selected idle
+# candidate reads, their Pump caller, Pons's existing startup replay scope and
+# one descriptive status identifier. Pin each complete source and reverse only
+# these named nodes to 908ce9b7 before every older source/economic comparison.
+# CandidateHistory and status gain full-file guards too; no mutation, strategy
+# or financial method is exempted by calling the repair infrastructure.
+STARTUP_HISTORY_CANCEL_REFERENCE='908ce9b72ec6f7eb9cd4452551c1656b0592a09e'
+STARTUP_HISTORY_CANCEL_DELTAS={
+    'meme_machine/runtime/candidate_history.py':(
+        '359a70e38b2a8e6e015e1dce43e883476228929f3a45791bc05aabfc4e19ffc4',
+        '99984085df2ceefb8e7a94dfd9eabb85674311fca9d9ae67584dc9415de35d45',
+        ('CandidateHistory.candidates','CandidateHistory.events'),('CandidateHistory._startup_read',)),
+    'meme_machine/lanes/pump/runner.py':(
+        '148ec23e41195ad1464236873ffe2d1ae6bf96e1ddc5cf401a703703c49ef40e',
+        'eaf902b1894232403bfb2715bf9a0b78bfc9d8b6635c3a796cd9f122c7aca5c5',
+        ('_restore_observed_pump_candidates',),()),
+    'meme_machine/lanes/pons/pons_selective_cohort.py':(
+        '62d60f608185713a69542e181cca9302cc9e224e61791bc502d8324e0b79c312',
+        '4209107e6eb53bdb32eeb33ae1a3addb47ff4ca5a1ee298d5509fbb46e5d6ad7',
+        ('run',),()),
+    'meme_machine/runtime/status.py':(
+        'fa9fd080bf9c78cb7c844a685b61ebffd281711263c722427d489b6d35e38da7',
+        '7c819b3b0c5e3ee56984e021a851466bd12bb7a8ace30ce6d952d12be32575e3',
+        ('operation',),()),
+}
+
+
+def startup_history_cancellation_predecessor(test,relative,current,*,allow_previous_layers=False):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    reviewed=STARTUP_HISTORY_CANCEL_DELTAS.get(relative)
+    if reviewed is None:return current
+    before,after,changed,added=reviewed
+    prior=subprocess.check_output(['git','show',STARTUP_HISTORY_CANCEL_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':exact cancellation predecessor')
+    if current==prior:return prior
+    if allow_previous_layers and hashlib.sha256(current).hexdigest()!=after:
+        # Original nested guards already visit their independently pinned older
+        # intermediates. Their existing byte/node checks still run unchanged;
+        # the active-source test below always requires this exact successor.
+        return current
+    test.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':exact startup cancellation successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def node(root,name):
+        parent=root
+        for part in name.split('.')[:-1]:
+            parent=next(n for n in parent.body if isinstance(n,ast.ClassDef) and n.name==part)
+        return parent,next(n for n in parent.body if isinstance(n,ast.FunctionDef) and n.name==name.split('.')[-1])
+    for name in changed:
+        parent,selected=node(tree,name);_,original=node(old,name)
+        test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':explicit cancellation node '+name)
+        parent.body[parent.body.index(selected)]=deepcopy(original)
+    for name in added:
+        parent,selected=node(tree,name);parent.body.remove(selected)
+        with test.assertRaises(StopIteration):node(old,name)
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':all other source nodes retained')
+    return prior
+
+
 def rally_manifest(test):
     import hashlib,json
     raw=RALLY_MANIFEST.read_bytes()
@@ -246,6 +306,8 @@ def rally_delta(before,after):
 def rally_predecessor(test,relative,current,*,allow_previous_layers=False):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
+    current=startup_history_cancellation_predecessor(test,relative,current,
+        allow_previous_layers=allow_previous_layers)
     current=restored_provider_history_predecessor(test,relative,current)
     manifest=rally_manifest(test)
     record=manifest['files'].get(relative)
@@ -1264,6 +1326,41 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_startup_history_cancellation_reverses_only_exact_reviewed_sources(self):
+        import hashlib
+        mutations={
+            'meme_machine/runtime/candidate_history.py':(
+                (b'lambda:int(bool(cancelled()))',b'lambda:0'),
+                (b'if self.db.in_transaction:',b'if False:')),
+            'meme_machine/lanes/pump/runner.py':(
+                (b'cancelled=requested.is_set',b'cancelled=lambda:False'),
+                (b'if mint in created:continue',b'if mint not in created:continue')),
+            'meme_machine/lanes/pons/pons_selective_cohort.py':(
+                (b'if requested.is_set():raise Shutdown()',b'if False:raise Shutdown()'),
+                (b'native_startup_replay(requested.is_set)',b'native_startup_replay(lambda:False)')),
+            'meme_machine/runtime/status.py':(
+                (b"'pons.cohort_recovery'",b"'pons.unreviewed'"),
+                (b'len(identity)>80',b'len(identity)>800')),
+        }
+        self.assertEqual(set(mutations),set(STARTUP_HISTORY_CANCEL_DELTAS))
+        for relative,(_,after,_,_) in STARTUP_HISTORY_CANCEL_DELTAS.items():
+            current=(ROOT/relative).read_bytes()
+            self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact reviewed cancellation source')
+            prior=subprocess.check_output(['git','show',STARTUP_HISTORY_CANCEL_REFERENCE+':'+relative],cwd=ROOT)
+            self.assertEqual(startup_history_cancellation_predecessor(self,relative,current),prior)
+            self.assertEqual(opportunity_predecessor(self,relative,current),
+                opportunity_predecessor(self,relative,prior))
+            changes=[current+b'\n# unreviewed cancellation change\n',b'']
+            for old,new in mutations[relative]:
+                self.assertIn(old,current,relative+':negative mutation target exists')
+                changes.append(current.replace(old,new,1))
+            for changed in changes:
+                self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+                with self.assertRaises(AssertionError):
+                    startup_history_cancellation_predecessor(self,relative,changed)
+                if relative in ('meme_machine/lanes/pump/runner.py','meme_machine/lanes/pons/pons_selective_cohort.py'):
+                    with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_exact_restored_history_delta_preserves_original_supervisor_and_helper(self):
         relative='meme_machine/operational/supervisor.py'
         current=(ROOT/relative).read_bytes()

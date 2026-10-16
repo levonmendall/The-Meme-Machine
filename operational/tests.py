@@ -24,6 +24,7 @@ FAST=[
     'tests.test_operation_owner_hooks',
     'tests.test_integrated_startup_rehearsal',
     'tests.test_pump_cancellation_diagnostics',
+    'tests.test_startup_history_cancellation',
     'tests.test_native_startup_lifecycle',
     'tests.test_paper_policy_compatibility',
     'tests.lanes.pump.test_paper_opportunity_access',
