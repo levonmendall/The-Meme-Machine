@@ -583,8 +583,9 @@ class Supervisor:
             path=Path(os.environ['MM_PROVIDER_USAGE_DB'])
             original_path=previous.get('continuous_provider_db')
             if original_path and (original_path!=str(path) or not path.is_file()):
-                raise ValueError('continuous_usage_history_requires_restore_not_reseed')
-            self.provider_budget=Budget(path) if path.exists() else Budget.create(path,continuous=envelope)
+                from .restored_provider_history import require_restored_history
+                require_restored_history(self,state,path,envelope)
+            self.provider_budget=Budget(path) if original_path or path.exists() else Budget.create(path,continuous=envelope)
             if not self.provider_budget.continuous:raise ValueError('continuous_cannot_reuse_bounded_validation_database')
             self.provider_budget.configure_continuous_scope(envelope)
             self.provider_budget.preflight_file()

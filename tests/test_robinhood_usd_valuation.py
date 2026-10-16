@@ -347,6 +347,46 @@ def pons_discovery_predecessor(test,relative,current):
     return current
 
 
+# Exact observed DO-to-AWS provider-history compatibility is one additional
+# reversible startup delta. Pin its complete helper as well as both Supervisor
+# files; then recover every earlier safety/economic source check unchanged.
+RESTORED_HISTORY_REFERENCE='950852cb87516cd1c94f6762ec178b17232c346f'
+RESTORED_HISTORY_BEFORE='5c0cd297633ab4575880eb0fdf94d93bfad27ae9575fb569aaebd48e6b9dd98c'
+RESTORED_HISTORY_AFTER='2fd3ff1027c0049c5a962efecddcc486e7dbd53cbf3a119b28538c88592256fe'
+RESTORED_HISTORY_HELPER='meme_machine/operational/restored_provider_history.py'
+RESTORED_HISTORY_HELPER_SHA256='23a9dd86812da4810d1f4abdaea130fbd62ea094a2caaf088179d1430e297684'
+RESTORED_HISTORY_OLD_BLOCK=(
+    b"            if original_path and (original_path!=str(path) or not path.is_file()):\n"
+    b"                raise ValueError('continuous_usage_history_requires_restore_not_reseed')\n"
+    b"            self.provider_budget=Budget(path) if path.exists() else Budget.create(path,continuous=envelope)\n")
+RESTORED_HISTORY_NEW_BLOCK=(
+    b"            if original_path and (original_path!=str(path) or not path.is_file()):\n"
+    b"                from .restored_provider_history import require_restored_history\n"
+    b"                require_restored_history(self,state,path,envelope)\n"
+    b"            self.provider_budget=Budget(path) if original_path or path.exists() else Budget.create(path,continuous=envelope)\n")
+
+
+def restored_provider_helper(test,current):
+    import hashlib
+    test.assertEqual(hashlib.sha256(current).hexdigest(),RESTORED_HISTORY_HELPER_SHA256,
+        'complete exact fixed-cohort observation compatibility helper')
+
+
+def restored_provider_history_predecessor(test,relative,current):
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!='meme_machine/operational/supervisor.py' or b'from .restored_provider_history import' not in current:return current
+    test.assertEqual(hashlib.sha256(current).hexdigest(),RESTORED_HISTORY_AFTER,
+        relative+':exact restored-history successor')
+    restored_provider_helper(test,(ROOT/RESTORED_HISTORY_HELPER).read_bytes())
+    prior=subprocess.check_output(['git','show',RESTORED_HISTORY_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),RESTORED_HISTORY_BEFORE)
+    test.assertEqual(current.count(RESTORED_HISTORY_NEW_BLOCK),1)
+    current=current.replace(RESTORED_HISTORY_NEW_BLOCK,RESTORED_HISTORY_OLD_BLOCK,1)
+    test.assertEqual(current,prior,relative+':all original startup and economic safeguards preserved')
+    return prior
+
+
 # Explicit host-capacity portability changes only the existing cgroup check.
 # Pin both full files and reverse the one reviewed method/import before every
 # existing economic/source comparison. No other Supervisor node is exempted.
@@ -380,6 +420,7 @@ CONTAINED_CACHE_WINDOW_AFTER=(
 def contained_observation_predecessor(test,relative,current):
     import hashlib
     if isinstance(current,str):current=current.encode()
+    current=restored_provider_history_predecessor(test,relative,current)
     reviewed=CONTAINED_OBSERVATION_DELTAS.get(relative)
     if reviewed is None or reviewed[2] not in current:return current
     before,after,_=reviewed
@@ -1121,10 +1162,31 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_exact_restored_history_delta_preserves_original_supervisor_and_helper(self):
+        relative='meme_machine/operational/supervisor.py'
+        current=(ROOT/relative).read_bytes()
+        prior=subprocess.check_output(['git','show',RESTORED_HISTORY_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(restored_provider_history_predecessor(self,relative,current),prior)
+        self.assertEqual(opportunity_predecessor(self,relative,current),
+            opportunity_predecessor(self,relative,prior))
+        for changed in (current+b'\n# unreviewed provider-history change\n',
+                current.replace(b'maximum_queue_wait_seconds=5',b'maximum_queue_wait_seconds=6',1),
+                current.replace(b'require_restored_history(self,state,path,envelope)',b'pass',1)):
+            self.assertNotEqual(changed,current)
+            with self.assertRaises(AssertionError):restored_provider_history_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+        helper=(ROOT/RESTORED_HISTORY_HELPER).read_bytes()
+        restored_provider_helper(self,helper)
+        for changed in (helper+b'\n# unreviewed guard change\n',
+                helper.replace(b"supervisor.admission != 'OBSERVATION'",b'False',1)):
+            self.assertNotEqual(changed,helper)
+            with self.assertRaises(AssertionError):restored_provider_helper(self,changed)
+
     def test_contained_observation_reverses_only_exact_reviewed_phase_and_cache_authority(self):
         import hashlib
         for relative,(_,after,_) in CONTAINED_OBSERVATION_DELTAS.items():
             current=(ROOT/relative).read_bytes()
+            current=restored_provider_history_predecessor(self,relative,current)
             prior=subprocess.check_output(['git','show',CONTAINED_OBSERVATION_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,
                 relative+':active source must contain the exact reviewed safety correction')
