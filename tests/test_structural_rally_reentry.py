@@ -403,7 +403,7 @@ class DurableSleeveRallyTests(unittest.TestCase):
             reset_at=first['cycle']['reset_at'],base_end_at=first['cycle']['base_end_at'],
             breakout_at=new['at'],peak_price='200',reset_price='150',
             base_low='150',base_high='180',breakout_price='186')
-        with self.assertRaisesRegex(ValueError,'same_survivor_regime'):
+        with self.assertRaisesRegex(ValueError,'superseded_candidate_regime'):
             self.sleeve.reserve('bad',strategy='survivor',amount=100,at=new['at'],
                 candidate='token',generation=row['generation'],regime=same)
         self.assertEqual(self.sleeve.reconcile()['reserved'],0)
