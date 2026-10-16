@@ -1,7 +1,7 @@
 name: Survivor funding reservation offline regression
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, ready_for_review]
     paths:
       - 'meme_machine/runtime/sleeve_reservations.py'
       - 'meme_machine/shared_capital/native_sleeve.py'
@@ -11,6 +11,7 @@ permissions:
   contents: read
 jobs:
   focused-capital:
+    if: ${{ github.event.action != 'ready_for_review' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -40,3 +41,47 @@ jobs:
             tests.test_survivor_commit \
             tests.test_sleeve_prefix_recovery \
             tests.test_survivor_terminal_retirement
+
+  operational-release:
+    # Complete OPERATIONAL once at release promotion, never per draft edit.
+    # The existing CI ready-PR gate runs complete FAST concurrently.
+    if: ${{ github.event.action == 'ready_for_review' && github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.14'
+      - run: python -m pip install -r requirements.txt
+      - name: Verify exact candidate and execute complete contained OPERATIONAL release suite
+        env:
+          EXPECTED_SOURCE: ${{ github.event.pull_request.head.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE"
+          sudo env CI=true PYTHONDONTWRITEBYTECODE=1 OFFLINE_SUITE=OPERATIONAL "$(command -v python)" - <<'PY'
+          import os
+          from pathlib import Path
+          import runpy
+          import resource
+          import sys
+
+          soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+          if hard < 4096:
+              raise RuntimeError('ci_replay_file_descriptors_required')
+          resource.setrlimit(resource.RLIMIT_NOFILE, (max(soft, 4096), hard))
+          cpus = sorted(os.sched_getaffinity(0))
+          if len(cpus) < 2:
+              raise RuntimeError('two_ci_cpus_required')
+          os.sched_setaffinity(0, set(cpus[:2]))
+          Path('/sys/fs/cgroup/cgroup.subtree_control').write_text('+cpu +memory +io')
+          from engineering.solana_capacity.proof_host import LinuxGroup
+          from engineering.solana_capacity.proof_limits import LIMITS
+          group = LinuxGroup(LIMITS)
+          group.close()
+          sys.argv = ['operational.tests', 'OPERATIONAL', '--verbose']
+          runpy.run_module('operational.tests', run_name='__main__')
+          PY
