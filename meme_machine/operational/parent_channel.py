@@ -35,6 +35,7 @@ class _Content:
     boundary: str | None = None
     alias: str | None = None
     stream: object = None
+    stream_id: str | None = None
 
 
 class ParentChannel:
@@ -54,16 +55,26 @@ class ParentChannel:
             and type(attempt_seconds) in (int, float) and 0 < attempt_seconds <= 30,
             'parent_channel_configuration')
         configured = {} if streams is None else dict(streams)
-        _require(len(configured) <= 8 and all(type(k) is str and k in http.sources
-            and type(v) is ParentNativeStream for k, v in configured.items()), 'parent_channel_streams')
-        self.http, self.streams = http, configured
+        limits=http.budget.limits
+        self.max_streams=min(32,limits['native_inflight_bytes']//(4*MAX_FRAME))
+        _require(self.max_streams>=1 and len(configured) <= self.max_streams
+            and all(type(k) is str and k in http.sources and type(v) is ParentNativeStream
+                and v.budget is http.budget for k, v in configured.items()), 'parent_channel_streams')
+        self.http,self.streams,self.stream_aliases=http,{},{}
+        self._initial_streams=[]
+        for alias,stream in configured.items():
+            handle=secrets.token_urlsafe(32)
+            self.streams[handle]=stream;self.stream_aliases[handle]=alias
+            self._initial_streams.append(NativeSourceBinding(http.sources[alias],stream.transport).receipt(handle))
         bound = tuple(native_sources)
-        _require(len(bound) <= 8 and all(type(s) is NativeSourceBinding
+        _require(len(bound) <= 32 and all(type(s) is NativeSourceBinding
             and s.source.alias.name in http.sources and s.source == http.sources[s.source.alias.name]
             for s in bound) and len({s.source.alias.name for s in bound}) == len(bound),
             'parent_native_sources')
         self.native_sources = {s.source.alias.name: s for s in bound}
         self._native_busy = set()
+        self._opening=set()
+        self.max_operations=2*self.max_streams+workers+8
         self.session = secrets.token_urlsafe(32)
         self.deadline = asyncio.get_running_loop().time() + seconds
         self.attempt_seconds, self.workers = attempt_seconds, workers
@@ -76,9 +87,10 @@ class ParentChannel:
         self._closing = None
 
     def hello(self):
-        return dict(session=self.session, protocol='native-parent-transport-v1',
+        return dict(session=self.session, protocol='native-parent-transport-v2',
             sources=[s.receipt() for s in self.http.sources.values()],
-            streams=sorted(set(self.streams)|set(self.native_sources)),
+            streams=self._initial_streams+[s.receipt() for s in self.native_sources.values()],
+            maximum_streams=self.max_streams,
             chunk_bytes=CHUNK, response_bytes=MAX_FRAME,
             maximum_messages=MAX_MESSAGES, replay='most_recent_only',
             acknowledgements='transport_memory_only; native owners retain source FULL/ACK')
@@ -116,6 +128,8 @@ class ParentChannel:
                 reply = dict(token=token, status=content.status)
                 if content.boundary is not None:
                     reply['boundary'] = content.boundary
+                if content.stream_id is not None:
+                    reply['stream']=content.stream_id
                 if verb == 'read':
                     reply.update(self._read(content, message['offset']))
                 elif verb == 'ack':
@@ -156,20 +170,26 @@ class ParentChannel:
                 else:
                     reply = dict(activity_marker=await self.http.activity_marker(message['alias']))
             elif verb in ('native_open', 'native_close', 'native_write'):
-                keys = {'session', 'seq', 'verb', 'alias'}
+                keys = {'session', 'seq', 'verb', 'alias' if verb=='native_open' else 'stream'}
                 if verb == 'native_write':
                     keys.add('body_b64')
-                alias = message.get('alias')
-                _require(set(message) == keys and type(alias) is str
-                    and alias not in self._native_busy and len(self.contents) < 64,
+                _require(set(message) == keys and len(self.contents) < self.max_operations,
                     'parent_native_control_shape')
                 if verb == 'native_open':
-                    _require(alias in self.native_sources and
-                        (alias not in self.streams or self.streams[alias].cleanup_verified),
-                        'parent_native_open')
+                    alias=message['alias']
+                    _require(type(alias) is str and alias in self.native_sources
+                        and len(self.streams)+len(self._opening)<1024
+                        and sum(not s.cleanup_verified for s in self.streams.values())+len(self._opening)<self.max_streams,
+                        'parent_native_capacity')
+                    handle=secrets.token_urlsafe(32)
+                    self._opening.add(handle)
                 else:
-                    _require(alias in self.streams and not self.streams[alias].closed,
+                    handle=message['stream']
+                    _require(type(handle) is str and handle in self.streams
+                        and handle not in self._native_busy
+                        and (verb=='native_close' or not self.streams[handle].closed),
                              'parent_native_control')
+                    alias=self.stream_aliases[handle]
                 body = None
                 if verb == 'native_write':
                     _require(type(message['body_b64']) is str, 'parent_native_write_shape')
@@ -179,24 +199,26 @@ class ParentChannel:
                         raise BridgeRejected('parent_native_write_encoding') from None
                 token = secrets.token_urlsafe(32)
                 content = _Content(None, 'control', alias=alias,
-                    stream=self.streams.get(alias) if verb != 'native_open' else None)
+                    stream=self.streams.get(handle) if verb != 'native_open' else None,
+                    stream_id=handle)
                 self.contents[token] = content
-                self._native_busy.add(alias)
+                self._native_busy.add(handle)
                 content.task = asyncio.create_task(self._native_control(content, alias, verb, body))
                 reply = dict(token=token, status='accepted')
             elif verb == 'native_read':
-                _require(set(message) == {'session', 'seq', 'verb', 'alias'}
-                    and message['alias'] in self.streams, 'parent_native_read_shape')
-                alias = message['alias']
-                _require(not self.streams[alias].closed and not any(
-                    c.kind == 'native' and self.stream_contents[t] == alias
+                handle=message.get('stream')
+                _require(set(message) == {'session', 'seq', 'verb', 'stream'}
+                    and type(handle) is str and handle in self.streams, 'parent_native_read_shape')
+                alias=self.stream_aliases[handle]
+                _require(not self.streams[handle].closed and not any(
+                    c.kind == 'native' and c.stream_id == handle
                     and c.status in ('running', 'delivered') for t, c in self.contents.items()),
                     'parent_native_backpressure')
-                _require(len(self.contents) < 64, 'parent_attempt_count')
+                _require(len(self.contents) < self.max_operations, 'parent_attempt_count')
                 token = secrets.token_urlsafe(32)
-                content = _Content(None, 'native', alias=alias, stream=self.streams[alias])
+                content = _Content(None, 'native', alias=alias, stream=self.streams[handle],stream_id=handle)
                 self.contents[token] = content
-                self.stream_contents[token] = alias
+                self.stream_contents[token] = handle
                 content.task = asyncio.create_task(self._native(content, alias))
                 reply = dict(token=token, status='accepted')
             elif verb == 'close':
@@ -234,10 +256,11 @@ class ParentChannel:
         # extra queue or unbounded spool can hide backpressure from the child.
         outstanding = sum(c.kind == 'http' and c.status in ('running', 'delivered')
                           for c in self.contents.values())
-        _require(len(self.contents) < 64 and outstanding < self.workers, 'parent_attempt_capacity')
+        _require(len(self.contents) < self.max_operations and outstanding < self.workers, 'parent_attempt_capacity')
         token = secrets.token_urlsafe(32)
+        attempt_seconds=min(self.attempt_seconds,8) if source.read_class!='native' else self.attempt_seconds
         attempt = ParentAttempt(self.session, token, source.alias, tuple(frozen), batch,
-            min(self.deadline, asyncio.get_running_loop().time()+self.attempt_seconds))
+            min(self.deadline, asyncio.get_running_loop().time()+attempt_seconds))
         content = _Content(None, 'http', attempt=attempt)
         self.contents[token] = content
         content.task = asyncio.create_task(self._http(content))
@@ -296,11 +319,17 @@ class ParentChannel:
         try:
             async with asyncio.timeout_at(min(self.deadline, asyncio.get_running_loop().time()+8)):
                 if verb == 'native_open':
-                    self.streams[alias] = await self.native_sources[alias].open(self.http.budget)
-                    content.stream = self.streams[alias]
+                    content.stream=await self.native_sources[alias].open(self.http.budget)
+                    self.streams[content.stream_id]=content.stream
+                    self.stream_aliases[content.stream_id]=alias
                     content.status = 'opened'
                 elif verb == 'native_close':
                     await content.stream.aclose()
+                    for other in self.contents.values():
+                        if other is not content and other.stream is content.stream and other.kind=='native':
+                            other.body=None;other.pending=None
+                            if other.task is not None and not other.task.done():other.task.cancel()
+                            other.status='canceled'
                     content.status = 'closed'
                 else:
                     await content.stream.write(body)
@@ -314,7 +343,8 @@ class ParentChannel:
                 self.closed = True
                 self.stopped.set()
         finally:
-            self._native_busy.discard(alias)
+            self._native_busy.discard(content.stream_id)
+            self._opening.discard(content.stream_id)
 
     def _read(self, content, offset):
         _require(type(offset) is int and offset == content.offset
@@ -377,6 +407,11 @@ class ParentChannel:
 def _native_boundary(error):
     import grpc
     from websockets.exceptions import ConnectionClosed
+    from meme_machine.lanes.pons import BoundaryError
+    if isinstance(error,OSError) or (isinstance(error,BoundaryError)
+            and str(error) in ('sequencer_feed_connection_closed','sequencer_feed_not_connected',
+                              'sequencer_feed_reserved_bits')):
+        return 'candidate_native_unavailable'
     if isinstance(error, grpc.RpcError):
         try:
             return {

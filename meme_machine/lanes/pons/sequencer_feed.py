@@ -200,7 +200,7 @@ class SequencerFeedState:
 class _WebSocket:
     """Minimal bounded WSS reader for the Nitro feed; no third-party dependency."""
 
-    def __init__(self, url, *, timeout=5.0, max_frame_bytes=MAX_FRAME_BYTES):
+    def __init__(self, url, *, timeout=5.0, max_frame_bytes=MAX_FRAME_BYTES,socket_observer=None):
         self.url = url
         self.timeout = float(timeout)
         self.max_frame_bytes = int(max_frame_bytes)
@@ -209,6 +209,7 @@ class _WebSocket:
         self.server_no_context_takeover = False
         self._inflater = None
         self._recv_buffer = bytearray()
+        self.socket_observer=socket_observer
 
     def _read_exact(self, size):
         """Read exactly size bytes, consuming handshake/coalesced bytes first."""
@@ -243,6 +244,7 @@ class _WebSocket:
         context = ssl.create_default_context()
         sock = context.wrap_socket(raw, server_hostname=parsed.hostname)
         sock.settimeout(self.timeout)
+        if self.socket_observer is not None:self.socket_observer(sock)
         path = parsed.path or "/"
         if parsed.query:
             path += "?" + parsed.query
@@ -324,7 +326,7 @@ class _WebSocket:
         if self._inflater is None or self.server_no_context_takeover:
             self._inflater = zlib.decompressobj(wbits=-15)
         try:
-            data = self._inflater.decompress(payload + b"\x00\x00\xff\xff")
+            data = self._inflater.decompress(payload + b"\x00\x00\xff\xff",self.max_frame_bytes+1)
         except zlib.error:
             raise BoundaryError("sequencer_feed_compression_error") from None
         if len(data) > self.max_frame_bytes:

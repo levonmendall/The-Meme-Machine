@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import socket
 import sqlite3
+import struct
 import tempfile
 import threading
 import time
@@ -252,6 +253,46 @@ class ParentNativeTransportTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(state['http_reserved'], '0')
         self.assertTrue(self.physical.raw[0].closed)
 
+    async def test_parent_owned_receipt_retries_only_idempotent_failed_cleanup(self):
+        original=self.budget.http_event
+        closes=[]
+        def failed_once(token,**kwargs):
+            if kwargs.get('close'):
+                closes.append(token)
+                if len(closes)==1:raise sqlite3.OperationalError('offline close fault')
+            return original(token,**kwargs)
+        attempt=self.attempt()
+        with patch.object(self.budget,'http_event',failed_once):
+            with self.assertRaises(sqlite3.OperationalError):await self.http.execute(attempt)
+            await self.http.release(attempt,uncertain=True)
+        self.assertEqual(len(closes),2);self.assertEqual(len(set(closes)),1)
+        self.assertEqual(self.budget.snapshot()['http_attempts'],'1')
+        self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
+        self.assertFalse(self.http._states)
+
+    async def test_permanent_receipt_cleanup_failure_stops_without_false_closed_claim(self):
+        http=ParentHTTP(self.budget,[self.sol],opener=self.physical)
+        channel=ParentChannel(http);channel.test_seq=0
+        original=self.budget.http_event
+        def failed_close(token,**kwargs):
+            if kwargs.get('close'):raise sqlite3.OperationalError('offline permanent close fault')
+            return original(token,**kwargs)
+        try:
+            with patch.object(self.budget,'http_event',failed_close):
+                await self.dispatch(channel,'http_begin',alias='pump',batch=False,
+                    calls=[dict(method='getSlot',params=[])])
+                await asyncio.wait_for(channel.stopped.wait(),1)
+                self.assertTrue(channel.closed)
+                self.assertEqual(next(iter(channel.contents.values())).status,'accounting_failed')
+                self.assertTrue(http._states)
+                with sqlite3.connect(self.budget.path) as db:
+                    self.assertEqual(db.execute('SELECT closed FROM http_receipts').fetchone()[0],0)
+                with self.assertRaises(ParentTransportFailure):await channel.aclose()
+        finally:
+            # This intentionally unresolved receipt is synthetic disposable
+            # failure evidence, never authoritative state or a false runtime ACK.
+            http._executor.shutdown(wait=True)
+
     async def test_cancellation_joins_delivered_accounting_and_closes_once(self):
         self.physical.gate.clear()
         attempt = self.attempt()
@@ -327,12 +368,49 @@ class ParentNativeTransportTests(unittest.IsolatedAsyncioTestCase):
             grant = json.loads(db.execute('SELECT body FROM admissions').fetchone()[0])
             self.assertEqual(grant['priority'], 10)
 
+    async def test_original_repair_priorities_are_parent_issued_fixed_aliases(self):
+        for priority in (1,2,4):
+            governor=Governor(self.root/('priority-'+str(priority)+'.sqlite'))
+            binding=SourceBinding.configured(EndpointAlias('repair-'+str(priority),'solana',
+                frozenset(('getSlot',))),'pump_history_receipt',
+                environ={'MM_SOLANA_READ_RPC_URL':SOL},governor=governor,
+                read_class='solana_evidence_'+str(priority))
+            http=ParentHTTP(self.budget,[binding],opener=self.physical)
+            attempt=self.attempt(binding)
+            try:
+                await http.execute(attempt);await http.release(attempt,uncertain=False)
+                self.assertEqual(SourceReference.from_receipt(binding.receipt()).read_class,
+                    'solana_evidence_'+str(priority))
+                with sqlite3.connect(governor.path) as db:
+                    self.assertEqual(db.execute('SELECT priority FROM grants').fetchone()[0],priority)
+                purchase=http.purchases.snapshot()['operations'][0]
+                self.assertEqual(purchase['operation'],'history_receipt')
+            finally:await http.aclose()
+        self.assertEqual(self.budget.snapshot()['http_attempts'],'3')
+        with self.assertRaises(BridgeRejected):
+            SourceBinding.configured(self.sol.alias,'pump_discovery',environ={'MM_SOLANA_READ_RPC_URL':SOL},
+                governor=self.governor,read_class='solana_evidence_0')
+
     async def test_publication_refuses_reflected_credential_after_charging(self):
         self.physical.body = json.dumps(dict(id=1, result='offline-parent-secret')).encode()
         with self.assertRaises(ParentTransportFailure):
             await self.perform(self.attempt())
         self.assertEqual(self.budget.snapshot()['http_bytes'], str(len(self.physical.body)))
         self.assertEqual(self.budget.snapshot()['http_reserved'], '0')
+
+    async def test_repair_request_deadline_is_fixed_in_parent_not_wire(self):
+        source=replace(self.sol,read_class='solana_evidence_2')
+        http=ParentHTTP(self.budget,[source],opener=self.physical)
+        channel=ParentChannel(http,seconds=60,attempt_seconds=30)
+        self.addAsyncCleanup(channel.aclose)
+        channel.test_seq=0
+        before=asyncio.get_running_loop().time()
+        opened=await self.dispatch(channel,'http_begin',alias=source.alias.name,
+            calls=[dict(method='getSlot',params=[])],batch=False)
+        attempt=channel.contents[opened['token']].attempt
+        self.assertGreater(attempt.deadline,before+7.9)
+        self.assertLessEqual(attempt.deadline,asyncio.get_running_loop().time()+8)
+        self.assertEqual((await self.terminal(channel,opened['token']))['status'],'delivered')
 
     async def test_logical_demand_cancellation_joins_accepted_commit(self):
         from meme_machine.runtime.robinhood import provider_usage
@@ -408,6 +486,22 @@ class ParentNativeTransportTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(state['native_reserved'], '0')
         self.assertEqual(state['native_uncertain_bytes'], str(4*MAX_FRAME))
 
+    async def test_native_abort_fault_still_closes_transport_and_original_reservation(self):
+        class FaultyAbort(_Native):
+            def cancel(self):raise OSError('private abort detail')
+        raw=FaultyAbort()
+        async def factory():return raw
+        stream=await ParentNativeStream.open(self.budget,'yellowstone',factory,lambda body:None)
+        with self.assertRaisesRegex(ParentTransportFailure,'^parent_stream_cleanup_failed$'):
+            await stream.aclose()
+        self.assertTrue(raw.closed)
+        self.assertFalse(stream.cleanup_verified)
+        self.assertEqual(self.budget.snapshot()['native_reserved'],'0')
+        self.assertEqual(self.budget.snapshot()['native_uncertain_bytes'],str(4*MAX_FRAME))
+        # A second close joins the same failed cleanup; it cannot reacquire.
+        with self.assertRaises(ParentTransportFailure):await stream.aclose()
+        self.assertEqual(self.budget.snapshot()['native_opens'],'1')
+
     async def test_fixed_native_subscriptions_reject_broad_or_paused_family(self):
         from meme_machine.yellowstone import geyser_pb2 as pb
         from meme_machine.solana_selective_history import PROGRAMS
@@ -462,6 +556,9 @@ class ParentNativeTransportTests(unittest.IsolatedAsyncioTestCase):
         self.addAsyncCleanup(channel.aclose)
         channel.test_seq = 0
         return channel
+
+    def native_handle(self,channel):
+        return next(handle for handle,stream in reversed(list(channel.streams.items())) if not stream.closed)
 
     async def dispatch(self, channel, verb, **kwargs):
         channel.test_seq += 1
@@ -519,7 +616,7 @@ class ParentNativeTransportTests(unittest.IsolatedAsyncioTestCase):
         async def factory(): return raw
         stream = await ParentNativeStream.open(self.budget, 'yellowstone', factory, lambda body: None)
         channel = await self.channel(streams={'pump': stream})
-        accepted = await self.dispatch(channel, 'native_read', alias='pump')
+        accepted = await self.dispatch(channel, 'native_read', stream=self.native_handle(channel))
         token = accepted['token']
         self.assertEqual((await self.terminal(channel, token))['status'], 'delivered')
         value = await self.dispatch(channel, 'read', token=token, offset=0)
@@ -542,9 +639,9 @@ class ParentNativeTransportTests(unittest.IsolatedAsyncioTestCase):
                    return_value=factory):
             token = (await self.dispatch(channel, 'native_open', alias='pump'))['token']
             self.assertEqual((await self.terminal(channel, token))['status'], 'opened')
-            old_read = (await self.dispatch(channel, 'native_read', alias='pump'))['token']
+            old_read = (await self.dispatch(channel, 'native_read', stream=self.native_handle(channel)))['token']
             self.assertEqual((await self.terminal(channel, old_read))['status'], 'eof')
-            closing = (await self.dispatch(channel, 'native_close', alias='pump'))['token']
+            closing = (await self.dispatch(channel, 'native_close', stream=self.native_handle(channel)))['token']
             self.assertEqual((await self.terminal(channel, closing))['status'], 'closed')
             token = (await self.dispatch(channel, 'native_open', alias='pump'))['token']
             self.assertEqual((await self.terminal(channel, token))['status'], 'opened')
@@ -557,13 +654,104 @@ class ParentNativeTransportTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(state['native_reserved'], str(4*MAX_FRAME))
         self.assertEqual(state['native_uncertain_bytes'], str(4*MAX_FRAME))
 
+    async def test_concurrent_native_instances_under_one_source_have_independent_reservations(self):
+        raws=[]
+        async def factory():
+            raw=_Native([('instance-'+str(len(raws))).encode()]);raws.append(raw);return raw
+        channel=await self.channel(native_sources=[NativeSourceBinding(self.sol,'yellowstone')])
+        handles=[]
+        with patch('meme_machine.operational.parent_transport.authenticated_native_factory',return_value=factory):
+            for _ in range(3):
+                token=(await self.dispatch(channel,'native_open',alias='pump'))['token']
+                result=await self.terminal(channel,token)
+                self.assertEqual(result['status'],'opened');handles.append(result['stream'])
+            self.assertEqual(len(set(handles)),3)
+            self.assertEqual(self.budget.snapshot()['native_reserved'],str(12*MAX_FRAME))
+            for index,handle in enumerate(handles):
+                token=(await self.dispatch(channel,'native_read',stream=handle))['token']
+                self.assertEqual((await self.terminal(channel,token))['status'],'delivered')
+                body=await self.dispatch(channel,'read',token=token,offset=0)
+                self.assertEqual(base64.b64decode(body['body_b64']),('instance-'+str(index)).encode())
+                await self.dispatch(channel,'ack',token=token,offset=0,sha256=body['sha256'])
+            token=(await self.dispatch(channel,'native_close',stream=handles[0]))['token']
+            await self.terminal(channel,token)
+            self.assertTrue(raws[0].closed);self.assertFalse(raws[1].closed)
+        self.assertEqual(self.budget.snapshot()['native_opens'],'3')
+        self.assertEqual(self.budget.snapshot()['native_reserved'],str(8*MAX_FRAME))
+
+    async def test_native_capacity_comes_from_original_budget_profile(self):
+        budget=Budget.create(self.root/'small.sqlite',limits=dict(self.budget.limits,
+            native_inflight_bytes=4*MAX_FRAME),modeled_spend_limit='3')
+        http=ParentHTTP(budget,[self.sol],opener=_Physical(budget))
+        channel=ParentChannel(http,native_sources=[NativeSourceBinding(self.sol,'yellowstone')])
+        channel.test_seq=0
+        self.addAsyncCleanup(channel.aclose)
+        self.assertEqual(channel.hello()['maximum_streams'],1)
+        async def factory():return _Native()
+        with patch('meme_machine.operational.parent_transport.authenticated_native_factory',return_value=factory):
+            token=(await self.dispatch(channel,'native_open',alias='pump'))['token']
+            await self.terminal(channel,token)
+            with self.assertRaises(BridgeRejected):
+                await self.dispatch(channel,'native_open',alias='pump')
+        self.assertEqual(budget.snapshot()['native_opens'],'1')
+
+    async def test_actual_nitro_framing_inflation_and_full_commit_use_same_budget(self):
+        import zlib
+        from meme_machine.lanes.pons.sequencer_feed import _WebSocket
+        from meme_machine.operational.parent_transport import sequencer_native_factory
+        from tests.lanes.pons.test_sequencer_feed import row
+        payload=json.dumps(dict(version=1,messages=[row(10)])).encode()
+        compressor=zlib.compressobj(wbits=-15)
+        compressed=(compressor.compress(payload)+compressor.flush(zlib.Z_SYNC_FLUSH))[:-4]
+        header=bytes([0xc1,126])+struct.pack('!H',len(compressed)) if len(compressed)>=126 else bytes([0xc1,len(compressed)])
+        class Socket:
+            def __init__(self):self.data=bytearray(header+compressed);self.stop=threading.Event()
+            def recv(self,size):
+                if self.data:
+                    out=bytes(self.data[:size]);del self.data[:size];return out
+                self.stop.wait(2)
+                raise OSError('offline socket stopped')
+            def shutdown(self,_):self.stop.set()
+            def close(self):self.stop.set()
+        sock=Socket()
+        def connect(client):
+            self.assertEqual(client.url,'wss://feed.mainnet.chain.robinhood.com')
+            client.sock=sock;client.permessage_deflate=True
+            client.socket_observer(sock)
+            return client
+        binding=NativeSourceBinding(self.pons,'robinhood_sequencer')
+        self.assertTrue(binding.receipt()['observation_only'])
+        with patch.object(_WebSocket,'connect',connect):
+            stream=await binding.open(self.budget)
+            self.addAsyncCleanup(stream.aclose)
+            seq,body=await stream.read()
+            self.assertEqual(body,payload)
+            self.assertEqual(self.budget.snapshot()['native_bytes'],str(len(payload)))
+            self.assertEqual(self.budget.snapshot()['native_reserved'],str(5*MAX_FRAME))
+            with self.assertRaises(BridgeRejected):await stream.write(b'anything')
+            stream.acknowledge_handoff(seq)
+            await asyncio.wait_for(stream.aclose(),2)
+        self.assertEqual(self.budget.snapshot()['native_reserved'],'0')
+        self.assertEqual(self.budget.snapshot()['native_uncertain_bytes'],str(5*MAX_FRAME))
+
+    async def test_nitro_decompression_stops_at_original_output_limit(self):
+        import zlib
+        from meme_machine.lanes.pons.sequencer_feed import _WebSocket
+        from meme_machine.lanes.pons import BoundaryError
+        compressor=zlib.compressobj(wbits=-15)
+        wire=(compressor.compress(b'x'*100000)+compressor.flush(zlib.Z_SYNC_FLUSH))[:-4]
+        client=_WebSocket('wss://feed.mainnet.chain.robinhood.com',max_frame_bytes=1024)
+        client.permessage_deflate=True
+        with self.assertRaisesRegex(BoundaryError,'message_capacity'):
+            client._inflate_message(wire)
+
     async def test_unknown_stream_accounting_failure_stops_connected_channel(self):
         class BadRaw(_Native):
             async def read(self): return (0, b'wrong-size')
         async def factory(): return BadRaw()
         stream = await ParentNativeStream.open(self.budget, 'yellowstone', factory, lambda body: None)
         channel = await self.channel(streams={'pump': stream})
-        await self.dispatch(channel, 'native_read', alias='pump')
+        await self.dispatch(channel, 'native_read', stream=self.native_handle(channel))
         await asyncio.wait_for(channel.stopped.wait(), 1)
         self.assertTrue(channel.closed)
         await channel.aclose()
@@ -592,7 +780,7 @@ class ParentNativeTransportTests(unittest.IsolatedAsyncioTestCase):
         size = int.from_bytes(await cr.readexactly(4), 'big')
         hello = json.loads(await cr.readexactly(size))
         self.assertEqual(hello['session'], channel.session)
-        cw.write(encode_frame(dict(session=channel.session, seq=1, verb='native_read', alias='pump')))
+        cw.write(encode_frame(dict(session=channel.session, seq=1, verb='native_read', stream=self.native_handle(channel))))
         await cw.drain()
         size = int.from_bytes(await cr.readexactly(4), 'big')
         self.assertEqual(json.loads(await cr.readexactly(size))['status'], 'accepted')

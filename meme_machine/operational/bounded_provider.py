@@ -503,11 +503,11 @@ class Budget:
             elif self.expired(state):
                 failure=failure or 'bounded_run_wall_limit'
             if kind=='open':
-                if transport not in ('yellowstone','solana_websocket'):failure=failure or 'native_transport_bound'
+                if transport not in ('yellowstone','solana_websocket','robinhood_sequencer'):failure=failure or 'native_transport_bound'
                 if self.expired(state):failure=failure or 'bounded_run_wall_limit'
                 # Existing SDK frames, charged/ready groups and one look-ahead
                 # frame. Never enlarge the installed physical capacity.
-                reserve=MAX_FRAME*(5 if transport=='solana_websocket' else 4)
+                reserve=MAX_FRAME*(5 if transport in ('solana_websocket','robinhood_sequencer') else 4)
                 total=sum(int(state[k]) for k in ('native_bytes','native_uncertain_bytes','native_reserved'))
                 if int(state['native_reserved'])+reserve>self.limits['native_inflight_bytes']:
                     failure=failure or 'native_inflight_limit'

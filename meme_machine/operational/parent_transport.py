@@ -41,7 +41,14 @@ _WORK = MappingProxyType({
     'pons_discovery': ('robinhood', 'pons', 'discovery', 'discovery', 10, 'discovery'),
     'pons_current_qualification': ('robinhood', 'pons', 'current', 'qualification', 10, 'final_qualification'),
     'pons_survivor_qualification': ('robinhood', 'pons', 'survivor', 'qualification', 20, 'final_qualification'),
+    'pump_history_receipt': ('solana','pump','history','history_receipt',4,'canonical_verification'),
+    'pump_recovery_restart': ('solana','pump','recovery','recovery_restart',4,'gap_recovery'),
+    'pump_source_identity': ('solana','pump','unknown','unknown',4,'diagnostics'),
 })
+_READ_CLASSES=MappingProxyType({'native':None,'solana_evidence_1':1,
+    'solana_evidence_2':2,'solana_evidence_4':4})
+_LABEL_OPERATION=MappingProxyType({'pump_history_receipt':'history_receipt',
+    'pump_recovery_restart':'recovery_restart','pump_source_identity':'unattributed'})
 
 
 @dataclass(frozen=True)
@@ -57,19 +64,22 @@ class SourceReference:
     family: str
     endpoint_identity: str
     operation: str
+    read_class: str = 'native'
 
     def __post_init__(self):
         _require(type(self.alias) is str and re.fullmatch(r'[a-z][a-z0-9_-]{0,47}', self.alias)
             and self.operation in _WORK and self.family == _WORK[self.operation][0]
             and type(self.endpoint_identity) is str
-            and re.fullmatch(r'[0-9a-f]{64}', self.endpoint_identity), 'parent_source_reference')
+            and re.fullmatch(r'[0-9a-f]{64}', self.endpoint_identity)
+            and self.read_class in _READ_CLASSES
+            and (self.read_class=='native' or self.family=='solana'), 'parent_source_reference')
 
     @classmethod
     def from_receipt(cls, row):
         _require(type(row) is dict and set(row) == {
-            'alias', 'family', 'endpoint_identity', 'operation', 'authenticated'}
+            'alias', 'family', 'endpoint_identity', 'operation', 'read_class','authenticated'}
             and row['authenticated'] is True, 'parent_source_receipt')
-        return cls(**{k: row[k] for k in ('alias', 'family', 'endpoint_identity', 'operation')})
+        return cls(**{k: row[k] for k in ('alias', 'family', 'endpoint_identity', 'operation','read_class')})
 
 
 @dataclass(frozen=True)
@@ -87,20 +97,22 @@ class SourceBinding:
     _config: object = field(repr=False)
     governor: object = field(default=None, repr=False)
     admission: object = field(default=None, repr=False)
+    read_class: str = 'native'
 
     @classmethod
-    def configured(cls, alias, operation, *, environ, governor=None, admission=None):
+    def configured(cls, alias, operation, *, environ, governor=None, admission=None,read_class='native'):
         from meme_machine.runtime.governor import Governor
         from meme_machine.lanes.pons.provider_admission import Admission
         _require(type(alias) is EndpointAlias and operation in _WORK
-            and _WORK[operation][0] == alias.family, 'parent_work_binding')
+            and _WORK[operation][0] == alias.family and read_class in _READ_CLASSES
+            and (read_class=='native' or alias.family=='solana'), 'parent_work_binding')
         if alias.family == 'solana':
             from meme_machine.solana_provider_config import AlchemyEndpoint
             config = AlchemyEndpoint.parse(environ.get('MM_SOLANA_READ_RPC_URL'))
             _require(isinstance(governor, Governor) and admission is None,
                      'parent_governor_required')
             return cls(alias, operation, config.identity, config.http_url, config,
-                       governor=governor)
+                       governor=governor,read_class=read_class)
         from meme_machine.runtime.robinhood import provider_authority as authority
         url = authority.endpoint(environ=environ)
         _require(isinstance(admission, Admission) and admission.offline_profile is None
@@ -113,7 +125,7 @@ class SourceBinding:
     def receipt(self):
         return dict(alias=self.alias.name, family=self.alias.family,
                     endpoint_identity=self.identity, operation=self.operation,
-                    authenticated=True)
+                    read_class=self.read_class,authenticated=True)
 
     def public(self, value):
         if self._config is not None:
@@ -133,6 +145,9 @@ class _HTTPState:
     attempt: ParentAttempt
     canceled: threading.Event = field(default_factory=threading.Event)
     future: object = None
+    receipt: object = None
+    receipt_closed: bool = False
+    cleanup_attempts: int = 0
 
 
 @contextmanager
@@ -142,6 +157,7 @@ def _work(binding, purchases, methods, batch):
     from meme_machine.runtime.robinhood import provider_usage as usage
     from meme_machine.runtime import request_scheduling
     _, family, consumer, purpose, priority, category = _WORK[binding.operation]
+    priority=_READ_CLASSES[binding.read_class] or priority
     tokens = [(pa._position_work, pa._position_work.set(False)),
               (pa._decision_priority, pa._decision_priority.set(priority)),
               (pa._foreground_work, pa._foreground_work.set(False)),
@@ -149,7 +165,7 @@ def _work(binding, purchases, methods, batch):
               (usage._active, usage._active.set(None)),
               (request_scheduling.priority, request_scheduling.priority.set(priority))]
     try:
-        with provider_work(binding.operation, family=family, consumer=consumer,
+        with provider_work(_LABEL_OPERATION.get(binding.operation,binding.operation), family=family, consumer=consumer,
                            purpose=purpose), usage.evidence_work(category):
             current = dict(ledger=purchases, label=work_label(family=family),
                 methods=methods, retry=0, started=False, response_bytes=0)
@@ -209,7 +225,7 @@ class ParentHTTP:
     def __init__(self, budget, sources, *, opener=None, workers=4):
         _require(isinstance(budget, (Budget, PhaseBudget)), 'parent_budget_required')
         configured = tuple(sources)
-        _require(configured and len(configured) <= 8
+        _require(configured and len(configured) <= 32
             and all(type(s) is SourceBinding for s in configured)
             and len({s.alias.name for s in configured}) == len(configured), 'parent_sources')
         _require(type(workers) is int and 1 <= workers <= 8, 'parent_worker_bound')
@@ -285,6 +301,7 @@ class ParentHTTP:
         from meme_machine.lanes.pons import BoundaryError
         _check(state)
         receipt = self.budget.reserve_http(binding._url, calls)
+        state.receipt=receipt
         raw = None
         try:
             _check(state)
@@ -381,7 +398,9 @@ class ParentHTTP:
                 if raw is not None:
                     raw.close()
             finally:
+                state.cleanup_attempts+=1
                 receipt.close()
+                state.receipt_closed=True
 
     async def release(self, attempt, *, uncertain):
         state = self._states.get((attempt.session, attempt.token))
@@ -398,7 +417,24 @@ class ParentHTTP:
                 canceled = True
                 state.canceled.set()
             except BaseException:
-                break  # Physical worker's finally already closed its receipt.
+                break
+        if state.receipt is not None and not state.receipt_closed:
+            # The parent remains alive, so orphan reaping cannot fix a failed
+            # close. One idempotent accounting-only cleanup attempt is allowed;
+            # no physical transport or reservation can be replayed here.
+            if state.cleanup_attempts>=2:
+                raise ParentTransportFailure('parent_http_cleanup_failed')
+            state.cleanup_attempts+=1
+            def close_receipt():
+                state.receipt.close();state.receipt_closed=True
+            cleanup=asyncio.get_running_loop().run_in_executor(self._executor,close_receipt)
+            while True:
+                try:
+                    await asyncio.shield(cleanup);break
+                except asyncio.CancelledError:
+                    canceled=True
+                except BaseException:
+                    raise ParentTransportFailure('parent_http_cleanup_failed') from None
         self._states.pop((attempt.session, attempt.token), None)
         if canceled:
             raise asyncio.CancelledError
@@ -497,7 +533,7 @@ class ParentNativeStream:
     @classmethod
     async def open(cls, budget, transport, factory, validator):
         _require(isinstance(budget, (Budget, PhaseBudget)) and transport in
-            ('yellowstone', 'solana_websocket') and callable(factory)
+            ('yellowstone', 'solana_websocket','robinhood_sequencer') and callable(factory)
             and callable(validator), 'parent_stream_configuration')
         token = budget.stream_open(transport)
         raw = None
@@ -558,6 +594,11 @@ class ParentNativeStream:
 
     async def _close(self):
         self.closed = True
+        errors=[]
+        cancel=getattr(self.raw,'cancel',None)
+        if callable(cancel):
+            try:cancel()
+            except BaseException as error:errors.append(error)
         reading = self._read_task
         if reading is not None:
             reading.cancel()
@@ -568,20 +609,32 @@ class ParentNativeStream:
             await asyncio.gather(receiving, return_exceptions=True)
         try:
             await self.raw.aclose()
+        except BaseException as error:
+            errors.append(error)
         finally:
             try:
                 self.budget.stream_close(self.token, transport=self.transport, unread_possible=True)
+            except BaseException as error:
+                errors.append(error)
             finally:
-                if self.ledger is not None:
-                    self.ledger.close()
+                try:
+                    if self.ledger is not None:self.ledger.close()
+                except BaseException as error:
+                    errors.append(error)
+                finally:
                     self.ledger = None
-                self.pending = None
+                    self.pending = None
+                    self.intake.values.clear();self.intake.ready.clear()
+                    self.intake.ready_bytes=0;self.intake.carry=None;self.intake.terminal=None
+                    self.intake.read_raw=None;self.raw=None
+        if errors:raise ParentTransportFailure('parent_stream_cleanup_failed') from None
         self.cleanup_verified = True
 
 
 def validate_subscription(transport, body):
     """Fixed read subscription validation, retaining the original paused family."""
     from meme_machine.solana_selective_history import PROGRAMS
+    _require(transport!='robinhood_sequencer','parent_sequencer_send_forbidden')
     if transport == 'yellowstone':
         from meme_machine.yellowstone import geyser_pb2 as pb
         try:
@@ -672,6 +725,8 @@ def authenticated_native_factory(binding, transport, *, token=None):
             async def aclose(self):
                 call.cancel()
                 await channel.close(grace=0)
+
+            def cancel(self):call.cancel()
         return Raw()
 
     async def open_websocket():
@@ -696,9 +751,98 @@ def authenticated_native_factory(binding, transport, *, token=None):
 
             async def aclose(self):
                 await ws.close()
+
+            def cancel(self):ws.transport.abort()
         return Raw()
 
     return open_yellowstone if transport == 'yellowstone' else open_websocket
+
+
+def sequencer_native_factory(binding):
+    """Original Nitro _WebSocket framing/decompression in the trusted parent.
+
+    The fixed public feed is observation-only; canonical Pons data still comes
+    from the source-bound RPC. One owned worker reads the original SDK, no
+    additional websocket library/queue, and each complete payload goes through
+    NativeReadBuffer/FULL before handoff. Idle reads retain the same reservation.
+    """
+    _require(type(binding) is SourceBinding and binding.alias.family=='robinhood',
+        'parent_sequencer_source')
+    async def opening():
+        import socket
+        from meme_machine.lanes.pons.sequencer_feed import _WebSocket
+        from meme_machine.lanes.pons.provider_topology import SEQUENCER_FEED_URL
+        class Raw:
+            def __init__(self):
+                self.stopped=threading.Event();self.socket=None;self.pending=None
+                self.executor=ThreadPoolExecutor(max_workers=1,thread_name_prefix='nitro-parent')
+                self.client=_WebSocket(SEQUENCER_FEED_URL,timeout=5,max_frame_bytes=MAX_FRAME,
+                    socket_observer=self.observed_socket)
+
+            def observed_socket(self,sock):
+                self.socket=sock
+                if self.stopped.is_set():self.cancel()
+
+            def cancel(self):
+                self.stopped.set()
+                if self.socket is not None:
+                    try:self.socket.shutdown(socket.SHUT_RDWR)
+                    except OSError:pass
+
+            async def joined(self,function):
+                self.pending=asyncio.get_running_loop().run_in_executor(self.executor,function)
+                canceled=False
+                try:
+                    while True:
+                        try:
+                            value=await asyncio.shield(self.pending);break
+                        except asyncio.CancelledError:
+                            canceled=True;self.cancel()
+                        except BaseException:
+                            if canceled:raise asyncio.CancelledError from None
+                            raise
+                    if canceled:raise asyncio.CancelledError
+                    return value
+                finally:self.pending=None
+
+            async def connect(self):
+                await self.joined(self.client.connect)
+
+            async def read(self):
+                import grpc
+                def receive():
+                    while not self.stopped.is_set():
+                        try:
+                            value=self.client.recv_message()
+                        except socket.timeout:
+                            continue
+                        if value is None:return grpc.aio.EOF
+                        body=value.encode('utf-8')
+                        binding.public(value)
+                        return len(body),body
+                    raise ParentTransportFailure('parent_sequencer_canceled')
+                return await self.joined(receive)
+
+            async def write(self,body):
+                raise BridgeRejected('parent_sequencer_send_forbidden')
+
+            async def aclose(self):
+                self.cancel()
+                if self.pending is not None:
+                    try:await asyncio.shield(self.pending)
+                    except BaseException:pass
+                self.client.close()
+                if self.socket is not None:
+                    self.socket.close();self.socket=None
+                self.executor.shutdown(wait=True)
+        raw=Raw()
+        try:
+            await raw.connect()
+            return raw
+        except BaseException:
+            await raw.aclose()
+            raise
+    return opening
 
 
 @dataclass(frozen=True)
@@ -709,13 +853,34 @@ class NativeSourceBinding:
     token: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
-        _require(type(self.source) is SourceBinding and self.source.alias.family == 'solana'
-            and self.transport in ('yellowstone', 'solana_websocket')
+        _require(type(self.source) is SourceBinding
+            and ((self.source.alias.family == 'solana' and self.transport in ('yellowstone','solana_websocket'))
+                or (self.source.alias.family == 'robinhood' and self.transport == 'robinhood_sequencer'))
             and (self.token is None or type(self.token) is str and 0 < len(self.token) <= 512),
             'parent_native_binding')
+        _require(self.transport!='robinhood_sequencer' or self.token is None,
+            'parent_observational_feed_token')
+
+    @classmethod
+    def configured(cls,source,transport,*,environ):
+        if transport=='robinhood_sequencer':
+            from meme_machine.lanes.pons.sequencer_feed import feed_url
+            from meme_machine.lanes.pons.provider_topology import SEQUENCER_FEED_URL
+            _require(feed_url(environ)==SEQUENCER_FEED_URL,'parent_sequencer_endpoint_unapproved')
+            return cls(source,transport)
+        return cls(source,transport,token=environ.get('MM_SOLANA_YELLOWSTONE_TOKEN') or None)
+
+    def receipt(self,stream=None):
+        from meme_machine.lanes.pons.provider_topology import SEQUENCER_FEED_URL
+        import hashlib
+        observed=self.transport=='robinhood_sequencer'
+        return dict(alias=self.source.alias.name,transport=self.transport,stream=stream,
+            observation_only=observed,endpoint_identity=(hashlib.sha256(SEQUENCER_FEED_URL.encode()).hexdigest()
+                if observed else self.source.identity))
 
     async def open(self, budget, *, factory=None):
         # factory is trusted test dependency injection, never present on the wire.
         return await ParentNativeStream.open(budget, self.transport,
-            factory or authenticated_native_factory(self.source, self.transport, token=self.token),
+            factory or (sequencer_native_factory(self.source) if self.transport=='robinhood_sequencer'
+                else authenticated_native_factory(self.source, self.transport, token=self.token)),
             lambda body: validate_subscription(self.transport, body))
