@@ -601,7 +601,7 @@ def capture(root, *, duration=120):
                         seen = time.time()
                         block = rpc.call(SOLANA, 'getBlock', [slot, dict(
                             commitment='finalized', encoding='json', transactionDetails='full',
-                            rewards=False, maxSupportedTransactionVersion=0)])
+                            rewards=False, maxSupportedTransactionVersion=1)])
                         require(type(block) is dict, 'native_solana_block_unavailable')
                         event_id = corpus.event(lane,
                             dict(slot=slot, block=block, acquired_head=head), seen)
