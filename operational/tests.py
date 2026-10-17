@@ -22,6 +22,7 @@ FAST=[
  'tests.test_market_heads',
  'tests.test_parent_head_lifecycle',
  'tests.test_pump_restore_source_guard',
+ 'tests.test_future_pump_source_guard',
  'tests.test_prepared_evidence_decode',
  'tests.test_restore_reference_pages',
  'tests.test_namespace_runtime',
