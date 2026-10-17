@@ -291,5 +291,47 @@ class SubscriptionUploadTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(raws[1].writes,[b'second'])
         self.assertIsNone(parent._upload)
 
+    async def test_same_stream_sdk_write_can_require_real_read_and_handoff_ack(self):
+        class Raw(fixtures._Native):
+            def __init__(self):
+                super().__init__([b'same-stream-economic-frame'])
+                self.entered=asyncio.Event();self.acknowledged=asyncio.Event()
+            async def write(self,body):
+                self.entered.set();await self.acknowledged.wait();await super().write(body)
+        client,parent,natives,raws,streams=await self.setup_streams(raw_type=Raw)
+        writing=asyncio.create_task(natives[0].write_async(b'replace-subscription'))
+        await asyncio.wait_for(raws[0].entered.wait(),2)
+        value=await asyncio.wait_for(natives[0].read_async(),2)
+        self.assertEqual(value,b'same-stream-economic-frame')
+        self.assertIsNone(streams[0].pending)
+        self.assertFalse(writing.done())
+        raws[0].acknowledged.set()
+        await asyncio.wait_for(writing,2)
+        self.assertEqual(raws[0].writes,[b'replace-subscription'])
+
+    async def test_close_signals_writer_then_all_closers_join_original_cleanup(self):
+        class Raw(fixtures._Native):
+            def __init__(self):
+                super().__init__();self.entered=asyncio.Event()
+                self.cleaning=asyncio.Event();self.release=asyncio.Event()
+            async def write(self,body):self.entered.set();await asyncio.Event().wait()
+            async def aclose(self):
+                self.cleaning.set();await self.release.wait();await super().aclose()
+        client,parent,natives,raws,streams=await self.setup_streams(raw_type=Raw)
+        writing=asyncio.create_task(natives[0].write_async(b'replace-subscription'))
+        await asyncio.wait_for(raws[0].entered.wait(),2)
+        closing=asyncio.create_task(natives[0].close_async())
+        await asyncio.wait_for(raws[0].cleaning.wait(),2)
+        other=asyncio.create_task(natives[0].close_async())
+        await asyncio.sleep(.01)
+        self.assertFalse(closing.done())
+        self.assertFalse(other.done())
+        raws[0].release.set()
+        await asyncio.wait_for(asyncio.gather(closing,other),2)
+        with self.assertRaisesRegex(ChildTransportFailure,'child_native_write_canceled'):await writing
+        self.assertTrue(streams[0].cleanup_verified)
+        self.assertIsNone(parent._upload)
+        self.assertEqual(self.budget.snapshot()['native_reserved'],'0')
+
 
 if __name__=='__main__':unittest.main()

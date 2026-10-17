@@ -402,14 +402,15 @@ class ChildNativeStream:
     replacement stream, repeats the provider read or mints another reservation.
     """
     __slots__=('channel','source','stream','transport','observation_only','endpoint_identity',
-        'closed','_pending','_state_lock','_read_lock')
+        'closed','_pending','_state_lock','_read_lock','_write_lock','_write_cancel','_close_lock')
 
     def __init__(self,channel,source,stream,*,transport,observation_only,endpoint_identity,_issue=None):
         _require(_issue is _NATIVE_ISSUER and type(channel) is ChildChannel
             and channel.sources.get(source.alias) is source,'child_native_issuer_required')
         for name,value in dict(channel=channel,source=source,stream=stream,transport=transport,
                 observation_only=observation_only,endpoint_identity=endpoint_identity,closed=False,
-                _pending=None,_state_lock=threading.RLock(),_read_lock=threading.Lock()).items():
+                _pending=None,_state_lock=threading.RLock(),_read_lock=threading.Lock(),
+                _write_lock=threading.Lock(),_write_cancel=None,_close_lock=threading.Lock()).items():
             object.__setattr__(self,name,value)
 
     def __setattr__(self,name,value):
@@ -471,16 +472,26 @@ class ChildNativeStream:
         return self._write(body,None)
 
     def _write(self,body,cancelled):
-        with self._state_lock:
-            require_native_stream(self)
-            maximum=UPLOAD_MAX if self.transport=='yellowstone' else 32768
-            _require(not self.observation_only and type(body) is bytes and len(body)<=maximum,
-                'child_native_write')
-            if self.transport=='yellowstone':reply=self.channel._native_upload(self.stream,body,cancelled)
-            else:
-                reply=self.channel._native_control('native_write','written',stream=self.stream,
-                    body_b64=base64.b64encode(body).decode())
-            _require(reply['stream']==self.stream,'child_native_stream_identity')
+        with self._write_lock:
+            stopped=threading.Event()
+            with self._state_lock:
+                require_native_stream(self)
+                maximum=UPLOAD_MAX if self.transport=='yellowstone' else 32768
+                _require(not self.observation_only and type(body) is bytes and len(body)<=maximum,
+                    'child_native_write')
+                object.__setattr__(self,'_write_cancel',stopped)
+            try:
+                def stop():return stopped.is_set() or cancelled is not None and cancelled()
+                # gRPC is duplex: source reads and their handoff ACKs must run
+                # while this stream's subscription SDK write is pending.
+                if self.transport=='yellowstone':reply=self.channel._native_upload(self.stream,body,stop)
+                else:
+                    reply=self.channel._native_control('native_write','written',stream=self.stream,
+                        body_b64=base64.b64encode(body).decode(),cancelled=stop)
+                _require(reply['stream']==self.stream,'child_native_stream_identity')
+            finally:
+                with self._state_lock:
+                    if self._write_cancel is stopped:object.__setattr__(self,'_write_cancel',None)
 
     async def write_async(self,body):
         canceled=threading.Event()
@@ -492,10 +503,17 @@ class ChildNativeStream:
             raise
 
     def close(self):
+        with self._close_lock:self._close_owned()
+
+    def _close_owned(self):
         with self._state_lock:
             if self.closed:
                 return
             object.__setattr__(self,'closed',True)
+            if self._write_cancel is not None:self._write_cancel.set()
+        # Signal under the state lock, then join outside it. Otherwise writer
+        # finally/read drainage cannot take the state lock needed for teardown.
+        with self._write_lock,self._state_lock:
             if self.channel.closed:
                 object.__setattr__(self,'_pending',None)
                 return

@@ -27,6 +27,11 @@ exact total-Python-heap claim. No provider usage reservation is minted for IPC
 copies. The child's writer-only lock supplies subscription backpressure. Each
 control exchange releases its existing lock immediately; parent SDK I/O is an
 accepted asynchronous operation. Other RPC calls and native reads keep running.
+Each stream has a separate writer lock; the short state lock never spans a
+subscription write. The same stream can therefore hand off and ACK an economic
+frame while its SDK awaits consumption of a replacement subscription. Close
+signals the owned writer, joins it outside the state lock, and serializes all
+closers through actual original stream cleanup.
 
 The original8s overall deadline includes upload, validation and SDK completion,
 as well as client slot waiting. Uncommitted cancellation discards the private
