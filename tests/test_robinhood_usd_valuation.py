@@ -429,6 +429,98 @@ def archive_complete_logs_predecessor(test,relative,current):
     return prior
 
 
+# Push phase selection into the existing provider-ledger read without changing
+# its selected-state comprehension or any quota, reservation or usage writer.
+# Non-text keys still reach the original predicate; unused foreign TEXT is no
+# longer decoded. Pin only this exact SQL read delta and retain every other byte.
+PROVIDER_NAMESPACE_READ_REFERENCE='c69e45adb8f67a9e451aa4e5f7b62a8d8d0e465d'
+PROVIDER_NAMESPACE_READ_SOURCE='meme_machine/operational/bounded_provider.py'
+PROVIDER_NAMESPACE_READ_BEFORE='af31c335de6ad22e52f7c69a399c4088bd616e6ac925f97a3a8e40265664c383'
+PROVIDER_NAMESPACE_READ_AFTER='da18972da976617132d08b475ea24cbb4fbd5556d394dba6e21d038c314bbd45'
+
+
+def provider_namespace_read_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=PROVIDER_NAMESPACE_READ_SOURCE:return current
+    prior=subprocess.check_output(['git','show',PROVIDER_NAMESPACE_READ_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),PROVIDER_NAMESPACE_READ_BEFORE,
+        relative+':exact original provider-ledger source')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),PROVIDER_NAMESPACE_READ_AFTER,
+        relative+':exact namespace SQL pushdown successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def read(root):
+        parent=next(n for n in root.body if isinstance(n,ast.ClassDef) and n.name=='Budget')
+        return parent,next(n for n in parent.body if isinstance(n,ast.FunctionDef) and n.name=='read')
+    def source(body,selected):
+        return b''.join(body.splitlines(keepends=True)[selected.lineno-1:selected.end_lineno])
+    parent,selected=read(tree);_,original=read(old)
+    test.assertEqual(ast.dump(selected.args),ast.dump(original.args),relative+':unchanged provider read interface')
+    test.assertEqual(len(original.body),1,relative+':original read is only the selected-state comprehension')
+    test.assertEqual(len(selected.body),2,relative+':only SQL selection precedes the original comprehension')
+    test.assertIsInstance(selected.body[0],ast.If)
+    test.assertIsInstance(selected.body[-1],ast.Return)
+    projected=deepcopy(selected.body[-1]);previous=original.body[-1]
+    test.assertEqual(len(projected.value.generators),1,relative+':one original namespace iterator')
+    projected.value.generators[0].iter=deepcopy(previous.value.generators[0].iter)
+    test.assertEqual(ast.dump(projected),ast.dump(previous),
+        relative+':exact original key stripping, selected values and Python namespace defense retained')
+    before=source(prior,original);after=source(current,selected)
+    test.assertEqual(current.count(after),1,relative+':one exact changed Budget.read node')
+    restored=current.replace(after,before,1)
+    test.assertEqual(restored,prior,
+        relative+':all other quota, pacing, hourly usage, reservation and cancellation bytes retained')
+    parent.body[parent.body.index(selected)]=deepcopy(original)
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':no other provider or financial authority node changes')
+    return prior
+
+
+# The two fixed Pump recorder scopes were reached with diagnostics disabled:
+# Supervisor forwarded the opt-in flag only to Pons and the source. Extend
+# that exact existing tuple; every other environment, source and economic byte
+# remains pinned before the original cooperative-drain/source guard chain.
+PUMP_COST_ENVIRONMENT_REFERENCE='c69e45adb8f67a9e451aa4e5f7b62a8d8d0e465d'
+PUMP_COST_ENVIRONMENT_SOURCE='meme_machine/operational/supervisor.py'
+PUMP_COST_ENVIRONMENT_BEFORE='94c744ca18d83b4cacea3c4c7983369578184edfc6409df3f496c0b4a187a76c'
+PUMP_COST_ENVIRONMENT_AFTER='63658a7ed37f03fa9ead8af863ead8d0f442f4356b8ec33c0c9a0571b1a1cb82'
+PUMP_COST_ENVIRONMENT_OLD=(
+    b"        if lane in ('pons','solana'):\n"
+    b"            env['MM_OPERATION_COST_DIAGNOSTICS']='1' if os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1' else '0'\n")
+PUMP_COST_ENVIRONMENT_NEW=(
+    b"        if lane in ('pump','pons','solana'):\n"
+    b"            env['MM_OPERATION_COST_DIAGNOSTICS']='1' if os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1' else '0'\n")
+
+
+def pump_cost_environment_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=PUMP_COST_ENVIRONMENT_SOURCE:return current
+    prior=subprocess.check_output(['git','show',PUMP_COST_ENVIRONMENT_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),PUMP_COST_ENVIRONMENT_BEFORE,
+        relative+':exact pre-Pump diagnostic environment source')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),PUMP_COST_ENVIRONMENT_AFTER,
+        relative+':exact single-tuple Pump diagnostic environment successor')
+    test.assertEqual(prior.count(PUMP_COST_ENVIRONMENT_OLD),1,relative+':one original fixed opt-in scope')
+    test.assertEqual(current.count(PUMP_COST_ENVIRONMENT_NEW),1,relative+':one exact expanded fixed opt-in scope')
+    restored=current.replace(PUMP_COST_ENVIRONMENT_NEW,PUMP_COST_ENVIRONMENT_OLD,1)
+    test.assertEqual(restored,prior,
+        relative+':all original opt-in semantics, environment, authority and lifecycle bytes retained')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def environment(root):
+        parent=next(n for n in root.body if isinstance(n,ast.ClassDef) and n.name=='Supervisor')
+        return parent,next(n for n in parent.body if isinstance(n,ast.FunctionDef) and n.name=='environment')
+    parent,selected=environment(tree);_,original=environment(old)
+    test.assertEqual(ast.dump(selected.args),ast.dump(original.args),relative+':unchanged environment interface')
+    test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':only the declared environment node changes')
+    parent.body[parent.body.index(selected)]=deepcopy(original)
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':all other source, financial and protection nodes retained')
+    return prior
+
+
 # TERM belongs to the source parent while it drains accepted decoder work.
 # Pin the bounded, identity-checked descendant cleanup separately from every
 # existing lane timeout, source drain, financial and strategy implementation.
@@ -448,6 +540,7 @@ def source_parent_drain_predecessor(test,relative,current):
     test.assertEqual(hashlib.sha256(prior).hexdigest(),SOURCE_PARENT_DRAIN_BEFORE,
         relative+':exact source-parent drain predecessor')
     if current==prior:return prior
+    current=pump_cost_environment_predecessor(test,relative,current)
     test.assertEqual(hashlib.sha256(current).hexdigest(),SOURCE_PARENT_DRAIN_AFTER,
         relative+':exact cooperative source-parent drain successor')
     tree=ast.parse(current);old=ast.parse(prior)
@@ -2568,6 +2661,70 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_provider_budget_namespace_read_reverses_only_exact_phase_sql_pushdown(self):
+        import hashlib
+        relative=PROVIDER_NAMESPACE_READ_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),PROVIDER_NAMESPACE_READ_AFTER,
+            relative+':active source must use the exact validated namespace SQL selection')
+        prior=subprocess.check_output(['git','show',PROVIDER_NAMESPACE_READ_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(provider_namespace_read_predecessor(self,relative,current),prior)
+        self.assertEqual(provider_namespace_read_predecessor(self,relative,prior),prior)
+        changes=[current+b'\n# unreviewed provider-ledger authority change\n',b'']
+        for previous,successor in (
+                (b"typeof(key)<>'text' OR ",b''),
+                (b"typeof(key)='text' AND substr(key,1,?)=?",b"typeof(key)='text' AND key LIKE ?"),
+                (b"typeof(key)='text' AND instr(key,'.')=0",b"typeof(key)='text' AND instr(key,'.')>0"),
+                (b'args=(len(self.prefix),self.prefix)',b'args=(len(self.prefix)+1,self.prefix)'),
+                (b'args=(len(self.prefix),self.prefix)',b'args=(len(self.prefix),self.prefix+\'_\')'),
+                (b'db.execute(sql,args)',b'db.execute(sql)'),
+                (b'if self.prefix:\n            sql=',b'if not self.prefix:\n            sql='),
+                (b"            if (key.startswith(self.prefix) if self.prefix else '.' not in key)",b'            if True'),
+                (b'key[len(self.prefix):]:value',b'key:value'),
+                (b"if int(state[key])>self.limits[key]:",b"if int(state[key])>self.limits[key]+1:"),
+                (b"if any(v<0 for v in deltas.values()):",b'if False:'),
+                (b"self.change(dict(rpc_cu=cu,",b"self.change(dict(rpc_cu=0,"),
+                (b'await asyncio.shield(task)',b'await task'),
+                (b'if cancelled:raise asyncio.CancelledError()',b'if cancelled:return')):
+            self.assertIn(previous,current,relative+':negative mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):provider_namespace_read_predecessor(self,relative,changed)
+
+    def test_pump_cost_environment_reverses_only_exact_opt_in_lane_tuple(self):
+        import hashlib
+        relative=PUMP_COST_ENVIRONMENT_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),PUMP_COST_ENVIRONMENT_AFTER,
+            relative+':active source must forward the exact existing opt-in flag to Pump')
+        self.assertEqual(PUMP_COST_ENVIRONMENT_BEFORE,SOURCE_PARENT_DRAIN_AFTER,
+            relative+':original source-parent lifecycle pin remains unchanged')
+        prior=subprocess.check_output(['git','show',PUMP_COST_ENVIRONMENT_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(pump_cost_environment_predecessor(self,relative,current),prior)
+        self.assertEqual(pump_cost_environment_predecessor(self,relative,prior),prior)
+        for predecessor in (source_parent_drain_predecessor,restored_provider_history_predecessor,
+                rally_predecessor,opportunity_predecessor):
+            self.assertEqual(predecessor(self,relative,current),predecessor(self,relative,prior),
+                relative+':every original environment, strategy and recovery guard still applies')
+        changes=[current+b'\n# unreviewed diagnostic environment change\n',b'']
+        for previous,successor in (
+                (b"if lane in ('pump','pons','solana'):",b'if True:'),
+                (b"if lane in ('pump','pons','solana'):",b"if lane in ('pumpswap','pons','solana'):"),
+                (b"if lane in ('pump','pons','solana'):",b"if lane in ('pump','pons','solana','ramses','meteora'):"),
+                (b"env['MM_OPERATION_COST_DIAGNOSTICS']='1' if os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1' else '0'",
+                    b"env['MM_OPERATION_COST_DIAGNOSTICS']='1'"),
+                (b"env['MM_OPERATION_COST_DIAGNOSTICS']='1' if os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1' else '0'",
+                    b"env['MM_OPERATION_COST_DIAGNOSTICS']='0'"),
+                (b"os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1'",b'bool(os.environ.get(\'MM_OPERATION_COST_DIAGNOSTICS\'))'),
+                (b"env.update(MM_MODE='PAPER'",b"env.update(MM_MODE='LIVE'"),
+                (b'self.stop_process(self.evidence,45,cooperative_parent=True)',
+                    b'self.stop_process(self.evidence,46,cooperative_parent=True)')):
+            self.assertIn(previous,current,relative+':negative mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):pump_cost_environment_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):source_parent_drain_predecessor(self,relative,changed)
+
     def test_publication_accounting_turn_preserves_durable_delta_cancellation_and_passive_pump_costs(self):
         import hashlib
         mutations={
@@ -2950,7 +3107,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_source_parent_drain_preserves_exact_timeouts_identity_and_financial_guards(self):
         import hashlib
-        relative=SOURCE_PARENT_DRAIN_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=SOURCE_PARENT_DRAIN_SOURCE;current=pump_cost_environment_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),SOURCE_PARENT_DRAIN_AFTER,
             relative+':active exact cooperative source-parent drain repair')
         self.assertEqual(SOURCE_PARENT_DRAIN_BEFORE,RESTORED_HISTORY_AFTER,

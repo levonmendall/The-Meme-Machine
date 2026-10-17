@@ -456,7 +456,7 @@ class AdmissionTests(unittest.TestCase):
     def test_failed_evidence_recovery_does_not_kill_native_owner_or_reset_backoff(self):
         from types import SimpleNamespace
         from unittest.mock import Mock
-        root,a,now,s=self.service();s.evidence=SimpleNamespace(pid=1234)
+        root,a,now,s=self.service();s.evidence=SimpleNamespace(pid=1234,poll=lambda:None)
         s.start_services=Mock();s.stop_lanes=Mock()
         with patch('time.time',return_value=now):
             s.recover_evidence();s.recover_evidence()

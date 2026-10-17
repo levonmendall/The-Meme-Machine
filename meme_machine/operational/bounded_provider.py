@@ -194,7 +194,15 @@ class Budget:
                 if not alive:self.http_event(token,close=True,uncertain=True)
 
     def read(self,db):
-        return {key[len(self.prefix):]:value for key,value in db.execute('SELECT key,value FROM run')
+        # Do not iterate other phases' receipt keys. Non-text keys still reach
+        # the original Python predicate and retain its fail-closed error.
+        if self.prefix:
+            sql="SELECT key,value FROM run WHERE typeof(key)<>'text' OR (typeof(key)='text' AND substr(key,1,?)=?)"
+            args=(len(self.prefix),self.prefix)
+        else:
+            sql="SELECT key,value FROM run WHERE typeof(key)<>'text' OR (typeof(key)='text' AND instr(key,'.')=0)"
+            args=()
+        return {key[len(self.prefix):]:value for key,value in db.execute(sql,args)
             if (key.startswith(self.prefix) if self.prefix else '.' not in key)}
 
     def write(self,db,state):
