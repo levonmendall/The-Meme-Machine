@@ -116,10 +116,12 @@ class NativeImageApproval:
 
 
 def _git(root,*args):
-    return subprocess.check_output(['/usr/bin/git','--no-optional-locks','-C',str(root),*args],
+    return subprocess.check_output(['/usr/bin/git','--no-optional-locks','--no-pager',
+        '-c','core.fsmonitor=false','-c','core.hooksPath=/dev/null',
+        '-c','protocol.allow=never','-c','safe.directory='+str(root),'-C',str(root),*args],
         stdin=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=15,
         env={'PATH':'/usr/bin:/bin','LANG':'C','GIT_CONFIG_GLOBAL':'/dev/null',
-             'GIT_CONFIG_NOSYSTEM':'1','GIT_OPTIONAL_LOCKS':'0'})
+             'GIT_CONFIG_NOSYSTEM':'1','GIT_OPTIONAL_LOCKS':'0','GIT_NO_LAZY_FETCH':'1'})
 
 
 def _source_file(name):

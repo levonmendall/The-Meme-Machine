@@ -72,6 +72,19 @@ def offline_software_approval():
 
 
 class ImageAdmissionTests(unittest.TestCase):
+    def test_git_reads_cannot_run_hooks_fsmonitor_lazy_fetch_or_inherited_config(self):
+        with patch.object(image.subprocess,'check_output',return_value=b'fixture') as execute:
+            self.assertEqual(image._git(Path('/exact-approved-app'),'rev-parse','HEAD'),b'fixture')
+        args=execute.call_args
+        self.assertIn('core.fsmonitor=false',args.args[0])
+        self.assertIn('core.hooksPath=/dev/null',args.args[0])
+        self.assertIn('protocol.allow=never',args.args[0])
+        self.assertIn('safe.directory=/exact-approved-app',args.args[0])
+        self.assertNotIn('safe.directory=*',args.args[0])
+        self.assertEqual(args.kwargs['env']['GIT_NO_LAZY_FETCH'],'1')
+        self.assertEqual(args.kwargs['env']['GIT_CONFIG_GLOBAL'],'/dev/null')
+        self.assertEqual(args.kwargs['env']['GIT_CONFIG_NOSYSTEM'],'1')
+
     def test_approval_requires_detached_parent_authentication_and_exact_pins(self):
         value=receipt()
         with self.assertRaisesRegex(image.Refused,'authentication_required'):
