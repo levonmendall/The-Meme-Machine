@@ -75,6 +75,8 @@ class IsolatedRpcPortTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(first,second)
         self.assertIs(rpc.url,port.source)
         self.assertEqual(len(self.physical.calls),1)
+        self.assertEqual(sum(row.get('consumer_method:getGenesisHash',0)
+            for row in self.http.purchases.snapshot()['operations']),2)
         with sqlite3.connect(self.root/'isolated-sol-cache.sqlite') as db:
             self.assertEqual(db.execute('SELECT endpoint FROM solana_immutable_reads').fetchone()[0],
                 port.source.endpoint_identity)
@@ -88,6 +90,13 @@ class IsolatedRpcPortTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.physical.calls),1)
         self.assertIsInstance(self.physical.calls[0],list)
         self.assertEqual(self.budget.snapshot()['rpc_elements'],'2')
+        self.assertEqual(sum(row.get('consumer_method:getBlockTime',0)
+            for row in self.http.purchases.snapshot()['operations']),2)
+        repeated=await asyncio.to_thread(rpc.call_many,'getBlockTime',[[10],[11]],batch_size=8)
+        self.assertEqual(repeated,values)
+        self.assertEqual(len(self.physical.calls),1)
+        self.assertEqual(sum(row.get('consumer_method:getBlockTime',0)
+            for row in self.http.purchases.snapshot()['operations']),4)
 
     async def test_parent_port_requires_owned_source_and_explicit_native_cache(self):
         from meme_machine.lanes.pump.solana_read_rpc import new_rpc

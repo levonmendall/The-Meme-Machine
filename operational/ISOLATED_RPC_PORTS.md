@@ -55,3 +55,15 @@ quote/batch features are not inferred from unavailable child credentials or
 implicitly borrowed from production paths. Held/fill/settlement work remains
 unexercised. These hooks establish none of authoritative PAPER readiness,
 production-equivalent complete workload parity or the one-hour acceptance.
+# Pump logical demand follow-up
+
+The explicit Pump parent path forwards original logical calls before native
+short-lived or immutable cache access. A ContextVar scopes one caller across
+the mixin/base/batch and scalar retry layers, so cache hits stay visible and
+physical retries do not duplicate the logical demand. Parent purchases retain
+the same fixed source work labels. Solana Governor remains a physical admission
+controller; this does not invent a new durable governor demand table. Pons keeps
+its existing durable logical-demand accounting. Default calls without an
+explicit port keep their original behavior. Actual parent ledger regressions
+prove two scalar immutable-cache consumers with one HTTP request, and four
+batch consumers with one two-element physical batch.

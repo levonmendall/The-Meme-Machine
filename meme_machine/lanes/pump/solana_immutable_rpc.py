@@ -7,7 +7,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from contextvars import ContextVar
-from .provider import Unavailable
+from .provider import Unavailable,parent_logical_call,parent_logical_many
 
 _BATCH_TRANSPORT=ContextVar('solana_immutable_batch_transport',default=())
 
@@ -207,6 +207,7 @@ class ImmutableRPCMixin:
         if meta['pending']:raise Unavailable('transaction_evidence_incomplete')
         return [result[p[0]] for p in params_list]
 
+    @parent_logical_call
     def call(self,method,params=None,priority=False,**kwargs):
         params=params or []
         if id(self) in _BATCH_TRANSPORT.get():
@@ -221,6 +222,7 @@ class ImmutableRPCMixin:
         if shared and method=='getTransaction' and self._body_params(params) and isinstance(value,dict):shared.finalized(value.get('slot'))
         return value
 
+    @parent_logical_many
     def call_many(self,method,params_list,priority=False,batch_size=8):
         shared=self._shared_reads()
         params_list=list(params_list)

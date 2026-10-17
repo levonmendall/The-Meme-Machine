@@ -3,12 +3,54 @@ import json
 import time
 import urllib.error
 import urllib.request
+from contextvars import ContextVar
+from functools import wraps
 from urllib.parse import urlparse
 from . import pump
 
 
 class Unavailable(RuntimeError):
     pass
+
+
+_PARENT_LOGICAL=ContextVar('isolated_pump_parent_logical',default=())
+
+
+def parent_logical_call(function):
+    """Observe one original logical caller, including either native cache.
+
+    Mixins/base methods and their scalar batch retries share one context; a
+    physical retry must not turn one logical demand into several new consumers.
+    Ordinary production calls do not enter this explicitly injected boundary.
+    """
+    @wraps(function)
+    def call(self,method,params=None,priority=False,**kwargs):
+        port=getattr(self,'parent_port',None)
+        if port is None or id(self) in _PARENT_LOGICAL.get():
+            return function(self,method,params,priority,**kwargs)
+        if method not in self.ALLOWED:raise ValueError('read-only method allowlist')
+        port.demand([method])
+        token=_PARENT_LOGICAL.set((*_PARENT_LOGICAL.get(),id(self)))
+        try:return function(self,method,params,priority,**kwargs)
+        finally:_PARENT_LOGICAL.reset(token)
+    return call
+
+
+def parent_logical_many(function):
+    @wraps(function)
+    def call(self,method,params_list,priority=False,batch_size=8):
+        port=getattr(self,'parent_port',None)
+        if port is None or id(self) in _PARENT_LOGICAL.get():
+            return function(self,method,params_list,priority,batch_size)
+        if method not in self.ALLOWED:raise ValueError('read-only method allowlist')
+        if not 1<=batch_size<=16:raise ValueError('batch_size must be 1..16')
+        params_list=list(params_list)
+        for start in range(0,len(params_list),200):
+            port.demand([method]*min(200,len(params_list)-start))
+        token=_PARENT_LOGICAL.set((*_PARENT_LOGICAL.get(),id(self)))
+        try:return function(self,method,params_list,priority,batch_size)
+        finally:_PARENT_LOGICAL.reset(token)
+    return call
 
 
 class RPC:
@@ -165,6 +207,7 @@ class RPC:
             self.evidence_local_failure='evidence_deadline_before_transport'
             raise Unavailable(self.evidence_local_failure)
 
+    @parent_logical_call
     def call(self, method, params=None, priority=False):
         if method not in self.ALLOWED:
             raise ValueError('read-only method allowlist')
@@ -212,6 +255,7 @@ class RPC:
         self._cache_put(key,result)
         return result
 
+    @parent_logical_many
     def call_many(self, method, params_list, priority=False, batch_size=8):
         """Batch read-only RPC with adaptive 429 handling.
 

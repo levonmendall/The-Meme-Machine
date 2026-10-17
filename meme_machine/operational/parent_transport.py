@@ -443,12 +443,13 @@ class ParentHTTP:
         from meme_machine.runtime.robinhood.provider_usage import demand
         _require(not self._closed and alias in self.sources, 'parent_control_closed')
         binding = self.sources[alias]
-        _require(binding.admission is not None and methods
+        _require((binding.admission is not None or binding.governor is not None) and methods
             and all(m in binding.alias.methods for m in methods), 'parent_demand')
         def committed():
             with _work(binding, self.purchases, methods, False):
-                demand(binding.admission.path, binding.admission.endpoint, methods)
-                self.purchases.consumer(methods, family='pons')
+                if binding.admission is not None:
+                    demand(binding.admission.path, binding.admission.endpoint, methods)
+                self.purchases.consumer(methods, family='pons' if binding.admission is not None else 'pump')
         await self._control(committed)
 
     async def activity_marker(self, alias):
