@@ -429,6 +429,61 @@ def archive_complete_logs_predecessor(test,relative,current):
     return prior
 
 
+# The exact cb34 incident interrupted a log callback before economic admission.
+# Its original terminal failure flags and unreturned callback remain evidence;
+# original same-origin gaps or FULL/ACK coverage partition every required slot.
+# Pin this separate observation proof without relaxing lost economic queues,
+# ordinary startup, financial authority or the existing funding-closed guard.
+PREJOIN_SOURCE_REFERENCE='d66af963d64d3c02099d8e9fe3a94c53ec38c584'
+PREJOIN_SOURCE='meme_machine/solana_source_drain.py'
+PREJOIN_SOURCE_BEFORE='0cb2fe722ba128506a3355bc88b3c647f4c9a25013bdf260ca6ec0684c3e29d2'
+PREJOIN_SOURCE_AFTER='a016bdbe09f2017f19f09126a948a561ab6afb6fcf96898d2ca432a03e59f83e'
+PREJOIN_SOURCE_CHANGED=('_session_economic_boundaries','historical_observation_boundary',
+    'begin_source_observation','publish_source_drain')
+PREJOIN_SOURCE_CONSTANTS=('PREJOIN_OBSERVATION_SHA256','PREJOIN_HANDLER_SHA256',
+    'PREJOIN_SESSION_SHA256','PREJOIN_SESSION_OBSERVATION_ID','PREJOIN_SESSION',
+    'PREJOIN_GAP_ORIGINS','PREJOIN_NATIVE_HEADS')
+
+
+def prejoin_source_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=PREJOIN_SOURCE:return current
+    prior=subprocess.check_output(['git','show',PREJOIN_SOURCE_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),PREJOIN_SOURCE_BEFORE,
+        relative+':exact prejoin-observation predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),PREJOIN_SOURCE_AFTER,
+        relative+':exact prejoin-observation successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def function(root,name):
+        return next(n for n in root.body if isinstance(n,ast.FunctionDef) and n.name==name)
+    # These authority predicates remain byte-for-byte, including the existing
+    # strict CANDIDATE_QUEUE disposition rather than the distinct prejoin case.
+    for name in ('_economic_failed_inputs','verify_economic_recovery_descriptor',
+            '_preserved_program_gap_observation','_preserved_economic_replay_observation',
+            '_historical_observation_record','_require_observation_funding_closed','retained_source_drain'):
+        test.assertEqual(ast.get_source_segment(current.decode(),function(tree,name)),
+            ast.get_source_segment(prior.decode(),function(old,name)),relative+':unchanged authority bytes '+name)
+    for name in PREJOIN_SOURCE_CHANGED:
+        selected=function(tree,name);original=function(old,name)
+        test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':explicit observation handoff '+name)
+        tree.body[tree.body.index(selected)]=deepcopy(original)
+    added=function(tree,'_preserved_prejoin_observation');tree.body.remove(added)
+    with test.assertRaises(StopIteration):function(old,'_preserved_prejoin_observation')
+    for name in PREJOIN_SOURCE_CONSTANTS:
+        def matching(root):
+            return [n for n in root.body if isinstance(n,ast.Assign) and len(n.targets)==1
+                and isinstance(n.targets[0],ast.Name) and n.targets[0].id==name]
+        matches=matching(tree)
+        test.assertEqual(len(matches),1,relative+':one explicit incident identity '+name)
+        test.assertEqual(matching(old),[],relative+':new incident identity only '+name)
+        tree.body.remove(matches[0])
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':all other historical, financial and native source retained')
+    return prior
+
+
 # A new interrupted rolling session binds its own immutable census, handler
 # ledger, native heads and original session observation before archive work.
 # Exact FULL consumer receipts/ACKs and gap-aware coverage can prove recovered
@@ -472,6 +527,8 @@ def session_economic_recovery_predecessor(test,relative,current):
         earlier=subprocess.check_output(['git','show',SESSION_ECONOMIC_RECOVERY_PRIORS[checksum]+':'+relative],cwd=ROOT)
         test.assertEqual(current,earlier,relative+':exact older recovery comparison source')
         return current
+    current=prejoin_source_predecessor(test,relative,current)
+    checksum=hashlib.sha256(current).hexdigest()
     test.assertEqual(checksum,SESSION_ECONOMIC_RECOVERY_AFTER,
         relative+':exact independent-session recovery successor')
     tree=ast.parse(current);old=ast.parse(prior)
@@ -1927,6 +1984,77 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_prejoin_observation_preserves_exact_incident_gaps_and_full_ack_authority(self):
+        import hashlib
+        relative=PREJOIN_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),PREJOIN_SOURCE_AFTER,
+            relative+':active exact prejoin-observation proof')
+        prior=subprocess.check_output(['git','show',PREJOIN_SOURCE_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(hashlib.sha256(prior).hexdigest(),PREJOIN_SOURCE_BEFORE,
+            relative+':independently pinned existing economic-recovery source')
+        self.assertEqual(prejoin_source_predecessor(self,relative,current),prior)
+        self.assertEqual(prejoin_source_predecessor(self,relative,prior),prior)
+        self.assertEqual(session_economic_recovery_predecessor(self,relative,current),
+            session_economic_recovery_predecessor(self,relative,prior))
+        self.assertEqual(native_startup_failure_predecessor(self,relative,current),
+            native_startup_failure_predecessor(self,relative,prior))
+        self.assertEqual(recovered_economic_boundary_predecessor(self,relative,current),
+            recovered_economic_boundary_predecessor(self,relative,prior))
+        self.assertEqual(program_gap_observation_predecessor(self,relative,current),
+            program_gap_observation_predecessor(self,relative,prior))
+        self.assertEqual(rally_predecessor(self,relative,current),rally_predecessor(self,relative,prior))
+        self.assertEqual(opportunity_predecessor(self,relative,current),
+            opportunity_predecessor(self,relative,prior))
+        changes=[current+b'\n# unreviewed prejoin-observation source change\n',b'']
+        for previous,successor in (
+                (b'PREJOIN_SESSION_OBSERVATION_ID=234592',b'PREJOIN_SESSION_OBSERVATION_ID=234593'),
+                (b"('phase','CANDIDATE_QUEUE')",b"('phase','LOG_BUFFER_WAIT')"),
+                (b"        _require_observation_funding_closed()\n",b'        pass\n'),
+                (b"if not body['pending_handlers']:return raw",b'if True:return raw'),
+                (b"body['state']!='DRAINED'",b'False'),
+                (b'prejoin_callback_completion_demonstrated=False',b'prejoin_callback_completion_demonstrated=True'),
+                (b'prejoin_original_source_drain_pass=False',b'prejoin_original_source_drain_pass=True'),
+                (b'prejoin_unsealed_native_slot=457898776',b'prejoin_unsealed_native_slot=457898777'),
+                (b"current['prejoin_observation_reference']=previous['prejoin_observation_reference']",
+                    b"current['prejoin_observation_reference']={}"),
+                (b"body=dict(body,prejoin_observation_reference=started['prejoin_observation_reference'])",b'body=dict(body)'),
+                (b'_preserve_drain_bytes(state,OBSERVATION_DRAIN_KEY,failed,SOURCE_DRAIN_BYTES)',b'pass'),
+                (b'_preserve_drain_bytes(state,HANDLER_RECOVERY_KEY,original,HandlerLedger.maximum_bytes)',b'pass')):
+            self.assertIn(previous,current,relative+':negative mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        selected=next(n for n in ast.parse(current).body
+            if isinstance(n,ast.FunctionDef) and n.name=='_preserved_prejoin_observation')
+        prejoin=ast.get_source_segment(current.decode(),selected).encode()
+        for previous,successor in (
+                (b'if not direct and archived is None and session is None and carried is None:return {},None',
+                    b'if not direct:return {},None'),
+                (b'old=handlers if direct and isinstance(handlers,str)',b'old=handlers if isinstance(handlers,str)'),
+                (b'not direct and carried==reference',b'not direct'),
+                (b'hashlib.sha256(old.encode()).hexdigest()==PREJOIN_HANDLER_SHA256',b'True'),
+                (b'_committed_census(body)',b'True'),
+                (b"body.get('terminal_record_unavailable') is True",b"body.get('terminal_record_unavailable') is False"),
+                (b"body.get('unexpected_cancellation') is True",b"body.get('unexpected_cancellation') is False"),
+                (b"('accepted_pending',0)",b"('accepted_pending',1)"),
+                (b"('oldest_meta',False)",b"('oldest_meta',True)"),
+                (b'==PREJOIN_NATIVE_HEADS[family]',b'is not None'),
+                (b'lo=457897559;hi=457898887',b'lo=457898777;hi=457898887'),
+                (b'life.unconsumed(scope) is None',b'True'),
+                (b'require(len(residual)==1)',b'require(True)'),
+                (b'hashlib.sha256(receipt[1].encode()).hexdigest()==receipt[2]',b'True'),
+                (b"SELECT 1 FROM candidate_pending_proofs WHERE id=?",b"SELECT 1 FROM candidate_pending_proofs WHERE id=? AND 0"),
+                (b"IntervalProof(scope,a,b,value.get('source'),endpoint,witness,value.get('observed_at',0)).validate()",b'None'),
+                (b'require(not _subtract_intervals(covered,published))',b'require(True)'),
+                (b'rolling.missing(family,scope,lo,hi)',b'[]'),
+                (b'rolling._history_input_byte_limit=16*1024*1024',b'rolling._history_input_byte_limit=160*1024*1024')):
+            self.assertIn(previous,prejoin,relative+':prejoin-specific negative mutation target exists')
+            changes.append(current.replace(prejoin,prejoin.replace(previous,successor,1),1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):prejoin_source_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):session_economic_recovery_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):rally_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_maintenance_entry_clock_preserves_exact_original_leases_and_native_guards(self):
         import hashlib
         mutations={
@@ -2130,7 +2258,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_session_economic_recovery_preserves_original_incidents_and_exact_full_proofs(self):
         import hashlib
-        relative=SESSION_ECONOMIC_RECOVERY_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=SESSION_ECONOMIC_RECOVERY_SOURCE;current=prejoin_source_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),SESSION_ECONOMIC_RECOVERY_AFTER,
             relative+':active exact independently bound session-recovery source')
         prior=subprocess.check_output(['git','show',SESSION_ECONOMIC_RECOVERY_REFERENCE+':'+relative],cwd=ROOT)

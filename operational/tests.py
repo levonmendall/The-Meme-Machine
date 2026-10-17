@@ -5,6 +5,7 @@ FAST=[
  'tests.test_archive_full_log_content',
  'tests.test_survivor_retained_gap',
  'tests.test_maintenance_owner_entry_clock',
+ 'tests.test_prejoin_observation_recovery',
  'tests.test_archive_recovered_session',
  'tests.test_retained_canonical_reference',
  'tests.test_frozen_paused_reader',
