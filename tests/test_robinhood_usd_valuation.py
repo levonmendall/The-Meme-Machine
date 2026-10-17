@@ -250,6 +250,65 @@ def archive_complete_logs_predecessor(test,relative,current):
     return prior
 
 
+# A new interrupted rolling session binds its own immutable census, handler
+# ledger, native heads and original session observation before archive work.
+# Exact FULL consumer receipts/ACKs and gap-aware coverage can prove recovered
+# economics without declaring any interrupted queue or callback completed.
+# Reverse only the reviewed session-proof nodes before every older source guard.
+SESSION_ECONOMIC_RECOVERY_REFERENCE='2e74c44db35da58cce22038775fb405b7041e168'
+SESSION_ECONOMIC_RECOVERY_SOURCE='meme_machine/solana_source_drain.py'
+SESSION_ECONOMIC_RECOVERY_BEFORE='b134816293702970d42a93e2108067764c52cd1c4641c292ce7e1c2024d031c1'
+SESSION_ECONOMIC_RECOVERY_AFTER='0cb2fe722ba128506a3355bc88b3c647f4c9a25013bdf260ca6ec0684c3e29d2'
+SESSION_ECONOMIC_RECOVERY_CHANGED=(
+    '_preserved_program_gap_observation','historical_observation_boundary',
+    'begin_source_observation','publish_source_drain',
+)
+SESSION_ECONOMIC_RECOVERY_ADDED=(
+    '_economic_db','_economic_require','_economic_descriptor_rows','_economic_descriptor',
+    '_economic_failed_inputs','current_economic_recovery_descriptor',
+    'preserve_economic_recovery_descriptor','verify_economic_recovery_descriptor',
+    '_session_economic_boundaries',
+)
+SESSION_ECONOMIC_RECOVERY_PRIORS={
+    'f23c5307d7340d93187a94543790503c5ce3622a91b684de326c5ba869747da0':
+        'c7c1f6bca52e5d53eb49aed75b6e245f7bbbb225',
+    'b3b67f0bee582fc0a0054a6b591dd28ddb3b867df4a65b78604675cfb944bfba':
+        'd06e37a050847e607db5d5649a00535beb1a58ee',
+}
+
+
+def session_economic_recovery_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=SESSION_ECONOMIC_RECOVERY_SOURCE:return current
+    prior=subprocess.check_output(['git','show',SESSION_ECONOMIC_RECOVERY_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),SESSION_ECONOMIC_RECOVERY_BEFORE,
+        relative+':exact independent-session recovery predecessor')
+    if current==prior:return prior
+    checksum=hashlib.sha256(current).hexdigest()
+    if checksum in SESSION_ECONOMIC_RECOVERY_PRIORS:
+        # Older tests still compare these exact immutable intermediates through
+        # their original guards. Unknown source receives no path/name exemption.
+        earlier=subprocess.check_output(['git','show',SESSION_ECONOMIC_RECOVERY_PRIORS[checksum]+':'+relative],cwd=ROOT)
+        test.assertEqual(current,earlier,relative+':exact older recovery comparison source')
+        return current
+    test.assertEqual(checksum,SESSION_ECONOMIC_RECOVERY_AFTER,
+        relative+':exact independent-session recovery successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def function(root,name):
+        return next(n for n in root.body if isinstance(n,ast.FunctionDef) and n.name==name)
+    for name in SESSION_ECONOMIC_RECOVERY_CHANGED:
+        selected=function(tree,name);original=function(old,name)
+        test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':explicit session-recovery node '+name)
+        tree.body[tree.body.index(selected)]=deepcopy(original)
+    for name in SESSION_ECONOMIC_RECOVERY_ADDED:
+        selected=function(tree,name);tree.body.remove(selected)
+        with test.assertRaises(StopIteration):function(old,name)
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':all other historical, financial and native source retained')
+    return prior
+
+
 # The protected preflight already freezes its original SQLite files. The paused
 # lane proof may consume that same reader while its ordinary runtime connection,
 # integrity, replay and obligation predicates remain unchanged. Pin this newly
@@ -363,6 +422,7 @@ def native_startup_failure_predecessor(test,relative,current,*,allow_previous_la
     from copy import deepcopy
     import hashlib
     if isinstance(current,str):current=current.encode()
+    current=session_economic_recovery_predecessor(test,relative,current)
     current=retained_canonical_predecessor(test,relative,current,
         allow_previous_layers=allow_previous_layers)
     reviewed=NATIVE_STARTUP_FAILURE_DELTAS.get(relative)
@@ -472,6 +532,7 @@ def recovered_economic_boundary_predecessor(test,relative,current):
     import hashlib
     if isinstance(current,str):current=current.encode()
     if relative!=RECOVERED_ECONOMIC_BOUNDARY_SOURCE:return current
+    current=session_economic_recovery_predecessor(test,relative,current)
     prior=subprocess.check_output(['git','show',RECOVERED_ECONOMIC_BOUNDARY_REFERENCE+':'+relative],cwd=ROOT)
     test.assertEqual(hashlib.sha256(prior).hexdigest(),RECOVERED_ECONOMIC_BOUNDARY_BEFORE,
         relative+':exact economic-boundary predecessor')
@@ -519,6 +580,7 @@ def program_gap_observation_predecessor(test,relative,current):
     import hashlib
     if isinstance(current,str):current=current.encode()
     if relative!=PROGRAM_GAP_OBSERVATION_SOURCE:return current
+    current=session_economic_recovery_predecessor(test,relative,current)
     prior=subprocess.check_output(['git','show',PROGRAM_GAP_OBSERVATION_REFERENCE+':'+relative],cwd=ROOT)
     test.assertEqual(hashlib.sha256(prior).hexdigest(),PROGRAM_GAP_OBSERVATION_BEFORE,
         relative+':exact preserved-program-gap predecessor')
@@ -1685,6 +1747,78 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_session_economic_recovery_preserves_original_incidents_and_exact_full_proofs(self):
+        import hashlib
+        relative=SESSION_ECONOMIC_RECOVERY_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),SESSION_ECONOMIC_RECOVERY_AFTER,
+            relative+':active exact independently bound session-recovery source')
+        prior=subprocess.check_output(['git','show',SESSION_ECONOMIC_RECOVERY_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(hashlib.sha256(prior).hexdigest(),SESSION_ECONOMIC_RECOVERY_BEFORE,
+            relative+':independently pinned previous economic-recovery boundary')
+        self.assertEqual(session_economic_recovery_predecessor(self,relative,current),prior)
+        self.assertEqual(session_economic_recovery_predecessor(self,relative,prior),prior)
+        self.assertEqual(native_startup_failure_predecessor(self,relative,current),prior)
+        self.assertEqual(recovered_economic_boundary_predecessor(self,relative,current),
+            recovered_economic_boundary_predecessor(self,relative,prior))
+        self.assertEqual(program_gap_observation_predecessor(self,relative,current),
+            program_gap_observation_predecessor(self,relative,prior))
+        self.assertEqual(rally_predecessor(self,relative,current),rally_predecessor(self,relative,prior))
+        self.assertEqual(opportunity_predecessor(self,relative,current),
+            opportunity_predecessor(self,relative,prior))
+        changes=[current+b'\n# unreviewed session-recovery source change\n',b'']
+        for previous,successor in (
+                (b'!=(564488,564486,2)',b'!=(564488,564488,0)'),
+                (b"('id',60266)",b"('id',60267)"),
+                (b"accounting.get('returned')==60345",b"accounting.get('returned')==60346"),
+                (b"('rolling',191,183)",b"('rolling',191,191)"),
+                (b'original_queue_acknowledgement_verified=False',b'original_queue_acknowledgement_verified=True'),
+                (b'original_source_drain_pass=False',b'original_source_drain_pass=True'),
+                (b'callback_completion_demonstrated=False',b'callback_completion_demonstrated=True'),
+                (b'historical_recovery_verified=False',b'historical_recovery_verified=True'),
+                (b"        _require_observation_funding_closed()\n",b'        pass\n'),
+                (b"hashlib.sha256(row[3].encode()).hexdigest()==reference['sha256']",b'True'),
+                (b"descriptor.get('failed_census_sha256')==row[1]",b'True'),
+                (b"accounting.get('run')==body.get('run_identity')",b'True'),
+                (b"accounting.get('pid')==body.get('source_pid')",b'True'),
+                (b"require(0<queues['rolling']['pending']<=8)",b'require(True)'),
+                (b"len(matches)==1 and all(matches[0].get(k)==v for k,v in record.items())",b'True'),
+                (b"head['session']==observed['session']",b'True'),
+                (b"head['slot']<=observed['completed']",b'True'),
+                (b'_economic_require(actual==descriptor)',b'_economic_require(True)'),
+                (b"and hashlib.sha256(old_ledger.encode()).hexdigest()==descriptor.get('handler_ledger_sha256')",b'and True'),
+                (b"row[:6]==(family,PROGRAMS[family],lo,hi,'complete',None)",b'True'),
+                (b'require(len(receipts)==pages)',b'require(True)'),
+                (b"result.get('complete') is (index==pages-1)",b'True'),
+                (b"digest([scope,a,b,body['witness']])==identity",b'True'),
+                (b"SELECT 1 FROM candidate_pending_proofs WHERE id=?",b"SELECT 1 FROM candidate_pending_proofs WHERE id=? AND 0"),
+                (b'life.unconsumed(scope) is None',b'True'),
+                (b'rolling.missing(family,scope,lo,hi)==[]',b'True'),
+                (b'require(not _subtract_intervals(covered,published))',b'require(True)'),
+                (b"retained_economic_tail_unavailable=tail_missing",b'retained_economic_tail_unavailable=False'),
+                (b"_economic_require(carried==references)",b'_economic_require(True)'),
+                (b"_economic_require(len(live)==len(expected) and all(expected.get((r.get('run'),r.get('id')))==r for r in live))",
+                    b'_economic_require(True)'),
+                (b"and not session_current and",b'and'),
+                (b"_preserve_drain_bytes(state,HANDLER_RECOVERY_KEY,handler_boundary,HandlerLedger.maximum_bytes)",b'pass'),
+                (b"current['session_economic_recovery_references']=previous['session_economic_recovery_references']",
+                    b"current['session_economic_recovery_references']=[]")):
+            self.assertIn(previous,current,relative+':negative mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        # Deleting the durable descriptor reader must not fall back to the old
+        # f76 or DRAINED boundary, even though those original proofs still pin.
+        lines=current.splitlines(keepends=True)
+        descriptor=next(n for n in ast.parse(current).body
+            if isinstance(n,ast.FunctionDef) and n.name=='_economic_descriptor_rows')
+        changes.append(b''.join(lines[:descriptor.lineno-1]+lines[descriptor.end_lineno:]))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):session_economic_recovery_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):native_startup_failure_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):recovered_economic_boundary_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):program_gap_observation_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):rally_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_frozen_paused_reader_preserves_original_financial_and_native_proof(self):
         import hashlib
         relative=FROZEN_PAUSED_READER_SOURCE;current=(ROOT/relative).read_bytes()
@@ -1773,7 +1907,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_recovered_economic_boundary_preserves_failed_census_and_all_previous_guards(self):
         import hashlib
-        relative=RECOVERED_ECONOMIC_BOUNDARY_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=RECOVERED_ECONOMIC_BOUNDARY_SOURCE;current=session_economic_recovery_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),RECOVERED_ECONOMIC_BOUNDARY_AFTER,
             relative+':active exact recovered-economic boundary source')
         prior=subprocess.check_output(['git','show',RECOVERED_ECONOMIC_BOUNDARY_REFERENCE+':'+relative],cwd=ROOT)
@@ -1911,7 +2045,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_program_gap_boundary_reverses_exactly_without_weakening_recovery_or_funding(self):
         import hashlib
-        relative=PROGRAM_GAP_OBSERVATION_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=PROGRAM_GAP_OBSERVATION_SOURCE;current=session_economic_recovery_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),PROGRAM_GAP_OBSERVATION_AFTER,
             relative+':active exact preserved-program-gap source')
         prior=subprocess.check_output(['git','show',PROGRAM_GAP_OBSERVATION_REFERENCE+':'+relative],cwd=ROOT)

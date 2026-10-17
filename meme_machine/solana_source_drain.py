@@ -137,7 +137,19 @@ def _preserved_program_gap_observation(db,handlers,current):
     from .solana_rolling_history import program_scope
     def require(condition):
         if not condition:raise EvidenceUnavailable('source_observation_program_gap_unverified')
-    require(isinstance(handlers,str) and hashlib.sha256(handlers.encode()).hexdigest()==PROGRAM_GAP_HANDLER_SHA256)
+    require(isinstance(handlers,str))
+    if hashlib.sha256(handlers.encode()).hexdigest()!=PROGRAM_GAP_HANDLER_SHA256:
+        # Later interrupted handlers append to the original ledger. Preserve
+        # the original exact bytes and require its row unchanged in that ledger;
+        # the caller separately proves every additional retained disposition.
+        live=_retained_handlers(handlers)
+        archived=_health_from_db(db,HANDLER_RECOVERY_KEY+'_preserved.'+PROGRAM_GAP_HANDLER_SHA256,
+            HandlerLedger.maximum_bytes)
+        require(isinstance(archived,str) and hashlib.sha256(archived.encode()).hexdigest()==PROGRAM_GAP_HANDLER_SHA256)
+        old=_retained_handlers(archived);require(len(old)==1)
+        require([row for row in live if (row.get('run'),row.get('id'))==
+            (old[0].get('run'),old[0].get('id'))]==old)
+        handlers=archived
     records=_retained_handlers(handlers);require(len(records)==1)
     raw=current if (isinstance(current,str) and hashlib.sha256(current.encode()).hexdigest()==PROGRAM_GAP_OBSERVATION_SHA256) else \
         _health_from_db(db,OBSERVATION_DRAIN_KEY+'_preserved.'+PROGRAM_GAP_OBSERVATION_SHA256,SOURCE_DRAIN_BYTES)
@@ -390,6 +402,431 @@ def _preserved_economic_replay_observation(db,current):
         economic_tail_continuity_verified=True,economic_tail_recovered=not tail_unavailable)
 
 
+def _economic_db(state_or_db):
+    return state_or_db.writer.db if hasattr(state_or_db,'writer') else state_or_db
+
+
+def _economic_require(condition):
+    from .solana_evidence_plane import EvidenceUnavailable
+    if not condition:raise EvidenceUnavailable('source_session_economic_recovery_unverified')
+
+
+def _economic_descriptor_rows(db,checksum=None):
+    """An existing-table index keeps retrospective admission reads bounded."""
+    if not db.execute("SELECT 1 FROM sqlite_master WHERE type='index' AND name="
+            "'acquisition_observations_recovery_kind_job'").fetchone():return []
+    where='' if checksum is None else ' AND job=?'
+    rows=db.execute('''SELECT id,job,length(CAST(body AS BLOB)),CASE WHEN
+        length(CAST(body AS BLOB))<=? THEN body END FROM acquisition_observations
+        INDEXED BY acquisition_observations_recovery_kind_job
+        WHERE kind='source_economic_recovery_descriptor' '''+where+' ORDER BY id LIMIT 65',
+        (SOURCE_DRAIN_BYTES,*(() if checksum is None else (checksum,)))).fetchall()
+    _economic_require(len(rows)<=64)
+    for row in rows:
+        _economic_require(isinstance(row[3],str) and row[2]<=SOURCE_DRAIN_BYTES)
+    return rows
+
+
+def _economic_descriptor(db,reference):
+    from .solana_evidence_plane import canonical
+    if isinstance(reference,dict) and {'observation_id','sha256'}<=set(reference)<={'observation_id','sha256','descriptor'}:
+        _economic_require(type(reference['observation_id']) is int and reference['observation_id']>0)
+        row=db.execute('''SELECT kind,job,length(CAST(body AS BLOB)),CASE WHEN
+            length(CAST(body AS BLOB))<=? THEN body END FROM acquisition_observations WHERE id=?''',
+            (SOURCE_DRAIN_BYTES,reference['observation_id'])).fetchone()
+        _economic_require(row is not None and row[0]=='source_economic_recovery_descriptor'
+            and isinstance(row[3],str) and row[2]<=SOURCE_DRAIN_BYTES
+            and hashlib.sha256(row[3].encode()).hexdigest()==reference['sha256'])
+        descriptor=_retained_json(row[3]);_economic_require(isinstance(descriptor,dict)
+            and descriptor.get('failed_census_sha256')==row[1])
+        _economic_require('descriptor' not in reference or reference['descriptor']==descriptor)
+        return descriptor,{key:reference[key] for key in ('observation_id','sha256')}
+    _economic_require(isinstance(reference,dict))
+    rows=_economic_descriptor_rows(db,reference.get('failed_census_sha256'))
+    raw=canonical(reference)
+    _economic_require(len(rows)==1 and rows[0][3]==raw)
+    return reference,dict(observation_id=rows[0][0],sha256=hashlib.sha256(raw.encode()).hexdigest())
+
+
+def _economic_failed_inputs(db,raw,handlers,session_id,*,heads=None,expected_origins=None):
+    """Read the genuine interrupted queue boundary; no proof or cursor writes."""
+    import math
+    from .solana_evidence_plane import digest
+    from .solana_selective_history import PROGRAMS
+    from .solana_rolling_history import program_scope
+    require=_economic_require
+    require(isinstance(raw,str) and isinstance(handlers,str))
+    body=_retained_census(raw);accounting=body.get('handler_accounting');queues=body.get('queues')
+    require(body['state']=='RECOVERY_REQUIRED' and body.get('terminal') is True
+        and _observation_reference(body) and body.get('all_accepted_committed') is False
+        and type(body.get('unpreserved_sessions')) is int and body['unpreserved_sessions']==0
+        and body.get('terminal_record_unavailable',False) is False
+        and body.get('unexpected_cancellation',False) is False
+        and isinstance(accounting,dict) and accounting.get('version')==1
+        and accounting.get('valid') is True and accounting.get('run')==body.get('run_identity')
+        and accounting.get('pid')==body.get('source_pid') and type(body.get('source_pid')) is int
+        and body['source_pid']>0 and isinstance(body.get('run_identity'),str)
+        and len(body['run_identity'])==32 and all(c in '0123456789abcdef' for c in body['run_identity'])
+        and accounting.get('accepted')==body['accepted_handlers']
+        and accounting.get('returned')==body['settled_handlers']
+        and all(type(accounting.get(k)) is int and accounting[k]==0 for k in ('active','failed','unresolved'))
+        and isinstance(queues,dict) and set(queues)=={'control','scout','rolling','candidate'})
+    for plane,row in queues.items():
+        require(isinstance(row,dict) and set(row)=={'accepted','committed','pending'}
+            and all(type(row.get(k)) is int and row[k]>=0 for k in row)
+            and row['accepted']-row['committed']==row['pending']
+            and (plane=='rolling' or row['pending']==0))
+    require(0<queues['rolling']['pending']<=8)
+    current=accounting.get('records');retained=_retained_handlers(handlers)
+    require(isinstance(current,list) and len(current)<=HandlerLedger.maximum_records
+        and len(current)==body['pending_handlers']==accounting.get('recoverable'))
+    run_rows=[r for r in retained if r.get('run')==body['run_identity']]
+    require(len(run_rows)==len(current) and all(r.get('source_pid')==body['source_pid'] for r in run_rows))
+    identities=[]
+    for record in current:
+        require(isinstance(record,dict) and type(record.get('id')) is int
+            and 1<=record['id']<=body['accepted_handlers'] and record['id'] not in identities)
+        identities.append(record['id'])
+        matches=[r for r in retained if r.get('run')==body['run_identity'] and r.get('id')==record['id']]
+        require(len(matches)==1 and all(matches[0].get(k)==v for k,v in record.items()))
+        require(matches[0].get('source_pid')==body['source_pid']
+            and matches[0].get('kind') in ('block_meta','transaction_status','slot')
+            and all(matches[0].get(k)==v for k,v in (('state','RECOVERABLE'),('phase','CANDIDATE_QUEUE'),
+                ('transport','yellowstone'),('family','pump'),('failure_state','INTERRUPTED'),('error_type','CancelledError'))))
+    session=db.execute('''SELECT kind,at,length(CAST(body AS BLOB)),CASE WHEN
+        length(CAST(body AS BLOB))<=? THEN body END FROM acquisition_observations WHERE id=?''',
+        (SOURCE_DRAIN_BYTES,session_id)).fetchone()
+    require(session is not None and session[0]=='source_session_drain' and isinstance(session[3],str)
+        and session[2]<=SOURCE_DRAIN_BYTES and type(session[1]) in (int,float) and math.isfinite(session[1]))
+    observed=_retained_json(session[3]);scope_list=[program_scope(f) for f in ('pump','pumpswap')]
+    require(isinstance(observed,dict) and observed.get('plane')=='rolling' and observed.get('drained') is False
+        and observed.get('accepted_pending')==queues['rolling']['pending']
+        and isinstance(observed.get('session'),str) and len(observed['session'])==32
+        and all(c in '0123456789abcdef' for c in observed['session'])
+        and type(observed.get('completed')) is int and observed['completed']>0
+        and type(observed.get('pending_slots')) is int and observed['pending_slots']>=0
+        and observed.get('handler_dispositions',[])==[r for r in retained
+            if r.get('run')==body['run_identity'] and r.get('source_pid')==body['source_pid']])
+    obligations=observed.get('recovery_obligations')
+    require(isinstance(obligations,list) and len(obligations)==2 and all(isinstance(r,dict) for r in obligations)
+        and [r.get('scope') for r in obligations]==scope_list
+        and all(type(r.get('lower_slot')) is int and r['lower_slot']>0 and r.get('upper_slot') is None for r in obligations))
+    fields=('scope','slot','parent','hash','previous_hash','market_time','seen','session','census_hash')
+    actual=heads
+    if actual is None:
+        actual={}
+        for family in ('pump','pumpswap'):
+            row=db.execute('SELECT slot,parent,hash,previous_hash,market_time,seen,session,census_hash '
+                'FROM candidate_blocks WHERE scope=?',(program_scope(family),)).fetchone()
+            require(row is not None)
+            actual[family]=dict(zip(fields,(program_scope(family),*row)))
+    require(isinstance(actual,dict) and set(actual)=={'pump','pumpswap'})
+    for family,head in actual.items():
+        require(isinstance(head,dict) and set(head)==set(fields) and head['scope']==program_scope(family)
+            and type(head['slot']) is int and type(head['parent']) is int and 0<head['slot']>head['parent']>=0
+            and head['session']==observed['session'] and head['slot']<=observed['completed']
+            and all(isinstance(head[k],str) and len(head[k])==64 and all(c in '0123456789abcdef' for c in head[k])
+                for k in ('census_hash',))
+            and all(isinstance(head[k],str) and 32<=len(head[k])<=44
+                and all(c in '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz' for c in head[k])
+                for k in ('hash','previous_hash'))
+            and type(head['market_time']) is int and head['market_time']>0
+            and type(head['seen']) in (int,float) and math.isfinite(head['seen']) and head['seen']>0)
+    require(all(actual['pump'][key]==actual['pumpswap'][key]
+        for key in ('slot','parent','hash','previous_hash','market_time','session')))
+    lo=actual['pump']['slot'];hi=observed['completed']
+    required_upper=max((hi,*(value for value in (observed.get('early_log_max_slot'),observed.get('oldest_slot'))
+        if type(value) is int)))
+    require(expected_origins is None or isinstance(expected_origins,dict)
+        and set(expected_origins)=={'pump','pumpswap'})
+    origins={}
+    for family,obligation in zip(('pump','pumpswap'),obligations):
+        scopes=(program_scope(family),)
+        records=[r for r in retained if r.get('run')==body['run_identity']]
+        ids={i for r in records for i in r.get('recovery',{}).get('gap_ids',[])}
+        # A zero-handler queue failure still has genuine disconnect origins.
+        if not ids:
+            rows=db.execute('''SELECT id FROM candidate_gaps INDEXED BY candidate_gap_scope_bounds
+                WHERE scope=? AND lo=? AND created<=? AND reason='candidate_live_disconnect_or_filter_rebuild'
+                ORDER BY id DESC LIMIT 2''',(scopes[0],obligation['lower_slot'],session[1])).fetchall()
+            require(len(rows)==1);ids={rows[0][0]}
+        gaps=[(i,db.execute('SELECT scope,lo,hi,created,reason FROM candidate_gaps WHERE id=?',(i,)).fetchone()) for i in sorted(ids)]
+        matching=[(i,r) for i,r in gaps if r is not None and r[0]==scopes[0]]
+        require(len(matching)==1);identity,gap=matching[0]
+        require(gap[1]==obligation['lower_slot'] and gap[1]<=lo
+            and (gap[2] is None or type(gap[2]) is int and gap[2]>=required_upper)
+            and type(gap[3]) in (int,float) and math.isfinite(gap[3]) and 0<gap[3]<=session[1]
+            and gap[4]=='candidate_live_disconnect_or_filter_rebuild')
+        origin=dict(zip(('id','scope','lo','hi','created','reason'),(identity,*gap)))
+        if expected_origins is not None:
+            preserved=expected_origins[family]
+            require(isinstance(preserved,dict) and set(preserved)==set(origin)
+                and all(preserved[key]==origin[key] for key in ('id','scope','lo','created','reason'))
+                and (preserved['hi']==origin['hi'] or preserved['hi'] is None
+                    and type(origin['hi']) is int and origin['hi']>=required_upper))
+            # The authentic post-ACK handoff may bound an open origin, including
+            # a repaired audit row. Retain the captured input bytes, while every
+            # remaining missing segment still needs its actual residual gap.
+            origin=preserved
+        origins[family]=origin
+    for r in retained:
+        if r.get('run')!=body['run_identity']:continue
+        require(r.get('session')==observed['session'] and type(r.get('slot')) is int and lo<=r['slot']<=hi
+            and r.get('scope_count')==2 and r.get('scope_hash')==HandlerLedger.scope_hash(scope_list)
+            and r.get('recovery')==dict(kind='CANDIDATE_GAPS',gap_ids=[origins[f]['id'] for f in ('pump','pumpswap')]))
+    tail_lo=observed.get('early_log_min_slot');tail_hi=observed.get('early_log_max_slot');oldest=observed.get('oldest_slot')
+    if tail_lo is None:
+        require(tail_hi is None)
+        tail_lo=tail_hi=oldest
+    else:
+        require(type(tail_lo) is int and type(tail_hi) is int and hi<tail_lo<=tail_hi)
+        if oldest is not None:
+            require(type(oldest) is int and oldest>hi);tail_lo=min(tail_lo,oldest);tail_hi=max(tail_hi,oldest)
+    require(tail_lo is None or type(tail_lo) is int and type(tail_hi) is int and hi<tail_lo<=tail_hi)
+    provider=_retained_json(_health_from_db(db,'provider',SOURCE_DRAIN_BYTES))
+    require(isinstance(provider,dict) and provider.get('provider')=='alchemy_solana_mainnet'
+        and provider.get('network')=='solana-mainnet' and isinstance(provider.get('endpoint_identity'),str)
+        and len(provider['endpoint_identity'])==64 and all(c in '0123456789abcdef' for c in provider['endpoint_identity']))
+    return dict(version=1,kind='ROLLING_ECONOMIC_REPLAY_INPUTS',failed_census_sha256=hashlib.sha256(raw.encode()).hexdigest(),
+        handler_ledger_sha256=hashlib.sha256(handlers.encode()).hexdigest(),run_identity=body['run_identity'],
+        source_pid=body['source_pid'],session=observed['session'],session_observation_id=session_id,
+        session_sha256=hashlib.sha256(session[3].encode()).hexdigest(),endpoint_identity=provider['endpoint_identity'],
+        lower_slot=lo,upper_slot=hi,tail_lower_slot=tail_lo,tail_upper_slot=tail_hi,
+        accepted_pending=queues['rolling']['pending'],handler_records=[r for r in retained if r.get('run')==body['run_identity']],
+        native_heads=actual,gap_origins=origins,job_ids={f:digest([f,PROGRAMS[f],lo,hi]) for f in ('pump','pumpswap')})
+
+
+def current_economic_recovery_descriptor(state_or_db):
+    """Select only an authentic current queue incident, never caller bounds."""
+    db=_economic_db(state_or_db)
+    raw=_health_from_db(db,OBSERVATION_DRAIN_KEY,SOURCE_DRAIN_BYTES)
+    if raw is None:return None
+    body=_retained_census(raw)
+    if body['state']!='RECOVERY_REQUIRED':return None
+    if hashlib.sha256(raw.encode()).hexdigest() in (PROGRAM_GAP_OBSERVATION_SHA256,ECONOMIC_REPLAY_OBSERVATION_SHA256):return None
+    _historical_observation_record(db)
+    handlers=_health_from_db(db,HANDLER_RECOVERY_KEY,HandlerLedger.maximum_bytes)
+    checksum=hashlib.sha256(raw.encode()).hexdigest();prior=_economic_descriptor_rows(db,checksum)
+    if prior:
+        _economic_require(len(prior)==1)
+        descriptor=_retained_json(prior[0][3])
+        actual=_economic_failed_inputs(db,raw,handlers,descriptor['session_observation_id'])
+        _economic_require(actual==descriptor)
+        return descriptor
+    sessions=[]
+    rows=db.execute('''SELECT id,kind,length(CAST(body AS BLOB)),CASE WHEN
+        length(CAST(body AS BLOB))<=? THEN body END FROM acquisition_observations ORDER BY id DESC LIMIT 128''',
+        (SOURCE_DRAIN_BYTES,)).fetchall()
+    for identity,kind,size,observed_raw in rows:
+        if kind!='source_session_drain':continue
+        _economic_require(isinstance(observed_raw,str) and size<=SOURCE_DRAIN_BYTES)
+        observed=_retained_json(observed_raw)
+        if observed.get('plane')!='rolling':continue
+        session=observed.get('session')
+        records=body.get('handler_accounting',{}).get('records',[])
+        head=db.execute('SELECT session FROM candidate_blocks WHERE scope=?',
+            ('candidate:pump:6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P',)).fetchone()
+        if head is not None and session==head[0] and all(r.get('session')==session for r in records):sessions.append(identity)
+    _economic_require(len(sessions)==1)
+    return _economic_failed_inputs(db,raw,handlers,sessions[0])
+
+
+def preserve_economic_recovery_descriptor(state,descriptor):
+    """Preserve inputs once; an acquisition binding never asserts completion."""
+    from .solana_evidence_plane import canonical
+    with state.writer.transaction():
+        _economic_require(current_economic_recovery_descriptor(state)==descriptor)
+        db=state.writer.db
+        db.execute('CREATE INDEX IF NOT EXISTS acquisition_observations_recovery_kind_job '
+            'ON acquisition_observations(kind,job,id)')
+        rows=_economic_descriptor_rows(db,descriptor['failed_census_sha256']);raw=canonical(descriptor)
+        _economic_require(len(raw.encode())<=SOURCE_DRAIN_BYTES and len(rows)<=1)
+        if rows:
+            _economic_require(rows[0][3]==raw);identity=rows[0][0]
+        else:
+            identity=db.execute('INSERT INTO acquisition_observations(job,kind,at,body) VALUES(?,?,?,?)',
+                (descriptor['failed_census_sha256'],'source_economic_recovery_descriptor',time.time(),raw)).lastrowid
+        return dict(observation_id=identity,sha256=hashlib.sha256(raw.encode()).hexdigest(),descriptor=descriptor)
+
+
+def verify_economic_recovery_descriptor(state_or_db,descriptor_or_reference):
+    """Original exhausted pages, FULL receipts, ACKs and gap-aware coverage."""
+    from contextlib import closing
+    from pathlib import Path
+    from types import SimpleNamespace
+    import math
+    from .solana_evidence_plane import digest,IntervalProof
+    from .solana_selective_history import PROGRAMS,archive_interval_witness,coverage_points
+    from .solana_candidate_lifecycle import CandidateLifecycle
+    from .solana_rolling_history import RollingHistory,program_scope,_subtract_intervals
+    from .solana_history_delivery import readonly_history
+    db=_economic_db(state_or_db);require=_economic_require
+    descriptor,reference=_economic_descriptor(db,descriptor_or_reference)
+    checksum=descriptor.get('failed_census_sha256')
+    current=_health_from_db(db,OBSERVATION_DRAIN_KEY,SOURCE_DRAIN_BYTES)
+    direct=current is not None and hashlib.sha256(current.encode()).hexdigest()==checksum
+    failed=current if direct else _health_from_db(db,OBSERVATION_DRAIN_KEY+'_preserved.'+str(checksum),SOURCE_DRAIN_BYTES)
+    ledger=_health_from_db(db,HANDLER_RECOVERY_KEY,HandlerLedger.maximum_bytes)
+    old_ledger=ledger if direct and ledger is not None and hashlib.sha256(ledger.encode()).hexdigest()==descriptor.get('handler_ledger_sha256') else \
+        _health_from_db(db,HANDLER_RECOVERY_KEY+'_preserved.'+str(descriptor.get('handler_ledger_sha256')),HandlerLedger.maximum_bytes)
+    require(failed is not None and hashlib.sha256(failed.encode()).hexdigest()==checksum
+        and old_ledger is not None and hashlib.sha256(old_ledger.encode()).hexdigest()==descriptor.get('handler_ledger_sha256'))
+    require(_economic_failed_inputs(db,failed,old_ledger,descriptor['session_observation_id'],
+        heads=None if direct else descriptor['native_heads'],expected_origins=descriptor['gap_origins'])==descriptor)
+    live=[] if ledger is None else _retained_handlers(ledger)
+    for record in _retained_handlers(old_ledger):
+        require([r for r in live if (r.get('run'),r.get('id'))==(record.get('run'),record.get('id'))]==[record])
+    main=[r[2] for r in db.execute('PRAGMA database_list') if r[1]=='main']
+    require(len(main)==1 and bool(main[0]));canonical=Path(main[0]);path=canonical.parent/'solana-candidate-history.sqlite'
+    require(canonical.is_absolute() and canonical.resolve()==canonical and not canonical.is_symlink()
+        and path.is_file() and not path.is_symlink() and Path(os.environ.get('MM_SOLANA_CANDIDATE_HISTORY_DB') or path)==path)
+    life=object.__new__(CandidateLifecycle);life.db=db
+    rolling=object.__new__(RollingHistory);rolling.db=db;rolling.history=SimpleNamespace(db=db,clock=time.time)
+    lo=descriptor['lower_slot'];hi=descriptor['upper_slot'];endpoint=descriptor['endpoint_identity'];proofs={};tail_missing=False
+    def points_cover(scope,a,b,at=None):
+        rows=db.execute('SELECT points,hash FROM candidate_coverage WHERE scope=? AND lo<=? AND hi>=?',(scope,a,b)).fetchall()
+        return any(any(x==a and y==b and t<=time.time() and (at is None or t==at)
+            for x,y,t in coverage_points(raw,checksum)) for raw,checksum in rows)
+    with closing(readonly_history(path)) as shared:
+        shared.db.execute('BEGIN')
+        def full(identity,family,a,b,witness=None):
+            row=shared.db.execute('''SELECT length(CAST(body AS BLOB)),CASE WHEN
+                length(CAST(body AS BLOB))<=? THEN body END,hash FROM source_receipts WHERE id=?''',
+                (SOURCE_DRAIN_BYTES,'coverage:'+identity)).fetchone()
+            require(row is not None and isinstance(row[1],str) and row[0]<=SOURCE_DRAIN_BYTES
+                and hashlib.sha256(row[1].encode()).hexdigest()==row[2])
+            body=_retained_json(row[1]);scope=program_scope(family)
+            require(isinstance(body,dict) and all(body.get(k)==v for k,v in (('identity',identity),('family',family),
+                ('address',PROGRAMS[family]),('scope',scope),('lo',a),('hi',b),('endpoint',endpoint)))
+                and isinstance(body.get('witness'),dict) and (witness is None or body['witness']==witness))
+            IntervalProof(scope,a,b,body.get('source'),endpoint,body['witness'],body.get('observed_at',0)).validate()
+            require(digest([scope,a,b,body['witness']])==identity
+                and db.execute('SELECT 1 FROM candidate_pending_proofs WHERE id=?',(identity,)).fetchone() is None)
+            return body
+        for family in ('pump','pumpswap'):
+            scope=program_scope(family);identity=descriptor['job_ids'][family]
+            row=db.execute('SELECT family,address,lo,hi,status,token,pages,lineage FROM acquisition_jobs WHERE id=?',(identity,)).fetchone()
+            require(row is not None and row[:6]==(family,PROGRAMS[family],lo,hi,'complete',None)
+                and type(row[6]) is int and row[6]>0 and isinstance(row[7],str) and len(row[7])==64
+                and all(c in '0123456789abcdef' for c in row[7]))
+            pages,lineage=row[6:]
+            require(db.execute('SELECT count(*),min(page),max(page) FROM acquisition_page_receipts WHERE job=?',
+                (identity,)).fetchone()==(pages,0,pages-1))
+            receipts=db.execute('''SELECT page,input_hash,length(CAST(result AS BLOB)),CASE WHEN
+                length(CAST(result AS BLOB))<=? THEN result END,committed
+                FROM acquisition_page_receipts WHERE job=? ORDER BY page''',(SOURCE_DRAIN_BYTES,identity))
+            supplemented=False
+            for index,receipt in enumerate(receipts):
+                require(receipt[0]==index and isinstance(receipt[1],str) and len(receipt[1])==64
+                    and all(c in '0123456789abcdef' for c in receipt[1]) and isinstance(receipt[3],str)
+                    and receipt[2]<=SOURCE_DRAIN_BYTES and type(receipt[4]) in (int,float)
+                    and math.isfinite(receipt[4]) and receipt[4]>0)
+                result=_retained_json(receipt[3])
+                require(isinstance(result,dict) and result.get('complete') is (index==pages-1)
+                    and type(result.get('pages')) is int and result['pages']==index+1
+                    and type(result.get('records')) is int and result['records']>=0
+                    and isinstance(result.get('archive_log_supplements',[]),list)
+                    and len(result.get('archive_log_supplements',[]))<=100)
+                supplements=result.get('archive_log_supplements',[]);bound=[]
+                for supplement in supplements:
+                    require(isinstance(supplement,dict) and type(supplement.get('observation_id')) is int)
+                    observed=db.execute('''SELECT job,kind,length(CAST(body AS BLOB)),CASE WHEN
+                        length(CAST(body AS BLOB))<=16777216 THEN body END FROM acquisition_observations WHERE id=?''',
+                        (supplement['observation_id'],)).fetchone()
+                    require(observed is not None and observed[:2]==(identity,'archive_log_supplement')
+                        and isinstance(observed[3],str) and observed[2]<=16777216
+                        and hashlib.sha256(observed[3].encode()).hexdigest()==supplement.get('observation_body_hash'))
+                    value=_retained_json(observed[3])
+                    require(isinstance(value,dict) and 'response' in value
+                        and digest(value['response'])==supplement.get('fetched_transaction_hash')
+                        and {k:v for k,v in value.items() if k!='response'}==
+                            {k:v for k,v in supplement.items() if k not in ('observation_id','observation_body_hash')}
+                        and value.get('endpoint_identity')==endpoint and value.get('method')=='getTransaction'
+                        and value.get('commitment')=='finalized' and type(value.get('slot')) is int
+                        and lo<=value['slot']<=hi and type(value.get('transaction_index')) is int
+                        and value['transaction_index']>=0 and type(value.get('original_prefix_length')) is int
+                        and value['original_prefix_length']>=0)
+                    logs=value['response'].get('meta',{}).get('logMessages') if isinstance(value['response'],dict) else None
+                    require(isinstance(logs,list) and value['original_prefix_length']<=len(logs)
+                        and not any(isinstance(line,str) and 'truncat' in line.lower() for line in logs))
+                    bound.append({k:v for k,v in supplement.items() if k!='observation_id'})
+                if supplements:
+                    require(digest(dict(method='getTransactionsForAddress+getTransaction',
+                        archive_page_hash=result.get('archive_page_hash'),archive_log_supplements=bound))
+                        ==result.get('archive_supplemented_page_hash'))
+                supplemented=supplemented or bool(supplements)
+            witness=archive_interval_witness(dict(family=family,address=PROGRAMS[family],lo=lo,hi=hi,pages=pages),scope,lineage,supplemented=supplemented)
+            proof=digest([scope,lo,hi,witness]);consumer=full(proof,family,lo,hi,witness)
+            require(consumer.get('source')=='alchemy_finalized_repair' and points_cover(scope,lo,hi)
+                and life.unconsumed(scope) is None and rolling.missing(family,scope,lo,hi)==[])
+            proofs[family]=proof
+            a=descriptor['tail_lower_slot'];b=descriptor['tail_upper_slot'];origin=descriptor['gap_origins'][family]
+            if a is None:continue
+            missing=rolling.missing(family,scope,a,b);tail_missing=tail_missing or bool(missing)
+            require(len(missing)<=4096)
+            for x,y in missing:
+                rows=db.execute('''SELECT id FROM candidate_gaps INDEXED BY candidate_gap_scope_bounds
+                    WHERE scope=? AND lo>=? AND lo<=? AND (hi IS NULL OR hi>=?) AND created=?
+                    AND reason=? AND repaired IS NULL AND id>=? ORDER BY lo LIMIT 2''',
+                    (scope,origin['lo'],x,y,origin['created'],origin['reason'],origin['id'])).fetchall()
+                require(len(rows)==1)
+            covered=_subtract_intervals(((a,b),),missing)
+            if covered:
+                rows=shared.db.execute('''SELECT id,lo,hi,available,hash FROM work_history_proofs INDEXED BY work_history_proof_scope
+                    WHERE scope=? AND lo<=? AND hi>=? ORDER BY lo,hi LIMIT 4097''',(scope,b,a)).fetchall()
+                require(len(rows)<=4096);published=[]
+                for scheduling,x,y,available,proof in rows:
+                    require(type(x) is int and type(y) is int and 0<=x<=y
+                        and type(available) in (int,float) and math.isfinite(available) and 0<available<=time.time()
+                        and scheduling==digest(dict(scope=scope,lo=x,hi=y,proof_hash=proof)))
+                    consumer=full(proof,family,x,y)
+                    require(points_cover(scope,x,y,consumer['observed_at']));published.append((x,y))
+                require(not _subtract_intervals(covered,published))
+    return dict(reference=reference,descriptor=descriptor,economic_interval_recovered=True,
+        original_queue_acknowledgement_verified=False,original_source_drain_pass=False,
+        callback_completion_demonstrated=False,lower_slot=lo,upper_slot=hi,proof_ids=proofs,
+        economic_tail_continuity_verified=True,economic_tail_recovered=not tail_missing,
+        retained_economic_tail_unavailable=tail_missing)
+
+
+def _session_economic_boundaries(db,current,handlers):
+    """Every appended handler retains its own independently recovered input."""
+    rows=_economic_descriptor_rows(db);body=None if current is None else _retained_census(current)
+    carried=[] if body is None else body.get('session_economic_recovery_references',[])
+    _economic_require(isinstance(carried,list) and len(carried)<=HandlerLedger.maximum_records)
+    references=[dict(observation_id=r[0],sha256=hashlib.sha256(r[3].encode()).hexdigest()) for r in rows]
+    if body is not None and body['state']=='DRAINED':_economic_require(carried==references)
+    elif carried:
+        _economic_require(all(reference in references for reference in carried)
+            and len({r['observation_id'] for r in carried})==len(carried))
+    proofs=[verify_economic_recovery_descriptor(db,reference) for reference in references]
+    live=[] if handlers is None else _retained_handlers(handlers)
+    if proofs:
+        old=_health_from_db(db,HANDLER_RECOVERY_KEY+'_preserved.'+PROGRAM_GAP_HANDLER_SHA256,HandlerLedger.maximum_bytes)
+        _economic_require(isinstance(old,str) and hashlib.sha256(old.encode()).hexdigest()==PROGRAM_GAP_HANDLER_SHA256)
+        expected={(r.get('run'),r.get('id')):r for r in _retained_handlers(old)}
+        for proof in proofs:
+            for row in proof['descriptor']['handler_records']:
+                key=(row.get('run'),row.get('id'))
+                _economic_require(key not in expected or expected[key]==row);expected[key]=row
+        _economic_require(len(live)==len(expected) and all(expected.get((r.get('run'),r.get('id')))==r for r in live))
+    elif len(live)>1:
+        _economic_require(False)
+    summaries=[]
+    for proof in proofs:
+        d=proof['descriptor']
+        summaries.append(dict(reference=proof['reference'],failed_census_sha256=d['failed_census_sha256'],
+            session_sha256=d['session_sha256'],session=d['session'],lower_slot=proof['lower_slot'],
+            upper_slot=proof['upper_slot'],proof_ids=proof['proof_ids'],handler_count=len(d['handler_records']),
+            economic_interval_recovered=True,original_queue_acknowledgement_verified=False,
+            original_source_drain_pass=False,callback_completion_demonstrated=False,
+            retained_economic_tail_lower_slot=d['tail_lower_slot'],retained_economic_tail_upper_slot=d['tail_upper_slot'],
+            retained_economic_tail_unavailable=proof['retained_economic_tail_unavailable'],
+            economic_tail_continuity_verified=True,economic_tail_recovered=proof['economic_tail_recovered']))
+    return dict(session_economic_recovery_verified=True,session_economic_recovery_references=references,
+        session_economic_recoveries=summaries) if references else {}
+
+
 def historical_observation_boundary(state_or_db):
     """Observe one retained incident; never discharge its unknown callbacks.
 
@@ -423,17 +860,20 @@ def historical_observation_boundary(state_or_db):
     if economic_current or archived_economic is not None or economic_retained:
         if not program_gap:raise EvidenceUnavailable('source_observation_economic_replay_unverified')
         economic=_preserved_economic_replay_observation(db,current)
+    sessions=_session_economic_boundaries(db,current,handlers)
+    session_current=any(row['failed_census_sha256']==hashlib.sha256((current or '').encode()).hexdigest()
+        for row in sessions.get('session_economic_recoveries',[]))
     if current is not None:
         body=_retained_census(current)
-        if not preserved_current and not economic_current and (not _observation_reference(body) or body['state']!='DRAINED'
+        if not preserved_current and not economic_current and not session_current and (not _observation_reference(body) or body['state']!='DRAINED'
                 or body['pending_handlers'] or not _committed_census(body)
                 or not _current_observation_identity(body)):
             raise EvidenceUnavailable('source_observation_current_drain_unresolved')
-    elif program_gap or economic:raise EvidenceUnavailable('source_observation_current_drain_unresolved')
+    elif program_gap or economic or sessions:raise EvidenceUnavailable('source_observation_current_drain_unresolved')
     return dict(eligible=True,historical_source_drain_sha256=HISTORICAL_OBSERVATION_SHA256,
         historical_unknown_handlers=2,historical_recovery_verified=False,
-        source_drain_preserved_in_place=True,current_observation_state='PRESERVED_ECONOMIC_REPLAY' if economic_current else 'PRESERVED_PROGRAM_GAP' if preserved_current else 'ABSENT' if current is None else 'DRAINED',
-        current_observation_sha256=None if current is None else hashlib.sha256(current.encode()).hexdigest(),**program_gap,**economic)
+        source_drain_preserved_in_place=True,current_observation_state='PRESERVED_SESSION_ECONOMIC_REPLAY' if session_current else 'PRESERVED_ECONOMIC_REPLAY' if economic_current else 'PRESERVED_PROGRAM_GAP' if preserved_current else 'ABSENT' if current is None else 'DRAINED',
+        current_observation_sha256=None if current is None else hashlib.sha256(current.encode()).hexdigest(),**program_gap,**economic,**sessions)
 
 
 def _require_observation_funding_closed():
@@ -547,7 +987,8 @@ def begin_source_observation(state,boundary,body,*,handler_boundary=None):
             raise EvidenceUnavailable('source_observation_start_census_unverified')
         if previous.get('unreturned_observation_retained'):
             if (not isinstance(handler_boundary,str)
-                    or hashlib.sha256(handler_boundary.encode()).hexdigest()!=PROGRAM_GAP_HANDLER_SHA256):
+                    or hashlib.sha256(handler_boundary.encode()).hexdigest()!=PROGRAM_GAP_HANDLER_SHA256
+                    and previous.get('session_economic_recovery_verified') is not True):
                 raise EvidenceUnavailable('source_observation_program_gap_handler_boundary_required')
             failed=_health_from_db(state.writer.db,OBSERVATION_DRAIN_KEY,SOURCE_DRAIN_BYTES)
             if hashlib.sha256(failed.encode()).hexdigest()==PROGRAM_GAP_OBSERVATION_SHA256:
@@ -557,6 +998,12 @@ def begin_source_observation(state,boundary,body,*,handler_boundary=None):
             failed=_health_from_db(state.writer.db,OBSERVATION_DRAIN_KEY,SOURCE_DRAIN_BYTES)
             if hashlib.sha256(failed.encode()).hexdigest()==ECONOMIC_REPLAY_OBSERVATION_SHA256:
                 _preserve_drain_bytes(state,OBSERVATION_DRAIN_KEY,failed,SOURCE_DRAIN_BYTES)
+        if previous.get('session_economic_recovery_verified'):
+            failed=_retained_health(state,OBSERVATION_DRAIN_KEY,SOURCE_DRAIN_BYTES)
+            if _retained_census(failed)['state']=='RECOVERY_REQUIRED':
+                _preserve_drain_bytes(state,OBSERVATION_DRAIN_KEY,failed,SOURCE_DRAIN_BYTES)
+            _preserve_drain_bytes(state,HANDLER_RECOVERY_KEY,handler_boundary,HandlerLedger.maximum_bytes)
+            current['session_economic_recovery_references']=previous['session_economic_recovery_references']
         state.fence._health(OBSERVATION_DRAIN_KEY,current)
         return _retained_health(state,OBSERVATION_DRAIN_KEY,SOURCE_DRAIN_BYTES)
 
@@ -579,6 +1026,8 @@ def publish_source_drain(state,boundary,body,*,handler_boundary=None,
             if (started['state']!='RUNNING' or not _observation_reference(body)
                     or any(started.get(key)!=body.get(key) for key in ('source_pid','run_identity'))):
                 raise EvidenceUnavailable('source_observation_current_identity_changed')
+            if started.get('session_economic_recovery_references'):
+                body=dict(body,session_economic_recovery_references=started['session_economic_recovery_references'])
             _retained_census(json.dumps(body))
             state.fence._health(OBSERVATION_DRAIN_KEY,body)
             return
