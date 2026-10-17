@@ -6,6 +6,7 @@ FAST=[
  'tests.test_isolated_native_source',
  'tests.test_namespace_runtime',
  'tests.test_namespace_canary',
+ 'tests.test_pons_profile_channel',
  'tests.test_source_ports',
  'tests.test_isolated_native_entry',
  'tests.test_isolated_pons_current',

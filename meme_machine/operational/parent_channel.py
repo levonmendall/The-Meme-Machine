@@ -64,8 +64,12 @@ class ParentChannel:
     response may reach MAX_FRAME, delivered in acknowledged 64-KiB chunks. Native
     buffering remains the original NativeReadBuffer, with one handoff in flight.
     """
-    def __init__(self, http, *, streams=None, native_sources=(), seconds=1800, workers=4,
+    def __init__(self, http, *, streams=None, native_sources=(), pons_profiles=None, seconds=1800, workers=4,
                  attempt_seconds=30):
+        from .pons_native_profile import ParentPonsProfiles
+        _require(pons_profiles is None or type(pons_profiles) is ParentPonsProfiles
+            and pons_profiles._http is http,'pons_profile_parent_owner')
+        self.pons_profiles=pons_profiles
         _require(type(http) is ParentHTTP and type(seconds) in (int, float)
             and 0 < seconds <= 1800 and type(workers) is int and 1 <= workers <= 8
             and workers <= http._workers
@@ -178,6 +182,10 @@ class ParentChannel:
                     reply['bytes'] = len(content.body)
                 if verb == 'poll' and content.kind == 'control' and content.status != 'running':
                     self.contents.pop(token)
+            elif verb=='pons_profile':
+                _require(set(message)=={'session','seq','verb','alias'},'parent_pons_profile_shape')
+                from .pons_native_profile import parent_profile_response
+                reply=dict(profile=parent_profile_response(self.pons_profiles,self.http,self.session,message['alias']))
             elif verb in ('demand', 'activity'):
                 keys = {'session', 'seq', 'verb', 'alias'}
                 if verb == 'demand':

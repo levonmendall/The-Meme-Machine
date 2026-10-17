@@ -145,6 +145,7 @@ class ChildChannel:
             self._native_lock=threading.RLock()
             self._native_opening=0
             self._upload_lock=threading.Lock()
+            self._pons_profiles={}
             descriptors=[]
             for row in hello['streams']:
                 descriptor=_native_descriptor(row,self.sources)
@@ -315,6 +316,18 @@ class ChildChannel:
 
     def native_stream(self, reference):
         return self.native_open(reference)
+
+    def pons_profile(self,source):
+        from .parent_transport import SourceReference
+        from .pons_native_profile import profile_from_parent
+        _require(type(source) is SourceReference and self.sources.get(source.alias) is source
+            and source.family=='robinhood','child_pons_profile_source')
+        with self.lock:
+            if source.alias not in self._pons_profiles:
+                reply=self.request('pons_profile',alias=source.alias)
+                _require(set(reply)=={'profile'},'child_pons_profile_shape')
+                self._pons_profiles[source.alias]=profile_from_parent(self,source,reply['profile'])
+            return self._pons_profiles[source.alias]
 
     def _native_control(self, verb, terminal, *, deadline=None, accepted=None, cancelled=None, **fields):
         end=min(self.deadline,time.monotonic()+8 if deadline is None else deadline)
