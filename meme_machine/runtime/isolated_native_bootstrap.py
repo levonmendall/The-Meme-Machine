@@ -7,6 +7,7 @@ their existing defaults. Kernel/source startup integration remains required.
 """
 from pathlib import Path
 import os
+import stat
 import threading
 import time
 from functools import wraps
@@ -139,6 +140,26 @@ class NativeRunnerPorts:
             feeds[:]=[old for old in feeds if not old._parent_stream.closed]
             feeds.append(feed)
             return feed
+
+    def pump_current_directory(self):
+        """Admit a restart only into this capability's originally created root."""
+        require_runner_ports(self.resources,self)
+        path=self.resources.root/'pump-current'
+        with self._lock:
+            identity=self._stores.get('pump_current_directory')
+            if identity is None:
+                if path.exists() or path.is_symlink():
+                    raise ValueError('isolated_native_current_foreign_directory')
+                path.mkdir(mode=0o700)
+                info=path.lstat()
+                self._stores['pump_current_directory']=(info.st_dev,info.st_ino)
+            else:
+                info=path.lstat()
+                if (not stat.S_ISDIR(info.st_mode) or path.is_symlink()
+                        or (info.st_dev,info.st_ino)!=identity
+                        or info.st_uid!=os.geteuid() or stat.S_IMODE(info.st_mode)!=0o700):
+                    raise ValueError('isolated_native_current_directory_changed')
+            return path
 
     def pump_evidence(self, owner):
         require_resources(self.resources)
@@ -333,11 +354,36 @@ class PumpCurrentContext:
                 or os.environ.get('MM_DIRECTIONAL_COMPOSITE_REQUIRED') != '1'):
             raise ValueError('isolated_native_current_configuration')
         resources.facts.require_fresh('pump', int(resources.clock()))
-        self.report_path.parent.mkdir(mode=0o700)
+        self.ports.pump_current_directory()
+        pipeline_path=self.report_path.with_suffix('.pipeline.sqlite')
+        identity=self.ports._stores.get('pump_current_pipeline_identity')
+        if identity is None:
+            if pipeline_path.exists() or pipeline_path.is_symlink():
+                raise ValueError('isolated_native_current_foreign_pipeline')
+        else:
+            info=pipeline_path.lstat()
+            if (not stat.S_ISREG(info.st_mode) or pipeline_path.is_symlink()
+                    or (info.st_dev,info.st_ino)!=identity):
+                raise ValueError('isolated_native_current_pipeline_changed')
         self.history = resources.candidate_history()
         self.pipeline = None
         self.plane = None
         self.fill_context = None
+
+    def close(self):
+        self.history.close() # Actual owner close is idempotent after normal drain.
+
+    def bind_pipeline(self,pipeline):
+        path=Path(pipeline.db.execute('PRAGMA database_list').fetchone()[2])
+        if path!=self.report_path.with_suffix('.pipeline.sqlite') or path.is_symlink():
+            raise ValueError('isolated_native_current_pipeline_owner')
+        info=path.lstat()
+        identity=(info.st_dev,info.st_ino)
+        prior=self.ports._stores.get('pump_current_pipeline_identity')
+        if prior is not None and prior!=identity:
+            raise ValueError('isolated_native_current_pipeline_changed')
+        self.ports._stores['pump_current_pipeline_identity']=identity
+        self.pipeline=pipeline
 
     def require(self, resources, *, accounting, pipeline, history, fill_context):
         if (self.resources is not resources or self.owner != threading.get_ident()

@@ -226,7 +226,7 @@ class IsolatedNativeBootstrapTests(unittest.IsolatedAsyncioTestCase):
             context=PumpCurrentContext(self.resources,self.ports,
                 report_path=self.resources.root/'pump-current'/'report.json')
         pipeline=Pipeline(context.report_path.with_suffix('.pipeline.sqlite'),'pump',policy_hash())
-        self.addCleanup(pipeline.close);context.pipeline=pipeline
+        self.addCleanup(pipeline.close);context.bind_pipeline(pipeline)
         report=dict(qualifiers=[],attempts=[],full_evidence_candidates=[])
         snapshot=dict(available_time=1000,market_time=1000,slot=11)
         with patch.object(runner,'ISOLATED_CURRENT_CONTEXT',context),patch.object(runner,'ACCOUNTING',None),\
@@ -240,6 +240,23 @@ class IsolatedNativeBootstrapTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(report['funding_denials'][0]['qualification_preserved'])
         self.assertEqual(pipeline.db.execute("SELECT COUNT(*) FROM progress WHERE stage='qualified'").fetchone()[0],1)
         self.assertEqual(context.history.db.execute('SELECT status FROM funding').fetchall(),[('denied',)])
+        self.assert_no_money()
+
+    async def test_actual_pump_current_early_failure_releases_context_owner_and_restarts(self):
+        from meme_machine.lanes.pump import runner
+        configured={'MM_MODE':'PAPER','MM_DIRECTIONAL_COMPOSITE_REQUIRED':'1',
+            'MM_SOLANA_CANDIDATE_HISTORY_DB':str(self.resources.root/'candidate-history.sqlite'),
+            'MM_SOLANA_EVIDENCE_PLANE_DB':str(self.resources.root/'solana-evidence.sqlite'),
+            'MM_SOLANA_EVIDENCE_BROKER_DB':str(self.resources.root/'solana-broker.sqlite')}
+        report=self.resources.root/'pump-current'/'report.json'
+        with patch.dict('os.environ',configured,clear=True),patch.object(runner,'REPORT',report):
+            for _ in range(2):
+                with self.assertRaisesRegex(ValueError,'discovery_runtime_bound'):
+                    await asyncio.to_thread(runner.main,discovery_seconds=1,
+                        native_resources=self.resources,native_ports=self.ports)
+                self.assertFalse(self.resources._candidate_histories)
+                self.assertIsNone(runner.ISOLATED_CURRENT_CONTEXT)
+        self.assertFalse(self.physical.calls)
         self.assert_no_money()
 
     async def test_actual_pump_current_main_owned_startup_and_cancellation_without_book(self):
@@ -267,9 +284,15 @@ class IsolatedNativeBootstrapTests(unittest.IsolatedAsyncioTestCase):
                     patch('meme_machine.lanes.pump.paper_accounting.PaperBook',
                         side_effect=AssertionError('financial constructor reached')), \
                     patch.object(runner,'_restore_observed_pump_candidates',side_effect=cancel_after_actual_restore):
-                with self.assertRaises(stop.Shutdown):
-                    await asyncio.wait_for(asyncio.to_thread(runner.main,discovery_seconds=600,
-                        native_resources=self.resources,native_ports=self.ports),10)
+                inodes=[]
+                for _ in range(2):
+                    stop.requested.clear()
+                    with self.assertRaises(stop.Shutdown):
+                        await asyncio.wait_for(asyncio.to_thread(runner.main,discovery_seconds=600,
+                            native_resources=self.resources,native_ports=self.ports),10)
+                    inodes.append(report.with_suffix('.pipeline.sqlite').stat().st_ino)
+                    self.assertFalse(self.resources._candidate_histories)
+                self.assertEqual(inodes[0],inodes[1])
         finally:
             if prior:stop.requested.set()
             else:stop.requested.clear()
@@ -281,7 +304,7 @@ class IsolatedNativeBootstrapTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(value['accounting']['status'],'UNEXERCISED')
         self.assertEqual(value['accounting_replay']['status'],'UNEXERCISED')
         self.assertFalse(value['financial_authority'])
-        self.assertEqual(completed,[0])
+        self.assertEqual(completed,[0,0])
         self.assertEqual(value['restored_observed_candidates'],0)
         self.assertIn('ended',value)
         self.assertIsNone(runner.ACCOUNTING)

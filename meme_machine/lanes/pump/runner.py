@@ -126,10 +126,15 @@ def _startup_lifecycle(call):
                 return result
         finally:
             _STARTUP_RESOURCES.reset(token)
-            if (native_resources is not None and ISOLATED_CURRENT_CONTEXT is not None
-                    and ISOLATED_CURRENT_CONTEXT.resources is native_resources):
-                ISOLATED_CURRENT_CONTEXT=None
-            scope.close()
+            try:
+                if (native_resources is not None and ISOLATED_CURRENT_CONTEXT is not None
+                        and ISOLATED_CURRENT_CONTEXT.resources is native_resources):
+                    context,ISOLATED_CURRENT_CONTEXT=ISOLATED_CURRENT_CONTEXT,None
+                    # The explicit context precedes ordinary startup argument
+                    # validation; even an early failure must release its owner.
+                    from meme_machine.runtime.sqlite_failure import preserving_cleanup
+                    with preserving_cleanup():context.close()
+            finally:scope.close()
     return owned
 
 
@@ -1527,7 +1532,7 @@ def main(*,campaign=False,discovery_seconds=None,native_resources=None,native_po
         accounting_path=None
         ACCOUNTING=None
     PIPELINE=_startup_work('pump.pipeline_open',Pipeline,REPORT.with_suffix(".pipeline.sqlite"),"pump",actual_policy_hash)
-    if native_resources is not None:ISOLATED_CURRENT_CONTEXT.pipeline=PIPELINE
+    if native_resources is not None:ISOLATED_CURRENT_CONTEXT.bind_pipeline(PIPELINE)
     report=dict(
         kind="pump_acceleration_natural_prospective",
         strategy_id=STRATEGY_ID,policy_hash=actual_policy_hash,
