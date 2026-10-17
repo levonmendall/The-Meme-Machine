@@ -549,11 +549,14 @@ class ParentNativeStream:
                 budget.stream_close(token, transport=transport, unread_possible=True)
             raise
 
-    async def write(self, body):
-        _require(not self.closed and type(body) is bytes and len(body) <= 65536,
+    async def write(self, body, *, deadline=None):
+        maximum=4*1024*1024 if self.transport=='yellowstone' else 65536
+        _require(not self.closed and type(body) is bytes and len(body) <= maximum,
                  'parent_subscription_bound')
         self.validator(body)
         self.budget.admission()
+        if deadline is not None and asyncio.get_running_loop().time()>=deadline:
+            raise TimeoutError('parent_subscription_deadline')
         await self.raw.write(body)
 
     async def read(self):
@@ -706,7 +709,8 @@ def authenticated_native_factory(binding, transport, *, token=None):
         import grpc
         from engineering.solana_capacity.proof_limits import STREAM_HOST
         channel = grpc.aio.secure_channel(STREAM_HOST, grpc.ssl_channel_credentials(), options=(
-            ('grpc.max_receive_message_length', MAX_FRAME), ('grpc.enable_retries', 0),
+            ('grpc.max_receive_message_length', MAX_FRAME),
+            ('grpc.max_send_message_length',4*1024*1024), ('grpc.enable_retries', 0),
             ('grpc.http2.bdp_probe', 0), ('grpc.http2.initial_stream_window_size', MAX_FRAME),
             ('grpc.http2.initial_connection_window_size', MAX_FRAME)))
         call = channel.stream_stream('/geyser.Geyser/Subscribe', request_serializer=lambda v: v,

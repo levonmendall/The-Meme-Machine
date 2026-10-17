@@ -22,6 +22,8 @@ MAX_CONTROL = 384 * 1024
 MAX_REQUEST = 64 * 1024
 MAX_CONTENT = 16 * 1024 * 1024
 CHUNK = 64 * 1024
+UPLOAD_MAX=4*1024*1024
+UPLOAD_CHUNK=32*1024
 TOKEN = re.compile(r'[A-Za-z0-9_-]{43}\Z')
 _NATIVE_ISSUER=object()
 
@@ -117,9 +119,13 @@ class ChildChannel:
         try:
             hello = self._read(self.deadline)
             expected = {'session', 'protocol', 'sources', 'streams', 'chunk_bytes',
-                'response_bytes', 'maximum_messages', 'replay', 'acknowledgements','maximum_streams'}
+                'response_bytes', 'maximum_messages', 'replay', 'acknowledgements','maximum_streams',
+                'upload_bytes','upload_chunk_bytes','upload_slots'}
             _require(type(hello) is dict and set(hello) == expected
-                and hello['protocol'] == 'native-parent-transport-v2'
+                and hello['protocol'] == 'native-parent-transport-v3'
+                and type(hello['upload_bytes']) is int and hello['upload_bytes']==UPLOAD_MAX
+                and type(hello['upload_chunk_bytes']) is int and hello['upload_chunk_bytes']==UPLOAD_CHUNK
+                and type(hello['upload_slots']) is int and hello['upload_slots']==1
                 and type(hello['session']) is str and TOKEN.fullmatch(hello['session'])
                 and hello['chunk_bytes'] == CHUNK and hello['response_bytes'] == MAX_CONTENT
                 and type(hello['maximum_messages']) is int and 0 < hello['maximum_messages'] <= 1_000_000
@@ -138,6 +144,7 @@ class ChildChannel:
             self._native_sources={}
             self._native_lock=threading.RLock()
             self._native_opening=0
+            self._upload_lock=threading.Lock()
             descriptors=[]
             for row in hello['streams']:
                 descriptor=_native_descriptor(row,self.sources)
@@ -180,7 +187,7 @@ class ChildChannel:
 
     def request(self, verb, *, deadline=None, **fields):
         with self.lock:
-            draining=verb in ('poll','read','ack','cancel','native_close','close')
+            draining=verb in ('poll','read','ack','cancel','native_close','close','native_upload_cancel')
             _require(draining or not(self.cancelled is not None and self.cancelled()),
                 'child_transport_stopped')
             try:
@@ -309,13 +316,16 @@ class ChildChannel:
     def native_stream(self, reference):
         return self.native_open(reference)
 
-    def _native_control(self, verb, terminal, **fields):
-        end=min(self.deadline,time.monotonic()+8)
-        reply=self.request(verb,deadline=end,**fields)
+    def _native_control(self, verb, terminal, *, deadline=None, accepted=None, cancelled=None, **fields):
+        end=min(self.deadline,time.monotonic()+8 if deadline is None else deadline)
+        reply=self.request(verb,deadline=end,**fields) if accepted is None else accepted
         token=reply.get('token')
         _require(reply.get('status')=='accepted' and type(token) is str and TOKEN.fullmatch(token),
             'child_native_control_token')
         while True:
+            if cancelled is not None and cancelled():
+                self.request('cancel',token=token,deadline=end)
+                raise ChildTransportFailure('child_native_write_canceled')
             reply=self.request('poll',token=token,deadline=end)
             _require(reply.get('token')==token,'child_native_control_token')
             status=reply.get('status')
@@ -326,6 +336,48 @@ class ChildChannel:
             if status=='failed':_parent_failure(reply)
             _require(status=='running','child_native_control_failed')
             time.sleep(min(.01,self._remaining(end,draining=True)))
+
+    def _native_upload(self,stream,body,cancelled=None):
+        end=min(self.deadline,time.monotonic()+8)
+        _require(self._upload_lock.acquire(timeout=max(0,end-time.monotonic())),
+            'child_upload_capacity_deadline')
+        upload=None
+        committed=False
+        try:
+            _require(cancelled is None or not cancelled(),'child_native_write_canceled')
+            begin=self.request('native_upload_begin',stream=stream,bytes=len(body),
+                sha256=hashlib.sha256(body).hexdigest(),deadline=end)
+            upload=begin.get('upload')
+            _require(set(begin)=={'upload','stream','status','next_offset'}
+                and type(upload) is str and TOKEN.fullmatch(upload)
+                and begin['stream']==stream and begin['status']=='uploading'
+                and type(begin['next_offset']) is int and begin['next_offset']==0,'child_upload_begin')
+            offset=0
+            while offset<len(body):
+                _require(cancelled is None or not cancelled(),'child_native_write_canceled')
+                chunk=body[offset:offset+UPLOAD_CHUNK]
+                reply=self.request('native_upload_chunk',upload=upload,stream=stream,offset=offset,
+                    body_b64=base64.b64encode(chunk).decode(),deadline=end)
+                offset+=len(chunk)
+                _require(set(reply)=={'upload','stream','status','next_offset'}
+                    and reply['upload']==upload and reply['stream']==stream
+                    and reply['status']=='uploading' and type(reply['next_offset']) is int
+                    and reply['next_offset']==offset,'child_upload_chunk')
+            _require(cancelled is None or not cancelled(),'child_native_write_canceled')
+            accepted=self.request('native_upload_commit',upload=upload,stream=stream,deadline=end)
+            committed=True
+            return self._native_control(None,'written',deadline=end,accepted=accepted,cancelled=cancelled)
+        except BaseException as error:
+            if upload is not None and not committed and not self.closed:
+                try:self.request('native_upload_cancel',upload=upload,stream=stream,deadline=end)
+                except BaseException:self.abort()
+            elif committed and not self.closed and not isinstance(error,ChildParentFailure) \
+                    and str(error)!='child_native_write_canceled':
+                # A terminal parent failure has already joined stream cleanup;
+                # any ambiguous commit/poll instead closes the sole capability.
+                self.abort()
+            raise
+        finally:self._upload_lock.release()
 
     def abort(self):
         self.closed = True
@@ -416,16 +468,28 @@ class ChildNativeStream:
             raise
 
     def write(self,body):
+        return self._write(body,None)
+
+    def _write(self,body,cancelled):
         with self._state_lock:
             require_native_stream(self)
-            _require(not self.observation_only and type(body) is bytes and len(body)<=32768,
+            maximum=UPLOAD_MAX if self.transport=='yellowstone' else 32768
+            _require(not self.observation_only and type(body) is bytes and len(body)<=maximum,
                 'child_native_write')
-            reply=self.channel._native_control('native_write','written',stream=self.stream,
-                body_b64=base64.b64encode(body).decode())
+            if self.transport=='yellowstone':reply=self.channel._native_upload(self.stream,body,cancelled)
+            else:
+                reply=self.channel._native_control('native_write','written',stream=self.stream,
+                    body_b64=base64.b64encode(body).decode())
             _require(reply['stream']==self.stream,'child_native_stream_identity')
 
     async def write_async(self,body):
-        await asyncio.to_thread(self.write,body)
+        canceled=threading.Event()
+        task=asyncio.create_task(asyncio.to_thread(self._write,body,canceled.is_set))
+        try:await asyncio.shield(task)
+        except asyncio.CancelledError:
+            canceled.set()
+            await asyncio.gather(task,return_exceptions=True)
+            raise
 
     def close(self):
         with self._state_lock:

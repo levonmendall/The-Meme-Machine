@@ -13,6 +13,7 @@ FAST=[
  'tests.test_parent_sequencer_clock',
  'tests.test_isolated_rpc_ports',
  'tests.test_child_transport',
+ 'tests.test_native_subscription_upload',
  'tests.test_isolated_native_execution',
  'tests.test_isolated_native_admission',
  'tests.test_isolated_native_resources',

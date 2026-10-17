@@ -9,6 +9,7 @@ import base64
 from dataclasses import dataclass
 import hashlib
 import json
+import re
 import secrets
 
 from .bounded_provider import MAX_FRAME
@@ -20,6 +21,22 @@ from .transport_bridge import (
 
 CHUNK = 64 * 1024
 MAX_MESSAGES = 1_000_000
+UPLOAD_MAX = 4 * 1024 * 1024
+UPLOAD_CHUNK = 32 * 1024
+
+
+@dataclass
+class _Upload:
+    token: str
+    stream_id: str
+    size: int
+    sha256: str
+    deadline: float
+    data: object
+    digest: object
+    offset: int = 0
+    timer: object = None
+    committed: bool = False
 
 
 @dataclass
@@ -85,13 +102,15 @@ class ParentChannel:
         self.closed = False
         self.stopped = asyncio.Event()
         self._closing = None
+        self._upload = None
 
     def hello(self):
-        return dict(session=self.session, protocol='native-parent-transport-v2',
+        return dict(session=self.session, protocol='native-parent-transport-v3',
             sources=[s.receipt() for s in self.http.sources.values()],
             streams=self._initial_streams+[s.receipt() for s in self.native_sources.values()],
             maximum_streams=self.max_streams,
             chunk_bytes=CHUNK, response_bytes=MAX_FRAME,
+            upload_bytes=UPLOAD_MAX, upload_chunk_bytes=UPLOAD_CHUNK, upload_slots=1,
             maximum_messages=MAX_MESSAGES, replay='most_recent_only',
             acknowledgements='transport_memory_only; native owners retain source FULL/ACK')
 
@@ -149,6 +168,10 @@ class ParentChannel:
                         await asyncio.gather(content.task, return_exceptions=True)
                     if content.stream is not None:
                         await content.stream.aclose()
+                    if (self._upload is not None and self._upload.committed
+                            and self._upload.stream_id==content.stream_id):
+                        self._discard_upload(self._upload)
+                        self._native_busy.discard(content.stream_id)
                     self.contents.pop(token)
                     self.stream_contents.pop(token, None)
                 if content.body is not None:
@@ -169,6 +192,8 @@ class ParentChannel:
                     reply = dict(status='demand_committed')
                 else:
                     reply = dict(activity_marker=await self.http.activity_marker(message['alias']))
+            elif verb in ('native_upload_begin','native_upload_chunk','native_upload_commit','native_upload_cancel'):
+                reply=self._upload_message(message)
             elif verb in ('native_open', 'native_close', 'native_write'):
                 keys = {'session', 'seq', 'verb', 'alias' if verb=='native_open' else 'stream'}
                 if verb == 'native_write':
@@ -192,6 +217,8 @@ class ParentChannel:
                     alias=self.stream_aliases[handle]
                 body = None
                 if verb == 'native_write':
+                    _require(self.streams[handle].transport=='solana_websocket',
+                        'parent_native_write_transport')
                     _require(type(message['body_b64']) is str, 'parent_native_write_shape')
                     try:
                         body = base64.b64decode(message['body_b64'], validate=True)
@@ -236,7 +263,82 @@ class ParentChannel:
             # caller must close, never retry it under a replacement sequence.
             self.closed = True
             self.stopped.set()
+            self._discard_upload(self._upload)
             raise
+
+    def _discard_upload(self,upload):
+        if upload is None:return
+        upload.data=None
+        if upload.timer is not None and upload.timer is not asyncio.current_task():
+            upload.timer.cancel()
+        if not upload.committed:self._native_busy.discard(upload.stream_id)
+        if self._upload is upload:self._upload=None
+
+    async def _expire_upload(self,upload):
+        await asyncio.sleep(max(0,upload.deadline-asyncio.get_running_loop().time()))
+        if self._upload is upload and not upload.committed:
+            self._discard_upload(upload)
+            self.closed=True
+            self.stopped.set()
+
+    def _upload_message(self,message):
+        verb=message['verb']
+        keys={'session','seq','verb','stream'}
+        keys.update({'bytes','sha256'} if verb=='native_upload_begin' else {'upload'})
+        if verb=='native_upload_chunk':keys.update({'offset','body_b64'})
+        handle=message.get('stream')
+        _require(set(message)==keys and type(handle) is str and handle in self.streams,
+            'parent_upload_shape')
+        stream=self.streams[handle]
+        _require(not stream.closed and stream.transport=='yellowstone','parent_upload_stream')
+        now=asyncio.get_running_loop().time()
+        if verb=='native_upload_begin':
+            size,digest=message['bytes'],message['sha256']
+            _require(self._upload is None and handle not in self._native_busy
+                and len(self.contents)<self.max_operations
+                and type(size) is int and 0<=size<=UPLOAD_MAX
+                and type(digest) is str and re.fullmatch('[0-9a-f]{64}',digest) is not None,
+                'parent_upload_capacity')
+            self.http.budget.admission()
+            # Independent fixed memory bound; never a new provider allowance,
+            # native stream reservation or accounting receipt. One slot remains
+            # owned through the joined SDK write, including its transient copy.
+            upload=_Upload(secrets.token_urlsafe(32),handle,size,digest,
+                min(self.deadline,now+8),bytearray(size),hashlib.sha256())
+            self._upload=upload
+            self._native_busy.add(handle)
+            upload.timer=asyncio.create_task(self._expire_upload(upload))
+            return dict(upload=upload.token,stream=handle,status='uploading',next_offset=0)
+        upload=self._upload
+        _require(upload is not None and not upload.committed
+            and message['upload']==upload.token and handle==upload.stream_id
+            and now<upload.deadline,'parent_upload_identity')
+        if verb=='native_upload_cancel':
+            self._discard_upload(upload)
+            return dict(upload=upload.token,stream=handle,status='canceled')
+        if verb=='native_upload_chunk':
+            offset,encoded=message['offset'],message['body_b64']
+            _require(type(offset) is int and offset==upload.offset and type(encoded) is str
+                and 0<len(encoded)<=4*((UPLOAD_CHUNK+2)//3),'parent_upload_chunk')
+            try:body=base64.b64decode(encoded,validate=True)
+            except ValueError:raise BridgeRejected('parent_upload_encoding') from None
+            _require(0<len(body)<=UPLOAD_CHUNK and offset+len(body)<=upload.size
+                and base64.b64encode(body).decode()==encoded,'parent_upload_chunk')
+            upload.data[offset:offset+len(body)]=body
+            upload.digest.update(body)
+            upload.offset+=len(body)
+            return dict(upload=upload.token,stream=handle,status='uploading',next_offset=upload.offset)
+        _require(upload.offset==upload.size and upload.digest.hexdigest()==upload.sha256,
+            'parent_upload_digest')
+        body=bytes(upload.data)
+        upload.data=None
+        upload.committed=True
+        upload.timer.cancel()
+        token=secrets.token_urlsafe(32)
+        content=_Content(None,'control',alias=self.stream_aliases[handle],stream=stream,stream_id=handle)
+        self.contents[token]=content
+        content.task=asyncio.create_task(self._native_control(content,content.alias,'native_write',body,upload=upload))
+        return dict(token=token,status='accepted')
 
     def _begin(self, message):
         _require(type(message['alias']) is str and message['alias'] in self.http.sources,
@@ -323,9 +425,10 @@ class ParentChannel:
                     # this very cleanup as if the operation were already done.
                     content.status = 'failed'
 
-    async def _native_control(self, content, alias, verb, body):
+    async def _native_control(self, content, alias, verb, body, *, upload=None):
         try:
-            async with asyncio.timeout_at(min(self.deadline, asyncio.get_running_loop().time()+8)):
+            async with asyncio.timeout_at(min(self.deadline,upload.deadline if upload is not None
+                    else asyncio.get_running_loop().time()+8)):
                 if verb == 'native_open':
                     content.stream=await self.native_sources[alias].open(self.http.budget)
                     self.streams[content.stream_id]=content.stream
@@ -340,19 +443,32 @@ class ParentChannel:
                             other.status='canceled'
                     content.status = 'closed'
                 else:
-                    await content.stream.write(body)
+                    await content.stream.write(body,deadline=upload.deadline if upload is not None else None)
                     content.status = 'written'
         except asyncio.CancelledError:
+            if upload is not None:await self._failed_upload_cleanup(content)
             content.status = 'canceled'
         except BaseException as error:
-            content.status = 'failed'
             content.boundary = _native_boundary(error)
+            if upload is not None:await self._failed_upload_cleanup(content)
+            content.status = 'failed'
             if content.boundary is None:
                 self.closed = True
                 self.stopped.set()
         finally:
+            if upload is not None:self._discard_upload(upload)
             self._native_busy.discard(content.stream_id)
             self._opening.discard(content.stream_id)
+
+    async def _failed_upload_cleanup(self,content):
+        # Failed/ambiguous SDK writes never publish terminal status before the
+        # original stream's unread uncertainty and physical cleanup are joined.
+        try:await content.stream.aclose()
+        except BaseException:
+            content.status='accounting_failed'
+            self.closed=True
+            self.stopped.set()
+            raise
 
     def _read(self, content, offset):
         _require(type(offset) is int and offset == content.offset
@@ -396,6 +512,7 @@ class ParentChannel:
     async def _close(self):
         self.closed = True
         self.stopped.set()
+        self._discard_upload(self._upload)
         tasks = [c.task for c in self.contents.values() if c.task is not None]
         for task in tasks:
             if not task.done():
@@ -406,6 +523,8 @@ class ParentChannel:
         try:
             await self.http.aclose()
         finally:
+            self._native_busy.clear()
+            self._opening.clear()
             for content in self.contents.values():
                 content.body, content.pending = None, None
         if any(isinstance(r, BaseException) for r in results):
