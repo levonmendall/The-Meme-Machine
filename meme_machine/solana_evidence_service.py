@@ -948,13 +948,18 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None,
         failures=[]
         # Source tasks/accepted delivery are drained by _serve_owned first.
         # Every constructed resource is attempted even if another close fails.
-        for name in ('owner','delivery','history','decoder'):
+        for name in ('owner','delivery','history','decoder','checkpoint'):
             worker=workers.get(name)
             if worker is None:continue
             try:
-                if name in ('delivery','decoder'):
+                if name in ('delivery','decoder','checkpoint'):
                     await asyncio.to_thread(worker.shutdown,wait=True,cancel_futures=True)
                 else:await asyncio.to_thread(worker.close)
+            except BaseException as exc:failures.append(exc)
+        commands=workers.get('commands')
+        if commands is not None and not failures:
+            ports,generation=commands
+            try:ports._source_commands_retire(generation)
             except BaseException as exc:failures.append(exc)
         if failures:raise failures[0]
 
@@ -1002,9 +1007,13 @@ async def _serve_owned(path,endpoint,*,repair_rpc=None,stop=None,source_driver=N
     _workers['owner']=owner
     pending_commands=PendingCommands(owner)
     await asyncio.wrap_future(owner.ready)
-    pool_options=dict(max_workers=STREAM_DECODE_WORKERS,mp_context=multiprocessing.get_context('spawn'))
-    if initializer is not None:pool_options['initializer']=initializer
-    decoder_pool=ProcessPoolExecutor(**pool_options)
+    if native_resources is not None:
+        from .runtime.isolated_native_executor import IsolatedSpawnExecutor
+        decoder_pool=IsolatedSpawnExecutor(max_workers=STREAM_DECODE_WORKERS,
+            initializer=initializer,role='decoder')
+    else:
+        decoder_pool=ProcessPoolExecutor(max_workers=STREAM_DECODE_WORKERS,
+            mp_context=multiprocessing.get_context('spawn'))
     _workers['decoder']=decoder_pool
     await asyncio.gather(*(asyncio.wrap_future(decoder_pool.submit(source_decoder_probe))
                            for _ in range(STREAM_DECODE_WORKERS)))
@@ -1012,6 +1021,11 @@ async def _serve_owned(path,endpoint,*,repair_rpc=None,stop=None,source_driver=N
     historical_executor=((HistoryExecutor() if native_resources is None else
         HistoryExecutor(native_resources=native_resources)) if separated_history() else None)
     if historical_executor is not None:_workers['history']=historical_executor
+    checkpoint_executor=None
+    if native_resources is not None:
+        checkpoint_executor=ThreadPoolExecutor(max_workers=1,
+            thread_name_prefix='isolated-canonical-checkpoint',initializer=initializer)
+        _workers['checkpoint']=checkpoint_executor
     delivery_options=dict(max_workers=1,thread_name_prefix='candidate-history')
     if initializer is not None:delivery_options['initializer']=initializer
     delivery_executor=ThreadPoolExecutor(**delivery_options) if historical_executor is not None else None
@@ -1076,7 +1090,8 @@ async def _serve_owned(path,endpoint,*,repair_rpc=None,stop=None,source_driver=N
             wrapped.add_done_callback(lambda f:f.exception() if not f.cancelled() else None)
             raise
         return value
-    stop=stop or asyncio.Event();socket_path=str(path)+'.sock';Path(socket_path).unlink(missing_ok=True)
+    stop=stop or asyncio.Event();socket_path=str(path)+'.sock'
+    if native_resources is None:Path(socket_path).unlink(missing_ok=True)
     clients=set()
     from .solana_owner_admission import OwnerAdmission,SourceState
     admission=OwnerAdmission(owner,clock=time.monotonic)
@@ -1128,11 +1143,15 @@ async def _serve_owned(path,endpoint,*,repair_rpc=None,stop=None,source_driver=N
                 except (OSError,TimeoutError,RuntimeError):pass
                 clients.discard(task)
 
-    server=None;tasks=[]
+    server=None;command_generation=None;tasks=[]
     storage_ready=asyncio.Event()
     try:
-        server=await asyncio.start_unix_server(consumer,path=socket_path,limit=MAX_COMMAND_BYTES+1,backlog=32)
-        os.chmod(socket_path,0o600)
+        if native_resources is not None:
+            command_generation=native_ports._source_commands_start(consumer)
+            _workers['commands']=(native_ports,command_generation)
+        else:
+            server=await asyncio.start_unix_server(consumer,path=socket_path,limit=MAX_COMMAND_BYTES+1,backlog=32)
+            os.chmod(socket_path,0o600)
         async def health():
             # Health publication has its own single outstanding owner request.
             # Its scheduler wait must not idle a completed archive worker.
@@ -1240,7 +1259,11 @@ async def _serve_owned(path,endpoint,*,repair_rpc=None,stop=None,source_driver=N
             while not stop.is_set():
                 started=time.monotonic()
                 ticket=await work(lambda state:owner.checkpoint_ticket_after_current(),2,label='checkpoint_prepare')
-                pending=asyncio.create_task(asyncio.to_thread(EvidenceWriter.checkpoint,path))
+                if checkpoint_executor is None:
+                    pending=asyncio.create_task(asyncio.to_thread(EvidenceWriter.checkpoint,path))
+                else:
+                    from .solana_checkpoint import checkpoint_bulk
+                    pending=asyncio.create_task(checkpoint_bulk(path,executor=checkpoint_executor))
                 try:result=await asyncio.shield(pending)
                 except asyncio.CancelledError:
                     await pending
@@ -1280,7 +1303,10 @@ async def _serve_owned(path,endpoint,*,repair_rpc=None,stop=None,source_driver=N
                             # releases the boundary and preserves their snapshots.
                             from .solana_checkpoint import reclaim_at_boundary
                             boundary_started=time.monotonic()
-                            final=await reclaim_at_boundary(owner,path)
+                            if checkpoint_executor is None:
+                                final=await reclaim_at_boundary(owner,path)
+                            else:
+                                final=await reclaim_at_boundary(owner,path,executor=checkpoint_executor)
                             boundary_us=int((time.monotonic()-boundary_started)*1_000_000)
                             counts['checkpoint.boundary_calls']=counts.get('checkpoint.boundary_calls',0)+1
                             counts['checkpoint.boundary_total_microseconds']=counts.get('checkpoint.boundary_total_microseconds',0)+boundary_us
@@ -1353,6 +1379,8 @@ async def _serve_owned(path,endpoint,*,repair_rpc=None,stop=None,source_driver=N
         except BaseException as exc:cleanup_failures.append(exc)
         try:
             if server:server.close();await server.wait_closed()
+            if command_generation is not None:
+                await native_ports._source_commands_close(command_generation)
         except BaseException as exc:cleanup_failures.append(exc)
         for task in tasks:task.cancel()
         try:await asyncio.gather(*tasks,return_exceptions=True)
@@ -1376,6 +1404,7 @@ async def _serve_owned(path,endpoint,*,repair_rpc=None,stop=None,source_driver=N
             scheduler['owner_admission']=admission.telemetry()
             await work(lambda state:state.fence.health('owner_scheduler',scheduler),0)
         except BaseException as exc:cleanup_failures.append(exc)
-        try:Path(socket_path).unlink(missing_ok=True)
+        try:
+            if native_resources is None:Path(socket_path).unlink(missing_ok=True)
         except BaseException as exc:cleanup_failures.append(exc)
         if cleanup_failures:raise cleanup_failures[0]

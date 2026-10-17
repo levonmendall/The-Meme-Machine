@@ -55,10 +55,11 @@ class IsolatedNativeBootstrapTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(list(self.resources.root.rglob('*paper.sqlite*')))
         self.assertFalse(list(self.resources.root.rglob('native-genesis.json')))
 
-    def pump_source(self):
-        # Real private evidence schema only; no invented source/proof/health.
-        writer=EvidenceWriter(self.resources.root/'solana-evidence.sqlite',clock=lambda:1000)
-        writer.close()
+    async def pump_source(self):
+        # Constructors now require the actual owned command generation as well
+        # as the private DB. No positive financial/coverage flag is supplied.
+        from tests.isolated_native_control_fixture import start_command_source
+        return await start_command_source(self)
 
     def worker(self,lane):
         if lane=='pump':
@@ -76,7 +77,7 @@ class IsolatedNativeBootstrapTests(unittest.IsolatedAsyncioTestCase):
         return Worker(factory,enrichment_enabled=False,native_resources=self.resources)
 
     async def test_actual_pump_survivor_native_worker_bookless_prime_and_close(self):
-        self.pump_source()
+        await self.pump_source()
         with patch('meme_machine.lanes.pump.pumpswap_survivor_runtime.PaperBook',
                 side_effect=AssertionError('financial constructor reached')):
             worker=self.worker('pump')
@@ -154,7 +155,7 @@ class IsolatedNativeBootstrapTests(unittest.IsolatedAsyncioTestCase):
         self.assert_no_money()
 
     async def test_same_owned_history_restarts_actual_native_runtime_without_book_replay(self):
-        self.pump_source()
+        await self.pump_source()
         worker=self.worker('pump')
         await asyncio.to_thread(worker.prime)
         await asyncio.to_thread(worker.close)
@@ -180,7 +181,7 @@ class IsolatedNativeBootstrapTests(unittest.IsolatedAsyncioTestCase):
         self.assert_no_money()
 
     async def test_stale_sizing_stops_native_step_before_provider_or_fake_funding(self):
-        self.pump_source()
+        await self.pump_source()
         worker=self.worker('pump')
         await asyncio.to_thread(worker.prime)
         self.now[0]=1006
@@ -192,7 +193,7 @@ class IsolatedNativeBootstrapTests(unittest.IsolatedAsyncioTestCase):
         self.assert_no_money()
 
     async def test_unexpected_native_position_marker_is_preserved_and_blocks_before_provider(self):
-        self.pump_source()
+        await self.pump_source()
         worker=self.worker('pump')
         await asyncio.to_thread(worker.prime)
         def retain_marker():
@@ -264,7 +265,7 @@ class IsolatedNativeBootstrapTests(unittest.IsolatedAsyncioTestCase):
         self.physical.body=json.dumps(dict(jsonrpc='2.0',id=1,result=GENESIS)).encode()
         from meme_machine.lanes.pump import runner
         from meme_machine.runtime import stop
-        self.pump_source()
+        await self.pump_source()
         report=self.resources.root/'pump-current'/'report.json'
         configured={'MM_MODE':'PAPER','MM_DIRECTIONAL_COMPOSITE_REQUIRED':'1',
             'MM_SOLANA_CANDIDATE_HISTORY_DB':str(self.resources.root/'candidate-history.sqlite'),

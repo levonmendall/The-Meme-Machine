@@ -192,9 +192,38 @@ class NativeRunnerPorts:
                 raise ValueError('isolated_native_evidence_symlink')
         if not path.is_file():
             raise ValueError('isolated_native_source_owner_not_started')
+        self.require_source_commands_ready()
         from meme_machine.lanes.pump.solana_evidence_runtime import RuntimeEvidence
         return RuntimeEvidence(path, owner=owner, clock=self.resources.clock,
             native_resources=self.resources,native_ports=self)
+
+    def _source_command_hub(self, *, create=False):
+        require_runner_ports(self.resources,self)
+        with self._lock:
+            hub=self._stores.get('source_commands')
+            if hub is None and create:
+                from .isolated_native_control import NativeCommandHub
+                hub=NativeCommandHub(self.resources,self)
+                self._stores['source_commands']=hub
+        if hub is None:
+            raise ValueError('isolated_native_command_source_not_started')
+        return hub
+
+    def require_source_commands_ready(self):
+        """Exact source generation, never financial or coverage readiness."""
+        return self._source_command_hub().ready()
+
+    def _source_command_connector(self, owner):
+        return self._source_command_hub().connector(owner)
+
+    def _source_commands_start(self, consumer):
+        return self._source_command_hub(create=True).start(consumer)
+
+    async def _source_commands_close(self, generation):
+        await self._source_command_hub().close(generation)
+
+    def _source_commands_retire(self, generation):
+        self._source_command_hub().retire(generation)
 
     def close(self):
         # The bootstrap joins all actual native workers before releasing ports.
@@ -202,6 +231,9 @@ class NativeRunnerPorts:
         with self._lock:
             if self.closed:
                 return
+            hub=self._stores.get('source_commands')
+            if hub is not None:
+                hub.require_retired()
             for name, value in self._stores.items():
                 if name == 'pons_feeds':
                     for feed in value:

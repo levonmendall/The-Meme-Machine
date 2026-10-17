@@ -22,6 +22,7 @@ class BaseRuntimeEvidence:
     def __init__(self,path=None,*,owner,clock=time.time,command=None,
                  native_resources=None,native_ports=None):
         self.native_resources=None;self.native_endpoint_identity=None
+        self._native_commands=None
         if native_resources is not None:
             from meme_machine.runtime.isolated_native_bootstrap import require_runner_ports
             ports=require_runner_ports(native_resources,native_ports)
@@ -35,6 +36,7 @@ class BaseRuntimeEvidence:
             self.native_resources=native_resources
             self.native_endpoint_identity=ports.rpc_port('pump',
                 'survivor' if owner=='pump:survivor' else 'current').source.endpoint_identity
+            self._native_commands=ports._source_command_connector(owner)
         elif native_ports is not None:
             raise EvidenceUnavailable('isolated_native_resources_required')
         path=path or os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')
@@ -70,9 +72,11 @@ class BaseRuntimeEvidence:
             remaining=end-time.monotonic()
             if remaining<=0:break
             try:
-                with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as stream:
+                with (self._native_commands.connect() if self._native_commands is not None
+                        else socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)) as stream:
                     stream.settimeout(min(ATTEMPT_SECONDS,remaining))
-                    stream.connect(str(self.path)+'.sock');stream.sendall(data)
+                    if self._native_commands is None:stream.connect(str(self.path)+'.sock')
+                    stream.sendall(data)
                     with stream.makefile('rb') as source:reply=source.readline(32769)
                 if len(reply)>32768:raise ValueError('reply_bound')
                 result=json.loads(reply)
