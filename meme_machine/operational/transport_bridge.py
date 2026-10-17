@@ -53,8 +53,10 @@ def _unique(pairs):
     return result
 
 
-def _constant(_):
-    raise BridgeRejected('nonfinite_number')
+def _noninteger_number(_):
+    # parse_constant alone misses exponent overflow (1e999 -> float('inf')).
+    # Wire parameters are integer-only; reject floats before canonical hashing.
+    raise BridgeRejected('noninteger_number')
 
 
 def encode_frame(value):
@@ -69,7 +71,8 @@ def decode_request(frame):
     _require(0 < size <= MAX_REQUEST and len(frame) == size + 4, 'frame_length')
     try:
         value = json.loads(frame[4:].decode('utf-8'), object_pairs_hook=_unique,
-                           parse_constant=_constant)
+                           parse_constant=_noninteger_number,
+                           parse_float=_noninteger_number)
     except (UnicodeError, ValueError, RecursionError):
         raise BridgeRejected('invalid_json') from None
     _require(type(value) is dict, 'message_shape')
@@ -261,7 +264,10 @@ class Session:
             message = decode_request(frame)
             seq = message.get('seq')
             _require(type(seq) is int and 1 <= seq <= MAX_MESSAGES, 'sequence')
-            identity = hashlib.sha256(_json(message)).digest()
+            try:
+                identity = hashlib.sha256(_json(message)).digest()
+            except (ValueError, RecursionError, OverflowError):
+                raise BridgeRejected('invalid_json') from None
             if seq in self._replies:
                 old_identity, reply = self._replies[seq]
                 _require(identity == old_identity, 'altered_replay')

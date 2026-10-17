@@ -159,6 +159,26 @@ class TransportBridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(state['http_reserved'], '0')
         self.assertEqual(state['http_uncertain_bytes'], str(MAX_FRAME))
 
+    async def test_exponent_overflow_rejects_and_cleans_actual_inflight_attempt(self):
+        self.adapter.gate.clear()
+        token = self.dispatch(self.begin())['token']
+        await self.adapter.entered.wait()
+        message = self.begin(calls=[dict(method='getSlot', params=['EXPONENT'])])
+        raw = json.dumps(message).replace('"EXPONENT"', '1e999').encode('ascii')
+        with self.assertRaisesRegex(BridgeRejected, '^invalid_json$'):
+            self.session.dispatch(struct.pack('!I', len(raw)) + raw)
+        self.assertTrue(self.session.closed)
+        await self.session.aclose()
+        self.assertEqual(len(self.adapter.calls), 1)
+        self.assertEqual(self.adapter.releases, [(token, True)])
+        self.assertEqual(self.session._states[token].status, 'canceled')
+        self.assertIsNone(self.session._states[token].body)
+        state = Budget(self.budget.path).snapshot()
+        self.assertEqual(state['http_attempts'], '1')
+        self.assertEqual(state['http_bytes'], '0')
+        self.assertEqual(state['http_reserved'], '0')
+        self.assertEqual(state['http_uncertain_bytes'], str(MAX_FRAME))
+
     async def test_cancel_before_execution_still_runs_cleanup_without_reserving(self):
         token = self.dispatch(self.begin())['token']
         self.dispatch(self.message('cancel', token=token))
@@ -421,6 +441,8 @@ class FramingTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_truncation_coalescing_duplicate_keys_nonfinite_and_deep_json_rejected(self):
         bodies = [b'{"seq":1,"seq":2}', b'{"seq":NaN}', b'[' * 1000 + b']' * 1000,
+                  b'{"seq":1,"params":[1e999]}', b'{"seq":1,"params":[1.25]}',
+                  b'{"seq":1,"params":[1e-999]}',
                   b'\xff', b'[]']
         for body in bodies:
             with self.subTest(body=body[:30]), self.assertRaises(BridgeRejected):
