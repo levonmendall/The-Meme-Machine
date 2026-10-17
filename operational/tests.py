@@ -11,6 +11,7 @@ FAST=[
  'tests.test_buffered_gap_origin_geometry',
  'tests.test_buffered_prejoin_recovery',
  'tests.test_startup_archive_read_reuse',
+ 'tests.test_isolated_market_observer',
  'tests.test_source_pool_cooperative_stop',
  'tests.test_preparation_failed_recovery',
  'tests.test_archive_full_log_content',
