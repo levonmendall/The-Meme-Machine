@@ -247,8 +247,11 @@ class _NitroFixture:
             if self.stopped.is_set():return
             next_frame=self.corpus.next_frame()
             if next_frame is None:return
-            sequence,header=next_frame
-            value=dict(version=1,messages=[dict(sequenceNumber=sequence,signatureV2='SYNTHETIC_NOT_A_SIGNATURE',
+            _,header=next_frame
+            # Native discovery uses the Nitro L2 sequence as its block cursor.
+            # Each half-second pair repeats the same complete logical message;
+            # the internal frame bound must never become a different block ID.
+            value=dict(version=1,messages=[dict(sequenceNumber=int(header['number'],16),signatureV2='SYNTHETIC_NOT_A_SIGNATURE',
                 message=dict(message=dict(header=dict(kind=3,sender='0x0',blockNumber=int(header['number'],16),
                     timestamp=int(header['timestamp'],16)),l2Msg='AA==')))])
             body=_encoded(value)

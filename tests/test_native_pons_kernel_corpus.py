@@ -1,10 +1,12 @@
 """Synthetic wire shapes pass unchanged native preparation, never a market proof."""
 from collections import Counter
+import asyncio
 import json
 from pathlib import Path
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 from meme_machine.lanes.pons.identity import metadata
 from meme_machine.lanes.pons.pons_historical import Preparation,FORWARD_PLAN
@@ -218,10 +220,49 @@ class NativePonsNitroWireTests(unittest.IsolatedAsyncioTestCase):
         try:
             _,raw=await second.read()
             later=json.loads(raw)['messages'][0]
-            self.assertGreater(later['sequenceNumber'],initial['sequenceNumber'])
+            self.assertGreaterEqual(later['sequenceNumber'],initial['sequenceNumber'])
+            self.assertEqual(later,initial) # The next half-second frame is an exact duplicate.
             self.assertEqual(corpus.header(200),initial_header)
         finally:await second.aclose()
         self.assertEqual(corpus.counters()['streams_closed'],2)
+
+    async def test_original_clock_start_and_cohort_poll_reach_economic_nomination(self):
+        from meme_machine.lanes.pons import pons_selective_cohort as cohort
+        from meme_machine.lanes.pons.pons_natural_observation import MarketScout
+        from meme_machine.lanes.pons.pons_selective_continuation import POLICY_HASH as CURRENT_HASH
+        from meme_machine.lanes.pons.sequencer_feed import SequencerBlockClock
+        from meme_machine.runtime.robinhood.pons import Broker
+        corpus=PonsKernelCorpus(int(time.time())-1,economic=True);rpc=_NativeWireRPC(corpus)
+        stream=await corpus.open()
+        clock=SequencerBlockClock('wss://feed.mainnet.chain.robinhood.com',timeout=.2)
+        # Supply the genuine offline socketpair-backed WebSocket parser, never
+        # a fabricated clock result or parent port. No handshake/network opens.
+        clock.client=stream.client
+        try:
+            with patch.object(cohort,'_discovery',return_value=rpc):
+                _,anchor,_=await asyncio.to_thread(cohort._start_observation,'synthetic-wire',clock)
+            self.assertEqual(anchor,corpus.current_block)
+            self.assertEqual(anchor,clock.state.latest_header_block_number)
+            with tempfile.TemporaryDirectory() as temporary:
+                broker=Broker(Path(temporary)/'pons.sqlite',CURRENT_HASH,source='synthetic-wire')
+                try:
+                    scout=MarketScout(broker.plane)
+                    def nominate(event,observed):broker.enqueue(event,now=observed,needs_work=True)
+                    _,cursor,events=await asyncio.to_thread(cohort._poll,'synthetic-wire',rpc,
+                        anchor-1,[],clock,[],scout=scout,nominate=nominate)
+                    self.assertGreaterEqual(cursor,anchor)
+                    self.assertTrue(any(e['address']==corpus.current_curve for e in events))
+                    self.assertEqual(broker.plane.db.execute('SELECT COUNT(*) FROM candidates').fetchone()[0],1)
+                    self.assertEqual(scout.snapshot()['market_cursor'],cursor)
+                    later=await asyncio.to_thread(clock.wait_for_range_after,cursor,timeout=2)
+                    self.assertGreater(later,cursor)
+                    self.assertEqual(later,int(corpus.header(later)['number'],16))
+                    self.assertEqual(clock.state.gap_events,0)
+                    self.assertEqual(clock.state.conflicts,0)
+                    self.assertEqual(clock.state.regressions,0)
+                    self.assertGreater(clock.state.duplicates,0)
+                finally:broker.close()
+        finally:clock.close();await stream.aclose()
 
 
 if __name__=='__main__':unittest.main()

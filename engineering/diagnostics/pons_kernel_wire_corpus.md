@@ -35,7 +35,7 @@ A prospective newly graduated token can correctly remain below the original
 graduation-age scheduling gate throughout a 40-second run; this component's direct history
 step neither bypasses that scheduler nor proves actual Survivor admission.
 
-RPC and Nitro share one immutable header model. At most 128 messages publish a
+RPC and Nitro share one immutable header model. At most 128 wire frames publish a
 maximum of 63 successor blocks, one block per two half-second frames. Latest/head
 RPC reads follow the published head and refuse future blocks. A reopened stream
 keeps the same sequence/head instead of rewriting an old timestamp. The actual
@@ -54,10 +54,19 @@ kernel run, nonprobe decoder/history process execution, source FULL/ACK binding,
 complete pool universe, actual market workload, lambda/mu, retained restoration
 and sustained capacity require their own receipts and are not established here.
 
-The final ten focused cases passed through the official FAST driver in 1.134s.
+The final eleven focused cases passed through the official FAST driver in 2.185s.
 The first economic attempt was deliberately left as failure evidence at
 `/tmp/mm-engineering-_c569usm`: its direct test advanced the synthetic head one
 second without advancing observation time, and the native decoder correctly
 raised `future_event`. The corrected immediate component fixture starts one
 second earlier; a dedicated regression still proves premature future-event
 refusal. Native runtime freshness rules were not changed.
+
+Independent review found an additional important wire-contract defect: the first
+version emitted the internal frame ordinal as Nitro `sequenceNumber`, while native
+`SequencerBlockClock` uses that number directly as the RPC discovery block cursor.
+The correction emits the actual synthetic block number; each frame pair repeats
+the same complete logical message. An original clock/start-observation/cohort-poll
+test now derives its cursor from those wire messages and reaches the economic
+nomination through MarketScout/Broker, rather than manually choosing the fixture
+block. Production clock/discovery mapping is unchanged.
