@@ -20,10 +20,11 @@ from meme_machine.runtime.journal import canonical
 def receipt(now=1000):
     return dict(schema='isolated-native-sizing-v1', scope='offline-component-fixture',
         source_commit='a'*40, source_tree='b'*40, epoch_reference='parent-reference-only',
-        portfolio_sequence=73, observed_at=now, valid_until=now+120,
+        portfolio_sequence=73, observed_at=now, valid_until=now+5,
         lanes={lane: dict(realized_equity=10**18, available=9*10**17, reserved=10**17,
             policies=policies(lane), native_unit='lamports' if lane=='pump' else 'wei',
-            usd_evidence_hash='c'*64, valuation_observed_at=now) for lane in ('pump','pons')})
+            usd_evidence_hash='c'*64, valuation_observed_at=now,
+            valuation_valid_until=now+(120 if lane=='pump' else 5)) for lane in ('pump','pons')})
 
 
 def authenticated(value):
@@ -86,6 +87,30 @@ class IsolatedNativeResourceTests(unittest.TestCase):
         parent=Path(self.tmp.name)/'financial';parent.mkdir();(parent/'portfolio.sqlite').touch()
         with self.assertRaisesRegex(ValueError,'financial_ancestor'):
             IsolatedNativeResources(parent/'nested',sizing_facts=self.facts,clock=lambda:1000)
+
+    def test_units_and_receipt_cannot_extend_native_valuation_validity(self):
+        for lane,wrong in (('pump','wei'),('pons','lamports')):
+            value=receipt();value['lanes'][lane]['native_unit']=wrong
+            with self.subTest(lane=lane),self.assertRaisesRegex(ValueError,'lane_facts'):
+                authenticated(value)
+        for lane,ttl in (('pump',120),('pons',5)):
+            value=receipt();value['lanes'][lane]['valuation_valid_until']=1000+ttl+1
+            with self.subTest(lane=lane),self.assertRaisesRegex(ValueError,'lane_facts'):
+                authenticated(value)
+        value=receipt();value['valid_until']=1300
+        with self.assertRaisesRegex(ValueError,'lane_facts'):
+            authenticated(value)
+        # A genuine SOL publication can already be old at parent capture. The
+        # receipt must stop at its original expiry, rather than adding 120s.
+        value=receipt();value['lanes']['pump'].update(
+            valuation_observed_at=882,valuation_valid_until=1002)
+        with self.assertRaisesRegex(ValueError,'lane_facts'):
+            authenticated(value)
+        value['valid_until']=1002
+        facts=authenticated(value)
+        self.assertGreater(facts.basis('pump',500,at=1002)['target'],0)
+        with self.assertRaisesRegex(ValueError,'stale'):
+            facts.basis('pump',500,at=1003)
 
     def test_native_observation_algorithms_reopen_without_financial_constructor(self):
         from meme_machine.runtime.sleeve_reservations import SleeveReservations
@@ -192,6 +217,27 @@ class IsolatedNativeResourceTests(unittest.TestCase):
                     signal.phase,decision_id=decision['decision_id'],native_resources=self.resources)
         self.assert_no_financial_tables()
 
+    def test_repeated_actual_current_helpers_retain_only_live_sleeves(self):
+        from meme_machine.lanes.pump import runner
+        from meme_machine.lanes.pump.pump_acceleration_strategy import qualify
+        signal=self.current_signal();qualification=qualify(signal)
+        history=self.resources.candidate_history()
+        report=dict(qualifiers=[],attempts=[],full_evidence_candidates=[])
+        with patch.object(runner,'ACCOUNTING',None),patch.object(runner,'PIPELINE',None),\
+                patch.object(runner,'FILL_PERSISTENCE_CONTEXT',None),\
+                patch.object(runner,'CANDIDATE_HISTORY',history):
+            for _ in range(100):
+                runner._record_attempt(report,signal,qualification,'full_point_in_time',
+                    snapshot=dict(available_time=1000,market_time=1000,slot=11),native_resources=self.resources)
+                self.assertGreater(runner._current_pump_sizing(native_resources=self.resources)['target'],0)
+                self.assertEqual(len(self.resources._sleeves),0)
+        live=[open_sleeve(lane,1,native_resources=self.resources) for lane in ('pump','pons')]
+        self.assertEqual(len(self.resources._sleeves),2)
+        self.resources.close()
+        self.assertTrue(all(s.closed for s in live))
+        self.assertEqual(len(self.resources._sleeves),0)
+        self.assert_no_financial_tables()
+
     def test_deny_requires_owned_committed_qualified_untampered_decision(self):
         history=self.resources.candidate_history()
         decision=history.record_decision('pump','mint',mode='current',observed_at=1000,
@@ -213,6 +259,10 @@ class IsolatedNativeResourceTests(unittest.TestCase):
                 stage='full_point_in_time')
         with self.assertRaisesRegex(ValueError,'stale'):
             self.resources.deny_qualified(history,decision,'pump','other',mode='current',at=1121)
+        self.now[0]=1006
+        with self.assertRaisesRegex(ValueError,'stale'):
+            self.resources.deny_qualified(history,decision,'pump','other',mode='current',at=1000)
+        self.now[0]=1000
         with self.assertRaisesRegex(ValueError,'history_owner'):
             self.resources.deny_qualified(object(),decision,'pump','other',mode='current',at=1000)
         history.db.execute("UPDATE decisions SET hash='tampered' WHERE id=?",(decision,))

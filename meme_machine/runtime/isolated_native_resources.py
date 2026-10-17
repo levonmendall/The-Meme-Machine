@@ -67,17 +67,22 @@ class AuthenticatedSizingFacts:
         from meme_machine.runtime.directional_sleeve import policies
         for lane, facts in value['lanes'].items():
             if set(facts) != {'realized_equity', 'available', 'reserved', 'policies',
-                              'native_unit', 'usd_evidence_hash', 'valuation_observed_at'}:
+                              'native_unit', 'usd_evidence_hash', 'valuation_observed_at',
+                              'valuation_valid_until'}:
                 raise ValueError('isolated_sizing_lane_shape')
             if (any(type(facts[k]) is not int or facts[k] < 0
                     for k in ('realized_equity', 'available', 'reserved'))
                     or facts['policies'] != policies(lane)
-                    or not isinstance(facts['native_unit'], str) or not facts['native_unit']
+                    or facts['native_unit'] != {'pump':'lamports','pons':'wei'}[lane]
                     or not isinstance(facts['usd_evidence_hash'], str)
                     or len(facts['usd_evidence_hash']) != 64
                     or any(c not in '0123456789abcdef' for c in facts['usd_evidence_hash'])
                     or type(facts['valuation_observed_at']) is not int
-                    or not value['observed_at'] - 5 <= facts['valuation_observed_at'] <= value['observed_at']):
+                    or type(facts['valuation_valid_until']) is not int
+                    or not facts['valuation_observed_at'] <= value['observed_at'] <= facts['valuation_valid_until']
+                    or not 0 < facts['valuation_valid_until']-facts['valuation_observed_at'] <=
+                        {'pump':120,'pons':5}[lane]
+                    or value['valid_until'] > facts['valuation_valid_until']):
                 raise ValueError('isolated_sizing_lane_facts')
         object.__setattr__(self, '_encoded', encoded)
         object.__setattr__(self, 'receipt_hash', digest(value))
@@ -88,16 +93,21 @@ class AuthenticatedSizingFacts:
     def value(self):
         return json.loads(self._encoded)
 
+    def require_fresh(self, lane, at):
+        value = self.value()
+        if lane not in value['lanes']:
+            raise ValueError('isolated_sizing_lane')
+        facts = value['lanes'][lane]
+        if (type(at) is not int or not value['observed_at'] <= at <= value['valid_until']
+                or not facts['valuation_observed_at'] <= at <= facts['valuation_valid_until']):
+            raise ValueError('isolated_sizing_stale')
+        return facts
+
     def basis(self, lane, target_bps, *, minimum_bps=0, at):
         if (type(target_bps) is not int or not 0 < target_bps <= 10000
                 or type(minimum_bps) is not int or not 0 <= minimum_bps <= target_bps):
             raise ValueError('directional_sizing_bps')
-        value = self.value()
-        if type(at) is not int or not value['observed_at'] <= at <= value['valid_until']:
-            raise ValueError('isolated_sizing_stale')
-        if lane not in value['lanes']:
-            raise ValueError('isolated_sizing_lane')
-        facts = value['lanes'][lane]
+        facts = self.require_fresh(lane, at)
         equity = facts['realized_equity']
         target = equity * target_bps // 10000
         return dict(realized_equity=equity, available=facts['available'],
@@ -133,7 +143,8 @@ class IsolatedNativeResources:
         self.facts = sizing_facts
         self.clock = clock
         self.closed = False
-        self._sleeves = []
+        self._lock = threading.RLock()
+        self._sleeves = set()
         self._histories = []
         root.mkdir(mode=0o700)  # Exclusive creation; never adopt existing state.
         self._owner = (root / '.isolated-native-owner').open('x+')
@@ -151,9 +162,11 @@ class IsolatedNativeResources:
         require_resources(self)
         if lane not in ('pump', 'pons') or policies != self.facts.value()['lanes'][lane]['policies']:
             raise ValueError('isolated_native_policy')
-        sleeve = NativeObservationState(self, lane=lane, policies=policies)
-        self._sleeves.append(sleeve)
-        return sleeve
+        with self._lock:
+            require_resources(self)
+            sleeve = NativeObservationState(self, lane=lane, policies=policies)
+            self._sleeves.add(sleeve)
+            return sleeve
 
     def candidate_history(self):
         require_resources(self)
@@ -176,9 +189,8 @@ class IsolatedNativeResources:
         reservation, controller intent, portfolio delivery, ACK or settlement.
         """
         self.require_history(history)
-        value=self.facts.value()
-        if type(at) is not int or not value['observed_at'] <= at <= value['valid_until']:
-            raise ValueError('isolated_sizing_stale')
+        self.facts.require_fresh(lane, int(self.clock()))
+        self.facts.require_fresh(lane, at)
         if history.db.in_transaction:
             raise ValueError('isolated_native_uncommitted_qualification')
         with history.transaction():
@@ -211,12 +223,13 @@ class IsolatedNativeResources:
                     qualification_preserved=True, allocation_authority=False)
 
     def close(self):
-        if self.closed:
-            return
-        for resource in reversed(self._sleeves + self._histories):
-            resource.close()
-        self._owner.close()
-        self.closed = True
+        with self._lock:
+            if self.closed:
+                return
+            for resource in (*self._sleeves, *reversed(self._histories)):
+                resource.close()
+            self._owner.close()
+            self.closed = True
 
 
 class NativeObservationState:
@@ -336,6 +349,8 @@ class NativeObservationState:
                     fills='UNEXERCISED', settlement='UNEXERCISED')
 
     def close(self):
-        if not self.closed:
-            self.db.close()
-            self.closed = True
+        with self.resources._lock:
+            if not self.closed:
+                self.db.close()
+                self.closed = True
+                self.resources._sleeves.discard(self)

@@ -23,7 +23,13 @@ object is passed by construction; no environment switch selects it.
 There is no default authentication or production receipt producer in this
 candidate. It retains immutable detached facts bound to scope, exact source,
 epoch reference, portfolio sequence, policies, native units, valuation evidence
-and a maximum five-minute validity interval. A checksum alone is not accepted
+and the actual underlying valuation interval. Units are exactly lamports/wei;
+native valuation validity is bounded to 120 seconds for Pump and 5 seconds for
+Pons' executable USD route, matching the production readers. The authenticated
+receipt cannot extend either underlying expiry, and every sizing/denial access
+checks freshness. A joint receipt thus needs refresh within the shortest
+underlying interval; this component has no parent receipt producer yet.
+A checksum alone is not accepted
 as authentication. The epoch identifier is a reference, never a copied epoch,
 grant or authority. Native qualification receives positive actual sizing facts;
 allocation authority is independently absent.
@@ -35,6 +41,8 @@ hashes and projections when a connection reopens. It has no financial genesis,
 position or financial journal tables, reservation methods, financial replay or
 reconciliation. Observation journal growth stops at 10,000 events, preserving
 the existing evidence. Opportunity and learning tables use existing retention.
+The resource registry retains only live sleeve connections; closing a sleeve
+unregisters it, including the per-call Pump observation and sizing helpers.
 Only the protected-opportunity-asset query is extracted from the production
 method; production still queries its actual unsettled sleeve positions. The
 nonfinancial adapter has no position state and returns an empty protection set.
@@ -58,7 +66,7 @@ startup, continuation and final financial reports. Implementing those adapters
 and the protected parent receipt/transport bridge remains necessary before an
 isolated native workload can run.
 
-The offline proof covers eight component tests plus 35 existing accounting,
+The offline proof covers ten component tests plus 35 existing accounting,
 portfolio, Current/Survivor independence and sleeve snapshot tests. It proves
 the explicit constructor rejection occurs before SQLite opens, durable
 qualification survives funding denial, actual native observation methods
