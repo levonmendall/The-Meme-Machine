@@ -841,7 +841,7 @@ def run(endpoint,*,campaign=False,native_resources=None,native_ports=None):
         try:
             return _run(context.provenance,campaign=campaign,native_resources=native_resources,
                 native_ports=native_ports,native_context=context)
-        finally:context.close_startup()
+        finally:context.close()
 
 
 def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,native_context=None):
@@ -1536,6 +1536,7 @@ def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,nativ
             _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase="finalizing",native_context=native_context)
         pipeline.close()
         feed.close();skill.close();queue.close()
+        if native_context is not None:native_context.drained()
 
     result["lifecycles"].sort(key=lambda row:row.get("index",-1))
     counts=dict(result.get('archived_observations',{}).get('rejections',{}))

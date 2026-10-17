@@ -140,3 +140,16 @@ class IsolatedPonsCurrentTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
         self.assertTrue((self.resources.root/'pons-immutable.sqlite').is_file())
         self.assert_no_money()
+
+    async def test_duplicate_current_owner_refuses_before_nitro_or_native_open(self):
+        from meme_machine.runtime.isolated_pons_current import _claim_owner
+        lease=_claim_owner(self.resources)
+        try:
+            with patch('sqlite3.connect',side_effect=AssertionError('SQLite opened')):
+                with self.assertRaisesRegex(ValueError,'pons_current_already_owned'):self.context()
+        finally:lease.release()
+        # A failed physical capability does not strand the resource's lease.
+        for _ in range(2):
+            with self.assertRaisesRegex(ValueError,'nitro_stream_port_unavailable'):self.context()
+        self.assertFalse((self.resources.root/'pons-current').exists())
+        self.assertFalse(self.physical.calls);self.assert_no_money()

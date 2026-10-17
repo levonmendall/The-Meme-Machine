@@ -45,6 +45,11 @@ continuation markers, unexpected qualifiers/lifecycles and changed policy are
 refused. No old production callback or historical evidence is imported or settled.
 The ordinary finite native shutdown drain and original task clocks remain in use;
 partial construction closes only private native owners on their owning thread.
+An in-process lease admits only one Current owner for a shared capability before
+opening the physical feed. Failed startup releases that lease after cleanup;
+an incomplete native drain retains it so another Current cannot overlap accepted
+work on the same disposable state. The duplicate-owner regression passes along
+with the other nine focused cases.
 
 Offline evidence for this slice: 9 focused startup/ownership/native-discovery
 cases pass; the combined bootstrap/admission/reporting/worker scope passes 49

@@ -8,10 +8,24 @@ import os
 from pathlib import Path
 import threading
 import time
+from weakref import WeakKeyDictionary
 
 from meme_machine.runtime.isolated_native_bootstrap import require_runner_ports
 from meme_machine.runtime.isolated_native_resources import require_resources
 from meme_machine.runtime.journal import canonical
+
+_owners=WeakKeyDictionary()
+_owners_lock=threading.Lock()
+
+
+def _claim_owner(resources):
+    # The resource capability may be shared by four actual native regimes, but
+    # two Current controllers must never consume the same native outbox.
+    with _owners_lock:
+        lease=_owners.setdefault(resources,threading.Lock())
+        if not lease.acquire(blocking=False):
+            raise ValueError('isolated_native_pons_current_already_owned')
+        return lease
 
 
 def unexercised_finance():
@@ -47,12 +61,16 @@ class PonsCurrentContext:
         # store opens. This currently fails until the real Nitro port is wired.
         ports.rpc_port('pons','discovery')
         ports.rpc_port('pons','survivor')
-        self.feed=ports.pons_feed()
-        self._startup=[self.feed.close]
+        self._lease=_claim_owner(resources)
+        self._startup=[]
         self._loop_entered=False
-        try:self._open_owned()
+        self._drained=False
+        try:
+            self.feed=ports.pons_feed()
+            self._startup.append(self.feed.close)
+            self._open_owned()
         except BaseException:
-            self.close_startup()
+            self.close()
             raise
 
     def _open_owned(self):
@@ -91,6 +109,14 @@ class PonsCurrentContext:
         from meme_machine.runtime.sqlite_failure import preserving_cleanup
         while self._startup:
             with preserving_cleanup():self._startup.pop()()
+
+    def drained(self):
+        self._drained=True
+
+    def close(self):
+        self.close_startup()
+        if (not self._loop_entered or self._drained) and self._lease is not None:
+            self._lease.release();self._lease=None
 
     def require_nonfinancial(self):
         require_resources(self.resources)
