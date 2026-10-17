@@ -20,6 +20,13 @@ import threading
 import time
 from .isolated_native_lifetime import NativeOwnerDrainFailure
 
+_SPAWN_BOUNDARIES=frozenset(('isolated_native_spawn_scope','isolated_native_spawn_preexisting_tracker',
+    'isolated_native_spawn_runtime','isolated_native_spawn_environment','isolated_native_spawn_shim_identity',
+    'isolated_native_spawn_reserved_fds','isolated_native_spawn_source_owner','isolated_native_spawn_owner_required',
+    'isolated_native_spawn_executable','isolated_native_spawn_descriptor_authority','isolated_native_spawn_stopped',
+    'isolated_native_spawn_tracker_replacement','isolated_native_spawn_foreign_process',
+    'isolated_native_spawn_owner_self_join','isolated_native_spawn_tracker_owner','isolated_native_spawn_tracker_unjoined'))
+
 
 class IsolatedEntryBlocked(ValueError):
     pass
@@ -237,6 +244,10 @@ def main(*,layout=None):
         # body, arbitrary exception message or hidden successful readiness flag.
         receipt['failure_code']='isolated_native_child_failed'
         receipt['failure_type']=type(error).__name__
+        module=sys.modules.get('meme_machine.runtime.isolated_native_spawn')
+        if (module is not None and type(error) is getattr(module,'NativeSpawnRefused',None)
+                and len(error.args)==1 and type(error.args[0]) is str and error.args[0] in _SPAWN_BOUNDARIES):
+            receipt['boundary_code']=error.args[0]
     finally:
         stopped.set()
         stop.requested.set()
