@@ -25,6 +25,42 @@ RETAINED_REFERENCE_AWS_ROOT=Path('/srv/meme-machine/state/shared-1000')
 RETAINED_REFERENCE_EPOCH='paper-shared-1000-20261011T071207Z'
 
 
+def retained_reference_path(value,*,candidate_path,cold=False,canonical_path=None):
+    """Resolve only the known restored cohort's unchanged canonical locator.
+
+    Canonical cold readers additionally bind their actual SQLite main file;
+    candidate-history callers retain the original candidate-path predicates.
+    Ordinary current/foreign locators and the original deployment are unchanged.
+    """
+    path=Path(value)
+    legacy=RETAINED_REFERENCE_LEGACY_ROOT/'shared/solana-evidence.sqlite'
+    if cold:
+        name=path.name
+        known=(path.parent==legacy.with_suffix('.scoped-cold') and len(name)==69
+            and name.endswith('.zlib') and all(c in '0123456789abcdef' for c in name[:-5]))
+        if not known:return path
+    elif path!=legacy:return path
+    if os.environ.get('MM_STATE_ROOT')==str(RETAINED_REFERENCE_LEGACY_ROOT):return path
+    root=RETAINED_REFERENCE_AWS_ROOT
+    source=root/'shared/solana-evidence.sqlite'
+    if (os.environ.get('MM_MODE')!='PAPER'
+            or os.environ.get('MM_PAPER_EPOCH')!=RETAINED_REFERENCE_EPOCH
+            or os.environ.get('MM_STATE_ROOT')!=str(root)
+            or candidate_path!=root/'shared/solana-candidate-history.sqlite'
+            or canonical_path is not None and canonical_path!=source
+            or os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB',str(source))!=str(source)):
+        raise ValueError('candidate_canonical_reference_cohort_unverified')
+    target=source.with_suffix('.scoped-cold')/path.name if cold else source
+    try:
+        if (root.resolve(strict=True)!=root or candidate_path.resolve(strict=True)!=candidate_path
+                or source.resolve(strict=True)!=source or target.resolve(strict=True)!=target
+                or not stat.S_ISREG(target.lstat().st_mode)):
+            raise ValueError('candidate_canonical_reference_cohort_unverified')
+    except OSError:
+        raise ValueError('candidate_canonical_reference_cohort_unverified') from None
+    return target
+
+
 class CandidateDeadlineMissed(RuntimeError):
     def __init__(self,work):
         self.work=work
@@ -245,32 +281,7 @@ class CandidateHistory:
         missing files, other cohorts and symbolic links supply no fallback.
         Startup independently verifies the configured epoch and financial state.
         """
-        path=Path(value)
-        legacy=RETAINED_REFERENCE_LEGACY_ROOT/'shared/solana-evidence.sqlite'
-        if cold:
-            name=path.name
-            known=(path.parent==legacy.with_suffix('.scoped-cold') and len(name)==69
-                and name.endswith('.zlib') and all(c in '0123456789abcdef' for c in name[:-5]))
-            if not known:return path
-        elif path!=legacy:return path
-        if os.environ.get('MM_STATE_ROOT')==str(RETAINED_REFERENCE_LEGACY_ROOT):return path
-        root=RETAINED_REFERENCE_AWS_ROOT
-        source=root/'shared/solana-evidence.sqlite'
-        if (os.environ.get('MM_MODE')!='PAPER'
-                or os.environ.get('MM_PAPER_EPOCH')!=RETAINED_REFERENCE_EPOCH
-                or os.environ.get('MM_STATE_ROOT')!=str(root)
-                or self.path!=root/'shared/solana-candidate-history.sqlite'
-                or os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB',str(source))!=str(source)):
-            raise ValueError('candidate_canonical_reference_cohort_unverified')
-        target=source.with_suffix('.scoped-cold')/path.name if cold else source
-        try:
-            if (root.resolve(strict=True)!=root or self.path.resolve(strict=True)!=self.path
-                    or source.resolve(strict=True)!=source or target.resolve(strict=True)!=target
-                    or not stat.S_ISREG(target.lstat().st_mode)):
-                raise ValueError('candidate_canonical_reference_cohort_unverified')
-        except OSError:
-            raise ValueError('candidate_canonical_reference_cohort_unverified') from None
-        return target
+        return retained_reference_path(value,candidate_path=self.path,cold=cold)
 
     def _reference_body(self,lane,candidate,identity,kind,ref,*,prepared=None):
         from meme_machine.solana_evidence_plane import decode_body

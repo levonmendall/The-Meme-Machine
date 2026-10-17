@@ -576,6 +576,108 @@ def frozen_paused_reader_predecessor(test,relative,current):
     return prior
 
 
+# Canonical cold reads must use the same restored-cohort locator validation as
+# candidate history. Extract that unchanged reader, bind the actual main SQLite
+# file for canonical reads, and reverse exactly those bytes before older guards.
+CANONICAL_COLD_REFERENCE='bfcc69b47b98fd10dc2288d7c1c19665a5838d7a'
+CANONICAL_COLD_DELTAS={
+    'meme_machine/runtime/candidate_history.py':(
+        '2ce0a79da9fc1dc571d8331a79c1db3d9ce9d840b480dcb939c16c13b9d157ff',
+        'a2eead063a65bf3e56ca112484a9e8fc452e067d3297060e0916c797015d5010'),
+    'meme_machine/solana_scoped_retirement.py':(
+        '497e00a0b46c7d621c921325fddd2caf928a3a74feb22dbaa4519463e3a5b0c8',
+        '51acb532a1c7b11c31f985a86a87e5fbd49d37f44129464acd21cced2f6afa23'),
+}
+CANONICAL_COLD_MAIN_BINDING=(
+    b"        main=[row[2] for row in db.execute('PRAGMA database_list') if row[1]=='main']\n"
+    b"        source=Path(main[0]) if len(main)==1 and main[0] else None\n"
+    b"        candidate=None if source is None else source.with_name('solana-candidate-history.sqlite')\n"
+    b"        packed=retained_reference_path(manifest[0],candidate_path=candidate,cold=True,\n"
+    b"            canonical_path=source).read_bytes()\n"
+)
+
+
+def canonical_cold_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    reviewed=CANONICAL_COLD_DELTAS.get(relative)
+    if reviewed is None:return current
+    before,after=reviewed
+    prior=subprocess.check_output(['git','show',CANONICAL_COLD_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),before,
+        relative+':exact shared cold-locator predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),after,
+        relative+':exact main-database-bound cold-locator successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def node(root,name):
+        parent=root
+        for part in name.split('.')[:-1]:
+            parent=next(n for n in parent.body if isinstance(n,ast.ClassDef) and n.name==part)
+        return parent,next(n for n in parent.body
+            if isinstance(n,ast.FunctionDef) and n.name==name.split('.')[-1])
+    def source(body,selected):
+        return b''.join(body.splitlines(keepends=True)[selected.lineno-1:selected.end_lineno])
+    if relative=='meme_machine/runtime/candidate_history.py':
+        parent,selected=node(tree,'CandidateHistory._reference_path')
+        _,original=node(old,'CandidateHistory._reference_path')
+        _,added=node(tree,'retained_reference_path')
+        with test.assertRaises(StopIteration):node(old,'retained_reference_path')
+        test.assertEqual(ast.dump(selected.args),ast.dump(original.args),
+            relative+':original candidate reader calling convention retained')
+        test.assertEqual(ast.dump(selected.body[0]),ast.dump(original.body[0]),
+            relative+':original candidate reader documentation retained')
+        delegate=ast.parse('return retained_reference_path(value,candidate_path=self.path,cold=cold)').body[0]
+        test.assertEqual([ast.dump(n) for n in selected.body[1:]],[ast.dump(delegate)],
+            relative+':candidate reader delegates with its original context only')
+        signature=ast.parse('def retained_reference_path(value,*,candidate_path,cold=False,canonical_path=None):pass').body[0]
+        test.assertEqual(ast.dump(added.args),ast.dump(signature.args),
+            relative+':canonical main-file binding is explicit and optional only for candidate callers')
+        extracted=deepcopy(added.body[1:])
+        binding=ast.parse('canonical_path is not None and canonical_path!=source',mode='eval').body
+        guards=[n.test for n in extracted if isinstance(n,ast.If)
+            and isinstance(n.test,ast.BoolOp) and isinstance(n.test.op,ast.Or)
+            and any(ast.dump(value)==ast.dump(binding) for value in n.test.values)]
+        test.assertEqual(len(guards),1,relative+':one explicit actual canonical-database predicate')
+        guard=guards[0]
+        matches=[value for value in guard.values if ast.dump(value)==ast.dump(binding)]
+        test.assertEqual(len(matches),1,relative+':actual main-file binding cannot be duplicated or weakened')
+        guard.values.remove(matches[0])
+        class CandidatePath(ast.NodeTransformer):
+            def visit_Attribute(self,value):
+                if (isinstance(value.value,ast.Name) and value.value.id=='self'
+                        and value.attr=='path'):
+                    return ast.Name(id='candidate_path',ctx=ast.Load())
+                return self.generic_visit(value)
+        original_body=[CandidatePath().visit(deepcopy(n)) for n in original.body[1:]]
+        test.assertEqual([ast.dump(n) for n in extracted],[ast.dump(n) for n in original_body],
+            relative+':all original mode, cohort, path, symlink and file predicates extracted unchanged')
+        added_bytes=source(current,added)+b'\n\n'
+        test.assertEqual(current.count(added_bytes),1,relative+':one exact standalone locator helper')
+        selected_bytes=source(current,selected);original_bytes=source(prior,original)
+        test.assertEqual(current.count(selected_bytes),1,relative+':one exact candidate delegation')
+        restored=current.replace(added_bytes,b'',1).replace(selected_bytes,original_bytes,1)
+        parent.body[parent.body.index(selected)]=deepcopy(original);tree.body.remove(added)
+        test.assertEqual(ast.dump(tree),ast.dump(old),
+            relative+':all other candidate, index, event and economic nodes retained')
+    else:
+        _,selected=node(tree,'cold_record');_,original=node(old,'cold_record')
+        test.assertNotEqual(ast.dump(selected),ast.dump(original),
+            relative+':canonical cold read changes only its locator acquisition')
+        test.assertEqual(current.count(CANONICAL_COLD_MAIN_BINDING),1,
+            relative+':one exact main-file and sibling candidate-path binding')
+        old_import=b'from .runtime.candidate_history import CandidateHistory\n'
+        new_import=b'from .runtime.candidate_history import CandidateHistory,retained_reference_path\n'
+        test.assertEqual(current.count(new_import),1,relative+':one exact shared reader import')
+        test.assertEqual(prior.count(old_import),1,relative+':original candidate import retained')
+        restored=current.replace(new_import,old_import,1).replace(CANONICAL_COLD_MAIN_BINDING,
+            b'        packed=Path(manifest[0]).read_bytes()\n',1)
+    test.assertEqual(restored,prior,
+        relative+':every other original source byte, hash, bound, identity and financial predicate retained')
+    return prior
+
+
 # AWS exhausted the original restore-selection budget before one candidate.
 # These three fixed indexes support its unchanged literal predicates/order;
 # removing exactly those DDL lines must recover every original source byte.
@@ -599,6 +701,7 @@ def pump_restore_selection_predecessor(test,relative,current):
     test.assertEqual(hashlib.sha256(prior).hexdigest(),PUMP_RESTORE_SELECTION_BEFORE,
         relative+':exact candidate-selection index predecessor')
     if current==prior:return prior
+    current=canonical_cold_predecessor(test,relative,current)
     test.assertEqual(hashlib.sha256(current).hexdigest(),PUMP_RESTORE_SELECTION_AFTER,
         relative+':exact candidate-selection index successor')
     restored=current
@@ -2027,9 +2130,83 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_canonical_cold_reader_preserves_exact_locator_and_authenticated_archive_authority(self):
+        import hashlib
+        mutations={
+            'meme_machine/runtime/candidate_history.py':(
+                (b'return retained_reference_path(value,candidate_path=self.path,cold=cold)',
+                    b'return retained_reference_path(value,candidate_path=self.path,cold=True)'),
+                (b'canonical_path is not None and canonical_path!=source',b'False'),
+                (b"candidate_path!=root/'shared/solana-candidate-history.sqlite'",b'False'),
+                (b"os.environ.get('MM_MODE')!='PAPER'",b'False'),
+                (b"os.environ.get('MM_PAPER_EPOCH')!=RETAINED_REFERENCE_EPOCH",b'False'),
+                (b"os.environ.get('MM_STATE_ROOT')!=str(root)",b'False'),
+                (b"os.environ.get('MM_STATE_ROOT')==str(RETAINED_REFERENCE_LEGACY_ROOT)",b'True'),
+                (b"os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB',str(source))!=str(source)",b'False'),
+                (b"path.parent==legacy.with_suffix('.scoped-cold')",b'True'),
+                (b'len(name)==69',b'True'),
+                (b"all(c in '0123456789abcdef' for c in name[:-5])",b'True'),
+                (b'candidate_path.resolve(strict=True)!=candidate_path',b'False'),
+                (b'source.resolve(strict=True)!=source',b'False'),
+                (b'target.resolve(strict=True)!=target',b'False'),
+                (b'not stat.S_ISREG(target.lstat().st_mode)',b'False'),
+                (b"checksum!=row[1] or row[1]!=ref['canonical_hash']",b'False'),
+                (b"r.get('identity')!=ref['canonical_identity']",b'False'),
+                (b'if not decoder.eof or len(raw)>32*1024*1024:',b'if False:'),
+                (b'ON canonical_event_refs(lane,candidate,kind)',b'ON canonical_event_refs(lane,kind,candidate)'),
+                (b'self.db.execute("PRAGMA synchronous=FULL")',b'self.db.execute("PRAGMA synchronous=OFF")')),
+            'meme_machine/solana_scoped_retirement.py':(
+                (b'from .runtime.candidate_history import CandidateHistory,retained_reference_path',
+                    b'from .runtime.candidate_history import CandidateHistory'),
+                (b"db.execute('PRAGMA database_list')",b"db.execute('PRAGMA table_list')"),
+                (b"if row[1]=='main'",b"if row[1]=='temp'"),
+                (b'len(main)==1 and main[0]',b'len(main)>=1 and main[0]'),
+                (b'source=Path(main[0]) if len(main)==1 and main[0] else None',
+                    b'source=None'),
+                (b"source.with_name('solana-candidate-history.sqlite')",b"source.with_name('foreign.sqlite')"),
+                (b'candidate_path=candidate,cold=True',b'candidate_path=candidate,cold=False'),
+                (b'canonical_path=source',b'canonical_path=None'),
+                (b'if archive not in cache:',b'if False:'),
+                (b'if manifest is None:',b'if False:'),
+                (b'if hashlib.sha256(packed).hexdigest()!=manifest[1]:',b'if False:'),
+                (b'decoder.decompress(packed,32*1024*1024+1)',b'decoder.decompress(packed)'),
+                (b'if len(raw)>32*1024*1024 or not decoder.eof:',b'if False:'),
+                (b"cache[archive]={x['record']['identity']:x for x in json.loads(raw)}",
+                    b"cache[archive]={identity:x for x in json.loads(raw)}"),
+                (b'item=cache[archive].get(identity)',b'item=next(iter(cache[archive].values()))'),
+                (b'if item is None:',b'if False:')),
+        }
+        for relative,(before,after) in CANONICAL_COLD_DELTAS.items():
+            current=(ROOT/relative).read_bytes()
+            self.assertEqual(hashlib.sha256(current).hexdigest(),after,
+                relative+':active exact canonical cold-path repair')
+            prior=subprocess.check_output(['git','show',CANONICAL_COLD_REFERENCE+':'+relative],cwd=ROOT)
+            self.assertEqual(hashlib.sha256(prior).hexdigest(),before,
+                relative+':independently pinned prior runtime')
+            self.assertEqual(canonical_cold_predecessor(self,relative,current),prior)
+            self.assertEqual(canonical_cold_predecessor(self,relative,prior),prior)
+            if relative==PUMP_RESTORE_SELECTION_SOURCE:
+                self.assertEqual(before,PUMP_RESTORE_SELECTION_AFTER,
+                    relative+':all earlier index and retained-reference pins remain unchanged')
+                for predecessor in (pump_restore_selection_predecessor,retained_canonical_predecessor,
+                        native_startup_failure_predecessor,rally_predecessor,opportunity_predecessor):
+                    self.assertEqual(predecessor(self,relative,current),predecessor(self,relative,prior),
+                        relative+':complete previous source/economic guard chain retained')
+            changes=[current+b'\n# unreviewed canonical cold-reader change\n',b'']
+            for previous,successor in mutations[relative]:
+                self.assertIn(previous,current,relative+':negative mutation target exists')
+                changes.append(current.replace(previous,successor,1))
+            for changed in changes:
+                self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+                with self.assertRaises(AssertionError):canonical_cold_predecessor(self,relative,changed)
+                if relative==PUMP_RESTORE_SELECTION_SOURCE:
+                    for predecessor in (pump_restore_selection_predecessor,retained_canonical_predecessor,
+                            native_startup_failure_predecessor,rally_predecessor,opportunity_predecessor):
+                        with self.assertRaises(AssertionError):predecessor(self,relative,changed)
+
     def test_pump_restore_selection_reverses_only_three_fixed_index_declarations(self):
         import hashlib
-        relative=PUMP_RESTORE_SELECTION_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=PUMP_RESTORE_SELECTION_SOURCE;current=canonical_cold_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),PUMP_RESTORE_SELECTION_AFTER,
             relative+':active exact restore-selection index repair')
         self.assertEqual(PUMP_RESTORE_SELECTION_BEFORE,RETAINED_CANONICAL_AFTER,

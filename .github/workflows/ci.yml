@@ -90,6 +90,9 @@ jobs:
               'tests.test_maintenance_owner_entry_clock',
               'tests.test_prejoin_observation_recovery',
               'tests.test_pump_restore_selection_index',
+              'tests.test_canonical_cold_archive_cohort',
+              'tests.test_retirement_hot_pages',
+              'tests.test_solana_closure',
           ]
           print('FOCUSED_VALIDATION_ONLY: not a complete FAST or OPERATIONAL release suite', flush=True)
           print('FOCUSED_MODULES: ' + ','.join(modules), flush=True)
