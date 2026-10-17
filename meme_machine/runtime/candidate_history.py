@@ -243,29 +243,42 @@ class CandidateHistory:
             self._transaction_sequence=getattr(self,'_transaction_sequence',0)+1
             name='candidate_'+str(self._transaction_sequence)
             self.db.execute('SAVEPOINT '+name)
+            observer=getattr(self,'_native_commit_observer',None)
+            frame=observer.begin(nested=True) if observer is not None else None
             try:
                 yield
                 self.db.execute('RELEASE '+name)
             except BaseException:
+                if observer is not None:observer.finish(frame,committed=False)
                 try:
                     if self.db.in_transaction:
                         self.db.execute('ROLLBACK TO '+name);self.db.execute('RELEASE '+name)
                 except BaseException:pass
                 raise
+            else:
+                if observer is not None:observer.finish(frame,committed=True)
             return
         self.db.execute("BEGIN IMMEDIATE")
+        observer=getattr(self,'_native_commit_observer',None)
+        frame=observer.begin() if observer is not None else None
         try:
             yield
             self.db.execute("COMMIT")
         except BaseException:
+            if observer is not None:observer.finish(frame,committed=False,
+                uncertain=not self.db.in_transaction)
             try:
                 if self.db.in_transaction:self.db.execute("ROLLBACK")
             except BaseException:pass
             raise
+        else:
+            if observer is not None:observer.finish(frame,committed=True)
 
     def close(self):
         for db in getattr(self,'_source_readers',{}).values():db.close()
         self.db.close()
+        observer=getattr(self,'_native_commit_observer',None)
+        if observer is not None:observer.close()
 
     def append_reference(self,lane,candidate,record,*,path,identity,kind,payload_fields=None):
         from .operating_families import require_active
@@ -279,9 +292,13 @@ class CandidateHistory:
             old=self.event(lane,candidate,identity)
             if old is not None and old!=body:raise ValueError('candidate_history_event_conflict')
             encoded=canonical(ref)
-            self.db.execute('INSERT OR IGNORE INTO canonical_event_refs VALUES(?,?,?,?,?,?,?,?,?,?)',
+            inserted=self.db.execute('INSERT OR IGNORE INTO canonical_event_refs VALUES(?,?,?,?,?,?,?,?,?,?)',
                 (lane,candidate,identity,body['slot'],body['transaction_index'],body['event_index'],
                  body['market_time'],kind,encoded,hashlib.sha256(encoded.encode()).hexdigest()))
+            observer=getattr(self,'_native_commit_observer',None)
+            if observer is not None and inserted.rowcount:
+                observer.record('history_reference_rows',lane,candidate,identity,checksum,
+                    body['slot'],body['transaction_index'],body['event_index'],kind)
             # One-way migration removes an identical legacy copy, not its history.
             self.db.execute('DELETE FROM events WHERE lane=? AND candidate=? AND identity=?',(lane,candidate,identity))
         return body
@@ -548,6 +565,10 @@ class CandidateHistory:
             self.db.execute("INSERT INTO events VALUES(?,?,?,?,?,?,?,?,?,?)",
                 (lane,candidate,identity,slot,transaction_index,event_index,
                  market_time,kind,encoded,checksum))
+            observer=getattr(self,'_native_commit_observer',None)
+            if observer is not None:
+                observer.record('history_event_rows',lane,candidate,identity,checksum,
+                    slot,transaction_index,event_index,kind)
         return body
 
     def events(self,lane,candidate,*,since=None,through=None,kind=None,kind_prefix=None,
@@ -859,6 +880,10 @@ class CandidateHistory:
             else:
                 self.db.execute("INSERT INTO decisions VALUES(?,?,?,?,?,?,?,?)",
                     (identity,lane,candidate,mode,observed_at,int(qualified),encoded,checksum))
+                observer=getattr(self,'_native_commit_observer',None)
+                if observer is not None:
+                    observer.record('qualified_decision_rows' if qualified else 'refused_decision_rows',
+                        lane,candidate,identity,checksum,mode,observed_at)
         return identity
 
     def record_funding(self,decision_id,lane,candidate,*,status,at,reason=None,details=None):

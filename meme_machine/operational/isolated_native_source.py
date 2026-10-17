@@ -123,6 +123,22 @@ def _numeric(value, *, depth=0):
 
 def _persist(resources, value):
     raw = json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
+    if len(raw)>65536:
+        # The optional observations must never turn an otherwise admissible
+        # native receipt into a runtime failure. Missing observations mean
+        # UNKNOWN; preserve every original field and the original byte guard.
+        projected=dict(value)
+        projected.pop('native_commit_observations',None)
+        for key in ('first_progress','last_progress'):
+            if type(projected.get(key)) is dict:
+                projected[key]=dict(projected[key])
+                projected[key].pop('native_commit_observations',None)
+        original=json.dumps(projected,sort_keys=True,separators=(',',':'),allow_nan=False).encode()
+        if len(original)<=65536 and original!=raw:
+            collector=getattr(resources,'_native_commit_measurement',None)
+            if collector is not None:collector.lost.set()
+            value.clear();value.update(projected)
+            raw=original
     _require(len(raw) <= 65536, 'isolated_native_receipt_bound')
     path = resources.root/'native-execution.json'
     temporary = resources.root/'native-execution.json.tmp'
@@ -414,12 +430,17 @@ def run_contained(*, resources, ports, sizing_reader, stopped):
             _require(progress_bytes+len(raw)<=256*1024,'isolated_native_progress_bound')
             progress_file.write(raw);progress_file.flush()
             progress_bytes+=len(raw)
+            # Keep the original 256 KiB progress writer/budget unchanged. Only
+            # its existing first/last returned samples retain this bounded
+            # in-memory diagnostic; no new per-sample disk rows are written.
+            value['native_commit_observations']=resources.native_commit_snapshot()
             return value
         result=None
         def finish_metrics(value):
             value['private_output_bytes']=output.bytes
             value['private_progress_bytes']=progress_bytes
             value['native_provider_optimization_profiles']=[profile.value() for profile in profiles]
+            value['native_commit_observations']=resources.native_commit_snapshot()
             value['unexercised']=[name for name in value.get('unexercised',[])
                 if name!='authenticated_provider_optimization_profiles']
             # Never inspect a dictionary still owned by a live source task.

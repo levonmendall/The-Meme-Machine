@@ -146,6 +146,8 @@ class IsolatedNativeResources:
         self._native_history_files = {}
         self._native_history_owners = {}
         self._pons_plane = None
+        self._native_commit_measurement = None
+        self._native_commit_ports = None
         root.mkdir(mode=0o700)  # Exclusive creation; never adopt existing state.
         self._owner = (root / '.isolated-native-owner').open('x+')
         fcntl.flock(self._owner.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -157,6 +159,54 @@ class IsolatedNativeResources:
     @property
     def facts(self):
         return self._facts
+
+    def enable_native_commit_measurement(self, ports):
+        """Fixed contained entry only; never an environment/readiness switch."""
+        from meme_machine.runtime.isolated_native_bootstrap import require_runner_ports
+        from meme_machine.runtime.native_commit_measurement import NativeCommitMeasurement
+        import os
+        with self._lock:
+            require_runner_ports(self,ports)
+            if self._native_commit_measurement is not None or self._histories:
+                raise ValueError('native_commit_measurement_start_order')
+            facts=self.facts.value()
+            binding=dict(scope=facts['scope'],source_commit=facts['source_commit'],
+                source_tree=facts['source_tree'],sizing_receipt_hash=self.facts.receipt_hash,
+                process_id=os.getpid(),parent_transport_session=ports.channel.session,
+                session_kind='PARENT_TRANSPORT_SESSION_NOT_CANONICAL_SOURCE_GENERATION',
+                source_registry_hash=self._native_commit_source_hash(ports))
+            self._native_commit_measurement=NativeCommitMeasurement(binding)
+            self._native_commit_ports=ports
+
+    @staticmethod
+    def _native_commit_source_hash(ports):
+        from meme_machine.operational.parent_transport import SourceReference
+        from types import MappingProxyType
+        sources=ports.channel.sources
+        if (type(sources) is not MappingProxyType or not 0<len(sources)<=64
+                or type(ports.channel.session) is not str or len(ports.channel.session)!=43):
+            raise ValueError('native_commit_measurement_source_registry')
+        rows=[]
+        for alias,source in sources.items():
+            if type(source) is not SourceReference or alias!=source.alias:
+                raise ValueError('native_commit_measurement_source_registry')
+            rows.append([source.alias,source.family,source.endpoint_identity,
+                source.operation,source.read_class])
+        return digest(sorted(rows))
+
+    def native_commit_snapshot(self):
+        collector=self._native_commit_measurement
+        if collector is None:
+            return dict(status='DISABLED',cohort_closure='UNKNOWN',financial_authority=False)
+        try:
+            from meme_machine.runtime.isolated_native_bootstrap import require_runner_ports
+            ports=require_runner_ports(self,self._native_commit_ports)
+            if (ports.channel.session!=collector.binding['parent_transport_session'] or
+                    self._native_commit_source_hash(ports)!=collector.binding['source_registry_hash']):
+                collector.lost.set()
+        except Exception:
+            collector.lost.set()
+        return collector.snapshot()
 
     def replace_authenticated_sizing_facts(self, sizing_facts):
         """Accept a fresh parent receipt without creating value or authority.
@@ -213,6 +263,8 @@ class IsolatedNativeResources:
                 else:
                     path = self._owned_candidate_path()
                 history = _OwnedCandidateHistory(path, resources=self, owner=owner)
+                if self._native_commit_measurement is not None:
+                    history._native_commit_observer=self._native_commit_measurement.attach('candidate_history')
                 self._candidate_file_identity = self._file_identity(path)
                 self._candidate_histories[owner] = history
                 self._histories.append(history)
@@ -261,6 +313,8 @@ class IsolatedNativeResources:
             if self._pons_plane is None:
                 from meme_machine.runtime.robinhood.plane import Plane
                 self._pons_plane = Plane(self._unused_native_path('pons-candidates.sqlite'), clock=self.clock)
+                if self._native_commit_measurement is not None:
+                    self._pons_plane._native_commit_observer=self._native_commit_measurement.attach('pons_plane')
                 self._histories.append(self._pons_plane)
             return self._pons_plane
 

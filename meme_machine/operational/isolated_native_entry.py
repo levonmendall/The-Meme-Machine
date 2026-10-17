@@ -191,6 +191,7 @@ def main():
         from meme_machine.runtime.isolated_native_bootstrap import NativeRunnerPorts
         resources=_new_resources(facts)
         ports=NativeRunnerPorts(resources,channel)
+        resources.enable_native_commit_measurement(ports)
         from meme_machine.runtime.isolated_native_execution import isolated_native_execution
         with isolated_native_execution(resources):
             result=run_contained(resources=resources,ports=ports,sizing_reader=reader,stopped=stopped)

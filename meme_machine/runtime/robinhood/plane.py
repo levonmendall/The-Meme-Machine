@@ -143,14 +143,21 @@ class Plane:
         with self.lock:
             self.db.execute('BEGIN IMMEDIATE')
             before = self.db.total_changes
+            observer=getattr(self,'_native_commit_observer',None)
+            frame=observer.begin() if observer is not None else None
             try:
                 yield
-                self.db.execute('COMMIT' if self.db.total_changes != before else 'ROLLBACK')
+                changed=self.db.total_changes != before
+                self.db.execute('COMMIT' if changed else 'ROLLBACK')
             except BaseException:
+                if observer is not None:observer.finish(frame,committed=False,
+                    uncertain=not self.db.in_transaction)
                 from meme_machine.runtime.sqlite_failure import preserving_cleanup
                 with preserving_cleanup():
                     if self.db.in_transaction:self.db.execute('ROLLBACK')
                 raise
+            else:
+                if observer is not None:observer.finish(frame,committed=changed)
 
     def _row(self, key):
         row=self.db.execute('SELECT * FROM candidates WHERE id=?',(key,)).fetchone()
@@ -168,6 +175,10 @@ class Plane:
             tail=archive.get('transition_high_water',0)
         self.db.execute('INSERT INTO transitions(seq,candidate,generation,at,kind,reason,watermark,interpretation,details) VALUES(?,?,?,?,?,?,?,?,?)',
             (tail+1,row['id'],row['generation'],self.clock(),kind,reason,row['desired'],row['interpretation'],canonical(details)))
+        observer=getattr(self,'_native_commit_observer',None)
+        if observer is not None:
+            observer.record('pons_generation_dispositions',row['lane'],row['id'],
+                row['generation'],tail+1,kind,reason)
         from meme_machine.runtime.storage import audit_ring
         audit_ring(self.db,'transitions','history_no_delete',where='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))',startup_cancel=startup_cancel)
 
@@ -444,7 +455,10 @@ class Plane:
             from meme_machine.runtime.operating_families import require_active
             if row:require_active(row['lane'])
             if not row or row['generation']!=generation or row['completed']!=row['desired']:return False
-            self.db.execute('INSERT OR IGNORE INTO result_consumption VALUES(?,?,?)',(key,generation,self.clock()))
+            inserted=self.db.execute('INSERT OR IGNORE INTO result_consumption VALUES(?,?,?)',(key,generation,self.clock()))
+            observer=getattr(self,'_native_commit_observer',None)
+            if observer is not None and inserted.rowcount:
+                observer.record('pons_candidate_consumptions',row['lane'],key,generation)
             return True
 
     def put(self,namespace,key,value,provenance):
@@ -599,7 +613,10 @@ class Plane:
             wal_bytes=transient_file_size(Path(self.path+'-wal')))
 
     def close(self):
-        with self.lock:self.db.close()
+        with self.lock:
+            self.db.close()
+            observer=getattr(self,'_native_commit_observer',None)
+            if observer is not None:observer.close()
 
 
 def native_ledger_locator(lane,ledger_path):
