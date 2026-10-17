@@ -52,6 +52,15 @@ def oversized_product():
     return b'x'*(MAX_FRAME_BYTES+1)
 
 
+def gated_initializer():
+    """A real spawn initializer held by a disposable test file, never a lock."""
+    guarded_initializer()
+    until=time.monotonic()+5
+    while not Path(os.environ['MM_OFFLINE_EXECUTOR_RELEASE']).exists():
+        if time.monotonic()>=until:raise RuntimeError('offline initializer release missing')
+        time.sleep(.005)
+
+
 def _signal_child():
     import json
     stopped=threading.Event()
@@ -77,6 +86,55 @@ class PipeExecutorTests(unittest.TestCase):
             initializer=guarded_initializer, role=role)
         self.addCleanup(pool.shutdown, wait=True, cancel_futures=True)
         return pool
+
+    def test_constructor_is_inert_and_first_submit_failure_keeps_owned_threads(self):
+        with patch('multiprocessing.get_context',side_effect=AssertionError('eager child setup')):
+            pool=self.pool('decoder')
+        self.assertEqual(pool._processes,{})
+        self.assertEqual(pool._threads,[])
+        original=threading.Thread.start
+        started=0
+        def second_owner_fails(thread):
+            nonlocal started
+            if thread.name.startswith('isolated-native-result-'):
+                started+=1
+                if started==2:raise RuntimeError('offline owner start failure')
+            return original(thread)
+        with patch.object(threading.Thread,'start',second_owner_fails):
+            with self.assertRaisesRegex(BrokenProcessPool,'worker_start_failed'):
+                pool.submit(probe)
+        self.assertTrue(pool._broken)
+        self.assertEqual(len(pool._processes),2)
+        self.assertEqual(len(pool._items),0) # No Future was accepted then lost.
+        pool.shutdown(wait=True,cancel_futures=True)
+        self.assertTrue(all(not p.is_alive() for p in pool._processes.values()))
+        self.assertTrue(all(not t.is_alive() for t in pool._threads))
+
+    def test_partial_start_denied_terminate_keeps_references_for_outer_drain(self):
+        from multiprocessing.process import BaseProcess
+        with tempfile.TemporaryDirectory() as tmp:
+            release=Path(tmp)/'release'
+            with patch.dict(os.environ,MM_OFFLINE_EXECUTOR_RELEASE=str(release)):
+                pool=IsolatedSpawnExecutor(max_workers=2,initializer=gated_initializer,role='decoder')
+                self.addCleanup(pool.shutdown,wait=True,cancel_futures=True)
+                original=threading.Thread.start;started=0
+                def second_owner_fails(thread):
+                    nonlocal started
+                    if thread.name.startswith('isolated-native-result-'):
+                        started+=1
+                        if started==2:raise RuntimeError('offline owner start failure')
+                    return original(thread)
+                try:
+                    with patch.object(threading.Thread,'start',second_owner_fails),\
+                            patch.object(BaseProcess,'terminate',side_effect=PermissionError('denied')):
+                        with self.assertRaises(BrokenProcessPool):pool.submit(probe)
+                    self.assertTrue(pool._termination_failed)
+                    self.assertTrue(any(p.is_alive() for p in pool._processes.values()))
+                    self.assertEqual(len(pool._items),0)
+                finally:release.touch()
+                pool.shutdown(wait=True,cancel_futures=True)
+                self.assertTrue(all(not p.is_alive() for p in pool._processes.values()))
+                self.assertTrue(all(not t.is_alive() for t in pool._threads))
 
     def test_real_two_spawn_workers_without_any_semlock_and_deny_context(self):
         with patch.object(multiprocessing.synchronize.SemLock, '__init__', no_semaphores):

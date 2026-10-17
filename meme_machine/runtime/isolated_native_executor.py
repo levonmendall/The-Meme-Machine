@@ -112,6 +112,8 @@ class IsolatedSpawnExecutor(Executor):
                 (('decoder', 2), ('history', 1)) or not callable(initializer)):
             raise ValueError('isolated_native_worker_configuration')
         self._max_workers = max_workers
+        self._initializer = initializer
+        self._role = role
         self._max_tasks = 2 * max_workers + 1
         self._condition = threading.Condition()
         self._queue = deque()
@@ -123,15 +125,25 @@ class IsolatedSpawnExecutor(Executor):
         self._processes = {}
         self._threads = []
         self._channels = []
+        self._started = False
+
+    def _start_owned(self):
+        """Lazy startup: the caller owns this executor before any child exists.
+
+        Called under the condition before accepting the first Future. Partial
+        startup remains on this already-registered owner; no inline join can
+        freeze the source loop or bypass its existing outer shutdown fence.
+        """
+        self._started = True
         context = multiprocessing.get_context('spawn')
         try:
-            for index in range(max_workers):
+            for index in range(self._max_workers):
                 task_reader, task_writer = context.Pipe(duplex=False)
                 result_reader, result_writer = context.Pipe(duplex=False)
                 try:
                     process = context.Process(target=_worker,
-                        args=(task_reader, result_writer, initializer),
-                        name=f'isolated-native-{role}-{index}')
+                        args=(task_reader, result_writer, self._initializer),
+                        name=f'isolated-native-{self._role}-{index}')
                     process.start()
                 except BaseException:
                     task_writer.close()
@@ -148,13 +160,12 @@ class IsolatedSpawnExecutor(Executor):
                     name=f'isolated-native-result-{process.pid}', daemon=True)
                 self._threads.append(thread)
                 thread.start()
-        except BaseException:
+        except BaseException as error:
             self._break_pool()
             for process, writer, reader in self._channels:
                 writer.close()
                 reader.close()
-                process.join()
-            raise
+            raise BrokenProcessPool('isolated_native_worker_start_failed') from error
 
     def submit(self, function, /, *args, **kwargs):
         with self._condition:
@@ -164,6 +175,8 @@ class IsolatedSpawnExecutor(Executor):
                 raise RuntimeError('cannot schedule new futures after shutdown')
             if len(self._items) >= self._max_tasks:
                 raise NativeExecutorCapacityError('isolated_native_worker_task_bound')
+            if not self._started:
+                self._start_owned()
             future = Future()
             work = _Work(self._next_identity, future, function, args, kwargs)
             self._next_identity += 1
@@ -259,6 +272,8 @@ class IsolatedSpawnExecutor(Executor):
                 pass
 
     def shutdown(self, wait=True, *, cancel_futures=False):
+        if wait and threading.current_thread() in self._threads:
+            raise RuntimeError('isolated_native_worker_shutdown_from_owner')
         cancelled = []
         with self._condition:
             self._shutdown_thread = True
@@ -272,6 +287,10 @@ class IsolatedSpawnExecutor(Executor):
             future.cancel()
         if wait:
             for thread in self._threads:
-                if thread is not threading.current_thread():
+                if thread.ident is not None:
                     thread.join()
+            # A partial first-submit startup may have no started owner thread
+            # for one child. It is still owned, and must join before return.
+            for process in self._processes.values():
+                process.join()
 

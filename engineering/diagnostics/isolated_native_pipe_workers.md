@@ -14,6 +14,16 @@ allowing cancellation to claim rollback. A worker crash breaks all pending work
 and terminates/joins its peers; only the existing HistoryExecutor constructs a
 replacement generation. The adapter does not replay an accepted task.
 
+Construction is inert, matching the original ProcessPoolExecutor's lazy
+lifecycle. The source registers its decoder owner and HistoryExecutor assigns
+its pool before the first submit creates any children. A partial spawn/thread
+start failure accepts no Future, marks the registered pool broken and retains
+all child/thread references. It does not synchronously join in the source loop;
+the original shutdown/fatal fence owns that drain. External shutdown joins every
+started owner thread and any child lacking one before it can return. Actual
+spawn tests inject the second owner-thread start failure, including denied
+termination and a gated initializer, then verify all real children/owners join.
+
 No multiprocessing Queue, SimpleQueue, Lock, Event or SemLock is constructed.
 Known FD, socket, Connection, mmap and resource-sharer payloads are refused before
 their pickle reducers run. The native workload passes data and private paths.
