@@ -29,8 +29,8 @@ Pons' executable USD route, matching the production readers. The authenticated
 receipt cannot extend either underlying expiry, and every sizing/denial access
 checks freshness. A joint receipt thus needs refresh within the shortest
 underlying interval; this component has no parent receipt producer yet.
-A checksum alone is not accepted
-as authentication. The epoch identifier is a reference, never a copied epoch,
+A checksum alone is not accepted as authentication. The epoch identifier is a
+reference, never a copied epoch,
 grant or authority. Native qualification receives positive actual sizing facts;
 allocation authority is independently absent.
 
@@ -58,16 +58,34 @@ and prior-attempt checks are retained. No qualification result is changed.
 This component refuses existing accounting, pipeline or fill-context globals;
 it cannot accidentally publish through an already-running native resource.
 
-The other three actual qualifier functions are exercised against offline
-native fixtures and positive authenticated sizing facts, then the same
-committed-decision denial contract. Their full native runtime loops are not
-wired to these resources. They still require real financial books for their
-startup, continuation and final financial reports. Implementing those adapters
-and the protected parent receipt/transport bridge remains necessary before an
-isolated native workload can run.
+The actual Survivor steps now call extracted native publication methods and a
+post-publication allocation gate. Default production calls perform the same
+Plane/Attempts, native History, directional observation and opportunity writes.
+Explicit resources require owned native stores and no book, verify those
+committed qualifications, then preserve the decision and record the denial
+before lifecycle identity issuance or `_enter()`. Pons Current checks its actual
+committed full result, generation, qualified transition and Attempts receipt
+before denying and before `entry_confirmation`, trial index, controller intent
+or submission. Its normal capacity/defer behavior is unchanged without resources.
 
-The offline proof covers ten component tests plus 35 existing accounting,
-portfolio, Current/Survivor independence and sleeve snapshot tests. It proves
+These actual publication/admission branches are exercised with native offline
+fixtures and positive authenticated sizing facts. Genuine negative qualifier
+results remain rejected without a funding disposition. Shared CandidateHistory,
+Survivor History/PonsHistory and Pons Plane are opened through owned resources;
+no financial book is created or impersonated. Full isolated constructors/run
+explicitly refuse startup before state creation. They still require proper
+bookless loop/reporting adapters, injected provider/owner resources and the
+protected parent receipt/transport bridge before an isolated native workload
+can run. No source delivery, FULL/ACK or market throughput claim follows.
+Native store factories reject preexisting files and main/WAL/SHM/journal
+symlinks before invoking the original SQLite constructors. The cached shared
+CandidateHistory connection has no cross-thread transaction serialization;
+parallel bootstrap must provide per-owner connections or serialization before
+sharing it among runner threads. Current tests exercise sequential admission.
+
+The scoped offline proof covers 18 component/admission tests plus 115 existing
+accounting, portfolio, native Survivor strategy/runtime and Pons worker checks.
+It proves
 the explicit constructor rejection occurs before SQLite opens, durable
 qualification survives funding denial, actual native observation methods
 persist and reopen, authenticated facts remain positive and immutable, stale

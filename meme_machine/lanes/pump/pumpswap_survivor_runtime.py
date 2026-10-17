@@ -42,7 +42,10 @@ class Quotes:
 
 
 class Runtime:
-    def __init__(self,root,capital,run_id,confirmations):
+    def __init__(self,root,capital,run_id,confirmations,*,native_resources=None):
+        if native_resources is not None:
+            from meme_machine.runtime.isolated_native_admission import unsupported_bootstrap
+            unsupported_bootstrap(native_resources)
         self.root=Path(root);self.root.mkdir(parents=True,exist_ok=True)
         self.capital=capital;self.run_id=run_id;self.confirmations=confirmations
         self.sleeve=open_sleeve('pump',capital)
@@ -425,6 +428,26 @@ class Runtime:
             shared.record_funding(row['decision_id'],'pump',row['id'],
                 status=status,at=self.now(),reason=reason,details=details)
 
+    def _allocation_allowed(self,row,decision):
+        from meme_machine.runtime.isolated_native_admission import survivor_allocation_allowed
+        return survivor_allocation_allowed(self,row,decision,lane='pump',policy=POLICY_HASH)
+
+    def _publish_qualification(self,row,decision,regime,*,state):
+        if getattr(self,'native_resources',None) is not None:
+            from meme_machine.runtime.isolated_native_admission import require_survivor_resources
+            require_survivor_resources(self,'pump')
+        observed=self.sleeve.observe(row['id'],strategy=STRATEGY_ID,at=state['market_time'],
+            state='qualified' if decision['candidate'] else decision['stage'],evidence=decision,regime=regime)
+        # Preserve the first observed cycle instead of moving its breakout.
+        regime=observed['regime']
+        self.sleeve.opportunity(row['id'],identity=row['id'],regime='survivor',
+            status=observed['state'],at=state.get('market_time',state.get('at')),decision=decision)
+        row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
+            generation=observed['generation'],regime=regime)
+        self._decision(row,decision,state['market_time'])
+        self.history.save(row)
+        return row,observed,regime
+
     def step(self,*,admit):
         discovery_deferred=False
         try:
@@ -497,19 +520,8 @@ class Runtime:
                                 decision['candidate']=False;decision['all_rejections'].append('extension_requires_new_reset_base')
                         if any(reason in decision['all_rejections'] for reason in ('price_extension','base_range_extension')):
                             row['extension_blocked_regime']=regime;self.history.save(row)
-                        observed=self.sleeve.observe(row['id'],strategy=STRATEGY_ID,at=state['market_time'],
-                            state='qualified' if decision['candidate'] else decision['stage'],evidence=decision,regime=regime)
-                        # The sleeve freezes a cycle's first observed breakout.
-                        # Later canonical observations cannot mint another cycle
-                        # from a moving decision time or completed base window.
-                        regime=observed['regime']
-                        self.sleeve.opportunity(row['id'],identity=row['id'],regime='survivor',
-                            status=observed['state'],at=state.get('market_time',state.get('at')),decision=decision)
-                        row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
-                            generation=observed['generation'],regime=regime)
-                        self._decision(row,decision,state['market_time'])
-                        self.history.save(row)
-                        if decision['candidate']:
+                        row,observed,regime=self._publish_qualification(row,decision,regime,state=state)
+                        if decision['candidate'] and self._allocation_allowed(row,decision):
                             sizing=self.sleeve.sizing_basis(POLICY["target_sleeve_bps"])
                             if int(sizing.get('allocatable_target',0)) < GAS*2+1:
                                 # Qualification remains durable even when funding is

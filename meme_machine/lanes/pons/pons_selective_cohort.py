@@ -800,7 +800,21 @@ def _collect_observations(*args,queue,scout=None,**kwargs):
     return discovered
 
 
-def run(endpoint,*,campaign=False):
+def _allocation_allowed(queue,scheduled,evaluation,attempts,*,native_resources=None):
+    from meme_machine.runtime.isolated_native_admission import current_pons_allocation_allowed
+    return current_pons_allocation_allowed(queue,scheduled,evaluation,attempts,
+        native_resources=native_resources)
+
+
+def _record_qualification(attempts,identity,generation,evaluation,category,*,at,explanation):
+    return attempts.record(identity,generation,'qualification',category,at=at,
+        decision=dict(evaluation['vector'],reentry_explanation=explanation))
+
+
+def run(endpoint,*,campaign=False,native_resources=None):
+    if native_resources is not None:
+        from meme_machine.runtime.isolated_native_admission import unsupported_bootstrap
+        unsupported_bootstrap(native_resources)
     if type(campaign) is not bool:raise BoundaryError('selective_campaign_flag')
     ROOT.mkdir(parents=True,exist_ok=True)
     # Preserve existing evidence and lane capital on repeated invocation.
@@ -1269,9 +1283,8 @@ def run(endpoint,*,campaign=False):
                         references.get(curve),evaluation['vector'],
                         active=active is not None and not active[1].done())
                 public['reentry_explanation']=explanation
-                attempts.record(identity,scheduled['work']['generation'],'qualification',category,
-                    at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),
-                    decision=dict(evaluation['vector'],reentry_explanation=explanation))
+                _record_qualification(attempts,identity,scheduled['work']['generation'],evaluation,category,
+                    at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),explanation=explanation)
                 if authorization_rejection is not None:
                     blocking=dict(curve=curve)
                     if active is not None:
@@ -1285,7 +1298,10 @@ def run(endpoint,*,campaign=False):
                     public["live_authorization"]="rejected"
                     public["authorization_rejection"]=authorization_rejection
                 elif evaluation["vector"].get("current_threshold_pass"):
-                    if (not pool.entry_capacity_available() if hasattr(pool,'entry_capacity_available') else
+                    if not _allocation_allowed(queue,scheduled,evaluation,attempts,native_resources=native_resources):
+                        public['live_authorization']='isolated_denied'
+                        public['authorization_rejection']='isolated_native_no_allocation'
+                    elif (not pool.entry_capacity_available() if hasattr(pool,'entry_capacity_available') else
                             sum(not future.done() for _,future in futures)>=MAX_CONCURRENT_LIFECYCLES):
                         generation=scheduled['work']['generation']
                         if not queue.defer_execution_worker(identity,generation,worker_limit=MAX_CONCURRENT_LIFECYCLES):
@@ -1304,7 +1320,7 @@ def run(endpoint,*,campaign=False):
                     evaluation["vector"].get("current_threshold_pass")
                     and authorization_rejection is None
                 ):
-                    if public.get('live_authorization')=='worker_deferred':continue
+                    if public.get('live_authorization') in ('worker_deferred','isolated_denied'):continue
                     if not queue.plane.decision(identity,scheduled['work']['generation'],'entry_confirmation'):
                         continue
                     qindex=_next_trial_index(result)

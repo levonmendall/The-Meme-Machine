@@ -140,7 +140,10 @@ class Runtime:
     # admission, range limits and position-first ordering stay authoritative.
     observation_interval_seconds=3
 
-    def __init__(self,root,capital,run_id,endpoint,*,scout_path=None):
+    def __init__(self,root,capital,run_id,endpoint,*,scout_path=None,native_resources=None):
+        if native_resources is not None:
+            from meme_machine.runtime.isolated_native_admission import unsupported_bootstrap
+            unsupported_bootstrap(native_resources)
         self.root=Path(root);self.root.mkdir(parents=True,exist_ok=True)
         self.capital=capital;self.run_id=run_id;self.endpoint=endpoint
         self.sleeve=open_sleeve('pons',capital)
@@ -929,6 +932,31 @@ class Runtime:
                 # settlement. The original position decision is already final.
                 shadow.counts['isolated_unexpected_probe_error']+=1
 
+    def _allocation_allowed(self,row,decision):
+        from meme_machine.runtime.isolated_native_admission import survivor_allocation_allowed
+        return survivor_allocation_allowed(self,row,decision,lane='pons',policy=POLICY_HASH)
+
+    def _publish_qualification(self,row,decision,regime,*,state,signal=None):
+        if getattr(self,'native_resources',None) is not None:
+            from meme_machine.runtime.isolated_native_admission import require_survivor_resources
+            require_survivor_resources(self,'pons')
+        key='pons:survivor:'+row['id']
+        self.plane.observe(key,'pons',state['block_hash'],decision,ordering=(state['block'],),
+            watermark=dict(block=state['block'],hash=state['block_hash']),interpretation=dict(policy=POLICY_HASH),
+            observed=time.time(),deadline=None,priority=4,needs_work=False)
+        self.attempts.record(row['id'],row.get('qualification_attempt',0),'qualification',
+            decision_category(decision),at=state['at'],decision=decision)
+        observed=self.sleeve.observe(row['id'],strategy=STRATEGY_VERSION,at=state['at'],
+            state='qualified' if decision['candidate'] else decision['stage'],evidence=decision,regime=regime)
+        regime=observed['regime']
+        self.sleeve.opportunity(row['id'],identity=row['id'],regime='survivor',
+            status=observed['state'],at=state.get('market_time',state.get('at')),decision=decision)
+        row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
+            generation=observed['generation'],regime=regime,plane_generation=self.plane.get(key)['generation'])
+        if getattr(self,'scout',None) is not None:self._schedule_watch(row,state['at'],signal)
+        self.history.save(row)
+        return row,observed,regime
+
     @decision_work(4)
     def step(self,*,admit):
         errors=[]
@@ -1031,25 +1059,11 @@ class Runtime:
                         regime=dict(at=state['at'],rally_cycle=decision.get('rally_cycle'),
                             base_id=[f.get('base_low'),f.get('base_high')],buyer_population=self.facts['organic_flow']['buyer_groups'],
                             independent_demand=f['independent_buyers_30m'],flow_regime=f['buy_sell_ratio_bps']//10000)
-                        key='pons:survivor:'+row['id']
-                        self.plane.observe(key,'pons',state['block_hash'],decision,ordering=(state['block'],),
-                            watermark=dict(block=state['block'],hash=state['block_hash']),interpretation=dict(policy=POLICY_HASH),
-                            observed=time.time(),deadline=None,priority=4,needs_work=False)
-                        self.attempts.record(row['id'],row.get('qualification_attempt',0),'qualification',
-                            decision_category(decision),at=state['at'],decision=decision)
-                        observed=self.sleeve.observe(row['id'],strategy=STRATEGY_VERSION,at=state['at'],
-                            state='qualified' if decision['candidate'] else decision['stage'],evidence=decision,regime=regime)
-                        regime=observed['regime']
-                        self.sleeve.opportunity(row['id'],identity=row['id'],regime='survivor',
-                            status=observed['state'],at=state.get('market_time',state.get('at')),decision=decision)
-                        row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
-                            generation=observed['generation'],regime=regime,plane_generation=self.plane.get(key)['generation'])
-                        if getattr(self,'scout',None) is not None:self._schedule_watch(row,state['at'],signal)
                         # Qualification is durable before native funding. The
                         # owner removed the two-position admission veto; capital,
                         # full execution requalification and risk still govern.
-                        self.history.save(row)
-                        if decision['candidate']:
+                        row,observed,regime=self._publish_qualification(row,decision,regime,state=state,signal=signal)
+                        if decision['candidate'] and self._allocation_allowed(row,decision):
                             from meme_machine.runtime.lifecycle_identity import issue
                             row['position']=issue(self.run_id+':'+digest([STRATEGY_VERSION,row['id'],regime]))
                             row['state']='reserved';self.history.save(row);self._enter(row)

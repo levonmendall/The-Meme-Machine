@@ -146,6 +146,9 @@ class IsolatedNativeResources:
         self._lock = threading.RLock()
         self._sleeves = set()
         self._histories = []
+        self._candidate_history = None
+        self._native_histories = {}
+        self._pons_plane = None
         root.mkdir(mode=0o700)  # Exclusive creation; never adopt existing state.
         self._owner = (root / '.isolated-native-owner').open('x+')
         fcntl.flock(self._owner.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -170,10 +173,71 @@ class IsolatedNativeResources:
 
     def candidate_history(self):
         require_resources(self)
-        from meme_machine.runtime.candidate_history import CandidateHistory
-        history = CandidateHistory(self.root / 'candidate-history.sqlite', clock=self.clock)
-        self._histories.append(history)
-        return history
+        with self._lock:
+            require_resources(self)
+            if self._candidate_history is None:
+                from meme_machine.runtime.candidate_history import CandidateHistory
+                self._candidate_history = CandidateHistory(self._unused_native_path('candidate-history.sqlite'), clock=self.clock)
+                self._histories.append(self._candidate_history)
+            return self._candidate_history
+
+    def survivor_history(self, lane):
+        require_resources(self)
+        if lane not in ('pump','pons'):
+            raise ValueError('isolated_native_history_lane')
+        with self._lock:
+            require_resources(self)
+            if lane not in self._native_histories:
+                if lane == 'pump':
+                    from meme_machine.runtime.survivor_history import History
+                    from meme_machine.lanes.pump.pumpswap_survivor import POLICY_HASH
+                else:
+                    from meme_machine.lanes.pons.pons_history import PonsHistory as History
+                    from meme_machine.lanes.pons.pons_postgrad_survivor import POLICY_HASH
+                history = History(self._unused_native_path(lane+'-survivor-history.sqlite'), policy=POLICY_HASH)
+                self._histories.append(history)
+                self._native_histories[lane] = history
+            return self._native_histories[lane]
+
+    def pons_plane(self):
+        require_resources(self)
+        with self._lock:
+            require_resources(self)
+            if self._pons_plane is None:
+                from meme_machine.runtime.robinhood.plane import Plane
+                self._pons_plane = Plane(self._unused_native_path('pons-candidates.sqlite'), clock=self.clock)
+                self._histories.append(self._pons_plane)
+            return self._pons_plane
+
+    def _unused_native_path(self, name):
+        # These factories construct each owned store once. A preexisting file
+        # is not a recovery point and cannot be adopted merely by its filename.
+        path = self.root / name
+        for suffix in ('','-wal','-shm','-journal'):
+            member = Path(str(path)+suffix)
+            if member.is_symlink():
+                raise ValueError('isolated_native_state_symlink')
+            if member.exists():
+                raise ValueError('isolated_native_foreign_state')
+        return path
+
+    def require_survivor_history(self, history, lane):
+        require_resources(self)
+        if (history is None or self._native_histories.get(lane) is not history or
+                history.path != self.root / (lane+'-survivor-history.sqlite') or history.path.is_symlink()):
+            raise ValueError('isolated_native_survivor_history_owner')
+
+    def require_pons_plane(self, plane):
+        require_resources(self)
+        if (plane is None or plane is not self._pons_plane or
+                Path(plane.path) != self.root / 'pons-candidates.sqlite' or Path(plane.path).is_symlink()):
+            raise ValueError('isolated_native_pons_plane_owner')
+
+    def require_observation_state(self, state, lane):
+        require_resources(self)
+        if (type(state) is not NativeObservationState or state.resources is not self
+                or state.closed or state.identity['lane'] != lane):
+            raise ValueError('isolated_native_observation_owner')
 
     def require_history(self, history):
         require_resources(self)
