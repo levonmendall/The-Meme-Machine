@@ -613,6 +613,132 @@ def _economic_failed_inputs(db,raw,handlers,session_id,*,heads=None,expected_ori
         native_heads=actual,gap_origins=origins,job_ids={f:digest([f,PROGRAMS[f],lo,hi]) for f in ('pump','pumpswap')})
 
 
+PREPARATION_RECOVERY_CENSUS='07c27ae3ee01dc53b204e01ed145c27f8ee2cbb43f502ed4e5eee99de1bbd197'
+PREPARATION_RECOVERY_LEDGER='3d49d46228d8b2448eed3cbdff75faabfdf33e73a4acb218c0c0dd5a4c867016'
+PREPARATION_RECOVERY_SESSION='fad3c95d2dc54de4aa7594635d06b8d2'
+PREPARATION_RECOVERY_OBSERVATIONS={
+    'failure':(235833,'bcf9f65c3f82b1b7181539ecae63272ecdbcd9fecf1b076d1f11bb0e0462b453',80,1792216119.3346004),
+    'closed':(235834,'b53e22e8bf2bbe28ff2ec57ed4382d544aa07bfadd7da8527fdff2aed7155ddb',846,1792216119.6502507),
+    'join':(235839,'a10221f228bd218f501cb59c90c53a3d492de00efdd059c009a668461cbd3390',507,1792216119.6681688)}
+PREPARATION_RECOVERY_HEADS={family:dict(scope='candidate:'+family+':'+program,
+    slot=457925003,parent=457925002,hash='45MWnLafk5cb4V9Xq2TzBBKiQ5aax1yeBQMd9gY2uxCE',
+    previous_hash='9qgCV9X8euuN8wiETvFfWBXmgHGpZPXRw8pZmKDkbWuh',market_time=1792215913,
+    seen=1792216116.314142,session=PREPARATION_RECOVERY_SESSION,census_hash=checksum)
+    for family,program,checksum in (
+        ('pump','6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P','e2bd957b6b9efe519480a57951e0de21f1003711a3f75048cbdc0624b4f7021a'),
+        ('pumpswap','pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA','ef15eaaeb59b3cd771495d86d234b753477b3c316af5a69b5ad26d6d477e7dc7'))}
+PREPARATION_RECOVERY_GAPS={
+    'pump':((41729,457925004,457925009,1792216119.3265452),
+        (41731,457923754,None,1792216119.426009)),
+    'pumpswap':((41730,457925004,457925009,1792216119.329942),
+        (41732,457923754,None,1792216119.6495435))}
+
+
+def _preparation_failed_inputs(db,raw,handlers,session_id,*,heads=None,expected_origins=None):
+    """One failed pure decoder batch has independent closed-session receipts.
+
+    This incident keeps its sticky terminal failure. Its exact original inputs
+    delimit the lost batch independently of that flag; recovery still needs the
+    original archive/FULL consumer/ACK proof, never an acknowledgement of the old
+    queue. No other terminal-unavailable incident borrows this case.
+    """
+    from .solana_evidence_plane import digest
+    from .solana_selective_history import PROGRAMS
+    from .solana_rolling_history import program_scope
+    require=_economic_require
+    require(isinstance(raw,str) and isinstance(handlers,str)
+        and hashlib.sha256(raw.encode()).hexdigest()==PREPARATION_RECOVERY_CENSUS
+        and hashlib.sha256(handlers.encode()).hexdigest()==PREPARATION_RECOVERY_LEDGER
+        and session_id==PREPARATION_RECOVERY_OBSERVATIONS['closed'][0])
+    body=_retained_census(raw);accounting=body.get('handler_accounting');queues=body.get('queues')
+    require(body['state']=='RECOVERY_REQUIRED' and body.get('terminal') is True
+        and _observation_reference(body) and body.get('terminal_record_unavailable') is True
+        and body.get('unexpected_cancellation',False) is False and body.get('all_accepted_committed') is False
+        and body.get('unpreserved_sessions')==0 and body.get('pending_handlers')==0
+        and isinstance(accounting,dict) and accounting.get('version')==1 and accounting.get('valid') is True
+        and accounting.get('run')==body.get('run_identity') and accounting.get('pid')==body.get('source_pid')
+        and type(body.get('source_pid')) is int and body['source_pid']>0
+        and isinstance(body.get('run_identity'),str) and len(body['run_identity'])==32
+        and all(c in '0123456789abcdef' for c in body['run_identity'])
+        and accounting.get('accepted')==body['accepted_handlers']==body['settled_handlers']==accounting.get('returned')
+        and all(type(accounting.get(k)) is int and accounting[k]==0 for k in ('active','recoverable','failed','unresolved'))
+        and accounting.get('records')==[] and isinstance(queues,dict)
+        and set(queues)=={'control','scout','rolling','candidate'})
+    for plane,row in queues.items():
+        require(isinstance(row,dict) and set(row)=={'accepted','committed','pending'}
+            and all(type(row.get(k)) is int and row[k]>=0 for k in row)
+            and row['accepted']-row['committed']==row['pending']
+            and row['pending']==(6 if plane=='rolling' else 0))
+    retained=_retained_handlers(handlers)
+    require(all(r.get('run')!=body['run_identity'] for r in retained))
+    observations={}
+    for name,kind in (('failure','candidate_economic_preparation_failed'),('closed','source_session_drain'),
+            ('join','native_join_closed')):
+        identity,checksum,size,at=PREPARATION_RECOVERY_OBSERVATIONS[name]
+        row=db.execute('''SELECT kind,at,length(CAST(body AS BLOB)),CASE WHEN
+            length(CAST(body AS BLOB))<=? THEN body END FROM acquisition_observations WHERE id=?''',
+            (SOURCE_DRAIN_BYTES,identity)).fetchone()
+        require(row is not None and row[:3]==(kind,at,size) and isinstance(row[3],str)
+            and size<=SOURCE_DRAIN_BYTES and hashlib.sha256(row[3].encode()).hexdigest()==checksum)
+        observations[name]=_retained_json(row[3])
+        require(isinstance(observations[name],dict))
+    require(observations['failure']==dict(error='evidence_worker_failed:BrokenProcessPool',checkpoint_advanced=False))
+    observed=observations['closed'];joined=observations['join']
+    fields=('plane','session','filtered_from_slot','completed','pending_slots','pending_bytes',
+        'early_log_count','early_log_bytes','early_log_min_slot','early_log_max_slot',
+        'oldest_slot','oldest_statuses','oldest_bodies','oldest_missing_logs','replay_prefix_bytes',
+        'accepted_pending','accepted_pending_bytes','drained')
+    require(all(observed.get(k)==joined.get(k) for k in fields)
+        and observed.get('plane')=='rolling' and observed.get('session')==PREPARATION_RECOVERY_SESSION
+        and observed.get('drained') is False and observed.get('complete_history_claim') is False
+        and observed.get('handler_dispositions')==[] and observed.get('completed')==457925009
+        and observed.get('accepted_pending')==6 and type(observed.get('accepted_pending_bytes')) is int
+        and 0<observed['accepted_pending_bytes']<=32*1024*1024
+        and all(type(observed.get(k)) is int and observed[k]==0 for k in
+            ('pending_slots','pending_bytes','oldest_statuses','oldest_bodies','oldest_missing_logs'))
+        and observed.get('oldest_slot') is None and observed.get('filtered_from_slot')==457923754
+        and observed.get('replay_from_slot')==457923754
+        and observed.get('early_log_min_slot')==457925010 and observed.get('early_log_max_slot')==457925127
+        and all(type(observed.get(k)) is int and observed[k]>0 for k in ('early_log_count','early_log_bytes')))
+    require(observed.get('recovery_obligations')==[dict(scope=program_scope(family),lower_slot=457923754,
+        upper_slot=None) for family in ('pump','pumpswap')])
+    head_fields=('scope','slot','parent','hash','previous_hash','market_time','seen','session','census_hash')
+    actual=heads
+    if actual is None:
+        actual={}
+        for family in ('pump','pumpswap'):
+            row=db.execute('SELECT slot,parent,hash,previous_hash,market_time,seen,session,census_hash '
+                'FROM candidate_blocks WHERE scope=?',(program_scope(family),)).fetchone()
+            require(row is not None);actual[family]=dict(zip(head_fields,(program_scope(family),*row)))
+    require(actual==PREPARATION_RECOVERY_HEADS)
+    origins={}
+    for family in ('pump','pumpswap'):
+        for index,(identity,lo,hi,created) in enumerate(PREPARATION_RECOVERY_GAPS[family]):
+            row=db.execute('SELECT scope,lo,hi,created,reason FROM candidate_gaps WHERE id=?',(identity,)).fetchone()
+            reason='candidate_economic_preparation_failed' if index==0 else 'candidate_live_disconnect_or_filter_rebuild'
+            require(row is not None and (row[0],row[1],row[3],row[4])==(program_scope(family),lo,created,reason)
+                and (row[2]==hi or index==1 and hi is None and type(row[2]) is int and row[2]>=457925127))
+            if index==1:origins[family]=dict(id=identity,scope=row[0],lo=lo,hi=hi,created=created,reason=reason)
+    require(expected_origins is None or expected_origins==origins)
+    provider=_retained_json(_health_from_db(db,'provider',SOURCE_DRAIN_BYTES))
+    require(isinstance(provider,dict) and provider.get('provider')=='alchemy_solana_mainnet'
+        and provider.get('network')=='solana-mainnet' and isinstance(provider.get('endpoint_identity'),str)
+        and len(provider['endpoint_identity'])==64 and all(c in '0123456789abcdef' for c in provider['endpoint_identity']))
+    return dict(version=1,kind='ROLLING_ECONOMIC_REPLAY_INPUTS',failed_census_sha256=PREPARATION_RECOVERY_CENSUS,
+        handler_ledger_sha256=PREPARATION_RECOVERY_LEDGER,run_identity=body['run_identity'],source_pid=body['source_pid'],
+        session=observed['session'],session_observation_id=session_id,
+        session_sha256=PREPARATION_RECOVERY_OBSERVATIONS['closed'][1],endpoint_identity=provider['endpoint_identity'],
+        lower_slot=457925003,upper_slot=457925009,tail_lower_slot=457925010,tail_upper_slot=457925127,
+        accepted_pending=6,handler_records=[],native_heads={f:dict(h) for f,h in actual.items()},
+        gap_origins=origins,job_ids={f:digest([f,PROGRAMS[f],457925003,457925009]) for f in ('pump','pumpswap')})
+
+
+def _economic_recovery_inputs(db,raw,handlers,session_id,*,heads=None,expected_origins=None):
+    validator=(_preparation_failed_inputs if isinstance(raw,str)
+        and hashlib.sha256(raw.encode()).hexdigest()==PREPARATION_RECOVERY_CENSUS else _economic_failed_inputs)
+    return validator(db,raw,handlers,session_id,heads=heads,expected_origins=expected_origins)
+
+
 def current_economic_recovery_descriptor(state_or_db):
     """Select only an authentic current queue incident, never caller bounds."""
     db=_economic_db(state_or_db)
@@ -627,9 +753,11 @@ def current_economic_recovery_descriptor(state_or_db):
     if prior:
         _economic_require(len(prior)==1)
         descriptor=_retained_json(prior[0][3])
-        actual=_economic_failed_inputs(db,raw,handlers,descriptor['session_observation_id'])
+        actual=_economic_recovery_inputs(db,raw,handlers,descriptor['session_observation_id'])
         _economic_require(actual==descriptor)
         return descriptor
+    if checksum==PREPARATION_RECOVERY_CENSUS:
+        return _preparation_failed_inputs(db,raw,handlers,PREPARATION_RECOVERY_OBSERVATIONS['closed'][0])
     sessions=[]
     rows=db.execute('''SELECT id,kind,length(CAST(body AS BLOB)),CASE WHEN
         length(CAST(body AS BLOB))<=? THEN body END FROM acquisition_observations ORDER BY id DESC LIMIT 128''',
@@ -645,7 +773,7 @@ def current_economic_recovery_descriptor(state_or_db):
             ('candidate:pump:6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P',)).fetchone()
         if head is not None and session==head[0] and all(r.get('session')==session for r in records):sessions.append(identity)
     _economic_require(len(sessions)==1)
-    return _economic_failed_inputs(db,raw,handlers,sessions[0])
+    return _economic_recovery_inputs(db,raw,handlers,sessions[0])
 
 
 def preserve_economic_recovery_descriptor(state,descriptor):
@@ -688,7 +816,7 @@ def verify_economic_recovery_descriptor(state_or_db,descriptor_or_reference):
         _health_from_db(db,HANDLER_RECOVERY_KEY+'_preserved.'+str(descriptor.get('handler_ledger_sha256')),HandlerLedger.maximum_bytes)
     require(failed is not None and hashlib.sha256(failed.encode()).hexdigest()==checksum
         and old_ledger is not None and hashlib.sha256(old_ledger.encode()).hexdigest()==descriptor.get('handler_ledger_sha256'))
-    require(_economic_failed_inputs(db,failed,old_ledger,descriptor['session_observation_id'],
+    require(_economic_recovery_inputs(db,failed,old_ledger,descriptor['session_observation_id'],
         heads=None if direct else descriptor['native_heads'],expected_origins=descriptor['gap_origins'])==descriptor)
     live=[] if ledger is None else _retained_handlers(ledger)
     for record in _retained_handlers(old_ledger):

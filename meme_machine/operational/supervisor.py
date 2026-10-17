@@ -368,6 +368,9 @@ class Supervisor:
         (self.root/'pump').mkdir(exist_ok=True,mode=0o700)
         env=self.environment('solana')
         self.evidence=subprocess.Popen([sys.executable,'-m','meme_machine.runtime.evidence_worker'],cwd=self.root,env=env,start_new_session=True)
+        ticks=self._source_start_ticks(self.evidence.pid)
+        if ticks is None:raise RuntimeError('source_process_identity_unavailable')
+        self.evidence._mm_source_start_ticks=ticks
         deadline=time.monotonic()+15
         while not Path(env['MM_SOLANA_EVIDENCE_PLANE_DB']+'.sock').exists():
             if self.evidence.poll() is not None:raise RuntimeError('shared_evidence_failed')
@@ -762,6 +765,8 @@ class Supervisor:
 
     def recover_evidence(self):
         """An incident blocks new risk; existing native owners keep priority."""
+        if self.evidence.poll() is not None:
+            self.stop_process(self.evidence,45,cooperative_parent=True)
         if getattr(getattr(self,'provider_budget',None),'continuous',False):
             now=time.time()
             if getattr(self,'reported_evidence_failure',None)!=self.evidence.pid:
@@ -800,7 +805,7 @@ class Supervisor:
                 if not self.offline and self.evidence is None and 'pump' in self.runtime_lanes():self.start_services()
                 if not self.offline and self.evidence is not None and self.evidence.poll() is not None:self.recover_evidence()
                 if not self.offline and self.evidence is not None and 'pump' not in self.runtime_lanes():
-                    self.stop_process(self.evidence,45);self.evidence=None
+                    self.stop_process(self.evidence,45,cooperative_parent=True);self.evidence=None
                 if time.monotonic()-self.last_publish>=2:
                     provider_sample=self.collect_provider_health()
                     if self.admission in ('BOOTSTRAP','CONTINUATION','NORMAL','AUTONOMY') and not self.offline:
@@ -822,35 +827,86 @@ class Supervisor:
                 budget.bootstrap.change(reason='service_stopping_funding_closed',check=False)
             self.stop_lanes()
             evidence=getattr(self,'evidence',None)
-            if evidence is not None:self.stop_process(evidence,45)
+            if evidence is not None:self.stop_process(evidence,45,cooperative_parent=True)
             self.publish()
             for sig,handler in prior.items():signal.signal(sig,handler)
             if self.lock:self.lock.close();self.lock=None
 
     @staticmethod
-    def stop_process(proc,timeout=15,*,signal_sent=False,observe=None):
+    def _source_start_ticks(pid):
+        try:raw=Path('/proc',str(pid),'stat').read_text()
+        except FileNotFoundError:return None
+        try:
+            leader,tail=raw.rsplit(')',1)
+            fields=tail.split()
+            if (int(leader.split('(',1)[0])!=pid or int(fields[2])!=pid
+                    or int(fields[3])!=pid or int(fields[19])<=0):
+                raise ValueError
+            return int(fields[19])
+        except (ValueError,IndexError):
+            raise RuntimeError('source_process_identity_unverified') from None
+
+    @staticmethod
+    def stop_process(proc,timeout=15,*,signal_sent=False,observe=None,cooperative_parent=False):
         def note(operation,**fields):
             if observe is not None:
                 try:observe(dict(operation=operation,at=time.time(),monotonic=time.monotonic(),
                     caller_pid=os.getpid(),caller_native_thread_id=threading.get_native_id(),
                     target_pid=proc.pid,**fields))
                 except Exception:pass
+        def cleanup_descendants():
+            # The source owns accepted pool work through its cooperative
+            # drain. Once that owner exits, no descendant may outlive it.
+            current=Supervisor._source_start_ticks(proc.pid)
+            if current is not None and current!=source_ticks:
+                raise RuntimeError('source_process_identity_changed')
+            note('descendant_cleanup_requested',signal=int(signal.SIGKILL))
+            try:os.killpg(proc.pid,signal.SIGKILL)
+            except ProcessLookupError:
+                proc._mm_source_group_closed=True
+                return
+            proc._mm_source_group_closed=True
+            note('descendant_cleanup_sent',signal=int(signal.SIGKILL))
         code=proc.poll()
+        if cooperative_parent:
+            if getattr(proc,'_mm_source_group_closed',False):
+                if code is None:code=proc.wait(timeout=5)
+                note('already_cleaned',exit_code=code)
+                return
+            source_ticks=getattr(proc,'_mm_source_start_ticks',None)
+            if source_ticks is None:
+                if code is not None:raise RuntimeError('source_process_identity_unavailable')
+                source_ticks=Supervisor._source_start_ticks(proc.pid)
+                if source_ticks is None:raise RuntimeError('source_process_identity_unavailable')
+                proc._mm_source_start_ticks=source_ticks
+            current=Supervisor._source_start_ticks(proc.pid)
+            if current is not None and current!=source_ticks:
+                raise RuntimeError('source_process_identity_changed')
         if code is not None:
-            note('already_exited',exit_code=code);return
+            note('already_exited',exit_code=code)
+            if cooperative_parent:cleanup_descendants()
+            return
         if not signal_sent:
             note('signal_requested',signal=int(signal.SIGTERM))
-            os.killpg(proc.pid,signal.SIGTERM)
+            if cooperative_parent:proc.send_signal(signal.SIGTERM)
+            else:os.killpg(proc.pid,signal.SIGTERM)
             note('signal_sent',signal=int(signal.SIGTERM))
         note('wait_started',timeout_seconds=timeout)
+        escalated=False
         try:code=proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
             note('wait_timeout',timeout_seconds=timeout)
             note('signal_requested',signal=int(signal.SIGKILL))
-            os.killpg(proc.pid,signal.SIGKILL)
+            if cooperative_parent:
+                try:os.killpg(proc.pid,signal.SIGKILL)
+                except ProcessLookupError:pass
+                proc._mm_source_group_closed=True
+            else:os.killpg(proc.pid,signal.SIGKILL)
             note('signal_sent',signal=int(signal.SIGKILL))
             code=proc.wait(timeout=5)
+            escalated=True
         note('wait_completed',exit_code=code)
+        if cooperative_parent and not escalated:cleanup_descendants()
 
     def stop_lanes(self):
         self.native_shutdown=[]
