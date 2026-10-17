@@ -3,7 +3,7 @@
 No capital or entry authority. Checkpoints never seal an interval. Cold archive
 acquisition is requested only for an explicitly missing interval.
 """
-from .runtime.operation_costs import measured
+from .runtime.operation_costs import measured,operation
 
 import json
 import hashlib
@@ -242,27 +242,33 @@ class RollingHistory:
                     if native[(scope,slot,sig)]!=(index,checksum):
                         raise EvidenceConflict('candidate_native_order_conflict')
 
-        inserted=self.db.executemany('INSERT OR IGNORE INTO rolling_economic_events VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)',
-            [(row.identity,row.scope,row.slot,row.signature,row.program,row.market_time,row.event_index,
-              row.transaction_index,row.kind,product.encoded,product.checksum,row.observed_at)
-             for row,product in zip(rows,serialized)]).rowcount
-        self.db.executemany('INSERT OR IGNORE INTO rolling_economic_addresses VALUES(?,?)',
-            [(row.identity,address) for row in rows for address in row.addresses])
-        self.db.executemany('INSERT OR IGNORE INTO candidate_content_receipts VALUES(?,?,?,?)',
-            [(row.identity,product.economic_hash,row.transaction_index,row.observed_at)
-             for row,product in zip(rows,serialized)])
-        self.db.executemany('INSERT OR IGNORE INTO native_order_attestations VALUES(?,?,?,?,?)',
-            [(*key,*value) for key,value in native.items()])
-        self.db.executemany('INSERT OR IGNORE INTO rolling_event_lineage VALUES(?,?,?,?)',
-            [(row.identity,row.source,row.endpoint_identity,row.observed_at) for row in rows])
+        with operation('owner.rolling_events_write'):
+            inserted=self.db.executemany('INSERT OR IGNORE INTO rolling_economic_events VALUES(?,?,?,?,?,?,?,?,?,?,?,?,NULL)',
+                [(row.identity,row.scope,row.slot,row.signature,row.program,row.market_time,row.event_index,
+                  row.transaction_index,row.kind,product.encoded,product.checksum,row.observed_at)
+                 for row,product in zip(rows,serialized)]).rowcount
+        with operation('owner.rolling_addresses_write'):
+            self.db.executemany('INSERT OR IGNORE INTO rolling_economic_addresses VALUES(?,?)',
+                [(row.identity,address) for row in rows for address in row.addresses])
+        with operation('owner.rolling_receipts_write'):
+            self.db.executemany('INSERT OR IGNORE INTO candidate_content_receipts VALUES(?,?,?,?)',
+                [(row.identity,product.economic_hash,row.transaction_index,row.observed_at)
+                 for row,product in zip(rows,serialized)])
+        with operation('owner.rolling_order_write'):
+            self.db.executemany('INSERT OR IGNORE INTO native_order_attestations VALUES(?,?,?,?,?)',
+                [(*key,*value) for key,value in native.items()])
+        with operation('owner.rolling_lineage_write'):
+            self.db.executemany('INSERT OR IGNORE INTO rolling_event_lineage VALUES(?,?,?,?)',
+                [(row.identity,row.source,row.endpoint_identity,row.observed_at) for row in rows])
         cursors={}
         for row in rows:
             # Preserve every clock call and the last sample, not MAX(updated).
             previous=cursors.get(row.scope)
             cursors[row.scope]=(row.slot if previous is None else max(previous[0],row.slot),self.clock())
-        self.db.executemany('''INSERT INTO cursors VALUES(?,?,?) ON CONFLICT(scope)
-            DO UPDATE SET slot=MAX(slot,excluded.slot),updated=excluded.updated''',
-            [(scope,slot,updated) for scope,(slot,updated) in cursors.items()])
+        with operation('owner.rolling_cursors_write'):
+            self.db.executemany('''INSERT INTO cursors VALUES(?,?,?) ON CONFLICT(scope)
+                DO UPDATE SET slot=MAX(slot,excluded.slot),updated=excluded.updated''',
+                [(scope,slot,updated) for scope,(slot,updated) in cursors.items()])
         if inserted:self.history.writer._count('ingested_event',inserted)
         return True
 

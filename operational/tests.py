@@ -53,6 +53,7 @@ FAST=[
     'tests.test_pump_cache_source_authority',
     'tests.test_control_interrupted_recovery',
     'tests.test_source_handler_recovery',
+    'tests.test_rolling_write_costs',
     'tests.test_operation_costs',
     'tests.test_pons_operation_costs',
     'tests.test_operation_owner_hooks',

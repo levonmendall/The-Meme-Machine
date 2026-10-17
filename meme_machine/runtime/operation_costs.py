@@ -31,6 +31,9 @@ NAMES = (
     'pons.survivor_restore', 'pons.survivor_step', 'pons.survivor_enrich',
     'pons.reporting', 'pons.usd_read', 'pons.scale_prepare',
     'owner.economic_ingest', 'owner.rolling_store', 'owner.order_attest',
+    'owner.rolling_events_write', 'owner.rolling_addresses_write',
+    'owner.rolling_receipts_write', 'owner.rolling_order_write',
+    'owner.rolling_lineage_write', 'owner.rolling_cursors_write',
     'owner.history_outbox', 'owner.checkpoint', 'owner.maintenance',
     'owner.scout_commit', 'owner.control_commit', 'owner.delivery_capture',
     'owner.delivery_ack', 'owner.proof_publish', 'owner.history_plan',
@@ -38,7 +41,10 @@ NAMES = (
 )
 SQL_BUCKETS = ('statement', 'statement_many', 'fetch', 'transaction', 'checkpoint')
 ACTIVE_LIMIT = 16
-_SKIP_RUNNABLE = frozenset(('owner.order_attest',))
+_SKIP_RUNNABLE = frozenset(('owner.order_attest',
+    'owner.rolling_events_write', 'owner.rolling_addresses_write',
+    'owner.rolling_receipts_write', 'owner.rolling_order_write',
+    'owner.rolling_lineage_write', 'owner.rolling_cursors_write'))
 _FIELDS = (
     'calls', 'failed_calls', 'unmeasured_calls', 'runnable_measured_calls',
     'runnable_unavailable_calls', 'submitted_calls', 'pending_calls',
