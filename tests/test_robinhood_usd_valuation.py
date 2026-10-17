@@ -780,7 +780,6 @@ def publication_accounting_predecessor(test,relative,current):
     from copy import deepcopy
     import hashlib
     if isinstance(current,str):current=current.encode()
-    current=cross_candidate_cold_predecessor(test,relative,current)
     reviewed=PUBLICATION_ACCOUNTING_DELTAS.get(relative)
     if reviewed is None:return current
     before,after,changed=reviewed
@@ -788,6 +787,7 @@ def publication_accounting_predecessor(test,relative,current):
     test.assertEqual(hashlib.sha256(prior).hexdigest(),before,
         relative+':exact integrated buffered-recovery predecessor')
     if current==prior:return prior
+    current=cross_candidate_cold_predecessor(test,relative,current)
     test.assertEqual(hashlib.sha256(current).hexdigest(),after,
         relative+':exact accounting-publication turn and Pump-cost successor')
     tree=ast.parse(current);old=ast.parse(prior)
@@ -1237,12 +1237,12 @@ def pump_restore_archive_reuse_predecessor(test,relative,current):
     from copy import deepcopy
     import hashlib
     if isinstance(current,str):current=current.encode()
-    current=cross_candidate_cold_predecessor(test,relative,current)
     if relative!=PUMP_RESTORE_ARCHIVE_REUSE_SOURCE:return current
     prior=subprocess.check_output(['git','show',PUMP_RESTORE_ARCHIVE_REUSE_REFERENCE+':'+relative],cwd=ROOT)
     test.assertEqual(hashlib.sha256(prior).hexdigest(),PUMP_RESTORE_ARCHIVE_REUSE_BEFORE,
         relative+':exact operation-local cold archive predecessor')
     if current==prior:return prior
+    current=cross_candidate_cold_predecessor(test,relative,current)
     test.assertEqual(hashlib.sha256(current).hexdigest(),PUMP_RESTORE_ARCHIVE_REUSE_AFTER,
         relative+':exact explicitly cancellable archive-reuse successor')
     tree=ast.parse(current);old=ast.parse(prior)
@@ -3182,7 +3182,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(PUBLICATION_ACCOUNTING_DELTAS))
         for relative,(before,after,_) in PUBLICATION_ACCOUNTING_DELTAS.items():
-            current=(ROOT/relative).read_bytes()
+            current=cross_candidate_cold_predecessor(self,relative,(ROOT/relative).read_bytes())
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact integrated successor')
             prior=subprocess.check_output(['git','show',PUBLICATION_ACCOUNTING_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':immutable exact tested predecessor')
@@ -3357,7 +3357,8 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_pump_restore_archive_reuse_preserves_fresh_authority_and_cancellation(self):
         import hashlib
-        relative=PUMP_RESTORE_ARCHIVE_REUSE_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=PUMP_RESTORE_ARCHIVE_REUSE_SOURCE
+        current=cross_candidate_cold_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),PUMP_RESTORE_ARCHIVE_REUSE_AFTER,
             relative+':active exact operation-local startup archive reuse')
         self.assertEqual(PUMP_RESTORE_ARCHIVE_REUSE_BEFORE,CANONICAL_COLD_DELTAS[relative][1],
