@@ -77,6 +77,9 @@ waiting for another waiter never starts a second grace interval. Supervisor125
 always refuses graceful/all-worker claims, even if the native receipt was already
 BLOCKED. Reader-construction failures close the setup stdin pipe and retain the
 physical owner on the original exception when cleanup is incomplete.
+Constructor cleanup also holds the same signal/reap ownership lock while
+waiting and updating the reaped state; an actual started-reader WNOWAIT gate
+proves cleanup cannot release the leader PID before its pending group signal.
 
 ## Current evidence and limitations
 
@@ -117,7 +120,7 @@ Failed scratch roots remain `/tmp/mm-engineering-jqjzcc9d`,
 `/tmp/mm-engineering-zb9hqi0i` and `/tmp/mm-engineering-0yexebz4`.
 
 Independent code review found no material blocker in the frozen native policy;
-four subsequent launcher findings have scoped correction regressions and await
+five subsequent launcher findings have scoped correction regressions and await
 independent recheck. Actual coupled copied-Python 2+1 worker/tracker execution still
 need their separate integrated validation and review. Actual AWS ABI8 static
 canary success is a separate receipt and does not prove this native route.

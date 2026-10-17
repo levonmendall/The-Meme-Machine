@@ -274,5 +274,47 @@ assert child.stdout.closed and child.stderr.closed
 print(json.dumps(dict(fixture_pass=True,landlock_verified=False)))
 ''')
 
+    def test_partial_start_reap_cannot_release_pid_during_readers_owned_signal(self):
+        self.run_fixture(r'''
+import json,os,signal,subprocess,sys,threading,time
+from unittest.mock import patch
+sys.path.insert(0,sys.argv[1])
+from meme_machine.operational.isolated_native_landlock_launcher import NativeLandlockChild
+requested=threading.Event();inside=threading.Event();release=threading.Event();reaping=threading.Event()
+errors=[];original_start=threading.Thread.start;original_waitid=os.waitid
+original_ctor_reap=NativeLandlockChild._constructor_reap
+primary=RuntimeError('fixed post-start ownership race')
+child=subprocess.Popen([sys.executable,'-I','-B','-S','-c','import time;time.sleep(60)'],
+ stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
+original_wait=child.wait
+def reader(owner):
+ assert requested.wait(1);owner._signal(signal.SIGKILL)
+def waitid(*args):
+ result=original_waitid(*args)
+ if threading.current_thread().name=='native-landlock-output':
+  inside.set();assert release.wait(1)
+ return result
+def constructor_reap(owner):
+ requested.set();assert inside.wait(1);return original_ctor_reap(owner)
+def wait(*args,**kwargs):reaping.set();return original_wait(*args,**kwargs)
+def started_then_failed(thread):original_start(thread);raise primary
+def controller():
+ try:
+  assert inside.wait(1)
+  assert not reaping.wait(.05),'leader reaped while reader retained WNOWAIT-to-kill ownership'
+ except BaseException as error:errors.append(error)
+ finally:release.set()
+control=threading.Thread(target=controller);original_start(control)
+with patch.object(NativeLandlockChild,'_drain',reader),patch.object(NativeLandlockChild,'_constructor_reap',constructor_reap),patch.object(threading.Thread,'start',started_then_failed),patch.object(os,'waitid',waitid),patch.object(child,'wait',wait):
+ try:NativeLandlockChild(child,time.monotonic())
+ except RuntimeError as error:assert error is primary;owner=error.native_landlock_owner
+ else:raise AssertionError('post-start failure accepted')
+control.join(1);assert not control.is_alive() and not errors,errors
+assert reaping.is_set() and owner._reaped and not owner._reader.is_alive()
+assert child.returncode==-signal.SIGKILL
+assert child.stdin.closed and child.stdout.closed and child.stderr.closed
+print(json.dumps(dict(fixture_pass=True,landlock_verified=False)))
+''')
+
 
 if __name__=='__main__':unittest.main()
