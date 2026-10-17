@@ -780,6 +780,7 @@ def publication_accounting_predecessor(test,relative,current):
     from copy import deepcopy
     import hashlib
     if isinstance(current,str):current=current.encode()
+    current=cross_candidate_cold_predecessor(test,relative,current)
     reviewed=PUBLICATION_ACCOUNTING_DELTAS.get(relative)
     if reviewed is None:return current
     before,after,changed=reviewed
@@ -1236,6 +1237,7 @@ def pump_restore_archive_reuse_predecessor(test,relative,current):
     from copy import deepcopy
     import hashlib
     if isinstance(current,str):current=current.encode()
+    current=cross_candidate_cold_predecessor(test,relative,current)
     if relative!=PUMP_RESTORE_ARCHIVE_REUSE_SOURCE:return current
     prior=subprocess.check_output(['git','show',PUMP_RESTORE_ARCHIVE_REUSE_REFERENCE+':'+relative],cwd=ROOT)
     test.assertEqual(hashlib.sha256(prior).hexdigest(),PUMP_RESTORE_ARCHIVE_REUSE_BEFORE,
