@@ -86,6 +86,7 @@ class NativeSpawnScope:
         self._owner=None;self._owner_ident=None;self._tracker_pid=None;self._joined=True;self._lock=threading.RLock()
         self._read=self._write=None;self._original=None
         self._kernel_executors={'decoder':None,'history':None};self._kernel_tracker_spawned=False
+        self._kernel_spawned={'decoder':0,'history':0}
         _require(_ACTIVE is None and type(layout) is NativeChildLayout,'isolated_native_spawn_scope')
         layout.require_entry();self.layout=layout;self.pid=os.getpid()
         _require(tracker._resource_tracker._fd is None and tracker._resource_tracker._pid is None,
@@ -139,9 +140,9 @@ class NativeSpawnScope:
         # PDEATHSIG belongs to the creating THREAD. Every fork/exec therefore
         # runs on this one retained owner, not a short-lived submitting thread.
         mask=signal.pthread_sigmask(signal.SIG_BLOCK,set())
-        return self._owner.submit(self._launch,list(args),original,mask).result()
+        return self._owner.submit(self._launch,list(args),original,mask,_ROLE.get()).result()
 
-    def _launch(self,args,passfds,mask):
+    def _launch(self,args,passfds,mask,role):
         with self._lock:
             _require(not self._closing,'isolated_native_spawn_stopped')
             self._owner_ident=threading.get_ident()
@@ -160,6 +161,7 @@ class NativeSpawnScope:
             finally:signal.pthread_sigmask(signal.SIG_SETMASK,previous)
             if is_tracker:
                 self._tracker_pid=pid;self._joined=False;self._kernel_tracker_spawned=True
+            else:self._kernel_spawned[role]+=1
             return pid
 
     @property
@@ -179,7 +181,8 @@ class NativeSpawnScope:
         return dict(state='JOINED',tracker_spawned=self._kernel_tracker_spawned,
             tracker_joined=self._kernel_tracker_spawned and self._tracker_pid is not None
                 and tracker._resource_tracker._pid is None,
-            spawn_owner_joined=True,executors={role:(dict(value) if value is not None else
+            spawn_owner_joined=True,workers_spawned=dict(self._kernel_spawned),
+            executors={role:(dict(value) if value is not None else
                 dict(state='UNAVAILABLE')) for role,value in self._kernel_executors.items()})
 
     def _release(self):

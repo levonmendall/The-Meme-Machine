@@ -85,7 +85,7 @@ def native_outputs(root):
         if row is None:raise ValueError('kernel_validation_pons_checkpoint')
         pons=json.loads(row[0])['result']
     result['regimes']={
-        'pump_current':pump.get('strategy_id')=='pump-acceleration-v1',
+        'pump_current':pump.get('strategy_id')=='pump-acceleration-independent-v1',
         'pump_survivor':'pumpswap-survivor-momentum-v1' in pump.get('active_regimes',[]) and
             (pump.get('survivor') or {}).get('accounting',{}).get('financial_book_constructed') is False,
         'pons_current':'pons-selective-continuation-v1' in pons.get('active_regimes',[]),
@@ -126,6 +126,7 @@ def verified(value):
             for name in ('pump','pons','sizing'))
         and lifecycle.get('tracker_spawned') is True and lifecycle.get('tracker_joined') is True
         and lifecycle.get('spawn_owner_joined') is True
+        and lifecycle.get('workers_spawned')=={'decoder':2,'history':1}
         and all(executors.get(role,{}).get('state')=='JOINED'
             and executors[role].get('spawned')==number and executors[role].get('joined')==number
             and executors[role].get('zero_exit')==number and executors[role].get('successful',0)>0
