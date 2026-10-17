@@ -283,8 +283,9 @@ class CandidateHistory:
         """
         return retained_reference_path(value,candidate_path=self.path,cold=cold)
 
-    def _reference_body(self,lane,candidate,identity,kind,ref,*,prepared=None):
+    def _reference_body(self,lane,candidate,identity,kind,ref,*,prepared=None,_archive_cache=None,_check=None):
         from meme_machine.solana_evidence_plane import decode_body
+        if _check is not None:_check()
         self._source_readers=getattr(self,'_source_readers',{})
         path=self._reference_path(ref['path'])
         if path not in self._source_readers:
@@ -305,11 +306,49 @@ class CandidateHistory:
             import zlib
             manifest=db.execute('SELECT path,hash FROM scoped_cold_manifests WHERE id=?',(row[2],)).fetchone()
             if manifest is None:raise ValueError('candidate_canonical_reference_requires_restore')
-            packed=self._reference_path(manifest[0],cold=True).read_bytes()
-            if hashlib.sha256(packed).hexdigest()!=manifest[1]:raise ValueError('candidate_history_corruption')
-            decoder=zlib.decompressobj();raw=decoder.decompress(packed,32*1024*1024+1)
-            if not decoder.eof or len(raw)>32*1024*1024:raise ValueError('candidate_canonical_archive_bound')
-            r=next((x['record'] for x in json.loads(raw) if x['record']['identity']==ref['canonical_identity']),None)
+            cold_path=self._reference_path(manifest[0],cold=True)
+            records=None;key=None
+            if _archive_cache is not None:
+                if _check is not None:_check()
+                info=cold_path.stat()
+                fingerprint=tuple(getattr(info,k) for k in
+                    ('st_dev','st_ino','st_size','st_mtime_ns','st_ctime_ns'))
+                key=(path,row[2],manifest[0],manifest[1],cold_path,fingerprint)
+                cached=_archive_cache.get('entry')
+                if cached is not None and cached[0]==key:records=cached[1]
+                else:
+                    # Release the previous archive before decoding another one.
+                    _archive_cache.clear();cached=None
+                if _check is not None:_check()
+            if records is None:
+                packed=cold_path.read_bytes()
+                if _check is not None:_check()
+                if hashlib.sha256(packed).hexdigest()!=manifest[1]:raise ValueError('candidate_history_corruption')
+                if _check is not None:_check()
+                decoder=zlib.decompressobj();raw=decoder.decompress(packed,32*1024*1024+1)
+                if not decoder.eof or len(raw)>32*1024*1024:raise ValueError('candidate_canonical_archive_bound')
+                if _check is not None:_check()
+                records=json.loads(raw)
+                if _check is not None:_check()
+                if _archive_cache is not None:
+                    after=cold_path.stat()
+                    if fingerprint==tuple(getattr(after,k) for k in
+                            ('st_dev','st_ino','st_size','st_mtime_ns','st_ctime_ns')):
+                        _archive_cache['entry']=(key,records)
+                    else:_archive_cache.clear()
+            # Keep the original sequence and lazy first-match lookup. A dict
+            # index would change duplicate identity and malformed-tail behavior.
+            r=next((x['record'] for x in records if x['record']['identity']==ref['canonical_identity']),None)
+            if _archive_cache is not None:
+                from copy import deepcopy
+                r=deepcopy(r) # Returned nested payloads never share cached objects.
+            if _check is not None:_check()
+            if _archive_cache is not None:
+                after=cold_path.stat()
+                if fingerprint!=tuple(getattr(after,k) for k in
+                        ('st_dev','st_ino','st_size','st_mtime_ns','st_ctime_ns')):
+                    _archive_cache.clear()
+                    raise ValueError('candidate_history_corruption')
             checksum=None if r is None else digest(r)
         if (not isinstance(r,dict) or r.get('identity')!=ref['canonical_identity']
                 or checksum!=row[1] or row[1]!=ref['canonical_hash']):raise ValueError('candidate_history_corruption')
@@ -517,20 +556,27 @@ class CandidateHistory:
         if through is not None:refs+=' AND market_time<=?';params.append(int(through))
         if kind is not None:refs+=' AND kind=?';params.append(kind)
         if kind_prefix is not None:refs+=' AND kind GLOB ?';params.append(self._event_prefix(kind_prefix))
-        result=[]
-        with self._startup_read(cancelled) as check:
-            for raw,checksum in self.db.execute(sql,args):
-                check()
-                body=json.loads(raw)
-                if digest(body)!=checksum:raise ValueError("candidate_history_corruption")
-                result.append(body)
-            for identity,kind,raw,checksum in self.db.execute(refs,params):
-                check()
-                ref=json.loads(raw)
-                if digest(ref)!=checksum:raise ValueError('candidate_history_corruption')
-                result.append(self._reference_body(lane,candidate,identity,kind,ref))
-            result.sort(key=lambda r:(r['slot'],r['payload'].get('_economic_order',r['transaction_index']) is None,
-                r['payload'].get('_economic_order',r['transaction_index']) or 0,r['event_index'],r['identity']))
+        result=[];archives={} if cancelled is not None else None
+        try:
+            with self._startup_read(cancelled) as check:
+                for raw,checksum in self.db.execute(sql,args):
+                    check()
+                    body=json.loads(raw)
+                    if digest(body)!=checksum:raise ValueError("candidate_history_corruption")
+                    result.append(body)
+                for identity,kind,raw,checksum in self.db.execute(refs,params):
+                    check()
+                    ref=json.loads(raw)
+                    if digest(ref)!=checksum:raise ValueError('candidate_history_corruption')
+                    if archives is None:
+                        result.append(self._reference_body(lane,candidate,identity,kind,ref))
+                    else:
+                        result.append(self._reference_body(lane,candidate,identity,kind,ref,
+                            _archive_cache=archives,_check=check))
+                result.sort(key=lambda r:(r['slot'],r['payload'].get('_economic_order',r['transaction_index']) is None,
+                    r['payload'].get('_economic_order',r['transaction_index']) or 0,r['event_index'],r['identity']))
+        finally:
+            if archives is not None:archives.clear()
         return result
 
     def event(self,lane,candidate,identity):
