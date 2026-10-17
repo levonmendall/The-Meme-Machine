@@ -65,6 +65,10 @@ jobs:
           group = LinuxGroup(LIMITS)
           group.close()
           modules = [
+              'tests.test_source_operation_publication',
+              'tests.test_solana_health_atomicity',
+              'tests.test_solana_prewarm_startup',
+              'tests.test_operation_costs',
               'tests.test_sleeve_prefix_scheduling',
               'tests.test_sleeve_prefix_recovery',
               'tests.test_sleeve_reconciliation_snapshot',

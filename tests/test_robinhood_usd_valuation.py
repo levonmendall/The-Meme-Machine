@@ -192,6 +192,72 @@ RALLY_CHANGED_SOURCES=('meme_machine/lanes/pons/pons_postgrad_survivor.py', 'mem
 RALLY_ADDED_SOURCES=('meme_machine/policy_history/opportunity_access_v1.json', 'meme_machine/runtime/rally_cycle.py')
 
 
+# Opt-in source costs use an independent process recorder publication rather
+# than waiting for the canonical health queue. This exact transport delta grants
+# no readiness, continuity, accounting or lease authority.
+SOURCE_RECORDER_PUBLICATION_REFERENCE='6681087c643a205cf1448f4eabcc984ed31906ac'
+SOURCE_RECORDER_PUBLICATION_DELTAS={
+    'meme_machine/solana_evidence_service.py':(
+        '717a471a0451085b1de27a1927f44aedde5a1acd7253bfdbb217800a07e0a15c',
+        'b1f0e8d9aaa5db37e73ea544be47725f04f7b97f6e6ad12613c8012770bc5e72',
+        'serve','publish_operation_costs',(
+            b'        from .runtime.operation_costs import enabled as costs_enabled\n'
+            b'        cost_publisher=(asyncio.create_task(publish_operation_costs(path,owner,stop))\n'
+            b"            if costs_enabled() and os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1' else None)\n",
+            b'        if cost_publisher is not None:tasks.append(cost_publisher)\n')),
+    'engineering/diagnostics/current_combined_observation_20261014.py':(
+        'b81d8edb46593777851d42f8b8c84519dc1217119efba23adc5274ae47119b84',
+        '5a3adec8c1e28069a43cd521551e7aa7f886260390dbd36e82ce0d3d0a2b0ba2',
+        'pipeline_sample','source_operation_costs',(
+            b"            if (os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1'\n"
+            b"                    and os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1'):\n"
+            b'                telemetry=source_operation_costs(root,expected_pid)\n'
+            b"                result['required_counters']['operation_costs']=telemetry.pop('operation_costs')\n"
+            b"                result['source_operation_telemetry']=telemetry\n",)),
+}
+SOURCE_RECORDER_TEST_BODY_BEFORE='9dd30c77c952f1c516b4f2a1f5f2a76220394e1b209f2c71fb9d0f0742a09ad6'
+SOURCE_RECORDER_TEST_READ_OLD=b'            current=(ROOT/relative).read_bytes()\n'
+SOURCE_RECORDER_TEST_READ_NEW=(b'            current=source_recorder_publication_predecessor('
+    b'self,relative,(ROOT/relative).read_bytes())\n')
+
+
+def source_recorder_publication_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    reviewed=SOURCE_RECORDER_PUBLICATION_DELTAS.get(relative)
+    if reviewed is None:return current
+    before,after,changed,added,blocks=reviewed
+    prior=subprocess.check_output(['git','show',SOURCE_RECORDER_PUBLICATION_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':exact source recorder predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':exact independent recorder successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def node(root,name):
+        return next(n for n in root.body
+            if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name==name)
+    def source(body,selected):
+        return b''.join(body.splitlines(keepends=True)[selected.lineno-1:selected.end_lineno])
+    selected=node(tree,changed);original=node(old,changed);helper=node(tree,added)
+    with test.assertRaises(StopIteration):node(old,added)
+    test.assertEqual(ast.dump(selected.args),ast.dump(original.args),relative+':unchanged original runtime interface')
+    restored_node=source(current,selected)
+    for block in blocks:
+        test.assertEqual(restored_node.count(block),1,relative+':one fixed opt-in lifecycle or cost-only injection')
+        restored_node=restored_node.replace(block,b'',1)
+    test.assertEqual(restored_node,source(prior,original),
+        relative+':all original startup, shutdown, canonical health, financial and cursor statements retained')
+    restored=current
+    for block in blocks:restored=restored.replace(block,b'',1)
+    helper_bytes=source(current,helper)+b'\n\n'
+    test.assertEqual(restored.count(helper_bytes),1,relative+':one explicitly added complete helper')
+    restored=restored.replace(helper_bytes,b'',1)
+    test.assertEqual(restored,prior,relative+':every other source byte and original guard retained')
+    tree.body[tree.body.index(selected)]=deepcopy(original);tree.body.remove(helper)
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':only the declared helper and task/injection node change')
+    return prior
+
+
 # The serialized maintenance callback owns one actual entry timestamp. Reusing
 # it removes the duplicate queue-clock decision without renewing execution,
 # worker, source or drought deadlines. Pin these complete mandatory owner files
@@ -219,6 +285,7 @@ def maintenance_entry_clock_predecessor(test,relative,current):
     prior=subprocess.check_output(['git','show',MAINTENANCE_ENTRY_CLOCK_REFERENCE+':'+relative],cwd=ROOT)
     test.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':exact maintenance-entry predecessor')
     if current==prior:return prior
+    current=source_recorder_publication_predecessor(test,relative,current)
     test.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':exact maintenance-entry successor')
     tree=ast.parse(current);old=ast.parse(prior)
     def node(root,name):
@@ -2772,6 +2839,95 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_source_recorder_publication_reverses_only_exact_diagnostic_transport_and_test_read(self):
+        import hashlib
+        mutations={
+            'meme_machine/solana_evidence_service.py':(
+                (b"if not operation_costs.enabled() or os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')!='1':return",
+                    b'if not operation_costs.enabled():return'),
+                (b"if not operation_costs.enabled() or os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')!='1':return",
+                    b'if False:return'),
+                (b"if costs_enabled() and os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1' else None)",
+                    b'if costs_enabled() else None)'),
+                (b"if costs_enabled() and os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1' else None)",
+                    b"if os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1' else None)"),
+                (b'if cost_publisher is not None:tasks.append(cost_publisher)',b'if False:tasks.append(cost_publisher)'),
+                (b"operation_costs=costs,owner_scheduler=owner.telemetry()",
+                    b'operation_costs={},owner_scheduler={}'),
+                (b'_atomic_json(target,row)',b"owner.submit(lambda state:state.fence.health('ipc',row))"),
+                (b'not stat.S_ISREG(info.st_mode) or info.st_nlink!=1',b'False'),
+                (b'info.st_uid!=os.getuid()',b'False'),
+                (b'stat.S_IMODE(info.st_mode)!=0o600',b'False'),
+                (b'if type(ticks) is not int or ticks<=0:',b'if False:'),
+                (b"type(costs.get('pid')) is not int or costs['pid']!=pid",b'False'),
+                (b"costs.get('enabled') is not True",b'False'),
+                (b'type(clock) not in (int,float)',b'False'),
+                (b'not 0<=clock<2**64',b'False'),
+                (b"clock=costs.get('collected_monotonic')",b'clock=time.monotonic()'),
+                (b'try:await asyncio.shield(pending)',b'try:await pending'),
+                (b'while not pending.done():',b'if not pending.done():'),
+                (b'try:await persist(\'STOPPED\')',b'try:await persist(\'ACTIVE\')'),
+                (b'await asyncio.wait_for(stop.wait(),1)',b'await asyncio.wait_for(stop.wait(),2)'),
+                (b'if entered-submitted>runtime.leases.owner:',b'if False:'),
+                (b'runtime.turn(flight,submitted,owner_entered=entered)',
+                    b'runtime.turn(flight,submitted,owner_entered=time.monotonic())')),
+            'engineering/diagnostics/current_combined_observation_20261014.py':(
+                (b'os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK',b'os.O_RDONLY'),
+                (b'stat.S_IMODE(first.st_mode)!=0o600 or first.st_nlink!=1',b'False'),
+                (b'Supervisor._source_start_ticks(expected_pid)!=before',b'False'),
+                (b"row['pid']!=expected_pid",b'False'),
+                (b"row['process_start_ticks']!=before",b'False'),
+                (b"row.get('publication_state')!='ACTIVE'",b'False'),
+                (b"not finite_number(costs.get('collected_monotonic'))",b'False'),
+                (b"costs['collected_monotonic']<0",b'False'),
+                (b'reduced=operation_costs(costs,expected_pid)',b'reduced=costs'),
+                (b"if (os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1'\n"
+                    b"                    and os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1'):",
+                    b"if os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1':"),
+                (b"if (os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1'\n"
+                    b"                    and os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1'):",
+                    b"if os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1':"),
+                (b"result['source_operation_telemetry']=telemetry",b"result['available']=True"),
+                (b'not 0 <= now - sampled <= 15',b'not 0 <= now - sampled <= 30'),
+                (b"db.execute('PRAGMA query_only=ON')",b"db.execute('PRAGMA query_only=OFF')")),
+        }
+        self.assertEqual(set(mutations),set(SOURCE_RECORDER_PUBLICATION_DELTAS))
+        for relative,(_,after,_,_,_) in SOURCE_RECORDER_PUBLICATION_DELTAS.items():
+            current=(ROOT/relative).read_bytes()
+            self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact recorder transport')
+            prior=subprocess.check_output(['git','show',SOURCE_RECORDER_PUBLICATION_REFERENCE+':'+relative],cwd=ROOT)
+            self.assertEqual(source_recorder_publication_predecessor(self,relative,current),prior)
+            self.assertEqual(source_recorder_publication_predecessor(self,relative,prior),prior)
+            if relative=='meme_machine/solana_evidence_service.py':
+                self.assertEqual(maintenance_entry_clock_predecessor(self,relative,current),
+                    maintenance_entry_clock_predecessor(self,relative,prior))
+            changes=[current+b'\n# unreviewed source telemetry or authority mutation\n',b'']
+            for previous,successor in mutations[relative]:
+                self.assertIn(previous,current,relative+':negative mutation target exists')
+                changes.append(current.replace(previous,successor,1))
+            for changed in changes:
+                self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+                with self.assertRaises(AssertionError):source_recorder_publication_predecessor(self,relative,changed)
+                if relative=='meme_machine/solana_evidence_service.py':
+                    with self.assertRaises(AssertionError):maintenance_entry_clock_predecessor(self,relative,changed)
+        # Pin the one necessary old79 entry normalization independently. Every
+        # original hash, lease assertion, mutation and relative ordering survives.
+        relative='tests/test_robinhood_usd_valuation.py'
+        current=(ROOT/relative).read_bytes()
+        prior=subprocess.check_output(['git','show',SOURCE_RECORDER_PUBLICATION_REFERENCE+':'+relative],cwd=ROOT)
+        def old_guard(body):
+            parent=next(n for n in ast.parse(body).body if isinstance(n,ast.ClassDef) and n.name=='RobinhoodUSDTests')
+            selected=next(n for n in parent.body if isinstance(n,ast.FunctionDef)
+                and n.name=='test_maintenance_entry_clock_preserves_exact_original_leases_and_native_guards')
+            return b''.join(body.splitlines(keepends=True)[selected.lineno-1:selected.end_lineno])
+        before=old_guard(prior);after=old_guard(current)
+        self.assertEqual(hashlib.sha256(before).hexdigest(),SOURCE_RECORDER_TEST_BODY_BEFORE)
+        self.assertEqual(before.count(SOURCE_RECORDER_TEST_READ_OLD),1)
+        self.assertEqual(after.count(SOURCE_RECORDER_TEST_READ_NEW),1)
+        restored=after.replace(SOURCE_RECORDER_TEST_READ_NEW,SOURCE_RECORDER_TEST_READ_OLD,1)
+        self.assertEqual(restored,before,'only old79 initial source read normalization is approved')
+        self.assertEqual(hashlib.sha256(restored).hexdigest(),SOURCE_RECORDER_TEST_BODY_BEFORE)
+
     def test_sleeve_empty_prefix_reverses_only_exact_optional_compaction_scheduling(self):
         import hashlib
         relative=SLEEVE_EMPTY_PREFIX_SOURCE;current=(ROOT/relative).read_bytes()
@@ -3589,7 +3745,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(MAINTENANCE_ENTRY_CLOCK_DELTAS))
         for relative,(_,after,_) in MAINTENANCE_ENTRY_CLOCK_DELTAS.items():
-            current=(ROOT/relative).read_bytes()
+            current=source_recorder_publication_predecessor(self,relative,(ROOT/relative).read_bytes())
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact maintenance clock repair')
             prior=subprocess.check_output(['git','show',MAINTENANCE_ENTRY_CLOCK_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(maintenance_entry_clock_predecessor(self,relative,current),prior)
