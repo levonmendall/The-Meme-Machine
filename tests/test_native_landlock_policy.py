@@ -128,6 +128,44 @@ class NativeFilterTests(unittest.TestCase):
 
 
 class ActualNativeSeccompTests(unittest.TestCase):
+    def test_actual_copied_two_decoder_one_history_and_tracker_under_inherited_filter(self):
+        from meme_machine.operational import isolated_native_image as image
+        from tests.test_isolated_native_launcher import offline_software_approval
+        from tests.test_isolated_native_spawn import _COPIED_SCOPE,owned_run
+        marker='scope=spawn.NativeSpawnScope(layout)'
+        self.assertEqual(_COPIED_SCOPE.count(marker),1)
+        setup=r'''
+import ctypes,resource
+from meme_machine.operational.native_landlock_policy import NativePolicy
+_native_vm=int(Path('/proc/self/statm').read_text().split()[0])*os.sysconf('SC_PAGE_SIZE')
+assert os.getpriority(os.PRIO_PROCESS,0)==0
+resource.setrlimit(resource.RLIMIT_AS,(2*1024**3,2*1024**3))
+_,hard=resource.getrlimit(resource.RLIMIT_NOFILE)
+ceiling=min(65536,hard) if hard!=resource.RLIM_INFINITY else 65536
+resource.setrlimit(resource.RLIMIT_NOFILE,(ceiling,ceiling))
+kernel=NativePolicy()
+kernel.call(157,ctypes.c_int(38),ctypes.c_ulong(1),ctypes.c_ulong(0),ctypes.c_ulong(0),ctypes.c_ulong(0),code='fixture_nnp')
+kernel.seccomp()
+'''
+        program=_COPIED_SCOPE.replace(marker,setup+'\n'+marker).replace(
+            'prctl(2,c.byref(n))','prctl(2,c.byref(n),0,0,0)').replace(
+            'landlock_applied=False','landlock_applied=False,syscall_profile_applied=True,native_vms_bytes=_native_vm')
+        with Scratch() as scope:
+            staged=image.build(scope.path,offline_software_approval(),profile=policy.PROFILE)
+            root=staged['root'];work=scope.path/'native-work';work.mkdir(mode=0o700)
+            (work/'native').mkdir(mode=0o700);(work/'tmp').mkdir(mode=0o700)
+            run=owned_run([str(root/'runtime/bin/python3.12'),'-I','-B','-S','-c',program,str(root)],
+                env=dict(LANG='C',PATH='/nonexistent',LD_LIBRARY_PATH=str(root/'runtime/lib')),timeout=15)
+            self.assertEqual(run.returncode,0,run.stderr)
+            row=json.loads(run.stdout)
+            self.assertEqual((row['decoder_workers'],row['history_workers']),(2,1))
+            self.assertTrue(row['tracker_reaped'] and row['owner_thread_joined'] and row['original_history_limits'])
+            self.assertTrue(row['syscall_profile_applied'])
+            self.assertFalse(row['financial_authority'] or row['landlock_applied'])
+            self.assertEqual(row['provider_calls'],0)
+            self.assertGreater(row['native_vms_bytes'],0)
+            scope.check();scope.success=True
+
     def test_unchanged_history_initializer_retains_actual_limits_and_nice_under_filter(self):
         program=r'''
 import ctypes,errno,json,os,resource,sys
