@@ -202,7 +202,11 @@ def main(*,layout=None):
             from meme_machine.runtime.isolated_native_spawn import NativeSpawnScope
             spawn_scope=NativeSpawnScope(layout)
         from .child_transport import ChildChannel
-        channel=ChildChannel(socket.socket(fileno=3),seconds=1800,cancelled=stopped.is_set)
+        # The launcher already authenticated this unnamed Unix STREAM. Avoid
+        # socket(fileno=...) auto-detection's extra SO_DOMAIN/SO_PROTOCOL queries;
+        # ChildChannel still verifies actual kernel SO_TYPE and unnamed peer.
+        channel=ChildChannel(socket.socket(socket.AF_UNIX,socket.SOCK_STREAM,0,fileno=3),
+            seconds=1800,cancelled=stopped.is_set)
         reader=ParentSizingReader(4,session=channel.session,
             source_commit=image['source_commit'],source_tree=image['source_tree'],stopped=stopped.is_set)
         # A sampler is never substituted for the source owner. This literal
