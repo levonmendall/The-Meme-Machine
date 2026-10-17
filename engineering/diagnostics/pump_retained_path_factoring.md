@@ -2,7 +2,7 @@
 
 The exact `0c8e9beae8eed6e4579f4473c4f449f711fb5691` AWS rehearsal
 `39060983198` measured Pump observed restoration at 610.8128 seconds across
-14,109 candidate-event reads. The retained profile separates 435.999 seconds
+14,109 candidate-event reads. The retained profile separates 436.0024 seconds
 of selected SQL wall time / 34.9224 seconds CPU from approximately 163 seconds
 of outside-SQL wall time and CPU. These are overlapping operation categories,
 not an independent end-to-end speed forecast.
