@@ -21,6 +21,10 @@ def position_work(function):
 def governed_sol_http(function):
     @wraps(function)
     def request(instance,body):
+        if getattr(instance,'parent_port',None) is not None:
+            from meme_machine.operational.child_transport import require_rpc_port
+            require_rpc_port(instance.parent_port,'solana')
+            return function(instance,body)
         path=os.environ.get('MM_PROVIDER_GOVERNOR_DB')
         if not path:return function(instance,body)
         from meme_machine.runtime.governor import Governor

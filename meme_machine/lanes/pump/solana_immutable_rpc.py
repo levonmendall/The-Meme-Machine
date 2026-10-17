@@ -13,9 +13,14 @@ _BATCH_TRANSPORT=ContextVar('solana_immutable_batch_transport',default=())
 
 
 class ImmutableReads:
-    def __init__(self,path,url):
+    def __init__(self,path,url=None,*,endpoint_identity=None):
         self.path=path
-        self.endpoint=hashlib.sha256(url.encode()).hexdigest()
+        if endpoint_identity is not None:
+            import re
+            if url is not None or type(endpoint_identity) is not str or not re.fullmatch(r'[0-9a-f]{64}',endpoint_identity):
+                raise ValueError('isolated_immutable_source_identity')
+            self.endpoint=endpoint_identity
+        else:self.endpoint=hashlib.sha256(url.encode()).hexdigest()
         with self.connect() as db:
             db.executescript('''CREATE TABLE IF NOT EXISTS solana_immutable_reads(
                 endpoint TEXT,method TEXT,key TEXT,value TEXT,at REAL,lane TEXT,
@@ -148,6 +153,18 @@ class ImmutableReads:
 
 class ImmutableRPCMixin:
     def _shared_reads(self):
+        if getattr(self,'parent_port',None) is not None:
+            from meme_machine.operational.child_transport import require_rpc_port
+            from .solana_evidence_broker import EvidenceBroker
+            require_rpc_port(self.parent_port,'solana')
+            reads=getattr(self,'_parent_reads',None)
+            broker=getattr(self,'_parent_broker',None)
+            if (type(reads) is not ImmutableReads or type(broker) is not EvidenceBroker
+                    or str(reads.path)!=str(broker.path)
+                    or reads.endpoint!=self.parent_port.source.endpoint_identity):
+                raise Unavailable('isolated_rpc_cache_required')
+            self._immutable_reads=reads;self._immutable_broker=broker
+            return reads
         path=os.environ.get('MM_SOLANA_EVIDENCE_BROKER_DB')
         if not path:return None
         identity=(path,self.url)

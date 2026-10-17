@@ -388,7 +388,17 @@ class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
         error_sequence_before = self.provider_error_sequence
         methods=self._request_methods(request)
         try:
-            response = self._request_url(url, request)
+            if self.parent_port is not None:
+                from meme_machine.operational.child_transport import ChildParentFailure
+                try:
+                    response=self.parent_port.envelope(request,deadline=self._parent_deadline())
+                except ChildParentFailure as error:
+                    import re
+                    match=re.fullmatch(r'provider_http_(\d{3})',str(error))
+                    if match:
+                        raise urllib.error.HTTPError('',int(match[1]),'provider_http_error',{},None) from None
+                    raise
+            else:response = self._request_url(url, request)
             self._record_jsonrpc_errors(label, request, response)
             issue = self._response_issue(request, response)
             if issue is not None:
@@ -450,7 +460,7 @@ class _ReadOnlyFailoverMixin(ImmutableRPCMixin):
     @governed_sol_http
     def _http(self, request):
         if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB'):
-            _validate_alchemy_url(self.url)
+            if self.parent_port is None:_validate_alchemy_url(self.url)
             calls = request if isinstance(request,list) else [request]
             if any(x.get('method') in ('getSignaturesForAddress','getTransaction','getTransactionsForAddress','getBlock') for x in calls):
                 raise Unavailable('foreground_historical_rpc_forbidden')
@@ -491,13 +501,18 @@ class ReadOnlyFailoverRPC(_ReadOnlyFailoverMixin, RPC):
         secondary_provider=SECONDARY_PROVIDER,
         limit=120,
         pacer=None,
+        parent_port=None,
+        shared_reads=None,
+        evidence_broker=None,
         **kwargs,
     ):
-        if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB'):
+        if parent_port is None and os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB'):
             primary_url = _validate_alchemy_url(primary_url)
             if primary_provider != PRIMARY_PROVIDER:raise Unavailable('authoritative_provider_label_required')
         self._init_failover(secondary_url, pacer, primary_provider, secondary_provider)
-        super().__init__(primary_url, limit=limit, **kwargs)
+        super().__init__(primary_url, limit=limit, parent_port=parent_port, **kwargs)
+        self._parent_reads,self._parent_broker=shared_reads,evidence_broker
+        if parent_port is not None:self._shared_reads()
 
 
 class ReadOnlyFailoverPoolScanRPC(_ReadOnlyFailoverMixin, PoolScanRPC):
@@ -514,35 +529,48 @@ class ReadOnlyFailoverPoolScanRPC(_ReadOnlyFailoverMixin, PoolScanRPC):
         secondary_provider=SECONDARY_PROVIDER,
         limit=240,
         pacer=None,
+        parent_port=None,
+        shared_reads=None,
+        evidence_broker=None,
         **kwargs,
     ):
-        if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB'):
+        if parent_port is None and os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB'):
             primary_url = _validate_alchemy_url(primary_url)
             if primary_provider != PRIMARY_PROVIDER:raise Unavailable('authoritative_provider_label_required')
         self._init_failover(secondary_url, pacer, primary_provider, secondary_provider)
-        super().__init__(primary_url, limit=limit, **kwargs)
+        super().__init__(primary_url, limit=limit, parent_port=parent_port, **kwargs)
+        self._parent_reads,self._parent_broker=shared_reads,evidence_broker
+        if parent_port is not None:self._shared_reads()
 
 
-def new_rpc(limit=120, pacer=None, environ=None, **kwargs):
+def new_rpc(limit=120, pacer=None, environ=None, *, parent_port=None, **kwargs):
+    if parent_port is not None:
+        from meme_machine.operational.child_transport import require_rpc_port
+        require_rpc_port(parent_port,'solana')
     return ReadOnlyFailoverRPC(
-        primary_rpc_url(environ),
+        parent_port.source if parent_port is not None else primary_rpc_url(environ),
         secondary_url=None,
-        primary_provider=primary_provider(environ),
+        primary_provider=PRIMARY_PROVIDER if parent_port is not None else primary_provider(environ),
         secondary_provider=SECONDARY_PROVIDER,
         limit=limit,
         pacer=pacer,
+        parent_port=parent_port,
         **kwargs,
     )
 
 
-def new_pool_scan_rpc(limit=240, pacer=None, environ=None, **kwargs):
+def new_pool_scan_rpc(limit=240, pacer=None, environ=None, *, parent_port=None, **kwargs):
+    if parent_port is not None:
+        from meme_machine.operational.child_transport import require_rpc_port
+        require_rpc_port(parent_port,'solana')
     return ReadOnlyFailoverPoolScanRPC(
-        primary_rpc_url(environ),
+        parent_port.source if parent_port is not None else primary_rpc_url(environ),
         secondary_url=None,
-        primary_provider=primary_provider(environ),
+        primary_provider=PRIMARY_PROVIDER if parent_port is not None else primary_provider(environ),
         secondary_provider=SECONDARY_PROVIDER,
         limit=limit,
         pacer=pacer,
+        parent_port=parent_port,
         **kwargs,
     )
 

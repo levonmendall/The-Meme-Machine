@@ -15,8 +15,14 @@ class RPC:
     ALLOWED = {'getGenesisHash', 'getSignaturesForAddress', 'getTransaction',
                'getMultipleAccounts', 'getTokenLargestAccounts', 'getBlockTime'}
 
-    def __init__(self, url, limit=120, transport=None, clock=time.time, sleeper=time.sleep):
-        if urlparse(url).scheme != 'https':
+    def __init__(self, url, limit=120, transport=None, clock=time.time, sleeper=time.sleep, *, parent_port=None):
+        self.parent_port = parent_port
+        if parent_port is not None:
+            from meme_machine.operational.child_transport import require_rpc_port
+            require_rpc_port(parent_port, 'solana')
+            if transport is not None or url is not parent_port.source:
+                raise ValueError('isolated_rpc_source_mismatch')
+        elif urlparse(url).scheme != 'https':
             raise ValueError('HTTPS RPC required')
         if not 40 <= limit <= 240:
             raise ValueError('request_limit must be 40..240')
@@ -41,6 +47,8 @@ class RPC:
         self.started = clock()
 
     def _http(self, request):
+        if self.parent_port is not None:
+            return self.parent_port.envelope(request, deadline=self._parent_deadline())
         data = json.dumps(request).encode()
         req = urllib.request.Request(self.url, data, {'Content-Type':'application/json'})
         with urllib.request.urlopen(req, timeout=8) as response:
@@ -48,6 +56,10 @@ class RPC:
         if len(raw) > 2_000_000:
             raise Unavailable('response_size_limit')
         return json.loads(raw)
+
+    def _parent_deadline(self):
+        deadline = getattr(self, 'evidence_deadline', None)
+        return None if deadline is None else time.monotonic()+max(0, float(deadline)-float(self.clock()))
 
     @staticmethod
     def _failure_kind(exc):

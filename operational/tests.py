@@ -2,6 +2,7 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+ 'tests.test_isolated_rpc_ports',
  'tests.test_child_transport',
  'tests.test_isolated_native_execution',
  'tests.test_isolated_native_admission',

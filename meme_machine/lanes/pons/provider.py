@@ -142,9 +142,16 @@ def _error_fields(raw):
 
 class Rpc:
     def __init__(self, endpoint, *, limit=80, per_scope=40, retries=1,
-                 timeout=10, max_response=2_000_000, transport=None):
-        parsed = urlsplit(endpoint)
-        if parsed.scheme != 'https' or not parsed.hostname or parsed.username:
+                 timeout=10, max_response=2_000_000, transport=None,parent_port=None):
+        self.parent_port=parent_port
+        if parent_port is not None:
+            from meme_machine.operational.child_transport import require_rpc_port
+            require_rpc_port(parent_port,'robinhood')
+            if endpoint is not parent_port.source or transport is not None:
+                raise BoundaryError('isolated_rpc_source_mismatch')
+        else:
+            parsed = urlsplit(endpoint)
+        if parent_port is None and (parsed.scheme != 'https' or not parsed.hostname or parsed.username):
             raise BoundaryError('MM_ROBINHOOD_READ_RPC_URL_requires_full_https_url')
         if not (1 <= limit <= 200 and 1 <= per_scope <= limit and 0 <= retries <= 2):
             raise BoundaryError('invalid_request_bounds')
@@ -163,6 +170,47 @@ class Rpc:
         self.retry_count = 0
         self.methods, self.logical_methods = Counter(), Counter()
         self.last_retry_after_seconds = None
+
+    def _protect(self,value):
+        if self.parent_port is not None:
+            from meme_machine.solana_provider_config import public_value
+            return public_value(value)
+        return protect_response(value,self._endpoint)
+
+    def _parent_envelope(self,calls,*,batch):
+        from meme_machine.operational.child_transport import require_rpc_port,ChildParentFailure
+        require_rpc_port(self.parent_port,'robinhood')
+        rows=[dict(jsonrpc='2.0',id=i+1,method=m,params=p) for i,(m,p) in enumerate(calls)]
+        try:
+            reply=self.parent_port.envelope(rows if batch else rows[0],
+                deadline=getattr(self,'evidence_deadline',None))
+        except ChildParentFailure as error:
+            raise BoundaryError(failure_class(error)) from None
+        raw=json.dumps(reply,separators=(',',':')).encode()
+        self._check_transport_deadline()
+        if len(raw)>self.max_response:raise BoundaryError('provider_response_capacity')
+        return reply
+
+    @staticmethod
+    def _single_result(reply,method):
+        if reply.get('error'):raise BoundaryError(rpc_boundary(method,reply['error']))
+        if reply.get('id')!=1 or 'result' not in reply:raise BoundaryError('provider_invalid_envelope')
+        return reply['result']
+
+    @staticmethod
+    def _batch_results(reply,calls):
+        if not isinstance(reply,list) or len(reply)!=len(calls):
+            raise BoundaryError('provider_invalid_batch_envelope')
+        rows={item.get('id'):item for item in reply if isinstance(item,dict)}
+        if set(rows)!=set(range(1,len(calls)+1)):
+            raise BoundaryError('provider_invalid_batch_ids')
+        out=[]
+        for i in range(1,len(calls)+1):
+            item=rows[i]
+            if item.get('error'):raise BoundaryError(rpc_boundary(calls[i-1][0],item['error']))
+            if 'result' not in item or item['result'] is None:raise BoundaryError('provider_missing_result')
+            out.append(item['result'])
+        return out
 
     def _transport_timeout(self):
         deadline = getattr(self, 'evidence_deadline', None)
@@ -390,6 +438,8 @@ class Rpc:
 
     @account_transport('pons')
     def _http(self, method, params):
+        if self.parent_port is not None:
+            return self._single_result(self._parent_envelope([(method,params)],batch=False),method)
         self.last_retry_after_seconds = None
         body = json.dumps(dict(jsonrpc='2.0', id=1, method=method, params=params)).encode()
         request = Request(self._endpoint, data=body, headers=RPC_HTTP_HEADERS)
@@ -422,11 +472,7 @@ class Rpc:
             raise BoundaryError('provider_response_capacity')
         try:
             reply = json.loads(raw)
-            if reply.get('error'):
-                raise BoundaryError(rpc_boundary(method,reply['error']))
-            if reply.get('id') != 1 or 'result' not in reply:
-                raise BoundaryError('provider_invalid_envelope')
-            return reply['result']
+            return self._single_result(reply,method)
         except (ValueError, AttributeError, TypeError) as exc:
             if isinstance(exc, BoundaryError):
                 raise
@@ -459,7 +505,7 @@ class Rpc:
             self.retry_attempt = attempt
             try:
                 try:
-                    result = protect_response(self.transport(method, params), self._endpoint)
+                    result = self._protect(self.transport(method, params))
                 except Exception as exc:
                     self._failure_location(exc)
                     raise error_with_context(exc) from None
@@ -479,6 +525,8 @@ class Rpc:
 
     @account_transport('pons')
     def _http_batch(self, calls):
+        if self.parent_port is not None:
+            return self._batch_results(self._parent_envelope(calls,batch=True),calls)
         body=json.dumps([
             dict(jsonrpc='2.0',id=i+1,method=method,params=params)
             for i,(method,params) in enumerate(calls)
@@ -512,20 +560,7 @@ class Rpc:
             raise BoundaryError('provider_response_capacity')
         try:
             reply=json.loads(raw)
-            if not isinstance(reply,list) or len(reply)!=len(calls):
-                raise BoundaryError('provider_invalid_batch_envelope')
-            rows={item.get('id'):item for item in reply if isinstance(item,dict)}
-            if set(rows)!=set(range(1,len(calls)+1)):
-                raise BoundaryError('provider_invalid_batch_ids')
-            out=[]
-            for i in range(1,len(calls)+1):
-                item=rows[i]
-                if item.get('error'):
-                    raise BoundaryError(rpc_boundary(calls[i-1][0],item['error']))
-                if 'result' not in item or item['result'] is None:
-                    raise BoundaryError('provider_missing_result')
-                out.append(item['result'])
-            return out
+            return self._batch_results(reply,calls)
         except (ValueError,AttributeError,TypeError) as exc:
             if isinstance(exc,BoundaryError):
                 raise
@@ -559,9 +594,9 @@ class Rpc:
             if self.transport != self._http:
                 # Custom unit-test transports remain deterministic and do not gain
                 # implicit network semantics. Batch through the injected transport.
-                return [protect_response(self.transport(method,params),self._endpoint) for method,params in calls]
+                return [self._protect(self.transport(method,params)) for method,params in calls]
             self.retry_attempt = 0
-            return protect_response(self._http_batch(calls),self._endpoint)
+            return self._protect(self._http_batch(calls))
         except Exception as exc:
             self._failure_location(exc)
             reason=failure_class(exc)

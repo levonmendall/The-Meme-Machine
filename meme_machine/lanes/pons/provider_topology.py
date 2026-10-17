@@ -273,8 +273,29 @@ class PacedRpc(Rpc):
         transport=None,
         pace_injected_transport=False,
         offline_admission=None,
+        parent_port=None,
+        immutable_store=None,
         **kwargs,
     ):
+        if parent_port is not None:
+            from meme_machine.operational.child_transport import require_rpc_port
+            from .immutable_rpc import EvidenceStore,Reuse
+            require_rpc_port(parent_port,'robinhood')
+            if (endpoint is not parent_port.source or transport is not None
+                    or offline_admission is not None or type(immutable_store) is not EvidenceStore
+                    or not authority.is_canonical_role(role)):
+                raise BoundaryError('isolated_rpc_source_or_cache_required')
+            self.role=str(role);self.canonical_authority=True;self.chain_verified=False
+            self.provider_fingerprint=parent_port.source.endpoint_identity
+            self.shared_admission=parent_port
+            self.admission_scope=threading.local();self.provider_kind='alchemy'
+            self.evidence_reuse=Reuse(None,immutable_store,'pons',
+                endpoint_identity=self.provider_fingerprint)
+            self.hash_state_supported=set();self.shared_quote_resources=None
+            self.pacer=pacer or ProviderPacer(requests_per_second)
+            self._injected_transport=None
+            super().__init__(endpoint,parent_port=parent_port,**kwargs)
+            return
         self.role = str(role)
         self.canonical_authority = authority.is_canonical_role(self.role)
         self.chain_verified = False
@@ -350,6 +371,7 @@ class PacedRpc(Rpc):
             super().__init__(endpoint, transport=transport, **kwargs)
 
     def _http(self, method, params):
+        if self.parent_port is not None:return super()._http(method,params)
         # Canonical starts already have one durable, deadline/priority-aware
         # account governor. Waiting on a second role clock before enqueueing
         # hides exits from that queue and charges the deadline twice.
@@ -371,6 +393,7 @@ class PacedRpc(Rpc):
         return super()._http(method, params)
 
     def _http_batch(self, calls):
+        if self.parent_port is not None:return super()._http_batch(calls)
         shared_paced = self.shared_admission is not None and (
             self.canonical_authority or self.provider_kind == 'robinhood_public')
         paced=0 if shared_paced else self.pacer.pace()
@@ -386,6 +409,9 @@ class PacedRpc(Rpc):
         return super()._http_batch(calls)
 
     def _record_demand(self, methods):
+        if self.parent_port is not None:
+            from .provider import READ_METHODS
+            return self.parent_port.demand([m for m in methods if m in READ_METHODS])
         if self.canonical_authority:
             from meme_machine.runtime.robinhood.provider_usage import demand
             from .provider import READ_METHODS
@@ -393,6 +419,13 @@ class PacedRpc(Rpc):
 
     def _authority_guard(self, method):
         if not self.canonical_authority:return
+        if self.parent_port is not None:
+            from meme_machine.operational.child_transport import require_rpc_port
+            require_rpc_port(self.parent_port,'robinhood')
+            if self.provider_fingerprint!=self.parent_port.source.endpoint_identity:
+                raise BoundaryError('provider_identity_changed')
+            if method!='eth_chainId' and not self.chain_verified:self.verify_chain()
+            return
         try:
             if authority.fingerprint(authority.endpoint(self._endpoint)) != self.provider_fingerprint:
                 raise ValueError('provider_identity_changed')
@@ -517,7 +550,8 @@ class PacedRpc(Rpc):
         from meme_machine.runtime.robinhood.provider_usage import cache_snapshot
         data = super().telemetry()
         if self.evidence_reuse:
-            data['shared_evidence']=cache_snapshot(authority.paths()['cache'],self.evidence_reuse.domain)
+            if self.parent_port is None:
+                data['shared_evidence']=cache_snapshot(authority.paths()['cache'],self.evidence_reuse.domain)
         data.update(
             role=self.role,
             provider_kind=self.provider_kind,
@@ -525,7 +559,8 @@ class PacedRpc(Rpc):
             automatic_failover=False,
             canonical_authority=self.canonical_authority,
             chain_verified=self.chain_verified,
-            shared_provider=self.shared_admission.telemetry() if self.shared_admission else None,
+            shared_provider=(dict(controlled_by_parent=True,endpoint_identity=self.provider_fingerprint)
+                if self.parent_port is not None else self.shared_admission.telemetry() if self.shared_admission else None),
             immutable_reuse=self.evidence_reuse.telemetry() if self.evidence_reuse else None,
         )
         return data
@@ -732,20 +767,36 @@ def _pacer_for(store, endpoint, rps):
     return pacer
 
 
-def configured_rpc(primary_endpoint_value=None, *, environ=None, **kwargs):
+def configured_rpc(primary_endpoint_value=None, *, environ=None,parent_port=None, **kwargs):
     """Authoritative Pons/directional evidence RPC: 2 RPS, no automatic rescue."""
-    endpoint = primary_endpoint(primary_endpoint_value, environ=environ)
+    if parent_port is not None:
+        from meme_machine.operational.child_transport import require_rpc_port
+        require_rpc_port(parent_port,'robinhood')
+        if primary_endpoint_value is not None and primary_endpoint_value is not parent_port.source:
+            raise BoundaryError('isolated_rpc_source_mismatch')
+        endpoint=parent_port.source
+    else:endpoint = primary_endpoint(primary_endpoint_value, environ=environ)
     return PacedRpc(
         endpoint,
         role="directional_evidence_primary",
         requests_per_second=DIRECTIONAL_RPS,
         pacer=_DIRECTIONAL_PACER,
+        parent_port=parent_port,
         **kwargs,
     )
 
 
-def configured_discovery_rpc(primary_fallback_endpoint=None, *, environ=None, **kwargs):
+def configured_discovery_rpc(primary_fallback_endpoint=None, *, environ=None,parent_port=None, **kwargs):
     """Public by default; inactive managed choice reuses the canonical machinery."""
+    if parent_port is not None:
+        from meme_machine.operational.child_transport import require_rpc_port
+        require_rpc_port(parent_port,'robinhood')
+        if primary_fallback_endpoint is not None and primary_fallback_endpoint is not parent_port.source:
+            raise BoundaryError('isolated_rpc_source_mismatch')
+        rpc=PacedRpc(parent_port.source,role='pons_mandatory_observation_primary',
+            requests_per_second=DIRECTIONAL_RPS,parent_port=parent_port,**kwargs)
+        rpc.primary_fallback=False;rpc.gap_recovery=False;rpc.observation_route='canonical_primary'
+        return rpc
     endpoint, managed_primary = discovery_endpoint(
         primary_fallback_endpoint, environ=environ
     )
