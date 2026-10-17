@@ -476,6 +476,10 @@ class SequencerBlockClock:
         client,self.client=self.client,None
         if client is not None:
             client.close()
+        elif self._parent_stream is not None:
+            # Parent ports are acquired before native stores open. Partial
+            # startup can therefore close a real reservation before connect().
+            self._parent_stream.close()
 
     def reconnect(self):
         """Start a fresh observation session without asserting feed continuity.

@@ -302,18 +302,26 @@ class ParentChannel:
         except asyncio.CancelledError:
             content.status = 'canceled'
         except BaseException as error:
-            content.status = 'failed'
             content.boundary = _native_boundary(error)
             if content.boundary is None:
+                content.status = 'failed'
                 self.closed = True
                 self.stopped.set()
             else:
                 try:
                     await content.stream.aclose()
-                except BaseException:
-                    content.status = 'accounting_failed'
-                    self.closed = True
-                    self.stopped.set()
+                except BaseException as cleanup_error:
+                    if isinstance(cleanup_error,asyncio.CancelledError) and content.stream.cleanup_verified:
+                        content.status='canceled'
+                    else:
+                        content.status = 'accounting_failed'
+                        self.closed = True
+                        self.stopped.set()
+                else:
+                    # A failed read becomes observable only after its original
+                    # cleanup is joined. Early publication lets a child cancel
+                    # this very cleanup as if the operation were already done.
+                    content.status = 'failed'
 
     async def _native_control(self, content, alias, verb, body):
         try:

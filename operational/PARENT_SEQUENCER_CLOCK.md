@@ -32,3 +32,15 @@ authenticated launcher result or authoritative PAPER readiness. Parent source
 authentication, fresh sizing producer, Pons capabilities and all four complete
 runner integration still require their own proofs. No provider requests, AWS
 dispatch or financial database writes were performed for this slice.
+
+The startup cleanup follow-up closes the exact acquired parent instance even
+when native Clock.connect has not run. Pons Current acquires its feed before
+opening native stores, so this path is required on partial startup failure.
+The added regression proves native_reserved returns to zero with one original
+open, and repeated close does not reacquire. It also exposed a transport failure
+publication race: the parent formerly published failed before joining cleanup,
+allowing the child's terminal cancellation to interrupt cleanup and falsely
+stop the whole channel. Failure is now published after joined cleanup; a
+deterministic gated regression proves the operation remains running until then.
+The clock and parent modules passed 43 cases in 1.869 seconds after both fixes.
+The initial local failure receipt remains at /tmp/mm-engineering-pkror5f1.

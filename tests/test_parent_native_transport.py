@@ -757,6 +757,26 @@ class ParentNativeTransportTests(unittest.IsolatedAsyncioTestCase):
         await channel.aclose()
         self.assertEqual(self.budget.snapshot()['native_reserved'], '0')
 
+    async def test_native_failure_is_published_only_after_original_cleanup_finishes(self):
+        entered,gate=asyncio.Event(),asyncio.Event()
+        class LostRaw(_Native):
+            async def read(self):raise OSError('offline transport loss')
+            async def aclose(self):
+                entered.set();await gate.wait();await super().aclose()
+        raw=LostRaw()
+        async def factory():return raw
+        stream=await ParentNativeStream.open(self.budget,'yellowstone',factory,lambda body:None)
+        channel=await self.channel(streams={'pump':stream})
+        token=(await self.dispatch(channel,'native_read',stream=self.native_handle(channel)))['token']
+        await asyncio.wait_for(entered.wait(),1)
+        self.assertEqual((await self.dispatch(channel,'poll',token=token))['status'],'running')
+        gate.set()
+        self.assertEqual((await self.terminal(channel,token))['status'],'failed')
+        await self.dispatch(channel,'cancel',token=token)
+        self.assertFalse(channel.closed)
+        self.assertTrue(stream.cleanup_verified)
+        self.assertEqual(self.budget.snapshot()['native_reserved'],'0')
+
     async def test_foreign_token_and_altered_replay_fail_without_extra_purchase(self):
         channel = await self.channel()
         frame = encode_frame(dict(session=channel.session, seq=1, verb='activity', alias='pons'))

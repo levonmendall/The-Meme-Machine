@@ -155,5 +155,15 @@ class ParentSequencerClockTests(unittest.IsolatedAsyncioTestCase):
             SequencerBlockClock(parent_stream=object())
         self.assertEqual(self.budget.snapshot()['native_opens'],'1')
 
+    async def test_preconnect_startup_cleanup_closes_original_parent_reservation(self):
+        clock,_,_=await self.connected([[]])
+        self.assertIsNone(clock.client)
+        self.assertGreater(int(self.budget.snapshot()['native_reserved']),0)
+        await asyncio.to_thread(clock.close)
+        self.assertTrue(clock._parent_stream.closed)
+        self.assertEqual(self.budget.snapshot()['native_reserved'],'0')
+        await asyncio.to_thread(clock.close)
+        self.assertEqual(self.budget.snapshot()['native_opens'],'1')
+
 
 if __name__=='__main__':unittest.main()
