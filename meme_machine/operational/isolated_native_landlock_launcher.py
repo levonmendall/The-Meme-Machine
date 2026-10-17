@@ -263,7 +263,8 @@ class NativeLandlockChild:
             raise
 
     def _constructor_reap(self):
-        self.child.wait(timeout=2);self._reaped=True
+        with self._lock:
+            self.child.wait(timeout=2);self._reaped=True
 
     def _effective_deadline(self,local):
         with self._lock:
