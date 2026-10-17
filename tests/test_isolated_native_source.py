@@ -100,6 +100,224 @@ class NativeSourceHookTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.budget.snapshot()['http_attempts'],'1')
         self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
 
+    async def test_parent_source_expired_invalid_or_cancelled_bounds_refuse_before_purchase(self):
+        from meme_machine.runtime.evidence_worker import DeliveredRPCError
+        from meme_machine.runtime.provider_purchases import provider_work
+        rpc=self.rpc()
+        options=[dict(deadline=time.monotonic()-1),dict(deadline=float('inf')),
+            dict(deadline=float('nan')),dict(deadline=True),dict(cancelled=lambda:True),
+            dict(cancelled=True)]
+        for bounds in options:
+            def request():
+                with provider_work('history_receipt',family='pump'):
+                    return rpc.call_delivered('getSlot',[],3,**bounds)
+            with self.subTest(bounds=list(bounds)):
+                with self.assertRaises(DeliveredRPCError) as caught:
+                    await asyncio.to_thread(request)
+                self.assertEqual(caught.exception.receipt['bytes'],0)
+                self.assertEqual(caught.exception.receipt['calls'],0)
+                self.assertEqual(caught.exception.receipt['accounting_scope'],'PROTECTED_PARENT_ONLY')
+        self.assertFalse(self.physical.calls)
+        self.assertEqual(self.budget.snapshot()['http_attempts'],'0')
+        self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
+
+    async def test_parent_source_deadline_keeps_tighter_bound_and_original_eight_second_cap(self):
+        from meme_machine.operational.child_transport import ChildRPCPort
+        from meme_machine.runtime.provider_purchases import provider_work
+        rpc=self.rpc();observed=[]
+        original=ChildRPCPort.envelope_delivered
+        def bounded(port,request,*,deadline=None):
+            observed.append((time.monotonic(),deadline))
+            return original(port,request,deadline=deadline)
+        for seconds in (2,50):
+            deadline=time.monotonic()+seconds
+            def request():
+                with provider_work('history_receipt',family='pump'):
+                    return rpc.call_delivered('getSlot',[],3,deadline=deadline,cancelled=lambda:False)
+            with patch.object(ChildRPCPort,'envelope_delivered',bounded):
+                await asyncio.to_thread(request)
+            started,actual=observed[-1]
+            self.assertLessEqual(actual,deadline)
+            self.assertLessEqual(actual,started+8)
+            if seconds==2:self.assertEqual(actual,deadline)
+        self.assertEqual(len(self.physical.calls),2)
+        self.assertEqual(self.budget.snapshot()['http_attempts'],'2')
+        self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
+
+    async def test_parent_source_cancel_after_admission_keeps_delivered_handoff_and_original_charge(self):
+        from meme_machine.runtime.evidence_worker import DeliveredRPCError
+        from meme_machine.runtime.provider_purchases import provider_work
+        rpc=self.rpc();cancelled=threading.Event()
+        self.physical.body=b'{"jsonrpc":"2.0", "id":1, "result":103}'
+        self.physical.gate.clear()
+        def request():
+            with provider_work('history_receipt',family='pump'):
+                return rpc.call_delivered('getSlot',[],3,deadline=time.monotonic()+3,
+                    cancelled=cancelled.is_set)
+        task=asyncio.create_task(asyncio.to_thread(request))
+        try:
+            await asyncio.to_thread(self.physical.entered.wait,1)
+            self.assertTrue(self.physical.entered.is_set())
+            cancelled.set()
+            self.assertFalse(task.done())
+        finally:self.physical.gate.set()
+        with self.assertRaises(DeliveredRPCError) as caught:
+            await task
+        handed=len(b'{"id":1,"jsonrpc":"2.0","result":103}')
+        self.assertEqual(caught.exception.receipt['bytes'],handed)
+        self.assertEqual(caught.exception.receipt['cu'],0)
+        self.assertEqual(rpc.telemetry()['counters']['parent_public_handoff_bytes'],handed)
+        self.assertEqual(self.budget.snapshot()['http_attempts'],'1')
+        self.assertEqual(self.budget.snapshot()['http_bytes'],str(len(self.physical.body)))
+        self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
+        self.assertFalse(self.parent.contents)
+
+    async def test_parent_source_late_handoff_refuses_success_without_erasing_delivered_bytes(self):
+        from meme_machine.operational.child_transport import ChildRPCPort
+        from meme_machine.runtime.evidence_worker import DeliveredRPCError
+        from meme_machine.runtime.provider_purchases import provider_work
+        rpc=self.rpc();original=ChildRPCPort.envelope_delivered
+        self.physical.body=b'{"jsonrpc":"2.0", "id":1, "result":103}'
+        def delayed(port,request,*,deadline=None):
+            result=original(port,request,deadline=deadline)
+            # The admitted physical response completed and was consumed. Only
+            # local scheduling after that handoff crosses the caller's bound.
+            threading.Event().wait(max(0,deadline-time.monotonic())+.01)
+            return result
+        def request():
+            with provider_work('history_receipt',family='pump'):
+                return rpc.call_delivered('getSlot',[],3,deadline=time.monotonic()+.25)
+        with patch.object(ChildRPCPort,'envelope_delivered',delayed):
+            with self.assertRaises(DeliveredRPCError) as caught:
+                await asyncio.to_thread(request)
+        self.assertGreater(caught.exception.receipt['bytes'],0)
+        self.assertEqual(caught.exception.receipt['calls'],0)
+        self.assertEqual(self.budget.snapshot()['http_attempts'],'1')
+        self.assertEqual(self.budget.snapshot()['http_bytes'],str(len(self.physical.body)))
+        self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
+
+    async def test_parent_source_partial_failure_retains_parent_debt_without_fake_child_bytes(self):
+        from meme_machine.runtime.evidence_worker import DeliveredRPCError
+        from meme_machine.runtime.provider_purchases import provider_work
+        rpc=self.rpc();self.physical.fail_after=1
+        def request():
+            with provider_work('history_receipt',family='pump'):
+                return rpc.call_delivered('getSlot',[],3,deadline=time.monotonic()+3,
+                    cancelled=lambda:False)
+        with self.assertRaises(DeliveredRPCError) as caught:
+            await asyncio.to_thread(request)
+        self.assertEqual(caught.exception.receipt['bytes'],0)
+        self.assertEqual(caught.exception.receipt['calls'],0)
+        self.assertEqual(caught.exception.receipt['bytes_scope'],'EXACT_PARENT_PUBLIC_HANDOFF_NOT_PROVIDER_SOCKET')
+        state=self.budget.snapshot()
+        self.assertEqual(state['http_attempts'],'1')
+        self.assertGreater(int(state['http_bytes']),0)
+        self.assertGreater(int(state['http_uncertain_bytes']),0)
+        self.assertEqual(state['http_reserved'],'0')
+
+    async def test_parent_source_cancelled_retryable_response_keeps_original_error_identity(self):
+        from meme_machine.operational.child_transport import ChildRPCPort
+        from meme_machine.runtime.evidence_worker import DeliveredRPCError
+        from meme_machine.runtime.provider_purchases import provider_work
+        rpc=self.rpc();cancelled=threading.Event();original=ChildRPCPort.envelope_delivered
+        self.physical.body=b'{"jsonrpc":"2.0","id":1,"error":{"code":-32005,"message":"private-canary"}}'
+        def cancelled_after_delivery(port,request,*,deadline=None):
+            result=original(port,request,deadline=deadline)
+            cancelled.set()
+            return result
+        def request():
+            with provider_work('recovery_restart',family='pump'):
+                return rpc.call_delivered('getSlot',[],6,deadline=time.monotonic()+3,
+                    cancelled=cancelled.is_set)
+        with patch.object(ChildRPCPort,'envelope_delivered',cancelled_after_delivery):
+            with self.assertRaises(DeliveredRPCError) as caught:
+                await asyncio.to_thread(request)
+        self.assertEqual(caught.exception.rpc_code,-32005)
+        self.assertTrue(caught.exception.retryable)
+        self.assertGreater(caught.exception.receipt['bytes'],0)
+        self.assertNotIn('private-canary',str(caught.exception))
+        self.assertEqual(rpc.telemetry()['counters']['429s'],1)
+        self.assertEqual(self.budget.snapshot()['http_attempts'],'1')
+        self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
+
+    async def bounded_singleflight_follower(self,*,cancel):
+        from meme_machine.runtime.evidence_worker import DeliveredRPCError
+        from meme_machine.runtime.provider_purchases import provider_work
+        rpc=self.rpc();cancelled=threading.Event();entered=threading.Event();release=threading.Event()
+        demands=[];purchases=[]
+        class Port:
+            def demand(self,methods):demands.append(list(methods))
+        def physical(method,params,priority):
+            # Controlled immutable leader, as in the existing singleflight
+            # fixture. Actual parent metering/partial delivery is tested above.
+            purchases.append(method);entered.set()
+            if not release.wait(3):raise TimeoutError('offline source gate')
+            return dict(slot=103),dict(bytes=17,cu=0,calls=0)
+        def request(**bounds):
+            with provider_work('history_receipt',family='pump'):
+                return rpc.call_delivered('getTransaction',
+                    ['offline-signature',dict(commitment='finalized')],3,**bounds)
+        with patch.object(rpc,'_parent_source_port',return_value=Port()), \
+                patch.object(rpc,'_parent_call_delivered',physical):
+            leader=asyncio.create_task(asyncio.to_thread(request))
+            follower=None
+            try:
+                await asyncio.to_thread(entered.wait,1)
+                self.assertTrue(entered.is_set())
+                bounds=dict(cancelled=cancelled.is_set) if cancel else dict(deadline=time.monotonic()+.2)
+                follower=asyncio.create_task(asyncio.to_thread(request,**bounds))
+                async with asyncio.timeout(1):
+                    while len(demands)<2:await asyncio.sleep(.005)
+                if cancel:cancelled.set()
+                with self.assertRaises(DeliveredRPCError) as caught:
+                    await asyncio.wait_for(asyncio.shield(follower),1)
+                self.assertEqual(caught.exception.receipt,dict(bytes=0,cu=0,calls=0))
+                self.assertFalse(leader.done())
+                with rpc.lock:
+                    shared=next(iter(rpc.flights.values()))
+                self.assertFalse(shared.cancelled())
+                self.assertEqual(purchases,['getTransaction'])
+            finally:
+                release.set()
+                results=await asyncio.gather(leader,*([follower] if follower is not None else []),return_exceptions=True)
+        self.assertEqual(results[0][0],dict(slot=103))
+        self.assertEqual(results[0][1]['bytes'],17)
+        self.assertEqual(demands,[['getTransaction'],['getTransaction']])
+        self.assertFalse(self.physical.calls)
+        self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
+        self.assertFalse(rpc.flights)
+
+    async def test_explicit_deadline_follower_leaves_original_singleflight_purchase_owned(self):
+        await self.bounded_singleflight_follower(cancel=False)
+
+    async def test_cancelled_follower_leaves_original_singleflight_purchase_owned(self):
+        await self.bounded_singleflight_follower(cancel=True)
+
+    async def test_explicit_bounds_apply_before_and_after_cached_genesis_return(self):
+        from meme_machine.runtime.evidence_worker import DeliveredRPCError
+        from meme_machine.runtime.provider_purchases import provider_work
+        from meme_machine.solana_provider_config import GENESIS
+        rpc=self.rpc();cancelled=threading.Event();calls=[]
+        class Cache:
+            def call(self,method,params,fetch):
+                calls.append(method);cancelled.set();return GENESIS
+        rpc.genesis_reads=Cache()
+        def request(**bounds):
+            with provider_work('history_receipt',family='pump'):
+                return rpc.call_delivered('getGenesisHash',[],3,**bounds)
+        class Port:
+            def demand(self,methods):pass
+        with patch.object(rpc,'_parent_source_port',return_value=Port()):
+            with self.assertRaises(DeliveredRPCError):
+                await asyncio.to_thread(request,deadline=time.monotonic()-1)
+            self.assertFalse(calls)
+            with self.assertRaises(DeliveredRPCError) as caught:
+                await asyncio.to_thread(request,cancelled=cancelled.is_set)
+        self.assertEqual(calls,['getGenesisHash'])
+        self.assertEqual(caught.exception.receipt,dict(bytes=0,cu=0,calls=0))
+        self.assertFalse(self.physical.calls)
+        self.assertEqual(self.budget.snapshot()['http_attempts'],'0')
+
     async def test_actual_native_stream_keeps_original_decode_handler_and_scoped_close(self):
         from meme_machine.solana_selective_source import SelectiveSource
         from meme_machine.yellowstone import geyser_pb2 as pb

@@ -80,8 +80,31 @@ class RepairRPC:
         self.network_verified=True
     def call(self,method,params,priority=False):
         return self.call_delivered(method,params,1 if priority else 4)[0]
+    @staticmethod
+    def _check_call_bounds(deadline,cancelled):
+        import math,time
+        if deadline is not None and (type(deadline) not in (int,float)
+                or not math.isfinite(deadline) or time.monotonic()>=deadline):
+            raise ValueError('repair_deadline')
+        if cancelled is not None:
+            if not callable(cancelled):raise ValueError('repair_cancel_check')
+            if cancelled():raise ValueError('repair_cancelled')
+
     def call_delivered(self,method,params,priority=4,*,deadline=None,cancelled=None):
         from .provider_purchases import ledger
+        bounded=deadline is not None or cancelled is not None
+        def check_bounds(delivered=None):
+            try:self._check_call_bounds(deadline,cancelled)
+            except Exception as exc:
+                receipt=delivered if delivered is not None else dict(bytes=0,cu=0,calls=0)
+                if delivered is None and self._native_ports is not None:
+                    receipt.update(accounting_scope='PROTECTED_PARENT_ONLY',
+                        bytes_scope='EXACT_PARENT_PUBLIC_HANDOFF_NOT_PROVIDER_SOCKET')
+                raise DeliveredRPCError('repair_response_unavailable',receipt,
+                    cause_kind=type(exc).__name__,method=method) from None
+        # Explicit caller bounds apply before logical demand, cache or joining
+        # another caller's purchase. Unbounded callers retain the native path.
+        if bounded:check_bounds()
         if self._native_ports is not None:
             # Logical demand precedes cache/singleflight decisions just as the
             # original consumer ledger does. Parent purchases still occur only
@@ -100,6 +123,7 @@ class RepairRPC:
                 receipt.update(physical,calls=1)
                 return value
             value=self.genesis_reads.call(method,params,fetch)
+            if bounded:check_bounds(receipt)
             return value,receipt
         if (method in ('getTransactionsForAddress','getTransaction','getBlock') and len(params)==2
                 and isinstance(params[1],dict) and params[1].get('commitment')=='finalized'):
@@ -113,6 +137,15 @@ class RepairRPC:
             if not leader:
                 ledger(self).consumer([method],cache_hit=True,shared=True,family='pump')
                 try:
+                    if bounded:
+                        from concurrent.futures import TimeoutError as FutureTimeout
+                        import time
+                        while not future.done():
+                            check_bounds()
+                            wait=.05 if deadline is None else min(.05,max(0,deadline-time.monotonic()))
+                            try:future.result(timeout=wait)
+                            except FutureTimeout:pass
+                        check_bounds()
                     value,_=future.result()
                     from copy import deepcopy
                     return deepcopy(value),dict(bytes=0,cu=0,calls=0)
@@ -133,7 +166,10 @@ class RepairRPC:
     def _call_delivered(self,method,params,priority=4,*,deadline=None,cancelled=None):
         import time
         if self._native_ports is not None:
-            return self._parent_call_delivered(method,params,priority)
+            options={}
+            if deadline is not None:options['deadline']=deadline
+            if cancelled is not None:options['cancelled']=cancelled
+            return self._parent_call_delivered(method,params,priority,**options)
         if method not in ('getTransactionsForAddress','getGenesisHash','getSlot','getProgramAccountsV2','getTransaction') and not (method=='getBlock' and self.block_repair_profile and self.block_repair_profile.get('validated') is True):
             raise ValueError('repair_method_forbidden')
         maximum=16*1024*1024;timeout=8
@@ -217,7 +253,7 @@ class RepairRPC:
         label=work_label(family='pump')
         return self._native_ports.source_rpc(priority,operation=label.get('operation'))
 
-    def _parent_call_delivered(self,method,params,priority):
+    def _parent_call_delivered(self,method,params,priority,*,deadline=None,cancelled=None):
         """Keep native response parsing; the protected parent owns purchases.
 
         Child delivery bytes are the exact public handoff, not a reconstructed
@@ -231,12 +267,27 @@ class RepairRPC:
             bytes_scope='EXACT_PARENT_PUBLIC_HANDOFF_NOT_PROVIDER_SOCKET')
         self._count('logical_calls');self._count('parent_rpc_calls')
         try:
+            import math
+            end=time.monotonic()+8
+            if deadline is not None:
+                if type(deadline) not in (int,float) or not math.isfinite(deadline):
+                    raise ValueError('repair_deadline')
+                end=min(end,deadline)
+            if time.monotonic()>=end:raise ValueError('repair_deadline')
+            if cancelled is not None:
+                if not callable(cancelled):raise ValueError('repair_cancel_check')
+                if cancelled():raise ValueError('repair_cancelled')
             value,handed=port.envelope_delivered(dict(jsonrpc='2.0',id=1,method=method,params=params),
-                deadline=time.monotonic()+8)
+                deadline=end)
             received=handed['bytes'];receipt['bytes']=received
             code=(value.get('error') or {}).get('code')
             if code in (429,-32005):self._count('429s')
             if code==-32601:self._count('unsupported_methods')
+            # Caller stop cannot revoke an admitted parent attempt or its
+            # durable accounting. Retain its exact handoff before refusing a
+            # late/cancelled result; the parent alone owns physical purchases.
+            if cancelled is not None and cancelled():raise ValueError('repair_cancelled')
+            if time.monotonic()>=end:raise ValueError('repair_deadline')
             if value.get('id')!=1 or 'error' in value or 'result' not in value:
                 raise ValueError('repair_response_unavailable')
             self.config.public(value)
