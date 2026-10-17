@@ -231,6 +231,28 @@ class KernelCorpusWireTests(unittest.IsolatedAsyncioTestCase):
         native.cancel()
         self.assertEqual(self.corpus.snapshot()['counters']['closed'],1)
 
+    async def test_known_clone_mint_and_pda_have_exact_archive_and_native_log_membership(self):
+        from meme_machine import pump
+        creations=[event for tx in archives(self.corpus,PROGRAMS['pump']) for event in pump_events(tx)
+            if event['event_type']=='create' and event['mint']!=self.corpus.mint]
+        self.assertEqual(len(creations),ADDITIONAL_CREATIONS)
+        clone=creations[0]
+        self.assertEqual(clone['bonding_curve'],pump.pda([b'bonding-curve',pump.un58(clone['mint'])]))
+        native=await self.stream('solana_websocket')
+        for number,address in enumerate((clone['mint'],clone['bonding_curve']),1):
+            rows=archives(self.corpus,address)
+            self.assertEqual(len(rows),1)
+            self.assertEqual([event['mint'] for event in pump_events(rows[0])],
+                [clone['mint'],clone['mint']])
+            await native.write(logs_request(address,number))
+            _,ack=await native.read();self.assertEqual(candidate_log_message(ack,max_bytes=65536)['id'],number)
+            _,body=await native.read();value=candidate_log_message(body,max_bytes=65536)['params']['result']
+            self.assertEqual(value['context']['slot'],rows[0]['slot'])
+            self.assertEqual(value['value']['signature'],rows[0]['transaction']['signatures'][0])
+            self.assertEqual(value['value']['logs'],rows[0]['meta']['logMessages'])
+        self.assertIs(type(self.corpus._known_addresses),frozenset)
+        with self.assertRaises(ValueError):await native.write(logs_request('unmodeled-public-address',3))
+
     async def test_stream_and_subscription_bounds_are_enforced_without_extra_owners(self):
         for _ in range(MAX_STREAMS):await self.stream('solana_websocket')
         with self.assertRaises(ValueError):await self.corpus.open('solana_websocket')
@@ -369,6 +391,17 @@ class KernelCorpusSourceConformanceTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(preparations[0]['mode'],'existing_process_pool')
                 self.assertEqual(preparations[0]['records'],2*ADDITIONAL_CREATIONS+4)
                 self.assertEqual(len(decoder._processes),2)
+                advertised={row[0] for row in writer.db.execute(
+                    "SELECT address FROM market_observations WHERE family='pump'")}
+                advertised.update(row[0] for row in writer.db.execute(
+                    "SELECT address FROM evidence_bindings WHERE family='pump'"))
+                selected={row[0] for row in history.development_candidates(POLICY.min_curve_progress_bps,256)}
+                self.assertTrue(advertised);self.assertLessEqual(len(advertised),256)
+                self.assertTrue(selected.issubset(advertised))
+                for address in advertised:
+                    # Every source-advertised canonical identity has the exact
+                    # same finite, serviceable archive scope as its wire logs.
+                    self.assertTrue(archives(corpus,address),address)
                 # Original FULL consumer commit, exact receipt ACK and native
                 # proof publisher earn release. No fixture SQL seeds readiness.
                 for _ in range(32):
