@@ -199,6 +199,12 @@ class SolanaKernelCorpus:
         self._scout=next(e for e in pump_events(trade_tx) if e['event_type']=='trade')
         self._scout_signature=trade_tx['transaction']['signatures'][0]
         self._creation=creation
+        creations=tuple(event for tx in self._transactions for event in pump_events(tx)
+            if event['event_type']=='create')
+        self._known_mints=frozenset(event['mint'] for event in creations)
+        self._known_curves=frozenset(event['bonding_curve'] for event in creations)
+        self._known_addresses=frozenset((*self._known_mints,*self._known_curves,self.pool,
+            PROGRAMS['pump'],PROGRAMS['pumpswap']))
         self._members=[]
         for tx in self._transactions:
             keys=tx['transaction']['message']['accountKeys']
@@ -251,8 +257,7 @@ class SolanaKernelCorpus:
         if method=='getTransactionsForAddress':
             _require(len(params)==2 and type(params[0]) is str and type(params[1]) is dict)
             address,options=params
-            from meme_machine.solana_selective_history import PROGRAMS
-            _require(address in {self.mint,self.curve,self.pool,PROGRAMS['pump'],PROGRAMS['pumpswap']})
+            _require(address in self._known_addresses)
             _require(options.get('commitment')=='finalized' and options.get('maxSupportedTransactionVersion')==1
                 and options.get('sortOrder')=='asc' and options.get('limit')==100)
             bounds=options['filters']['slot'];lower,upper=bounds['gte'],bounds['lte']
@@ -335,8 +340,7 @@ class SolanaKernelCorpus:
             and type(request.get('id')) is int and request['params'][1]==dict(commitment='finalized'))
         addresses=request['params'][0]['mentions'];_require(type(addresses) is list and len(addresses)==1)
         address=addresses[0]
-        from meme_machine.solana_selective_history import PROGRAMS
-        _require(address in {self.mint,self.curve,self.pool,PROGRAMS['pump'],PROGRAMS['pumpswap']})
+        _require(address in self._known_addresses)
         subscription=request['id']+100
         def notification(slot,signature,logs,error):
             return _json(dict(jsonrpc='2.0',method='logsNotification',params=dict(subscription=subscription,

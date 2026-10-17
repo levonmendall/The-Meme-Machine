@@ -32,6 +32,10 @@ parent hash and transaction count is shared by RPC, WebSocket and Yellowstone
 representations. Program history uses actual100-row pagination with tokens bound
 to the exact address and interval. The110 additional creations have distinct
 synthetic mint public keys and their correctly derived bonding-curve PDAs.
+Archive and log subscriptions admit a finite immutable set derived from all
+actual creation mint/PDA pairs, the two program identities and the independent
+pool. Unknown identities still fail. The source regression checks every
+advertised canonical candidate and alias against this same serviceable corpus.
 
 The target keeps the template's original initial real reserve793.1 trillion.
 Its initial buy consumes500 trillion tokens; the subsequent buy consumes another
