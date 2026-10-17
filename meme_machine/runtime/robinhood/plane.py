@@ -82,6 +82,7 @@ class Plane:
           priority INTEGER NOT NULL,rank REAL NOT NULL,deadline REAL NOT NULL,queued REAL NOT NULL,
           claim TEXT,owner TEXT,claim_generation INTEGER,claim_until REAL,result TEXT);
         CREATE INDEX IF NOT EXISTS candidate_pending ON candidates(lane,pending,priority,deadline);
+        CREATE INDEX IF NOT EXISTS candidate_lane_identity ON candidates(lane,id);
         CREATE INDEX IF NOT EXISTS candidate_retirement ON candidates(observed) WHERE pending=0 AND claim IS NULL;
         CREATE TABLE IF NOT EXISTS observations(
           candidate TEXT NOT NULL,observation TEXT NOT NULL,body TEXT NOT NULL,at REAL NOT NULL,
@@ -90,6 +91,7 @@ class Plane:
         CREATE TABLE IF NOT EXISTS transitions(
           seq INTEGER PRIMARY KEY,candidate TEXT,generation INTEGER,at REAL,kind TEXT,
           reason TEXT,watermark TEXT,interpretation TEXT,details TEXT);
+        CREATE INDEX IF NOT EXISTS transition_retention_order ON transitions(seq,candidate);
         CREATE TABLE IF NOT EXISTS evidence(
           namespace TEXT,key TEXT,body TEXT,provenance TEXT,created REAL,
           PRIMARY KEY(namespace,key));

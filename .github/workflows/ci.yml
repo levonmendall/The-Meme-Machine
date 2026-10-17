@@ -76,6 +76,7 @@ jobs:
               'tests.test_survivor_terminal_retirement',
               'tests.test_pons_native_retirement',
               'tests.test_pons_projection_source_reuse',
+              'tests.test_pons_retention_covering_index',
               'tests.test_shared_capital_recovery',
               'tests.test_shared_capital_concurrency',
               'tests.test_shared_capital_economics',

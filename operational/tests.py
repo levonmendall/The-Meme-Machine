@@ -5,6 +5,7 @@ FAST=[
  'tests.test_namespace_runtime',
  'tests.test_namespace_canary',
  'tests.test_retained_reference_path_walk',
+ 'tests.test_pons_retention_covering_index',
  'tests.test_pons_projection_source_reuse',
  'tests.test_source_operation_publication',
  'tests.test_sleeve_prefix_scheduling',
