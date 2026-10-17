@@ -78,6 +78,26 @@ class IsolatedNativeEntryTests(unittest.TestCase):
         with self.assertRaisesRegex(IsolatedEntryBlocked,'stopped'):
             self.reader.receive()
 
+    def test_failure_projection_keeps_fixed_caller_and_known_code_without_paths_or_messages(self):
+        from meme_machine.operational.isolated_native_entry import _failure_details
+        from meme_machine.operational.isolated_native_source import ContainedNativeFailure
+        source=('def _require():\n    raise ValueError("secret arbitrary provider body")\n'
+            'def caller():\n    _require()\n')
+        scope={'__name__':'meme_machine.operational.source_ports'}
+        exec(compile(source,'/private/secret/provider-url.py','exec'),scope)
+        try:scope['caller']()
+        except ValueError as error:value=_failure_details(error,'native_lifecycle')
+        self.assertEqual(value,dict(failure_code='isolated_native_child_failed',failure_type='ValueError',
+            failure_stage='native_lifecycle',failure_site=dict(module=scope['__name__'],line=4)))
+        for error in (ContainedNativeFailure('isolated_native_consumer_ended'),
+                ContainedNativeFailure('secret arbitrary provider body'),
+                ValueError('isolated_native_consumer_ended'),PermissionError(1,'secret arbitrary provider body')):
+            row=_failure_details(error,'native_lifecycle')
+            self.assertNotIn('secret',json.dumps(row))
+            self.assertEqual('boundary_code' in row,type(error) is ContainedNativeFailure
+                and error.args==('isolated_native_consumer_ended',))
+        self.assertEqual(_failure_details(PermissionError(1,'private'),'native_lifecycle')['error_number'],1)
+
 
 if __name__=='__main__':
     unittest.main()

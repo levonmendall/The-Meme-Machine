@@ -30,6 +30,32 @@ _FAILURE_MODULES=frozenset(('meme_machine.operational.isolated_native_source',
     'meme_machine.runtime.isolated_native_bootstrap','meme_machine.runtime.isolated_native_resources',
     'meme_machine.operational.source_ports','meme_machine.runtime.evidence_worker',
     'meme_machine.solana_selective_source','meme_machine.operational.pons_native_profile'))
+_CONTAINED_BOUNDARIES=frozenset(('isolated_native_consumer_ended','isolated_native_source_ended',
+    'isolated_native_pump_failed','isolated_native_pons_failed','isolated_native_sizing_failed',
+    'isolated_native_source_commands_deadline','isolated_native_runtime_failed'))
+
+
+def _failure_details(error,stage):
+    """Fixed source classifications, excluding generic helper/exception text."""
+    result=dict(failure_code='isolated_native_child_failed',failure_type=type(error).__name__,
+        failure_stage=stage)
+    number=getattr(error,'errno',None)
+    if type(number) is int and 0<number<4096:result['error_number']=number
+    trace=error.__traceback__
+    while trace is not None:
+        name=trace.tb_frame.f_globals.get('__name__')
+        if (name in _FAILURE_MODULES and trace.tb_frame.f_code.co_name!='_require'
+                and 0<trace.tb_lineno<10000):
+            result['failure_site']=dict(module=name,line=trace.tb_lineno)
+        trace=trace.tb_next
+    for module_name,class_name,codes in (
+            ('meme_machine.runtime.isolated_native_spawn','NativeSpawnRefused',_SPAWN_BOUNDARIES),
+            ('meme_machine.operational.isolated_native_source','ContainedNativeFailure',_CONTAINED_BOUNDARIES)):
+        module=sys.modules.get(module_name)
+        if (module is not None and type(error) is getattr(module,class_name,None)
+                and len(error.args)==1 and type(error.args[0]) is str and error.args[0] in codes):
+            result['boundary_code']=error.args[0]
+    return result
 
 
 class IsolatedEntryBlocked(ValueError):
@@ -261,21 +287,7 @@ def main(*,layout=None):
     except BaseException as error:
         # Only fixed local classification is published, never a packet, provider
         # body, arbitrary exception message or hidden successful readiness flag.
-        receipt['failure_code']='isolated_native_child_failed'
-        receipt['failure_type']=type(error).__name__
-        receipt['failure_stage']=stage
-        number=getattr(error,'errno',None)
-        if type(number) is int and 0<number<4096:receipt['error_number']=number
-        trace=error.__traceback__
-        while trace is not None:
-            name=trace.tb_frame.f_globals.get('__name__')
-            if name in _FAILURE_MODULES and 0<trace.tb_lineno<10000:
-                receipt['failure_site']=dict(module=name,line=trace.tb_lineno)
-            trace=trace.tb_next
-        module=sys.modules.get('meme_machine.runtime.isolated_native_spawn')
-        if (module is not None and type(error) is getattr(module,'NativeSpawnRefused',None)
-                and len(error.args)==1 and type(error.args[0]) is str and error.args[0] in _SPAWN_BOUNDARIES):
-            receipt['boundary_code']=error.args[0]
+        receipt.update(_failure_details(error,stage))
     finally:
         stopped.set()
         stop.requested.set()

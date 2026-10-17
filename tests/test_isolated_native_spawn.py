@@ -155,12 +155,23 @@ for call in calls:
     is_tracker=any(b'resource_tracker import main' in os.fsencode(arg) for arg in call['args'])
     assert call['mask']==({signal.SIGUSR1,signal.SIGTERM,signal.SIGINT} if is_tracker else {signal.SIGUSR1}),call
 assert decoder.submit(eval,"{int(x) for x in __import__('signal').pthread_sigmask(0,set())}").result(5)=={int(signal.SIGUSR1)}
+assert decoder.kernel_lifecycle_snapshot()==dict(state='UNJOINED')
 # The source registry, not an arbitrary caller, is the actual close owner.
 history.close();decoder.shutdown(wait=True,cancel_futures=True)
 assert all(not p.is_alive() for pool in (decoder,history_pool) for p in pool._processes.values())
 assert all(not t.is_alive() for pool in (decoder,history_pool) for t in pool._threads)
+for role,pool,count in (('decoder',decoder,2),('history',history_pool,1)):
+    summary=pool.kernel_lifecycle_snapshot()
+    assert summary['state']=='JOINED' and summary['spawned']==summary['joined']==summary['zero_exit']==count,summary
+    assert summary['returned']==summary['successful']==summary['submitted']==3,summary
+    assert summary['probe_successful']==1 and summary['broken'] is False,summary
+    scope.record_kernel_executor(role,summary)
 scope.close()
 assert scope.owners_joined and tracker._resource_tracker._pid is None
+summary=scope.kernel_lifecycle_snapshot()
+assert summary['state']=='JOINED' and summary['workers_spawned']==dict(decoder=2,history=1),summary
+assert summary['tracker_spawned'] and summary['tracker_joined'] and summary['spawn_owner_joined'],summary
+assert all(row['probe_successful']==1 and row['successful']==3 for row in summary['executors'].values()),summary
 assert util.spawnv_passfds==record and spawn.current_spawn_scope() is None
 util.spawnv_passfds=original
 for fd in (5,6):
