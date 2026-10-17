@@ -6,6 +6,8 @@ FAST=[
  'tests.test_isolated_native_spawn',
  'tests.test_isolated_native_layout',
  'tests.test_isolated_native_landlock_image',
+ 'tests.test_native_landlock_policy',
+ 'tests.test_native_landlock_launcher',
  'tests.test_isolated_native_executor',
  'tests.test_isolated_native_control',
  'tests.test_native_read_lane',
