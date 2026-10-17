@@ -616,6 +616,34 @@ BUFFERED_PREJOIN_CHANGED=('_economic_recovery_inputs','current_economic_recovery
 BUFFERED_PREJOIN_ADDED=('_buffered_log_inputs','_buffered_log_partition')
 
 
+BUFFERED_ORIGIN_REFERENCE='c159b290d57efae348dd235b052abb3101ae3f5a'
+BUFFERED_ORIGIN_AFTER='c16a8f96c3688822735d113ba709b038d53ba9f9e1ca615e0ab5e6c2749eed7d'
+
+
+def buffered_origin_predecessor(test,relative,current):
+    """Reverse only the exact origin geometry; every old guard still runs."""
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=BUFFERED_PREJOIN_SOURCE:return current
+    prior=subprocess.check_output(['git','show',BUFFERED_ORIGIN_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),BUFFERED_PREJOIN_AFTER)
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),BUFFERED_ORIGIN_AFTER)
+    comment=(b'            # Published prefixes may add same-floor residuals beside the audit\n'
+        b'            # origin. Only a row spanning the whole obligation can be its origin.\n')
+    before=(b"                WHERE scope=? AND lo=? AND created<=? AND reason='candidate_live_disconnect_or_filter_rebuild'\n"
+        b"                ORDER BY id DESC LIMIT 2''',(scope,floor,selected[2])).fetchall()\n")
+    after=(b'                WHERE scope=? AND lo=? AND (hi IS NULL OR hi>=?) AND created<=?\n'
+        b"                    AND reason='candidate_live_disconnect_or_filter_rebuild'\n"
+        b"                ORDER BY id DESC LIMIT 2''',(scope,floor,hi,selected[2])).fetchall()\n")
+    test.assertEqual(current.count(comment),1)
+    test.assertEqual(current.count(after),1)
+    restored=current.replace(comment,b'',1).replace(after,before,1)
+    test.assertEqual(restored,prior,
+        relative+':all uniqueness, original-handler, financial, cursor, FULL/ACK and partition bytes retained')
+    return prior
+
+
 def buffered_prejoin_predecessor(test,relative,current):
     from copy import deepcopy
     import hashlib
@@ -625,6 +653,7 @@ def buffered_prejoin_predecessor(test,relative,current):
     test.assertEqual(hashlib.sha256(prior).hexdigest(),BUFFERED_PREJOIN_BEFORE,
         relative+':exact original queue/preparation recovery predecessor')
     if current==prior:return prior
+    current=buffered_origin_predecessor(test,relative,current)
     test.assertEqual(hashlib.sha256(current).hexdigest(),BUFFERED_PREJOIN_AFTER,
         relative+':exact all-committed buffered observation recovery successor')
     tree=ast.parse(current);old=ast.parse(prior)
@@ -2643,9 +2672,30 @@ class RobinhoodUSDTests(unittest.TestCase):
                 self.assertNotEqual(changed,current,relative+':negative mutation changes source')
                 with self.assertRaises(AssertionError):publication_accounting_predecessor(self,relative,changed)
 
+    def test_buffered_origin_geometry_preserves_unique_full_obligation_and_original_authority(self):
+        relative=BUFFERED_PREJOIN_SOURCE;current=(ROOT/relative).read_bytes()
+        prior=subprocess.check_output(['git','show',BUFFERED_ORIGIN_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(buffered_origin_predecessor(self,relative,current),prior)
+        self.assertEqual(buffered_origin_predecessor(self,relative,prior),prior)
+        self.assertEqual(buffered_prejoin_predecessor(self,relative,current),
+            buffered_prejoin_predecessor(self,relative,prior))
+        for before,after in (
+                (b'(hi IS NULL OR hi>=?)',b'(hi IS NULL OR hi>=0)'),
+                (b'(scope,floor,hi,selected[2])',b'(scope,floor,0,selected[2])'),
+                (b'require(len(gaps)==1);gap=gaps[0]',b'gap=gaps[0]'),
+                (b'ORDER BY id DESC LIMIT 2',b'ORDER BY id DESC LIMIT 1'),
+                (b"record.get('recovery')==dict(kind='CANDIDATE_GAPS',gap_ids=[origins[family]['id']])",b'True'),
+                (b"('prefix',descriptor['prefix_lower_slot'],descriptor['prefix_upper_slot'])",b"('prefix',0,-1)")):
+            self.assertIn(before,current)
+            changed=current.replace(before,after,1)
+            with self.assertRaises(AssertionError):buffered_origin_predecessor(self,relative,changed)
+        for changed in (current+b'\n# unreviewed origin change\n',b''):
+            with self.assertRaises(AssertionError):buffered_origin_predecessor(self,relative,changed)
+
     def test_buffered_prejoin_replay_preserves_original_partition_and_full_ack_authority(self):
         import hashlib
-        relative=BUFFERED_PREJOIN_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=BUFFERED_PREJOIN_SOURCE
+        current=buffered_origin_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),BUFFERED_PREJOIN_AFTER,
             relative+':active exact committed buffered-observation recovery')
         self.assertEqual(BUFFERED_PREJOIN_BEFORE,PREPARATION_REPLAY_AFTER,

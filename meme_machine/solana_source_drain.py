@@ -854,9 +854,12 @@ def _buffered_log_inputs(db,raw,handlers,session_id,*,heads=None,expected_origin
     origins={}
     for family,scope in zip(('pump','pumpswap'),scopes):
         if expected_origins is None:
+            # Published prefixes may add same-floor residuals beside the audit
+            # origin. Only a row spanning the whole obligation can be its origin.
             gaps=db.execute('''SELECT id,scope,lo,hi,created,reason FROM candidate_gaps
-                WHERE scope=? AND lo=? AND created<=? AND reason='candidate_live_disconnect_or_filter_rebuild'
-                ORDER BY id DESC LIMIT 2''',(scope,floor,selected[2])).fetchall()
+                WHERE scope=? AND lo=? AND (hi IS NULL OR hi>=?) AND created<=?
+                    AND reason='candidate_live_disconnect_or_filter_rebuild'
+                ORDER BY id DESC LIMIT 2''',(scope,floor,hi,selected[2])).fetchall()
             require(len(gaps)==1);gap=gaps[0]
         else:
             old=expected_origins[family]

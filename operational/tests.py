@@ -4,6 +4,7 @@ import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.r
 FAST=[
  'tests.test_publication_accounting_turn',
  'tests.test_pump_restore_cost_attribution',
+ 'tests.test_buffered_gap_origin_geometry',
  'tests.test_buffered_prejoin_recovery',
  'tests.test_startup_archive_read_reuse',
  'tests.test_source_pool_cooperative_stop',
