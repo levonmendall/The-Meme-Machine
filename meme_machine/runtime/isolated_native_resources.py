@@ -16,17 +16,9 @@ import threading
 from meme_machine.runtime.journal import canonical, digest
 from meme_machine.runtime.sleeve_reservations import SleeveReservations
 from meme_machine.runtime.candidate_history import CandidateHistory
-
-
-class IsolatedFinancialWriteDenied(ValueError):
-    pass
-
-
-def reject_financial_construction(native_resources):
-    """Run before path creation, SQLite open, genesis, replay or recovery."""
-    if native_resources is not None:
-        require_resources(native_resources)
-        raise IsolatedFinancialWriteDenied('isolated_native_financial_constructor_denied')
+from meme_machine.runtime.isolated_native_execution import (
+    IsolatedFinancialWriteDenied,reject_financial_construction,
+)
 
 
 def require_resources(value):
@@ -151,6 +143,8 @@ class IsolatedNativeResources:
         self._candidate_histories = {}
         self._candidate_file_identity = None
         self._native_histories = {}
+        self._native_history_files = {}
+        self._native_history_owners = {}
         self._pons_plane = None
         root.mkdir(mode=0o700)  # Exclusive creation; never adopt existing state.
         self._owner = (root / '.isolated-native-owner').open('x+')
@@ -239,10 +233,26 @@ class IsolatedNativeResources:
                 else:
                     from meme_machine.lanes.pons.pons_history import PonsHistory as History
                     from meme_machine.lanes.pons.pons_postgrad_survivor import POLICY_HASH
-                history = History(self._unused_native_path(lane+'-survivor-history.sqlite'), policy=POLICY_HASH)
+                name = lane+'-survivor-history.sqlite'
+                path = (self._owned_native_path(name,self._native_history_files[lane])
+                    if lane in self._native_history_files else self._unused_native_path(name))
+                history = History(path, policy=POLICY_HASH)
                 self._histories.append(history)
                 self._native_histories[lane] = history
+                self._native_history_files[lane] = self._file_identity(path)
+                self._native_history_owners[lane] = threading.current_thread()
+            else:
+                self.require_survivor_history(self._native_histories[lane],lane)
             return self._native_histories[lane]
+
+    def release_survivor_history(self, history, lane):
+        """The real native owner closes its connection before parent cleanup."""
+        with self._lock:
+            self.require_survivor_history(history,lane)
+            history.close()
+            del self._native_histories[lane]
+            del self._native_history_owners[lane]
+            self._histories.remove(history)
 
     def pons_plane(self):
         require_resources(self)
@@ -274,22 +284,27 @@ class IsolatedNativeResources:
         return value.st_dev,value.st_ino
 
     def _owned_candidate_path(self):
-        path = self.root / 'candidate-history.sqlite'
+        return self._owned_native_path('candidate-history.sqlite',self._candidate_file_identity)
+
+    def _owned_native_path(self, name, expected):
+        path = self.root / name
         for suffix in ('','-wal','-shm','-journal'):
             member = Path(str(path)+suffix)
             if member.is_symlink():
                 raise ValueError('isolated_native_state_symlink')
             if member.exists():
                 self._file_identity(member)
-        if not path.exists() or self._file_identity(path) != self._candidate_file_identity:
+        if not path.exists() or self._file_identity(path) != expected:
             raise ValueError('isolated_native_foreign_state')
         return path
 
     def require_survivor_history(self, history, lane):
         require_resources(self)
         if (history is None or self._native_histories.get(lane) is not history or
-                history.path != self.root / (lane+'-survivor-history.sqlite') or history.path.is_symlink()):
+                self._native_history_owners.get(lane) is not threading.current_thread()
+                or history.path != self.root / (lane+'-survivor-history.sqlite') or history.path.is_symlink()):
             raise ValueError('isolated_native_survivor_history_owner')
+        self._owned_native_path(lane+'-survivor-history.sqlite',self._native_history_files[lane])
 
     def require_pons_plane(self, plane):
         require_resources(self)
@@ -357,6 +372,8 @@ class IsolatedNativeResources:
         with self._lock:
             if self.closed:
                 return
+            if any(owner is not threading.current_thread() for owner in self._native_history_owners.values()):
+                raise ValueError('isolated_native_history_owner_shutdown_required')
             for resource in (*self._sleeves, *reversed(self._histories)):
                 resource.close()
             self._owner.close()

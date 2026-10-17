@@ -106,6 +106,8 @@ def run_offline(root,lane,stop):
 
 
 def run_native(root,lane,publish=None):
+    from meme_machine.runtime.isolated_native_execution import reject_financial_construction
+    reject_financial_construction()
     from meme_machine.runtime.operating_families import require_active
     require_active(lane,production=True)
     # Shared USD delivery recovery is attached by each native book constructor.

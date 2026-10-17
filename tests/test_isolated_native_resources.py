@@ -196,6 +196,44 @@ class IsolatedNativeResourceTests(unittest.TestCase):
                 self.resources.candidate_history()
         self.assertEqual(path.read_bytes(),before)
 
+    def test_survivor_history_owner_release_and_verified_native_restart(self):
+        history=self.resources.survivor_history('pump')
+        history.graduate('mint',dict(at=1000,identity='offline-native-graduation'))
+        expected=history.get('mint')
+        identity=self.resources._file_identity(history.path)
+        self.resources.release_survivor_history(history,'pump')
+        self.assertNotIn('pump',self.resources._native_histories)
+        restored=self.resources.survivor_history('pump')
+        self.assertEqual(self.resources._file_identity(restored.path),identity)
+        self.assertEqual(restored.get('mint'),expected)
+        self.resources.release_survivor_history(restored,'pump')
+        ready=threading.Event();release=threading.Event();owned=[];errors=[]
+        def native_owner():
+            try:
+                native=self.resources.survivor_history('pons');owned.append(native)
+                native.graduate('token',dict(at=1000,identity='offline-native-graduation'))
+                ready.set()
+                if not release.wait(5):raise TimeoutError('offline owner release')
+                self.resources.release_survivor_history(native,'pons')
+            except BaseException as error:errors.append(error);ready.set()
+        worker=threading.Thread(target=native_owner);worker.start()
+        self.assertTrue(ready.wait(5))
+        try:
+            with self.assertRaisesRegex(ValueError,'history_owner_shutdown_required'):
+                self.resources.close()
+            self.assertFalse(self.resources.closed)
+            with self.assertRaisesRegex(ValueError,'history_owner'):
+                self.resources.release_survivor_history(owned[0],'pons')
+            with self.assertRaisesRegex(ValueError,'history_owner'):
+                self.resources.survivor_history('pons')
+        finally:
+            release.set();worker.join(timeout=5)
+        self.assertFalse(worker.is_alive());self.assertEqual(errors,[])
+        reopened=self.resources.survivor_history('pons')
+        self.assertEqual(reopened.get('token')['graduation']['identity'],'offline-native-graduation')
+        self.resources.release_survivor_history(reopened,'pons')
+        self.assert_no_financial_tables()
+
     def test_native_observation_algorithms_reopen_without_financial_constructor(self):
         from meme_machine.runtime.sleeve_reservations import SleeveReservations
         self.assertIs(NativeObservationState.observe,SleeveReservations.observe)

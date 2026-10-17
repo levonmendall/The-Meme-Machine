@@ -41,9 +41,8 @@ def _opportunity_native(method):
 
 class SleeveReservations:
     def __init__(self,path,*,lane,capital,policies,cohort,native_resources=None):
-        if native_resources is not None:
-            from meme_machine.runtime.isolated_native_resources import reject_financial_construction
-            reject_financial_construction(native_resources)
+        from meme_machine.runtime.isolated_native_execution import reject_financial_construction
+        reject_financial_construction(native_resources)
         if lane not in ('pump','pons') or type(capital) is not int or capital <= 0 or len(policies) != 2:
             raise ValueError('sleeve_identity')
         Path(path).parent.mkdir(parents=True,exist_ok=True)

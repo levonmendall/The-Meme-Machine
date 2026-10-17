@@ -19,6 +19,17 @@ for OS filesystem isolation. The parent must still enforce the separately
 reviewed filesystem, transport, source and resource boundary. The resource
 object is passed by construction; no environment switch selects it.
 
+The isolated bootstrap must explicitly enter `isolated_native_execution(cap)`
+on each native owner. Financial constructors also consult this deny-only scope,
+so an implicit nested legacy call cannot regain private positive genesis by
+omitting the capability keyword. `install_isolated_native_execution()` installs
+only a deny sentinel in a spawned preparer initializer, without passing any
+resource, epoch or positive sizing facts. New threads/processes do not inherit
+this scope automatically; initializer installation is mandatory. Guards cover
+native books, legacy/shared sleeves, portfolio authorities and the operational
+native entrypoint before its genesis path. Outside an explicit scope, production
+defaults remain unchanged. This defensive contract is additional to OS isolation.
+
 `AuthenticatedSizingFacts` requires a caller-supplied parent authenticator.
 There is no default authentication or production receipt producer in this
 candidate. It retains immutable detached facts bound to scope, exact source,
@@ -91,10 +102,18 @@ verify that identity. Cross-owner handles are refused and close unregisters
 them. Four actual concurrent owners preserve all 80 qualifications and 80 denials
 in the offline regression. This is SQLite ownership proof, not a complete
 concurrent market workload or source-delivery parity proof.
+Native Survivor History connections retain SQLite's real thread ownership.
+Their execution owner calls `release_survivor_history(history,lane)` to close and
+unregister before parent cleanup. Restart opens only that same verified inode.
+The parent refuses off-owner history cleanup before closing any resources.
 
-The scoped offline proof covers 21 component/admission tests plus 115 existing
-accounting, portfolio, native Survivor strategy/runtime and Pons worker checks.
-It proves
+The latest scoped proof passes 25 component/admission/execution tests, including
+actual concurrent SQLite owners and an actual spawned initializer. Expanded
+affected checks executed 231 cases: 230 passed and one existing provider-clock
+case errored because this Cloud environment lacks `/proc/self/ns/time`. The same
+case fails identically on unchanged earlier source `2379403`; its original failed
+receipts remain preserved. No production clock check or existing assertion was
+weakened. These are component results, not a full release PASS. The proof covers
 the explicit constructor rejection occurs before SQLite opens, durable
 qualification survives funding denial, actual native observation methods
 persist and reopen, authenticated facts remain positive and immutable, stale
