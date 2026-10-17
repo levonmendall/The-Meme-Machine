@@ -279,6 +279,8 @@ with _OwnerSignals():
     except Blocked as error:
         print(json.dumps(dict(code=error.code,probe=children.probe.returncode,peer=children.peer.returncode)),flush=True)
 '''
+        script = ('import sys;sys.path.insert(0,' +
+            repr(str(Path(ll.__file__).resolve().parents[2])) + ');\n' + script)
         controller=subprocess.Popen([sys.executable,'-B','-c',script],
             stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
         try:
