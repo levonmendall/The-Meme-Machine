@@ -147,6 +147,12 @@ class ChildTransportTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.to_thread(ChildChannel, child)
         self.assertEqual(child.fileno(), -1)
 
+    async def test_unnamed_seqpacket_is_not_mistaken_for_stream_socket(self):
+        parent,child=socket.socketpair(socket.AF_UNIX,socket.SOCK_SEQPACKET)
+        self.addCleanup(parent.close);self.addCleanup(child.close)
+        with self.assertRaisesRegex(ChildTransportFailure,'channel_configuration'):
+            await asyncio.to_thread(ChildChannel,child)
+
     async def test_rpc_nonfinite_or_duplicate_response_does_not_relabel_as_evidence(self):
         # Parent provider validation is the first boundary. The child parser
         # independently rejects invalid JSON that a future adapter could emit.

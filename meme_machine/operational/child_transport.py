@@ -81,7 +81,7 @@ class ChildChannel:
     """
     def __init__(self, connected, *, seconds=1800, cancelled=None):
         _require(type(connected) is socket.socket and connected.family == socket.AF_UNIX
-            and connected.type & socket.SOCK_STREAM == socket.SOCK_STREAM
+            and connected.getsockopt(socket.SOL_SOCKET,socket.SO_TYPE) == socket.SOCK_STREAM
             and connected.getpeername() in ('', b'')
             and type(seconds) in (int, float) and 0 < seconds <= 1800
             and (cancelled is None or callable(cancelled)), 'child_channel_configuration')
