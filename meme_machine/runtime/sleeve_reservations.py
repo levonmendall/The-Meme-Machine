@@ -4,7 +4,7 @@ Native ledgers remain accounting truth. Reservations are held until a verified
 native terminal is supplied. A crash between native commit and observation leaves
 capital held, never available twice. There is no cross-sleeve borrowing.
 """
-from contextlib import contextmanager
+from contextlib import closing, contextmanager, nullcontext
 import json
 import os
 from pathlib import Path
@@ -48,7 +48,19 @@ class SleeveReservations:
         self.identity=dict(lane=lane,capital=capital,policies=policies,cohort=cohort,paper_only=True)
         self.decision_policies=dict(policies)
         from meme_machine.runtime.preserved_checkpoint import snapshot
-        with snapshot(path,name=lane+'/directional-sleeve.sqlite',lane=lane) as preserved:
+        empty=False
+        if os.environ.get('MM_PAPER_EPOCH'):
+            try:
+                if Path(path).is_file():
+                    with closing(sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True,timeout=0)) as source:
+                        journal=source.execute('SELECT 1 FROM sleeve_journal LIMIT 1').fetchone()
+                    empty=journal is None
+            except (OSError,sqlite3.Error):pass
+        # No hot prefix needs optional reduction. The original open/replay still
+        # validates all state, including any journal row appended after this read.
+        preservation=(nullcontext(None) if empty else
+            snapshot(path,name=lane+'/directional-sleeve.sqlite',lane=lane))
+        with preservation as preserved:
             try:
                 self._open(path)
                 if preserved:self._compact_preserved(*preserved)
