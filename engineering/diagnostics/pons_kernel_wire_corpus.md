@@ -14,7 +14,8 @@ parser's required parent hash. The small conformance correction supplies all fou
 pins and coherent genesis/header linkage; it does not remove either native check.
 
 The optional economic corpus supplies an ungraduated Current curve and a distinct
-graduated Survivor token. Current gets eight buys, one sell, exact full receipts,
+graduated Survivor token. Current gets eight historical buys, one historical sell,
+one additional post-anchor buy, exact full receipts,
 synthetic independent actors, reserves and 15-word factory records. All declared
 compiled curve immutable references are filled consistently with those records.
 The actual Current acquisition function performs its ordinary code/factory/log
@@ -54,7 +55,7 @@ kernel run, nonprobe decoder/history process execution, source FULL/ACK binding,
 complete pool universe, actual market workload, lambda/mu, retained restoration
 and sustained capacity require their own receipts and are not established here.
 
-The final eleven focused cases passed through the official FAST driver in 2.185s.
+The final twelve focused cases passed through the official FAST driver in 3.708s.
 The first economic attempt was deliberately left as failure evidence at
 `/tmp/mm-engineering-_c569usm`: its direct test advanced the synthetic head one
 second without advancing observation time, and the native decoder correctly
@@ -69,4 +70,7 @@ The correction emits the actual synthetic block number; each frame pair repeats
 the same complete logical message. An original clock/start-observation/cohort-poll
 test now derives its cursor from those wire messages and reaches the economic
 nomination through MarketScout/Broker, rather than manually choosing the fixture
-block. Production clock/discovery mapping is unchanged.
+block. It passes the exact returned startup anchor to ordinary poll turns and
+requires a genuine event strictly after that anchor. A poisoned old ordinal
+mapping passes through the same original clock/poll but cannot earn economic
+nomination coverage. Production clock/discovery mapping is unchanged.
