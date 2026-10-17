@@ -5,7 +5,7 @@ host metadata may remain visible. No private SHM or native-spawn parity is claim
 The caller retains its existing outer wall/resource/stopped/source fences.
 """
 import ctypes
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 import errno
 import fcntl
 import json
@@ -200,18 +200,56 @@ def _scratch(path):
 
 
 def _spec(row):
-    _require(type(row) is dict and set(row)=={'scope','parent','peer','ipc','facts','abstract'},
+    _require(type(row) is dict and set(row)=={'scope','parent','peer','ipc','facts','abstract','scope_fd'},
              'landlock_canary_spec')
     _require(type(row['scope']) is str and len(row['scope'])<=4096,
              'landlock_canary_spec')
     _require(Path(row['scope']).is_absolute() and '..' not in Path(row['scope']).parts,
              'landlock_canary_spec')
     _require(all(type(row[k]) is int and 1<row[k]<2**31 for k in ('parent','peer'))
-        and all(type(row[k]) is int and 2<row[k]<65536 for k in ('ipc','facts'))
-        and row['ipc']!=row['facts'],'landlock_canary_spec')
+        and all(type(row[k]) is int and 2<row[k]<65536 for k in ('ipc','facts','scope_fd'))
+        and len({row[k] for k in ('ipc','facts','scope_fd')})==3,'landlock_canary_spec')
     _require(row['abstract']=='mm-landlock-canary-'+str(row['parent']),
              'landlock_canary_spec')
     return row
+
+
+def _directory_alias(pid,fd):
+    _require(type(pid) is int and 1<pid<2**31 and type(fd) is int and 2<fd<65536,
+             'landlock_canary_spec')
+    owner='self' if pid==os.getpid() else str(pid)
+    return '/proc/'+owner+'/fd/'+str(fd)
+
+
+@contextmanager
+def _fixture_directory(path):
+    """Hold only this verified owned fixture directory; never inherit its FD."""
+    fd=os.open(path,os.O_RDONLY|os.O_DIRECTORY|os.O_CLOEXEC|os.O_NOFOLLOW)
+    try:
+        info=os.fstat(fd);expected=path.lstat()
+        _require(stat.S_ISDIR(info.st_mode) and info.st_uid==os.geteuid()
+            and stat.S_IMODE(info.st_mode)==0o700
+            and (info.st_dev,info.st_ino)==(expected.st_dev,expected.st_ino),
+            'landlock_canary_scope_descriptor')
+        yield fd
+    finally:os.close(fd)
+
+
+@contextmanager
+def _socket_fixtures(work):
+    # Absolute Scratch paths can exceed sockaddr_un.sun_path. Proc FD aliases
+    # stay short without cwd/TMPDIR mutation, symlinks or a shared directory.
+    with ExitStack() as owned:
+        fd=owned.enter_context(_fixture_directory(work))
+        prefix=_directory_alias(os.getpid(),fd)
+        loose=owned.enter_context(socket.socket(socket.AF_UNIX,socket.SOCK_STREAM))
+        bound=owned.enter_context(socket.socket(socket.AF_UNIX,socket.SOCK_STREAM))
+        bound.bind(prefix+'/bound.sock')
+        listener=owned.enter_context(socket.socket(socket.AF_UNIX,socket.SOCK_STREAM))
+        listener.bind(prefix+'/listener.sock');listener.listen(1)
+        pair=socket.socketpair(socket.AF_UNIX,socket.SOCK_STREAM)
+        owned.enter_context(pair[0]);owned.enter_context(pair[1]);pair[0].sendall(b'x')
+        yield loose,bound,listener,pair,prefix+'/denied.sock'
 
 
 def _fixed_fds(ipc,facts):
@@ -280,6 +318,7 @@ CODES=frozenset(('landlock_canary_abi_unavailable','landlock_canary_abi_too_old'
     'landlock_canary_single_thread','landlock_canary_parent_changed',
     'landlock_canary_fds','landlock_canary_parent_death_refused',
     'landlock_canary_nnp_refused','landlock_canary_image',
+    'landlock_canary_scope_descriptor',
     'landlock_canary_image_changed','landlock_canary_work_changed',
     'landlock_canary_image_read','landlock_canary_ipc','landlock_canary_facts',
     'landlock_canary_wall_bound','landlock_canary_scope_used',
@@ -396,6 +435,11 @@ def _probe(spec):
     spec=_spec(spec);_require(os.geteuid()!=0,'landlock_canary_nonroot_required')
     scope=_private(spec['scope']);work=_private(scope/'work');image=scope/'image'
     _require(os.getppid()==spec['parent'],'landlock_canary_parent_changed')
+    parent_scope=os.stat(_directory_alias(spec['parent'],spec['scope_fd']))
+    scope_info=scope.stat()
+    _require(stat.S_ISDIR(parent_scope.st_mode)
+        and (parent_scope.st_dev,parent_scope.st_ino)==(scope_info.st_dev,scope_info.st_ino),
+        'landlock_canary_scope_descriptor')
     _PROBE_STAGE='child_descriptors'
     _fixed_fds(spec['ipc'],spec['facts'])
     checks=_PROBE_CHECKS
@@ -463,19 +507,13 @@ def _probe(spec):
         # Pre-create only child-owned local descriptors, then individually test
         # connect/bind/listen/accept; no socket() refusal can mask those checks.
         _PROBE_STAGE='child_socket_fixtures'
-        loose=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
-        bound=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
-        bound.bind(str(work/'bound.sock'))
-        listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
-        listener.bind(str(work/'listener.sock'));listener.listen(1)
-        pair=socket.socketpair(socket.AF_UNIX,socket.SOCK_STREAM)
-        pair[0].sendall(b'x')
-        _PROBE_STAGE='child_seccomp';kernel.seccomp()
-        try:
+        with _socket_fixtures(work) as (loose,bound,listener,pair,denied_address):
+            _PROBE_STAGE='child_seccomp';kernel.seccomp()
             _PROBE_STAGE='child_seccomp_checks'
             denied('seccomp_socket',lambda:socket.socket(socket.AF_INET,socket.SOCK_STREAM),exact=True)
-            denied('seccomp_connect',lambda:loose.connect(str(scope/'outside.sock')),exact=True)
-            denied('seccomp_bind',lambda:loose.bind(str(work/'denied.sock')),exact=True)
+            outside_address=_directory_alias(spec['parent'],spec['scope_fd'])+'/outside.sock'
+            denied('seccomp_connect',lambda:loose.connect(outside_address),exact=True)
+            denied('seccomp_bind',lambda:loose.bind(denied_address),exact=True)
             denied('seccomp_listen',lambda:bound.listen(1),exact=True)
             denied('seccomp_accept',lambda:listener.accept(),exact=True)
             denied('seccomp_sendmsg',lambda:pair[0].sendmsg([b'x']),exact=True)
@@ -534,8 +572,6 @@ def _probe(spec):
                 failed=next((key for key in sorted(CHECKS) if checks.get(key) is not True),None)
                 raise Blocked('landlock_canary_incomplete',check=failed)
             result.update(state='LANDLOCK_CANARY_ENFORCEMENT_VERIFIED',checks=checks)
-        finally:
-            for value in (loose,bound,listener,*pair):value.close()
         _PROBE_STAGE='child_report'
         channel.sendall(json.dumps(result,sort_keys=True).encode()+b'\n')
     return 0
@@ -670,9 +706,10 @@ def _canary(scope,seconds,diagnostic):
                 hidden=owned.enter_context(socket.socket(socket.AF_UNIX,socket.SOCK_STREAM))
                 outside=owned.enter_context(socket.socket(socket.AF_UNIX,socket.SOCK_STREAM))
                 diagnostic['stage']='controller_listeners'
+                scope_fd=owned.enter_context(_fixture_directory(scope))
                 abstract='mm-landlock-canary-'+str(os.getpid())
                 hidden.bind('\0'+abstract);hidden.listen(1)
-                outside.bind(str(scope/'outside.sock'));outside.listen(1)
+                outside.bind(_directory_alias(os.getpid(),scope_fd)+'/outside.sock');outside.listen(1)
                 children=_OwnedProcesses();owned.callback(children.close)
                 # Separate disposable signal/proc target, never a real service.
                 diagnostic['stage']='controller_peer_spawn'
@@ -681,7 +718,7 @@ def _canary(scope,seconds,diagnostic):
                     stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,env={})
                 os.write(fixture_fds[1],b'fixed sizing fixture');_close_fd(fixture_fds,1)
                 spec=_spec(dict(scope=str(scope),parent=os.getpid(),peer=children.peer.pid,
-                    ipc=child.fileno(),facts=fixture_fds[0],abstract=abstract))
+                    ipc=child.fileno(),facts=fixture_fds[0],abstract=abstract,scope_fd=scope_fd))
                 diagnostic['stage']='controller_probe_spawn'
                 children.probe=subprocess.Popen([sys.executable,'-I','-B','-S',str(Path(__file__).resolve()),
                     '--probe',json.dumps(spec,separators=(',',':'))],stdin=subprocess.DEVNULL,
