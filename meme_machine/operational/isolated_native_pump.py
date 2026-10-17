@@ -57,6 +57,11 @@ def _private_root(root):
     info = root.stat()
     _require(info.st_uid == os.geteuid() and stat.S_IMODE(info.st_mode) == 0o700,
              'private_root_permissions')
+    for ancestor in (root, *root.parents):
+        _require(not any((ancestor / name).exists() or (ancestor / name).is_symlink()
+                         for name in ('portfolio.sqlite', 'shared-capital.sqlite',
+                                      'native-genesis.json')),
+                 'financial_ancestor_refused')
     # Native library helpers consult process configuration. Do not let any
     # inherited production location or selected authority reach these calls.
     _require(not any(name.startswith('MM_') for name in os.environ),
@@ -68,6 +73,7 @@ class PumpNativeProjection:
     """One owner of fresh, unbound CandidateHistory in a private scratch root."""
     def __init__(self, root):
         self.root = _private_root(root)
+        _require(not any(self.root.iterdir()), 'fresh_root_required')
         self.path = self.root / 'pump-native-observations.sqlite'
         fd = os.open(self.path, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
         os.close(fd)

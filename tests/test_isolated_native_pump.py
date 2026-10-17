@@ -120,12 +120,20 @@ class IsolatedNativePumpTests(unittest.TestCase):
         self.assertEqual(self.projection.snapshot()['blocks'], 0)
 
     def test_existing_or_linked_destination_is_refused(self):
-        with self.assertRaises(FileExistsError):
+        with self.assertRaisesRegex(ValueError, 'fresh_root_required'):
             PumpNativeProjection(self.root)
         linked = self.root/'linked'
         linked.symlink_to(self.root, target_is_directory=True)
         with self.assertRaisesRegex(ValueError, 'private_root_required'):
             PumpNativeProjection(linked)
+
+    def test_financial_ancestor_is_refused_before_any_database_opens(self):
+        (self.root/'portfolio.sqlite').touch()
+        child = self.root/'child'
+        child.mkdir(mode=0o700)
+        with self.assertRaisesRegex(ValueError, 'financial_ancestor_refused'):
+            PumpNativeProjection(child)
+        self.assertEqual(list(child.iterdir()), [])
 
 
 if __name__ == '__main__':
