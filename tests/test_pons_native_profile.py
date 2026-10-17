@@ -111,6 +111,16 @@ class PonsNativeProfileTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('private_url',profile.row()['methods']['native_quote_batch']['observed_limits'])
         self.assertNotIn('observed_limits',profile.row()['methods']['eth_getBlockReceipts'])
 
+    async def test_malformed_hash_sibling_cannot_enable_a_flag_original_parser_refused(self):
+        value=row();value['methods']['eip1898_eth_getCode']=None
+        profile=self.receive(self.configured(value))
+        from meme_machine.lanes.pons.provider_topology import configured_rpc
+        context=self.native_context(profile)
+        rpc=configured_rpc(parent_port=self.port,immutable_store=context.immutable_store,native_profile=profile)
+        self.assertEqual(rpc.hash_state_supported,set())
+        self.assertIsNone(rpc.shared_quote_resources)
+        self.assertFalse(self.physical.calls)
+
     async def test_child_refuses_foreign_sessions_sources_and_unbounded_or_extra_fields(self):
         public=parent_profile_response(self.configured(),self.http,self.channel.session,'pons')
         changes=[dict(session='x'*43),dict(schema='unknown'),dict(command='anything'),
@@ -169,9 +179,14 @@ class PonsNativeProfileTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(disabled.rpc.shared_quote_resources)
         self.assertEqual(disabled.rpc.hash_state_supported,set())
 
-    async def test_real_native_dense_selector_uses_only_complete_bound_block_receipts(self):
+    async def _check_native_dense_selector(self,*,numeric_strings=False):
         import asyncio,time
-        profile=self.receive(self.configured())
+        value=row()
+        if numeric_strings:
+            limits=value['methods']['eth_getBlockReceipts']['observed_limits']
+            for key,item in list(limits.items()):
+                if key!='validated':limits[key]=str(item)
+        profile=self.receive(self.configured(value))
         context=self.native_context(profile);context.deadline=time.monotonic()+10
         bh='0x'+'a'*64;txs=['0x'+format(i,'064x') for i in range(25)]
         header=dict(hash=bh,number='0xa',transactions=txs)
@@ -196,6 +211,12 @@ class PonsNativeProfileTests(unittest.IsolatedAsyncioTestCase):
         # witness; a support receipt cannot make a missing header canonical.
         self.assertEqual(await asyncio.to_thread(context.acquire_dense_receipts,
             [(tx,bh) for tx in txs],headers={},scope='pons_selective_v4'),{})
+
+    async def test_real_native_dense_selector_uses_only_complete_bound_block_receipts(self):
+        await self._check_native_dense_selector()
+
+    async def test_bounded_numeric_strings_preserve_original_native_dense_resource_casts(self):
+        await self._check_native_dense_selector(numeric_strings=True)
 
     async def test_real_native_rpc_hash_pins_and_original_shared_quote_resources(self):
         import asyncio

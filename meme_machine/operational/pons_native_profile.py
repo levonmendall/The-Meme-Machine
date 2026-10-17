@@ -20,6 +20,7 @@ LIMITS=frozenset(('validated','max_response_bytes','max_latency_seconds',
 MAX_PROFILE=16*1024
 _ISSUER=object()
 _HEX=re.compile('[0-9a-f]{64}\\Z')
+_NUMBER=re.compile(r'[+]?(?:[0-9]{1,8}(?:\.[0-9]{1,8})?|\.[0-9]{1,8})(?:[eE][+-]?[0-9]{1,2})?\Z')
 
 
 class ProfileFailure(ValueError):pass
@@ -52,6 +53,13 @@ def _methods(value):
                 if key=='validated':valid=type(item) is bool
                 elif key=='max_latency_seconds':valid=type(item) in (int,float) and math.isfinite(item) and 0<=item<=30
                 else:valid=type(item) is int and 0<=item<=16*1024*1024
+                # Native dense-receipt guards intentionally int()/float() these
+                # observed fields. Keep bounded numeric strings intact so the
+                # original casts, rather than a new transport parser, decide.
+                if not valid and key!='validated' and type(item) is str and _NUMBER.fullmatch(item):
+                    try:parsed=float(item) if key=='max_latency_seconds' else int(item)
+                    except (ValueError,OverflowError):pass
+                    else:valid=math.isfinite(parsed) and 0<=parsed<=(30 if key=='max_latency_seconds' else 16*1024*1024)
                 _require(valid,'pons_profile_limit_type')
             entry['observed_limits']=dict(limits)
         result[name]=entry
@@ -73,6 +81,17 @@ def _selected_methods(row):
             try:entry['observed_limits']=_methods({name:dict(observed_limits=safe)})[name]['observed_limits']
             except ProfileFailure:pass
         selected[name]=entry
+    # The original RPC parser assigns this set atomically. A malformed sibling
+    # eip1898 row makes that assignment fail; stripping the malformed row must
+    # not accidentally enable the remaining sibling in the isolated consumer.
+    try:
+        hashes={method for method in ('eth_call','eth_getCode')
+            if row['methods'].get('eip1898_'+method,{}).get('supported') is True}
+    except (ValueError,KeyError,TypeError,AttributeError):
+        hashes=set()
+    for method in ('eth_call','eth_getCode'):
+        if method not in hashes and 'eip1898_'+method in selected:
+            selected['eip1898_'+method]['supported']=False
     return _methods(selected)
 
 
