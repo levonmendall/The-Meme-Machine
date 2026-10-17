@@ -390,6 +390,7 @@ class Rpc:
 
     @account_transport('pons')
     def _http(self, method, params):
+        request_started=time.monotonic()
         self.last_retry_after_seconds = None
         body = json.dumps(dict(jsonrpc='2.0', id=1, method=method, params=params)).encode()
         request = Request(self._endpoint, data=body, headers=RPC_HTTP_HEADERS)
@@ -407,6 +408,7 @@ class Rpc:
             wire = self._wire_context([method], timeout)
             with urlopen(request, timeout=timeout) as response:
                 raw = response.read(self.max_response + 1)
+                response_completed=time.monotonic()
                 self.response_bytes += len(raw)
                 http_received(len(raw))
         except HTTPError as exc:
@@ -426,6 +428,10 @@ class Rpc:
                 raise BoundaryError(rpc_boundary(method,reply['error']))
             if reply.get('id') != 1 or 'result' not in reply:
                 raise BoundaryError('provider_invalid_envelope')
+            observer=getattr(self,'market_head_observer',None)
+            if observer is not None:
+                observer.physical_response(self,method,params,reply['result'],
+                    started=request_started,completed=response_completed)
             return reply['result']
         except (ValueError, AttributeError, TypeError) as exc:
             if isinstance(exc, BoundaryError):
@@ -479,6 +485,7 @@ class Rpc:
 
     @account_transport('pons')
     def _http_batch(self, calls):
+        request_started=time.monotonic()
         body=json.dumps([
             dict(jsonrpc='2.0',id=i+1,method=method,params=params)
             for i,(method,params) in enumerate(calls)
@@ -498,6 +505,7 @@ class Rpc:
             wire=self._wire_context([method for method,_ in calls],timeout,batch=True)
             with urlopen(request,timeout=timeout) as response:
                 raw=response.read(self.max_response+1)
+                response_completed=time.monotonic()
                 self.response_bytes += len(raw)
                 http_received(len(raw))
         except HTTPError as exc:
@@ -525,6 +533,11 @@ class Rpc:
                 if 'result' not in item or item['result'] is None:
                     raise BoundaryError('provider_missing_result')
                 out.append(item['result'])
+            observer=getattr(self,'market_head_observer',None)
+            if observer is not None:
+                for (method,params),value in zip(calls,out,strict=True):
+                    observer.physical_response(self,method,params,value,
+                        started=request_started,completed=response_completed)
             return out
         except (ValueError,AttributeError,TypeError) as exc:
             if isinstance(exc,BoundaryError):
