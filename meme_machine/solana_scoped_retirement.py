@@ -15,7 +15,7 @@ from pathlib import Path
 import time
 import zlib
 
-from .runtime.candidate_history import CandidateHistory
+from .runtime.candidate_history import CandidateHistory,retained_reference_path
 from .solana_candidate_lifecycle import defer_busy_consumer
 from .solana_evidence_plane import EvidenceUnavailable,EvidenceConflict,FinalizedRecord,canonical,digest,decode_body
 from .solana_selective_history import FAMILIES,coverage_scope
@@ -41,7 +41,11 @@ def cold_record(db,identity,archive,*,cache=None):
     if archive not in cache:
         manifest=db.execute('SELECT path,hash FROM scoped_cold_manifests WHERE id=?',(archive,)).fetchone()
         if manifest is None:raise EvidenceUnavailable('scoped_cold_identity_missing')
-        packed=Path(manifest[0]).read_bytes()
+        main=[row[2] for row in db.execute('PRAGMA database_list') if row[1]=='main']
+        source=Path(main[0]) if len(main)==1 and main[0] else None
+        candidate=None if source is None else source.with_name('solana-candidate-history.sqlite')
+        packed=retained_reference_path(manifest[0],candidate_path=candidate,cold=True,
+            canonical_path=source).read_bytes()
         if hashlib.sha256(packed).hexdigest()!=manifest[1]:raise EvidenceConflict('scoped_cold_hash_mismatch')
         decoder=zlib.decompressobj();raw=decoder.decompress(packed,32*1024*1024+1)
         if len(raw)>32*1024*1024 or not decoder.eof:raise EvidenceUnavailable('scoped_cold_restore_bound')

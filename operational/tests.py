@@ -7,6 +7,7 @@ FAST=[
  'tests.test_maintenance_owner_entry_clock',
  'tests.test_prejoin_observation_recovery',
  'tests.test_pump_restore_selection_index',
+ 'tests.test_canonical_cold_archive_cohort',
  'tests.test_archive_recovered_session',
  'tests.test_retained_canonical_reference',
  'tests.test_frozen_paused_reader',
