@@ -99,9 +99,22 @@
     "actual_combined_native_replay_passed": true,
     "admin_admission_tests_passed": 17,
     "financial_authority": false,
-    "focused_component_transport_replay_tests_passed": 48,
+    "focused_component_transport_replay_tests_passed": 55,
     "full_market_speed_proven": false,
-    "production_equivalent": false
+    "prior_integrated_focused_ci": {
+      "commit": "55be669d647f77c8cb5df62a7d5d8f0954073930",
+      "elapsed_seconds": 380.005,
+      "full_release_suite": false,
+      "run": 39055442178,
+      "skipped": 2,
+      "tests_passed": 1066
+    },
+    "production_equivalent": false,
+    "review_corrections": [
+      "literal_failure_receipts_without_component_import_dependency",
+      "bounded_public_block_enumeration_with_separate_unverified_absence_population",
+      "sanitized_json_rpc_method_and_integer_code"
+    ]
   },
   "observer_address_merge": "a42d55be7bfef2f267092f808581e766c8526a38",
   "observer_followup": "pages before independent finalized head, same request count; still exclude true future references",

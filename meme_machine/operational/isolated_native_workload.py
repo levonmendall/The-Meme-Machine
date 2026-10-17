@@ -28,7 +28,7 @@ from .isolated_market_observer import (
 
 SCHEMA = 'isolated-public-native-workload-v1'
 METHODS = {
-    SOLANA: frozenset(('getSlot', 'getBlock')),
+    SOLANA: frozenset(('getSlot', 'getBlocks', 'getBlock')),
     ROBINHOOD: frozenset(('eth_chainId', 'eth_blockNumber', 'eth_getLogs',
         'eth_getBlockByNumber', 'eth_getTransactionReceipt',
         'eth_getTransactionByHash', 'eth_call', 'eth_getCode')),
@@ -38,6 +38,56 @@ MAX_CORPUS = 64 * 1024**2
 MAX_REQUESTS = 150
 MAX_EVENTS = 300
 MAX_DISK = MAX_CORPUS + 1024**2
+MAX_SOLANA_SLOT_WINDOW = 40
+
+# These receipts admit fixed source literals, never an arbitrary exception
+# message merely because its characters happen to look safe.
+PUMP_FAILURE_CODES = frozenset((
+    'isolated_pump_private_root_required', 'isolated_pump_private_root_permissions',
+    'isolated_pump_financial_ancestor_refused', 'isolated_pump_production_environment_refused',
+    'isolated_pump_fresh_root_required', 'isolated_pump_owned_database_required',
+    'isolated_pump_database_byte_bound', 'isolated_pump_slot_shape',
+    'isolated_pump_block_time', 'isolated_pump_block_identity',
+    'isolated_pump_block_byte_bound', 'isolated_pump_transaction_bound',
+    'isolated_pump_transaction_shape', 'isolated_pump_transaction_identity',
+    'isolated_pump_account_key_shape', 'isolated_pump_transaction_slot',
+    'isolated_pump_transaction_time', 'isolated_pump_transaction_order',
+    'isolated_pump_complete_logs_required', 'isolated_pump_closed',
+    'isolated_pump_observation_time', 'isolated_pump_block_replay_conflict',
+    'isolated_pump_economic_time', 'isolated_pump_event_bound',
+    'isolated_pump_restoration_mutated_economics',
+    'isolated_pump_unexpected_authority_or_proof', 'isolated_pump_financial_state_forbidden',
+))
+PONS_FAILURE_CODES = frozenset((
+    'pons_public_method_refused', 'pons_logical_batch_bound',
+    'pons_projection_symlink_refused', 'pons_projection_financial_ancestor_refused',
+    'pons_projection_private_owned_directory_required', 'pons_projection_foreign_state_refused',
+    'pons_projection_marker_mismatch', 'pons_projection_unmarked_state_refused',
+    'pons_projection_storage_bound', 'pons_projection_event_bound',
+    'pons_projection_closed', 'pons_projection_range_bound',
+    'pons_projection_noncontiguous_range', 'pons_projection_observation_clock',
+    'pons_projection_history_unverified', 'pons_projection_history_mismatch',
+))
+WORKLOAD_FAILURE_CODES = frozenset((
+    'native_chain_head_regressed', 'native_chain_head_shape', 'native_corpus_byte_limit',
+    'native_corpus_completion_missing_event', 'native_corpus_completion_rpc_count',
+    'native_corpus_completion_unverified', 'native_corpus_event_context_overlap',
+    'native_corpus_event_hash', 'native_corpus_event_limit', 'native_corpus_event_missing',
+    'native_corpus_event_rpc_link', 'native_corpus_event_shape', 'native_corpus_external_hash',
+    'native_corpus_file_bound', 'native_corpus_integrity', 'native_corpus_link_limit',
+    'native_corpus_path', 'native_corpus_request_limit', 'native_corpus_request_shape',
+    'native_corpus_response_hash', 'native_corpus_response_limit', 'native_corpus_table',
+    'native_corpus_unclosed', 'native_duration', 'native_pons_chain', 'native_pons_head',
+    'native_processing_population_changed', 'native_provider_http_error',
+    'native_provider_response_unavailable', 'native_provider_429', 'native_replay_cancelled',
+    'native_replay_input_missing', 'native_replay_input_unused', 'native_replay_method',
+    'native_rpc_method_refused', 'native_rpc_rejected', 'native_rpc_request_body_limit',
+    'native_rpc_request_limit', 'native_rpc_response_identity', 'native_rpc_response_limit',
+    'native_scratch_path', 'native_scratch_permissions', 'native_scratch_storage_admission',
+    'native_solana_block_unavailable', 'native_solana_head', 'native_work_window_closed',
+    'native_solana_enumeration_range', 'native_solana_enumeration_shape',
+    'native_solana_enumeration_order', 'native_solana_absence_not_enumerated',
+))
 
 
 def private_directory(path):
@@ -143,6 +193,7 @@ class PublicRPC:
         self.last = None
         self.requests = 0
         self.http_429 = 0
+        self.rejection = None
 
     @staticmethod
     def _transport(endpoint, payload, timeout):
@@ -156,6 +207,10 @@ class PublicRPC:
     def call(self, endpoint, method, params):
         require(endpoint in METHODS and method in METHODS[endpoint]
                 and type(params) is list, 'native_rpc_method_refused')
+        if endpoint == SOLANA and method == 'getBlocks':
+            require(len(params) == 3 and type(params[2]) is dict
+                    and params[2] == {'commitment':'finalized'}, 'native_solana_enumeration_range')
+            _validate_solana_enumeration(params[0], params[1], [])
         # Serialize transport too: concurrent lanes share one public pacing
         # budget and cannot manufacture throughput by multiplying requests.
         with self.lock:
@@ -182,7 +237,13 @@ class PublicRPC:
                 require(type(row) is dict and row.get('jsonrpc') == '2.0'
                         and type(row.get('id')) is int and row['id'] == self.requests,
                         'native_rpc_response_identity')
-                require('error' not in row and 'result' in row, 'native_rpc_rejected')
+                if 'error' in row:
+                    error = row['error']
+                    code = error.get('code') if type(error) is dict else None
+                    self.rejection = dict(method=method, code=code
+                        if type(code) is int and -(2**31) <= code < 2**31 else None)
+                    raise ObservationUnavailable('native_rpc_rejected')
+                require('result' in row, 'native_rpc_rejected')
                 self.corpus.request(endpoint, method, params, row['result'], self.clock() - start)
                 return row['result']
             except HTTPError as error:
@@ -310,9 +371,37 @@ def _storage_admission(root):
 
 
 def _failure(error):
-    code = str(error) if type(error) is ObservationUnavailable else None
-    return dict(state='PARTIAL_OR_BLOCKED', error_type=type(error).__name__,
-        code=code if code and re.fullmatch('[a-z_]{1,80}', code) else None)
+    # Reporting must remain available when component import/startup failed.
+    # These type names admit only the fixed literal codes below; they never
+    # authorize work or serialize a component's arbitrary exception text.
+    kind = type(error)
+    pons_component = (kind.__module__ == 'meme_machine.operational.isolated_native_pons'
+                      and kind.__name__ == 'PonsProjectionUnavailable')
+    pons_boundary = (kind.__module__ == 'meme_machine.lanes.pons'
+                     and kind.__name__ == 'BoundaryError')
+    allowed = (WORKLOAD_FAILURE_CODES if type(error) is ObservationUnavailable else
+               PUMP_FAILURE_CODES if type(error) is ValueError else
+               PONS_FAILURE_CODES if pons_component else frozenset())
+    candidate = error.args[0] if len(error.args) == 1 else None
+    code = candidate if type(candidate) is str and candidate in allowed else None
+    site = None
+    if pons_boundary:
+        application = Path(__file__).resolve().parents[1]
+        trace = error.__traceback__
+        while trace is not None:
+            frame = trace.tb_frame
+            module = frame.f_globals.get('__name__')
+            function = frame.f_code.co_name
+            if (type(module) is str and re.fullmatch(r'meme_machine\.[a-zA-Z_][a-zA-Z_0-9.]*', module)
+                    and re.fullmatch('[a-zA-Z_][a-zA-Z_0-9]{0,100}', function)
+                    and Path(frame.f_code.co_filename).resolve().is_relative_to(application)
+                    and 0 < trace.tb_lineno < 10**7):
+                site = dict(module=module, function=function, line=trace.tb_lineno)
+            trace = trace.tb_next
+    name = type(error).__name__
+    return dict(state='PARTIAL_OR_BLOCKED', error_type=name
+        if re.fullmatch('[a-zA-Z_][a-zA-Z_0-9]{0,79}', name) else 'UnknownError',
+        code=code, failure_site=site)
 
 
 def _projection(lane, root):
@@ -330,22 +419,31 @@ def _finish_projection(projection, outcome):
         outcome['projection'] = projection.snapshot()
         outcome['restoration'] = projection.reopen()
     except Exception as error:
-        outcome.update(state='PARTIAL_OR_BLOCKED', restoration_error_type=type(error).__name__)
+        receipt = _failure(error)
+        outcome.update(state='PARTIAL_OR_BLOCKED', restoration_error_type=receipt['error_type'])
+        outcome['restoration_failure'] = receipt
     finally:
         try:
             projection.close()
             outcome['projection_closed'] = True
         except Exception as error:
-            outcome.update(state='PARTIAL_OR_BLOCKED', close_error_type=type(error).__name__,
+            receipt = _failure(error)
+            outcome.update(state='PARTIAL_OR_BLOCKED', close_error_type=receipt['error_type'],
                            projection_closed=False)
+            outcome['close_failure'] = receipt
 
 
 class Progress:
-    """Head and completed chain units from the same sampled population only."""
+    """One sampled slot/block population; decoded blocks and absences stay distinct."""
     def __init__(self, lane):
         self.lane, self.first, self.latest = lane, None, None
         self.processed = 0
         self.last_completed = None
+        self.last_accounted = None
+        self.enumerated_blocks = 0
+        self.enumerated_absent = 0
+        self.enumerations = []
+        self._enumeration = None
         self.samples = []
 
     def sample(self, head=None, *, first=None, last=None):
@@ -358,20 +456,87 @@ class Progress:
         if first is not None:
             require(type(first) is int and type(last) is int and self.first is not None
                     and first <= last <= self.latest
-                    and first == (self.first if self.last_completed is None else self.last_completed + 1),
+                    and first == (self.first if self.last_accounted is None else self.last_accounted + 1),
                     'native_processing_population_changed')
+            if self.lane == 'pump':
+                require(self._enumeration is not None and first == last and first in self._enumeration[2],
+                        'native_processing_population_changed')
             self.processed += last - first + 1
             self.last_completed = last
+            self.last_accounted = last
+        self._record()
+
+    def enumerate_slots(self, first, last, blocks):
+        """Record public absence as acquisition evidence, never decoded economics."""
+        _validate_solana_enumeration(first, last, blocks)
+        require(self.lane == 'pump' and self.first is not None and last <= self.latest
+                and first == (self.first if self.last_accounted is None else self.last_accounted+1)
+                and (not self.enumerations or first > self.enumerations[-1]['last_slot']),
+                'native_processing_population_changed')
+        absent = [slot for slot in range(first, last+1) if slot not in blocks]
+        self.enumerated_blocks += len(blocks)
+        self.enumerated_absent += len(absent)
+        self.enumerations.append(dict(first_slot=first, last_slot=last,
+            returned_block_slots=list(blocks), enumerated_absent_slots=absent,
+            source='public_getBlocks_finalized_request', canonical_completeness=False,
+            absence_scope='provider_reported_only; backend_disagreement_or_unavailability_not_excluded'))
+        self._enumeration = (first, last, frozenset(blocks))
+        self._record()
+
+    def reported_absent(self, first, last):
+        """Advance only over absent slots from the exact bounded enumeration."""
+        window = self._enumeration
+        require(self.lane == 'pump' and window is not None
+                and type(first) is int and type(last) is int and window[0] <= first <= last <= window[1]
+                and first == (self.first if self.last_accounted is None else self.last_accounted+1)
+                and not any(slot in window[2] for slot in range(first, last+1)),
+                'native_solana_absence_not_enumerated')
+        self.last_accounted = last
+        self._record()
+
+    def _record(self):
         offered = 0 if self.first is None else self.latest - self.first + 1
         self.samples.append(dict(monotonic=time.monotonic(), wall_epoch_seconds=time.time(),
             sampled_head=self.latest, completed_through=self.last_completed,
+            accounted_through=self.last_accounted,
             offered_chain_units=offered, completed_chain_units=self.processed,
-            sampled_backlog_chain_units=offered - self.processed))
+            enumerated_block_chain_units=self.enumerated_blocks,
+            provider_enumerated_absent_chain_units=self.enumerated_absent,
+            unenumerated_head_span_chain_units=(offered-self.enumerated_blocks-self.enumerated_absent
+                                               if self.lane == 'pump' else None),
+            sampled_backlog_population=('provider_enumerated_available_block_slots'
+                                       if self.lane == 'pump' else 'sampled_robinhood_head_span'),
+            sampled_backlog_chain_units=(self.enumerated_blocks-self.processed
+                                        if self.lane == 'pump' else offered-self.processed)))
 
     def summary(self):
         return dict(chain_units='solana_slots' if self.lane == 'pump' else 'robinhood_blocks',
             population='initial_sampled_head_through_latest_sampled_head',
-            latest_actual_head_at_shutdown='UNKNOWN', samples=self.samples)
+            completion_semantics=('decoded_returned_blocks_only; public_absences_are_acquisition_facts'
+                                  if self.lane == 'pump' else 'native_consumed_robinhood_blocks'),
+            public_absences_are_chain_proof=False,
+            latest_actual_head_at_shutdown='UNKNOWN', samples=self.samples,
+            public_slot_enumerations=self.enumerations)
+
+
+def _validate_solana_enumeration(first, last, blocks):
+    require(type(first) is int and type(last) is int and 0 <= first <= last < 2**63
+            and last-first < MAX_SOLANA_SLOT_WINDOW, 'native_solana_enumeration_range')
+    require(type(blocks) is list and len(blocks) <= last-first+1
+            and all(type(slot) is int and first <= slot <= last for slot in blocks),
+            'native_solana_enumeration_shape')
+    require(all(left < right for left, right in zip(blocks, blocks[1:])),
+            'native_solana_enumeration_order')
+
+
+def solana_block_slots(rpc, first, head):
+    """Bounded public enumeration, retained by the existing RPC corpus recorder."""
+    require(type(first) is int and type(head) is int and 0 <= first <= head < 2**63,
+            'native_solana_enumeration_range')
+    last = min(head, first+MAX_SOLANA_SLOT_WINDOW-1)
+    blocks = rpc.call(SOLANA, 'getBlocks', [first, last, {'commitment':'finalized'}])
+    _validate_solana_enumeration(first, last, blocks)
+    return last, blocks
 
 
 def _partial(**facts):
@@ -427,24 +592,34 @@ def capture(root, *, duration=120):
                     continue
                 seen = time.time()
                 if lane == 'pump':
-                    block = rpc.call(SOLANA, 'getBlock', [next_unit, dict(
-                        commitment='finalized', encoding='json', transactionDetails='full',
-                        rewards=False, maxSupportedTransactionVersion=0)])
-                    require(type(block) is dict, 'native_solana_block_unavailable')
-                    upper = next_unit
-                    event_id = corpus.event(lane,
-                        dict(slot=next_unit, block=block, acquired_head=head), seen)
-                    projection.consume(next_unit, block, observed_at=seen)
+                    upper, block_slots = solana_block_slots(rpc, next_unit, head)
+                    progress.enumerate_slots(next_unit, upper, block_slots)
+                    cursor = next_unit
+                    for slot in block_slots:
+                        if slot > cursor:
+                            progress.reported_absent(cursor, slot-1)
+                        seen = time.time()
+                        block = rpc.call(SOLANA, 'getBlock', [slot, dict(
+                            commitment='finalized', encoding='json', transactionDetails='full',
+                            rewards=False, maxSupportedTransactionVersion=0)])
+                        require(type(block) is dict, 'native_solana_block_unavailable')
+                        event_id = corpus.event(lane,
+                            dict(slot=slot, block=block, acquired_head=head), seen)
+                        projection.consume(slot, block, observed_at=seen)
+                        corpus.complete(event_id)
+                        progress.sample(first=slot, last=slot)
+                        cursor = slot+1
+                    if cursor <= upper:
+                        progress.reported_absent(cursor, upper)
                 else:
                     upper = min(head, next_unit + 39)
                     event_id = corpus.event(lane,
                         dict(first=next_unit, last=upper, acquired_head=head), seen)
                     with corpus.recording(event_id):
                         projection.consume(next_unit, upper, rpc, observed_at=seen)
-                # Durable input remains attempted until all native consumption
-                # returns. No exception or shutdown can manufacture completion.
-                corpus.complete(event_id)
-                progress.sample(first=next_unit, last=upper)
+                    # An input becomes completed only after native consumption.
+                    corpus.complete(event_id)
+                    progress.sample(first=next_unit, last=upper)
                 next_unit = upper + 1
             outcomes[lane] = dict(state='BOUNDED_WINDOW_ENDED')
         except Exception as error:
@@ -476,6 +651,7 @@ def capture(root, *, duration=120):
             outcomes[lane].update(counts.get(lane, dict(attempted_events=0, completed_events=0)))
         return _partial(lanes=outcomes, elapsed_seconds=time.monotonic() - start,
             provider_requests=rpc.requests, provider_http_429=rpc.http_429,
+            provider_rpc_rejection=getattr(rpc, 'rejection', None),
             resource_samples=snapshots, corpus_bytes=corpus.bytes, storage_admission=storage,
             all_started_workers_joined=True,
             cleanup_completed=all(row.get('projection_closed') is True for row in outcomes.values()),

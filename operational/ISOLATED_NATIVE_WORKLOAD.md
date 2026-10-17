@@ -33,12 +33,31 @@ counts, sampled chain-head/backlog populations, process CPU/RSS/I/O and host I/O
 pressure. Cgroup totals, canonical economic backlog and held protection are
 reported as unavailable or unproven.
 
+Pump acquires `getBlocks` lists for at most40 slots with finalized commitment.
+Only returned block slots enter decoding and completed-input comparisons. Missing
+slots are retained as provider-enumerated absences, without an empty economic
+block or an on-chain skip/completeness claim; finalized public backends can
+disagree. The corpus retains the enumeration RPC responses and the progress
+summary retains their exact slot populations. Total sampled head span,
+unenumerated head span, returned blocks and reported absences remain separate.
+Pump backlog counts only provider-enumerated available blocks awaiting decoding;
+zero in that population never proves complete market processing.
+
+Failure summaries retain explicitly allowed literal component codes and, for a
+native Pons boundary, only its application module, function and source line.
+Provider JSON-RPC rejection receipts retain only the approved method and a signed
+32-bit integer code; provider messages, data and arbitrary exception text are
+excluded.
+
 For an exact-input replay, use
 `isolated_native_workload.replay(corpus_path, fresh_private_root, expected_sha256)`
 on another verified checkout. Supply the whole-file SHA from the retained capture
 summary. The replay verifies the file and every event/request/response binding,
-consumes each completed window's exact response sequence, and has no network
-fallback. Compare logical candidate/economic hashes and restoration output before
+preserves response order for each identical request within its completed window,
+and requires every linked response to be consumed once. Calls with different
+request keys may be interleaved differently; there is no network fallback.
+Public slot enumeration is acquisition evidence outside the decoded replay
+workload. Compare logical candidate/economic hashes and restoration output before
 interpreting timings. Public provenance remains public after replay. Use the
 separate exact-source Pump benchmark for authenticated cold-reference fixture
 comparisons; its measured synthetic result is retained in this repository.
@@ -46,3 +65,5 @@ comparisons; its measured synthetic result is retained in this repository.
 Focused integration checkpoint on CPython3.12.14: 47 network-blocked tests passed in0.397s across public transport/corpus/cleanup/replay and actual Pump/Pons component modules. This includes strict source/funding isolation, original malformed/partial input, SQLite ownership, cancellation, restart and failure evidence. Completed-corpus replay orchestration also has deterministic fake-native contract tests; these checks do not supply a live market or production release pass.
 
 An additional real combined integration case passed using both actual native projections and the same recorded corpus through the real two-thread replay. It preserved Pump logical/block hashes, Pons economic/candidate/pending populations and original clocks, restoration, joined/closed owners and unchanged corpus bytes. The new native modules therefore have48 passing focused cases;17 affected observer cases also pass.
+
+The review correction adds seven focused cases for public block enumeration and first-cause privacy. The affected workload/replay modules pass36 cases in0.305s, including the actual combined replay; unchanged Pump/Pons modules retain19 passing cases (55 native cases total). The first integrated candidate55be669d passed GitHub focused run39055442178:1066 tests/380.005s/two configured skips. That earlier receipt is scoped to its exact source, and is not final release evidence for this correction.

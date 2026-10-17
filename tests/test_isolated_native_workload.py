@@ -151,12 +151,31 @@ class PublicTransport(Scratch):
                 ('http://127.0.0.1:8545', 'eth_blockNumber', []),
                 (workload.SOLANA, 'sendTransaction', []),
                 (workload.ROBINHOOD, 'eth_sendRawTransaction', []),
-                (workload.SOLANA, 'getSlot', {})):
+                (workload.SOLANA, 'getSlot', {}),
+                (workload.SOLANA, 'getBlocks', [100,140,{'commitment':'finalized'}]),
+                (workload.SOLANA, 'getBlocks', [100,101,{'commitment':'confirmed'}])):
             with self.subTest(endpoint=endpoint, method=method, params=params):
                 with self.assertRaises(workload.ObservationUnavailable):
                     rpc.call(endpoint, method, params)
         self.assertEqual(self.calls, [])
         self.assertEqual(rpc.requests, 0)
+
+    def test_jsonrpc_rejection_retains_only_fixed_method_and_int32_code(self):
+        canary = 'PRIVATE_PROVIDER_BODY https://private.invalid/API_KEY'
+        for code in (-32005, True, '-32005', 2**31, -(2**31)-1):
+            with self.subTest(code=code):
+                def reject(endpoint, payload, timeout):
+                    packet = json.loads(payload)
+                    return workload.canonical(dict(jsonrpc='2.0', id=packet['id'],
+                        error=dict(code=code, message=canary, data=dict(secret=canary)))).encode()
+                rpc = self.client(transport=reject)
+                with self.assertRaisesRegex(workload.ObservationUnavailable, 'native_rpc_rejected') as caught:
+                    rpc.call(workload.SOLANA, 'getBlocks', [100, 101, {'commitment':'finalized'}])
+                self.assertEqual(rpc.rejection, dict(method='getBlocks',
+                    code=code if type(code) is int and -(2**31) <= code < 2**31 else None))
+                self.assertNotIn(canary, workload.canonical(rpc.rejection))
+                self.assertNotIn(canary, str(caught.exception))
+        self.assertEqual(self.store.db.execute('SELECT COUNT(*) FROM rpc').fetchone()[0], 0)
 
     def test_concurrent_lane_transports_never_overlap(self):
         entered = threading.Event()
@@ -343,7 +362,7 @@ class CaptureLifecycle(Scratch):
             def call(self, endpoint, method, params):
                 if method == 'eth_chainId' and not pump_attempted.wait(2):
                     raise AssertionError('Pump test worker did not run')
-                return {'getSlot': 81, 'getBlock': {}, 'eth_chainId': '0x1237',
+                return {'getSlot': 81, 'getBlocks':[81], 'getBlock': {}, 'eth_chainId': '0x1237',
                         'eth_blockNumber': '0x2a'}[method]
         with patch.object(workload, '_storage_admission', return_value={}), \
                 patch.object(workload, 'PublicRPC', RPC), \
@@ -394,9 +413,12 @@ class CaptureLifecycle(Scratch):
     def test_backlog_counts_same_chain_population_and_regression_never_becomes_progress(self):
         progress = workload.Progress('pump')
         progress.sample(100)
+        progress.enumerate_slots(100, 100, [100])
         progress.sample(first=100, last=100)
         progress.sample(105)
-        progress.sample(first=101, last=102)
+        progress.enumerate_slots(101, 105, [101, 102, 103, 104, 105])
+        progress.sample(first=101, last=101)
+        progress.sample(first=102, last=102)
         last = progress.summary()['samples'][-1]
         self.assertEqual(last['offered_chain_units'], 6)
         self.assertEqual(last['completed_chain_units'], 3)
@@ -407,6 +429,184 @@ class CaptureLifecycle(Scratch):
         with self.assertRaisesRegex(workload.ObservationUnavailable, 'native_processing_population_changed'):
             progress.sample(first=104, last=105)
         self.assertEqual(progress.summary()['samples'][-1], last)
+
+    def test_capture_decodes_only_returned_blocks_and_retains_public_absence_separately(self):
+        consumed = []
+        pump_done = threading.Event()
+        class Projection:
+            def __init__(self, lane): self.lane = lane
+            def consume(self, slot, *args, **kwargs):
+                if self.lane != 'pump':
+                    raise AssertionError('unexpected offline Pons consumption')
+                consumed.append(slot)
+                if slot == 84:
+                    rpc_stop[0].set()
+                    pump_done.set()
+            def snapshot(self): return dict(partial=True)
+            def reopen(self): return dict(restored=True)
+            def close(self): pass
+        rpc_stop = []
+        class RPC:
+            requests = 0
+            http_429 = 0
+            def __init__(self, corpus, stop, deadline):
+                self.corpus, self.deadline = corpus, deadline
+                self.head_reads = 0
+                rpc_stop.append(stop)
+            def call(self, endpoint, method, params):
+                self.requests += 1
+                if method == 'getSlot':
+                    self.head_reads += 1
+                    value = 81 if self.head_reads == 1 else 84
+                elif method == 'getBlocks':
+                    value = [81] if params[0] == 81 else [83, 84]
+                elif method == 'getBlock':
+                    value = {}
+                elif method == 'eth_chainId':
+                    if not pump_done.wait(2):
+                        raise AssertionError('offline Pump capture did not finish')
+                    value = '0x1237'
+                else:
+                    raise AssertionError('unexpected offline method')
+                self.corpus.request(endpoint, method, params, value, 0.)
+                return value
+        with patch.object(workload, '_storage_admission', return_value={}), \
+                patch.object(workload, 'PublicRPC', RPC), \
+                patch.object(workload, '_projection', side_effect=lambda lane, root:Projection(lane)):
+            result = workload.capture(self.root, duration=12)
+        self.assertEqual(consumed, [81, 83, 84])
+        pump = result['lanes']['pump']
+        self.assertEqual((pump['attempted_events'], pump['completed_events']), (3, 3))
+        sample = pump['processing']['samples'][-1]
+        self.assertEqual(sample['offered_chain_units'], 4)
+        self.assertEqual(sample['completed_chain_units'], 3)
+        self.assertEqual(sample['provider_enumerated_absent_chain_units'], 1)
+        self.assertEqual(sample['sampled_backlog_chain_units'], 0)
+        self.assertEqual(sample['sampled_backlog_population'],
+                         'provider_enumerated_available_block_slots')
+        self.assertFalse(pump['processing']['public_absences_are_chain_proof'])
+        with sqlite3.connect(self.root/'corpus.sqlite3') as db:
+            self.assertEqual([json.loads(row[0])['slot'] for row in db.execute(
+                "SELECT body FROM events WHERE lane='pump' ORDER BY id")], [81, 83, 84])
+            self.assertEqual([json.loads(row[0]) for row in db.execute(
+                "SELECT response FROM rpc WHERE method='getBlocks' ORDER BY id")], [[81], [83, 84]])
+
+
+class PublicSolanaEnumeration(unittest.TestCase):
+    def test_absent_slots_are_acquisition_facts_and_never_completed_economics(self):
+        calls = []
+        class RPC:
+            def call(self, endpoint, method, params):
+                calls.append((endpoint, method, params))
+                return [100, 102, 104]
+        progress = workload.Progress('pump')
+        progress.sample(100)
+        progress.sample(104)
+        last, blocks = workload.solana_block_slots(RPC(), 100, 104)
+        self.assertEqual(calls, [(workload.SOLANA, 'getBlocks',
+                                 [100, 104, {'commitment':'finalized'}])])
+        progress.enumerate_slots(100, last, blocks)
+        sample = progress.summary()['samples'][-1]
+        self.assertEqual(sample['completed_chain_units'], 0)
+        self.assertEqual(sample['enumerated_block_chain_units'], 3)
+        self.assertEqual(sample['provider_enumerated_absent_chain_units'], 2)
+        self.assertEqual(sample['sampled_backlog_chain_units'], 3)
+        for slot in range(100, 105):
+            if slot in blocks:
+                progress.sample(first=slot, last=slot)
+            else:
+                progress.reported_absent(slot, slot)
+        sample = progress.summary()['samples'][-1]
+        self.assertEqual(sample['completed_chain_units'], 3)
+        self.assertEqual(sample['offered_chain_units'], 5)
+        self.assertEqual(sample['sampled_backlog_chain_units'], 0)
+        self.assertFalse(progress.summary()['public_absences_are_chain_proof'])
+        self.assertEqual(progress.summary()['public_slot_enumerations'][0]['enumerated_absent_slots'],
+                         [101, 103])
+        self.assertFalse(progress.summary()['public_slot_enumerations'][0]['canonical_completeness'])
+
+    def test_range_is_capped_at_forty_and_malformed_responses_never_change_progress(self):
+        responses = [[100, 139]]
+        calls = []
+        class RPC:
+            def call(self, endpoint, method, params):
+                calls.append(params)
+                return responses[-1]
+        self.assertEqual(workload.solana_block_slots(RPC(), 100, 200), (139, [100, 139]))
+        self.assertEqual(calls[-1], [100, 139, {'commitment':'finalized'}])
+        progress = workload.Progress('pump')
+        progress.sample(100)
+        progress.sample(139)
+        before = json.loads(workload.canonical(progress.summary()))
+        for malformed in (None, '100', [True], [100, '101'], [99], [140], [101, 100], [100, 100]):
+            with self.subTest(malformed=malformed):
+                responses.append(malformed)
+                with self.assertRaises(workload.ObservationUnavailable):
+                    workload.solana_block_slots(RPC(), 100, 200)
+                with self.assertRaises(workload.ObservationUnavailable):
+                    progress.enumerate_slots(100, 139, malformed)
+                self.assertEqual(progress.summary(), before)
+        with self.assertRaisesRegex(workload.ObservationUnavailable, 'native_solana_enumeration_range'):
+            progress.enumerate_slots(100, 140, [])
+        before_calls = len(calls)
+        with self.assertRaisesRegex(workload.ObservationUnavailable, 'native_solana_enumeration_range'):
+            workload.solana_block_slots(RPC(), 100, 99)
+        self.assertEqual(len(calls), before_calls)
+        self.assertEqual(progress.summary(), before)
+
+    def test_regressed_head_and_unenumerated_absence_preserve_original_population(self):
+        progress = workload.Progress('pump')
+        progress.sample(100)
+        progress.sample(104)
+        progress.enumerate_slots(100, 104, [100, 102, 104])
+        progress.sample(first=100, last=100)
+        before = json.loads(workload.canonical(progress.summary()))
+        for operation in (lambda:progress.sample(103),
+                          lambda:progress.reported_absent(101, 102),
+                          lambda:progress.enumerate_slots(100, 104, []),
+                          lambda:progress.sample(first=101, last=101)):
+            with self.assertRaises(workload.ObservationUnavailable):
+                operation()
+            self.assertEqual(progress.summary(), before)
+
+
+class NativeFailureReceipts(unittest.TestCase):
+    def test_only_exact_literal_component_codes_are_admitted(self):
+        from meme_machine.operational.isolated_native_pons import PonsProjectionUnavailable
+        for error, expected in (
+            (ValueError('isolated_pump_complete_logs_required'), 'isolated_pump_complete_logs_required'),
+            (PonsProjectionUnavailable('pons_projection_history_mismatch'), 'pons_projection_history_mismatch'),
+            (workload.ObservationUnavailable('native_solana_enumeration_shape'), 'native_solana_enumeration_shape')):
+            self.assertEqual(workload._failure(error)['code'], expected)
+        canaries = ('PRIVATE_API_KEY https://private.invalid/private_body',
+                    'isolated_pump_private_canary', 'pons_projection_private_canary',
+                    'native_private_canary')
+        for canary in canaries:
+            for constructor in (ValueError, PonsProjectionUnavailable, workload.ObservationUnavailable):
+                with self.subTest(constructor=constructor.__name__, canary=canary):
+                    receipt = workload._failure(constructor(canary))
+                    self.assertIsNone(receipt['code'])
+                    self.assertNotIn(canary, workload.canonical(receipt))
+
+    def test_native_boundary_retains_only_application_failure_site_without_message_or_path(self):
+        from meme_machine.lanes.pons import BoundaryError
+        from meme_machine.lanes.pons.abi import calldata
+        canary = 'PRIVATE_SQL_AND_PROVIDER_BODY https://private.invalid/API_KEY'
+        try:
+            calldata('f(uint256)', -1)
+        except BoundaryError as error:
+            error.args = (canary,)
+            receipt = workload._failure(error)
+        else:
+            self.fail('native ABI boundary did not reject negative uint')
+        self.assertIsNone(receipt['code'])
+        site = receipt['failure_site']
+        self.assertEqual(site['module'], 'meme_machine.lanes.pons.abi')
+        self.assertEqual(site['function'], 'calldata')
+        self.assertIs(type(site['line']), int)
+        self.assertEqual(set(site), {'module', 'function', 'line'})
+        self.assertNotIn(canary, workload.canonical(receipt))
+        self.assertNotIn(str(Path(__file__).resolve().parents[1]), workload.canonical(receipt))
 
 
 if __name__ == '__main__':
