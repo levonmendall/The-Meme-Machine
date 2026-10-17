@@ -718,6 +718,63 @@ def frozen_paused_reader_predecessor(test,relative,current):
     return prior
 
 
+# The authenticated AWS timeline located 410 seconds in candidate event reads.
+# Reuse only one unchanged cold archive within an explicitly cancellable read;
+# fresh canonical/ref hashes, record digests and all ordinary paths stay pinned.
+PUMP_RESTORE_ARCHIVE_REUSE_REFERENCE='1c24c2f9c805a5e147660408aeda8fcd668f00c4'
+PUMP_RESTORE_ARCHIVE_REUSE_SOURCE='meme_machine/runtime/candidate_history.py'
+PUMP_RESTORE_ARCHIVE_REUSE_BEFORE='a2eead063a65bf3e56ca112484a9e8fc452e067d3297060e0916c797015d5010'
+PUMP_RESTORE_ARCHIVE_REUSE_AFTER='2b04eeac6590d5aebdf90b3956dde1c283b8a0946365339d45beb7382ae31919'
+
+
+def pump_restore_archive_reuse_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=PUMP_RESTORE_ARCHIVE_REUSE_SOURCE:return current
+    prior=subprocess.check_output(['git','show',PUMP_RESTORE_ARCHIVE_REUSE_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),PUMP_RESTORE_ARCHIVE_REUSE_BEFORE,
+        relative+':exact operation-local cold archive predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),PUMP_RESTORE_ARCHIVE_REUSE_AFTER,
+        relative+':exact explicitly cancellable archive-reuse successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def method(root,name):
+        parent=next(n for n in root.body if isinstance(n,ast.ClassDef) and n.name=='CandidateHistory')
+        return parent,next(n for n in parent.body if isinstance(n,ast.FunctionDef) and n.name==name)
+    def source(body,selected):
+        return b''.join(body.splitlines(keepends=True)[selected.lineno-1:selected.end_lineno])
+    for name in ('_reference_path','_startup_read','candidates','event','observe','append_event',
+            'checkpoint','_install_schema','transaction'):
+        _,selected=method(tree,name);_,original=method(old,name)
+        test.assertEqual(source(current,selected),source(prior,original),
+            relative+':unchanged ordinary history or authoritative source '+name)
+    restored=current
+    for name in ('_reference_body','events'):
+        parent,selected=method(tree,name);_,original=method(old,name)
+        test.assertNotEqual(ast.dump(selected),ast.dump(original),
+            relative+':explicit bounded startup archive-reuse node '+name)
+        signature=deepcopy(selected.args)
+        if name=='_reference_body':
+            test.assertEqual([n.arg for n in signature.kwonlyargs[-2:]],['_archive_cache','_check'],
+                relative+':only operation-local private reader context added')
+            test.assertEqual([ast.dump(n) for n in signature.kw_defaults[-2:]],
+                [ast.dump(ast.Constant(value=None)),ast.dump(ast.Constant(value=None))],
+                relative+':ordinary canonical reads retain absent cache and cancellation context')
+            del signature.kwonlyargs[-2:];del signature.kw_defaults[-2:]
+        test.assertEqual(ast.dump(signature),ast.dump(original.args),
+            relative+':all original calling conventions retained '+name)
+        selected_bytes=source(current,selected)
+        test.assertEqual(restored.count(selected_bytes),1,relative+':one exact reviewed read node '+name)
+        restored=restored.replace(selected_bytes,source(prior,original),1)
+        parent.body[parent.body.index(selected)]=deepcopy(original)
+    test.assertEqual(ast.dump(tree),ast.dump(old),
+        relative+':all other financial, locator, event and strategy nodes retained')
+    test.assertEqual(restored,prior,
+        relative+':every other original source byte, predicate and integrity check retained')
+    return prior
+
+
 # Canonical cold reads must use the same restored-cohort locator validation as
 # candidate history. Extract that unchanged reader, bind the actual main SQLite
 # file for canonical reads, and reverse exactly those bytes before older guards.
@@ -750,6 +807,7 @@ def canonical_cold_predecessor(test,relative,current):
     test.assertEqual(hashlib.sha256(prior).hexdigest(),before,
         relative+':exact shared cold-locator predecessor')
     if current==prior:return prior
+    current=pump_restore_archive_reuse_predecessor(test,relative,current)
     test.assertEqual(hashlib.sha256(current).hexdigest(),after,
         relative+':exact main-database-bound cold-locator successor')
     tree=ast.parse(current);old=ast.parse(prior)
@@ -2273,6 +2331,71 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_pump_restore_archive_reuse_preserves_fresh_authority_and_cancellation(self):
+        import hashlib
+        relative=PUMP_RESTORE_ARCHIVE_REUSE_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),PUMP_RESTORE_ARCHIVE_REUSE_AFTER,
+            relative+':active exact operation-local startup archive reuse')
+        self.assertEqual(PUMP_RESTORE_ARCHIVE_REUSE_BEFORE,CANONICAL_COLD_DELTAS[relative][1],
+            relative+':all prior canonical cold-reader source pins remain unchanged')
+        prior=subprocess.check_output(['git','show',PUMP_RESTORE_ARCHIVE_REUSE_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(pump_restore_archive_reuse_predecessor(self,relative,current),prior)
+        self.assertEqual(pump_restore_archive_reuse_predecessor(self,relative,prior),prior)
+        for predecessor in (canonical_cold_predecessor,pump_restore_selection_predecessor,
+                retained_canonical_predecessor,native_startup_failure_predecessor,
+                rally_predecessor,opportunity_predecessor):
+            self.assertEqual(predecessor(self,relative,current),predecessor(self,relative,prior),
+                relative+':complete original locator, economic and integrity guard chain retained')
+        changes=[current+b'\n# unreviewed startup archive reuse change\n',b'']
+        for previous,successor in (
+                (b'archives={} if cancelled is not None else None',b'archives={}'),
+                (b'archives={} if cancelled is not None else None',b'archives=self._archives'),
+                (b'if archives is not None:archives.clear()',b'pass'),
+                (b'_archive_cache=archives,_check=check',b'_archive_cache=archives'),
+                (b'if _check is not None:_check()',b'pass'),
+                (b'path=self._reference_path(ref[\'path\'])',b'path=Path(ref[\'path\'])'),
+                (b"row=db.execute('SELECT body,hash,archive FROM canonical_evidence WHERE identity=?'",
+                    b"row=db.execute('SELECT body,hash,archive FROM records WHERE identity=?'"),
+                (b'if prepared is not None and row[0]==prepared[1]:',b'if prepared is not None:'),
+                (b"manifest=db.execute('SELECT path,hash FROM scoped_cold_manifests WHERE id=?'",
+                    b"manifest=db.execute('SELECT path,hash FROM scoped_cold_manifests WHERE 1=?'"),
+                (b'cold_path=self._reference_path(manifest[0],cold=True)',b'cold_path=Path(manifest[0])'),
+                (b'info=cold_path.stat()',b'info=path.stat()'),
+                (b"('st_dev','st_ino','st_size','st_mtime_ns','st_ctime_ns')",
+                    b"('st_dev','st_ino','st_size','st_mtime_ns')"),
+                (b'key=(path,row[2],manifest[0],manifest[1],cold_path,fingerprint)',b'key=(row[2],)'),
+                (b'if cached is not None and cached[0]==key:records=cached[1]',
+                    b'if cached is not None:records=cached[1]'),
+                (b'_archive_cache.clear();cached=None',b'cached=None'),
+                (b'if hashlib.sha256(packed).hexdigest()!=manifest[1]:',b'if False:'),
+                (b'decoder.decompress(packed,32*1024*1024+1)',b'decoder.decompress(packed)'),
+                (b'if not decoder.eof or len(raw)>32*1024*1024:',b'if False:'),
+                (b'if fingerprint==tuple(getattr(after,k) for k in',b'if tuple(getattr(after,k) for k in'),
+                (b"_archive_cache['entry']=(key,records)",b"self._archives={'entry':(key,records)}"),
+                (b"for x in records if x['record']['identity']==ref['canonical_identity']",
+                    b"for x in reversed(records) if x['record']['identity']==ref['canonical_identity']"),
+                (b'r=deepcopy(r)',b'r=r'),
+                (b'if fingerprint!=tuple(getattr(after,k) for k in',b'if False and tuple(getattr(after,k) for k in'),
+                (b'checksum=None if r is None else digest(r)',b"checksum=ref['canonical_hash']"),
+                (b"r.get('identity')!=ref['canonical_identity']",b'False'),
+                (b"checksum!=row[1] or row[1]!=ref['canonical_hash']",b'False'),
+                (b'if digest(ref)!=checksum:',b'if False:'),
+                (b'if digest(body)!=checksum:',b'if False:'),
+                (b'if kind_prefix is not None:',b'if False:'),
+                (b'if since is not None:',b'if False:'),
+                (b'if through is not None:',b'if False:'),
+                (b"self.db.set_progress_handler(lambda:int(bool(cancelled())),1000)",
+                    b'self.db.set_progress_handler(lambda:0,1000)'),
+                (b"os.environ.get('MM_MODE')!='PAPER'",b'False'),
+                (b"candidate_path!=root/'shared/solana-candidate-history.sqlite'",b'False'),
+                (b'self.db.execute("PRAGMA synchronous=FULL")',b'self.db.execute("PRAGMA synchronous=OFF")')):
+            self.assertIn(previous,current,relative+':negative mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):pump_restore_archive_reuse_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):canonical_cold_predecessor(self,relative,changed)
+
     def test_preparation_replay_preserves_terminal_incident_and_original_full_ack_authority(self):
         import hashlib
         relative=PREPARATION_REPLAY_SOURCE;current=(ROOT/relative).read_bytes()
@@ -2467,7 +2590,7 @@ class RobinhoodUSDTests(unittest.TestCase):
                 (b'if item is None:',b'if False:')),
         }
         for relative,(before,after) in CANONICAL_COLD_DELTAS.items():
-            current=(ROOT/relative).read_bytes()
+            current=pump_restore_archive_reuse_predecessor(self,relative,(ROOT/relative).read_bytes())
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,
                 relative+':active exact canonical cold-path repair')
             prior=subprocess.check_output(['git','show',CANONICAL_COLD_REFERENCE+':'+relative],cwd=ROOT)
