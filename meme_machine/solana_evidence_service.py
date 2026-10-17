@@ -1070,11 +1070,12 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
                     def turn(state):
                         # Refuse an expired queued command before native arbitration.
                         # FIFO, debt deadlines and the owner lease stay unchanged.
-                        if time.monotonic()-submitted>runtime.leases.owner:
+                        entered=time.monotonic()
+                        if entered-submitted>runtime.leases.owner:
                             raise EvidenceUnavailable('evidence_command_expired')
                         admission.entry(offer)
                         try:
-                            result=runtime.turn(flight,submitted)
+                            result=runtime.turn(flight,submitted,owner_entered=entered)
                         except BaseException as exc:
                             admission.completed(offer,error=exc,event=runtime.ring[-1] if runtime.ring else None)
                             raise

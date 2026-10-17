@@ -87,6 +87,7 @@ jobs:
               'tests.lanes.pons.test_pons_position_provider_recovery',
               'tests.test_survivor_commit',
               'tests.test_survivor_retained_gap',
+              'tests.test_maintenance_owner_entry_clock',
           ]
           print('FOCUSED_VALIDATION_ONLY: not a complete FAST or OPERATIONAL release suite', flush=True)
           print('FOCUSED_MODULES: ' + ','.join(modules), flush=True)
