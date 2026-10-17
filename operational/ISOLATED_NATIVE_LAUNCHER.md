@@ -18,7 +18,7 @@ are based58 0.1.1, grpcio 1.84.0, protobuf 7.36.2, pysimdjson 7.0.2,
 typing_extensions 4.16.0 and websockets 17.1, with the existing administration
 wheel SHA256 pins. Only explicit package prefixes are copied; .dist-info,
 direct_url metadata, bytecode, site packages, .pth and arbitrary package roots
-are absent. An explicit stdlib extension of the canary allowlist supports native
+trees are absent. An explicit stdlib extension of the canary allowlist supports native
 asyncio/HTTP/email/importlib requirements. Copied regular files, size/hash records
 and a bounded static ELF dependency closure replace original directory binds.
 
@@ -57,7 +57,10 @@ facts pipe and synthetic external secret/Unix/TCP canaries; it cannot attach to 
 provider session. Its only code path imports the four real native runner modules
 and real source modules, imports all six dependencies, exercises a two-worker
 spawn pool, private Unix traffic and SQLite FULL/WAL, then requests TERM and checks
-that durable cleanup finished. It starts no native market runner/source and emits
+that durable cleanup finished. Its explicit4096-FD proof fixture is distinct from
+the required65536-FD native profile and reports native_resource_profile_verified
+=false. The native profile is never reduced to fit a local host. It starts no
+native market runner/source and emits
 production_equivalent=false, full_market_speed_proven=false and financial_authority
 =false. Successful image proof never substitutes for actual native processing,
 restoration, original provider accounting, service enforcement or PAPER readiness.

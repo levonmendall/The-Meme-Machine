@@ -1,6 +1,7 @@
 """Offline strict image/descriptor/source/lifetime regressions; no providers."""
 import copy
 import hashlib
+import importlib.metadata
 import json
 import os
 from pathlib import Path
@@ -42,6 +43,32 @@ def fixture_image(scope):
         financial_authority=False,provider_calls=0,actual_service_restrictions_verified=False)
     raw=image.encoded(manifest);writer.copy(raw,'manifest.json')
     return dict(root=writer.root,manifest=manifest,manifest_sha256=hashlib.sha256(raw).hexdigest())
+
+
+def offline_software_approval():
+    """Exact detached local software fixture, never a live source approval."""
+    root=Path(image.__file__).resolve().parents[2]
+    def git(*args):return image._git(root,*args)
+    rows=git('ls-tree','-r','-z','HEAD','--','meme_machine','engineering/solana_capacity',
+             'engineering/__init__.py','operational/forward-survivor/NEXT_PROOF.json').split(b'\0')
+    source_files={}
+    for raw in rows:
+        if not raw:continue
+        header,name=raw.split(b'\t',1);name=name.decode()
+        if image._source_file(name):
+            source_files[name]=hashlib.sha256(git('cat-file','blob',header.decode().split()[2])).hexdigest()
+    dependencies={}
+    for name,(version,wheel,prefixes) in image.DEPENDENCIES.items():
+        package=importlib.metadata.distribution(name)
+        files={str(path):hashlib.sha256(package.locate_file(path).read_bytes()).hexdigest()
+            for path in package.files or () if image._package_file(str(path),prefixes)}
+        dependencies[name]=dict(version=version,wheel_sha256=wheel,files=files)
+    row=dict(schema='isolated-native-image-v1',source_commit=git('rev-parse','HEAD').decode().strip(),
+        source_tree=git('rev-parse','HEAD^{tree}').decode().strip(),source_files=source_files,
+        requirements_sha256=hashlib.sha256((root/'requirements.txt').read_bytes()).hexdigest(),
+        dependencies=dependencies)
+    # Explicit known offline fixture authenticator only; no application default.
+    return approval(row)
 
 
 class ImageAdmissionTests(unittest.TestCase):
@@ -131,6 +158,36 @@ class ImageAdmissionTests(unittest.TestCase):
 
 
 class DescriptorAndLifetimeTests(unittest.TestCase):
+    def test_actual_fixed_image_imports_spawn_SQLite_and_graceful_TERM_cleanup(self):
+        if os.geteuid()==0:self.skipTest('BLOCKED: actual image proof requires nonroot caller')
+        if Path(sys.executable).resolve().stat().st_uid!=0:
+            self.skipTest('BLOCKED: actual image proof requires root-owned core runtime')
+        with Scratch() as scope:
+            result=launcher.prove_image(scope.path,offline_software_approval())
+            if result['status']=='BLOCKED' and result.get('code') in (
+                    'namespace_unshare_refused','namespace_mount_refused','native_launcher_pivot_refused'):
+                self.assertIn(result.get('error_number'),(1,13,22,38,95),result)
+                scope.check();scope.success=True
+                self.skipTest('BLOCKED: actual kernel/LSM namespace capability unavailable')
+            self.assertEqual(result['status'],'ISOLATED_NATIVE_IMAGE_PROVEN',result)
+            self.assertEqual(result['child_exit'],0,result)
+            self.assertTrue(all(result['checks'].values()),result)
+            self.assertTrue(result['parent_namespaces_unchanged'])
+            self.assertTrue(result['parent_cwd_unchanged'])
+            self.assertFalse(result['native_runners_started'])
+            self.assertFalse(result['native_source_started'])
+            self.assertFalse(result['financial_authority'])
+            self.assertFalse(result['production_equivalent'])
+            self.assertFalse(result['native_resource_profile_verified'])
+            self.assertEqual(result['proof_nofile_limit'],4096)
+            self.assertEqual(result['provider_calls'],0)
+            import sqlite3
+            database=sqlite3.connect(scope.path/'native-work/native/image-proof.sqlite')
+            self.assertEqual(database.execute('PRAGMA integrity_check').fetchone(),('ok',))
+            self.assertEqual(database.execute('SELECT value FROM proof ORDER BY value').fetchall(),[(42,),(43,)])
+            database.close()
+            scope.check();scope.success=True
+
     def test_only_unnamed_stream_and_readonly_anonymous_facts_pipe_are_admitted(self):
         read,write=os.pipe2(os.O_CLOEXEC)
         try:
