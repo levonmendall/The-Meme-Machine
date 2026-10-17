@@ -369,7 +369,7 @@ class ParentNativeTransportTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(grant['priority'], 10)
 
     async def test_original_repair_priorities_are_parent_issued_fixed_aliases(self):
-        for priority in (1,2,4):
+        for priority in range(1,7):
             governor=Governor(self.root/('priority-'+str(priority)+'.sqlite'))
             binding=SourceBinding.configured(EndpointAlias('repair-'+str(priority),'solana',
                 frozenset(('getSlot',))),'pump_history_receipt',
@@ -386,7 +386,7 @@ class ParentNativeTransportTests(unittest.IsolatedAsyncioTestCase):
                 purchase=http.purchases.snapshot()['operations'][0]
                 self.assertEqual(purchase['operation'],'history_receipt')
             finally:await http.aclose()
-        self.assertEqual(self.budget.snapshot()['http_attempts'],'3')
+        self.assertEqual(self.budget.snapshot()['http_attempts'],'6')
         with self.assertRaises(BridgeRejected):
             SourceBinding.configured(self.sol.alias,'pump_discovery',environ={'MM_SOLANA_READ_RPC_URL':SOL},
                 governor=self.governor,read_class='solana_evidence_0')

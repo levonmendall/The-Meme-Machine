@@ -8,11 +8,17 @@ supersedes the native stream wire and source-reference schema.
 
 The exact hello protocol is `native-parent-transport-v2`. Its sources contain
 only alias, family, endpoint_identity, operation, read_class and authenticated.
-`read_class` is `native` or a fixed parent-issued `solana_evidence_1`,
-`solana_evidence_2`, `solana_evidence_4`. The latter reconstruct original source
+`read_class` is `native` or a fixed parent-issued `solana_evidence_1` through
+`solana_evidence_6`. The latter reconstruct original source
 repair priorities and impose the original eight-second whole attempt bound in
 the parent. There is no held-priority zero capability or child deadline field.
 The parent-selected method allowlist still controls getBlock access.
+The actual source's pool acquisition and retained candidate-session replay use
+priorities three, five and six as well as one, two and four. These classes keep
+their exact original priority rather than being mapped to another queue. Priority
+zero is deliberately unavailable: held protection has no contained-run authority.
+Three independent purchase work roles at each priority need at most eighteen
+fixed aliases, within the existing maximum thirty-two sources.
 
 Each hello stream descriptor is exactly alias, transport, stream,
 observation_only and endpoint_identity. A null stream advertises a fixed source

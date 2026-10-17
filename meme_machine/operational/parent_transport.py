@@ -45,8 +45,8 @@ _WORK = MappingProxyType({
     'pump_recovery_restart': ('solana','pump','recovery','recovery_restart',4,'gap_recovery'),
     'pump_source_identity': ('solana','pump','unknown','unknown',4,'diagnostics'),
 })
-_READ_CLASSES=MappingProxyType({'native':None,'solana_evidence_1':1,
-    'solana_evidence_2':2,'solana_evidence_4':4})
+_READ_CLASSES=MappingProxyType({'native':None,
+    **{'solana_evidence_'+str(priority):priority for priority in range(1,7)}})
 _LABEL_OPERATION=MappingProxyType({'pump_history_receipt':'history_receipt',
     'pump_recovery_restart':'recovery_restart','pump_source_identity':'unattributed'})
 
