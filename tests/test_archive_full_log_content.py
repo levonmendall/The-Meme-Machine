@@ -58,6 +58,20 @@ def retained_suffix_transaction(family='pump'):
     return original, fetched, full, prefix_length, start
 
 
+def ordered_event_suffix_transaction(family='pump'):
+    """Keep real lines around an omitted economic event, with no log edits."""
+    full = copy.deepcopy(FIXTURE[family][0])
+    decoder = pump_events if family == 'pump' else pumpswap_trade_events
+    event_index = min(event['index'] for event in decoder(full))
+    prefix_length = event_index-2
+    positions = (event_index-1, event_index+1)
+    original, fetched = copy.deepcopy(full), copy.deepcopy(full)
+    original['meta']['logMessages'] = full['meta']['logMessages'][:prefix_length]+['Log truncated']+[
+        full['meta']['logMessages'][index] for index in positions]
+    fetched.pop('transactionIndex', None)
+    return original, fetched, full, prefix_length, positions
+
+
 class ArchiveFullLogContentTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -199,6 +213,77 @@ class ArchiveFullLogContentTests(unittest.TestCase):
         self.assertEqual(self.snapshot(), before)
         self.assert_unpublished()
 
+    def test_ordered_noncontiguous_lines_restore_real_omitted_events_at_full_log_indices(self):
+        before = self.snapshot()
+        for family, decoder, omitted_index in (('pump', pump_events, 86),
+                                               ('pumpswap', pumpswap_trade_events, 44)):
+            with self.subTest(family=family):
+                original, fetched, full, prefix_length, positions = ordered_event_suffix_transaction(family)
+                logs, complete = original['meta']['logMessages'], fetched['meta']['logMessages']
+                self.assertEqual(full, FIXTURE[family][0])
+                self.assertEqual(prefix_length, omitted_index-2)
+                self.assertEqual(positions, (omitted_index-1, omitted_index+1))
+                self.assertEqual(logs[prefix_length+1:], [complete[index] for index in positions])
+                self.assertNotIn(complete[omitted_index], logs)
+                self.assertTrue(complete[omitted_index].startswith('Program data: '))
+                self.assertEqual(sum(complete[index:index+2] == logs[prefix_length+1:]
+                    for index in range(prefix_length, len(complete)-1)), 0)
+                inputs = canonical(original), canonical(fetched)
+                supplement = join_archive_log_supplement(original, fetched, endpoint_identity=ENDPOINT)
+                repaired = complete_archive_transaction(original, supplement, endpoint_identity=ENDPOINT)
+                self.assertEqual(canonical(repaired), canonical(full))
+                self.assertEqual(repaired['meta']['logMessages'], complete)
+                self.assertEqual(repaired['transactionIndex'], original['transactionIndex'])
+                self.assertEqual(decoder(repaired), decoder(FIXTURE[family][0]))
+                self.assertIn(omitted_index, [event['index'] for event in decoder(repaired)])
+                records = economic_records(family, PROGRAMS[family], repaired,
+                    endpoint_identity=ENDPOINT, seen=NOW, source='alchemy_finalized_repair')
+                self.assertEqual([record.event_index for record in records],
+                                 [event['index'] for event in decoder(full)])
+                self.assertTrue(all(record.transaction_index == original['transactionIndex'] for record in records))
+                self.assertEqual((canonical(original), canonical(fetched)), inputs)
+        self.assertEqual(self.snapshot(), before)
+        self.assert_unpublished()
+
+    def test_141_prefix_ordered_mappings_preserve_all_164_complete_lines_and_multiplicity(self):
+        before = self.snapshot()
+        a, b = 'Program log: retained known A', 'Program log: retained known B'
+        cases = (([a, b], ((142, a), (144, b)), 1),
+                 ([a, b], ((142, a), (144, b), (150, a), (155, b)), 3),
+                 ([a, a], ((142, a), (144, a), (150, a)), 3))
+        for family, decoder in (('pump', pump_events), ('pumpswap', pumpswap_trade_events)):
+            for suffix, placements, mappings in cases:
+                with self.subTest(family=family, suffix=suffix, placements=placements):
+                    full = copy.deepcopy(FIXTURE[family][0])
+                    full['meta']['logMessages'].extend('Program log: inert complete padding '+str(index)
+                        for index in range(164-len(full['meta']['logMessages'])))
+                    for index, line in placements:full['meta']['logMessages'][index] = line
+                    original, fetched = copy.deepcopy(full), copy.deepcopy(full)
+                    original['meta']['logMessages'] = full['meta']['logMessages'][:141]+['Log truncated']+suffix
+                    fetched.pop('transactionIndex', None)
+                    self.assertEqual(len(original['meta']['logMessages']), 144)
+                    self.assertEqual(len(fetched['meta']['logMessages']), 164)
+                    complete = fetched['meta']['logMessages']
+                    self.assertEqual(sum(complete[index:index+2] == suffix for index in range(141, 163)), 0)
+                    self.assertEqual(sum(complete[first] == suffix[0] and complete[second] == suffix[1]
+                        for first in range(141, 164) for second in range(first+1, 164)), mappings)
+                    inputs = canonical(original), canonical(fetched)
+                    supplement = join_archive_log_supplement(original, fetched, endpoint_identity=ENDPOINT)
+                    repaired = complete_archive_transaction(original, supplement, endpoint_identity=ENDPOINT)
+                    self.assertEqual(canonical(repaired), canonical(full))
+                    self.assertEqual(repaired['meta']['logMessages'], complete)
+                    self.assertEqual(decoder(repaired), decoder(FIXTURE[family][0]))
+                    self.assertEqual(repaired['transactionIndex'], original['transactionIndex'])
+                    self.assertEqual((canonical(original), canonical(fetched)), inputs)
+                    job = dict(family=family, address=PROGRAMS[family], lo=original['slot'], hi=original['slot'],
+                               pages=0, token=None, lineage=digest([]))
+                    evidence = archive_page_evidence(job, dict(data=[original]), endpoint_identity=ENDPOINT,
+                                                     supplements=(supplement,))
+                    self.assertEqual(evidence['supplement_observations'][0]['original_prefix_length'], 141)
+                    self.assertEqual(evidence['supplement_observations'][0]['response'], fetched)
+        self.assertEqual(self.snapshot(), before)
+        self.assert_unpublished()
+
     def test_retained_suffix_mismatch_ambiguity_and_marker_failures_are_atomic(self):
         original, fetched, _, _ = truncated_transaction()
         prefix = ['Program log: verified prefix A', 'Program log: verified prefix B']
@@ -216,7 +301,6 @@ class ArchiveFullLogContentTests(unittest.TestCase):
         variant('missing_known_line', complete_logs=prefix+suffix[:1])
         variant('altered_known_line', original_logs=prefix+['Log truncated']+suffix[:1]+['changed known line'])
         variant('reordered_known_lines', original_logs=prefix+['Log truncated']+list(reversed(suffix)))
-        variant('noncontiguous_known_lines', complete_logs=prefix+suffix[:1]+['intervening line']+suffix[1:])
         variant('insufficient_duplicate_occurrences', original_logs=prefix+['Log truncated']+suffix+suffix)
         # Repeated full placements are now covered by the positive whole-output
         # test: no placement is selected and no event/index is reconstructed.
@@ -240,6 +324,13 @@ class ArchiveFullLogContentTests(unittest.TestCase):
 
     def test_retained_suffix_keeps_raw_receipts_and_full_consumer_ack_across_restart(self):
         original, fetched, full, prefix_length, _ = retained_suffix_transaction()
+        self.assert_retained_suffix_consumer_restart(original, fetched, full, prefix_length)
+
+    def test_ordered_retained_lines_keep_full_consumer_ack_and_receipts_across_restart(self):
+        original, fetched, full, prefix_length, _ = ordered_event_suffix_transaction()
+        self.assert_retained_suffix_consumer_restart(original, fetched, full, prefix_length)
+
+    def assert_retained_suffix_consumer_restart(self, original, fetched, full, prefix_length):
         job = self.request(original)
         page = dict(data=[original], paginationToken=None)
         raw_page = canonical(page)
@@ -639,7 +730,7 @@ class ArchiveFullLogContentTests(unittest.TestCase):
 
     def test_actual_acquisition_cancellation_and_invalid_supplement_preserve_retry(self):
         from tests.test_solana_prewarm_startup import quiet_model_b
-        original, fetched, full, _ = truncated_transaction()
+        original, fetched, full, _, _ = ordered_event_suffix_transaction()
         self.request(original)
         page = dict(data=[original], paginationToken=None)
         original_raw = canonical(page)

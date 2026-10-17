@@ -307,6 +307,58 @@ def survivor_increment_continuity_predecessor(test,relative,current):
     return prior
 
 
+# The retained provider may omit lines between post-marker observations. Match
+# their exact sequence at distinct positions beyond the verified prefix, while
+# retaining the complete authenticated log array and every earlier source pin.
+ARCHIVE_LOG_ORDER_REFERENCE='2b8c8b12c4d265df846de6bf7c6c904720f2e739'
+ARCHIVE_LOG_ORDER_SOURCE='meme_machine/solana_selective_history.py'
+ARCHIVE_LOG_ORDER_BEFORE='16587a4779d8b60a67b994489c7367336131a874082397327c33677bff91ae8b'
+ARCHIVE_LOG_ORDER_AFTER='d7b79f1a25b687cadc0ebe16f81ddc1ffba222402c3433378658ba39a5734ae3'
+ARCHIVE_LOG_ORDER_OLD=(
+    b'        # The archive may retain lines after its truncation marker. Preserve\n'
+    b'        # their complete order as one contiguous segment, without reusing any\n'
+    b'        # prefix lines. The full response may also contain a later suffix.\n'
+    b'        if suffix and sum(complete[start:start+len(suffix)]==suffix\n'
+    b'                for start in range(len(prefix),len(complete)-len(suffix)+1))<1:\n'
+    b'            raise KeyError()\n')
+ARCHIVE_LOG_ORDER_NEW=(
+    b'        # The archive may retain sparse lines after its truncation marker.\n'
+    b'        # Match every line in order at a distinct position beyond the prefix;\n'
+    b'        # only the entire complete response supplies decoded event indices.\n'
+    b'        position=len(prefix)\n'
+    b'        for line in suffix:\n'
+    b'            while position<len(complete) and complete[position]!=line:position+=1\n'
+    b'            if position==len(complete):raise KeyError()\n'
+    b'            position+=1\n')
+
+
+def archive_log_order_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=ARCHIVE_LOG_ORDER_SOURCE:return current
+    prior=subprocess.check_output(['git','show',ARCHIVE_LOG_ORDER_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),ARCHIVE_LOG_ORDER_BEFORE,
+        relative+':exact contiguous retained-log predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),ARCHIVE_LOG_ORDER_AFTER,
+        relative+':exact ordered-distinct retained-log successor')
+    test.assertEqual(prior.count(ARCHIVE_LOG_ORDER_OLD),1,relative+':one original contiguous search')
+    test.assertEqual(current.count(ARCHIVE_LOG_ORDER_NEW),1,relative+':one exact ordered-distinct search')
+    restored=current.replace(ARCHIVE_LOG_ORDER_NEW,ARCHIVE_LOG_ORDER_OLD,1)
+    test.assertEqual(restored,prior,
+        relative+':all identity, marker, prefix, complete-output, index and receipt bytes retained')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def function(root):
+        return next(n for n in root.body if isinstance(n,ast.FunctionDef) and n.name=='_archive_log_join')
+    selected=function(tree);original=function(old)
+    test.assertEqual(ast.dump(selected.args),ast.dump(original.args),relative+':unchanged strict join interface')
+    test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':only the declared retained-log join changes')
+    tree.body[tree.body.index(selected)]=deepcopy(original)
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':every other economic and recovery node retained')
+    return prior
+
+
 # Repeated known suffix placements cannot select or change authoritative logs:
 # the output remains the entire authenticated full transaction. Reverse exactly
 # the one reviewed zero-match predicate before the retained-log source guards.
@@ -326,6 +378,7 @@ def archive_log_consistency_predecessor(test,relative,current):
     test.assertEqual(hashlib.sha256(prior).hexdigest(),ARCHIVE_LOG_CONSISTENCY_BEFORE,
         relative+':exact complete-log-consistency predecessor')
     if current==prior:return prior
+    current=archive_log_order_predecessor(test,relative,current)
     test.assertEqual(hashlib.sha256(current).hexdigest(),ARCHIVE_LOG_CONSISTENCY_AFTER,
         relative+':exact complete-log-consistency successor')
     def function(content):
@@ -2661,6 +2714,49 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_archive_log_order_reverses_only_exact_distinct_post_prefix_sequence_match(self):
+        import hashlib
+        relative=ARCHIVE_LOG_ORDER_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),ARCHIVE_LOG_ORDER_AFTER,
+            relative+':active source must use the exact retained-line order repair')
+        self.assertEqual(ARCHIVE_LOG_ORDER_BEFORE,ARCHIVE_LOG_CONSISTENCY_AFTER,
+            relative+':all earlier archive source pins remain unchanged')
+        prior=subprocess.check_output(['git','show',ARCHIVE_LOG_ORDER_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(archive_log_order_predecessor(self,relative,current),prior)
+        self.assertEqual(archive_log_order_predecessor(self,relative,prior),prior)
+        for predecessor in (archive_log_consistency_predecessor,retained_archive_log_shape_predecessor,
+                archive_complete_logs_predecessor,rally_predecessor,opportunity_predecessor):
+            self.assertEqual(predecessor(self,relative,current),predecessor(self,relative,prior),
+                relative+':every original archive, economic and recovery guard still applies')
+        changes=[current+b'\n# unreviewed retained-log order change\n',b'']
+        for previous,successor in (
+                (b'position=len(prefix)',b'position=0'),
+                (b'for line in suffix:',b'for line in sorted(suffix):'),
+                (b'for line in suffix:',b'for line in set(suffix):'),
+                (b'for line in suffix:\n',b'for line in suffix:\n            position=len(prefix)\n'),
+                (b'complete[position]!=line:position+=1',b'complete[position]==line:position+=1'),
+                (b'if position==len(complete):raise KeyError()',b'if position==len(complete):break'),
+                (b'            position+=1\n    except',b'            position+=0\n    except'),
+                (b'complete[:len(prefix)]!=prefix',b'False'),
+                (b'if len(markers)!=1:raise KeyError()',b'if False:raise KeyError()'),
+                (b"'truncat' in line.lower() for line in complete",b'False for line in complete'),
+                (b"canonical(fetched['transaction'])!=canonical(original['transaction'])",b'False'),
+                (b"type(fetched['slot']) is not int or fetched['slot']!=slot",b'False'),
+                (b"canonical(fetched['blockTime'])!=canonical(original['blockTime'])",b'False'),
+                (b"old['err'] is not None or new['err'] is not None",b'False'),
+                (b"fetched['transactionIndex']!=index",b'False'),
+                (b"index=original['transactionIndex']",b'index=0'),
+                (b"tx['meta']['logMessages']=list(complete)",b"tx['meta']['logMessages']=list(prefix+suffix)"),
+                (b'type(supplement) is not ArchiveLogSupplement',b'False'),
+                (b'supplement.endpoint_identity!=endpoint_identity',b'False'),
+                (b'canonical(original)!=supplement.original_json',b'False')):
+            self.assertIn(previous,current,relative+':negative mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):archive_log_order_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):archive_log_consistency_predecessor(self,relative,changed)
+
     def test_provider_budget_namespace_read_reverses_only_exact_phase_sql_pushdown(self):
         import hashlib
         relative=PROVIDER_NAMESPACE_READ_SOURCE;current=(ROOT/relative).read_bytes()
@@ -3468,7 +3564,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_archive_log_consistency_reverses_only_exact_zero_match_rejection(self):
         import hashlib
-        relative=ARCHIVE_LOG_CONSISTENCY_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=ARCHIVE_LOG_CONSISTENCY_SOURCE;current=archive_log_order_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),ARCHIVE_LOG_CONSISTENCY_AFTER,
             relative+':active exact complete-log-consistency repair')
         prior=subprocess.check_output(['git','show',ARCHIVE_LOG_CONSISTENCY_REFERENCE+':'+relative],cwd=ROOT)
