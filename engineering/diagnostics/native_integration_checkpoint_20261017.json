@@ -1,0 +1,30 @@
+{
+  "scope": "OFFLINE_SCOPED_COMPONENT_INTEGRATION_NOT_AWS_OR_NATIVE_LIVE_ACCEPTANCE",
+  "component_head": "bf3691d67c1954bac1d84fd4fde8aad662a20613",
+  "main_merge": "f033c189",
+  "main": "92831be8f63cde7db8a74016c2135a770e75667b",
+  "logs": [
+    {
+      "log": "native-harness-integrated-bf3691d6-focused.log",
+      "sha256": "3ff1b2d564953ca3388ac23de9d6ad39d6750c1fac576625ee65eb34147ac9b7",
+      "bytes": 47662,
+      "tests": 237,
+      "seconds": 40.992,
+      "result": "PASS",
+      "skips": 0
+    },
+    {
+      "log": "native-harness-main-merge-focused.log",
+      "sha256": "1e6d2db25b741ca642c051ada964c07c40ffa22bdca98dc96ea6f45a1efcc48b",
+      "bytes": 15505,
+      "tests": 71,
+      "seconds": 15.387,
+      "result": "PASS",
+      "skips": 0
+    }
+  ],
+  "financial_writes": 0,
+  "provider_requests": 0,
+  "normal_operation_authorized": false,
+  "full_market_parity_proven": false
+}
