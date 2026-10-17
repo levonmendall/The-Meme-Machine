@@ -19,6 +19,17 @@ HISTORICAL_OBSERVATION_SHA256='5431d349aa8539ba935861cccb93c1f4c164bce9b0173bf4c
 PROGRAM_GAP_OBSERVATION_SHA256='948743b18d0a33cc85391d07ea4a4ae9dad34110c169ca95945a04473d6db228'
 PROGRAM_GAP_HANDLER_SHA256='29f00e3d71c40e1d306f50263b84f1ec25e455e20d112a5f04fdef25293d0fb0'
 PROGRAM_GAP_SESSION_SHA256='886dc272c37139e53dac962fda1473fc6eca4e8b2daf462495cb50509a831333'
+ECONOMIC_REPLAY_OBSERVATION_SHA256='f76e9e06964eb64dd04aefd698780a95bb98af4a852c783a8e1192c0000ca49e'
+ECONOMIC_REPLAY_SESSION_SHA256='f10da79b22abdb7342ada4373ab74a235f66cc0e63ac1e8ba356ee20582cb6ac'
+ECONOMIC_REPLAY_JOBS={
+    'pump':(8,'ea47c379a25a70e6f34492bfcc7a592b76767a07fc6c5d9bc4733b4662958ead',
+        '1dff470ee9f02e0162a43be234c8897558c22095e6964ef70d05c35b8e3d7870'),
+    'pumpswap':(1,'dd220350327c4f9cf999ae355c517171b6b67c1cc71171e1f208c24ad1850955',
+        '9d4886040b969985256b66010c0b593077a83fe0c5168f63b49ffbfd88303538')}
+ECONOMIC_REPLAY_NATIVE_HASH='DLLkFkP5LgYop8GpGKkrcmGoFpjRnCQDMbBRJP675rTh'
+ECONOMIC_REPLAY_NATIVE_CENSUS={
+    'pump':'ff3fa590721311a276b5368983b65179dcdcb9663e7fe00ab1c71d022e356d8c',
+    'pumpswap':'355d87eca99a64a3d7306b31ea42d8e99d13e9d2c8302a69b43c76062fda7b93'}
 
 
 def _retained_health(state,key,maximum):
@@ -202,12 +213,189 @@ def _preserved_program_gap_observation(db,handlers,current):
         preserved_lost_observation_range_unavailable=True)
 
 
+def _preserved_economic_replay_observation(db,current):
+    """Reconstructed economics do not retrospectively ACK eight lost frames.
+
+    Only this failed session's exhausted address pages and independently FULL
+    committed consumer proofs admit a new observation. Native receipts and the
+    original false queue census remain unchanged; unproved tail stays a gap.
+    """
+    from contextlib import closing
+    from pathlib import Path
+    from types import SimpleNamespace
+    import math
+    from .solana_evidence_plane import EvidenceUnavailable,IntervalProof,digest
+    from .solana_selective_history import PROGRAMS,archive_interval_witness,coverage_points
+    from .solana_candidate_lifecycle import CandidateLifecycle
+    from .solana_rolling_history import RollingHistory,program_scope,_subtract_intervals
+    from .solana_history_delivery import readonly_history
+    def require(condition):
+        if not condition:raise EvidenceUnavailable('source_observation_economic_replay_unverified')
+    def hexadecimal(value):
+        return isinstance(value,str) and len(value)==64 and all(c in '0123456789abcdef' for c in value)
+    def positive(value):
+        return type(value) in (int,float) and math.isfinite(value) and value>0
+    direct=isinstance(current,str) and hashlib.sha256(current.encode()).hexdigest()==ECONOMIC_REPLAY_OBSERVATION_SHA256
+    raw=current if direct else _health_from_db(db,
+        OBSERVATION_DRAIN_KEY+'_preserved.'+ECONOMIC_REPLAY_OBSERVATION_SHA256,SOURCE_DRAIN_BYTES)
+    require(isinstance(raw,str) and hashlib.sha256(raw.encode()).hexdigest()==ECONOMIC_REPLAY_OBSERVATION_SHA256)
+    body=_retained_census(raw);accounting=body.get('handler_accounting')
+    require(body['state']=='RECOVERY_REQUIRED' and body.get('terminal') is True
+        and _observation_reference(body) and _current_observation_identity(body)
+        and (body['accepted_handlers'],body['settled_handlers'],body['pending_handlers'])==(118783,118783,0)
+        and body.get('all_accepted_committed') is False
+        and body.get('closed_sessions')==2 and body.get('preserved_partial_sessions')==1
+        and type(body.get('unpreserved_sessions')) is int and body['unpreserved_sessions']==0
+        and body.get('unexpected_cancellation',False) is False
+        and body.get('terminal_record_unavailable',False) is False
+        and all(type(accounting.get(key)) is int and accounting[key]==0
+            for key in ('active','recoverable','failed','unresolved'))
+        and body.get('queues')=={name:dict(accepted=a,committed=c,pending=a-c)
+            for name,a,c in (('control',782,782),('rolling',191,183),('scout',5594,5594),('candidate',0,0))})
+    session=db.execute('''SELECT kind,at,length(CAST(body AS BLOB)),CASE WHEN
+        length(CAST(body AS BLOB))<=? THEN body END FROM acquisition_observations WHERE id=232141''',
+        (SOURCE_DRAIN_BYTES,)).fetchone()
+    require(session is not None and session[0]=='source_session_drain' and positive(session[1])
+        and isinstance(session[3],str) and session[2]<=SOURCE_DRAIN_BYTES
+        and hashlib.sha256(session[3].encode()).hexdigest()==ECONOMIC_REPLAY_SESSION_SHA256)
+    observed=_retained_json(session[3])
+    require(isinstance(observed,dict) and observed.get('plane')=='rolling'
+        and observed.get('session')=='7d1d60314f4c4f018738ef154437e2c8'
+        and observed.get('drained') is False and observed.get('accepted_pending')==8
+        and observed.get('completed')==457828563 and observed.get('pending_slots')==1
+        and observed.get('early_log_min_slot')==457828564 and observed.get('early_log_max_slot')==457828663
+        and observed.get('recovery_obligations')==[
+            dict(scope=program_scope(family),lower_slot=457828373,upper_slot=None)
+            for family in ('pump','pumpswap')])
+    provider=_health_from_db(db,'provider',SOURCE_DRAIN_BYTES)
+    provider=None if provider is None else _retained_json(provider)
+    require(isinstance(provider,dict) and provider.get('provider')=='alchemy_solana_mainnet'
+        and provider.get('network')=='solana-mainnet' and hexadecimal(provider.get('endpoint_identity')))
+    endpoint=provider['endpoint_identity']
+    files=db.execute('PRAGMA database_list').fetchall()
+    main=[row[2] for row in files if row[1]=='main']
+    require(len(main)==1 and isinstance(main[0],str) and bool(main[0]))
+    canonical_path=Path(main[0]);path=canonical_path.parent/'solana-candidate-history.sqlite'
+    require(canonical_path.is_absolute() and canonical_path.resolve()==canonical_path
+        and not canonical_path.is_symlink() and path.is_file() and not path.is_symlink()
+        and Path(os.environ.get('MM_SOLANA_CANDIDATE_HISTORY_DB') or path)==path)
+    lifecycle=object.__new__(CandidateLifecycle);lifecycle.db=db
+    rolling=object.__new__(RollingHistory);rolling.db=db
+    rolling.history=SimpleNamespace(db=db,clock=time.time)
+    # The original gap-aware predicate authenticates compressed coverage and
+    # availability. It does not treat a checkpoint or repaired origin as proof.
+    proof_ids={};tail_unavailable=False
+    with closing(readonly_history(path)) as shared:
+        shared.db.execute('BEGIN')
+        def consumer_proof(identity,family,scope,lo,hi):
+            receipt=shared.db.execute('''SELECT length(CAST(body AS BLOB)),CASE WHEN
+                length(CAST(body AS BLOB))<=? THEN body END,hash FROM source_receipts WHERE id=?''',
+                (SOURCE_DRAIN_BYTES,'coverage:'+identity)).fetchone()
+            require(receipt is not None and isinstance(receipt[1],str) and receipt[0]<=SOURCE_DRAIN_BYTES
+                and hexadecimal(receipt[2]) and hashlib.sha256(receipt[1].encode()).hexdigest()==receipt[2])
+            consumed=_retained_json(receipt[1])
+            require(isinstance(consumed,dict) and all(consumed.get(key)==value for key,value in (
+                ('identity',identity),('family',family),('address',PROGRAMS[family]),('scope',scope),
+                ('lo',lo),('hi',hi),('endpoint',endpoint))) and positive(consumed.get('observed_at'))
+                and isinstance(consumed.get('witness'),dict))
+            IntervalProof(scope,lo,hi,consumed.get('source'),endpoint,consumed['witness'],
+                consumed['observed_at']).validate()
+            require(digest([scope,lo,hi,consumed['witness']])==identity
+                and db.execute('SELECT 1 FROM candidate_pending_proofs WHERE id=?',(identity,)).fetchone() is None)
+            return consumed
+        for family,origin,created in (('pump',39941,1792195108.9836082),
+                ('pumpswap',39942,1792195108.9970887)):
+            scope=program_scope(family);address=PROGRAMS[family]
+            gap=db.execute('SELECT scope,lo,hi,created,reason FROM candidate_gaps WHERE id=?',(origin,)).fetchone()
+            require(gap is not None and gap[0]==scope and gap[1]==457828373
+                and (gap[2] is None or type(gap[2]) is int and gap[2]>=457828663)
+                and gap[3]==created and gap[3]<=session[1]
+                and gap[4]=='candidate_live_disconnect_or_filter_rebuild')
+            missing_tail=rolling.missing(family,scope,457828564,457828663)
+            require(len(missing_tail)<=100)
+            # Later real replay can recover some or all of the old tail. Each
+            # remaining missing piece must still be an original-origin durable
+            # gap; its complement needs independently FULL consumer proofs.
+            if direct:require(missing_tail==[(457828564,457828663)])
+            for lower,upper in missing_tail:
+                tails=db.execute('''SELECT id,lo,hi FROM candidate_gaps INDEXED BY candidate_gap_scope_bounds
+                    WHERE scope=? AND lo>=? AND lo<=? AND (hi IS NULL OR hi>=?)
+                        AND created=? AND reason=? AND repaired IS NULL AND id>=?
+                    ORDER BY lo LIMIT 2''',(scope,gap[1],lower,upper,created,gap[4],origin)).fetchall()
+                require(len(tails)==1)
+            tail_unavailable=tail_unavailable or bool(missing_tail)
+            if direct:
+                native=db.execute('SELECT slot,parent,hash,session,census_hash FROM candidate_blocks WHERE scope=?',
+                    (scope,)).fetchone()
+                require(native==(457828555,457828554,ECONOMIC_REPLAY_NATIVE_HASH,
+                    observed['session'],ECONOMIC_REPLAY_NATIVE_CENSUS[family]))
+            identity=digest([family,address,457828555,457828563])
+            job=db.execute('''SELECT family,address,lo,hi,status,token,pages,lineage
+                FROM acquisition_jobs WHERE id=?''',(identity,)).fetchone()
+            pages,lineage,proof_id=ECONOMIC_REPLAY_JOBS[family]
+            require(job==(family,address,457828555,457828563,'complete',None,pages,lineage))
+            receipts=db.execute('''SELECT page,input_hash,length(CAST(result AS BLOB)),CASE WHEN
+                length(CAST(result AS BLOB))<=? THEN result END,committed
+                FROM acquisition_page_receipts WHERE job=? ORDER BY page LIMIT ?''',
+                (SOURCE_DRAIN_BYTES,identity,pages+1)).fetchall()
+            require(len(receipts)==pages)
+            supplemented=False
+            for page,row in enumerate(receipts):
+                require(row[0]==page and hexadecimal(row[1]) and isinstance(row[3],str)
+                    and row[2]<=SOURCE_DRAIN_BYTES and positive(row[4]))
+                result=_retained_json(row[3])
+                require(isinstance(result,dict) and result.get('complete') is (page==pages-1)
+                    and type(result.get('pages')) is int and result['pages']==page+1
+                    and type(result.get('records')) is int and result['records']>=0)
+                supplements=result.get('archive_log_supplements',[])
+                require(isinstance(supplements,list) and len(supplements)<=100)
+                supplemented=supplemented or bool(supplements)
+            witness=archive_interval_witness(dict(family=family,address=address,lo=457828555,
+                hi=457828563,pages=pages),scope,lineage,supplemented=supplemented)
+            require(digest([scope,457828555,457828563,witness])==proof_id)
+            require(db.execute('SELECT 1 FROM candidate_pending_proofs WHERE id=?',(proof_id,)).fetchone() is None
+                and lifecycle.unconsumed(scope) is None)
+            consumed=consumer_proof(proof_id,family,scope,457828555,457828563)
+            require(consumed.get('source')=='alchemy_finalized_repair' and consumed['witness']==witness)
+            coverage=db.execute('SELECT points,hash FROM candidate_coverage WHERE scope=? AND lo<=? AND hi>=?',
+                (scope,457828555,457828563)).fetchall()
+            require(any(any(lo==457828555 and hi==457828563 and at<=time.time()
+                for lo,hi,at in coverage_points(packed,checksum)) for packed,checksum in coverage))
+            require(rolling.missing(family,scope,457828555,457828563)==[])
+            covered_tail=_subtract_intervals(((457828564,457828663),),missing_tail)
+            if covered_tail:
+                receipts=shared.db.execute('''SELECT id,lo,hi,available,hash FROM work_history_proofs
+                    INDEXED BY work_history_proof_scope WHERE scope=? AND lo<=? AND hi>=?
+                    ORDER BY lo,hi LIMIT 257''',(scope,457828663,457828564)).fetchall()
+                require(len(receipts)<=256)
+                published=[]
+                for scheduling,lo,hi,available,identity in receipts:
+                    require(type(lo) is int and type(hi) is int and 0<=lo<=hi
+                        and positive(available) and available<=time.time() and hexadecimal(identity)
+                        and scheduling==digest(dict(scope=scope,lo=lo,hi=hi,proof_hash=identity)))
+                    consumed=consumer_proof(identity,family,scope,lo,hi)
+                    points=db.execute('SELECT points,hash FROM candidate_coverage WHERE scope=? AND lo<=? AND hi>=?',
+                        (scope,lo,hi)).fetchall()
+                    require(any(any(a==lo and b==hi and at==consumed['observed_at'] and at<=time.time()
+                        for a,b,at in coverage_points(packed,checksum)) for packed,checksum in points))
+                    published.append((lo,hi))
+                require(not _subtract_intervals(covered_tail,published))
+            proof_ids[family]=proof_id
+    return dict(economic_interval_recovered=True,original_queue_acknowledgement_verified=False,
+        original_source_drain_pass=False,preserved_economic_observation_sha256=ECONOMIC_REPLAY_OBSERVATION_SHA256,
+        preserved_economic_session_sha256=ECONOMIC_REPLAY_SESSION_SHA256,
+        economic_replay_lower_slot=457828555,economic_replay_upper_slot=457828563,
+        economic_replay_proof_ids=proof_ids,retained_economic_tail_lower_slot=457828564,
+        retained_economic_tail_upper_slot=457828663,retained_economic_tail_unavailable=tail_unavailable,
+        economic_tail_continuity_verified=True,economic_tail_recovered=not tail_unavailable)
+
+
 def historical_observation_boundary(state_or_db):
     """Observe one retained incident; never discharge its unknown callbacks.
 
     The ordinary source guard still refuses these incidents. A previous current
-    observation must have fully drained or match the exact preserved unavailable
-    program-log boundary. RUNNING still contains crashes without a terminal.
+    observation must have fully drained or match an exact independently proved
+    retained boundary. RUNNING still contains crashes without a terminal.
     """
     from .solana_evidence_plane import EvidenceUnavailable
     db=state_or_db.writer.db if hasattr(state_or_db,'writer') else state_or_db
@@ -218,17 +406,34 @@ def historical_observation_boundary(state_or_db):
     if handlers is not None and _retained_handlers(handlers):
         program_gap=_preserved_program_gap_observation(db,handlers,current)
     preserved_current=bool(program_gap) and hashlib.sha256((current or '').encode()).hexdigest()==PROGRAM_GAP_OBSERVATION_SHA256
+    economic={}
+    economic_current=hashlib.sha256((current or '').encode()).hexdigest()==ECONOMIC_REPLAY_OBSERVATION_SHA256
+    archived_economic=_health_from_db(db,OBSERVATION_DRAIN_KEY+'_preserved.'+ECONOMIC_REPLAY_OBSERVATION_SHA256,SOURCE_DRAIN_BYTES)
+    # The original immutable session/jobs retain the incident's existence even
+    # if its preserved raw health row is missing. A later DRAINED marker cannot
+    # erase that obligation by falling back to the older observation boundary.
+    tables={row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name IN ('acquisition_observations','acquisition_jobs')")}
+    economic_retained=('acquisition_observations' in tables and db.execute(
+        'SELECT 1 FROM acquisition_observations WHERE id=232141').fetchone() is not None)
+    if 'acquisition_jobs' in tables:
+        economic_retained=economic_retained or db.execute('SELECT 1 FROM acquisition_jobs WHERE id IN (?,?) LIMIT 1',
+            ('14d4934f494420ad68ebcb7d3e2a2916ccdef01480a2276678190c7f71dfca10',
+             '7284a3d280600866471e2814a2fc12c7a5682e8138756262b68379e32f32d43b')).fetchone() is not None
+    if economic_current or archived_economic is not None or economic_retained:
+        if not program_gap:raise EvidenceUnavailable('source_observation_economic_replay_unverified')
+        economic=_preserved_economic_replay_observation(db,current)
     if current is not None:
         body=_retained_census(current)
-        if not preserved_current and (not _observation_reference(body) or body['state']!='DRAINED'
+        if not preserved_current and not economic_current and (not _observation_reference(body) or body['state']!='DRAINED'
                 or body['pending_handlers'] or not _committed_census(body)
                 or not _current_observation_identity(body)):
             raise EvidenceUnavailable('source_observation_current_drain_unresolved')
-    elif program_gap:raise EvidenceUnavailable('source_observation_current_drain_unresolved')
+    elif program_gap or economic:raise EvidenceUnavailable('source_observation_current_drain_unresolved')
     return dict(eligible=True,historical_source_drain_sha256=HISTORICAL_OBSERVATION_SHA256,
         historical_unknown_handlers=2,historical_recovery_verified=False,
-        source_drain_preserved_in_place=True,current_observation_state='PRESERVED_PROGRAM_GAP' if preserved_current else 'ABSENT' if current is None else 'DRAINED',
-        current_observation_sha256=None if current is None else hashlib.sha256(current.encode()).hexdigest(),**program_gap)
+        source_drain_preserved_in_place=True,current_observation_state='PRESERVED_ECONOMIC_REPLAY' if economic_current else 'PRESERVED_PROGRAM_GAP' if preserved_current else 'ABSENT' if current is None else 'DRAINED',
+        current_observation_sha256=None if current is None else hashlib.sha256(current.encode()).hexdigest(),**program_gap,**economic)
 
 
 def _require_observation_funding_closed():
@@ -348,6 +553,10 @@ def begin_source_observation(state,boundary,body,*,handler_boundary=None):
             if hashlib.sha256(failed.encode()).hexdigest()==PROGRAM_GAP_OBSERVATION_SHA256:
                 _preserve_drain_bytes(state,OBSERVATION_DRAIN_KEY,failed,SOURCE_DRAIN_BYTES)
             _preserve_drain_bytes(state,HANDLER_RECOVERY_KEY,handler_boundary,HandlerLedger.maximum_bytes)
+        if previous.get('economic_interval_recovered'):
+            failed=_health_from_db(state.writer.db,OBSERVATION_DRAIN_KEY,SOURCE_DRAIN_BYTES)
+            if hashlib.sha256(failed.encode()).hexdigest()==ECONOMIC_REPLAY_OBSERVATION_SHA256:
+                _preserve_drain_bytes(state,OBSERVATION_DRAIN_KEY,failed,SOURCE_DRAIN_BYTES)
         state.fence._health(OBSERVATION_DRAIN_KEY,current)
         return _retained_health(state,OBSERVATION_DRAIN_KEY,SOURCE_DRAIN_BYTES)
 

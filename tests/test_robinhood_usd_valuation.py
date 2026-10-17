@@ -367,13 +367,59 @@ def survivor_monitor_replay_predecessor(test,relative,current,*,allow_previous_l
     return prior
 
 
+# Authenticated archive economics and FULL consumer proofs can establish this
+# exact failed session's funding-closed observation boundary. Preserve its false
+# queue census, historical callbacks and unavailable tail. Pin the whole source
+# and reverse only this reviewed delta before every older recovery guard.
+RECOVERED_ECONOMIC_BOUNDARY_REFERENCE='c7c1f6bca52e5d53eb49aed75b6e245f7bbbb225'
+RECOVERED_ECONOMIC_BOUNDARY_SOURCE='meme_machine/solana_source_drain.py'
+RECOVERED_ECONOMIC_BOUNDARY_BEFORE='f23c5307d7340d93187a94543790503c5ce3622a91b684de326c5ba869747da0'
+RECOVERED_ECONOMIC_BOUNDARY_AFTER='b134816293702970d42a93e2108067764c52cd1c4641c292ce7e1c2024d031c1'
+RECOVERED_ECONOMIC_BOUNDARY_ASSIGNMENTS=(
+    'ECONOMIC_REPLAY_OBSERVATION_SHA256','ECONOMIC_REPLAY_SESSION_SHA256','ECONOMIC_REPLAY_JOBS',
+    'ECONOMIC_REPLAY_NATIVE_HASH','ECONOMIC_REPLAY_NATIVE_CENSUS')
+
+
+def recovered_economic_boundary_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=RECOVERED_ECONOMIC_BOUNDARY_SOURCE:return current
+    prior=subprocess.check_output(['git','show',RECOVERED_ECONOMIC_BOUNDARY_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),RECOVERED_ECONOMIC_BOUNDARY_BEFORE,
+        relative+':exact economic-boundary predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),RECOVERED_ECONOMIC_BOUNDARY_AFTER,
+        relative+':exact economic-boundary successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def function(root,name):
+        return next(n for n in root.body if isinstance(n,ast.FunctionDef) and n.name==name)
+    for name in ('historical_observation_boundary','begin_source_observation'):
+        selected=function(tree,name);original=function(old,name)
+        test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':explicit economic-boundary node '+name)
+        tree.body[tree.body.index(selected)]=deepcopy(original)
+    added=function(tree,'_preserved_economic_replay_observation');tree.body.remove(added)
+    with test.assertRaises(StopIteration):function(old,'_preserved_economic_replay_observation')
+    for name in RECOVERED_ECONOMIC_BOUNDARY_ASSIGNMENTS:
+        def matching(root):
+            return [n for n in root.body if isinstance(n,ast.Assign) and len(n.targets)==1
+                and isinstance(n.targets[0],ast.Name) and n.targets[0].id==name]
+        matches=matching(tree)
+        test.assertEqual(len(matches),1,relative+':one exact recovered-session identity '+name)
+        test.assertEqual(matching(old),[],relative+':explicit recovered-session addition '+name)
+        tree.body.remove(matches[0])
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':all other recovery, financial and strategy source retained')
+    return prior
+
+
 # Preserve the exact failed program-log observation without declaring its
 # callback complete. This one-file boundary delta reverses to D06 before any
 # earlier guard runs; its entire financial/source mutation surface stays pinned.
 PROGRAM_GAP_OBSERVATION_REFERENCE='d06e37a050847e607db5d5649a00535beb1a58ee'
 PROGRAM_GAP_OBSERVATION_SOURCE='meme_machine/solana_source_drain.py'
 PROGRAM_GAP_OBSERVATION_BEFORE='b3b67f0bee582fc0a0054a6b591dd28ddb3b867df4a65b78604675cfb944bfba'
-PROGRAM_GAP_OBSERVATION_AFTER='f23c5307d7340d93187a94543790503c5ce3622a91b684de326c5ba869747da0'
+PROGRAM_GAP_OBSERVATION_AFTER=RECOVERED_ECONOMIC_BOUNDARY_AFTER
+PROGRAM_GAP_OBSERVATION_LAYER_AFTER='f23c5307d7340d93187a94543790503c5ce3622a91b684de326c5ba869747da0'
 PROGRAM_GAP_OBSERVATION_ADDITIONS=(
     "PROGRAM_GAP_OBSERVATION_SHA256='948743b18d0a33cc85391d07ea4a4ae9dad34110c169ca95945a04473d6db228'",
     "PROGRAM_GAP_HANDLER_SHA256='29f00e3d71c40e1d306f50263b84f1ec25e455e20d112a5f04fdef25293d0fb0'",
@@ -390,7 +436,8 @@ def program_gap_observation_predecessor(test,relative,current):
     test.assertEqual(hashlib.sha256(prior).hexdigest(),PROGRAM_GAP_OBSERVATION_BEFORE,
         relative+':exact preserved-program-gap predecessor')
     if current==prior:return prior
-    test.assertEqual(hashlib.sha256(current).hexdigest(),PROGRAM_GAP_OBSERVATION_AFTER,
+    current=recovered_economic_boundary_predecessor(test,relative,current)
+    test.assertEqual(hashlib.sha256(current).hexdigest(),PROGRAM_GAP_OBSERVATION_LAYER_AFTER,
         relative+':exact preserved-program-gap successor')
     tree=ast.parse(current);old=ast.parse(prior)
     def function(root,name):
@@ -1551,6 +1598,47 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_recovered_economic_boundary_preserves_failed_census_and_all_previous_guards(self):
+        import hashlib
+        relative=RECOVERED_ECONOMIC_BOUNDARY_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),RECOVERED_ECONOMIC_BOUNDARY_AFTER,
+            relative+':active exact recovered-economic boundary source')
+        prior=subprocess.check_output(['git','show',RECOVERED_ECONOMIC_BOUNDARY_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(hashlib.sha256(prior).hexdigest(),PROGRAM_GAP_OBSERVATION_LAYER_AFTER,
+            relative+':independently pinned previous program-gap source')
+        self.assertEqual(recovered_economic_boundary_predecessor(self,relative,current),prior)
+        self.assertEqual(recovered_economic_boundary_predecessor(self,relative,prior),prior)
+        self.assertEqual(program_gap_observation_predecessor(self,relative,current),
+            program_gap_observation_predecessor(self,relative,prior))
+        self.assertEqual(rally_predecessor(self,relative,current),rally_predecessor(self,relative,prior))
+        self.assertEqual(opportunity_predecessor(self,relative,current),
+            opportunity_predecessor(self,relative,prior))
+        changes=[current+b'\n# unreviewed economic-boundary change\n',b'']
+        for previous,successor in (
+                (b"body.get('all_accepted_committed') is False",b"body.get('all_accepted_committed') is True"),
+                (b"('rolling',191,183)",b"('rolling',191,191)"),
+                (b"original_queue_acknowledgement_verified=False",b"original_queue_acknowledgement_verified=True"),
+                (b"original_source_drain_pass=False",b"original_source_drain_pass=True"),
+                (b"and lifecycle.unconsumed(scope) is None",b'and True'),
+                (b"rolling.missing(family,scope,457828555,457828563)==[]",b'True'),
+                (b"retained_economic_tail_unavailable=tail_unavailable",b"retained_economic_tail_unavailable=False"),
+                (b"require(not _subtract_intervals(covered_tail,published))",b'require(True)'),
+                (b"if economic_current or archived_economic is not None or economic_retained:",
+                    b"if economic_current or archived_economic is not None:"),
+                (b"SELECT 1 FROM acquisition_observations WHERE id=232141",b"SELECT 1 FROM acquisition_observations WHERE id=0"),
+                (b"SELECT 1 FROM acquisition_jobs WHERE id IN (?,?) LIMIT 1",b"SELECT 1 FROM acquisition_jobs WHERE id NOT IN (?,?) LIMIT 1"),
+                (b"_preserve_drain_bytes(state,OBSERVATION_DRAIN_KEY,failed,SOURCE_DRAIN_BYTES)",b'pass'),
+                (b"        _require_observation_funding_closed()\n",b'        pass\n'),
+                (b"historical_recovery_verified=False",b"historical_recovery_verified=True")):
+            self.assertIn(previous,current,relative+':negative mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):recovered_economic_boundary_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):program_gap_observation_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):rally_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_archive_complete_logs_reverse_exactly_and_reject_unverified_source(self):
         import hashlib
         mutations={
