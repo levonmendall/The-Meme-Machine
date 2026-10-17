@@ -21,10 +21,39 @@
       "seconds": 15.387,
       "result": "PASS",
       "skips": 0
+    },
+    {
+      "log": "native-harness-d13ee763-integrated-focused.log",
+      "sha256": "642ca4100a75711c9e4d2567b564fbf6fefa17c717e87ed8a5f2a1247c8c8682",
+      "bytes": 74378,
+      "tests": 357,
+      "seconds": 56.048,
+      "result": "PASS",
+      "skips": 0
     }
   ],
   "financial_writes": 0,
   "provider_requests": 0,
   "normal_operation_authorized": false,
-  "full_market_parity_proven": false
+  "full_market_parity_proven": false,
+  "latest_runtime_component_head": "d13ee763",
+  "components_since_checkpoint": {
+    "market_heads": "ec042023",
+    "HTTP_EOF_accounting": "792ba23b",
+    "parent_RPC_bounds": "d13ee763",
+    "pipe_workers": "968c2961",
+    "pipe_startup_owner": "9ffddbb9",
+    "command_broker_and_checkpoint_lane": "69f44f07",
+    "stream_read_lane": "ae4d2429",
+    "genuine_source_fixture": "c248bb13",
+    "main_canary_merge": "34c5c2a5"
+  },
+  "remaining_capability_gaps": [
+    "AWS unprivileged kernel isolation unverified; corrected fixed canary pending",
+    "authenticated parent lifecycle integration and actual SDK owners",
+    "retained production-equivalent restoration import",
+    "true matched economic cohort accounting",
+    "frozen exact source/economic guard layer",
+    "live concurrent capacity acceptance"
+  ]
 }
