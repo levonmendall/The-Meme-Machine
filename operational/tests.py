@@ -5,6 +5,7 @@ FAST=[
  'tests.test_isolated_native_entry',
  'tests.test_isolated_pons_current',
  'tests.test_isolated_native_bootstrap',
+ 'tests.test_parent_sequencer_clock',
  'tests.test_isolated_rpc_ports',
  'tests.test_child_transport',
  'tests.test_isolated_native_execution',

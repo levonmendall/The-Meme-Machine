@@ -398,6 +398,43 @@ class _WebSocket:
                         raise BoundaryError("sequencer_feed_non_utf8") from None
 
 
+class _ParentSequencerClient:
+    """Socket-shaped read adapter; all external bytes belong to the parent.
+
+    Local socket-style timeouts poll the same accepted native read. They do not
+    close/reopen the feed or buy another reservation. Transport-memory ACKs have
+    already occurred before the unchanged native clock parses the payload.
+    """
+    def __init__(self,stream,timeout):
+        from meme_machine.operational.child_transport import require_native_stream
+        self.stream=require_native_stream(stream,transport='robinhood_sequencer')
+        if (self.stream.source.family!='robinhood'
+                or self.stream.source.operation!='pons_discovery'
+                or self.stream.source.read_class!='native'
+                or not self.stream.observation_only):
+            raise BoundaryError('sequencer_parent_source')
+        self.timeout=float(timeout)
+        self.sock=self
+
+    def settimeout(self,value):self.timeout=float(value)
+
+    def recv_message(self):
+        from meme_machine.operational.child_transport import ChildParentFailure
+        try:body=self.stream.read(timeout=self.timeout)
+        except TimeoutError:raise socket.timeout('sequencer_parent_idle') from None
+        except ChildParentFailure as error:
+            if str(error) in ('candidate_native_unavailable','candidate_native_cancelled',
+                    'candidate_native_deadline_exceeded'):
+                raise OSError('sequencer_parent_transport_lost') from None
+            raise
+        if body is None:return None
+        if type(body) is not bytes:raise BoundaryError('sequencer_parent_payload')
+        try:return body.decode('utf-8')
+        except UnicodeDecodeError:raise BoundaryError('sequencer_feed_non_utf8') from None
+
+    def close(self):self.stream.close()
+
+
 class SequencerBlockClock:
     """Persistent observation-only L2 block clock for Pons discovery.
 
@@ -407,8 +444,14 @@ class SequencerBlockClock:
     through the governed directional evidence RPC.
     """
 
-    def __init__(self, url=None, *, timeout=5.0):
-        self.url=url or feed_url()
+    def __init__(self, url=None, *, timeout=5.0,parent_stream=None):
+        if parent_stream is not None:
+            if url is not None:raise BoundaryError('sequencer_parent_url_forbidden')
+            # Validate exact source/instance ownership before any native state or
+            # URL lookup. A provenance hash is never used to manufacture a URL.
+            _ParentSequencerClient(parent_stream,timeout)
+        self._parent_stream=parent_stream
+        self.url=(url or feed_url()) if parent_stream is None else None
         self.timeout=float(timeout)
         self.state=SequencerFeedState()
         self.client=None
@@ -419,9 +462,14 @@ class SequencerBlockClock:
 
     def connect(self):
         if self.client is None:
-            self.client=_WebSocket(
-                self.url,timeout=self.timeout
-            ).connect()
+            if self._parent_stream is None:
+                self.client=_WebSocket(self.url,timeout=self.timeout).connect()
+            else:
+                stream=self._parent_stream
+                if stream.closed:
+                    stream=stream.channel.native_open(stream.source)
+                    self._parent_stream=stream
+                self.client=_ParentSequencerClient(stream,self.timeout)
         return self
 
     def close(self):
