@@ -31,6 +31,7 @@ from .native_landlock_policy import NativePolicy, NativePolicyBlocked, PROFILE
 OUTPUT_BOUND=65536
 SETUP_BOUND=1024*1024+16384
 NATIVE_WALL=1865
+STOP_GRACE=65
 
 
 def _prctl(kernel,option,value,code):
@@ -164,6 +165,15 @@ class _NativeCancellation:
         except ProcessLookupError:pass
 
 
+def _reset_native_child_signals(cancellation):
+    # The forked copy initially owns the supervisor's remembering handler. A
+    # TERM delivered before these resets must remain a stop, rather than being
+    # consumed and then forgotten when the native entry installs its handlers.
+    for number in (signal.SIGTERM,signal.SIGINT):signal.signal(number,signal.SIG_DFL)
+    if cancellation.requested:
+        raise NativePolicyBlocked('native_landlock_cancelled_before_entry')
+
+
 def _setup(value):
     value=_packet(value);kernel=NativePolicy()
     image.require(os.geteuid()!=0 and os.listdir('/proc/self/task')==[str(os.getpid())],
@@ -191,7 +201,9 @@ def _setup(value):
         _prctl(kernel,36,1,'native_landlock_subreaper_refused')
         supervisor=os.getpid();child=os.fork()
         if child==0:
-            try:_exec_native(value,binding,supervisor)
+            try:
+                _reset_native_child_signals(cancellation)
+                _exec_native(value,binding,supervisor)
             except BaseException as error:
                 _report_failure(error)
                 os._exit(2)
@@ -212,7 +224,7 @@ def _wait_unreaped(process,deadline):
     while True:
         state=os.waitid(os.P_PID,process.pid,os.WEXITED|os.WNOHANG|os.WNOWAIT)
         if state is not None:return True
-        remaining=deadline-time.monotonic()
+        remaining=(deadline() if callable(deadline) else deadline)-time.monotonic()
         if remaining<=0:return False
         time.sleep(min(.05,remaining))
 
@@ -223,11 +235,39 @@ class NativeLandlockChild:
         self.child=child;self.deadline=started+NATIVE_WALL
         self.output={'stdout':bytearray(),'stderr':bytearray()}
         self.failure=None;self._reaped=False;self._lock=threading.RLock();self._wait_lock=threading.Lock()
+        self._stop_deadline=None
         self._reader=threading.Thread(target=self._drain,name='native-landlock-output',daemon=True)
         try:self._reader.start()
-        except BaseException:
-            self._signal(signal.SIGKILL);self.child.wait(timeout=2);self._reaped=True
-            self.child.stdout.close();self.child.stderr.close();raise
+        except BaseException as primary:
+            # Retain the physical owner even if cleanup itself fails. In
+            # particular Thread.start may raise after actually starting it.
+            primary.native_landlock_owner=self
+            cleanup=None
+            for operation in (lambda:self._signal(signal.SIGKILL),self._constructor_reap,
+                    lambda:self.child.stdin.close() if self.child.stdin is not None else None):
+                try:operation()
+                except BaseException as error:
+                    if cleanup is None:cleanup=error
+            if self._reader.ident is not None:
+                try:self._reader.join(timeout=2)
+                except BaseException as error:
+                    if cleanup is None:cleanup=error
+            if self._reader.is_alive():
+                self.failure='native_landlock_output_owner_alive'
+            else:
+                for stream in (self.child.stdout,self.child.stderr):
+                    try:stream.close()
+                    except BaseException as error:
+                        if cleanup is None:cleanup=error
+            if cleanup is not None:raise primary from cleanup
+            raise
+
+    def _constructor_reap(self):
+        self.child.wait(timeout=2);self._reaped=True
+
+    def _effective_deadline(self,local):
+        with self._lock:
+            return min(local,self.deadline,self._stop_deadline if self._stop_deadline is not None else self.deadline)
 
     def _signal(self,number):
         with self._lock:
@@ -260,17 +300,21 @@ class NativeLandlockChild:
             self.failure='native_landlock_output_unavailable';self._signal(signal.SIGKILL)
 
     def stop(self):
+        with self._lock:
+            requested=min(self.deadline,time.monotonic()+STOP_GRACE)
+            self._stop_deadline=min(requested,self._stop_deadline) if self._stop_deadline is not None else requested
         self._signal(signal.SIGTERM)
-        return self.wait(seconds=65)
+        return self.wait(seconds=STOP_GRACE)
 
     def wait(self,*,seconds=None):
         image.require(seconds is None or type(seconds) in (int,float) and 0<seconds<=NATIVE_WALL,
             'native_landlock_wait_bound')
+        deadline=min(self.deadline,time.monotonic()+seconds) if seconds is not None else self.deadline
         with self._wait_lock:
             with self._lock:already=self._reaped
             if not already:
-                deadline=min(self.deadline,time.monotonic()+seconds) if seconds is not None else self.deadline
-                if not _wait_unreaped(self.child,deadline):self.failure=self.failure or 'native_landlock_shutdown_expired'
+                if not _wait_unreaped(self.child,lambda:self._effective_deadline(deadline)):
+                    self.failure=self.failure or 'native_landlock_shutdown_expired'
                 # Always signal the original group BEFORE reaping the leader,
                 # even after a clean leader exit, to contain any orphaned task.
                 self._signal(signal.SIGKILL)
@@ -279,10 +323,12 @@ class NativeLandlockChild:
                     except subprocess.TimeoutExpired:
                         return self._blocked('native_landlock_child_not_reaped')
                     self._reaped=True
-            self._reader.join(timeout=2)
+            if self._reader.ident is not None:self._reader.join(timeout=2)
             if self._reader.is_alive():return self._blocked('native_landlock_output_owner_alive')
             self.child.stdout.close();self.child.stderr.close()
             if self.failure:return self._blocked(self.failure)
+            if self.child.returncode==125:
+                return self._blocked('native_landlock_descendants_not_joined')
             try:receipt=json.loads(bytes(self.output['stdout']))
             except (ValueError,UnicodeError,RecursionError):return self._blocked('native_landlock_result_unavailable')
             if type(receipt) is not dict or receipt.get('financial_authority') is not False:

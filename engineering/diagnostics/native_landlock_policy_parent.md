@@ -24,10 +24,16 @@ NULL-destination send/recv, own-limit/affinity queries, native SQLite file locks
 nonblocking/CLOEXEC descriptor flags, and arming SIGKILL parent-death only.
 Network/socket creation, connect/bind/listen/accept, message vectors/SCM_RIGHTS,
 async fcntl/PID ownership, namespace/privilege changes, metadata setters,
-scheduler/ioprio/process-limit setters, foreign-PID queries, process_vm/ptrace,
+scheduler/ioprio and unrelated process-limit setters, foreign-PID queries, process_vm/ptrace,
 new kernel APIs and unreviewed flags remain denied. Positive-PID TERM/KILL is
 also restricted by Landlock's signal scope. The static canary's deny-list filter
 is not reused as the native filter.
+
+The actual unchanged history initializer needs self AS/NOFILE reductions and
+nice5. Those are narrow exceptions; no foreign PID, other resource, priority
+class or nice value is admitted. Kernel nonroot hard ceilings remain required.
+The coupled native-main initial AS ceiling still needs its explicit launch
+bound and copied-runtime validation before this component can be accepted.
 
 Path rules install before syscall restrictions and the fixed private exec.
 Descriptor cleanup attempts every owned temporary handle even on partial failure.
@@ -58,21 +64,30 @@ checks WNOWAIT/ECHILD before forwarding TERM to its unreaped native child.
 The source can then drain accepted decoder/history jobs using its original
 shutdown protocol; an external group TERM must not kill those jobs prematurely.
 Cancellation before fork is remembered; a signal after native reap cannot target
-a reused PID. Hard KILL still targets the whole original owned process group.
+a reused PID. A forked child's inherited remembering handler is reset and its
+remembered cancellation checked before native preparation. Hard KILL still
+targets the whole original owned process group.
 The outer parent holds its session-leader PID with WNOWAIT until group KILL,
 then reaps it. Its original 65s stop and 1,865s wall bounds remain unchanged.
 Output stays bounded at 64KiB per stream, including failures.
+Concurrent waiters consult the first stop request's shared, nonextending deadline;
+waiting for another waiter never starts a second grace interval. Supervisor125
+always refuses graceful/all-worker claims, even if the native receipt was already
+BLOCKED. Reader-construction failures close the setup stdin pipe and retain the
+physical owner on the original exception when cleanup is incomplete.
 
 ## Current evidence and limitations
 
-Fourteen focused cases pass, including an actual seccomp-installed process using
+Seventeen focused cases pass, including an actual seccomp-installed process using
 threads, anonymous socketpair send/recv and SQLite FULL/WAL. Pure BPF tests
 exercise argument halves and negative privilege/PID/async/destination/unknown
 paths. Real disposable subprocess cases prove original tracker EOF followed by
 subreaper ECHILD; cancellation-before-fork and safe refusal after reap; accepted
 worker completion under the supervisor TERM relay; hard group KILL before leader
 reap; rogue descendant failure versus containment; output overflow; and reader
-thread-start failure cleanup. These subprocess fixtures do not claim Landlock,
+thread-start failure cleanup, inherited stop delivery, concurrent stop/wait and
+the unchanged history initializer's actual limits/nice under the filter. These
+subprocess fixtures do not claim Landlock,
 copied-image or full-native economic acceptance.
 
 Command:
@@ -84,7 +99,8 @@ dependency was removed in favor of kernel waitpid ownership. Its failure scratch
 is retained at `/tmp/mm-engineering-iout9c0l`.
 
 Independent code review found no material blocker in the frozen native policy;
-the launcher and actual coupled copied-Python 2+1 worker/tracker execution still
+four subsequent launcher findings have scoped correction regressions and await
+independent recheck. Actual coupled copied-Python 2+1 worker/tracker execution still
 need their separate integrated validation and review. Actual AWS ABI8 static
 canary success is a separate receipt and does not prove this native route.
 No full release, provider operation, deployment, retained restoration authority,

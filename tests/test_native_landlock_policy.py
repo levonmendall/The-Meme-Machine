@@ -1,8 +1,10 @@
 """Pure filter interpretation plus explicit syscall-only disposable processes."""
 import errno
 import fcntl
+import json
 import os
 from pathlib import Path
+import resource
 import signal
 import socket
 import struct
@@ -35,7 +37,7 @@ class NativeFilterTests(unittest.TestCase):
         self.assertEqual(result(0,arch=0x40000003),policy.KILL)
         self.assertEqual(result(0x40000000),policy.DENY)
         for number in (41,42,43,46,47,49,50,54,101,105,106,109,112,113,114,116,117,119,
-                126,132,140,141,142,143,144,145,146,147,148,160,161,165,166,167,168,
+                126,132,142,143,144,145,146,147,148,160,161,165,166,167,168,
                 169,172,173,175,176,188,189,190,200,235,240,241,242,243,244,245,
                 246,248,249,250,251,252,260,261,268,272,274,280,288,298,299,307,
                 308,310,311,312,313,317,319,320,321,323,324,425,426,427,428,429,
@@ -80,6 +82,19 @@ class NativeFilterTests(unittest.TestCase):
         self.assertEqual(result(302,0,3,0,1024),policy.ALLOW)
         self.assertEqual(result(302,1,3,0,1024),policy.DENY)
         self.assertEqual(result(302,0,3,1024,1024),policy.DENY)
+        for value in (resource.RLIMIT_AS,resource.RLIMIT_NOFILE):
+            self.assertEqual(result(302,0,value,1024,0),policy.ALLOW)
+            self.assertEqual(result(302,0,value,1<<32,0),policy.ALLOW)
+            self.assertEqual(result(302,1234,value,1024,0),policy.DENY)
+        for value in (resource.RLIMIT_CPU,resource.RLIMIT_STACK,resource.RLIMIT_NPROC,resource.RLIMIT_CORE):
+            self.assertEqual(result(302,0,value,1024,0),policy.DENY)
+        self.assertEqual(result(140,os.PRIO_PROCESS,0),policy.ALLOW)
+        self.assertEqual(result(141,os.PRIO_PROCESS,0,5),policy.ALLOW)
+        for number in (140,141):
+            self.assertEqual(result(number,os.PRIO_PGRP,0,5),policy.DENY)
+            self.assertEqual(result(number,os.PRIO_PROCESS,1234,5),policy.DENY)
+        for value in (0,4,6,20,2**32-1):
+            self.assertEqual(result(141,os.PRIO_PROCESS,0,value),policy.DENY)
         self.assertEqual(result(204,0),policy.ALLOW)
         self.assertEqual(result(204,1234),policy.DENY)
         for number in (0,signal.SIGTERM,signal.SIGKILL):self.assertEqual(result(62,1235,number),policy.ALLOW)
@@ -113,6 +128,42 @@ class NativeFilterTests(unittest.TestCase):
 
 
 class ActualNativeSeccompTests(unittest.TestCase):
+    def test_unchanged_history_initializer_retains_actual_limits_and_nice_under_filter(self):
+        program=r'''
+import ctypes,errno,json,os,resource,sys
+sys.path[:0]=[sys.argv[1],sys.argv[2]]
+from meme_machine.operational.native_landlock_policy import NativePolicy
+from meme_machine.solana_history_work import _isolated_worker_limits
+assert os.getpriority(os.PRIO_PROCESS,0)==0
+resource.setrlimit(resource.RLIMIT_AS,(2*1024**3,2*1024**3))
+_,hard=resource.getrlimit(resource.RLIMIT_NOFILE)
+ceiling=min(65536,hard) if hard!=resource.RLIM_INFINITY else 65536
+resource.setrlimit(resource.RLIMIT_NOFILE,(ceiling,ceiling))
+kernel=NativePolicy()
+kernel.call(157,ctypes.c_int(38),ctypes.c_ulong(1),ctypes.c_ulong(0),ctypes.c_ulong(0),ctypes.c_ulong(0),code='fixture_nnp')
+kernel.seccomp();_isolated_worker_limits()
+assert resource.getrlimit(resource.RLIMIT_AS)==(512*1024**2,512*1024**2)
+assert resource.getrlimit(resource.RLIMIT_NOFILE)==(128,128)
+assert os.getpriority(os.PRIO_PROCESS,0)==5
+limit=(ctypes.c_ulong*2)(0,0)
+for args in ((302,os.getppid(),resource.RLIMIT_AS,0,ctypes.byref(limit)),
+ (302,0,resource.RLIMIT_CORE,ctypes.byref(limit),0),
+ (141,os.PRIO_PROCESS,0,0),(141,os.PRIO_PGRP,0,5),(144,0,os.SCHED_OTHER,ctypes.byref(limit))):
+ ctypes.set_errno(0)
+ assert kernel.libc.syscall(*args)==-1 and ctypes.get_errno()==errno.EPERM,args
+try:resource.setrlimit(resource.RLIMIT_AS,(1024**3,1024**3))
+except (ValueError,PermissionError):pass
+else:raise AssertionError('original hard AS protection raised')
+os.write(1,b'{"actual_history_limits":true,"landlock_verified":false}\n')
+'''
+        with Scratch() as scope:
+            done=subprocess.run([sys.executable,'-I','-B','-S','-c',program,
+                str(Path(__file__).resolve().parents[1]),str(Path(sys.prefix)/'lib/python3.12/site-packages')],stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=10)
+            self.assertEqual(done.returncode,0,done.stderr.decode(errors='replace'))
+            self.assertEqual(json.loads(done.stdout),dict(actual_history_limits=True,landlock_verified=False))
+            scope.check();scope.success=True
+
     def test_actual_threads_socketpair_and_sqlite_full_under_default_deny_filter(self):
         # A syscall-policy fixture only: this does not fake a successful
         # Landlock syscall, copied image or provider/native acceptance result.
