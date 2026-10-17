@@ -307,6 +307,62 @@ def survivor_increment_continuity_predecessor(test,relative,current):
     return prior
 
 
+# An empty hot sleeve prefix needs no optional backup/compaction. The positive
+# read-only precheck changes scheduling only: the original open, full replay,
+# native authority and reconciliation remain exact before older strategy guards.
+SLEEVE_EMPTY_PREFIX_REFERENCE='446dba55a81a851252ef4253bb9f62f5c25ed80b'
+SLEEVE_EMPTY_PREFIX_SOURCE='meme_machine/runtime/sleeve_reservations.py'
+SLEEVE_EMPTY_PREFIX_BEFORE='489bedd30cb1018cc7e61e8b9c0b93ecd663b9f47fad9c3a2230bc3fdce6bb3f'
+SLEEVE_EMPTY_PREFIX_AFTER='928a4e250221c3638efbadc52efa6f6718df0c275c7c112882ae90663d356fe7'
+SLEEVE_EMPTY_PREFIX_IMPORT_OLD=b'from contextlib import contextmanager\n'
+SLEEVE_EMPTY_PREFIX_IMPORT_NEW=b'from contextlib import closing, contextmanager, nullcontext\n'
+
+
+def sleeve_empty_prefix_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=SLEEVE_EMPTY_PREFIX_SOURCE:return current
+    prior=subprocess.check_output(['git','show',SLEEVE_EMPTY_PREFIX_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),SLEEVE_EMPTY_PREFIX_BEFORE,
+        relative+':exact original complete sleeve source')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),SLEEVE_EMPTY_PREFIX_AFTER,
+        relative+':exact empty-prefix optional compaction scheduling successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def method(root,name):
+        parent=next(n for n in root.body if isinstance(n,ast.ClassDef) and n.name=='SleeveReservations')
+        return parent,next(n for n in parent.body
+            if isinstance(n,ast.FunctionDef) and n.name==name)
+    def source(body,selected):
+        first=min(selected.lineno,*(n.lineno for n in selected.decorator_list)) if selected.decorator_list else selected.lineno
+        return b''.join(body.splitlines(keepends=True)[first-1:selected.end_lineno])
+    parent,selected=method(tree,'__init__');_,original=method(old,'__init__')
+    test.assertEqual(ast.dump(selected.args),ast.dump(original.args),relative+':unchanged sleeve constructor interface')
+    test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':only the declared constructor changes')
+    test.assertIsInstance(selected.body[-1],ast.With)
+    test.assertIsInstance(original.body[-1],ast.With)
+    test.assertEqual([ast.dump(n) for n in selected.body[-1].body],
+        [ast.dump(n) for n in original.body[-1].body],
+        relative+':original open, optional compaction and exception cleanup still run in the same order')
+    for name in ('_open','_compact_preserved','reconcile','reserve','release','commit_fence'):
+        _,node=method(tree,name);_,previous=method(old,name)
+        test.assertEqual(source(current,node),source(prior,previous),
+            relative+':original financial and recovery method retained '+name)
+    before=source(prior,original);after=source(current,selected)
+    test.assertEqual(current.count(after),1,relative+':one exact constructor delta')
+    test.assertEqual(current.count(SLEEVE_EMPTY_PREFIX_IMPORT_NEW),1,relative+':one exact contextlib import delta')
+    restored=current.replace(after,before,1).replace(SLEEVE_EMPTY_PREFIX_IMPORT_NEW,SLEEVE_EMPTY_PREFIX_IMPORT_OLD,1)
+    test.assertEqual(restored,prior,relative+':every other source, replay, protection and financial byte retained')
+    parent.body[parent.body.index(selected)]=deepcopy(original)
+    imported=ast.parse(SLEEVE_EMPTY_PREFIX_IMPORT_NEW).body[0]
+    matches=[n for n in tree.body if ast.dump(n)==ast.dump(imported)]
+    test.assertEqual(len(matches),1,relative+':one contextlib AST delta')
+    tree.body[tree.body.index(matches[0])]=deepcopy(ast.parse(SLEEVE_EMPTY_PREFIX_IMPORT_OLD).body[0])
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':only the reviewed constructor and import nodes change')
+    return prior
+
+
 # The retained provider may omit lines between post-marker observations. Match
 # their exact sequence at distinct positions beyond the verified prefix, while
 # retaining the complete authenticated log array and every earlier source pin.
@@ -1685,6 +1741,8 @@ def rally_delta(before,after):
 def rally_predecessor(test,relative,current,*,allow_previous_layers=False):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
+    if relative==SLEEVE_EMPTY_PREFIX_SOURCE and hashlib.sha256(current).hexdigest()==SLEEVE_EMPTY_PREFIX_AFTER:
+        current=sleeve_empty_prefix_predecessor(test,relative,current)
     current=survivor_increment_continuity_predecessor(test,relative,current)
     current=archive_complete_logs_predecessor(test,relative,current)
     current=native_startup_failure_predecessor(test,relative,current,
@@ -2714,6 +2772,47 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_sleeve_empty_prefix_reverses_only_exact_optional_compaction_scheduling(self):
+        import hashlib
+        relative=SLEEVE_EMPTY_PREFIX_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),SLEEVE_EMPTY_PREFIX_AFTER,
+            relative+':active source must use the exact positive empty-prefix scheduling check')
+        prior=subprocess.check_output(['git','show',SLEEVE_EMPTY_PREFIX_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(sleeve_empty_prefix_predecessor(self,relative,current),prior)
+        self.assertEqual(sleeve_empty_prefix_predecessor(self,relative,prior),prior)
+        self.assertEqual(rally_manifest(self)['files'][relative]['after_sha256'],SLEEVE_EMPTY_PREFIX_BEFORE,
+            relative+':original rally source pin remains unchanged')
+        self.assertEqual(rally_predecessor(self,relative,current),rally_predecessor(self,relative,prior))
+        self.assertEqual(opportunity_predecessor(self,relative,current),opportunity_predecessor(self,relative,prior))
+        changes=[current+b'\n# unreviewed sleeve financial or compaction change\n',b'']
+        for previous,successor in (
+                (b'empty=False',b'empty=True'),
+                (b"if os.environ.get('MM_PAPER_EPOCH'):",b'if True:'),
+                (b'if Path(path).is_file():',b'if True:'),
+                (b"+'?mode=ro',uri=True,timeout=0",b"+'?mode=rwc',uri=True,timeout=0"),
+                (b"+'?mode=ro',uri=True,timeout=0",b"+'?mode=ro',uri=True,timeout=30"),
+                (b'SELECT 1 FROM sleeve_journal LIMIT 1',b'SELECT 1 FROM sleeve_positions LIMIT 1'),
+                (b'empty=journal is None',b'empty=not journal'),
+                (b'empty=journal is None',b'empty=True'),
+                (b'except (OSError,sqlite3.Error):pass',b'except (OSError,sqlite3.Error):empty=True'),
+                (b'nullcontext(None) if empty else',b'nullcontext(None) if not empty else'),
+                (b'nullcontext(None) if empty else',b'nullcontext(None) if True else'),
+                (b'                self._open(path)',b'                if not empty:self._open(path)'),
+                (b'if preserved:self._compact_preserved(*preserved)',b'if False:self._compact_preserved(*preserved)'),
+                (b"if hasattr(self,'db'):self.db.close()",b"if hasattr(self,'db'):pass"),
+                (b"self.db.execute('PRAGMA synchronous=FULL')",b"self.db.execute('PRAGMA synchronous=NORMAL')"),
+                (b"raise ValueError('sleeve_archive_integrity')",b'pass'),
+                (b"raise ValueError('sleeve_archive_state_changed')",b'pass'),
+                (b"raise ValueError('sleeve_capital_exhausted')",b'pass'),
+                (b"raise ValueError('native_terminal_required')",b'pass')):
+            self.assertIn(previous,current,relative+':negative mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):sleeve_empty_prefix_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):rally_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_archive_log_order_reverses_only_exact_distinct_post_prefix_sequence_match(self):
         import hashlib
         relative=ARCHIVE_LOG_ORDER_SOURCE;current=(ROOT/relative).read_bytes()
