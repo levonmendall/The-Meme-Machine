@@ -896,7 +896,13 @@ def run(endpoint,*,campaign=False):
         result['active_regimes']=['pons-selective-continuation-v1','pons-postgrad-survivor-momentum-v1']
     feed=SequencerBlockClock();cursor=0;start_ts=None
     tape=[]
-    queue=Broker(plane_path(ROOT/'candidate-evidence.sqlite'),POLICY_HASH,clock=time.time,source=endpoint,config=result['operational_configuration_hash'])
+    from meme_machine.runtime import status
+    from meme_machine.runtime.stop import requested,Shutdown
+    if requested.is_set():raise Shutdown()
+    with status.operation('pons.candidate_restore'):
+        queue=Broker(plane_path(ROOT/'candidate-evidence.sqlite'),POLICY_HASH,clock=time.time,source=endpoint,
+            config=result['operational_configuration_hash'],startup_cancel=requested.is_set)
+    if requested.is_set():raise Shutdown()
     scout=MarketScout(queue.plane) if campaign else None
     attempts=Attempts(queue.plane)
     saved=queue.plane.checkpoint_read('pons_cohort') if recovered else None

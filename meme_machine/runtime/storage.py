@@ -2,25 +2,61 @@
 import json
 import os
 from pathlib import Path
+import sqlite3
 
 
-def audit_ring(db, table, trigger, *, limit=4096, key='seq', where='1=1'):
+def audit_ring(db, table, trigger, *, limit=4096, key='seq', where='1=1', startup_cancel=None):
     """Ordinary audit rows have no scheduling or capital authority."""
     if db.in_transaction:
-        return _audit_ring(db,table,trigger,limit=limit,key=key,where=where)
+        return _audit_ring(db,table,trigger,limit=limit,key=key,where=where,startup_cancel=startup_cancel)
     # Independent provider sessions use autocommit connections. Dropping and
     # restoring the append-only guard must be one serialized transaction; two
     # sessions must never race another session's temporarily removed trigger.
     db.execute('BEGIN IMMEDIATE')
     try:
-        _audit_ring(db,table,trigger,limit=limit,key=key,where=where)
+        _audit_ring(db,table,trigger,limit=limit,key=key,where=where,startup_cancel=startup_cancel)
         db.execute('COMMIT')
     except BaseException:
         if db.in_transaction:db.execute('ROLLBACK')
         raise
 
 
-def _audit_ring(db,table,trigger,*,limit,key,where):
+def _audit_boundary(db,table,*,limit,key,where,startup_cancel=None):
+    """Only the retention SELECTs observe startup cancellation, never pruning.
+
+    The caller may own a candidate-renewal transaction. An interrupted read
+    unwinds that whole transaction; its writes and commit are never attached
+    to a progress handler.
+    """
+    if startup_cancel is not None and not callable(startup_cancel):
+        raise ValueError('audit_startup_cancel_check')
+    def check():
+        if startup_cancel is not None and startup_cancel():
+            from .stop import Shutdown
+            raise Shutdown()
+    check()
+    if startup_cancel is not None:
+        db.set_progress_handler(lambda:int(bool(startup_cancel())),1000)
+    try:
+        boundary=db.execute('SELECT '+key+' FROM '+table+' WHERE '+where+
+            ' ORDER BY '+key+' DESC LIMIT 1 OFFSET ?',(limit-1,)).fetchone()
+        check()
+        if boundary is None or boundary[0] is None:return None
+        cutoff=boundary[0]
+        excess=db.execute('SELECT 1 FROM '+table+' WHERE ('+where+') AND '+key+'<? LIMIT 1',
+            (cutoff,)).fetchone()
+        check()
+        return cutoff if excess else None
+    except sqlite3.OperationalError as error:
+        if (getattr(error,'sqlite_errorcode',0)&255)==sqlite3.SQLITE_INTERRUPT:check()
+        raise
+    finally:
+        if startup_cancel is not None:
+            from .sqlite_failure import preserving_cleanup
+            with preserving_cleanup():db.set_progress_handler(None,0)
+
+
+def _audit_ring(db,table,trigger,*,limit,key,where,startup_cancel=None):
     # Seek the same retained boundary once. Rebuilding a 4,096-key NOT IN
     # set on every provider event repeatedly scans the entire hot audit ring.
     # All reads and pruning still run in the caller's serialized transaction.
@@ -45,12 +81,8 @@ def _audit_ring(db,table,trigger,*,limit,key,where):
         # bodies or the filtered candidate cohort. This also bounds every
         # participating subset, without changing its exact eviction order.
         if db.execute('SELECT COUNT(*) FROM '+table).fetchone()[0]<=limit:return
-    boundary=db.execute('SELECT '+key+' FROM '+table+' WHERE '+where+
-        ' ORDER BY '+key+' DESC LIMIT 1 OFFSET ?',(limit-1,)).fetchone()
-    if boundary is None or boundary[0] is None:return
-    cutoff=boundary[0]
-    if not db.execute('SELECT 1 FROM '+table+' WHERE ('+where+') AND '+key+'<? LIMIT 1',
-            (cutoff,)).fetchone():return
+    cutoff=_audit_boundary(db,table,limit=limit,key=key,where=where,startup_cancel=startup_cancel)
+    if cutoff is None:return
     if table=='progress' and key=='sequence':
         # Four native pipelines share this existing maintenance hook. Keep all
         # strategy code unchanged; derive learning before its debug ring folds.

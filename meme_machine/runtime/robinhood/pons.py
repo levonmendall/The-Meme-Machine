@@ -26,7 +26,14 @@ def interpretation(policy):
 
 
 class Broker:
-    def __init__(self,path,policy,*,on_terminal=None,clock=time.time,source=None,config=None):
+    def __init__(self,path,policy,*,on_terminal=None,clock=time.time,source=None,config=None,startup_cancel=None):
+        def check():
+            if startup_cancel is not None and startup_cancel():
+                from meme_machine.runtime.stop import Shutdown
+                raise Shutdown()
+        if startup_cancel is not None and not callable(startup_cancel):
+            raise ValueError('pons_startup_cancel_check')
+        check()
         self.plane=Plane(path,clock=clock);self.clock=clock
         self.policy=interpretation(policy);self.on_terminal=on_terminal
         self.policy.update(source=digest(source or "authenticated_alchemy"),config=config)
@@ -45,9 +52,10 @@ class Broker:
         buy=topic('CurveBuy(address,address,uint256,uint256,uint256,uint256)')
         with self.plane.transaction():
             for row in self.plane.db.execute("SELECT * FROM candidates WHERE lane='pons'").fetchall():
+                check()
                 was_pending=row['pending']
                 if row['interpretation']!=canonical(self.policy):
-                    if not self._renew_retained_interpretation(row['id']):continue
+                    if not self._renew_retained_interpretation(row['id'],startup_cancel=startup_cancel):continue
                     row=self.plane._row(row['id'])
                 event=json.loads(row['payload'])
                 old=self.plane.db.execute('SELECT body FROM pons_current_watch WHERE candidate=?',(row['id'],)).fetchone()
@@ -56,7 +64,7 @@ class Broker:
                     unsynced_buy=(row['generation']==1 and (event.get('topics') or [None])[0]==buy
                         and retained.get('event')!=event)
                     if retained.get('interpretation')!=self.policy or retained['generation']>row['generation'] or unsynced_buy:
-                        if not self._renew_retained_interpretation(row['id']):
+                        if not self._renew_retained_interpretation(row['id'],startup_cancel=startup_cancel):
                             raise ValueError('pons_current_watch_interpretation_changed' if
                                 retained.get('interpretation')!=self.policy else 'pons_current_watch_generation_changed')
                         row=self.plane._row(row['id'])
@@ -70,8 +78,9 @@ class Broker:
                 if (row['pending'] or was_pending or (event.get('topics') or [None])[0]==buy) and row['interpretation']==canonical(self.policy):
                     if not self.plane.db.execute('SELECT 1 FROM pons_current_watch WHERE candidate=?',(row['id'],)).fetchone():
                         self._remember_watch(row['id'],event,row['observed'],row['generation'])
+            check()
 
-    def _renew_retained_interpretation(self,key):
+    def _renew_retained_interpretation(self,key,*,startup_cancel=None):
         """Keep the nomination and prior decisions; require new canonical work.
 
         Adapter/configuration changes invalidate qualification, never token
@@ -142,7 +151,7 @@ class Broker:
                 (generation,canonical(self.policy),key))
             self._remember_watch(key,event,row['observed'],generation,reset_quality=old!=self.policy)
             self.plane._audit(self.plane._row(key),'watching',
-                'pons_retained_buy_projection_requires_fresh_canonical_state')
+                'pons_retained_buy_projection_requires_fresh_canonical_state',startup_cancel=startup_cancel)
             return True
         if row is None and old==self.policy:return True
         if policy_changed:
@@ -157,7 +166,7 @@ class Broker:
         reason=('adapter_change_requires_fresh_canonical_state' if old!=self.policy else
             'retained_watch_generation_requires_fresh_canonical_state')
         self.plane._audit(audit,'watching','pons_'+reason,
-            prior_candidate=dict(row) if row is not None else None,prior_watch=watch,next_interpretation=self.policy)
+            startup_cancel=startup_cancel,prior_candidate=dict(row) if row is not None else None,prior_watch=watch,next_interpretation=self.policy)
         generation=(max(row['generation'],watch['generation'])+1 if recreated else
             row['generation']+1 if row is not None else watch['generation'])
         if row is not None:

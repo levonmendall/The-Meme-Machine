@@ -949,6 +949,90 @@ class DiagnosticNativeRetentionTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
 
+    def failure_lane(self):
+        frame = dict(module='meme_machine.runtime.candidate_history', function='candidates', line=402,
+            path='/private/fixture-secret', locals='fixture-secret', source='fixture-secret')
+        failure = dict(version=1, lane='pump', pid=10, process_instance='a' * 32,
+            native_thread_id=11, at=100, monotonic=200, exception_class='RuntimeError',
+            frames=[frame], traceback_scope='ALLOWLISTED_SOURCE_FRAMES_ONLY', traceback_truncated=False,
+            causes=[dict(exception_class='OperationalError', frames=[frame], traceback_truncated=False,
+                message='fixture-secret')], sqlite_failure_cause_index=1,
+            sqlite_failure=dict(version=1, pid=10, native_thread_id=11, sqlite_errorcode=sqlite3.SQLITE_BUSY,
+                sqlite_errorname='SQLITE_BUSY', operation='SELECT.iterate', connection_role='candidate_history',
+                configured_database_identity_sha256='b' * 64, connection_identity='private-connection-fixture-secret',
+                database='/private/fixture-secret', run_identity='fixture-secret', scope='fixture-secret',
+                recent_operations=[dict(message='fixture-secret')], recorder_valid=True,
+                in_transaction=False, operation_seconds=.25, origin=frame), message='fixture-secret')
+        return dict(pid=10, process_instance='a' * 32, phase='FAIL_CLOSED', reconciled=False,
+            native_failure=failure, arbitrary='fixture-secret')
+
+    def test_terminal_native_failure_survives_final_projection_without_private_context(self):
+        lane = {**{f'unrelated{i}': i for i in range(160)}, **self.failure_lane()}
+        self.assertNotIn('native_failure', diagnostic.numeric(lane))
+        (self.root / 'health.json').write_text(json.dumps(dict(pid=20, lanes={'pump': lane})))
+        expected = dict(pump=dict(pid=10, process_instance='a' * 32))
+        with patch.object(diagnostic.time, 'monotonic', return_value=300):
+            final = diagnostic.final_native_health(self.root, 20, 0, expected_workers=expected)
+        output = self.root / 'failure.jsonl'
+        diagnostic.append_sample(output, dict(native_lifecycle=final['native_lifecycle']))
+        retained = json.loads(output.read_text())['native_lifecycle']['pump']
+        failure = retained['native_failure']
+        self.assertFalse(retained['reconciled'])
+        self.assertEqual(failure['identity_scope'], 'EXPECTED_NATIVE_WORKER_PID_AND_INSTANCE')
+        self.assertEqual(failure['exception_class'], 'RuntimeError')
+        self.assertEqual(failure['frames'], [dict(module='meme_machine.runtime.candidate_history',
+            function='candidates', line=402)])
+        self.assertEqual(failure['causes'][0]['exception_class'], 'OperationalError')
+        self.assertEqual(failure['sqlite_failure_cause_index'], 1)
+        sql = failure['sqlite_failure']
+        self.assertEqual((sql['sqlite_errorcode'], sql['sqlite_errorname']), (sqlite3.SQLITE_BUSY, 'SQLITE_BUSY'))
+        self.assertEqual(sql['operation'], 'SELECT.iterate')
+        self.assertEqual(sql['configured_database_identity_sha256'], 'b' * 64)
+        self.assertEqual(sql['connection_identity_sha256'],
+            hashlib.sha256(b'private-connection-fixture-secret').hexdigest())
+        self.assertEqual(sql['origin'], failure['frames'][0])
+        self.assertNotIn('fixture-secret', output.read_text())
+        self.assertEqual(final['native_workers']['pump']['state'], 'FAILED')
+
+    def test_terminal_native_failure_requires_containing_and_expected_worker_identity(self):
+        lane = self.failure_lane()
+        for field, value in (('pid', 12), ('pid', True), ('process_instance', 'c' * 32),
+                ('process_instance', None), ('lane', 'pons'), ('version', True)):
+            with self.subTest(field=field, value=value):
+                changed = dict(lane, native_failure=dict(lane['native_failure'], **{field: value}))
+                self.assertEqual(diagnostic.native_lifecycle({'pump': changed})['pump']['native_failure'],
+                    diagnostic.UNAVAILABLE)
+        for expected in (dict(pid=12, process_instance='a' * 32), dict(pid=10, process_instance='c' * 32), {}):
+            with self.subTest(expected=expected):
+                retained = diagnostic.native_lifecycle({'pump': lane}, expected_workers={'pump': expected})
+                self.assertEqual(retained['pump']['native_failure'], diagnostic.UNAVAILABLE)
+        retained = diagnostic.native_lifecycle({'pump': lane})['pump']['native_failure']
+        self.assertEqual(retained['identity_scope'], 'CONTAINING_NATIVE_HEALTH_ONLY')
+        self.assertEqual(diagnostic.native_lifecycle({'pump': {}})['pump']['native_failure'], diagnostic.UNAVAILABLE)
+
+    def test_terminal_native_failure_bounds_frames_causes_and_sqlite_fields(self):
+        lane = self.failure_lane(); failure = lane['native_failure']
+        for fields in (dict(frames=failure['frames'] * 9), dict(causes=failure['causes'] * 4),
+                dict(frames=[dict(module='https://fixture-secret', function='read', line=1)]),
+                dict(frames=[dict(module='meme_machine.runtime.candidate_history', function='fixture-secret', line=1)]),
+                dict(traceback_truncated='fixture-secret')):
+            with self.subTest(fields=list(fields)):
+                changed = dict(lane, native_failure=dict(failure, **fields))
+                self.assertEqual(diagnostic.native_lifecycle({'pump': changed})['pump']['native_failure'],
+                    diagnostic.UNAVAILABLE)
+        changed = dict(failure, exception_class='fixture-secret')
+        changed['sqlite_failure'] = dict(failure['sqlite_failure'], sqlite_errorname='SQLITE_PRIVATE_SECRET',
+            operation='SELECT fixture-secret', connection_role='fixture-secret', connection_identity='x' * 257)
+        retained = diagnostic.native_lifecycle({'pump': dict(lane, native_failure=changed)})['pump']['native_failure']
+        self.assertEqual(retained['exception_class'], 'UNRECOGNIZED_EXCEPTION_TYPE')
+        for field in ('sqlite_errorname', 'operation', 'connection_role', 'connection_identity_sha256'):
+            self.assertNotIn(field, retained['sqlite_failure'])
+        self.assertNotIn('fixture-secret', json.dumps(retained))
+        for fields in (dict(pid=12), dict(pid=True)):
+            changed = dict(failure, sqlite_failure=dict(failure['sqlite_failure'], **fields))
+            self.assertEqual(diagnostic.native_lifecycle({'pump': dict(lane, native_failure=changed)})
+                ['pump']['native_failure']['sqlite_failure'], diagnostic.UNAVAILABLE)
+
     def test_pons_cohort_recovery_operation_is_retained_without_admitting_unknown_labels(self):
         operation=dict(operation='pons.cohort_recovery',state='ACTIVE',pid=10,
             native_thread_id=11,at=100,monotonic=200,arbitrary='private-context')
@@ -966,6 +1050,9 @@ class DiagnosticNativeRetentionTests(unittest.TestCase):
         self.assertFalse(retained['reconciled'])
         self.assertNotIn('private-context',output.read_text())
         self.assertNotIn('unreviewed_recovery',output.read_text())
+        lane['native_operation'] = dict(operation, operation='pons.candidate_restore')
+        self.assertEqual(diagnostic.native_lifecycle({'pons': lane})['pons']['native_operation']['operation'],
+            'pons.candidate_restore')
 
     def test_native_operations_and_signal_survive_descriptive_clipping(self):
         lane = {f'unrelated{i}': i for i in range(160)}

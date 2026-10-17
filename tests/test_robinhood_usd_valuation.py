@@ -192,6 +192,86 @@ RALLY_CHANGED_SOURCES=('meme_machine/lanes/pons/pons_postgrad_survivor.py', 'mem
 RALLY_ADDED_SOURCES=('meme_machine/policy_history/opportunity_access_v1.json', 'meme_machine/runtime/rally_cycle.py')
 
 
+# Exact first-failure attribution and Pons startup-read cancellation only.
+# Reverse these four already-guarded sources to A14 before the previous source
+# layers; candidate authority, pruning, accounting and economics remain pinned.
+NATIVE_STARTUP_FAILURE_REFERENCE='a14a182221be4dd6abde21081b1a1da40181cdf4'
+NATIVE_STARTUP_FAILURE_DELTAS={
+    'meme_machine/runtime/status.py':(
+        '7c819b3b0c5e3ee56984e021a851466bd12bb7a8ace30ce6d952d12be32575e3',
+        'e8c112aa574cbb94a7342b1572af4c6dded71a09117bfb82215ee3c6612835ea',
+        ('operation',),('native_failure',),('_FAILURE_CLASSES',)),
+    'meme_machine/lanes/pons/pons_selective_cohort.py':(
+        '4209107e6eb53bdb32eeb33ae1a3addb47ff4ca5a1ee298d5509fbb46e5d6ad7',
+        '4d6851b400f75d760cee7a6954da38917aa3fc879a9ccbe6cbdcf43148c6ed3a',
+        ('run',),(),()),
+    'meme_machine/runtime/robinhood/pons.py':(
+        '3622c77c59aed69fb9358a88a92522b5a7ee53849ec3f6be6f10b119669c8f93',
+        '52defbb90f754e7b2ea88e4527bf7bdc30d6251854f89a37f52dabbb70a931f0',
+        ('Broker.__init__','Broker._renew_retained_interpretation'),(),()),
+    'meme_machine/runtime/storage.py':(
+        '0cbe6ea56ed5eba9bc9e2ba895d1dcb0cab569a4c7d13b3f7b5b31f39ee31e9e',
+        '847623ca28c595a49431f5c45c1f3de3f15bc16b86d623b52338c04c0097cd18',
+        ('audit_ring','_audit_ring'),('_audit_boundary',),('import sqlite3',)),
+}
+
+
+def native_startup_failure_predecessor(test,relative,current,*,allow_previous_layers=False):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    reviewed=NATIVE_STARTUP_FAILURE_DELTAS.get(relative)
+    if reviewed is None:return current
+    before,after,changed,added,top_additions=reviewed
+    prior=subprocess.check_output(['git','show',NATIVE_STARTUP_FAILURE_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':exact first-failure repair predecessor')
+    if current==prior:return prior
+    current_hash=hashlib.sha256(current).hexdigest()
+    if allow_previous_layers and current_hash!=after:
+        # Only exact immutable predecessors already used by the original guards
+        # may pass to their own comparisons. Unknown bytes always fail here.
+        references={
+            'meme_machine/runtime/status.py':(STARTUP_HISTORY_CANCEL_REFERENCE,),
+            'meme_machine/lanes/pons/pons_selective_cohort.py':(
+                STARTUP_HISTORY_CANCEL_REFERENCE,PONS_DISCOVERY_REFERENCE,OPERATION_COST_REFERENCE,
+                COHORT_AUTHORITY_REFERENCE,OPPORTUNITY_BASE),
+            'meme_machine/runtime/robinhood/pons.py':(
+                RALLY_BASE,OBSERVATION_FOLLOWUP_REFERENCE,COHORT_AUTHORITY_REFERENCE,OPPORTUNITY_BASE),
+            'meme_machine/runtime/storage.py':(OPPORTUNITY_BASE,),
+        }
+        for reference in references[relative]:
+            earlier=subprocess.check_output(['git','show',reference+':'+relative],cwd=ROOT)
+            if current==earlier:return current
+    test.assertEqual(current_hash,after,relative+':exact first-failure repair successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def node(root,name):
+        parent=root
+        for part in name.split('.')[:-1]:
+            parent=next(n for n in parent.body if isinstance(n,ast.ClassDef) and n.name==part)
+        return parent,next(n for n in parent.body if isinstance(n,ast.FunctionDef) and n.name==name.split('.')[-1])
+    for name in changed:
+        parent,selected=node(tree,name);_,original=node(old,name)
+        test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':explicit changed node '+name)
+        parent.body[parent.body.index(selected)]=deepcopy(original)
+    for name in added:
+        parent,selected=node(tree,name);parent.body.remove(selected)
+        with test.assertRaises(StopIteration):node(old,name)
+    for source in top_additions:
+        if source=='_FAILURE_CLASSES':
+            matches=[n for n in tree.body if isinstance(n,ast.Assign)
+                and len(n.targets)==1 and isinstance(n.targets[0],ast.Name) and n.targets[0].id==source]
+            test.assertFalse(any(isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id==source
+                for t in n.targets) for n in old.body),relative+':new fixed exception allowlist only')
+        else:
+            addition=ast.parse(source).body[0]
+            matches=[n for n in tree.body if ast.dump(n)==ast.dump(addition)]
+            test.assertNotIn(ast.dump(addition),[ast.dump(n) for n in old.body])
+        test.assertEqual(len(matches),1,relative+':one explicit top-level addition')
+        tree.body.remove(matches[0])
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':all other safety and economic source retained')
+    return prior
+
+
 # A partial harvest's native_sync already performs its fresh monetary replay
 # before ACK. Pin only the reviewed removal of the immediately duplicate
 # replay; every other monitor, financial, strategy and source byte stays pinned.
@@ -387,6 +467,8 @@ def rally_delta(before,after):
 def rally_predecessor(test,relative,current,*,allow_previous_layers=False):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
+    current=native_startup_failure_predecessor(test,relative,current,
+        allow_previous_layers=allow_previous_layers)
     current=survivor_monitor_replay_predecessor(test,relative,current,
         allow_previous_layers=allow_previous_layers)
     current=program_gap_observation_predecessor(test,relative,current)
@@ -1410,6 +1492,40 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_native_startup_failure_delta_preserves_all_prior_authority_and_source_guards(self):
+        import hashlib
+        mutations={
+            'meme_machine/runtime/status.py':(
+                (b'kind in _FAILURE_CLASSES',b'True'),
+                (b"'pons.candidate_restore'",b"'pons.unreviewed_restore'")),
+            'meme_machine/lanes/pons/pons_selective_cohort.py':(
+                (b'startup_cancel=requested.is_set',b'startup_cancel=lambda:False'),),
+            'meme_machine/runtime/robinhood/pons.py':(
+                (b'startup_cancel=startup_cancel',b'startup_cancel=None'),
+                (b"if row['interpretation']!=canonical(self.policy):",b'if False:')),
+            'meme_machine/runtime/storage.py':(
+                (b'lambda:int(bool(startup_cancel()))',b'lambda:0'),
+                (b'with preserving_cleanup():db.set_progress_handler(None,0)',b'with preserving_cleanup():pass')),
+        }
+        self.assertEqual(set(mutations),set(NATIVE_STARTUP_FAILURE_DELTAS))
+        for relative,(_,after,_,_,_) in NATIVE_STARTUP_FAILURE_DELTAS.items():
+            current=(ROOT/relative).read_bytes()
+            self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact first-failure repair source')
+            prior=subprocess.check_output(['git','show',NATIVE_STARTUP_FAILURE_REFERENCE+':'+relative],cwd=ROOT)
+            self.assertEqual(native_startup_failure_predecessor(self,relative,current),prior)
+            self.assertEqual(rally_predecessor(self,relative,current),rally_predecessor(self,relative,prior))
+            self.assertEqual(opportunity_predecessor(self,relative,current),
+                opportunity_predecessor(self,relative,prior))
+            changes=[current+b'\n# unreviewed startup failure repair change\n',b'']
+            for old,new in mutations[relative]:
+                self.assertIn(old,current,relative+':negative mutation target exists')
+                changes.append(current.replace(old,new,1))
+            for changed in changes:
+                self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+                with self.assertRaises(AssertionError):native_startup_failure_predecessor(self,relative,changed)
+                with self.assertRaises(AssertionError):rally_predecessor(self,relative,changed)
+                with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_survivor_monitor_replay_delta_preserves_fresh_proof_and_exact_prior_economics(self):
         import hashlib
         relative=SURVIVOR_MONITOR_REPLAY_SOURCE;current=(ROOT/relative).read_bytes()
@@ -1479,7 +1595,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(STARTUP_HISTORY_CANCEL_DELTAS))
         for relative,(_,after,_,_) in STARTUP_HISTORY_CANCEL_DELTAS.items():
-            current=(ROOT/relative).read_bytes()
+            current=native_startup_failure_predecessor(self,relative,(ROOT/relative).read_bytes())
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact reviewed cancellation source')
             prior=subprocess.check_output(['git','show',STARTUP_HISTORY_CANCEL_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(startup_history_cancellation_predecessor(self,relative,current),prior)

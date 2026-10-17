@@ -137,7 +137,9 @@ class Plane:
                 yield
                 self.db.execute('COMMIT' if self.db.total_changes != before else 'ROLLBACK')
             except BaseException:
-                self.db.execute('ROLLBACK')
+                from meme_machine.runtime.sqlite_failure import preserving_cleanup
+                with preserving_cleanup():
+                    if self.db.in_transaction:self.db.execute('ROLLBACK')
                 raise
 
     def _row(self, key):
@@ -147,7 +149,7 @@ class Plane:
     def get(self,key):
         with self.lock:return self._row(key)
 
-    def _audit(self,row,kind,reason=None,**details):
+    def _audit(self,row,kind,reason=None,*,startup_cancel=None,**details):
         from meme_machine.runtime.operating_families import require_active,active_sql
         require_active(row['lane'])
         tail=self.db.execute('SELECT MAX(seq) FROM transitions').fetchone()[0]
@@ -157,7 +159,7 @@ class Plane:
         self.db.execute('INSERT INTO transitions(seq,candidate,generation,at,kind,reason,watermark,interpretation,details) VALUES(?,?,?,?,?,?,?,?,?)',
             (tail+1,row['id'],row['generation'],self.clock(),kind,reason,row['desired'],row['interpretation'],canonical(details)))
         from meme_machine.runtime.storage import audit_ring
-        audit_ring(self.db,'transitions','history_no_delete',where='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))')
+        audit_ring(self.db,'transitions','history_no_delete',where='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))',startup_cancel=startup_cancel)
 
     def maintain(self):
         """Port cache eviction and ordering fences without observer artifacts."""

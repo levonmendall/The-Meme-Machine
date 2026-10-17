@@ -52,7 +52,8 @@ NATIVE_OPERATIONS = frozenset('pump.' + name for name in (
     'startup_cleanup.candidate_history_open', 'startup_cleanup.accounting_restore',
     'startup_cleanup.pipeline_open', 'startup_cleanup.runtime_evidence_open',
     'startup_cleanup.evidence_broker_open', 'startup_cleanup.sessions_open',
-    'startup_cleanup.survivor_worker_open')) | frozenset(('pons.shared_capital_restore','pons.cohort_recovery'))
+    'startup_cleanup.survivor_worker_open')) | frozenset(('pons.shared_capital_restore','pons.cohort_recovery',
+    'pons.candidate_restore'))
 
 
 def operation_costs(row, expected_pid=None):
@@ -121,7 +122,99 @@ class OperationCoverage:
         return None
 
 
-def native_lifecycle(lanes):
+def native_failure(row, lane, name, expected=None):
+    """Typed terminal attribution only; no exception text, paths or SQL ring."""
+    if not isinstance(row, dict) or not isinstance(lane, dict):return UNAVAILABLE
+    pid = row.get('pid'); instance = row.get('process_instance')
+    if (type(row.get('version')) is not int or row['version'] != 1
+            or row.get('lane') != name or type(pid) is not int or not 0 < pid < 2**31
+            or not isinstance(instance, str) or re.fullmatch('[0-9a-f]{32}', instance) is None
+            or type(lane.get('pid')) is not int or lane['pid'] != pid or lane.get('process_instance') != instance
+            or expected is not None and (not isinstance(expected, dict)
+                or type(expected.get('pid')) is not int or expected['pid'] != pid
+                or expected.get('process_instance') != instance)):
+        return UNAVAILABLE
+    classes = frozenset(('Exception', 'RuntimeError', 'ValueError', 'TypeError', 'KeyError',
+        'IndexError', 'AttributeError', 'NameError', 'AssertionError', 'ImportError',
+        'ModuleNotFoundError', 'OSError', 'FileNotFoundError', 'PermissionError', 'TimeoutError',
+        'MemoryError', 'RecursionError', 'OverflowError', 'ZeroDivisionError', 'UnicodeDecodeError', 'JSONDecodeError',
+        'OperationalError', 'IntegrityError', 'DatabaseError', 'ProgrammingError', 'InterfaceError',
+        'DataError', 'NotSupportedError', 'BoundaryError', 'EvidenceUnavailable', 'EvidenceConflict',
+        'PortfolioIntegrityError', 'CapitalError', 'NativeReconciliationUnavailable',
+        'StorageGuardError', 'ValuationUnavailable',
+        'UNRECOGNIZED_EXCEPTION_TYPE'))
+    def frame(value):
+        if not isinstance(value, dict):return None
+        module = value.get('module'); function = value.get('function'); line = value.get('line')
+        if (isinstance(module, str) and len(module) <= 160
+                and re.fullmatch(r'meme_machine(?:\.[A-Za-z_][A-Za-z0-9_]*)+', module)
+                and isinstance(function, str) and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,79}', function)
+                and type(line) is int and 0 < line < 10**7):
+            return dict(module=module, function=function, line=line)
+    def exception(value):
+        if (not isinstance(value, dict) or not isinstance(value.get('frames'), list)
+                or len(value['frames']) > 8 or type(value.get('traceback_truncated')) is not bool):
+            return None
+        frames = [frame(item) for item in value['frames']]
+        if any(item is None for item in frames):return None
+        kind = value.get('exception_class')
+        return dict(exception_class=kind if isinstance(kind, str) and kind in classes
+            else 'UNRECOGNIZED_EXCEPTION_TYPE', frames=frames,
+            traceback_truncated=value['traceback_truncated'])
+    facts = exception(row)
+    if facts is None or row.get('traceback_scope') != 'ALLOWLISTED_SOURCE_FRAMES_ONLY':return UNAVAILABLE
+    facts.update(version=1, lane=name, pid=pid, process_instance=instance,
+        traceback_scope='ALLOWLISTED_SOURCE_FRAMES_ONLY',
+        identity_scope='EXPECTED_NATIVE_WORKER_PID_AND_INSTANCE' if expected is not None
+            else 'CONTAINING_NATIVE_HEALTH_ONLY')
+    for key in ('native_thread_id', 'at', 'monotonic'):
+        value = row.get(key)
+        valid = type(value) is int and value > 0 if key == 'native_thread_id' else finite_number(value) and value >= 0
+        facts[key] = value if valid and value < 2**128 else UNAVAILABLE
+    causes = row.get('causes', [])
+    if not isinstance(causes, list) or len(causes) > 3:return UNAVAILABLE
+    facts['causes'] = [exception(cause) for cause in causes]
+    if any(cause is None for cause in facts['causes']):return UNAVAILABLE
+    sql = row.get('sqlite_failure')
+    cause_index = row.get('sqlite_failure_cause_index')
+    if (isinstance(sql, dict) and type(sql.get('pid')) is int and sql['pid'] == pid
+            and type(cause_index) is int and 0 <= cause_index <= len(causes)):
+        selected = {key: value for key in ('version', 'pid', 'native_thread_id', 'timeout_seconds',
+            'opened_monotonic', 'operation_started_monotonic', 'failed_monotonic', 'operation_seconds',
+            'transaction_started_monotonic', 'busy_timeout_milliseconds', 'database_device', 'database_inode')
+            if finite_number(value := sql.get(key)) and 0 <= value < 2**128}
+        for key in ('recorder_valid', 'database_identity_truncated', 'in_transaction', 'ring_truncated',
+                'terminal_encoding_failed', 'operation_costs_valid'):
+            if type(sql.get(key)) is bool:selected[key] = sql[key]
+        code = sql.get('sqlite_errorcode'); error_name = sql.get('sqlite_errorname')
+        if type(code) is int and 0 <= code < 2**31:selected['sqlite_errorcode'] = code
+        if (isinstance(error_name, str) and re.fullmatch(r'SQLITE_[A-Z_]{1,64}', error_name)
+                and type(code) is int and getattr(sqlite3, error_name, None) == code):
+            selected['sqlite_errorname'] = error_name
+        operation = sql.get('operation')
+        if isinstance(operation, str) and re.fullmatch(
+                r'(?:SELECT|INSERT|UPDATE|DELETE|BEGIN|COMMIT|ROLLBACK|SAVEPOINT|RELEASE|PRAGMA|CREATE|DROP|ALTER|WITH|'
+                r'read|statement|schema_script|cursor_open|context_exit|checkpoint|close)(?:\.(?:fetchone|fetchall|fetchmany|iterate))?'
+                r'|(?:candidate_history|candidate_reference)\.open', operation):
+            selected['operation'] = operation
+        role = sql.get('connection_role')
+        if role in ('candidate_history', 'candidate_reference'):selected['connection_role'] = role
+        if sql.get('opening_mode') in ('ro', 'rw', 'rwc', 'unknown'):selected['opening_mode'] = sql['opening_mode']
+        identity = sql.get('configured_database_identity_sha256')
+        if isinstance(identity, str) and re.fullmatch('[0-9a-f]{64}', identity):
+            selected['configured_database_identity_sha256'] = identity
+        connection = sql.get('connection_identity')
+        if isinstance(connection, str) and len(connection) <= 256:
+            selected['connection_identity_sha256'] = hashlib.sha256(connection.encode('utf-8', 'surrogatepass')).hexdigest()
+        origin = frame(sql.get('origin'))
+        if origin is not None:selected['origin'] = origin
+        facts['sqlite_failure'] = selected
+        facts['sqlite_failure_cause_index'] = cause_index
+    else:facts['sqlite_failure'] = UNAVAILABLE
+    return facts
+
+
+def native_lifecycle(lanes, *, expected_workers=None):
     """Essential native startup/cancellation facts before descriptive clipping."""
     def cancellation_stack(row):
         if not isinstance(row,dict):return UNAVAILABLE
@@ -169,7 +262,9 @@ def native_lifecycle(lanes):
             reconciled=lane['reconciled'] if type(lane.get('reconciled')) is bool else 'UNKNOWN',
             native_operation=operation(lane.get('native_operation')),
             native_recent_operations=[operation(row) for row in recent[:8]] if isinstance(recent, list) else UNAVAILABLE,
-            cancellation_signal=signal_facts,cancellation_stack=cancellation_stack(lane.get('cancellation_stack')))
+            cancellation_signal=signal_facts,cancellation_stack=cancellation_stack(lane.get('cancellation_stack')),
+            native_failure=native_failure(lane.get('native_failure'), lane, name,
+                None if expected_workers is None else expected_workers.get(name, {})))
     return result
 
 
@@ -197,7 +292,7 @@ def final_native_health(root, expected_pid, origin, *, expected_workers=None, sh
                 rows.append(facts)
         result = dict(available=True, supervisor_pid=expected_pid,
             health_at=health.get('at') if isinstance(health.get('at'), str) and re.fullmatch(r'[0-9T:.+Z-]{1,40}', health['at']) else UNAVAILABLE,
-            native_lifecycle=native_lifecycle(health.get('lanes', {})),
+            native_lifecycle=native_lifecycle(health.get('lanes', {}), expected_workers=expected_workers),
             native_shutdown=rows if isinstance(shutdown, list) else UNAVAILABLE,
             native_shutdown_truncated=isinstance(shutdown, list) and len(shutdown) > 48,
             scope='FINAL_PROJECTION_NOT_PROOF_OF_DRAIN_OR_COMPLETED_RECONCILIATION')

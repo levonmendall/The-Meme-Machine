@@ -2,8 +2,8 @@
 
 The deliberately expensive view retains the real CandidateHistory query and
 SQLite VM. It has no provider, financial journal or economic qualification.
-Pons tests establish its existing read-only replay scope and attribution only;
-they do not establish cancellation inside its unobserved Plane/recovery reads.
+Pons audit cancellation additionally exercises the real Broker renewal and
+candidate-transaction rollback; it makes no provider or throughput claim.
 """
 from collections import deque
 from contextlib import closing
@@ -83,6 +83,93 @@ except stop.Shutdown:
     print('CANCELLED '+json.dumps(dict(signal=status.snapshot()['cancellation_signal']['signal'],
         facts=facts(),in_transaction=history.db.in_transaction,probe=probe)),flush=True)
     history.close()
+else:
+    print('UNEXPECTED_COMPLETE',flush=True)
+"""
+
+
+PONS_AUDIT_CHILD = r"""
+import hashlib,json,os,signal,sys
+from pathlib import Path
+from operational.tests import network_guard
+network_guard()
+from meme_machine.runtime import status,stop
+from meme_machine.runtime.robinhood import pons
+from meme_machine.runtime.robinhood.plane import Plane,canonical,digest
+from meme_machine.lanes.pons.pons_selective_continuation import POLICY_HASH
+from meme_machine.lanes.pons.abi import topic
+from tests.lanes.pons.test_pons_candidate_plane import event
+path=Path(sys.argv[1])
+os.environ.pop('MM_OPERATIONAL_PHASE',None)
+os.environ.pop('MM_PAPER_EPOCH',None)
+broker=pons.Broker(path,POLICY_HASH,clock=lambda:100.)
+nomination=event();nomination['topics']=[topic('CurveBuy(address,address,uint256,uint256,uint256,uint256)')]
+broker.enqueue(nomination)
+key=broker.identity(nomination)
+old=dict(broker.policy,adapter_source='retained-previous-adapter')
+watch=json.loads(broker.plane.db.execute('SELECT body FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()[0])
+watch['interpretation']=old
+broker.plane.db.execute('UPDATE candidates SET interpretation=? WHERE id=?',(canonical(old),key))
+broker.plane.db.execute('UPDATE pons_current_watch SET body=?,hash=? WHERE candidate=?',
+    (canonical(watch),digest(watch),key))
+# A retained inactive row makes the production audit predicate meaningful.
+broker.plane.observe('retained-inactive','ramses','retained-observation',{},ordering=(1,),
+    watermark={},interpretation={},observed=100,deadline=105,priority=4)
+db=broker.plane.db
+db.execute('ALTER TABLE transitions RENAME TO retained_transitions')
+# The real audit cutoff SELECT must evaluate this SQLite aggregate before it
+# can return its filtered boundary. MAX(seq) and INSERT remain ordinary; no
+# Python UDF, sleep, artificial callback or provider creates the expensive step.
+db.execute('''CREATE VIEW transitions AS WITH RECURSIVE expensive(n) AS
+    (VALUES(0) UNION ALL SELECT n+1 FROM expensive WHERE n<100000000)
+    SELECT seq,CASE WHEN (SELECT MAX(n) FROM expensive)>=0 THEN candidate END AS candidate,
+        generation,at,kind,reason,watermark,interpretation,details FROM retained_transitions''')
+db.execute('''CREATE TRIGGER insert_transition INSTEAD OF INSERT ON transitions BEGIN
+    INSERT INTO retained_transitions VALUES(NEW.seq,NEW.candidate,NEW.generation,NEW.at,
+        NEW.kind,NEW.reason,NEW.watermark,NEW.interpretation,NEW.details); END''')
+def facts(connection):
+    values={name:[tuple(r) for r in connection.execute('SELECT * FROM '+name+' ORDER BY rowid')]
+        for name in ('candidates','pons_current_watch','observations','retained_transitions','runtime')}
+    values['triggers']=[tuple(r) for r in connection.execute("SELECT name,sql FROM sqlite_master WHERE type='trigger' ORDER BY name")]
+    return hashlib.sha256(canonical(values).encode()).hexdigest()
+before=facts(db)
+broker.close()
+os.environ['MM_OPERATIONAL_PHASE']='OBSERVATION'
+captured=[]
+class CapturedPlane(Plane):
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs);captured.append(self)
+pons.Plane=CapturedPlane
+def shutdown(signum,_frame):
+    status.cancellation_signal(signum);stop.requested.set()
+signal.signal(signal.SIGTERM,shutdown)
+marked=False
+def cancelled():
+    global marked
+    if sys._getframe(1).f_code.co_name=='<lambda>' and not marked:
+        marked=True;print('AUDIT_SQLITE_VM_ENTERED',flush=True)
+    return stop.requested.is_set()
+print('SEEDED '+before,flush=True)
+try:
+    pons.Broker(path,POLICY_HASH,clock=lambda:100.,startup_cancel=cancelled)
+except stop.Shutdown:
+    plane=captured[-1];db=plane.db
+    # Requested remains true: success proves no handler leaked into subsequent
+    # queries or rollback/commit, and no interrupted candidate write committed.
+    probe=db.execute('WITH RECURSIVE p(n) AS (VALUES(0) UNION ALL SELECT n+1 FROM p WHERE n<10000) SELECT SUM(n) FROM p').fetchone()[0]
+    result=dict(signal=status.snapshot()['cancellation_signal']['signal'],facts=facts(db),
+        in_transaction=db.in_transaction,probe=probe,
+        trigger=bool(db.execute("SELECT 1 FROM sqlite_master WHERE name='history_no_delete'").fetchone()))
+    db.execute('DROP VIEW transitions')
+    db.execute('ALTER TABLE retained_transitions RENAME TO transitions')
+    plane.close();stop.requested.clear()
+    resumed=pons.Broker(path,POLICY_HASH,clock=lambda:100.,startup_cancel=lambda:False)
+    row=resumed.plane.get(key)
+    result.update(restarted=True,generation=row['generation'],pending=row['pending'],
+        reason=row['reason'],interpretation_current=json.loads(row['interpretation'])==resumed.policy,
+        original_observed=row['observed'],original_deadline=row['deadline'])
+    resumed.close()
+    print('CANCELLED '+json.dumps(result),flush=True)
 else:
     print('UNEXPECTED_COMPLETE',flush=True)
 """
@@ -170,6 +257,82 @@ class StartupHistoryCancellationTests(unittest.TestCase):
             history.candidates(lane='pump', cancelled=lambda:False)
         # Handler cleanup leaves unrelated ordinary reads available.
         self.assertEqual(history.db.execute('SELECT COUNT(*) FROM candidates').fetchone()[0], 1)
+
+    def test_pons_actual_sigterm_in_audit_select_rolls_back_renewal_and_restarts(self):
+        child=subprocess.Popen([sys.executable,'-u','-c',PONS_AUDIT_CHILD,
+            str(self.root/'pons.sqlite')],cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.PIPE,bufsize=0)
+        try:
+            self.assertTrue(select.select([child.stdout],[],[],5)[0],'Pons child did not seed')
+            seeded=child.stdout.readline().decode().strip()
+            self.assertTrue(seeded.startswith('SEEDED '),seeded)
+            self.assertTrue(select.select([child.stdout],[],[],5)[0],'audit SQLite VM not reached')
+            self.assertEqual(child.stdout.readline().decode().strip(),'AUDIT_SQLITE_VM_ENTERED')
+            os.kill(child.pid,signal.SIGTERM)
+            output,errors=child.communicate(timeout=3)
+            self.assertEqual(child.returncode,0,errors.decode())
+            self.assertTrue(output.startswith(b'CANCELLED '),output)
+            result=json.loads(output.removeprefix(b'CANCELLED '))
+            self.assertEqual(result['signal'],signal.SIGTERM)
+            self.assertEqual(result['facts'],seeded.removeprefix('SEEDED '))
+            self.assertFalse(result['in_transaction'])
+            self.assertEqual(result['probe'],50005000)
+            self.assertTrue(result['trigger'])
+            self.assertTrue(result['restarted'])
+            self.assertEqual(result['generation'],2)
+            self.assertEqual(result['pending'],0)
+            self.assertEqual(result['reason'],'adapter_change_requires_fresh_canonical_state')
+            self.assertTrue(result['interpretation_current'])
+            self.assertEqual((result['original_observed'],result['original_deadline']),(100.,105.))
+        finally:
+            if child.poll() is None:child.kill();child.communicate(timeout=3)
+            child.stdout.close();child.stderr.close()
+
+    def test_pons_audit_interrupt_is_shutdown_only_when_requested_and_never_wraps_writes(self):
+        from meme_machine.runtime.storage import _audit_boundary,audit_ring
+        for requested in (False,True):
+            for code in (sqlite3.SQLITE_INTERRUPT,sqlite3.SQLITE_BUSY,sqlite3.SQLITE_IOERR):
+                with self.subTest(requested=requested,code=code):
+                    error=sqlite3.OperationalError('original audit failure');error.sqlite_errorcode=code
+                    db=Mock();db.execute.side_effect=error
+                    # Initial check passes; requested status changes only once
+                    # the real read boundary has been entered.
+                    checks=iter((False,requested))
+                    expected=stop.Shutdown if requested and code==sqlite3.SQLITE_INTERRUPT else sqlite3.OperationalError
+                    with self.assertRaises(expected) as caught:
+                        _audit_boundary(db,'transitions',limit=2,key='seq',where='1=1',
+                            startup_cancel=lambda:next(checks))
+                    if expected is sqlite3.OperationalError:self.assertIs(caught.exception,error)
+                    db.set_progress_handler.assert_any_call(None,0)
+        class TrackedDB:
+            def __init__(self):
+                self.db=sqlite3.connect(':memory:',isolation_level=None);self.handler=False;self.writes=[]
+            @property
+            def in_transaction(self):return self.db.in_transaction
+            def set_progress_handler(self,callback,steps):
+                self.handler=callback is not None;return self.db.set_progress_handler(callback,steps)
+            def execute(self,sql,*args):
+                if sql.split()[0] in ('BEGIN','INSERT','UPDATE','DELETE','DROP','CREATE','COMMIT','ROLLBACK'):
+                    self.writes.append((sql.split()[0],self.handler))
+                return self.db.execute(sql,*args)
+        db=TrackedDB();self.addCleanup(db.db.close)
+        db.execute('CREATE TABLE transitions(seq INTEGER PRIMARY KEY,body TEXT)')
+        for n in range(4):db.execute('INSERT INTO transitions VALUES(?,?)',(n,'retained'))
+        db.execute("CREATE TRIGGER history_no_delete BEFORE DELETE ON transitions BEGIN SELECT RAISE(ABORT,'append_only'); END")
+        audit_ring(db,'transitions','history_no_delete',limit=2,startup_cancel=lambda:False)
+        self.assertEqual(db.db.execute('SELECT seq FROM transitions ORDER BY seq').fetchall(),[(2,),(3,)])
+        self.assertTrue(db.writes)
+        self.assertTrue(all(not handler for _,handler in db.writes),db.writes)
+
+    def test_pons_candidate_transaction_preserves_shutdown_after_sqlite_auto_rollback(self):
+        from meme_machine.runtime.robinhood.plane import Plane
+        plane=Plane(self.root/'rollback.sqlite');self.addCleanup(plane.close)
+        failure=stop.Shutdown()
+        with self.assertRaises(stop.Shutdown) as caught:
+            with plane.transaction():
+                plane.db.execute('ROLLBACK')
+                raise failure
+        self.assertIs(caught.exception,failure)
+        self.assertFalse(plane.db.in_transaction)
 
     def test_already_requested_cancellation_does_not_execute_read(self):
         history = self.history()
