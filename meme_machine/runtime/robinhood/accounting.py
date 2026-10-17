@@ -81,13 +81,19 @@ def project(plane, pipeline, *, through=None, batch_size=256):
     with operation_costs.operation('pons.reporting') if pipeline.lane=='pons' else nullcontext():
         if not 1<=batch_size<=256:raise ValueError('projection_batch_bound')
         with plane.lock:
-            first=plane.db.execute('SELECT t.* FROM transitions t JOIN candidates c ON c.id=t.candidate WHERE c.lane=? ORDER BY t.seq LIMIT 1',(pipeline.lane,)).fetchone()
+            source=plane.checkpoint_read('projection_source:'+pipeline.lane)
             archive=plane.history_archive() or {}
-        source=plane.checkpoint_read('projection_source:'+pipeline.lane) or archive.get('projection_sources',{}).get(pipeline.lane)
-        if first is None:return 0
-        # Immutable source identity survives relocation/restart of either database.
-        source=source or 'candidate-plane:'+hashlib.sha256(json.dumps(dict(first),sort_keys=True).encode()).hexdigest()
-        plane.checkpoint('projection_source:'+pipeline.lane,source)
+            if not source:
+                source=archive.get('projection_sources',{}).get(pipeline.lane)
+                if not source:
+                    first=plane.db.execute('SELECT t.* FROM transitions t JOIN candidates c ON c.id=t.candidate WHERE c.lane=? ORDER BY t.seq LIMIT 1',(pipeline.lane,)).fetchone()
+                    if first is None:return 0
+                    # Establish once. Retired candidate prefixes must not be
+                    # rescanned on every reporting turn after this immutable
+                    # identity is already durable. Archive validation above
+                    # still runs, including while no new rows are available.
+                    source='candidate-plane:'+hashlib.sha256(json.dumps(dict(first),sort_keys=True).encode()).hexdigest()
+                plane.checkpoint('projection_source:'+pipeline.lane,source)
         with pipeline.lock:
             after=pipeline.db.execute('SELECT COALESCE(MAX(sequence),0) FROM progress_sources WHERE source=?',(source,)).fetchone()[0]
         with plane.lock:
