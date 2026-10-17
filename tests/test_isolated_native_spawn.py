@@ -276,8 +276,16 @@ class SpawnShimTests(unittest.TestCase):
 
     def test_shim_refuses_missing_readonly_lifeline_and_pre_first_instruction_owner_death(self):
         with Scratch() as scope:
-            shim=scope.path/'shim';shim.write_bytes(spawn.trampoline(
-                scope.path/'native-image/runtime/bin/python3.12'));shim.chmod(0o500)
+            target=scope.path/'native-image/runtime/bin/python3.12'
+            target.parent.mkdir(mode=0o700,parents=True)
+            # Executable negative control: if the lifeline checks were bypassed
+            # this fixed static target would exit42, not the expected125.
+            header=bytearray(spawn.trampoline(target)[:176])
+            terminal=bytes.fromhex('bf2a000000b83c0000000f05')
+            struct.pack_into('<QQ',header,96,176+len(terminal),176+len(terminal))
+            target.write_bytes(header+terminal);target.chmod(0o500)
+            self.assertEqual(owned_run([str(target)]).returncode,42)
+            shim=scope.path/'shim';shim.write_bytes(spawn.trampoline(target));shim.chmod(0o500)
             result=owned_run([str(shim)],timeout=5)
             self.assertEqual(result.returncode,125)
             run=owned_run([sys.executable,'-I','-B','-S','-c',_BEFORE_FIRST,str(shim)],timeout=8)
