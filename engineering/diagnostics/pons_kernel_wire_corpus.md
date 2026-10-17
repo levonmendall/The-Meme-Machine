@@ -3,8 +3,8 @@
 `isolated_native_pons_kernel_corpus.PonsKernelCorpus` is an offline provider
 input, never an economic or financial authority. The default remains an empty
 economic corpus. Explicit `economic=True` enables two fixed synthetic markets.
-No captured production receipt, transaction, token, address or market state is
-copied. Pinned deployment metadata, source ABIs and the verified compiler runtime
+No captured market receipt, transaction, token/curve address or market state is
+copied. Pinned protocol deployment metadata, source ABIs and the verified compiler runtime
 template supply the original native authentication contracts.
 
 The first copied-main failure was a real fixture omission: native
@@ -31,6 +31,9 @@ the native PonsHistory candidate. The component test uses original
 to decode the Swap and append history. Its narrow history-owner facade does not
 construct a financial book or prove a complete Runtime constructor/step lifecycle.
 The copied-main harness must independently exercise that actual owner lifecycle.
+A prospective newly graduated token can correctly remain below the original
+10-minute age gate throughout a 40-second run; this component's direct history
+step neither bypasses that scheduler nor proves actual Survivor admission.
 
 RPC and Nitro share one immutable header model. At most 128 messages publish a
 maximum of 63 successor blocks, one block per two half-second frames. Latest/head
@@ -50,3 +53,11 @@ held protection or production history. Parent sizing remains zero. The full
 kernel run, nonprobe decoder/history process execution, source FULL/ACK binding,
 complete pool universe, actual market workload, lambda/mu, retained restoration
 and sustained capacity require their own receipts and are not established here.
+
+The final ten focused cases passed through the official FAST driver in 1.134s.
+The first economic attempt was deliberately left as failure evidence at
+`/tmp/mm-engineering-_c569usm`: its direct test advanced the synthetic head one
+second without advancing observation time, and the native decoder correctly
+raised `future_event`. The corrected immediate component fixture starts one
+second earlier; a dedicated regression still proves premature future-event
+refusal. Native runtime freshness rules were not changed.
