@@ -728,9 +728,12 @@ class IntegratedStartupRehearsal(unittest.TestCase):
             self.assertIsNone(owner._startup_replay_cancel)
             self.assertGreater(usd.calls, 0)
             completed = native_lifecycle({'pons': boundary[0][2]})['pons']['native_recent_operations']
-            self.assertEqual(len(completed), 1)
+            self.assertEqual([row['operation'] for row in completed],
+                ['pons.shared_capital_restore','pons.candidate_restore'])
+            self.assertEqual(len(completed), 2)
             self.assertEqual(completed[0]['operation'], 'pons.shared_capital_restore')
             self.assertEqual(completed[0]['state'], 'COMPLETE')
+            self.assertEqual(completed[1]['state'], 'COMPLETE')
             final = json.loads((folder / 'health.json').read_text())
             self.assertEqual(final['phase'], 'STOPPED')
             self.assertTrue(final['reconciled'])  # Existing native empty-book restore only.
