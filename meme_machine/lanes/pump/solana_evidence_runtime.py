@@ -19,7 +19,24 @@ SWAP_SCOPE='program:pumpswap'
 METEORA_SCOPE='program:meteora'
 
 class BaseRuntimeEvidence:
-    def __init__(self,path=None,*,owner,clock=time.time,command=None):
+    def __init__(self,path=None,*,owner,clock=time.time,command=None,
+                 native_resources=None,native_ports=None):
+        self.native_resources=None;self.native_endpoint_identity=None
+        if native_resources is not None:
+            from meme_machine.runtime.isolated_native_bootstrap import require_runner_ports
+            ports=require_runner_ports(native_resources,native_ports)
+            expected=native_resources.root/'solana-evidence.sqlite'
+            if (path is None or Path(path)!=expected or command is not None
+                    or owner not in ('pump','pump:survivor')):
+                raise EvidenceUnavailable('isolated_native_evidence_owner')
+            for suffix in ('','-wal','-shm','.sock'):
+                if Path(str(expected)+suffix).is_symlink():
+                    raise EvidenceUnavailable('isolated_native_evidence_symlink')
+            self.native_resources=native_resources
+            self.native_endpoint_identity=ports.rpc_port('pump',
+                'survivor' if owner=='pump:survivor' else 'current').source.endpoint_identity
+        elif native_ports is not None:
+            raise EvidenceUnavailable('isolated_native_resources_required')
         path=path or os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')
         if not path:raise EvidenceUnavailable('shared_evidence_plane_required')
         self.path=Path(path).resolve()
@@ -257,7 +274,12 @@ class LocalPumpTape:
             if scoped:
                 from meme_machine.solana_provider_config import AlchemyEndpoint
                 from meme_machine.solana_rolling_history import program_scope
-                endpoint=AlchemyEndpoint.parse(os.environ['MM_SOLANA_READ_RPC_URL']).identity
+                if getattr(self.plane,'native_resources',None) is None:
+                    endpoint=AlchemyEndpoint.parse(os.environ['MM_SOLANA_READ_RPC_URL']).identity
+                else:
+                    from meme_machine.runtime.isolated_native_resources import require_resources
+                    require_resources(self.plane.native_resources)
+                    endpoint=self.plane.native_endpoint_identity
                 authority=dict(candidate_scope=target,program_scope=program_scope('pump'),endpoint=endpoint)
                 if db.execute("SELECT 1 FROM service_health WHERE key='source_drain_observation'").fetchone():
                     stat=original.path.stat()

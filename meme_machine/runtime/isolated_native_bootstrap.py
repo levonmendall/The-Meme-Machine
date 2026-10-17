@@ -43,6 +43,43 @@ class NativeRunnerPorts:
             raise ValueError('isolated_native_read_role_unavailable')
         return ChildRPCPort(self.channel, sources[0].alias)
 
+    def source_rpc(self, priority, *, operation):
+        require_runner_ports(self.resources,self)
+        operations={'history_receipt':'pump_history_receipt',
+            'recovery_restart':'pump_recovery_restart','unattributed':'pump_source_identity'}
+        if type(priority) is not int or not 1<=priority<=6 or operation not in operations:
+            raise ValueError('isolated_native_source_read_role')
+        sources=[source for source in self.channel.sources.values()
+            if source.family=='solana' and source.operation==operations[operation]
+            and source.read_class=='solana_evidence_'+str(priority)]
+        if len(sources)!=1:
+            raise ValueError('isolated_native_source_read_role_unavailable')
+        return ChildRPCPort(self.channel,sources[0].alias)
+
+    def source_config(self):
+        require_runner_ports(self.resources,self)
+        from meme_machine.operational.source_ports import SourceIdentity,native_reference
+        source=native_reference(self.channel,'yellowstone')
+        if any(row.endpoint_identity!=source.endpoint_identity
+                for row in self.channel.sources.values() if row.family=='solana'):
+            raise ValueError('isolated_native_source_provider_disagreement')
+        return SourceIdentity(source.endpoint_identity)
+
+    def source_channel(self):
+        require_runner_ports(self.resources,self)
+        self.source_config()
+        from meme_machine.operational.source_ports import NativeGrpcChannel
+        return NativeGrpcChannel(self.channel)
+
+    def source_websocket(self):
+        require_runner_ports(self.resources,self)
+        config=self.source_config()
+        from meme_machine.operational.source_ports import NativeWebSocket
+        websocket=NativeWebSocket(self.channel)
+        if websocket.source.endpoint_identity!=config.identity:
+            raise ValueError('isolated_native_source_provider_disagreement')
+        return websocket
+
     def pump_rpc(self, regime, *, limit=240, pacer=None):
         from meme_machine.lanes.pump.solana_read_rpc import new_rpc
         port = self.rpc_port('pump',regime)
@@ -98,7 +135,9 @@ class NativeRunnerPorts:
                 raise
             # Each restarted consumer earns a fresh native session and feed
             # state; only its separately authenticated canonical cursor survives.
-            self._stores.setdefault('pons_feeds',[]).append(feed)
+            feeds=self._stores.setdefault('pons_feeds',[])
+            feeds[:]=[old for old in feeds if not old._parent_stream.closed]
+            feeds.append(feed)
             return feed
 
     def pump_evidence(self, owner):
@@ -112,7 +151,8 @@ class NativeRunnerPorts:
         if not path.is_file():
             raise ValueError('isolated_native_source_owner_not_started')
         from meme_machine.lanes.pump.solana_evidence_runtime import RuntimeEvidence
-        return RuntimeEvidence(path, owner=owner, clock=self.resources.clock)
+        return RuntimeEvidence(path, owner=owner, clock=self.resources.clock,
+            native_resources=self.resources,native_ports=self)
 
     def close(self):
         # The bootstrap joins all actual native workers before releasing ports.
