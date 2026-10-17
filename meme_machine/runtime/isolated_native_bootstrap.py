@@ -38,7 +38,7 @@ class NativeRunnerPorts:
         if lane not in ('pump','pons') or regime not in ('current','survivor','discovery'):
             raise ValueError('isolated_native_read_role')
         operation = lane+'_discovery' if regime == 'discovery' else lane+'_'+regime+'_qualification'
-        sources = [source for source in self.channel.sources.values() if source.operation == operation]
+        sources = [source for source in self.channel.sources.values() if source.operation == operation and source.read_class == 'native']
         if len(sources) != 1:
             raise ValueError('isolated_native_read_role_unavailable')
         return ChildRPCPort(self.channel, sources[0].alias)
@@ -84,9 +84,22 @@ class NativeRunnerPorts:
             return self._stores['pons_immutable']
 
     def pons_feed(self):
-        # Nitro continuity is a separate physical native source. A fabricated
-        # feed/RPC clock would change the actual Current acquisition workload.
-        raise ValueError('isolated_native_nitro_stream_port_unavailable')
+        require_resources(self.resources)
+        if self.closed:
+            raise ValueError('isolated_native_runner_ports_closed')
+        with self._lock:
+            from meme_machine.lanes.pons.sequencer_feed import SequencerBlockClock
+            source=self.rpc_port('pons','discovery').source
+            stream=self.channel.native_open(source)
+            try:
+                feed=SequencerBlockClock(parent_stream=stream)
+            except BaseException:
+                stream.close()
+                raise
+            # Each restarted consumer earns a fresh native session and feed
+            # state; only its separately authenticated canonical cursor survives.
+            self._stores.setdefault('pons_feeds',[]).append(feed)
+            return feed
 
     def pump_evidence(self, owner):
         require_resources(self.resources)
@@ -108,7 +121,10 @@ class NativeRunnerPorts:
             if self.closed:
                 return
             for name, value in self._stores.items():
-                if name == 'pons_immutable':
+                if name == 'pons_feeds':
+                    for feed in value:
+                        feed.close()
+                elif name == 'pons_immutable':
                     value.db.close()
                 elif name == 'pump_broker':
                     value.close()
