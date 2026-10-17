@@ -32,7 +32,7 @@ to decode the Swap and append history. Its narrow history-owner facade does not
 construct a financial book or prove a complete Runtime constructor/step lifecycle.
 The copied-main harness must independently exercise that actual owner lifecycle.
 A prospective newly graduated token can correctly remain below the original
-10-minute age gate throughout a 40-second run; this component's direct history
+graduation-age scheduling gate throughout a 40-second run; this component's direct history
 step neither bypasses that scheduler nor proves actual Survivor admission.
 
 RPC and Nitro share one immutable header model. At most 128 messages publish a
