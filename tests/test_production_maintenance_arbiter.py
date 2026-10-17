@@ -183,7 +183,8 @@ class ProductionServeTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(box['operations'])
 
     async def test_queue_expiry_does_not_change_native_records(self):
-        def before(r,f,b):b['clock'].advance(4)
+        def before(r,f,b):
+            b['clock'].advance(4);b['fault_direct_runtime_entry']=True
         box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(100,0,0)),before=before,turns=1)
         self.assertTrue(any('owner_lease_exceeded' in str(e) for e in box['errors']))
         self.assertEqual(box['counters'].get('archived_records',0),0)
@@ -210,7 +211,8 @@ class ProductionServeTests(unittest.IsolatedAsyncioTestCase):
         return stack
 
     async def test_stop_observes_accepted_expiry_before_coroutine_receives_failure(self):
-        def before(r,f,b):b['clock'].advance(4)
+        def before(r,f,b):
+            b['clock'].advance(4);b['fault_direct_runtime_entry']=True
         with self.delayed_maintenance_outcome():
             box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(100,0,0)),before=before,turns=1)
             await asyncio.sleep(.15)
@@ -221,7 +223,7 @@ class ProductionServeTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(row[2]==0 for row in box['records']))
 
     async def test_stop_keeps_accepted_cooperative_yield_nonterminal(self):
-        def yielded(runtime,flight,submitted):
+        def yielded(runtime,flight,submitted,*,owner_entered=None):
             raise EvidenceUnavailable('evidence_background_yield')
         with self.delayed_maintenance_outcome(),patch.object(production.MaintenanceRuntime,'turn',yielded):
             box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(100,0,0)),turns=1)
@@ -232,7 +234,7 @@ class ProductionServeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(box['counters'].get('archived_records',0),0)
 
     async def test_stop_preserves_accepted_native_timeout_failure(self):
-        def failed(runtime,flight,submitted):
+        def failed(runtime,flight,submitted,*,owner_entered=None):
             raise TimeoutError('native maintenance timeout')
         with self.delayed_maintenance_outcome(),patch.object(production.MaintenanceRuntime,'turn',failed):
             box=await run_case(seed=lambda s,c:seed_book(s,c,hot=(100,0,0)),turns=1)

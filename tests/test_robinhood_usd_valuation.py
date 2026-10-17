@@ -192,6 +192,54 @@ RALLY_CHANGED_SOURCES=('meme_machine/lanes/pons/pons_postgrad_survivor.py', 'mem
 RALLY_ADDED_SOURCES=('meme_machine/policy_history/opportunity_access_v1.json', 'meme_machine/runtime/rally_cycle.py')
 
 
+# The serialized maintenance callback owns one actual entry timestamp. Reusing
+# it removes the duplicate queue-clock decision without renewing execution,
+# worker, source or drought deadlines. Pin these complete mandatory owner files
+# and reverse only the reviewed callback/lease nodes to their exact predecessor.
+MAINTENANCE_ENTRY_CLOCK_REFERENCE='76741b3c56b3892d372c5fb2953cf2fdbd53404a'
+MAINTENANCE_ENTRY_CLOCK_DELTAS={
+    'meme_machine/solana_evidence_service.py':(
+        '61c04418d465c1b419b2b88123c37678794ab50dd42fc78c16a3ff20a6845482',
+        '717a471a0451085b1de27a1927f44aedde5a1acd7253bfdbb217800a07e0a15c',
+        ('serve.maintenance.turn',)),
+    'meme_machine/solana_maintenance_runtime.py':(
+        'bbedbfb392506ce3b2f05f7473b88234182c6261410217ed56fdcca4c2b6dab6',
+        '3c9fbb12f6e5b0a53a73fc014c70a0b68ba836feb8b8c17f810bba9e384f24ff',
+        ('MaintenanceRuntime.turn','MaintenanceRuntime.execution_lease')),
+}
+
+
+def maintenance_entry_clock_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    reviewed=MAINTENANCE_ENTRY_CLOCK_DELTAS.get(relative)
+    if reviewed is None:return current
+    before,after,changed=reviewed
+    prior=subprocess.check_output(['git','show',MAINTENANCE_ENTRY_CLOCK_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':exact maintenance-entry predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':exact maintenance-entry successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def node(root,name):
+        parent=root
+        for part in name.split('.'):
+            matches=[n for n in ast.walk(parent) if n is not parent
+                and isinstance(n,(ast.ClassDef,ast.FunctionDef,ast.AsyncFunctionDef)) and n.name==part]
+            test.assertEqual(len(matches),1,relative+':one explicit qualified node '+name)
+            parent=matches[0]
+        return parent
+    for name in changed:
+        selected=node(tree,name);original=node(old,name)
+        test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':explicit entry-clock node '+name)
+        owners=[(body,index) for parent in ast.walk(tree) for _,body in ast.iter_fields(parent)
+            if isinstance(body,list) for index,child in enumerate(body) if child is selected]
+        test.assertEqual(len(owners),1,relative+':one exact named-node owner')
+        body,index=owners[0];body[index]=deepcopy(original)
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':all other native, source and economic authority nodes retained')
+    return prior
+
+
 # An incremental Survivor checkpoint cannot seal its earlier required history
 # against a later gap. Pin only the fresh full-window continuity precheck before
 # the shortcut or any history write; retain every original strategy/exit byte.
@@ -1879,6 +1927,63 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_maintenance_entry_clock_preserves_exact_original_leases_and_native_guards(self):
+        import hashlib
+        mutations={
+            'meme_machine/solana_evidence_service.py':(
+                (b'if entered-submitted>runtime.leases.owner:',b'if False:'),
+                (b'runtime.turn(flight,submitted,owner_entered=entered)',
+                    b'runtime.turn(flight,submitted,owner_entered=time.monotonic())'),
+                (b'runtime.turn(flight,submitted,owner_entered=entered)',b'runtime.turn(flight,submitted)'),
+                (b'admission.entry(offer)',b'None'),
+                (b'accepted=lambda future:admission.accepted(future,offer)',b'accepted=lambda future:None'),
+                (b"admit_before=offer.row['deadline'] if offer is not None else None",b'admit_before=None')),
+            'meme_machine/solana_maintenance_runtime.py':(
+                (b'all(type(at) in (int,float) and math.isfinite(at) for at in clocks)',b'all(True for at in clocks)'),
+                (b'0<=submitted<=entered<=current',b'0<=submitted<=entered'),
+                (b'start=entered;owner_delay=entered-submitted',b'start=current;owner_delay=entered-submitted'),
+                (b'start=entered;owner_delay=entered-submitted',b'start=entered;owner_delay=0'),
+                (b'owner_delay>self.leases.owner',b'owner_delay>self.leases.owner+3'),
+                (b'with self.execution_lease(start+self.leases.execution):',
+                    b'with self.execution_lease(current+self.leases.execution):'),
+                (b'elif current-flight.submitted>=self.leases.worker:',b'elif False:'),
+                (b"        if self.monotonic() >= deadline:\n            raise EvidenceUnavailable('maintenance_execution_lease_exceeded')\n",
+                    b'        pass\n'),
+                (b"if self.monotonic() >= deadline and not getattr(self.writer,'_retention_atomic',False):",b'if False:'),
+                (b'self.writer.db.set_progress_handler(previous,1000 if previous else 0)',
+                    b'self.writer.db.set_progress_handler(None,0)'),
+                (b'if end-start>self.leases.execution:',b'if False:'),
+                (b'prior = source_now+RECOVERY_SOURCE_SECONDS, wall_now, PIPELINE_SLACK_RECORDS',
+                    b'prior = source_now+RECOVERY_SOURCE_SECONDS+1, wall_now, PIPELINE_SLACK_RECORDS'),
+                (b'flight.submitted+self.leases.worker+self.leases.drought',
+                    b'now+self.leases.worker+self.leases.drought'),
+                (b'self.state.archive_commit_slice_and_plan(plan,receipt)',b'(None,None)'),
+                (b'self.state.fence.session!=self.generation',b'False')),
+        }
+        self.assertEqual(set(mutations),set(MAINTENANCE_ENTRY_CLOCK_DELTAS))
+        for relative,(_,after,_) in MAINTENANCE_ENTRY_CLOCK_DELTAS.items():
+            current=(ROOT/relative).read_bytes()
+            self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact maintenance clock repair')
+            prior=subprocess.check_output(['git','show',MAINTENANCE_ENTRY_CLOCK_REFERENCE+':'+relative],cwd=ROOT)
+            self.assertEqual(maintenance_entry_clock_predecessor(self,relative,current),prior)
+            self.assertEqual(maintenance_entry_clock_predecessor(self,relative,prior),prior)
+            changes=[current+b'\n# unreviewed maintenance clock source change\n',b'']
+            for previous,successor in mutations[relative]:
+                self.assertIn(previous,current,relative+':negative mutation target exists')
+                changes.append(current.replace(previous,successor,1))
+            if relative=='meme_machine/solana_maintenance_runtime.py':
+                # Expiry must reject before the first caller/native statement,
+                # even when no SQLite progress callback would run at all.
+                expiry=(b"        if self.monotonic() >= deadline:\n"
+                    b"            raise EvidenceUnavailable('maintenance_execution_lease_exceeded')\n")
+                self.assertLess(current.index(expiry),current.index(b'            yield\n'))
+                changes.append(current.replace(expiry,b'',1).replace(b'            yield\n',
+                    b'            yield\n            if self.monotonic() >= deadline:\n'
+                    b"                raise EvidenceUnavailable('maintenance_execution_lease_exceeded')\n",1))
+            for changed in changes:
+                self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+                with self.assertRaises(AssertionError):maintenance_entry_clock_predecessor(self,relative,changed)
+
     def test_survivor_increment_continuity_reverses_only_exact_required_window_precheck(self):
         import hashlib,json
         relative=SURVIVOR_INCREMENT_CONTINUITY_SOURCE;current=(ROOT/relative).read_bytes()

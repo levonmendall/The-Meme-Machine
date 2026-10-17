@@ -175,11 +175,16 @@ async def run_case(*,seed=None,before=None,after=None,turns=32,
         def __init__(self,state):
             super().__init__(state,monotonic=clock.monotonic,wall=clock.time)
             box['runtime']=self
-        def turn(self,flight,submitted):
+        def turn(self,flight,submitted,*,owner_entered=None):
             box['turns']+=1
             if before:before(self,flight,box)
             try:
-                result=super().turn(flight,submitted)
+                # Only explicit late-entry fault cases exercise the original
+                # direct-call contract; ordinary serve work forwards its real
+                # serialized entry clock through instrumentation unchanged.
+                direct=box.pop('fault_direct_runtime_entry',False)
+                clocks={} if direct or owner_entered is None else dict(owner_entered=owner_entered)
+                result=super().turn(flight,submitted,**clocks)
                 if after:after(self,flight,result,box)
                 return result
             finally:

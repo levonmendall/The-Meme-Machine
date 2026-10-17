@@ -221,6 +221,8 @@ class MaintenanceRuntime:
         commit is not claimed preemptible: a late return revokes the lease and
         fails the service; no resulting sample qualifies as a liveness success.
         """
+        if self.monotonic() >= deadline:
+            raise EvidenceUnavailable('maintenance_execution_lease_exceeded')
         previous = getattr(self.writer,'_owner_progress_handler',None)
         expired = False
         def checked():
@@ -446,14 +448,21 @@ class MaintenanceRuntime:
 
 
     @measured('owner.maintenance')
-    def turn(self, flight, submitted):
+    def turn(self, flight, submitted, *, owner_entered=None):
         """Exactly one fresh owner-entry decision and at most one native side."""
         self.writer._check()
-        start=self.monotonic();decision=None;needs=();event=None
+        current=self.monotonic();start=current;owner_delay=None;decision=None;needs=();event=None
         if self.failure:
             raise EvidenceUnavailable('maintenance_admission_revoked')
         try:
-            if not math.isfinite(submitted) or submitted>start or start-submitted>self.leases.owner:
+            entered=current if owner_entered is None else owner_entered
+            clocks=(submitted,entered,current)
+            if (all(type(at) in (int,float) and math.isfinite(at) for at in clocks)
+                    and 0<=submitted<=entered<=current):
+                # The serialized callback's entry precedes diagnostic decoration.
+                # Its prefix consumes execution time, never a renewed queue lease.
+                start=entered;owner_delay=entered-submitted
+            if owner_delay is None or owner_delay>self.leases.owner:
                 raise EvidenceUnavailable('maintenance_owner_lease_exceeded')
             if self.state.fence.session!=self.generation:
                 raise EvidenceUnavailable('maintenance_generation_changed')
@@ -464,7 +473,7 @@ class MaintenanceRuntime:
                     flight.pending=flight.future.result()
                     flight.future=None
                     if not flight.pending[0]:flight.pending=None
-                elif start-flight.submitted>=self.leases.worker:
+                elif current-flight.submitted>=self.leases.worker:
                     raise EvidenceUnavailable('maintenance_archive_worker_lease_exceeded')
             with self.execution_lease(start+self.leases.execution):
                 observation=self.adapter.observe(self.generation)
@@ -501,7 +510,7 @@ class MaintenanceRuntime:
                 event=dict(sequence=decision.sequence if decision else None,
                     generation=self.generation,selected=decision.side if decision else None,
                     reason=decision.reason if decision else 'no_ready_required_work',
-                    at=now,owner_delay=start-submitted,
+                    at=now,owner_delay=owner_delay,
                     scope_state=[dict(scope=s.scope,hot=s.hot_eligible,hot_age=None if s.hot_oldest is None else observation.wall-s.hot_oldest,
                         archived_pending=s.archived_pending,retirement=s.retirement_eligible,
                         retirement_age=None if s.retirement_oldest is None else observation.wall-s.retirement_oldest,
@@ -585,9 +594,13 @@ class MaintenanceRuntime:
                 self.arbiter.failed=True
             if event is None:
                 event=dict(sequence=None,generation=self.generation,selected=None,
-                    at=start,owner_delay=start-submitted,reason='cooperative_yield' if cooperative else 'fail_closed')
+                    at=start if type(start) in (int,float) and math.isfinite(start) else None,
+                    owner_delay=owner_delay,reason='cooperative_yield' if cooperative else 'fail_closed')
             else:event['reason']='cooperative_yield' if cooperative else 'fail_closed'
-            event.update(execution=self.monotonic()-start,error=type(exc).__name__+':'+str(exc)[:120])
+            ended=self.monotonic()
+            elapsed=(ended-start if all(type(at) in (int,float) and math.isfinite(at)
+                for at in (start,ended)) and ended>=start else None)
+            event.update(execution=elapsed,error=type(exc).__name__+':'+str(exc)[:120])
             if decision is not None:
                 event['completion_pending'] = self.arbiter.pending is decision
             self._record(event)
