@@ -36,6 +36,7 @@ DEPENDENCIES={
 NATIVE_MODULES='''configparser mimetypes nturl2path shlex socketserver ssl stringprep
 unicodedata'''.split()
 NATIVE_PACKAGES={
+    'encodings':'raw_unicode_escape unicode_escape',
     'asyncio':'''__init__ base_events base_futures base_subprocess base_tasks constants coroutines
         events exceptions format_helpers futures locks log mixins protocols queues runners
         selector_events sslproto staggered streams subprocess taskgroups tasks threads
