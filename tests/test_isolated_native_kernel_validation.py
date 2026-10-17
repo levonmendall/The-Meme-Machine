@@ -28,8 +28,8 @@ def copied_seccomp_fixture(scope,approval,transport,facts):
     layout=NativeChildLayout(PROFILE,str(staged['root']),str(work),os.getpid(),staged['manifest_sha256'])
     source=Path(__file__).resolve().parents[1]
     code=('import ctypes,os,sys;sys.path.insert(0,'+repr(str(source))+');'+
-        'from meme_machine.operational.isolated_native_launcher import _prune_descriptors;'+
-        '_prune_descriptors('+str(transport.fileno())+','+str(facts)+');'+
+        'from meme_machine.operational.isolated_native_landlock_launcher import _prune_native_descriptors;'+
+        '_prune_native_descriptors('+str(transport.fileno())+','+str(facts)+');'+
         'from meme_machine.operational.native_landlock_policy import NativePolicy;'+
         'k=NativePolicy();'+
         'k.call(157,ctypes.c_int(38),ctypes.c_ulong(1),ctypes.c_ulong(0),ctypes.c_ulong(0),ctypes.c_ulong(0),code="fixture_nnp");'+

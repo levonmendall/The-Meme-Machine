@@ -93,6 +93,17 @@ def _entry_command(layout):
         'raise SystemExit(main(layout=layout))')
 
 
+def _prune_native_descriptors(transport,facts):
+    _prune_descriptors(transport,facts)
+    # The common helper reopens null stdin with Python's default CLOEXEC. The
+    # copied native scope reserves lifeline5/6 only after exec; losing fd0 would
+    # make its first pipe allocate(0,5) and correctly refuse that fixed contract.
+    image.require(stat.S_ISCHR(os.fstat(0).st_mode)
+        and fcntl.fcntl(0,fcntl.F_GETFL)&os.O_ACCMODE==os.O_RDONLY,
+        'native_landlock_null_stdin')
+    os.set_inheritable(0,True)
+
+
 def _exec_native(value,binding,supervisor):
     kernel=NativePolicy()
     signal.signal(signal.SIGTERM,signal.SIG_DFL)
@@ -198,7 +209,7 @@ def _setup(value):
     image.source_objects(approval)
     # Normalize before opening any pinned handles: FD3/4 must not collide with
     # image rules when the caller's original descriptor numbers were higher.
-    _prune_descriptors(value['transport_fd'],value['facts_fd'])
+    _prune_native_descriptors(value['transport_fd'],value['facts_fd'])
     binding=PinnedNativeImage(value['image'],manifest_sha256=value['manifest_sha256'],
         approval=approval,authenticate_manifest=lambda candidate:candidate==value['manifest'],
         profile=IMAGE_PROFILE)
