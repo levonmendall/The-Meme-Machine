@@ -13,6 +13,11 @@ BAD_SHAPES=[[],None,{'endpoints':[]},
             {'endpoints':{DOMAIN:{'methods':[]}}},
             {'endpoints':{DOMAIN:{'methods':{'eip1898_eth_call':None}}}}]
 class OptionalCapabilityShapeTests(unittest.TestCase):
+ def setUp(self):
+  # Disposable optional-profile fixtures have no live clock authority. Keep the
+  # real runtime guard intact on workers that cannot stat /proc/self/ns/time.
+  from tests.test_provider_clock_domain import identity
+  self.enterContext(patch('meme_machine.runtime.provider_clock.current_identity',return_value=identity()))
  def quote_resources(self):
   return {'chain_id':4663,'provider_domain':DOMAIN,'provider_fingerprint':FINGERPRINT,'methods':{
       'eip1898_eth_call':{'supported':True},'eip1898_eth_getCode':{'supported':True},

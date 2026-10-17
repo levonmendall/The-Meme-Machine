@@ -211,9 +211,13 @@ class ImmutableEvidenceCache:
 class SelectiveEvidenceContext:
     """Reuse one bounded authoritative RPC lane and immutable evidence across candidates."""
 
-    def __init__(self,endpoint,cache=None,*,parent_port=None,immutable_store=None):
+    def __init__(self,endpoint,cache=None,*,parent_port=None,immutable_store=None,native_profile=None):
         from meme_machine.runtime.robinhood.provider_authority import reference
         self.parent_port=parent_port;self.immutable_store=immutable_store
+        self.native_profile=None
+        if native_profile is not None:
+            from meme_machine.operational.pons_native_profile import require_profile
+            self.native_profile=require_profile(native_profile,parent_port)
         if parent_port is not None:
             from meme_machine.operational.child_transport import require_rpc_port
             from .immutable_rpc import EvidenceStore
@@ -244,16 +248,13 @@ class SelectiveEvidenceContext:
         if cap and parent_port is None:
             from . import CHAIN_ID
             domain=hashlib.sha256((str(CHAIN_ID)+':'+endpoint).encode()).hexdigest()
-            try:self.block_receipts_supported=json.loads(Path(cap).read_text())['endpoints'][domain]['methods']['eth_getBlockReceipts']['supported'] is True
-            except (OSError,ValueError,KeyError,TypeError,AttributeError):pass
             try:
-                row=json.loads(Path(cap).read_text())['endpoints'][domain]
-                resources=row['methods']['eth_getBlockReceipts']['observed_limits']
-                if row.get('chain_id')==CHAIN_ID and row.get('provider_domain')==domain:
-                    self.block_receipts_resources=resources
+                from .rpc_profile import apply_context_row
+                apply_context_row(self,json.loads(Path(cap).read_text())['endpoints'][domain],domain)
             except (OSError,ValueError,KeyError,TypeError,AttributeError):pass
-            try:self.view_batch_state['supported']=json.loads(Path(cap).read_text())['endpoints'][domain]['methods']['eth_callMany']['supported'] is True
-            except (OSError,ValueError,KeyError,TypeError,AttributeError):pass
+        elif self.native_profile is not None:
+            from .rpc_profile import apply_context_row
+            apply_context_row(self,self.native_profile.row(),self.native_profile.value()['source_domain'])
 
     @foreground_work
     def _rotate(self):
@@ -266,7 +267,7 @@ class SelectiveEvidenceContext:
         self.rpc=None
         if self.parent_port is not None:
             self.rpc=_rpc(self.endpoint,evidence_deadline=self.deadline,
-                parent_port=self.parent_port,immutable_store=self.immutable_store)
+                parent_port=self.parent_port,immutable_store=self.immutable_store,native_profile=self.native_profile)
         else:
             self.rpc=(_rpc(self.endpoint) if self.deadline is None else
                       _rpc(self.endpoint,evidence_deadline=self.deadline))
@@ -522,10 +523,10 @@ class SelectiveEvidenceContext:
         )
 
 
-def _rpc(endpoint,*,evidence_deadline=None,parent_port=None,immutable_store=None):
+def _rpc(endpoint,*,evidence_deadline=None,parent_port=None,immutable_store=None,native_profile=None):
     if parent_port is None:rpc=configured_rpc(endpoint,limit=200,per_scope=190,retries=0)
     else:rpc=configured_rpc(endpoint,limit=200,per_scope=190,retries=0,
-        parent_port=parent_port,immutable_store=immutable_store)
+        parent_port=parent_port,immutable_store=immutable_store,native_profile=native_profile)
     # Chain authentication is part of this consumer's acquisition budget.
     rpc.evidence_deadline=evidence_deadline
     rpc.verify_chain()

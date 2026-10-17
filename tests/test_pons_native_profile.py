@@ -123,5 +123,105 @@ class PonsNativeProfileTests(unittest.IsolatedAsyncioTestCase):
         self.channel._pons_profiles.clear()
         with self.assertRaises(ProfileFailure):require_profile(profile,self.port)
 
+    def native_context(self,profile):
+        from meme_machine.lanes.pons.immutable_rpc import EvidenceStore
+        from meme_machine.lanes.pons.pons_selective_acquisition import SelectiveEvidenceContext
+        store=EvidenceStore(self.root/'profile-native-cache.sqlite')
+        self.addCleanup(store.db.close)
+        return SelectiveEvidenceContext(None,parent_port=self.port,
+            immutable_store=store,native_profile=profile)
+
+    async def test_real_native_callmany_batch_keeps_independent_first_parity_and_disabled_shape(self):
+        import asyncio
+        from meme_machine.lanes.pons.abi import calldata
+        profile=self.receive(self.configured())
+        context=self.native_context(profile)
+        def word(data):return '0x'+data[2:10].ljust(64,'0')
+        physical=self.physical
+        def provider(request,timeout):
+            calls=json.loads(request.data)
+            rows=calls if type(calls) is list else [calls]
+            def value(call):
+                if call['method']=='eth_chainId':return hex(4663)
+                if call['method']=='eth_callMany':
+                    txs=call['params'][0][0]['transactions']
+                    return [[dict(value=word(tx['input'])) for tx in txs]]
+                return word(call['params'][0]['data'])
+            reply=[dict(jsonrpc='2.0',id=call['id'],result=value(call)) for call in rows]
+            physical.body=json.dumps(reply if type(calls) is list else reply[0]).encode()
+            return physical(request,timeout)
+        self.http.opener=provider
+        target='0x'+'1'*40
+        calls=[('eth_call',[dict(to=target,data=calldata(name)),'0xa']) for name in ('token()','getReserves()')]
+        self.assertNotIn('parity_verified',context.view_batch_state)
+        actual=await asyncio.to_thread(context.batch,calls,'pons_natural')
+        self.assertEqual(actual,[word(call[1][0]['data']) for call in calls])
+        self.assertTrue(context.view_batch_state['parity_verified'])
+        batches=[call for call in physical.calls if type(call) is list]
+        self.assertEqual([[row['method'] for row in batch] for batch in batches],
+            [['eth_callMany','eth_call','eth_call']])
+        value=row()
+        for method in value['methods'].values():method['supported']=False
+        disabled=self.native_context(self.receive(self.configured(value)))
+        self.assertFalse(disabled.view_batch_state['supported'])
+        self.assertEqual(await asyncio.to_thread(disabled.batch,calls,'pons_natural'),actual)
+        self.assertEqual([row['method'] for row in physical.calls[-1]],['eth_call','eth_call'])
+        self.assertIsNone(disabled.rpc.shared_quote_resources)
+        self.assertEqual(disabled.rpc.hash_state_supported,set())
+
+    async def test_real_native_dense_selector_uses_only_complete_bound_block_receipts(self):
+        import asyncio,time
+        profile=self.receive(self.configured())
+        context=self.native_context(profile);context.deadline=time.monotonic()+10
+        bh='0x'+'a'*64;txs=['0x'+format(i,'064x') for i in range(25)]
+        header=dict(hash=bh,number='0xa',transactions=txs)
+        receipts=[dict(transactionHash=tx,transactionIndex=hex(i),blockHash=bh,
+            blockNumber='0xa',status='0x1',logs=[],**{'from':'0x'+'1'*40}) for i,tx in enumerate(txs)]
+        physical=self.physical
+        def provider(request,timeout):
+            calls=json.loads(request.data);rows=calls if type(calls) is list else [calls]
+            reply=[dict(jsonrpc='2.0',id=c['id'],result=hex(4663) if c['method']=='eth_chainId'
+                else receipts) for c in rows]
+            physical.body=json.dumps(reply if type(calls) is list else reply[0]).encode()
+            return physical(request,timeout)
+        self.http.opener=provider
+        actual=await asyncio.to_thread(context.acquire_dense_receipts,[(tx,bh) for tx in txs],
+            headers={bh:header},scope='pons_selective_v4')
+        self.assertEqual(set(actual),{(tx,bh) for tx in txs})
+        self.assertEqual(context.receipt_acquisition_counts['selected_block_receipts'],1)
+        calls=[r for body in physical.calls for r in (body if type(body) is list else [body])]
+        self.assertEqual([r['method'] for r in calls],['eth_chainId','eth_getBlockReceipts'])
+        self.assertEqual(calls[-1]['params'],[bh])
+        # The unchanged native selector refuses a block without a complete size
+        # witness; a support receipt cannot make a missing header canonical.
+        self.assertEqual(await asyncio.to_thread(context.acquire_dense_receipts,
+            [(tx,bh) for tx in txs],headers={},scope='pons_selective_v4'),{})
+
+    async def test_real_native_rpc_hash_pins_and_original_shared_quote_resources(self):
+        import asyncio
+        profile=self.receive(self.configured())
+        context=self.native_context(profile)
+        physical=self.physical
+        def provider(request,timeout):
+            calls=json.loads(request.data);rows=calls if type(calls) is list else [calls]
+            reply=[dict(jsonrpc='2.0',id=c['id'],result=hex(4663) if c['method']=='eth_chainId'
+                else '0x'+'0'*64) for c in rows]
+            physical.body=json.dumps(reply if type(calls) is list else reply[0]).encode()
+            return physical(request,timeout)
+        self.http.opener=provider
+        rpc=await asyncio.to_thread(context.acquire,1,'pons_natural')
+        expected=dict(row()['methods']['native_quote_batch']['observed_limits'],
+            provider_fingerprint=self.port.source.endpoint_identity)
+        self.assertEqual(rpc.shared_quote_resources,expected)
+        self.assertEqual(rpc.hash_state_supported,{'eth_call','eth_getCode'})
+        bh='0x'+'b'*64;rpc.evidence_pins={'0xa':bh}
+        call=('eth_call',[dict(to='0x'+'1'*40,data='0x12345678'),'0xa'])
+        first=await asyncio.to_thread(rpc.batch,[call],scope='pons_natural')
+        second=await asyncio.to_thread(rpc.batch,[call],scope='pons_natural')
+        self.assertEqual(first,second)
+        self.assertEqual(physical.calls[-1][0]['params'][-1],dict(blockHash=bh))
+        self.assertIsNone(getattr(rpc,'last_canonical_read',None))
+        self.assertEqual(len(physical.calls),2) # Genuinechainauth+onehash-boundphysicalread.
+
 
 if __name__=='__main__':unittest.main()

@@ -275,6 +275,7 @@ class PacedRpc(Rpc):
         offline_admission=None,
         parent_port=None,
         immutable_store=None,
+        native_profile=None,
         **kwargs,
     ):
         if parent_port is not None:
@@ -292,10 +293,20 @@ class PacedRpc(Rpc):
             self.evidence_reuse=Reuse(None,immutable_store,'pons',
                 endpoint_identity=self.provider_fingerprint)
             self.hash_state_supported=set();self.shared_quote_resources=None
+            self.native_profile=None
+            if native_profile is not None:
+                from meme_machine.operational.pons_native_profile import require_profile
+                from .rpc_profile import apply_rpc_row
+                self.native_profile=require_profile(native_profile,parent_port)
+                apply_rpc_row(self,self.native_profile.row(),self.native_profile.value()['source_domain'],
+                    kwargs.get('max_response',2_000_000))
             self.pacer=pacer or ProviderPacer(requests_per_second)
             self._injected_transport=None
             super().__init__(endpoint,parent_port=parent_port,**kwargs)
             return
+        if native_profile is not None:
+            raise BoundaryError('isolated_rpc_profile_requires_parent_port')
+        self.native_profile=None
         self.role = str(role)
         self.canonical_authority = authority.is_canonical_role(self.role)
         self.chain_verified = False
@@ -333,27 +344,8 @@ class PacedRpc(Rpc):
             from pathlib import Path
             try:
                 row=json.loads(Path(capability_path).read_text())['endpoints'][self.evidence_reuse.domain]
-                methods=row['methods']
-                self.hash_state_supported={m for m in ('eth_call','eth_getCode') if methods.get('eip1898_'+m,{}).get('supported') is True}
-                # Reuse the existing endpoint capability file. Resource samples
-                # enable bounded same-turn quote sharing, never chain, market,
-                # financial or funding readiness. All quotes remain fresh and
-                # ordered canonical fences are still mandatory.
-                limits=methods.get('native_quote_batch',{}).get('observed_limits',{})
-                maximum=kwargs.get('max_response',2_000_000)
-                integers=('max_response_bytes','max_logical_elements','max_throughput_cu')
-                latency=limits.get('max_latency_seconds')
-                if (row.get('chain_id')==CHAIN_ID and row.get('provider_domain')==self.evidence_reuse.domain
-                        and row.get('provider_fingerprint')==self.provider_fingerprint
-                        and {'eth_call','eth_getCode'}<=self.hash_state_supported
-                        and methods.get('native_quote_batch',{}).get('supported') is True
-                        and limits.get('validated') is True
-                        and all(type(limits.get(k)) is int and limits[k]>0 for k in integers)
-                        and limits['max_response_bytes']<=maximum
-                        and limits['max_logical_elements']<=50
-                        and type(latency) in (int,float) and 0<=latency<=1):
-                    self.shared_quote_resources={k:limits[k] for k in (*integers,'max_latency_seconds')}
-                    self.shared_quote_resources.update(validated=True,provider_fingerprint=self.provider_fingerprint)
+                from .rpc_profile import apply_rpc_row
+                apply_rpc_row(self,row,self.evidence_reuse.domain,kwargs.get('max_response',2_000_000))
             except (OSError,ValueError,KeyError,TypeError,AttributeError):pass
         self.pacer = pacer or ProviderPacer(requests_per_second)
         if self.provider_kind == 'robinhood_public' and self.shared_admission is not None:
