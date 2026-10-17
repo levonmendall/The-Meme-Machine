@@ -733,9 +733,219 @@ def _preparation_failed_inputs(db,raw,handlers,session_id,*,heads=None,expected_
         gap_origins=origins,job_ids={f:digest([f,PROGRAMS[f],457925003,457925009]) for f in ('pump','pumpswap')})
 
 
+def _buffered_log_inputs(db,raw,handlers,session_id,*,heads=None,expected_origins=None):
+    """A committed queue does not settle its interrupted pre-feed WS callback.
+
+    Derive one closed buffered-log incident from the original producer records.
+    The existing archive/FULL consumer path must recover both programs through
+    the last held observation; no callback or old drain is declared complete.
+    """
+    import math
+    from .solana_evidence_plane import digest
+    from .solana_selective_history import PROGRAMS
+    from .solana_rolling_history import program_scope
+    require=_economic_require
+    require(isinstance(raw,str) and isinstance(handlers,str) and type(session_id) is int and session_id>0)
+    body=_retained_census(raw);accounting=body.get('handler_accounting')
+    require(body['state']=='RECOVERY_REQUIRED' and _observation_reference(body) and _committed_census(body)
+        and body.get('terminal_record_unavailable',False) is False
+        and body.get('unexpected_cancellation',False) is False
+        and isinstance(accounting,dict) and accounting.get('version')==1 and accounting.get('valid') is True
+        and accounting.get('run')==body.get('run_identity') and accounting.get('pid')==body.get('source_pid')
+        and type(body.get('source_pid')) is int and body['source_pid']>0
+        and isinstance(body.get('run_identity'),str) and len(body['run_identity'])==32
+        and all(c in '0123456789abcdef' for c in body['run_identity'])
+        and accounting.get('accepted')==body['accepted_handlers'] and accounting.get('returned')==body['settled_handlers']
+        and all(type(accounting.get(k)) is int and accounting[k]>=0 for k in ('accepted','returned','recoverable'))
+        and all(type(accounting.get(k)) is int and accounting[k]==0 for k in ('active','failed','unresolved'))
+        and control_recovery(_health_from_db(db,CONTROL_RECOVERY_KEY,SOURCE_DRAIN_BYTES)) is None)
+    require(all(set(row)=={'accepted','committed','pending'} for row in body['queues'].values()))
+    retained=_retained_handlers(handlers);records=accounting.get('records')
+    current=[r for r in retained if r.get('run')==body['run_identity']]
+    require(isinstance(records,list) and 0<len(records)<=HandlerLedger.maximum_records
+        and len(current)==len(records)==body['pending_handlers']==accounting.get('recoverable'))
+    ids=set()
+    for record in records:
+        require(isinstance(record,dict) and type(record.get('id')) is int
+            and 0<record['id']<=body['accepted_handlers'] and record['id'] not in ids)
+        ids.add(record['id'])
+        matches=[r for r in current if r.get('id')==record['id']]
+        require(len(matches)==1 and all(matches[0].get(k)==v for k,v in record.items()))
+    require(len({(r.get('run'),r.get('id')) for r in retained})==len(retained))
+    # A fixed local ID window stays repeatable after later archive observations.
+    # Ambiguous/oversized producer records fail closed, never select latest wins.
+    rows=db.execute('''SELECT id,kind,at,length(CAST(body AS BLOB)),CASE WHEN
+        length(CAST(body AS BLOB))<=? THEN body END FROM acquisition_observations
+        WHERE id BETWEEN ? AND ? AND kind IN ('source_session_drain','native_join_closed')
+        ORDER BY id LIMIT 257''',(SOURCE_DRAIN_BYTES,max(1,session_id-128),session_id+128)).fetchall()
+    selected=next((row for row in rows if row[0]==session_id),None)
+    require(selected is not None and selected[1]=='source_session_drain' and isinstance(selected[4],str)
+        and selected[3]<=SOURCE_DRAIN_BYTES and type(selected[2]) in (int,float)
+        and math.isfinite(selected[2]) and selected[2]>0)
+    observed=_retained_json(selected[4]);session=observed.get('session') if isinstance(observed,dict) else None
+    require(isinstance(session,str) and len(session)==32 and all(c in '0123456789abcdef' for c in session))
+    matching=[]
+    for row in rows:
+        require(isinstance(row[4],str) and row[3]<=SOURCE_DRAIN_BYTES)
+        value=_retained_json(row[4]);require(isinstance(value,dict))
+        if value.get('plane')=='rolling' and value.get('session')==session:matching.append((row,value))
+    drains=[r for r,v in matching if r[1]=='source_session_drain']
+    closed=[(r,v) for r,v in matching if r[1]=='native_join_closed']
+    require(len(drains)==len(closed)==1 and drains[0][0]==session_id)
+    closed_row,joined=closed[0]
+    require(type(closed_row[2]) in (int,float) and math.isfinite(closed_row[2]) and closed_row[2]>0)
+    fields=('plane','session','filtered_from_slot','completed','pending_slots','pending_bytes',
+        'early_log_count','early_log_bytes','early_log_min_slot','early_log_max_slot','oldest_slot',
+        'oldest_age','oldest_meta','oldest_finality','oldest_statuses','oldest_bodies','oldest_missing_logs',
+        'replay_prefix_bytes','accepted_pending','accepted_pending_bytes','drained')
+    require(all(k in observed and k in joined and observed[k]==joined[k] for k in fields)
+        and observed['drained'] is False and observed.get('complete_history_claim') is False
+        and observed.get('handler_dispositions')==current
+        and all(type(observed[k]) is int and observed[k]==0 for k in
+            ('pending_slots','pending_bytes','oldest_statuses','oldest_bodies','oldest_missing_logs',
+             'accepted_pending','accepted_pending_bytes'))
+        and observed['oldest_slot'] is None and observed['oldest_age'] is None
+        and observed['oldest_meta'] is False and observed['oldest_finality'] is None
+        and type(observed['completed']) is int and observed['completed']>0
+        and type(observed['early_log_count']) is int and 0<observed['early_log_count']<=32768
+        and type(observed['early_log_bytes']) is int and 0<observed['early_log_bytes']<=32*1024*1024
+        and type(observed['replay_prefix_bytes']) is int and observed['replay_prefix_bytes']>=0)
+    scopes=[program_scope(f) for f in ('pump','pumpswap')]
+    floor=observed.get('replay_from_slot');lo=observed['completed']
+    a,b=observed['early_log_min_slot'],observed['early_log_max_slot']
+    require(type(floor) is int and 0<floor<=lo and type(observed['filtered_from_slot']) is int
+        and observed['filtered_from_slot']==floor
+        and type(a) is int and type(b) is int and lo<a<=b
+        and observed.get('recovery_obligations')==[dict(scope=s,lower_slot=floor,upper_slot=None) for s in scopes])
+    for record in current:
+        require(type(record.get('source_pid')) is int and record['source_pid']==body['source_pid'] and record.get('session')==session
+            and all(record.get(k)==v for k,v in (('state','RECOVERABLE'),('phase','LOG_BUFFER_WAIT'),
+                ('transport','websocket'),('family','candidate_logs'),('kind','log_or_ack'),
+                ('failure_state','INTERRUPTED'),('error_type','CancelledError'),('scope_count',1)))
+            and type(record.get('scope_count')) is int and type(record.get('slot')) is int and record['slot']>=a
+            and isinstance(record.get('identity'),str) and bool(record['identity'])
+            and record.get('scope_hash') in [HandlerLedger.scope_hash((s,)) for s in scopes])
+    hi=max(b,*(record['slot'] for record in current))
+    names=('scope','slot','parent','hash','previous_hash','market_time','seen','session','census_hash')
+    actual=heads
+    if actual is None:
+        actual={}
+        for family,scope in zip(('pump','pumpswap'),scopes):
+            row=db.execute('SELECT slot,parent,hash,previous_hash,market_time,seen,session,census_hash '
+                'FROM candidate_blocks WHERE scope=?',(scope,)).fetchone()
+            require(row is not None);actual[family]=dict(zip(names,(scope,*row)))
+    require(isinstance(actual,dict) and set(actual)=={'pump','pumpswap'})
+    for family,scope in zip(('pump','pumpswap'),scopes):
+        head=actual[family]
+        require(isinstance(head,dict) and set(head)==set(names) and head['scope']==scope
+            and head['slot']==lo and type(head['slot']) is int and type(head['parent']) is int
+            and 0<=head['parent']<lo and head['session']==session
+            and type(head['market_time']) is int and head['market_time']>0
+            and type(head['seen']) in (int,float) and math.isfinite(head['seen']) and 0<head['seen']<=selected[2]
+            and all(isinstance(head[k],str) and 32<=len(head[k])<=44
+                and all(c in '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz' for c in head[k])
+                for k in ('hash','previous_hash'))
+            and isinstance(head['census_hash'],str) and len(head['census_hash'])==64
+            and all(c in '0123456789abcdef' for c in head['census_hash']))
+    require(all(actual['pump'][k]==actual['pumpswap'][k]
+        for k in ('slot','parent','hash','previous_hash','market_time','session')))
+    require(expected_origins is None or isinstance(expected_origins,dict)
+        and set(expected_origins)=={'pump','pumpswap'})
+    origins={}
+    for family,scope in zip(('pump','pumpswap'),scopes):
+        if expected_origins is None:
+            gaps=db.execute('''SELECT id,scope,lo,hi,created,reason FROM candidate_gaps
+                WHERE scope=? AND lo=? AND created<=? AND reason='candidate_live_disconnect_or_filter_rebuild'
+                ORDER BY id DESC LIMIT 2''',(scope,floor,selected[2])).fetchall()
+            require(len(gaps)==1);gap=gaps[0]
+        else:
+            old=expected_origins[family]
+            require(isinstance(old,dict) and type(old.get('id')) is int and old['id']>0)
+            gap=db.execute('SELECT id,scope,lo,hi,created,reason FROM candidate_gaps WHERE id=?',(old.get('id'),)).fetchone()
+            require(gap is not None)
+        origin=dict(zip(('id','scope','lo','hi','created','reason'),gap))
+        require(origin['scope']==scope and origin['lo']==floor and
+            (origin['hi'] is None or type(origin['hi']) is int and origin['hi']>=hi)
+            and type(origin['created']) in (int,float) and math.isfinite(origin['created'])
+            and 0<origin['created']<=selected[2] and origin['reason']=='candidate_live_disconnect_or_filter_rebuild')
+        if expected_origins is not None:
+            require(set(old)==set(origin) and all(old[k]==origin[k] for k in ('id','scope','lo','created','reason'))
+                and (old['hi']==origin['hi'] or old['hi'] is None and type(origin['hi']) is int and origin['hi']>=hi))
+            origin=old
+        origins[family]=origin
+    for record in current:
+        family=next(f for f,s in zip(('pump','pumpswap'),scopes) if record['scope_hash']==HandlerLedger.scope_hash((s,)))
+        require(record.get('recovery')==dict(kind='CANDIDATE_GAPS',gap_ids=[origins[family]['id']]))
+    provider=_retained_json(_health_from_db(db,'provider',SOURCE_DRAIN_BYTES))
+    require(isinstance(provider,dict) and provider.get('provider')=='alchemy_solana_mainnet'
+        and provider.get('network')=='solana-mainnet' and isinstance(provider.get('endpoint_identity'),str)
+        and len(provider['endpoint_identity'])==64 and all(c in '0123456789abcdef' for c in provider['endpoint_identity']))
+    return dict(version=1,kind='ROLLING_ECONOMIC_REPLAY_INPUTS',input_class='COMMITTED_BUFFERED_LOGS',
+        failed_census_sha256=hashlib.sha256(raw.encode()).hexdigest(),handler_ledger_sha256=hashlib.sha256(handlers.encode()).hexdigest(),
+        run_identity=body['run_identity'],source_pid=body['source_pid'],session=session,session_observation_id=session_id,
+        session_sha256=hashlib.sha256(selected[4].encode()).hexdigest(),closed_join_observation_id=closed_row[0],
+        closed_join_sha256=hashlib.sha256(closed_row[4].encode()).hexdigest(),endpoint_identity=provider['endpoint_identity'],
+        lower_slot=lo,upper_slot=hi,prefix_lower_slot=floor,prefix_upper_slot=lo-1,
+        tail_lower_slot=None,tail_upper_slot=None,accepted_pending=0,handler_records=current,
+        native_heads=actual,gap_origins=origins,
+        job_ids={f:digest([f,PROGRAMS[f],lo,hi]) for f in ('pump','pumpswap')})
+
+
+def _buffered_log_partition(db,shared,descriptor,family,full,points_cover):
+    """Preserve the original earlier partition and still-unavailable future.
+
+    FULL archive coverage of the buffered interval is not authority to erase
+    another subscription segment, including after a genuine new-session handoff.
+    """
+    import math
+    from .solana_evidence_plane import digest
+    from .solana_rolling_history import RollingHistory,program_scope,_subtract_intervals
+    from types import SimpleNamespace
+    require=_economic_require;origin=descriptor['gap_origins'][family];scope=program_scope(family)
+    rolling=object.__new__(RollingHistory);rolling.db=db;rolling.history=SimpleNamespace(db=db,clock=time.time)
+    rolling._history_input_byte_limit=16*1024*1024
+    row=db.execute('SELECT hi FROM candidate_gaps WHERE id=?',(origin['id'],)).fetchone()
+    require(row is not None);end=row[0];start=descriptor['upper_slot']+1
+    facts=dict(prefix_lower_slot=descriptor['prefix_lower_slot'],prefix_upper_slot=descriptor['prefix_upper_slot'],
+        prefix_unavailable=False,prefix_missing_intervals=0,future_lower_slot=start,future_upper_slot=end,
+        future_open_tail=end is None,future_unavailable=end is None,future_missing_intervals=int(end is None))
+    if end is None:
+        rows=db.execute('''SELECT lo FROM candidate_gaps INDEXED BY candidate_gap_scope_bounds
+            WHERE scope=? AND lo>=? AND hi IS NULL AND created=? AND reason=?
+                AND repaired IS NULL AND id>=? ORDER BY lo LIMIT 2''',
+            (scope,origin['lo'],origin['created'],origin['reason'],origin['id'])).fetchall()
+        require(len(rows)==1);end=rows[0][0]-1
+    for label,a,b in (('prefix',descriptor['prefix_lower_slot'],descriptor['prefix_upper_slot']),('future',start,end)):
+        if a>b:continue
+        missing=rolling.missing(family,scope,a,b);require(len(missing)<=4096)
+        facts[label+'_unavailable']=facts[label+'_unavailable'] or bool(missing)
+        facts[label+'_missing_intervals']+=len(missing)
+        for x,y in missing:
+            rows=db.execute('''SELECT id FROM candidate_gaps INDEXED BY candidate_gap_scope_bounds
+                WHERE scope=? AND lo>=? AND lo<=? AND (hi IS NULL OR hi>=?) AND created=?
+                AND reason=? AND repaired IS NULL AND id>=? ORDER BY lo LIMIT 2''',
+                (scope,origin['lo'],x,y,origin['created'],origin['reason'],origin['id'])).fetchall()
+            require(len(rows)==1)
+        covered=_subtract_intervals(((a,b),),missing)
+        if covered:
+            rows=shared.db.execute('''SELECT id,lo,hi,available,hash FROM work_history_proofs INDEXED BY work_history_proof_scope
+                WHERE scope=? AND lo<=? AND hi>=? ORDER BY lo,hi LIMIT 4097''',(scope,b,a)).fetchall()
+            require(len(rows)<=4096);published=[]
+            for scheduling,x,y,available,proof in rows:
+                require(type(x) is int and type(y) is int and 0<=x<=y
+                    and type(available) in (int,float) and math.isfinite(available) and 0<available<=time.time()
+                    and scheduling==digest(dict(scope=scope,lo=x,hi=y,proof_hash=proof)))
+                consumer=full(proof,family,x,y)
+                require(points_cover(scope,x,y,consumer['observed_at']));published.append((x,y))
+            require(not _subtract_intervals(covered,published))
+    return facts
+
+
 def _economic_recovery_inputs(db,raw,handlers,session_id,*,heads=None,expected_origins=None):
     validator=(_preparation_failed_inputs if isinstance(raw,str)
         and hashlib.sha256(raw.encode()).hexdigest()==PREPARATION_RECOVERY_CENSUS else _economic_failed_inputs)
+    if validator is _economic_failed_inputs and isinstance(raw,str) and _committed_census(_retained_census(raw)):
+        validator=_buffered_log_inputs
     return validator(db,raw,handlers,session_id,heads=heads,expected_origins=expected_origins)
 
 
@@ -753,7 +963,10 @@ def current_economic_recovery_descriptor(state_or_db):
     if prior:
         _economic_require(len(prior)==1)
         descriptor=_retained_json(prior[0][3])
-        actual=_economic_recovery_inputs(db,raw,handlers,descriptor['session_observation_id'])
+        if descriptor.get('input_class')=='COMMITTED_BUFFERED_LOGS':
+            actual=_economic_recovery_inputs(db,raw,handlers,descriptor['session_observation_id'],
+                expected_origins=descriptor['gap_origins'])
+        else:actual=_economic_recovery_inputs(db,raw,handlers,descriptor['session_observation_id'])
         _economic_require(actual==descriptor)
         return descriptor
     if checksum==PREPARATION_RECOVERY_CENSUS:
@@ -828,6 +1041,7 @@ def verify_economic_recovery_descriptor(state_or_db,descriptor_or_reference):
     life=object.__new__(CandidateLifecycle);life.db=db
     rolling=object.__new__(RollingHistory);rolling.db=db;rolling.history=SimpleNamespace(db=db,clock=time.time)
     lo=descriptor['lower_slot'];hi=descriptor['upper_slot'];endpoint=descriptor['endpoint_identity'];proofs={};tail_missing=False
+    buffered_partitions={}
     def points_cover(scope,a,b,at=None):
         rows=db.execute('SELECT points,hash FROM candidate_coverage WHERE scope=? AND lo<=? AND hi>=?',(scope,a,b)).fetchall()
         return any(any(x==a and y==b and t<=time.time() and (at is None or t==at)
@@ -905,6 +1119,8 @@ def verify_economic_recovery_descriptor(state_or_db,descriptor_or_reference):
             require(consumer.get('source')=='alchemy_finalized_repair' and points_cover(scope,lo,hi)
                 and life.unconsumed(scope) is None and rolling.missing(family,scope,lo,hi)==[])
             proofs[family]=proof
+            if descriptor.get('input_class')=='COMMITTED_BUFFERED_LOGS':
+                buffered_partitions[family]=_buffered_log_partition(db,shared,descriptor,family,full,points_cover)
             a=descriptor['tail_lower_slot'];b=descriptor['tail_upper_slot'];origin=descriptor['gap_origins'][family]
             if a is None:continue
             missing=rolling.missing(family,scope,a,b);tail_missing=tail_missing or bool(missing)
@@ -927,11 +1143,16 @@ def verify_economic_recovery_descriptor(state_or_db,descriptor_or_reference):
                     consumer=full(proof,family,x,y)
                     require(points_cover(scope,x,y,consumer['observed_at']));published.append((x,y))
                 require(not _subtract_intervals(covered,published))
-    return dict(reference=reference,descriptor=descriptor,economic_interval_recovered=True,
+    result=dict(reference=reference,descriptor=descriptor,economic_interval_recovered=True,
         original_queue_acknowledgement_verified=False,original_source_drain_pass=False,
         callback_completion_demonstrated=False,lower_slot=lo,upper_slot=hi,proof_ids=proofs,
         economic_tail_continuity_verified=True,economic_tail_recovered=not tail_missing,
         retained_economic_tail_unavailable=tail_missing)
+    if buffered_partitions:
+        result.update(input_class='COMMITTED_BUFFERED_LOGS',scope='OBSERVED_BUFFERED_INTERVAL_ONLY',
+            economic_tail_scope='OBSERVED_INTERVAL_AFTER_ARCHIVE_UPPER_ONLY',
+            full_subscription_completeness_claim=False,retained_partitions=buffered_partitions)
+    return result
 
 
 def _preserved_prejoin_observation(db,current,handlers):

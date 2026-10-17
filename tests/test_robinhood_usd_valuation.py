@@ -485,6 +485,95 @@ def source_parent_drain_predecessor(test,relative,current):
     return prior
 
 
+# All-committed queues do not settle interrupted pre-feed buffered callbacks.
+# Derive their observed interval from original closed/joined records and use
+# the existing archive/FULL/ACK verifier. Earlier and future subscription gaps
+# remain independently partitioned; no callback, drain or normal authority is
+# inferred from completion of that bounded economic interval.
+BUFFERED_PREJOIN_REFERENCE='eb94217fb64a69f5a889b23ba1f7c464a883f812'
+BUFFERED_PREJOIN_SOURCE='meme_machine/solana_source_drain.py'
+BUFFERED_PREJOIN_BEFORE='2c7d4a25f3220c75a1d249de8810eef0d96409bf9f35f62c478768b3c07329be'
+BUFFERED_PREJOIN_AFTER='c908beab9e6b797a86674ed3035ecf1e9dda8b3c0cfb6d8a42366d7fe9839900'
+BUFFERED_PREJOIN_CHANGED=('_economic_recovery_inputs','current_economic_recovery_descriptor',
+    'verify_economic_recovery_descriptor')
+BUFFERED_PREJOIN_ADDED=('_buffered_log_inputs','_buffered_log_partition')
+
+
+def buffered_prejoin_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=BUFFERED_PREJOIN_SOURCE:return current
+    prior=subprocess.check_output(['git','show',BUFFERED_PREJOIN_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),BUFFERED_PREJOIN_BEFORE,
+        relative+':exact original queue/preparation recovery predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),BUFFERED_PREJOIN_AFTER,
+        relative+':exact all-committed buffered observation recovery successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def function(root,name):
+        return next(n for n in root.body if isinstance(n,ast.FunctionDef) and n.name==name)
+    def source(body,selected):
+        return b''.join(body.splitlines(keepends=True)[selected.lineno-1:selected.end_lineno])
+    for name in ('_economic_failed_inputs','_preparation_failed_inputs','_economic_descriptor',
+            '_economic_descriptor_rows','preserve_economic_recovery_descriptor',
+            '_session_economic_boundaries','_preserved_program_gap_observation',
+            '_preserved_economic_replay_observation','_preserved_prejoin_observation',
+            '_historical_observation_record','_require_observation_funding_closed',
+            'retained_source_drain','begin_source_observation','publish_source_drain'):
+        test.assertEqual(source(current,function(tree,name)),source(prior,function(old,name)),
+            relative+':unchanged original recovery, startup or financial authority '+name)
+    reversals={
+        '_economic_recovery_inputs':((
+            b'    if validator is _economic_failed_inputs and isinstance(raw,str) and _committed_census(_retained_census(raw)):\n'
+            b'        validator=_buffered_log_inputs\n',b''),),
+        'current_economic_recovery_descriptor':((
+            b"        if descriptor.get('input_class')=='COMMITTED_BUFFERED_LOGS':\n"
+            b"            actual=_economic_recovery_inputs(db,raw,handlers,descriptor['session_observation_id'],\n"
+            b"                expected_origins=descriptor['gap_origins'])\n"
+            b"        else:actual=_economic_recovery_inputs(db,raw,handlers,descriptor['session_observation_id'])\n",
+            b"        actual=_economic_recovery_inputs(db,raw,handlers,descriptor['session_observation_id'])\n"),),
+        'verify_economic_recovery_descriptor':(
+            (b'    buffered_partitions={}\n',b''),
+            (b"            if descriptor.get('input_class')=='COMMITTED_BUFFERED_LOGS':\n"
+             b'                buffered_partitions[family]=_buffered_log_partition(db,shared,descriptor,family,full,points_cover)\n',b''),
+            (b'    result=dict(reference=reference,descriptor=descriptor,economic_interval_recovered=True,\n',
+             b'    return dict(reference=reference,descriptor=descriptor,economic_interval_recovered=True,\n'),
+            (b'    if buffered_partitions:\n'
+             b"        result.update(input_class='COMMITTED_BUFFERED_LOGS',scope='OBSERVED_BUFFERED_INTERVAL_ONLY',\n"
+             b"            economic_tail_scope='OBSERVED_INTERVAL_AFTER_ARCHIVE_UPPER_ONLY',\n"
+             b'            full_subscription_completeness_claim=False,retained_partitions=buffered_partitions)\n'
+             b'    return result\n',b'')),
+    }
+    restored=current
+    for name in BUFFERED_PREJOIN_CHANGED:
+        selected=function(tree,name);original=function(old,name)
+        selected_bytes=source(current,selected);normalized=selected_bytes
+        test.assertNotEqual(ast.dump(selected),ast.dump(original),
+            relative+':explicit bounded buffered-input integration '+name)
+        for reviewed,previous in reversals[name]:
+            test.assertEqual(normalized.count(reviewed),1,relative+':one exact approved byte delta '+name)
+            normalized=normalized.replace(reviewed,previous,1)
+        test.assertEqual(normalized,source(prior,original),
+            relative+':every original descriptor, archive, FULL, ACK and false-completion predicate retained '+name)
+        test.assertEqual(restored.count(selected_bytes),1,relative+':one exact changed named node '+name)
+        restored=restored.replace(selected_bytes,normalized,1)
+        tree.body[tree.body.index(selected)]=deepcopy(original)
+    additions=[]
+    for name in BUFFERED_PREJOIN_ADDED:
+        selected=function(tree,name);additions.append(selected);tree.body.remove(selected)
+        with test.assertRaises(StopIteration):function(old,name)
+    first=min(n.lineno for n in additions);last=max(n.end_lineno for n in additions)
+    addition=b''.join(current.splitlines(keepends=True)[first-1:last])+b'\n\n'
+    test.assertEqual(restored.count(addition),1,relative+':one exact bounded buffered-input/partition block')
+    restored=restored.replace(addition,b'',1)
+    test.assertEqual(ast.dump(tree),ast.dump(old),
+        relative+':all other financial, historical, cursor and startup nodes retained')
+    test.assertEqual(restored,prior,
+        relative+':every other original source byte and authority predicate retained')
+    return prior
+
+
 # One authenticated pure-preparation failure has independently closed/joined
 # session receipts. Its terminal-unavailable flag stays true; the existing
 # archive/FULL/ACK verifier still supplies all economic recovery authority.
@@ -508,6 +597,7 @@ def preparation_replay_predecessor(test,relative,current):
     test.assertEqual(hashlib.sha256(prior).hexdigest(),PREPARATION_REPLAY_BEFORE,
         relative+':exact independently closed preparation-failure predecessor')
     if current==prior:return prior
+    current=buffered_prejoin_predecessor(test,relative,current)
     test.assertEqual(hashlib.sha256(current).hexdigest(),PREPARATION_REPLAY_AFTER,
         relative+':exact preparation-failure replay-input successor')
     tree=ast.parse(current);old=ast.parse(prior)
@@ -2331,6 +2421,116 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_buffered_prejoin_replay_preserves_original_partition_and_full_ack_authority(self):
+        import hashlib
+        relative=BUFFERED_PREJOIN_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),BUFFERED_PREJOIN_AFTER,
+            relative+':active exact committed buffered-observation recovery')
+        self.assertEqual(BUFFERED_PREJOIN_BEFORE,PREPARATION_REPLAY_AFTER,
+            relative+':every prior preparation and queue-recovery source pin remains unchanged')
+        prior=subprocess.check_output(['git','show',BUFFERED_PREJOIN_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(buffered_prejoin_predecessor(self,relative,current),prior)
+        self.assertEqual(buffered_prejoin_predecessor(self,relative,prior),prior)
+        for predecessor in (preparation_replay_predecessor,prejoin_source_predecessor,
+                session_economic_recovery_predecessor,native_startup_failure_predecessor,
+                recovered_economic_boundary_predecessor,program_gap_observation_predecessor,
+                rally_predecessor,opportunity_predecessor):
+            self.assertEqual(predecessor(self,relative,current),predecessor(self,relative,prior),
+                relative+':complete original financial, retained-incident and strategy guard chain retained')
+        tree=ast.parse(current)
+        changes=[current+b'\n# unreviewed buffered-log recovery authority change\n',b'']
+        for name,mutations in (
+                ('_buffered_log_inputs',(
+                    (b"body['state']=='RECOVERY_REQUIRED' and _observation_reference(body) and _committed_census(body)",b'True'),
+                    (b"body.get('terminal_record_unavailable',False) is False",b'True'),
+                    (b"body.get('unexpected_cancellation',False) is False",b'True'),
+                    (b"accounting.get('run')==body.get('run_identity')",b'True'),
+                    (b"accounting.get('pid')==body.get('source_pid')",b'True'),
+                    (b"('active','failed','unresolved')",b"('active','failed')"),
+                    (b'control_recovery(_health_from_db(db,CONTROL_RECOVERY_KEY,SOURCE_DRAIN_BYTES)) is None',b'True'),
+                    (b"set(row)=={'accepted','committed','pending'}",b'True'),
+                    (b"len(current)==len(records)==body['pending_handlers']==accounting.get('recoverable')",b'True'),
+                    (b"len(matches)==1 and all(matches[0].get(k)==v for k,v in record.items())",b'True'),
+                    (b"len({(r.get('run'),r.get('id')) for r in retained})==len(retained)",b'True'),
+                    (b'ORDER BY id LIMIT 257',b'ORDER BY id DESC LIMIT 1'),
+                    (b'len(drains)==len(closed)==1 and drains[0][0]==session_id',b'True'),
+                    (b'all(k in observed and k in joined and observed[k]==joined[k] for k in fields)',b'True'),
+                    (b"observed['drained'] is False and observed.get('complete_history_claim') is False",b'True'),
+                    (b"('pending_slots','pending_bytes','oldest_statuses','oldest_bodies','oldest_missing_logs',\n             'accepted_pending','accepted_pending_bytes')",
+                     b"('pending_slots','pending_bytes','oldest_statuses','oldest_bodies','oldest_missing_logs')"),
+                    (b"type(floor) is int and 0<floor<=lo",b'True'),
+                    (b"observed.get('recovery_obligations')==[dict(scope=s,lower_slot=floor,upper_slot=None) for s in scopes]",b'True'),
+                    (b"record['source_pid']==body['source_pid'] and record.get('session')==session",b'True'),
+                    (b"('state','RECOVERABLE'),('phase','LOG_BUFFER_WAIT')",b"('state','RETURNED'),('phase','CANDIDATE_QUEUE')"),
+                    (b"('failure_state','INTERRUPTED'),('error_type','CancelledError'),('scope_count',1)",b"('failure_state','INTERRUPTED'),('error_type','CancelledError'),('scope_count',2)"),
+                    (b"record.get('scope_hash') in [HandlerLedger.scope_hash((s,)) for s in scopes]",b'True'),
+                    (b"hi=max(b,*(record['slot'] for record in current))",b'hi=b'),
+                    (b"head['slot']==lo",b"head['slot']>=lo"),
+                    (b"head['session']==session",b'True'),
+                    (b"('id','scope','lo','created','reason')",b"('id','scope','lo','reason')"),
+                    (b"old['hi']==origin['hi'] or old['hi'] is None and type(origin['hi']) is int and origin['hi']>=hi",b'True'),
+                    (b"record.get('recovery')==dict(kind='CANDIDATE_GAPS',gap_ids=[origins[family]['id']])",b'True'),
+                    (b"provider.get('network')=='solana-mainnet'",b'True'),
+                    (b'failed_census_sha256=hashlib.sha256(raw.encode()).hexdigest()',b"failed_census_sha256='unverified'"),
+                    (b'handler_ledger_sha256=hashlib.sha256(handlers.encode()).hexdigest()',b"handler_ledger_sha256='unverified'"),
+                    (b'session_sha256=hashlib.sha256(selected[4].encode()).hexdigest()',b"session_sha256='unverified'"),
+                    (b'closed_join_sha256=hashlib.sha256(closed_row[4].encode()).hexdigest()',b"closed_join_sha256='unverified'"),
+                    (b'lower_slot=lo,upper_slot=hi,prefix_lower_slot=floor,prefix_upper_slot=lo-1',
+                     b'lower_slot=lo+1,upper_slot=hi,prefix_lower_slot=lo,prefix_upper_slot=lo-1'),
+                    (b'accepted_pending=0,handler_records=current',b'accepted_pending=0,handler_records=[]'))),
+                ('_buffered_log_partition',(
+                    (b'require(row is not None);end=row[0]',b'end=descriptor[\'upper_slot\']'),
+                    (b'if end is None:',b'if False:'),
+                    (b'AND repaired IS NULL AND id>=?',b'AND id>=?'),
+                    (b"(scope,origin['lo'],origin['created'],origin['reason'],origin['id'])",
+                     b"(scope,origin['lo'],origin['created'],'foreign_origin',origin['id'])"),
+                    (b'require(len(rows)==1);end=rows[0][0]-1',b'end=start-1'),
+                    (b"('prefix',descriptor['prefix_lower_slot'],descriptor['prefix_upper_slot'])",b"('prefix',0,-1)"),
+                    (b"('future',start,end)",b"('future',start,start-1)"),
+                    (b'missing=rolling.missing(family,scope,a,b);require(len(missing)<=4096)',b'missing=[]'),
+                    (b'require(len(rows)==1)',b'require(True)'),
+                    (b'require(len(rows)<=4096);published=[]',b'published=[]'),
+                    (b'scheduling==digest(dict(scope=scope,lo=x,hi=y,proof_hash=proof))',b'True'),
+                    (b'consumer=full(proof,family,x,y)',b"consumer={'observed_at':time.time()}"),
+                    (b"require(points_cover(scope,x,y,consumer['observed_at']))",b'require(True)'),
+                    (b'require(not _subtract_intervals(covered,published))',b'require(True)'),
+                    (b'future_open_tail=end is None,future_unavailable=end is None',b'future_open_tail=False,future_unavailable=False'),
+                    (b"facts[label+'_unavailable']=facts[label+'_unavailable'] or bool(missing)",b"facts[label+'_unavailable']=False"))),
+                ('_economic_recovery_inputs',(
+                    (b'and _committed_census(_retained_census(raw)):',b':'),
+                    (b'PREPARATION_RECOVERY_CENSUS else _economic_failed_inputs)',b'PREPARATION_RECOVERY_CENSUS else _buffered_log_inputs)'))),
+                ('current_economic_recovery_descriptor',(
+                    (b"expected_origins=descriptor['gap_origins']",b'expected_origins=None'),
+                    (b'_economic_require(actual==descriptor)',b'_economic_require(True)'))),
+                ('verify_economic_recovery_descriptor',(
+                    (b"heads=None if direct else descriptor['native_heads']",b'heads=None'),
+                    (b"_health_from_db(db,HANDLER_RECOVERY_KEY+'_preserved.'+str(descriptor.get('handler_ledger_sha256')),HandlerLedger.maximum_bytes)",b'ledger'),
+                    (b"hashlib.sha256(old_ledger.encode()).hexdigest()==descriptor.get('handler_ledger_sha256')",b'True'),
+                    (b"[r for r in live if (r.get('run'),r.get('id'))==(record.get('run'),record.get('id'))]==[record]",b'True'),
+                    (b'buffered_partitions[family]=_buffered_log_partition(db,shared,descriptor,family,full,points_cover)',b'buffered_partitions[family]={}'),
+                    (b'full_subscription_completeness_claim=False',b'full_subscription_completeness_claim=True'),
+                    (b"scope='OBSERVED_BUFFERED_INTERVAL_ONLY'",b"scope='FULL_SUBSCRIPTION_HISTORY'"),
+                    (b'original_queue_acknowledgement_verified=False',b'original_queue_acknowledgement_verified=True'),
+                    (b'original_source_drain_pass=False',b'original_source_drain_pass=True'),
+                    (b'callback_completion_demonstrated=False',b'callback_completion_demonstrated=True')))):
+            selected=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name==name)
+            body=ast.get_source_segment(current.decode(),selected).encode()
+            self.assertEqual(current.count(body),1,relative+':one exact node-specific mutation body '+name)
+            for previous,successor in mutations:
+                self.assertIn(previous,body,relative+':negative mutation target exists '+name)
+                changes.append(current.replace(body,body.replace(previous,successor,1),1))
+        for previous,successor in (
+                (b"require(0<queues['rolling']['pending']<=8)",b'require(True)'),
+                (b'life.unconsumed(scope) is None',b'True'),
+                (b'rolling.missing(family,scope,lo,hi)==[]',b'True'),
+                (b"        _require_observation_funding_closed()\n",b'        pass\n')):
+            self.assertIn(previous,current,relative+':original authority mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):buffered_prejoin_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):preparation_replay_predecessor(self,relative,changed)
+
     def test_pump_restore_archive_reuse_preserves_fresh_authority_and_cancellation(self):
         import hashlib
         relative=PUMP_RESTORE_ARCHIVE_REUSE_SOURCE;current=(ROOT/relative).read_bytes()
@@ -2398,7 +2598,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_preparation_replay_preserves_terminal_incident_and_original_full_ack_authority(self):
         import hashlib
-        relative=PREPARATION_REPLAY_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=PREPARATION_REPLAY_SOURCE;current=buffered_prejoin_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),PREPARATION_REPLAY_AFTER,
             relative+':active exact preparation-failure replay-input proof')
         self.assertEqual(PREPARATION_REPLAY_BEFORE,PREJOIN_SOURCE_AFTER,
