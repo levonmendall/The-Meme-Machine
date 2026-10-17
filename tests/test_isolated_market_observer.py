@@ -2,6 +2,7 @@
 
 All RPC is mocked; never a live endpoint, PAPER service or portfolio.
 """
+import ast
 import importlib.util
 import json
 import os
@@ -29,6 +30,34 @@ class Scratch(unittest.TestCase):
 
 
 class RPCBoundaries(unittest.TestCase):
+    def test_fixed_programs_match_production_and_decode_to_32_bytes(self):
+        def configured(path, name):
+            tree = ast.parse((SCRIPT.parents[2] / path).read_text())
+            for node in tree.body:
+                if isinstance(node, ast.Assign) and any(
+                        isinstance(target, ast.Name) and target.id == name
+                        for target in node.targets):
+                    return ast.literal_eval(node.value)
+            self.fail('missing production program constant: '+name)
+        for path in ('meme_machine/pump.py',
+                     'meme_machine/lanes/pump/pump.py'):
+            self.assertEqual(observer.PUMP_PROGRAM, configured(path, 'PROGRAM'))
+        for path in ('meme_machine/postgrad.py',
+                     'meme_machine/lanes/pump/postgrad.py'):
+            self.assertEqual(observer.PUMPSWAP_PROGRAM,
+                             configured(path, 'PUMPSWAP_PROGRAM'))
+        programs=configured('meme_machine/solana_selective_history.py','PROGRAMS')
+        self.assertEqual(observer.PUMP_PROGRAM,programs['pump'])
+        self.assertEqual(observer.PUMPSWAP_PROGRAM,programs['pumpswap'])
+        for value in (observer.PUMP_PROGRAM, observer.PUMPSWAP_PROGRAM, '1'*32):
+            self.assertEqual(observer._solana_program(value),value)
+        # AWS 39053728978 rejected the truncated, 30-byte PumpSwap address.
+        for value in ('pAMMBay6oceH9fJKBRHGP5D4sWpmSwMn52FMfXEA',
+                      '0'*44, '1'*31, '1'*33, None):
+            with self.subTest(value=value), self.assertRaisesRegex(
+                    observer.ObservationUnavailable,'solana_program_invalid'):
+                observer._solana_program(value)
+
     def test_rpc_is_fixed_endpoint_method_and_bounded_response(self):
         calls = []
         def transport(endpoint, payload):
@@ -76,6 +105,23 @@ class RPCBoundaries(unittest.TestCase):
             rpc.call(observer.SOLANA,'getSlot',[])
         self.assertEqual(rpc.rate_limited,1)
 
+    def test_rpc_rejection_retains_only_approved_method_and_integer_code(self):
+        for code, expected in ((-32602,-32602), ('SECRET_CANARY',None),
+                               (True,None), (2**64,None)):
+            def transport(endpoint,payload):
+                packet=json.loads(payload)
+                return json.dumps(dict(jsonrpc='2.0',id=packet['id'],
+                    error=dict(code=code,message='SECRET_CANARY',
+                               data={'endpoint':'SECRET_CANARY'}))).encode()
+            rpc=observer.RPC(transport=transport,clock=lambda:42,sleeper=lambda _:None)
+            with self.subTest(code=code), self.assertRaisesRegex(
+                    observer.ObservationUnavailable,'^rpc_rejected$'):
+                rpc.call(observer.SOLANA,'getSignaturesForAddress',
+                         [observer.PUMPSWAP_PROGRAM,{'limit':32}])
+            self.assertEqual(rpc.rejection,
+                             dict(method='getSignaturesForAddress',code=expected))
+            self.assertNotIn('SECRET_CANARY',json.dumps(rpc.rejection))
+
 
 class DurableIsolation(Scratch):
     def test_commit_reopen_duplicate_and_no_completeness_promotion(self):
@@ -115,6 +161,15 @@ class DurableIsolation(Scratch):
 
 
 class SampleBoundaries(Scratch):
+    def test_invalid_fixed_program_refused_before_any_provider_call(self):
+        client=types.SimpleNamespace(call=lambda *_:self.fail('provider contacted'))
+        with patch.object(observer,'PUMPSWAP_PROGRAM',
+                          'pAMMBay6oceH9fJKBRHGP5D4sWpmSwMn52FMfXEA'):
+            with self.assertRaisesRegex(observer.ObservationUnavailable,
+                                        'solana_program_invalid'):
+                observer.Observer(client,self.journal)
+        self.assertEqual(self.journal.summary(),{})
+
     def fixture_rpc(self,*,bad_chain=False):
         seen=[]
         slots=[100,102,108]
