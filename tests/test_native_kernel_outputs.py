@@ -86,6 +86,16 @@ class NativeKernelOutputTests(unittest.TestCase):
 
 
 class NativeKernelSQLitePathTests(unittest.TestCase):
+    def test_canonical_ack_census_overflow_refuses_before_decoding_any_body(self):
+        # Deliberately malformed negative rows; no synthetic ACK is accepted.
+        with closing(sqlite3.connect(':memory:')) as db:
+            db.execute('CREATE TABLE candidate_history_outbox(id TEXT,family TEXT,address TEXT,body TEXT,hash TEXT,kind TEXT,consumed INTEGER)')
+            db.executemany('INSERT INTO candidate_history_outbox VALUES(?,?,?,?,?,?,?)',
+                ((str(index),'pump','invalid','{}','invalid','canonical',1)
+                    for index in range(1025)))
+            with self.assertRaisesRegex(ValueError,'ack_bound'):
+                validation._canonical_acks(db,db,Path('/unused'),endpoint_identity='a'*64)
+
     def test_existing_wal_commits_remain_visible_without_immutable_mode(self):
         with tempfile.TemporaryDirectory() as temporary:
             path=Path(temporary)/'owned.sqlite'
