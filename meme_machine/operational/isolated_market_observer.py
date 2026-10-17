@@ -221,10 +221,19 @@ class Observer:
         self.error = None
         self.completed = 0
         self.heads = {'solana': [], 'robinhood': []}
+        # Cross-backend/public-RPC differences can return signatures newer
+        # than a just-read finalized head. Record these as explicitly excluded
+        # references, not as finalized evidence and not as a fatal error.
+        self.unverified_future = {'solana_pump':0, 'solana_pumpswap':0}
+        self.regressed_finalized_heads = 0
 
     def solana(self, tick):
         head=_integer(self.rpc.call(SOLANA,'getSlot',[{'commitment':'finalized'}]),
                       'solana_head')
+        head_regressed=(self.last_solana_head is not None
+                        and head < self.last_solana_head)
+        if head_regressed:
+            self.regressed_finalized_heads += 1
         self.heads['solana'].append(head)
         for lane,program in (('solana_pump',PUMP_PROGRAM),
                              ('solana_pumpswap',PUMPSWAP_PROGRAM)):
@@ -233,23 +242,35 @@ class Observer:
             require(type(rows) is list and len(rows) <= MAX_SIGNATURES,
                     'solana_reference_shape')
             result=[]
+            eligible_signatures=[]
+            future=0
             for row in rows:
                 require(type(row) is dict, 'solana_reference_shape')
                 sig=row.get('signature')
                 slot=_integer(row.get('slot'), 'solana_signature_slot')
                 require(type(sig) is str and re.fullmatch('[1-9A-HJ-NP-Za-km-z]{50,100}',sig),
                         'solana_signature_identity')
-                require(slot <= head, 'solana_future_signature')
+                if slot > head:
+                    # Distinct finalized RPC frontiers may be observed from
+                    # different public backends. Do not persist, acknowledge,
+                    # or claim this signature is verified under our head.
+                    future += 1
+                    continue
                 key=digest([lane,sig,slot])
                 result.append((key,slot,dict(slot=slot,signature_sha256=digest(sig))))
+                eligible_signatures.append(sig)
+            self.unverified_future[lane] += future
             # An empty first page or a page without the previous newest
-            # reference cannot prove every intermediate market event.
-            latest=rows[0]['signature'] if rows else None
-            overlap=self.last_signature[lane] in [r.get('signature') for r in rows]
+            # reference cannot prove every intermediate market event. Only
+            # head-bounded verified references can update our overlap cursor.
+            latest=eligible_signatures[0] if eligible_signatures else None
+            overlap=self.last_signature[lane] in eligible_signatures
             missing=bool(self.last_signature[lane] and not overlap)
             self.journal.record(tick,lane,head,result,
-                bool(missing or len(rows)==MAX_SIGNATURES))
-            self.last_signature[lane]=latest
+                bool(future or head_regressed or missing or len(rows)==MAX_SIGNATURES))
+            if latest is not None:
+                self.last_signature[lane]=latest
+        self.last_solana_head=head
 
     def pons(self, tick):
         if not self.pons_chain_verified:
@@ -311,6 +332,8 @@ class Observer:
             completed_ticks=self.completed,requested_duration_seconds=duration,
             elapsed_seconds=round(elapsed,3),provider_requests=self.rpc.attempts,
             provider_429=self.rpc.rate_limited,error_code=self.error,
+            unverified_future_signatures_excluded=dict(self.unverified_future),
+            regressed_finalized_heads=self.regressed_finalized_heads,
             lane_measurements=self.journal.summary(),
             head_start_end={k:[v[0],v[-1]] if v else None for k,v in self.heads.items()},
             financial_authority=False,paper_started=False,

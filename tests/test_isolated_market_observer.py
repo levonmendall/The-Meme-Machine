@@ -154,6 +154,92 @@ class SampleBoundaries(Scratch):
                          [('0xde','0xde'),('0xdf','0xe0'),('0xe5','0xe7')])
         self.assertIs(o.pons_chain_verified,True)
 
+    def test_public_provider_finalized_head_race_excludes_future_without_aborting(self):
+        """Observed AWS 39051089747: signatures can outrun sampled finalized slot.
+
+        A reference ahead of *this* independent head is never treated as a
+        finalized trade, but does not abort a 120-second keyless sample.
+        """
+        heads=iter([100,108])
+        counts={observer.PUMP_PROGRAM:0,observer.PUMPSWAP_PROGRAM:0}
+        def response(endpoint,method,params):
+            if method=='getSlot':return next(heads)
+            if method=='getSignaturesForAddress':
+                program=params[0]
+                counts[program]+=1
+                if program==observer.PUMP_PROGRAM:
+                    return ([dict(signature='1'*64,slot=103),
+                             dict(signature='2'*64,slot=100)] if counts[program]==1
+                            else [dict(signature='1'*64,slot=103),
+                                  dict(signature='2'*64,slot=100)])
+                return [dict(signature='3'*64,slot=106)]
+            raise AssertionError('unexpected method '+method)
+        client=types.SimpleNamespace(call=response,attempts=0,rate_limited=0)
+        o=observer.Observer(client,self.journal)
+        o.solana(0)
+        self.assertEqual(o.unverified_future,
+            dict(solana_pump=1,solana_pumpswap=1))
+        self.assertEqual(o.last_signature['solana_pump'],'2'*64)
+        self.assertIsNone(o.last_signature['solana_pumpswap'])
+        before=self.journal.summary()
+        self.assertEqual(before['solana_pump']['written'],1)
+        self.assertEqual(before['solana_pumpswap']['written'],0)
+        self.assertEqual(before['solana_pump']['possible_gaps'],1)
+        self.assertEqual(before['solana_pumpswap']['possible_gaps'],1)
+        self.assertEqual(self.journal.db.execute('SELECT max(head) FROM observations '
+            'WHERE lane=?',('solana_pump',)).fetchone()[0],100)
+        o.solana(1)
+        after=self.journal.summary()
+        self.assertEqual(o.unverified_future,dict(solana_pump=1,solana_pumpswap=1))
+        self.assertEqual(after['solana_pump']['written'],2)
+        self.assertEqual(after['solana_pumpswap']['written'],1)
+        self.assertEqual(o.last_signature['solana_pump'],'1'*64)
+        self.assertEqual(o.last_signature['solana_pumpswap'],'3'*64)
+        self.assertEqual(after['solana_pumpswap']['possible_gaps'],1)
+        self.assertTrue(all(head<=108 for (head,) in self.journal.db.execute(
+            'SELECT head FROM observations')))
+
+    def test_all_future_references_keep_prior_overlap_and_log_gap(self):
+        heads=iter([101,100])
+        count=[0]
+        def response(endpoint,method,params):
+            if method=='getSlot':return next(heads)
+            if method=='getSignaturesForAddress':
+                if params[0]==observer.PUMP_PROGRAM:
+                    count[0]+=1
+                    if count[0]==1:
+                        return [dict(signature='1'*64,slot=101)]
+                    return [dict(signature='4'*64,slot=105)]
+                return []
+            raise AssertionError('unexpected method')
+        client=types.SimpleNamespace(call=response,attempts=0,rate_limited=0)
+        o=observer.Observer(client,self.journal)
+        o.solana(0)
+        self.assertEqual(o.last_signature['solana_pump'],'1'*64)
+        o.solana(1)
+        self.assertEqual(o.last_signature['solana_pump'],'1'*64)
+        self.assertEqual(o.regressed_finalized_heads,1)
+        self.assertEqual(o.unverified_future['solana_pump'],1)
+        summary=self.journal.summary()['solana_pump']
+        self.assertEqual(summary['written'],1)
+        self.assertEqual(summary['samples'],2)
+        self.assertEqual(summary['possible_gaps'],1)
+        self.assertEqual(self.journal.db.execute(
+            'SELECT count(*) FROM observations').fetchone()[0],1)
+
+    def test_malformed_future_signature_is_still_refused(self):
+        def response(endpoint,method,params):
+            if method=='getSlot':return 100
+            if method=='getSignaturesForAddress':
+                return [dict(signature='BAD',slot=105)]
+            raise AssertionError('unexpected method')
+        client=types.SimpleNamespace(call=response,attempts=0,rate_limited=0)
+        o=observer.Observer(client,self.journal)
+        with self.assertRaisesRegex(observer.ObservationUnavailable,
+                                    'solana_signature_identity'):
+            o.solana(0)
+        self.assertEqual(self.journal.summary(),{})
+
     def test_wrong_chain_refused_without_fabricated_pons_journal(self):
         client=self.fixture_rpc(bad_chain=True)
         o=observer.Observer(client,self.journal)
