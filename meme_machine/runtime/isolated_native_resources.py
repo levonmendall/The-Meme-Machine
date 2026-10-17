@@ -10,10 +10,12 @@ import fcntl
 import json
 from pathlib import Path
 import sqlite3
+import stat
 import threading
 
 from meme_machine.runtime.journal import canonical, digest
 from meme_machine.runtime.sleeve_reservations import SleeveReservations
+from meme_machine.runtime.candidate_history import CandidateHistory
 
 
 class IsolatedFinancialWriteDenied(ValueError):
@@ -140,13 +142,14 @@ class IsolatedNativeResources:
         if any((parent / marker).exists() for parent in root.parents for marker in markers):
             raise ValueError('isolated_native_financial_ancestor')
         self.root = root
-        self.facts = sizing_facts
+        self._facts = sizing_facts
         self.clock = clock
         self.closed = False
         self._lock = threading.RLock()
         self._sleeves = set()
         self._histories = []
-        self._candidate_history = None
+        self._candidate_histories = {}
+        self._candidate_file_identity = None
         self._native_histories = {}
         self._pons_plane = None
         root.mkdir(mode=0o700)  # Exclusive creation; never adopt existing state.
@@ -157,9 +160,43 @@ class IsolatedNativeResources:
             financial_authority=False, full_bootstrap_supported=False)))
         self._owner.flush()
 
-    def basis(self, lane, target_bps, *, minimum_bps=0):
+    @property
+    def facts(self):
+        return self._facts
+
+    def replace_authenticated_sizing_facts(self, sizing_facts):
+        """Accept a fresh parent receipt without creating value or authority.
+
+        Only the protected parent may provide the authenticator used to create
+        these immutable facts. This method has no provider, epoch or valuation
+        fallback and cannot change the original scope/source/epoch binding.
+        """
         require_resources(self)
-        return self.facts.basis(lane, target_bps, minimum_bps=minimum_bps, at=int(self.clock()))
+        if type(sizing_facts) is not AuthenticatedSizingFacts:
+            raise ValueError('isolated_sizing_authentication_required')
+        with self._lock:
+            require_resources(self)
+            prior = self.facts.value()
+            value = sizing_facts.value()
+            if any(value[key] != prior[key] for key in (
+                    'scope','source_commit','source_tree','epoch_reference')):
+                raise ValueError('isolated_sizing_binding_changed')
+            if (value['portfolio_sequence'] < prior['portfolio_sequence']
+                    or value['observed_at'] < prior['observed_at']):
+                raise ValueError('isolated_sizing_sequence_regression')
+            now = int(self.clock())
+            for lane in ('pump','pons'):
+                sizing_facts.require_fresh(lane, now)
+            old = self.facts.receipt_hash
+            self._facts = sizing_facts
+            return dict(previous_receipt_hash=old, receipt_hash=sizing_facts.receipt_hash,
+                        portfolio_sequence=value['portfolio_sequence'],
+                        observed_at=value['observed_at'], allocation_authority=False)
+
+    def basis(self, lane, target_bps, *, minimum_bps=0):
+        with self._lock:
+            require_resources(self)
+            return self.facts.basis(lane, target_bps, minimum_bps=minimum_bps, at=int(self.clock()))
 
     def open_sleeve(self, lane, *, policies):
         require_resources(self)
@@ -175,11 +212,19 @@ class IsolatedNativeResources:
         require_resources(self)
         with self._lock:
             require_resources(self)
-            if self._candidate_history is None:
-                from meme_machine.runtime.candidate_history import CandidateHistory
-                self._candidate_history = CandidateHistory(self._unused_native_path('candidate-history.sqlite'), clock=self.clock)
-                self._histories.append(self._candidate_history)
-            return self._candidate_history
+            owner = threading.current_thread()
+            if owner not in self._candidate_histories:
+                if self._candidate_file_identity is None:
+                    path = self._unused_native_path('candidate-history.sqlite')
+                else:
+                    path = self._owned_candidate_path()
+                history = _OwnedCandidateHistory(path, resources=self, owner=owner)
+                self._candidate_file_identity = self._file_identity(path)
+                self._candidate_histories[owner] = history
+                self._histories.append(history)
+            else:
+                self._owned_candidate_path()
+            return self._candidate_histories[owner]
 
     def survivor_history(self, lane):
         require_resources(self)
@@ -221,6 +266,25 @@ class IsolatedNativeResources:
                 raise ValueError('isolated_native_foreign_state')
         return path
 
+    @staticmethod
+    def _file_identity(path):
+        value = path.lstat()
+        if not stat.S_ISREG(value.st_mode) or value.st_nlink != 1:
+            raise ValueError('isolated_native_foreign_state')
+        return value.st_dev,value.st_ino
+
+    def _owned_candidate_path(self):
+        path = self.root / 'candidate-history.sqlite'
+        for suffix in ('','-wal','-shm','-journal'):
+            member = Path(str(path)+suffix)
+            if member.is_symlink():
+                raise ValueError('isolated_native_state_symlink')
+            if member.exists():
+                self._file_identity(member)
+        if not path.exists() or self._file_identity(path) != self._candidate_file_identity:
+            raise ValueError('isolated_native_foreign_state')
+        return path
+
     def require_survivor_history(self, history, lane):
         require_resources(self)
         if (history is None or self._native_histories.get(lane) is not history or
@@ -241,9 +305,11 @@ class IsolatedNativeResources:
 
     def require_history(self, history):
         require_resources(self)
-        if (history not in self._histories or history.path != self.root / 'candidate-history.sqlite'
+        if (history is None or self._candidate_histories.get(threading.current_thread()) is not history
+                or history.path != self.root / 'candidate-history.sqlite'
                 or history.path.is_symlink()):
             raise ValueError('isolated_native_history_owner')
+        self._owned_candidate_path()
 
     def deny_qualified(self, history, decision_id, lane, candidate, *, mode, at,
                        qualification=None, vector=None, stage=None):
@@ -253,8 +319,9 @@ class IsolatedNativeResources:
         reservation, controller intent, portfolio delivery, ACK or settlement.
         """
         self.require_history(history)
-        self.facts.require_fresh(lane, int(self.clock()))
-        self.facts.require_fresh(lane, at)
+        facts=self.facts
+        facts.require_fresh(lane, int(self.clock()))
+        facts.require_fresh(lane, at)
         if history.db.in_transaction:
             raise ValueError('isolated_native_uncommitted_qualification')
         with history.transaction():
@@ -280,7 +347,7 @@ class IsolatedNativeResources:
             # a concurrent writer cannot replace a row between those checks.
             history.record_funding(decision_id, lane, candidate, status='denied', at=at,
                 reason='isolated_native_no_allocation', details=dict(
-                    sizing_receipt_hash=self.facts.receipt_hash, allocation_authority=False,
+                    sizing_receipt_hash=facts.receipt_hash, allocation_authority=False,
                     qualification_preserved=True))
         return dict(decision_id=decision_id, status='denied', at=at,
                     reason='isolated_native_no_allocation', economic_rejection=False,
@@ -294,6 +361,31 @@ class IsolatedNativeResources:
                 resource.close()
             self._owner.close()
             self.closed = True
+
+
+class _OwnedCandidateHistory(CandidateHistory):
+    """The actual native store, with one connection per execution owner.
+
+    Its native transaction/decision/publication methods remain unchanged.
+    Only close unregisters the owned connection so repeated owner lifetimes
+    cannot accumulate closed handles in the resource registry.
+    """
+    def __init__(self, path, *, resources, owner):
+        self._resources = resources
+        self._owner_thread = owner
+        self._closed = False
+        super().__init__(path, clock=resources.clock)
+
+    def close(self):
+        with self._resources._lock:
+            if self._closed:
+                return
+            super().close()
+            self._closed = True
+            if self._resources._candidate_histories.get(self._owner_thread) is self:
+                del self._resources._candidate_histories[self._owner_thread]
+            if self in self._resources._histories:
+                self._resources._histories.remove(self)
 
 
 class NativeObservationState:

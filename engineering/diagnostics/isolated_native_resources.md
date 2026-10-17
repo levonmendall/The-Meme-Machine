@@ -29,6 +29,11 @@ Pons' executable USD route, matching the production readers. The authenticated
 receipt cannot extend either underlying expiry, and every sizing/denial access
 checks freshness. A joint receipt thus needs refresh within the shortest
 underlying interval; this component has no parent receipt producer yet.
+`replace_authenticated_sizing_facts()` accepts only a newly authenticated facts
+object with the same scope, exact source and epoch reference, nondecreasing
+portfolio sequence and capture time, and both valuations fresh at the actual
+clock. It cannot invent or fetch a replacement value. Reading the facts property
+cannot mutate or replace it through ordinary assignment.
 A checksum alone is not accepted as authentication. The epoch identifier is a
 reference, never a copied epoch,
 grant or authority. Native qualification receives positive actual sizing facts;
@@ -78,12 +83,16 @@ bookless loop/reporting adapters, injected provider/owner resources and the
 protected parent receipt/transport bridge before an isolated native workload
 can run. No source delivery, FULL/ACK or market throughput claim follows.
 Native store factories reject preexisting files and main/WAL/SHM/journal
-symlinks before invoking the original SQLite constructors. The cached shared
-CandidateHistory connection has no cross-thread transaction serialization;
-parallel bootstrap must provide per-owner connections or serialization before
-sharing it among runner threads. Current tests exercise sequential admission.
+symlinks before invoking the original SQLite constructors. CandidateHistory
+connections are cached per native execution-owner thread, with unchanged native
+transaction/publication methods. Additional owners open only the same verified
+file inode created by this resource; cached returns and admission checks also
+verify that identity. Cross-owner handles are refused and close unregisters
+them. Four actual concurrent owners preserve all 80 qualifications and 80 denials
+in the offline regression. This is SQLite ownership proof, not a complete
+concurrent market workload or source-delivery parity proof.
 
-The scoped offline proof covers 18 component/admission tests plus 115 existing
+The scoped offline proof covers 21 component/admission tests plus 115 existing
 accounting, portfolio, native Survivor strategy/runtime and Pons worker checks.
 It proves
 the explicit constructor rejection occurs before SQLite opens, durable

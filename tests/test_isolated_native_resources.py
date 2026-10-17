@@ -6,6 +6,7 @@ import hmac
 from pathlib import Path
 import sqlite3
 import tempfile
+import threading
 import unittest
 from unittest.mock import Mock, patch
 
@@ -111,6 +112,89 @@ class IsolatedNativeResourceTests(unittest.TestCase):
         self.assertGreater(facts.basis('pump',500,at=1002)['target'],0)
         with self.assertRaisesRegex(ValueError,'stale'):
             facts.basis('pump',500,at=1003)
+
+    def test_authenticated_refresh_keeps_binding_sequence_and_underlying_expiry(self):
+        self.now[0]=1004
+        value=receipt(1004);value['portfolio_sequence']=74
+        value['lanes']['pump']['realized_equity']=2*10**18
+        refreshed=authenticated(value)
+        outcome=self.resources.replace_authenticated_sizing_facts(refreshed)
+        self.assertEqual(outcome['previous_receipt_hash'],self.facts.receipt_hash)
+        self.assertEqual(outcome['receipt_hash'],refreshed.receipt_hash)
+        self.assertFalse(outcome['allocation_authority'])
+        self.assertEqual(self.resources.basis('pump',500)['target'],10**17)
+        with self.assertRaises(AttributeError):self.resources.facts=self.facts
+        for field,replacement in (('scope','other'),('source_commit','d'*40),
+                ('source_tree','e'*40),('epoch_reference','other')):
+            wrong=deepcopy(value);wrong[field]=replacement
+            with self.subTest(field=field),self.assertRaisesRegex(ValueError,'binding_changed'):
+                self.resources.replace_authenticated_sizing_facts(authenticated(wrong))
+        wrong=deepcopy(value);wrong['portfolio_sequence']=73
+        with self.assertRaisesRegex(ValueError,'sequence_regression'):
+            self.resources.replace_authenticated_sizing_facts(authenticated(wrong))
+        with self.assertRaisesRegex(ValueError,'sequence_regression'):
+            self.resources.replace_authenticated_sizing_facts(self.facts)
+        with self.assertRaisesRegex(ValueError,'authentication_required'):
+            self.resources.replace_authenticated_sizing_facts(value)
+        self.now[0]=1010
+        with self.assertRaisesRegex(ValueError,'stale'):
+            self.resources.basis('pump',500)
+        with self.assertRaisesRegex(ValueError,'stale'):
+            self.resources.replace_authenticated_sizing_facts(refreshed)
+        current=receipt(1010);current['portfolio_sequence']=74
+        self.resources.replace_authenticated_sizing_facts(authenticated(current))
+        self.assertGreater(self.resources.basis('pons',500)['target'],0)
+
+    def test_candidate_history_connections_are_owner_local_with_real_concurrent_transactions(self):
+        main=self.resources.candidate_history()
+        barrier=threading.Barrier(4,timeout=5);connections=[];errors=[]
+        def consume(owner):
+            try:
+                with self.assertRaisesRegex(ValueError,'history_owner'):
+                    self.resources.require_history(main)
+                history=self.resources.candidate_history()
+                self.resources.require_history(history)
+                self.assertIs(history,self.resources.candidate_history())
+                connections.append(history.db)
+                barrier.wait()
+                for index in range(20):
+                    candidate=f'owner-{owner}-candidate-{index}'
+                    decision=history.record_decision('pump',candidate,mode='current',observed_at=1000,
+                        qualified=True,decision={'qualification':{'qualified':True}})
+                    self.resources.deny_qualified(history,decision,'pump',candidate,mode='current',at=1000)
+                history.close()
+            except BaseException as error:errors.append(error)
+        threads=[threading.Thread(target=consume,args=(owner,)) for owner in range(4)]
+        for thread in threads:thread.start()
+        for thread in threads:thread.join(timeout=10)
+        self.assertFalse(any(thread.is_alive() for thread in threads))
+        self.assertEqual(errors,[])
+        self.assertEqual(len({id(db) for db in connections}),4)
+        self.assertEqual(main.db.execute('SELECT COUNT(*) FROM decisions').fetchone()[0],80)
+        self.assertEqual(main.db.execute("SELECT COUNT(*) FROM funding WHERE status='denied'").fetchone()[0],80)
+        self.assertEqual(len(self.resources._candidate_histories),1)
+        self.assertEqual(self.resources._histories,[main])
+        main.close()
+        self.assertEqual(self.resources._candidate_histories,{})
+        reopened=self.resources.candidate_history()
+        self.assertEqual(reopened.db.execute('SELECT COUNT(*) FROM decisions').fetchone()[0],80)
+        self.assert_no_financial_tables()
+
+    def test_new_history_owner_cannot_adopt_replaced_owned_database(self):
+        original=self.resources.candidate_history()
+        path=self.root/'candidate-history.sqlite'
+        path.rename(self.root/'original-owned.sqlite')
+        with sqlite3.connect(path) as foreign:foreign.execute('CREATE TABLE foreign_evidence(value)')
+        before=path.read_bytes()
+        with patch('sqlite3.connect',side_effect=AssertionError('opened replacement')):
+            with self.assertRaisesRegex(ValueError,'foreign_state'):
+                self.resources.require_history(original)
+            with self.assertRaisesRegex(ValueError,'foreign_state'):
+                self.resources.candidate_history()
+            original.close()
+            with self.assertRaisesRegex(ValueError,'foreign_state'):
+                self.resources.candidate_history()
+        self.assertEqual(path.read_bytes(),before)
 
     def test_native_observation_algorithms_reopen_without_financial_constructor(self):
         from meme_machine.runtime.sleeve_reservations import SleeveReservations
