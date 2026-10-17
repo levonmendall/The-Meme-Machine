@@ -192,6 +192,37 @@ RALLY_CHANGED_SOURCES=('meme_machine/lanes/pons/pons_postgrad_survivor.py', 'mem
 RALLY_ADDED_SOURCES=('meme_machine/policy_history/opportunity_access_v1.json', 'meme_machine/runtime/rally_cycle.py')
 
 
+# Repeated known suffix placements cannot select or change authoritative logs:
+# the output remains the entire authenticated full transaction. Reverse exactly
+# the one reviewed zero-match predicate before the retained-log source guards.
+ARCHIVE_LOG_CONSISTENCY_REFERENCE='a8f8edebaecf83df0d767e7fba1fd530f378c7af'
+ARCHIVE_LOG_CONSISTENCY_SOURCE='meme_machine/solana_selective_history.py'
+ARCHIVE_LOG_CONSISTENCY_BEFORE='18575b7a64fc122ae56a770c97a9dc9e60b7b437ffcce792f0e310f1853f62b5'
+ARCHIVE_LOG_CONSISTENCY_AFTER='16587a4779d8b60a67b994489c7367336131a874082397327c33677bff91ae8b'
+ARCHIVE_LOG_CONSISTENCY_OLD=b'for start in range(len(prefix),len(complete)-len(suffix)+1))!=1:'
+ARCHIVE_LOG_CONSISTENCY_NEW=b'for start in range(len(prefix),len(complete)-len(suffix)+1))<1:'
+
+
+def archive_log_consistency_predecessor(test,relative,current):
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=ARCHIVE_LOG_CONSISTENCY_SOURCE:return current
+    prior=subprocess.check_output(['git','show',ARCHIVE_LOG_CONSISTENCY_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),ARCHIVE_LOG_CONSISTENCY_BEFORE,
+        relative+':exact complete-log-consistency predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),ARCHIVE_LOG_CONSISTENCY_AFTER,
+        relative+':exact complete-log-consistency successor')
+    def function(content):
+        return next(n for n in ast.parse(content).body if isinstance(n,ast.FunctionDef) and n.name=='_archive_log_join')
+    test.assertNotEqual(ast.dump(function(current)),ast.dump(function(prior)),
+        relative+':explicit known-content existence predicate')
+    test.assertEqual(current.count(ARCHIVE_LOG_CONSISTENCY_NEW),1,relative+':one exact zero-match rejection')
+    restored=current.replace(ARCHIVE_LOG_CONSISTENCY_NEW,ARCHIVE_LOG_CONSISTENCY_OLD,1)
+    test.assertEqual(restored,prior,relative+':all other identity, complete-output and receipt source bytes retained')
+    return prior
+
+
 # A finalized archive can retain known lines after its one truncation marker.
 # Pin exact transaction joining and receipt metadata, then restore both named
 # nodes before the complete-log and original economic/recovery source guards.
@@ -210,6 +241,7 @@ def retained_archive_log_shape_predecessor(test,relative,current):
     test.assertEqual(hashlib.sha256(prior).hexdigest(),RETAINED_ARCHIVE_LOG_SHAPE_BEFORE,
         relative+':exact retained-archive-log predecessor')
     if current==prior:return prior
+    current=archive_log_consistency_predecessor(test,relative,current)
     test.assertEqual(hashlib.sha256(current).hexdigest(),RETAINED_ARCHIVE_LOG_SHAPE_AFTER,
         relative+':exact retained-archive-log successor')
     tree=ast.parse(current);old=ast.parse(prior)
@@ -1779,9 +1811,53 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_archive_log_consistency_reverses_only_exact_zero_match_rejection(self):
+        import hashlib
+        relative=ARCHIVE_LOG_CONSISTENCY_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),ARCHIVE_LOG_CONSISTENCY_AFTER,
+            relative+':active exact complete-log-consistency repair')
+        prior=subprocess.check_output(['git','show',ARCHIVE_LOG_CONSISTENCY_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(hashlib.sha256(prior).hexdigest(),ARCHIVE_LOG_CONSISTENCY_BEFORE,
+            relative+':independently pinned retained-log predecessor')
+        self.assertEqual(archive_log_consistency_predecessor(self,relative,current),prior)
+        self.assertEqual(archive_log_consistency_predecessor(self,relative,prior),prior)
+        self.assertEqual(retained_archive_log_shape_predecessor(self,relative,current),
+            retained_archive_log_shape_predecessor(self,relative,prior))
+        self.assertEqual(archive_complete_logs_predecessor(self,relative,current),
+            archive_complete_logs_predecessor(self,relative,prior))
+        self.assertEqual(rally_predecessor(self,relative,current),rally_predecessor(self,relative,prior))
+        self.assertEqual(opportunity_predecessor(self,relative,current),
+            opportunity_predecessor(self,relative,prior))
+        changes=[current+b'\n# unreviewed complete-log-consistency change\n',b'']
+        for previous,successor in (
+                (ARCHIVE_LOG_CONSISTENCY_NEW,ARCHIVE_LOG_CONSISTENCY_NEW.replace(b'<1:',b'<0:')),
+                (b'complete[:len(prefix)]!=prefix',b'False'),
+                (b'complete[start:start+len(suffix)]==suffix',b'True'),
+                (b'for start in range(len(prefix),len(complete)-len(suffix)+1))<1',
+                    b'for start in range(0,len(complete)-len(suffix)+1))<1'),
+                (b'if len(markers)!=1:raise KeyError()',b'if False:raise KeyError()'),
+                (b"'truncat' in line.lower() for line in complete",b'False for line in complete'),
+                (b"canonical(fetched['transaction'])!=canonical(original['transaction'])",b'False'),
+                (b"type(fetched['slot']) is not int or fetched['slot']!=slot",b'False'),
+                (b"canonical(fetched['blockTime'])!=canonical(original['blockTime'])",b'False'),
+                (b"old['err'] is not None or new['err'] is not None",b'False'),
+                (b"tx['meta']['logMessages']=list(complete)",b"tx['meta']['logMessages']=list(prefix+suffix)"),
+                (b'type(supplement) is not ArchiveLogSupplement',b'False'),
+                (b'supplement.endpoint_identity!=endpoint_identity',b'False'),
+                (b"canonical(original)!=supplement.original_json",b'False')):
+            self.assertIn(previous,current,relative+':negative mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):archive_log_consistency_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):retained_archive_log_shape_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):archive_complete_logs_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):rally_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_retained_archive_log_shape_reverses_only_exact_join_and_receipt_metadata(self):
         import hashlib
-        relative=RETAINED_ARCHIVE_LOG_SHAPE_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=RETAINED_ARCHIVE_LOG_SHAPE_SOURCE;current=archive_log_consistency_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),RETAINED_ARCHIVE_LOG_SHAPE_AFTER,
             relative+':active exact retained-archive-log repair')
         prior=subprocess.check_output(['git','show',RETAINED_ARCHIVE_LOG_SHAPE_REFERENCE+':'+relative],cwd=ROOT)
@@ -1803,8 +1879,10 @@ class RobinhoodUSDTests(unittest.TestCase):
                     b'for start in range(0,len(complete)-len(suffix)+1))<1'),
                 (b'for start in range(len(prefix),len(complete)-len(suffix)+1))!=1',
                     b'for start in range(0,len(complete)-len(suffix)+1))!=1'),
+                # The reviewed next layer now admits <1, while <0 would accept
+                # zero known-content matches and remains an unsafe mutation.
                 (b'for start in range(len(prefix),len(complete)-len(suffix)+1))!=1',
-                    b'for start in range(len(prefix),len(complete)-len(suffix)+1))<1'),
+                    b'for start in range(len(prefix),len(complete)-len(suffix)+1))<0'),
                 (b"original_prefix_length=next(i for i,line in enumerate(tx['meta']['logMessages'])\n"
                     b"                if 'truncat' in line.lower())",
                     b"original_prefix_length=len(tx['meta']['logMessages'])-1"),
