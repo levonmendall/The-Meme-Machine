@@ -107,6 +107,17 @@ class ParentChannel:
         self.stopped = asyncio.Event()
         self._closing = None
         self._upload = None
+        self._head_lifecycle = None
+        self._loop = asyncio.get_running_loop()
+
+    def start_head_measurement(self, approval, image, *, refresh=True):
+        """Explicit already-fenced parent call; never selected by child data."""
+        _require(asyncio.get_running_loop() is self._loop, 'parent_head_refresh_owner')
+        from .parent_head_lifecycle import ParentHeadLifecycle
+        return ParentHeadLifecycle(self, approval=approval, image=image, refresh=refresh)
+
+    def head_measurement(self):
+        return self._head_lifecycle.snapshot() if self._head_lifecycle is not None else None
 
     def hello(self):
         return dict(session=self.session, protocol='native-parent-transport-v3',
@@ -518,6 +529,10 @@ class ParentChannel:
             raise asyncio.CancelledError
 
     async def _close(self):
+        head_owner = self._head_lifecycle
+        # Same original native drain window, never a second grace interval.
+        drain_deadline = asyncio.get_running_loop().time() + 65 if head_owner is not None else None
+        if head_owner is not None: head_owner.stop()
         self.closed = True
         self.stopped.set()
         self._discard_upload(self._upload)
@@ -526,10 +541,24 @@ class ParentChannel:
             if not task.done():
                 task.cancel()
         # Close native transport ownership while canceled accounting is joined.
-        results = await asyncio.gather(*(s.aclose() for s in self.streams.values()),
-                                      *tasks, return_exceptions=True)
+        joined = asyncio.gather(*(s.aclose() for s in self.streams.values()),
+            *tasks, *([head_owner.join(deadline=drain_deadline)] if head_owner is not None else []),
+            return_exceptions=True)
+        if head_owner is not None:
+            await self._head_bounded_join(joined, drain_deadline)
+            results = joined.result()
+            from .isolated_native_lifetime import NativeOwnerDrainFailure
+            fatal = next((r for r in results if isinstance(r, NativeOwnerDrainFailure)), None)
+            if fatal is not None: raise fatal
+        else:
+            results = await joined
         try:
-            await self.http.aclose()
+            if head_owner is not None:
+                http_close = asyncio.create_task(self.http.aclose())
+                await self._head_bounded_join(http_close, drain_deadline)
+                http_close.result()
+            else:
+                await self.http.aclose()
         finally:
             self._native_busy.clear()
             self._opening.clear()
@@ -537,6 +566,16 @@ class ParentChannel:
                 content.body, content.pending = None, None
         if any(isinstance(r, BaseException) for r in results):
             raise ParentTransportFailure('parent_channel_cleanup_failed')
+
+    async def _head_bounded_join(self, task, deadline):
+        done, _ = await asyncio.wait((task,), timeout=max(0, deadline - self._loop.time()))
+        if done: return
+        from .isolated_native_lifetime import NativeOwnerDrainFailure
+        failure = NativeOwnerDrainFailure(dict(status='BLOCKED',
+            failure_code='parent_head_shutdown_incomplete', financial_authority=False,
+            normal_readiness=False, all_workers_joined=False))
+        failure.retain(self, self.http, self._head_lifecycle, task)
+        raise failure
 
 
 def _native_boundary(error):
