@@ -4,6 +4,7 @@ import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.r
 FAST=[
  'tests.test_isolated_native_admission',
  'tests.test_isolated_native_resources',
+ 'tests.test_parent_native_transport',
  'tests.test_pons_projection_source_reuse',
  'tests.test_transport_bridge',
  'tests.test_source_operation_publication',
