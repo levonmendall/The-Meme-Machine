@@ -176,6 +176,10 @@ class PumpNativeProjection:
         decoded = []
         counts = dict(pump=0, pumpswap=0)
         for index, signature, families, tx in relevant:
+            # Match economic_records' strict successful-transaction boundary;
+            # a non-null error is never committed economics, even if falsey.
+            if tx['meta']['err'] is not None:
+                continue
             for family in families:
                 events = (pump_events if family == 'pump' else pumpswap_trade_events)(tx)
                 for event in sorted(events, key=lambda row: row['index']):
