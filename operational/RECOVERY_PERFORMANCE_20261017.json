@@ -1,0 +1,87 @@
+{
+  "schema": "recovery-performance-checkpoint-v1",
+  "production_source": "e5b95d25200b4bd83937bae21344156dedd12640",
+  "production_rehearsal": 39055330432,
+  "exact_profile_reader_run": 39057513418,
+  "result": "STARTUP_LIMITATION_READINESS_FAIL",
+  "funding_closed": true,
+  "financial": {
+    "sequence": 15106,
+    "cash_usd": "1000",
+    "positions": 0,
+    "pending_financial_obligations": 0,
+    "epoch": "paper-shared-1000-20261011T071207Z",
+    "original_500_history_preserved": true
+  },
+  "pipeline": {
+    "durable_frames_per_second": 2.437486236,
+    "market_head_slots_per_second_proxy": 4.350956704,
+    "head_gap_first": 47,
+    "head_gap_last": 1577,
+    "economic_input_population_complete": false
+  },
+  "pump": {
+    "observed_restore_seconds": 521.3319159829989,
+    "candidate_event_reference_calls": 13818,
+    "previous_observed_restore_seconds": 490.272,
+    "previous_reference_calls": 13512,
+    "matched_live_workload": false,
+    "cold_reuse_AWS_startup_improvement_demonstrated": false
+  },
+  "pons_reporting": {
+    "qualified_sample_seconds": 753.7350380490243,
+    "calls_delta": 50837,
+    "wall_seconds_delta": 129.729202,
+    "cpu_seconds_delta": 33.264889,
+    "selected_sql_wall_seconds_delta": 21.582439,
+    "selected_sql_cpu_seconds_delta": 9.077836,
+    "global_SQL_coverage_complete": false,
+    "actual_retired_prefix_population_known": false,
+    "stopped_candidates": 1169,
+    "stopped_transitions": 4096,
+    "stopped_observations": 4096
+  },
+  "repair": {
+    "name": "reuse durable reporting source before first-row discovery",
+    "baseline": "e5b95d25200b4bd83937bae21344156dedd12640",
+    "benchmarked_candidate": "2379403abb0faaceaec4650195c158e501c5d799",
+    "corpus": "synthetic production schema; 8192 transitions, 4096 retired prefix",
+    "before_seconds_per_idle_project": 0.0009001008125153476,
+    "after_seconds_per_idle_project": 4.438962497488319e-05,
+    "before_logical_read_bytes_per_call": 4239367.3125,
+    "after_logical_read_bytes_per_call": 7.375,
+    "AWS_improvement_demonstrated": false
+  },
+  "observer": {
+    "source": "2a9734c3eae754b930013b3dbed897b967099fd8",
+    "run": 39057030420,
+    "result": "PASS_SAMPLED_OBSERVATION",
+    "requests": 101,
+    "duration_seconds": 118.141,
+    "pump_durable_references": 640,
+    "pumpswap_durable_references": 640,
+    "pons_samples": 20,
+    "pons_factory_events": 0,
+    "http_429": 0,
+    "full_market_speed_demonstrated": false
+  },
+  "native_public": {
+    "run": 39057301108,
+    "result": "ACQUISITION_BLOCKED",
+    "method": "getBlock",
+    "rpc_code": -32015,
+    "requests": 5,
+    "completed_events": 0,
+    "repair": "match the production maxSupportedTransactionVersion=1 contract; actual combined native fixture capture/replay regression",
+    "production_equivalent": false
+  },
+  "next": [
+    "AWS-test corrected isolated public native acquisition",
+    "Measure reporting repair on the real combined pipeline",
+    "Attribute remaining Pump restore and Pons hydration/Survivor costs",
+    "Complete authenticated isolated bootstrap with enforced no-allocation and preserved global provider controls"
+  ],
+  "normal_operation_authorized": false,
+  "one_hour_acceptance_completed": false,
+  "strategies_changed": false
+}

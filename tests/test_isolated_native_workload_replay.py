@@ -215,6 +215,140 @@ class CompletedNativeReplay(unittest.TestCase):
 
 
 class CombinedRealNativeReplay(unittest.TestCase):
+    def test_version_one_public_blocks_capture_and_replay_both_actual_native_projections(self):
+        """Regression for public getBlock -32015 at the obsolete version-zero cap."""
+        fixture_root = Path(__file__).parent
+        pump = json.loads((fixture_root/'fixtures/solana_selective_cohort.json').read_text())
+        pons = json.loads((fixture_root/'lanes/pons/fixtures/'
+            'public_log_timestamp_35915320840.json').read_text())
+        tx = copy.deepcopy(pump['pump'][0])
+        tx.pop('transactionIndex', None)
+        # Synthetic provider capability metadata; original protocol event bytes
+        # remain the retained fixture. This is not authentic v1 market evidence.
+        tx['version'] = 1
+        slot, pons_block = tx['slot'], int(pons['header']['number'],16)
+        observed_now = max(tx['blockTime'],int(pons['header']['timestamp'],16))+3.125
+        block = dict(blockTime=tx['blockTime'], blockhash='offline-version-one-'+str(slot),
+                     parentSlot=slot-1, previousBlockhash='offline-parent', transactions=[tx])
+        requests = []
+        canary = 'PRIVATE_PROVIDER_MESSAGE https://private.invalid/API_KEY'
+
+        def transport(endpoint, payload, timeout):
+            packet = json.loads(payload)
+            method, params = packet['method'], packet['params']
+            requests.append((endpoint, method, copied(params)))
+            if endpoint == workload.SOLANA:
+                if method == 'getSlot':
+                    response = slot
+                elif method == 'getBlocks':
+                    self.assertEqual(params, [slot, slot, {'commitment':'finalized'}])
+                    response = [slot]
+                elif method == 'getBlock':
+                    self.assertEqual(params[0], slot)
+                    if params[1]['maxSupportedTransactionVersion'] == 0:
+                        return workload.canonical(dict(jsonrpc='2.0', id=packet['id'],
+                            error=dict(code=-32015,message=canary))).encode()
+                    self.assertEqual(params[1]['maxSupportedTransactionVersion'], 1)
+                    response = copied(block)
+                else:
+                    self.fail('unexpected offline Solana method')
+            else:
+                self.assertEqual(endpoint, workload.ROBINHOOD)
+                if method == 'eth_chainId':
+                    response = '0x1237'
+                elif method == 'eth_blockNumber':
+                    response = hex(pons_block)
+                elif method == 'eth_getBlockByNumber':
+                    self.assertEqual(params, [hex(pons_block),False])
+                    response = copied(pons['header'])
+                elif method == 'eth_getLogs':
+                    self.assertEqual((int(params[0]['fromBlock'],16),int(params[0]['toBlock'],16)),
+                                     (pons_block,pons_block))
+                    response = [copied(pons['event'])]
+                elif method == 'eth_getTransactionReceipt':
+                    self.assertEqual(params, [pons['event']['transactionHash']])
+                    response = copied(pons['receipt'])
+                else:
+                    self.fail('unexpected offline Robinhood method')
+            return workload.canonical(dict(jsonrpc='2.0',id=packet['id'],result=response)).encode()
+
+        original_rpc = workload.PublicRPC
+        original_complete = workload.Corpus.complete
+        clients = []
+
+        def client(corpus, stop, deadline):
+            # Exercise the actual PublicRPC recorder and shared transport lock;
+            # only its injected sleeper bypasses real pacing in this offline test.
+            rpc = original_rpc(corpus,stop,deadline,transport=transport,sleeper=lambda _:None)
+            clients.append(rpc)
+            return rpc
+
+        def complete(corpus, event_id):
+            original_complete(corpus,event_id)
+            counts = corpus.counts()
+            if all(counts.get(lane,{}).get('completed_events',0) >= 1 for lane in ('pump','pons')):
+                clients[0].stop.set()
+
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.dict(os.environ,{},clear=True), \
+                patch.object(workload.time,'time',return_value=observed_now), \
+                patch.object(workload,'_storage_admission',return_value=dict(offline_fixture=True)), \
+                patch.object(original_rpc,'_transport',side_effect=AssertionError('network forbidden')) as network, \
+                patch.object(workload,'build_opener',side_effect=AssertionError('network forbidden')):
+            base = Path(directory)
+            rejected_root, capture_root, replay_root = (base/name for name in ('rejected','capture','replay'))
+            for root in (rejected_root,capture_root,replay_root):
+                root.mkdir(mode=0o700)
+            rejected = workload.Corpus(rejected_root)
+            self.addCleanup(rejected.close)
+            rejecting_rpc = original_rpc(rejected,threading.Event(),workload.time.monotonic()+12,
+                                         transport=transport,sleeper=lambda _:None)
+            with self.assertRaisesRegex(workload.ObservationUnavailable,'native_rpc_rejected'):
+                rejecting_rpc.call(workload.SOLANA,'getBlock',[slot,dict(
+                    commitment='finalized',encoding='json',transactionDetails='full',
+                    rewards=False,maxSupportedTransactionVersion=0)])
+            self.assertEqual(rejecting_rpc.rejection,dict(method='getBlock',code=-32015))
+            self.assertEqual(rejected.counts(),{})
+            rejected.close()
+
+            with patch.object(workload,'PublicRPC',side_effect=client), \
+                    patch.object(workload.Corpus,'complete',complete):
+                captured = workload.capture(capture_root,duration=12)
+            self.assertEqual(len(clients),1)
+            self.assertIsNone(captured['provider_rpc_rejection'])
+            self.assertTrue(captured['all_started_workers_joined'])
+            self.assertTrue(captured['cleanup_completed'])
+            for lane in ('pump','pons'):
+                self.assertEqual(captured['lanes'][lane]['completed_events'],1,captured['lanes'][lane])
+                self.assertTrue(captured['lanes'][lane]['projection_closed'])
+            self.assertGreater(captured['lanes']['pump']['projection']['counts']['events'],0)
+            self.assertEqual(captured['lanes']['pons']['projection']['durable_economic_events'],1)
+            corpus_path = capture_root/'corpus.sqlite3'
+            before = corpus_path.read_bytes()
+            replayed = workload.replay(corpus_path,replay_root,file_digest(corpus_path))
+            self.assertEqual(replayed['provider_requests'],0)
+            self.assertTrue(replayed['all_started_workers_joined'])
+            self.assertTrue(replayed['cleanup_completed'])
+            self.assertEqual(corpus_path.read_bytes(),before)
+            for lane, key in (('pump','logical_sha256'),('pons','economic_corpus_sha256')):
+                self.assertEqual(replayed['lanes'][lane]['state'],'REPLAY_COMPLETED_INPUTS')
+                self.assertEqual(replayed['lanes'][lane]['replayed_events'],1)
+                self.assertEqual(replayed['lanes'][lane]['projection'][key],
+                                 captured['lanes'][lane]['projection'][key])
+                self.assertEqual(replayed['lanes'][lane]['restoration'][key],
+                                 captured['lanes'][lane]['projection'][key])
+            for result in (captured,replayed):
+                self.assertFalse(result['production_equivalent'])
+                self.assertFalse(result['financial_authority'])
+                self.assertFalse(result['acceptance_passed'])
+                self.assertNotIn(canary,workload.canonical(result))
+            # Both the failing public request and corrected real capture passed
+            # the capability-sensitive provider boundary; neither reached HTTP.
+            versions = [params[1]['maxSupportedTransactionVersion']
+                        for endpoint,method,params in requests if method == 'getBlock']
+            self.assertEqual(versions,[0,1])
+            network.assert_not_called()
+
     def test_completed_corpus_replays_both_real_native_projections_and_preserves_economics(self):
         """One offline end-to-end contract; both projections retain partial parity."""
         from meme_machine.operational.isolated_native_pump import PumpNativeProjection
