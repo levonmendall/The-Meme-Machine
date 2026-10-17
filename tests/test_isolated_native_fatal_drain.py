@@ -1,6 +1,7 @@
 """Actual process exit under blocked native/default-executor owners, no providers.
 
-The subprocess mocks fixed-entry image/descriptor admission ONLY to isolate its
+The subprocess mocks fixed-entry image/descriptor admission and the optional
+post-COMMIT telemetry binder to isolate its
 terminal behavior. It is not a kernel/launcher/provider/full-pipeline proof.
 Actual private CandidateHistory ownership, asyncio.Runner, source lifetime and
 nonblocking FD1 termination execute normally. Production drain remains65s; the
@@ -75,6 +76,7 @@ if os.environ.get('MM_FATAL_FULL_PIPE')=='1':
     os.dup2(write,1)
 with patch.object(entry,'_image_identity',return_value=dict(source_commit='a'*40,source_tree='b'*40)), \
         patch.object(entry,'_new_resources',return_value=resources), \
+        patch.object(resources,'enable_native_commit_measurement'), \
         patch.object(Path,'cwd',return_value=Path('/work/native')), \
         patch('meme_machine.operational.child_transport.ChildChannel',return_value=Channel()), \
         patch.object(entry,'ParentSizingReader',return_value=Reader()), \
