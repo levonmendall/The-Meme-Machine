@@ -89,6 +89,14 @@ class Plane:
           claim TEXT,owner TEXT,claim_generation INTEGER,claim_until REAL,result TEXT);
         CREATE INDEX IF NOT EXISTS candidate_pending ON candidates(lane,pending,priority,deadline);
         CREATE INDEX IF NOT EXISTS candidate_lane_identity ON candidates(lane,id);
+        CREATE INDEX IF NOT EXISTS candidate_generation_identity ON candidates(id,generation);
+        CREATE INDEX IF NOT EXISTS candidate_claimed ON candidates(lane,claim_until) WHERE claim IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS candidate_delivery ON candidates(lane,priority,deadline,id,generation)
+          WHERE result IS NOT NULL AND completed=desired;
+        CREATE TABLE IF NOT EXISTS pons_current_watch(
+          candidate TEXT PRIMARY KEY,body TEXT NOT NULL,hash TEXT NOT NULL,
+          next_at REAL NOT NULL,attempt INTEGER NOT NULL DEFAULT 0);
+        CREATE INDEX IF NOT EXISTS pons_watch_due ON pons_current_watch(next_at,attempt,candidate);
         CREATE INDEX IF NOT EXISTS candidate_retirement ON candidates(observed) WHERE pending=0 AND claim IS NULL;
         CREATE TABLE IF NOT EXISTS observations(
           candidate TEXT NOT NULL,observation TEXT NOT NULL,body TEXT NOT NULL,at REAL NOT NULL,
@@ -145,14 +153,24 @@ class Plane:
         with self.lock:
             self.db.execute('BEGIN IMMEDIATE')
             before = self.db.total_changes
+            observer=getattr(self,'_native_commit_observer',None)
+            frame=observer.begin() if observer is not None else None
             try:
                 yield
-                self.db.execute('COMMIT' if self.db.total_changes != before else 'ROLLBACK')
+                changed=self.db.total_changes != before
+                self.db.execute('COMMIT' if changed else 'ROLLBACK')
             except BaseException:
+                rolled_back=False
                 from meme_machine.runtime.sqlite_failure import preserving_cleanup
                 with preserving_cleanup():
-                    if self.db.in_transaction:self.db.execute('ROLLBACK')
+                    if self.db.in_transaction:
+                        self.db.execute('ROLLBACK')
+                        rolled_back=True
+                if observer is not None:observer.finish(frame,committed=False,
+                    uncertain=not rolled_back)
                 raise
+            else:
+                if observer is not None:observer.finish(frame,committed=changed)
 
     def _row(self, key):
         row=self.db.execute('SELECT * FROM candidates WHERE id=?',(key,)).fetchone()
@@ -170,6 +188,10 @@ class Plane:
             tail=archive.get('transition_high_water',0)
         self.db.execute('INSERT INTO transitions(seq,candidate,generation,at,kind,reason,watermark,interpretation,details) VALUES(?,?,?,?,?,?,?,?,?)',
             (tail+1,row['id'],row['generation'],self.clock(),kind,reason,row['desired'],row['interpretation'],canonical(details)))
+        observer=getattr(self,'_native_commit_observer',None)
+        if observer is not None:
+            observer.record('pons_generation_dispositions',row['lane'],row['id'],
+                row['generation'],tail+1,kind,reason)
         from meme_machine.runtime.storage import audit_ring
         audit_ring(self.db,'transitions','history_no_delete',where='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))',startup_cancel=startup_cancel)
 
@@ -187,7 +209,7 @@ class Plane:
             evidence_evicted = False
             participating='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))'
             audit_ring(self.db,'observations','observations_no_delete',key='rowid',where=participating)
-            self.db.execute('DELETE FROM result_consumption WHERE '+participating+' AND NOT EXISTS(SELECT 1 FROM candidates c WHERE c.id=result_consumption.candidate AND c.generation=result_consumption.generation)')
+            self.db.execute('DELETE FROM result_consumption WHERE '+participating+' AND NOT EXISTS(SELECT 1 FROM candidates c INDEXED BY candidate_generation_identity WHERE c.id=result_consumption.candidate AND c.generation=result_consumption.generation)')
             rolling_present = self.db.execute('SELECT 1 FROM rolling LIMIT 1').fetchone() is not None
             if rolling_present:
                 self.db.execute('DELETE FROM rolling WHERE at<? AND candidate IN (SELECT id FROM candidates WHERE '+active_sql('lane')+')',(self.clock()-86400,))
@@ -325,7 +347,7 @@ class Plane:
     def recover(self):
         with self.transaction():
             from meme_machine.runtime.operating_families import active_sql
-            for raw in self.db.execute('SELECT * FROM candidates WHERE '+active_sql('lane')+' AND claim IS NOT NULL').fetchall():
+            for raw in self.db.execute('SELECT * FROM candidates INDEXED BY candidate_claimed WHERE '+active_sql('lane')+' AND claim IS NOT NULL').fetchall():
                 row=dict(raw)
                 if not alive(row['owner']) or row['claim_until']<=self.clock():
                     self.db.execute('UPDATE candidates SET claim=NULL,owner=NULL,claim_generation=NULL,claim_until=NULL WHERE id=?',(row['id'],))
@@ -428,10 +450,17 @@ class Plane:
     def unconsumed(self,lane):
         """Durable outbox; callers acknowledge only after checkpointing effects."""
         with self.lock:
-            return [dict(r) for r in self.db.execute("""SELECT c.* FROM candidates c
+            # Select only scheduling keys before hydrating an economic result.
+            # A single statement retains the original SQLite read snapshot:
+            # peer completion/consumption cannot mix generations between phases.
+            return [dict(r) for r in self.db.execute("""WITH ready AS MATERIALIZED (
+              SELECT c.id,c.generation FROM candidates c INDEXED BY candidate_delivery
               LEFT JOIN result_consumption a ON c.id=a.candidate AND c.generation=a.generation
               WHERE c.lane=? AND c.result IS NOT NULL AND c.completed=c.desired
-                AND a.candidate IS NULL ORDER BY c.priority,c.deadline,c.id""",(lane,))]
+                AND a.candidate IS NULL)
+              SELECT c.* FROM ready r JOIN candidates c
+                ON c.id=r.id AND c.generation=r.generation
+              ORDER BY c.priority,c.deadline,c.id""",(lane,))]
 
     def consume(self,key,generation):
         with self.transaction():
@@ -439,7 +468,10 @@ class Plane:
             from meme_machine.runtime.operating_families import require_active
             if row:require_active(row['lane'])
             if not row or row['generation']!=generation or row['completed']!=row['desired']:return False
-            self.db.execute('INSERT OR IGNORE INTO result_consumption VALUES(?,?,?)',(key,generation,self.clock()))
+            inserted=self.db.execute('INSERT OR IGNORE INTO result_consumption VALUES(?,?,?)',(key,generation,self.clock()))
+            observer=getattr(self,'_native_commit_observer',None)
+            if observer is not None and inserted.rowcount:
+                observer.record('pons_candidate_consumptions',row['lane'],key,generation)
             return True
 
     def put(self,namespace,key,value,provenance):
@@ -594,7 +626,10 @@ class Plane:
             wal_bytes=transient_file_size(Path(self.path+'-wal')))
 
     def close(self):
-        with self.lock:self.db.close()
+        with self.lock:
+            self.db.close()
+            observer=getattr(self,'_native_commit_observer',None)
+            if observer is not None:observer.close()
 
 
 def native_ledger_locator(lane,ledger_path):

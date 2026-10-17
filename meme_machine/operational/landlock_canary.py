@@ -5,7 +5,7 @@ host metadata may remain visible. No private SHM or native-spawn parity is claim
 The caller retains its existing outer wall/resource/stopped/source fences.
 """
 import ctypes
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 import errno
 import fcntl
 import json
@@ -49,6 +49,8 @@ _DENIED = frozenset((16,29,30,31,41,42,43,46,47,49,50,64,65,66,67,68,69,70,71,
 _FAILURE_FD=None
 _OBSERVED_ABI=None
 _ALREADY_REPORTED=False
+_PROBE_STAGE='child_start'
+_PROBE_CHECKS={}
 
 
 def _elf():
@@ -198,18 +200,63 @@ def _scratch(path):
 
 
 def _spec(row):
-    _require(type(row) is dict and set(row)=={'scope','parent','peer','ipc','facts','abstract'},
+    _require(type(row) is dict and set(row)=={'scope','parent','peer','ipc','facts','abstract','scope_fd'},
              'landlock_canary_spec')
     _require(type(row['scope']) is str and len(row['scope'])<=4096,
              'landlock_canary_spec')
     _require(Path(row['scope']).is_absolute() and '..' not in Path(row['scope']).parts,
              'landlock_canary_spec')
     _require(all(type(row[k]) is int and 1<row[k]<2**31 for k in ('parent','peer'))
-        and all(type(row[k]) is int and 2<row[k]<65536 for k in ('ipc','facts'))
-        and row['ipc']!=row['facts'],'landlock_canary_spec')
+        and all(type(row[k]) is int and 2<row[k]<65536 for k in ('ipc','facts','scope_fd'))
+        and len({row[k] for k in ('ipc','facts','scope_fd')})==3,'landlock_canary_spec')
     _require(row['abstract']=='mm-landlock-canary-'+str(row['parent']),
              'landlock_canary_spec')
     return row
+
+
+def _directory_alias(pid,fd):
+    _require(type(pid) is int and 1<pid<2**31 and type(fd) is int and 2<fd<65536,
+             'landlock_canary_spec')
+    owner='self' if pid==os.getpid() else str(pid)
+    return '/proc/'+owner+'/fd/'+str(fd)
+
+
+@contextmanager
+def _fixture_directory(path):
+    """Hold only this verified owned fixture directory; never inherit its FD."""
+    descriptors=[os.open(path,os.O_RDONLY|os.O_DIRECTORY|os.O_CLOEXEC|os.O_NOFOLLOW)]
+    try:
+        fd=descriptors[0]
+        # The fixed child closes stdio, so open() legitimately returns0/1/2.
+        # Keep the strict directory-alias contract and reserved parent FD3/4:
+        # move this owned handle above them, closing the original immediately.
+        if fd<5:
+            descriptors.append(fcntl.fcntl(fd,fcntl.F_DUPFD_CLOEXEC,5))
+            _close_fd(descriptors,0);fd=descriptors[1]
+        info=os.fstat(fd);expected=path.lstat()
+        _require(stat.S_ISDIR(info.st_mode) and info.st_uid==os.geteuid()
+            and stat.S_IMODE(info.st_mode)==0o700
+            and (info.st_dev,info.st_ino)==(expected.st_dev,expected.st_ino),
+            'landlock_canary_scope_descriptor')
+        yield fd
+    finally:_close_fds(descriptors)
+
+
+@contextmanager
+def _socket_fixtures(work):
+    # Absolute Scratch paths can exceed sockaddr_un.sun_path. Proc FD aliases
+    # stay short without cwd/TMPDIR mutation, symlinks or a shared directory.
+    with ExitStack() as owned:
+        fd=owned.enter_context(_fixture_directory(work))
+        prefix=_directory_alias(os.getpid(),fd)
+        loose=owned.enter_context(socket.socket(socket.AF_UNIX,socket.SOCK_STREAM))
+        bound=owned.enter_context(socket.socket(socket.AF_UNIX,socket.SOCK_STREAM))
+        bound.bind(prefix+'/bound.sock')
+        listener=owned.enter_context(socket.socket(socket.AF_UNIX,socket.SOCK_STREAM))
+        listener.bind(prefix+'/listener.sock');listener.listen(1)
+        pair=socket.socketpair(socket.AF_UNIX,socket.SOCK_STREAM)
+        owned.enter_context(pair[0]);owned.enter_context(pair[1]);pair[0].sendall(b'x')
+        yield loose,bound,listener,pair,prefix+'/denied.sock'
 
 
 def _fixed_fds(ipc,facts):
@@ -219,11 +266,13 @@ def _fixed_fds(ipc,facts):
             and channel.getsockopt(socket.SOL_SOCKET,socket.SO_TYPE)==socket.SOCK_STREAM
             and channel.getsockname() in ('',b'') and channel.getpeername() in ('',b''),
             'landlock_canary_anonymous_channel')
+    # Once the socket itself is validated, an invalid facts descriptor can be
+    # reported through it. Never guess an unvalidated descriptor on failure.
+    _FAILURE_FD=ipc
     _require(stat.S_ISFIFO(os.fstat(facts).st_mode)
         and fcntl.fcntl(facts,fcntl.F_GETFL)&os.O_ACCMODE==os.O_RDONLY
         and os.readlink('/proc/self/fd/'+str(facts)).startswith('pipe:['),
         'landlock_canary_anonymous_facts')
-    _FAILURE_FD=ipc
     a=fcntl.fcntl(ipc,fcntl.F_DUPFD_CLOEXEC,16)
     b=fcntl.fcntl(facts,fcntl.F_DUPFD_CLOEXEC,16)
     os.dup2(a,3,inheritable=False);os.dup2(b,4,inheritable=False)
@@ -261,14 +310,72 @@ def _base(state='BLOCKED'):
         host_metadata_hidden=False,real_spawn_pool=False,native_execution=False)
 
 
-_SAFE_CODES=frozenset(('landlock_canary_abi_unavailable','landlock_canary_abi_too_old',
+CODES=frozenset(('landlock_canary_abi_unavailable','landlock_canary_abi_too_old',
     'landlock_canary_ruleset_refused','landlock_canary_path_rule_refused',
     'landlock_canary_enforcement_refused','landlock_canary_seccomp_refused',
     'landlock_canary_platform_unreviewed','landlock_canary_probe_failed',
     'landlock_canary_wall_expired','landlock_canary_result_bound',
     'landlock_canary_denial_errno','landlock_canary_denial_failed',
     'landlock_canary_incomplete','landlock_canary_unprivileged_required',
-    'landlock_canary_interrupted'))
+    'landlock_canary_interrupted','landlock_canary_nonroot_required',
+    'landlock_canary_private_path','landlock_canary_production_path',
+    'landlock_canary_symlink','landlock_canary_financial_ancestor',
+    'landlock_canary_scratch_marker','landlock_canary_spec',
+    'landlock_canary_anonymous_channel','landlock_canary_anonymous_facts',
+    'landlock_canary_single_thread','landlock_canary_parent_changed',
+    'landlock_canary_fds','landlock_canary_parent_death_refused',
+    'landlock_canary_nnp_refused','landlock_canary_image',
+    'landlock_canary_scope_descriptor',
+    'landlock_canary_image_changed','landlock_canary_work_changed',
+    'landlock_canary_image_read','landlock_canary_ipc','landlock_canary_facts',
+    'landlock_canary_wall_bound','landlock_canary_scope_used',
+    'landlock_canary_fixed_entry','landlock_canary_failure_channel_unavailable'))
+_SAFE_CODES=CODES
+STAGES=frozenset(('controller_scope','controller_identity','controller_snapshots',
+    'controller_fixtures','controller_signals','controller_channels',
+    'controller_listeners','controller_peer_spawn','controller_probe_spawn',
+    'controller_child_receive','controller_child_exit','controller_child_receipt',
+    'controller_cleanup','controller_parent_cwd','controller_parent_namespaces',
+    'controller_parent_descriptors','controller_outside_canaries','child_start',
+    'child_scope','child_descriptors','child_identity','child_parent_death',
+    'child_limits','child_abi','child_image','child_landlock',
+    'child_landlock_checks','child_socket_fixtures','child_seccomp',
+    'child_seccomp_checks','child_ipc','child_local_ipc','child_sqlite',
+    'child_descendant','child_final_checks','child_report'))
+ERROR_CLASSES=frozenset(('Blocked','PermissionError','FileNotFoundError',
+    'ChildProcessError','TimeoutError','OSError','JSONDecodeError','ValueError',
+    'TypeError','TimeoutExpired','SubprocessError','OperationalError',
+    'IntegrityError','ProgrammingError','DatabaseError','RuntimeError',
+    'Exception','BaseException'))
+
+
+def failure_fields(error,stage):
+    """Fixed diagnostics only: never exception messages, paths or tracebacks."""
+    result=dict(code=(error.code if isinstance(error,Blocked)
+        and type(error.code) is str and error.code in _SAFE_CODES
+        else 'landlock_canary_probe_failed'))
+    if type(stage) is str and stage in STAGES:result['stage']=stage
+    # Check fixed built-in types, rather than publishing an arbitrary class name.
+    kinds=(Blocked,PermissionError,FileNotFoundError,ChildProcessError,TimeoutError,
+        OSError,json.JSONDecodeError,ValueError,TypeError,subprocess.TimeoutExpired,
+        subprocess.SubprocessError,sqlite3.OperationalError,sqlite3.IntegrityError,
+        sqlite3.ProgrammingError,sqlite3.DatabaseError,RuntimeError,Exception,BaseException)
+    result['error_class']=next(name.__name__ for name in kinds if isinstance(error,name))
+    number=error.number if isinstance(error,Blocked) else getattr(error,'errno',None)
+    if type(number) is int and 0<number<4096:result['error_number']=number
+    if isinstance(error,Blocked) and type(error.check) is str and error.check in CHECKS:
+        result['failed_check']=error.check
+    return result
+
+
+def _partial(value,result):
+    for key,allowed in (('stage',STAGES),('error_class',ERROR_CLASSES)):
+        part=value.get(key)
+        if type(part) is str and part in allowed:result[key]=part
+    checks=value.get('checks')
+    if type(checks) is dict:
+        result['checks']={key:part for key,part in checks.items()
+            if type(key) is str and key in CHECKS and type(part) is bool}
 
 
 def _project(value,exit_code):
@@ -295,13 +402,14 @@ def _project(value,exit_code):
     if type(number) is int and 0<number<4096:result['error_number']=number
     check=value.get('failed_check')
     if type(check) is str and check in CHECKS:result['failed_check']=check
+    _partial(value,result)
     return result
 
 
 def _failure(error):
     result=_base()
-    result['code']=(error.code if isinstance(error,Blocked) and type(error.code) is str
-        and error.code in _SAFE_CODES else 'landlock_canary_probe_failed')
+    result.update(failure_fields(error,_PROBE_STAGE))
+    result['checks']=dict(_PROBE_CHECKS)
     if type(_OBSERVED_ABI) is int and 0<=_OBSERVED_ABI<=65535:
         result['landlock_abi']=_OBSERVED_ABI
     if isinstance(error,Blocked):
@@ -329,32 +437,42 @@ class _ReportChannel:
 
 
 def _probe(spec):
+    global _PROBE_STAGE,_PROBE_CHECKS
+    _PROBE_STAGE='child_scope';_PROBE_CHECKS={}
     spec=_spec(spec);_require(os.geteuid()!=0,'landlock_canary_nonroot_required')
     scope=_private(spec['scope']);work=_private(scope/'work');image=scope/'image'
     _require(os.getppid()==spec['parent'],'landlock_canary_parent_changed')
+    parent_scope=os.stat(_directory_alias(spec['parent'],spec['scope_fd']))
+    scope_info=scope.stat()
+    _require(stat.S_ISDIR(parent_scope.st_mode)
+        and (parent_scope.st_dev,parent_scope.st_ino)==(scope_info.st_dev,scope_info.st_ino),
+        'landlock_canary_scope_descriptor')
+    _PROBE_STAGE='child_descriptors'
     _fixed_fds(spec['ipc'],spec['facts'])
-    checks={}
+    checks=_PROBE_CHECKS
     for fd in (0,1,2):
         try:os.fstat(fd)
         except OSError as error:_require(error.errno==errno.EBADF,'landlock_canary_fds')
         else:raise Blocked('landlock_canary_fds')
     checks['inherited_fds_closed']=True
+    _PROBE_STAGE='child_identity'
     with open('/proc/self/status','rb') as status:raw=status.read(65537)
     uid,gid=os.geteuid(),os.getegid()
     _require(uid>0 and gid>0 and os.getresuid()==(uid,uid,uid)
         and os.getresgid()==(gid,gid,gid) and _empty_effective_caps(raw),
         'landlock_canary_unprivileged_required')
     checks['effective_caps_empty']=True
-    kernel=Kernel()
+    _PROBE_STAGE='child_parent_death';kernel=Kernel()
     kernel.call(157,ctypes.c_int(1),ctypes.c_ulong(signal.SIGKILL),ctypes.c_ulong(0),
         ctypes.c_ulong(0),ctypes.c_ulong(0),code='landlock_canary_parent_death_refused')
     _require(os.getppid()==spec['parent'],'landlock_canary_parent_changed')
+    _PROBE_STAGE='child_limits'
     for kind,limit in ((resource.RLIMIT_CORE,0),(resource.RLIMIT_NOFILE,128),
                        (resource.RLIMIT_FSIZE,1024*1024),(resource.RLIMIT_CPU,10)):
         soft,hard=resource.getrlimit(kind)
         bound=limit if hard==resource.RLIM_INFINITY else min(limit,hard)
         resource.setrlimit(kind,(bound,bound))
-    abi=kernel.abi()
+    _PROBE_STAGE='child_abi';abi=kernel.abi()
     result=_base();result['landlock_abi']=abi
     with _ReportChannel(socket.socket(fileno=3)) as channel:
         def denied(name,action,*,exact=False):
@@ -369,7 +487,7 @@ def _probe(spec):
             ctypes.set_errno(0);value=kernel.libc.syscall(ctypes.c_long(number),*args)
             if value<0:raise OSError(ctypes.get_errno(),'fixed canary syscall')
             return value
-        image_info=image.lstat()
+        _PROBE_STAGE='child_image';image_info=image.lstat()
         _require(stat.S_ISREG(image_info.st_mode) and image_info.st_uid==os.geteuid()
             and image_info.st_nlink==1 and stat.S_IMODE(image_info.st_mode)==0o700
             and image_info.st_size==len(_elf())
@@ -381,9 +499,10 @@ def _probe(spec):
                 (image_info.st_dev,image_info.st_ino),'landlock_canary_image_changed')
             _require((os.fstat(work_fd).st_dev,os.fstat(work_fd).st_ino)==
                 (work.lstat().st_dev,work.lstat().st_ino),'landlock_canary_work_changed')
-            kernel.restrict(image_fd,work_fd)
+            _PROBE_STAGE='child_landlock';kernel.restrict(image_fd,work_fd)
         finally:os.close(image_fd);os.close(work_fd)
         # These happen BEFORE seccomp, proving Landlock independently.
+        _PROBE_STAGE='child_landlock_checks'
         _require(image.read_bytes()==_elf(),'landlock_canary_image_read')
         denied('fs_read',lambda:(scope/'outside').read_bytes())
         denied('fs_write',lambda:(scope/'outside').write_bytes(b'wrong'))
@@ -394,18 +513,14 @@ def _probe(spec):
         denied('signal_scope',lambda:os.kill(spec['peer'],signal.SIGUSR1))
         # Pre-create only child-owned local descriptors, then individually test
         # connect/bind/listen/accept; no socket() refusal can mask those checks.
-        loose=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
-        bound=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
-        bound.bind(str(work/'bound.sock'))
-        listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
-        listener.bind(str(work/'listener.sock'));listener.listen(1)
-        pair=socket.socketpair(socket.AF_UNIX,socket.SOCK_STREAM)
-        pair[0].sendall(b'x')
-        kernel.seccomp()
-        try:
+        _PROBE_STAGE='child_socket_fixtures'
+        with _socket_fixtures(work) as (loose,bound,listener,pair,denied_address):
+            _PROBE_STAGE='child_seccomp';kernel.seccomp()
+            _PROBE_STAGE='child_seccomp_checks'
             denied('seccomp_socket',lambda:socket.socket(socket.AF_INET,socket.SOCK_STREAM),exact=True)
-            denied('seccomp_connect',lambda:loose.connect(str(scope/'outside.sock')),exact=True)
-            denied('seccomp_bind',lambda:loose.bind(str(work/'denied.sock')),exact=True)
+            outside_address=_directory_alias(spec['parent'],spec['scope_fd'])+'/outside.sock'
+            denied('seccomp_connect',lambda:loose.connect(outside_address),exact=True)
+            denied('seccomp_bind',lambda:loose.bind(denied_address),exact=True)
             denied('seccomp_listen',lambda:bound.listen(1),exact=True)
             denied('seccomp_accept',lambda:listener.accept(),exact=True)
             denied('seccomp_sendmsg',lambda:pair[0].sendmsg([b'x']),exact=True)
@@ -421,11 +536,12 @@ def _probe(spec):
             denied('seccomp_metadata',lambda:os.chmod(scope/'outside',0o777),exact=True)
             denied('seccomp_namespace',lambda:syscall(272,ctypes.c_int(0)),exact=True)
             denied('seccomp_io_uring',lambda:syscall(425,ctypes.c_uint(0),ctypes.c_void_p()),exact=True)
-            channel.sendall(b'landlock canary\n')
+            _PROBE_STAGE='child_ipc';channel.sendall(b'landlock canary\n')
             _require(channel.recv(32)==b'parent acknowledged','landlock_canary_ipc')
             checks['anonymous_parent_ipc']=True
             _require(os.read(4,32)==b'fixed sizing fixture','landlock_canary_facts')
             checks['facts_pipe']=True;os.close(4)
+            _PROBE_STAGE='child_local_ipc'
             local_a,local_b=socket.socketpair(socket.AF_UNIX,socket.SOCK_STREAM)
             with local_a,local_b:
                 local_a.sendall(b'local');checks['internal_socketpair']=local_b.recv(5)==b'local'
@@ -433,7 +549,7 @@ def _probe(spec):
             try:
                 os.write(write_fd,b'pipe');checks['internal_pipe']=os.read(read_fd,4)==b'pipe'
             finally:os.close(read_fd);os.close(write_fd)
-            db=sqlite3.connect(work/'canary.sqlite')
+            _PROBE_STAGE='child_sqlite';db=sqlite3.connect(work/'canary.sqlite')
             try:
                 db.execute('PRAGMA journal_mode=WAL');db.execute('PRAGMA synchronous=FULL')
                 db.execute('CREATE TABLE fixture(value INTEGER)')
@@ -441,7 +557,7 @@ def _probe(spec):
                 checks['sqlite_FULL_WAL']=(db.execute('SELECT value FROM fixture').fetchone()==(42,)
                     and db.execute('PRAGMA synchronous').fetchone()==(2,))
             finally:db.close()
-            owner_pid=os.getpid();pid=os.fork()
+            _PROBE_STAGE='child_descendant';owner_pid=os.getpid();pid=os.fork()
             if pid==0:
                 try:
                     kernel.call(157,ctypes.c_int(1),ctypes.c_ulong(signal.SIGKILL),
@@ -456,14 +572,14 @@ def _probe(spec):
             _,status=os.waitpid(pid,0)
             checks['descendant_inheritance']=os.waitstatus_to_exitcode(status)==0
             checks['copied_fixture_exec']=checks['descendant_inheritance']
+            _PROBE_STAGE='child_final_checks'
             checks['no_new_privileges']=syscall(157,ctypes.c_int(39),ctypes.c_ulong(0),
                 ctypes.c_ulong(0),ctypes.c_ulong(0),ctypes.c_ulong(0))==1
             if set(checks)!=CHECKS or any(value is not True for value in checks.values()):
                 failed=next((key for key in sorted(CHECKS) if checks.get(key) is not True),None)
                 raise Blocked('landlock_canary_incomplete',check=failed)
             result.update(state='LANDLOCK_CANARY_ENFORCEMENT_VERIFIED',checks=checks)
-        finally:
-            for value in (loose,bound,listener,*pair):value.close()
+        _PROBE_STAGE='child_report'
         channel.sendall(json.dumps(result,sort_keys=True).encode()+b'\n')
     return 0
 
@@ -528,9 +644,24 @@ def _wait_unreaped(process,deadline):
     """Keep the session leader PID reserved until its whole group is killed."""
     while True:
         state=os.waitid(os.P_PID,process.pid,os.WEXITED|os.WNOHANG|os.WNOWAIT)
-        if state is not None:return
+        if state is not None:
+            if state.si_code==os.CLD_EXITED:return state.si_status
+            if state.si_code in (os.CLD_KILLED,os.CLD_DUMPED):return -state.si_status
+            raise Blocked('landlock_canary_probe_failed')
         _require(time.monotonic()<deadline,'landlock_canary_wall_expired')
         time.sleep(min(.01,max(0,deadline-time.monotonic())))
+
+
+def _controller_failure(diagnostic,error):
+    result=diagnostic['result'];result['state']='BLOCKED'
+    child=diagnostic.get('child_receipt')
+    if type(child) is dict and 'code' in child:
+        # This object is a subset of _project's fixed projection, never raw
+        # child JSON. Keep the first child error when later cleanup fails.
+        result['child_failure']={key:child[key] for key in
+            ('code','stage','error_class','error_number','failed_check') if key in child}
+    result.update(failure_fields(error,diagnostic['stage']))
+    return result
 
 
 class _OwnedProcesses:
@@ -555,44 +686,54 @@ class _OwnedProcesses:
         if failures:raise failures[0]
 
 
-def canary(scope,*,seconds=15):
-    """Run only this fixed disposable probe in an admitted Scratch directory."""
+def _canary(scope,seconds,diagnostic):
+    diagnostic['stage']='controller_scope'
     scope=_scratch(scope)
+    diagnostic['stage']='controller_identity'
     _require(os.geteuid()!=0,'landlock_canary_nonroot_required')
     _require(type(seconds) in (int,float) and 0<seconds<=20,'landlock_canary_wall_bound')
     _require(not any((scope/name).exists() for name in ('work','image','outside','outside.sock')),
              'landlock_canary_scope_used')
+    diagnostic['stage']='controller_snapshots'
     before_fds=_fd_snapshot();cwd=Path.cwd()
     namespaces={k:os.readlink('/proc/self/ns/'+k) for k in ('user','mnt','pid','net','ipc')}
+    diagnostic['stage']='controller_fixtures'
     (scope/'work').mkdir(mode=0o700)
     (scope/'image').write_bytes(_elf());(scope/'image').chmod(0o700)
     (scope/'outside').write_bytes(b'outside disposable fixture');(scope/'outside').chmod(0o600)
-    result=_base()
+    result=diagnostic['result']
+    diagnostic['stage']='controller_signals'
     with _OwnerSignals():
         try:
             with ExitStack() as owned:
+                diagnostic['stage']='controller_channels'
                 parent,child=socket.socketpair()
                 owned.enter_context(parent);owned.enter_context(child)
                 fixture_fds=list(os.pipe());owned.callback(_close_fds,fixture_fds)
                 hidden=owned.enter_context(socket.socket(socket.AF_UNIX,socket.SOCK_STREAM))
                 outside=owned.enter_context(socket.socket(socket.AF_UNIX,socket.SOCK_STREAM))
+                diagnostic['stage']='controller_listeners'
+                scope_fd=owned.enter_context(_fixture_directory(scope))
                 abstract='mm-landlock-canary-'+str(os.getpid())
                 hidden.bind('\0'+abstract);hidden.listen(1)
-                outside.bind(str(scope/'outside.sock'));outside.listen(1)
+                outside.bind(_directory_alias(os.getpid(),scope_fd)+'/outside.sock');outside.listen(1)
                 children=_OwnedProcesses();owned.callback(children.close)
                 # Separate disposable signal/proc target, never a real service.
+                diagnostic['stage']='controller_peer_spawn'
                 children.peer=subprocess.Popen([sys.executable,'-I','-B','-S','-c',
                     'import signal,time;signal.signal(signal.SIGUSR1,lambda *_:None);time.sleep(20)'],
                     stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,env={})
                 os.write(fixture_fds[1],b'fixed sizing fixture');_close_fd(fixture_fds,1)
                 spec=_spec(dict(scope=str(scope),parent=os.getpid(),peer=children.peer.pid,
-                    ipc=child.fileno(),facts=fixture_fds[0],abstract=abstract))
+                    ipc=child.fileno(),facts=fixture_fds[0],abstract=abstract,scope_fd=scope_fd))
+                diagnostic['stage']='controller_probe_spawn'
                 children.probe=subprocess.Popen([sys.executable,'-I','-B','-S',str(Path(__file__).resolve()),
                     '--probe',json.dumps(spec,separators=(',',':'))],stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,env={},close_fds=True,
                     pass_fds=(child.fileno(),fixture_fds[0]),start_new_session=True)
                 child.close();_close_fd(fixture_fds,0)
                 deadline=time.monotonic()+seconds;buffer=bytearray();acknowledged=False
+                diagnostic['stage']='controller_child_receive'
                 while True:
                     remaining=deadline-time.monotonic()
                     _require(remaining>0,'landlock_canary_wall_expired')
@@ -603,19 +744,40 @@ def canary(scope,*,seconds=15):
                     buffer.extend(data);_require(len(buffer)<=MAX_RESULT,'landlock_canary_result_bound')
                     if not acknowledged and buffer.startswith(b'landlock canary\n'):
                         del buffer[:len(b'landlock canary\n')];parent.sendall(b'parent acknowledged');acknowledged=True
-                _wait_unreaped(children.probe,deadline)
-            result=_project(json.loads(buffer),children.probe.returncode)
+                diagnostic['stage']='controller_child_exit'
+                exit_code=_wait_unreaped(children.probe,deadline)
+                result['child_exit']=exit_code
+                diagnostic['stage']='controller_child_receipt'
+                # Retain a parsed partial receipt before cleanup can fail. The
+                # WNOWAIT observation supplies the real exit without PID reuse.
+                child_receipt=_project(json.loads(buffer),exit_code)
+                diagnostic['child_receipt']=child_receipt
+                result.update(child_receipt)
+                diagnostic['stage']='controller_cleanup'
         except (Blocked,OSError,ValueError,subprocess.SubprocessError) as error:
-            result=_base();result['code']=(error.code if isinstance(error,Blocked)
-                and error.code in _SAFE_CODES else 'landlock_canary_probe_failed')
-    result.update(parent_cwd_unchanged=Path.cwd()==cwd,
-        parent_namespaces_unchanged=all(os.readlink('/proc/self/ns/'+k)==v for k,v in namespaces.items()),
-        parent_open_descriptors_preserved=all(_fd_snapshot().get(k)==v for k,v in before_fds.items()),
-        outside_canary_unchanged=(scope/'outside').read_bytes()==b'outside disposable fixture'
-            and (scope/'image').read_bytes()==_elf()
-            and stat.S_IMODE((scope/'outside').stat().st_mode)==0o600)
+            _controller_failure(diagnostic,error)
+    diagnostic['stage']='controller_parent_cwd'
+    result['parent_cwd_unchanged']=Path.cwd()==cwd
+    diagnostic['stage']='controller_parent_namespaces'
+    result['parent_namespaces_unchanged']=all(os.readlink('/proc/self/ns/'+k)==v
+        for k,v in namespaces.items())
+    diagnostic['stage']='controller_parent_descriptors'
+    after_fds=_fd_snapshot()
+    result['parent_open_descriptors_preserved']=all(after_fds.get(k)==v for k,v in before_fds.items())
+    diagnostic['stage']='controller_outside_canaries'
+    result['outside_canary_unchanged']=((scope/'outside').read_bytes()==b'outside disposable fixture'
+        and (scope/'image').read_bytes()==_elf()
+        and stat.S_IMODE((scope/'outside').stat().st_mode)==0o600)
     if not verified(result):result['state']='BLOCKED';result.setdefault('code','landlock_canary_enforcement_unverified')
     return result
+
+
+def canary(scope,*,seconds=15):
+    """Run the fixed probe; preserve bounded pre/post-probe failures as BLOCKED."""
+    diagnostic=dict(stage='controller_scope',result=_base())
+    try:return _canary(scope,seconds,diagnostic)
+    except Exception as error:
+        return _controller_failure(diagnostic,error)
 
 
 def main():

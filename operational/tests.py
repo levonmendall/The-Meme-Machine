@@ -3,6 +3,7 @@ import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.r
 
 FAST=[
  'tests.test_parent_native_factories',
+ 'tests.test_native_commit_measurement',
  'tests.test_isolated_native_spawn',
  'tests.test_isolated_native_layout',
  'tests.test_isolated_native_landlock_image',
@@ -15,6 +16,7 @@ FAST=[
  'tests.test_pons_native_profile',
  'tests.test_isolated_native_source',
  'tests.test_market_heads',
+ 'tests.test_parent_head_lifecycle',
  'tests.test_namespace_runtime',
  'tests.test_namespace_canary',
  'tests.test_pons_profile_channel',
@@ -37,6 +39,7 @@ FAST=[
  'tests.test_pons_retention_covering_index',
  'tests.test_pons_projection_source_reuse',
  'tests.test_transport_bridge',
+ 'tests.test_pons_scheduling_reads',
  'tests.test_source_operation_publication',
  'tests.test_sleeve_prefix_scheduling',
  'tests.test_provider_budget_namespace_read',

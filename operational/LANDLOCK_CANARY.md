@@ -103,3 +103,105 @@ Focused local validation uses only the offline contract/BPF/descriptor tests:
 `python -m operational.tests FAST --modules tests.test_landlock_canary`.
 It deliberately does not repeat the already established local ENOSYS kernel
 probe. These tests do not claim that actual Landlock enforcement ran locally.
+
+## Bounded failure diagnostics
+
+AWS run39068968599 on sourcec135677314cd73983c2977fe85d6417612841ca9
+retained only `landlock_canary_probe_failed`, without child exit, ABI or parent
+checks. That receipt does not identify the underlying failure or establish a
+kernel limitation. The administrative driver's broad exception handler could
+replace a failure before or after the probe; its independent stage diagnostics
+must also be retained.
+
+The application now covers pre-probe validation/setup and post-probe parent
+checks with the same BLOCKED projection. `CODES`, `STAGES` and `ERROR_CLASSES`
+are fixed exported allowlists. `failure_fields(error, stage)` returns only
+`code`, an allowlisted `stage`, fixed built-in `error_class`, bounded integer
+`error_number` when supplied by the actual exception, and a known
+`failed_check` for a typed check failure. It never publishes exception text,
+filenames, arbitrary class names or tracebacks. Child stages distinguish
+identity, ABI, rule installation, independent Landlock checks, seccomp, IPC,
+SQLite and descendant checks. Completed child Boolean checks remain available
+on a failed receipt; absent checks remain absent.
+
+The controller records the actual child exit through WNOWAIT before decoding
+the bounded anonymous response. Thus an empty or malformed response retains its
+real exit and decode stage without inventing an ABI or error from the child.
+A parsed child receipt is retained before owned-process cleanup and parent
+verification. If a later controller failure supersedes a child error, the
+bounded `child_failure` object retains that first child's projected `code`,
+`stage`, `error_class`, `error_number` and `failed_check`; its ABI, checks and exit
+remain top-level. Administrative receipt sanitizers must mirror these fixed
+fields, not copy raw JSON. None of these diagnostic fields admits a PASS.
+
+Focused offline regressions inject namespace-read and cleanup failures, use a
+real disposable subprocess and anonymous response without any policy syscall,
+and verify exit retention, actual owned-peer reaping, partial-child evidence
+and privacy projection. They do not diagnose run39068968599 retroactively or
+prove actual AWS Landlock/native execution.
+
+## Long pathname fixture correction
+
+Corrected AWS run39070091108 on source0181b0d785f2868bc224b9c2accb7c2d631a3961
+reported `controller_listeners`, `OSError`, no errno or child exit, with all four
+parent checks true. Its retained Scratch prefix makes the `outside.sock` address
+108 bytes. CPython rejects that address before bind(2), because Linux pathname
+Unix sockets allow at most107 bytes plus the terminating NUL. The exact retained
+address reproduces the same errno-less exception offline. A104-byte control
+bind succeeds, and a176-byte independently owned fixture also reproduces it.
+This identifies the corrected run's fixture-path defect; it does not recover
+missing diagnostic details from the earlier generic run39068968599.
+
+The controller now opens its already admitted private scope with
+`O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW`, checks its owner/mode/inode, and binds
+the same real `outside.sock` inode through `/proc/self/fd/N/outside.sock`.
+The strict child specification includes only the parent-issued numeric scope
+descriptor. Before policy installation the child verifies that
+`/proc/PARENT/fd/N` resolves to that exact scope directory. That directory FD is
+excluded from `pass_fds` and remains CLOEXEC; the controller owns it until after
+the actual probe has been killed/reaped. The seccomp connect canary uses the
+short `/proc/PARENT/fd/N/outside.sock` address, so Python reaches the syscall
+whose exact EPERM is required. No proc filesystem permission is newly granted.
+
+The child separately opens only its already allowed private work directory to
+bind its original `bound.sock` and `listener.sock` fixtures and derive its
+`denied.sock` address through a short self-FD alias. An ExitStack owns this
+directory FD and every socket from creation, including partial bind/listen
+failures. All fixtures remain pathname sockets in the original admitted scope;
+there is no cwd change, global temporary-directory change, shared short-path
+directory, symlink, abstract-socket substitution or broader filesystem rule.
+
+The27 focused offline tests include the exact108-byte failure, real socket
+bind/listen/connect under a much longer owned prefix, real controller/child IPC
+with the directory FD absent from the child, unchanged cwd/TMPDIR/parent FDs,
+and original failure/reaping/privacy/BPF regressions. No actual Landlock or
+seccomp policy was installed by these tests. AWS enforcement remains unproved
+until the corrected bounded workflow produces its own authentic receipt.
+
+## Closed-stdio fixture ownership correction
+
+AWS run39071600357 on sourcefc7dd4d447dd773b06184ec373c2c65c00cbd85d
+observed actual Landlock ABI8. Its filesystem read/write, readonly-image,
+proc-data, abstract-scope, signal-scope, inherited-FD and empty-capability checks
+were true, and all four parent predicates were true. It remained BLOCKED with
+child exit2 and `landlock_canary_spec` at `child_socket_fixtures`. Those genuine
+partial checks remain evidence; they do not establish full canary/native parity.
+
+The fixed child deliberately closes stdio. The next private directory open
+therefore returns FD0, which the strict numeric short-path alias rejects. A real
+offline subprocess reproduces this exact allocation and typed error using the
+original `_fixed_fds`, without any kernel policy syscall. Earlier socket fixtures
+kept ordinary stdio open and did not cover this condition.
+
+The owned fixture-directory context now moves any handle below5 through
+`F_DUPFD_CLOEXEC` with minimum5, then immediately closes its original low handle.
+FD3/4 remain reserved for parent IPC/facts. Parent-issued descriptor validation,
+directory inode validation and filesystem/seccomp rights remain unchanged. Both
+original and duplicate handles are registered before another operation can fail;
+duplication, validation and context failures close every owned handle.
+
+All30 focused tests pass, including actual closed-stdio pathname bind/connect
+and anonymous status delivery, reserved-channel preservation, low-FD duplication
+failure, open failure and existing reaping/privacy/BPF regressions. These are
+offline lifecycle/fixture proofs. The known local ENOSYS kernel limitation was
+not retried; complete corrected AWS enforcement still requires its own receipt.

@@ -311,6 +311,7 @@ class ParentHTTP:
                 purchase_started(len(body))
             request = Request(binding._url, data=body, headers={'Content-Type': 'application/json'})
             status = 200
+            physical_started = time.monotonic()
             try:
                 raw = self.opener(request, timeout=min(8, state.attempt.deadline-time.monotonic()))
             except HTTPError as error:
@@ -351,6 +352,7 @@ class ParentHTTP:
                 raise
             if status != 200:
                 raise BoundaryError('provider_http_'+str(int(status)))
+            physical_completed = time.monotonic()
             try:
                 reply = json.loads(b''.join(pieces))
                 rows = reply if state.attempt.batch else [reply]
@@ -358,6 +360,7 @@ class ParentHTTP:
                     or any(type(r) is not dict or type(r.get('id')) is not int for r in rows)
                     or {r['id'] for r in rows} != set(range(1, len(calls)+1))):
                     raise ParentTransportFailure('provider_invalid_envelope')
+                physical_rows = rows
                 errors = [(r.get('error') or {}).get('code') for r in rows]
                 limited = any(c in (429, -32005) for c in errors)
                 if limited and binding.governor is not None:
@@ -387,6 +390,16 @@ class ParentHTTP:
                 if any('result' not in r and 'error' not in r for r in rows):
                     raise ParentTransportFailure('provider_invalid_envelope')
                 binding.public(reply)
+                observer = getattr(self, '_head_lifecycle', None)
+                if observer is not None:
+                    # Actual socket rows/IDs and clocks precede normalization,
+                    # child handoff and cache. Keep the original attempt fence.
+                    _check(state)
+                    try:
+                        observer.physical_response(self, state, binding, calls, physical_rows,
+                            started=physical_started, completed=physical_completed)
+                    except Exception:
+                        pass
                 clean = json.dumps(reply, separators=(',', ':'), allow_nan=False).encode()
                 _require(len(clean) <= MAX_FRAME, 'parent_response_capacity')
             except (ValueError, TypeError, AttributeError, RecursionError, OverflowError) as error:
