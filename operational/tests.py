@@ -2,6 +2,7 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+ 'tests.test_source_operation_publication',
  'tests.test_sleeve_prefix_scheduling',
  'tests.test_provider_budget_namespace_read',
  'tests.test_pump_cost_environment',

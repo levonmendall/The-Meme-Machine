@@ -879,6 +879,62 @@ def source_join_snapshot(source_driver):
         for plane in ('rolling','candidate') if plane in joins}
 
 
+async def publish_operation_costs(path,owner,stop):
+    """Opt-in process telemetry, independent of canonical owner admission."""
+    import asyncio
+    import stat
+    from .operational.supervisor import Supervisor
+    from .portfolio_accounting import _atomic_json
+    from .runtime import operation_costs
+    if not operation_costs.enabled():return
+    target=Path(path).parent/'solana-evidence-operation-costs.json'
+    def store(row):
+        for parent in (target.parent,*target.parent.parents):
+            if parent.is_symlink():raise ValueError('operation_cost_publication_path')
+        for candidate in (target,target.with_name(target.name+'.tmp')):
+            try:info=candidate.lstat()
+            except FileNotFoundError:continue
+            if (not stat.S_ISREG(info.st_mode) or info.st_nlink!=1
+                    or info.st_uid!=os.getuid() or stat.S_IMODE(info.st_mode)!=0o600):
+                raise ValueError('operation_cost_publication_path')
+        if len(canonical(row).encode())+1>1024*1024:
+            raise ValueError('operation_cost_publication_bound')
+        _atomic_json(target,row)
+    async def persist(state):
+        pid=os.getpid();ticks=Supervisor._source_start_ticks(pid)
+        if type(ticks) is not int or ticks<=0:raise ValueError('operation_cost_process_identity')
+        costs=operation_costs.snapshot();clock=costs.get('collected_monotonic')
+        if (type(costs.get('pid')) is not int or costs['pid']!=pid or costs.get('enabled') is not True
+                or type(clock) not in (int,float) or not 0<=clock<2**64):
+            raise ValueError('operation_cost_snapshot_identity')
+        row=dict(version=1,pid=pid,process_start_ticks=ticks,publication_state=state,
+            scope='INDEPENDENT_PROCESS_TELEMETRY_NOT_EVIDENCE_OR_READINESS',
+            operation_costs=costs,owner_scheduler=owner.telemetry())
+        pending=asyncio.create_task(asyncio.to_thread(store,row))
+        try:await asyncio.shield(pending)
+        except asyncio.CancelledError:
+            # A canceled waiter cannot leave an ACTIVE write racing STOPPED.
+            while not pending.done():
+                try:await asyncio.shield(pending)
+                except asyncio.CancelledError:pass
+                except Exception:break
+            try:pending.result()
+            except Exception:pass
+            raise
+    failed=False
+    try:
+        while not stop.is_set():
+            await persist('ACTIVE')
+            try:await asyncio.wait_for(stop.wait(),1)
+            except TimeoutError:pass
+    except BaseException:
+        failed=True;raise
+    finally:
+        try:await persist('STOPPED')
+        except BaseException:
+            if not failed:raise
+
+
 async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
     """Model B startup, bounded socket handling and one canonical owner."""
     if source_driver is None:
@@ -1191,7 +1247,11 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
             await source_driver(work,stop)
         # Model B is the only producer. Archived startup cannot be selected.
         producers=[asyncio.create_task(selected_source())]
+        from .runtime.operation_costs import enabled as costs_enabled
+        cost_publisher=(asyncio.create_task(publish_operation_costs(path,owner,stop))
+            if costs_enabled() else None)
         tasks=[*producers,asyncio.create_task(maintenance()),asyncio.create_task(health()),asyncio.create_task(checkpoint()),asyncio.create_task(stop.wait())]
+        if cost_publisher is not None:tasks.append(cost_publisher)
         done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
         if stop.is_set():
             admission.close()

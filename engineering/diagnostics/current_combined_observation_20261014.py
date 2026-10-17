@@ -733,6 +733,60 @@ def startup_gate_facts(db,session,remaining_bytes):
         return dict(available=False,reason='STARTUP_FIELDS_UNAVAILABLE')
 
 
+def source_operation_costs(root,expected_pid):
+    """Independent diagnostic transport; never source readiness or coverage."""
+    import stat
+    result=dict(state=UNAVAILABLE,scope='INDEPENDENT_PROCESS_TELEMETRY_NOT_EVIDENCE_OR_READINESS',
+        operation_costs=dict(available=False,reason='SOURCE_OPERATION_TELEMETRY_UNAVAILABLE'),
+        owner_observation=UNAVAILABLE)
+    try:
+        if type(expected_pid) is not int or expected_pid<=0:raise ValueError()
+        before=Supervisor._source_start_ticks(expected_pid)
+        if type(before) is not int or before<=0:raise ValueError()
+        path=Path(root)/'shared/solana-evidence-operation-costs.json'
+        for parent in (path.parent,*path.parent.parents):
+            if parent.is_symlink():raise ValueError()
+        descriptor=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+        with os.fdopen(descriptor,'rb') as stream:
+            first=os.fstat(stream.fileno())
+            if (not stat.S_ISREG(first.st_mode) or first.st_uid!=os.getuid()
+                    or stat.S_IMODE(first.st_mode)!=0o600 or first.st_nlink!=1
+                    or first.st_size>INPUT_BYTES):raise ValueError()
+            raw=stream.read(INPUT_BYTES+1);last=os.fstat(stream.fileno())
+            if (len(raw)!=first.st_size or len(raw)>INPUT_BYTES
+                    or any(getattr(first,key)!=getattr(last,key) for key in
+                        ('st_dev','st_ino','st_size','st_mtime_ns'))):raise ValueError()
+        row=json.loads(raw)
+        if (Supervisor._source_start_ticks(expected_pid)!=before or not isinstance(row,dict)
+                or type(row.get('version')) is not int or row['version']!=1
+                or type(row.get('pid')) is not int or row['pid']!=expected_pid
+                or type(row.get('process_start_ticks')) is not int or row['process_start_ticks']!=before
+                or row.get('publication_state')!='ACTIVE'):raise ValueError()
+        scheduler=row.get('owner_scheduler');costs=row.get('operation_costs')
+        if (not isinstance(scheduler,dict) or type(scheduler.get('owner_pid')) is not int
+                or scheduler['owner_pid']!=expected_pid or type(scheduler.get('native_thread_id')) is not int
+                or scheduler['native_thread_id']<=0 or not isinstance(costs,dict)
+                or type(costs.get('pid')) is not int or costs['pid']!=expected_pid
+                or not finite_number(costs.get('collected_monotonic'))
+                or costs['collected_monotonic']<0):raise ValueError()
+        recent=scheduler.get('recent_slow_operations');active=scheduler.get('active_operation')
+        if not isinstance(recent,list) or len(recent)>8:raise ValueError()
+        for operation in ([active] if active is not None else [])+recent:
+            if (not isinstance(operation,dict) or type(operation.get('pid')) is not int
+                    or operation['pid']!=expected_pid or type(operation.get('native_thread_id')) is not int
+                    or operation['native_thread_id']!=scheduler['native_thread_id']):raise ValueError()
+        reduced=operation_costs(costs,expected_pid)
+        if reduced.get('available') is not True:raise ValueError()
+        selected=required_counters({'owner_scheduler':scheduler})
+        reduced['transport']='INDEPENDENT_SOURCE_STATUS_FILE'
+        result.update(state='OBSERVED',pid=expected_pid,process_start_ticks=before,
+            operation_costs=reduced,owner_observation=dict(
+                scope='PROCESS_OWNER_TELEMETRY_NOT_CANONICAL_PROGRESS',
+                owner_scheduler=selected['owner_scheduler'],owner_operations=selected['owner_operations']))
+    except (OSError,ValueError,RuntimeError,TypeError,KeyError,IndexError):pass
+    return result
+
+
 def pipeline_sample(root, expected_pid):
     """PK/indexed reads only; no counts, population scans, payloads or SQL trace."""
     started = time.monotonic()
@@ -769,6 +823,10 @@ def pipeline_sample(root, expected_pid):
                           required_counters=required_counters(health,now_monotonic=started),
                           service_health=numeric(descriptive),
                           ipc_scope='EXPLICIT_REQUIRED_COUNTERS_ONLY_NOT_DUPLICATED_DESCRIPTIVE_IPC')
+            if os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1':
+                telemetry=source_operation_costs(root,expected_pid)
+                result['required_counters']['operation_costs']=telemetry.pop('operation_costs')
+                result['source_operation_telemetry']=telemetry
             # Each sample is bounded independently of retained historical stock.
             result['pending_outbox_head'] = db.execute(
                 'SELECT id,family,kind,created FROM candidate_history_outbox '
