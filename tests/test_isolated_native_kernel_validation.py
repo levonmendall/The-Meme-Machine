@@ -45,6 +45,19 @@ def copied_seccomp_fixture(scope,approval,transport,facts):
 
 
 class NativeKernelValidationTests(unittest.TestCase):
+    def test_post_join_output_reader_refuses_symlink_ancestors_and_hardlinked_files(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);owned=root/'owned';owned.mkdir(mode=0o700)
+            source=owned/'report.json';source.write_text('{}')
+            alias=root/'alias';alias.symlink_to(owned,target_is_directory=True)
+            with self.assertRaisesRegex(ValueError,'output_root'):validation.native_outputs(alias)
+            with self.assertRaisesRegex(ValueError,'file_bound'):validation._json_file(alias/'report.json')
+            with self.assertRaisesRegex(ValueError,'database_inode'):validation._readonly(alias/'report.json')
+            link=owned/'hardlink.json';os.link(source,link)
+            with self.assertRaisesRegex(ValueError,'file_bound'):validation._json_file(link)
+            with self.assertRaisesRegex(ValueError,'database_inode'):validation._readonly(link)
+            link.unlink();self.assertEqual(validation._json_file(source),{})
+
     def test_policy_receipt_requires_one_exact_supported_install_observation(self):
         raw=b'NATIVE_POLICY_INSTALLED {"profile":"'+PROFILE.encode()+b'","landlock_abi":8,"installed":true}\n'
         self.assertEqual(validation._policy_record(raw)['landlock_abi'],8)

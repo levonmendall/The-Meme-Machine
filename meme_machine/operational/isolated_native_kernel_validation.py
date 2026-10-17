@@ -31,13 +31,15 @@ _FINANCIAL_TABLES=frozenset(('genesis','positions','journal','sleeve_genesis','s
 
 def _json_file(path,maximum=MAX_RESULT):
     path=Path(path);info=path.lstat()
-    if not stat.S_ISREG(info.st_mode) or info.st_size>maximum:raise ValueError('kernel_validation_file_bound')
+    if (path.resolve(strict=True)!=path.absolute() or not stat.S_ISREG(info.st_mode)
+            or info.st_nlink!=1 or info.st_size>maximum):raise ValueError('kernel_validation_file_bound')
     return json.loads(path.read_bytes())
 
 
 def _readonly(path):
     path=Path(path);info=path.lstat()
-    if not stat.S_ISREG(info.st_mode) or info.st_nlink!=1:raise ValueError('kernel_validation_database_inode')
+    if (path.resolve(strict=True)!=path.absolute() or not stat.S_ISREG(info.st_mode)
+            or info.st_nlink!=1):raise ValueError('kernel_validation_database_inode')
     db=sqlite3.connect(path.as_uri()+'?mode=ro',uri=True,timeout=1,isolation_level=None)
     db.execute('PRAGMA query_only=ON')
     return db
@@ -45,7 +47,12 @@ def _readonly(path):
 
 def native_outputs(root):
     """Read only after the actual native process/owners have stopped."""
-    root=Path(root);result=dict(financial_tables_absent=True,database_count=0,
+    root=Path(root)
+    info=root.lstat()
+    if (root.resolve(strict=True)!=root.absolute() or not stat.S_ISDIR(info.st_mode)
+            or info.st_uid!=os.geteuid() or stat.S_IMODE(info.st_mode)!=0o700):
+        raise ValueError('kernel_validation_output_root')
+    result=dict(financial_tables_absent=True,database_count=0,
         candidate_references=0,canonical_full_ack=0,source_receipts=0,
         unexercised=['Pons_economic_candidates','held_positions','fills','settlement',
             'retained_production_restoration','sustained_market_capacity'])
