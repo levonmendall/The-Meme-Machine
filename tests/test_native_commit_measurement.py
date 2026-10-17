@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import sqlite3
 import tempfile
+import threading
 import time
 import unittest
 from unittest.mock import patch
@@ -59,7 +60,7 @@ class NativeCommitSQLiteTests(unittest.TestCase):
         self.assertEqual(probe.boundaries,[('before',0),('returned',0)])
         self.assertEqual(self.counts()['history_event_rows'],2)
         self.assertEqual(self.collector.snapshot()['observed_transactions'],1)
-        self.assertGreaterEqual(self.collector.snapshot()['last_commit_monotonic_ns'],probe.returned_at)
+        self.assertGreaterEqual(self.collector.snapshot()['last_post_commit_observation_monotonic_ns'],probe.returned_at)
         with sqlite3.connect(self.history.path) as db:
             self.assertEqual(db.execute('SELECT COUNT(*) FROM events').fetchone()[0],2)
 
@@ -82,7 +83,7 @@ class NativeCommitSQLiteTests(unittest.TestCase):
                 raise ValueError('rollback')
         self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM events').fetchone()[0],0)
         self.assertEqual(self.counts()['history_event_rows'],0)
-        self.assertIsNone(self.collector.snapshot()['last_commit_monotonic_ns'])
+        self.assertIsNone(self.collector.snapshot()['last_post_commit_observation_monotonic_ns'])
 
     def test_failed_native_savepoint_cleanup_latches_loss_without_changing_original_error(self):
         class FailedRollback(_CommitProbe):
@@ -118,7 +119,7 @@ class NativeCommitSQLiteTests(unittest.TestCase):
         self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM events').fetchone()[0],1)
         value=self.collector.snapshot()
         self.assertTrue(value['measurement_loss']);self.assertEqual(value['observed_transactions'],0)
-        self.assertIsNone(value['last_commit_monotonic_ns'])
+        self.assertIsNone(value['last_post_commit_observation_monotonic_ns'])
 
     def test_external_transaction_cannot_publish_on_savepoint_release(self):
         self.history.db.execute('BEGIN IMMEDIATE')
@@ -236,6 +237,48 @@ class NativeCommitSQLiteTests(unittest.TestCase):
         self.assertEqual(plane.get('pons:token')['generation'],2)
         self.assertIsNone(self.collector.snapshot()['unique_candidate_generations'])
         self.assertEqual(self.collector.snapshot()['pons_pool_universe_closure'],'UNKNOWN')
+
+    def test_two_native_commits_preempted_before_reducer_have_ordered_observation_clocks(self):
+        peer=CandidateHistory(self.root/'peer.sqlite',clock=lambda:1000)
+        self.addCleanup(peer.close)
+        peer._native_commit_observer=self.collector.attach('candidate_history')
+        entered=threading.Event();resume=threading.Event();done=threading.Event()
+        errors=[]
+        original=self.collector.lock
+        class PreemptedLock:
+            def acquire(inner,blocking):
+                self.assertFalse(blocking)
+                if threading.current_thread().name=='native-commit-a':
+                    # The real COMMIT has returned, but another original owner
+                    # gets scheduled before this owner acquires the reducer.
+                    self.assertFalse(self.history.db.in_transaction)
+                    entered.set()
+                    if not resume.wait(2):raise TimeoutError('offline scheduling gate')
+                return original.acquire(blocking)
+            def release(inner):original.release()
+        self.collector.lock=PreemptedLock()
+        def publish(owner,identity):
+            try:self.event(identity,owner=owner)
+            except BaseException as error:errors.append(error)
+            finally:
+                if owner is peer:done.set()
+        first=threading.Thread(target=publish,args=(self.history,'a'),name='native-commit-a')
+        second=threading.Thread(target=publish,args=(peer,'b'),name='native-commit-b')
+        first.start()
+        try:
+            self.assertTrue(entered.wait(2))
+            second.start();self.assertTrue(done.wait(2))
+            second_observation=self.collector.last_post_commit_observation_monotonic_ns
+        finally:
+            resume.set();first.join(2)
+            if second.ident is not None:second.join(2)
+        self.assertFalse(first.is_alive());self.assertFalse(second.is_alive());self.assertEqual(errors,[])
+        value=self.collector.snapshot()
+        self.assertGreaterEqual(value['last_post_commit_observation_monotonic_ns'],second_observation)
+        self.assertEqual(value['committed_row_counts']['history_event_rows'],2)
+        self.assertFalse(value['measurement_loss'])
+        for owner in (self.history,peer):
+            self.assertEqual(owner.db.execute('SELECT COUNT(*) FROM events').fetchone()[0],1)
 
 
 class NativeCommitCapabilityTests(unittest.IsolatedAsyncioTestCase):

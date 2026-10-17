@@ -47,6 +47,13 @@ and exception precedence are preserved even if that cleanup itself fails.
 `Plane.transaction` retains its original no-change ROLLBACK and changed COMMIT.
 No additional transaction, SQL statement, fsync or provider acquisition is made.
 The measured source-history path still commits its original 64-row batches.
+`last_post_commit_observation_monotonic_ns` and
+`last_post_commit_observation_wall_ns` are sampled under the successfully
+acquired nonblocking reducer lock, strictly after COMMIT. They describe
+observation/publication order across stores, not global SQLite COMMIT order or
+the kernel's exact fsync completion instant. Monotonic publication observations
+cannot move backward when an earlier committed owner is preempted before the
+reducer. Wall time retains the normal system-clock adjustment limitations.
 
 Each connection retains at most 16 frames and 128 tracked row records per outer
 transaction. It retains fixed counters and rolling hashes, not row payloads or
@@ -93,3 +100,9 @@ CandidateHistory and Plane cases in 0.670 seconds, including a failed native
 SAVEPOINT cleanup followed by the original caller's outer COMMIT. It preserves
 the original native error/rows and reports measurement loss rather than claiming
 that the rollback succeeded. The new component now contains 18 cases.
+
+The final observation-clock correction passed all 19 component cases in 0.237
+seconds. Its deterministic two-store test preempts one owner after its actual
+COMMIT and lets a second native SQLite owner publish first; resuming the first
+owner preserves both durable rows and a nondecreasing monotonic publication
+observation. This does not establish a global kernel commit order.

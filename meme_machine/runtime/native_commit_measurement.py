@@ -27,8 +27,8 @@ class NativeCommitMeasurement:
         self.counts = dict.fromkeys(STAGES, 0)
         self.transactions = 0
         self.digest = bytes(32)
-        self.last_commit_monotonic_ns = None
-        self.last_commit_wall_ns = None
+        self.last_post_commit_observation_monotonic_ns = None
+        self.last_post_commit_observation_wall_ns = None
         self.stores = set()
         self.next_store = 0
 
@@ -73,8 +73,9 @@ class NativeCommitMeasurement:
             value.update(status='UNKNOWN' if self.lost.is_set() else 'COMMIT_STAGE_ONLY',
                 measurement_loss=self.lost.is_set(), committed_row_counts=dict(self.counts),
                 observed_transactions=self.transactions, commit_chain_hash=self.digest.hex(),
-                last_commit_monotonic_ns=self.last_commit_monotonic_ns,
-                last_commit_wall_ns=self.last_commit_wall_ns, active_stores=len(self.stores))
+                last_post_commit_observation_monotonic_ns=self.last_post_commit_observation_monotonic_ns,
+                last_post_commit_observation_wall_ns=self.last_post_commit_observation_wall_ns,
+                active_stores=len(self.stores))
             return value
         finally:
             self.lock.release()
@@ -162,7 +163,6 @@ class _Store:
                 return
             # Called only after the native outer COMMIT has returned. The
             # nonblocking reducer never waits for another SQLite owner.
-            mono, wall = time.monotonic_ns(), time.time_ns()
             collector = self.collector
             if not collector.lock.acquire(False):
                 self.fail()
@@ -171,14 +171,17 @@ class _Store:
                 if os.getpid() != collector.pid:
                     self.fail()
                     return
+                # Observation/publication order, not an assertion of global
+                # SQLite COMMIT ordering or the kernel's fsync finish instant.
+                mono, wall = time.monotonic_ns(), time.time_ns()
                 for stage in STAGES:
                     collector.counts[stage] += frame[0][stage]
                 collector.transactions += 1
                 collector.digest = hashlib.sha256(collector.digest + self.kind.encode('ascii')
                     + self.identity.to_bytes(8, 'big') + frame[1]
                     + mono.to_bytes(8, 'big')).digest()
-                collector.last_commit_monotonic_ns = mono
-                collector.last_commit_wall_ns = wall
+                collector.last_post_commit_observation_monotonic_ns = mono
+                collector.last_post_commit_observation_wall_ns = wall
             finally:
                 collector.lock.release()
         except Exception:
