@@ -4,6 +4,7 @@ import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.r
 FAST=[
  'tests.test_namespace_runtime',
  'tests.test_namespace_canary',
+ 'tests.test_landlock_canary',
  'tests.test_retained_reference_path_walk',
  'tests.test_pons_retention_covering_index',
  'tests.test_pons_projection_source_reuse',
