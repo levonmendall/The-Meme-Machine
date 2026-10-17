@@ -160,6 +160,45 @@ class ArchiveFullLogContentTests(unittest.TestCase):
         self.assertEqual(self.snapshot(), before)
         self.assert_unpublished()
 
+    def test_repeated_retained_segments_preserve_whole_complete_response_and_native_indices(self):
+        before = self.snapshot()
+        for family, decoder in (('pump', pump_events), ('pumpswap', pumpswap_trade_events)):
+            for suffix, offsets in ((['Program log: known A', 'Program log: known B'], (153, 160)),
+                                    (['Program log: repeated known line'], (153, 159, 166))):
+                with self.subTest(family=family, matches=len(offsets), retained_lines=len(suffix)):
+                    full = copy.deepcopy(FIXTURE[family][0])
+                    full['meta']['logMessages'].extend('Program log: offline complete padding '+str(index)
+                        for index in range(170-len(full['meta']['logMessages'])))
+                    for start in offsets:
+                        full['meta']['logMessages'][start:start+len(suffix)] = suffix
+                    original, fetched = copy.deepcopy(full), copy.deepcopy(full)
+                    original['meta']['logMessages'] = full['meta']['logMessages'][:152]+['Log truncated']+suffix
+                    fetched.pop('transactionIndex', None)
+                    complete = fetched['meta']['logMessages']
+                    self.assertEqual(len(complete), 170)
+                    self.assertEqual(sum(complete[start:start+len(suffix)] == suffix
+                        for start in range(152, len(complete)-len(suffix)+1)), len(offsets))
+                    raw_inputs = canonical(original), canonical(fetched)
+                    supplement = join_archive_log_supplement(original, fetched, endpoint_identity=ENDPOINT)
+                    repaired = complete_archive_transaction(original, supplement, endpoint_identity=ENDPOINT)
+                    # Multiple placements are consistent known content, not an
+                    # alignment choice: the one entire full response supplies
+                    # every event and its original full-log index unchanged.
+                    self.assertEqual(repaired, full)
+                    self.assertEqual(repaired['meta']['logMessages'], complete)
+                    self.assertEqual(repaired['transactionIndex'], original['transactionIndex'])
+                    self.assertEqual(decoder(repaired), decoder(FIXTURE[family][0]))
+                    self.assertEqual([event['index'] for event in decoder(repaired)],
+                                     [event['index'] for event in decoder(full)])
+                    self.assertEqual((canonical(original), canonical(fetched)), raw_inputs)
+                    metadata = archive_page_evidence(dict(family=family, address=PROGRAMS[family],
+                        lo=original['slot'], hi=original['slot'], pages=0, token=None, lineage=digest([])),
+                        dict(data=[original]), endpoint_identity=ENDPOINT, supplements=(supplement,))
+                    self.assertEqual(metadata['supplement_observations'][0]['original_prefix_length'], 152)
+                    self.assertEqual(metadata['supplement_observations'][0]['response'], fetched)
+        self.assertEqual(self.snapshot(), before)
+        self.assert_unpublished()
+
     def test_retained_suffix_mismatch_ambiguity_and_marker_failures_are_atomic(self):
         original, fetched, _, _ = truncated_transaction()
         prefix = ['Program log: verified prefix A', 'Program log: verified prefix B']
@@ -179,7 +218,8 @@ class ArchiveFullLogContentTests(unittest.TestCase):
         variant('reordered_known_lines', original_logs=prefix+['Log truncated']+list(reversed(suffix)))
         variant('noncontiguous_known_lines', complete_logs=prefix+suffix[:1]+['intervening line']+suffix[1:])
         variant('insufficient_duplicate_occurrences', original_logs=prefix+['Log truncated']+suffix+suffix)
-        variant('ambiguous_complete_occurrences', complete_logs=prefix+suffix+['middle']+suffix)
+        # Repeated full placements are now covered by the positive whole-output
+        # test: no placement is selected and no event/index is reconstructed.
         variant('prefix_only_overlap', original_logs=prefix+['Log truncated']+prefix)
         variant('partial_prefix_overlap', original_logs=prefix+['Log truncated', prefix[-1], 'Program log: omitted middle'])
         variant('multiple_markers', original_logs=prefix+['Log truncated']+suffix+['Log truncated'])

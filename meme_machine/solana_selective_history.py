@@ -175,7 +175,7 @@ def _archive_log_join(original,fetched,endpoint_identity):
         # their complete order as one contiguous segment, without reusing any
         # prefix lines. The full response may also contain a later suffix.
         if suffix and sum(complete[start:start+len(suffix)]==suffix
-                for start in range(len(prefix),len(complete)-len(suffix)+1))!=1:
+                for start in range(len(prefix),len(complete)-len(suffix)+1))<1:
             raise KeyError()
     except (KeyError,TypeError,ValueError):
         raise EvidenceUnavailable('archive_log_supplement_identity_unverified') from None
