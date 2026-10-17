@@ -224,15 +224,22 @@ def _directory_alias(pid,fd):
 @contextmanager
 def _fixture_directory(path):
     """Hold only this verified owned fixture directory; never inherit its FD."""
-    fd=os.open(path,os.O_RDONLY|os.O_DIRECTORY|os.O_CLOEXEC|os.O_NOFOLLOW)
+    descriptors=[os.open(path,os.O_RDONLY|os.O_DIRECTORY|os.O_CLOEXEC|os.O_NOFOLLOW)]
     try:
+        fd=descriptors[0]
+        # The fixed child closes stdio, so open() legitimately returns0/1/2.
+        # Keep the strict directory-alias contract and reserved parent FD3/4:
+        # move this owned handle above them, closing the original immediately.
+        if fd<5:
+            descriptors.append(fcntl.fcntl(fd,fcntl.F_DUPFD_CLOEXEC,5))
+            _close_fd(descriptors,0);fd=descriptors[1]
         info=os.fstat(fd);expected=path.lstat()
         _require(stat.S_ISDIR(info.st_mode) and info.st_uid==os.geteuid()
             and stat.S_IMODE(info.st_mode)==0o700
             and (info.st_dev,info.st_ino)==(expected.st_dev,expected.st_ino),
             'landlock_canary_scope_descriptor')
         yield fd
-    finally:os.close(fd)
+    finally:_close_fds(descriptors)
 
 
 @contextmanager
