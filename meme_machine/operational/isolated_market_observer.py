@@ -247,12 +247,23 @@ class Observer:
         self.completed = 0
         self.heads = {'solana': [], 'robinhood': []}
         # Cross-backend/public-RPC differences can return signatures newer
-        # than a just-read finalized head. Record these as explicitly excluded
+        # than the independently reported finalized head. Record these as excluded
         # references, not as finalized evidence and not as a fatal error.
         self.unverified_future = {'solana_pump':0, 'solana_pumpswap':0}
         self.regressed_finalized_heads = 0
 
     def solana(self, tick):
+        # Acquire both bounded finalized pages before reading their independent
+        # head bound. A head read first is already stale after two paced calls
+        # and can exclude every current reference on a fast-moving market.
+        pages=[]
+        for lane,program in (('solana_pump',PUMP_PROGRAM),
+                             ('solana_pumpswap',PUMPSWAP_PROGRAM)):
+            rows=self.rpc.call(SOLANA,'getSignaturesForAddress',[program,
+                {'limit': MAX_SIGNATURES, 'commitment': 'finalized'}])
+            require(type(rows) is list and len(rows) <= MAX_SIGNATURES,
+                    'solana_reference_shape')
+            pages.append((lane,rows))
         head=_integer(self.rpc.call(SOLANA,'getSlot',[{'commitment':'finalized'}]),
                       'solana_head')
         head_regressed=(self.last_solana_head is not None
@@ -260,12 +271,7 @@ class Observer:
         if head_regressed:
             self.regressed_finalized_heads += 1
         self.heads['solana'].append(head)
-        for lane,program in (('solana_pump',PUMP_PROGRAM),
-                             ('solana_pumpswap',PUMPSWAP_PROGRAM)):
-            rows=self.rpc.call(SOLANA,'getSignaturesForAddress',[program,
-                {'limit': MAX_SIGNATURES, 'commitment': 'finalized'}])
-            require(type(rows) is list and len(rows) <= MAX_SIGNATURES,
-                    'solana_reference_shape')
+        for lane,rows in pages:
             result=[]
             eligible_signatures=[]
             future=0

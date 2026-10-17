@@ -254,6 +254,72 @@ class SampleBoundaries(Scratch):
         self.assertTrue(all(head<=108 for (head,) in self.journal.db.execute(
             'SELECT head FROM observations')))
 
+    def test_finalized_pages_precede_independent_head_and_still_exclude_true_future(self):
+        """AWS 39055008603 excluded all 1,280 references under head-first sampling.
+
+        The provider here reports head 100 if sampled first and head 104 after
+        the two paced pages. Every reference is newer than 100. Slot 105 still
+        cannot be promoted by the later independently reported head 104.
+        """
+        alphabet='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+        pages={observer.PUMP_PROGRAM:[dict(signature='1'*63+alphabet[index],
+                                          slot=101+index%3) for index in range(32)],
+               observer.PUMPSWAP_PROGRAM:[dict(signature='2'*63+alphabet[index],
+                                              slot=102+index%3) for index in range(32)]}
+        pages[observer.PUMPSWAP_PROGRAM][-1]['slot']=105
+        self.assertTrue(all(row['slot']>100 for page in pages.values() for row in page))
+        calls=[];now=[0]
+        def transport(endpoint,payload):
+            packet=json.loads(payload)
+            method=packet['method'];params=packet['params']
+            calls.append((endpoint,method,params,now[0]))
+            if method=='getSignaturesForAddress':
+                self.assertEqual(params[1],dict(limit=32,commitment='finalized'))
+                result=pages[params[0]]
+            elif method=='getSlot':
+                self.assertEqual(params,[dict(commitment='finalized')])
+                result=104 if len(calls)==3 else 100
+            else:self.fail('unexpected RPC method')
+            return json.dumps(dict(jsonrpc='2.0',id=packet['id'],result=result)).encode()
+        def sleep(delta):now[0]+=delta
+        rpc=observer.RPC(transport=transport,sleeper=sleep,clock=lambda:now[0])
+        o=observer.Observer(rpc,self.journal)
+        o.solana(0)
+        self.assertEqual([method for _,method,_,_ in calls],
+            ['getSignaturesForAddress','getSignaturesForAddress','getSlot'])
+        self.assertEqual([params[0] for _,_,params,_ in calls[:2]],
+                         [observer.PUMP_PROGRAM,observer.PUMPSWAP_PROGRAM])
+        self.assertEqual([at for _,_,_,at in calls],[0,1,2])
+        self.assertEqual(rpc.attempts,3)
+        self.assertEqual(o.heads['solana'],[104])
+        self.assertEqual(o.unverified_future,dict(solana_pump=0,solana_pumpswap=1))
+        summary=self.journal.summary()
+        self.assertEqual(summary['solana_pump']['written'],32)
+        self.assertEqual(summary['solana_pumpswap']['written'],31)
+        self.assertEqual(summary['solana_pump']['possible_gaps'],1)
+        self.assertEqual(summary['solana_pumpswap']['possible_gaps'],1)
+        self.assertEqual(self.journal.db.execute('SELECT count(*),max(head) '
+            'FROM observations').fetchone(),(63,104))
+        self.assertEqual(o.last_signature['solana_pumpswap'],
+                         pages[observer.PUMPSWAP_PROGRAM][0]['signature'])
+
+    def test_pages_without_independent_finalized_head_never_reach_journal(self):
+        calls=[]
+        def response(endpoint,method,params):
+            calls.append(method)
+            if method=='getSignaturesForAddress':
+                return [dict(signature='1'*64,slot=101)]
+            if method=='getSlot':raise observer.ObservationUnavailable('provider_429')
+            self.fail('unexpected RPC method')
+        client=types.SimpleNamespace(call=response,attempts=0,rate_limited=0)
+        o=observer.Observer(client,self.journal)
+        with self.assertRaisesRegex(observer.ObservationUnavailable,'provider_429'):
+            o.solana(0)
+        self.assertEqual(calls,['getSignaturesForAddress','getSignaturesForAddress','getSlot'])
+        self.assertEqual(self.journal.summary(),{})
+        self.assertEqual(o.heads['solana'],[])
+        self.assertEqual(o.last_signature,dict(solana_pump=None,solana_pumpswap=None))
+
     def test_all_future_references_keep_prior_overlap_and_log_gap(self):
         heads=iter([101,100])
         count=[0]
