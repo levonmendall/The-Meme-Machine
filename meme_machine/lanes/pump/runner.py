@@ -62,9 +62,10 @@ INITIAL_USD_MICROS=500_000_000
 INITIAL_LAMPORTS=INITIAL_USD_MICROS*1_000_000_000//GENESIS_SOL_USD_MICROS
 ENTRY_BUDGET=INITIAL_LAMPORTS*POLICY.entry_fraction_bps//10_000
 
-def _current_pump_sizing():
+def _current_pump_sizing(*,native_resources=None):
     from meme_machine.runtime.directional_sleeve import open_sleeve
-    sleeve=open_sleeve('pump',INITIAL_LAMPORTS)
+    sleeve=(open_sleeve('pump',INITIAL_LAMPORTS) if native_resources is None else
+        open_sleeve('pump',INITIAL_LAMPORTS,native_resources=native_resources))
     if sleeve is None:
         return dict(realized_equity=INITIAL_LAMPORTS,target=ENTRY_BUDGET,
                     allocatable_target=ENTRY_BUDGET,available=INITIAL_LAMPORTS)
@@ -694,8 +695,14 @@ def _volume_price_signal(state,snapshot,events,mode,concentration,confirmation_b
 @attributed_work('pump_current_qualification')
 def _reserve_position(
     report,pending,active,signal,qualification,snapshot,mode,concentration=0,
-    *,decision_id=None
+    *,decision_id=None,native_resources=None
 ):
+    if native_resources is not None:
+        from meme_machine.runtime.isolated_native_resources import require_resources
+        resources=require_resources(native_resources)
+        if ACCOUNTING is not None or PIPELINE is not None or FILL_PERSISTENCE_CONTEXT:
+            raise ValueError('isolated_native_existing_runtime_resources')
+        resources.require_history(CANDIDATE_HISTORY)
     key=(qualification.mint,mode)
     if key in pending or key in active:
         return False
@@ -705,7 +712,21 @@ def _reserve_position(
     # Qualification is already final and durable at this point.  Capital is an
     # execution admission input only; it must never change the qualification.
     reserved_at=max(int(snapshot["available_time"]),int(time.time()))
-    sizing=_current_pump_sizing()
+    sizing=(_current_pump_sizing() if native_resources is None else
+        _current_pump_sizing(native_resources=native_resources))
+    if native_resources is not None:
+        from dataclasses import asdict
+        if (not qualification.qualified or qualification.policy_hash!=policy_hash()
+                or qualification.mint!=signal.mint or qualification.mode!=mode):
+            raise ValueError('isolated_native_current_qualification')
+        denial=resources.deny_qualified(CANDIDATE_HISTORY,decision_id,'pump',qualification.mint,
+            mode=mode,at=reserved_at,qualification=asdict(qualification),vector=asdict(signal),
+            stage='full_point_in_time')
+        denial.update(mint=qualification.mint,mode=mode,qualified_at=qualification.observed_at,sizing=sizing)
+        report.setdefault('funding_denials',[]).append(denial)
+        report.setdefault('qualified_unfunded',[]).append(dict(denial,
+            entry_status='qualified_but_allocation_denied'))
+        return False
     intended=(sizing['target'] if sizing.get('sizing_basis')=='effective_family_equivalence'
         else min(sizing['target'],max(0,sizing['available']-GAS)))
     if intended<=0:
@@ -1019,7 +1040,13 @@ def _service_pending_entries(report,pending,active,sessions,postgrad,*,monitor):
         _fill_pending(report,pending,active,sessions,postgrad,int(time.time()))
         if pending:_stop_sleep(1)
 
-def _record_attempt(report,signal,q,stage,extra=None,*,snapshot=None):
+def _record_attempt(report,signal,q,stage,extra=None,*,snapshot=None,native_resources=None):
+    if native_resources is not None:
+        from meme_machine.runtime.isolated_native_resources import require_resources
+        resources=require_resources(native_resources)
+        if ACCOUNTING is not None or PIPELINE is not None or FILL_PERSISTENCE_CONTEXT:
+            raise ValueError('isolated_native_existing_runtime_resources')
+        resources.require_history(CANDIDATE_HISTORY)
     plane=(FILL_PERSISTENCE_CONTEXT or {}).get('plane')
     if stage=='full_point_in_time' and plane is not None:plane.count('pump.decisions_fully_local')
     if stage=="full_point_in_time":
@@ -1072,7 +1099,8 @@ def _record_attempt(report,signal,q,stage,extra=None,*,snapshot=None):
             decision=dict(vector=asdict(signal),qualification=asdict(q),
                           policy_hash=policy_hash(),stage=stage))
     from meme_machine.runtime.directional_sleeve import open_sleeve
-    sleeve=open_sleeve('pump',INITIAL_LAMPORTS)
+    sleeve=(open_sleeve('pump',INITIAL_LAMPORTS) if native_resources is None else
+        open_sleeve('pump',INITIAL_LAMPORTS,native_resources=native_resources))
     if sleeve is not None:
         try:
             from meme_machine.runtime.opportunity_telemetry import pump_context
