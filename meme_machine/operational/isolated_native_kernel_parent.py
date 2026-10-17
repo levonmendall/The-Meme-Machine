@@ -73,7 +73,7 @@ class SyntheticParent:
     def __init__(self,root,solana):
         from meme_machine.runtime.governor import Governor
         from meme_machine.lanes.pons.provider_admission import Admission
-        self.solana=solana;self.pons=PonsKernelCorpus(solana.started_at)
+        self.solana=solana;self.pons=PonsKernelCorpus(solana.started_at,economic=True)
         self.calls=0;self.elements=0;self.bytes=0;self.lock=threading.Lock()
         self.budget=Budget.create(root/'synthetic-usage.sqlite',wall_seconds=180,
             modeled_spend_limit='3',maximum_native_opens=32)
