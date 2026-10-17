@@ -962,7 +962,7 @@ def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,nativ
         else:
             run_id=native_resources.facts.value()['scope']
             survivor=Worker(lambda:Runtime(native_resources.root/'pons-survivor',None,run_id,
-                native_ports.rpc_port('pons','survivor').source,scout_path=native_context.plane.path,
+                native_ports.rpc_port('pons','survivor').source,scout_path=Path(native_context.plane.path),
                 native_resources=native_resources,native_ports=native_ports),native_resources=native_resources)
             native_context.startup_owned(survivor)
         result['active_regimes']=['pons-selective-continuation-v1','pons-postgrad-survivor-momentum-v1']
@@ -1482,6 +1482,9 @@ def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,nativ
         # transport exceeds the deadline, leave connections on their owner and
         # let process termination/replay complete recovery; never race close().
         from concurrent.futures import wait,TimeoutError as FutureTimeout
+        import sys
+        primary_error=sys.exc_info()[0]
+        survivor_close_error=None
         if pool is not None and hasattr(pool,'request_handoff'):pool.request_handoff()
         if pool is not None and hasattr(pool,'telemetry'):result['current_workers']=pool.telemetry()
         drain_deadline=time.monotonic()+5
@@ -1495,6 +1498,11 @@ def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,nativ
                 result['survivor']=survivor.close(timeout=max(0,drain_deadline-time.monotonic()))
         except FutureTimeout:
             pending.add(survivor.close_future)
+        except BaseException as error:
+            if native_context is None:raise
+            # A failed native factory/step still closes on its owner. Preserve
+            # the original exception and drain the other private native owners.
+            survivor_close_error=error
         if pending:
             discovery_pool.shutdown(wait=False,cancel_futures=True)
             hydration_pool.shutdown(wait=False,cancel_futures=True)
@@ -1532,11 +1540,12 @@ def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,nativ
         result["evidence_acquisition"]=evidence_context.telemetry()
         result["sequencer_discovery"]=feed.status()
         coverage(drain=True)
-        if rpc is not None:
+        if rpc is not None or native_context is not None:
             _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase="finalizing",native_context=native_context)
         pipeline.close()
         feed.close();skill.close();queue.close()
         if native_context is not None:native_context.drained()
+        if survivor_close_error is not None and primary_error is None:raise survivor_close_error
 
     result["lifecycles"].sort(key=lambda row:row.get("index",-1))
     counts=dict(result.get('archived_observations',{}).get('rejections',{}))

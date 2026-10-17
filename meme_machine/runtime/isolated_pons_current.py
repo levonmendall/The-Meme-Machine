@@ -58,7 +58,7 @@ class PonsCurrentContext:
         if endpoint is not self.source:
             raise ValueError('isolated_native_pons_current_source')
         # Resolve every mandatory physical source capability before any native
-        # store opens. This currently fails until the real Nitro port is wired.
+        # store opens. No sampled RPC clock can substitute for the real feed.
         ports.rpc_port('pons','discovery')
         ports.rpc_port('pons','survivor')
         self._lease=_claim_owner(resources)

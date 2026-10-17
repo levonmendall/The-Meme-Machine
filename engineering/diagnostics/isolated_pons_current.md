@@ -48,12 +48,20 @@ partial construction closes only private native owners on their owning thread.
 An in-process lease admits only one Current owner for a shared capability before
 opening the physical feed. Failed startup releases that lease after cleanup;
 an incomplete native drain retains it so another Current cannot overlap accepted
-work on the same disposable state. The duplicate-owner regression passes along
-with the other nine focused cases.
+work on the same disposable state.
 
-Offline evidence for this slice: 9 focused startup/ownership/native-discovery
-cases pass; the combined bootstrap/admission/reporting/worker scope passes 49
-cases. Existing campaign and candidate-plane
+Offline evidence for this slice: 14 focused cases pass in 10.173 seconds. The
+actual cohort opens the parent Nitro SDK, original Budget/FULL reservation, real
+IPC and native Clock; authenticates chain and pinned deployment code through the
+actual Survivor; checkpoints; cancels; and releases its native stores and feed.
+Separate cases preserve an actual factory failure, close pre-connect startup
+twice, and restart the owned state with a fresh feed session. Any canonical
+cursor advance must be covered by actual metered `eth_getLogs` ranges, including
+a source page that legitimately finishes during finite native drain. These use
+empty economic source fixtures; they do not prove full qualification acquisition.
+The final combined Current/bootstrap/admission/RPC/native-clock/reporting/worker
+scope passes 68 cases in 14.374 seconds.
+Existing campaign and candidate-plane
 modules pass 19 cases. Native finalization plus those two modules ran 93 cases:
 92 pass and one environment error, not a suite pass. The exact failing case is
 `tests.lanes.pons.test_pons_finalization.PositionAdmissionTests.test_full_candidate_queue_cannot_refuse_an_imminent_position`;
@@ -63,9 +71,9 @@ The same case fails on unchanged pre-isolation source
 `2379403abb0faaceaec4650195c158e501c5d799`, receipt
 `/tmp/mm-engineering-b0r3irhu`. No production clock guard is weakened.
 
-A real parent Nitro adapter, source-owner orchestration, authenticated sizing
-producer, kernel containment, integrated native cancellation/qualification run and
-bounded live validation remain separate prerequisites. These component tests do
+A source-owner orchestrator, authenticated sizing producer, kernel containment,
+integrated economic qualification run and bounded live validation remain separate
+prerequisites. These component tests do
 not establish live processing parity, market speed or financial protection.
 The parent RPC context currently skips child `MM_RPC_CAPABILITIES` input, so an
 authenticated parent batch/receipt capability profile is also required before
