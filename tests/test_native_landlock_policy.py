@@ -164,6 +164,9 @@ kernel.seccomp()
             self.assertFalse(row['financial_authority'] or row['landlock_applied'])
             self.assertEqual(row['provider_calls'],0)
             self.assertGreater(row['native_vms_bytes'],0)
+            print(json.dumps(dict(schema='offline-native-syscall-component-v1',
+                source_commit=staged['manifest']['source_commit'],source_tree=staged['manifest']['source_tree'],
+                image_manifest_sha256=staged['manifest_sha256'],actual=row),sort_keys=True))
             scope.check();scope.success=True
 
     def test_unchanged_history_initializer_retains_actual_limits_and_nice_under_filter(self):

@@ -80,7 +80,7 @@ physical owner on the original exception when cleanup is incomplete.
 
 ## Current evidence and limitations
 
-Seventeen focused cases pass, including an actual seccomp-installed process using
+Eighteen focused cases pass at749ab1d0, including an actual seccomp-installed process using
 threads, anonymous socketpair send/recv and SQLite FULL/WAL. Pure BPF tests
 exercise argument halves and negative privilege/PID/async/destination/unknown
 paths. Real disposable subprocess cases prove original tracker EOF followed by
@@ -88,17 +88,33 @@ subreaper ECHILD; cancellation-before-fork and safe refusal after reap; accepted
 worker completion under the supervisor TERM relay; hard group KILL before leader
 reap; rogue descendant failure versus containment; output overflow; and reader
 thread-start failure cleanup, inherited stop delivery, concurrent stop/wait and
-the unchanged history initializer's actual limits/nice under the filter. These
+the unchanged history initializer's actual limits/nice under the filter, and
+copied CPython's real2decoder+1HistoryExecutor+tracker under the inherited filter.
+The latter preserves the actual short-lived submitter/retained spawning owner,
+worker/tracker lifeline and PDEATHSIG, deny-only initializer and original limits;
+all physical owners join, with zero provider calls and no financial authority.
+An additional real started-reader failure regression retains its still-running
+owner and output streams until that original reader actually joins. These
 subprocess fixtures do not claim Landlock,
 copied-image or full-native economic acceptance.
 
 Command:
 `python -m operational.tests FAST --modules tests.test_native_landlock_policy tests.test_native_landlock_launcher`
 
-Receipt: `/workspace/recovery-evidence/native-landlock-policy-parent-focused.log`.
+Receipts: `native-landlock-policy-parent-correction.log` (18PASS8.139s),
+`native-landlock-coupled-adjacent.log` (28PASS11.515s; image/layout/spawn/fatal),
+and `native-landlock-original-supervisor-focused.log` (2PASS.597s) in
+`/workspace/recovery-evidence`. The final focused receipt includes the additional
+started-reader regression and a bounded copied/syscall result projection.
 An initial real-tracker case exposed absent Cloud `/proc/.../children`; that
 dependency was removed in favor of kernel waitpid ownership. Its failure scratch
 is retained at `/tmp/mm-engineering-iout9c0l`.
+Three new history-filter fixture setup failures were corrected without weakening
+the syscall policy: isolated `-S` lacked the real dependency path, Cloud's hard
+NOFILE16384 forbade raising to65536, and Python translated a denied rlimit syscall
+toValueError. The final negative test calls the actual syscall and checksEPERM.
+Failed scratch roots remain `/tmp/mm-engineering-jqjzcc9d`,
+`/tmp/mm-engineering-zb9hqi0i` and `/tmp/mm-engineering-0yexebz4`.
 
 Independent code review found no material blocker in the frozen native policy;
 four subsequent launcher findings have scoped correction regressions and await
