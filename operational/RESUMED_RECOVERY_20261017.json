@@ -1,0 +1,136 @@
+{
+  "actual_rehearsal_launched": {
+    "application_commit": "e5b95d25200b4bd83937bae21344156dedd12640",
+    "outcome": "PENDING; no throughput or readiness result claimed",
+    "run": 39055330432
+  },
+  "admin_recovery_merge": "3a8b802dcbdd8f99714c0d3e114823a0947968aa",
+  "financial": {
+    "cash_usd": "1000.00",
+    "combined_sequence": 14728,
+    "epoch_id": "paper-shared-1000-20261011T071207Z",
+    "financial_obligations_verified": true,
+    "full_replay_verified": true,
+    "inception_sha256": "aea262d34d976cddeddf83f57045508cf09f3c8e28cf8a2c73ae49d38cc261b1",
+    "initial_capital_usd": "1000.00",
+    "journal_hash": "bbf83c285c0623647f2ddb7a7c77e41e18f0e6ac478d3925c5ad5ec54c819507",
+    "native_execution_count": null,
+    "no_financial_exposure": true,
+    "obligations": {
+      "commitments": 0,
+      "legacy_native_pending": 0,
+      "obligations": 0,
+      "pending_backing": 0,
+      "pending_deliveries": 0,
+      "positions_open": 0,
+      "reservations": 0,
+      "runtime_inbox": 0,
+      "runtime_pending": 0
+    },
+    "positions_total": 0,
+    "projection_hash": "b9631ef9c00cc8f6a298ee72f4dc66e3708fda1a0de5a4eda04d98da381b2cd7",
+    "raw_journal_sequence": 14727,
+    "retired_positions_total": 0,
+    "settled_positions_total": 0,
+    "source_sequence": 1,
+    "state": "VERIFIED_FULL_REPLAY"
+  },
+  "full_release_suites_passed_for_this_candidate": false,
+  "independent_observer": {
+    "archive": "PRIVATE_RUNNER_TEMP_ARTIFACT",
+    "complete_economic_coverage_proven": false,
+    "completed_ticks": 20,
+    "elapsed_seconds": 118.141,
+    "error_code": null,
+    "financial_authority": false,
+    "full_market_speed_proven": false,
+    "head_start_end": {
+      "robinhood": [
+        91112386,
+        91113497
+      ],
+      "solana": [
+        458123725,
+        458124248
+      ]
+    },
+    "lane_measurements": {
+      "robinhood_pons": {
+        "duplicates": 0,
+        "offered": 1,
+        "possible_gaps": 19,
+        "samples": 20,
+        "written": 1
+      },
+      "solana_pump": {
+        "duplicates": 0,
+        "offered": 0,
+        "possible_gaps": 20,
+        "samples": 20,
+        "written": 0
+      },
+      "solana_pumpswap": {
+        "duplicates": 0,
+        "offered": 0,
+        "possible_gaps": 20,
+        "samples": 20,
+        "written": 0
+      }
+    },
+    "original_history_recovered": false,
+    "paper_started": false,
+    "production_state_written": false,
+    "provider_429": 0,
+    "provider_requests": 101,
+    "provider_rpc_rejection": null,
+    "regressed_finalized_heads": 0,
+    "requested_duration_seconds": 120,
+    "result": "SAMPLED",
+    "schema": "isolated-public-market-observer-v1",
+    "scope": "ISOLATED_PUBLIC_RPC_SAMPLED_REFERENCE_ONLY",
+    "unverified_future_signatures_excluded": {
+      "solana_pump": 640,
+      "solana_pumpswap": 640
+    }
+  },
+  "installed_paper_commit": "e5b95d25200b4bd83937bae21344156dedd12640",
+  "installed_paper_tree": "420c285bac093e8345f668750c25f631e45226ea",
+  "native_public_alternative": {
+    "actual_combined_native_replay_passed": true,
+    "admin_admission_tests_passed": 17,
+    "financial_authority": false,
+    "focused_component_transport_replay_tests_passed": 48,
+    "full_market_speed_proven": false,
+    "production_equivalent": false
+  },
+  "observer_address_merge": "a42d55be7bfef2f267092f808581e766c8526a38",
+  "observer_followup": "pages before independent finalized head, same request count; still exclude true future references",
+  "observer_pin_admin_merge": "c3081a53972cd1b63edca571da8691a4cfd1581e",
+  "one_hour_acceptance_passed": false,
+  "protected_postflight": {
+    "diagnostic_predicates_passed": 20,
+    "historical_unknown_handlers": 2,
+    "old_program_canonical_pending_families": 0,
+    "run": 39055010719,
+    "safe_for_diagnostic": true,
+    "safe_for_normal": false,
+    "safe_for_recovery": true
+  },
+  "recovery": {
+    "canonical_writes": 30770,
+    "corrected_run": 39054659158,
+    "elapsed_seconds": 118.14237030700315,
+    "historical_handler_completion_claimed": false,
+    "lower_slot": 458042564,
+    "provider_429": 0,
+    "provider_failures": 0,
+    "provider_requests": 101,
+    "published_proofs": 2,
+    "refused_stale_source_run": 39053957671,
+    "rows_committed_and_acked": 18304,
+    "source_gate_focused_tests_passed": 117,
+    "upper_slot": 458042711
+  },
+  "scope": "RESUMED_OPERATIONAL_RECOVERY_NOT_RELEASE_PROMOTION",
+  "workspace_recovery": "new workspace; inaccessible task private state unavailable; reconstructed from GitHub and sanitized AWS receipts"
+}
