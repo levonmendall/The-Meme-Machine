@@ -50,7 +50,7 @@ class NativeKernelValidationTests(unittest.TestCase):
             root=Path(temporary);owned=root/'owned';owned.mkdir(mode=0o700)
             source=owned/'report.json';source.write_text('{}')
             alias=root/'alias';alias.symlink_to(owned,target_is_directory=True)
-            with self.assertRaisesRegex(ValueError,'output_root'):validation.native_outputs(alias)
+            with self.assertRaisesRegex(ValueError,'output_root'):validation.native_outputs(alias,endpoint_identity='a'*64)
             with self.assertRaisesRegex(ValueError,'file_bound'):validation._json_file(alias/'report.json')
             with self.assertRaisesRegex(ValueError,'database_inode'):validation._readonly(alias/'report.json')
             link=owned/'hardlink.json';os.link(source,link)
@@ -79,8 +79,8 @@ class NativeKernelValidationTests(unittest.TestCase):
                 for name in ('pump','pons','sizing')}),native_kernel_lifecycle=dict(
             tracker_spawned=True,tracker_joined=True,spawn_owner_joined=True,
             workers_spawned=dict(decoder=2,history=1),executors={role:dict(state='JOINED',
-                spawned=count,joined=count,zero_exit=count,successful=count,
-                probe_successful=2 if role=='decoder' else 0,broken=False)
+                spawned=count,joined=count,zero_exit=count,successful=3 if role=='decoder' else 1,
+                probe_successful=2 if role=='decoder' else 0,nonprobe_successful=1,broken=False)
                 for role,count in (('decoder',2),('history',1))}))
         base=dict(schema='synthetic-native-kernel-validation-v1',kernel_applied=True,landlock_abi=8,
             owned_process_reaped=True,parent_cleanup_joined=True,external_provider_calls=0,
@@ -102,11 +102,15 @@ class NativeKernelValidationTests(unittest.TestCase):
             for invalid in (False,True,None,'0',float('nan')):
                 bad=copy.deepcopy(base);bad[key]=invalid
                 with self.subTest(key=key,invalid=invalid):self.assertFalse(validation.verified(bad))
-        for field in ('spawned','joined','zero_exit','successful','probe_successful'):
+        for field in ('spawned','joined','zero_exit','successful','probe_successful','nonprobe_successful'):
             bad=copy.deepcopy(base);bad['child']['native_kernel_lifecycle']['executors']['history'][field]=True
             with self.subTest(field=field):self.assertFalse(validation.verified(bad))
         bad=copy.deepcopy(base);bad['child']['native_kernel_lifecycle']['executors']['decoder']['probe_successful']=3
         self.assertFalse(validation.verified(bad))
+        for role in ('decoder','history'):
+            bad=copy.deepcopy(base);worker=bad['child']['native_kernel_lifecycle']['executors'][role]
+            worker['probe_successful']=worker['successful'];worker['nonprobe_successful']=0
+            with self.subTest(probe_only=role):self.assertFalse(validation.verified(bad))
 
     def test_actual_fixed_copied_main_all_four_native_adapters_and_shutdown(self):
         import asyncio

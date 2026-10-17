@@ -266,6 +266,9 @@ def main(*,layout=None):
         from meme_machine.runtime.isolated_native_execution import isolated_native_execution
         with isolated_native_execution(resources):
             stage='native_lifecycle'
+            # A later lifecycle failure cannot prove that no accepted provider
+            # work started. The protected parent retains actual paid counters.
+            receipt.update(native_lifecycle_started=True,provider_workload_started=None)
             result=run_contained(resources=resources,ports=ports,sizing_reader=reader,stopped=stopped)
         if spawn_scope is not None and spawn_scope.unjoined_processes:
             failure=NativeOwnerDrainFailure(dict(status='FAILED',financial_authority=False,

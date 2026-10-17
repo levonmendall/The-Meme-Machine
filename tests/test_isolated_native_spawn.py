@@ -164,7 +164,7 @@ for role,pool,count in (('decoder',decoder,2),('history',history_pool,1)):
     summary=pool.kernel_lifecycle_snapshot()
     assert summary['state']=='JOINED' and summary['spawned']==summary['joined']==summary['zero_exit']==count,summary
     assert summary['returned']==summary['successful']==summary['submitted']==3,summary
-    assert summary['probe_successful']==1 and summary['broken'] is False,summary
+    assert summary['probe_successful']==1 and summary['nonprobe_successful']==2 and summary['broken'] is False,summary
     scope.record_kernel_executor(role,summary)
 scope.close()
 assert scope.owners_joined and tracker._resource_tracker._pid is None

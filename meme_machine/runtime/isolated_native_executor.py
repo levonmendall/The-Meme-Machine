@@ -317,5 +317,7 @@ class IsolatedSpawnExecutor(Executor):
                 role=self._role,spawned=len(self._processes),joined=joined,
                 zero_exit=sum(process.exitcode==0 for process in self._processes.values()),
                 broken=bool(self._broken),termination_failed=self._termination_failed,
-                submitted=self._next_identity,**self._kernel_counts)
+                submitted=self._next_identity,
+                nonprobe_successful=self._kernel_counts['successful']-self._kernel_counts['probe_successful'],
+                **self._kernel_counts)
 

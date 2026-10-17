@@ -37,6 +37,16 @@ The zero-external-call and cleanup facts do not turn this failure into a pass.
 The original counters include HTTP uncertain bytes 117440512 and native
 uncertain bytes 218103808; no debt was cleared or allowance regranted.
 
+Probe-only execution is explicitly refused by the acceptance predicate for
+both decoder and history roles. Each executor reports nonprobe_successful
+separately, equal to successful minus probe_successful. Counted FULL/ACK rows
+must reconstruct the original source outbox identity and payload hash, match
+the exact family/address/kind/scope consumer receipt, source record hash and
+endpoint lineage, and authenticate that record's actual CandidateHistory
+reference. Unrelated reference counts or self-hashed empty JSON do not qualify.
+Read-only SQLite opens validate the main file and existing WAL/SHM/journal
+sidecars for confined regular same-owner single-link paths. WAL remains visible.
+
 Earlier coupled runs exposed actual copied-entry compatibility gaps: null
 stdin was inadvertently CLOEXEC, preventing reserved lifeline descriptors; the
 automatic socket(fileno=3) constructor requested disallowed protocol/domain
