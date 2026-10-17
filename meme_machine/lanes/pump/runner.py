@@ -159,7 +159,10 @@ def _close_startup_resource(identity,value):
 
 def _startup_work(identity,call,*args,**kwargs):
     from meme_machine.runtime.status import operation
-    with operation(identity):
+    with operation(identity), ExitStack() as costs:
+        if identity in ('pump.observed_candidates_restore','pump.observed_candidate_events'):
+            from meme_machine.runtime.operation_costs import operation as cost_operation
+            costs.enter_context(cost_operation(identity))
         if identity=='pump.accounting_restore':
             from meme_machine.shared_capital.runtime import native_startup_replay
             from meme_machine.runtime.stop import requested

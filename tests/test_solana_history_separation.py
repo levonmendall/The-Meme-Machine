@@ -668,30 +668,38 @@ class DeliverySeparationTests(unittest.TestCase):
             turns=[]
             async def work(callback,priority,**metadata):
                 turns.append((priority,metadata.get('label'),metadata.get('component')))
-                if metadata.get('component')=='delivery_accounting':
-                    self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone(),(0,))
                 if metadata.get('component')=='history_publication':
-                    self.assertEqual(source.pending_delivery,{})
-                    self.assertEqual(self.h.db.execute('SELECT family,transport,raw_bytes FROM provider_delivery ORDER BY family').fetchall(),
-                        [('pump','yellowstone',123),('pumpswap','yellowstone',456)])
+                    self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone(),(0,))
                 return callback(self.state)
             source.work=work
             original=self.h.delivery;failure=RuntimeError('injected_delivery_accounting_failure')
+            original_publish=life.publish;published=[]
+            def checked_publish(*args,**kwargs):
+                # Check the actual durable fence inside publication, after its
+                # same-turn accounting COMMIT and before any proof is changed.
+                self.assertEqual(source.pending_delivery,pending)
+                self.assertEqual(self.h.db.execute('SELECT family,transport,raw_bytes FROM provider_delivery ORDER BY family').fetchall(),
+                    [('pump','yellowstone',123),('pumpswap','yellowstone',456)])
+                published.append(True)
+                return original_publish(*args,**kwargs)
             def fail_accounting(*args,**kwargs):
                 original(*args,**kwargs);raise failure
             with patch.object(self.h,'delivery',fail_accounting):
                 with self.assertRaises(RuntimeError) as caught:
                     await source._complete_history_delivery(snapshot,result)
             self.assertIs(caught.exception,failure)
-            self.assertEqual(turns,[(2,'candidate_delivery_ack',None),(2,'source_commit','delivery_accounting')])
+            self.assertEqual(turns,[(2,'candidate_delivery_ack',None),(2,'source_commit','history_publication')])
             self.assertEqual(source.pending_delivery,pending)
             self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM provider_delivery').fetchone(),(0,))
             self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone(),(0,))
             self.assertEqual(self.h.db.execute('SELECT id FROM candidate_pending_proofs').fetchall(),[(identity,)])
             turns.clear()
-            self.assertTrue(await source._complete_history_delivery(snapshot,result))
+            with patch.object(life,'publish',checked_publish):
+                self.assertTrue(await source._complete_history_delivery(snapshot,result))
+            self.assertEqual(published,[True])
+            self.assertEqual(source.pending_delivery,{})
             self.assertEqual(turns,[(2,'candidate_delivery_ack',None),
-                (2,'source_commit','delivery_accounting'),(2,'source_commit','history_publication')])
+                (2,'source_commit','history_publication')])
             self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone(),(0,))
             accounted=self.h.db.execute('SELECT * FROM provider_delivery ORDER BY family').fetchall()
             count=len(turns);await source.flush_delivery()

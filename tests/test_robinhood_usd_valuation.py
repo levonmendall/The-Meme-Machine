@@ -485,6 +485,123 @@ def source_parent_drain_predecessor(test,relative,current):
     return prior
 
 
+# Accounting and its dependent publication use one existing priority-2 owner
+# turn. Accepted work keeps its cancellation ownership and one committed delta;
+# ACK remains separate. Two fixed Pump costs only describe complete restoration.
+# Pin each full source and reverse its exact named-node/constant delta before
+# all previous strategy, financial, recovery and source assertions.
+PUBLICATION_ACCOUNTING_REFERENCE='9ca64c5c46f666f9e95c80c41a7beb9d7e7a86a8'
+PUBLICATION_ACCOUNTING_DELTAS={
+    'meme_machine/solana_selective_source.py':(
+        'f3391d7aca7c1f185131fabe51edfb0e5bf37a79a35046449b06e3d5c916030e',
+        'c21b570ff602dd190ea8e305776dbbefeffc50f214bff4a92beb43374aa8aa4c',
+        ('SelectiveSource.flush_delivery','SelectiveSource.publish_history',
+         'SelectiveSource._complete_history_delivery')),
+    'meme_machine/lanes/pump/runner.py':(
+        'eaf902b1894232403bfb2715bf9a0b78bfc9d8b6635c3a796cd9f122c7aca5c5',
+        '43fcb7e3608d67b20a0e4a02b5da74fbe8bac712e5ed0b60e46bdc3a3464356c',
+        ('_startup_work',)),
+    'meme_machine/runtime/operation_costs.py':(
+        '510d3036869548e1284c625fa848da17d253633ccef050456f5ae3b73b757768',
+        '27f1471a2465e30cda4b9906b37f75818d83df34027a2c7ebeeaa45e166e7b96',()),
+}
+
+
+def publication_accounting_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    reviewed=PUBLICATION_ACCOUNTING_DELTAS.get(relative)
+    if reviewed is None:return current
+    before,after,changed=reviewed
+    prior=subprocess.check_output(['git','show',PUBLICATION_ACCOUNTING_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),before,
+        relative+':exact integrated buffered-recovery predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),after,
+        relative+':exact accounting-publication turn and Pump-cost successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def node(root,name):
+        parent=root
+        for part in name.split('.')[:-1]:
+            parent=next(n for n in parent.body if isinstance(n,ast.ClassDef) and n.name==part)
+        return parent,next(n for n in parent.body
+            if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name==name.split('.')[-1])
+    def source(body,selected):
+        return b''.join(body.splitlines(keepends=True)[selected.lineno-1:selected.end_lineno])
+    restored=current
+    if relative=='meme_machine/runtime/operation_costs.py':
+        def names(root):
+            return next(n for n in root.body if isinstance(n,ast.Assign) and len(n.targets)==1
+                and isinstance(n.targets[0],ast.Name) and n.targets[0].id=='NAMES')
+        selected=names(tree);original=names(old)
+        test.assertEqual([ast.literal_eval(n) for n in selected.value.elts[-2:]],
+            ['pump.observed_candidates_restore','pump.observed_candidate_events'],
+            relative+':only two fixed Pump diagnostic identities appended')
+        normalized=deepcopy(selected);del normalized.value.elts[-2:]
+        test.assertEqual(ast.dump(normalized),ast.dump(original),
+            relative+':all original identifiers and ordering retained')
+        addition=b"    'pump.observed_candidates_restore', 'pump.observed_candidate_events',\n"
+        test.assertEqual(restored.count(addition),1,relative+':one exact constant-only addition')
+        restored=restored.replace(addition,b'',1)
+        tree.body[tree.body.index(selected)]=deepcopy(original)
+    for name in changed:
+        parent,selected=node(tree,name);_,original=node(old,name)
+        selected_bytes=source(current,selected)
+        test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':explicit reviewed node '+name)
+        signature=deepcopy(selected.args)
+        if name=='SelectiveSource.flush_delivery':
+            test.assertEqual(signature.args[-1].arg,'after')
+            test.assertEqual([ast.dump(n) for n in signature.defaults],[ast.dump(ast.Constant(value=None))],
+                relative+':standalone delivery retains its absent publication default')
+            del signature.args[-1];del signature.defaults[-1]
+            commit=next(n for n in ast.walk(selected) if isinstance(n,ast.FunctionDef) and n.name=='commit')
+            previous_commit=next(n for n in ast.walk(original) if isinstance(n,ast.FunctionDef) and n.name=='commit')
+            conditional=commit.body[1]
+            test.assertIsInstance(commit.body[0],ast.Nonlocal)
+            test.assertEqual(commit.body[0].names,['committed'])
+            test.assertEqual(ast.dump(conditional.test),ast.dump(ast.parse('pending and not committed',mode='eval').body))
+            test.assertEqual([ast.dump(n) for n in conditional.body[:-1]],
+                [ast.dump(n) for n in previous_commit.body],
+                relative+':original delivery transaction and every charge remain unchanged')
+            test.assertEqual(ast.dump(conditional.body[-1]),ast.dump(ast.parse('committed=True').body[0]),
+                relative+':mark only after the original transaction COMMIT returns')
+        test.assertEqual(ast.dump(signature),ast.dump(original.args),relative+':all original call interfaces retained '+name)
+        if name=='_startup_work':
+            normalized=selected_bytes.replace(b'    with operation(identity), ExitStack() as costs:\n',
+                b'    with operation(identity):\n',1)
+            addition=(b"        if identity in ('pump.observed_candidates_restore','pump.observed_candidate_events'):\n"
+                b'            from meme_machine.runtime.operation_costs import operation as cost_operation\n'
+                b'            costs.enter_context(cost_operation(identity))\n')
+            test.assertEqual(normalized.count(addition),1,relative+':one two-identity cost scope')
+            normalized=normalized.replace(addition,b'',1)
+            test.assertEqual(normalized,source(prior,original),
+                relative+':all calls, arguments, accounting replay and ownership bytes unchanged')
+        elif name=='SelectiveSource.publish_history':
+            normalized=selected_bytes.replace(b'                ready=time.monotonic();timing={}\n',
+                b'                await self.flush_delivery() # Preserve the original accounting-before-publication fence.\n'
+                b'                ready=time.monotonic();timing={}\n',1)
+            normalized=normalized.replace(b'                more,startup,retry_at,published=await self.flush_delivery(publish)\n',
+                b"                more,startup,retry_at,published=await self.work(publish,2,label='source_commit',component='history_publication')\n",1)
+            test.assertEqual(normalized,source(prior,original),
+                relative+':all background publication, timing and notification bytes unchanged')
+        elif name=='SelectiveSource._complete_history_delivery':
+            normalized=selected_bytes.replace(b'            def publish_exact(state):\n',
+                b'            await self.flush_delivery()\n            def publish_exact(state):\n',1)
+            normalized=normalized.replace(b'            published=await self.flush_delivery(publish_exact)\n',
+                b"            published=await self.work(publish_exact,2,label='source_commit',component='history_publication')\n",1)
+            test.assertEqual(normalized,source(prior,original),
+                relative+':original exact-batch ACK, identities and publication predicates unchanged')
+        test.assertEqual(restored.count(selected_bytes),1,relative+':one exact changed named node '+name)
+        restored=restored.replace(selected_bytes,source(prior,original),1)
+        parent.body[parent.body.index(selected)]=deepcopy(original)
+    test.assertEqual(ast.dump(tree),ast.dump(old),
+        relative+':every other source, economic, cancellation and scheduling node retained')
+    test.assertEqual(restored,prior,
+        relative+':every other original byte, priority, lease and authority predicate retained')
+    return prior
+
+
 # All-committed queues do not settle interrupted pre-feed buffered callbacks.
 # Derive their observed interval from original closed/joined records and use
 # the existing archive/FULL/ACK verifier. Earlier and future subscription gaps
@@ -1431,7 +1548,8 @@ def rally_predecessor(test,relative,current,*,allow_previous_layers=False):
 
 def guarded_source(test,relative):
     """Apply the exact new layer, then let the original economic guards run."""
-    return rally_predecessor(test,relative,(ROOT/relative).read_bytes())
+    current=publication_accounting_predecessor(test,relative,(ROOT/relative).read_bytes())
+    return rally_predecessor(test,relative,current)
 
 
 # Fixed, opt-in reached-operation costs are descriptive infrastructure only.
@@ -2421,6 +2539,110 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_publication_accounting_turn_preserves_durable_delta_cancellation_and_passive_pump_costs(self):
+        import hashlib
+        mutations={
+            'meme_machine/solana_selective_source.py':(
+                ('SelectiveSource.flush_delivery',(
+                    (b'async def flush_delivery(self,after=None):',b'async def flush_delivery(self,after=True):'),
+                    (b'async with self.delivery_lock:',b'if True:'),
+                    (b'pending=dict(self.pending_delivery)',b'pending=self.pending_delivery'),
+                    (b'if not pending and after is None:return',b'if not pending:return'),
+                    (b'accepted_future=future',b'accepted_future=None'),
+                    (b'if pending and not committed:',b'if pending:'),
+                    (b'with state.writer.transaction():',b'if True:'),
+                    (b'h.delivery(family,transport,raw_bytes=size,seen=seen)',b'h.delivery(family,transport,raw_bytes=size+1,seen=seen)'),
+                    (b'committed=True',b'committed=False'),
+                    (b'if after is not None:return after(state)',b'if after is not None:return None'),
+                    (b"return await self.work(commit,2,label='source_commit',",b"return await self.work(commit,0,label='source_commit',"),
+                    (b"component='delivery_accounting' if after is None else 'history_publication',accepted=accepted)",
+                     b"component='delivery_accounting' if after is None else 'history_publication')"),
+                    (b'if accepted_future is not None:',b'if False:'),
+                    (b'waiter=asyncio.wrap_future(accepted_future)',b'waiter=asyncio.wrap_future(self.last_future)'),
+                    (b'while not waiter.done():',b'if not waiter.done():'),
+                    (b'await asyncio.shield(waiter)',b'await waiter'),
+                    (b'except asyncio.CancelledError:pass',b'except asyncio.CancelledError:raise'),
+                    (b'try:waiter.result()',b'try:pass'),
+                    (b"if str(exc) not in ('evidence_background_yield','evidence_control_overloaded'):raise",b'pass'),
+                    (b'if committed:',b'if True:'),
+                    (b'remaining=self.pending_delivery[key][0]-size',b'remaining=0'),
+                    (b'if remaining:self.pending_delivery[key]=(remaining,self.pending_delivery[key][1])',
+                     b'if remaining:self.pending_delivery[key]=(size,seen)'))),
+                ('SelectiveSource.publish_history',(
+                    (b'more,startup,retry_at,published=await self.flush_delivery(publish)',
+                     b'more,startup,retry_at,published=await self.work(publish,0)'),
+                    (b'h.lifecycle.publish()',b'h.lifecycle.publish(proof_ids=[])'),
+                    (b'startup=h.startup.advance()',b'startup=True'),
+                    (b'if published:self.history_changed(publication=False)',b'if True:self.history_changed(publication=False)'))),
+                ('SelectiveSource._complete_history_delivery',(
+                    (b'accepted=await self.work(lambda state:acknowledge(install(state).lifecycle,snapshot,result),2,',
+                     b'accepted=await self.work(lambda state:True,2,'),
+                    (b'label=\'candidate_delivery_ack\'',b'label=\'source_commit\''),
+                    (b'if accepted and identities:',b'if identities:'),
+                    (b'life.publish(proof_ids=identities)',b'life.publish()'),
+                    (b'published=await self.flush_delivery(publish_exact)',b'published=True'),
+                    (b"snapshot['proof_publication_changed']=bool(published)",b"snapshot['proof_publication_changed']=True"))),
+                ('source_work',(
+                    (b"if str(exc) not in ('evidence_background_yield','evidence_control_overloaded'):raise",b'pass'),
+                    (b'result=await work(fn,priority,**options)',b'result=await work(fn,0,**options)')))),
+            'meme_machine/lanes/pump/runner.py':(
+                ('_startup_work',(
+                    (b"if identity in ('pump.observed_candidates_restore','pump.observed_candidate_events'):",b'if True:'),
+                    (b'costs.enter_context(cost_operation(identity))',b'pass'),
+                    (b'costs.enter_context(cost_operation(identity))',b"costs.enter_context(cost_operation('pump.observed_candidates_restore'))"),
+                    (b'with native_startup_replay(requested.is_set):',b'with native_startup_replay(lambda:False):'),
+                    (b'else:value=call(*args,**kwargs)',b'else:value=call()'),
+                    (b'return _own_startup_resource(identity,value)',b'return value'))),
+                ('_restore_observed_pump_candidates',(
+                    (b'if requested.is_set():raise Shutdown()',b'if False:raise Shutdown()'),
+                    (b'cancelled=requested.is_set',b'cancelled=lambda:False'),
+                    (b'if mint in created:continue',b'if True:continue')))),
+            'meme_machine/runtime/operation_costs.py':(),
+        }
+        self.assertEqual(set(mutations),set(PUBLICATION_ACCOUNTING_DELTAS))
+        for relative,(before,after,_) in PUBLICATION_ACCOUNTING_DELTAS.items():
+            current=(ROOT/relative).read_bytes()
+            self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact integrated successor')
+            prior=subprocess.check_output(['git','show',PUBLICATION_ACCOUNTING_REFERENCE+':'+relative],cwd=ROOT)
+            self.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':immutable exact tested predecessor')
+            self.assertEqual(publication_accounting_predecessor(self,relative,current),prior)
+            self.assertEqual(publication_accounting_predecessor(self,relative,prior),prior)
+            self.assertEqual(guarded_source(self,relative),rally_predecessor(self,relative,prior),
+                relative+':mandatory active-source entry still runs every original source guard')
+            self.assertEqual(opportunity_predecessor(self,relative,
+                publication_accounting_predecessor(self,relative,current)),
+                opportunity_predecessor(self,relative,prior),relative+':all original economic and strategy guards retained')
+            tree=ast.parse(current)
+            changes=[current+b'\n# unreviewed accounting-publication/cost source change\n',b'']
+            for name,replacements in mutations[relative]:
+                parent=tree
+                for part in name.split('.')[:-1]:
+                    parent=next(n for n in parent.body if isinstance(n,ast.ClassDef) and n.name==part)
+                selected=next(n for n in parent.body
+                    if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef)) and n.name==name.split('.')[-1])
+                body=ast.get_source_segment(current.decode(),selected).encode()
+                self.assertEqual(current.count(body),1,relative+':one node-specific negative mutation body '+name)
+                for previous,successor in replacements:
+                    self.assertIn(previous,body,relative+':negative mutation target exists '+name)
+                    changes.append(current.replace(body,body.replace(previous,successor,1),1))
+            if relative=='meme_machine/runtime/operation_costs.py':
+                for previous,successor in (
+                        (b"'pump.observed_candidates_restore', 'pump.observed_candidate_events'",
+                         b"'pump.observed_candidates_restore', 'pump.any_candidate'"),
+                        (b"'pump.observed_candidates_restore', 'pump.observed_candidate_events'",
+                         b"'pump.observed_candidate_events', 'pump.observed_candidates_restore'"),
+                        (b"os.environ.get('MM_OPERATION_COST_DIAGNOSTICS') == '1'",b'True'),
+                        (b"row['calls'] += 1",b"row['calls'] += 0"),
+                        (b"row['child_unmeasured_calls'] += child_unmeasured",b"row['child_unmeasured_calls'] += 0"),
+                        (b"_validate(name)",b'pass'),
+                        (b"if not enabled():",b'if False:'),
+                        (b"recorder_valid=_recorder_valid",b'recorder_valid=True')):
+                    self.assertIn(previous,current,relative+':fixed-ID/coverage mutation target exists')
+                    changes.append(current.replace(previous,successor,1))
+            for changed in changes:
+                self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+                with self.assertRaises(AssertionError):publication_accounting_predecessor(self,relative,changed)
+
     def test_buffered_prejoin_replay_preserves_original_partition_and_full_ack_authority(self):
         import hashlib
         relative=BUFFERED_PREJOIN_SOURCE;current=(ROOT/relative).read_bytes()
@@ -3350,7 +3572,8 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(ARCHIVE_COMPLETE_LOGS_DELTAS))
         for relative,(_,after,_,_,_) in ARCHIVE_COMPLETE_LOGS_DELTAS.items():
-            current=retained_archive_log_shape_predecessor(self,relative,(ROOT/relative).read_bytes())
+            current=retained_archive_log_shape_predecessor(self,relative,
+                publication_accounting_predecessor(self,relative,(ROOT/relative).read_bytes()))
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact archive-log correction')
             prior=subprocess.check_output(['git','show',ARCHIVE_COMPLETE_LOGS_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(archive_complete_logs_predecessor(self,relative,current),prior)
@@ -3471,7 +3694,8 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(STARTUP_HISTORY_CANCEL_DELTAS))
         for relative,(_,after,_,_) in STARTUP_HISTORY_CANCEL_DELTAS.items():
-            current=native_startup_failure_predecessor(self,relative,(ROOT/relative).read_bytes())
+            current=native_startup_failure_predecessor(self,relative,
+                publication_accounting_predecessor(self,relative,(ROOT/relative).read_bytes()))
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact reviewed cancellation source')
             prior=subprocess.check_output(['git','show',STARTUP_HISTORY_CANCEL_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(startup_history_cancellation_predecessor(self,relative,current),prior)
