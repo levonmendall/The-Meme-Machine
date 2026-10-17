@@ -212,6 +212,75 @@ class StartupArchiveReadReuseTests(unittest.TestCase):
             self.assertGreaterEqual(queries['canonical'],63)
         self.corpus.unchanged()
 
+    def test_one_startup_archive_slot_crosses_candidate_reads_without_changing_economics(self):
+        # Same original FULL/ACK'd canonical manifest is reachable through two
+        # disposable candidate-index scopes. The alias is an index fixture,
+        # not a new canonical economic event or a funded/trading opportunity.
+        alias='index-fixture-two'
+        with closing(CandidateHistory(self.corpus.consumer)) as shared:
+            shared.db.execute("""INSERT INTO canonical_event_refs
+                SELECT lane,?,identity,slot,transaction_index,event_index,
+                       market_time,kind,body,hash FROM canonical_event_refs
+                WHERE lane='pump' AND candidate=?""",(alias,self.corpus.mint))
+            self.assertTrue(shared.events('pump',alias,cancelled=lambda:False))
+            with archive_io(self.corpus.archive.parent) as separate:
+                original=shared.events('pump',self.corpus.mint,cancelled=lambda:False)
+                second=shared.events('pump',alias,cancelled=lambda:False)
+            self.assertEqual((separate['reads'],separate['decodes']),(2,2))
+            self.assertEqual(original,self.corpus.expected)
+            self.assertEqual([dict(v,candidate=self.corpus.mint) for v in second],original)
+            cache={}
+            with archive_io(self.corpus.archive.parent) as pooled:
+                first=shared.events('pump',self.corpus.mint,cancelled=lambda:False,
+                    _restore_archive_cache=cache)
+                later=shared.events('pump',alias,cancelled=lambda:False,
+                    _restore_archive_cache=cache)
+            self.assertEqual((pooled['reads'],pooled['decodes']),(1,1))
+            self.assertEqual(first,original)
+            self.assertEqual(later,second)
+            self.assertEqual(list(cache),['entry'])
+            cache.clear()
+            self.assertEqual(cache,{})
+            with self.assertRaisesRegex(ValueError,'candidate_history_restore_archive_scope'):
+                shared.events('pump',alias,_restore_archive_cache={})
+            # A direct uncancelled reader keeps the original individual
+            # archive-read semantics and never retains a process-wide slot.
+            with archive_io(self.corpus.archive.parent) as normal:
+                self.assertEqual(shared.events('pump',self.corpus.mint),original)
+            self.assertEqual((normal['reads'],normal['decodes']),(64,64))
+        self.assertEqual(hashlib.sha256(self.corpus.financial.read_bytes()).hexdigest(),
+                         self.corpus.financial_hash)
+        self.assertEqual(retained.RetainedCanonicalReferenceTests.rows(self.corpus.source),
+                         self.corpus.source_before)
+
+    def test_cross_candidate_cache_is_discarded_on_file_change_or_cancellation(self):
+        with closing(CandidateHistory(self.corpus.consumer)) as shared:
+            cache={}
+            expected=shared.events('pump',self.corpus.mint,cancelled=lambda:False,
+                _restore_archive_cache=cache)
+            self.assertEqual(expected,self.corpus.expected)
+            self.assertTrue(cache)
+            original=self.corpus.archive_bytes
+            try:
+                self.corpus.archive.write_bytes(original+b'new-source-identity')
+                with self.assertRaisesRegex(ValueError,'candidate_history_corruption'):
+                    shared.events('pump',self.corpus.mint,cancelled=lambda:False,
+                        _restore_archive_cache=cache)
+                self.assertEqual(cache,{})
+            finally:self.corpus.archive.write_bytes(original)
+            cancelled=[False]
+            def signal():return cancelled[0]
+            self.assertEqual(shared.events('pump',self.corpus.mint,cancelled=signal,
+                _restore_archive_cache=cache),expected)
+            self.assertTrue(cache)
+            cancelled[0]=True
+            with self.assertRaises(Shutdown):
+                shared.events('pump',self.corpus.mint,cancelled=signal,
+                    _restore_archive_cache=cache)
+            self.assertEqual(cache,{})
+            self.assertEqual(shared.events('pump',self.corpus.mint),expected)
+        self.corpus.unchanged()
+
     def test_every_cold_reference_rereads_canonical_row_manifest_and_authenticates_ref(self):
         targets=list(self.corpus.identities)
         for kind in ('canonical','manifest','record'):
