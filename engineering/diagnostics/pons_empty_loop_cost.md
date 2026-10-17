@@ -2,10 +2,13 @@
 
 The stopped AWS diagnostic of application `99a9d8faca4d75e9e1de7c03cbe221f95312359f`
 reported about 148.127 GB of Pons logical reads and 36.604 million read calls.
-These aggregate counters do not identify a query. The subsequent cost preflight
-`39068894627` returned `UNAVAILABLE / PermissionError` for retained profiles.
-This repair therefore establishes an offline mechanism, not attribution of all
-AWS traffic or sustained market capacity.
+These aggregate counters do not identify a query. Cost preflight
+`39068894627` initially returned `UNAVAILABLE / PermissionError`. Corrected
+protected preflight `39070080581` recovered the retained profiles without a
+permission change: the observed Pons reporting count rose from 64 to 61,328
+across its retained endpoints. This supports a high reporting cadence but does
+not attribute logical read bytes to a specific query. This repair establishes
+an offline mechanism, not attribution of all AWS traffic or sustained capacity.
 
 The ordinary Current loop calls coverage, committed-result lookup and work
 selection after its existing 5 ms empty wait. On the exact deployed source,
@@ -100,7 +103,8 @@ native Plane/Broker, projection, retention and financial-retirement regressions,
 blocking issue within this scope.
 
 No AWS workload or financial database was touched. The last reported portfolio
-was sequence 15,482, $1,000 and flat; this offline proof supplies no newer financial
+was sequence 15,857, $1,000 and flat in AWS rehearsal `39067324778`,
+collected by `39068855312`; this offline proof supplies no additional financial
 observation or readiness. Exact-source installation, actual retained population,
 resource behavior, provider timing and sustained throughput require the existing
 protected deployment and one cause-based bounded AWS diagnostic.
