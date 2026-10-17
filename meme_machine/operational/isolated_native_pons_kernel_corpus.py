@@ -31,8 +31,9 @@ class PonsKernelCorpus:
         self.economic=economic;self.top=200;self.current_block=200;self.maximum=263
         self.requests=0;self.feed_messages=0;self.streams=[]
         from meme_machine.lanes.pons.identity import metadata
-        self.codes={metadata(role)['address'].lower():metadata(role)['runtimeBytecode']['onchainBytecode']
-            for role in ('pons_v2_factory','pons_deployer','pons_v2_hook','uniswap_v4_manager')}
+        pins=[metadata(role) for role in ('pons_v2_factory','pons_deployer','pons_v2_hook','uniswap_v4_manager')]
+        self.codes={pin['address'].lower():pin['runtimeBytecode']['onchainBytecode'] for pin in pins}
+        self.code_blocks={pin['address'].lower():int(pin['deployment']['blockNumber']) for pin in pins}
         self.logs=[];self.records={};self.launch_blocks={};self.receipts={}
         self.curve_codes={};self.methods={};self.refused=0;self.last_sequence=0
         if economic:self._economic_wire()
@@ -156,12 +157,20 @@ class PonsKernelCorpus:
         sequence=self.last_sequence+1
         return sequence,self.publish(sequence)
 
+    def _block(self,value):
+        number=self.top if value=='latest' else int(value,16)
+        self.header(number)
+        return number
+
     def rpc(self,method,params):
         self.requests+=1
         self.methods[method]=self.methods.get(method,0)+1
         if method=='eth_chainId':return hex(4663)
         if method=='eth_blockNumber':return hex(self.top)
-        if method=='eth_getCode' and params[0].lower() in self.codes:return self.codes[params[0].lower()]
+        if method=='eth_getCode' and params[0].lower() in self.codes:
+            target=params[0].lower()
+            if self.economic and self._block(params[1])<self.code_blocks[target]:return '0x'
+            return self.codes[target]
         if method=='eth_getBlockByNumber':
             number=self.top if params[0] in ('latest','safe','finalized') else int(params[0],16)
             return self.header(number)
@@ -191,20 +200,24 @@ class PonsKernelCorpus:
             if method=='eth_getTransactionReceipt':return value
             return dict(hash=value['transactionHash'],blockHash=value['blockHash'],
                 blockNumber=value['blockNumber'],transactionIndex=value['transactionIndex'],**{'from':value['from']})
-        if method=='eth_getCode' and params[0].lower() in self.curve_codes:return self.curve_codes[params[0].lower()]
+        if method=='eth_getCode' and params[0].lower() in self.curve_codes:
+            target=params[0].lower();block=self._block(params[1])
+            return '0x' if block<self.launch_blocks[target] else self.curve_codes[target]
         if method=='eth_gasPrice':return hex(1000000)
         if method=='eth_call':
-            target=params[0]['to'].lower();data=params[0]['data'];block=int(params[1],16)
-            self.header(block)
+            target=params[0]['to'].lower();data=params[0]['data'];block=self._block(params[1])
             factory=metadata('pons_v2_factory')
             if target==factory['address'].lower() and data.startswith(calldata('getLaunchedToken(address)',0)[:10]):
                 record=self.records.get('0x'+data[-40:])
                 if record is not None:
+                    if block<self.code_blocks[target]:return '0x'
                     fields=next(e for e in factory['abi'] if e.get('name')=='getLaunchedToken')['outputs'][0]['components']
+                    if block<self.launch_blocks[record['curve']]:return '0x'+'0'*64*len(fields)
                     return '0x'+''.join(self._word(int(record[f['name']],16) if isinstance(record[f['name']],str)
                         else record[f['name']]) for f in fields)
             record=next((r for r in self.records.values() if r['curve']==target),None)
             if record is not None:
+                if block<self.launch_blocks[target]:return '0x'
                 real=(68*10**16 if block<=self.current_block-15 else
                     74*10**16 if block<=self.current_block-5 else 8*10**17)
                 values={calldata('token()'):int(record['token'],16),

@@ -94,6 +94,34 @@ class NativePonsKernelCorpusTests(unittest.TestCase):
             with self.subTest(method=method),self.assertRaises(PonsKernelFixtureRefused):
                 corpus.rpc(method,params)
 
+    def test_economic_curve_and_factory_state_is_absent_before_its_actual_launch(self):
+        from meme_machine.lanes.pons import BoundaryError
+        from meme_machine.lanes.pons.abi import calldata
+        from meme_machine.lanes.pons.pons import factory_record,authenticate_curve
+        corpus=PonsKernelCorpus(int(time.time()),economic=True)
+        factory=metadata('pons_v2_factory')['address'].lower()
+        for token,record in corpus.records.items():
+            curve=record['curve'];launch=corpus.launch_blocks[curve]
+            before=hex(launch-1);after=hex(launch)
+            self.assertEqual(corpus.rpc('eth_getCode',[curve,before]),'0x')
+            for method in ('graduated()','token()','launchedAt()','getReserves()','realQuoteReserve()'):
+                self.assertEqual(corpus.rpc('eth_call',[dict(to=curve,data=calldata(method)),before]),'0x')
+            request=dict(to=factory,data=calldata('getLaunchedToken(address)',token))
+            absent=factory_record(corpus.rpc('eth_call',[request,before]))
+            self.assertIs(absent['exists'],False)
+            self.assertEqual(absent['curve'],'0x'+'0'*40)
+            with self.assertRaises(BoundaryError):authenticate_curve(curve,'0x',factory_record=absent)
+            present=factory_record(corpus.rpc('eth_call',[request,after]))
+            self.assertEqual(present,record)
+            code=corpus.rpc('eth_getCode',[curve,after])
+            self.assertEqual(code,corpus.curve_codes[curve])
+            self.assertTrue(authenticate_curve(curve,code,factory_record=present))
+            self.assertEqual(int(corpus.rpc('eth_call',[dict(to=curve,data=calldata('graduated()')),after]),16),
+                int(record['phase']==2))
+        predeployment=hex(corpus.code_blocks[factory]-1)
+        self.assertEqual(corpus.rpc('eth_getCode',[factory,predeployment]),'0x')
+        self.assertEqual(corpus.rpc('eth_call',[dict(to=factory,data=calldata('getLaunchedToken(address)',corpus.current_token)),predeployment]),'0x')
+
     def test_actual_current_decode_trajectory_window_and_history_publish_with_zero_sizing(self):
         from meme_machine.lanes.pons.pons_selective_acquisition import SelectiveEvidenceContext,evaluate_candidate
         from meme_machine.lanes.pons.pons_current_history import CurrentHistory
