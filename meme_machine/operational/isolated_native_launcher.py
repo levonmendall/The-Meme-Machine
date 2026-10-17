@@ -182,8 +182,11 @@ def _setup(value):
     os.environ.clear();os.environ.update(LANG='C',PATH='/nonexistent',TMPDIR='/tmp',
         PYTHONDONTWRITEBYTECODE='1',LD_LIBRARY_PATH='/image/runtime/lib')
     _,hard=resource.getrlimit(resource.RLIMIT_NOFILE)
-    require(hard==resource.RLIM_INFINITY or hard>=65536,'native_launcher_file_capacity')
-    resource.setrlimit(resource.RLIMIT_NOFILE,(65536,65536))
+    # Image proof starts no native market consumer/source. Its separately
+    # declared4096-FD fixture does not certify the native65536-FD profile.
+    descriptors=65536 if value['mode']=='native' else 4096
+    require(hard==resource.RLIM_INFINITY or hard>=descriptors,'native_launcher_file_capacity')
+    resource.setrlimit(resource.RLIMIT_NOFILE,(descriptors,descriptors))
     _,hard_cpu=resource.getrlimit(resource.RLIMIT_CPU)
     cpu=NATIVE_WALL if hard_cpu==resource.RLIM_INFINITY else min(NATIVE_WALL,hard_cpu)
     resource.setrlimit(resource.RLIMIT_CPU,(cpu,cpu))

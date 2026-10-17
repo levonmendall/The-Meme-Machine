@@ -7,6 +7,7 @@ from pathlib import Path
 import socket
 import sqlite3
 import signal
+import resource
 import sys
 import threading
 
@@ -35,6 +36,7 @@ def main():
         and sys.prefix==sys.base_prefix=='/image/runtime'
         and all(path=='/image/app' or path=='/image/deps' or path.startswith('/image/runtime/')
                 for path in sys.path))
+    checks['declared_image_proof_fd_limit']=resource.getrlimit(resource.RLIMIT_NOFILE)==(4096,4096)
     with os.fdopen(4,'rb') as facts:raw=facts.read(4097)
     if len(raw)>4096:raise ValueError('native_image_probe_fixture_bound')
     fixture=json.loads(raw)
@@ -105,6 +107,7 @@ def main():
     print(json.dumps(dict(schema='isolated-native-image-proof-v1',status='ISOLATED_NATIVE_IMAGE_PROVEN'
         if checks['all'] else 'BLOCKED',checks=checks,financial_authority=False,provider_calls=0,
         native_runners_started=False,native_source_started=False,full_market_speed_proven=False,
+        native_resource_profile_verified=False,proof_nofile_limit=4096,
         production_equivalent=False,actual_service_restrictions_verified=False)),flush=True)
     return 0 if checks['all'] else 2
 
