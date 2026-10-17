@@ -13,12 +13,14 @@ use immutable approved commit/tree/blob identities, never a moving HEAD. Every
 source/dependency payload is compared to an independently authenticated SHA256.
 
 Only tracked application .py/.json/.proto files, capacity .py files and the one
-frozen proof contract can enter the application image. Capacity captures, logs,+engineering evidence, financial books and credentials are excluded. Dependencies
+frozen proof contract can enter the application image. Capacity captures, logs,
+engineering evidence, financial books and credentials are excluded. Dependencies
 are based58 0.1.1, grpcio 1.84.0, protobuf 7.36.2, pysimdjson 7.0.2,
 typing_extensions 4.16.0 and websockets 17.1, with the existing administration
 wheel SHA256 pins. Only explicit package prefixes are copied; .dist-info,
-direct_url metadata, bytecode, site packages, .pth and arbitrary package roots
-trees are absent. An explicit stdlib extension of the canary allowlist supports native
+direct_url metadata, bytecode, .pth files, original site-packages directories and
+arbitrary package directory trees are absent. An explicit stdlib extension of the
+canary allowlist supports native
 asyncio/HTTP/email/importlib requirements. Copied regular files, size/hash records
 and a bounded static ELF dependency closure replace original directory binds.
 
