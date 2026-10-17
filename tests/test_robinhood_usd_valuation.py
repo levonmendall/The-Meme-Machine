@@ -192,6 +192,64 @@ RALLY_CHANGED_SOURCES=('meme_machine/lanes/pons/pons_postgrad_survivor.py', 'mem
 RALLY_ADDED_SOURCES=('meme_machine/policy_history/opportunity_access_v1.json', 'meme_machine/runtime/rally_cycle.py')
 
 
+# Finalized archive rows may contain an explicitly truncated log suffix. The
+# separately fetched complete logs must retain the original native order,
+# transaction identity and prefix. Pin both complete sources and reverse only
+# these reviewed acquisition/proof nodes to 1b77 before the original guards.
+# This adds no economic, financial or recovery-authority exemption.
+ARCHIVE_COMPLETE_LOGS_REFERENCE='1b77970042697224af3993f564c1d9e06b81ce0a'
+ARCHIVE_COMPLETE_LOGS_DELTAS={
+    'meme_machine/solana_selective_history.py':(
+        '1f267926b9c60d2f4c0f46fb3352cbfe845ae64e4564a2cb7dce6746b11c04cf',
+        'ea09e4c74ca85302157631303d928b65e656b8c01df6ffaf6193b3efe1ab211f',
+        ('SelectiveHistory.commit_page',),
+        ('ArchiveLogSupplement','_archive_log_join','join_archive_log_supplement',
+         'complete_archive_transaction','missing_archive_log_transactions',
+         'archive_interval_witness','archive_page_evidence','SelectiveHistory.has_archive_log_supplements'),
+        (('from dataclasses import replace','from dataclasses import dataclass,replace'),)),
+    'meme_machine/solana_selective_source.py':(
+        'c21a5e26373b39165194ad5475364494560883c2c7b45b25bd095f68eb451df6',
+        'f3391d7aca7c1f185131fabe51edfb0e5bf37a79a35046449b06e3d5c916030e',
+        ('SelectiveSource.acquire',),(),()),
+}
+
+
+def archive_complete_logs_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    reviewed=ARCHIVE_COMPLETE_LOGS_DELTAS.get(relative)
+    if reviewed is None:return current
+    before,after,changed,added,imports=reviewed
+    prior=subprocess.check_output(['git','show',ARCHIVE_COMPLETE_LOGS_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':exact complete-log predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':exact complete-log successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def node(root,name):
+        parent=root
+        for part in name.split('.')[:-1]:
+            parent=next(n for n in parent.body if isinstance(n,ast.ClassDef) and n.name==part)
+        return parent,next(n for n in parent.body
+            if isinstance(n,(ast.ClassDef,ast.FunctionDef,ast.AsyncFunctionDef)) and n.name==name.split('.')[-1])
+    for name in changed:
+        parent,selected=node(tree,name);_,original=node(old,name)
+        test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':explicit archive node '+name)
+        parent.body[parent.body.index(selected)]=deepcopy(original)
+    for name in added:
+        parent,selected=node(tree,name);parent.body.remove(selected)
+        with test.assertRaises(StopIteration):node(old,name)
+    for previous,successor in imports:
+        original=ast.parse(previous).body[0];replacement=ast.parse(successor).body[0]
+        matches=[n for n in tree.body if ast.dump(n)==ast.dump(replacement)]
+        test.assertEqual(len(matches),1,relative+':one exact archive import delta')
+        test.assertEqual(sum(ast.dump(n)==ast.dump(original) for n in old.body),1,
+            relative+':one exact predecessor import')
+        tree.body[tree.body.index(matches[0])]=deepcopy(original)
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':all other economic and authority source retained')
+    return prior
+
+
 # Exact first-failure attribution and Pons startup-read cancellation only.
 # Reverse these four already-guarded sources to A14 before the previous source
 # layers; candidate authority, pruning, accounting and economics remain pinned.
@@ -467,6 +525,7 @@ def rally_delta(before,after):
 def rally_predecessor(test,relative,current,*,allow_previous_layers=False):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
+    current=archive_complete_logs_predecessor(test,relative,current)
     current=native_startup_failure_predecessor(test,relative,current,
         allow_previous_layers=allow_previous_layers)
     current=survivor_monitor_replay_predecessor(test,relative,current,
@@ -1492,6 +1551,44 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_archive_complete_logs_reverse_exactly_and_reject_unverified_source(self):
+        import hashlib
+        mutations={
+            'meme_machine/solana_selective_history.py':(
+                (b"complete[:len(logs)-1]!=logs[:-1]",b'False'),
+                (b"canonical(fetched['transaction'])!=canonical(original['transaction'])",b'False'),
+                (b"type(fetched['slot']) is not int or fetched['slot']!=slot",b'False'),
+                (b"type(supplement) is not ArchiveLogSupplement",b'False'),
+                (b"supplement.endpoint_identity!=endpoint_identity",b'False'),
+                (b"old['err'] is not None or new['err'] is not None",b'False'),
+                (b"canonical(original)!=supplement.original_json",b'False'),
+                (b"archive_log_supplements=retained_supplements",b'archive_log_supplements=[]')),
+            'meme_machine/solana_selective_source.py':(
+                (b"dict(commitment='finalized',encoding='json',maxSupportedTransactionVersion=1)",
+                    b"dict(commitment='processed',encoding='json',maxSupportedTransactionVersion=1)"),
+                (b'finalized_through=finalized,supplements=supplements',b'finalized_through=finalized,supplements=()'),
+                (b'job[\'family\'],job[\'priority\'])',b'job[\'family\'],4)')),
+        }
+        self.assertEqual(set(mutations),set(ARCHIVE_COMPLETE_LOGS_DELTAS))
+        for relative,(_,after,_,_,_) in ARCHIVE_COMPLETE_LOGS_DELTAS.items():
+            current=(ROOT/relative).read_bytes()
+            self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact archive-log correction')
+            prior=subprocess.check_output(['git','show',ARCHIVE_COMPLETE_LOGS_REFERENCE+':'+relative],cwd=ROOT)
+            self.assertEqual(archive_complete_logs_predecessor(self,relative,current),prior)
+            self.assertEqual(archive_complete_logs_predecessor(self,relative,prior),prior)
+            self.assertEqual(rally_predecessor(self,relative,current),rally_predecessor(self,relative,prior))
+            self.assertEqual(opportunity_predecessor(self,relative,current),
+                opportunity_predecessor(self,relative,prior))
+            changes=[current+b'\n# unreviewed archive-log change\n',b'']
+            for previous,successor in mutations[relative]:
+                self.assertIn(previous,current,relative+':negative mutation target exists')
+                changes.append(current.replace(previous,successor,1))
+            for changed in changes:
+                self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+                with self.assertRaises(AssertionError):archive_complete_logs_predecessor(self,relative,changed)
+                with self.assertRaises(AssertionError):rally_predecessor(self,relative,changed)
+                with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_native_startup_failure_delta_preserves_all_prior_authority_and_source_guards(self):
         import hashlib
         mutations={
