@@ -3,6 +3,7 @@ import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.r
 
 FAST=[
  'tests.test_pons_projection_source_reuse',
+ 'tests.test_transport_bridge',
  'tests.test_source_operation_publication',
  'tests.test_sleeve_prefix_scheduling',
  'tests.test_provider_budget_namespace_read',
