@@ -1805,9 +1805,31 @@ def rally_delta(before,after):
     return dict(nodes=changed(old_nodes,new_nodes),layouts=changed(old_layouts,new_layouts))
 
 
+# An optional ONE-SLOT cold-cache across the exact Pump startup restoration is
+# bounded to that one cancelled/finished pass. Pin BOTH complete runtime files
+# at the reviewed implementation commit, reduce them to the prior merged source,
+# then execute every previous source/economic guard unchanged.
+CROSS_CANDIDATE_COLD_BASE='45185cd007dd0ca17c9cdf2615dde5b551a463cf'
+CROSS_CANDIDATE_COLD_REVIEW='409e727f0a14d186378a3e23f0e9669b33aef344'
+CROSS_CANDIDATE_COLD_PATHS=frozenset((
+    'meme_machine/runtime/candidate_history.py',
+    'meme_machine/lanes/pump/runner.py',
+))
+
+
+def cross_candidate_cold_predecessor(test,relative,current):
+    if relative not in CROSS_CANDIDATE_COLD_PATHS:return current
+    prior=subprocess.check_output(['git','show',CROSS_CANDIDATE_COLD_BASE+':'+relative],cwd=ROOT)
+    if current==prior:return prior
+    accepted=subprocess.check_output(['git','show',CROSS_CANDIDATE_COLD_REVIEW+':'+relative],cwd=ROOT)
+    test.assertEqual(current,accepted,relative+':exact reviewed Pump startup archive reuse')
+    return prior
+
+
 def rally_predecessor(test,relative,current,*,allow_previous_layers=False):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
+    current=cross_candidate_cold_predecessor(test,relative,current)
     if relative==SLEEVE_EMPTY_PREFIX_SOURCE and hashlib.sha256(current).hexdigest()==SLEEVE_EMPTY_PREFIX_AFTER:
         current=sleeve_empty_prefix_predecessor(test,relative,current)
     current=survivor_increment_continuity_predecessor(test,relative,current)
@@ -2839,6 +2861,26 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_cross_candidate_archive_review_keeps_all_previous_source_guards(self):
+        import hashlib
+        for path in sorted(CROSS_CANDIDATE_COLD_PATHS):
+            with self.subTest(path=path):
+                current=(ROOT/path).read_bytes()
+                old=subprocess.check_output(['git','show',CROSS_CANDIDATE_COLD_BASE+':'+path],cwd=ROOT)
+                self.assertNotEqual(current,old)
+                self.assertEqual(cross_candidate_cold_predecessor(self,path,current),old)
+                self.assertEqual(rally_predecessor(self,path,current),
+                                 rally_predecessor(self,path,old))
+                self.assertEqual(opportunity_predecessor(self,path,current),
+                                 opportunity_predecessor(self,path,old))
+                for changed in (current+b'\n# unexpected economic mutation\n',b'',
+                        current.replace(b'archives.clear()',b'pass',1),
+                        current.replace(b'_archive_cache=archives',b'_archive_cache=None',1)):
+                    if changed==current:continue
+                    with self.assertRaises(AssertionError):
+                        cross_candidate_cold_predecessor(self,path,changed)
+
+
     def test_source_recorder_publication_reverses_only_exact_diagnostic_transport_and_test_read(self):
         import hashlib
         mutations={
