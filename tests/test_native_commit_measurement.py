@@ -84,6 +84,25 @@ class NativeCommitSQLiteTests(unittest.TestCase):
         self.assertEqual(self.counts()['history_event_rows'],0)
         self.assertIsNone(self.collector.snapshot()['last_commit_monotonic_ns'])
 
+    def test_failed_native_savepoint_cleanup_latches_loss_without_changing_original_error(self):
+        class FailedRollback(_CommitProbe):
+            def execute(self,sql,*args):
+                if sql.startswith('ROLLBACK TO '):
+                    raise sqlite3.OperationalError('offline rollback failure')
+                return super().execute(sql,*args)
+        self.history.db=FailedRollback(self.history.db,self.collector)
+        with self.history.transaction():
+            self.event('outer')
+            with self.assertRaisesRegex(ValueError,'original native error'):
+                with self.history.transaction():
+                    self.event('rollback-was-not-confirmed')
+                    raise ValueError('original native error')
+        # Preserve the original native cleanup semantics, including its error
+        # precedence. The measurement cannot claim the failed rollback worked.
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM events').fetchone()[0],2)
+        self.assertTrue(self.collector.snapshot()['measurement_loss'])
+        self.assertEqual(self.counts()['history_event_rows'],0)
+
     def test_real_commit_failure_preserves_exception_and_native_rollback(self):
         self.history.db=_CommitProbe(self.history.db,self.collector,fail='before')
         with self.assertRaisesRegex(sqlite3.OperationalError,'offline commit failure'):

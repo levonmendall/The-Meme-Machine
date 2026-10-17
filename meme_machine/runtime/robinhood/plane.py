@@ -150,11 +150,14 @@ class Plane:
                 changed=self.db.total_changes != before
                 self.db.execute('COMMIT' if changed else 'ROLLBACK')
             except BaseException:
-                if observer is not None:observer.finish(frame,committed=False,
-                    uncertain=not self.db.in_transaction)
+                rolled_back=False
                 from meme_machine.runtime.sqlite_failure import preserving_cleanup
                 with preserving_cleanup():
-                    if self.db.in_transaction:self.db.execute('ROLLBACK')
+                    if self.db.in_transaction:
+                        self.db.execute('ROLLBACK')
+                        rolled_back=True
+                if observer is not None:observer.finish(frame,committed=False,
+                    uncertain=not rolled_back)
                 raise
             else:
                 if observer is not None:observer.finish(frame,committed=changed)

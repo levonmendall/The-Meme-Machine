@@ -249,11 +249,14 @@ class CandidateHistory:
                 yield
                 self.db.execute('RELEASE '+name)
             except BaseException:
-                if observer is not None:observer.finish(frame,committed=False)
+                rolled_back=False
                 try:
                     if self.db.in_transaction:
                         self.db.execute('ROLLBACK TO '+name);self.db.execute('RELEASE '+name)
+                        rolled_back=True
                 except BaseException:pass
+                if observer is not None:observer.finish(frame,committed=False,
+                    uncertain=not rolled_back)
                 raise
             else:
                 if observer is not None:observer.finish(frame,committed=True)
@@ -265,11 +268,14 @@ class CandidateHistory:
             yield
             self.db.execute("COMMIT")
         except BaseException:
-            if observer is not None:observer.finish(frame,committed=False,
-                uncertain=not self.db.in_transaction)
+            rolled_back=False
             try:
-                if self.db.in_transaction:self.db.execute("ROLLBACK")
+                if self.db.in_transaction:
+                    self.db.execute("ROLLBACK")
+                    rolled_back=True
             except BaseException:pass
+            if observer is not None:observer.finish(frame,committed=False,
+                uncertain=not rolled_back)
             raise
         else:
             if observer is not None:observer.finish(frame,committed=True)

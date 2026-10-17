@@ -42,6 +42,8 @@ SAVEPOINT/RELEASE/ROLLBACK boundaries. Each successful nested release merges
 bounded metadata into its parent; rollback discards it. Only a returning outer
 COMMIT emits a receipt, with clocks sampled afterward. An externally opened
 transaction cannot produce a FULL receipt when a helper releases its savepoint.
+An unconfirmed native rollback invalidates measurement; the existing cleanup
+and exception precedence are preserved even if that cleanup itself fails.
 `Plane.transaction` retains its original no-change ROLLBACK and changed COMMIT.
 No additional transaction, SQL statement, fsync or provider acquisition is made.
 The measured source-history path still commits its original 64-row batches.
@@ -85,3 +87,9 @@ together with the actual source lifecycle tests, passed 48 cases in 3.945
 seconds. These are focused component proofs, not live throughput or full release
 suite results. A separate final handoff records the frozen source and any later
 review corrections.
+
+The final rollback-outcome correction passed 82 focused commit-stage,
+CandidateHistory and Plane cases in 0.670 seconds, including a failed native
+SAVEPOINT cleanup followed by the original caller's outer COMMIT. It preserves
+the original native error/rows and reports measurement loss rather than claiming
+that the rollback succeeded. The new component now contains 18 cases.
