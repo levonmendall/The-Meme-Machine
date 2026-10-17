@@ -289,6 +289,12 @@ def bookless_report(runtime, lane):
     resources = require_bookless_runtime(runtime, lane)
     if resources is None:
         raise ValueError('isolated_native_runtime_required')
+    history=getattr(runtime,'candidate_history',None)
+    if history is None:
+        # Pons opens this shared publication reader lazily. Bind its actual
+        # owner connection so native shutdown releases it on the same worker.
+        history=runtime.candidate_history=resources.candidate_history()
+    resources.require_history(history)
     verification = runtime.sleeve.verify_observations()
     return dict(
         scope=resources.facts.value()['scope'], financial_authority=False,
@@ -300,7 +306,7 @@ def bookless_report(runtime, lane):
         native_execution_cost=None,
         policies=runtime.sleeve.identity['policies'],
         rally_lifecycles=observation_rallies(runtime.sleeve),
-        candidate_history=resources.candidate_history().telemetry(),
+        candidate_history=history.telemetry(),
         qualification_sizing_receipt_hash=resources.facts.receipt_hash)
 
 

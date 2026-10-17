@@ -153,7 +153,11 @@ class Runtime:
                 raise ValueError('isolated_native_pons_source_identity')
         elif native_ports is not None:raise ValueError('isolated_native_resources_required')
         self.root=Path(root);self.root.mkdir(parents=True,exist_ok=True)
-        self.capital=capital;self.run_id=run_id;self.endpoint=endpoint
+        self.capital=capital;self.run_id=run_id
+        # History/filter domains need public source metadata, while native RPC
+        # transport retains the exact parent-issued reference in its own port.
+        self.endpoint=(endpoint if self.native_resources is None else
+            'alchemy:'+endpoint.endpoint_identity)
         if self.native_resources is None:
             self.sleeve=open_sleeve('pons',capital)
             if self.sleeve is None:raise BoundaryError('survivor_shared_sleeve_required')
@@ -171,6 +175,7 @@ class Runtime:
             self.plane=Plane(scout_path if scout_path is not None else plane_path(self.root/'candidate-evidence.sqlite'))
         else:
             self.book=None
+            self.candidate_history=self.native_resources.candidate_history()
             self.plane=self.native_resources.pons_plane()
         self.scout=None
         if scout_path is not None:
@@ -419,7 +424,13 @@ class Runtime:
             if context is not None:context.cache.invalidate_canonical_aliases()
             from .pons_selective_acquisition import SelectiveEvidenceContext
             cache=durable_cache(self.plane,domain) if domain is not None else None
-            context=SelectiveEvidenceContext(self.endpoint,cache=cache)
+            if getattr(self,'native_resources',None) is None:
+                context=SelectiveEvidenceContext(self.endpoint,cache=cache)
+            else:
+                from meme_machine.runtime.isolated_native_bootstrap import require_runner_ports
+                ports=require_runner_ports(self.native_resources,self.native_ports)
+                context=SelectiveEvidenceContext(None,cache=cache,
+                    parent_port=ports.rpc_port('pons','survivor'),immutable_store=ports.pons_store())
             self.position_evidence_context=context
         return context
 

@@ -27,7 +27,7 @@ class IsolatedNativeBootstrapTests(unittest.IsolatedAsyncioTestCase):
         self.sol=replace(self.sol,alias=EndpointAlias('pump-survivor','solana',
             self.sol.alias.methods|{'getGenesisHash'}),operation='pump_survivor_qualification')
         self.pons=replace(self.pons,alias=EndpointAlias('pons-survivor','robinhood',
-            self.pons.alias.methods),operation='pons_survivor_qualification')
+            self.pons.alias.methods|{'eth_getLogs'}),operation='pons_survivor_qualification')
         current=replace(self.sol,alias=EndpointAlias('pump-current','solana',self.sol.alias.methods),
             operation='pump_current_qualification')
         self.http=ParentHTTP(self.budget,[self.sol,self.pons,current],opener=self.physical)
@@ -102,7 +102,55 @@ class IsolatedNativeBootstrapTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.physical.calls[0]['method'],'eth_chainId')
         self.assertEqual(final['accounting']['status'],'UNEXERCISED')
         self.assertEqual(final['held_protection'],'UNEXERCISED')
+        self.assertFalse(self.resources._candidate_histories)
         self.assertFalse(final['durable_handoff'])
+        self.assert_no_money()
+
+    async def test_actual_pons_survivor_private_history_context_reaches_native_v4_rpc(self):
+        from meme_machine.lanes.pons.pons_survivor_runtime import Runtime
+        from meme_machine.lanes.pons.pons_selective_v4 import _transport
+        from meme_machine.lanes.pons import BoundaryError
+        from meme_machine.runtime.robinhood import provider_authority
+        from meme_machine.runtime.isolated_native_execution import isolated_native_execution
+        physical=self.physical
+        def provider(request,timeout):
+            calls=json.loads(request.data)
+            rows=calls if type(calls) is list else [calls]
+            reply=[dict(jsonrpc='2.0',id=row['id'],result=
+                hex(4663) if row['method']=='eth_chainId' else []) for row in rows]
+            physical.body=json.dumps(reply if type(calls) is list else reply[0]).encode()
+            return physical(request,timeout)
+        self.http.opener=provider
+        def native_owner():
+            with isolated_native_execution(self.resources):
+                runtime=Runtime(self.resources.root/'pons-survivor',None,
+                    self.resources.facts.value()['scope'],self.ports.rpc_port('pons','survivor').source,
+                    scout_path=self.resources.root/'pons-candidates.sqlite',
+                    native_resources=self.resources,native_ports=self.ports)
+                try:
+                    with patch.object(provider_authority,'endpoint',side_effect=AssertionError('child URL lookup')):
+                        context=runtime._position_context()
+                        result=_transport(runtime.endpoint,
+                            pool_ids=['0x'+'1'*64],start_block=1,end_block=2,max_events=256,
+                            acquisition_state=runtime.history,evidence_context=context)
+                        self.assertEqual(result['raw'],[])
+                        self.assertIs(context.parent_port.source,self.ports.rpc_port('pons','survivor').source)
+                        with self.assertRaisesRegex(BoundaryError,'provider_context_disagreement'):
+                            _transport('alchemy:'+'f'*64,
+                                pool_ids=['0x'+'1'*64],start_block=1,end_block=2,max_events=256,
+                                acquisition_state=runtime.history,evidence_context=context)
+                    self.assertTrue(any(key.startswith('pons_log_windows:') for key, in
+                        runtime.history.db.execute('SELECT key FROM meta')))
+                finally:
+                    try:
+                        from meme_machine.runtime.isolated_native_bootstrap import bookless_report
+                        bookless_report(runtime,'pons')
+                    finally:
+                        runtime.close()
+        await asyncio.to_thread(native_owner)
+        self.assertFalse(self.resources._candidate_histories)
+        calls=[row for call in self.physical.calls for row in (call if type(call) is list else [call])]
+        self.assertEqual([row['method'] for row in calls],['eth_chainId','eth_getLogs'])
         self.assert_no_money()
 
     async def test_same_owned_history_restarts_actual_native_runtime_without_book_replay(self):
