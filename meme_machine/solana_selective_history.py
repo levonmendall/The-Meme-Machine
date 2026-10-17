@@ -171,12 +171,14 @@ def _archive_log_join(original,fetched,endpoint_identity):
         if len(markers)!=1:raise KeyError()
         marker=markers[0];prefix=logs[:marker];suffix=logs[marker+1:]
         if len(complete)<len(prefix) or complete[:len(prefix)]!=prefix:raise KeyError()
-        # The archive may retain lines after its truncation marker. Preserve
-        # their complete order as one contiguous segment, without reusing any
-        # prefix lines. The full response may also contain a later suffix.
-        if suffix and sum(complete[start:start+len(suffix)]==suffix
-                for start in range(len(prefix),len(complete)-len(suffix)+1))<1:
-            raise KeyError()
+        # The archive may retain sparse lines after its truncation marker.
+        # Match every line in order at a distinct position beyond the prefix;
+        # only the entire complete response supplies decoded event indices.
+        position=len(prefix)
+        for line in suffix:
+            while position<len(complete) and complete[position]!=line:position+=1
+            if position==len(complete):raise KeyError()
+            position+=1
     except (KeyError,TypeError,ValueError):
         raise EvidenceUnavailable('archive_log_supplement_identity_unverified') from None
     # Preserve every original economic/provider field except the separately
