@@ -145,6 +145,88 @@ jobs:
           sys.argv = ['operational.tests', 'OPERATIONAL', '--modules', *modules, '--verbose']
           runpy.run_module('operational.tests', run_name='__main__')
           PY
+      - name: Run affected native isolation and complete copied-main regressions
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.validation != 'full' }}
+        run: |
+          # The existing disposable runner supplies root and real time-namespace
+          # identity. Keep the actual copied-main case and every failure intact;
+          # this remains synthetic component validation, not kernel/live readiness.
+          sudo env CI=true PYTHONDONTWRITEBYTECODE=1 "$(command -v python)" - <<'PY'
+          import json
+          import os
+          import resource
+          import runpy
+          import sqlite3
+          import sys
+
+          soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+          if hard < 4096:
+              raise RuntimeError('ci_replay_file_descriptors_required')
+          resource.setrlimit(resource.RLIMIT_NOFILE, (max(soft, 4096), hard))
+          cpus = sorted(os.sched_getaffinity(0))
+          if len(cpus) < 2:
+              raise RuntimeError('two_ci_cpus_required')
+          os.sched_setaffinity(0, set(cpus[:2]))
+          print('NATIVE_FOCUSED_RUNTIME: ' + json.dumps({
+              'python': sys.version.split()[0], 'sqlite': sqlite3.sqlite_version,
+              'effective_uid': os.geteuid(),
+          }, sort_keys=True), flush=True)
+          modules = [
+              'tests.test_transport_bridge',
+              'tests.test_parent_native_transport',
+              'tests.test_child_transport',
+              'tests.test_parent_sequencer_clock',
+              'tests.test_isolated_rpc_ports',
+              'tests.test_isolated_native_resources',
+              'tests.test_isolated_native_execution',
+              'tests.test_isolated_native_admission',
+              'tests.test_isolated_native_bootstrap',
+              'tests.test_isolated_native_entry',
+              'tests.test_isolated_pons_current',
+              'tests.test_parent_sizing',
+              'tests.test_isolated_native_source',
+              'tests.test_native_subscription_upload',
+              'tests.test_pons_native_profile',
+              'tests.test_pons_profile_channel',
+              'tests.test_isolated_native_fatal_drain',
+              'tests.test_isolated_native_launcher',
+              'tests.test_namespace_runtime',
+              'tests.test_namespace_canary',
+              'tests.test_source_ports',
+              'tests.test_isolated_native_executor',
+              'tests.test_isolated_native_control',
+              'tests.test_native_read_lane',
+              'tests.test_checkpoint_handoff',
+              'tests.test_market_heads',
+              'tests.test_http_response_eof',
+              'tests.test_landlock_canary',
+              'tests.test_isolated_native_landlock_image',
+              'tests.test_parent_head_lifecycle',
+              'tests.test_pons_scheduling_reads',
+              'tests.test_native_commit_measurement',
+              'tests.test_isolated_native_layout',
+              'tests.test_isolated_native_spawn',
+              'tests.test_native_landlock_policy',
+              'tests.test_native_landlock_launcher',
+              'tests.test_native_kernel_outputs',
+              'tests.test_isolated_native_kernel_corpus',
+              'tests.test_native_pons_kernel_corpus',
+              'tests.test_parent_native_factories',
+              'tests.test_shared_capital_recovery',
+              'tests.test_shared_capital_concurrency',
+              'tests.test_shared_capital_economics',
+              'tests.test_native_startup_lifecycle',
+              'tests.test_startup_history_cancellation',
+              'tests.test_integrated_startup_rehearsal',
+              'tests.test_current_combined_diagnostic',
+              'tests.test_paper_policy_compatibility',
+              'tests.test_isolated_native_kernel_validation',
+          ]
+          print('FOCUSED_NATIVE_VALIDATION_ONLY: synthetic offline; not full release or kernel acceptance', flush=True)
+          print('FOCUSED_NATIVE_MODULES: ' + ','.join(modules), flush=True)
+          sys.argv = ['operational.tests', 'OPERATIONAL', '--modules', *modules, '--verbose']
+          runpy.run_module('operational.tests', run_name='__main__')
+          PY
       - name: Run complete offline suite with the required Linux containment
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation == 'full' }}
         env:

@@ -25,6 +25,19 @@ fills, settlement, production restoration and sustained capacity are unexercised
 
 ## Current evidence
 
+The latest coupled attempt at `3465199505c5d56f0bb4de2e67fdf73d2563f366`
+failed after 11.655 seconds on the unchanged `solana_scoped_retirement.ceiling`
+forced partial-index query for shared_history_cache. Cloud SQLite 3.53.1
+returned SQLITE_ERROR/no query solution; AWS reports SQLite 3.45.1. The query,
+index, original test and failure verdict remain intact. Strict post-join
+inspection found 223 bound canonical FULL/ACK rows and matching references,
+340 source receipts and all four regime reports. The decoder completed one
+non-probe economic job; no history worker spawned in this coupled attempt.
+Parent/process cleanup joined, with zero external calls or production writes.
+The injected launcher lacked Landlock and cannot attest kernel enforcement.
+See `operational_checkpoint_20261017.md` for exact live source, financial state,
+retained performance evidence and the external workflow-dispatch boundary.
+
 The first actual coupled run at b17439cdf53ab370024c67683047a2fa30433749
 failed after 23.675 seconds: all four native regime reports existed; two actual
 decoder probes and tracker joined; the history worker had not spawned. Native
