@@ -302,7 +302,8 @@ def _recover_sequencer(feed,cursor,recoveries):
 def _discovery(endpoint,*,native_ports=None):
     rpc=(configured_discovery_rpc(endpoint,limit=200,per_scope=190,retries=0) if native_ports is None else
         configured_discovery_rpc(parent_port=native_ports.rpc_port('pons','discovery'),
-            immutable_store=native_ports.pons_store(),limit=200,per_scope=190,retries=0))
+            immutable_store=native_ports.pons_store(),native_profile=native_ports.pons_profile('discovery'),
+            limit=200,per_scope=190,retries=0))
     rpc.verify_chain()
     return rpc
 
@@ -998,7 +999,7 @@ def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,nativ
         if (pending['key'],pending['work']['generation']) in consumed:queue.acknowledge(pending)
     domain=hashlib.sha256(endpoint.encode()).hexdigest()+':'+POLICY_HASH
     evidence_options=({} if native_ports is None else dict(parent_port=native_ports.rpc_port('pons','current'),
-        immutable_store=native_ports.pons_store()))
+        immutable_store=native_ports.pons_store(),native_profile=native_ports.pons_profile('current')))
     evidence_context=SelectiveEvidenceContext(endpoint if native_ports is None else None,
         cache=durable_cache(queue.plane,domain),**evidence_options)
     startup_context=SelectiveEvidenceContext(endpoint if native_ports is None else None,

@@ -108,7 +108,15 @@ class NativeRunnerPorts:
     def pons_rpc(self, regime, **bounds):
         from meme_machine.lanes.pons.provider_topology import configured_rpc
         return configured_rpc(parent_port=self.rpc_port('pons',regime),
-            immutable_store=self.pons_store(), **bounds)
+            immutable_store=self.pons_store(), native_profile=self.pons_profile(regime), **bounds)
+
+    def pons_profile(self,regime):
+        from meme_machine.operational.pons_native_profile import require_profile
+        port=self.rpc_port('pons',regime)
+        return require_profile(self.channel.pons_profile(port.source),port)
+
+    def require_pons_profiles(self):
+        return tuple(self.pons_profile(regime) for regime in ('current','survivor','discovery'))
 
     def pons_store(self):
         require_resources(self.resources)
@@ -127,7 +135,8 @@ class NativeRunnerPorts:
             raise ValueError('isolated_native_runner_ports_closed')
         with self._lock:
             from meme_machine.lanes.pons.sequencer_feed import SequencerBlockClock
-            source=self.rpc_port('pons','discovery').source
+            source=self.require_pons_feed_source()
+            self.pons_profile('discovery')
             stream=self.channel.native_open(source)
             try:
                 feed=SequencerBlockClock(parent_stream=stream)
@@ -140,6 +149,18 @@ class NativeRunnerPorts:
             feeds[:]=[old for old in feeds if not old._parent_stream.closed]
             feeds.append(feed)
             return feed
+
+    def require_pons_feed_source(self):
+        """Validate the real original feed capability without buying a stream."""
+        require_runner_ports(self.resources,self)
+        source=self.rpc_port('pons','discovery').source
+        rows=[row for row in self.channel.streams if row['alias']==source.alias
+            and row['transport']=='robinhood_sequencer' and row['stream'] is None
+            and row['observation_only'] is True]
+        if (len(rows)!=1 or source.family!='robinhood' or source.read_class!='native'
+                or source.operation!='pons_discovery' or self.channel.sources.get(source.alias) is not source):
+            raise ValueError('isolated_native_nitro_stream_port_unavailable')
+        return source
 
     def pump_current_directory(self):
         """Admit a restart only into this capability's originally created root."""
@@ -209,6 +230,8 @@ def validate_survivor_constructor(root, capital, run_id, lane, resources, ports)
             or run_id != resources.facts.value()['scope']):
         raise ValueError('isolated_native_survivor_construction')
     resources.facts.require_fresh(lane, int(resources.clock()))
+    if lane=='pons':
+        ports.pons_profile('survivor')
     return resources
 
 

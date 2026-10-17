@@ -192,7 +192,9 @@ class IsolatedPonsCurrentTests(unittest.IsolatedAsyncioTestCase):
         http=ParentHTTP(self.budget,self.bindings,opener=provider)
         self.addAsyncCleanup(http.aclose)
         native=NativeSourceBinding(self.bindings[1],'robinhood_sequencer')
-        parent_channel=ParentChannel(http,native_sources=[native])
+        from meme_machine.operational.pons_native_profile import ParentPonsProfiles
+        parent_channel=ParentChannel(http,native_sources=[native],
+            pons_profiles=ParentPonsProfiles.configured(http,environ={}))
         parent,child=socket.socketpair()
         reader,writer=await asyncio.open_connection(sock=parent)
         serving=asyncio.create_task(serve_connected(reader,writer,parent_channel))
@@ -204,6 +206,18 @@ class IsolatedPonsCurrentTests(unittest.IsolatedAsyncioTestCase):
         self.ports=NativeRunnerPorts(self.resources,channel)
         self.addCleanup(self.ports.close)
         return parent_channel
+
+    async def test_source_preflight_checks_profiles_and_nitro_without_buying_or_opening_state(self):
+        from tests.lanes.pons.test_sequencer_feed import row
+        await self.native_connection([[dict(version=1,messages=[row(200,block=200,timestamp=1000)])]])
+        profiles=await asyncio.to_thread(self.ports.require_pons_profiles)
+        self.assertEqual([profile.status for profile in profiles],['ABSENT']*3)
+        for _ in range(2):
+            self.assertIs(self.ports.require_pons_feed_source(),self.ports.rpc_port('pons','discovery').source)
+        self.assertEqual(self.budget.snapshot()['native_opens'],'0')
+        self.assertFalse(self.sockets)
+        self.assertFalse(self.physical.calls)
+        self.assertFalse(list(self.resources.root.glob('*.sqlite')))
 
     async def actual_run(self,*,cancel_after_checkpoint=False,expected_error=None):
         from meme_machine.lanes.pons import pons_selective_cohort as cohort

@@ -324,6 +324,7 @@ def run_contained(*, resources, ports, sizing_reader, stopped):
     from meme_machine.runtime.isolated_native_execution import isolated_native_execution
     resources = require_resources(resources)
     require_runner_ports(resources, ports)
+    ports.require_pons_profiles()
     _require(type(stopped) is threading.Event and callable(getattr(sizing_reader, 'apply_next', None)),
         'isolated_native_lifecycle_capabilities')
     for lane in ('pump', 'pons'):
@@ -346,7 +347,7 @@ def run_contained(*, resources, ports, sizing_reader, stopped):
         for lane in ('pump', 'pons'):
             for regime in ('current', 'survivor', 'discovery'):
                 ports.rpc_port(lane, regime)
-        ports.pons_feed()
+        ports.require_pons_feed_source()
         source_path = resources.root/'solana-evidence.sqlite'
         async def source(stop_event):
             await serve(source_path, None, repair_rpc=rpc, stop=stop_event,

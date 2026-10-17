@@ -430,7 +430,8 @@ class Runtime:
                 from meme_machine.runtime.isolated_native_bootstrap import require_runner_ports
                 ports=require_runner_ports(self.native_resources,self.native_ports)
                 context=SelectiveEvidenceContext(None,cache=cache,
-                    parent_port=ports.rpc_port('pons','survivor'),immutable_store=ports.pons_store())
+                    parent_port=ports.rpc_port('pons','survivor'),immutable_store=ports.pons_store(),
+                    native_profile=ports.pons_profile('survivor'))
             self.position_evidence_context=context
         return context
 

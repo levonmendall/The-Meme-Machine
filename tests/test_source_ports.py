@@ -137,6 +137,18 @@ class SourcePortsTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.sessions)
         self.assertFalse(self.physical.calls)
 
+    async def test_fixed_source_entry_refuses_missing_pons_profile_before_any_owner_or_provider(self):
+        import threading
+        from meme_machine.operational.isolated_native_source import run_contained
+        class Reader:
+            def apply_next(self,*args,**kwargs):raise AssertionError('unexpected sizing work')
+        with patch('sqlite3.connect',side_effect=AssertionError('native state opened')):
+            with self.assertRaisesRegex(ValueError,'read_role_unavailable'):
+                await asyncio.to_thread(run_contained,resources=self.resources,ports=self.ports,
+                    sizing_reader=Reader(),stopped=threading.Event())
+        self.assertFalse(list(self.resources.root.rglob('*.sqlite')))
+        self.assertFalse(self.physical.calls)
+
     async def test_private_native_cache_authority_uses_parent_identity_without_url(self):
         from pathlib import Path
         from contextlib import closing

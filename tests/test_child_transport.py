@@ -24,7 +24,9 @@ class ChildTransportTests(unittest.IsolatedAsyncioTestCase):
     async def connected(self, *, streams=None, cancelled=None,native_sources=()):
         parent, child = socket.socketpair()
         reader, writer = await asyncio.open_connection(sock=parent)
-        channel = ParentChannel(self.http, streams=streams,native_sources=native_sources)
+        from meme_machine.operational.pons_native_profile import ParentPonsProfiles
+        channel = ParentChannel(self.http, streams=streams,native_sources=native_sources,
+            pons_profiles=ParentPonsProfiles.configured(self.http,environ={}))
         task = asyncio.create_task(serve_connected(reader, writer, channel))
         port = await asyncio.to_thread(ChildChannel, child, cancelled=cancelled)
         async def close():
