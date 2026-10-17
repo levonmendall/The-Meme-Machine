@@ -319,15 +319,22 @@ class CandidateHistory:
         """
         return retained_reference_path(value,candidate_path=self.path,cold=cold)
 
-    def _reference_body(self,lane,candidate,identity,kind,ref,*,prepared=None,_archive_cache=None,_check=None):
+    def _reference_body(self,lane,candidate,identity,kind,ref,*,prepared=None,_archive_cache=None,_check=None,
+                        _restore_lookup=None):
         from meme_machine.solana_evidence_plane import decode_body
         if _check is not None:_check()
-        self._source_readers=getattr(self,'_source_readers',{})
         path=self._reference_path(ref['path'])
-        if path not in self._source_readers:
-            self._source_readers[path]=diagnostic_connect(path.as_uri()+'?mode=ro',diagnostic_role='candidate_reference',uri=True,timeout=30)
-        db=self._source_readers[path]
-        row=db.execute('SELECT body,hash,archive FROM canonical_evidence WHERE identity=?',(ref['canonical_identity'],)).fetchone()
+        if _restore_lookup is None:
+            self._source_readers=getattr(self,'_source_readers',{})
+            if path not in self._source_readers:
+                self._source_readers[path]=diagnostic_connect(path.as_uri()+'?mode=ro',diagnostic_role='candidate_reference',uri=True,timeout=30)
+            db=self._source_readers[path]
+            row=db.execute('SELECT body,hash,archive FROM canonical_evidence WHERE identity=?',(ref['canonical_identity'],)).fetchone()
+        else:
+            from .candidate_restore_reads import _Lookup
+            if type(_restore_lookup) is not _Lookup:
+                raise ValueError('candidate_restore_reference_owner')
+            row,db=_restore_lookup.source(self,ref,path)
         if row is None:raise ValueError('candidate_canonical_reference_missing')
         if prepared is not None and row[0]==prepared[1]:
             # A local ingest already holds the decoded record. Reuse it only
@@ -337,10 +344,21 @@ class CandidateHistory:
             r=prepared[0]
             checksum=hashlib.sha256(prepared[1].encode()).hexdigest()
         elif row[0] is not None:
-            r=decode_body(row[0],db);checksum=digest(r)
+            if _restore_lookup is not None and not _restore_lookup.fallback:
+                from meme_machine.solana_evidence_storage import finish_decode
+                from meme_machine.solana_evidence_plane import EvidenceConflict
+                try:r=finish_decode(_restore_lookup.prepared,chunks=_restore_lookup.chunks,
+                    decoded_chunks=_restore_lookup.decoded_chunks)
+                except (ValueError,TypeError,KeyError) as error:
+                    raise EvidenceConflict('hot_evidence_corrupt') from error
+                # Each prepared outer is one-shot. Only decoded chunks can be
+                # shared; the page cache owns/copies those at its boundary.
+            else:r=decode_body(row[0],db)
+            checksum=digest(r)
         else:
             import zlib
-            manifest=db.execute('SELECT path,hash FROM scoped_cold_manifests WHERE id=?',(row[2],)).fetchone()
+            manifest=(_restore_lookup.manifest if _restore_lookup is not None and not _restore_lookup.fallback
+                else db.execute('SELECT path,hash FROM scoped_cold_manifests WHERE id=?',(row[2],)).fetchone())
             if manifest is None:raise ValueError('candidate_canonical_reference_requires_restore')
             cold_path=self._reference_path(manifest[0],cold=True)
             records=None;key=None
@@ -577,14 +595,25 @@ class CandidateHistory:
                     slot,transaction_index,event_index,kind)
         return body
 
+    def restoration_reader(self,*,cancelled,archives):
+        from .candidate_restore_reads import RestoreReferenceReader
+        return RestoreReferenceReader(self,cancelled,archives)
+
     def events(self,lane,candidate,*,since=None,through=None,kind=None,kind_prefix=None,
-               cancelled=None,_restore_archive_cache=None):
+               cancelled=None,_restore_archive_cache=None,_restore_reference_reader=None):
         # The caller may share exactly one verified cold archive across its
         # cancellable Pump startup pass. No persistent/process-wide cache and
         # no cache authority during normal event reads.
         if _restore_archive_cache is not None and (
                 not callable(cancelled) or type(_restore_archive_cache) is not dict):
             raise ValueError('candidate_history_restore_archive_scope')
+        if _restore_reference_reader is not None:
+            from .candidate_restore_reads import require_reader
+            require_reader(_restore_reference_reader,self)
+            if (not callable(cancelled) or lane!='pump' or kind_prefix!='pump_'
+                    or cancelled is not _restore_reference_reader.cancelled
+                    or _restore_archive_cache is not _restore_reference_reader.archives):
+                raise ValueError('candidate_history_restore_reference_scope')
         sql="""SELECT body,hash FROM events WHERE lane=? AND candidate=?"""
         args=[lane,candidate]
         if since is not None:
@@ -614,7 +643,11 @@ class CandidateHistory:
                     body=json.loads(raw)
                     if digest(body)!=checksum:raise ValueError("candidate_history_corruption")
                     result.append(body)
-                for identity,kind,raw,checksum in self.db.execute(refs,params):
+                reference_rows=self.db.execute(refs,params)
+                if _restore_reference_reader is not None:
+                    result.extend(_restore_reference_reader.rows(lane,candidate,reference_rows))
+                    reference_rows=()
+                for identity,kind,raw,checksum in reference_rows:
                     check()
                     ref=json.loads(raw)
                     if digest(ref)!=checksum:raise ValueError('candidate_history_corruption')

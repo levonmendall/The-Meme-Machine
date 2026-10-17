@@ -611,6 +611,8 @@ def _restore_observed_pump_candidates(created,postgrad,pumpswap_stream,plane,con
     # source/manifest/stat fingerprints are rechecked for every referenced
     # record; all results retain independent authenticated payloads.
     archives={}
+    cancelled=requested.is_set
+    reads=CANDIDATE_HISTORY.restoration_reader(cancelled=cancelled,archives=archives)
     try:
         for candidate in CANDIDATE_HISTORY.candidates(lane='pump',event_prefix='pump_',
                 cancelled=requested.is_set):
@@ -618,8 +620,8 @@ def _restore_observed_pump_candidates(created,postgrad,pumpswap_stream,plane,con
             mint=candidate['candidate']
             if mint in created:continue
             economic=_startup_work('pump.observed_candidate_events',
-                CANDIDATE_HISTORY.events,'pump',mint,kind_prefix='pump_',cancelled=requested.is_set,
-                    _restore_archive_cache=archives)
+                CANDIDATE_HISTORY.events,'pump',mint,kind_prefix='pump_',cancelled=cancelled,
+                    _restore_archive_cache=archives,_restore_reference_reader=reads)
             # A completed read does not authorize more restart reconstruction after
             # TERM. Durable history/required work stays pending for a fresh resume.
             if requested.is_set():raise Shutdown()
@@ -662,6 +664,8 @@ def _restore_observed_pump_candidates(created,postgrad,pumpswap_stream,plane,con
                 history_status={},graduation_price=None)
     finally:
         archives.clear()
+        from meme_machine.runtime.sqlite_failure import preserving_cleanup
+        with preserving_cleanup():reads.close()
     return restored
 
 
