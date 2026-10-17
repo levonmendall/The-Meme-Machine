@@ -886,7 +886,7 @@ async def publish_operation_costs(path,owner,stop):
     from .operational.supervisor import Supervisor
     from .portfolio_accounting import _atomic_json
     from .runtime import operation_costs
-    if not operation_costs.enabled():return
+    if not operation_costs.enabled() or os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')!='1':return
     target=Path(path).parent/'solana-evidence-operation-costs.json'
     def store(row):
         for parent in (target.parent,*target.parent.parents):
@@ -1249,7 +1249,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
         producers=[asyncio.create_task(selected_source())]
         from .runtime.operation_costs import enabled as costs_enabled
         cost_publisher=(asyncio.create_task(publish_operation_costs(path,owner,stop))
-            if costs_enabled() else None)
+            if costs_enabled() and os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1' else None)
         tasks=[*producers,asyncio.create_task(maintenance()),asyncio.create_task(health()),asyncio.create_task(checkpoint()),asyncio.create_task(stop.wait())]
         if cost_publisher is not None:tasks.append(cost_publisher)
         done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)

@@ -3,6 +3,7 @@ import asyncio
 from contextlib import closing, contextmanager, nullcontext
 from copy import deepcopy
 import json
+import math
 import multiprocessing
 import os
 from pathlib import Path
@@ -135,6 +136,10 @@ def _session_child(root,channel,mode):
         from operational.tests import network_guard
         network_guard()
         os.environ['MM_OPERATION_COST_DIAGNOSTICS']='1'
+        os.environ['MM_SQLITE_DIAGNOSTIC_REQUIRED']='1'
+        if mode.startswith('serve_flags_'):
+            os.environ['MM_OPERATION_COST_DIAGNOSTICS']=mode[-2]
+            os.environ['MM_SQLITE_DIAGNOSTIC_REQUIRED']=mode[-1]
         asyncio.run(_child_serve(root,channel,mode) if mode.startswith('serve_')
             else _child_publication(root,channel,mode))
     except BaseException as error:
@@ -152,6 +157,11 @@ async def _child_serve(root,channel,mode):
     path=Path(root)/'shared/solana-evidence.sqlite';path.parent.mkdir(parents=True)
     target=path.parent/FILENAME;stop=asyncio.Event();published=asyncio.Event()
     loop=asyncio.get_running_loop();owners=[];writes=[];original_init=PriorityOwner.__init__
+    optional=mode.startswith('serve_flags_');health_published=asyncio.Event();selection={}
+    original_health=service.ServiceState.publish_health
+    def publish_health(state,*args,**kwargs):
+        result=original_health(state,*args,**kwargs)
+        loop.call_soon_threadsafe(health_published.set);return result
     def owner_init(owner,*args,**kwargs):
         original_init(owner,*args,**kwargs);owners.append(owner)
     def stored(destination,row):
@@ -159,13 +169,27 @@ async def _child_serve(root,channel,mode):
         if row['publication_state']=='ACTIVE':loop.call_soon_threadsafe(published.set)
     async def driver(work,stop):
         boot=asyncio.Event();boot.set();await quiet_model_b(work,boot)
-        await published.wait();stop.set()
+        if optional:
+            await health_published.wait()
+            with patch.object(diagnostic,'source_operation_costs',side_effect=AssertionError('optional file read')) as reader:
+                sample=diagnostic.pipeline_sample(root,os.getpid())
+            with closing(sqlite3.connect(path)) as db:
+                ipc=json.loads(db.execute("SELECT value FROM service_health WHERE key='ipc'").fetchone()[0])
+            selected=sample['required_counters']['operation_costs']
+            selection.update(reader_calls=reader.call_count,sql_metadata_preserved=
+                selected==diagnostic.operation_costs(ipc.get('operation_costs'),os.getpid()),
+                costs_available=selected['available'],independent_transport='transport' in selected)
+        else:await published.wait()
+        stop.set()
     if mode=='serve_error':
         temporary=target.with_name(target.name+'.tmp');temporary.write_bytes(b'unchanged');temporary.chmod(0o644)
     error=None
     with ipc_transport(),patch.object(PriorityOwner,'__init__',owner_init), \
             patch('concurrent.futures.ProcessPoolExecutor',NativeCompletionPool), \
-            patch('meme_machine.portfolio_accounting._atomic_json',stored):
+            patch('meme_machine.portfolio_accounting._atomic_json',stored), \
+            patch.object(service.ServiceState,'publish_health',publish_health), \
+            (patch.object(service,'publish_operation_costs',side_effect=AssertionError('optional publisher'))
+                if optional else nullcontext()):
         try:
             await asyncio.wait_for(service.serve(path,'https://solana-mainnet.g.alchemy.com/v2/offline-test',
                 stop=stop,source_driver=driver),8)
@@ -178,6 +202,7 @@ async def _child_serve(root,channel,mode):
         publisher_pending=any(not task.done() and task.get_coro().__qualname__=='publish_operation_costs'
             for task in asyncio.all_tasks()),
         writes=completed,no_late_writes=writes==completed,
+        selection=selection,
         terminal=json.loads(target.read_text())['publication_state'] if target.exists() else None))
 
 
@@ -244,6 +269,20 @@ class SourceOperationPublicationTests(unittest.TestCase):
         self.assertEqual(result['writes'][-1],'STOPPED');self.assertEqual(result['terminal'],'STOPPED')
         self.assertTrue(result['no_late_writes'])
 
+    def test_optional_flag_matrix_keeps_actual_serve_sql_costs_without_publisher_or_file_reader(self):
+        for costs,required in (('0','0'),('1','0'),('0','1')):
+            with self.subTest(costs=costs,required=required):
+                # Each real service uses its own disposable canonical SQLite store.
+                with tempfile.TemporaryDirectory() as temporary:
+                    original=self.root;self.root=Path(temporary)
+                    try:result=self.serve_result('serve_flags_'+costs+required)
+                    finally:self.root=original
+                self.assertIsNone(result['error']);self.assertEqual(result['phase'],'OFF')
+                self.assertTrue(result['owners_closed']);self.assertFalse(result['publisher_pending'])
+                self.assertEqual(result['writes'],[]);self.assertIsNone(result['terminal'])
+                self.assertEqual(result['selection'],dict(reader_calls=0,sql_metadata_preserved=True,
+                    costs_available=costs=='1',independent_transport=False))
+
     def test_real_owner_block_does_not_block_fresh_cost_publication_or_change_database(self):
         with self.publisher() as box:
             ready=box['ready'];observed=self.read(ready['pid']);row=observed['operation_costs']
@@ -285,9 +324,13 @@ class SourceOperationPublicationTests(unittest.TestCase):
         with self.publisher() as box:
             pid=box['ready']['pid'];row=self.read(pid)['operation_costs'];clock=row['collected_monotonic']
             guard=diagnostic.OperationCoverage()
-            self.assertIsNone(guard.check('solana',row,clock+15))
-            for observed in (clock+15.0001,clock-0.0001):
-                self.assertEqual(guard.check('solana',row,observed),'operation_cost_sample_stale:solana')
+            # A real uptime near a binary exponent boundary can make
+            # (clock + 15) - clock round above 15. Use exact binary fixture
+            # clocks for the predicate boundary; retain the real reader clock.
+            boundary_row=dict(row,collected_monotonic=1024.125)
+            self.assertIsNone(guard.check('solana',boundary_row,1039.125))
+            for observed in (math.nextafter(1039.125,math.inf),math.nextafter(1024.125,-math.inf)):
+                self.assertEqual(guard.check('solana',boundary_row,observed),'operation_cost_sample_stale:solana')
             # Reading a retained sample never renews the original producer clock.
             self.assertEqual(self.read(pid)['operation_costs']['collected_monotonic'],clock)
 
@@ -331,10 +374,11 @@ class SourceOperationPublicationTests(unittest.TestCase):
 
     def test_opt_out_creates_no_file_or_internal_task(self):
         async def exercise():
-            with patch.dict(os.environ,MM_OPERATION_COST_DIAGNOSTICS='0'), \
-                    patch.object(asyncio,'create_task',side_effect=AssertionError('opt-out task')), \
-                    patch('meme_machine.portfolio_accounting._atomic_json',side_effect=AssertionError('opt-out write')):
-                await service.publish_operation_costs(self.root/'shared/solana-evidence.sqlite',None,asyncio.Event())
+            for costs,required in (('0','0'),('1','0'),('0','1')):
+                with patch.dict(os.environ,MM_OPERATION_COST_DIAGNOSTICS=costs,MM_SQLITE_DIAGNOSTIC_REQUIRED=required), \
+                        patch.object(asyncio,'create_task',side_effect=AssertionError('opt-out task')), \
+                        patch('meme_machine.portfolio_accounting._atomic_json',side_effect=AssertionError('opt-out write')):
+                    await service.publish_operation_costs(self.root/'shared/solana-evidence.sqlite',None,asyncio.Event())
         asyncio.run(exercise())
         self.assertFalse(self.path.exists());self.assertEqual(list(self.root.iterdir()),[])
 

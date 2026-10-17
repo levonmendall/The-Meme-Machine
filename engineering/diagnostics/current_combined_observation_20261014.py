@@ -823,7 +823,8 @@ def pipeline_sample(root, expected_pid):
                           required_counters=required_counters(health,now_monotonic=started),
                           service_health=numeric(descriptive),
                           ipc_scope='EXPLICIT_REQUIRED_COUNTERS_ONLY_NOT_DUPLICATED_DESCRIPTIVE_IPC')
-            if os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1':
+            if (os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1'
+                    and os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1'):
                 telemetry=source_operation_costs(root,expected_pid)
                 result['required_counters']['operation_costs']=telemetry.pop('operation_costs')
                 result['source_operation_telemetry']=telemetry

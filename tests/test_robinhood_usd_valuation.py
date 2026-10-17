@@ -199,17 +199,18 @@ SOURCE_RECORDER_PUBLICATION_REFERENCE='6681087c643a205cf1448f4eabcc984ed31906ac'
 SOURCE_RECORDER_PUBLICATION_DELTAS={
     'meme_machine/solana_evidence_service.py':(
         '717a471a0451085b1de27a1927f44aedde5a1acd7253bfdbb217800a07e0a15c',
-        'b33287feda6393065667fa96b14ea78d12fca32c03e4ae6f36826d347f09d311',
+        'b1f0e8d9aaa5db37e73ea544be47725f04f7b97f6e6ad12613c8012770bc5e72',
         'serve','publish_operation_costs',(
             b'        from .runtime.operation_costs import enabled as costs_enabled\n'
             b'        cost_publisher=(asyncio.create_task(publish_operation_costs(path,owner,stop))\n'
-            b'            if costs_enabled() else None)\n',
+            b"            if costs_enabled() and os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1' else None)\n",
             b'        if cost_publisher is not None:tasks.append(cost_publisher)\n')),
     'engineering/diagnostics/current_combined_observation_20261014.py':(
         'b81d8edb46593777851d42f8b8c84519dc1217119efba23adc5274ae47119b84',
-        '8e968c3b9b7d6110139a03825f13a7ef95a48f18dd6ca74a0141ccca2281b048',
+        '5a3adec8c1e28069a43cd521551e7aa7f886260390dbd36e82ce0d3d0a2b0ba2',
         'pipeline_sample','source_operation_costs',(
-            b"            if os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1':\n"
+            b"            if (os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1'\n"
+            b"                    and os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1'):\n"
             b'                telemetry=source_operation_costs(root,expected_pid)\n'
             b"                result['required_counters']['operation_costs']=telemetry.pop('operation_costs')\n"
             b"                result['source_operation_telemetry']=telemetry\n",)),
@@ -2842,8 +2843,14 @@ class RobinhoodUSDTests(unittest.TestCase):
         import hashlib
         mutations={
             'meme_machine/solana_evidence_service.py':(
-                (b'if not operation_costs.enabled():return',b'if False:return'),
-                (b'if costs_enabled() else None)',b'if True else None)'),
+                (b"if not operation_costs.enabled() or os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')!='1':return",
+                    b'if not operation_costs.enabled():return'),
+                (b"if not operation_costs.enabled() or os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')!='1':return",
+                    b'if False:return'),
+                (b"if costs_enabled() and os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1' else None)",
+                    b'if costs_enabled() else None)'),
+                (b"if costs_enabled() and os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1' else None)",
+                    b"if os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1' else None)"),
                 (b'if cost_publisher is not None:tasks.append(cost_publisher)',b'if False:tasks.append(cost_publisher)'),
                 (b"operation_costs=costs,owner_scheduler=owner.telemetry()",
                     b'operation_costs={},owner_scheduler={}'),
@@ -2874,7 +2881,12 @@ class RobinhoodUSDTests(unittest.TestCase):
                 (b"not finite_number(costs.get('collected_monotonic'))",b'False'),
                 (b"costs['collected_monotonic']<0",b'False'),
                 (b'reduced=operation_costs(costs,expected_pid)',b'reduced=costs'),
-                (b"if os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1':",b'if True:'),
+                (b"if (os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1'\n"
+                    b"                    and os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1'):",
+                    b"if os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1':"),
+                (b"if (os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1'\n"
+                    b"                    and os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1'):",
+                    b"if os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1':"),
                 (b"result['source_operation_telemetry']=telemetry",b"result['available']=True"),
                 (b'not 0 <= now - sampled <= 15',b'not 0 <= now - sampled <= 30'),
                 (b"db.execute('PRAGMA query_only=ON')",b"db.execute('PRAGMA query_only=OFF')")),
