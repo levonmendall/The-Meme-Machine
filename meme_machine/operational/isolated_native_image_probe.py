@@ -95,7 +95,7 @@ def main():
     checks['private_dev_shm']=(os.stat('/dev/shm').st_dev!=fixture['host_shm']
                               and bool(list(Path('/dev/shm').glob('sem.*'))))
     with concurrent.futures.ProcessPoolExecutor(max_workers=2,mp_context=context) as pool:
-        checks['real_preparation_spawn_pool']=list(pool.map(square,[1,2,3,4]))==[1,4,9,16]
+        checks['real_spawn_pool']=list(pool.map(square,[1,2,3,4]))==[1,4,9,16]
     parent.sendall(b'proof ready')
     if not stopped.wait(5):raise ValueError('native_image_probe_term_not_delivered')
     with sqlite3.connect('/work/native/image-proof.sqlite') as database:
@@ -107,6 +107,7 @@ def main():
     print(json.dumps(dict(schema='isolated-native-image-proof-v1',status='ISOLATED_NATIVE_IMAGE_PROVEN'
         if checks['all'] else 'BLOCKED',checks=checks,financial_authority=False,provider_calls=0,
         native_runners_started=False,native_source_started=False,full_market_speed_proven=False,
+        economic_preparation_exercised=False,
         native_resource_profile_verified=False,proof_nofile_limit=4096,
         production_equivalent=False,actual_service_restrictions_verified=False)),flush=True)
     return 0 if checks['all'] else 2

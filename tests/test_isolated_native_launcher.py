@@ -176,6 +176,7 @@ class DescriptorAndLifetimeTests(unittest.TestCase):
             self.assertTrue(result['parent_cwd_unchanged'])
             self.assertFalse(result['native_runners_started'])
             self.assertFalse(result['native_source_started'])
+            self.assertFalse(result['economic_preparation_exercised'])
             self.assertFalse(result['financial_authority'])
             self.assertFalse(result['production_equivalent'])
             self.assertFalse(result['native_resource_profile_verified'])
