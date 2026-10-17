@@ -36,6 +36,7 @@ entered=threading.Event();block=threading.Event()
 class Channel:
     session='s'*43
     abort=staticmethod(unsafe_close)
+    abort_and_join=staticmethod(unsafe_close)
 class Reader:
     close=staticmethod(unsafe_close)
     def receive(self):return resources.facts

@@ -7,6 +7,8 @@ The fixed bootstrap must enforce its OS boundary before constructing this port.
 """
 import asyncio
 import base64
+from concurrent.futures import ThreadPoolExecutor
+import contextvars
 import hashlib
 import json
 import math
@@ -50,6 +52,15 @@ def _parent_failure(reply):
 def _require(condition, code):
     if not condition:
         raise ChildTransportFailure(code)
+
+
+async def _settled(future):
+    """Join an accepted operation despite repeated cancellation of its waiter."""
+    while not future.done():
+        try:await asyncio.shield(future)
+        except asyncio.CancelledError:continue
+        except BaseException:break
+    return future.result()
 
 
 def _unique(pairs):
@@ -116,6 +127,9 @@ class ChildChannel:
         self.lock = threading.RLock()
         self.sequence = 1
         self.closed = False
+        self._read_lane=None
+        self._native_reads={}
+        self._read_owner=threading.local()
         try:
             hello = self._read(self.deadline)
             expected = {'session', 'protocol', 'sources', 'streams', 'chunk_bytes',
@@ -159,6 +173,10 @@ class ChildChannel:
             self.streams=tuple(descriptors)
             self.session = hello['session']
             self.maximum_messages = hello['maximum_messages']
+            # Idle native reads must never occupy asyncio's shared executor:
+            # RPC, write and close operations still need that execution lane.
+            self._read_lane=ThreadPoolExecutor(max_workers=self.maximum_streams,
+                thread_name_prefix='isolated-native-read')
         except BaseException:
             self.abort()
             raise
@@ -317,6 +335,37 @@ class ChildChannel:
     def native_stream(self, reference):
         return self.native_open(reference)
 
+    def _run_native_read(self,stream,timeout):
+        from meme_machine.runtime.isolated_native_execution import install_isolated_native_execution
+        install_isolated_native_execution()
+        self._read_owner.active=True
+        try:return stream.read(timeout)
+        finally:self._read_owner.active=False
+
+    def _submit_native_read(self,stream,timeout):
+        with self._native_lock:
+            require_native_stream(stream)
+            _require(stream.channel is self and stream.stream not in self._native_reads,
+                'child_native_read_in_flight')
+            _require(len(self._native_reads)<self.maximum_streams,'child_native_read_capacity')
+            context=contextvars.copy_context()
+            try:future=self._read_lane.submit(context.run,self._run_native_read,stream,timeout)
+            except BaseException:
+                # ThreadPoolExecutor may enqueue before starting a worker.
+                # Refuse the whole channel, cancel its queued work and retain
+                # the lane for the outer owner's real join after any failure.
+                self.abort()
+                raise
+            self._native_reads[stream.stream]=future
+            return future
+
+    def _release_native_read(self,stream,future):
+        with self._native_lock:
+            # The async owner releases this only after the accepted read and
+            # any cancellation-triggered close have actually joined.
+            if future.done() and self._native_reads.get(stream.stream) is future:
+                del self._native_reads[stream.stream]
+
     def pons_profile(self,source):
         from .parent_transport import SourceReference
         from .pons_native_profile import profile_from_parent
@@ -399,13 +448,29 @@ class ChildChannel:
         except OSError:
             pass
         self.socket.close()
+        if self._read_lane is not None:
+            # request() may abort while holding the control lock, or from a read
+            # worker itself. Joining here could deadlock that original failure.
+            self._read_lane.shutdown(wait=False,cancel_futures=True)
+
+    def abort_and_join(self):
+        self.abort()
+        _require(not getattr(self._read_owner,'active',False) and not self.lock._is_owned(),
+            'child_native_read_owner_join_required')
+        if self._read_lane is not None:
+            self._read_lane.shutdown(wait=True,cancel_futures=True)
+        with self._native_lock:
+            _require(all(future.done() for future in self._native_reads.values()),
+                'child_native_read_join_incomplete')
+            self._native_reads.clear()
 
     def close(self):
-        if not self.closed:
-            try:
+        _require(not getattr(self._read_owner,'active',False),
+            'child_native_read_owner_join_required')
+        try:
+            if not self.closed:
                 _require(self.request('close') == {'status':'closed'}, 'child_close_reply')
-            finally:
-                self.abort()
+        finally:self.abort_and_join()
 
 
 class ChildNativeStream:
@@ -473,13 +538,20 @@ class ChildNativeStream:
             self._read_lock.release()
 
     async def read_async(self,timeout=None):
-        task=asyncio.create_task(asyncio.to_thread(self.read,timeout))
+        accepted=self.channel._submit_native_read(self,timeout)
+        task=asyncio.wrap_future(accepted)
         try:
             return await asyncio.shield(task)
         except asyncio.CancelledError:
-            await self.close_async()
-            await asyncio.gather(task,return_exceptions=True)
+            failure=None
+            closing=asyncio.create_task(self.close_async())
+            try:await _settled(closing)
+            except BaseException as error:failure=error
+            try:await _settled(task)
+            except BaseException:pass
+            if failure is not None:raise failure
             raise
+        finally:self.channel._release_native_read(self,accepted)
 
     def write(self,body):
         return self._write(body,None)

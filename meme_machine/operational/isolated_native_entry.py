@@ -220,7 +220,7 @@ def main():
             # not exit; only this fixed descriptor/image-checked entry does.
             _terminal_process_exit(receipt)
         closing=[owner.close for owner in (ports,resources,reader) if owner is not None]
-        if channel is not None:closing.append(channel.abort)
+        if channel is not None:closing.append(channel.abort_and_join)
         for close in closing:
             try:close()
             except BaseException as error:
