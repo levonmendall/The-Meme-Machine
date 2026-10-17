@@ -226,7 +226,7 @@ class PonsOperationCostsTests(unittest.TestCase):
         self.assertGreater(row['sql']['statement']['calls'],0)
         self.assertEqual(row['failed_calls'],0)
 
-    def test_diagnostic_environment_reaches_only_pons_and_source_with_sqlite_fence(self):
+    def test_diagnostic_environment_reaches_pump_pons_and_source_with_sqlite_fence(self):
         from meme_machine.operational.supervisor import Supervisor
         with tempfile.TemporaryDirectory() as td:
             supervisor=Supervisor(td,offline=False);supervisor.epoch='offline-diagnostic'
@@ -235,7 +235,7 @@ class PonsOperationCostsTests(unittest.TestCase):
                 children={lane:supervisor.environment(lane) for lane in ('pons','solana','pump')}
             self.assertEqual(children['pons']['MM_OPERATION_COST_DIAGNOSTICS'],'1')
             self.assertEqual(children['solana']['MM_OPERATION_COST_DIAGNOSTICS'],'1')
-            self.assertNotIn('MM_OPERATION_COST_DIAGNOSTICS',children['pump'])
+            self.assertEqual(children['pump']['MM_OPERATION_COST_DIAGNOSTICS'],'1')
             self.assertIn('MM_SQLITE_DIAGNOSTIC_REQUIRED',children['solana'])
             for lane in ('pons','pump'):
                 self.assertNotIn('MM_SQLITE_DIAGNOSTIC_REQUIRED',children[lane])

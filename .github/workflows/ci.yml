@@ -65,6 +65,15 @@ jobs:
           group = LinuxGroup(LIMITS)
           group.close()
           modules = [
+              'tests.test_provider_budget_namespace_read',
+              'tests.test_native_usage_intake',
+              'tests.test_bounded_provider_preflight',
+              'tests.test_continuous_paper',
+              'tests.test_restored_provider_history',
+              'tests.test_position_continuation',
+              'tests.test_pump_cost_environment',
+              'tests.test_pons_operation_costs',
+              'tests.test_operational_supervisor',
               'tests.test_publication_accounting_turn',
               'tests.test_pump_restore_cost_attribution',
               'tests.test_solana_history_separation',
