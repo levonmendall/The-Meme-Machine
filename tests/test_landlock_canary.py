@@ -345,6 +345,93 @@ class LandlockCanaryTests(unittest.TestCase):
                     ll._spec(dict(row,scope_fd=bad))
             scope.check();scope.success=True
 
+    def closed_stdio_fixture(self,work,body):
+        """Use the real fixed FD handoff; never install a kernel policy."""
+        script=('import errno,json,os,socket,sys;from pathlib import Path;sys.path.insert(0,'+
+            repr(str(Path(ll.__file__).resolve().parents[2]))+');'
+            'from meme_machine.operational import landlock_canary as ll;'
+            'll._fixed_fds(int(sys.argv[1]),int(sys.argv[2]));'
+            'before=ll._fd_snapshot();cwd=Path.cwd();work=Path(sys.argv[3]);\n'+body+
+            '\nresult.update(fds_restored=ll._fd_snapshot()==before,cwd_unchanged=Path.cwd()==cwd);'
+            'os.write(3,json.dumps(result).encode());os._exit(0)')
+        parent,child=socket.socketpair();read_fd,write_fd=os.pipe();process=None
+        try:
+            os.close(write_fd);write_fd=None
+            with parent,child:
+                process=subprocess.Popen([sys.executable,'-I','-B','-S','-c',script,
+                    str(child.fileno()),str(read_fd),str(work)],stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
+                    pass_fds=(child.fileno(),read_fd),env={})
+                child.close();parent.settimeout(3)
+                result=json.loads(parent.recv(4096))
+                self.assertEqual(process.wait(timeout=3),0)
+                self.assertTrue(result['fds_restored'])
+                self.assertTrue(result['cwd_unchanged'])
+                return result
+        finally:
+            parent.close();child.close();os.close(read_fd)
+            if write_fd is not None:os.close(write_fd)
+            if process is not None and process.poll() is None:
+                process.kill();process.wait(timeout=2)
+
+    def test_actual_closed_stdio_socket_fixtures_move_directory_above_reserved_channels(self):
+        with Scratch() as scope:
+            work=scope.path/('private-work-'+'x'*100);work.mkdir(mode=0o700)
+            before=ll._fd_snapshot();cwd=Path.cwd()
+            result=self.closed_stdio_fixture(work,r'''
+result={}
+assert set(before)=={3,4}
+with ll._socket_fixtures(work) as (loose,bound,listener,pair,denied):
+    directory_fd=int(bound.getsockname().split('/')[-2])
+    assert directory_fd>=5 and not os.get_inheritable(directory_fd)
+    assert os.fstat(directory_fd).st_ino==work.stat().st_ino
+    loose.connect(listener.getsockname())
+    accepted,_=listener.accept()
+    with accepted:
+        loose.sendall(b'fixed pathname fixture')
+        assert accepted.recv(32)==b'fixed pathname fixture'
+    assert pair[1].recv(1)==b'x'
+    assert os.fstat(3).st_mode==before[3][2] and os.fstat(4).st_mode==before[4][2]
+    result.update(directory_above_channels=True,genuine_pathname_connection=True)
+''')
+            self.assertTrue(result['directory_above_channels'])
+            self.assertTrue(result['genuine_pathname_connection'])
+            self.assertEqual(ll._fd_snapshot(),before)
+            self.assertEqual(Path.cwd(),cwd)
+            scope.check();scope.success=True
+
+    def test_actual_closed_stdio_directory_dup_failure_closes_initial_low_descriptor(self):
+        with Scratch() as scope:
+            work=scope.path/'work';work.mkdir(mode=0o700)
+            result=self.closed_stdio_fixture(work,r'''
+result={}
+original=ll.fcntl.fcntl
+def fail_dup(fd,command,*args):
+    if command==ll.fcntl.F_DUPFD_CLOEXEC and args==(5,):
+        assert fd==0
+        raise OSError(errno.EMFILE,'fixed duplicate failure')
+    return original(fd,command,*args)
+ll.fcntl.fcntl=fail_dup
+try:
+    with ll._fixture_directory(work):raise AssertionError('unexpected directory')
+except OSError as error:
+    assert error.errno==errno.EMFILE
+    result['duplication_failure_owned']=True
+else:raise AssertionError('missing duplicate failure')
+finally:ll.fcntl.fcntl=original
+''')
+            self.assertTrue(result['duplication_failure_owned'])
+            scope.check();scope.success=True
+
+    def test_directory_open_failure_preserves_every_parent_descriptor(self):
+        with Scratch() as scope:
+            before=ll._fd_snapshot()
+            with patch.object(ll.os,'open',side_effect=OSError(errno.EMFILE,'fixed open failure')):
+                with self.assertRaises(OSError):
+                    with ll._fixture_directory(scope.path):self.fail('unexpected directory')
+            self.assertEqual(ll._fd_snapshot(),before)
+            scope.check();scope.success=True
+
     def test_static_fixture_is_exact_bounded_executable(self):
         raw=ll._elf()
         self.assertEqual(len(raw),129)

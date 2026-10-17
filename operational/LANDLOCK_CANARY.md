@@ -177,3 +177,31 @@ with the directory FD absent from the child, unchanged cwd/TMPDIR/parent FDs,
 and original failure/reaping/privacy/BPF regressions. No actual Landlock or
 seccomp policy was installed by these tests. AWS enforcement remains unproved
 until the corrected bounded workflow produces its own authentic receipt.
+
+## Closed-stdio fixture ownership correction
+
+AWS run39071600357 on sourcefc7dd4d447dd773b06184ec373c2c65c00cbd85d
+observed actual Landlock ABI8. Its filesystem read/write, readonly-image,
+proc-data, abstract-scope, signal-scope, inherited-FD and empty-capability checks
+were true, and all four parent predicates were true. It remained BLOCKED with
+child exit2 and `landlock_canary_spec` at `child_socket_fixtures`. Those genuine
+partial checks remain evidence; they do not establish full canary/native parity.
+
+The fixed child deliberately closes stdio. The next private directory open
+therefore returns FD0, which the strict numeric short-path alias rejects. A real
+offline subprocess reproduces this exact allocation and typed error using the
+original `_fixed_fds`, without any kernel policy syscall. Earlier socket fixtures
+kept ordinary stdio open and did not cover this condition.
+
+The owned fixture-directory context now moves any handle below5 through
+`F_DUPFD_CLOEXEC` with minimum5, then immediately closes its original low handle.
+FD3/4 remain reserved for parent IPC/facts. Parent-issued descriptor validation,
+directory inode validation and filesystem/seccomp rights remain unchanged. Both
+original and duplicate handles are registered before another operation can fail;
+duplication, validation and context failures close every owned handle.
+
+All30 focused tests pass, including actual closed-stdio pathname bind/connect
+and anonymous status delivery, reserved-channel preservation, low-FD duplication
+failure, open failure and existing reaping/privacy/BPF regressions. These are
+offline lifecycle/fixture proofs. The known local ENOSYS kernel limitation was
+not retried; complete corrected AWS enforcement still requires its own receipt.
