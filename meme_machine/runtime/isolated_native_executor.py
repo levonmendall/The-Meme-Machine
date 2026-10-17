@@ -126,6 +126,9 @@ class IsolatedSpawnExecutor(Executor):
         self._threads = []
         self._channels = []
         self._started = False
+        from .isolated_native_spawn import current_spawn_scope
+        self._kernel_counts=(dict(returned=0,successful=0,probe_successful=0)
+            if current_spawn_scope() is not None else None)
 
     def _start_owned(self):
         """Lazy startup: the caller owns this executor before any child exists.
@@ -225,6 +228,8 @@ class IsolatedSpawnExecutor(Executor):
                 except BaseException as exc:
                     self._finished(work, error=exc)
                     continue
+                probe=(getattr(work.function,'__module__',None)=='meme_machine.solana_evidence_service'
+                    and getattr(work.function,'__name__',None)=='source_decoder_probe')
                 work.function = None
                 work.args = ()
                 work.kwargs = {}
@@ -233,6 +238,12 @@ class IsolatedSpawnExecutor(Executor):
                 identity, value, error = ForkingPickler.loads(reader.recv_bytes(MAX_FRAME_BYTES))
                 if identity != work.identity or (error is not None and not isinstance(error, BaseException)):
                     raise RuntimeError('isolated_native_worker_result_identity')
+                if self._kernel_counts is not None:
+                    with self._condition:
+                        self._kernel_counts['returned']+=1
+                        if error is None:
+                            self._kernel_counts['successful']+=1
+                            if probe:self._kernel_counts['probe_successful']+=1
                 self._finished(work, value=value, error=error)
                 del value, error, work
             if not self._broken:
@@ -294,4 +305,17 @@ class IsolatedSpawnExecutor(Executor):
             # for one child. It is still owned, and must join before return.
             for process in self._processes.values():
                 process.join()
+
+    def kernel_lifecycle_snapshot(self):
+        """Only the explicit copied profile records actual post-join counts."""
+        with self._condition:
+            if self._kernel_counts is None:return dict(state='UNAVAILABLE')
+            if not self._shutdown_thread or any(thread.is_alive() for thread in self._threads):
+                return dict(state='UNJOINED')
+            joined=sum(process.exitcode is not None for process in self._processes.values())
+            return dict(state='JOINED' if joined==len(self._processes) else 'UNJOINED',
+                role=self._role,spawned=len(self._processes),joined=joined,
+                zero_exit=sum(process.exitcode==0 for process in self._processes.values()),
+                broken=bool(self._broken),termination_failed=self._termination_failed,
+                submitted=self._next_identity,**self._kernel_counts)
 

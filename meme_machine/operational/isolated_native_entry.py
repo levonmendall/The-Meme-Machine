@@ -260,6 +260,8 @@ def main(*,layout=None):
             except BaseException as error:
                 receipt.update(status='BLOCKED',failure_code='isolated_native_child_cleanup_failed',
                     failure_type=type(error).__name__)
+        if spawn_scope is not None:
+            receipt['native_kernel_lifecycle']=spawn_scope.kernel_lifecycle_snapshot()
         print(json.dumps(receipt,sort_keys=True,separators=(',',':')),flush=True)
     return 0 if receipt['status']=='COMPLETED' else 2
 

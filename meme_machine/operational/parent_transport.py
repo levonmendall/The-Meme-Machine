@@ -890,6 +890,42 @@ class NativeSourceBinding:
     async def open(self, budget, *, factory=None):
         # factory is trusted test dependency injection, never present on the wire.
         return await ParentNativeStream.open(budget, self.transport,
-            factory or (sequencer_native_factory(self.source) if self.transport=='robinhood_sequencer'
+            factory if factory is not None else (sequencer_native_factory(self.source) if self.transport=='robinhood_sequencer'
                 else authenticated_native_factory(self.source, self.transport, token=self.token)),
             lambda body: validate_subscription(self.transport, body))
+
+
+class NativeFactoryMap:
+    """Explicit parent-only physical test dependencies for exact native sources.
+
+    Every dynamic native source must have exactly one factory. Missing keys,
+    another HTTP owner, replacement bindings and partial maps refuse before an
+    open; no supplied-map failure can fall back to an external transport. This
+    capability is never serialized or selectable through child messages.
+    """
+    __slots__=('_http','_bindings','_factories')
+
+    def __init__(self,http,native_sources,factories):
+        bindings=tuple(native_sources)
+        _require(type(http) is ParentHTTP and 1<=len(bindings)<=32
+            and all(type(row) is NativeSourceBinding and
+                http.sources.get(row.source.alias.name) is row.source for row in bindings),
+            'parent_native_factory_owner')
+        keys={(row.source.alias.name,row.transport) for row in bindings}
+        _require(len(keys)==len(bindings) and type(factories) is dict and set(factories)==keys
+            and all(callable(factory) for factory in factories.values()),
+            'parent_native_factory_scope')
+        object.__setattr__(self,'_http',http)
+        object.__setattr__(self,'_bindings',bindings)
+        object.__setattr__(self,'_factories',MappingProxyType(dict(factories)))
+
+    def __setattr__(self,name,value):raise AttributeError('immutable_native_factory_map')
+
+    def require_owner(self,http,bindings):
+        _require(http is self._http and len(bindings)==len(self._bindings)
+            and all(any(row is owned for owned in self._bindings) for row in bindings),
+            'parent_native_factory_owner')
+
+    def factory(self,binding):
+        _require(any(binding is row for row in self._bindings),'parent_native_factory_binding')
+        return self._factories[(binding.source.alias.name,binding.transport)]

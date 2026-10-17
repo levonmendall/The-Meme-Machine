@@ -13,7 +13,7 @@ import re
 import secrets
 
 from .bounded_provider import MAX_FRAME
-from .parent_transport import ParentHTTP, ParentNativeStream, ParentTransportFailure, NativeSourceBinding
+from .parent_transport import ParentHTTP, ParentNativeStream, ParentTransportFailure, NativeSourceBinding, NativeFactoryMap
 from .transport_bridge import (
     BridgeRejected, ParentAttempt, ReadCall, Delivered, _json, _params, _require,
     decode_request, encode_frame, read_request_frame,
@@ -64,7 +64,7 @@ class ParentChannel:
     response may reach MAX_FRAME, delivered in acknowledged 64-KiB chunks. Native
     buffering remains the original NativeReadBuffer, with one handoff in flight.
     """
-    def __init__(self, http, *, streams=None, native_sources=(), pons_profiles=None, seconds=1800, workers=4,
+    def __init__(self, http, *, streams=None, native_sources=(), native_factories=None, pons_profiles=None, seconds=1800, workers=4,
                  attempt_seconds=30):
         from .pons_native_profile import ParentPonsProfiles
         _require(pons_profiles is None or type(pons_profiles) is ParentPonsProfiles
@@ -93,6 +93,10 @@ class ParentChannel:
             for s in bound) and len({s.source.alias.name for s in bound}) == len(bound),
             'parent_native_sources')
         self.native_sources = {s.source.alias.name: s for s in bound}
+        _require(native_factories is None or type(native_factories) is NativeFactoryMap,
+            'parent_native_factory_type')
+        if native_factories is not None:native_factories.require_owner(http,bound)
+        self._native_factories=native_factories
         self._native_busy = set()
         self._opening=set()
         self.max_operations=2*self.max_streams+workers+8
@@ -438,7 +442,9 @@ class ParentChannel:
             async with asyncio.timeout_at(min(self.deadline,upload.deadline if upload is not None
                     else asyncio.get_running_loop().time()+8)):
                 if verb == 'native_open':
-                    content.stream=await self.native_sources[alias].open(self.http.budget)
+                    source=self.native_sources[alias]
+                    factory=(None if self._native_factories is None else self._native_factories.factory(source))
+                    content.stream=await source.open(self.http.budget,factory=factory)
                     self.streams[content.stream_id]=content.stream
                     self.stream_aliases[content.stream_id]=alias
                     content.status = 'opened'

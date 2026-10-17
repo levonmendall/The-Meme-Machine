@@ -114,7 +114,12 @@ def _exec_native(value,binding,supervisor):
     resource.setrlimit(resource.RLIMIT_CPU,(cpu,cpu))
     command=_entry_command(layout)
     executable=str(layout.executable)
-    kernel.install(binding,layout.work_root)
+    version=kernel.install(binding,layout.work_root)
+    # A fixed bounded pre-exec observation, not a selectable child policy or
+    # source of authority. The validation parent also requires the exact
+    # approved fixed entry and its independently checked native output.
+    installed=image.encoded(dict(profile=PROFILE,landlock_abi=version,installed=True))
+    os.write(2,b'NATIVE_POLICY_INSTALLED '+installed+b'\n')
     binding.close()
     os.execv(executable,[executable,'-I','-B','-S','-c',command])
 

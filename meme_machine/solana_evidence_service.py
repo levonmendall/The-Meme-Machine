@@ -951,6 +951,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None,
         for name in ('owner','delivery','history','decoder','checkpoint','spawn'):
             worker=workers.get(name)
             if worker is None:continue
+            metric_owner=(getattr(worker,'pool',None) if name=='history' else worker)
             # The spawning thread owns Linux PDEATHSIG for every worker and
             # tracker. Retain it if an earlier owner could not join; the fixed
             # entry/outer process fence owns that incomplete-drain handoff.
@@ -959,6 +960,12 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None,
                 if name in ('delivery','decoder','checkpoint'):
                     await asyncio.to_thread(worker.shutdown,wait=True,cancel_futures=True)
                 else:await asyncio.to_thread(worker.close)
+                if native_resources is not None and name in ('decoder','history'):
+                    from .runtime.isolated_native_spawn import current_spawn_scope
+                    scope=current_spawn_scope()
+                    if scope is not None:
+                        read=getattr(metric_owner,'kernel_lifecycle_snapshot',None)
+                        scope.record_kernel_executor(name,read() if callable(read) else dict(state='UNAVAILABLE'))
             except BaseException as exc:failures.append(exc)
         commands=workers.get('commands')
         if commands is not None and not failures:

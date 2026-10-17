@@ -85,6 +85,7 @@ class NativeSpawnScope:
         self._closed=False;self._closing=False;self._registered=False
         self._owner=None;self._owner_ident=None;self._tracker_pid=None;self._joined=True;self._lock=threading.RLock()
         self._read=self._write=None;self._original=None
+        self._kernel_executors={'decoder':None,'history':None};self._kernel_tracker_spawned=False
         _require(_ACTIVE is None and type(layout) is NativeChildLayout,'isolated_native_spawn_scope')
         layout.require_entry();self.layout=layout;self.pid=os.getpid()
         _require(tracker._resource_tracker._fd is None and tracker._resource_tracker._pid is None,
@@ -158,7 +159,7 @@ class NativeSpawnScope:
             try:pid=self._original(self.shim,args,tuple(sorted((*passfds,5))))
             finally:signal.pthread_sigmask(signal.SIG_SETMASK,previous)
             if is_tracker:
-                self._tracker_pid=pid;self._joined=False
+                self._tracker_pid=pid;self._joined=False;self._kernel_tracker_spawned=True
             return pid
 
     @property
@@ -166,6 +167,20 @@ class NativeSpawnScope:
 
     @property
     def unjoined_processes(self):return self._tracker_pid is not None and not self._joined
+
+    def record_kernel_executor(self,role,summary):
+        _require(os.getpid()==self.pid and role in self._kernel_executors and self._registered,
+            'isolated_native_kernel_executor_owner')
+        with self._lock:self._kernel_executors[role]=dict(summary)
+
+    def kernel_lifecycle_snapshot(self):
+        # Fixed entry calls only after the original shutdown/close succeeded.
+        if not self.owners_joined:return dict(state='UNJOINED')
+        return dict(state='JOINED',tracker_spawned=self._kernel_tracker_spawned,
+            tracker_joined=self._kernel_tracker_spawned and self._tracker_pid is not None
+                and tracker._resource_tracker._pid is None,
+            spawn_owner_joined=True,executors={role:(dict(value) if value is not None else
+                dict(state='UNAVAILABLE')) for role,value in self._kernel_executors.items()})
 
     def _release(self):
         global _ACTIVE
