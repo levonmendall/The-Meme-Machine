@@ -2871,10 +2871,16 @@ class RobinhoodUSDTests(unittest.TestCase):
                 old=subprocess.check_output(['git','show',CROSS_CANDIDATE_COLD_BASE+':'+path],cwd=ROOT)
                 self.assertNotEqual(current,old)
                 self.assertEqual(cross_candidate_cold_predecessor(self,path,current),old)
-                self.assertEqual(rally_predecessor(self,path,current),
-                                 rally_predecessor(self,path,old))
-                self.assertEqual(opportunity_predecessor(self,path,current),
-                                 opportunity_predecessor(self,path,old))
+                # The pre-existing Pump runner guard first reverses its exact
+                # publication/accounting layer, then the rally/strategy layers.
+                # Retain that original order rather than inventing an earlier
+                # direct shortcut through the protected source chain.
+                reviewed=publication_accounting_predecessor(self,path,current)
+                predecessor=publication_accounting_predecessor(self,path,old)
+                self.assertEqual(rally_predecessor(self,path,reviewed),
+                                 rally_predecessor(self,path,predecessor))
+                self.assertEqual(opportunity_predecessor(self,path,reviewed),
+                                 opportunity_predecessor(self,path,predecessor))
                 for changed in (current+b'\n# unexpected economic mutation\n',b'',
                         current.replace(b'archives.clear()',b'pass',1),
                         current.replace(b'_archive_cache=archives',b'_archive_cache=None',1)):
