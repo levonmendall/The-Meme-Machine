@@ -537,7 +537,14 @@ class CandidateHistory:
                  market_time,kind,encoded,checksum))
         return body
 
-    def events(self,lane,candidate,*,since=None,through=None,kind=None,kind_prefix=None,cancelled=None):
+    def events(self,lane,candidate,*,since=None,through=None,kind=None,kind_prefix=None,
+               cancelled=None,_restore_archive_cache=None):
+        # The caller may share exactly one verified cold archive across its
+        # cancellable Pump startup pass. No persistent/process-wide cache and
+        # no cache authority during normal event reads.
+        if _restore_archive_cache is not None and (
+                not callable(cancelled) or type(_restore_archive_cache) is not dict):
+            raise ValueError('candidate_history_restore_archive_scope')
         sql="""SELECT body,hash FROM events WHERE lane=? AND candidate=?"""
         args=[lane,candidate]
         if since is not None:
@@ -556,7 +563,10 @@ class CandidateHistory:
         if through is not None:refs+=' AND market_time<=?';params.append(int(through))
         if kind is not None:refs+=' AND kind=?';params.append(kind)
         if kind_prefix is not None:refs+=' AND kind GLOB ?';params.append(self._event_prefix(kind_prefix))
-        result=[];archives={} if cancelled is not None else None
+        result=[]
+        shared_archive=_restore_archive_cache is not None
+        archives=(_restore_archive_cache if shared_archive else
+                  {} if cancelled is not None else None)
         try:
             with self._startup_read(cancelled) as check:
                 for raw,checksum in self.db.execute(sql,args):
@@ -575,8 +585,13 @@ class CandidateHistory:
                             _archive_cache=archives,_check=check))
                 result.sort(key=lambda r:(r['slot'],r['payload'].get('_economic_order',r['transaction_index']) is None,
                     r['payload'].get('_economic_order',r['transaction_index']) or 0,r['event_index'],r['identity']))
+        except BaseException:
+            # A failed/cancelled read cannot leave a decoded archive available
+            # to later candidates. The caller also clears on exit/TERM.
+            if shared_archive:archives.clear()
+            raise
         finally:
-            if archives is not None:archives.clear()
+            if archives is not None and not shared_archive:archives.clear()
         return result
 
     def event(self,lane,candidate,identity):

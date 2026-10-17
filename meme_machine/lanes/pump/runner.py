@@ -587,53 +587,61 @@ def _restore_observed_pump_candidates(created,postgrad,pumpswap_stream,plane,con
     # Restoration consumes Pump observations only. Pool-only candidates and
     # their complete retained Swap histories remain available to Survivor;
     # decoding them here cannot produce a Current creation or graduation.
-    for candidate in CANDIDATE_HISTORY.candidates(lane='pump',event_prefix='pump_',
-            cancelled=requested.is_set):
-        if requested.is_set():raise Shutdown()
-        mint=candidate['candidate']
-        if mint in created:continue
-        economic=_startup_work('pump.observed_candidate_events',
-            CANDIDATE_HISTORY.events,'pump',mint,kind_prefix='pump_',cancelled=requested.is_set)
-        # A completed read does not authorize more restart reconstruction after
-        # TERM. Durable history/required work stays pending for a fresh resume.
-        if requested.is_set():raise Shutdown()
-        if not economic:continue
-        events=[dict(row['payload']) for row in economic]
-        creation=next((row for row in events if row.get('event_type')=='create'),None)
-        if creation is None:continue
-        confirmations.observe_creation(creation)
-        graduation_rows=[
-            row for row in events
-            if row.get('event_type')=='migration'
-            or (row.get('event_type')=='trade'
-                and int(row.get('real_token_reserves',-1))==0)
-        ]
-        graduation_time=(None if not graduation_rows else
-            min(int(row['market_time']) for row in graduation_rows))
-        pregrad_wallets=set()
-        for row in events:
-            if (row.get('wallet')
-                    and (graduation_time is None or int(row.get('market_time',0))<=graduation_time)
-                    and len(pregrad_wallets)<500):
-                pregrad_wallets.add(row['wallet'])
-        state=dict(creation=creation,pregrad_wallets=pregrad_wallets,
-                   graduated=graduation_time is not None)
-        if graduation_time is not None:
-            state['graduation_time']=graduation_time
-            confirmations.observe_graduation(mint,graduation_time)
-        created[mint]=state;restored+=1
-        if (graduation_time is None
-                or int(now)-graduation_time>max(POLICY.max_postgrad_entry_age_s,600)
-                or mint in postgrad):
-            continue
-        migration=next((row for row in graduation_rows if row.get('event_type')=='migration'),None)
-        pool=str((migration or {}).get('pool') or pumpswap_pool(mint))
-        pumpswap_stream.add_address(pool)
-        postgrad[mint]=dict(
-            mint=mint,creation=creation,graduation_time=graduation_time,
-            pregrad_wallets=set(pregrad_wallets),pool=pool,
-            history=LocalPumpHistory(plane,pool,graduation_time),
-            history_status={},graduation_price=None)
+    # One archive slot, scoped to this exact startup only. The cache's
+    # source/manifest/stat fingerprints are rechecked for every referenced
+    # record; all results retain independent authenticated payloads.
+    archives={}
+    try:
+        for candidate in CANDIDATE_HISTORY.candidates(lane='pump',event_prefix='pump_',
+                cancelled=requested.is_set):
+            if requested.is_set():raise Shutdown()
+            mint=candidate['candidate']
+            if mint in created:continue
+            economic=_startup_work('pump.observed_candidate_events',
+                CANDIDATE_HISTORY.events,'pump',mint,kind_prefix='pump_',cancelled=requested.is_set,
+                    _restore_archive_cache=archives)
+            # A completed read does not authorize more restart reconstruction after
+            # TERM. Durable history/required work stays pending for a fresh resume.
+            if requested.is_set():raise Shutdown()
+            if not economic:continue
+            events=[dict(row['payload']) for row in economic]
+            creation=next((row for row in events if row.get('event_type')=='create'),None)
+            if creation is None:continue
+            confirmations.observe_creation(creation)
+            graduation_rows=[
+                row for row in events
+                if row.get('event_type')=='migration'
+                or (row.get('event_type')=='trade'
+                    and int(row.get('real_token_reserves',-1))==0)
+            ]
+            graduation_time=(None if not graduation_rows else
+                min(int(row['market_time']) for row in graduation_rows))
+            pregrad_wallets=set()
+            for row in events:
+                if (row.get('wallet')
+                        and (graduation_time is None or int(row.get('market_time',0))<=graduation_time)
+                        and len(pregrad_wallets)<500):
+                    pregrad_wallets.add(row['wallet'])
+            state=dict(creation=creation,pregrad_wallets=pregrad_wallets,
+                       graduated=graduation_time is not None)
+            if graduation_time is not None:
+                state['graduation_time']=graduation_time
+                confirmations.observe_graduation(mint,graduation_time)
+            created[mint]=state;restored+=1
+            if (graduation_time is None
+                    or int(now)-graduation_time>max(POLICY.max_postgrad_entry_age_s,600)
+                    or mint in postgrad):
+                continue
+            migration=next((row for row in graduation_rows if row.get('event_type')=='migration'),None)
+            pool=str((migration or {}).get('pool') or pumpswap_pool(mint))
+            pumpswap_stream.add_address(pool)
+            postgrad[mint]=dict(
+                mint=mint,creation=creation,graduation_time=graduation_time,
+                pregrad_wallets=set(pregrad_wallets),pool=pool,
+                history=LocalPumpHistory(plane,pool,graduation_time),
+                history_status={},graduation_price=None)
+    finally:
+        archives.clear()
     return restored
 
 
