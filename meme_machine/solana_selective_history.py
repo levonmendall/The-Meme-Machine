@@ -164,11 +164,18 @@ def _archive_log_join(original,fetched,endpoint_identity):
                     or fetched['transactionIndex']!=index)
                 or not isinstance(logs,list) or not logs
                 or any(not isinstance(line,str) for line in logs)
-                or 'truncat' not in logs[-1].lower()
-                or any('truncat' in line.lower() for line in logs[:-1])
                 or not isinstance(complete,list)
-                or any(not isinstance(line,str) or 'truncat' in line.lower() for line in complete)
-                or len(complete)<len(logs)-1 or complete[:len(logs)-1]!=logs[:-1]):
+                or any(not isinstance(line,str) or 'truncat' in line.lower() for line in complete)):
+            raise KeyError()
+        markers=[i for i,line in enumerate(logs) if 'truncat' in line.lower()]
+        if len(markers)!=1:raise KeyError()
+        marker=markers[0];prefix=logs[:marker];suffix=logs[marker+1:]
+        if len(complete)<len(prefix) or complete[:len(prefix)]!=prefix:raise KeyError()
+        # The archive may retain lines after its truncation marker. Preserve
+        # their complete order as one contiguous segment, without reusing any
+        # prefix lines. The full response may also contain a later suffix.
+        if suffix and sum(complete[start:start+len(suffix)]==suffix
+                for start in range(len(prefix),len(complete)-len(suffix)+1))!=1:
             raise KeyError()
     except (KeyError,TypeError,ValueError):
         raise EvidenceUnavailable('archive_log_supplement_identity_unverified') from None
@@ -242,7 +249,8 @@ def archive_page_evidence(job,value,*,endpoint_identity,supplements=(),supplemen
             slot=tx['slot'],signature=tx['transaction']['signatures'][0],transaction_index=tx['transactionIndex'],
             original_transaction_hash=hashlib.sha256(supplement.original_json.encode()).hexdigest(),
             fetched_transaction_hash=hashlib.sha256(supplement.fetched_json.encode()).hexdigest(),
-            original_prefix_length=len(tx['meta']['logMessages'])-1,response=json.loads(supplement.fetched_json))
+            original_prefix_length=next(i for i,line in enumerate(tx['meta']['logMessages'])
+                if 'truncat' in line.lower()),response=json.loads(supplement.fetched_json))
         body_raw=canonical(body);supplement_bytes+=len(body_raw.encode())
         if supplement_bytes>16*1024*1024:raise EvidenceUnavailable('archive_log_supplement_bound')
         observations.append(body)
