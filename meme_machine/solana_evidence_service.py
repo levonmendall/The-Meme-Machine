@@ -948,9 +948,13 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None,
         failures=[]
         # Source tasks/accepted delivery are drained by _serve_owned first.
         # Every constructed resource is attempted even if another close fails.
-        for name in ('owner','delivery','history','decoder','checkpoint'):
+        for name in ('owner','delivery','history','decoder','checkpoint','spawn'):
             worker=workers.get(name)
             if worker is None:continue
+            # The spawning thread owns Linux PDEATHSIG for every worker and
+            # tracker. Retain it if an earlier owner could not join; the fixed
+            # entry/outer process fence owns that incomplete-drain handoff.
+            if name=='spawn' and failures:continue
             try:
                 if name in ('delivery','decoder','checkpoint'):
                     await asyncio.to_thread(worker.shutdown,wait=True,cancel_futures=True)
@@ -1008,6 +1012,11 @@ async def _serve_owned(path,endpoint,*,repair_rpc=None,stop=None,source_driver=N
     pending_commands=PendingCommands(owner)
     await asyncio.wrap_future(owner.ready)
     if native_resources is not None:
+        from .runtime.isolated_native_spawn import current_spawn_scope
+        spawn_scope=current_spawn_scope()
+        if spawn_scope is not None:
+            _workers['spawn']=spawn_scope
+            spawn_scope.register_source(native_resources)
         from .runtime.isolated_native_executor import IsolatedSpawnExecutor
         decoder_pool=IsolatedSpawnExecutor(max_workers=STREAM_DECODE_WORKERS,
             initializer=initializer,role='decoder')

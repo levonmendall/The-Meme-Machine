@@ -3,6 +3,8 @@ import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.r
 
 FAST=[
  'tests.test_native_commit_measurement',
+ 'tests.test_isolated_native_spawn',
+ 'tests.test_isolated_native_layout',
  'tests.test_isolated_native_landlock_image',
  'tests.test_isolated_native_executor',
  'tests.test_isolated_native_control',

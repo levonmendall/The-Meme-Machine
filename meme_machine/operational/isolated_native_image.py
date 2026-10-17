@@ -250,12 +250,18 @@ def _packages(approval,writer,dependencies):
             if target.suffix=='.so':dependencies.append(runtime._elf(data))
 
 
-def build(scope,approval):
+def build(scope,approval,*,profile=None):
     """Stage only the fixed authenticated application/dependency/native image."""
+    if profile is not None:
+        from .isolated_native_layout import PROFILE
+        require(type(profile) is str and profile==PROFILE,'native_image_profile')
     scope=boundary._scratch(scope,os.getpid())
     root,requirements,objects=source_objects(approval)
     writer=_ImageWriter(scope/'native-image')
     roots,dependencies,_=_runtime(writer)
+    if profile is not None:
+        from meme_machine.runtime.isolated_native_spawn import SHIM_PATH,trampoline
+        writer.copy(trampoline(writer.root/'runtime/bin/python3.12'),SHIM_PATH,executable=True)
     source_files=approval.value()['source_files']
     for name,blob in objects:
         size=_git(root,'cat-file','-s',blob).strip()
