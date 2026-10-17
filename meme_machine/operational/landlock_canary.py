@@ -5,6 +5,7 @@ host metadata may remain visible. No private SHM or native-spawn parity is claim
 The caller retains its existing outer wall/resource/stopped/source fences.
 """
 import ctypes
+from contextlib import ExitStack
 import errno
 import fcntl
 import json
@@ -106,9 +107,20 @@ def _filter():
              (0x20,0,0,0)]
     # Force libc's reviewed legacy-clone fallback; never admit clone3 flags.
     rows += [(0x15,0,1,435),(0x06,0,0,0x50000|errno.ENOSYS)]
-    # Policy may be queried, never weakened/replaced through prctl.
-    rows += [(0x15,0,5,157),(0x20,0,0,16),(0x15,2,0,39),
-             (0x15,1,0,3),deny,(0x20,0,0,0)]
+    # Policy queries and arming SIGKILL parent-death only. A fork does not
+    # inherit PDEATHSIG; the fixed descendant must arm it without admitting
+    # arbitrary prctl or allowing an existing parent-death fence to be cleared.
+    guard=[(0x15,0,0,157),(0x20,0,0,16),(0x15,0,0,39),
+           (0x15,0,0,3),(0x15,1,0,1),deny]
+    for offset,value in ((24,signal.SIGKILL),(28,0),(32,0),(36,0),
+                         (40,0),(44,0),(48,0),(52,0)):
+        guard += [(0x20,0,0,offset),(0x15,1,0,value),deny]
+    allowed=len(guard);guard.append((0x06,0,0,0x7fff0000))
+    reload=len(guard);guard.append((0x20,0,0,0))
+    guard[0]=(0x15,0,reload-1,157)
+    guard[2]=(0x15,allowed-3,0,39)
+    guard[3]=(0x15,allowed-4,0,3)
+    rows += guard
     for number in sorted(_DENIED):rows += [(0x15,0,1,number),deny]
     rows.append((0x06,0,0,0x7fff0000))
     return rows
@@ -255,7 +267,8 @@ _SAFE_CODES=frozenset(('landlock_canary_abi_unavailable','landlock_canary_abi_to
     'landlock_canary_platform_unreviewed','landlock_canary_probe_failed',
     'landlock_canary_wall_expired','landlock_canary_result_bound',
     'landlock_canary_denial_errno','landlock_canary_denial_failed',
-    'landlock_canary_incomplete','landlock_canary_unprivileged_required'))
+    'landlock_canary_incomplete','landlock_canary_unprivileged_required',
+    'landlock_canary_interrupted'))
 
 
 def _project(value,exit_code):
@@ -428,9 +441,13 @@ def _probe(spec):
                 checks['sqlite_FULL_WAL']=(db.execute('SELECT value FROM fixture').fetchone()==(42,)
                     and db.execute('PRAGMA synchronous').fetchone()==(2,))
             finally:db.close()
-            pid=os.fork()
+            owner_pid=os.getpid();pid=os.fork()
             if pid==0:
                 try:
+                    kernel.call(157,ctypes.c_int(1),ctypes.c_ulong(signal.SIGKILL),
+                        ctypes.c_ulong(0),ctypes.c_ulong(0),ctypes.c_ulong(0),
+                        code='landlock_canary_parent_death_refused')
+                    if os.getppid()!=owner_pid:os._exit(4)
                     (work/'descendant').write_bytes(b'private')
                     try:(scope/'outside').read_bytes()
                     except PermissionError:os.execve(image,[str(image)],{})
@@ -472,6 +489,72 @@ def _fd_snapshot():
     return result
 
 
+class _OwnerSignals:
+    """The outer timeout first asks the controller to reap its owned session."""
+    def __enter__(self):
+        self.previous={number:signal.getsignal(number)
+            for number in (signal.SIGTERM,signal.SIGINT)}
+        try:
+            for number in self.previous:signal.signal(number,self.interrupted)
+        except BaseException:
+            self.__exit__(None,None,None)
+            raise
+        return self
+
+    def interrupted(self,number,frame):
+        # Keep the controller alive through its single bounded cleanup fence.
+        for number in self.previous:signal.signal(number,signal.SIG_IGN)
+        raise Blocked('landlock_canary_interrupted')
+
+    def __exit__(self,*error):
+        for number,previous in self.previous.items():signal.signal(number,previous)
+
+
+def _close_fd(fds,index):
+    number=fds[index];fds[index]=None
+    if number is not None:os.close(number)
+
+
+def _close_fds(fds):
+    failure=None
+    for index in range(len(fds)):
+        try:_close_fd(fds,index)
+        except OSError as error:
+            if failure is None:failure=error
+    if failure is not None:raise failure
+
+
+def _wait_unreaped(process,deadline):
+    """Keep the session leader PID reserved until its whole group is killed."""
+    while True:
+        state=os.waitid(os.P_PID,process.pid,os.WEXITED|os.WNOHANG|os.WNOWAIT)
+        if state is not None:return
+        _require(time.monotonic()<deadline,'landlock_canary_wall_expired')
+        time.sleep(min(.01,max(0,deadline-time.monotonic())))
+
+
+class _OwnedProcesses:
+    def __init__(self):self.peer=self.probe=None
+
+    def close(self):
+        deadline=time.monotonic()+2
+        failures=[]
+        # No poll()/wait() has reaped this known session leader. Its PID cannot
+        # be reused while we kill the group, even when the leader exited first.
+        if self.probe is not None:
+            try:os.killpg(self.probe.pid,signal.SIGKILL)
+            except ProcessLookupError:pass
+            except OSError as error:failures.append(error)
+        if self.peer is not None:
+            try:self.peer.kill()
+            except OSError as error:failures.append(error)
+        for process in (self.probe,self.peer):
+            if process is not None:
+                try:process.wait(timeout=max(.001,deadline-time.monotonic()))
+                except (OSError,subprocess.SubprocessError) as error:failures.append(error)
+        if failures:raise failures[0]
+
+
 def canary(scope,*,seconds=15):
     """Run only this fixed disposable probe in an admitted Scratch directory."""
     scope=_scratch(scope)
@@ -484,50 +567,47 @@ def canary(scope,*,seconds=15):
     (scope/'work').mkdir(mode=0o700)
     (scope/'image').write_bytes(_elf());(scope/'image').chmod(0o700)
     (scope/'outside').write_bytes(b'outside disposable fixture');(scope/'outside').chmod(0o600)
-    parent,child=socket.socketpair();facts,write_facts=os.pipe()
-    abstract='mm-landlock-canary-'+str(os.getpid());peer=None;probe=None;result=_base()
-    with parent,child,socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as hidden,\
-            socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as outside:
-        hidden.bind('\0'+abstract);hidden.listen(1)
-        outside.bind(str(scope/'outside.sock'));outside.listen(1)
-        # Separate disposable signal/proc target; never a service/runner process.
-        peer=subprocess.Popen([sys.executable,'-I','-B','-S','-c',
-            'import signal,time;signal.signal(signal.SIGUSR1,lambda *_:None);time.sleep(20)'],
-            stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,env={})
+    result=_base()
+    with _OwnerSignals():
         try:
-            os.write(write_facts,b'fixed sizing fixture');os.close(write_facts);write_facts=None
-            spec=_spec(dict(scope=str(scope),parent=os.getpid(),peer=peer.pid,
-                ipc=child.fileno(),facts=facts,abstract=abstract))
-            probe=subprocess.Popen([sys.executable,'-I','-B','-S',str(Path(__file__).resolve()),
-                '--probe',json.dumps(spec,separators=(',',':'))],stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,env={},close_fds=True,
-                pass_fds=(child.fileno(),facts),start_new_session=True)
-            child.close();os.close(facts);facts=None
-            deadline=time.monotonic()+seconds;buffer=bytearray();acknowledged=False
-            while True:
-                remaining=deadline-time.monotonic()
-                _require(remaining>0,'landlock_canary_wall_expired')
-                ready,_,_=select.select([parent],[],[],min(.2,remaining))
-                if not ready:continue
-                data=parent.recv(min(4096,MAX_RESULT+1-len(buffer)))
-                if not data:break
-                buffer.extend(data);_require(len(buffer)<=MAX_RESULT,'landlock_canary_result_bound')
-                if not acknowledged and buffer.startswith(b'landlock canary\n'):
-                    del buffer[:len(b'landlock canary\n')];parent.sendall(b'parent acknowledged');acknowledged=True
-            probe.wait(timeout=max(.001,deadline-time.monotonic()))
-            result=_project(json.loads(buffer),probe.returncode)
+            with ExitStack() as owned:
+                parent,child=socket.socketpair()
+                owned.enter_context(parent);owned.enter_context(child)
+                fixture_fds=list(os.pipe());owned.callback(_close_fds,fixture_fds)
+                hidden=owned.enter_context(socket.socket(socket.AF_UNIX,socket.SOCK_STREAM))
+                outside=owned.enter_context(socket.socket(socket.AF_UNIX,socket.SOCK_STREAM))
+                abstract='mm-landlock-canary-'+str(os.getpid())
+                hidden.bind('\0'+abstract);hidden.listen(1)
+                outside.bind(str(scope/'outside.sock'));outside.listen(1)
+                children=_OwnedProcesses();owned.callback(children.close)
+                # Separate disposable signal/proc target, never a real service.
+                children.peer=subprocess.Popen([sys.executable,'-I','-B','-S','-c',
+                    'import signal,time;signal.signal(signal.SIGUSR1,lambda *_:None);time.sleep(20)'],
+                    stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,env={})
+                os.write(fixture_fds[1],b'fixed sizing fixture');_close_fd(fixture_fds,1)
+                spec=_spec(dict(scope=str(scope),parent=os.getpid(),peer=children.peer.pid,
+                    ipc=child.fileno(),facts=fixture_fds[0],abstract=abstract))
+                children.probe=subprocess.Popen([sys.executable,'-I','-B','-S',str(Path(__file__).resolve()),
+                    '--probe',json.dumps(spec,separators=(',',':'))],stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,env={},close_fds=True,
+                    pass_fds=(child.fileno(),fixture_fds[0]),start_new_session=True)
+                child.close();_close_fd(fixture_fds,0)
+                deadline=time.monotonic()+seconds;buffer=bytearray();acknowledged=False
+                while True:
+                    remaining=deadline-time.monotonic()
+                    _require(remaining>0,'landlock_canary_wall_expired')
+                    ready,_,_=select.select([parent],[],[],min(.2,remaining))
+                    if not ready:continue
+                    data=parent.recv(min(4096,MAX_RESULT+1-len(buffer)))
+                    if not data:break
+                    buffer.extend(data);_require(len(buffer)<=MAX_RESULT,'landlock_canary_result_bound')
+                    if not acknowledged and buffer.startswith(b'landlock canary\n'):
+                        del buffer[:len(b'landlock canary\n')];parent.sendall(b'parent acknowledged');acknowledged=True
+                _wait_unreaped(children.probe,deadline)
+            result=_project(json.loads(buffer),children.probe.returncode)
         except (Blocked,OSError,ValueError,subprocess.SubprocessError) as error:
             result=_base();result['code']=(error.code if isinstance(error,Blocked)
                 and error.code in _SAFE_CODES else 'landlock_canary_probe_failed')
-        finally:
-            if probe is not None and probe.poll() is None:
-                try:os.killpg(probe.pid,signal.SIGKILL)
-                except ProcessLookupError:pass
-                probe.wait(timeout=2)
-            if peer is not None:
-                peer.kill();peer.wait(timeout=2)
-            for fd in (facts,write_facts):
-                if fd is not None:os.close(fd)
     result.update(parent_cwd_unchanged=Path.cwd()==cwd,
         parent_namespaces_unchanged=all(os.readlink('/proc/self/ns/'+k)==v for k,v in namespaces.items()),
         parent_open_descriptors_preserved=all(_fd_snapshot().get(k)==v for k,v in before_fds.items()),

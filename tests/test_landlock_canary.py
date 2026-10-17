@@ -5,9 +5,11 @@ import json
 import os
 from pathlib import Path
 import socket
+import signal
 import struct
 import subprocess
 import sys
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -59,14 +61,21 @@ class LandlockCanaryTests(unittest.TestCase):
         self.assertEqual(evaluate(44,(3,0,0,0,1,0)),deny)
         self.assertEqual(evaluate(44,(3,0,0,0,1<<32,0)),deny)
 
-    def test_filter_preserves_fork_threads_and_policy_queries_only(self):
+    def test_filter_preserves_fork_threads_and_only_fixed_prctl_operations(self):
         allow=0x7fff0000;deny=0x50000|errno.EPERM
         self.assertEqual(evaluate(56,(17,)),allow)
         self.assertEqual(evaluate(56,(0x3d0f00,)),allow)
         for flag in (0x80,0x20000,0x2000000,0x4000000,0x8000000,0x10000000,0x20000000,0x40000000):
             self.assertEqual(evaluate(56,(flag|17,)),deny)
         for operation in (3,39):self.assertEqual(evaluate(157,(operation,)),allow)
+        self.assertEqual(evaluate(157,(1,signal.SIGKILL,0,0,0)),allow)
         for operation in (1,4,22,24,38):self.assertEqual(evaluate(157,(operation,)),deny)
+        for death_signal in (0,signal.SIGTERM,signal.SIGKILL+(1<<32)):
+            self.assertEqual(evaluate(157,(1,death_signal,0,0,0)),deny)
+        for index in (2,3,4):
+            for value in (1,1<<32):
+                args=[1,signal.SIGKILL,0,0,0];args[index]=value
+                self.assertEqual(evaluate(157,args),deny)
         # Kill is deliberately not seccomp-denied: the pre-seccomp Landlock
         # SIGNAL-scope check cannot be masked by this filter.
         self.assertEqual(evaluate(62,(123,10)),allow)
@@ -191,6 +200,96 @@ class LandlockCanaryTests(unittest.TestCase):
                 os.close(read_fd)
                 if write_fd is not None:os.close(write_fd)
             scope.check();scope.success=True
+
+    def failed_setup(self,scope,**patches):
+        from contextlib import ExitStack
+        before=ll._fd_snapshot()
+        with ExitStack() as context:
+            context.enter_context(patch.object(ll,'_scratch',return_value=scope.path))
+            context.enter_context(patch.object(ll.os,'geteuid',return_value=1000))
+            for target,value in patches.items():context.enter_context(patch(target,**value))
+            result=ll.canary(scope.path)
+        self.assertEqual(result['state'],'BLOCKED')
+        self.assertEqual(ll._fd_snapshot(),before)
+        self.assertTrue(result['parent_open_descriptors_preserved'])
+        scope.check();scope.success=True
+
+    def test_setup_bind_and_listen_failure_close_every_owned_descriptor(self):
+        for method in ('bind','listen'):
+            with self.subTest(method=method),Scratch() as scope:
+                self.failed_setup(scope,**{'socket.socket.'+method:
+                    dict(side_effect=OSError(errno.EPERM,'fixed setup failure'))})
+
+    def test_peer_spawn_failure_closes_both_fixture_pipe_ends(self):
+        with Scratch() as scope:
+            self.failed_setup(scope,**{'subprocess.Popen':
+                dict(side_effect=OSError(errno.EAGAIN,'fixed spawn failure'))})
+
+    def test_probe_spawn_failure_kills_and_reaps_already_owned_peer(self):
+        from unittest.mock import Mock
+        peer=Mock(pid=12345)
+        with Scratch() as scope:
+            self.failed_setup(scope,**{'subprocess.Popen':
+                dict(side_effect=[peer,OSError(errno.EAGAIN,'fixed spawn failure')])})
+        peer.kill.assert_called_once_with()
+        peer.wait.assert_called_once()
+
+    def test_exited_leader_stays_unreaped_until_owned_group_kill(self):
+        from unittest.mock import Mock
+        events=[]
+        leader=Mock(pid=12345)
+        leader.wait.side_effect=lambda **kw:events.append('reaped')
+        owner=ll._OwnedProcesses();owner.probe=leader
+        state=SimpleNamespace(si_pid=leader.pid,si_code=os.CLD_EXITED,si_status=0)
+        with patch.object(ll.os,'waitid',return_value=state) as waitid,\
+                patch.object(ll.os,'killpg',side_effect=lambda *args:events.append('group killed')) as killpg:
+            ll._wait_unreaped(leader,0)
+            leader.wait.assert_not_called();leader.poll.assert_not_called()
+            owner.close()
+        waitid.assert_called_once_with(os.P_PID,leader.pid,os.WEXITED|os.WNOHANG|os.WNOWAIT)
+        killpg.assert_called_once_with(leader.pid,signal.SIGKILL)
+        self.assertEqual(events,['group killed','reaped'])
+
+    def test_controller_signal_handler_restores_previous_handlers_after_cleanup(self):
+        previous={number:signal.getsignal(number) for number in (signal.SIGTERM,signal.SIGINT)}
+        with self.assertRaisesRegex(ll.Blocked,'interrupted'):
+            with ll._OwnerSignals() as owner:
+                try:owner.interrupted(signal.SIGTERM,None)
+                finally:
+                    self.assertEqual(signal.getsignal(signal.SIGTERM),signal.SIG_IGN)
+                    self.assertEqual(signal.getsignal(signal.SIGINT),signal.SIG_IGN)
+        self.assertEqual({number:signal.getsignal(number) for number in previous},previous)
+
+    def test_real_controller_term_reaps_its_separate_session_and_peer_without_policy_probe(self):
+        # Only signal/ownership cleanup runs. No Landlock, seccomp, provider,
+        # financial database, arbitrary native worker or copied image is used.
+        script=r'''
+import json,subprocess,sys,time
+from contextlib import ExitStack
+from meme_machine.operational.landlock_canary import _OwnerSignals,_OwnedProcesses,Blocked
+children=_OwnedProcesses()
+with _OwnerSignals():
+    try:
+        with ExitStack() as owned:
+            owned.callback(children.close)
+            children.peer=subprocess.Popen([sys.executable,'-c','import time;time.sleep(20)'])
+            children.probe=subprocess.Popen([sys.executable,'-c','import time;time.sleep(20)'],start_new_session=True)
+            print('ready',flush=True)
+            while True:time.sleep(1)
+    except Blocked as error:
+        print(json.dumps(dict(code=error.code,probe=children.probe.returncode,peer=children.peer.returncode)),flush=True)
+'''
+        controller=subprocess.Popen([sys.executable,'-B','-c',script],
+            stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+        try:
+            self.assertEqual(controller.stdout.readline().strip(),'ready')
+            controller.send_signal(signal.SIGTERM)
+            output,error=controller.communicate(timeout=3)
+            self.assertEqual(controller.returncode,0,error)
+            self.assertEqual(json.loads(output),dict(code='landlock_canary_interrupted',
+                probe=-signal.SIGKILL,peer=-signal.SIGKILL))
+        finally:
+            if controller.poll() is None:controller.kill();controller.communicate(timeout=2)
 
 
 if __name__=='__main__':unittest.main()

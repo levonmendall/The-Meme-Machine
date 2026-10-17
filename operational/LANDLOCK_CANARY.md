@@ -49,6 +49,18 @@ NULL destination. The tested normal fork inherits the boundary; clone3 returns
 ENOSYS and namespace clone flags remain denied. An exact classic-BPF interpreter
 test checks branch offsets and allowed/denied syscall argument populations.
 
+Controller SIGTERM/SIGINT enters cleanup instead of abandoning the separately
+owned probe session. Cleanup kills that group even if its leader already exited;
+WNOWAIT keeps the leader PID reserved until the group kill, then the controller
+reaps the leader and fixture peer within one shared two-second fence. Previous
+controller signal handlers are restored. All sockets and fixture pipe ends are
+registered for cleanup before bind/listen/spawn, including partial setup errors.
+The forked static fixture immediately arms SIGKILL parent-death and checks its
+parent again: the filter allows only that exact PR_SET_PDEATHSIG operation with
+unused arguments zero, alongside the existing read-only policy queries. It
+cannot clear/change the fence or admit another prctl operation. Outer SIGKILL
+remains the caller's last fence; this is owned-process cleanup, not a PID namespace.
+
 The30 fixed checks also cover empty effective/permitted/ambient capabilities,
 unchanged nonroot real/effective/saved identities, parent IPC, facts delivery, internal socketpair/
 pipe, SQLite FULL/WAL, fork restriction inheritance and exact static-fixture exec.
