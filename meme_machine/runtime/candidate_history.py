@@ -13,10 +13,16 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import stat
 import time
 
 from meme_machine.runtime.journal import canonical,digest
 from meme_machine.runtime.sqlite_failure import connect as diagnostic_connect,preserving_cleanup
+
+
+RETAINED_REFERENCE_LEGACY_ROOT=Path('/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000')
+RETAINED_REFERENCE_AWS_ROOT=Path('/srv/meme-machine/state/shared-1000')
+RETAINED_REFERENCE_EPOCH='paper-shared-1000-20261011T071207Z'
 
 
 class CandidateDeadlineMissed(RuntimeError):
@@ -228,12 +234,48 @@ class CandidateHistory:
             self.db.execute('DELETE FROM events WHERE lane=? AND candidate=? AND identity=?',(lane,candidate,identity))
         return body
 
+    def _reference_path(self,value,*,cold=False):
+        """Resolve this restored cohort's immutable locator without editing it.
+
+        Ordinary current paths and the original deployment keep their existing
+        behavior. Only the known restored $1,000 layout has a second location;
+        missing files, other cohorts and symbolic links supply no fallback.
+        Startup independently verifies the configured epoch and financial state.
+        """
+        path=Path(value)
+        legacy=RETAINED_REFERENCE_LEGACY_ROOT/'shared/solana-evidence.sqlite'
+        if cold:
+            name=path.name
+            known=(path.parent==legacy.with_suffix('.scoped-cold') and len(name)==69
+                and name.endswith('.zlib') and all(c in '0123456789abcdef' for c in name[:-5]))
+            if not known:return path
+        elif path!=legacy:return path
+        if os.environ.get('MM_STATE_ROOT')==str(RETAINED_REFERENCE_LEGACY_ROOT):return path
+        root=RETAINED_REFERENCE_AWS_ROOT
+        source=root/'shared/solana-evidence.sqlite'
+        if (os.environ.get('MM_MODE')!='PAPER'
+                or os.environ.get('MM_PAPER_EPOCH')!=RETAINED_REFERENCE_EPOCH
+                or os.environ.get('MM_STATE_ROOT')!=str(root)
+                or self.path!=root/'shared/solana-candidate-history.sqlite'
+                or os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB',str(source))!=str(source)):
+            raise ValueError('candidate_canonical_reference_cohort_unverified')
+        target=source.with_suffix('.scoped-cold')/path.name if cold else source
+        try:
+            if (root.resolve(strict=True)!=root or self.path.resolve(strict=True)!=self.path
+                    or source.resolve(strict=True)!=source or target.resolve(strict=True)!=target
+                    or not stat.S_ISREG(target.lstat().st_mode)):
+                raise ValueError('candidate_canonical_reference_cohort_unverified')
+        except OSError:
+            raise ValueError('candidate_canonical_reference_cohort_unverified') from None
+        return target
+
     def _reference_body(self,lane,candidate,identity,kind,ref,*,prepared=None):
         from meme_machine.solana_evidence_plane import decode_body
         self._source_readers=getattr(self,'_source_readers',{})
-        if ref['path'] not in self._source_readers:
-            self._source_readers[ref['path']]=diagnostic_connect(Path(ref['path']).as_uri()+'?mode=ro',diagnostic_role='candidate_reference',uri=True,timeout=30)
-        db=self._source_readers[ref['path']]
+        path=self._reference_path(ref['path'])
+        if path not in self._source_readers:
+            self._source_readers[path]=diagnostic_connect(path.as_uri()+'?mode=ro',diagnostic_role='candidate_reference',uri=True,timeout=30)
+        db=self._source_readers[path]
         row=db.execute('SELECT body,hash,archive FROM canonical_evidence WHERE identity=?',(ref['canonical_identity'],)).fetchone()
         if row is None:raise ValueError('candidate_canonical_reference_missing')
         if prepared is not None and row[0]==prepared[1]:
@@ -249,13 +291,14 @@ class CandidateHistory:
             import zlib
             manifest=db.execute('SELECT path,hash FROM scoped_cold_manifests WHERE id=?',(row[2],)).fetchone()
             if manifest is None:raise ValueError('candidate_canonical_reference_requires_restore')
-            packed=Path(manifest[0]).read_bytes()
+            packed=self._reference_path(manifest[0],cold=True).read_bytes()
             if hashlib.sha256(packed).hexdigest()!=manifest[1]:raise ValueError('candidate_history_corruption')
             decoder=zlib.decompressobj();raw=decoder.decompress(packed,32*1024*1024+1)
             if not decoder.eof or len(raw)>32*1024*1024:raise ValueError('candidate_canonical_archive_bound')
             r=next((x['record'] for x in json.loads(raw) if x['record']['identity']==ref['canonical_identity']),None)
             checksum=None if r is None else digest(r)
-        if r is None or checksum!=row[1] or row[1]!=ref['canonical_hash']:raise ValueError('candidate_history_corruption')
+        if (not isinstance(r,dict) or r.get('identity')!=ref['canonical_identity']
+                or checksum!=row[1] or row[1]!=ref['canonical_hash']):raise ValueError('candidate_history_corruption')
         # Scoped Meteora packets already contain only the authenticated
         # instruction, balance, event and ordering fields consumed by DLMM.
         # An index resolves that one packet; it never stores a per-pool copy.

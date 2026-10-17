@@ -250,6 +250,60 @@ def archive_complete_logs_predecessor(test,relative,current):
     return prior
 
 
+# Restored $1,000 candidate references keep their original immutable locators.
+# Pin the complete reviewed source and reverse only its known-location reader
+# compatibility to cdcc0661 before the existing cancellation/economic guards.
+# No history, checkpoint, canonical hash or monetary authority is exempted.
+RETAINED_CANONICAL_REFERENCE='cdcc0661f59dc560655f4c09ac401e808b0ed9e2'
+RETAINED_CANONICAL_SOURCE='meme_machine/runtime/candidate_history.py'
+RETAINED_CANONICAL_BEFORE='99984085df2ceefb8e7a94dfd9eabb85674311fca9d9ae67584dc9415de35d45'
+RETAINED_CANONICAL_AFTER='c7afd0898e0582f45d8615bab2524ee0a4bf67f00e71e2b43f57899461b1a8cb'
+RETAINED_CANONICAL_ADDITIONS=(
+    'import stat',
+    "RETAINED_REFERENCE_LEGACY_ROOT=Path('/mnt/volume_nyc1_1790918115030/meme-machine-paper-shared-1000')",
+    "RETAINED_REFERENCE_AWS_ROOT=Path('/srv/meme-machine/state/shared-1000')",
+    "RETAINED_REFERENCE_EPOCH='paper-shared-1000-20261011T071207Z'",
+)
+
+
+def retained_canonical_predecessor(test,relative,current,*,allow_previous_layers=False):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=RETAINED_CANONICAL_SOURCE:return current
+    prior=subprocess.check_output(['git','show',RETAINED_CANONICAL_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),RETAINED_CANONICAL_BEFORE,
+        relative+':exact retained-reference predecessor')
+    if current==prior:return prior
+    if allow_previous_layers:
+        # The original cancellation test independently compares its exact
+        # 908ce9b7 predecessor too. Permit those immutable bytes only; no unknown
+        # intermediate or modified source can bypass this outer reader guard.
+        earlier=subprocess.check_output(['git','show',STARTUP_HISTORY_CANCEL_REFERENCE+':'+relative],cwd=ROOT)
+        test.assertEqual(hashlib.sha256(earlier).hexdigest(),STARTUP_HISTORY_CANCEL_DELTAS[relative][0],
+            relative+':exact older cancellation predecessor')
+        if current==earlier:return current
+    test.assertEqual(hashlib.sha256(current).hexdigest(),RETAINED_CANONICAL_AFTER,
+        relative+':exact retained-reference successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def method(root,name):
+        parent=next(n for n in root.body if isinstance(n,ast.ClassDef) and n.name=='CandidateHistory')
+        return parent,next(n for n in parent.body if isinstance(n,ast.FunctionDef) and n.name==name)
+    parent,selected=method(tree,'_reference_body');_,original=method(old,'_reference_body')
+    test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':explicit reference reader delta')
+    parent.body[parent.body.index(selected)]=deepcopy(original)
+    parent,added=method(tree,'_reference_path');parent.body.remove(added)
+    with test.assertRaises(StopIteration):method(old,'_reference_path')
+    for source in RETAINED_CANONICAL_ADDITIONS:
+        addition=ast.parse(source).body[0]
+        matches=[n for n in tree.body if ast.dump(n)==ast.dump(addition)]
+        test.assertEqual(len(matches),1,relative+':one exact retained-reference locator addition')
+        test.assertNotIn(ast.dump(addition),[ast.dump(n) for n in old.body])
+        tree.body.remove(matches[0])
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':all other canonical, financial and strategy source retained')
+    return prior
+
+
 # Exact first-failure attribution and Pons startup-read cancellation only.
 # Reverse these four already-guarded sources to A14 before the previous source
 # layers; candidate authority, pruning, accounting and economics remain pinned.
@@ -278,6 +332,8 @@ def native_startup_failure_predecessor(test,relative,current,*,allow_previous_la
     from copy import deepcopy
     import hashlib
     if isinstance(current,str):current=current.encode()
+    current=retained_canonical_predecessor(test,relative,current,
+        allow_previous_layers=allow_previous_layers)
     reviewed=NATIVE_STARTUP_FAILURE_DELTAS.get(relative)
     if reviewed is None:return current
     before,after,changed,added,top_additions=reviewed
@@ -1598,6 +1654,46 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_retained_canonical_reference_reverses_only_exact_reader_compatibility(self):
+        import hashlib
+        relative=RETAINED_CANONICAL_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),RETAINED_CANONICAL_AFTER,
+            relative+':active exact retained canonical-reference reader')
+        prior=subprocess.check_output(['git','show',RETAINED_CANONICAL_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(hashlib.sha256(prior).hexdigest(),RETAINED_CANONICAL_BEFORE,
+            relative+':independently pinned previous cancellation source')
+        self.assertEqual(retained_canonical_predecessor(self,relative,current),prior)
+        self.assertEqual(retained_canonical_predecessor(self,relative,prior),prior)
+        self.assertEqual(native_startup_failure_predecessor(self,relative,current),prior)
+        self.assertEqual(rally_predecessor(self,relative,current),rally_predecessor(self,relative,prior))
+        self.assertEqual(opportunity_predecessor(self,relative,current),
+            opportunity_predecessor(self,relative,prior))
+        changes=[current+b'\n# unreviewed retained-reference reader change\n',b'']
+        for previous,successor in (
+                (b"if os.environ.get('MM_STATE_ROOT')==str(RETAINED_REFERENCE_LEGACY_ROOT):return path",
+                    b'if True:return path'),
+                (b"os.environ.get('MM_MODE')!='PAPER'",b'False'),
+                (b"os.environ.get('MM_PAPER_EPOCH')!=RETAINED_REFERENCE_EPOCH",b'False'),
+                (b"self.path!=root/'shared/solana-candidate-history.sqlite'",b'False'),
+                (b"os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB',str(source))!=str(source)",b'False'),
+                (b"root.resolve(strict=True)!=root",b'False'),
+                (b"source.resolve(strict=True)!=source",b'False'),
+                (b"target.resolve(strict=True)!=target",b'False'),
+                (b"not stat.S_ISREG(target.lstat().st_mode)",b'False'),
+                (b"r.get('identity')!=ref['canonical_identity']",b'False'),
+                (b"checksum!=row[1] or row[1]!=ref['canonical_hash']",b'False'),
+                (b"hashlib.sha256(packed).hexdigest()!=manifest[1]",b'False'),
+                (b'self.db.execute("PRAGMA synchronous=FULL")',b'self.db.execute("PRAGMA synchronous=OFF")'),
+                (b'if self.db.in_transaction:',b'if False:')):
+            self.assertIn(previous,current,relative+':negative mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):retained_canonical_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):native_startup_failure_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):rally_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_recovered_economic_boundary_preserves_failed_census_and_all_previous_guards(self):
         import hashlib
         relative=RECOVERED_ECONOMIC_BOUNDARY_SOURCE;current=(ROOT/relative).read_bytes()
