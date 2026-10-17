@@ -1689,6 +1689,8 @@ class SelectiveSource:
     async def acquire(self):
         from .operational.position_continuation import position_only
         from .runtime.evidence_worker import DeliveredRPCError,failure_diagnostic
+        from .solana_selective_history import (missing_archive_log_transactions,
+            join_archive_log_supplement,complete_archive_transaction)
         while not self.stop.is_set():
             def request_development(state):
                 from .lanes.pump.pump_acceleration_strategy import POLICY
@@ -1771,6 +1773,9 @@ class SelectiveSource:
                 if job['family']=='pump':
                     from .solana_program_decoders import pump_events
                     for tx in value['data']:
+                        supplement=supplement_by_original.get(canonical(tx))
+                        if supplement is not None:
+                            tx=complete_archive_transaction(tx,supplement,endpoint_identity=self.config.identity)
                         for event in pump_events(tx):
                             if event['event_type']=='create' and job['address'] in (event.get('mint'),event.get('bonding_curve')):
                                 # Initial curve identity is upgraded, not rejected,
@@ -1786,7 +1791,7 @@ class SelectiveSource:
                             if event['event_type']=='migration':
                                 h.observe('pumpswap',event['pool'],slot=event['slot'],signature=tx['transaction']['signatures'][0],fields=dict(mint=event['mint'],graduation=event['market_time']))
                                 h.bind('pumpswap',event['pool'])
-                result=h.commit_page(job,value,finalized_through=finalized)
+                result=h.commit_page(job,value,finalized_through=finalized,supplements=supplements)
                 h.lifecycle.publish()
                 return result
             try:
@@ -1798,6 +1803,17 @@ class SelectiveSource:
                 if finalized is None or finalized<job['hi']:
                     finalized=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',job['priority'])
                 if finalized<job['hi']:await asyncio.sleep(.1);continue
+                acquired=[];supplement_bytes=0
+                for original in missing_archive_log_transactions(job['family'],value):
+                    fetched=await self.measured_rpc('getTransaction',[original['transaction']['signatures'][0],
+                        dict(commitment='finalized',encoding='json',maxSupportedTransactionVersion=1)],
+                        job['family'],job['priority'])
+                    supplement=join_archive_log_supplement(original,fetched,endpoint_identity=self.config.identity)
+                    supplement_bytes+=len(supplement.fetched_json.encode())
+                    if supplement_bytes>MAX_FRAME_BYTES:raise EvidenceUnavailable('archive_log_supplement_bound')
+                    acquired.append(supplement)
+                supplements=tuple(acquired)
+                supplement_by_original={item.original_json:item for item in supplements}
                 # A fetched page publishes required canonical evidence. Priority
                 # four is the owner's interruptible maintenance class: using it
                 # here repeatedly rolled a 100-row Meteora page back whenever

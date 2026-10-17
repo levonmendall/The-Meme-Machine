@@ -7,7 +7,7 @@ No capital, portfolio, signing or transaction-submission interface exists here.
 """
 from .runtime.operation_costs import measured
 
-from dataclasses import replace
+from dataclasses import dataclass,replace
 import hashlib
 import json
 import time
@@ -133,6 +133,132 @@ def rpc_economic_transaction(tx,*,rich):
                 for instruction in message['instructions']]
         return normalize_zero_display(body)
     except (KeyError,TypeError):raise EvidenceUnavailable('candidate_economic_fields_missing') from None
+
+@dataclass(frozen=True)
+class ArchiveLogSupplement:
+    """Immutable provider inputs, not a caller-supplied economic projection."""
+    original_json: str
+    fetched_json: str
+    endpoint_identity: str
+
+def _archive_log_join(original,fetched,endpoint_identity):
+    """Join complete logs only to the exact finalized, ordered archive row."""
+    try:
+        if (not isinstance(endpoint_identity,str) or len(endpoint_identity)!=64
+                or any(c not in '0123456789abcdef' for c in endpoint_identity)
+                or not isinstance(original,dict) or not isinstance(fetched,dict)):
+            raise KeyError()
+        slot=original['slot'];index=original['transactionIndex']
+        signatures=original['transaction']['signatures']
+        old=original['meta'];new=fetched['meta'];logs=old['logMessages'];complete=new['logMessages']
+        if (type(slot) is not int or slot<0 or type(index) is not int or index<0
+                or not isinstance(signatures,list) or not signatures
+                or any(not isinstance(sig,str) or not sig for sig in signatures)
+                or type(fetched['slot']) is not int or fetched['slot']!=slot
+                or type(original['blockTime']) is not int or original['blockTime']<0
+                or type(fetched['blockTime']) is not int
+                or canonical(fetched['blockTime'])!=canonical(original['blockTime'])
+                or canonical(fetched['transaction'])!=canonical(original['transaction'])
+                or old['err'] is not None or new['err'] is not None
+                or 'transactionIndex' in fetched and (type(fetched['transactionIndex']) is not int
+                    or fetched['transactionIndex']!=index)
+                or not isinstance(logs,list) or not logs
+                or any(not isinstance(line,str) for line in logs)
+                or 'truncat' not in logs[-1].lower()
+                or any('truncat' in line.lower() for line in logs[:-1])
+                or not isinstance(complete,list)
+                or any(not isinstance(line,str) or 'truncat' in line.lower() for line in complete)
+                or len(complete)<len(logs)-1 or complete[:len(logs)-1]!=logs[:-1]):
+            raise KeyError()
+    except (KeyError,TypeError,ValueError):
+        raise EvidenceUnavailable('archive_log_supplement_identity_unverified') from None
+    # Preserve every original economic/provider field except the separately
+    # authenticated missing log suffix. Its genuine native index is unchanged.
+    tx=json.loads(canonical(original));tx['meta']['logMessages']=list(complete)
+    return tx
+
+def join_archive_log_supplement(original,fetched,*,endpoint_identity):
+    _archive_log_join(original,fetched,endpoint_identity)
+    original_json=canonical(original);fetched_json=canonical(fetched)
+    if len(fetched_json.encode())>16*1024*1024:
+        raise EvidenceUnavailable('archive_log_supplement_bound')
+    return ArchiveLogSupplement(original_json,fetched_json,endpoint_identity)
+
+def complete_archive_transaction(original,supplement,*,endpoint_identity):
+    if (type(supplement) is not ArchiveLogSupplement or supplement.endpoint_identity!=endpoint_identity
+            or type(supplement.original_json) is not str or type(supplement.fetched_json) is not str
+            or canonical(original)!=supplement.original_json):
+        raise EvidenceUnavailable('archive_log_supplement_binding_unverified')
+    try:fetched=json.loads(supplement.fetched_json)
+    except (TypeError,ValueError):raise EvidenceUnavailable('archive_log_supplement_binding_unverified') from None
+    if len(supplement.fetched_json.encode())>16*1024*1024:
+        raise EvidenceUnavailable('archive_log_supplement_bound')
+    if canonical(fetched)!=supplement.fetched_json:
+        raise EvidenceUnavailable('archive_log_supplement_binding_unverified')
+    return _archive_log_join(original,fetched,endpoint_identity)
+
+def missing_archive_log_transactions(family,value):
+    """Only successful, explicitly truncated log rows justify this fallback."""
+    if (family not in ('pump','pumpswap') or not isinstance(value,dict)
+            or not isinstance(value.get('data'),list) or len(value['data'])>100):return ()
+    return tuple(tx for tx in value['data'] if isinstance(tx,dict)
+        and isinstance(tx.get('meta'),dict) and tx['meta'].get('err',True) is None
+        and isinstance(tx['meta'].get('logMessages'),list)
+        and any(isinstance(line,str) and 'truncat' in line.lower() for line in tx['meta']['logMessages']))
+
+def archive_interval_witness(job,scope,lineage_hash,*,supplemented=False,page_count=None):
+    witness=dict(finalized=True,complete=True,scope=scope,lower_slot=job['lo'],upper_slot=job['hi'],
+        lineage_hash=lineage_hash,method='getTransactionsForAddress',pagination_exhausted=True,
+        page_count=job['pages'] if page_count is None else page_count,
+        address=job['address'],canonical_scope=FAMILIES[job['family']])
+    if supplemented:
+        witness.update(method='getTransactionsForAddress+getTransaction',
+            transaction_order_method='getTransactionsForAddress',log_content_method='getTransaction',
+            log_content_commitment='finalized')
+    return witness
+
+def archive_page_evidence(job,value,*,endpoint_identity,supplements=(),supplemented_before=False):
+    """One hash/proof contract for the owner and its restricted recovery caller."""
+    if type(supplements) is not tuple or len(supplements)>100:
+        raise EvidenceUnavailable('archive_log_supplement_shape')
+    value_raw=canonical(value);value_hash=hashlib.sha256(value_raw.encode()).hexdigest()
+    raw_rows=value.get('data') if isinstance(value,dict) else None
+    if not isinstance(raw_rows,list) or len(raw_rows)>100:
+        raise EvidenceUnavailable('address_history_response_shape_unverified')
+    originals={};receipts=[];observations=[];supplement_bytes=0
+    for supplement in supplements:
+        if type(supplement) is not ArchiveLogSupplement:
+            raise EvidenceUnavailable('archive_log_supplement_shape')
+        matches=[(n,tx) for n,tx in enumerate(raw_rows) if canonical(tx)==supplement.original_json]
+        if len(matches)!=1 or matches[0][0] in originals:
+            raise EvidenceUnavailable('archive_log_supplement_binding_unverified')
+        n,original=matches[0]
+        complete_archive_transaction(original,supplement,endpoint_identity=endpoint_identity)
+        originals[n]=supplement
+    # Bind supplements in original page order, independent of fetch completion.
+    for n,supplement in sorted(originals.items()):
+        tx=raw_rows[n]
+        body=dict(endpoint_identity=endpoint_identity,method='getTransaction',commitment='finalized',
+            slot=tx['slot'],signature=tx['transaction']['signatures'][0],transaction_index=tx['transactionIndex'],
+            original_transaction_hash=hashlib.sha256(supplement.original_json.encode()).hexdigest(),
+            fetched_transaction_hash=hashlib.sha256(supplement.fetched_json.encode()).hexdigest(),
+            original_prefix_length=len(tx['meta']['logMessages'])-1,response=json.loads(supplement.fetched_json))
+        body_raw=canonical(body);supplement_bytes+=len(body_raw.encode())
+        if supplement_bytes>16*1024*1024:raise EvidenceUnavailable('archive_log_supplement_bound')
+        observations.append(body)
+        receipts.append(dict({key:value for key,value in body.items() if key!='response'},
+            observation_body_hash=hashlib.sha256(body_raw.encode()).hexdigest()))
+    bound=receipts
+    page_hash=(digest(dict(method='getTransactionsForAddress+getTransaction',
+        archive_page_hash=value_hash,archive_log_supplements=bound)) if receipts else value_hash)
+    input_hash=(digest([job['token'],dict(archive_page_hash=value_hash,
+        archive_supplemented_page_hash=page_hash,archive_log_supplements=bound)]) if receipts else
+        hashlib.sha256(('['+canonical(job['token'])+','+value_raw+']').encode()).hexdigest())
+    lineage=digest([job['lineage'],page_hash])
+    return dict(value_hash=value_hash,page_hash=page_hash,input_hash=input_hash,lineage_hash=lineage,
+        witness=archive_interval_witness(job,coverage_scope(job['family'],job['address']),lineage,
+            supplemented=bool(receipts) or supplemented_before,page_count=job['pages']+1),
+        supplement_receipts=receipts,supplement_observations=observations)
 
 def economic_records(family,address,tx,*,endpoint_identity,seen,source):
     scope=FAMILIES[family];index=tx['transactionIndex'];slot=tx['slot']
@@ -394,7 +520,11 @@ class SelectiveHistory:
         if job['token'] is not None:config['paginationToken']=job['token']
         return job,config
 
-    def commit_page(self,job,value,*,finalized_through,seen=None):
+    def has_archive_log_supplements(self,job_id):
+        return self.db.execute('''SELECT 1 FROM acquisition_page_receipts WHERE job=?
+            AND json_array_length(result,'$.archive_log_supplements')>0 LIMIT 1''',(job_id,)).fetchone() is not None
+
+    def commit_page(self,job,value,*,finalized_through,seen=None,supplements=()):
         if job['family'] not in self.active_families:raise EvidenceUnavailable('paused_family_activity_forbidden')
         """No page-count discard; every physical page remains bounded to 100."""
         seen=self.clock() if seen is None else seen
@@ -404,6 +534,9 @@ class SelectiveHistory:
         token=value.get('paginationToken')
         if token is not None and (not isinstance(token,str) or not token or token==job['token']):
             raise EvidenceUnavailable('repair_pagination_stalled')
+        evidence=archive_page_evidence(job,value,endpoint_identity=self.endpoint_identity,supplements=supplements,
+            supplemented_before=self.has_archive_log_supplements(job['id']))
+        supplement_by_original={item.original_json:item for item in supplements}
         rows=[];last=None if job['last_slot'] is None else (job['last_slot'],job['last_index'])
         for tx in value['data']:
             pair=(tx.get('slot'),tx.get('transactionIndex'))
@@ -411,22 +544,18 @@ class SelectiveHistory:
                 raise EvidenceUnavailable('repair_order_or_bounds')
             if last is not None and pair<=last:raise EvidenceUnavailable('repair_order_or_bounds')
             last=pair
-            rows.extend(economic_records(job['family'],job['address'],tx,
+            supplement=supplement_by_original.get(canonical(tx))
+            complete=(complete_archive_transaction(tx,supplement,endpoint_identity=self.endpoint_identity)
+                if supplement is not None else tx)
+            rows.extend(economic_records(job['family'],job['address'],complete,
                 endpoint_identity=self.endpoint_identity,seen=seen,source='alchemy_finalized_repair'))
-        # Hash the original complete provider page, not a projection. The same
-        # immutable JSON is included in both receipt identities below; dumping
-        # the large transaction/log page again adds no verification.
-        value_raw=canonical(value)
-        value_hash=hashlib.sha256(value_raw.encode()).hexdigest()
-        scoped=self.scope_for(job['family'],job['address']);lineage=digest([job['lineage'],value_hash])
+        scoped=self.scope_for(job['family'],job['address']);lineage=evidence['lineage_hash']
         proof=None
         if token is None:
             proof=IntervalProof(scoped,job['lo'],job['hi'],'alchemy_finalized_repair',self.endpoint_identity,
-                dict(finalized=True,complete=True,scope=scoped,lower_slot=job['lo'],upper_slot=job['hi'],
-                     lineage_hash=lineage,method='getTransactionsForAddress',pagination_exhausted=True,
-                     page_count=job['pages']+1,address=job['address'],canonical_scope=FAMILIES[job['family']]),seen)
+                dict(evidence['witness'],scope=scoped),seen)
         with self.writer.transaction():
-            input_hash=hashlib.sha256(('['+canonical(job['token'])+','+value_raw+']').encode()).hexdigest()
+            input_hash=evidence['input_hash']
             receipt=self.db.execute('SELECT input_hash,result FROM acquisition_page_receipts WHERE job=? AND page=?',
                 (job['id'],job['pages'])).fetchone()
             if receipt:
@@ -435,6 +564,11 @@ class SelectiveHistory:
             current=self.db.execute('SELECT token,pages,status FROM acquisition_jobs WHERE id=?',(job['id'],)).fetchone()
             if current is None or tuple(current)!=(job['token'],job['pages'],'pending'):
                 raise EvidenceUnavailable('candidate_page_lease_stale')
+            retained_supplements=[]
+            for receipt,body in zip(evidence['supplement_receipts'],evidence['supplement_observations']):
+                observation=self.db.execute('INSERT INTO acquisition_observations(job,kind,at,body) VALUES(?,?,?,?)',
+                    (job['id'],'archive_log_supplement',seen,canonical(body)))
+                retained_supplements.append(dict(receipt,observation_id=observation.lastrowid))
             self.ingest(rows)
             if proof is not None:
                 actual=self.scope_for(job['family'],job['address'])
@@ -448,6 +582,9 @@ class SelectiveHistory:
                 lineage,'complete' if token is None else 'pending',seen,job['id']))
             if job['pages']+1>16:self._observation(job['id'],'capacity_pressure',dict(pages=job['pages']+1,economic_rejection=False))
             result=dict(complete=token is None,records=len(rows),pages=job['pages']+1)
+            if retained_supplements:
+                result.update(archive_page_hash=evidence['value_hash'],archive_supplemented_page_hash=evidence['page_hash'],
+                    archive_log_supplements=retained_supplements)
             self.db.execute('INSERT INTO acquisition_page_receipts VALUES(?,?,?,?,?)',
                 (job['id'],job['pages'],input_hash,canonical(result),seen))
         return result
