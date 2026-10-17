@@ -161,7 +161,8 @@ def _work(binding, purchases, methods, batch):
             finally:
                 _transport.reset(token)
                 if current['started']:
-                    purchases.completed(current['label'], current['response_bytes'], failed=failed)
+                    purchases.completed(current['label'], current['response_bytes'],
+                        failed=failed or current.get('provider_rpc_failed', False))
     finally:
         for variable, token in reversed(tokens):
             variable.reset(token)
@@ -340,10 +341,29 @@ class ParentHTTP:
                 limited = any(c in (429, -32005) for c in errors)
                 if limited and binding.governor is not None:
                     binding.governor.rate_limited('solana', [c['method'] for c in calls])
-                if any('error' in r for r in rows):
+                has_errors = any('error' in r for r in rows)
+                if has_errors:
+                    _transport.get()['provider_rpc_failed'] = True
                     code = next((c for c in errors if type(c) is int and -999999 <= c <= 999999), None)
-                    raise BoundaryError('provider_rpc_'+str(code) if code is not None else 'provider_invalid_envelope')
-                if any('result' not in r for r in rows):
+                    if binding.admission is not None:
+                        # Native Pons rejects a batch at its first error inside
+                        # Admission.invoke. Preserve that completion/debt contract.
+                        raise BoundaryError('provider_rpc_'+str(code) if code is not None else 'provider_invalid_envelope')
+                    # Solana's actual batch consumer retains successful members
+                    # and retries only failed ones. Never lose those results or
+                    # reflect provider messages/data/credential text to a child.
+                    clean_rows = []
+                    for row, code in zip(rows, errors):
+                        if 'error' in row:
+                            safe = {'message': 'provider_rpc_error'}
+                            if type(code) is int and -(2**31) <= code < 2**31:
+                                safe['code'] = code
+                            clean_rows.append(dict(jsonrpc='2.0', id=row['id'], error=safe))
+                        else:
+                            clean_rows.append(row)
+                    rows = clean_rows
+                    reply = rows if state.attempt.batch else rows[0]
+                if any('result' not in r and 'error' not in r for r in rows):
                     raise ParentTransportFailure('provider_invalid_envelope')
                 binding.public(reply)
                 clean = json.dumps(reply, separators=(',', ':'), allow_nan=False).encode()
@@ -353,7 +373,7 @@ class ParentHTTP:
                     raise
                 raise ParentTransportFailure('provider_invalid_json') from None
             _check(state)
-            if binding.governor is not None:
+            if binding.governor is not None and not has_errors:
                 binding.governor.succeeded('solana', [c['method'] for c in calls])
             return Delivered(clean, True)
         finally:

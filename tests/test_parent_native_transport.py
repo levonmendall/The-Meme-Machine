@@ -219,16 +219,28 @@ class ParentNativeTransportTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(row['http_status'], 429)
             self.assertEqual(row['boundary'], 'provider_http_429')
 
-    async def test_rpc_error_is_charged_not_success_and_body_never_returned(self):
+    async def test_rpc_error_is_charged_and_only_genuine_code_crosses_wire(self):
         self.physical.body = b'{"id":1,"error":{"code":-32005,"message":"offline-parent-secret"}}'
-        with self.assertRaises(Exception) as caught:
-            await self.perform(self.attempt())
-        self.assertNotIn('offline-parent-secret', str(caught.exception))
+        delivered = await self.perform(self.attempt())
+        self.assertNotIn(b'offline-parent-secret', delivered.body)
+        self.assertEqual(json.loads(delivered.body)['error']['code'], -32005)
         self.assertEqual(self.governor.status()['providers'][0]['rate_errors'], 1)
         state = self.budget.snapshot()
         self.assertEqual(state['http_bytes'], str(len(self.physical.body)))
         self.assertEqual(state['http_uncertain_bytes'], '0')
         self.assertEqual(self.http.purchases.snapshot()['totals']['failed_requests'], 1)
+
+    async def test_mixed_solana_batch_preserves_successful_members_and_error_ids(self):
+        self.physical.body = json.dumps([
+            dict(id=2, result='retained-complete-economic-result'),
+            dict(id=1, error=dict(code=-32005, message='offline-parent-secret'))]).encode()
+        delivered = await self.perform(self.attempt(calls=[('getSlot', []), ('getSlot', [])], batch=True))
+        rows = {r['id']: r for r in json.loads(delivered.body)}
+        self.assertEqual(rows[2]['result'], 'retained-complete-economic-result')
+        self.assertEqual(rows[1]['error']['code'], -32005)
+        self.assertNotIn(b'offline-parent-secret', delivered.body)
+        self.assertEqual(self.budget.snapshot()['rpc_elements'], '2')
+        self.assertEqual(self.budget.snapshot()['http_attempts'], '1')
 
     async def test_partial_read_is_charged_uncertain_and_physical_eof_required(self):
         self.physical.fail_after = 1

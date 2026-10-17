@@ -24,6 +24,12 @@ cannot be bound. HTTP error classification/debt survives failed body inspection;
 unread bytes remain uncertain. No provider error body or exception text crosses
 the channel. Cancellation joins accepted accounting before closing the receipt.
 
+The follow-up mixed-batch regression preserves successful Solana members and
+original IDs while stripping provider error messages/data to a fixed safe label
+and retaining only the genuine numeric error code. This keeps native per-member
+cache/retry behavior. Pons retains its original whole-batch error contract.
+Fifty-two transport/bridge cases passed in 0.738 seconds after this correction.
+
 The optional `cancelled=None` additions to Governor.acquire and Admission.acquire
 and invoke preserve ordinary production calls. An explicitly injected parent
 attempt can stop waiting for a grant without purchasing a physical request or
