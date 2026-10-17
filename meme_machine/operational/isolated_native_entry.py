@@ -26,6 +26,10 @@ _SPAWN_BOUNDARIES=frozenset(('isolated_native_spawn_scope','isolated_native_spaw
     'isolated_native_spawn_executable','isolated_native_spawn_descriptor_authority','isolated_native_spawn_stopped',
     'isolated_native_spawn_tracker_replacement','isolated_native_spawn_foreign_process',
     'isolated_native_spawn_owner_self_join','isolated_native_spawn_tracker_owner','isolated_native_spawn_tracker_unjoined'))
+_FAILURE_MODULES=frozenset(('meme_machine.operational.isolated_native_source',
+    'meme_machine.runtime.isolated_native_bootstrap','meme_machine.runtime.isolated_native_resources',
+    'meme_machine.operational.source_ports','meme_machine.runtime.evidence_worker',
+    'meme_machine.solana_selective_source','meme_machine.operational.pons_native_profile'))
 
 
 class IsolatedEntryBlocked(ValueError):
@@ -262,6 +266,12 @@ def main(*,layout=None):
         receipt['failure_stage']=stage
         number=getattr(error,'errno',None)
         if type(number) is int and 0<number<4096:receipt['error_number']=number
+        trace=error.__traceback__
+        while trace is not None:
+            name=trace.tb_frame.f_globals.get('__name__')
+            if name in _FAILURE_MODULES and 0<trace.tb_lineno<10000:
+                receipt['failure_site']=dict(module=name,line=trace.tb_lineno)
+            trace=trace.tb_next
         module=sys.modules.get('meme_machine.runtime.isolated_native_spawn')
         if (module is not None and type(error) is getattr(module,'NativeSpawnRefused',None)
                 and len(error.args)==1 and type(error.args[0]) is str and error.args[0] in _SPAWN_BOUNDARIES):
