@@ -51,7 +51,12 @@ def native_positions(db, lane):
     return rows
 
 
-def assert_clear(root, account):
+def assert_clear(root, account, *, read_database=None):
+    # A protected, stopped-state inspector may supply its existing read-only
+    # context. The ordinary runtime retains the original WAL-aware opener.
+    if read_database is None:
+        def read_database(path):
+            return closing(sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True,timeout=1))
     root = Path(root);state = account.snapshot();obligations = []
     def add(lane, kind, identity, **fields):
         obligations.append(dict(lane=lane,kind=kind,identity=identity,**fields))
@@ -59,8 +64,9 @@ def assert_clear(root, account):
     if shared.exists():
         try:
             if shared.is_symlink():raise ValueError('symlink')
-            with closing(sqlite3.connect(shared.resolve().as_uri()+'?mode=ro',uri=True,timeout=1)) as db:
-                db.execute('PRAGMA query_only=ON');db.execute('BEGIN')
+            with read_database(shared) as db:
+                db.execute('PRAGMA query_only=ON')
+                if not db.in_transaction:db.execute('BEGIN')
                 for key,raw in db.execute("SELECT key,body FROM runtime WHERE key LIKE 'native_position:ramses:%'"):
                     row=json.loads(raw)['position']
                     if row['status'] not in ('settled','cancelled','written_off') or row.get('held',0):
@@ -81,8 +87,9 @@ def assert_clear(root, account):
             if not path.is_file():continue
             if path.name.endswith(('.sqlite','.sqlite3')):
                 try:
-                    with closing(sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True,timeout=1)) as db:
-                        db.execute('PRAGMA query_only=ON');db.execute('BEGIN')
+                    with read_database(path) as db:
+                        db.execute('PRAGMA query_only=ON')
+                        if not db.in_transaction:db.execute('BEGIN')
                         if db.execute('PRAGMA quick_check(1)').fetchall() != [('ok',)]:
                             raise ValueError('native_integrity')
                         for row in native_positions(db,lane):
