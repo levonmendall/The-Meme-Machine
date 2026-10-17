@@ -1819,10 +1819,54 @@ CROSS_CANDIDATE_COLD_PATHS=frozenset((
 ))
 
 
+# The measured successor changes only per-invocation filesystem validation.
+# Reduce the exact complete file back to its reviewed predecessor before every
+# existing archive, cancellation, accounting and economic source guard.
+RETAINED_PATH_FACTOR_REFERENCE='0c8e9beae8eed6e4579f4473c4f449f711fb5691'
+RETAINED_PATH_FACTOR_SOURCE='meme_machine/runtime/candidate_history.py'
+RETAINED_PATH_FACTOR_BEFORE='bdd6418f6930581e48d887897493d32cb24bd260faf529e4694306e8f389c6c4'
+RETAINED_PATH_FACTOR_AFTER='74b40b66a6fd13f7bada63954dfdbb37690bd9c6f3db597a4d3a2182d6ed08cd'
+
+
+def retained_path_factoring_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=RETAINED_PATH_FACTOR_SOURCE:return current
+    prior=subprocess.check_output(['git','show',RETAINED_PATH_FACTOR_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),RETAINED_PATH_FACTOR_BEFORE,
+        relative+':exact per-reference filesystem predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),RETAINED_PATH_FACTOR_AFTER,
+        relative+':exact per-reference filesystem successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    selected=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='retained_reference_path')
+    original=next(n for n in old.body if isinstance(n,ast.FunctionDef) and n.name=='retained_reference_path')
+    test.assertEqual(ast.dump(selected.args),ast.dump(original.args),relative+':unchanged reader signature')
+    new_try=next(n for n in selected.body if isinstance(n,ast.Try))
+    old_try=next(n for n in original.body if isinstance(n,ast.Try))
+    index=selected.body.index(new_try)
+    reduced=deepcopy(selected);reduced.body[index]=deepcopy(old_try)
+    test.assertEqual(ast.dump(reduced),ast.dump(original),
+        relative+':only within-call filesystem try block changes; original cohort and environment guards retained')
+    test.assertEqual([ast.dump(n) for n in new_try.handlers],[ast.dump(n) for n in old_try.handlers],
+        relative+':original refusal handling retained')
+    tree.body[tree.body.index(selected)]=deepcopy(original)
+    test.assertEqual(ast.dump(tree),ast.dump(old),
+        relative+':all other source, index, event, hash, transaction and economic nodes unchanged')
+    def body(source,node):return b''.join(source.splitlines(keepends=True)[node.lineno-1:node.end_lineno])
+    selected_bytes=body(current,selected)
+    test.assertEqual(current.count(selected_bytes),1,relative+':one exact filesystem helper')
+    restored=current.replace(selected_bytes,body(prior,original),1)
+    test.assertEqual(restored,prior,relative+':every source byte outside the one helper unchanged')
+    return prior
+
+
 def cross_candidate_cold_predecessor(test,relative,current):
     if relative not in CROSS_CANDIDATE_COLD_PATHS:return current
     prior=subprocess.check_output(['git','show',CROSS_CANDIDATE_COLD_BASE+':'+relative],cwd=ROOT)
     if current==prior:return prior
+    current=retained_path_factoring_predecessor(test,relative,current)
     accepted=subprocess.check_output(['git','show',CROSS_CANDIDATE_COLD_REVIEW+':'+relative],cwd=ROOT)
     test.assertEqual(current,accepted,relative+':exact reviewed Pump startup archive reuse')
     return prior
@@ -3359,6 +3403,30 @@ class RobinhoodUSDTests(unittest.TestCase):
             self.assertNotEqual(changed,current,relative+':negative mutation changes source')
             with self.assertRaises(AssertionError):buffered_prejoin_predecessor(self,relative,changed)
             with self.assertRaises(AssertionError):preparation_replay_predecessor(self,relative,changed)
+
+    def test_retained_path_factoring_preserves_original_source_guards(self):
+        import hashlib
+        relative=RETAINED_PATH_FACTOR_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),RETAINED_PATH_FACTOR_AFTER)
+        prior=subprocess.check_output(['git','show',RETAINED_PATH_FACTOR_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(retained_path_factoring_predecessor(self,relative,current),prior)
+        self.assertEqual(retained_path_factoring_predecessor(self,relative,prior),prior)
+        for predecessor in (cross_candidate_cold_predecessor,canonical_cold_predecessor,
+                pump_restore_selection_predecessor,retained_canonical_predecessor,
+                native_startup_failure_predecessor,rally_predecessor,opportunity_predecessor):
+            self.assertEqual(predecessor(self,relative,current),predecessor(self,relative,prior))
+        changes=[current+b'\n# unreviewed filesystem guard change\n',b'']
+        for previous,successor in (
+                (b'stat.S_ISDIR(os.lstat(directory).st_mode)',b'stat.S_ISREG(os.lstat(directory).st_mode)'),
+                (b'stat.S_ISREG(os.lstat(file).st_mode)',b'True'),
+                (b'for directory in directories:',b'for directory in ():'),
+                (b'for file in files:',b'for file in ():'),
+                (b"os.environ.get('MM_PAPER_EPOCH')!=RETAINED_REFERENCE_EPOCH",b'False')):
+            self.assertEqual(current.count(previous),1)
+            changes.append(current.replace(previous,successor,1))
+        for changed in changes:
+            with self.assertRaises(AssertionError):retained_path_factoring_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):canonical_cold_predecessor(self,relative,changed)
 
     def test_pump_restore_archive_reuse_preserves_fresh_authority_and_cancellation(self):
         import hashlib

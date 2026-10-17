@@ -116,29 +116,40 @@ broker.plane.db.execute('UPDATE pons_current_watch SET body=?,hash=? WHERE candi
 broker.plane.observe('retained-inactive','ramses','retained-observation',{},ordering=(1,),
     watermark={},interpretation={},observed=100,deadline=105,priority=4)
 db=broker.plane.db
-db.execute('ALTER TABLE transitions RENAME TO retained_transitions')
-# The real audit cutoff SELECT must evaluate this SQLite aggregate before it
-# can return its filtered boundary. MAX(seq) and INSERT remain ordinary; no
-# Python UDF, sleep, artificial callback or provider creates the expensive step.
-db.execute('''CREATE VIEW transitions AS WITH RECURSIVE expensive(n) AS
-    (VALUES(0) UNION ALL SELECT n+1 FROM expensive WHERE n<100000000)
-    SELECT seq,CASE WHEN (SELECT MAX(n) FROM expensive)>=0 THEN candidate END AS candidate,
-        generation,at,kind,reason,watermark,interpretation,details FROM retained_transitions''')
-db.execute('''CREATE TRIGGER insert_transition INSTEAD OF INSERT ON transitions BEGIN
-    INSERT INTO retained_transitions VALUES(NEW.seq,NEW.candidate,NEW.generation,NEW.at,
-        NEW.kind,NEW.reason,NEW.watermark,NEW.interpretation,NEW.details); END''')
+def install_audit_view(connection):
+    connection.execute('ALTER TABLE transitions RENAME TO retained_transitions')
+    # The real audit cutoff SELECT must evaluate this SQLite aggregate before
+    # returning its filtered boundary. MAX(seq) and INSERT remain ordinary;
+    # no Python UDF, artificial callback or provider creates the expensive step.
+    connection.execute('''CREATE VIEW transitions AS WITH RECURSIVE expensive(n) AS
+        (VALUES(0) UNION ALL SELECT n+1 FROM expensive WHERE n<100000000)
+        SELECT seq,CASE WHEN (SELECT MAX(n) FROM expensive)>=0 THEN candidate END AS candidate,
+            generation,at,kind,reason,watermark,interpretation,details FROM retained_transitions''')
+    connection.execute('''CREATE TRIGGER insert_transition INSTEAD OF INSERT ON transitions BEGIN
+        INSERT INTO retained_transitions VALUES(NEW.seq,NEW.candidate,NEW.generation,NEW.at,
+            NEW.kind,NEW.reason,NEW.watermark,NEW.interpretation,NEW.details); END''')
+def restore_audit_table(connection):
+    connection.execute('DROP VIEW transitions')
+    connection.execute('ALTER TABLE retained_transitions RENAME TO transitions')
+install_audit_view(db)
 def facts(connection):
     values={name:[tuple(r) for r in connection.execute('SELECT * FROM '+name+' ORDER BY rowid')]
         for name in ('candidates','pons_current_watch','observations','retained_transitions','runtime')}
     values['triggers']=[tuple(r) for r in connection.execute("SELECT name,sql FROM sqlite_master WHERE type='trigger' ORDER BY name")]
     return hashlib.sha256(canonical(values).encode()).hexdigest()
 before=facts(db)
+# A native constructor must see its actual table and covering index. Restore
+# that schema for close/reopen, then reinstall the identical audit fixture only
+# after Plane has completed its unchanged real constructor.
+restore_audit_table(db)
 broker.close()
 os.environ['MM_OPERATIONAL_PHASE']='OBSERVATION'
 captured=[]
 class CapturedPlane(Plane):
     def __init__(self,*args,**kwargs):
-        super().__init__(*args,**kwargs);captured.append(self)
+        super().__init__(*args,**kwargs)
+        if not captured:install_audit_view(self.db)
+        captured.append(self)
 pons.Plane=CapturedPlane
 def shutdown(signum,_frame):
     status.cancellation_signal(signum);stop.requested.set()
@@ -160,8 +171,7 @@ except stop.Shutdown:
     result=dict(signal=status.snapshot()['cancellation_signal']['signal'],facts=facts(db),
         in_transaction=db.in_transaction,probe=probe,
         trigger=bool(db.execute("SELECT 1 FROM sqlite_master WHERE name='history_no_delete'").fetchone()))
-    db.execute('DROP VIEW transitions')
-    db.execute('ALTER TABLE retained_transitions RENAME TO transitions')
+    restore_audit_table(db)
     plane.close();stop.requested.clear()
     resumed=pons.Broker(path,POLICY_HASH,clock=lambda:100.,startup_cancel=lambda:False)
     row=resumed.plane.get(key)
