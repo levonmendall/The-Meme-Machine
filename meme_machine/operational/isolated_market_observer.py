@@ -23,7 +23,7 @@ from urllib.request import Request, build_opener, HTTPRedirectHandler
 SOLANA = 'https://api.mainnet-beta.solana.com'
 ROBINHOOD = 'https://rpc.mainnet.chain.robinhood.com'
 PUMP_PROGRAM = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P'
-PUMPSWAP_PROGRAM = 'pAMMBay6oceH9fJKBRHGP5D4sWpmSwMn52FMfXEA'
+PUMPSWAP_PROGRAM = 'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA'
 PONS_FACTORY = '0x7ed598bcef8bd9edd8c97a195c6d13f40801ec7e'
 PONS_CHAIN_ID = 4663
 MAX_DURATION = 180
@@ -75,6 +75,7 @@ class RPC:
         self.attempts = 0
         self.rate_limited = 0
         self.last_request = None
+        self.rejection = None
 
     @staticmethod
     def _transport(url, body):
@@ -107,7 +108,15 @@ class RPC:
             row = json.loads(raw)
             require(type(row) is dict and row.get('jsonrpc') == '2.0'
                     and row.get('id') == self.attempts, 'rpc_response_identity')
-            require('error' not in row and 'result' in row, 'rpc_rejected')
+            if 'error' in row:
+                error = row['error']
+                code = error.get('code') if type(error) is dict else None
+                # Retain only an approved method and a bounded JSON-RPC code.
+                # Provider messages/data may contain endpoints or credentials.
+                self.rejection = dict(method=method, code=code
+                    if type(code) is int and -(2**31) <= code < 2**31 else None)
+                raise ObservationUnavailable('rpc_rejected')
+            require('result' in row, 'rpc_rejected')
             return row['result']
         except HTTPError as e:
             if e.code == 429:
@@ -122,6 +131,19 @@ class RPC:
 
 def _integer(value, name):
     require(type(value) is int and 0 <= value < 2**63, name)
+    return value
+
+
+def _solana_program(value):
+    require(type(value) is str and 32 <= len(value) <= 44
+            and re.fullmatch('[1-9A-HJ-NP-Za-km-z]+', value) is not None,
+            'solana_program_invalid')
+    alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+    number = 0
+    for character in value:
+        number = number * 58 + alphabet.index(character)
+    length = len(value) - len(value.lstrip('1')) + (number.bit_length()+7)//8
+    require(length == 32, 'solana_program_invalid')
     return value
 
 
@@ -213,6 +235,9 @@ class DisposableJournal:
 class Observer:
     """Best-effort *sampled* public references, not canonical coverage proof."""
     def __init__(self, rpc, journal, *, clock=time.monotonic):
+        # Validate our fixed public addresses before contacting either provider.
+        _solana_program(PUMP_PROGRAM)
+        _solana_program(PUMPSWAP_PROGRAM)
         self.rpc,self.journal,self.clock=rpc,journal,clock
         self.last_signature = {'solana_pump':None, 'solana_pumpswap':None}
         self.last_pons_head = None
@@ -332,6 +357,7 @@ class Observer:
             completed_ticks=self.completed,requested_duration_seconds=duration,
             elapsed_seconds=round(elapsed,3),provider_requests=self.rpc.attempts,
             provider_429=self.rpc.rate_limited,error_code=self.error,
+            provider_rpc_rejection=getattr(self.rpc,'rejection',None),
             unverified_future_signatures_excluded=dict(self.unverified_future),
             regressed_finalized_heads=self.regressed_finalized_heads,
             lane_measurements=self.journal.summary(),
