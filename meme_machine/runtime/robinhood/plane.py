@@ -83,6 +83,14 @@ class Plane:
           claim TEXT,owner TEXT,claim_generation INTEGER,claim_until REAL,result TEXT);
         CREATE INDEX IF NOT EXISTS candidate_pending ON candidates(lane,pending,priority,deadline);
         CREATE INDEX IF NOT EXISTS candidate_lane_identity ON candidates(lane,id);
+        CREATE INDEX IF NOT EXISTS candidate_generation_identity ON candidates(id,generation);
+        CREATE INDEX IF NOT EXISTS candidate_claimed ON candidates(lane,claim_until) WHERE claim IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS candidate_delivery ON candidates(lane,priority,deadline,id,generation)
+          WHERE result IS NOT NULL AND completed=desired;
+        CREATE TABLE IF NOT EXISTS pons_current_watch(
+          candidate TEXT PRIMARY KEY,body TEXT NOT NULL,hash TEXT NOT NULL,
+          next_at REAL NOT NULL,attempt INTEGER NOT NULL DEFAULT 0);
+        CREATE INDEX IF NOT EXISTS pons_watch_due ON pons_current_watch(next_at,attempt,candidate);
         CREATE INDEX IF NOT EXISTS candidate_retirement ON candidates(observed) WHERE pending=0 AND claim IS NULL;
         CREATE TABLE IF NOT EXISTS observations(
           candidate TEXT NOT NULL,observation TEXT NOT NULL,body TEXT NOT NULL,at REAL NOT NULL,
@@ -177,7 +185,7 @@ class Plane:
             evidence_evicted = False
             participating='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))'
             audit_ring(self.db,'observations','observations_no_delete',key='rowid',where=participating)
-            self.db.execute('DELETE FROM result_consumption WHERE '+participating+' AND NOT EXISTS(SELECT 1 FROM candidates c WHERE c.id=result_consumption.candidate AND c.generation=result_consumption.generation)')
+            self.db.execute('DELETE FROM result_consumption WHERE '+participating+' AND NOT EXISTS(SELECT 1 FROM candidates c INDEXED BY candidate_generation_identity WHERE c.id=result_consumption.candidate AND c.generation=result_consumption.generation)')
             rolling_present = self.db.execute('SELECT 1 FROM rolling LIMIT 1').fetchone() is not None
             if rolling_present:
                 self.db.execute('DELETE FROM rolling WHERE at<? AND candidate IN (SELECT id FROM candidates WHERE '+active_sql('lane')+')',(self.clock()-86400,))
@@ -315,7 +323,7 @@ class Plane:
     def recover(self):
         with self.transaction():
             from meme_machine.runtime.operating_families import active_sql
-            for raw in self.db.execute('SELECT * FROM candidates WHERE '+active_sql('lane')+' AND claim IS NOT NULL').fetchall():
+            for raw in self.db.execute('SELECT * FROM candidates INDEXED BY candidate_claimed WHERE '+active_sql('lane')+' AND claim IS NOT NULL').fetchall():
                 row=dict(raw)
                 if not alive(row['owner']) or row['claim_until']<=self.clock():
                     self.db.execute('UPDATE candidates SET claim=NULL,owner=NULL,claim_generation=NULL,claim_until=NULL WHERE id=?',(row['id'],))
@@ -418,10 +426,17 @@ class Plane:
     def unconsumed(self,lane):
         """Durable outbox; callers acknowledge only after checkpointing effects."""
         with self.lock:
-            return [dict(r) for r in self.db.execute("""SELECT c.* FROM candidates c
+            # Select only scheduling keys before hydrating an economic result.
+            # A single statement retains the original SQLite read snapshot:
+            # peer completion/consumption cannot mix generations between phases.
+            return [dict(r) for r in self.db.execute("""WITH ready AS MATERIALIZED (
+              SELECT c.id,c.generation FROM candidates c INDEXED BY candidate_delivery
               LEFT JOIN result_consumption a ON c.id=a.candidate AND c.generation=a.generation
               WHERE c.lane=? AND c.result IS NOT NULL AND c.completed=c.desired
-                AND a.candidate IS NULL ORDER BY c.priority,c.deadline,c.id""",(lane,))]
+                AND a.candidate IS NULL)
+              SELECT c.* FROM ready r JOIN candidates c
+                ON c.id=r.id AND c.generation=r.generation
+              ORDER BY c.priority,c.deadline,c.id""",(lane,))]
 
     def consume(self,key,generation):
         with self.transaction():
