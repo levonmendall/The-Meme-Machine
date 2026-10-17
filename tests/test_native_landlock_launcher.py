@@ -37,7 +37,8 @@ if native==0:
  if child==0:
   signal.signal(signal.SIGTERM,signal.SIG_IGN)
   while True:time.sleep(1)
- print(json.dumps(dict(status='COMPLETED',financial_authority=False,descendant=child)),flush=True)
+ print(json.dumps(dict(status='BLOCKED',financial_authority=False,descendant=child,
+  graceful_shutdown=True,all_workers_joined=True)),flush=True)
  os._exit(0)
 os.waitpid(native,0)
 assert not _finish_descendants(seconds=.05)
@@ -50,7 +51,7 @@ def killpg(pid,sig):events.append(('signal',sig));return original_killpg(pid,sig
 def wait(*a,**kw):events.append(('reap',None));return original_wait(*a,**kw)
 os.killpg=killpg;child.wait=wait
 owner=NativeLandlockChild(child,time.monotonic());receipt=owner.wait(seconds=2)
-assert receipt['status']=='BLOCKED' and receipt['code']=='native_landlock_child_failed',receipt
+assert receipt['status']=='BLOCKED' and receipt['code']=='native_landlock_descendants_not_joined',receipt
 assert receipt['graceful_shutdown'] is False and receipt['all_workers_joined'] is False
 original=json.loads(bytes(owner.output['stdout']))
 pid,status=os.waitpid(original['descendant'],0)
@@ -141,7 +142,7 @@ print(json.dumps(dict(fixture_pass=True,landlock_verified=False)))
 
     def test_cancellation_before_fork_and_after_reap_preserves_kernel_pid_ownership(self):
         self.run_fixture(r'''
-import json,os,signal,sys
+import json,os,signal,sys,time
 sys.path.insert(0,sys.argv[1])
 from meme_machine.operational.isolated_native_landlock_launcher import _NativeCancellation
 signal.signal(signal.SIGTERM,signal.SIG_DFL)
@@ -158,24 +159,92 @@ os.kill=kill;relay();assert called==[],called
 print(json.dumps(dict(fixture_pass=True,landlock_verified=False)))
 ''')
 
+    def test_inherited_supervisor_handler_cannot_consume_stop_before_native_reset(self):
+        self.run_fixture(r'''
+import json,os,signal,sys,time
+sys.path.insert(0,sys.argv[1])
+from meme_machine.operational.isolated_native_landlock_launcher import (
+ _NativeCancellation,_reset_native_child_signals,NativePolicyBlocked)
+gate_read,gate_write=os.pipe();ready_read,ready_write=os.pipe()
+relay=_NativeCancellation();signal.signal(signal.SIGTERM,relay)
+native=os.fork()
+if native==0:
+ os.close(gate_write);os.close(ready_read)
+ # The forked relay has pid=None, exactly as in product setup. Keep this
+ # actual inherited handler active until it records the parent's stop.
+ os.write(ready_write,b'1')
+ while not relay.requested:time.sleep(.001)
+ os.write(ready_write,b'2');os.close(ready_write)
+ assert os.read(gate_read,1)==b'1';os.close(gate_read)
+ try:_reset_native_child_signals(relay)
+ except NativePolicyBlocked as error:
+  assert error.code=='native_landlock_cancelled_before_entry';os._exit(0)
+ os._exit(99)
+os.close(gate_read);os.close(ready_write)
+assert os.read(ready_read,1)==b'1';relay.attach(native);relay()
+assert os.read(ready_read,1)==b'2';os.close(ready_read)
+os.write(gate_write,b'1');os.close(gate_write)
+pid,status=os.waitpid(native,0);assert os.WIFEXITED(status) and os.WEXITSTATUS(status)==0,status
+print(json.dumps(dict(fixture_pass=True,landlock_verified=False)))
+''')
+
+    def test_concurrent_wait_obeys_original_stop_deadline_without_second_grace(self):
+        self.run_fixture(r'''
+import json,os,signal,subprocess,sys,threading,time
+from unittest.mock import patch
+sys.path.insert(0,sys.argv[1])
+from meme_machine.operational import isolated_native_landlock_launcher as launcher
+read,write=os.pipe()
+code='import os,signal,sys,time;signal.signal(signal.SIGTERM,signal.SIG_IGN);os.write(int(sys.argv[1]),b"1");time.sleep(60)'
+child=subprocess.Popen([sys.executable,'-I','-B','-S','-c',code,str(write)],
+ stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True,pass_fds=(write,))
+os.close(write);assert os.read(read,1)==b'1';os.close(read);child.stdin.close()
+owner=launcher.NativeLandlockChild(child,time.monotonic());receipts=[]
+waiter=threading.Thread(target=lambda:receipts.append(owner.wait()))
+waiter.start()
+while not owner._wait_lock.locked():time.sleep(.001)
+started=time.monotonic()
+with patch.object(launcher,'STOP_GRACE',.12):receipt=owner.stop()
+elapsed=time.monotonic()-started;waiter.join(.2)
+assert .08<=elapsed<.8,elapsed
+assert not waiter.is_alive() and len(receipts)==1
+assert receipt['code']==receipts[0]['code']=='native_landlock_shutdown_expired',receipts
+assert child.returncode==-signal.SIGKILL and owner._reaped and not owner._reader.is_alive()
+deadline=owner._stop_deadline
+with patch.object(launcher,'STOP_GRACE',.12):owner.stop()
+assert owner._stop_deadline==deadline
+print(json.dumps(dict(fixture_pass=True,landlock_verified=False)))
+''')
+
     def test_output_overflow_and_reader_start_failure_join_owned_processes(self):
         self.run_fixture(r'''
 import json,os,subprocess,sys,time
 from unittest.mock import patch
 sys.path.insert(0,sys.argv[1])
 from meme_machine.operational.isolated_native_landlock_launcher import NativeLandlockChild
-def start(code):return subprocess.Popen([sys.executable,'-I','-B','-S','-c',code],stdin=subprocess.DEVNULL,
+def start(code):return subprocess.Popen([sys.executable,'-I','-B','-S','-c',code],stdin=subprocess.PIPE,
  stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
 child=start('import os,time;os.write(1,b"x"*65537);time.sleep(60)')
 owner=NativeLandlockChild(child,time.monotonic());receipt=owner.wait(seconds=2)
+child.stdin.close()
 assert receipt['status']=='BLOCKED' and receipt['code']=='native_landlock_output_bound',receipt
 assert child.returncode is not None and not owner._reader.is_alive()
 child=start('import time;time.sleep(60)')
 with patch('threading.Thread.start',side_effect=RuntimeError('fixed fixture start failure')):
  try:NativeLandlockChild(child,time.monotonic())
- except RuntimeError:pass
+ except RuntimeError as error:assert error.native_landlock_owner.child is child
  else:raise AssertionError('start failure accepted')
-assert child.returncode is not None and child.stdout.closed and child.stderr.closed
+assert child.returncode is not None and child.stdin.closed and child.stdout.closed and child.stderr.closed
+child=start('import time;time.sleep(60)');original_wait=child.wait
+primary=RuntimeError('fixed primary startup failure')
+with patch('threading.Thread.start',side_effect=primary),patch.object(child,'wait',side_effect=subprocess.TimeoutExpired('fixed child',2)):
+ try:NativeLandlockChild(child,time.monotonic())
+ except RuntimeError as error:
+  assert error is primary and isinstance(error.__cause__,subprocess.TimeoutExpired)
+  retained=error.native_landlock_owner;assert retained.child is child and not retained._reaped
+ else:raise AssertionError('cleanup failure replaced or lost primary')
+assert child.stdin.closed and child.stdout.closed and child.stderr.closed
+receipt=retained.wait(seconds=.1);assert retained._reaped and child.returncode is not None
 print(json.dumps(dict(fixture_pass=True,landlock_verified=False)))
 ''')
 
