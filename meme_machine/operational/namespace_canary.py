@@ -35,7 +35,8 @@ _CHECKS = frozenset(('caps_empty','no_new_privileges','pid_namespace_init','host
     'host_secret_write','host_parent_environ','oldroot_inaccessible','source_readonly',
     'host_unix_path','host_abstract_unix','host_network','no_egress_interfaces',
     'no_ipv4_routes','namespace_reentry','ptrace_parent_denied','local_unix',
-    'sqlite_FULL_WAL','private_shm','real_spawn_pool','anonymous_parent_ipc','all'))
+    'sqlite_FULL_WAL','private_shm','real_spawn_pool','anonymous_parent_ipc',
+    'site_disabled','copied_runtime_only','all'))
 
 
 class Blocked(RuntimeError):
@@ -215,19 +216,14 @@ def _setup(spec):
     kernel.mount('tmpfs', root, 'tmpfs', MS_NOSUID | MS_NODEV, 'size=16m,mode=0755')
     for node in ('work','tmp','proc','dev','dev/shm','oldroot'):
         (root / node).mkdir(parents=True, exist_ok=True)
-    # The interpreter/stdlib/venv and system shared-library roots are read-only.
-    # The only application source exposed is this exact canary module.
-    runtime = {Path(sys.prefix), Path(sys.base_prefix), Path(sys.executable).parent.parent,
-               Path(sys.executable).resolve()}
-    runtime.update(Path(p) for p in ('/lib', '/lib64', '/usr/lib') if Path(p).exists())
-    selected = []
-    for source in sorted(runtime, key=lambda p:len(p.parts)):
-        _require(source != Path('/') and source not in root.parents,
-                 'namespace_runtime_scope_overlap')
-        if any(source == parent or parent in source.parents for parent in selected):continue
-        _bind(kernel, source, root / str(source).lstrip('/'), readonly=True)
-        selected.append(source)
-    _bind(kernel, Path(__file__).resolve(), root / 'probe.py', readonly=True)
+    # Only the parent's copied/verified fixed runtime enters the child. No
+    # original interpreter, stdlib, library, venv or source directory is bound.
+    runtime = root.parent/'runtime'
+    _require(runtime.is_dir() and not runtime.is_symlink(),'namespace_runtime_missing')
+    _bind(kernel, runtime, root/'runtime', readonly=True)
+    _bind(kernel, runtime/'probe.py', root/'probe.py', readonly=True)
+    loader='/lib64/ld-linux-x86-64.so.2' if platform.machine()=='x86_64' else '/lib/ld-linux-aarch64.so.1'
+    _bind(kernel, runtime/'loader', root/loader.lstrip('/'), readonly=True)
     _bind(kernel, work, root / 'work', readonly=False)
     for node in ('null','zero','urandom'):
         _bind(kernel, Path('/dev') / node, root / 'dev' / node, readonly=False)
@@ -252,10 +248,12 @@ def _setup(spec):
     _lock_namespaces(kernel)
     os.chdir('/work')
     os.environ.clear()
-    os.environ.update(LANG='C', PATH='/nonexistent', TMPDIR='/tmp', PYTHONDONTWRITEBYTECODE='1')
+    os.environ.update(LANG='C', PATH='/nonexistent', TMPDIR='/tmp',
+                      PYTHONDONTWRITEBYTECODE='1',LD_LIBRARY_PATH='/runtime/lib')
     resource.setrlimit(resource.RLIMIT_NOFILE, (256, 256))
     resource.setrlimit(resource.RLIMIT_CPU, (10, 10))
-    os.execv(sys.executable, [sys.executable, '-I', '-B', '/probe.py', '--probe', json.dumps(spec)])
+    os.execv('/runtime/bin/python3.12', ['/runtime/bin/python3.12', '-I', '-B', '-S',
+            '/probe.py', '--probe', json.dumps(spec)])
 
 
 def _spec(value):
@@ -300,6 +298,13 @@ def _probe(spec):
     checks['caps_empty'] = all(int(status[key].strip(),16) == 0 for key in
                                ('CapEff','CapPrm','CapInh','CapBnd','CapAmb'))
     checks['no_new_privileges'] = status['NoNewPrivs'].strip() == '1'
+    checks['site_disabled'] = (sys.flags.no_site == 1 and 'site' not in sys.modules
+        and not Path('/runtime/lib/python3.12/site.py').exists()
+        and not list(Path('/runtime').rglob('*.pth'))
+        and not list(Path('/runtime').rglob('site-packages')))
+    checks['copied_runtime_only'] = (sys.executable == '/runtime/bin/python3.12'
+        and sys.prefix == sys.base_prefix == '/runtime'
+        and all(path.startswith('/runtime/') for path in sys.path))
     with socket.socket(fileno=spec['ipc_fd']) as parent:
         parent.settimeout(2)
         parent.sendall(b'namespace canary')
@@ -419,6 +424,13 @@ def canary(scope, *, seconds=15):
     root, work = scope/'rootfs', scope/'work'
     _require(not root.exists() and not work.exists(), 'namespace_scope_already_used')
     root.mkdir(mode=0o700);work.mkdir(mode=0o700)
+    try:
+        from meme_machine.operational.namespace_runtime import build,Refused
+        runtime=build(scope,Path(__file__).resolve())
+    except (Refused,OSError,ValueError,UnicodeError) as error:
+        return dict(state='BLOCKED',code=str(error) if isinstance(error,Refused)
+            else 'namespace_runtime_unavailable',provider_calls=0,financial_authority=False,
+            fallback_allowed=False)
     secret = scope/'host-secret';secret.write_bytes(b'private namespace canary')
     unix, abstract = scope/'host.sock', 'mm-namespace-canary-' + str(os.getpid()) + '-' + str(time.time_ns())
     parent_ipc, child_ipc = socket.socketpair()
@@ -475,6 +487,9 @@ def canary(scope, *, seconds=15):
     receipt['parent_namespaces_unchanged'] = True
     receipt['parent_cwd_unchanged'] = True
     receipt['parent_open_descriptors_preserved'] = True
+    receipt['runtime_manifest_sha256'] = runtime['manifest_sha256']
+    receipt['runtime_files'] = len(runtime['files'])
+    receipt['runtime_bytes'] = runtime['bytes']
     return receipt
 
 

@@ -13,6 +13,7 @@ from unittest.mock import Mock, patch
 
 from meme_machine.operational.artifact_storage import Scratch
 from meme_machine.operational import namespace_canary as ns
+from meme_machine.operational import namespace_runtime as runtime
 
 
 @contextmanager
@@ -56,6 +57,7 @@ class NamespaceCanaryTests(unittest.TestCase):
             with sqlite3.connect(scope.path/'work/test.sqlite') as db:
                 self.assertEqual(db.execute('PRAGMA integrity_check').fetchone(), ('ok',))
                 self.assertEqual(db.execute('SELECT value FROM values_table').fetchone(), (42,))
+            db.close()
 
     def test_scratch_admission_and_freshness_are_required(self):
         with fixture() as scope:
@@ -134,7 +136,8 @@ class NamespaceCanaryTests(unittest.TestCase):
         child=Mock(pid=123456)
         with fixture() as scope,patch.object(ns.subprocess,'Popen',return_value=child),\
                 patch.object(ns.os,'killpg') as kill,patch.object(ns,'_collect',
-                    side_effect=subprocess.TimeoutExpired('canary',.01)):
+                    side_effect=subprocess.TimeoutExpired('canary',.01)),\
+                patch.object(runtime,'build',return_value={}):
             result=ns.canary(scope.path,seconds=.01)
             self.assertEqual(result['state'],'BLOCKED')
             self.assertEqual(result['code'],'namespace_wall_expired')
@@ -153,7 +156,8 @@ class NamespaceCanaryTests(unittest.TestCase):
             with self.subTest(raw=raw),fixture() as scope:
                 child=Mock(pid=123456,returncode=2)
                 with patch.object(ns.subprocess,'Popen',return_value=child),\
-                        patch.object(ns,'_collect',return_value=(raw,b'')):
+                        patch.object(ns,'_collect',return_value=(raw,b'')),\
+                        patch.object(runtime,'build',return_value={}):
                     result=ns.canary(scope.path)
                 self.assertEqual(result['state'],'BLOCKED')
                 self.assertIn(result['code'],('namespace_result_unavailable','namespace_receipt_unverified'))

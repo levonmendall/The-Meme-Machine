@@ -11,17 +11,17 @@ fresh isolated Python subprocess, not preexec_fn or irreversible parent changes.
 This launch shape is suitable for a future multithreaded parent: all unshare,
 mount, credential, capability, cwd and descriptor operations happen in the fresh
 bootstrap interpreter. The parent retains its original contexts and descriptors.
-Bootstrap -S also suppresses site/.pth imports before isolation; normal runtime
-site processing occurs only on the post-isolation interpreter re-exec.
+Both the fresh bootstrap and post-isolation interpreter use -S, suppressing all
+site/.pth imports. No venv or site-packages enters the child.
 
 The child sets NoNewPrivileges=1, enters its own user namespace with a single
 mapping for its original UID/GID, then creates mount, PID, network and IPC
 namespaces. UID0 inside that user namespace grants setup capability only within
 the new namespaces, not host-root authority. Its mount propagation becomes
-private. PID1 creates a small tmpfs root, binds only this exact canary source,
-interpreter/stdlib/venv and system shared-library directories read-only, and
-binds the fresh private work directory writable. Binds are nonrecursive so nested
-host mounts are not imported. /tmp and /dev/shm are private 16 MiB tmpfs mounts;
+private. PID1 creates a small tmpfs root, binds only a copied fixed runtime and
+copied exact canary source read-only, and binds the fresh private work directory
+writable. No original runtime, source or system-library directory is bound.
+/tmp and /dev/shm are private 16 MiB tmpfs mounts;
 /proc is read-only and belongs to the new PID namespace. Minimal null/zero/urandom devices are
 bound in. The rest of the host filesystem is absent.
 
@@ -43,6 +43,8 @@ host pathname and abstract Unix socket denial, unreachable host loopback listene
 no egress interfaces/routes, zero capabilities, NoNewPrivileges, denied namespace
 reentry, and actual local Unix traffic. It exercises real SQLite synchronous FULL
 with WAL and a real two-worker spawn ProcessPoolExecutor using private /dev/shm.
+It also checks -S remains active, no site/.pth/site-packages exists, and every
+Python search path uses the copied /runtime image.
 The parent checks unchanged host canary bytes, namespace identities, cwd and
 previously open descriptors. It enforces a 15-second wall limit (maximum 20),
 kills only its new process group on timeout, and returns BLOCKED without fallback.
@@ -54,10 +56,10 @@ contains namespace descendants. Tmpfs
 mounts disappear with the namespace. The parent never changes a host mount,
 sysctl, permission, sudoers entry, root broker or service configuration.
 
-Local CPython3.12.14 end-to-end proof passed all 21 checks. Ten focused offline
+Local CPython3.12.14 end-to-end proof passed all 23 checks. Fifteen focused offline
 cases cover actual enforcement plus malformed specs/receipts, unsafe paths,
 kernel refusal, namespace-lock BPF, source/runtime restrictions, output flooding,
-parent-death races and outer timeout.
+parent-death races, copied runtime admission and outer timeout.
 Kernel/LSM capability refusal is explicitly BLOCKED; a skipped capability case is
 not an enforcement PASS. Unexpected setup bugs or invalid receipts fail the test.
 Earlier disposable failure scopes are retained under /tmp/mm-engineering-*;
@@ -77,11 +79,22 @@ This is still not a production-equivalent native test. A complete implementation
 needs exact-source native bootstrap with no allocation authority, the real parent-
 owned provider controls/transport bridge and streaming backpressure/accounting,
 anonymous IPC injection, bounded resource admission and native stop/restart proof.
-The current interpreter/venv/library directory binds are deliberately a canary
-runtime convenience. Read-only directory binds still expose any readable secret
-or pathname Unix socket already inside those directories. A production launcher
-must use a reviewed runtime manifest that excludes both; this outside-whitelist
-canary does not prove that property. Credentials must remain absent from every
-child-visible filesystem path as well as its environment and anonymous IPC.
+`namespace_runtime.build` creates a bounded manifest from explicit known
+CPython3.12.14 stdlib names, the installed interpreter, selected extension modules
+and their bounded ELF64 PT_INTERP/DT_NEEDED dependency closure. It never executes
+ldd/readelf and never recursively copies runtime directories. Root-owned regular
+runtime files must be non-writable by group/other; symlink resolution must stay
+within approved runtime/library roots. Stdlib and canary source links are refused.
+Sockets/FIFOs/special files are refused before opening; O_NONBLOCK also closes a
+special-file replacement race. Every copy has a size and SHA256 record verified
+after creation. A maximum of512 files/128MiB and64MiB per source file applies.
+The manifest hash/count/byte total appears in the parent receipt. The local
+image contained153 files and approximately38MiB, mostly the installed interpreter.
+No discovered Python file, site package, .pth, host configuration or pathname
+Unix socket is copied. A missing/incompatible runtime fails BLOCKED; there is no
+host-directory or site-processing fallback. This fixed allowlist is only for the
+canary. A native launcher needs its own exact reviewed dependency manifest and
+must keep credentials absent from every child-visible filesystem path as well
+as its environment and anonymous IPC.
 No copied financial epoch, historical completion, full-market speed, held-position
 protection or one-hour acceptance is supplied by a successful canary.
