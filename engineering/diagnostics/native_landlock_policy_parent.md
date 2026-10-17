@@ -31,9 +31,11 @@ is not reused as the native filter.
 
 The actual unchanged history initializer needs self AS/NOFILE reductions and
 nice5. Those are narrow exceptions; no foreign PID, other resource, priority
-class or nice value is admitted. Kernel nonroot hard ceilings remain required.
-The coupled native-main initial AS ceiling still needs its explicit launch
-bound and copied-runtime validation before this component can be accepted.
+class or nice value is admitted. Kernel nonroot hard-limit semantics remain
+unchanged, including the main's original inherited AS limit; no speculative new
+virtual-address ceiling is added. Existing outer process/cgroup limits still
+contain the run. The explicit profile requires initial nice0; the history
+initializer lowers its own hard AS/NOFILE limits to512MiB/128 and nice5.
 
 Path rules install before syscall restrictions and the fixed private exec.
 Descriptor cleanup attempts every owned temporary handle even on partial failure.
