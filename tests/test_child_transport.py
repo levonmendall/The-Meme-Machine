@@ -12,7 +12,8 @@ from meme_machine.operational.child_transport import (
     ChildChannel, ChildParentFailure, ChildRPCPort, ChildTransportFailure, require_rpc_port,
 )
 from meme_machine.operational.parent_channel import ParentChannel, serve_connected
-from meme_machine.operational.parent_transport import ParentNativeStream
+from meme_machine.operational.parent_transport import ParentNativeStream,NativeSourceBinding
+from unittest.mock import patch
 from tests import test_parent_native_transport as fixtures
 
 
@@ -20,10 +21,10 @@ class ChildTransportTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         await fixtures.ParentNativeTransportTests.asyncSetUp(self)
 
-    async def connected(self, *, streams=None, cancelled=None):
+    async def connected(self, *, streams=None, cancelled=None,native_sources=()):
         parent, child = socket.socketpair()
         reader, writer = await asyncio.open_connection(sock=parent)
-        channel = ParentChannel(self.http, streams=streams)
+        channel = ParentChannel(self.http, streams=streams,native_sources=native_sources)
         task = asyncio.create_task(serve_connected(reader, writer, channel))
         port = await asyncio.to_thread(ChildChannel, child, cancelled=cancelled)
         async def close():
@@ -39,9 +40,13 @@ class ChildTransportTests(unittest.IsolatedAsyncioTestCase):
         self.physical.body = json.dumps(dict(jsonrpc='2.0', id=1, result=expected)).encode()
         client, parent = await self.connected()
         port = ChildRPCPort(client, 'pump')
-        reply = await asyncio.to_thread(port.envelope,
+        reply,delivery = await asyncio.to_thread(port.envelope_delivered,
             dict(jsonrpc='2.0', id=912, method='getSlot', params=[]))
         self.assertEqual(reply, dict(jsonrpc='2.0', id=912, result=expected))
+        handed=json.dumps(dict(jsonrpc='2.0',id=1,result=expected),
+            sort_keys=True,separators=(',',':')).encode()
+        self.assertEqual(delivery,dict(bytes=len(handed)))
+        self.assertNotEqual(delivery['bytes'],len(self.physical.body))
         self.assertEqual(port.source.endpoint_identity, self.sol.identity)
         self.assertIs(require_rpc_port(port, 'solana'), port)
         self.assertFalse(hasattr(port.source, '_url'))
@@ -89,7 +94,7 @@ class ChildTransportTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(result), 2)
         self.assertEqual(self.budget.snapshot()['http_attempts'], '2')
 
-    async def test_child_cancellation_closes_ambiguous_session_and_parent_receipts(self):
+    async def test_stop_closes_new_admission_and_drains_original_accepted_receipt(self):
         canceled = threading.Event()
         client, _ = await self.connected(cancelled=canceled.is_set)
         self.physical.gate.clear()
@@ -99,11 +104,13 @@ class ChildTransportTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.to_thread(self.physical.entered.wait, 2)
             self.assertTrue(self.physical.entered.is_set())
             canceled.set()
-            with self.assertRaises(ChildTransportFailure):
-                await asyncio.wait_for(task, 2)
-            self.assertTrue(client.closed)
+            with self.assertRaisesRegex(ChildTransportFailure,'stopped'):
+                await asyncio.to_thread(ChildRPCPort(client,'pump').envelope,
+                    dict(jsonrpc='2.0',id=2,method='getSlot',params=[]))
+            self.assertFalse(client.closed)
         finally:
             self.physical.gate.set()
+        self.assertEqual((await asyncio.wait_for(task,2))['result'],'0x123')
         # Cleanup is parent-owned and completed by the connected-server drain.
         async with asyncio.timeout(2):
             while self.budget.snapshot()['http_reserved'] != '0':
@@ -132,7 +139,8 @@ class ChildTransportTests(unittest.IsolatedAsyncioTestCase):
             return raw
         stream = await ParentNativeStream.open(self.budget, 'yellowstone', factory, lambda _:None)
         client, parent = await self.connected(streams={'pump':stream})
-        value = await asyncio.to_thread(client.native_read, client.sources['pump'])
+        native=next(iter(client._native_handles.values()))
+        value = await asyncio.to_thread(native.read)
         self.assertEqual(value, body)
         self.assertIsNone(stream.pending)
         self.assertFalse(parent.contents)
@@ -160,6 +168,43 @@ class ChildTransportTests(unittest.IsolatedAsyncioTestCase):
         for body in (b'{"x":1,"x":2}', b'{"x":1e999}', b'{"x":NaN}'):
             with self.assertRaises(ChildTransportFailure):
                 _json(body)
+
+    async def test_native_idle_timeout_keeps_one_original_pending_read_and_reservation(self):
+        raw=fixtures._Native()
+        async def factory():return raw
+        stream=await ParentNativeStream.open(self.budget,'yellowstone',factory,lambda _:None)
+        client,parent=await self.connected(streams={'pump':stream})
+        native=next(iter(client._native_handles.values()))
+        with self.assertRaises(TimeoutError):
+            await asyncio.to_thread(native.read,.02)
+        token=native._pending
+        self.assertEqual(len(parent.contents),1)
+        self.assertEqual(self.budget.snapshot()['native_opens'],'1')
+        raw.values.put_nowait(b'original-pending-economic-frame')
+        self.assertEqual(await asyncio.to_thread(native.read,.5),b'original-pending-economic-frame')
+        self.assertNotIn(token,parent.contents)
+        self.assertEqual(self.budget.snapshot()['native_opens'],'1')
+        await native.close_async()
+
+    async def test_multiple_native_instances_share_source_and_keep_independent_paid_handles(self):
+        raws=[]
+        async def factory():
+            raw=fixtures._Native([('instance-'+str(len(raws))).encode()])
+            raws.append(raw);return raw
+        client,parent=await self.connected(native_sources=[NativeSourceBinding(self.sol,'yellowstone')])
+        with patch('meme_machine.operational.parent_transport.authenticated_native_factory',return_value=factory):
+            streams=await asyncio.gather(*(asyncio.to_thread(client.native_stream,client.sources['pump'])
+                for _ in range(3)))
+        self.assertEqual(len({stream.stream for stream in streams}),3)
+        self.assertEqual(self.budget.snapshot()['native_opens'],'3')
+        self.assertEqual(set(await asyncio.gather(*(stream.read_async() for stream in streams))),
+            {b'instance-0',b'instance-1',b'instance-2'})
+        await streams[0].close_async()
+        self.assertFalse(streams[1].closed)
+        self.assertFalse(streams[2].closed)
+        await asyncio.gather(*(stream.close_async() for stream in streams))
+        self.assertEqual(self.budget.snapshot()['native_reserved'],'0')
+        self.assertFalse(parent.contents)
 
     async def test_429_is_fixed_original_boundary_and_retains_parent_debt(self):
         self.physical.status = 429
