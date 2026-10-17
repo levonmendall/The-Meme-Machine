@@ -2,6 +2,9 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+ 'tests.test_isolated_native_source',
+ 'tests.test_namespace_runtime',
+ 'tests.test_namespace_canary',
  'tests.test_source_ports',
  'tests.test_isolated_native_entry',
  'tests.test_isolated_pons_current',

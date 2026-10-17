@@ -22,21 +22,33 @@ class DeliveredRPCError(ValueError):
         self.method=method;self.rpc_code=rpc_code;self.http_status=http_status
 
 class RepairRPC:
-    def __init__(self,endpoint,governor):
+    def __init__(self,endpoint,governor,*,native_resources=None,native_ports=None):
         from meme_machine.solana_provider_config import AlchemyEndpoint
         from collections import Counter
         import threading
-        self.config=AlchemyEndpoint.parse(endpoint)
-        self.endpoint=self.config.http_url;self.governor=governor
+        self._native_resources=None;self._native_ports=None
+        if native_resources is not None:
+            from .isolated_native_bootstrap import require_runner_ports
+            native_ports=require_runner_ports(native_resources,native_ports)
+            if endpoint is not None or governor is not None:
+                raise ValueError('isolated_native_source_transport_required')
+            self._native_resources=native_resources;self._native_ports=native_ports
+            self.config=native_ports.source_config()
+            self.endpoint=None;self.governor=None
+        elif native_ports is not None:
+            raise ValueError('isolated_native_resources_required')
+        else:
+            self.config=AlchemyEndpoint.parse(endpoint)
+            self.endpoint=self.config.http_url;self.governor=governor
         self.genesis_reads=None
-        cache=os.environ.get('MM_SOLANA_EVIDENCE_BROKER_DB')
+        cache=os.environ.get('MM_SOLANA_EVIDENCE_BROKER_DB') if native_resources is None else None
         if cache:
             from meme_machine.lanes.pump.solana_immutable_rpc import ImmutableReads
             self.genesis_reads=ImmutableReads(cache,self.endpoint)
         self.counts=Counter({k:0 for k in ('physical_requests','logical_calls','repair_calls','identity_calls','failures','429s','unsupported_methods','queue_microseconds','transport_microseconds')});self.lock=threading.Lock()
         self.flights={}
         self.block_repair_profile=None
-        capability=os.environ.get('MM_RPC_CAPABILITIES')
+        capability=os.environ.get('MM_RPC_CAPABILITIES') if native_resources is None else None
         if capability:
             from meme_machine.solana_provider_config import GENESIS
             try:
@@ -52,9 +64,13 @@ class RepairRPC:
         from .provider_purchases import ledger
         with self.lock:counts=dict(self.counts)
         methods={k.split(':',1)[1]:v for k,v in counts.items() if k.startswith('method:')}
-        return dict(counters=counts,estimated_alchemy=estimate(methods),
+        result=dict(counters=counts,estimated_alchemy=estimate(methods),
                     endpoint_identity=self.config.identity,provider=self.config.provider,
                     provider_purchases=ledger(self).snapshot())
+        if self._native_ports is not None:
+            result.update(transport_authority='PROTECTED_PARENT',
+                parent_handoff_bytes_are_physical_socket_measurement=False)
+        return result
     def validate_network(self):
         from meme_machine.solana_provider_config import GENESIS
         if self.call('getGenesisHash',[],False)!=GENESIS:
@@ -63,6 +79,11 @@ class RepairRPC:
         return self.call_delivered(method,params,1 if priority else 4)[0]
     def call_delivered(self,method,params,priority=4):
         from .provider_purchases import ledger
+        if self._native_ports is not None:
+            # Logical demand precedes cache/singleflight decisions just as the
+            # original consumer ledger does. Parent purchases still occur only
+            # for the actual physical attempt; a follower is not another one.
+            self._parent_source_port(method,priority).demand([method])
         ledger(self).consumer([method],family='pump')
         if method=='getGenesisHash' and not params and self.genesis_reads is not None:
             receipt=dict(bytes=0,cu=0,calls=0)
@@ -103,6 +124,8 @@ class RepairRPC:
 
     def _call_delivered(self,method,params,priority=4):
         import time
+        if self._native_ports is not None:
+            return self._parent_call_delivered(method,params,priority)
         if method not in ('getTransactionsForAddress','getGenesisHash','getSlot','getProgramAccountsV2','getTransaction') and not (method=='getBlock' and self.block_repair_profile and self.block_repair_profile.get('validated') is True):
             raise ValueError('repair_method_forbidden')
         maximum=16*1024*1024;timeout=8
@@ -155,6 +178,56 @@ class RepairRPC:
             if purchased:purchases.completed(label,received,failed=failed)
             if transport is not None:self._count('transport_microseconds',int((time.monotonic()-transport)*1e6))
             self._count('delivered_response_bytes',received);self._count('current_pricing_cu',charged)
+
+    def _parent_source_port(self,method,priority):
+        from .isolated_native_bootstrap import require_runner_ports
+        require_runner_ports(self._native_resources,self._native_ports)
+        if type(priority) is not int or priority not in (1,2,3,4,5,6):
+            raise ValueError('isolated_native_source_priority')
+        if method not in ('getTransactionsForAddress','getGenesisHash','getSlot',
+                'getProgramAccountsV2','getTransaction'):
+            raise ValueError('repair_method_forbidden')
+        from .provider_purchases import work_label
+        label=work_label(family='pump')
+        return self._native_ports.source_rpc(priority,operation=label.get('operation'))
+
+    def _parent_call_delivered(self,method,params,priority):
+        """Keep native response parsing; the protected parent owns purchases.
+
+        Child delivery bytes are the exact public handoff, not a reconstructed
+        JSON length or a claim about provider socket/allowance accounting.
+        Original parent ledgers alone report CU, attempts and physical bytes.
+        """
+        import time
+        port=self._parent_source_port(method,priority)
+        received=0;code=None
+        receipt=dict(bytes=0,cu=0,calls=0,accounting_scope='PROTECTED_PARENT_ONLY',
+            bytes_scope='EXACT_PARENT_PUBLIC_HANDOFF_NOT_PROVIDER_SOCKET')
+        self._count('logical_calls');self._count('parent_rpc_calls')
+        try:
+            value,handed=port.envelope_delivered(dict(jsonrpc='2.0',id=1,method=method,params=params),
+                deadline=time.monotonic()+8)
+            received=handed['bytes'];receipt['bytes']=received
+            code=(value.get('error') or {}).get('code')
+            if code in (429,-32005):self._count('429s')
+            if code==-32601:self._count('unsupported_methods')
+            if value.get('id')!=1 or 'error' in value or 'result' not in value:
+                raise ValueError('repair_response_unavailable')
+            self.config.public(value)
+            return value['result'],receipt
+        except Exception as exc:
+            self._count('failures')
+            from meme_machine.runtime.sqlite_failure import carry
+            http_status={'provider_http_429':429,'provider_http_502':502,
+                'provider_http_503':503,'provider_http_504':504}.get(str(exc))
+            if http_status==429:self._count('429s')
+            retryable=(isinstance(exc,(TimeoutError,json.JSONDecodeError))
+                or code in (429,-32603,-32005,-32016) or http_status is not None)
+            raise carry(exc,DeliveredRPCError('repair_response_unavailable',receipt,
+                retryable=retryable,cause_kind=type(exc).__name__,method=method,
+                rpc_code=code,http_status=http_status)) from None
+        finally:
+            self._count('parent_public_handoff_bytes',received)
 
 
 @contextmanager
