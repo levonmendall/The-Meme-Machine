@@ -192,6 +192,37 @@ RALLY_CHANGED_SOURCES=('meme_machine/lanes/pons/pons_postgrad_survivor.py', 'mem
 RALLY_ADDED_SOURCES=('meme_machine/policy_history/opportunity_access_v1.json', 'meme_machine/runtime/rally_cycle.py')
 
 
+# A finalized archive can retain known lines after its one truncation marker.
+# Pin exact transaction joining and receipt metadata, then restore both named
+# nodes before the complete-log and original economic/recovery source guards.
+RETAINED_ARCHIVE_LOG_SHAPE_REFERENCE='72351d004da308eada224b787aadda0dfdddb283'
+RETAINED_ARCHIVE_LOG_SHAPE_SOURCE='meme_machine/solana_selective_history.py'
+RETAINED_ARCHIVE_LOG_SHAPE_BEFORE='ea09e4c74ca85302157631303d928b65e656b8c01df6ffaf6193b3efe1ab211f'
+RETAINED_ARCHIVE_LOG_SHAPE_AFTER='18575b7a64fc122ae56a770c97a9dc9e60b7b437ffcce792f0e310f1853f62b5'
+
+
+def retained_archive_log_shape_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=RETAINED_ARCHIVE_LOG_SHAPE_SOURCE:return current
+    prior=subprocess.check_output(['git','show',RETAINED_ARCHIVE_LOG_SHAPE_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),RETAINED_ARCHIVE_LOG_SHAPE_BEFORE,
+        relative+':exact retained-archive-log predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),RETAINED_ARCHIVE_LOG_SHAPE_AFTER,
+        relative+':exact retained-archive-log successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def function(root,name):
+        return next(n for n in root.body if isinstance(n,ast.FunctionDef) and n.name==name)
+    for name in ('_archive_log_join','archive_page_evidence'):
+        selected=function(tree,name);original=function(old,name)
+        test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':explicit retained-log node '+name)
+        tree.body[tree.body.index(selected)]=deepcopy(original)
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':all other identity, financial and recovery source retained')
+    return prior
+
+
 # Finalized archive rows may contain an explicitly truncated log suffix. The
 # separately fetched complete logs must retain the original native order,
 # transaction identity and prefix. Pin both complete sources and reverse only
@@ -224,6 +255,7 @@ def archive_complete_logs_predecessor(test,relative,current):
     prior=subprocess.check_output(['git','show',ARCHIVE_COMPLETE_LOGS_REFERENCE+':'+relative],cwd=ROOT)
     test.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':exact complete-log predecessor')
     if current==prior:return prior
+    current=retained_archive_log_shape_predecessor(test,relative,current)
     test.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':exact complete-log successor')
     tree=ast.parse(current);old=ast.parse(prior)
     def node(root,name):
@@ -1747,6 +1779,54 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_retained_archive_log_shape_reverses_only_exact_join_and_receipt_metadata(self):
+        import hashlib
+        relative=RETAINED_ARCHIVE_LOG_SHAPE_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),RETAINED_ARCHIVE_LOG_SHAPE_AFTER,
+            relative+':active exact retained-archive-log repair')
+        prior=subprocess.check_output(['git','show',RETAINED_ARCHIVE_LOG_SHAPE_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(hashlib.sha256(prior).hexdigest(),RETAINED_ARCHIVE_LOG_SHAPE_BEFORE,
+            relative+':independently pinned complete-log predecessor')
+        self.assertEqual(retained_archive_log_shape_predecessor(self,relative,current),prior)
+        self.assertEqual(retained_archive_log_shape_predecessor(self,relative,prior),prior)
+        self.assertEqual(archive_complete_logs_predecessor(self,relative,current),
+            archive_complete_logs_predecessor(self,relative,prior))
+        self.assertEqual(rally_predecessor(self,relative,current),rally_predecessor(self,relative,prior))
+        self.assertEqual(opportunity_predecessor(self,relative,current),
+            opportunity_predecessor(self,relative,prior))
+        changes=[current+b'\n# unreviewed retained-log source change\n',b'']
+        for previous,successor in (
+                (b'if len(markers)!=1:raise KeyError()',b'if False:raise KeyError()'),
+                (b'complete[:len(prefix)]!=prefix',b'False'),
+                (b'complete[start:start+len(suffix)]==suffix',b'True'),
+                (b'for start in range(len(prefix),len(complete)-len(suffix)+1))!=1',
+                    b'for start in range(0,len(complete)-len(suffix)+1))<1'),
+                (b'for start in range(len(prefix),len(complete)-len(suffix)+1))!=1',
+                    b'for start in range(0,len(complete)-len(suffix)+1))!=1'),
+                (b'for start in range(len(prefix),len(complete)-len(suffix)+1))!=1',
+                    b'for start in range(len(prefix),len(complete)-len(suffix)+1))<1'),
+                (b"original_prefix_length=next(i for i,line in enumerate(tx['meta']['logMessages'])\n"
+                    b"                if 'truncat' in line.lower())",
+                    b"original_prefix_length=len(tx['meta']['logMessages'])-1"),
+                (b"'truncat' in line.lower() for line in complete",b'False for line in complete'),
+                (b"canonical(fetched['transaction'])!=canonical(original['transaction'])",b'False'),
+                (b"type(fetched['slot']) is not int or fetched['slot']!=slot",b'False'),
+                (b"canonical(fetched['blockTime'])!=canonical(original['blockTime'])",b'False'),
+                (b"old['err'] is not None or new['err'] is not None",b'False'),
+                (b"fetched['transactionIndex']!=index",b'False'),
+                (b'type(supplement) is not ArchiveLogSupplement',b'False'),
+                (b'supplement.endpoint_identity!=endpoint_identity',b'False'),
+                (b"canonical(original)!=supplement.original_json",b'False'),
+                (b'archive_log_supplements=retained_supplements',b'archive_log_supplements=[]')):
+            self.assertIn(previous,current,relative+':negative mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):retained_archive_log_shape_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):archive_complete_logs_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):rally_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_session_economic_recovery_preserves_original_incidents_and_exact_full_proofs(self):
         import hashlib
         relative=SESSION_ECONOMIC_RECOVERY_SOURCE;current=(ROOT/relative).read_bytes()
@@ -1966,7 +2046,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(ARCHIVE_COMPLETE_LOGS_DELTAS))
         for relative,(_,after,_,_,_) in ARCHIVE_COMPLETE_LOGS_DELTAS.items():
-            current=(ROOT/relative).read_bytes()
+            current=retained_archive_log_shape_predecessor(self,relative,(ROOT/relative).read_bytes())
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact archive-log correction')
             prior=subprocess.check_output(['git','show',ARCHIVE_COMPLETE_LOGS_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(archive_complete_logs_predecessor(self,relative,current),prior)

@@ -49,6 +49,15 @@ def truncated_transaction(family='pump'):
     return original, fetched, full, prefix_length
 
 
+def retained_suffix_transaction(family='pump'):
+    """Retain real fixture lines after an omitted middle log segment."""
+    original, fetched, full, prefix_length = truncated_transaction(family)
+    start = prefix_length+2
+    suffix = full['meta']['logMessages'][start:start+3]
+    original['meta']['logMessages'].extend(suffix)
+    return original, fetched, full, prefix_length, start
+
+
 class ArchiveFullLogContentTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -88,6 +97,187 @@ class ArchiveFullLogContentTests(unittest.TestCase):
     def assert_unpublished(self):
         self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone(), (0,))
         self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone(), (0,))
+
+    def test_retained_post_marker_lines_match_one_contiguous_complete_segment(self):
+        before = self.snapshot()
+        for family, decoder in (('pump', pump_events), ('pumpswap', pumpswap_trade_events)):
+            with self.subTest(family=family):
+                original, fetched, full, prefix_length, start = retained_suffix_transaction(family)
+                logs = original['meta']['logMessages']
+                complete = fetched['meta']['logMessages']
+                self.assertEqual(logs[prefix_length], 'Log truncated')
+                self.assertEqual(logs[prefix_length+1:], complete[start:start+3])
+                self.assertGreater(start, prefix_length)
+                self.assertLess(start+3, len(complete))
+                self.assertEqual(sum(complete[index:index+3] == logs[prefix_length+1:]
+                    for index in range(prefix_length, len(complete)-2)), 1)
+                raw_inputs = canonical(original), canonical(fetched)
+                supplement = join_archive_log_supplement(original, fetched, endpoint_identity=ENDPOINT)
+                repaired = complete_archive_transaction(original, supplement, endpoint_identity=ENDPOINT)
+                self.assertEqual(repaired, full)
+                self.assertEqual(decoder(repaired), decoder(full))
+                self.assertEqual(repaired['transactionIndex'], original['transactionIndex'])
+                self.assertEqual((canonical(original), canonical(fetched)), raw_inputs)
+                self.assertFalse(any('truncat' in line.lower() for line in repaired['meta']['logMessages']))
+        # Reproduce the observed 136-line archive shape: marker at 134, one
+        # retained known line, and 154 complete lines. Extra inert fixture logs
+        # model the provider's complete tail without inventing economic events.
+        full = copy.deepcopy(FIXTURE['pump'][0])
+        full['meta']['logMessages'].extend('Program log: offline complete tail '+str(index)
+            for index in range(154-len(full['meta']['logMessages'])))
+        original, fetched = copy.deepcopy(full), copy.deepcopy(full)
+        original['meta']['logMessages'] = full['meta']['logMessages'][:134]+['Log truncated',
+            full['meta']['logMessages'][145]]
+        fetched.pop('transactionIndex', None)
+        self.assertEqual(len(original['meta']['logMessages']), 136)
+        self.assertEqual(len(fetched['meta']['logMessages']), 154)
+        supplement = join_archive_log_supplement(original, fetched, endpoint_identity=ENDPOINT)
+        self.assertEqual(complete_archive_transaction(original, supplement, endpoint_identity=ENDPOINT), full)
+        self.assertEqual(pump_events(full), pump_events(FIXTURE['pump'][0]))
+        # Reconstruct the prior marker-last metadata byte for byte, including
+        # its original len(logs)-1 prefix. Existing page/input/lineage hashes
+        # must remain identical for already retained ordinary supplements.
+        old, response, _, _ = truncated_transaction()
+        old_page = dict(data=[old], paginationToken=None)
+        old_supplement = join_archive_log_supplement(old, response, endpoint_identity=ENDPOINT)
+        job = dict(family='pump', address=PROGRAMS['pump'], lo=old['slot'], hi=old['slot'],
+            pages=0, token=None, lineage=digest([]))
+        old_observation = dict(endpoint_identity=ENDPOINT, method='getTransaction', commitment='finalized',
+            slot=old['slot'], signature=old['transaction']['signatures'][0], transaction_index=old['transactionIndex'],
+            original_transaction_hash=digest(old), fetched_transaction_hash=digest(response),
+            original_prefix_length=len(old['meta']['logMessages'])-1, response=response)
+        old_receipt = dict({key: value for key, value in old_observation.items() if key != 'response'},
+            observation_body_hash=digest(old_observation))
+        old_page_hash = digest(dict(method='getTransactionsForAddress+getTransaction',
+            archive_page_hash=digest(old_page), archive_log_supplements=[old_receipt]))
+        evidence = archive_page_evidence(job, old_page, endpoint_identity=ENDPOINT, supplements=(old_supplement,))
+        self.assertEqual(canonical(evidence['supplement_observations']), canonical([old_observation]))
+        self.assertEqual(canonical(evidence['supplement_receipts']), canonical([old_receipt]))
+        self.assertEqual(evidence['page_hash'], old_page_hash)
+        self.assertEqual(evidence['input_hash'], digest([None, dict(archive_page_hash=digest(old_page),
+            archive_supplemented_page_hash=old_page_hash, archive_log_supplements=[old_receipt])]))
+        self.assertEqual(evidence['lineage_hash'], digest([job['lineage'], old_page_hash]))
+        self.assertEqual(self.snapshot(), before)
+        self.assert_unpublished()
+
+    def test_retained_suffix_mismatch_ambiguity_and_marker_failures_are_atomic(self):
+        original, fetched, _, _ = truncated_transaction()
+        prefix = ['Program log: verified prefix A', 'Program log: verified prefix B']
+        suffix = ['Program log: retained suffix A', 'Program log: retained suffix B']
+        original['meta']['logMessages'] = prefix+['Log truncated']+suffix
+        fetched['meta']['logMessages'] = prefix+['Program log: omitted middle']+suffix+['Program log: later tail']
+        job = self.request(original)
+        baseline = self.snapshot()
+        variants = {}
+        def variant(name, original_logs=None, complete_logs=None):
+            old, new = copy.deepcopy(original), copy.deepcopy(fetched)
+            if original_logs is not None:old['meta']['logMessages'] = original_logs
+            if complete_logs is not None:new['meta']['logMessages'] = complete_logs
+            variants[name] = old, new
+        variant('missing_known_line', complete_logs=prefix+suffix[:1])
+        variant('altered_known_line', original_logs=prefix+['Log truncated']+suffix[:1]+['changed known line'])
+        variant('reordered_known_lines', original_logs=prefix+['Log truncated']+list(reversed(suffix)))
+        variant('noncontiguous_known_lines', complete_logs=prefix+suffix[:1]+['intervening line']+suffix[1:])
+        variant('insufficient_duplicate_occurrences', original_logs=prefix+['Log truncated']+suffix+suffix)
+        variant('ambiguous_complete_occurrences', complete_logs=prefix+suffix+['middle']+suffix)
+        variant('prefix_only_overlap', original_logs=prefix+['Log truncated']+prefix)
+        variant('partial_prefix_overlap', original_logs=prefix+['Log truncated', prefix[-1], 'Program log: omitted middle'])
+        variant('multiple_markers', original_logs=prefix+['Log truncated']+suffix+['Log truncated'])
+        variant('missing_marker', original_logs=prefix+suffix)
+        variant('complete_still_truncated', complete_logs=fetched['meta']['logMessages']+['Log truncated'])
+        variant('changed_prefix', complete_logs=['changed prefix']+fetched['meta']['logMessages'][1:])
+        for name, (old, new) in variants.items():
+            with self.subTest(shape=name):
+                raw_inputs = canonical(old), canonical(new)
+                with self.assertRaisesRegex(EvidenceUnavailable, 'archive_log_supplement_identity_unverified'):
+                    supplement = join_archive_log_supplement(old, new, endpoint_identity=ENDPOINT)
+                    self.h.commit_page(job, dict(data=[old]), finalized_through=job['hi'],
+                                       supplements=(supplement,))
+                self.assertEqual((canonical(old), canonical(new)), raw_inputs)
+                self.assertEqual(self.snapshot(), baseline)
+                self.assertFalse(self.h.db.in_transaction)
+        self.assert_unpublished()
+
+    def test_retained_suffix_keeps_raw_receipts_and_full_consumer_ack_across_restart(self):
+        original, fetched, full, prefix_length, _ = retained_suffix_transaction()
+        job = self.request(original)
+        page = dict(data=[original], paginationToken=None)
+        raw_page = canonical(page)
+        baseline = self.snapshot()
+        supplement = join_archive_log_supplement(original, fetched, endpoint_identity=ENDPOINT)
+        evidence = archive_page_evidence(job, page, endpoint_identity=ENDPOINT, supplements=(supplement,))
+        self.assertEqual(self.snapshot(), baseline)
+        with self.assertRaisesRegex(EvidenceUnavailable, 'incomplete_finalized_logs'):
+            self.h.commit_page(job, page, finalized_through=job['hi'])
+        self.assertEqual(self.snapshot(), baseline)
+        result = self.h.commit_page(job, page, finalized_through=job['hi'], supplements=(supplement,))
+        self.assertTrue(result['complete'])
+        self.assertGreater(result['records'], 0)
+        self.assertEqual(canonical(page), raw_page)
+        self.assertEqual(result['archive_page_hash'], digest(page))
+        self.assertEqual(evidence['value_hash'], hashlib.sha256(raw_page.encode()).hexdigest())
+        self.assertEqual(result['archive_supplemented_page_hash'], evidence['page_hash'])
+        provenance = result['archive_log_supplements'][0]
+        self.assertEqual(provenance['original_prefix_length'], prefix_length)
+        self.assertEqual(original['meta']['logMessages'][prefix_length], 'Log truncated')
+        self.assertNotEqual(provenance['original_prefix_length'], len(original['meta']['logMessages'])-1)
+        self.assertEqual(provenance['original_transaction_hash'], digest(original))
+        self.assertEqual(provenance['fetched_transaction_hash'], digest(fetched))
+        identity, encoded = self.h.db.execute("SELECT id,body FROM acquisition_observations "
+            "WHERE kind='archive_log_supplement'").fetchone()
+        self.assertEqual(provenance['observation_id'], identity)
+        self.assertEqual(provenance['observation_body_hash'], hashlib.sha256(encoded.encode()).hexdigest())
+        self.assertEqual(json.loads(encoded)['original_prefix_length'], prefix_length)
+        self.assertEqual(json.loads(encoded)['response'], fetched)
+        receipt = self.h.db.execute('SELECT input_hash,result FROM acquisition_page_receipts').fetchone()
+        self.assertEqual(receipt[0], evidence['input_hash'])
+        self.assertEqual(json.loads(receipt[1]), result)
+        self.assert_unpublished()
+        retained = self.snapshot()
+        self.state.writer.close()
+        self.open_owner()
+        self.now[0] += 1
+        self.assertEqual(self.snapshot(), retained)
+        self.assertEqual(self.h.commit_page(job, page, finalized_through=job['hi'],
+                                           supplements=(supplement,)), result)
+        self.assertEqual(self.snapshot(), retained)
+        life = self.h.lifecycle
+        snapshot = capture(life)
+        self.assertTrue(snapshot['rows'])
+        self.assertEqual(snapshot['proofs'], [])
+        delivered = deliver(snapshot)
+        with closing(CandidateHistory(life.path, clock=lambda: NOW)) as consumer:
+            self.assertEqual(consumer.db.execute('PRAGMA synchronous').fetchone(), (2,))
+            receipts = consumer.db.execute('SELECT id,kind FROM source_receipts').fetchall()
+            self.assertEqual(set(receipts), {(row[0], row[3]) for row in snapshot['rows']})
+        life.publish()
+        self.assert_unpublished()
+        self.state.writer.close()
+        self.open_owner()
+        life = self.h.lifecycle
+        self.assertEqual(capture(life)['rows'], snapshot['rows'])
+        self.assertTrue(acknowledge(life, snapshot, delivered))
+        proof_snapshot = capture(life)
+        self.assertEqual(proof_snapshot['rows'], [])
+        self.assertTrue(proof_snapshot['proofs'])
+        life.publish()
+        self.assert_unpublished()
+        deliver(proof_snapshot)
+        self.state.writer.close()
+        self.open_owner()
+        self.h.lifecycle.publish()
+        self.assertEqual(self.h.db.execute('SELECT slot FROM candidate_checkpoints WHERE scope=?',
+            (self.scope,)).fetchone(), (original['slot'],))
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone(), (0,))
+        expected = economic_records('pump', self.address, full, endpoint_identity=ENDPOINT,
+            seen=NOW, source='alchemy_finalized_repair')
+        self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone(), (len(expected),))
+        self.assertEqual(self.h.rolling.missing('pump', self.scope, job['lo'], job['hi']), [])
+        final = self.snapshot()
+        self.assertEqual(self.h.commit_page(job, page, finalized_through=job['hi'],
+            supplements=(supplement,)), result)
+        self.assertEqual(self.snapshot(), final)
+        self.assertEqual(canonical(page), raw_page)
 
     def test_full_transaction_preserves_both_program_decoders_and_original_event_order(self):
         for family, decoder in (('pump', pump_events), ('pumpswap', pumpswap_trade_events)):
