@@ -8,6 +8,7 @@ FAST=[
  'tests.test_isolated_native_fatal_drain',
  'tests.test_pons_native_profile',
  'tests.test_isolated_native_source',
+ 'tests.test_market_heads',
  'tests.test_namespace_runtime',
  'tests.test_namespace_canary',
  'tests.test_pons_profile_channel',

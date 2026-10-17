@@ -440,6 +440,7 @@ class Rpc:
     def _http(self, method, params):
         if self.parent_port is not None:
             return self._single_result(self._parent_envelope([(method,params)],batch=False),method)
+        request_started=time.monotonic()
         self.last_retry_after_seconds = None
         body = json.dumps(dict(jsonrpc='2.0', id=1, method=method, params=params)).encode()
         request = Request(self._endpoint, data=body, headers=RPC_HTTP_HEADERS)
@@ -457,6 +458,7 @@ class Rpc:
             wire = self._wire_context([method], timeout)
             with urlopen(request, timeout=timeout) as response:
                 raw = response.read(self.max_response + 1)
+                response_completed=time.monotonic()
                 self.response_bytes += len(raw)
                 http_received(len(raw))
         except HTTPError as exc:
@@ -472,7 +474,12 @@ class Rpc:
             raise BoundaryError('provider_response_capacity')
         try:
             reply = json.loads(raw)
-            return self._single_result(reply,method)
+            value=self._single_result(reply,method)
+            observer=getattr(self,'market_head_observer',None)
+            if observer is not None:
+                observer.physical_response(self,method,params,value,
+                    started=request_started,completed=response_completed)
+            return value
         except (ValueError, AttributeError, TypeError) as exc:
             if isinstance(exc, BoundaryError):
                 raise
@@ -527,6 +534,7 @@ class Rpc:
     def _http_batch(self, calls):
         if self.parent_port is not None:
             return self._batch_results(self._parent_envelope(calls,batch=True),calls)
+        request_started=time.monotonic()
         body=json.dumps([
             dict(jsonrpc='2.0',id=i+1,method=method,params=params)
             for i,(method,params) in enumerate(calls)
@@ -546,6 +554,7 @@ class Rpc:
             wire=self._wire_context([method for method,_ in calls],timeout,batch=True)
             with urlopen(request,timeout=timeout) as response:
                 raw=response.read(self.max_response+1)
+                response_completed=time.monotonic()
                 self.response_bytes += len(raw)
                 http_received(len(raw))
         except HTTPError as exc:
@@ -560,7 +569,13 @@ class Rpc:
             raise BoundaryError('provider_response_capacity')
         try:
             reply=json.loads(raw)
-            return self._batch_results(reply,calls)
+            out=self._batch_results(reply,calls)
+            observer=getattr(self,'market_head_observer',None)
+            if observer is not None:
+                for (method,params),value in zip(calls,out,strict=True):
+                    observer.physical_response(self,method,params,value,
+                        started=request_started,completed=response_completed)
+            return out
         except (ValueError,AttributeError,TypeError) as exc:
             if isinstance(exc,BoundaryError):
                 raise
