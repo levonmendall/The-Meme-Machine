@@ -16,6 +16,7 @@ import sys
 
 from . import isolated_native_image as image
 from . import namespace_runtime as runtime
+from meme_machine.runtime.isolated_native_spawn import SHIM_PATH,trampoline
 
 HOST_INTERPRETER='/lib64/ld-linux-x86-64.so.2'
 PROFILE='copied-cpython312-x86_64-v1'
@@ -172,7 +173,7 @@ class PinnedNativeImage:
                 and all(indexed[name]['sha256']==digest for name,digest in expected.items()),
                 'landlock_image_approved_files')
             image.require({'loader','runtime/bin/python3.12'}<=indexed.keys()
-                and all(name in ('loader','runtime/bin/python3.12') or name.startswith(
+                and all(name in ('loader','runtime/bin/python3.12',SHIM_PATH) or name.startswith(
                     ('runtime/lib/','app/','deps/')) for name in indexed),'landlock_image_layout')
             dependencies=[];copied_loader=None
             for name,row in indexed.items():
@@ -180,6 +181,9 @@ class PinnedNativeImage:
                 image.require(len(data)==row['bytes'] and hashlib.sha256(data).hexdigest()==row['sha256'],
                     'landlock_image_file_changed')
                 if name=='loader':copied_loader=data
+                if name==SHIM_PATH:
+                    image.require(data==trampoline(self.root/'runtime/bin/python3.12'),
+                        'landlock_image_spawn_shim_changed')
                 if data.startswith(b'\x7fELF'):
                     interpreter,needed=runtime._elf(data);dependencies.extend(needed)
                     image.require(interpreter in (None,HOST_INTERPRETER),'landlock_image_elf_interpreter')
@@ -207,7 +211,7 @@ class PinnedNativeImage:
         image.require(path.resolve(strict=True)==path,'landlock_image_file_link')
         fd,info=_pin(path,owner=os.geteuid())
         self._held.append((fd,path,_identity(info)))
-        executable=name in ('loader','runtime/bin/python3.12')
+        executable=name in ('loader','runtime/bin/python3.12',SHIM_PATH)
         image.require(stat.S_IMODE(info.st_mode)==(0o500 if executable else 0o400),
             'landlock_image_file_mode')
         data=_read(path,info,maximum=maximum)

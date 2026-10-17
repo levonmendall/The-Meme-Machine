@@ -27,11 +27,17 @@ def digest(value):
 
 
 def process_identity():
+    from meme_machine.runtime.isolated_native_liveness import current_scope
+    scope=current_scope()
+    if scope is not None:return scope.identity()
     # Linux process start tick fences PID reuse, including a restarted worker.
     return f'{Path("/proc/sys/kernel/random/boot_id").read_text().strip()}:{os.getpid()}:{Path("/proc/self/stat").read_text().rsplit(")",1)[1].split()[19]}'
 
 
 def alive(identity):
+    from meme_machine.runtime.isolated_native_liveness import current_scope
+    scope=current_scope()
+    if scope is not None:return scope.alive(identity)
     try:
         boot, pid, start = identity.split(':')
         return (Path('/proc/sys/kernel/random/boot_id').read_text().strip() == boot
@@ -128,7 +134,11 @@ class Plane:
           BEGIN SELECT RAISE(ABORT,'append_only'); END;
         PRAGMA user_version=1;
         ''')
-        self.recover()
+        try:self.recover()
+        except BaseException:
+            from meme_machine.runtime.sqlite_failure import preserving_cleanup
+            with preserving_cleanup():self.db.close()
+            raise
 
     @contextmanager
     def transaction(self):

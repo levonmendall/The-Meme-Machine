@@ -7,6 +7,7 @@ trusts only that protected descriptor origin, binds its session and reviewed
 image identity, and retains the native valuation deadlines unchanged.
 """
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -106,11 +107,18 @@ class ParentSizingReader:
             os.close(self.descriptor)
 
 
-def _image_identity():
-    path=Path('/image/manifest.json')
+def _image_identity(layout=None):
+    if layout is not None:
+        from .isolated_native_layout import NativeChildLayout
+        _require(type(layout) is NativeChildLayout,'isolated_native_layout_required')
+    path=Path('/image/manifest.json') if layout is None else layout.manifest
     _require(path.is_file() and not path.is_symlink() and path.stat().st_size<=512*1024,
         'isolated_native_image_manifest_required')
-    value=json.loads(path.read_bytes())
+    raw=path.read_bytes()
+    if layout is not None:
+        _require(hashlib.sha256(raw).hexdigest()==layout.manifest_sha256,
+            'isolated_native_image_manifest_changed')
+    value=json.loads(raw)
     _require(type(value) is dict and value.get('schema')=='isolated-native-copied-image-v1'
         and value.get('financial_authority') is False and type(value.get('provider_calls')) is int
         and value['provider_calls']==0 and value.get('actual_service_restrictions_verified') is False,
@@ -122,16 +130,17 @@ def _image_identity():
     return value
 
 
-def _new_resources(facts):
+def _new_resources(facts,layout=None):
     from meme_machine.runtime.isolated_native_resources import IsolatedNativeResources
-    return IsolatedNativeResources('/work/native/state',sizing_facts=facts,clock=time.time)
+    path='/work/native/state' if layout is None else layout.state_directory
+    return IsolatedNativeResources(path,sizing_facts=facts,clock=time.time)
 
 
 def _terminal_process_exit(receipt):
     """Fixed entry only: bounded nonblocking failure output, then owned exit.
 
-    No second graceful-drain interval is added. Kernel PID1 termination and the
-    original parent own process/transport uncertainty cleanup after this point.
+    No second graceful-drain interval is added. The selected fixed launcher's
+    original owned-process fence retains physical/transport cleanup ownership.
     """
     try:
         raw=json.dumps(receipt,sort_keys=True,separators=(',',':'),allow_nan=False).encode()+b'\n'
@@ -155,7 +164,7 @@ def _terminal_process_exit(receipt):
         os._exit(2)
 
 
-def main():
+def main(*,layout=None):
     """Only the fixed launcher may call this with its two retained capabilities."""
     from meme_machine.runtime import stop
     stopped=threading.Event()
@@ -168,12 +177,23 @@ def main():
     receipt=dict(schema='isolated-native-child-v1',status='BLOCKED',
         financial_authority=False,normal_readiness=False,provider_workload_started=False,
         held_protection='UNEXERCISED',fills='UNEXERCISED',settlement='UNEXERCISED')
-    channel=None;reader=None;resources=None;ports=None;terminal=None
+    channel=None;reader=None;resources=None;ports=None;terminal=None;liveness=None;spawn_scope=None
     try:
-        _require(len(sys.argv)==1 and Path.cwd()==Path('/work/native'),
+        if layout is not None:
+            from .isolated_native_layout import NativeChildLayout
+            _require(type(layout) is NativeChildLayout,'isolated_native_layout_required')
+            layout.require_entry()
+        _require(len(sys.argv)==1 and (Path.cwd()==Path('/work/native') if layout is None
+            else Path.cwd()==layout.native_directory),
             'isolated_native_fixed_entry_required')
-        image=_image_identity()
+        image=_image_identity() if layout is None else _image_identity(layout)
         receipt.update(source_commit=image['source_commit'],source_tree=image['source_tree'])
+        if layout is not None:
+            from meme_machine.runtime.isolated_native_liveness import install_native_liveness
+            liveness=install_native_liveness()
+            receipt['containment_profile']=layout.profile
+            from meme_machine.runtime.isolated_native_spawn import NativeSpawnScope
+            spawn_scope=NativeSpawnScope(layout)
         from .child_transport import ChildChannel
         channel=ChildChannel(socket.socket(fileno=3),seconds=1800,cancelled=stopped.is_set)
         reader=ParentSizingReader(4,session=channel.session,
@@ -189,11 +209,16 @@ def main():
             raise IsolatedEntryBlocked('isolated_native_source_executor_unavailable') from None
         facts=reader.receive()
         from meme_machine.runtime.isolated_native_bootstrap import NativeRunnerPorts
-        resources=_new_resources(facts)
+        resources=_new_resources(facts) if layout is None else _new_resources(facts,layout)
         ports=NativeRunnerPorts(resources,channel)
         from meme_machine.runtime.isolated_native_execution import isolated_native_execution
         with isolated_native_execution(resources):
             result=run_contained(resources=resources,ports=ports,sizing_reader=reader,stopped=stopped)
+        if spawn_scope is not None and spawn_scope.unjoined_processes:
+            failure=NativeOwnerDrainFailure(dict(status='FAILED',financial_authority=False,
+                shutdown=dict(graceful=False,all_workers_joined=False,tracker_joined=False)))
+            failure.retain(spawn_scope)
+            raise failure
         _require(type(result) is dict and result.get('financial_authority') is False,
             'isolated_native_source_result_required')
         receipt.update(status='COMPLETED',observation=result,provider_workload_started=True)
@@ -214,6 +239,13 @@ def main():
     finally:
         stopped.set()
         stop.requested.set()
+        if terminal is None and spawn_scope is not None and spawn_scope.unjoined_processes:
+            terminal=NativeOwnerDrainFailure(dict(status='FAILED',financial_authority=False,
+                shutdown=dict(graceful=False,all_workers_joined=False,tracker_joined=False)))
+            terminal.retain(spawn_scope)
+            receipt.update(status='BLOCKED',failure_code='isolated_native_shutdown_incomplete',
+                graceful_shutdown=False,all_workers_joined=False,
+                cleanup_disposition='OWNED_PROCESS_TERMINATION_REQUIRED')
         if terminal is not None:
             # Closing channel/reader/cache/SQLite here would race the owners
             # whose failed drain triggered this handoff. Generic libraries do
@@ -221,6 +253,8 @@ def main():
             _terminal_process_exit(receipt)
         closing=[owner.close for owner in (ports,resources,reader) if owner is not None]
         if channel is not None:closing.append(channel.abort_and_join)
+        if spawn_scope is not None:closing.append(spawn_scope.close)
+        if liveness is not None:closing.append(liveness.close)
         for close in closing:
             try:close()
             except BaseException as error:

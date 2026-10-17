@@ -144,7 +144,8 @@ class IsolatedSpawnExecutor(Executor):
                     process = context.Process(target=_worker,
                         args=(task_reader, result_writer, self._initializer),
                         name=f'isolated-native-{self._role}-{index}')
-                    process.start()
+                    from .isolated_native_spawn import pool_start
+                    with pool_start(self._role):process.start()
                 except BaseException:
                     task_writer.close()
                     result_reader.close()

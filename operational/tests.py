@@ -2,6 +2,8 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+ 'tests.test_isolated_native_spawn',
+ 'tests.test_isolated_native_layout',
  'tests.test_isolated_native_landlock_image',
  'tests.test_native_landlock_policy',
  'tests.test_native_landlock_launcher',
