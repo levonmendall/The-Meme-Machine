@@ -51,14 +51,11 @@ def owned_worker():
 async def native_source(event):
     path=resources.root/'solana-evidence.sqlite'
     path.touch()
-    server=await asyncio.start_unix_server(lambda reader,writer:writer.close(),path=str(path)+'.sock')
     # A real default executor task demonstrates why Runner.close() cannot own a
     # second indefinite join after the original native shutdown fence expired.
     background=asyncio.create_task(asyncio.to_thread(block.wait))
     try:await event.wait()
     finally:
-        server.close();await server.wait_closed()
-        Path(str(path)+'.sock').unlink()
         if os.environ.get('MM_FATAL_SOURCE_STUCK')=='1':
             while True:
                 try:await asyncio.sleep(10)
@@ -67,6 +64,7 @@ def run_contained(**values):
     return source._run_owned_loop(source._run_lifecycle(resources=resources,
         stopped=values['stopped'],sizing_reader=values['sizing_reader'],source=native_source,
         workers=[('pump',owned_worker)],source_path=resources.root/'solana-evidence.sqlite',
+        source_ready=lambda:True if (resources.root/'solana-evidence.sqlite').is_file() else None,
         seconds=.15,startup_seconds=1,shutdown_seconds=.1))
 if os.environ.get('MM_FATAL_FULL_PIPE')=='1':
     read,write=os.pipe2(os.O_NONBLOCK)

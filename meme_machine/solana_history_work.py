@@ -193,9 +193,13 @@ class HistoryExecutor:
         if self.pool is not None and getattr(self.pool,'_broken',False):
             self.pool.shutdown(wait=True,cancel_futures=True);self.pool=None
         if self.pool is None:
-            self.pool=ProcessPoolExecutor(max_workers=1,
-                mp_context=multiprocessing.get_context('spawn'),
-                initializer=_isolated_worker_limits if self._isolated else _worker_limits)
+            if self._isolated:
+                from .runtime.isolated_native_executor import IsolatedSpawnExecutor
+                self.pool=IsolatedSpawnExecutor(max_workers=1,
+                    initializer=_isolated_worker_limits,role='history')
+            else:
+                self.pool=ProcessPoolExecutor(max_workers=1,
+                    mp_context=multiprocessing.get_context('spawn'),initializer=_worker_limits)
         return self.pool.submit(fn,*args)
     def close(self):
         if self.pool is not None:self.pool.shutdown(wait=True,cancel_futures=True);self.pool=None

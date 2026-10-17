@@ -245,6 +245,7 @@ class NativeLifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.sizing_calls=0
         self.workers_seen=[]
         self.source_joined=False
+        self.source_generation=object()
 
     def reader(self, *, fail=False):
         case=self
@@ -260,15 +261,16 @@ class NativeLifecycleTests(unittest.IsolatedAsyncioTestCase):
     async def source(self,event):
         path=self.resources.root/'solana-evidence.sqlite'
         path.touch()
-        server=await asyncio.start_unix_server(lambda reader,writer:writer.close(),path=str(path)+'.sock')
         try:
             await event.wait()
             await asyncio.sleep(.02) # Actual owned drain must finish before return.
         finally:
-            server.close()
-            await server.wait_closed()
-            Path(str(path)+'.sock').unlink()
             self.source_joined=True
+
+    def source_ready(self):
+        if not (self.resources.root/'solana-evidence.sqlite').is_file() or self.source_joined:
+            raise ValueError('offline generation unavailable')
+        return self.source_generation
 
     def worker(self,name,*,fail=False):
         def run():
@@ -284,7 +286,7 @@ class NativeLifecycleTests(unittest.IsolatedAsyncioTestCase):
             sizing_reader=kwargs.pop('reader',self.reader()),source=self.source,
             workers=kwargs.pop('workers',[('pump',self.worker('pump')),('pons',self.worker('pons'))]),
             source_path=self.resources.root/'solana-evidence.sqlite',seconds=.15,
-            startup_seconds=1,shutdown_seconds=1,**kwargs)
+            source_ready=self.source_ready,startup_seconds=1,shutdown_seconds=1,**kwargs)
 
     async def test_actual_threads_concurrent_sizing_deny_and_join_before_complete(self):
         result=await self.lifecycle()
@@ -371,7 +373,7 @@ class NativeLifecycleTests(unittest.IsolatedAsyncioTestCase):
                 await executor._run_lifecycle(resources=self.resources,stopped=self.stopped,
                     sizing_reader=self.reader(),source=self.source,workers=[('pump',blocked)],
                     source_path=self.resources.root/'solana-evidence.sqlite',seconds=.1,
-                    startup_seconds=1,shutdown_seconds=.02)
+                    source_ready=self.source_ready,startup_seconds=1,shutdown_seconds=.02)
             result=json.loads((self.resources.root/'native-execution.json').read_text())
             self.assertFalse(result['all_workers_joined'])
             self.assertEqual(result['status'],'FAILED')

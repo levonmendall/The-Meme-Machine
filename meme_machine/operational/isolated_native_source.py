@@ -10,7 +10,6 @@ import importlib
 import json
 import os
 from pathlib import Path
-import stat
 import sys
 import threading
 import time
@@ -137,7 +136,7 @@ def _persist(resources, value):
 
 
 async def _run_lifecycle(*, resources, stopped, sizing_reader, source,
-        workers, source_path, seconds=EXECUTION_SECONDS,
+        workers, source_path, source_ready, seconds=EXECUTION_SECONDS,
         startup_seconds=SOURCE_START_SECONDS, shutdown_seconds=SHUTDOWN_SECONDS, progress=None):
     """Own all threads until joined, including failure and cancellation paths.
 
@@ -227,8 +226,8 @@ async def _run_lifecycle(*, resources, stopped, sizing_reader, source,
         unexercised=['production_state_restoration', 'held_position_priority_zero',
             'financial_settlement', 'authenticated_provider_optimization_profiles'])
     try:
-        # This only proves a private owner socket exists, not native financial
-        # readiness, complete history, or complete economic coverage.
+        # The exact owner-issued anonymous command generation must be live.
+        # This does not prove financial readiness or economic completeness.
         while True:
             sample_progress()
             if source_task.done():
@@ -240,12 +239,14 @@ async def _run_lifecycle(*, resources, stopped, sizing_reader, source,
             for lane in ('pump', 'pons'):
                 resources.facts.require_fresh(lane, int(resources.clock()))
             _require(time.monotonic() < min(deadline, began+startup_seconds),
-                'isolated_native_source_socket_deadline')
-            socket_path = Path(str(source_path)+'.sock')
-            if source_path.is_file() and socket_path.exists():
-                _require(not source_path.is_symlink() and not socket_path.is_symlink()
-                    and stat.S_ISSOCK(socket_path.stat().st_mode),
-                    'isolated_native_source_socket_owner')
+                'isolated_native_source_commands_deadline')
+            try:
+                generation=source_ready()
+            except ValueError:
+                generation=None
+            if generation is not None:
+                _require(source_path.is_file() and not source_path.is_symlink(),
+                    'isolated_native_source_commands_owner')
                 observed_at = time.monotonic()
                 break
             await asyncio.sleep(.05)
@@ -434,7 +435,7 @@ def run_contained(*, resources, ports, sizing_reader, stopped):
             result = _run_owned_loop(_run_lifecycle(resources=resources, stopped=stopped,
                 sizing_reader=sizing_reader, source=source,
                 workers=[('pump', pump_current), ('pons', pons_current)], source_path=source_path,
-                progress=progress))
+                source_ready=ports.require_source_commands_ready,progress=progress))
         except NativeOwnerDrainFailure as error:
             terminal=error
             # Leave global stdout and private paths on their original contained
