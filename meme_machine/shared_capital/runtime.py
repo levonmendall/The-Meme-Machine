@@ -28,6 +28,7 @@ FIELDS = ('requested_basis','minimum_basis','liquidity_capacity','execution_capa
     'native_quality_bps','expected_holding_seconds','scale_state','scale_facts','native_sizing')
 _LOCAL = threading.local()
 _STARTUP_REPLAY_CANCEL=ContextVar('native_startup_replay_cancel',default=None)
+_READ_EVALUATION=ContextVar('native_shared_read_evaluation',default=None)
 
 
 @contextmanager
@@ -51,8 +52,7 @@ def process_identity(pid):
     return fields[19]
 
 
-def selected(database):
-    """Read the durable authority selection; no environment switch can reseed it."""
+def _selection_record(database):
     path=Path(database).resolve()
     if not path.is_file():return None
     with closing(sqlite3.connect(path.as_uri()+'?mode=ro',uri=True)) as db, db:
@@ -63,15 +63,114 @@ def selected(database):
         if value['state']!='SHARED':raise CapitalError('incomplete_authority_cutover')
         shared=path.parent/'shared-capital.sqlite'
         if not shared.is_file() or shared.is_symlink():raise CapitalError('selected_shared_authority_missing')
-        with closing(sqlite3.connect(shared.as_uri()+'?mode=ro',uri=True)) as ledger, ledger:
-            row=ledger.execute('SELECT body,hash FROM shared_capital_projection WHERE id=1').fetchone()
-            if row is None:raise CapitalError('selected_shared_authority_incomplete')
-            state=json.loads(row[0])
-            if (digest(state)!=row[1] or state['epoch_id']!=value['epoch_id']
-                    or state['inception_sha256']!=value['inception_sha256']
-                    or digest(state['policy'])!=value['policy_sha256']):
-                raise CapitalError('selected_shared_authority_identity_mismatch')
-        return shared
+        return path,value,shared
+
+
+def _selection_matches(value,state):
+    return (state['epoch_id']==value['epoch_id']
+        and state['inception_sha256']==value['inception_sha256']
+        and digest(state['policy'])==value['policy_sha256'])
+
+
+def selected(database):
+    """Read the durable authority selection; no environment switch can reseed it."""
+    view=_read_evaluation()
+    if view is not None:return view.selected(database)
+    record=_selection_record(database)
+    if record is None:return None
+    _,value,shared=record
+    with closing(sqlite3.connect(shared.as_uri()+'?mode=ro',uri=True)) as ledger, ledger:
+        row=ledger.execute('SELECT body,hash FROM shared_capital_projection WHERE id=1').fetchone()
+        if row is None:raise CapitalError('selected_shared_authority_incomplete')
+        state=json.loads(row[0])
+        if digest(state)!=row[1] or not _selection_matches(value,state):
+            raise CapitalError('selected_shared_authority_identity_mismatch')
+    return shared
+
+
+def _inode(path):
+    value=path.stat()
+    return value.st_dev,value.st_ino
+
+
+class _ReadEvaluation:
+    """Detached read facts for one private native sizing evaluation only."""
+    def __init__(self,portfolio,shared,authority,state):
+        self.pid,self.thread=os.getpid(),threading.get_ident()
+        self.portfolio,self.shared=portfolio,shared
+        self.authority,self.state=authority,state
+        self.inodes=(_inode(portfolio),_inode(shared));self.closed=False
+
+    def require(self):
+        if (self.closed or self.pid!=os.getpid() or self.thread!=threading.get_ident()
+                or self.shared.is_symlink()
+                or (_inode(self.portfolio),_inode(self.shared))!=self.inodes):
+            raise CapitalError('shared_read_evaluation_owner_or_inode_changed')
+
+    def selected(self,database):
+        self.require()
+        if Path(database).resolve()!=self.portfolio:
+            raise CapitalError('shared_read_evaluation_authority_changed')
+        return self.shared
+
+    def ledger(self,authority):
+        self.require()
+        if authority is not self.authority:
+            raise CapitalError('shared_read_evaluation_authority_changed')
+        # Original ledger callers own a fresh mutable value. Keep that contract
+        # without decoding/hashing/reconciling the same durable head again.
+        return deepcopy(self.state)
+
+
+def _read_evaluation():
+    view=_READ_EVALUATION.get()
+    if view is not None:view.require()
+    return view
+
+
+@contextmanager
+def _native_read_evaluation(database):
+    """One coherent head; close its SQL snapshot before native replay/USD I/O.
+
+    Only the explicit read-only Current sizing helper installs this scope. Cold
+    source authentication/full replay and all ordinary writer paths remain the
+    originals. This is neither a request cache nor a source of spending rights.
+    """
+    if _read_evaluation() is not None:
+        raise CapitalError('shared_read_evaluation_nested')
+    record=_selection_record(database) if database else None
+    if record is None:
+        yield
+        return
+    portfolio,value,shared=record
+    inodes=(_inode(portfolio),_inode(shared))
+    cached=getattr(_LOCAL,'pool',{}).get(str(shared))
+    if cached is not None and cached[0]==inodes[1]:
+        authority=cached[1]
+    else:
+        # Never construct a new shared authority before the original selected()
+        # source authentication. Its constructor retains the full native replay.
+        if selected(database)!=shared:raise CapitalError('shared_authority_not_selected')
+        authority=connection(shared)
+    try:state=authority.ledger() # Original short BEGIN/read/hash/head/reconcile/COMMIT.
+    except Exception:
+        # Preserve original selection errors on invalid projection/identity
+        # before reporting the downstream ledger error. Failure-only extra read.
+        selected(database)
+        raise
+    if state is None:
+        selected(database)
+        raise CapitalError('selected_shared_authority_incomplete')
+    if not _selection_matches(value,state):
+        raise CapitalError('selected_shared_authority_identity_mismatch')
+    view=_ReadEvaluation(portfolio,shared,authority,state)
+    if view.inodes!=inodes:
+        raise CapitalError('shared_read_evaluation_owner_or_inode_changed')
+    token=_READ_EVALUATION.set(view)
+    try:yield
+    finally:
+        _READ_EVALUATION.reset(token)
+        view.closed=True
 
 
 def connection(path):
@@ -109,12 +208,22 @@ def allocation_regimes(state):
 
 
 class RuntimeCapital(PumpPonsCapital):
+    @contextmanager
+    def _transaction(self,*,write):
+        if write and _read_evaluation() is not None:
+            raise CapitalError('shared_read_evaluation_is_readonly')
+        with super()._transaction(write=write):yield
+
     def ledger(self):
         # Read the validated durable projection without a portfolio valuation
         # scan. A spending operation still takes its own fresh writer snapshot.
+        view=_read_evaluation()
+        if view is not None:return view.ledger(self)
         with self._transaction(write=False):return self._read()
 
     def command(self,op,action,data,at):
+        if _read_evaluation() is not None:
+            raise CapitalError('shared_read_evaluation_is_readonly')
         # Live process/transport checks stay outside the deterministic replay
         # reducer. Journal replay must remain valid after every process dies.
         from meme_machine.operational.admission import available,require_normal

@@ -1481,10 +1481,14 @@ def _evaluate_current_candidate(*args,**kwargs):
 
 def _current_pons_realized_equity():
     from meme_machine.runtime.directional_sleeve import open_sleeve
-    sleeve=open_sleeve('pons',STRATEGY_CAPITAL_QUOTE)
-    if sleeve is None:return STRATEGY_CAPITAL_QUOTE
-    try:return max(0,sleeve.sizing_basis(500)['realized_equity'])
-    finally:sleeve.close()
+    from meme_machine.shared_capital.runtime import _native_read_evaluation
+    database=(os.environ.get('MM_PORTFOLIO_ACCOUNTING_DB')
+        if os.environ.get('MM_DIRECTIONAL_SLEEVE_DB') and os.environ.get('MM_DIRECTIONAL_COHORT_ID') else None)
+    with _native_read_evaluation(database):
+        sleeve=open_sleeve('pons',STRATEGY_CAPITAL_QUOTE)
+        if sleeve is None:return STRATEGY_CAPITAL_QUOTE
+        try:return max(0,sleeve.sizing_basis(500)['realized_equity'])
+        finally:sleeve.close()
 
 
 if __name__=="__main__":

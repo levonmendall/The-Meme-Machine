@@ -119,6 +119,7 @@ FAST=[
  'tests.test_pons_capability_executor',
  'tests.test_pons_historical',
  'tests.test_provider_efficiency',
+ 'tests.test_shared_read_evaluation',
  'tests.test_pump_pons_consolidation','tests.test_pump_pons_capital_preparation',
  'tests.test_shared_capital', 'tests.test_shared_capital_concurrency',
  'tests.test_shared_capital_recovery', 'tests.test_shared_capital_migration',
