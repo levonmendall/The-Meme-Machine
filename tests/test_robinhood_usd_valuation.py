@@ -1831,7 +1831,6 @@ def cross_candidate_cold_predecessor(test,relative,current):
 def rally_predecessor(test,relative,current,*,allow_previous_layers=False):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
-    current=cross_candidate_cold_predecessor(test,relative,current)
     if relative==SLEEVE_EMPTY_PREFIX_SOURCE and hashlib.sha256(current).hexdigest()==SLEEVE_EMPTY_PREFIX_AFTER:
         current=sleeve_empty_prefix_predecessor(test,relative,current)
     current=survivor_increment_continuity_predecessor(test,relative,current)
