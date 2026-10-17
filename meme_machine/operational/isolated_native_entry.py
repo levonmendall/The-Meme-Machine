@@ -185,6 +185,7 @@ def main(*,layout=None):
         financial_authority=False,normal_readiness=False,provider_workload_started=False,
         held_protection='UNEXERCISED',fills='UNEXERCISED',settlement='UNEXERCISED')
     channel=None;reader=None;resources=None;ports=None;terminal=None;liveness=None;spawn_scope=None
+    stage='layout'
     try:
         if layout is not None:
             from .isolated_native_layout import NativeChildLayout
@@ -193,20 +194,25 @@ def main(*,layout=None):
         _require(len(sys.argv)==1 and (Path.cwd()==Path('/work/native') if layout is None
             else Path.cwd()==layout.native_directory),
             'isolated_native_fixed_entry_required')
+        stage='image_identity'
         image=_image_identity() if layout is None else _image_identity(layout)
         receipt.update(source_commit=image['source_commit'],source_tree=image['source_tree'])
         if layout is not None:
+            stage='liveness'
             from meme_machine.runtime.isolated_native_liveness import install_native_liveness
             liveness=install_native_liveness()
             receipt['containment_profile']=layout.profile
             from meme_machine.runtime.isolated_native_spawn import NativeSpawnScope
+            stage='spawn_scope'
             spawn_scope=NativeSpawnScope(layout)
+        stage='parent_channel'
         from .child_transport import ChildChannel
         # The launcher already authenticated this unnamed Unix STREAM. Avoid
         # socket(fileno=...) auto-detection's extra SO_DOMAIN/SO_PROTOCOL queries;
         # ChildChannel still verifies actual kernel SO_TYPE and unnamed peer.
         channel=ChildChannel(socket.socket(socket.AF_UNIX,socket.SOCK_STREAM,0,fileno=3),
             seconds=1800,cancelled=stopped.is_set)
+        stage='sizing_reader'
         reader=ParentSizingReader(4,session=channel.session,
             source_commit=image['source_commit'],source_tree=image['source_tree'],stopped=stopped.is_set)
         # A sampler is never substituted for the source owner. This literal
@@ -218,13 +224,18 @@ def main(*,layout=None):
             if error.name!='meme_machine.operational.isolated_native_source':
                 raise
             raise IsolatedEntryBlocked('isolated_native_source_executor_unavailable') from None
+        stage='sizing_facts'
         facts=reader.receive()
         from meme_machine.runtime.isolated_native_bootstrap import NativeRunnerPorts
+        stage='native_resources'
         resources=_new_resources(facts) if layout is None else _new_resources(facts,layout)
+        stage='native_ports'
         ports=NativeRunnerPorts(resources,channel)
+        stage='commit_measurement'
         resources.enable_native_commit_measurement(ports)
         from meme_machine.runtime.isolated_native_execution import isolated_native_execution
         with isolated_native_execution(resources):
+            stage='native_lifecycle'
             result=run_contained(resources=resources,ports=ports,sizing_reader=reader,stopped=stopped)
         if spawn_scope is not None and spawn_scope.unjoined_processes:
             failure=NativeOwnerDrainFailure(dict(status='FAILED',financial_authority=False,
@@ -248,6 +259,9 @@ def main(*,layout=None):
         # body, arbitrary exception message or hidden successful readiness flag.
         receipt['failure_code']='isolated_native_child_failed'
         receipt['failure_type']=type(error).__name__
+        receipt['failure_stage']=stage
+        number=getattr(error,'errno',None)
+        if type(number) is int and 0<number<4096:receipt['error_number']=number
         module=sys.modules.get('meme_machine.runtime.isolated_native_spawn')
         if (module is not None and type(error) is getattr(module,'NativeSpawnRefused',None)
                 and len(error.args)==1 and type(error.args[0]) is str and error.args[0] in _SPAWN_BOUNDARIES):
