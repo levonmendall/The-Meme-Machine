@@ -248,5 +248,31 @@ receipt=retained.wait(seconds=.1);assert retained._reaped and child.returncode i
 print(json.dumps(dict(fixture_pass=True,landlock_verified=False)))
 ''')
 
+    def test_started_reader_failure_retains_live_owner_until_its_actual_join(self):
+        self.run_fixture(r'''
+import json,subprocess,sys,threading,time
+from unittest.mock import patch
+sys.path.insert(0,sys.argv[1])
+from meme_machine.operational.isolated_native_landlock_launcher import NativeLandlockChild
+gate=threading.Event();original_start=threading.Thread.start
+primary=RuntimeError('fixed failure after physical reader start')
+def started_then_failed(thread):original_start(thread);raise primary
+child=subprocess.Popen([sys.executable,'-I','-B','-S','-c','import time;time.sleep(60)'],
+ stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)
+with patch.object(NativeLandlockChild,'_drain',lambda self:gate.wait()),patch.object(threading.Thread,'start',started_then_failed):
+ try:NativeLandlockChild(child,time.monotonic())
+ except RuntimeError as error:
+  assert error is primary;owner=error.native_landlock_owner
+ else:raise AssertionError('post-start failure accepted')
+assert owner._reader.is_alive() and owner._reaped and child.returncode is not None
+assert child.stdin.closed and not child.stdout.closed and not child.stderr.closed
+assert owner.failure=='native_landlock_output_owner_alive'
+gate.set();owner._reader.join(1);assert not owner._reader.is_alive()
+receipt=owner.wait(seconds=.1)
+assert receipt['code']=='native_landlock_output_owner_alive' and not receipt['all_workers_joined']
+assert child.stdout.closed and child.stderr.closed
+print(json.dumps(dict(fixture_pass=True,landlock_verified=False)))
+''')
+
 
 if __name__=='__main__':unittest.main()
