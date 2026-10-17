@@ -100,6 +100,8 @@ jobs:
               'tests.test_isolated_native_workload_replay',
               'tests.test_isolated_native_pump',
               'tests.test_isolated_native_pons',
+              'tests.test_namespace_canary',
+              'tests.test_namespace_runtime',
               'tests.test_source_pool_cooperative_stop',
               'tests.test_preparation_failed_recovery',
               'tests.test_native_startup_lifecycle',
