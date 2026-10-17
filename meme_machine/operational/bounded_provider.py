@@ -700,6 +700,23 @@ class HTTPReceipt:
     def close(self):self.budget.http_event(self.token,close=True,uncertain=not self.eof)
 
 
+def http_body_state(raw,size,*,requested=None):
+    """Known Content-Length overrides short/empty-read EOF inference.
+
+    read1 may return short chunks while a body is still open. A buffered read
+    smaller than requested, or an empty read1, establishes transport EOF only
+    when no positive declared remainder contradicts it. Unframed/chunked reads
+    retain their original EOF rules; callers retain their own transport policy.
+    """
+    remaining=getattr(raw,'length',None)
+    ended=(size==0 and requested!=0) or requested is not None and size<requested
+    if remaining is not None:
+        if type(remaining) is not int or remaining<0:return 'INCOMPLETE'
+        if remaining==0:return 'COMPLETE'
+        return 'INCOMPLETE' if ended else 'OPEN'
+    return 'COMPLETE' if ended else 'OPEN'
+
+
 class DeliveredResponse:
     def __init__(self,raw,budget,router=None):self.raw=raw;self.budget=budget;self.router=router
     def __getattr__(self,name):return getattr(self.raw,name)
@@ -716,12 +733,14 @@ class DeliveredResponse:
         if _head_read_bound.get() is not None:
             return self._head_read(requested,maximum,receipt)
         data=self.raw.read(requested)
-        if receipt and len(data)<requested:receipt.eof=True
+        state=http_body_state(self.raw,len(data),requested=requested)
+        if receipt and state=='COMPLETE':receipt.eof=True
         try:self.budget.http_delivery(len(data))
         except CeilingReached as error:
             if self.router is None:raise
             self.router.advance(self.budget,error.reason)
         if receipt and len(data)>=maximum:self.budget.fail('bounded_http_response_limit')
+        if state=='INCOMPLETE':raise ValueError('bounded_http_incomplete_body')
         return data
 
     def _head_read(self,requested,maximum,receipt):

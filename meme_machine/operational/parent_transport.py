@@ -19,7 +19,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, build_opener, ProxyHandler, HTTPRedirectHandler
 
 from .bounded_provider import (
-    Budget, PhaseBudget, MAX_FRAME, NativeReadBuffer, native_ledger_reader,
+    Budget, PhaseBudget, MAX_FRAME, NativeReadBuffer, native_ledger_reader,http_body_state,
 )
 from .transport_bridge import (
     BridgeRejected, Delivered, EndpointAlias, ParentAttempt, _params, _require,
@@ -328,8 +328,11 @@ class ParentHTTP:
                     reader = getattr(raw, 'read1', None) or raw.read
                     chunk = reader(min(65536, MAX_FRAME-count+1))
                     _require(type(chunk) is bytes, 'parent_response_type')
+                    body_state=http_body_state(raw,len(chunk))
+                    if body_state=='COMPLETE':receipt.eof=True
                     if not chunk:
-                        receipt.eof = True
+                        if body_state=='INCOMPLETE':
+                            raise ParentTransportFailure('provider_response_incomplete')
                         break
                     # FULL commit precedes every content publication, even on error.
                     receipt.http_delivery(len(chunk))
@@ -341,6 +344,7 @@ class ParentHTTP:
                     if count > MAX_FRAME:
                         raise ParentTransportFailure('provider_response_capacity')
                     pieces.append(chunk)
+                    if body_state=='COMPLETE':break
             except Exception:
                 if status != 200:
                     raise BoundaryError('provider_http_'+str(int(status))) from None

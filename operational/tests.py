@@ -96,6 +96,7 @@ FAST=[
  'tests.test_rolling_ingest_serialization',
  'tests.test_volume_quality',
  'tests.test_bounded_provider_preflight',
+ 'tests.test_http_response_eof',
  'tests.test_native_usage_intake',
  'tests.test_scout_commit_batches',
  'tests.test_candidate_commit_batches',
