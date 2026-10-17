@@ -156,7 +156,13 @@ class SourcePortsTests(unittest.IsolatedAsyncioTestCase):
         from meme_machine.lanes.pump import solana_evidence_runtime as runtime
         from meme_machine.runtime.candidate_history import CandidateHistory
         from meme_machine.solana_provider_config import AlchemyEndpoint
-        from tests.test_pump_cache_source_authority import PumpCacheSourceAuthorityTests
+        from meme_machine.solana_history_delivery import capture,deliver,acknowledge,generation
+        from meme_machine.solana_rolling_history import program_scope
+        from meme_machine.solana_selective_history import PROGRAMS
+        from meme_machine.solana_selective_source import install,SelectiveSource,commit_candidate_batch,commit_control
+        from tests.isolated_native_control_fixture import start_command_source
+        from tests.test_pump_cache_source_authority import PumpCacheSourceAuthorityTests,FIXTURE
+        from types import SimpleNamespace
         case=PumpCacheSourceAuthorityTests('runTest')
         case.setUp();self.addCleanup(case.doCleanups)
         cap=IsolatedNativeResources(self.root/'native-cache',
@@ -168,8 +174,60 @@ class SourcePortsTests(unittest.IsolatedAsyncioTestCase):
         case.endpoint=AlchemyEndpoint.parse(fixtures.SOL)
         with patch.dict(os.environ,MM_SOLANA_CANDIDATE_HISTORY_DB=str(case.cache_path),
                 MM_SOLANA_READ_RPC_URL=fixtures.SOL):
-            _state,_history,_old_plane,expected=case.selective_fixture(cap.root/'solana-evidence.sqlite')
+            driver,_close_source=await start_command_source(SimpleNamespace(
+                resources=cap,ports=ports,addAsyncCleanup=self.addAsyncCleanup))
+            def seed(state):
+                # The actual source owns this canonical connection. Retain the
+                # original frame/decode/FULL delivery/ACK/publication fixture;
+                # never open a second writer or fabricate command readiness.
+                history=install(state)
+                history.clock=history.lifecycle.clock=lambda:case.seen
+                state.fence.endpoint_identity=history.endpoint_identity=case.endpoint.identity
+                history.lifecycle.delivery_separated=True
+                history.startup.begin()
+                values=[case.native_frame(100,case.at-60),
+                    case.native_frame(101,case.creation_at,FIXTURE['pump'][0]),
+                    case.native_frame(102,case.at,case.trade_tx),
+                    case.native_frame(103,case.at+1)]
+                original_clock=state.writer.clock
+                state.writer.clock=lambda:case.seen
+                try:
+                    commit_candidate_batch(state,values,
+                        {PROGRAMS['pump']:program_scope('pump')},'offline-cache-session',publish=False)
+                    for value in values:commit_control(state,value)
+                finally:
+                    # Captured-frame health uses its original fixture clock;
+                    # actual command envelope expiry keeps the service clock.
+                    state.writer.clock=original_clock
+                life=history.lifecycle
+                first=capture(life);self.assertTrue(first['rows'])
+                self.assertTrue(acknowledge(life,first,deliver(first)))
+                proofs=capture(life);self.assertTrue(proofs['proofs'])
+                self.assertTrue(acknowledge(life,proofs,deliver(proofs)))
+                life.publish(proof_ids=tuple(proofs['publication_ids']))
+                self.assertIsNone(life.unconsumed(program_scope('pump'),through=102))
+                self.assertEqual(history.rolling.missing('pump',history.scope_for('pump',case.mint),
+                    100,102,as_of=case.seen),[])
+                source=SelectiveSource(SimpleNamespace(credential='offline',
+                    identity=case.endpoint.identity),None)
+                state.fence.health('source_drain_observation',source.drain_snapshot())
+                authority=dict(candidate_scope=history.scope_for('pump',case.mint),
+                    program_scope=program_scope('pump'),endpoint=case.endpoint.identity,
+                    generation=generation(life))
+                with closing(CandidateHistory(case.cache_path,clock=lambda:case.seen)) as cache:
+                    expected=cache.covered_events('pump',case.mint,case.scope,case.at-60,case.at,
+                        upper_slot=102,source_authority=authority)
+                self.assertTrue(any(event.get('event_type')=='trade' for event in expected))
+                return expected
+            expected=await driver.work(seed)
             plane=ports.pump_evidence('pump');self.addCleanup(plane.close)
+            def canonical_read():
+                # The real synchronous native consumer needs its own thread;
+                # its ACK must leave the source event loop free to reply.
+                with closing(ports.pump_evidence('pump')) as consumer:
+                    return consumer.pump_events(case.scope,case.mint,case.at-60,case.at,upper_slot=102)
+            canonical=await asyncio.to_thread(canonical_read)
+            self.assertTrue(any(event.get('event_type')=='trade' for event in canonical))
             del os.environ['MM_SOLANA_READ_RPC_URL']
             with patch.object(AlchemyEndpoint,'parse',side_effect=AssertionError('child URL lookup')):
                 with runtime.LocalPumpTape(plane)._cached_window_authority(case.mint,
