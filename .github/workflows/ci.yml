@@ -76,6 +76,8 @@ jobs:
               'tests.test_solana_source_drain',
               'tests.test_archive_full_log_content',
               'tests.test_archive_recovered_session',
+              'tests.test_retained_canonical_reference',
+              'tests.test_candidate_history',
               'tests.test_contained_source_observation',
               'tests.test_program_gap_observation',
               'tests.test_directional_accounting',
