@@ -151,6 +151,287 @@ class LandlockCanaryTests(unittest.TestCase):
             self.assertEqual(projected['landlock_abi'],6)
             self.assertTrue(ll._ALREADY_REPORTED)
 
+    def test_failure_projection_preserves_fixed_stage_errno_and_partial_checks_only(self):
+        secret='PRIVATE_PATH_OR_PROVIDER_CANARY'
+        class PrivateFailure(OSError):pass
+        error=PrivateFailure(errno.EACCES,secret,secret)
+        fields=ll.failure_fields(error,'controller_snapshots')
+        self.assertEqual(fields,dict(code='landlock_canary_probe_failed',
+            stage='controller_snapshots',error_class='OSError',error_number=errno.EACCES))
+        self.assertNotIn(secret,json.dumps(fields))
+        with patch.object(ll,'_PROBE_STAGE','child_landlock_checks'),\
+                patch.object(ll,'_PROBE_CHECKS',dict(fs_read=True,fs_write=False)),\
+                patch.object(ll,'_OBSERVED_ABI',6):
+            value=ll._failure(PermissionError(errno.EPERM,secret,secret))
+        projected=ll._project(dict(value,body=secret),2)
+        self.assertEqual(projected['checks'],dict(fs_read=True,fs_write=False))
+        self.assertEqual(projected['stage'],'child_landlock_checks')
+        self.assertEqual(projected['error_class'],'PermissionError')
+        self.assertEqual(projected['error_number'],errno.EPERM)
+        self.assertEqual(projected['landlock_abi'],6)
+        self.assertEqual(projected['child_exit'],2)
+        malformed=ll._project(dict(value,stage=secret,error_class=secret,
+            checks={secret:True,'fs_write':1}),2)
+        self.assertNotIn(secret,json.dumps(malformed))
+        self.assertEqual(malformed['checks'],{})
+
+    def test_preprobe_snapshot_failure_is_bounded_instead_of_escaping_to_driver(self):
+        with Scratch() as scope,patch.object(ll.os,'geteuid',return_value=1000),\
+                patch.object(ll,'_scratch',return_value=scope.path),\
+                patch.object(ll.os,'readlink',side_effect=PermissionError(errno.EACCES,'private path')):
+            result=ll.canary(scope.path)
+            self.assertEqual(result['state'],'BLOCKED')
+            self.assertEqual(result['stage'],'controller_snapshots')
+            self.assertEqual(result['error_class'],'PermissionError')
+            self.assertEqual(result['error_number'],errno.EACCES)
+            self.assertNotIn('child_exit',result)
+            self.assertNotIn('landlock_abi',result)
+            self.assertNotIn('private path',json.dumps(result))
+            scope.success=True
+
+    def controller_fixture(self,scope,payload,exit_code=2):
+        """Real anonymous IPC/process cleanup, never any policy syscall."""
+        original=subprocess.Popen
+        def start(args,**kwargs):
+            if '--probe' in args:
+                spec=json.loads(args[-1])
+                script=('import os;os.write('+str(spec['ipc'])+','+repr(payload)+');'
+                    'os._exit('+str(exit_code)+')')
+                return original([sys.executable,'-I','-B','-S','-c',script],**kwargs)
+            return original(args,**kwargs)
+        return (patch.object(ll,'_scratch',return_value=scope.path),
+            patch.object(ll.os,'geteuid',side_effect=[1000,os.geteuid()]),
+            patch.object(ll.subprocess,'Popen',side_effect=start))
+
+    def test_empty_child_receipt_retains_real_exit_and_decode_stage(self):
+        with Scratch() as scope:
+            first,second,third=self.controller_fixture(scope,b'',3)
+            with first,second,third:result=ll.canary(scope.path)
+            self.assertEqual(result['state'],'BLOCKED')
+            self.assertEqual(result['stage'],'controller_child_receipt')
+            self.assertEqual(result['error_class'],'JSONDecodeError')
+            self.assertEqual(result['child_exit'],3)
+            self.assertNotIn('landlock_abi',result)
+            self.assertTrue(all(result[key] is True for key in ll.PARENT_CHECKS))
+            scope.check();scope.success=True
+
+    def test_postprobe_failure_retains_real_child_partial_receipt(self):
+        value=dict(ll._base(),code='landlock_canary_denial_errno',landlock_abi=6,
+            error_number=errno.ENOENT,failed_check='proc_data',checks={'fs_read':True},
+            stage='child_landlock_checks',error_class='Blocked')
+        payload=json.dumps(value).encode()+b'\n'
+        for failure in ('parent_namespaces','cleanup'):
+            with self.subTest(failure=failure),Scratch() as scope:
+                first,second,third=self.controller_fixture(scope,payload)
+                original_link=os.readlink;original_close=ll._OwnedProcesses.close;calls=0
+                def readlink(path):
+                    nonlocal calls
+                    if path.startswith('/proc/self/ns/'):
+                        calls+=1
+                        if calls>5:raise PermissionError(errno.EACCES,'private namespace path')
+                    return original_link(path)
+                def close(owner):
+                    original_close(owner)
+                    raise PermissionError(errno.EPERM,'private cleanup path')
+                target=(patch.object(ll.os,'readlink',side_effect=readlink)
+                    if failure=='parent_namespaces' else patch.object(ll._OwnedProcesses,'close',close))
+                with first,second,third,target:result=ll.canary(scope.path)
+                self.assertEqual(result['state'],'BLOCKED')
+                self.assertEqual(result['stage'],'controller_'+failure)
+                self.assertEqual(result['error_class'],'PermissionError')
+                self.assertEqual(result['child_exit'],2)
+                self.assertEqual(result['landlock_abi'],6)
+                self.assertEqual(result['checks'],{'fs_read':True})
+                self.assertEqual(result['failed_check'],'proc_data')
+                self.assertEqual(result['child_failure'],dict(code='landlock_canary_denial_errno',
+                    error_number=errno.ENOENT,failed_check='proc_data',
+                    stage='child_landlock_checks',error_class='Blocked'))
+                self.assertNotIn('private ',json.dumps(result))
+                scope.check();scope.success=True
+
+    def test_exact_retained_aws_path_exceeds_sockaddr_un_before_any_syscall(self):
+        address=('/opt/mm-admin-runner/_work/_temp/mm-landlock-stage-39070091108-a01p34ro/'
+            'mm-engineering-ju5ql__h/outside.sock')
+        self.assertEqual(len(os.fsencode(address)),108)
+        # CPython checks sun_path before bind(2): no host pathname is touched.
+        with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as listener:
+            with self.assertRaises(OSError) as caught:listener.bind(address)
+        self.assertIsNone(caught.exception.errno)
+
+    def test_real_long_path_child_socket_fixtures_keep_cwd_environment_and_fds(self):
+        with Scratch() as scope:
+            work=scope.path/('private-fixture-'+'x'*120);work.mkdir(mode=0o700)
+            self.assertGreater(len(os.fsencode(work/'bound.sock')),107)
+            before=ll._fd_snapshot();cwd=Path.cwd();temporary=os.environ.get('TMPDIR')
+            with ll._socket_fixtures(work) as (loose,bound,listener,pair,denied):
+                for address in (bound.getsockname(),listener.getsockname(),denied):
+                    self.assertLess(len(os.fsencode(address)),108)
+                self.assertTrue((work/'bound.sock').is_socket())
+                self.assertTrue((work/'listener.sock').is_socket())
+                loose.connect(listener.getsockname())
+                accepted,_=listener.accept()
+                with accepted:
+                    loose.sendall(b'pathname fixture')
+                    self.assertEqual(accepted.recv(32),b'pathname fixture')
+                self.assertEqual(pair[1].recv(1),b'x')
+            self.assertEqual(ll._fd_snapshot(),before)
+            self.assertEqual(Path.cwd(),cwd)
+            self.assertEqual(os.environ.get('TMPDIR'),temporary)
+            scope.check();scope.success=True
+
+    def test_long_path_controller_reaches_real_child_without_inheriting_directory_fd(self):
+        with Scratch() as outer:
+            parent=outer.path/('private-stage-'+'x'*100);parent.mkdir(mode=0o700)
+            with Scratch(parent=parent) as scope:
+                self.assertGreater(len(os.fsencode(scope.path/'outside.sock')),107)
+                before=ll._fd_snapshot();cwd=Path.cwd();temporary=os.environ.get('TMPDIR')
+                original=subprocess.Popen
+                value=dict(ll._base(),code='landlock_canary_probe_failed')
+                payload=json.dumps(value).encode()+b'\n'
+                def start(args,**kwargs):
+                    if '--probe' not in args:return original(args,**kwargs)
+                    spec=json.loads(args[-1]);fd=spec['scope_fd']
+                    self.assertFalse(os.get_inheritable(fd))
+                    self.assertNotIn(fd,kwargs['pass_fds'])
+                    # Derive as the child does; /proc/self here would refer to
+                    # the fixture child rather than the controller's directory.
+                    address='/proc/'+str(spec['parent'])+'/fd/'+str(fd)+'/outside.sock'
+                    self.assertLess(len(os.fsencode(address)),108)
+                    script=('import errno,os,socket;'
+                        'closed=False;\n'
+                        'try:os.fstat('+str(fd)+')\n'
+                        'except OSError as e:closed=e.errno==errno.EBADF\n'
+                        'assert closed\n'
+                        's=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);'
+                        's.connect('+repr(address)+');s.close();'
+                        'os.write('+str(spec['ipc'])+','+repr(payload)+');os._exit(2)')
+                    return original([sys.executable,'-I','-B','-S','-c',script],**kwargs)
+                with patch.object(ll,'_scratch',return_value=scope.path),\
+                        patch.object(ll.os,'geteuid',side_effect=[1000,os.geteuid()]),\
+                        patch.object(ll.subprocess,'Popen',side_effect=start):
+                    result=ll.canary(scope.path)
+                self.assertEqual(result['child_exit'],2)
+                self.assertTrue(all(result[key] is True for key in ll.PARENT_CHECKS))
+                self.assertTrue((scope.path/'outside.sock').is_socket())
+                self.assertEqual(ll._fd_snapshot(),before)
+                self.assertEqual(Path.cwd(),cwd)
+                self.assertEqual(os.environ.get('TMPDIR'),temporary)
+                scope.check();scope.success=True
+            outer.check();outer.success=True
+
+    def test_child_fixture_partial_setup_closes_its_directory_and_socket_descriptors(self):
+        for method in ('bind','listen'):
+            with self.subTest(method=method),Scratch() as scope:
+                before=ll._fd_snapshot()
+                with patch.object(socket.socket,method,side_effect=OSError(errno.EPERM,'fixed failure')):
+                    with self.assertRaises(OSError):
+                        with ll._socket_fixtures(scope.path):self.fail('unexpected fixture')
+                self.assertEqual(ll._fd_snapshot(),before)
+                scope.check();scope.success=True
+
+    def test_directory_fixture_refuses_symlink_and_spec_refuses_fd_collisions(self):
+        with Scratch() as scope:
+            private=scope.path/'private';private.mkdir(mode=0o700)
+            link=scope.path/'link';link.symlink_to(private,target_is_directory=True)
+            before=ll._fd_snapshot()
+            with self.assertRaises(OSError):
+                with ll._fixture_directory(link):self.fail('unexpected symlink')
+            self.assertEqual(ll._fd_snapshot(),before)
+            row=dict(scope=str(private),parent=os.getpid(),peer=os.getpid()+1,
+                ipc=9,facts=10,scope_fd=11,abstract='mm-landlock-canary-'+str(os.getpid()))
+            self.assertEqual(ll._spec(row),row)
+            for bad in (True,2,65536,9,10):
+                with self.subTest(scope_fd=bad),self.assertRaises(ll.Blocked):
+                    ll._spec(dict(row,scope_fd=bad))
+            scope.check();scope.success=True
+
+    def closed_stdio_fixture(self,work,body):
+        """Use the real fixed FD handoff; never install a kernel policy."""
+        script=('import errno,json,os,socket,sys;from pathlib import Path;sys.path.insert(0,'+
+            repr(str(Path(ll.__file__).resolve().parents[2]))+');'
+            'from meme_machine.operational import landlock_canary as ll;'
+            'll._fixed_fds(int(sys.argv[1]),int(sys.argv[2]));'
+            'before=ll._fd_snapshot();cwd=Path.cwd();work=Path(sys.argv[3]);\n'+body+
+            '\nresult.update(fds_restored=ll._fd_snapshot()==before,cwd_unchanged=Path.cwd()==cwd);'
+            'os.write(3,json.dumps(result).encode());os._exit(0)')
+        parent,child=socket.socketpair();read_fd,write_fd=os.pipe();process=None
+        try:
+            os.close(write_fd);write_fd=None
+            with parent,child:
+                process=subprocess.Popen([sys.executable,'-I','-B','-S','-c',script,
+                    str(child.fileno()),str(read_fd),str(work)],stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
+                    pass_fds=(child.fileno(),read_fd),env={})
+                child.close();parent.settimeout(3)
+                result=json.loads(parent.recv(4096))
+                self.assertEqual(process.wait(timeout=3),0)
+                self.assertTrue(result['fds_restored'])
+                self.assertTrue(result['cwd_unchanged'])
+                return result
+        finally:
+            parent.close();child.close();os.close(read_fd)
+            if write_fd is not None:os.close(write_fd)
+            if process is not None and process.poll() is None:
+                process.kill();process.wait(timeout=2)
+
+    def test_actual_closed_stdio_socket_fixtures_move_directory_above_reserved_channels(self):
+        with Scratch() as scope:
+            work=scope.path/('private-work-'+'x'*100);work.mkdir(mode=0o700)
+            before=ll._fd_snapshot();cwd=Path.cwd()
+            result=self.closed_stdio_fixture(work,r'''
+result={}
+assert set(before)=={3,4}
+with ll._socket_fixtures(work) as (loose,bound,listener,pair,denied):
+    directory_fd=int(bound.getsockname().split('/')[-2])
+    assert directory_fd>=5 and not os.get_inheritable(directory_fd)
+    assert os.fstat(directory_fd).st_ino==work.stat().st_ino
+    loose.connect(listener.getsockname())
+    accepted,_=listener.accept()
+    with accepted:
+        loose.sendall(b'fixed pathname fixture')
+        assert accepted.recv(32)==b'fixed pathname fixture'
+    assert pair[1].recv(1)==b'x'
+    assert os.fstat(3).st_mode==before[3][2] and os.fstat(4).st_mode==before[4][2]
+    result.update(directory_above_channels=True,genuine_pathname_connection=True)
+''')
+            self.assertTrue(result['directory_above_channels'])
+            self.assertTrue(result['genuine_pathname_connection'])
+            self.assertEqual(ll._fd_snapshot(),before)
+            self.assertEqual(Path.cwd(),cwd)
+            scope.check();scope.success=True
+
+    def test_actual_closed_stdio_directory_dup_failure_closes_initial_low_descriptor(self):
+        with Scratch() as scope:
+            work=scope.path/'work';work.mkdir(mode=0o700)
+            result=self.closed_stdio_fixture(work,r'''
+result={}
+original=ll.fcntl.fcntl
+def fail_dup(fd,command,*args):
+    if command==ll.fcntl.F_DUPFD_CLOEXEC and args==(5,):
+        assert fd==0
+        raise OSError(errno.EMFILE,'fixed duplicate failure')
+    return original(fd,command,*args)
+ll.fcntl.fcntl=fail_dup
+try:
+    with ll._fixture_directory(work):raise AssertionError('unexpected directory')
+except OSError as error:
+    assert error.errno==errno.EMFILE
+    result['duplication_failure_owned']=True
+else:raise AssertionError('missing duplicate failure')
+finally:ll.fcntl.fcntl=original
+''')
+            self.assertTrue(result['duplication_failure_owned'])
+            scope.check();scope.success=True
+
+    def test_directory_open_failure_preserves_every_parent_descriptor(self):
+        with Scratch() as scope:
+            before=ll._fd_snapshot()
+            with patch.object(ll.os,'open',side_effect=OSError(errno.EMFILE,'fixed open failure')):
+                with self.assertRaises(OSError):
+                    with ll._fixture_directory(scope.path):self.fail('unexpected directory')
+            self.assertEqual(ll._fd_snapshot(),before)
+            scope.check();scope.success=True
+
     def test_static_fixture_is_exact_bounded_executable(self):
         raw=ll._elf()
         self.assertEqual(len(raw),129)
@@ -206,7 +487,7 @@ class LandlockCanaryTests(unittest.TestCase):
         before=ll._fd_snapshot()
         with ExitStack() as context:
             context.enter_context(patch.object(ll,'_scratch',return_value=scope.path))
-            context.enter_context(patch.object(ll.os,'geteuid',return_value=1000))
+            context.enter_context(patch.object(ll.os,'geteuid',side_effect=[1000,os.geteuid()]))
             for target,value in patches.items():context.enter_context(patch(target,**value))
             result=ll.canary(scope.path)
         self.assertEqual(result['state'],'BLOCKED')
