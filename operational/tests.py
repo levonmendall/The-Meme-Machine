@@ -4,6 +4,7 @@ import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.r
 FAST=[
  'tests.test_isolated_native_kernel_corpus',
  'tests.test_isolated_native_kernel_validation',
+ 'tests.test_native_pons_kernel_corpus',
  'tests.test_parent_native_factories',
  'tests.test_native_commit_measurement',
  'tests.test_isolated_native_spawn',
