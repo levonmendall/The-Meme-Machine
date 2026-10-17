@@ -1,0 +1,275 @@
+{
+  "added_sources": {
+    "meme_machine/runtime/candidate_restore_reads.py": {
+      "bytes": 15707,
+      "sha256": "af8046e7408da798fdee55913ecbdf4c2ea2d858212cb33d110399c43c37ef06"
+    }
+  },
+  "base": "d32153c9fd1a62e13650015a3edd375698bb41d4",
+  "files": {
+    "meme_machine/lanes/pump/runner.py": {
+      "after_sha256": "8ba558ef5e868a6f86709b0cbf9888fb1c22b87352021ee9c26019a2e7d3b18c",
+      "before_sha256": "8e50849d5b8c025dd4962611ac3f87b2bf8f48f40b930efe7c7f5cd76df09e3e",
+      "changes": [
+        {
+          "after": "    # source/manifest/stat fingerprints are rechecked for every referenced\n    # record; all results retain independent authenticated payloads.\n    archives={}\n    cancelled=requested.is_set\n    reads=CANDIDATE_HISTORY.restoration_reader(cancelled=cancelled,archives=archives)\n    try:\n        for candidate in CANDIDATE_HISTORY.candidates(lane='pump',event_prefix='pump_',\n                cancelled=requested.is_set):\n",
+          "before": "    # source/manifest/stat fingerprints are rechecked for every referenced\n    # record; all results retain independent authenticated payloads.\n    archives={}\n    try:\n        for candidate in CANDIDATE_HISTORY.candidates(lane='pump',event_prefix='pump_',\n                cancelled=requested.is_set):\n"
+        },
+        {
+          "after": "            mint=candidate['candidate']\n            if mint in created:continue\n            economic=_startup_work('pump.observed_candidate_events',\n                CANDIDATE_HISTORY.events,'pump',mint,kind_prefix='pump_',cancelled=cancelled,\n                    _restore_archive_cache=archives,_restore_reference_reader=reads)\n            # A completed read does not authorize more restart reconstruction after\n            # TERM. Durable history/required work stays pending for a fresh resume.\n            if requested.is_set():raise Shutdown()\n",
+          "before": "            mint=candidate['candidate']\n            if mint in created:continue\n            economic=_startup_work('pump.observed_candidate_events',\n                CANDIDATE_HISTORY.events,'pump',mint,kind_prefix='pump_',cancelled=requested.is_set,\n                    _restore_archive_cache=archives)\n            # A completed read does not authorize more restart reconstruction after\n            # TERM. Durable history/required work stays pending for a fresh resume.\n            if requested.is_set():raise Shutdown()\n"
+        },
+        {
+          "after": "                history_status={},graduation_price=None)\n    finally:\n        archives.clear()\n        from meme_machine.runtime.sqlite_failure import preserving_cleanup\n        with preserving_cleanup():reads.close()\n    return restored\n\n\n",
+          "before": "                history_status={},graduation_price=None)\n    finally:\n        archives.clear()\n    return restored\n\n\n"
+        }
+      ],
+      "layouts": {},
+      "nodes": {
+        "module/FunctionDef:_restore_observed_pump_candidates": {
+          "after": "f625159c8ac64fe091c112f129649f443df53f82d2fbc92a404acdc650906cdf",
+          "before": "db4da23e5f1b047c22275b4e47da1a6cadcefcce0c68cae9eecc6ad650a0957d"
+        }
+      }
+    },
+    "meme_machine/runtime/candidate_history.py": {
+      "after_sha256": "9544d4880c0234a1d588adfdd4360e22811062b6a1803c23e81748826de717c1",
+      "before_sha256": "74b40b66a6fd13f7bada63954dfdbb37690bd9c6f3db597a4d3a2182d6ed08cd",
+      "changes": [
+        {
+          "after": "        \"\"\"\n        return retained_reference_path(value,candidate_path=self.path,cold=cold)\n\n    def _reference_body(self,lane,candidate,identity,kind,ref,*,prepared=None,_archive_cache=None,_check=None,\n                        _restore_lookup=None):\n        from meme_machine.solana_evidence_plane import decode_body\n        if _check is not None:_check()\n        path=self._reference_path(ref['path'])\n        if _restore_lookup is None:\n            self._source_readers=getattr(self,'_source_readers',{})\n            if path not in self._source_readers:\n                self._source_readers[path]=diagnostic_connect(path.as_uri()+'?mode=ro',diagnostic_role='candidate_reference',uri=True,timeout=30)\n            db=self._source_readers[path]\n            row=db.execute('SELECT body,hash,archive FROM canonical_evidence WHERE identity=?',(ref['canonical_identity'],)).fetchone()\n        else:\n            from .candidate_restore_reads import _Lookup\n            if type(_restore_lookup) is not _Lookup:\n                raise ValueError('candidate_restore_reference_owner')\n            row,db=_restore_lookup.source(self,ref,path)\n        if row is None:raise ValueError('candidate_canonical_reference_missing')\n        if prepared is not None and row[0]==prepared[1]:\n            # A local ingest already holds the decoded record. Reuse it only\n",
+          "before": "        \"\"\"\n        return retained_reference_path(value,candidate_path=self.path,cold=cold)\n\n    def _reference_body(self,lane,candidate,identity,kind,ref,*,prepared=None,_archive_cache=None,_check=None):\n        from meme_machine.solana_evidence_plane import decode_body\n        if _check is not None:_check()\n        self._source_readers=getattr(self,'_source_readers',{})\n        path=self._reference_path(ref['path'])\n        if path not in self._source_readers:\n            self._source_readers[path]=diagnostic_connect(path.as_uri()+'?mode=ro',diagnostic_role='candidate_reference',uri=True,timeout=30)\n        db=self._source_readers[path]\n        row=db.execute('SELECT body,hash,archive FROM canonical_evidence WHERE identity=?',(ref['canonical_identity'],)).fetchone()\n        if row is None:raise ValueError('candidate_canonical_reference_missing')\n        if prepared is not None and row[0]==prepared[1]:\n            # A local ingest already holds the decoded record. Reuse it only\n"
+        },
+        {
+          "after": "            r=prepared[0]\n            checksum=hashlib.sha256(prepared[1].encode()).hexdigest()\n        elif row[0] is not None:\n            if _restore_lookup is not None and not _restore_lookup.fallback:\n                from meme_machine.solana_evidence_storage import finish_decode\n                from meme_machine.solana_evidence_plane import EvidenceConflict\n                try:r=finish_decode(_restore_lookup.prepared,chunks=_restore_lookup.chunks,\n                    decoded_chunks=_restore_lookup.decoded_chunks)\n                except (ValueError,TypeError,KeyError) as error:\n                    raise EvidenceConflict('hot_evidence_corrupt') from error\n                # Each prepared outer is one-shot. Only decoded chunks can be\n                # shared; the page cache owns/copies those at its boundary.\n            else:r=decode_body(row[0],db)\n            checksum=digest(r)\n        else:\n            import zlib\n            manifest=(_restore_lookup.manifest if _restore_lookup is not None and not _restore_lookup.fallback\n                else db.execute('SELECT path,hash FROM scoped_cold_manifests WHERE id=?',(row[2],)).fetchone())\n            if manifest is None:raise ValueError('candidate_canonical_reference_requires_restore')\n            cold_path=self._reference_path(manifest[0],cold=True)\n            records=None;key=None\n",
+          "before": "            r=prepared[0]\n            checksum=hashlib.sha256(prepared[1].encode()).hexdigest()\n        elif row[0] is not None:\n            r=decode_body(row[0],db);checksum=digest(r)\n        else:\n            import zlib\n            manifest=db.execute('SELECT path,hash FROM scoped_cold_manifests WHERE id=?',(row[2],)).fetchone()\n            if manifest is None:raise ValueError('candidate_canonical_reference_requires_restore')\n            cold_path=self._reference_path(manifest[0],cold=True)\n            records=None;key=None\n"
+        },
+        {
+          "after": "                 market_time,kind,encoded,checksum))\n        return body\n\n    def restoration_reader(self,*,cancelled,archives):\n        from .candidate_restore_reads import RestoreReferenceReader\n        return RestoreReferenceReader(self,cancelled,archives)\n\n    def events(self,lane,candidate,*,since=None,through=None,kind=None,kind_prefix=None,\n               cancelled=None,_restore_archive_cache=None,_restore_reference_reader=None):\n        # The caller may share exactly one verified cold archive across its\n        # cancellable Pump startup pass. No persistent/process-wide cache and\n        # no cache authority during normal event reads.\n        if _restore_archive_cache is not None and (\n                not callable(cancelled) or type(_restore_archive_cache) is not dict):\n            raise ValueError('candidate_history_restore_archive_scope')\n        if _restore_reference_reader is not None:\n            from .candidate_restore_reads import require_reader\n            require_reader(_restore_reference_reader,self)\n            if (not callable(cancelled) or lane!='pump' or kind_prefix!='pump_'\n                    or cancelled is not _restore_reference_reader.cancelled\n                    or _restore_archive_cache is not _restore_reference_reader.archives):\n                raise ValueError('candidate_history_restore_reference_scope')\n        sql=\"\"\"SELECT body,hash FROM events WHERE lane=? AND candidate=?\"\"\"\n        args=[lane,candidate]\n        if since is not None:\n",
+          "before": "                 market_time,kind,encoded,checksum))\n        return body\n\n    def events(self,lane,candidate,*,since=None,through=None,kind=None,kind_prefix=None,\n               cancelled=None,_restore_archive_cache=None):\n        # The caller may share exactly one verified cold archive across its\n        # cancellable Pump startup pass. No persistent/process-wide cache and\n        # no cache authority during normal event reads.\n        if _restore_archive_cache is not None and (\n                not callable(cancelled) or type(_restore_archive_cache) is not dict):\n            raise ValueError('candidate_history_restore_archive_scope')\n        sql=\"\"\"SELECT body,hash FROM events WHERE lane=? AND candidate=?\"\"\"\n        args=[lane,candidate]\n        if since is not None:\n"
+        },
+        {
+          "after": "                    body=json.loads(raw)\n                    if digest(body)!=checksum:raise ValueError(\"candidate_history_corruption\")\n                    result.append(body)\n                reference_rows=self.db.execute(refs,params)\n                if _restore_reference_reader is not None:\n                    result.extend(_restore_reference_reader.rows(lane,candidate,reference_rows))\n                    reference_rows=()\n                for identity,kind,raw,checksum in reference_rows:\n                    check()\n                    ref=json.loads(raw)\n                    if digest(ref)!=checksum:raise ValueError('candidate_history_corruption')\n",
+          "before": "                    body=json.loads(raw)\n                    if digest(body)!=checksum:raise ValueError(\"candidate_history_corruption\")\n                    result.append(body)\n                for identity,kind,raw,checksum in self.db.execute(refs,params):\n                    check()\n                    ref=json.loads(raw)\n                    if digest(ref)!=checksum:raise ValueError('candidate_history_corruption')\n"
+        }
+      ],
+      "layouts": {
+        "module/ClassDef:CandidateHistory": {
+          "after": [
+            "module/ClassDef:CandidateHistory/FunctionDef:__init__",
+            "module/ClassDef:CandidateHistory/FunctionDef:_install_schema",
+            "module/ClassDef:CandidateHistory/FunctionDef:transaction",
+            "module/ClassDef:CandidateHistory/FunctionDef:close",
+            "module/ClassDef:CandidateHistory/FunctionDef:append_reference",
+            "module/ClassDef:CandidateHistory/FunctionDef:_reference_path",
+            "module/ClassDef:CandidateHistory/FunctionDef:_reference_body",
+            "module/ClassDef:CandidateHistory/FunctionDef:checkpoint",
+            "module/ClassDef:CandidateHistory/FunctionDef:latest_checkpoint",
+            "module/ClassDef:CandidateHistory/FunctionDef:_required",
+            "module/ClassDef:CandidateHistory/FunctionDef:observe",
+            "module/ClassDef:CandidateHistory/FunctionDef:candidate",
+            "module/ClassDef:CandidateHistory/FunctionDef:volume_quality",
+            "module/ClassDef:CandidateHistory/FunctionDef:_event_prefix",
+            "module/ClassDef:CandidateHistory/FunctionDef:_startup_read",
+            "module/ClassDef:CandidateHistory/FunctionDef:candidates",
+            "module/ClassDef:CandidateHistory/FunctionDef:append_event",
+            "module/ClassDef:CandidateHistory/FunctionDef:restoration_reader",
+            "module/ClassDef:CandidateHistory/FunctionDef:events",
+            "module/ClassDef:CandidateHistory/FunctionDef:event",
+            "module/ClassDef:CandidateHistory/FunctionDef:event_order_status",
+            "module/ClassDef:CandidateHistory/FunctionDef:retain_pump_source_history",
+            "module/ClassDef:CandidateHistory/FunctionDef:observe_pump_source_groups",
+            "module/ClassDef:CandidateHistory/FunctionDef:retain_pumpswap_record",
+            "module/ClassDef:CandidateHistory/FunctionDef:commit_coverage",
+            "module/ClassDef:CandidateHistory/FunctionDef:covered_events",
+            "module/ClassDef:CandidateHistory/FunctionDef:wait_for_history",
+            "module/ClassDef:CandidateHistory/FunctionDef:commit_history_readiness",
+            "module/ClassDef:CandidateHistory/FunctionDef:record_decision",
+            "module/ClassDef:CandidateHistory/FunctionDef:record_funding",
+            "module/ClassDef:CandidateHistory/FunctionDef:funding_outcome",
+            "module/ClassDef:CandidateHistory/FunctionDef:enqueue",
+            "module/ClassDef:CandidateHistory/FunctionDef:_work_observation",
+            "module/ClassDef:CandidateHistory/FunctionDef:work_observations",
+            "module/ClassDef:CandidateHistory/FunctionDef:claim",
+            "module/ClassDef:CandidateHistory/FunctionDef:complete",
+            "module/ClassDef:CandidateHistory/FunctionDef:pending",
+            "module/ClassDef:CandidateHistory/FunctionDef:telemetry"
+          ],
+          "before": [
+            "module/ClassDef:CandidateHistory/FunctionDef:__init__",
+            "module/ClassDef:CandidateHistory/FunctionDef:_install_schema",
+            "module/ClassDef:CandidateHistory/FunctionDef:transaction",
+            "module/ClassDef:CandidateHistory/FunctionDef:close",
+            "module/ClassDef:CandidateHistory/FunctionDef:append_reference",
+            "module/ClassDef:CandidateHistory/FunctionDef:_reference_path",
+            "module/ClassDef:CandidateHistory/FunctionDef:_reference_body",
+            "module/ClassDef:CandidateHistory/FunctionDef:checkpoint",
+            "module/ClassDef:CandidateHistory/FunctionDef:latest_checkpoint",
+            "module/ClassDef:CandidateHistory/FunctionDef:_required",
+            "module/ClassDef:CandidateHistory/FunctionDef:observe",
+            "module/ClassDef:CandidateHistory/FunctionDef:candidate",
+            "module/ClassDef:CandidateHistory/FunctionDef:volume_quality",
+            "module/ClassDef:CandidateHistory/FunctionDef:_event_prefix",
+            "module/ClassDef:CandidateHistory/FunctionDef:_startup_read",
+            "module/ClassDef:CandidateHistory/FunctionDef:candidates",
+            "module/ClassDef:CandidateHistory/FunctionDef:append_event",
+            "module/ClassDef:CandidateHistory/FunctionDef:events",
+            "module/ClassDef:CandidateHistory/FunctionDef:event",
+            "module/ClassDef:CandidateHistory/FunctionDef:event_order_status",
+            "module/ClassDef:CandidateHistory/FunctionDef:retain_pump_source_history",
+            "module/ClassDef:CandidateHistory/FunctionDef:observe_pump_source_groups",
+            "module/ClassDef:CandidateHistory/FunctionDef:retain_pumpswap_record",
+            "module/ClassDef:CandidateHistory/FunctionDef:commit_coverage",
+            "module/ClassDef:CandidateHistory/FunctionDef:covered_events",
+            "module/ClassDef:CandidateHistory/FunctionDef:wait_for_history",
+            "module/ClassDef:CandidateHistory/FunctionDef:commit_history_readiness",
+            "module/ClassDef:CandidateHistory/FunctionDef:record_decision",
+            "module/ClassDef:CandidateHistory/FunctionDef:record_funding",
+            "module/ClassDef:CandidateHistory/FunctionDef:funding_outcome",
+            "module/ClassDef:CandidateHistory/FunctionDef:enqueue",
+            "module/ClassDef:CandidateHistory/FunctionDef:_work_observation",
+            "module/ClassDef:CandidateHistory/FunctionDef:work_observations",
+            "module/ClassDef:CandidateHistory/FunctionDef:claim",
+            "module/ClassDef:CandidateHistory/FunctionDef:complete",
+            "module/ClassDef:CandidateHistory/FunctionDef:pending",
+            "module/ClassDef:CandidateHistory/FunctionDef:telemetry"
+          ]
+        }
+      },
+      "nodes": {
+        "module/ClassDef:CandidateHistory/FunctionDef:_reference_body": {
+          "after": "bed14f1061b62999692b5928c86f765328f483889b3695c533884d681fd45605",
+          "before": "993431c31e6d31240a1d4aad7514d057f76354509074e3fc99eb1ffc3a5430e5"
+        },
+        "module/ClassDef:CandidateHistory/FunctionDef:events": {
+          "after": "58feac5e99e71aba4ea453997f8eb1f1f0774314a1e1bf92b8318ea7b49b88b1",
+          "before": "d00d5a869b463087c73ba981e78f18abf779d7b6acbdda8b2eaeb63f6bb80466"
+        },
+        "module/ClassDef:CandidateHistory/FunctionDef:restoration_reader": {
+          "after": "bc11ce0b5a1ed0aee0963476deb5e576c601a74215acd9d2e5a533602fb7e9f9",
+          "before": null
+        }
+      }
+    },
+    "meme_machine/solana_evidence_storage.py": {
+      "after_sha256": "860fd66498b6675afb839d9968e3f8efdeb2f3d816b36adfc724a112fdc13fe9",
+      "before_sha256": "6589300f73842219e0e728fc0cfd5aa59aacec8660eff2fa6abe7b7fb2b0a524",
+      "changes": [
+        {
+          "after": "import json\nimport re\nimport zlib\nfrom dataclasses import dataclass\n\n\ndef install(db):\n",
+          "before": "import json\nimport re\nimport zlib\n\n\ndef install(db):\n"
+        },
+        {
+          "after": "    return value\n\n\n@dataclass(frozen=True)\nclass _PreparedDecode:\n    \"\"\"One owned outer value; references describe only actual SEP1 chunk paths.\n\n    The value is mutable, as the original decoder's result was. A caller reusing\n    a result across returned records must provide its own alias isolation.\n    \"\"\"\n    value: object\n    compressed: bool\n    references: tuple\n    inflated_outer_bytes: int\n\n\ndef prepare_decode(raw):\n    \"\"\"Decode only the outer body, without database or chunk access.\n\n    Original TEXT values never interpret chunk-shaped literals. Keep their\n    existing JSON scalar/list and surrogate behavior as well as dictionary\n    behavior; surrogatepass only measures their encoded width, not authority.\n    \"\"\"\n    if isinstance(raw,str):\n        value=json.loads(raw)\n        size=len(raw) if raw.isascii() else len(raw.encode('utf-8','surrogatepass'))\n        return _PreparedDecode(value,False,(),size)\n    if not isinstance(raw,bytes) or not raw.startswith(b'SEP1'):raise ValueError('hot_body_encoding')\n    try:\n        outer=_inflate(raw[4:]);value=json.loads(outer)\n    except zlib.error as exc:raise ValueError('hot_body_corrupt') from exc\n    references=[]\n    for parent,key in (('raw_lineage','logs'),('meta','logMessages')):\n        section=value['payload'].get(parent)\n        ref=section.get(key) if isinstance(section,dict) else None\n        if isinstance(ref,dict) and set(ref)=={'_hot_log_chunk'}:\n            # Do not hash, coerce or validate the checksum here. Malformed\n            # references retain the original ordered lookup/error behavior.\n            references.append((parent,key,ref['_hot_log_chunk']))\n    return _PreparedDecode(value,True,tuple(references),len(outer))\n\n\ndef finish_decode(prepared,db=None,*,chunks=None,decoded_chunks=None):\n    \"\"\"Resolve the original two chunk paths in their original lookup order.\"\"\"\n    if type(prepared) is not _PreparedDecode:raise TypeError('prepared_hot_body_required')\n    value=prepared.value\n    if not prepared.compressed:return value\n    for parent,key in (('raw_lineage','logs'),('meta','logMessages')):\n        section=value['payload'].get(parent)\n        ref=section.get(key) if isinstance(section,dict) else None\n",
+          "before": "    return value\n\n\ndef decode(raw,db=None,*,chunks=None,decoded_chunks=None):\n    if isinstance(raw,str):return json.loads(raw) # original stores/small bodies\n    if not isinstance(raw,bytes) or not raw.startswith(b'SEP1'):raise ValueError('hot_body_encoding')\n    try:value=json.loads(_inflate(raw[4:]))\n    except zlib.error as exc:raise ValueError('hot_body_corrupt') from exc\n    for parent,key in (('raw_lineage','logs'),('meta','logMessages')):\n        section=value['payload'].get(parent)\n        ref=section.get(key) if isinstance(section,dict) else None\n"
+        },
+        {
+          "after": "        if decoded_chunks is not None and sum(v[0] for v in decoded_chunks.values())+len(logs)<=4*1024*1024:\n            decoded_chunks[checksum]=(len(logs),section[key])\n    return value\n\n\ndef decode(raw,db=None,*,chunks=None,decoded_chunks=None):\n    return finish_decode(prepare_decode(raw),db,chunks=chunks,decoded_chunks=decoded_chunks)\n\n\ndef archive_body(raw,*,chunks,raw_chunks):\n",
+          "before": "        if decoded_chunks is not None and sum(v[0] for v in decoded_chunks.values())+len(logs)<=4*1024*1024:\n            decoded_chunks[checksum]=(len(logs),section[key])\n    return value\n\n\ndef archive_body(raw,*,chunks,raw_chunks):\n"
+        }
+      ],
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/Import:hashlib",
+            "module/Import:json",
+            "module/Import:re",
+            "module/Import:zlib",
+            "module/ImportFrom:0:dataclasses",
+            "module/FunctionDef:install",
+            "module/FunctionDef:_json",
+            "module/FunctionDef:prepare",
+            "module/FunctionDef:publish_addresses",
+            "module/FunctionDef:publish",
+            "module/FunctionDef:encode",
+            "module/FunctionDef:_inflate",
+            "module/ClassDef:_PreparedDecode",
+            "module/FunctionDef:prepare_decode",
+            "module/FunctionDef:finish_decode",
+            "module/FunctionDef:decode",
+            "module/FunctionDef:archive_body",
+            "module/FunctionDef:collect"
+          ],
+          "before": [
+            "module/docstring",
+            "module/Import:hashlib",
+            "module/Import:json",
+            "module/Import:re",
+            "module/Import:zlib",
+            "module/FunctionDef:install",
+            "module/FunctionDef:_json",
+            "module/FunctionDef:prepare",
+            "module/FunctionDef:publish_addresses",
+            "module/FunctionDef:publish",
+            "module/FunctionDef:encode",
+            "module/FunctionDef:_inflate",
+            "module/FunctionDef:decode",
+            "module/FunctionDef:archive_body",
+            "module/FunctionDef:collect"
+          ]
+        },
+        "module/ClassDef:_PreparedDecode": {
+          "after": [
+            "module/ClassDef:_PreparedDecode/docstring",
+            "module/ClassDef:_PreparedDecode/AnnAssign:Name(id='value', ctx=Store())",
+            "module/ClassDef:_PreparedDecode/AnnAssign:Name(id='compressed', ctx=Store())",
+            "module/ClassDef:_PreparedDecode/AnnAssign:Name(id='references', ctx=Store())",
+            "module/ClassDef:_PreparedDecode/AnnAssign:Name(id='inflated_outer_bytes', ctx=Store())"
+          ],
+          "before": null
+        }
+      },
+      "nodes": {
+        "module/ClassDef:_PreparedDecode": {
+          "after": "565017df760d21d06e237f0b031d143108255d50a986bb4fde915a072e4a611e",
+          "before": null
+        },
+        "module/ClassDef:_PreparedDecode/AnnAssign:Name(id='compressed', ctx=Store())": {
+          "after": "dd94388d21fbcc61fc71ea706731820c45737b5e3d57dce076a1209a09e3e2cb",
+          "before": null
+        },
+        "module/ClassDef:_PreparedDecode/AnnAssign:Name(id='inflated_outer_bytes', ctx=Store())": {
+          "after": "d2059a8f8b681010a3cf421dd70440735b9f39fdc88bdaac0011c0a4d511cb2e",
+          "before": null
+        },
+        "module/ClassDef:_PreparedDecode/AnnAssign:Name(id='references', ctx=Store())": {
+          "after": "6954ca37721a8c1541f7104278bef60f461f0ab1f71a227743a5f68ae39f9145",
+          "before": null
+        },
+        "module/ClassDef:_PreparedDecode/AnnAssign:Name(id='value', ctx=Store())": {
+          "after": "1f12772d43a5e0233c6c458f087c308533110277d3925b1fad01910d9156d8eb",
+          "before": null
+        },
+        "module/ClassDef:_PreparedDecode/docstring": {
+          "after": "6af3eac23492c1e12da53ef55fdbdf3573ce9adda2692dad9529c38dafea6d27",
+          "before": null
+        },
+        "module/FunctionDef:decode": {
+          "after": "25ce103bda3779220ac370287110258af0c6feb5dec3f1bc55102e1d705f6632",
+          "before": "6b2d479da7ebdc5334af1c263af5e89f2e74a90868e1a48f7271103023d9b640"
+        },
+        "module/FunctionDef:finish_decode": {
+          "after": "ec0b22701da36e7939372ce2877e290eaf919df541ff2b67b662baeb74d0e507",
+          "before": null
+        },
+        "module/FunctionDef:prepare_decode": {
+          "after": "071f016db873e5fbaba976c451f10cec120b800b1cd06d96f632cc9cf1ff4e3e",
+          "before": null
+        },
+        "module/ImportFrom:0:dataclasses": {
+          "after": "321ed2ed3afceb74be547c9905ed4c676e453b1a68fe7cb2d3e214caeac2624d",
+          "before": null
+        }
+      }
+    }
+  },
+  "implementation": "5a2eaafd45bf955adcbd8a1f56a04dfa41ba5644",
+  "implementation_tree": "0c5e7673ecf403e0d1c89e767650ac1efe009cb4",
+  "legacy_guard": {
+    "before_sha256": "353318f15c435f23afb46ed3b935878634807d7ae8b505013e06ff9764f31ee2",
+    "path": "tests/test_robinhood_usd_valuation.py",
+    "source_read_wrappers": 10
+  },
+  "schema": "authenticated-pump-restoration-reference-source-delta-v1"
+}
