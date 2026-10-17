@@ -250,6 +250,37 @@ def archive_complete_logs_predecessor(test,relative,current):
     return prior
 
 
+# The protected preflight already freezes its original SQLite files. The paused
+# lane proof may consume that same reader while its ordinary runtime connection,
+# integrity, replay and obligation predicates remain unchanged. Pin this newly
+# mandatory proof source without granting an economic or authority exemption.
+FROZEN_PAUSED_READER_REFERENCE='a3ceb4951d045dc8f5b70dbd12340cfc46d6b8b7'
+FROZEN_PAUSED_READER_SOURCE='meme_machine/operational/pause.py'
+FROZEN_PAUSED_READER_BEFORE='e4b0edcad894a03e683472d3e40fcb853be45e4e99e2e3b7f22c3a9f5bbc0d08'
+FROZEN_PAUSED_READER_AFTER='765516807ded08abc13b23f1e053d7c0198d4708a65d76473521cd7250f76247'
+
+
+def frozen_paused_reader_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=FROZEN_PAUSED_READER_SOURCE:return current
+    prior=subprocess.check_output(['git','show',FROZEN_PAUSED_READER_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),FROZEN_PAUSED_READER_BEFORE,
+        relative+':exact protected paused-reader predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),FROZEN_PAUSED_READER_AFTER,
+        relative+':exact protected paused-reader successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def function(root):
+        return next(n for n in root.body if isinstance(n,ast.FunctionDef) and n.name=='assert_clear')
+    selected=function(tree);original=function(old)
+    test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':explicit frozen-reader injection only')
+    tree.body[tree.body.index(selected)]=deepcopy(original)
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':all other financial, replay and paused-lane source retained')
+    return prior
+
+
 # Restored $1,000 candidate references keep their original immutable locators.
 # Pin the complete reviewed source and reverse only its known-location reader
 # compatibility to cdcc0661 before the existing cancellation/economic guards.
@@ -1654,6 +1685,52 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_frozen_paused_reader_preserves_original_financial_and_native_proof(self):
+        import hashlib
+        relative=FROZEN_PAUSED_READER_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),FROZEN_PAUSED_READER_AFTER,
+            relative+':active exact protected paused-reader proof')
+        prior=subprocess.check_output(['git','show',FROZEN_PAUSED_READER_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(hashlib.sha256(prior).hexdigest(),FROZEN_PAUSED_READER_BEFORE,
+            relative+':independently pinned paused-lane proof predecessor')
+        self.assertEqual(frozen_paused_reader_predecessor(self,relative,current),prior)
+        self.assertEqual(frozen_paused_reader_predecessor(self,relative,prior),prior)
+        self.assertEqual(current.count(b"db.execute('PRAGMA query_only=ON')"),2,
+            relative+':both original database readers retain query-only protection')
+        self.assertEqual(current.count(b"if not db.in_transaction:db.execute('BEGIN')"),2,
+            relative+':both readers retain a consistent original or supplied transaction')
+        changes=[current+b'\n# unreviewed paused-lane reader change\n',b'']
+        for previous,successor in (
+                (b'def assert_clear(root, account, *, read_database=None):',
+                    b'def assert_clear(root, account, *, read_database=lambda path:None):'),
+                (b'if read_database is None:',b'if True:'),
+                (b"return closing(sqlite3.connect(path.resolve().as_uri()+'?mode=ro',uri=True,timeout=1))",
+                    b"return closing(sqlite3.connect(path.resolve().as_uri()+'?mode=rw',uri=True,timeout=1))"),
+                (b'with read_database(shared) as db:',b'with read_database(path) as db:'),
+                (b'with read_database(path) as db:',b'with read_database(shared) as db:'),
+                (b"db.execute('PRAGMA query_only=ON')",b"db.execute('PRAGMA query_only=OFF')"),
+                (b"if not db.in_transaction:db.execute('BEGIN')",b"if db.in_transaction:db.execute('BEGIN')"),
+                (b"if shared.is_symlink():raise ValueError('symlink')",b'if False:pass'),
+                (b'if path.is_symlink():',b'if False:'),
+                (b"for lane in PAUSED_LANES:",b'for lane in ():'),
+                (b"if row['lane'] == lane:",b'if False:'),
+                (b"SELECT native,body FROM portfolio_native_pending WHERE lane=?",
+                    b"SELECT native,body FROM portfolio_native_pending WHERE lane=? AND 0"),
+                (b"if db.execute('PRAGMA quick_check(1)').fetchall() != [('ok',)]:",b'if False:'),
+                (b'for row in native_positions(db,lane):',b'for row in ():'),
+                (b"if row.get('status') not in ('settled','cancelled','written_off') or row.get('held',0):",
+                    b'if False:'),
+                (b"if value.get('active') or value.get('pending_intent') or value.get('pending'):",b'if False:'),
+                (b'if obligations:raise PauseExposure(obligations)',b'if False:raise PauseExposure(obligations)'),
+                (b"if _digest(genesis) != checksum:raise ValueError('native_genesis_corrupt')",b'if False:pass'),
+                (b"if unknown:raise ValueError('unverified_native_economic_tables:' + ','.join(sorted(unknown)))",
+                    b'if False:pass')):
+            self.assertIn(previous,current,relative+':negative mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):frozen_paused_reader_predecessor(self,relative,changed)
+
     def test_retained_canonical_reference_reverses_only_exact_reader_compatibility(self):
         import hashlib
         relative=RETAINED_CANONICAL_SOURCE;current=(ROOT/relative).read_bytes()
