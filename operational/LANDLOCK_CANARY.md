@@ -103,3 +103,39 @@ Focused local validation uses only the offline contract/BPF/descriptor tests:
 `python -m operational.tests FAST --modules tests.test_landlock_canary`.
 It deliberately does not repeat the already established local ENOSYS kernel
 probe. These tests do not claim that actual Landlock enforcement ran locally.
+
+## Bounded failure diagnostics
+
+AWS run39068968599 on sourcec135677314cd73983c2977fe85d6417612841ca9
+retained only `landlock_canary_probe_failed`, without child exit, ABI or parent
+checks. That receipt does not identify the underlying failure or establish a
+kernel limitation. The administrative driver's broad exception handler could
+replace a failure before or after the probe; its independent stage diagnostics
+must also be retained.
+
+The application now covers pre-probe validation/setup and post-probe parent
+checks with the same BLOCKED projection. `CODES`, `STAGES` and `ERROR_CLASSES`
+are fixed exported allowlists. `failure_fields(error, stage)` returns only
+`code`, an allowlisted `stage`, fixed built-in `error_class`, bounded integer
+`error_number` when supplied by the actual exception, and a known
+`failed_check` for a typed check failure. It never publishes exception text,
+filenames, arbitrary class names or tracebacks. Child stages distinguish
+identity, ABI, rule installation, independent Landlock checks, seccomp, IPC,
+SQLite and descendant checks. Completed child Boolean checks remain available
+on a failed receipt; absent checks remain absent.
+
+The controller records the actual child exit through WNOWAIT before decoding
+the bounded anonymous response. Thus an empty or malformed response retains its
+real exit and decode stage without inventing an ABI or error from the child.
+A parsed child receipt is retained before owned-process cleanup and parent
+verification. If a later controller failure supersedes a child error, the
+bounded `child_failure` object retains that first child's projected `code`,
+`stage`, `error_class`, `error_number` and `failed_check`; its ABI, checks and exit
+remain top-level. Administrative receipt sanitizers must mirror these fixed
+fields, not copy raw JSON. None of these diagnostic fields admits a PASS.
+
+Focused offline regressions inject namespace-read and cleanup failures, use a
+real disposable subprocess and anonymous response without any policy syscall,
+and verify exit retention, actual owned-peer reaping, partial-child evidence
+and privacy projection. They do not diagnose run39068968599 retroactively or
+prove actual AWS Landlock/native execution.

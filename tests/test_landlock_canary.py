@@ -151,6 +151,104 @@ class LandlockCanaryTests(unittest.TestCase):
             self.assertEqual(projected['landlock_abi'],6)
             self.assertTrue(ll._ALREADY_REPORTED)
 
+    def test_failure_projection_preserves_fixed_stage_errno_and_partial_checks_only(self):
+        secret='PRIVATE_PATH_OR_PROVIDER_CANARY'
+        class PrivateFailure(OSError):pass
+        error=PrivateFailure(errno.EACCES,secret,secret)
+        fields=ll.failure_fields(error,'controller_snapshots')
+        self.assertEqual(fields,dict(code='landlock_canary_probe_failed',
+            stage='controller_snapshots',error_class='OSError',error_number=errno.EACCES))
+        self.assertNotIn(secret,json.dumps(fields))
+        with patch.object(ll,'_PROBE_STAGE','child_landlock_checks'),\
+                patch.object(ll,'_PROBE_CHECKS',dict(fs_read=True,fs_write=False)),\
+                patch.object(ll,'_OBSERVED_ABI',6):
+            value=ll._failure(PermissionError(errno.EPERM,secret,secret))
+        projected=ll._project(dict(value,body=secret),2)
+        self.assertEqual(projected['checks'],dict(fs_read=True,fs_write=False))
+        self.assertEqual(projected['stage'],'child_landlock_checks')
+        self.assertEqual(projected['error_class'],'PermissionError')
+        self.assertEqual(projected['error_number'],errno.EPERM)
+        self.assertEqual(projected['landlock_abi'],6)
+        self.assertEqual(projected['child_exit'],2)
+        malformed=ll._project(dict(value,stage=secret,error_class=secret,
+            checks={secret:True,'fs_write':1}),2)
+        self.assertNotIn(secret,json.dumps(malformed))
+        self.assertEqual(malformed['checks'],{})
+
+    def test_preprobe_snapshot_failure_is_bounded_instead_of_escaping_to_driver(self):
+        with Scratch() as scope,patch.object(ll.os,'geteuid',return_value=1000),\
+                patch.object(ll,'_scratch',return_value=scope.path),\
+                patch.object(ll.os,'readlink',side_effect=PermissionError(errno.EACCES,'private path')):
+            result=ll.canary(scope.path)
+            self.assertEqual(result['state'],'BLOCKED')
+            self.assertEqual(result['stage'],'controller_snapshots')
+            self.assertEqual(result['error_class'],'PermissionError')
+            self.assertEqual(result['error_number'],errno.EACCES)
+            self.assertNotIn('child_exit',result)
+            self.assertNotIn('landlock_abi',result)
+            self.assertNotIn('private path',json.dumps(result))
+            scope.success=True
+
+    def controller_fixture(self,scope,payload,exit_code=2):
+        """Real anonymous IPC/process cleanup, never any policy syscall."""
+        original=subprocess.Popen
+        def start(args,**kwargs):
+            if '--probe' in args:
+                spec=json.loads(args[-1])
+                script=('import os;os.write('+str(spec['ipc'])+','+repr(payload)+');'
+                    'os._exit('+str(exit_code)+')')
+                return original([sys.executable,'-I','-B','-S','-c',script],**kwargs)
+            return original(args,**kwargs)
+        return (patch.object(ll,'_scratch',return_value=scope.path),
+            patch.object(ll.os,'geteuid',return_value=1000),
+            patch.object(ll.subprocess,'Popen',side_effect=start))
+
+    def test_empty_child_receipt_retains_real_exit_and_decode_stage(self):
+        with Scratch() as scope:
+            first,second,third=self.controller_fixture(scope,b'',3)
+            with first,second,third:result=ll.canary(scope.path)
+            self.assertEqual(result['state'],'BLOCKED')
+            self.assertEqual(result['stage'],'controller_child_receipt')
+            self.assertEqual(result['error_class'],'JSONDecodeError')
+            self.assertEqual(result['child_exit'],3)
+            self.assertNotIn('landlock_abi',result)
+            self.assertTrue(all(result[key] is True for key in ll.PARENT_CHECKS))
+            scope.check();scope.success=True
+
+    def test_postprobe_failure_retains_real_child_partial_receipt(self):
+        value=dict(ll._base(),code='landlock_canary_denial_errno',landlock_abi=6,
+            error_number=errno.ENOENT,failed_check='proc_data',checks={'fs_read':True},
+            stage='child_landlock_checks',error_class='Blocked')
+        payload=json.dumps(value).encode()+b'\n'
+        for failure in ('parent_namespaces','cleanup'):
+            with self.subTest(failure=failure),Scratch() as scope:
+                first,second,third=self.controller_fixture(scope,payload)
+                original_link=os.readlink;original_close=ll._OwnedProcesses.close;calls=0
+                def readlink(path):
+                    nonlocal calls
+                    if path.startswith('/proc/self/ns/'):
+                        calls+=1
+                        if calls>5:raise PermissionError(errno.EACCES,'private namespace path')
+                    return original_link(path)
+                def close(owner):
+                    original_close(owner)
+                    raise PermissionError(errno.EPERM,'private cleanup path')
+                target=(patch.object(ll.os,'readlink',side_effect=readlink)
+                    if failure=='parent_namespaces' else patch.object(ll._OwnedProcesses,'close',close))
+                with first,second,third,target:result=ll.canary(scope.path)
+                self.assertEqual(result['state'],'BLOCKED')
+                self.assertEqual(result['stage'],'controller_'+failure)
+                self.assertEqual(result['error_class'],'PermissionError')
+                self.assertEqual(result['child_exit'],2)
+                self.assertEqual(result['landlock_abi'],6)
+                self.assertEqual(result['checks'],{'fs_read':True})
+                self.assertEqual(result['failed_check'],'proc_data')
+                self.assertEqual(result['child_failure'],dict(code='landlock_canary_denial_errno',
+                    error_number=errno.ENOENT,failed_check='proc_data',
+                    stage='child_landlock_checks',error_class='Blocked'))
+                self.assertNotIn('private ',json.dumps(result))
+                scope.check();scope.success=True
+
     def test_static_fixture_is_exact_bounded_executable(self):
         raw=ll._elf()
         self.assertEqual(len(raw),129)
