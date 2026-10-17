@@ -172,7 +172,14 @@ class _ImageWriter:
             and '..' not in path.parts,'native_image_copy')
         require(len(self.files)<MAX_FILES and self.bytes+len(data)<=MAX_BYTES,'native_image_size_bound')
         target=self.root/path
-        target.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
+        # pathlib's parents=True applies mode only to the final directory;
+        # intermediates otherwise inherit the caller's potentially0022 umask.
+        parent=self.root
+        for part in path.parent.parts:
+            parent=parent/part;parent.mkdir(mode=0o700,exist_ok=True)
+            info=parent.lstat()
+            require(stat.S_ISDIR(info.st_mode) and stat.S_IMODE(info.st_mode)==0o700
+                and info.st_uid==os.geteuid(),'native_image_private_directory')
         descriptor=os.open(target,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o500 if executable else 0o400)
         with os.fdopen(descriptor,'wb') as output:output.write(data)
         digest=hashlib.sha256(data).hexdigest()

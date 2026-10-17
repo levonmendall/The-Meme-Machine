@@ -245,6 +245,18 @@ print(json.dumps(dict(owner_death_during_python_import=True,signal=9)))
 
 
 class SpawnShimTests(unittest.TestCase):
+    def test_owned_builder_intermediates_are_private_under_permissive_umask(self):
+        with Scratch() as scope:
+            previous=os.umask(0)
+            try:
+                writer=image._ImageWriter(scope.path/'native-image')
+                writer.copy(b'fixture','a/b/c/module.py')
+            finally:os.umask(previous)
+            for name in ('','a','a/b','a/b/c'):
+                self.assertEqual((writer.root/name).stat().st_mode&0o777,0o700)
+            self.assertEqual((writer.root/'a/b/c/module.py').stat().st_mode&0o777,0o400)
+            scope.check();scope.success=True
+
     def test_fixed_machine_code_static_elf_and_no_environment_selected_exec(self):
         self.assertEqual(hashlib.sha256(spawn._MACHINE).hexdigest(),
             'd14fe952caf0533b585a7755b877e77570d2635cedd2f0889cec002850393761')
