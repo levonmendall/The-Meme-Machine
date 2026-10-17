@@ -82,6 +82,7 @@ from meme_machine.runtime.isolated_native_execution import install_isolated_nati
 from meme_machine.runtime.isolated_native_resources import IsolatedNativeResources,AuthenticatedSizingFacts
 from meme_machine.runtime.directional_sleeve import policies
 from meme_machine.solana_evidence_service import source_decoder_probe
+from meme_machine.solana_history_work import HistoryExecutor
 import multiprocessing.resource_tracker as tracker
 import multiprocessing.util as util
 os.chdir(work/'native')
@@ -123,7 +124,7 @@ facts=AuthenticatedSizingFacts(value,authenticate=lambda candidate:candidate==va
 resources=IsolatedNativeResources(layout.state_directory,sizing_facts=facts,clock=lambda:1000)
 scope.register_source(resources)
 decoder=IsolatedSpawnExecutor(max_workers=2,initializer=install_isolated_native_execution,role='decoder')
-history=IsolatedSpawnExecutor(max_workers=1,initializer=install_isolated_native_execution,role='history')
+history=HistoryExecutor(native_resources=resources)
 jobs=[];errors=[]
 def short_lived_submitter():
     try:
@@ -137,11 +138,14 @@ assert not errors,errors
 # not kill children: actual fork_exec ran on the retained dedicated owner.
 assert all(job.result(5) is True for job in jobs)
 time.sleep(.05)
-assert len(decoder._processes)==2 and len(history._processes)==1
-assert all(p.is_alive() for pool in (decoder,history) for p in pool._processes.values())
+history_pool=history.pool
+assert len(decoder._processes)==2 and len(history_pool._processes)==1
+assert all(p.is_alive() for pool in (decoder,history_pool) for p in pool._processes.values())
 query="(lambda c:(lambda n:(c.CDLL(None).prctl(2,c.byref(n)),n.value)) (c.c_int()))(__import__('ctypes'))"
 assert decoder.submit(eval,query).result(5)==(0,9)
 assert history.submit(eval,query).result(5)==(0,9)
+limits="(lambda r,o:(r.getrlimit(r.RLIMIT_AS),r.getrlimit(r.RLIMIT_NOFILE),o.getpriority(o.PRIO_PROCESS,0)))(__import__('resource'),__import__('os'))"
+assert history.submit(eval,limits).result(5)==((512*1024**2,512*1024**2),(128,128),os.getpriority(os.PRIO_PROCESS,0)+5)
 tracker_pid=tracker._resource_tracker._pid
 assert tracker_pid==scope._tracker_pid and tracker_pid is not None
 assert scope._owner_ident!=thread.ident and not scope.owners_joined
@@ -152,9 +156,9 @@ for call in calls:
     assert call['mask']==({signal.SIGUSR1,signal.SIGTERM,signal.SIGINT} if is_tracker else {signal.SIGUSR1}),call
 assert decoder.submit(eval,"{int(x) for x in __import__('signal').pthread_sigmask(0,set())}").result(5)=={int(signal.SIGUSR1)}
 # The source registry, not an arbitrary caller, is the actual close owner.
-for pool in (history,decoder):pool.shutdown(wait=True,cancel_futures=True)
-assert all(not p.is_alive() for pool in (decoder,history) for p in pool._processes.values())
-assert all(not t.is_alive() for pool in (decoder,history) for t in pool._threads)
+history.close();decoder.shutdown(wait=True,cancel_futures=True)
+assert all(not p.is_alive() for pool in (decoder,history_pool) for p in pool._processes.values())
+assert all(not t.is_alive() for pool in (decoder,history_pool) for t in pool._threads)
 scope.close()
 assert scope.owners_joined and tracker._resource_tracker._pid is None
 assert util.spawnv_passfds==record and spawn.current_spawn_scope() is None
@@ -169,7 +173,8 @@ else:raise AssertionError('tracker not reaped')
 resources.close();os.close(3);os.close(4)
 print(json.dumps(dict(actual_copied_python=True,decoder_workers=2,history_workers=1,
  tracker_reaped=True,submitting_thread_exited=True,owner_thread_joined=True,
- worker_pdeathsig=9,financial_authority=False,provider_calls=0,landlock_applied=False)))
+ worker_pdeathsig=9,original_history_limits=True,financial_authority=False,
+ provider_calls=0,landlock_applied=False)))
 '''
 
 
@@ -318,13 +323,13 @@ class ActualCopiedSpawnTests(unittest.TestCase):
             run=owned_run([str(root/'runtime/bin/python3.12'),'-I','-B','-S','-c',
                 _COPIED_SCOPE,str(root)],env=environment,timeout=15)
             self.assertEqual(run.returncode,0,run.stderr)
-            row=json.loads(run.stdout);self.assertEqual(row['decoder_workers'],2)
-            self.assertEqual(row['history_workers'],1);self.assertTrue(row['tracker_reaped'])
-            self.assertFalse(row['landlock_applied']);self.assertFalse(row['financial_authority'])
+            actual=json.loads(run.stdout);self.assertEqual(actual['decoder_workers'],2)
+            self.assertEqual(actual['history_workers'],1);self.assertTrue(actual['tracker_reaped'])
+            self.assertFalse(actual['landlock_applied']);self.assertFalse(actual['financial_authority'])
             run=owned_run([sys.executable,'-I','-B','-S','-c',_RAW_STATES,
                 str(root/spawn.SHIM_PATH),str(root/'manifest.json'),str(root/'runtime/lib')],timeout=8)
             self.assertEqual(run.returncode,0,run.stderr)
-            self.assertEqual(json.loads(run.stdout)['live'],42)
+            states=json.loads(run.stdout);self.assertEqual(states['live'],42)
             module=work/'tmp'/'blocked_import.py'
             module.write_text("import os,sys,time\nos.write(int(sys.argv[2]),b'importing')\ntime.sleep(30)\n")
             run=owned_run([sys.executable,'-I','-B','-S','-c',_IMPORT_DEATH,
@@ -332,7 +337,43 @@ class ActualCopiedSpawnTests(unittest.TestCase):
                 timeout=10)
             self.assertEqual(run.returncode,0,run.stderr)
             self.assertEqual(json.loads(run.stdout)['signal'],9)
+            print(json.dumps(dict(schema='offline-copied-spawn-component-v1',
+                source_commit=staged['manifest']['source_commit'],
+                source_tree=staged['manifest']['source_tree'],
+                image_manifest_sha256=staged['manifest_sha256'],actual=actual,
+                lifeline_states=states,owner_death_during_python_import=True),sort_keys=True))
             scope.check();scope.success=True
+
+
+class SpawnSourceOwnershipTests(unittest.IsolatedAsyncioTestCase):
+    async def order(self,failed):
+        from meme_machine import solana_evidence_service as service
+        closed=[]
+        class Owner:
+            def __init__(self,name):self.name=name
+            def close(self):
+                closed.append(self.name)
+                if self.name==failed:raise RuntimeError('offline close failure')
+            def shutdown(self,*,wait,cancel_futures):
+                assert wait and cancel_futures
+                self.close()
+        async def run(*args,_workers,**kwargs):
+            _workers.update({name:Owner(name) for name in
+                ('owner','delivery','history','decoder','checkpoint','spawn')})
+        with patch.object(service,'_serve_owned',run):
+            if failed:
+                with self.assertRaisesRegex(RuntimeError,'offline close failure'):
+                    await service.serve('/never-opened',None)
+            else:await service.serve('/never-opened',None)
+        return closed
+
+    async def test_tracker_and_retained_thread_close_only_after_all_native_workers_join(self):
+        self.assertEqual(await self.order(None),
+            ['owner','delivery','history','decoder','checkpoint','spawn'])
+
+    async def test_failed_native_join_retains_spawning_thread_for_fixed_entry_fatal_handoff(self):
+        self.assertEqual(await self.order('history'),
+            ['owner','delivery','history','decoder','checkpoint'])
 
 
 if __name__=='__main__':unittest.main()
