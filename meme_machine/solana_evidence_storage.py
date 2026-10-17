@@ -8,6 +8,7 @@ import hashlib
 import json
 import re
 import zlib
+from dataclasses import dataclass
 
 
 def install(db):
@@ -132,11 +133,50 @@ def _inflate(raw):
     return value
 
 
-def decode(raw,db=None,*,chunks=None,decoded_chunks=None):
-    if isinstance(raw,str):return json.loads(raw) # original stores/small bodies
+@dataclass(frozen=True)
+class _PreparedDecode:
+    """One owned outer value; references describe only actual SEP1 chunk paths.
+
+    The value is mutable, as the original decoder's result was. A caller reusing
+    a result across returned records must provide its own alias isolation.
+    """
+    value: object
+    compressed: bool
+    references: tuple
+    inflated_outer_bytes: int
+
+
+def prepare_decode(raw):
+    """Decode only the outer body, without database or chunk access.
+
+    Original TEXT values never interpret chunk-shaped literals. Keep their
+    existing JSON scalar/list and surrogate behavior as well as dictionary
+    behavior; surrogatepass only measures their encoded width, not authority.
+    """
+    if isinstance(raw,str):
+        value=json.loads(raw)
+        size=len(raw) if raw.isascii() else len(raw.encode('utf-8','surrogatepass'))
+        return _PreparedDecode(value,False,(),size)
     if not isinstance(raw,bytes) or not raw.startswith(b'SEP1'):raise ValueError('hot_body_encoding')
-    try:value=json.loads(_inflate(raw[4:]))
+    try:
+        outer=_inflate(raw[4:]);value=json.loads(outer)
     except zlib.error as exc:raise ValueError('hot_body_corrupt') from exc
+    references=[]
+    for parent,key in (('raw_lineage','logs'),('meta','logMessages')):
+        section=value['payload'].get(parent)
+        ref=section.get(key) if isinstance(section,dict) else None
+        if isinstance(ref,dict) and set(ref)=={'_hot_log_chunk'}:
+            # Do not hash, coerce or validate the checksum here. Malformed
+            # references retain the original ordered lookup/error behavior.
+            references.append((parent,key,ref['_hot_log_chunk']))
+    return _PreparedDecode(value,True,tuple(references),len(outer))
+
+
+def finish_decode(prepared,db=None,*,chunks=None,decoded_chunks=None):
+    """Resolve the original two chunk paths in their original lookup order."""
+    if type(prepared) is not _PreparedDecode:raise TypeError('prepared_hot_body_required')
+    value=prepared.value
+    if not prepared.compressed:return value
     for parent,key in (('raw_lineage','logs'),('meta','logMessages')):
         section=value['payload'].get(parent)
         ref=section.get(key) if isinstance(section,dict) else None
@@ -155,6 +195,10 @@ def decode(raw,db=None,*,chunks=None,decoded_chunks=None):
         if decoded_chunks is not None and sum(v[0] for v in decoded_chunks.values())+len(logs)<=4*1024*1024:
             decoded_chunks[checksum]=(len(logs),section[key])
     return value
+
+
+def decode(raw,db=None,*,chunks=None,decoded_chunks=None):
+    return finish_decode(prepare_decode(raw),db,chunks=chunks,decoded_chunks=decoded_chunks)
 
 
 def archive_body(raw,*,chunks,raw_chunks):

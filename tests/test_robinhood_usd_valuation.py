@@ -9,6 +9,7 @@ import tempfile
 import threading
 import unittest
 from unittest.mock import patch
+from tests.test_pump_restore_source_guard import pump_restore_predecessor
 
 from meme_machine.lanes.ramses.abi import calldata
 from meme_machine.lanes.ramses.identity import load
@@ -1915,7 +1916,7 @@ def rally_predecessor(test,relative,current,*,allow_previous_layers=False):
 
 def guarded_source(test,relative):
     """Apply the exact new layer, then let the original economic guards run."""
-    current=publication_accounting_predecessor(test,relative,(ROOT/relative).read_bytes())
+    current=publication_accounting_predecessor(test,relative,pump_restore_predecessor(test,relative,(ROOT/relative).read_bytes()))
     return rally_predecessor(test,relative,current)
 
 
@@ -2910,7 +2911,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         import hashlib
         for path in sorted(CROSS_CANDIDATE_COLD_PATHS):
             with self.subTest(path=path):
-                current=(ROOT/path).read_bytes()
+                current=pump_restore_predecessor(self,path,(ROOT/path).read_bytes())
                 old=subprocess.check_output(['git','show',CROSS_CANDIDATE_COLD_BASE+':'+path],cwd=ROOT)
                 self.assertNotEqual(current,old)
                 self.assertEqual(cross_candidate_cold_predecessor(self,path,current),old)
@@ -3231,7 +3232,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(PUBLICATION_ACCOUNTING_DELTAS))
         for relative,(before,after,_) in PUBLICATION_ACCOUNTING_DELTAS.items():
-            current=cross_candidate_cold_predecessor(self,relative,(ROOT/relative).read_bytes())
+            current=cross_candidate_cold_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact integrated successor')
             prior=subprocess.check_output(['git','show',PUBLICATION_ACCOUNTING_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':immutable exact tested predecessor')
@@ -3406,7 +3407,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_retained_path_factoring_preserves_original_source_guards(self):
         import hashlib
-        relative=RETAINED_PATH_FACTOR_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=RETAINED_PATH_FACTOR_SOURCE;current=pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),RETAINED_PATH_FACTOR_AFTER)
         prior=subprocess.check_output(['git','show',RETAINED_PATH_FACTOR_REFERENCE+':'+relative],cwd=ROOT)
         self.assertEqual(retained_path_factoring_predecessor(self,relative,current),prior)
@@ -3431,7 +3432,7 @@ class RobinhoodUSDTests(unittest.TestCase):
     def test_pump_restore_archive_reuse_preserves_fresh_authority_and_cancellation(self):
         import hashlib
         relative=PUMP_RESTORE_ARCHIVE_REUSE_SOURCE
-        current=cross_candidate_cold_predecessor(self,relative,(ROOT/relative).read_bytes())
+        current=cross_candidate_cold_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),PUMP_RESTORE_ARCHIVE_REUSE_AFTER,
             relative+':active exact operation-local startup archive reuse')
         self.assertEqual(PUMP_RESTORE_ARCHIVE_REUSE_BEFORE,CANONICAL_COLD_DELTAS[relative][1],
@@ -3688,7 +3689,7 @@ class RobinhoodUSDTests(unittest.TestCase):
                 (b'if item is None:',b'if False:')),
         }
         for relative,(before,after) in CANONICAL_COLD_DELTAS.items():
-            current=pump_restore_archive_reuse_predecessor(self,relative,(ROOT/relative).read_bytes())
+            current=pump_restore_archive_reuse_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,
                 relative+':active exact canonical cold-path repair')
             prior=subprocess.check_output(['git','show',CANONICAL_COLD_REFERENCE+':'+relative],cwd=ROOT)
@@ -3717,7 +3718,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_pump_restore_selection_reverses_only_three_fixed_index_declarations(self):
         import hashlib
-        relative=PUMP_RESTORE_SELECTION_SOURCE;current=canonical_cold_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=PUMP_RESTORE_SELECTION_SOURCE;current=canonical_cold_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),PUMP_RESTORE_SELECTION_AFTER,
             relative+':active exact restore-selection index repair')
         self.assertEqual(PUMP_RESTORE_SELECTION_BEFORE,RETAINED_CANONICAL_AFTER,
@@ -4149,7 +4150,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_retained_canonical_reference_reverses_only_exact_reader_compatibility(self):
         import hashlib
-        relative=RETAINED_CANONICAL_SOURCE;current=pump_restore_selection_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=RETAINED_CANONICAL_SOURCE;current=pump_restore_selection_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),RETAINED_CANONICAL_AFTER,
             relative+':active exact retained canonical-reference reader')
         prior=subprocess.check_output(['git','show',RETAINED_CANONICAL_REFERENCE+':'+relative],cwd=ROOT)
@@ -4371,7 +4372,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         self.assertEqual(set(mutations),set(STARTUP_HISTORY_CANCEL_DELTAS))
         for relative,(_,after,_,_) in STARTUP_HISTORY_CANCEL_DELTAS.items():
             current=native_startup_failure_predecessor(self,relative,
-                publication_accounting_predecessor(self,relative,(ROOT/relative).read_bytes()))
+                publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes())))
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact reviewed cancellation source')
             prior=subprocess.check_output(['git','show',STARTUP_HISTORY_CANCEL_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(startup_history_cancellation_predecessor(self,relative,current),prior)
@@ -4413,7 +4414,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         manifest=rally_manifest(self)
         self.assertTrue(manifest['files'])
         for relative,record in manifest['files'].items():
-            source=publication_accounting_predecessor(self,relative,(ROOT/relative).read_bytes())
+            source=publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
             prior=subprocess.check_output(['git','show',RALLY_BASE+':'+relative],cwd=ROOT)
             self.assertNotEqual(source,prior,relative+':only actual reviewed deltas belong in this layer')
             self.assertEqual(rally_predecessor(self,relative,source),prior)

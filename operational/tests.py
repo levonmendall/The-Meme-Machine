@@ -2,6 +2,9 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+ 'tests.test_pump_restore_source_guard',
+ 'tests.test_prepared_evidence_decode',
+ 'tests.test_restore_reference_pages',
  'tests.test_namespace_runtime',
  'tests.test_namespace_canary',
  'tests.test_landlock_canary',
