@@ -32,6 +32,62 @@ class NativeStartupLifecycle(unittest.TestCase):
         if requested:stop.requested.set()
         else:stop.requested.clear()
 
+    def test_native_exception_preserves_terminal_health_and_original_exit(self):
+        from meme_machine.operational import lane
+        import sys
+        original=TypeError('PRIVATE_MESSAGE https://PRIVATE_PROVIDER/?key=PRIVATE_SECRET')
+        instance='a'*32
+        namespace={'__name__':'meme_machine.runtime.candidate_history','error':original}
+        exec(compile('def failed_restore(*args):\n    raise error\n','<offline-native-failure>','exec'),namespace)
+        with tempfile.TemporaryDirectory() as directory,ExitStack() as stack:
+            root=Path(directory);(root/'pump').mkdir()
+            stack.enter_context(patch.dict(os.environ,MM_LANE_PROCESS_INSTANCE=instance))
+            stack.enter_context(patch.object(sys,'argv',['lane','--lane','pump','--state-root',str(root)]))
+            stack.enter_context(patch.object(lane.signal,'signal'))
+            stack.enter_context(patch('meme_machine.runtime.operating_families.require_active'))
+            stack.enter_context(patch('meme_machine.operational.bounded_provider.install'))
+            stack.enter_context(patch.object(lane,'run_native',side_effect=namespace['failed_restore']))
+            with self.assertRaises(TypeError) as caught:lane.main()
+            self.assertIs(caught.exception,original)
+            health=json.loads((root/'pump/health.json').read_text())
+            self.assertEqual(health['phase'],'FAIL_CLOSED')
+            self.assertFalse(health['reconciled'])
+            failure=health['native_failure']
+            self.assertEqual((failure['pid'],failure['process_instance'],failure['exception_class']),
+                (os.getpid(),instance,'TypeError'))
+            self.assertEqual(failure['frames'][-1],dict(module='meme_machine.runtime.candidate_history',
+                function='failed_restore',line=2))
+            self.assertNotIn('PRIVATE_',json.dumps(health))
+            # The final failure fences a pending periodic publication, while
+            # ordinary recoverable FAIL_CLOSED health still accepts progress.
+            publisher=lane.NativeHealthPublisher(root,'pump')
+            publisher('FAIL_CLOSED',native_failure=failure,reconciled=False)
+            publisher('RECONCILING',reconciled=False)
+            self.assertEqual(json.loads((root/'pump/health.json').read_text())['phase'],'FAIL_CLOSED')
+            fresh=lane.NativeHealthPublisher(root,'pump')
+            fresh('FAIL_CLOSED',reconciled=False);fresh('RECONCILING',reconciled=False)
+            self.assertEqual(json.loads((root/'pump/health.json').read_text())['phase'],'RECONCILING')
+
+    def test_native_failure_keeps_sqlite_first_cause_without_private_error_text(self):
+        from meme_machine.runtime import sqlite_failure
+        with tempfile.TemporaryDirectory() as directory:
+            db=sqlite_failure.connect(str(Path(directory)/'candidate.sqlite'),diagnostic_role='pump_candidate_history')
+            try:
+                try:db.execute('SELECT * FROM PRIVATE_MISSING_TABLE')
+                except sqlite3.Error as first:
+                    try:raise RuntimeError('PRIVATE_CLEANUP_MESSAGE') from first
+                    except RuntimeError as outer:failure=status.native_failure(outer,'pump')
+                self.assertEqual(failure['exception_class'],'RuntimeError')
+                self.assertEqual(failure['causes'][0]['exception_class'],'OperationalError')
+                self.assertEqual(failure['sqlite_failure_cause_index'],1)
+                proof=failure['sqlite_failure']
+                self.assertEqual((proof['sqlite_errorcode'],proof['sqlite_errorname']),
+                    (sqlite3.SQLITE_ERROR,'SQLITE_ERROR'))
+                self.assertEqual(proof['connection_role'],'pump_candidate_history')
+                self.assertTrue(proof['recorder_valid'])
+                self.assertNotIn('PRIVATE_',json.dumps(failure))
+            finally:db.close()
+
     @staticmethod
     def finish_worker(worker):
         try:worker.close(timeout=1)

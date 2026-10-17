@@ -8,6 +8,54 @@ _operations=[]
 _completed=deque(maxlen=8)
 _signal=None
 
+_FAILURE_CLASSES=frozenset(('Exception','RuntimeError','FileNotFoundError','PermissionError',
+    'KeyError','ValueError','TypeError','AssertionError','ImportError','ModuleNotFoundError',
+    'OSError','TimeoutError','OperationalError','IntegrityError','DatabaseError',
+    'EvidenceUnavailable','EvidenceConflict','StorageGuardError','ValuationUnavailable',
+    'NameError','AttributeError','IndexError','ProgrammingError','InterfaceError','DataError',
+    'ZeroDivisionError','OverflowError'))
+
+
+def native_failure(error,lane):
+    """Retain bounded source identities before a native exception exits.
+
+    The diagnostic unit deliberately has no stderr channel. Never retain an
+    exception message, SQL, frame locals, provider payload or arbitrary path.
+    SQLite's existing separately bounded annotation contains owned metadata;
+    the public collector independently selects its typed fields.
+    """
+    from .sqlite_failure import payload
+    def detail(exc):
+        kind=type(exc).__name__
+        row=dict(exception_class=kind if kind in _FAILURE_CLASSES else 'UNRECOGNIZED_EXCEPTION_TYPE',
+                 frames=[],traceback_truncated=False)
+        trace=exc.__traceback__;scanned=0
+        while trace is not None and scanned<32:
+            module=trace.tb_frame.f_globals.get('__name__','');function=trace.tb_frame.f_code.co_name
+            if (isinstance(module,str) and len(module)<=160
+                    and re.fullmatch(r'meme_machine(?:\.[A-Za-z_][A-Za-z0-9_]*)+',module)
+                    and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,79}',function)):
+                row['frames'].append(dict(module=module,function=function,line=trace.tb_lineno))
+            trace=trace.tb_next;scanned+=1
+        row['traceback_truncated']=trace is not None or len(row['frames'])>8
+        row['frames']=row['frames'][-8:]
+        return row
+    value=dict(detail(error),version=1,lane=lane,pid=os.getpid(),
+        process_instance=os.environ.get('MM_LANE_PROCESS_INSTANCE'),
+        native_thread_id=threading.get_native_id(),at=time.time(),monotonic=time.monotonic(),
+        traceback_scope='ALLOWLISTED_SOURCE_FRAMES_ONLY',causes=[])
+    current=error;seen=set()
+    for index in range(4):
+        if id(current) in seen:break
+        seen.add(id(current))
+        if index:value['causes'].append(detail(current))
+        diagnostic=payload(current)
+        if diagnostic is not None and 'sqlite_failure' not in value:
+            value.update(sqlite_failure=diagnostic,sqlite_failure_cause_index=index)
+        current=current.__cause__ or (None if current.__suppress_context__ else current.__context__)
+        if current is None:break
+    return value
+
 def cancellation_signal(signum):
     """Signal-handler facts only: no lock, filesystem or database operation."""
     global _signal
@@ -59,7 +107,7 @@ def cancellation_stack():
 def operation(identity):
     """Fixed startup identifiers; descriptive facts never change readiness."""
     if (not isinstance(identity,str) or len(identity)>80 or
-            not (identity.startswith('pump.') or identity in ('pons.shared_capital_restore','pons.cohort_recovery'))):
+            not (identity.startswith('pump.') or identity in ('pons.shared_capital_restore','pons.cohort_recovery','pons.candidate_restore'))):
         yield;return
     try:
         row=dict(operation=identity,at=time.time(),monotonic=time.monotonic(),

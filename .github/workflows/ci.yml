@@ -1,7 +1,7 @@
-name: CI — fast deterministic tests
-# Development branches use focused offline tests; run the expensive complete FAST
-# suite at the final PR review/release gate, on main, or when dispatched explicitly.
-# Retain the existing full FAST job unchanged: a skipped/draft job is NOT a PASS.
+name: CI — staged offline validation
+# The legacy fast check is focused development evidence by default, including
+# draft PRs and main. It is not full FAST/OPERATIONAL release evidence.
+# Final frozen releases explicitly dispatch validation=full for both suites.
 on:
   push:
     branches: [main]
@@ -9,6 +9,11 @@ on:
     types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
   workflow_dispatch:
     inputs:
+      validation:
+        description: Focused development checks or a complete frozen release suite
+        type: choice
+        options: [focused, full]
+        default: focused
       suite:
         description: Complete offline release suite (finalized candidates only)
         type: choice
@@ -22,19 +27,64 @@ concurrency:
   cancel-in-progress: true
 jobs:
   fast:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.suite == 'OPERATIONAL' && 90 || 45 }}
     steps:
       - uses: actions/checkout@v4
         with:
+          # Focused evidence must exercise the exact reviewed PR head.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           # Source-equivalence checks retain the pinned source through later commits.
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12.14'
       - run: python -m pip install -r requirements.txt
+      - name: Run focused Stage A offline regressions (not full FAST or OPERATIONAL)
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.validation != 'full' }}
+        run: |
+          sudo env CI=true PYTHONDONTWRITEBYTECODE=1 "$(command -v python)" - <<'PY'
+          import os
+          from pathlib import Path
+          import runpy
+          import resource
+          import sys
+
+          # Retain the same actual kernel containment as the complete suites.
+          soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+          if hard < 4096:
+              raise RuntimeError('ci_replay_file_descriptors_required')
+          resource.setrlimit(resource.RLIMIT_NOFILE, (max(soft, 4096), hard))
+          cpus = sorted(os.sched_getaffinity(0))
+          if len(cpus) < 2:
+              raise RuntimeError('two_ci_cpus_required')
+          os.sched_setaffinity(0, set(cpus[:2]))
+          Path('/sys/fs/cgroup/cgroup.subtree_control').write_text('+cpu +memory +io')
+          from engineering.solana_capacity.proof_host import LinuxGroup
+          from engineering.solana_capacity.proof_limits import LIMITS
+          group = LinuxGroup(LIMITS)
+          group.close()
+          modules = [
+              'tests.test_native_startup_lifecycle',
+              'tests.test_startup_history_cancellation',
+              'tests.test_current_combined_diagnostic',
+              'tests.test_integrated_startup_rehearsal',
+              'tests.test_sqlite_failure_attribution',
+              'tests.test_robinhood_usd_valuation',
+              'tests.test_source_handler_recovery',
+              'tests.test_control_interrupted_recovery',
+              'tests.test_solana_source_drain',
+              'tests.test_directional_accounting',
+              'tests.lanes.pons.test_pons_position_provider_recovery',
+              'tests.test_survivor_commit',
+          ]
+          print('FOCUSED_VALIDATION_ONLY: not a complete FAST or OPERATIONAL release suite', flush=True)
+          print('FOCUSED_MODULES: ' + ','.join(modules), flush=True)
+          sys.argv = ['operational.tests', 'OPERATIONAL', '--modules', *modules, '--verbose']
+          runpy.run_module('operational.tests', run_name='__main__')
+          PY
       - name: Run complete offline suite with the required Linux containment
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation == 'full' }}
         env:
           OFFLINE_SUITE: ${{ inputs.suite || 'FAST' }}
         run: |

@@ -46,7 +46,7 @@ class NativeHealthPublisher:
         self.cancellation_stack=None;self.cancellation_stack_attempted=False
 
     def __call__(self,phase,**fields):
-        terminal=phase=='STOPPED'
+        terminal=phase=='STOPPED' or phase=='FAIL_CLOSED' and isinstance(fields.get('native_failure'),dict)
         if terminal:self.terminal.set()
         # Optional recording must not add an unbounded shutdown lock wait.
         if not self.lock.acquire(timeout=.05):
@@ -278,6 +278,15 @@ def main():
                 publish('STOPPED',**facts)
             except ValuationUnavailable as error:
                 publish('VALUATION_UNAVAILABLE',reason=str(error))
+                raise
+            except Exception as error:
+                # The fixed diagnostic unit sends stderr to null. Preserve
+                # typed first-failure evidence in this existing health file,
+                # then retain the original exception and failing exit status.
+                try:
+                    facts=status.snapshot();facts.pop('phase',None)
+                    publish('FAIL_CLOSED',**facts,native_failure=status.native_failure(error,args.lane))
+                except Exception:pass
                 raise
     finally:lock.close()
 
