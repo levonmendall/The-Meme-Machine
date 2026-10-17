@@ -132,6 +132,21 @@ def _elf(data):
     return interpreter,names
 
 
+def _sources(stdlib):
+    names=[name+'.py' for name in MODULES]
+    names.extend(package+'/'+name+'.py' for package,entries in PACKAGES.items() for name in entries.split())
+    for name in names:
+        path=stdlib/name
+        if not path.exists():
+            # A selected module can be builtin or a reviewed ABI DSO depending
+            # on the CPython build. The extension loop still requires the DSO.
+            require(name[:-3] in sys.builtin_module_names or name[:-3] in EXTENSIONS,
+                    'canary_runtime_stdlib_missing')
+            continue
+        require(path.resolve()==path,'canary_runtime_source_link')
+        yield name,path
+
+
 def build(scope, source):
     """Build the only supported canary image below its newly admitted Scratch."""
     require(sys.version_info[:3]==(3,12,14),'canary_runtime_python_version')
@@ -167,14 +182,7 @@ def build(scope, source):
     executable=Path(sys.executable).resolve(strict=True)
     copy(_read(executable,(prefix,)), 'bin/python3.12', executable=True)
     dependencies.append(_elf(_read(executable,(prefix,))))
-    names=[name+'.py' for name in MODULES]
-    names.extend(package+'/'+name+'.py' for package,entries in PACKAGES.items() for name in entries.split())
-    for name in names:
-        path=stdlib/name
-        if not path.exists():
-            require(name[:-3] in sys.builtin_module_names,'canary_runtime_stdlib_missing')
-            continue
-        require(path.resolve()==path,'canary_runtime_source_link')
+    for name,path in _sources(stdlib):
         copy(_read(path,(stdlib,)),'lib/python3.12/'+name)
     suffix=sysconfig.get_config_var('EXT_SUFFIX')
     require(type(suffix) is str and re.fullmatch(r'\.cpython-312-[A-Za-z0-9_-]+\.so',suffix),

@@ -34,6 +34,9 @@ def specification(scope):
 
 class NamespaceCanaryTests(unittest.TestCase):
     def test_actual_namespace_enforcement_and_real_spawn_pool(self):
+        if os.geteuid()==0:self.skipTest('BLOCKED: actual canary requires a nonroot caller')
+        if Path(sys.executable).resolve().stat().st_uid!=0:
+            self.skipTest('BLOCKED: actual canary requires a root-owned installed interpreter')
         with fixture() as scope:
             result = ns.canary(scope.path)
             if result['state'] == 'BLOCKED':
@@ -102,6 +105,12 @@ class NamespaceCanaryTests(unittest.TestCase):
         self.assertEqual(caught.exception.number,errno.EPERM)
         with patch.object(ns.platform,'machine',return_value='unreviewed'):
             with self.assertRaisesRegex(ns.Blocked,'platform_unreviewed'):ns.Kernel()
+
+    def test_root_setup_is_refused_before_namespace_or_filesystem_changes(self):
+        with patch.object(ns,'Kernel') as kernel,patch.object(ns.os,'geteuid',return_value=0):
+            with self.assertRaisesRegex(ns.Blocked,'nonroot_required'):ns._setup({})
+        kernel.return_value.unshare.assert_not_called()
+        kernel.return_value.mount.assert_not_called()
 
     def test_namespace_lock_preserves_ordinary_clone_but_blocks_namespace_flags(self):
         for machine, architecture, clone, unshare in (

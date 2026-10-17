@@ -32,6 +32,9 @@ def elf(name=b'libsafe.so.1\0'):
 
 class NamespaceRuntimeTests(unittest.TestCase):
     def test_actual_copied_manifest_has_no_host_trees_sites_links_or_special_files(self):
+        if os.geteuid()==0:self.skipTest('BLOCKED: actual canary image requires its nonroot caller')
+        if Path(sys.executable).resolve().stat().st_uid!=0:
+            self.skipTest('BLOCKED: actual canary image requires a root-owned installed interpreter')
         with Scratch() as scope:
             image=runtime.build(scope.path,Path(canary.__file__).resolve())
             self.assertLessEqual(len(image['files']),runtime.MAX_FILES)
@@ -61,6 +64,8 @@ class NamespaceRuntimeTests(unittest.TestCase):
             private=scope.path/'inside';private.mkdir(mode=0o700)
             regular=private/'file';regular.write_bytes(b'fixture');regular.chmod(0o600)
             self.assertEqual(runtime._read(regular,(private,),owner=os.geteuid()),b'fixture')
+            with self.assertRaisesRegex(runtime.Refused,'regular_trusted_file'):
+                runtime._read(regular,(private,),owner=os.geteuid()+1)
             outside=scope.path/'outside';outside.write_bytes(b'private canary')
             link=private/'alias';link.symlink_to(outside)
             with self.assertRaisesRegex(runtime.Refused,'link_escape'):
@@ -94,6 +99,17 @@ class NamespaceRuntimeTests(unittest.TestCase):
         arch=elf();struct.pack_into('<H',arch,18,0)
         with self.assertRaisesRegex(runtime.Refused,'arch'):runtime._elf(arch)
 
+    def test_selected_extension_can_supply_module_without_a_python_source_file(self):
+        with Scratch() as scope:
+            source=scope.path/'abc.py';source.write_text('# synthetic upstream module\n')
+            with patch.object(runtime,'MODULES',['abc','resource']),patch.object(runtime,'PACKAGES',{}),\
+                 patch.object(runtime.sys,'builtin_module_names',()):
+                self.assertEqual(list(runtime._sources(scope.path)),[('abc.py',source)])
+            with patch.object(runtime,'MODULES',['unreviewed']),patch.object(runtime,'PACKAGES',{}):
+                with self.assertRaisesRegex(runtime.Refused,'stdlib_missing'):
+                    list(runtime._sources(scope.path))
+            scope.check();scope.success=True
+
     def test_unexpected_python_or_runtime_roots_are_BLOCKED_without_installation(self):
         with Scratch() as scope:
             with patch.object(runtime.sys,'version_info',(3,13,0)):
@@ -107,7 +123,9 @@ class NamespaceRuntimeTests(unittest.TestCase):
 
     def test_copy_size_bound_fails_closed_and_leaves_synthetic_failure_for_review(self):
         with Scratch() as scope:
-            with patch.object(runtime,'MAX_FILES',1):
+            # A controlled valid ELF/source fixture isolates the byte/file bound
+            # from host runtime ownership and extension-layout availability.
+            with patch.object(runtime,'MAX_FILES',1),patch.object(runtime,'_read',return_value=bytes(elf())):
                 with self.assertRaisesRegex(runtime.Refused,'size_bound'):
                     runtime.build(scope.path,Path(canary.__file__).resolve())
             self.assertTrue((scope.path/'runtime/bin/python3.12').is_file())

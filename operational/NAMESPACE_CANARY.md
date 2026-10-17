@@ -46,7 +46,8 @@ with WAL and a real two-worker spawn ProcessPoolExecutor using private /dev/shm.
 It also checks -S remains active, no site/.pth/site-packages exists, and every
 Python search path uses the copied /runtime image.
 The parent checks unchanged host canary bytes, namespace identities, cwd and
-previously open descriptors. It enforces a 15-second wall limit (maximum 20),
+previously open descriptors. It enforces a 15-second child-probe wall limit
+(maximum 20),
 kills only its new process group on timeout, and returns BLOCKED without fallback.
 Output is drained concurrently into bounded buffers and rejected before either
 result/log buffer exceeds 16 KiB. Parent-death SIGKILL is armed before and after
@@ -56,10 +57,15 @@ contains namespace descendants. Tmpfs
 mounts disappear with the namespace. The parent never changes a host mount,
 sysctl, permission, sudoers entry, root broker or service configuration.
 
-Local CPython3.12.14 end-to-end proof passed all 23 checks. Fifteen focused offline
+Local CPython3.12.14 end-to-end proof passed all 23 checks. Seventeen focused offline
 cases cover actual enforcement plus malformed specs/receipts, unsafe paths,
 kernel refusal, namespace-lock BPF, source/runtime restrictions, output flooding,
 parent-death races, copied runtime admission and outer timeout.
+Actual capability cases explicitly skip a root test process or an interpreter
+installation not owned by root, retaining BLOCKED as the reason. They never
+skip an arbitrary runtime Refused result. Root/ownership refusal and resource
+bounds still have deterministic regressions; bound tests inject controlled
+ELF/source bytes so host installation ownership cannot mask the tested bound.
 Kernel/LSM capability refusal is explicitly BLOCKED; a skipped capability case is
 not an enforcement PASS. Unexpected setup bugs or invalid receipts fail the test.
 Earlier disposable failure scopes are retained under /tmp/mm-engineering-*;
@@ -74,6 +80,9 @@ package installation, namespace sysctl change, new permission or live provider.
 Actual installed PAPER service compatibility must then be independently verified
 under its existing NoNewPrivileges, mount restrictions, identity and AppArmor/LSM
 context; success under the public runner does not prove that service context.
+The outer timeout covers image construction as well as the child probe. The
+direct AWS gate must fail every BLOCKED result; it must not use unittest skips
+as a successful capability receipt.
 
 This is still not a production-equivalent native test. A complete implementation
 needs exact-source native bootstrap with no allocation authority, the real parent-
