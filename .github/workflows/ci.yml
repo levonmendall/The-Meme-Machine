@@ -130,6 +130,7 @@ jobs:
               'tests.test_prejoin_observation_recovery',
               'tests.test_pump_restore_selection_index',
               'tests.test_canonical_cold_archive_cohort',
+              'tests.test_retained_reference_path_walk',
               'tests.test_retirement_hot_pages',
               'tests.test_solana_closure',
           ]
