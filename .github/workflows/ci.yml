@@ -6,7 +6,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+    types: [opened, reopened, synchronize]
   workflow_dispatch:
     inputs:
       validation:
