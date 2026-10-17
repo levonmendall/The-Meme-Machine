@@ -42,9 +42,14 @@ class OperationalWiringTests(unittest.TestCase):
                 self.assertTrue((root/'pump').is_dir())
                 self.assertEqual(kwargs['env']['MM_SOLANA_EVIDENCE_BROKER_DB'],expected)
                 self.assertFalse(Path(expected).exists())
-                return SimpleNamespace(poll=lambda:None)
-            with patch('meme_machine.operational.supervisor.subprocess.Popen',side_effect=spawn):
+                return SimpleNamespace(pid=12345,poll=lambda:None)
+            # This wiring fixture owns no child. The separate real-spawn drain
+            # regressions exercise the /proc process-identity boundary.
+            with patch('meme_machine.operational.supervisor.subprocess.Popen',side_effect=spawn), \
+                    patch.object(service,'_source_start_ticks',return_value=67890) as identity:
                 service.start_services()
+            identity.assert_called_once_with(12345)
+            self.assertEqual(service.evidence._mm_source_start_ticks,67890)
             self.assertFalse((root/'portfolio.sqlite').exists())
             self.assertEqual(service.epoch,'preserved-paper-epoch')
 
