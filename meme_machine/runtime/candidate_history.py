@@ -52,10 +52,23 @@ def retained_reference_path(value,*,candidate_path,cold=False,canonical_path=Non
         raise ValueError('candidate_canonical_reference_cohort_unverified')
     target=source.with_suffix('.scoped-cold')/path.name if cold else source
     try:
-        if (root.resolve(strict=True)!=root or candidate_path.resolve(strict=True)!=candidate_path
-                or source.resolve(strict=True)!=source or target.resolve(strict=True)!=target
-                or not stat.S_ISREG(target.lstat().st_mode)):
+        # The fixed absolute cohort paths share every ancestor. Validate that
+        # common chain once in THIS reference read, never retain trusted paths
+        # across records. Each parent must itself be a nonsymlink directory;
+        # every database and selected archive must be a nonsymlink regular file.
+        # This remains a sequential filesystem check, not an atomic snapshot or
+        # proof of the inode held by an already opened SQLite connection.
+        if not root.is_absolute() or '..' in root.parts:
             raise ValueError('candidate_canonical_reference_cohort_unverified')
+        directories=(*reversed(root.parents),root,source.parent)
+        if cold:directories+= (target.parent,)
+        for directory in directories:
+            if not stat.S_ISDIR(os.lstat(directory).st_mode):
+                raise ValueError('candidate_canonical_reference_cohort_unverified')
+        files=(candidate_path,source,target) if cold else (candidate_path,source)
+        for file in files:
+            if not stat.S_ISREG(os.lstat(file).st_mode):
+                raise ValueError('candidate_canonical_reference_cohort_unverified')
     except OSError:
         raise ValueError('candidate_canonical_reference_cohort_unverified') from None
     return target
