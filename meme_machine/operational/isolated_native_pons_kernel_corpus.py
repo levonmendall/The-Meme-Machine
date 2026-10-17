@@ -92,6 +92,10 @@ class PonsKernelCorpus:
         self.logs.append(self._event(curve_abi,'CurveSell',dict(seller=seller,recipient=seller,
             tokensIn=10**20,quoteOut=10**14,fee=10**12,tax=5*10**11),
             address=self.current_curve,block=base+197,tx_index=1,index=1))
+        group='0x'+f'{26:040x}'
+        self.logs.append(self._event(curve_abi,'CurveBuy',dict(buyer=group,recipient=group,
+            quoteIn=10**15,tokensOut=10**20,fee=10**13,tax=5*10**12),
+            address=self.current_curve,block=self.current_block+1,tx_index=20,index=20))
         record=self.records[self.survivor_token]
         # Its launch is observed in the same enrollment block as graduation.
         # The separate transaction retains original causal order and lets the
