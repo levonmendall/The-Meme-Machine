@@ -94,9 +94,10 @@ def filter_rows(*, pid):
     # descriptors cannot issue terminal/device, TIOCSTI or block-device ioctls.
     rows += _case(16,[*_argument(1,0x5421),_ret(ALLOW)])
     # libc's self queries remain available. The unchanged history initializer
-    # lowers only AS/NOFILE, beneath hard ceilings installed before this policy.
-    # BPF cannot inspect an rlimit pointer; the nonroot kernel hard ceiling is
-    # therefore part of the explicit launch contract, not inferred here.
+    # lowers only AS/NOFILE. BPF cannot inspect an rlimit pointer: inherited
+    # kernel hard limits/nonroot privileges remain the own-process authority,
+    # including the original main's inherited AS limit. No foreign PID or other
+    # resource is admitted, and the outer process/cgroup fences still apply.
     rows += _case(302,[*_argument(0,0),_load(36),(0x15,0,3,0),_load(32),
         (0x15,0,1,0),_ret(ALLOW),*_choice(1,(resource.RLIMIT_AS,resource.RLIMIT_NOFILE))])
     rows += _case(140,[*_argument(0,os.PRIO_PROCESS),*_argument(1,0),_ret(ALLOW)])
@@ -158,6 +159,8 @@ class NativePolicy:
             raise NativePolicyBlocked('native_policy_unprivileged_required')
         if os.listdir('/proc/self/task')!=[str(os.getpid())]:
             raise NativePolicyBlocked('native_policy_single_thread_required')
+        if os.getpriority(os.PRIO_PROCESS,0)!=0:
+            raise NativePolicyBlocked('native_policy_initial_priority')
         work=abi._private(work)
         held=[]
         try:
