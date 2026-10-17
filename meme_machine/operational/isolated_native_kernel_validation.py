@@ -109,30 +109,42 @@ def _policy_record(stderr):
 def verified(value):
     """Synthetic kernel/component acceptance only, never market readiness."""
     if type(value) is not dict:return False
-    observation=value.get('child',{}).get('observation',{})
+    child=value.get('child')
+    outputs=value.get('native_outputs')
+    if type(child) is not dict or type(outputs) is not dict:return False
+    observation=child.get('observation')
+    lifecycle=child.get('native_kernel_lifecycle')
+    if type(observation) is not dict or type(lifecycle) is not dict:return False
     workers=observation.get('workers',{})
-    lifecycle=value.get('child',{}).get('native_kernel_lifecycle',{})
     executors=lifecycle.get('executors',{})
-    outputs=value.get('native_outputs',{})
+    if (type(workers) is not dict or type(executors) is not dict
+            or any(type(workers.get(name)) is not dict for name in ('pump','pons','sizing'))
+            or any(type(executors.get(role)) is not dict for role in ('decoder','history'))):return False
+    def integer(row,key,minimum=0,maximum=2**63-1):
+        part=row.get(key)
+        return type(part) is int and minimum<=part<=maximum
     return (value.get('schema')=='synthetic-native-kernel-validation-v1'
-        and value.get('kernel_applied') is True and value.get('landlock_abi',0)>=6
+        and value.get('kernel_applied') is True and integer(value,'landlock_abi',6,65535)
         and value.get('owned_process_reaped') is True and value.get('parent_cleanup_joined') is True
-        and value.get('external_provider_calls')==0 and value.get('financial_authority') is False
-        and value.get('production_state_writes')==0 and value.get('parent_cwd_unchanged') is True
-        and value.get('child',{}).get('status')=='COMPLETED'
+        and integer(value,'external_provider_calls',0,0) and value.get('financial_authority') is False
+        and integer(value,'production_state_writes',0,0) and value.get('parent_cwd_unchanged') is True
+        and child.get('status')=='COMPLETED'
         and observation.get('graceful_shutdown') is True and observation.get('all_workers_joined') is True
         and observation.get('source_joined') is True
-        and all(workers.get(name,{}).get('started') is True and workers[name].get('completed') is True
+        and all(workers[name].get('started') is True and workers[name].get('completed') is True
             for name in ('pump','pons','sizing'))
         and lifecycle.get('tracker_spawned') is True and lifecycle.get('tracker_joined') is True
         and lifecycle.get('spawn_owner_joined') is True
-        and lifecycle.get('workers_spawned')=={'decoder':2,'history':1}
-        and all(executors.get(role,{}).get('state')=='JOINED'
-            and executors[role].get('spawned')==number and executors[role].get('joined')==number
-            and executors[role].get('zero_exit')==number and executors[role].get('successful',0)>0
+        and type(lifecycle.get('workers_spawned')) is dict
+        and set(lifecycle['workers_spawned'])=={'decoder','history'}
+        and all(integer(lifecycle['workers_spawned'],role,number,number) for role,number in (('decoder',2),('history',1)))
+        and all(executors[role].get('state')=='JOINED'
+            and integer(executors[role],'spawned',number,number) and integer(executors[role],'joined',number,number)
+            and integer(executors[role],'zero_exit',number,number) and integer(executors[role],'successful',1)
+            and integer(executors[role],'probe_successful',0,executors[role]['successful'])
             and executors[role].get('broken') is False for role,number in (('decoder',2),('history',1)))
         and outputs.get('financial_tables_absent') is True
-        and outputs.get('canonical_full_ack',0)>0 and outputs.get('candidate_references',0)>0
+        and integer(outputs,'canonical_full_ack',1) and integer(outputs,'candidate_references',1)
         and type(outputs.get('regimes')) is dict and set(outputs['regimes'])==
             {'pump_current','pump_survivor','pons_current','pons_survivor'}
         and all(part is True for part in outputs['regimes'].values()))

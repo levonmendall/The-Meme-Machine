@@ -14,6 +14,7 @@ import struct
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from types import MappingProxyType
 
 from .bounded_provider import Budget
 from .parent_transport import ParentHTTP,SourceBinding,NativeSourceBinding,NativeFactoryMap
@@ -32,6 +33,40 @@ class KernelFixtureRefused(RuntimeError):pass
 
 def encoded(value):
     return json.dumps(value,sort_keys=True,separators=(',',':'),allow_nan=False).encode()
+
+
+def require_registry(sources,native):
+    """Check the complete fixed fixture registry before copying or launching.
+
+    Stream aliases have source-identity attribution, distinct from the six
+    native runner RPC selectors. This checks the existing child selectors'
+    exact operation/read-class contract without adding a child fallback.
+    """
+    expected={}
+    for lane,family in (('pump','solana'),('pons','robinhood')):
+        for regime in ('current','survivor','discovery'):
+            operation=lane+'_discovery' if regime=='discovery' else lane+'_'+regime+'_qualification'
+            expected[lane+'-'+regime]=(family,operation,'native')
+    for operation in ('pump_history_receipt','pump_recovery_restart','pump_source_identity'):
+        for priority in range(1,7):
+            expected[operation+'_'+str(priority)]=('solana',operation,'solana_evidence_'+str(priority))
+    for alias in ('yellowstone','solana-websocket'):
+        expected[alias]=('solana','pump_source_identity','native')
+    if (type(sources) not in (dict,MappingProxyType) or set(sources)!=set(expected)
+            or any(type(row) is not SourceBinding or row.alias.name!=alias
+                or (row.alias.family,row.operation,row.read_class)!=expected[alias]
+                or row.alias.methods!=READ_METHODS[row.alias.family]
+                for alias,row in sources.items())):
+        raise KernelFixtureRefused('kernel_fixture_source_registry')
+    for family in ('solana','robinhood'):
+        identities={row.identity for row in sources.values() if row.alias.family==family}
+        if len(identities)!=1:raise KernelFixtureRefused('kernel_fixture_source_identity')
+    streams={'yellowstone':'yellowstone','solana-websocket':'solana_websocket',
+        'pons-discovery':'robinhood_sequencer'}
+    if (len(native)!=len(streams) or any(type(row) is not NativeSourceBinding for row in native)
+            or {row.source.alias.name:row.transport for row in native}!=streams
+            or any(row.source is not sources[row.source.alias.name] for row in native)):
+        raise KernelFixtureRefused('kernel_fixture_stream_registry')
 
 
 class _Body(io.BytesIO):
@@ -155,12 +190,14 @@ class SyntheticParent:
                 sources.append(replace(sol,alias=EndpointAlias(operation+'_'+str(priority),'solana',sol.alias.methods),
                     operation=operation,read_class='solana_evidence_'+str(priority)))
         for alias in ('yellowstone','solana-websocket'):
-            sources.append(replace(sol,alias=EndpointAlias(alias,'solana',sol.alias.methods)))
+            sources.append(replace(sol,alias=EndpointAlias(alias,'solana',sol.alias.methods),
+                operation='pump_source_identity'))
         self.http=ParentHTTP(self.budget,sources,opener=self._physical)
         by_name=self.http.sources
         native=(NativeSourceBinding(by_name['yellowstone'],'yellowstone'),
             NativeSourceBinding(by_name['solana-websocket'],'solana_websocket'),
             NativeSourceBinding(by_name['pons-discovery'],'robinhood_sequencer'))
+        require_registry(by_name,native)
         async def yellowstone():return await self.solana.open('yellowstone')
         async def websocket():return await self.solana.open('solana_websocket')
         factories=NativeFactoryMap(self.http,native,{('yellowstone','yellowstone'):yellowstone,

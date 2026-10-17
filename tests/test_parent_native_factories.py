@@ -40,7 +40,11 @@ class NativeFactoryMapTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(raw.closed)
         self.assertEqual(self.budget.snapshot()['native_opens'],'1')
         self.assertEqual(self.budget.snapshot()['native_reserved'],'0')
-        self.assertEqual(self.budget.snapshot()['http_attempts'],'0')
+        # Native open retains its original physical-attempt accounting even
+        # though this fixed raw factory performs no HTTP/RPC acquisition.
+        self.assertEqual(self.budget.snapshot()['http_attempts'],'1')
+        self.assertEqual(self.budget.snapshot()['rpc_elements'],'0')
+        self.assertFalse(self.physical.calls)
         self.assertFalse(owner.contents)
 
     async def test_partial_foreign_extra_and_untyped_maps_refuse_without_open(self):
