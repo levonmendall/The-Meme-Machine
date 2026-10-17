@@ -3737,7 +3737,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         manifest=rally_manifest(self)
         self.assertTrue(manifest['files'])
         for relative,record in manifest['files'].items():
-            source=(ROOT/relative).read_bytes()
+            source=publication_accounting_predecessor(self,relative,(ROOT/relative).read_bytes())
             prior=subprocess.check_output(['git','show',RALLY_BASE+':'+relative],cwd=ROOT)
             self.assertNotEqual(source,prior,relative+':only actual reviewed deltas belong in this layer')
             self.assertEqual(rally_predecessor(self,relative,source),prior)
