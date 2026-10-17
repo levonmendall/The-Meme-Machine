@@ -89,6 +89,7 @@ jobs:
               'tests.test_survivor_retained_gap',
               'tests.test_maintenance_owner_entry_clock',
               'tests.test_prejoin_observation_recovery',
+              'tests.test_pump_restore_selection_index',
           ]
           print('FOCUSED_VALIDATION_ONLY: not a complete FAST or OPERATIONAL release suite', flush=True)
           print('FOCUSED_MODULES: ' + ','.join(modules), flush=True)

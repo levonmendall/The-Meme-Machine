@@ -576,6 +576,48 @@ def frozen_paused_reader_predecessor(test,relative,current):
     return prior
 
 
+# AWS exhausted the original restore-selection budget before one candidate.
+# These three fixed indexes support its unchanged literal predicates/order;
+# removing exactly those DDL lines must recover every original source byte.
+PUMP_RESTORE_SELECTION_REFERENCE='cc4e0b00fc6d4f6f332bec0b1d646ca4121f11ba'
+PUMP_RESTORE_SELECTION_SOURCE='meme_machine/runtime/candidate_history.py'
+PUMP_RESTORE_SELECTION_BEFORE='c7afd0898e0582f45d8615bab2524ee0a4bf67f00e71e2b43f57899461b1a8cb'
+PUMP_RESTORE_SELECTION_AFTER='2ce0a79da9fc1dc571d8331a79c1db3d9ce9d840b480dcb939c16c13b9d157ff'
+PUMP_RESTORE_SELECTION_DDL=(
+    b'        CREATE INDEX IF NOT EXISTS candidates_restore_order ON candidates(lane,first_observed,candidate);\n',
+    b'        CREATE INDEX IF NOT EXISTS candidate_events_kind ON events(lane,candidate,kind);\n',
+    b'        CREATE INDEX IF NOT EXISTS canonical_ref_kind ON canonical_event_refs(lane,candidate,kind);\n',
+)
+
+
+def pump_restore_selection_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=PUMP_RESTORE_SELECTION_SOURCE:return current
+    prior=subprocess.check_output(['git','show',PUMP_RESTORE_SELECTION_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),PUMP_RESTORE_SELECTION_BEFORE,
+        relative+':exact candidate-selection index predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),PUMP_RESTORE_SELECTION_AFTER,
+        relative+':exact candidate-selection index successor')
+    restored=current
+    for ddl in PUMP_RESTORE_SELECTION_DDL:
+        test.assertEqual(current.count(ddl),1,relative+':one exact restore-selection index')
+        test.assertNotIn(ddl,prior,relative+':explicit new index only')
+        restored=restored.replace(ddl,b'',1)
+    test.assertEqual(restored,prior,relative+':all original selection, event, reference and financial bytes retained')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def method(root):
+        parent=next(n for n in root.body if isinstance(n,ast.ClassDef) and n.name=='CandidateHistory')
+        return parent,next(n for n in parent.body if isinstance(n,ast.FunctionDef) and n.name=='_install_schema')
+    parent,selected=method(tree);_,original=method(old)
+    test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':only schema index declarations differ')
+    parent.body[parent.body.index(selected)]=deepcopy(original)
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':all other candidate/source authority nodes retained')
+    return prior
+
+
 # Restored $1,000 candidate references keep their original immutable locators.
 # Pin the complete reviewed source and reverse only its known-location reader
 # compatibility to cdcc0661 before the existing cancellation/economic guards.
@@ -609,6 +651,7 @@ def retained_canonical_predecessor(test,relative,current,*,allow_previous_layers
         test.assertEqual(hashlib.sha256(earlier).hexdigest(),STARTUP_HISTORY_CANCEL_DELTAS[relative][0],
             relative+':exact older cancellation predecessor')
         if current==earlier:return current
+    current=pump_restore_selection_predecessor(test,relative,current)
     test.assertEqual(hashlib.sha256(current).hexdigest(),RETAINED_CANONICAL_AFTER,
         relative+':exact retained-reference successor')
     tree=ast.parse(current);old=ast.parse(prior)
@@ -1984,6 +2027,48 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_pump_restore_selection_reverses_only_three_fixed_index_declarations(self):
+        import hashlib
+        relative=PUMP_RESTORE_SELECTION_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),PUMP_RESTORE_SELECTION_AFTER,
+            relative+':active exact restore-selection index repair')
+        self.assertEqual(PUMP_RESTORE_SELECTION_BEFORE,RETAINED_CANONICAL_AFTER,
+            relative+':existing retained-reference source pin remains unchanged')
+        prior=subprocess.check_output(['git','show',PUMP_RESTORE_SELECTION_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(pump_restore_selection_predecessor(self,relative,current),prior)
+        self.assertEqual(pump_restore_selection_predecessor(self,relative,prior),prior)
+        self.assertEqual(retained_canonical_predecessor(self,relative,current),
+            retained_canonical_predecessor(self,relative,prior))
+        self.assertEqual(native_startup_failure_predecessor(self,relative,current),
+            native_startup_failure_predecessor(self,relative,prior))
+        self.assertEqual(rally_predecessor(self,relative,current),rally_predecessor(self,relative,prior))
+        self.assertEqual(opportunity_predecessor(self,relative,current),
+            opportunity_predecessor(self,relative,prior))
+        changes=[current+b'\n# unreviewed restore-selection change\n',b'']
+        for ddl in PUMP_RESTORE_SELECTION_DDL:
+            changes.extend((current.replace(ddl,b'',1),current.replace(ddl,ddl+ddl,1)))
+        for previous,successor in (
+                (b'ON candidates(lane,first_observed,candidate)',b'ON candidates(first_observed,lane,candidate)'),
+                (b'ON events(lane,candidate,kind)',b'ON events(kind,lane,candidate)'),
+                (b'ON canonical_event_refs(lane,candidate,kind)',b'ON canonical_event_refs(lane,kind,candidate)'),
+                (b'if event_prefix is not None:',b'if False:'),
+                (b'if kind_prefix is not None:',b'if False:'),
+                (b"sql+=\" ORDER BY first_observed,lane,candidate\"",b"sql+=\" ORDER BY candidate\""),
+                (b"self.db.set_progress_handler(lambda:int(bool(cancelled())),1000)",
+                    b'self.db.set_progress_handler(lambda:0,1000)'),
+                (b'digest(ref)!=checksum',b'False'),
+                (b"row[1]!=ref['canonical_hash']",b'False'),
+                (b'self.db.execute("PRAGMA synchronous=FULL")',b'self.db.execute("PRAGMA synchronous=OFF")')):
+            self.assertIn(previous,current,relative+':negative mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):pump_restore_selection_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):retained_canonical_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):native_startup_failure_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):rally_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_prejoin_observation_preserves_exact_incident_gaps_and_full_ack_authority(self):
         import hashlib
         relative=PREJOIN_SOURCE;current=(ROOT/relative).read_bytes()
@@ -2376,7 +2461,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_retained_canonical_reference_reverses_only_exact_reader_compatibility(self):
         import hashlib
-        relative=RETAINED_CANONICAL_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=RETAINED_CANONICAL_SOURCE;current=pump_restore_selection_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),RETAINED_CANONICAL_AFTER,
             relative+':active exact retained canonical-reference reader')
         prior=subprocess.check_output(['git','show',RETAINED_CANONICAL_REFERENCE+':'+relative],cwd=ROOT)

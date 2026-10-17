@@ -121,6 +121,7 @@ class CandidateHistory:
           PRIMARY KEY(lane,candidate));
         CREATE INDEX IF NOT EXISTS candidates_deadline
           ON candidates(decision_deadline,lane,candidate);
+        CREATE INDEX IF NOT EXISTS candidates_restore_order ON candidates(lane,first_observed,candidate);
 
         CREATE TABLE IF NOT EXISTS events(
           lane TEXT NOT NULL,candidate TEXT NOT NULL,identity TEXT NOT NULL,
@@ -131,6 +132,7 @@ class CandidateHistory:
         CREATE INDEX IF NOT EXISTS candidate_events_order
           ON events(lane,candidate,slot,transaction_index,event_index,identity);
         CREATE INDEX IF NOT EXISTS candidate_events_time ON events(lane,candidate,market_time);
+        CREATE INDEX IF NOT EXISTS candidate_events_kind ON events(lane,candidate,kind);
 
         CREATE TABLE IF NOT EXISTS decisions(
           id TEXT PRIMARY KEY,lane TEXT NOT NULL,candidate TEXT NOT NULL,
@@ -176,6 +178,7 @@ class CandidateHistory:
           PRIMARY KEY(lane,candidate,identity));
         CREATE INDEX IF NOT EXISTS canonical_ref_order ON canonical_event_refs(lane,candidate,slot,transaction_index,event_index);
         CREATE INDEX IF NOT EXISTS canonical_ref_time ON canonical_event_refs(lane,candidate,market_time);
+        CREATE INDEX IF NOT EXISTS canonical_ref_kind ON canonical_event_refs(lane,candidate,kind);
         CREATE TABLE IF NOT EXISTS state_checkpoints(
           id TEXT PRIMARY KEY,scope TEXT NOT NULL,candidate TEXT NOT NULL,slot INTEGER NOT NULL,
           market_time INTEGER NOT NULL,available REAL NOT NULL,frontier INTEGER NOT NULL,
