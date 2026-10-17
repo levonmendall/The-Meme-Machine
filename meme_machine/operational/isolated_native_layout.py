@@ -9,9 +9,16 @@ import os
 from pathlib import Path
 import re
 
-from .isolated_native_image import boundary, require
+from . import namespace_canary as boundary
 
 PROFILE='native-landlock-abi6-x86_64-v1'
+
+
+class NativeLayoutRefused(RuntimeError):pass
+
+
+def require(value,code):
+    if not value:raise NativeLayoutRefused(code)
 
 
 @dataclass(frozen=True)

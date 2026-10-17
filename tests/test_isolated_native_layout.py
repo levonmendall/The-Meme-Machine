@@ -10,7 +10,7 @@ from unittest.mock import patch
 from meme_machine.operational.artifact_storage import Scratch
 from meme_machine.operational import isolated_native_entry as entry
 from meme_machine.operational import isolated_native_layout as layout
-from meme_machine.operational.isolated_native_image import Refused
+from meme_machine.operational.isolated_native_layout import NativeLayoutRefused as Refused
 from meme_machine.runtime import isolated_native_liveness as liveness
 from meme_machine.runtime.robinhood import plane
 
