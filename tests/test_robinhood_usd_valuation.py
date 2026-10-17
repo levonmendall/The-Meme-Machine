@@ -429,6 +429,147 @@ def archive_complete_logs_predecessor(test,relative,current):
     return prior
 
 
+# TERM belongs to the source parent while it drains accepted decoder work.
+# Pin the bounded, identity-checked descendant cleanup separately from every
+# existing lane timeout, source drain, financial and strategy implementation.
+SOURCE_PARENT_DRAIN_REFERENCE='80446ba3918b7ac820cde773bfcd72a8ef23466e'
+SOURCE_PARENT_DRAIN_SOURCE='meme_machine/operational/supervisor.py'
+SOURCE_PARENT_DRAIN_BEFORE='4aa0f4eec6aa02514c223d13211bd2b211f0985f7a462baa50a15ceb82771033'
+SOURCE_PARENT_DRAIN_AFTER='94c744ca18d83b4cacea3c4c7983369578184edfc6409df3f496c0b4a187a76c'
+SOURCE_PARENT_DRAIN_CHANGED=('start_services','recover_evidence','run','stop_process')
+
+
+def source_parent_drain_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=SOURCE_PARENT_DRAIN_SOURCE:return current
+    prior=subprocess.check_output(['git','show',SOURCE_PARENT_DRAIN_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),SOURCE_PARENT_DRAIN_BEFORE,
+        relative+':exact source-parent drain predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),SOURCE_PARENT_DRAIN_AFTER,
+        relative+':exact cooperative source-parent drain successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def method(root,name):
+        parent=next(n for n in root.body if isinstance(n,ast.ClassDef) and n.name=='Supervisor')
+        return parent,next(n for n in parent.body if isinstance(n,ast.FunctionDef) and n.name==name)
+    def source(body,selected):
+        first=min(selected.lineno,*(n.lineno for n in selected.decorator_list)) if selected.decorator_list else selected.lineno
+        return b''.join(body.splitlines(keepends=True)[first-1:selected.end_lineno])
+    for name in ('stop_lanes','start_lane','environment','continuation_health','publish'):
+        _,selected=method(tree,name);_,original=method(old,name)
+        test.assertEqual(source(current,selected),source(prior,original),
+            relative+':unchanged lane, protection or financial source '+name)
+    restored=current
+    for name in SOURCE_PARENT_DRAIN_CHANGED:
+        parent,selected=method(tree,name);_,original=method(old,name)
+        test.assertNotEqual(ast.dump(selected),ast.dump(original),
+            relative+':explicit cooperative source lifecycle node '+name)
+        selected_bytes=source(current,selected)
+        test.assertEqual(restored.count(selected_bytes),1,relative+':one exact lifecycle node '+name)
+        restored=restored.replace(selected_bytes,source(prior,original),1)
+        parent.body[parent.body.index(selected)]=deepcopy(original)
+    parent,added=method(tree,'_source_start_ticks')
+    with test.assertRaises(StopIteration):method(old,'_source_start_ticks')
+    test.assertEqual([ast.dump(n) for n in added.decorator_list],
+        [ast.dump(ast.Name(id='staticmethod',ctx=ast.Load()))],
+        relative+':source identity proof is a pure static process read')
+    addition=source(current,added)+b'\n'
+    test.assertEqual(restored.count(addition),1,relative+':one exact source process identity helper')
+    restored=restored.replace(addition,b'',1);parent.body.remove(added)
+    test.assertEqual(ast.dump(tree),ast.dump(old),
+        relative+':all other source, strategy and accounting nodes retained')
+    test.assertEqual(restored,prior,
+        relative+':all other original bytes, timeouts, containment and financial safeguards retained')
+    return prior
+
+
+# One authenticated pure-preparation failure has independently closed/joined
+# session receipts. Its terminal-unavailable flag stays true; the existing
+# archive/FULL/ACK verifier still supplies all economic recovery authority.
+PREPARATION_REPLAY_REFERENCE='80446ba3918b7ac820cde773bfcd72a8ef23466e'
+PREPARATION_REPLAY_SOURCE='meme_machine/solana_source_drain.py'
+PREPARATION_REPLAY_BEFORE='a016bdbe09f2017f19f09126a948a561ab6afb6fcf96898d2ca432a03e59f83e'
+PREPARATION_REPLAY_AFTER='2c7d4a25f3220c75a1d249de8810eef0d96409bf9f35f62c478768b3c07329be'
+PREPARATION_REPLAY_CHANGED=('current_economic_recovery_descriptor','verify_economic_recovery_descriptor')
+PREPARATION_REPLAY_ADDED=('_preparation_failed_inputs','_economic_recovery_inputs')
+PREPARATION_REPLAY_CONSTANTS=('PREPARATION_RECOVERY_CENSUS','PREPARATION_RECOVERY_LEDGER',
+    'PREPARATION_RECOVERY_SESSION','PREPARATION_RECOVERY_OBSERVATIONS',
+    'PREPARATION_RECOVERY_HEADS','PREPARATION_RECOVERY_GAPS')
+
+
+def preparation_replay_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=PREPARATION_REPLAY_SOURCE:return current
+    prior=subprocess.check_output(['git','show',PREPARATION_REPLAY_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),PREPARATION_REPLAY_BEFORE,
+        relative+':exact independently closed preparation-failure predecessor')
+    if current==prior:return prior
+    test.assertEqual(hashlib.sha256(current).hexdigest(),PREPARATION_REPLAY_AFTER,
+        relative+':exact preparation-failure replay-input successor')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def function(root,name):
+        return next(n for n in root.body if isinstance(n,ast.FunctionDef) and n.name==name)
+    def source(body,selected):
+        return b''.join(body.splitlines(keepends=True)[selected.lineno-1:selected.end_lineno])
+    for name in ('_economic_failed_inputs','_economic_descriptor','_economic_descriptor_rows',
+            'preserve_economic_recovery_descriptor','_session_economic_boundaries',
+            '_preserved_program_gap_observation','_preserved_economic_replay_observation',
+            '_preserved_prejoin_observation','_historical_observation_record',
+            '_require_observation_funding_closed','retained_source_drain'):
+        test.assertEqual(source(current,function(tree,name)),source(prior,function(old,name)),
+            relative+':unchanged original recovery or financial authority bytes '+name)
+    class OriginalValidator(ast.NodeTransformer):
+        def visit_Name(self,value):
+            if value.id=='_economic_recovery_inputs':value.id='_economic_failed_inputs'
+            return value
+    restored=current
+    dispatches=0
+    for name in PREPARATION_REPLAY_CHANGED:
+        selected=function(tree,name);original=function(old,name)
+        test.assertNotEqual(ast.dump(selected),ast.dump(original),
+            relative+':explicit exact-input validator selection '+name)
+        normalization=deepcopy(selected)
+        dispatches+=sum(isinstance(n,ast.Name) and n.id=='_economic_recovery_inputs' for n in ast.walk(normalization))
+        if name=='current_economic_recovery_descriptor':
+            branch=ast.parse("if checksum==PREPARATION_RECOVERY_CENSUS:\n"
+                "    return _preparation_failed_inputs(db,raw,handlers,PREPARATION_RECOVERY_OBSERVATIONS['closed'][0])").body[0]
+            matches=[n for n in normalization.body if ast.dump(n)==ast.dump(branch)]
+            test.assertEqual(len(matches),1,relative+':one fixed authenticated receipt selection before bounded generic search')
+            normalization.body.remove(matches[0])
+        normalization=OriginalValidator().visit(normalization)
+        test.assertEqual(ast.dump(normalization),ast.dump(original),
+            relative+':all original FULL, ACK, descriptor and current-incident predicates retained '+name)
+        selected_bytes=source(current,selected)
+        test.assertEqual(restored.count(selected_bytes),1,relative+':one exact dispatch node '+name)
+        restored=restored.replace(selected_bytes,source(prior,original),1)
+        tree.body[tree.body.index(selected)]=deepcopy(original)
+    test.assertEqual(dispatches,3,relative+':only three existing generic validator call sites dispatched')
+    additions=[]
+    for name in PREPARATION_REPLAY_CONSTANTS:
+        matches=[n for n in tree.body if isinstance(n,ast.Assign) and len(n.targets)==1
+            and isinstance(n.targets[0],ast.Name) and n.targets[0].id==name]
+        test.assertEqual(len(matches),1,relative+':one fixed incident constant '+name)
+        test.assertFalse(any(isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id==name
+            for t in n.targets) for n in old.body),relative+':new constant only '+name)
+        additions.append(matches[0]);tree.body.remove(matches[0])
+    for name in PREPARATION_REPLAY_ADDED:
+        selected=function(tree,name);additions.append(selected);tree.body.remove(selected)
+        with test.assertRaises(StopIteration):function(old,name)
+    first=min(n.lineno for n in additions);last=max(n.end_lineno for n in additions)
+    addition=b''.join(current.splitlines(keepends=True)[first-1:last])+b'\n\n'
+    test.assertEqual(restored.count(addition),1,relative+':one bounded exact preparation-input implementation')
+    restored=restored.replace(addition,b'',1)
+    test.assertEqual(ast.dump(tree),ast.dump(old),
+        relative+':all other historical, financial, source and cursor authority nodes retained')
+    test.assertEqual(restored,prior,
+        relative+':every other original byte and safety predicate retained')
+    return prior
+
+
 # The exact cb34 incident interrupted a log callback before economic admission.
 # Its original terminal failure flags and unreturned callback remain evidence;
 # original same-origin gaps or FULL/ACK coverage partition every required slot.
@@ -454,6 +595,7 @@ def prejoin_source_predecessor(test,relative,current):
     test.assertEqual(hashlib.sha256(prior).hexdigest(),PREJOIN_SOURCE_BEFORE,
         relative+':exact prejoin-observation predecessor')
     if current==prior:return prior
+    current=preparation_replay_predecessor(test,relative,current)
     test.assertEqual(hashlib.sha256(current).hexdigest(),PREJOIN_SOURCE_AFTER,
         relative+':exact prejoin-observation successor')
     tree=ast.parse(current);old=ast.parse(prior)
@@ -1342,6 +1484,7 @@ def restored_provider_history_predecessor(test,relative,current):
     import hashlib
     if isinstance(current,str):current=current.encode()
     if relative!='meme_machine/operational/supervisor.py' or b'from .restored_provider_history import' not in current:return current
+    current=source_parent_drain_predecessor(test,relative,current)
     test.assertEqual(hashlib.sha256(current).hexdigest(),RESTORED_HISTORY_AFTER,
         relative+':exact restored-history successor')
     restored_provider_helper(test,(ROOT/RESTORED_HISTORY_HELPER).read_bytes())
@@ -2130,6 +2273,153 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_preparation_replay_preserves_terminal_incident_and_original_full_ack_authority(self):
+        import hashlib
+        relative=PREPARATION_REPLAY_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),PREPARATION_REPLAY_AFTER,
+            relative+':active exact preparation-failure replay-input proof')
+        self.assertEqual(PREPARATION_REPLAY_BEFORE,PREJOIN_SOURCE_AFTER,
+            relative+':original prejoin and generic recovery source pins remain unchanged')
+        prior=subprocess.check_output(['git','show',PREPARATION_REPLAY_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(preparation_replay_predecessor(self,relative,current),prior)
+        self.assertEqual(preparation_replay_predecessor(self,relative,prior),prior)
+        predecessors=(prejoin_source_predecessor,session_economic_recovery_predecessor,
+            native_startup_failure_predecessor,recovered_economic_boundary_predecessor,
+            program_gap_observation_predecessor,rally_predecessor,opportunity_predecessor)
+        for predecessor in predecessors:
+            self.assertEqual(predecessor(self,relative,current),predecessor(self,relative,prior),
+                relative+':complete prior recovery, financial and source guard chain retained')
+        changes=[current+b'\n# unreviewed preparation-replay authority change\n',b'']
+        tree=ast.parse(current)
+        selected=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='_preparation_failed_inputs')
+        preparation=ast.get_source_segment(current.decode(),selected).encode()
+        for previous,successor in (
+                (b'hashlib.sha256(raw.encode()).hexdigest()==PREPARATION_RECOVERY_CENSUS',b'True'),
+                (b'hashlib.sha256(handlers.encode()).hexdigest()==PREPARATION_RECOVERY_LEDGER',b'True'),
+                (b"session_id==PREPARATION_RECOVERY_OBSERVATIONS['closed'][0]",b'True'),
+                (b"body.get('terminal_record_unavailable') is True",b"body.get('terminal_record_unavailable') is False"),
+                (b"body.get('all_accepted_committed') is False",b"body.get('all_accepted_committed') is True"),
+                (b"body.get('unexpected_cancellation',False) is False",b'True'),
+                (b"body.get('pending_handlers')==0",b'True'),
+                (b"accounting.get('accepted')==body['accepted_handlers']==body['settled_handlers']==accounting.get('returned')",b'True'),
+                (b"('active','recoverable','failed','unresolved')",b"('active','recoverable','failed')"),
+                (b"row['pending']==(6 if plane=='rolling' else 0)",b'True'),
+                (b"require(all(r.get('run')!=body['run_identity'] for r in retained))",b'require(True)'),
+                (b'row[:3]==(kind,at,size)',b'True'),
+                (b'hashlib.sha256(row[3].encode()).hexdigest()==checksum',b'True'),
+                (b"checkpoint_advanced=False",b'checkpoint_advanced=True'),
+                (b'all(observed.get(k)==joined.get(k) for k in fields)',b'True'),
+                (b"observed.get('drained') is False",b"observed.get('drained') is True"),
+                (b"observed.get('complete_history_claim') is False",b'True'),
+                (b"observed.get('completed')==457925009",b'True'),
+                (b"observed.get('recovery_obligations')==",b"[]=="),
+                (b'require(actual==PREPARATION_RECOVERY_HEADS)',b'require(True)'),
+                (b"row[0],row[1],row[3],row[4]",b"row[0],row[1],row[3],reason"),
+                (b'row[2]==hi or index==1 and hi is None and type(row[2]) is int and row[2]>=457925127',b'True'),
+                (b'require(expected_origins is None or expected_origins==origins)',b'require(True)'),
+                (b"provider.get('network')=='solana-mainnet'",b'True'),
+                (b'lower_slot=457925003,upper_slot=457925009',b'lower_slot=457925009,upper_slot=457925009'),
+                (b'tail_lower_slot=457925010,tail_upper_slot=457925127',b'tail_lower_slot=None,tail_upper_slot=None')):
+            self.assertIn(previous,preparation,relative+':preparation-specific negative mutation target exists')
+            changes.append(current.replace(preparation,preparation.replace(previous,successor,1),1))
+        for previous,successor in (
+                (b"PREPARATION_RECOVERY_SESSION='fad3c95d2dc54de4aa7594635d06b8d2'",
+                    b"PREPARATION_RECOVERY_SESSION='fad3c95d2dc54de4aa7594635d06b8d3'"),
+                (b"'failure':(235833,",b"'failure':(235832,"),
+                (b"'closed':(235834,",b"'closed':(235835,"),
+                (b"'join':(235839,",b"'join':(235840,"),
+                (b'if checksum==PREPARATION_RECOVERY_CENSUS:',b'if True:'),
+                (b'PREPARATION_RECOVERY_CENSUS else _economic_failed_inputs)',
+                    b'PREPARATION_RECOVERY_CENSUS else _preparation_failed_inputs)'),
+                (b"require(0<queues['rolling']['pending']<=8)",b'require(True)'),
+                (b"row[:6]==(family,PROGRAMS[family],lo,hi,'complete',None)",b'True'),
+                (b"result.get('complete') is (index==pages-1)",b'True'),
+                (b"hashlib.sha256(row[1].encode()).hexdigest()==row[2]",b'True'),
+                (b"SELECT 1 FROM candidate_pending_proofs WHERE id=?",b"SELECT 1 FROM candidate_pending_proofs WHERE id=? AND 0"),
+                (b'life.unconsumed(scope) is None',b'True'),
+                (b'rolling.missing(family,scope,lo,hi)==[]',b'True'),
+                (b'require(not _subtract_intervals(covered,published))',b'require(True)'),
+                (b'retained_economic_tail_unavailable=tail_missing',b'retained_economic_tail_unavailable=False'),
+                (b'original_queue_acknowledgement_verified=False',b'original_queue_acknowledgement_verified=True'),
+                (b'original_source_drain_pass=False',b'original_source_drain_pass=True'),
+                (b'callback_completion_demonstrated=False',b'callback_completion_demonstrated=True'),
+                (b"        _require_observation_funding_closed()\n",b'        pass\n')):
+            self.assertIn(previous,current,relative+':negative mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):preparation_replay_predecessor(self,relative,changed)
+            for predecessor in (prejoin_source_predecessor,session_economic_recovery_predecessor,
+                    opportunity_predecessor):
+                with self.assertRaises(AssertionError):predecessor(self,relative,changed)
+
+    def test_source_parent_drain_preserves_exact_timeouts_identity_and_financial_guards(self):
+        import hashlib
+        relative=SOURCE_PARENT_DRAIN_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),SOURCE_PARENT_DRAIN_AFTER,
+            relative+':active exact cooperative source-parent drain repair')
+        self.assertEqual(SOURCE_PARENT_DRAIN_BEFORE,RESTORED_HISTORY_AFTER,
+            relative+':original restored-history source pin remains unchanged')
+        prior=subprocess.check_output(['git','show',SOURCE_PARENT_DRAIN_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(source_parent_drain_predecessor(self,relative,current),prior)
+        self.assertEqual(source_parent_drain_predecessor(self,relative,prior),prior)
+        predecessors=(restored_provider_history_predecessor,rally_predecessor,opportunity_predecessor)
+        for predecessor in predecessors:
+            self.assertEqual(predecessor(self,relative,current),predecessor(self,relative,prior),
+                relative+':complete previous source and economic guard chain retained')
+        # Inner portability/cost guards consume the prior rally layer, exactly
+        # as the existing guarded_source helper does for their original tests.
+        current_layer=rally_predecessor(self,relative,current)
+        prior_layer=rally_predecessor(self,relative,prior)
+        for predecessor in (contained_observation_predecessor,cpu_capacity_predecessor,
+                operation_cost_predecessor,observation_route_predecessor):
+            self.assertEqual(predecessor(self,relative,current_layer),predecessor(self,relative,prior_layer),
+                relative+':all original inner source and economic assertions remain effective')
+        self.assertEqual(current.count(b'proc._mm_source_group_closed=True'),3,
+            relative+':one-use completion recorded only for owned cleanup success, absence or timeout kill')
+        self.assertLess(current.index(b"if getattr(proc,'_mm_source_group_closed',False):"),
+            current.index(b"source_ticks=getattr(proc,'_mm_source_start_ticks',None)"),
+            relative+':repeated cleanup cannot inspect or signal a subsequently reused PID/group')
+        changes=[current+b'\n# unreviewed source-parent drain change\n',b'']
+        for previous,successor in (
+                (b'cooperative_parent=False',b'cooperative_parent=True'),
+                (b'def stop_process(proc,timeout=15,',b'def stop_process(proc,timeout=16,'),
+                (b'self.stop_process(self.evidence,45,cooperative_parent=True)',
+                    b'self.stop_process(self.evidence,45)'),
+                (b'self.stop_process(evidence,45,cooperative_parent=True)',
+                    b'self.stop_process(evidence,46,cooperative_parent=True)'),
+                (b'if cooperative_parent:proc.send_signal(signal.SIGTERM)',
+                    b'if cooperative_parent:os.killpg(proc.pid,signal.SIGTERM)'),
+                (b'else:os.killpg(proc.pid,signal.SIGTERM)',b'else:proc.send_signal(signal.SIGTERM)'),
+                (b'code=proc.wait(timeout=5)',b'code=proc.wait(timeout=50)'),
+                (b'os.killpg(proc.pid,signal.SIGKILL)',b'proc.send_signal(signal.SIGKILL)'),
+                (b'if cooperative_parent and not escalated:cleanup_descendants()',b'pass'),
+                (b'if cooperative_parent:cleanup_descendants()',b'if False:cleanup_descendants()'),
+                (b"if getattr(proc,'_mm_source_group_closed',False):",b'if False:'),
+                (b'proc._mm_source_group_closed=True',b'proc._mm_source_group_closed=False'),
+                (b"note('already_cleaned',exit_code=code)",b"cleanup_descendants()"),
+                (b'if current is not None and current!=source_ticks:',b'if False:'),
+                (b'if code is not None:raise RuntimeError(\'source_process_identity_unavailable\')',b'if False:pass'),
+                (b"self.evidence._mm_source_start_ticks=ticks",b'self.evidence._mm_source_start_ticks=1'),
+                (b"proc._mm_source_start_ticks=source_ticks",b'proc._mm_source_start_ticks=1'),
+                (b"int(leader.split('(',1)[0])!=pid",b'False'),
+                (b'int(fields[2])!=pid',b'False'),
+                (b'int(fields[3])!=pid',b'False'),
+                (b'int(fields[19])<=0',b'False'),
+                (b'return int(fields[19])',b'return 1'),
+                (b"if budget and hasattr(budget,'bootstrap'):",b'if False:'),
+                (b'maximum_queue_wait_seconds=5',b'maximum_queue_wait_seconds=6'),
+                (b'if outstanding(self.shared_capital.ledger()):',b'if False:'),
+                (b"require_restored_history(self,state,path,envelope)",b'pass')):
+            self.assertIn(previous,current,relative+':negative mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):source_parent_drain_predecessor(self,relative,changed)
+            for predecessor in (restored_provider_history_predecessor,rally_predecessor,opportunity_predecessor):
+                with self.assertRaises(AssertionError):
+                    predecessor(self,relative,source_parent_drain_predecessor(self,relative,changed))
+
     def test_canonical_cold_reader_preserves_exact_locator_and_authenticated_archive_authority(self):
         import hashlib
         mutations={
@@ -2248,7 +2538,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_prejoin_observation_preserves_exact_incident_gaps_and_full_ack_authority(self):
         import hashlib
-        relative=PREJOIN_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=PREJOIN_SOURCE;current=preparation_replay_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),PREJOIN_SOURCE_AFTER,
             relative+':active exact prejoin-observation proof')
         prior=subprocess.check_output(['git','show',PREJOIN_SOURCE_REFERENCE+':'+relative],cwd=ROOT)
