@@ -34,6 +34,7 @@ NAMES = (
     'owner.history_outbox', 'owner.checkpoint', 'owner.maintenance',
     'owner.scout_commit', 'owner.control_commit', 'owner.delivery_capture',
     'owner.delivery_ack', 'owner.proof_publish', 'owner.history_plan',
+    'pump.observed_candidates_restore', 'pump.observed_candidate_events',
 )
 SQL_BUCKETS = ('statement', 'statement_many', 'fetch', 'transaction', 'checkpoint')
 ACTIVE_LIMIT = 16

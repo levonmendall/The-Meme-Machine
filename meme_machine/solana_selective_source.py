@@ -773,24 +773,54 @@ class SelectiveSource:
         total,first=self.pending_delivery.get(key,(0,seen))
         self.pending_delivery[key]=(total+size,first)
 
-    async def flush_delivery(self):
+    async def flush_delivery(self,after=None):
         async with self.delivery_lock:
             pending=dict(self.pending_delivery)
-            if not pending:return
+            if not pending and after is None:return
+            committed=False;accepted_future=None
+            def accepted(future):
+                nonlocal accepted_future
+                accepted_future=future
             def commit(state):
-                h=install(state)
-                with state.writer.transaction():
-                    for (_,family,transport),(size,seen) in pending.items():
-                        h.delivery(family,transport,raw_bytes=size,seen=seen)
+                nonlocal committed
+                if pending and not committed:
+                    h=install(state)
+                    with state.writer.transaction():
+                        for (_,family,transport),(size,seen) in pending.items():
+                            h.delivery(family,transport,raw_bytes=size,seen=seen)
+                    # A publication yield may retry this callback in a new
+                    # fair owner turn. Its accounting COMMIT must not repeat.
+                    committed=True
+                if after is not None:return after(state)
             # Publication awaits these exact delivery receipts. Giving this
             # small commit a different class stalls the entire publisher.
             # Use intake/publication's bounded FIFO; actual protective work
             # retains its reserved higher priority and SQL preemption.
-            await self.work(commit,2,label='source_commit',component='delivery_accounting')
-            for key,(size,seen) in pending.items():
-                remaining=self.pending_delivery[key][0]-size
-                if remaining:self.pending_delivery[key]=(remaining,self.pending_delivery[key][1])
-                else:del self.pending_delivery[key]
+            try:
+                return await self.work(commit,2,label='source_commit',
+                    component='delivery_accounting' if after is None else 'history_publication',accepted=accepted)
+            except asyncio.CancelledError:
+                if accepted_future is not None:
+                    # Accepted owner work outlives its waiter. Keep the delta
+                    # lock until that exact callback finishes; do not shield a
+                    # new admission or allow another flush to charge it twice.
+                    waiter=asyncio.wrap_future(accepted_future)
+                    while not waiter.done():
+                        try:await asyncio.shield(waiter)
+                        except asyncio.CancelledError:pass
+                        except Exception:break
+                    try:waiter.result()
+                    except EvidenceUnavailable as exc:
+                        # source_work would retry these outcomes. Cancellation
+                        # stops that retry, including its pre-admission wait.
+                        if str(exc) not in ('evidence_background_yield','evidence_control_overloaded'):raise
+                raise
+            finally:
+                if committed:
+                    for key,(size,seen) in pending.items():
+                        remaining=self.pending_delivery[key][0]-size
+                        if remaining:self.pending_delivery[key]=(remaining,self.pending_delivery[key][1])
+                        else:del self.pending_delivery[key]
 
     async def publish_history(self):
         seen=-1;retry_at=None
@@ -799,7 +829,6 @@ class SelectiveSource:
                 seen=await self.history_wakeup.wait(seen,self.stop,
                     delay=None if retry_at is None else max(0,retry_at-time.monotonic()))
                 if self.stop.is_set():break
-                await self.flush_delivery() # Preserve the original accounting-before-publication fence.
                 ready=time.monotonic();timing={}
                 def publish(s):
                     timing['owner_claim_monotonic']=time.monotonic()
@@ -810,7 +839,7 @@ class SelectiveSource:
                     startup=h.startup.advance()
                     return (bool(getattr(h.lifecycle,'_proof_publication_cursor',None)),startup,
                         getattr(h.lifecycle,'_consumer_retry_at',None),getattr(h.lifecycle,'_published_count',0))
-                more,startup,retry_at,published=await self.work(publish,2,label='source_commit',component='history_publication')
+                more,startup,retry_at,published=await self.flush_delivery(publish)
                 self.observe('publication_timing',work_ready_monotonic=ready,
                     work_returned_monotonic=time.monotonic(),**timing)
                 if more:self.history_wakeup.notify() # Drain one fixed durable horizon, then sleep.
@@ -1619,11 +1648,10 @@ class SelectiveSource:
         if accepted and identities:
             # Retain the same accounting-before-publication fence as the
             # background publisher. ACK alone does not flush native delivery.
-            await self.flush_delivery()
             def publish_exact(state):
                 life=install(state).lifecycle;life.publish(proof_ids=identities)
                 return getattr(life,'_published_count',0)
-            published=await self.work(publish_exact,2,label='source_commit',component='history_publication')
+            published=await self.flush_delivery(publish_exact)
             snapshot['proof_publication_changed']=bool(published)
         return accepted
 
