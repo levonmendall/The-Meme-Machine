@@ -192,6 +192,73 @@ RALLY_CHANGED_SOURCES=('meme_machine/lanes/pons/pons_postgrad_survivor.py', 'mem
 RALLY_ADDED_SOURCES=('meme_machine/policy_history/opportunity_access_v1.json', 'meme_machine/runtime/rally_cycle.py')
 
 
+# An incremental Survivor checkpoint cannot seal its earlier required history
+# against a later gap. Pin only the fresh full-window continuity precheck before
+# the shortcut or any history write; retain every original strategy/exit byte.
+SURVIVOR_INCREMENT_CONTINUITY_REFERENCE='1c69c4f23c9f5094d5ee15a02d066820c3517c02'
+SURVIVOR_INCREMENT_CONTINUITY_SOURCE='meme_machine/lanes/pump/pumpswap_survivor_runtime.py'
+SURVIVOR_INCREMENT_CONTINUITY_BEFORE='a57f3f2b8f44c611b38e02c4bbf648198d1229cab77f2d8c135b3e195f202a46'
+SURVIVOR_INCREMENT_CONTINUITY_AFTER='9239b836e24163f9df91f24ac7f7ea48bb31ff98f19367f84bfe702a742320ae'
+SURVIVOR_INCREMENT_CONTINUITY_PRIORS={
+    '8790ad97bc5dea4b579e65b017e96b8fa38ee1c2fc56ca70c9bb34564b56c090':
+        '950852cb87516cd1c94f6762ec178b17232c346f',
+    'ade9b157ca2dccd5e12108e10291963c6d1eedb853e37b8bef76d33402c136ae':
+        'b1ece095231f156eaf1d9d61bfd2f9d959558c54',
+}
+SURVIVOR_INCREMENT_CONTINUITY_BLOCK=(
+    b'        from meme_machine.solana_evidence_plane import EvidenceUnavailable\n'
+    b'        from meme_machine.solana_selective_history import ConsumerReader\n'
+    b'        reader=self.plane._selective_reader()\n'
+    b'        db=reader.original.db if isinstance(reader,ConsumerReader) else reader.db\n'
+    b'        # A durable incremental checkpoint does not seal its retained prefix\n'
+    b'        # against a subsequently observed gap. Recheck the exact required\n'
+    b'        # history without hydrating it or changing its historical observations.\n'
+    b"        db.execute('BEGIN')\n"
+    b'        try:\n'
+    b"            graduation=row['graduation'];lower=graduation.get('slot');upper=slot\n"
+    b'            if lower is None:\n'
+    b"                lower,_=self.plane.bounds(SWAP_SCOPE,graduation['at'],at,upper_slot=slot)\n"
+    b'            elif type(lower) is not int or lower<0:\n'
+    b"                raise EvidenceUnavailable('survivor_graduation_slot_unverified')\n"
+    b"            candidate=reader.candidate('pumpswap',row['graduation']['pool']) if isinstance(reader,ConsumerReader) else reader\n"
+    b'            scope=candidate.scope if isinstance(reader,ConsumerReader) else SWAP_SCOPE\n'
+    b'            if not candidate.covered(scope,lower,upper,as_of=time.time()):\n'
+    b"                raise EvidenceUnavailable('unresolved_evidence_gap')\n"
+    b"        finally:db.execute('ROLLBACK')\n"
+)
+
+
+def survivor_increment_continuity_predecessor(test,relative,current):
+    from copy import deepcopy
+    import hashlib
+    if isinstance(current,str):current=current.encode()
+    if relative!=SURVIVOR_INCREMENT_CONTINUITY_SOURCE:return current
+    prior=subprocess.check_output(['git','show',SURVIVOR_INCREMENT_CONTINUITY_REFERENCE+':'+relative],cwd=ROOT)
+    test.assertEqual(hashlib.sha256(prior).hexdigest(),SURVIVOR_INCREMENT_CONTINUITY_BEFORE,
+        relative+':exact Survivor full-window continuity predecessor')
+    if current==prior:return prior
+    checksum=hashlib.sha256(current).hexdigest()
+    if checksum in SURVIVOR_INCREMENT_CONTINUITY_PRIORS:
+        earlier=subprocess.check_output(['git','show',SURVIVOR_INCREMENT_CONTINUITY_PRIORS[checksum]+':'+relative],cwd=ROOT)
+        test.assertEqual(current,earlier,relative+':exact older strategy comparison source')
+        return current
+    test.assertEqual(checksum,SURVIVOR_INCREMENT_CONTINUITY_AFTER,
+        relative+':exact Survivor full-window continuity successor')
+    test.assertEqual(current.count(SURVIVOR_INCREMENT_CONTINUITY_BLOCK),1,
+        relative+':one exact required-window precheck')
+    restored=current.replace(SURVIVOR_INCREMENT_CONTINUITY_BLOCK,b'',1)
+    test.assertEqual(restored,prior,relative+':all other economics, held exits and history bytes retained')
+    tree=ast.parse(current);old=ast.parse(prior)
+    def method(root):
+        parent=next(n for n in root.body if isinstance(n,ast.ClassDef) and n.name=='Runtime')
+        return parent,next(n for n in parent.body if isinstance(n,ast.FunctionDef) and n.name=='_increment')
+    parent,selected=method(tree);_,original=method(old)
+    test.assertNotEqual(ast.dump(selected),ast.dump(original),relative+':only Runtime._increment changed')
+    parent.body[parent.body.index(selected)]=deepcopy(original)
+    test.assertEqual(ast.dump(tree),ast.dump(old),relative+':all other source nodes retained')
+    return prior
+
+
 # Repeated known suffix placements cannot select or change authoritative logs:
 # the output remains the entire authenticated full transaction. Reverse exactly
 # the one reviewed zero-match predicate before the retained-log source guards.
@@ -785,6 +852,7 @@ def rally_delta(before,after):
 def rally_predecessor(test,relative,current,*,allow_previous_layers=False):
     import hashlib,json
     if isinstance(current,str):current=current.encode()
+    current=survivor_increment_continuity_predecessor(test,relative,current)
     current=archive_complete_logs_predecessor(test,relative,current)
     current=native_startup_failure_predecessor(test,relative,current,
         allow_previous_layers=allow_previous_layers)
@@ -1811,6 +1879,56 @@ class ReadRPC:
 
 
 class RobinhoodUSDTests(unittest.TestCase):
+    def test_survivor_increment_continuity_reverses_only_exact_required_window_precheck(self):
+        import hashlib,json
+        relative=SURVIVOR_INCREMENT_CONTINUITY_SOURCE;current=(ROOT/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(current).hexdigest(),SURVIVOR_INCREMENT_CONTINUITY_AFTER,
+            relative+':active exact Survivor required-window continuity repair')
+        prior=subprocess.check_output(['git','show',SURVIVOR_INCREMENT_CONTINUITY_REFERENCE+':'+relative],cwd=ROOT)
+        self.assertEqual(hashlib.sha256(prior).hexdigest(),SURVIVOR_INCREMENT_CONTINUITY_BEFORE,
+            relative+':independently pinned previous strategy source')
+        rally=rally_manifest(self)['files'][relative]
+        opportunity=json.loads(OPPORTUNITY_MANIFEST.read_text())['files'][relative]
+        self.assertEqual(rally['after_sha256'],SURVIVOR_INCREMENT_CONTINUITY_BEFORE)
+        self.assertEqual(set(SURVIVOR_INCREMENT_CONTINUITY_PRIORS),
+            {rally['before_sha256'],opportunity['before_sha256']})
+        self.assertEqual(survivor_increment_continuity_predecessor(self,relative,current),prior)
+        self.assertEqual(survivor_increment_continuity_predecessor(self,relative,prior),prior)
+        self.assertEqual(rally_predecessor(self,relative,current),rally_predecessor(self,relative,prior))
+        self.assertEqual(opportunity_predecessor(self,relative,current),
+            opportunity_predecessor(self,relative,prior))
+        checkpoint=b"        checkpoint=row.get('evidence_checkpoint')"
+        self.assertLess(current.index(SURVIVOR_INCREMENT_CONTINUITY_BLOCK),current.index(checkpoint))
+        changes=[current+b'\n# unreviewed Survivor continuity change\n',b'']
+        for previous,successor in (
+                (b"lower=graduation.get('slot')",b"lower=row.get('evidence_checkpoint',{}).get('consumed_slot')"),
+                (b'upper=slot',b'upper=lower'),
+                (b"self.plane.bounds(SWAP_SCOPE,graduation['at'],at,upper_slot=slot)",
+                    b"self.plane.bounds(SWAP_SCOPE,row['through'],at,upper_slot=slot)"),
+                (b'elif type(lower) is not int or lower<0:',b'elif False:'),
+                (b"reader.candidate('pumpswap',row['graduation']['pool'])",b"reader.candidate('pumpswap','unrelated')"),
+                (b'scope=candidate.scope if isinstance(reader,ConsumerReader) else SWAP_SCOPE',b'scope=SWAP_SCOPE'),
+                (b'if not candidate.covered(scope,lower,upper,as_of=time.time()):',b'if False:'),
+                (b"db.execute('BEGIN')",b"db.execute('SELECT 1')"),
+                (b"finally:db.execute('ROLLBACK')",b'finally:pass'),
+                (b"if quote['quantity']!=qty or not 0<=now-quote['market_time']<=10 or not 0<=now-quote['acquired']<=5:",
+                    b'if False:'),
+                (b"return POLICY['bridge_exits'] if risk.get('execution_profile')=='pump_postgrad_bridge' else policy",
+                    b'return policy')):
+            self.assertIn(previous,current,relative+':negative mutation target exists')
+            changes.append(current.replace(previous,successor,1))
+        # A fresh check after the shortcut would still let an already durable
+        # checkpoint acknowledge stale prefix authority, so its ordering pins.
+        anchor=b"        grad=row['graduation'];lo,hi="
+        self.assertIn(anchor,current)
+        changes.append(current.replace(SURVIVOR_INCREMENT_CONTINUITY_BLOCK,b'',1).replace(
+            anchor,SURVIVOR_INCREMENT_CONTINUITY_BLOCK+anchor,1))
+        for changed in changes:
+            self.assertNotEqual(changed,current,relative+':negative mutation changes source')
+            with self.assertRaises(AssertionError):survivor_increment_continuity_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):rally_predecessor(self,relative,changed)
+            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
+
     def test_archive_log_consistency_reverses_only_exact_zero_match_rejection(self):
         import hashlib
         relative=ARCHIVE_LOG_CONSISTENCY_SOURCE;current=(ROOT/relative).read_bytes()
