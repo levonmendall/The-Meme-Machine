@@ -17,6 +17,7 @@ import stat
 import sys
 import threading
 import time
+from .isolated_native_lifetime import NativeOwnerDrainFailure
 
 
 class IsolatedEntryBlocked(ValueError):
@@ -121,6 +122,39 @@ def _image_identity():
     return value
 
 
+def _new_resources(facts):
+    from meme_machine.runtime.isolated_native_resources import IsolatedNativeResources
+    return IsolatedNativeResources('/work/native/state',sizing_facts=facts,clock=time.time)
+
+
+def _terminal_process_exit(receipt):
+    """Fixed entry only: bounded nonblocking failure output, then owned exit.
+
+    No second graceful-drain interval is added. Kernel PID1 termination and the
+    original parent own process/transport uncertainty cleanup after this point.
+    """
+    try:
+        raw=json.dumps(receipt,sort_keys=True,separators=(',',':'),allow_nan=False).encode()+b'\n'
+        if len(raw)>65536:
+            raw=json.dumps(dict(schema='isolated-native-child-v1',status='BLOCKED',
+                financial_authority=False,normal_readiness=False,graceful_shutdown=False,
+                all_workers_joined=False,failure_code='isolated_native_shutdown_incomplete',
+                cleanup_disposition='OWNED_PROCESS_TERMINATION_REQUIRED'),separators=(',',':')).encode()+b'\n'
+        os.set_blocking(1,False)
+        deadline=time.monotonic()+.1
+        while raw and time.monotonic()<deadline:
+            try:count=os.write(1,raw)
+            except BlockingIOError:
+                select.select([], [1], [], min(.01,max(0,deadline-time.monotonic())))
+                continue
+            if count<=0:break
+            raw=raw[count:]
+    except BaseException:
+        pass
+    finally:
+        os._exit(2)
+
+
 def main():
     """Only the fixed launcher may call this with its two retained capabilities."""
     from meme_machine.runtime import stop
@@ -134,7 +168,7 @@ def main():
     receipt=dict(schema='isolated-native-child-v1',status='BLOCKED',
         financial_authority=False,normal_readiness=False,provider_workload_started=False,
         held_protection='UNEXERCISED',fills='UNEXERCISED',settlement='UNEXERCISED')
-    channel=None;reader=None;resources=None;ports=None
+    channel=None;reader=None;resources=None;ports=None;terminal=None
     try:
         _require(len(sys.argv)==1 and Path.cwd()==Path('/work/native'),
             'isolated_native_fixed_entry_required')
@@ -154,9 +188,8 @@ def main():
                 raise
             raise IsolatedEntryBlocked('isolated_native_source_executor_unavailable') from None
         facts=reader.receive()
-        from meme_machine.runtime.isolated_native_resources import IsolatedNativeResources
         from meme_machine.runtime.isolated_native_bootstrap import NativeRunnerPorts
-        resources=IsolatedNativeResources('/work/native/state',sizing_facts=facts,clock=time.time)
+        resources=_new_resources(facts)
         ports=NativeRunnerPorts(resources,channel)
         from meme_machine.runtime.isolated_native_execution import isolated_native_execution
         with isolated_native_execution(resources):
@@ -164,6 +197,13 @@ def main():
         _require(type(result) is dict and result.get('financial_authority') is False,
             'isolated_native_source_result_required')
         receipt.update(status='COMPLETED',observation=result,provider_workload_started=True)
+    except NativeOwnerDrainFailure as error:
+        terminal=error # Retain live Runner/threads until process death.
+        receipt.update(failure_code='isolated_native_shutdown_incomplete',
+            provider_workload_started=None,native_lifecycle_started=True,
+            graceful_shutdown=False,all_workers_joined=False,
+            cleanup_disposition='OWNED_PROCESS_TERMINATION_REQUIRED',
+            physical_process_cleanup='UNVERIFIED_UNTIL_PARENT_REAP',observation=error.receipt)
     except IsolatedEntryBlocked as error:
         receipt['failure_code']=str(error)
     except BaseException as error:
@@ -174,6 +214,11 @@ def main():
     finally:
         stopped.set()
         stop.requested.set()
+        if terminal is not None:
+            # Closing channel/reader/cache/SQLite here would race the owners
+            # whose failed drain triggered this handoff. Generic libraries do
+            # not exit; only this fixed descriptor/image-checked entry does.
+            _terminal_process_exit(receipt)
         closing=[owner.close for owner in (ports,resources,reader) if owner is not None]
         if channel is not None:closing.append(channel.abort)
         for close in closing:

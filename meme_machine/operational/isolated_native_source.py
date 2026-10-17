@@ -14,6 +14,7 @@ import stat
 import sys
 import threading
 import time
+from .isolated_native_lifetime import NativeOwnerDrainFailure
 
 EXECUTION_SECONDS = 900
 SOURCE_START_SECONDS = 300
@@ -67,15 +68,20 @@ def _fixed_environment(resources):
     _require(not any(name in sys.modules for name in names),
         'isolated_native_consumers_preimported')
     prior = {key: os.environ.get(key) for key in expected}
+    terminal=False
     try:
         os.environ.update(expected)
         yield
+    except NativeOwnerDrainFailure:
+        terminal=True
+        raise
     finally:
-        for key, value in prior.items():
-            if value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = value
+        if not terminal:
+            for key, value in prior.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
 
 
 class _PrivateOutput:
@@ -294,6 +300,9 @@ async def _run_lifecycle(*, resources, stopped, sizing_reader, source,
         else:
             # The outer fixed process boundary must stop an uncooperative
             # thread/worker. Never represent a live thread as graceful cleanup.
+            if failure is not None:
+                receipt['primary_failure_code']=(str(failure) if type(failure) is ContainedNativeFailure
+                    else 'isolated_native_runtime_failed')
             failure = ContainedNativeFailure('isolated_native_shutdown_incomplete')
         with lock:
             final_statuses = {key: dict(value) for key, value in statuses.items()}
@@ -305,16 +314,40 @@ async def _run_lifecycle(*, resources, stopped, sizing_reader, source,
                 else observed_at-began), observed_after_socket_seconds=(None if observed_at is None
                 else shutdown_at-observed_at), elapsed_seconds=time.monotonic()-began,
             shutdown_seconds=time.monotonic()-shutdown_at, all_workers_joined=joined,
+            source_joined=source_task.done(),graceful_shutdown=joined,
             workers=final_statuses, counters=final_counts,
             progress_samples=progress_samples,first_progress=first_progress,last_progress=last_progress,
             status='FAILED' if failure is not None else 'COMPLETED')
         if failure is not None:
             receipt['failure_code'] = (str(failure) if type(failure) is ContainedNativeFailure
                 else 'isolated_native_runtime_failed')
+        if not joined:
+            receipt['cleanup_disposition']='OWNED_PROCESS_TERMINATION_REQUIRED'
+            try:_persist(resources,receipt)
+            except BaseException:receipt['failure_receipt_persisted']=False
+            else:receipt['failure_receipt_persisted']=True
+            # This is a typed terminal handoff, not a normal library error that
+            # allows an entrypoint to close another live owner's connection.
+            raise NativeOwnerDrainFailure(receipt)
         _persist(resources, receipt)
     if failure is not None:
         raise failure
     return receipt
+
+
+def _run_owned_loop(awaitable):
+    """Keep pending source/default-executor owners intact on terminal handoff."""
+    runner=asyncio.Runner()
+    terminal=None
+    try:
+        return runner.run(awaitable)
+    except NativeOwnerDrainFailure as error:
+        terminal=error
+        error.retain(runner)
+        raise
+    finally:
+        if terminal is None:
+            runner.close()
 
 
 def run_contained(*, resources, ports, sizing_reader, stopped):
@@ -324,7 +357,7 @@ def run_contained(*, resources, ports, sizing_reader, stopped):
     from meme_machine.runtime.isolated_native_execution import isolated_native_execution
     resources = require_resources(resources)
     require_runner_ports(resources, ports)
-    ports.require_pons_profiles()
+    profiles=ports.require_pons_profiles()
     _require(type(stopped) is threading.Event and callable(getattr(sizing_reader, 'apply_next', None)),
         'isolated_native_lifecycle_capabilities')
     for lane in ('pump', 'pons'):
@@ -385,25 +418,38 @@ def run_contained(*, resources, ports, sizing_reader, stopped):
         def finish_metrics(value):
             value['private_output_bytes']=output.bytes
             value['private_progress_bytes']=progress_bytes
+            value['native_provider_optimization_profiles']=[profile.value() for profile in profiles]
+            value['unexercised']=[name for name in value.get('unexercised',[])
+                if name!='authenticated_provider_optimization_profiles']
             # Never inspect a dictionary still owned by a live source task.
             if value.get('all_workers_joined'):
                 value['source_rpc_counters']=_numeric(rpc.telemetry().get('counters', {}))
                 value['source_pipeline_counters']=_numeric(driver.pipeline_metrics)
                 value['source_drain_counters']=_numeric(driver.drain_snapshot())
             _persist(resources,value)
+        terminal=None
+        redirect=redirect_stdout(output)
+        redirect.__enter__()
         try:
-            with redirect_stdout(output):
-                result = asyncio.run(_run_lifecycle(resources=resources, stopped=stopped,
-                    sizing_reader=sizing_reader, source=source,
-                    workers=[('pump', pump_current), ('pons', pons_current)], source_path=source_path,
-                    progress=progress))
+            result = _run_owned_loop(_run_lifecycle(resources=resources, stopped=stopped,
+                sizing_reader=sizing_reader, source=source,
+                workers=[('pump', pump_current), ('pons', pons_current)], source_path=source_path,
+                progress=progress))
+        except NativeOwnerDrainFailure as error:
+            terminal=error
+            # Leave global stdout and private paths on their original contained
+            # owners until fixed PID1 exit; a live worker can still print/read.
+            error.retain(output,progress_file,redirect,resources,ports)
+            raise
         except BaseException:
             path=resources.root/'native-execution.json'
             if path.is_file() and not path.is_symlink() and path.stat().st_size<=65536:
                 finish_metrics(json.loads(path.read_bytes()))
             raise
         finally:
-            progress_file.close()
-            output.close()
+            if terminal is None:
+                redirect.__exit__(None,None,None)
+                progress_file.close()
+                output.close()
         finish_metrics(result)
         return result

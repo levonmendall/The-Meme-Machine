@@ -367,7 +367,7 @@ class NativeLifecycleTests(unittest.IsolatedAsyncioTestCase):
             try:release.wait(2)
             finally:exited.set()
         try:
-            with self.assertRaisesRegex(executor.ContainedNativeFailure,'shutdown_incomplete'):
+            with self.assertRaisesRegex(executor.NativeOwnerDrainFailure,'shutdown_incomplete'):
                 await executor._run_lifecycle(resources=self.resources,stopped=self.stopped,
                     sizing_reader=self.reader(),source=self.source,workers=[('pump',blocked)],
                     source_path=self.resources.root/'solana-evidence.sqlite',seconds=.1,
