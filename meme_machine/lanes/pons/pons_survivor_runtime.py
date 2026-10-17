@@ -19,6 +19,7 @@ from meme_machine.runtime.survivor_commit import commit,monitor,handoff_ready,sc
 from .pons_history import PonsHistory
 from .pons_attempts import Attempts, decision_category, failure_category
 from meme_machine.runtime.survivor_paper_book import PaperBook
+from meme_machine.runtime.isolated_native_bootstrap import survivor_constructor
 from meme_machine.runtime.robinhood.plane import Plane
 from meme_machine.runtime.robinhood.pons import plane_path
 from meme_machine.runtime.robinhood.provider_usage import evidence_work
@@ -140,34 +141,56 @@ class Runtime:
     # admission, range limits and position-first ordering stay authoritative.
     observation_interval_seconds=3
 
-    def __init__(self,root,capital,run_id,endpoint,*,scout_path=None,native_resources=None):
+    @survivor_constructor('pons')
+    def __init__(self,root,capital,run_id,endpoint,*,scout_path=None,native_resources=None,native_ports=None):
+        self.native_resources=None;self.native_ports=None
         if native_resources is not None:
-            from meme_machine.runtime.isolated_native_admission import unsupported_bootstrap
-            unsupported_bootstrap(native_resources)
+            from meme_machine.runtime.isolated_native_bootstrap import validate_survivor_constructor
+            self.native_resources=validate_survivor_constructor(root,capital,run_id,'pons',native_resources,native_ports)
+            self.native_ports=native_ports
+            if (endpoint is not native_ports.rpc_port('pons','survivor').source or
+                    scout_path != self.native_resources.root/'pons-candidates.sqlite'):
+                raise ValueError('isolated_native_pons_source_identity')
+        elif native_ports is not None:raise ValueError('isolated_native_resources_required')
         self.root=Path(root);self.root.mkdir(parents=True,exist_ok=True)
         self.capital=capital;self.run_id=run_id;self.endpoint=endpoint
-        self.sleeve=open_sleeve('pons',capital)
-        if self.sleeve is None:raise BoundaryError('survivor_shared_sleeve_required')
-        self.history=PonsHistory(str(self.root/'history.sqlite'),policy=POLICY_HASH)
+        if self.native_resources is None:
+            self.sleeve=open_sleeve('pons',capital)
+            if self.sleeve is None:raise BoundaryError('survivor_shared_sleeve_required')
+            self.history=PonsHistory(str(self.root/'history.sqlite'),policy=POLICY_HASH)
+        else:
+            self.sleeve=open_sleeve('pons',None,native_resources=self.native_resources)
+            self.history=self.native_resources.survivor_history('pons')
         from meme_machine.runtime.survivor_history import compact_restored_history
         compact_restored_history(self.history,lane='pons')
-        self.book=PaperBook(str(self.root/'paper.sqlite'),run_id=run_id,lane=STRATEGY_VERSION,
-                            policy_hash=POLICY_HASH,initial=capital)
-        from meme_machine.runtime.survivor_terminal_archive import compact
-        compact(self.book,self.sleeve,self.history)
-        self.plane=Plane(scout_path if scout_path is not None else plane_path(self.root/'candidate-evidence.sqlite'))
+        if self.native_resources is None:
+            self.book=PaperBook(str(self.root/'paper.sqlite'),run_id=run_id,lane=STRATEGY_VERSION,
+                                policy_hash=POLICY_HASH,initial=capital)
+            from meme_machine.runtime.survivor_terminal_archive import compact
+            compact(self.book,self.sleeve,self.history)
+            self.plane=Plane(scout_path if scout_path is not None else plane_path(self.root/'candidate-evidence.sqlite'))
+        else:
+            self.book=None
+            self.plane=self.native_resources.pons_plane()
         self.scout=None
         if scout_path is not None:
             from .pons_natural_observation import MarketScout
             self.scout=MarketScout(self.plane)
         self.attempts=Attempts(self.plane)
         self.rpc=None;self.current=None;self.last_error=None
-        # Experimental PAPER shadow only; the native monitor always decides
-        # exits using its original fresh quote before this optional observer.
-        from .held_paper_shadow import PaperHeldShadow
-        self.held_paper_shadow=PaperHeldShadow(endpoint,asynchronous=True)
+        # A flat no-allocation scope has no held observation to shadow. It must
+        # not construct a hidden URL-bearing transport or financial controller.
+        if self.native_resources is None:
+            from .held_paper_shadow import PaperHeldShadow
+            self.held_paper_shadow=PaperHeldShadow(endpoint,asynchronous=True)
+        else:
+            self.held_paper_shadow=None
+            from meme_machine.runtime.isolated_native_bootstrap import require_bookless_runtime
+            require_bookless_runtime(self,'pons')
 
-    def now(self):return int(time.time())
+    def now(self):
+        resources=getattr(self,'native_resources',None)
+        return int(resources.clock()) if resources is not None else int(time.time())
 
     def historical_preparation_step(self):
         """Explicit preparation turn on this runtime's existing history authority.
@@ -197,7 +220,8 @@ class Runtime:
 
     def _provider(self):
         if self.rpc is None or self.rpc.used>150:
-            self.rpc=configured_rpc(self.endpoint,limit=200,per_scope=200,retries=0)
+            self.rpc=(configured_rpc(self.endpoint,limit=200,per_scope=200,retries=0) if getattr(self,'native_resources',None) is None else
+                self.native_ports.pons_rpc('survivor',limit=200,per_scope=200,retries=0))
         # Session rotation preserves deployment pins, but each new transport
         # still has to establish canonical chain identity before reuse.
         if not getattr(self.rpc,'chain_verified',False):self.rpc.verify_chain()
@@ -959,10 +983,12 @@ class Runtime:
 
     @decision_work(4)
     def step(self,*,admit):
+        from meme_machine.runtime.isolated_native_bootstrap import maintain_bookless_runtime
+        bookless=maintain_bookless_runtime(self,'pons')
         errors=[]
         try:
             from meme_machine.runtime.storage import compact_survivor
-            compact_survivor(self,'pons')
+            if not bookless:compact_survivor(self,'pons')
             self._provider()
             def position_priority(row):
                 if not row.get('position'):return 3
@@ -1082,13 +1108,13 @@ class Runtime:
         # writes the separate candidate plane, never this native history.
         final_rows=self.history.rows()
         self.attempts.maintain(self.now(),protected=(r['id'] for r in final_rows))
-        return dict(strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,active=True,paper_only=True,
-                    rally_lifecycles=self.sleeve.rally_report(),
+        result=dict(strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,active=True,paper_only=True,
+                    rally_lifecycles=None if bookless else self.sleeve.rally_report(),
                     admission=dict(position_count_limit=None,capital_authority='native_shared_sleeve',
                         legacy_policy_count_is_not_enforced=True,owner_change='2026-10-09'),
                     position_safety=[r.get('position_safety',dict(at=0,evidence_current=False,
                         blocker='pons_survivor_position_not_observed')) for r in final_rows if r.get('position')],
-                    native_execution_cost=execution_cost(self.book),
+                    native_execution_cost=None if bookless else execution_cost(self.book),
                     candidate_count=len(final_rows),last_boundary=self.last_error,
                     discovery_capacity_deferred=False,
                     pending_graduations=self.history.pending_graduations(),
@@ -1096,12 +1122,17 @@ class Runtime:
                     acquisition=getattr(self,'acquisition',None),
                     historical_readiness=getattr(self,'historical_readiness',None),
                     qualification_authority='candidate_specific_authenticated_evidence',
-                    accounting=self.book.reconcile(),accounting_replay=self.book.replay(),
-                    policies=self.sleeve.identity['policies'],sleeve=self.sleeve.reconcile(),
-                    durable_handoff=handoff_ready(self.book,final_rows),
+                    accounting=None if bookless else self.book.reconcile(),
+                    accounting_replay=None if bookless else self.book.replay(),
+                    policies=self.sleeve.identity['policies'],sleeve=None if bookless else self.sleeve.reconcile(),
+                    durable_handoff=False if bookless else handoff_ready(self.book,final_rows),
                     held_paper_shadow=(getattr(self,'held_paper_shadow',None).status()
                         if getattr(self,'held_paper_shadow',None) is not None else
                         dict(enabled=False,mode='PAPER_SHADOW_ONLY')))
+        if bookless:
+            from meme_machine.runtime.isolated_native_bootstrap import bookless_report
+            result.update(bookless_report(self,'pons'))
+        return result
 
     @position_work
     @attributed_work('pons_held_protection',consumer='survivor')
@@ -1230,4 +1261,8 @@ class Runtime:
     def close(self):
         shadow=getattr(self,'held_paper_shadow',None)
         if shadow is not None:shadow.close()
-        self.book.close();self.history.close();self.sleeve.close();self.plane.close()
+        if getattr(self,'native_resources',None) is None:
+            self.book.close();self.history.close();self.sleeve.close();self.plane.close()
+        else:
+            from meme_machine.runtime.isolated_native_bootstrap import close_bookless_runtime
+            close_bookless_runtime(self,'pons')

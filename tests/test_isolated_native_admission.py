@@ -227,7 +227,7 @@ class IsolatedNativeAdmissionTests(unittest.TestCase):
             for call in (lambda:Pump(root,1,'run',None,native_resources=resources),
                 lambda:Pons(root,1,'run','offline',native_resources=resources),
                 lambda:run('offline',native_resources=resources)):
-                with self.assertRaisesRegex(ValueError,'full_bootstrap_unsupported'):call()
+                with self.assertRaisesRegex(ValueError,'full_bootstrap_unsupported|runner_ports_required'):call()
         self.assertFalse(root.exists());self.assert_no_money(resources)
 
     def test_native_store_factories_reject_links_and_foreign_files_before_open(self):

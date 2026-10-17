@@ -78,6 +78,7 @@ FILL_PERSISTENCE_CONTEXT=None
 ACCOUNTING=None
 PIPELINE=None
 CANDIDATE_HISTORY=None
+ISOLATED_CURRENT_CONTEXT=None
 _STARTUP_RESOURCES=ContextVar('pump_startup_resources',default=None)
 _STARTUP_OWNERSHIP={
     # Preserve the normal native cleanup order, including when an earlier
@@ -106,6 +107,12 @@ def _startup_lifecycle(call):
     """One owner from acquisition through normal or failed native cleanup."""
     @wraps(call)
     def owned(*args,**kwargs):
+        global ISOLATED_CURRENT_CONTEXT
+        native_resources=kwargs.get('native_resources')
+        scope=ExitStack()
+        if native_resources is not None:
+            from meme_machine.runtime.isolated_native_execution import isolated_native_execution
+            scope.enter_context(isolated_native_execution(native_resources))
         resources={};cleanup=ExitStack();cleanup.callback(_close_startup_resources,resources)
         token=_STARTUP_RESOURCES.set(resources)
         try:
@@ -117,7 +124,12 @@ def _startup_lifecycle(call):
             else:
                 cleanup.close()
                 return result
-        finally:_STARTUP_RESOURCES.reset(token)
+        finally:
+            _STARTUP_RESOURCES.reset(token)
+            if (native_resources is not None and ISOLATED_CURRENT_CONTEXT is not None
+                    and ISOLATED_CURRENT_CONTEXT.resources is native_resources):
+                ISOLATED_CURRENT_CONTEXT=None
+            scope.close()
     return owned
 
 
@@ -207,7 +219,8 @@ def _save(report):
 
 
 class Sessions:
-    def __init__(self):
+    def __init__(self,*,native_ports=None):
+        self.native_ports=native_ports
         self.pacer=None;self.history=[];self.plane=None
         # Diagnostics, not proof that unchanged concentration may be skipped.
         self.holder_probe_audit=dict(monitor_samples=0,unchanged=0,changed=0,
@@ -234,7 +247,8 @@ class Sessions:
                         'local_finalized_time_reuses',0)),
             )
             self.pacer=self.rpc.read_pacer
-        self.rpc=new_rpc(limit=240,pacer=self.pacer)
+        self.rpc=(new_rpc(limit=240,pacer=self.pacer) if self.native_ports is None else
+            self.native_ports.pump_rpc('current',limit=240,pacer=self.pacer))
         self.pump=PumpAdapter(self.rpc)
         self.reader=ConcentrationReader(self.rpc)
         self.postgrad=PostGraduationAdapter(self.rpc,scan_rpc=None)
@@ -387,11 +401,11 @@ def _late_roundtrip_loss_bps(snapshot, budget=ENTRY_BUDGET):
 
 
 
-def _capacity(snapshot, turnover, intended=None):
+def _capacity(snapshot, turnover, intended=None,*,native_resources=None):
     # Qualification tests the strategy's ordinary target. Available funding is
     # consulted only at reservation; a committed sleeve cannot erase downside
     # evidence. Fill/scaling callers pass their actual execution budget explicitly.
-    if intended is None:intended=_current_pump_sizing()["target"]
+    if intended is None:intended=_current_pump_sizing(native_resources=native_resources)["target"]
     cap=turnover_capacity(turnover,authenticated=turnover is not None)
     def loss(n):
         try:
@@ -413,7 +427,7 @@ def _capacity(snapshot, turnover, intended=None):
     return answer,telemetry
 
 
-def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
+def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book,*,native_resources=None):
     now=int(snapshot["market_time"])
     curve=pump.curve(snapshot["accounts"][0])
     trajectory=late_curve_trajectory(creation,events,curve,now)
@@ -439,7 +453,7 @@ def _late_signal(creation,events,snapshot,concentration_bps,confirmation_book):
         concentration_bps=int(concentration_bps),
         extension_bps=int(trajectory["extension_bps"]),
         authenticated_recent_turnover=flow["gross_buy"]+flow["gross_sell"],
-        immediate_roundtrip_loss_bps=_capacity(snapshot,flow["gross_buy"]+flow["gross_sell"])[0].ordinary_loss_bps,
+        immediate_roundtrip_loss_bps=_capacity(snapshot,flow["gross_buy"]+flow["gross_sell"],native_resources=native_resources)[0].ordinary_loss_bps,
         skilled_wallet_clusters=int(confirmation["skilled_wallet_clusters"]),
         creator_quality_bps=confirmation["creator_quality_bps"],
         creator_history_launches=int(confirmation["creator_history_launches"]),
@@ -700,9 +714,13 @@ def _reserve_position(
     if native_resources is not None:
         from meme_machine.runtime.isolated_native_resources import require_resources
         resources=require_resources(native_resources)
-        if ACCOUNTING is not None or PIPELINE is not None or FILL_PERSISTENCE_CONTEXT:
-            raise ValueError('isolated_native_existing_runtime_resources')
-        resources.require_history(CANDIDATE_HISTORY)
+        if ISOLATED_CURRENT_CONTEXT is None:
+            if ACCOUNTING is not None or PIPELINE is not None or FILL_PERSISTENCE_CONTEXT:
+                raise ValueError('isolated_native_existing_runtime_resources')
+            resources.require_history(CANDIDATE_HISTORY)
+        else:
+            ISOLATED_CURRENT_CONTEXT.require(resources,accounting=ACCOUNTING,pipeline=PIPELINE,
+                history=CANDIDATE_HISTORY,fill_context=FILL_PERSISTENCE_CONTEXT)
     key=(qualification.mint,mode)
     if key in pending or key in active:
         return False
@@ -1044,9 +1062,13 @@ def _record_attempt(report,signal,q,stage,extra=None,*,snapshot=None,native_reso
     if native_resources is not None:
         from meme_machine.runtime.isolated_native_resources import require_resources
         resources=require_resources(native_resources)
-        if ACCOUNTING is not None or PIPELINE is not None or FILL_PERSISTENCE_CONTEXT:
-            raise ValueError('isolated_native_existing_runtime_resources')
-        resources.require_history(CANDIDATE_HISTORY)
+        if ISOLATED_CURRENT_CONTEXT is None:
+            if ACCOUNTING is not None or PIPELINE is not None or FILL_PERSISTENCE_CONTEXT:
+                raise ValueError('isolated_native_existing_runtime_resources')
+            resources.require_history(CANDIDATE_HISTORY)
+        else:
+            ISOLATED_CURRENT_CONTEXT.require(resources,accounting=ACCOUNTING,pipeline=PIPELINE,
+                history=CANDIDATE_HISTORY,fill_context=FILL_PERSISTENCE_CONTEXT)
     plane=(FILL_PERSISTENCE_CONTEXT or {}).get('plane')
     if stage=='full_point_in_time' and plane is not None:plane.count('pump.decisions_fully_local')
     if stage=="full_point_in_time":
@@ -1460,10 +1482,16 @@ def restore_runtime(book,plane,confirmations,*,bind_allocation=True):
 
 
 @_startup_lifecycle
-def main(*,campaign=False,discovery_seconds=None):
-    global ACCOUNTING,PIPELINE,FILL_PERSISTENCE_CONTEXT,CANDIDATE_HISTORY
+def main(*,campaign=False,discovery_seconds=None,native_resources=None,native_ports=None):
+    global ACCOUNTING,PIPELINE,FILL_PERSISTENCE_CONTEXT,CANDIDATE_HISTORY,ISOLATED_CURRENT_CONTEXT
     from meme_machine.lanes.pump.paper_accounting import PaperBook
     import uuid
+    if native_resources is not None:
+        from meme_machine.runtime.isolated_native_bootstrap import PumpCurrentContext
+        if any(value is not None for value in (ACCOUNTING,PIPELINE,FILL_PERSISTENCE_CONTEXT,CANDIDATE_HISTORY,ISOLATED_CURRENT_CONTEXT)):
+            raise ValueError('isolated_native_existing_runtime_resources')
+        ISOLATED_CURRENT_CONTEXT=PumpCurrentContext(native_resources,native_ports,report_path=REPORT)
+    elif native_ports is not None:raise ValueError('isolated_native_resources_required')
     if type(campaign) is not bool:raise ValueError('pump_campaign_flag')
     from meme_machine.operational.position_continuation import continuous_operation
     continuous=campaign and continuous_operation()
@@ -1473,27 +1501,33 @@ def main(*,campaign=False,discovery_seconds=None):
     smoke_flat_tail=bool(campaign and os.environ.get('MM_OPERATIONAL_PHASE')=='smoke')
     actual_policy_hash=policy_hash()
     from meme_machine.runtime.candidate_history import open_candidate_history
-    CANDIDATE_HISTORY=_startup_work('pump.candidate_history_open',open_candidate_history)
+    CANDIDATE_HISTORY=_startup_work('pump.candidate_history_open',open_candidate_history if native_resources is None else native_resources.candidate_history)
     if actual_policy_hash!=FROZEN_POLICY_HASH:
         raise RuntimeError("frozen_policy_hash_changed")
     confirmations=_startup_work('pump.confirmation_restore',ConfirmationBook.from_files)
-    run_id=os.environ.get("MM_PAPER_EPOCH") or uuid.uuid4().hex
-    accounting_path=REPORT.with_suffix(".accounting.sqlite3")
-    if accounting_path.exists():
-        import sqlite3
-        from contextlib import closing
-        from meme_machine.runtime.status import operation
-        with operation('pump.accounting_genesis_read'):
-            with closing(sqlite3.connect(accounting_path.resolve().as_uri()+'?mode=ro',uri=True)) as prior:
-                genesis=json.loads(prior.execute('SELECT body FROM genesis').fetchone()[0])
-        if os.environ.get('MM_PAPER_EPOCH') not in (None,genesis['run_id']):
-            raise RuntimeError('paper_recovery_run_identity_mismatch')
-        run_id=genesis['run_id']
-    ACCOUNTING=_startup_work('pump.accounting_restore',PaperBook,str(accounting_path),run_id=run_id,lane=STRATEGY_ID,
-                         policy_hash=actual_policy_hash,initial=INITIAL_LAMPORTS)
-    from meme_machine.runtime.directional_sleeve import recover_pump_terminals
-    _startup_work('pump.terminal_recovery',recover_pump_terminals,ACCOUNTING)
+    if native_resources is None:
+        run_id=os.environ.get("MM_PAPER_EPOCH") or uuid.uuid4().hex
+        accounting_path=REPORT.with_suffix(".accounting.sqlite3")
+        if accounting_path.exists():
+            import sqlite3
+            from contextlib import closing
+            from meme_machine.runtime.status import operation
+            with operation('pump.accounting_genesis_read'):
+                with closing(sqlite3.connect(accounting_path.resolve().as_uri()+'?mode=ro',uri=True)) as prior:
+                    genesis=json.loads(prior.execute('SELECT body FROM genesis').fetchone()[0])
+            if os.environ.get('MM_PAPER_EPOCH') not in (None,genesis['run_id']):
+                raise RuntimeError('paper_recovery_run_identity_mismatch')
+            run_id=genesis['run_id']
+        ACCOUNTING=_startup_work('pump.accounting_restore',PaperBook,str(accounting_path),run_id=run_id,lane=STRATEGY_ID,
+                             policy_hash=actual_policy_hash,initial=INITIAL_LAMPORTS)
+        from meme_machine.runtime.directional_sleeve import recover_pump_terminals
+        _startup_work('pump.terminal_recovery',recover_pump_terminals,ACCOUNTING)
+    else:
+        run_id=native_resources.facts.value()['scope']
+        accounting_path=None
+        ACCOUNTING=None
     PIPELINE=_startup_work('pump.pipeline_open',Pipeline,REPORT.with_suffix(".pipeline.sqlite"),"pump",actual_policy_hash)
+    if native_resources is not None:ISOLATED_CURRENT_CONTEXT.pipeline=PIPELINE
     report=dict(
         kind="pump_acceleration_natural_prospective",
         strategy_id=STRATEGY_ID,policy_hash=actual_policy_hash,
@@ -1530,6 +1564,12 @@ def main(*,campaign=False,discovery_seconds=None):
         followup_seconds=FOLLOWUP_SECONDS,
         candidate_limits_are_pressure_only=True,
         open_positions_before_candidate_hydration=True)
+    if native_resources is not None:
+        report.update(financial_authority=False,accounting_path=None,
+            accounting=dict(status='UNEXERCISED'),accounting_replay=dict(status='UNEXERCISED'),
+            held_protection='UNEXERCISED',fills='UNEXERCISED',settlement='UNEXERCISED',
+            entry_budget_lamports=native_resources.basis('pump',POLICY.entry_fraction_bps)['target'],
+            native_sizing_receipt_hash=native_resources.facts.receipt_hash)
     import hashlib
     report['operational_configuration_hash']=hashlib.sha256(json.dumps(
         report['operational_configuration'],sort_keys=True,separators=(',',':')).encode()).hexdigest()
@@ -1537,7 +1577,9 @@ def main(*,campaign=False,discovery_seconds=None):
 
     from meme_machine.lanes.pump.solana_evidence_health import HealthWatch
     evidence_watch=HealthWatch(time.monotonic())
-    plane=_startup_work('pump.runtime_evidence_open',RuntimeEvidence,owner='pump')
+    plane=(_startup_work('pump.runtime_evidence_open',RuntimeEvidence,owner='pump') if native_resources is None else
+        _startup_work('pump.runtime_evidence_open',native_ports.pump_evidence,'pump'))
+    if native_resources is not None:ISOLATED_CURRENT_CONTEXT.plane=plane
     tape=LocalPumpTape(plane)
     tape.candidate_history_graduation_horizon=max(POLICY.max_postgrad_entry_age_s,600)
     broker_path=os.environ.get("MM_SOLANA_EVIDENCE_BROKER_DB",DEFAULT_BROKER_DB)
@@ -1549,19 +1591,31 @@ def main(*,campaign=False,discovery_seconds=None):
     # its duplicate logs subscription only decoded an unused observation tape.
     # Keep the service's required Pump/PumpSwap feeds and all continuity guards.
 
-    sessions=_startup_work('pump.sessions_open',Sessions);sessions.plane=plane
+    sessions=(_startup_work('pump.sessions_open',Sessions) if native_resources is None else
+        _startup_work('pump.sessions_open',Sessions,native_ports=native_ports));sessions.plane=plane
     survivor=None
     if os.environ.get('MM_DIRECTIONAL_COMPOSITE_REQUIRED')=='1':
         from meme_machine.runtime.survivor_history import Worker
         from meme_machine.lanes.pump.pumpswap_survivor_runtime import Runtime
         survivor=_startup_work('pump.survivor_worker_open',Worker,
             lambda:_startup_work('pump.survivor_runtime_restore',Runtime,
-                REPORT.parent/'pump-survivor',INITIAL_LAMPORTS,run_id,confirmations))
+                REPORT.parent/'pump-survivor' if native_resources is None else native_resources.root/'pump-survivor',
+                INITIAL_LAMPORTS if native_resources is None else None,run_id,confirmations,
+                **({} if native_resources is None else dict(native_resources=native_resources,native_ports=native_ports))),
+            **({} if native_resources is None else dict(native_resources=native_resources)))
         report['active_regimes']=[STRATEGY_ID,'pumpswap-survivor-momentum-v1']
     cursor=0;full_attempts=0
     attempt_budget=RollingAttemptBudget()
-    created,postgrad,pending,active,recovered=_startup_work('pump.current_runtime_restore',
-        restore_runtime,ACCOUNTING,plane,confirmations)
+    if native_resources is None:
+        created,postgrad,pending,active,recovered=_startup_work('pump.current_runtime_restore',
+            restore_runtime,ACCOUNTING,plane,confirmations)
+    else:
+        # No native monetary book exists; its replay is unexercised. Actual
+        # observed-candidate restoration below retains its own full history path.
+        created,postgrad,pending,active,recovered={},{},{},{},[]
+        report.update(financial_authority=False,accounting=dict(status='UNEXERCISED'),
+            accounting_replay=dict(status='UNEXERCISED'),held_protection='UNEXERCISED',
+            fills='UNEXERCISED',settlement='UNEXERCISED')
     report['restored_observed_candidates']=0 if position_only() else _startup_work(
         'pump.observed_candidates_restore',_restore_observed_pump_candidates,
         created,postgrad,pumpswap_stream,plane,confirmations,int(time.time()))
@@ -1572,11 +1626,13 @@ def main(*,campaign=False,discovery_seconds=None):
         if continuous:_startup_work('pump.survivor_recovery_submit',survivor.tick,time.time(),admit=False)
         else:_startup_work('pump.survivor_recovery_wait',survivor.prime)
     from meme_machine.runtime.status import update
-    update('MANAGING' if active or pending else 'DISCOVERING',reconciled=True,restored_positions=len(active)+len(pending))
+    update('MANAGING' if active or pending else 'DISCOVERING',reconciled=native_resources is None,restored_positions=len(active)+len(pending))
     report["qualifiers"].extend(recovered)
     FILL_PERSISTENCE_CONTEXT=dict(
         tape=tape,created=created,postgrad=postgrad,plane=plane,confirmations=confirmations
     )
+    if native_resources is not None:
+        ISOLATED_CURRENT_CONTEXT.fill_context=FILL_PERSISTENCE_CONTEXT
     last_eval={};last_postgrad_eval={};last_save=0
     discovery_end=None if continuous else int(time.time())+discovery_seconds
     end=None if continuous else discovery_end+FOLLOWUP_SECONDS
@@ -1584,6 +1640,11 @@ def main(*,campaign=False,discovery_seconds=None):
 
     try:
         while continuous or int(time.time())<end or (campaign and position_only()):
+            if native_resources is not None:
+                ISOLATED_CURRENT_CONTEXT.require(native_resources,accounting=ACCOUNTING,pipeline=PIPELINE,
+                    history=CANDIDATE_HISTORY,fill_context=FILL_PERSISTENCE_CONTEXT)
+                native_resources.facts.require_fresh('pump',int(native_resources.clock()))
+                if pending or active:raise ValueError('isolated_native_unexpected_financial_continuation')
             now=int(time.time())
             _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,now)
             _service_pending_entries(report,pending,active,sessions,postgrad,monitor=lambda: _monitor_positions(report,active,sessions,created,postgrad,tape,confirmations,int(time.time())))
@@ -1591,8 +1652,8 @@ def main(*,campaign=False,discovery_seconds=None):
             if survivor is not None:report['survivor']=survivor.tick(now,admit=not maintenance_only and (continuous or now<discovery_end))
             native=report.get('survivor') or {}
             update('MANAGING' if active or pending or (native.get('accounting') or {}).get('open_positions') else 'DISCOVERING',
-                reconciled=True,restored_positions=len(active)+len(pending),
-                native_continuation=dict(current_restored=True,
+                reconciled=native_resources is None,restored_positions=len(active)+len(pending),
+                native_continuation=dict(current_restored=native_resources is None,
                     position_safety=[row.get('position_safety',dict(at=0,evidence_current=False,
                         blocker='pump_current_position_not_observed')) for row in active.values()]+native.get('position_safety',[]),
                     survivor_replay_verified=(native.get('accounting_replay') or {}).get('verified') is True,
@@ -1741,7 +1802,7 @@ def main(*,campaign=False,discovery_seconds=None):
                         created[mint]["execution_context"]=sessions.execution_interest(snapshot)
                         ev=tape.window(mint,int(snapshot["market_time"]),max_slot=snapshot["slot"])
                         pre_signal,trajectory,confirmation=_late_signal(
-                            creation,ev,snapshot,0,confirmations)
+                            creation,ev,snapshot,0,confirmations,native_resources=native_resources)
                         _progress(mint,"decision_evidence_complete",mode=MODE_LATE_CURVE,
                                   decision_at=now,signal_at=pre_signal.observed_at)
                         preq=qualify(pre_signal)
@@ -1751,7 +1812,7 @@ def main(*,campaign=False,discovery_seconds=None):
                             _record_attempt(
                                 report,pre_signal,preq,"optimistic_preflight",
                                 {"trajectory":trajectory,
-                                 "confirmation_evidence":_confirmation_meta(confirmation)},snapshot=snapshot)
+                                 "confirmation_evidence":_confirmation_meta(confirmation)},snapshot=snapshot,native_resources=native_resources)
                             continue
                         _progress(mint,"evidence_required",mode=MODE_LATE_CURVE,
                                   decision_at=pre_signal.observed_at,
@@ -1775,18 +1836,18 @@ def main(*,campaign=False,discovery_seconds=None):
                                   remaining_evidence="concentration")
                         concentration,meta=sessions.reader.read(mint,snapshot,priority=True)
                         signal,trajectory,confirmation=_late_signal(
-                            creation,ev,snapshot,concentration,confirmations)
+                            creation,ev,snapshot,concentration,confirmations,native_resources=native_resources)
                         q=qualify(signal)
                         decision_row=_record_attempt(
                             report,signal,q,"full_point_in_time",
                             {"concentration_source":meta.get("source"),
                              "trajectory":trajectory,
-                             "confirmation_evidence":_confirmation_meta(confirmation)},snapshot=snapshot)
+                             "confirmation_evidence":_confirmation_meta(confirmation)},snapshot=snapshot,native_resources=native_resources)
                         if q.qualified:
                             _reserve_position(
                                 report,pending,active,signal,q,snapshot,
                                 MODE_LATE_CURVE,concentration,
-                                decision_id=decision_row.get('decision_id'))
+                                decision_id=decision_row.get('decision_id'),native_resources=native_resources)
                     except (Unavailable,ValueError,KeyError,TypeError) as exc:
                         _progress(mint,"terminal",str(exc),mode=MODE_LATE_CURVE)
                         report["attempts"].append(dict(
@@ -1889,13 +1950,13 @@ def main(*,campaign=False,discovery_seconds=None):
                             report,post_signal0,post_q0,"optimistic_preflight",
                             {"history_status":state["history"].status(now),
                              "concentration_scan_skipped":True,
-                             "confirmation_evidence":_confirmation_meta(post_confirmation0)},snapshot=snapshot)
+                             "confirmation_evidence":_confirmation_meta(post_confirmation0)},snapshot=snapshot,native_resources=native_resources)
                     if second_q0 is not None and not second_q0.qualified:
                         _record_attempt(
                             report,second_signal0,second_q0,"optimistic_preflight",
                             {"history_status":state["history"].status(now),
                              "concentration_scan_skipped":True,
-                             "confirmation_evidence":_confirmation_meta(second_confirmation0)},snapshot=snapshot)
+                             "confirmation_evidence":_confirmation_meta(second_confirmation0)},snapshot=snapshot,native_resources=native_resources)
 
                     if not _postgrad_concentration_required(post_q0,second_q0):
                         continue
@@ -1916,12 +1977,12 @@ def main(*,campaign=False,discovery_seconds=None):
                         decision_row=_record_attempt(
                             report,signal,q,"full_point_in_time",
                             {"history_status":state["history"].status(now),
-                             "confirmation_evidence":_confirmation_meta(confirmation)},snapshot=snapshot)
+                             "confirmation_evidence":_confirmation_meta(confirmation)},snapshot=snapshot,native_resources=native_resources)
                         if q.qualified:
                             _reserve_position(
                                 report,pending,active,signal,q,snapshot,
                                 MODE_POSTGRAD,concentration,
-                                decision_id=decision_row.get('decision_id'))
+                                decision_id=decision_row.get('decision_id'),native_resources=native_resources)
 
                     if second_q0 is not None and second_q0.qualified:
                         second,confirmation2=_volume_price_signal(
@@ -1930,12 +1991,12 @@ def main(*,campaign=False,discovery_seconds=None):
                         decision_row2=_record_attempt(
                             report,second,q2,"full_point_in_time",
                             {"history_status":state["history"].status(now),
-                             "confirmation_evidence":_confirmation_meta(confirmation2)},snapshot=snapshot)
+                             "confirmation_evidence":_confirmation_meta(confirmation2)},snapshot=snapshot,native_resources=native_resources)
                         if q2.qualified:
                             _reserve_position(
                                 report,pending,active,second,q2,snapshot,
                                 MODE_SECOND_LEG,concentration,
-                                decision_id=decision_row2.get('decision_id'))
+                                decision_id=decision_row2.get('decision_id'),native_resources=native_resources)
                 except (Unavailable,ValueError,KeyError,TypeError) as exc:
                     _progress(mint,"terminal",str(exc),mode=MODE_POSTGRAD,
                               decision_at=now,history=state["history"].status(now))
@@ -2042,8 +2103,10 @@ def main(*,campaign=False,discovery_seconds=None):
             FILL_PERSISTENCE_CONTEXT=None
             if CANDIDATE_HISTORY is not None:
                 _close_startup_resource('pump.candidate_history_open',CANDIDATE_HISTORY);CANDIDATE_HISTORY=None
-            _close_startup_resource('pump.accounting_restore',ACCOUNTING);ACCOUNTING=None
+            if ACCOUNTING is not None:_close_startup_resource('pump.accounting_restore',ACCOUNTING)
+            ACCOUNTING=None
             _close_startup_resource('pump.pipeline_open',PIPELINE);PIPELINE=None
+            ISOLATED_CURRENT_CONTEXT=None
     print(json.dumps(report,sort_keys=True))
     if report.get('infrastructure_failure'):raise Unavailable(report['infrastructure_failure'])
 

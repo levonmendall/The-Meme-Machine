@@ -8,6 +8,8 @@ their existing defaults. Kernel/source startup integration remains required.
 from pathlib import Path
 import os
 import threading
+import time
+from functools import wraps
 
 from meme_machine.operational.child_transport import ChildChannel, ChildRPCPort
 from meme_machine.runtime.isolated_native_resources import require_resources
@@ -47,13 +49,18 @@ class NativeRunnerPorts:
         with self._lock:
             if 'pump_immutable' not in self._stores:
                 from meme_machine.lanes.pump.solana_immutable_rpc import ImmutableReads
-                self._stores['pump_immutable'] = ImmutableReads(
-                    self.resources._unused_native_path('solana-immutable.sqlite'),
+                path=self.resources._unused_native_path('solana-port-broker.sqlite')
+                self._stores['pump_immutable'] = ImmutableReads(path,
                     endpoint_identity=port.source.endpoint_identity)
+                info=path.stat()
+                self._stores['pump_path_identity']=(info.st_dev,info.st_ino)
             if 'pump_broker' not in self._stores:
                 from meme_machine.lanes.pump.solana_evidence_broker import EvidenceBroker
-                self._stores['pump_broker'] = EvidenceBroker(
-                    self.resources._unused_native_path('solana-port-broker.sqlite'))
+                path=Path(self._stores['pump_immutable'].path)
+                info=path.stat()
+                if path.is_symlink() or (info.st_dev,info.st_ino)!=self._stores['pump_path_identity']:
+                    raise ValueError('isolated_native_pump_cache_owner')
+                self._stores['pump_broker'] = EvidenceBroker(path)
             reads, broker = self._stores['pump_immutable'], self._stores['pump_broker']
         if reads.endpoint != port.source.endpoint_identity:
             raise ValueError('isolated_native_pump_provider_changed')
@@ -128,6 +135,51 @@ def validate_survivor_constructor(root, capital, run_id, lane, resources, ports)
     return resources
 
 
+def survivor_constructor(lane):
+    """Close partially constructed private native owners on the same thread."""
+    def decorate(call):
+        @wraps(call)
+        def owned(runtime, *args, **kwargs):
+            if kwargs.get('native_resources') is None:
+                return call(runtime,*args,**kwargs)
+            try:
+                return call(runtime,*args,**kwargs)
+            except BaseException:
+                resources=getattr(runtime,'native_resources',None)
+                if resources is not None:
+                    from meme_machine.runtime.sqlite_failure import preserving_cleanup
+                    with preserving_cleanup():
+                        close_bookless_runtime(runtime,lane)
+                raise
+        return owned
+    return decorate
+
+
+def close_bookless_runtime(runtime, lane):
+    resources = require_resources(runtime.native_resources)
+    # These owners were created on the native executor. A failed constructor
+    # cannot leave an off-thread SQLite handle for the parent to close later.
+    history = getattr(runtime,'candidate_history',None)
+    if history is not None:
+        resources.require_history(history)
+        history.close()
+        runtime.candidate_history=None
+    history = getattr(runtime,'history',None)
+    if history is not None:
+        resources.release_survivor_history(history,lane)
+        runtime.history=None
+    sleeve = getattr(runtime,'sleeve',None)
+    if sleeve is not None:
+        resources.require_observation_state(sleeve,lane)
+        sleeve.close()
+        runtime.sleeve=None
+    if lane == 'pump':
+        plane = getattr(runtime,'plane',None)
+        if plane is not None:
+            plane.close()
+            runtime.plane=None
+
+
 def require_bookless_runtime(runtime, lane):
     """An isolated candidate restart must never become financial recovery."""
     from meme_machine.runtime.isolated_native_admission import require_survivor_resources
@@ -151,6 +203,8 @@ def maintain_bookless_runtime(runtime, lane):
     resources = require_bookless_runtime(runtime, lane)
     if resources is None:
         return False
+    if time.monotonic() < getattr(runtime,'_next_isolated_maintenance',0):
+        return True
     # This is the same actual history prefix reducer. Financial checkpoint and
     # terminal-book compaction have no scope because no book was constructed.
     from meme_machine.runtime.survivor_history import compact_restored_history
@@ -159,6 +213,7 @@ def maintain_bookless_runtime(runtime, lane):
     else:
         reduce_reset_history = None
     compact_restored_history(runtime.history, lane=lane, reducer=reduce_reset_history)
+    runtime._next_isolated_maintenance=time.monotonic()+60
     return True
 
 
