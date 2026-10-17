@@ -252,6 +252,8 @@ class RuntimeCapital(PumpPonsCapital):
         return super()._duplicate_matches(previous,current)
 
     def owner(self,r,token,pid,*,ready,at):
+        if _read_evaluation() is not None:
+            raise CapitalError('shared_read_evaluation_is_readonly')
         from .model import regime
         regime(r)
         if r not in ACTIVE_REGIMES:raise CapitalError('paused_family_capital_admission:'+r)
@@ -268,6 +270,8 @@ class RuntimeCapital(PumpPonsCapital):
             native_id=native_id,economic_keys=economic_keys,evidence=evidence,policy_hash=policy_hash,token=token),at)
 
     def drain(self,*,at):
+        if _read_evaluation() is not None:
+            raise CapitalError('shared_read_evaluation_is_readonly')
         state=self.ledger();queued=state.get('runtime_inbox',{})
         if not queued:return {'decisions':{},'order':[]}
         owners=state.get('runtime_owners',{})

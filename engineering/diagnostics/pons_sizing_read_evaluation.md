@@ -68,3 +68,27 @@ cash value `999` while the original exact-money authority returned `999.00`.
 
 Full release suites, exact-source promotion guards, AWS application deployment
 and live throughput acceptance have not been performed for this component.
+
+## Review correction
+
+The first frozen component, `4469015e50a95bfd3dc08c6304118b89581f1927`,
+refused commands and writer transactions but allowed an unchanged `owner()`
+heartbeat and an empty `drain()` to return successfully in the read-only scope.
+Neither could append events on that path. The stricter contract requires writer
+API entry to refuse before its process probe or ledger read, even for no-ops.
+Both entrypoints now check the scope before those operations.
+
+The added regression installs a genuine owner, verifies ordinary no-op behavior,
+then makes process/ledger access fail if reached inside the view. It also verifies
+unchanged no-op returns and a real changed-owner commit outside the view. The
+updated 10-case focused suite passed in 0.471s. The original inherited writer and
+other runtime mutation entrypoints have no additional successful pretransaction
+no-op return; duplicate/reducer returns remain behind the transaction guard.
+
+`shared-read-evaluation-446-noop-counterfactual.log` retains both expected failures
+when the exact predecessor methods are substituted individually into the new
+regression: owner reaches its process probe, and drain reaches its ledger read.
+The first counterfactual harness copied function globals and therefore observed
+the later ledger trap rather than its expected process trap; that harness failure
+is preserved separately in `shared-read-evaluation-446-noop-first-harness.log`.
+The corrected final run is in `shared-read-evaluation-noop-focused.log`.

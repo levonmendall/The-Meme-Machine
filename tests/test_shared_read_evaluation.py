@@ -114,6 +114,27 @@ class SharedReadEvaluationTests(unittest.TestCase):
         self.assertGreater(self.authority.db.execute('SELECT MAX(sequence) FROM shared_capital_events').fetchone(),sequence)
         self.assertTrue(self.authority.verify_replay()['conservation'])
 
+    def test_noop_owner_and_empty_drain_refuse_before_ledger_or_process_probe(self):
+        def owner(ready=True):
+            return self.cached.owner('pons_current','offline-native-owner',os.getpid(),ready=ready,at=self.now)
+        owner();before=self.snapshot()
+        sequence=self.authority.db.execute('SELECT MAX(sequence) FROM shared_capital_events').fetchone()
+        self.assertIsNone(owner())
+        self.assertEqual(self.cached.drain(at=self.now),dict(decisions={},order=[]))
+        with runtime._native_read_evaluation(self.portfolio),\
+                patch.object(self.cached,'ledger',side_effect=AssertionError('ledger touched')),\
+                patch.object(runtime,'process_identity',side_effect=AssertionError('process probed')):
+            with self.assertRaisesRegex(CapitalError,'is_readonly'):owner()
+            with self.assertRaisesRegex(CapitalError,'is_readonly'):self.cached.drain(at=self.now)
+        self.assertEqual(self.snapshot(),before)
+        self.assertEqual(self.authority.db.execute('SELECT MAX(sequence) FROM shared_capital_events').fetchone(),sequence)
+        self.assertIsNone(owner())
+        self.assertEqual(self.cached.drain(at=self.now),dict(decisions={},order=[]))
+        owner(False)
+        self.assertFalse(self.snapshot()['runtime_owners']['pons_current']['ready'])
+        self.assertGreater(self.authority.db.execute('SELECT MAX(sequence) FROM shared_capital_events').fetchone(),sequence)
+        self.assertTrue(self.authority.verify_replay()['conservation'])
+
     def test_concurrent_native_writer_advances_during_usd_without_pinning_wal_and_next_call_is_fresh(self):
         entered=threading.Event();release=threading.Event();result=[];errors=[];views=[]
         initial=self.snapshot();calls=[]
