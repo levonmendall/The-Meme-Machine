@@ -116,6 +116,25 @@ class Runtime:
 
     def _increment(self,row,at,slot):
         row=self.history.get(row['id'])
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        from meme_machine.solana_selective_history import ConsumerReader
+        reader=self.plane._selective_reader()
+        db=reader.original.db if isinstance(reader,ConsumerReader) else reader.db
+        # A durable incremental checkpoint does not seal its retained prefix
+        # against a subsequently observed gap. Recheck the exact required
+        # history without hydrating it or changing its historical observations.
+        db.execute('BEGIN')
+        try:
+            graduation=row['graduation'];lower=graduation.get('slot');upper=slot
+            if lower is None:
+                lower,_=self.plane.bounds(SWAP_SCOPE,graduation['at'],at,upper_slot=slot)
+            elif type(lower) is not int or lower<0:
+                raise EvidenceUnavailable('survivor_graduation_slot_unverified')
+            candidate=reader.candidate('pumpswap',row['graduation']['pool']) if isinstance(reader,ConsumerReader) else reader
+            scope=candidate.scope if isinstance(reader,ConsumerReader) else SWAP_SCOPE
+            if not candidate.covered(scope,lower,upper,as_of=time.time()):
+                raise EvidenceUnavailable('unresolved_evidence_gap')
+        finally:db.execute('ROLLBACK')
         checkpoint=row.get('evidence_checkpoint')
         if checkpoint and checkpoint['through']==at and checkpoint['consumed_slot']==slot:
             self._ack_history_checkpoint(row,checkpoint);return
