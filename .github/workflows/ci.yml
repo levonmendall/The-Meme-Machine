@@ -10,9 +10,9 @@ on:
   workflow_dispatch:
     inputs:
       validation:
-        description: Focused development checks or a complete frozen release suite
+        description: Focused checks, a complete frozen release suite, or failure attribution only
         type: choice
-        options: [focused, full]
+        options: [focused, full, native-attribution]
         default: focused
       suite:
         description: Complete offline release suite (finalized candidates only)
@@ -27,6 +27,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   fast:
+    # A manual diagnostic never publishes the protected fast check.
+    name: ${{ github.event_name == 'workflow_dispatch' && inputs.validation == 'native-attribution' && 'native-attribution-only' || 'fast' }}
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.suite == 'OPERATIONAL' && 90 || 45 }}
     steps:
@@ -53,7 +55,7 @@ jobs:
             -m engineering.ci.native_principals --python-location "$pythonLocation" \
             --runner-uid "$(id -u)" --runner-gid "$(id -g)"
       - name: Run focused Stage A offline regressions (not full FAST or OPERATIONAL)
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.validation != 'full' }}
+        if: ${{ (github.event_name != 'workflow_dispatch' || inputs.validation != 'full') && (github.event_name != 'workflow_dispatch' || inputs.validation != 'native-attribution') }}
         run: |
           sudo env CI=true PYTHONDONTWRITEBYTECODE=1 "$(command -v python)" - <<'PY'
           import os
@@ -158,7 +160,7 @@ jobs:
           runpy.run_module('operational.tests', run_name='__main__')
           PY
       - name: Run affected root service-diagnostic regressions
-        if: ${{ !cancelled() && steps.pinned_dependencies.outcome == 'success' && steps.trusted_native_runtime.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.validation != 'full') }}
+        if: ${{ !cancelled() && steps.pinned_dependencies.outcome == 'success' && steps.trusted_native_runtime.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.validation != 'full') && (github.event_name != 'workflow_dispatch' || inputs.validation != 'native-attribution') }}
         run: |
           # All 87 original cases stay in the root phase; two actual service
           # identity cases retain their existing systemd/account prerequisites.
@@ -184,7 +186,7 @@ jobs:
       - name: Run affected native isolation and complete copied-main regressions
         # Run this independent evidence even when Stage A fails. Its failure
         # still leaves the job failed; cancellation and missing setup stop it.
-        if: ${{ !cancelled() && steps.pinned_dependencies.outcome == 'success' && steps.trusted_native_runtime.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.validation != 'full') }}
+        if: ${{ !cancelled() && steps.pinned_dependencies.outcome == 'success' && steps.trusted_native_runtime.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.validation != 'full') && (github.event_name != 'workflow_dispatch' || inputs.validation != 'native-attribution') }}
         run: |
           # Run the original remaining 48 modules/588 cases as the real runner.
           # No CAP_SYS_RESOURCE may invalidate the hard-AS negative regression.
@@ -276,8 +278,62 @@ jobs:
           runpy.run_module('operational.tests', run_name='__main__')
           PY
       - name: Check CI execution-principal and runtime-installation contract
-        if: ${{ !cancelled() && steps.pinned_dependencies.outcome == 'success' && steps.trusted_native_runtime.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.validation != 'full') }}
+        if: ${{ !cancelled() && steps.pinned_dependencies.outcome == 'success' && steps.trusted_native_runtime.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.validation != 'full') && (github.event_name != 'workflow_dispatch' || inputs.validation != 'native-attribution') }}
         run: python -m operational.tests FAST --modules tests.test_ci_native_principals --verbose
+      - name: Attribute the two unchanged native failures only
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation == 'native-attribution' }}
+        run: |
+          python - <<'PYATTR'
+          import json
+          import os
+          from pathlib import Path
+          import resource
+          import runpy
+          import sqlite3
+          import sys
+
+          if os.geteuid() == 0 or os.getuid() != os.geteuid():
+              raise RuntimeError('ci_unprivileged_native_principal_required')
+          status = dict(line.split(':', 1) for line in Path('/proc/self/status').read_text().splitlines() if ':' in line)
+          capabilities = {}
+          for field in ('CapInh', 'CapPrm', 'CapEff', 'CapAmb'):
+              if field not in status or int(status[field].strip(), 16) != 0:
+                  raise RuntimeError('ci_native_capabilities_must_be_empty')
+              capabilities[field] = int(status[field].strip(), 16)
+          soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+          if hard < 4096:
+              raise RuntimeError('ci_replay_file_descriptors_required')
+          resource.setrlimit(resource.RLIMIT_NOFILE, (max(soft, 4096), hard))
+          cpus = sorted(os.sched_getaffinity(0))
+          if len(cpus) < 2:
+              raise RuntimeError('two_ci_cpus_required')
+          os.sched_setaffinity(0, set(cpus[:2]))
+          print('NATIVE_ATTRIBUTION_ONLY: no FAST/OPERATIONAL release or kernel/market acceptance', flush=True)
+          print('NATIVE_FOCUSED_RUNTIME: ' + json.dumps({
+              'python': sys.version.split()[0], 'sqlite': sqlite3.sqlite_version,
+              'real_uid': os.getuid(), 'effective_uid': os.geteuid(),
+              'capabilities': capabilities,
+          }, sort_keys=True), flush=True)
+          proof_modules = [
+              'tests.test_future_pump_source_guard',
+              'tests.test_native_failure_attribution',
+              'tests.test_namespace_mapping_errno',
+              'tests.test_isolated_native_entry',
+          ]
+          sys.argv = ['operational.tests', 'FAST', '--modules', *proof_modules, '--verbose']
+          try:
+              runpy.run_module('operational.tests', run_name='__main__')
+          except SystemExit as finished:
+              if finished.code not in (None, 0):
+                  raise
+          print('UNCHANGED_ORIGINAL_NATIVE_FAILURE_CASES: diagnostic outcomes remain failures when their original assertions fail', flush=True)
+          cases = [
+              'tests.test_isolated_native_launcher.DescriptorAndLifetimeTests.test_actual_fixed_image_imports_spawn_SQLite_and_graceful_TERM_cleanup',
+              'tests.test_isolated_native_kernel_validation.NativeKernelValidationTests.test_actual_fixed_copied_main_all_four_native_adapters_and_shutdown',
+          ]
+          sys.argv = ['operational.tests', 'FAST', '--cases', *cases, '--verbose']
+          runpy.run_module('operational.tests', run_name='__main__')
+          PYATTR
       - name: Run complete offline suite with the required Linux containment
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.validation == 'full' }}
         env:

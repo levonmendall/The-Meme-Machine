@@ -55,6 +55,10 @@ def _failure_details(error,stage):
         if (module is not None and type(error) is getattr(module,class_name,None)
                 and len(error.args)==1 and type(error.args[0]) is str and error.args[0] in codes):
             result['boundary_code']=error.args[0]
+    module=sys.modules.get('meme_machine.operational.isolated_native_source')
+    if module is not None:
+        origins=module.worker_failure_details(error)
+        if origins:result['worker_failures']=origins
     return result
 
 

@@ -19,10 +19,122 @@ EXECUTION_SECONDS = 900
 SOURCE_START_SECONDS = 300
 SHUTDOWN_SECONDS = 65
 MAX_OUTPUT_BYTES = 8 * 1024 * 1024
+_WORKERS = ('pump', 'pons', 'sizing')
+_ORIGIN_MODULES = frozenset((
+    'meme_machine.operational.isolated_native_source',
+    'meme_machine.operational.source_ports', 'meme_machine.operational.child_transport',
+    'meme_machine.operational.pons_native_profile',
+    'meme_machine.runtime.isolated_native_bootstrap',
+    'meme_machine.runtime.isolated_native_resources',
+    'meme_machine.runtime.isolated_native_execution',
+    'meme_machine.runtime.isolated_native_executor',
+    'meme_machine.runtime.isolated_native_spawn',
+    'meme_machine.runtime.isolated_pons_current',
+    'meme_machine.runtime.candidate_history', 'meme_machine.runtime.survivor_history',
+    'meme_machine.runtime.evidence_worker', 'meme_machine.runtime.provider_clock',
+    'meme_machine.runtime.usd_valuation', 'meme_machine.runtime.robinhood.plane',
+    'meme_machine.runtime.robinhood.pons',
+    'meme_machine.lanes.pons.pons_selective_cohort',
+    'meme_machine.lanes.pons.pons_selective_acquisition',
+    'meme_machine.lanes.pons.pons_selective_ledger',
+    'meme_machine.lanes.pons.pons_selective_v4',
+    'meme_machine.lanes.pons.pons_survivor_runtime',
+    'meme_machine.lanes.pons.provider', 'meme_machine.lanes.pons.provider_admission',
+    'meme_machine.lanes.pons.immutable_rpc', 'meme_machine.lanes.pons.sequencer_feed',
+    'meme_machine.lanes.pump.runner', 'meme_machine.lanes.pump.pumpswap_survivor_runtime',
+    'meme_machine.lanes.pump.solana_evidence_runtime',
+    'meme_machine.lanes.pump.solana_evidence_plane',
+    'meme_machine.solana_evidence_service', 'meme_machine.solana_selective_source'))
+_BUILTIN_ERRORS = (BaseException, Exception, AssertionError, ValueError, TypeError,
+    RuntimeError, OSError, PermissionError, FileNotFoundError, TimeoutError,
+    ConnectionError, ConnectionResetError, ConnectionAbortedError, BrokenPipeError,
+    EOFError, MemoryError, KeyError, IndexError, AttributeError, NotImplementedError)
+_NATIVE_ERRORS = (
+    ('meme_machine.lanes.pons', 'BoundaryError'),
+    ('meme_machine.lanes.pons.sequencer_feed', 'SequencerTransportError'),
+    ('meme_machine.lanes.pump.solana_evidence_plane', 'EvidenceUnavailable'),
+    ('meme_machine.operational.child_transport', 'ChildTransportFailure'),
+    ('meme_machine.operational.pons_native_profile', 'ProfileFailure'),
+    ('meme_machine.runtime.isolated_native_execution', 'IsolatedFinancialWriteDenied'),
+    ('meme_machine.runtime.isolated_native_executor', 'NativeExecutorCapacityError'),
+    ('meme_machine.runtime.isolated_native_spawn', 'NativeSpawnRefused'),
+    ('meme_machine.runtime.candidate_history', 'CandidateDeadlineMissed'),
+    ('meme_machine.runtime.evidence_worker', 'DeliveredRPCError'),
+    ('meme_machine.runtime.provider_clock', 'ProviderClockError'),
+    ('meme_machine.runtime.usd_valuation', 'ValuationUnavailable'),
+    ('sqlite3', 'OperationalError'), ('sqlite3', 'IntegrityError'),
+    ('sqlite3', 'DatabaseError'), ('sqlite3', 'ProgrammingError'))
+_ORIGIN_BOUNDARIES = frozenset((
+    'selective_tape_warmup_incomplete', 'selective_shutdown_drain_timeout',
+    'selective_discovery_range_identity', 'selective_discovery_log_shape',
+    'selective_discovery_log_range_identity', 'selective_discovery_recovery_watermark',
+    'selective_sequencer_start_timeout', 'selective_sequencer_timestamp_missing',
+    'pons_startup_range_incomplete', 'pons_startup_reorg', 'pons_startup_header_identity',
+    'pons_startup_boundary_incomplete', 'pons_startup_log_identity', 'pons_startup_log_conflict',
+    'native_USD_value_missing_or_stale', 'isolated_native_observation_closed',
+    'isolated_native_pons_current_already_owned', 'isolated_native_pons_current_paths',
+    'isolated_native_pons_current_configuration', 'isolated_native_pons_current_source',
+    'isolated_native_pons_current_owner', 'isolated_native_pons_current_foreign_state',
+    'isolated_native_unexpected_financial_continuation'))
 
 
 class ContainedNativeFailure(ValueError):
     """Only fixed local classifications cross the entrypoint boundary."""
+
+
+def _worker_failure_origin(worker, error):
+    """Bounded original worker classification, never exception or packet text."""
+    kind = type(error)
+    name = next((item.__name__ for item in _BUILTIN_ERRORS if kind is item), 'UNKNOWN')
+    for module_name, class_name in _NATIVE_ERRORS:
+        module = sys.modules.get(module_name)
+        if module is not None and kind is getattr(module, class_name, None):
+            name = class_name
+            break
+    result = dict(worker=worker, error_type=name, source_module=None, source_line=None,
+        trace_complete=True)
+    trace = BaseException.__traceback__.__get__(error, kind)
+    frames = 0
+    while trace is not None and frames < 64:
+        module = trace.tb_frame.f_globals.get('__name__')
+        if (type(module) is str and module in _ORIGIN_MODULES
+                and trace.tb_frame.f_code.co_name != '_require'
+                and 0 < trace.tb_lineno < 10000):
+            result.update(source_module=module, source_line=trace.tb_lineno)
+        trace = trace.tb_next
+        frames += 1
+    result['trace_complete'] = trace is None
+    # A hostile/custom property is not permitted to replace the original error.
+    try:number = getattr(error, 'errno', None)
+    except BaseException:number = None
+    if type(number) is int and 0 < number < 4096:result['error_number'] = number
+    args = BaseException.args.__get__(error, kind)
+    if (len(args) == 1 and type(args[0]) is str and len(args[0]) <= 100
+            and args[0] in _ORIGIN_BOUNDARIES):
+        result['boundary_code'] = args[0]
+    return result
+
+
+def worker_failure_details(error):
+    """Project only this lifecycle's fixed bounded origin carrier at entry."""
+    if type(error) is not ContainedNativeFailure:return []
+    rows = getattr(error, '_worker_failures', ())
+    if type(rows) is not tuple or len(rows) > len(_WORKERS):return []
+    result = [];seen = set()
+    types = {item.__name__ for item in _BUILTIN_ERRORS} | {name for _, name in _NATIVE_ERRORS} | {'UNKNOWN'}
+    required = {'worker', 'error_type', 'source_module', 'source_line', 'trace_complete'}
+    for row in rows:
+        if type(row) is not dict or not required <= row.keys() <= required | {'error_number', 'boundary_code'}:return []
+        worker = row['worker'];module = row['source_module'];line = row['source_line']
+        if type(worker) is not str or worker not in _WORKERS or worker in seen:return []
+        if type(row['error_type']) is not str or row['error_type'] not in types:return []
+        if not ((module is None and line is None) or (type(module) is str and module in _ORIGIN_MODULES
+                and type(line) is int and 0 < line < 10000)):return []
+        if type(row['trace_complete']) is not bool:return []
+        if 'error_number' in row and not (type(row['error_number']) is int and 0 < row['error_number'] < 4096):return []
+        if 'boundary_code' in row and not (type(row['boundary_code']) is str and row['boundary_code'] in _ORIGIN_BOUNDARIES):return []
+        seen.add(worker);result.append(dict(row))
+    return result
 
 
 def _require(value, code):
@@ -169,6 +281,7 @@ async def _run_lifecycle(*, resources, stopped, sizing_reader, source,
     deadline = began + seconds
     source_stop = asyncio.Event()
     errors = []
+    worker_failures = {}
     statuses = {}
     threads = []
     counts = dict(sizing_refreshes=0)
@@ -187,10 +300,12 @@ async def _run_lifecycle(*, resources, stopped, sizing_reader, source,
             else:
                 with lock:
                     statuses[name]['cancelled'] = True
-        except BaseException:
+        except BaseException as error:
             # Do not carry arbitrary provider content through exception text.
+            origin = _worker_failure_origin(name, error)
             with lock:
                 errors.append('isolated_native_'+name+'_failed')
+                worker_failures[name] = origin
         finally:
             with lock:
                 statuses[name]['completed'] = True
@@ -324,6 +439,7 @@ async def _run_lifecycle(*, resources, stopped, sizing_reader, source,
         with lock:
             final_statuses = {key: dict(value) for key, value in statuses.items()}
             final_counts = dict(counts)
+            origins = tuple(dict(worker_failures[name]) for name in _WORKERS if name in worker_failures)
             if errors and failure is None:
                 failure = ContainedNativeFailure(errors[0])
         receipt.update(full_window_completed=completed_window,
@@ -335,6 +451,9 @@ async def _run_lifecycle(*, resources, stopped, sizing_reader, source,
             workers=final_statuses, counters=final_counts,
             progress_samples=progress_samples,first_progress=first_progress,last_progress=last_progress,
             status='FAILED' if failure is not None else 'COMPLETED')
+        if origins:
+            receipt['worker_failures'] = list(origins)
+            if type(failure) is ContainedNativeFailure:failure._worker_failures = origins
         if failure is not None:
             receipt['failure_code'] = (str(failure) if type(failure) is ContainedNativeFailure
                 else 'isolated_native_runtime_failed')
