@@ -375,11 +375,27 @@ class Supervisor:
         # with the evidence worker, which starts before the lane process.
         (self.root/'pump').mkdir(exist_ok=True,mode=0o700)
         env=self.environment('solana')
-        self.evidence=subprocess.Popen([sys.executable,'-m','meme_machine.runtime.evidence_worker'],cwd=self.root,env=env,start_new_session=True)
+        command=[sys.executable,'-m','meme_machine.runtime.evidence_worker']
+        deadline=None
+        context=getattr(self,'normal_boot',None)
+        channel=None
+        try:
+            pass_fds=()
+            if context is not None:
+                from .normal_source_boot import SourceLaunch
+                deadline=time.monotonic()+15
+                channel=SourceLaunch(context);pass_fds=(channel.child_fd,)
+                command+=['--normal-boot-channel',str(channel.child_fd)]
+            options=dict(cwd=self.root,env=env,start_new_session=True)
+            if pass_fds:options['pass_fds']=pass_fds
+            self.evidence=subprocess.Popen(command,**options)
+            if channel is not None:self.source_boot_generation=channel.bind(self.evidence,deadline=deadline)
+        finally:
+            if channel is not None:channel.close()
         ticks=self._source_start_ticks(self.evidence.pid)
         if ticks is None:raise RuntimeError('source_process_identity_unavailable')
         self.evidence._mm_source_start_ticks=ticks
-        deadline=time.monotonic()+15
+        if deadline is None:deadline=time.monotonic()+15
         while not Path(env['MM_SOLANA_EVIDENCE_PLANE_DB']+'.sock').exists():
             if self.evidence.poll() is not None:raise RuntimeError('shared_evidence_failed')
             if time.monotonic()>=deadline:raise RuntimeError('shared_evidence_start_timeout')
@@ -645,6 +661,11 @@ class Supervisor:
         try:
             health,portfolio,rss=observe(self.root,funding_lanes=funding_lanes(budget.envelope))
             readiness(health,portfolio,rss,budget.envelope)
+            if getattr(self,'normal_boot',None) is not None:
+                # Boot/source provenance is not completion of the finite native
+                # Current+Survivor work population. Until its genuine composite
+                # witness is wired, no positive readiness can be published.
+                raise ValueError('normal_boot_economic_generation_witness_missing')
             failure=getattr(self,'current_readiness_failure',None)
             if failure:raise ValueError(failure)
             frontiers={}

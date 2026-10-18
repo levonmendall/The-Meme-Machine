@@ -263,6 +263,9 @@ def consume_normal_boot(supervisor,*,cancelled):
             source,census=_source_inputs(reads.databases[root/'shared/solana-evidence.sqlite'])
             require(source==certificate['source_inputs'] and census['pending_handlers']==
                 certificate['unknown_historical_handlers'],'retained_source_inputs')
+            from .normal_source_boot import validate_prewrite_generation
+            validate_prewrite_generation(reads.databases[root/'shared/solana-evidence.sqlite'],
+                root=root,source_inputs=source,unknown_historical_handlers=certificate['unknown_historical_handlers'])
             from .current_provider_history import current_provider_book
             provider=current_provider_book(reads.databases[root/'shared/provider-usage.continuous.sqlite'],state,
                 profile=profile,configured_path=os.environ.get('MM_PROVIDER_USAGE_DB'),
