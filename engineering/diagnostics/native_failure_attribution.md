@@ -272,3 +272,13 @@ Pons Current modules passed in21.466s without skips. The two original copied-mai
 and namespace test methods/assertions remain unchanged. A changed-source targeted
 hosted result is still required; none of this is kernel, financial, release or
 full-market acceptance.
+
+The ownership-corrected complete source proof binds runtime
+`68633dcd68df96ad3de59458cfcf46a774e9a5cc`, tree
+`ea0893fc4d17972437efb18acdc0a8977ed2062d`. Only the exact child/parent helper
+records change; all43 inverse records,33 other helpers, three unchanged pins,
+old guards and seven caller/API proofs remain identical. The exact source-proof
+and full attribution module passed47 cases in25.721s without skips after the
+202-case functional result. Independent code/full-byte review cleared this
+precise bounded scope. Hosted copied-main behavior remains pending; the prior
+39089567223 failure and causal clocks remain preserved as evidence.
