@@ -8,6 +8,7 @@ FAST=[
  'tests.test_native_work_cohort',
  'tests.test_pump_current_work',
  'tests.test_pump_current_input_prefix',
+ 'tests.test_pump_current_input_native',
  'tests.test_normal_boot_support',
  'tests.test_normal_pump_boot',
  'tests.test_normal_pump_owner_caller',

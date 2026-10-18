@@ -2,9 +2,12 @@
 import unittest
 import sqlite3
 import threading
+from copy import deepcopy
+import json
 
 from meme_machine.runtime.pump_current_input_prefix import (
     CurrentInputPrefixes, InheritedKeyCensus, SCOPES, advance, empty_prefix,
+    project_input_context,
 )
 
 
@@ -248,4 +251,67 @@ class InheritedKeyCensusTests(unittest.TestCase):
         schema=InheritedKeyCensus(rows[0][0],100,clock=lambda:0)
         self.assertIsNone(self.capture(schema,db))
         self.assertEqual(schema.snapshot()['state'],'UNKNOWN')
+
+
+class InputProjectionTests(unittest.TestCase):
+    def complete(self):
+        # A public shape fixture is not a private support issuer or a runtime
+        # success witness. Exercise the exact pure reducers to build its fields.
+        db=sqlite3.connect(':memory:',isolation_level=None);self.addCleanup(db.close)
+        db.executescript('CREATE TABLE candidate_outbox(sequence,identity,scope,slot,first_seen);'
+            'CREATE INDEX candidate_outbox_scope ON candidate_outbox(scope,sequence);')
+        key=InheritedKeyCensus(None,100,clock=lambda:0)
+        db.execute('BEGIN')
+        try:ticket=key.capture(db,validate=lambda:True,cancelled=lambda:False)
+        finally:db.execute('ROLLBACK')
+        key.committed(ticket)
+        meter=CurrentInputPrefixes('c'*64,None,'a'*64,'b'*32)
+        capture=meter.capture(0,[],publication(empty_prefix(),[]),as_of=100)
+        meter.census_sealed(key.prefix);meter.committed(capture)
+        return dict(schema='pump-current-input-context-v1',state='OBSERVED',
+            support_identity_sha256='c'*64,private_owner_sha256='d'*64,
+            key_census=key.snapshot(),retained_prefix=meter.snapshot())
+
+    def test_projection_requires_real_eof_and_exact_retained_census_and_drops_private_content(self):
+        value=self.complete();value['private_provider']='never export'
+        view=project_input_context(value)
+        self.assertEqual(view['state'],'OBSERVED');self.assertEqual(project_input_context(view),view)
+        self.assertNotIn('never export',json.dumps(view));self.assertLessEqual(len(json.dumps(view).encode()),4096)
+        for kind in ('lookahead','pending','different_count','different_hash','source_mismatch'):
+            with self.subTest(kind=kind):
+                bad=deepcopy(value)
+                if kind=='lookahead':bad['key_census']['state']='INCOMPLETE'
+                elif kind=='pending':bad['key_census']['capture_pending']=True
+                elif kind=='different_count':bad['retained_prefix']['inherited_expected']=census([row(1)])
+                elif kind=='different_hash':bad['retained_prefix']['inherited_expected']['prefix_sha256']='f'*64
+                else:bad['retained_prefix']['source_expected']=census([row(1)])
+                self.assertEqual(project_input_context(bad)['state'],'UNKNOWN')
+
+    def test_original_current_envelope_retains_dense_cumulative_stage_counts_and_prefix(self):
+        from meme_machine.runtime.native_work_cohort import NativeWorkCohorts
+        from meme_machine.runtime.pump_current_work import PumpCurrentWork,project_current_work
+        from meme_machine.runtime.economic_cohort import checksum
+        value=PumpCurrentWork('/tmp/measurement-shape-only.sqlite','shape-epoch','a'*64).snapshot()
+        for field,stage in (('discovery','DISCOVERY_INPUT'),('evaluation','NATIVE_EVALUATION')):
+            meter=NativeWorkCohorts(dict(owner_pid=123,regime=field),stage)
+            for number in range(24):
+                cid=checksum([field,number]);pairs=((checksum(['key',number]),checksum('input')),)
+                meter.begin(cid,checksum(['frontier',number]));meter.expect(cid,pairs)
+                meter.seal_expected(cid,1,checksum(pairs),checksum(['traversal',number]))
+                if number<16:
+                    status='POLICY_FILTERED' if stage=='DISCOVERY_INPUT' else 'DECISION_COMMITTED'
+                    receipt=None if stage=='DISCOVERY_INPUT' else checksum(['receipt',number])
+                else:status,receipt='MISSING_HISTORY',None
+                meter.observe(cid,((*pairs[0],status,receipt,None),))
+            value[field]=meter.snapshot()
+        value['native_input_prefix']=self.complete()
+        view=project_current_work(value)
+        self.assertEqual(view['native_input_prefix']['state'],'OBSERVED')
+        for field in ('discovery','evaluation'):
+            self.assertEqual(view[field]['completed_cohorts'],16)
+            self.assertEqual(view[field]['active_cohorts'],8)
+            self.assertEqual(view[field]['pending_units'],8)
+            self.assertEqual(view[field]['cumulative_summary_sha256'],value[field]['cumulative_summary_sha256'])
+        self.assertLessEqual(len(json.dumps(view).encode()),16384)
+        self.assertEqual(project_current_work(view),view)
 
