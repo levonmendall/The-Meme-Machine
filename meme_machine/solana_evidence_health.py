@@ -1,5 +1,6 @@
 """Live admission health; historical readers retain point-in-time replay semantics."""
 import json
+import os
 import sqlite3
 from pathlib import Path
 from meme_machine.runtime.sqlite_files import transient_file_size
@@ -21,9 +22,17 @@ def coverage_end_hint(db):
 
 
 def evidence_health(reader,scope,now):
-    def result(state,reason,**extra):return dict(state=state,usable=state=='USABLE',reason=reason,scope=scope,observed_at=now,**extra)
+    requested=os.environ.get('MM_ECONOMIC_COHORT_DIAGNOSTICS')=='1'
+    source_generation=None
+    def result(state,reason,**extra):
+        value=dict(state=state,usable=state=='USABLE',reason=reason,scope=scope,observed_at=now,**extra)
+        if requested:value['native_source_generation']=source_generation
+        return value
     try:
         health={k:json.loads(v) for k,v in reader.db.execute('SELECT * FROM service_health')}
+        if requested:
+            from .runtime.pump_current_work import source_generation_projection
+            source_generation=source_generation_projection(health.get('source_drain_current_generation'))
         phase=health.get('phase','WARMING')
         if reader.db.execute("SELECT 1 FROM meta WHERE key='poisoned'").fetchone():return result('FAILED','evidence_store_poisoned')
         if phase in ('OFF','FAILED'):return result('FAILED','evidence_service_unavailable')
