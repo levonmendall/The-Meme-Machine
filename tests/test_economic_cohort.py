@@ -120,3 +120,49 @@ class EconomicCohortTests(unittest.TestCase):
         self.assertEqual(meter.snapshot()['completed_cohorts'],0)
         meter.committed('empty',(),(),fanout_complete=())
         self.assertEqual(meter.snapshot()['completed_cohorts'],1)
+
+    def test_complete_source_census_cannot_expand_while_waiting_for_commit_or_ack(self):
+        for delayed in ('commit','ack'):
+            with self.subTest(delayed=delayed):
+                meter=self.meter();meter.open('window',('scope',))
+                row=('scope','one',checksum('first'),10,NOW);meter.arrivals('window',(row,))
+                obligations=(('outbox',*row[:2],checksum('source'),'consumer'),)
+                if delayed=='ack':
+                    meter.committed('window',((*row,True),),obligations,fanout_complete=fanout((row,),obligations))
+                meter.seal('window',10,11,checksum('native-proof'),complete=True,
+                    expected_economics=(1,checksum([row[:4]])))
+                meter.arrivals('window',(('scope','two',checksum('second'),11,NOW),))
+                meter.acknowledged((('outbox',checksum('source')),))
+                self.assertEqual(meter.snapshot()['state'],'UNKNOWN')
+                self.assertEqual(meter.snapshot()['completed_cohorts'],0)
+        meter=self.meter();meter.open('window',('scope',));meter.arrivals('window',(row,))
+        meter.seal('window',10,10,checksum('native-proof'),complete=True,
+            expected_economics=(1,checksum([row[:4]])))
+        meter.arrivals('window',(row,)) # Exact duplicate remains idempotent.
+        meter.committed('window',((*row,True),),(),fanout_complete=fanout((row,),()))
+        self.assertEqual(meter.snapshot()['completed_cohorts'],1)
+
+    def test_metadata_covers_two_full_original_native_batches_and_finite_fanout(self):
+        from meme_machine.runtime.economic_cohort import MAX_IDENTITIES,MAX_OBLIGATIONS
+        meter=self.meter()
+        for batch in range(2):
+            cohort='batch-'+str(batch);meter.open(cohort,('program:pump',))
+            for offset in range(0,8*2048,2048):
+                rows=[];obligations=[];proof=[]
+                for n in range(offset,offset+2048):
+                    identity=checksum(['identity',batch,n]);scope='program:pump'
+                    row=(scope,identity,checksum(['body',batch,n]),100+batch*8+n//2048,NOW)
+                    rows.append(row);ids=(checksum(['first',identity]),checksum(['second',identity]))
+                    obligations.extend((key,scope,identity,checksum(['source',key]),'candidate:'+str(i))
+                        for i,key in enumerate(ids))
+                    witness=hashlib.sha256(b''.join(len(k.encode()).to_bytes(4,'big')+k.encode() for k in ids)).hexdigest()
+                    proof.append((scope,identity,2,witness))
+                meter.arrivals(cohort,rows)
+                meter.committed(cohort,[(*r,True) for r in rows],obligations,fanout_complete=proof)
+        result=meter.snapshot();self.assertIsNone(result['reason'])
+        self.assertEqual(result['active_identities'],MAX_IDENTITIES)
+        self.assertEqual(result['active_fanout'],MAX_OBLIGATIONS)
+        meter.open('overflow',('program:pump',))
+        meter.arrivals('overflow',(('program:pump','extra',checksum('extra'),200,NOW),))
+        self.assertEqual(meter.snapshot()['reason'],'BOUND')
+        self.assertEqual(meter.snapshot()['active_identities'],MAX_IDENTITIES)

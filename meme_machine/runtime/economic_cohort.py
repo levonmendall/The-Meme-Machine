@@ -12,9 +12,11 @@ import threading
 import time
 
 MAX_ACTIVE=8
-MAX_IDENTITIES=8192
-MAX_OBLIGATIONS=16384
-MAX_BYTES=4*1024*1024
+# One full original 8x2048-record batch plus the next such batch that supplies
+# its linked child. Diagnostic overflow never changes these native work bounds.
+MAX_IDENTITIES=2*8*2048
+MAX_OBLIGATIONS=2*MAX_IDENTITIES
+MAX_BYTES=32*1024*1024
 MAX_SUMMARIES=16
 MAX_COHORTS=8192
 MAX_POSITION=2**63-1
@@ -96,7 +98,7 @@ class EconomicCohorts:
             if len(self.active)>=MAX_ACTIVE:self.unavailable('BOUND');return
             self.cohort_ids.add(stamp);self.bytes+=96+scope_bytes
             self.active[identity]=dict(scopes=scopes,arrivals={},committed={},fanout={},
-                first=self.clock(),last=None,closure=None)
+                first=self.clock(),last=None,closure=None,expected=None)
         self._run(apply)
 
     def arrivals(self,cohort_id,rows):
@@ -108,6 +110,7 @@ class EconomicCohorts:
                 if prior is not None:
                     if prior[:4]!=row[:4]:raise ValueError('conflict')
                     continue
+                if cohort['closure'] is not None and cohort['closure'][3]:raise ValueError('sealed_membership')
                 size=sum(len(v.encode()) for v in row[:3])+32
                 if self.identities>=MAX_IDENTITIES or self.bytes+size>MAX_BYTES:
                     self.unavailable('BOUND');return
@@ -167,6 +170,7 @@ class EconomicCohorts:
             if type(obligations) not in (list,tuple) or len(obligations)>64:raise ValueError('bound')
             changed=set()
             for identity,source_hash in obligations:
+                _text(identity)
                 row=self.obligations.get(identity)
                 if row is None:continue # Unmeasured preexisting/candidate cohort.
                 if row['value'][3]!=_hash(source_hash):raise ValueError('ack_conflict')
@@ -182,7 +186,7 @@ class EconomicCohorts:
                 raise ValueError('shape')
             cohort=self.active[cohort_id]
             if any(not lower<=row[3]<=upper for row in cohort['arrivals'].values()):raise ValueError('interval')
-            if self.lane=='pump' and complete:
+            if complete:
                 if type(expected_economics) not in (tuple,list) or len(expected_economics)!=2:
                     raise ValueError('decoder_census')
                 count,digest=expected_economics
@@ -190,6 +194,7 @@ class EconomicCohorts:
                 if (count,_hash(digest))!=(len(cohort['arrivals']),
                         checksum(sorted(row[:4] for row in cohort['arrivals'].values()))):
                     raise ValueError('decoder_census_mismatch')
+                cohort['expected']=(count,digest)
             closure=(lower,upper,_hash(source_digest),complete)
             if cohort['closure'] is not None and cohort['closure']!=closure:raise ValueError('closure_conflict')
             cohort['closure']=closure;self._finish(cohort_id)
@@ -203,6 +208,8 @@ class EconomicCohorts:
         if self.lane!='pump':return
         if (closure is None or not closure[3] or cohort['last'] is None
                 or set(cohort['arrivals'])!=set(cohort['committed'])):return
+        if cohort['expected']!=(len(cohort['arrivals']),checksum(sorted(r[:4] for r in cohort['arrivals'].values()))):
+            raise ValueError('sealed_membership')
         fanout=set().union(*cohort['fanout'].values()) if cohort['fanout'] else set()
         if any(not self.obligations[key]['acked'] for key in fanout):return
         arrival_digest=checksum(sorted(row[:4] for row in cohort['arrivals'].values()))
@@ -237,6 +244,8 @@ class EconomicCohorts:
                 delivery_contract=('SOLANA_CONSUMER_FULL_COMMIT_AND_SOURCE_ACK' if self.lane=='pump'
                     else 'PONS_CONSUMER_COMPLETION_UNESTABLISHED'),
                 classification_contract='NATIVE_CANONICAL_INSERT_NOT_GLOBAL_FIRST_ARRIVAL',
+                processing_stage=('SOURCE_CANONICAL_AND_HISTORY_DELIVERY_NOT_STRATEGY_OR_PROOF_PUBLICATION'
+                    if self.lane=='pump' else 'NATIVE_HISTORY_PUBLICATION_NOT_CONFIGURED_CONSUMER_COMPLETION'),
                 active_cohorts=len(self.active),active_identities=self.identities,
                 active_fanout=len(self.obligations),pending_full_ack=(sum(not r['acked'] for r in self.obligations.values())
                     if self.lane=='pump' else None),
