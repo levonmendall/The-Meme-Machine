@@ -138,6 +138,7 @@ FAST=[
  'tests.test_pons_historical',
  'tests.test_provider_efficiency',
  'tests.test_pump_pons_consolidation','tests.test_pump_pons_capital_preparation',
+ 'tests.test_held_financial_prefix',
  'tests.test_shared_capital', 'tests.test_shared_capital_concurrency',
  'tests.test_shared_capital_recovery', 'tests.test_shared_capital_migration',
  'tests.test_shared_capital_strategy', 'tests.test_shared_capital_performance',
