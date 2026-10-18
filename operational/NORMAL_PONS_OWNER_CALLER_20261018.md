@@ -13,7 +13,8 @@ environment readiness flags. No-capability launches retain the original CLI,
 environment and subprocess path.
 
 The actual lane entry consumes the Pons-only channel before its lock/provider/
-native startup. It rechecks the private context, original root acceptance
+native startup. It requires the CLI state root to equal the accepted context's
+root before opening the lane lock. It rechecks the private context, original root acceptance
 window and local stop immediately before provider install or native writers.
 The process-private context is available to native consumers through the
 helper's exact current_pons_owner_context API. It closes on normal return or
@@ -34,6 +35,10 @@ Verification with the original offline driver:
   `normal-pons-owner-caller-native-startup-focused.log`.
 - Original stale-predecessor child health and funding-closed OBS admission cases
   pass in 0.174 seconds, `normal-pons-owner-caller-adjacent-focused.log`.
+- After the independent CLI-root finding, all seven helper and six caller cases
+  pass in 7.656 seconds, `normal-pons-owner-cli-root-focused.log`. The new case
+  retains the foreign root's original contents, verifies no lane lock appears,
+  and traps both provider and native constructors before entry.
 
 Caller mocks test ordering and ownership only; they are not issuer capabilities.
 The failed-handoff subprocess and original group stop/reap are real. Helper

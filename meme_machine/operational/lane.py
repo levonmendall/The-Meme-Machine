@@ -291,6 +291,7 @@ def main():
             require(args.lane=='pons' and not args.offline,'pons_owner_entry_lane')
             from .normal_pons_boot import accept_pons_owner_launch
             context=accept_pons_owner_launch(args.normal_owner_channel)
+            require(Path(args.state_root)==Path(context.identity()['root']),'pons_owner_entry_root')
         lock=(Path(args.state_root)/args.lane/'lane.lock').open('a')
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         if args.offline:run_offline(args.state_root,args.lane,stop)
