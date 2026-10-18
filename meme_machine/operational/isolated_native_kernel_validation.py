@@ -270,12 +270,16 @@ async def _exercise(scope,approval,*,launcher=_REAL_LAUNCH,seconds=WINDOW_SECOND
         stage='kernel_launch'
         owner=launcher(scope,approval,child_socket,facts_read)
         child_socket.close();child_socket=None;os.close(facts_read);facts_read=None
-        stage='native_window';deadline=time.monotonic()+seconds
+        stage='native_window';window_started=time.monotonic();deadline=window_started+seconds
+        termination_reason='WINDOW_ELAPSED'
         while time.monotonic()<deadline:
             if sizing.done():sizing.result();raise RuntimeError('kernel_validation_sizing_ended')
-            if serving.done():serving.result();break
-            if os.waitid(os.P_PID,owner.child.pid,os.WEXITED|os.WNOHANG|os.WNOWAIT) is not None:break
+            if serving.done():
+                serving.result();termination_reason='CONTROL_ENDED';break
+            if os.waitid(os.P_PID,owner.child.pid,os.WEXITED|os.WNOHANG|os.WNOWAIT) is not None:
+                termination_reason='CHILD_EXIT';break
             await asyncio.sleep(.05)
+        result['parent_termination']=dict(reason=termination_reason,elapsed_seconds=time.monotonic()-window_started,window_seconds=seconds)
         stage='native_shutdown'
         child=await asyncio.to_thread(owner.stop)
         result['child']=child;result['owned_process_reaped']=owner._reaped

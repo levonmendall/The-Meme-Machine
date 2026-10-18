@@ -265,7 +265,7 @@ def _persist(resources, value):
 
 async def _run_lifecycle(*, resources, stopped, sizing_reader, source,
         workers, source_path, source_ready, seconds=EXECUTION_SECONDS,
-        startup_seconds=SOURCE_START_SECONDS, shutdown_seconds=SHUTDOWN_SECONDS, progress=None):
+        startup_seconds=SOURCE_START_SECONDS, shutdown_seconds=SHUTDOWN_SECONDS, progress=None,lifecycle=None):
     """Own all threads until joined, including failure and cancellation paths.
 
     The shortened arguments are private offline fixture controls. The public
@@ -273,6 +273,11 @@ async def _run_lifecycle(*, resources, stopped, sizing_reader, source,
     """
     from meme_machine.runtime import stop
     from meme_machine.runtime.isolated_native_execution import isolated_native_execution
+    from .isolated_native_lifetime import NativeLifecycleObservation,observe_lifecycle
+    _require(lifecycle is None or type(lifecycle) is NativeLifecycleObservation,
+        'isolated_native_lifecycle_observation')
+    def observe(event,origin,**fields):
+        observe_lifecycle(lifecycle,event,origin,**fields)
     _require(0 < seconds <= EXECUTION_SECONDS and 0 < startup_seconds <= SOURCE_START_SECONDS
         and 0 < shutdown_seconds <= SHUTDOWN_SECONDS, 'isolated_native_lifecycle_bound')
     _require(not stopped.is_set() and not stop.requested.is_set(),
@@ -288,6 +293,7 @@ async def _run_lifecycle(*, resources, stopped, sizing_reader, source,
     lock = threading.Lock()
 
     def run_worker(name, call):
+        observe('WORKER_STARTED','SOURCE_WORKER',worker=name)
         with lock:
             statuses[name] = dict(started=True, completed=False, cancelled=False)
         try:
@@ -303,10 +309,12 @@ async def _run_lifecycle(*, resources, stopped, sizing_reader, source,
         except BaseException as error:
             # Do not carry arbitrary provider content through exception text.
             origin = _worker_failure_origin(name, error)
+            observe('WORKER_FAILED','SOURCE_WORKER',worker=name)
             with lock:
                 errors.append('isolated_native_'+name+'_failed')
                 worker_failures[name] = origin
         finally:
+            observe('WORKER_ENDED','SOURCE_WORKER',worker=name)
             with lock:
                 statuses[name]['completed'] = True
 
@@ -325,7 +333,8 @@ async def _run_lifecycle(*, resources, stopped, sizing_reader, source,
         with isolated_native_execution(resources):
             for lane in ('pump', 'pons'):
                 resources.facts.require_fresh(lane, int(resources.clock()))
-            await source(source_stop)
+            try:await source(source_stop)
+            finally:observe('SOURCE_ENDED','SOURCE_LIFECYCLE')
 
     sizing_thread = threading.Thread(target=run_worker, args=('sizing', sizing),
         name='isolated-native-sizing', daemon=False)
@@ -379,6 +388,7 @@ async def _run_lifecycle(*, resources, stopped, sizing_reader, source,
                 _require(source_path.is_file() and not source_path.is_symlink(),
                     'isolated_native_source_commands_owner')
                 observed_at = time.monotonic()
+                observe('SOURCE_READY','SOURCE_LIFECYCLE')
                 break
             await asyncio.sleep(.05)
         for name, call in workers:
@@ -408,6 +418,10 @@ async def _run_lifecycle(*, resources, stopped, sizing_reader, source,
     except BaseException as error:
         failure = error
     finally:
+        observe('STOP_REQUESTED','SOURCE_LIFECYCLE',
+            reason=('LIFECYCLE_FAILURE' if failure is not None else
+                'LIFECYCLE_WINDOW' if completed_window else 'LIFECYCLE_EXTERNAL_STOP'),
+            prior_local=stopped.is_set(),prior_global=stop.requested.is_set())
         stopped.set()
         stop.requested.set()
         source_stop.set()
@@ -575,7 +589,8 @@ def run_contained(*, resources, ports, sizing_reader, stopped):
             result = _run_owned_loop(_run_lifecycle(resources=resources, stopped=stopped,
                 sizing_reader=sizing_reader, source=source,
                 workers=[('pump', pump_current), ('pons', pons_current)], source_path=source_path,
-                source_ready=ports.require_source_commands_ready,progress=progress))
+                source_ready=ports.require_source_commands_ready,progress=progress,
+                lifecycle=ports.channel._lifecycle))
         except NativeOwnerDrainFailure as error:
             terminal=error
             # Leave global stdout and private paths on their original contained

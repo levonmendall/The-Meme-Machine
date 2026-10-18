@@ -80,6 +80,21 @@ def transport_fault(error,phase):
     try:number=getattr(error,'errno',None)
     except BaseException:number=None
     if type(number) is int and 0<number<4096:result['error_number']=number
+    try:admission=getattr(error,'_remaining_observation',None)
+    except BaseException:admission=None
+    fields={'monotonic','channel_deadline','operation_deadline','remaining_seconds',
+        'closed','draining','cancel_checked','cancelled','channel_expired','operation_expired'}
+    numbers=('monotonic','channel_deadline','operation_deadline','remaining_seconds')
+    flags=('closed','draining','cancel_checked','channel_expired','operation_expired')
+    child_module=sys.modules.get('meme_machine.operational.child_transport')
+    if (child_module is not None and kind is getattr(child_module,'ChildTransportFailure',None)
+            and type(admission) is dict and set(admission)==fields
+            and all(type(admission[key]) in (int,float) and math.isfinite(admission[key])
+                and abs(admission[key])<2**53 for key in numbers)
+            and all(type(admission[key]) is bool for key in flags)
+            and (admission['cancelled'] is None if not admission['cancel_checked']
+                else type(admission['cancelled']) is bool)):
+        result['admission']=dict(admission)
     trace=BaseException.__traceback__.__get__(error,kind);frames=0
     while trace is not None and frames<64:
         module=trace.tb_frame.f_globals.get('__name__')

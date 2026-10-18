@@ -137,3 +137,59 @@ The final pre-send successor is runtime
 child helper record versus c392, plus explicit implementation/tree and manifest
 identities. The final coupled131 cases passed in28.833s without skips. The
 prior130 receipt remains evidence for its earlier source, not this final tree.
+
+The changed-source targeted run39088691449 on exact2b2ae261 failed both original
+cases after47 proof cases passed in27.982s. The copied-main case ran about20.696s,
+before its original40s parent window. Pons now reports `ChildTransportFailure`
+at the unchanged strict native-stream predicate. The first recorded child abort
+is `CONTENT_HANDOFF` / `child_transport_stopped`; the parent records no fatal
+fault. This does not prove capacity, cancellation or which composite predicate
+failed. The retained complete log ZIP SHA256 is
+`745186d1761b6c7c329e080f49fdc11ad1821d13ca878c031c89c67b1306d77f`.
+The complete ZIP-derived receipt verifies the same463 installed runtime files,
+93,164,575 bytes and original content digest. Decoder/history nonprobe work and
+joins remain observed, but complete source/consumer FULL/ACK output remains
+unverified. Both original assertions remain failing.
+
+The complete selected control-path trace finds only three stop writers: entry
+signal handling, lifecycle finally, and entry finally. The operational lane.main
+signal handler is not selected by this copied entry. Native consumers read the
+shared stop, and Survivor owner-close commands remain queued behind their
+accepted steps. Pons retains its original5s task drain, the Solana source its
+original30s admitted FULL/ACK drain, and the contained lifecycle its original65s
+join. Per-stream EOF/failed/owner close changes only that stream; global channel
+close is confined to abort, with normal close occurring only after owners join.
+Every content poll/read/ACK/cancel uses draining=True, so cancellation alone
+cannot cause its failed remaining-time check. Closed channel versus expired
+operation/channel deadline was not captured by the actual hosted receipt.
+
+The next observation component records the original remaining-time predicate's
+actual evaluated clock, effective deadlines, closed/draining flags, and whether
+the cancellation callback was evaluated. The callback retains original
+short-circuit evaluation, once; the original exception and deadlines remain.
+Only exact known exception carrier/schema fields may enter the fixed first-fault
+projection. No private body, token, path or provider value is recorded.
+
+A shared observer records at most16 fixed events, bounded to4KiB, and separate
+first stop/shared-abort observations. It records first worker outcomes, source
+ready/end, stop writer and prior flags, global abort request, and first stream
+closure by transport/owner role. These are causal observations, not a complete
+per-instance stream or four-strategy census. Duplicate events are ignored;
+truncation, clock regression, invalid inputs or observer failure are explicit.
+The final entry receipt carries this observer; the original private execution
+receipt and its byte bound remain unchanged. Observation failures cannot replace
+the original stop, close, error or drain. The parent also records its actual
+WINDOW_ELAPSED/CONTROL_ENDED/CHILD_EXIT trigger and elapsed window time before
+performing its original stop action.
+
+A real socketpair/accounting fixture reproduces accepted-operation deadline
+expiry, first content abort, and secondary strict Pons stream rejection with no
+global stop. Another fixture stops during an admitted multi-chunk native body
+and proves complete original transport ACK, refusal of new work, and no invented
+source-history acknowledgement. EOF closes only its stream. The first160-case
+check retained one new fixture error: its stop callback was already true before
+hello, so original bootstrap correctly refused. Setting that callback after the
+real hello fixes the fixture; the affected case passed unchanged guards. The
+final161 focused attribution/source/entry/child/parent/upload/bridge cases passed
+in8.681s without skips. This is mechanism and observation evidence, not a claim
+that the hosted initiating cause or complete native readiness is resolved.

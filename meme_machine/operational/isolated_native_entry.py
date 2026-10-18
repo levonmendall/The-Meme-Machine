@@ -18,7 +18,8 @@ import stat
 import sys
 import threading
 import time
-from .isolated_native_lifetime import NativeOwnerDrainFailure
+from .isolated_native_lifetime import (NativeOwnerDrainFailure,NativeLifecycleObservation,
+    observe_lifecycle,lifecycle_snapshot)
 
 _SPAWN_BOUNDARIES=frozenset(('isolated_native_spawn_scope','isolated_native_spawn_preexisting_tracker',
     'isolated_native_spawn_runtime','isolated_native_spawn_environment','isolated_native_spawn_shim_identity',
@@ -219,7 +220,12 @@ def main(*,layout=None):
     """Only the fixed launcher may call this with its two retained capabilities."""
     from meme_machine.runtime import stop
     stopped=threading.Event()
+    lifecycle=NativeLifecycleObservation()
+    observe_lifecycle(lifecycle,'BOOTSTRAP','ENTRY_BOOTSTRAP')
     def cancel(_signum,_frame):
+        observe_lifecycle(lifecycle,'STOP_REQUESTED','ENTRY_SIGNAL',
+            reason='SIGNAL_TERM' if _signum==signal.SIGTERM else 'SIGNAL_INT',
+            prior_local=stopped.is_set(),prior_global=stop.requested.is_set())
         stopped.set()
         stop.requested.set()
     # Namespace PID1 must install these before any blocking IPC/import/startup.
@@ -255,7 +261,7 @@ def main(*,layout=None):
         # socket(fileno=...) auto-detection's extra SO_DOMAIN/SO_PROTOCOL queries;
         # ChildChannel still verifies actual kernel SO_TYPE and unnamed peer.
         channel=ChildChannel(socket.socket(socket.AF_UNIX,socket.SOCK_STREAM,0,fileno=3),
-            seconds=1800,cancelled=stopped.is_set)
+            seconds=1800,cancelled=stopped.is_set,lifecycle=lifecycle)
         stage='sizing_reader'
         reader=ParentSizingReader(4,session=channel.session,
             source_commit=image['source_commit'],source_tree=image['source_tree'],stopped=stopped.is_set)
@@ -306,6 +312,8 @@ def main(*,layout=None):
         # body, arbitrary exception message or hidden successful readiness flag.
         receipt.update(_failure_details(error,stage))
     finally:
+        observe_lifecycle(lifecycle,'STOP_REQUESTED','ENTRY_FINALLY',reason='ENTRY_CLEANUP',
+            prior_local=stopped.is_set(),prior_global=stop.requested.is_set())
         stopped.set()
         stop.requested.set()
         if terminal is None and spawn_scope is not None and spawn_scope.unjoined_processes:
@@ -320,6 +328,7 @@ def main(*,layout=None):
             # whose failed drain triggered this handoff. Generic libraries do
             # not exit; only this fixed descriptor/image-checked entry does.
             _capture_transport_abort(receipt,channel)
+            receipt['lifecycle_observation']=lifecycle_snapshot(lifecycle)
             _terminal_process_exit(receipt)
         closing=[owner.close for owner in (ports,resources,reader) if owner is not None]
         if channel is not None:closing.append(channel.abort_and_join)
@@ -333,6 +342,7 @@ def main(*,layout=None):
         if spawn_scope is not None:
             receipt['native_kernel_lifecycle']=spawn_scope.kernel_lifecycle_snapshot()
         _capture_transport_abort(receipt,channel)
+        receipt['lifecycle_observation']=lifecycle_snapshot(lifecycle)
         print(json.dumps(receipt,sort_keys=True,separators=(',',':')),flush=True)
     return 0 if receipt['status']=='COMPLETED' else 2
 

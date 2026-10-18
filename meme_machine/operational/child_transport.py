@@ -115,12 +115,16 @@ class ChildChannel:
     incomplete/malformed exchange closes the capability; there is no reconnect
     or request replay under a replacement sequence after ambiguous transport.
     """
-    def __init__(self, connected, *, seconds=1800, cancelled=None):
+    def __init__(self, connected, *, seconds=1800, cancelled=None,lifecycle=None):
         _require(type(connected) is socket.socket and connected.family == socket.AF_UNIX
             and connected.getsockopt(socket.SOL_SOCKET,socket.SO_TYPE) == socket.SOCK_STREAM
             and connected.getpeername() in ('', b'')
             and type(seconds) in (int, float) and 0 < seconds <= 1800
             and (cancelled is None or callable(cancelled)), 'child_channel_configuration')
+        from .isolated_native_lifetime import NativeLifecycleObservation
+        _require(lifecycle is None or type(lifecycle) is NativeLifecycleObservation,
+            'child_lifecycle_observation')
+        self._lifecycle=lifecycle
         self.socket = connected
         self.deadline = time.monotonic() + seconds
         self.cancelled = cancelled
@@ -188,9 +192,20 @@ class ChildChannel:
             raise
 
     def _remaining(self, deadline, *, draining=False):
-        remaining = min(self.deadline, deadline) - time.monotonic()
-        _require(not self.closed and remaining > 0
-            and (draining or not (self.cancelled is not None and self.cancelled())), 'child_transport_stopped')
+        now=time.monotonic();remaining = min(self.deadline, deadline) - now
+        closed=self.closed;cancel_checked=False;cancelled=None
+        allowed=not closed and remaining>0
+        if allowed and not draining:
+            cancel_checked=True
+            cancelled=bool(self.cancelled is not None and self.cancelled())
+            allowed=not cancelled
+        if not allowed:
+            error=ChildTransportFailure('child_transport_stopped')
+            error._remaining_observation=dict(monotonic=now,channel_deadline=self.deadline,
+                operation_deadline=deadline,remaining_seconds=remaining,closed=closed,
+                draining=draining,cancel_checked=cancel_checked,cancelled=cancelled,
+                channel_expired=now>=self.deadline,operation_expired=now>=deadline)
+            raise error
         return remaining
 
     def _exact(self, count, deadline, *, draining=False):
@@ -468,6 +483,10 @@ class ChildChannel:
             return None if self._first_abort is None else dict(self._first_abort)
 
     def abort(self,error=None,*,phase=None):
+        if self._lifecycle is not None:
+            from .isolated_native_lifetime import observe_lifecycle
+            observe_lifecycle(self._lifecycle,'CHANNEL_ABORT_REQUESTED','CHANNEL_ABORT',
+                reason='TRANSPORT_ERROR' if error is not None else 'NORMAL_CLOSE')
         if error is not None:
             try:
                 from .transport_bridge import transport_fault
@@ -529,6 +548,14 @@ class ChildNativeStream:
     def __setattr__(self,name,value):
         raise AttributeError('immutable_child_native_stream')
 
+    def _mark_closed(self,reason):
+        observer=self.channel._lifecycle
+        if observer is not None:
+            from .isolated_native_lifetime import observe_lifecycle
+            observe_lifecycle(observer,'STREAM_CLOSED','NATIVE_STREAM',reason=reason,
+                stream_kind=self.transport,worker='pons' if self.transport=='robinhood_sequencer' else 'pump')
+        object.__setattr__(self,'closed',True)
+
     def read(self,timeout=None):
         _require(timeout is None or type(timeout) in (int,float) and 0<=timeout<=1800,
             'child_native_read_timeout')
@@ -560,12 +587,12 @@ class ChildNativeStream:
                     if reply.get('status')=='eof':
                         self.channel.request('cancel',token=self._pending)
                         object.__setattr__(self,'_pending',None)
-                        object.__setattr__(self,'closed',True)
+                        self._mark_closed('EOF')
                         return None
                     if reply.get('status')=='failed':
                         self.channel.request('cancel',token=self._pending)
                         object.__setattr__(self,'_pending',None)
-                        object.__setattr__(self,'closed',True)
+                        self._mark_closed('PARENT_FAILED')
                         _parent_failure(reply)
                     _require(reply.get('status')=='running','child_native_read_state')
                 time.sleep(min(.01,max(0,deadline-time.monotonic())))
@@ -629,7 +656,7 @@ class ChildNativeStream:
         with self._state_lock:
             if self.closed:
                 return
-            object.__setattr__(self,'closed',True)
+            self._mark_closed('OWNER_CLOSE')
             if self._write_cancel is not None:self._write_cancel.set()
         # Signal under the state lock, then join outside it. Otherwise writer
         # finally/read drainage cannot take the state lock needed for teardown.

@@ -112,8 +112,10 @@ class OriginalWorkerLifecycleTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_real_worker_failure_keeps_original_classification_and_joined_partial(self):
         case=self.fixture
+        from meme_machine.operational.isolated_native_lifetime import NativeLifecycleObservation
+        lifecycle=NativeLifecycleObservation()
         with self.assertRaises(source.ContainedNativeFailure) as caught:
-            await case.lifecycle(workers=[('pump',case.worker('pump')),('pons',failing_worker())])
+            await case.lifecycle(workers=[('pump',case.worker('pump')),('pons',failing_worker())],lifecycle=lifecycle)
         self.assertEqual(str(caught.exception),'isolated_native_pons_failed')
         value=json.loads((case.resources.root/'native-execution.json').read_text())
         self.assertEqual(value['worker_failures'],source.worker_failure_details(caught.exception))
@@ -121,6 +123,10 @@ class OriginalWorkerLifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(value['source_joined'] and value['all_workers_joined'])
         self.assertEqual(value['status'],'FAILED');self.assertFalse(value['normal_readiness'])
         self.assertNotIn('PRIVATE',json.dumps(value))
+        events=lifecycle.snapshot()
+        self.assertEqual(events['first_stop']['reason'],'LIFECYCLE_FAILURE')
+        self.assertFalse(events['first_stop']['prior_local']);self.assertFalse(events['first_stop']['prior_global'])
+        self.assertTrue(any(row['event']=='WORKER_FAILED' and row.get('worker')=='pons' for row in events['events']))
 
     async def test_drain_failure_preserves_first_worker_origin_without_claiming_join(self):
         case=self.fixture;release=threading.Event();exited=threading.Event()
@@ -449,11 +455,134 @@ class ParentCapacityChainTests(unittest.IsolatedAsyncioTestCase):
         value['phase']='PRIVATE';self.assertNotEqual(client.abort_snapshot(),value)
         self.assertEqual(self.budget.snapshot()['http_attempts'],'0')
 
+    async def test_accepted_deadline_expiry_matches_first_abort_and_secondary_closed_stream_without_stop(self):
+        from tests import test_child_transport as fixture
+        from tests import test_parent_native_transport as physical
+        from meme_machine.operational.child_transport import ChildRPCPort,ChildTransportFailure,require_native_stream
+        from meme_machine.operational.parent_transport import ParentNativeStream
+        from meme_machine.operational.isolated_native_lifetime import NativeLifecycleObservation
+        from meme_machine.runtime import stop
+        raw=physical._Native([b'owned-stream'])
+        async def factory():return raw
+        stream=await ParentNativeStream.open(self.budget,'robinhood_sequencer',factory,lambda _:None)
+        native_open_http_attempts=self.budget.snapshot()['http_attempts']
+        cancelled=threading.Event()
+        client,parent=await fixture.ChildTransportTests.connected(self,streams={'pons':stream},cancelled=cancelled.is_set)
+        observation=NativeLifecycleObservation();client._lifecycle=observation
+        native=next(iter(client._native_handles.values()))
+        gate=asyncio.Event();execute=self.http.execute
+        async def held(attempt):
+            await gate.wait()
+            return await execute(attempt)
+        try:
+            with patch.object(self.http,'execute',held):
+                with self.assertRaisesRegex(ChildTransportFailure,'child_transport_stopped'):
+                    await asyncio.to_thread(ChildRPCPort(client,'pump').envelope,
+                        dict(jsonrpc='2.0',id=1,method='getSlot',params=[]),deadline=time.monotonic()+.05)
+            state=client.abort_snapshot()['admission']
+            self.assertFalse(state['closed']);self.assertTrue(state['operation_expired'])
+            self.assertFalse(state['channel_expired']);self.assertTrue(state['draining'])
+            self.assertFalse(state['cancel_checked']);self.assertIsNone(state['cancelled'])
+            self.assertLessEqual(state['remaining_seconds'],0)
+            self.assertFalse(cancelled.is_set());self.assertFalse(stop.requested.is_set())
+            self.assertIsNone(observation.snapshot()['first_stop'])
+            self.assertEqual(observation.snapshot()['first_shared_abort']['reason'],'TRANSPORT_ERROR')
+            self.assertIsNone(parent.first_fault())
+            self.assertTrue(native.channel.closed);self.assertFalse(native.closed)
+            with self.assertRaisesRegex(ChildTransportFailure,'child_native_stream_required'):
+                require_native_stream(native,'robinhood_sequencer')
+        finally:
+            gate.set();await asyncio.wait_for(parent.aclose(),3)
+        self.assertEqual(self.budget.snapshot()['http_attempts'],native_open_http_attempts)
+        self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
+        self.assertEqual(self.budget.snapshot()['native_reserved'],'0')
+
+    async def test_stop_during_accepted_native_body_preserves_complete_transport_ack(self):
+        from tests import test_child_transport as fixture
+        from tests import test_parent_native_transport as physical
+        from meme_machine.operational.child_transport import ChildRPCPort,ChildTransportFailure
+        from meme_machine.operational.parent_transport import ParentNativeStream
+        body=b'original-native-body'*10000;raw=physical._Native([body])
+        async def factory():return raw
+        stream=await ParentNativeStream.open(self.budget,'yellowstone',factory,lambda _:None)
+        native_open_http_attempts=self.budget.snapshot()['http_attempts']
+        cancelled=threading.Event()
+        client,parent=await fixture.ChildTransportTests.connected(self,streams={'pump':stream},cancelled=cancelled.is_set)
+        native=next(iter(client._native_handles.values()));request=client.request;acks=[]
+        def stop_before_first_ack(verb,**fields):
+            if verb=='ack':
+                cancelled.set();acks.append(fields['offset'])
+            return request(verb,**fields)
+        with patch.object(client,'request',stop_before_first_ack):
+            actual=await asyncio.to_thread(native.read)
+        self.assertEqual(actual,body);self.assertGreater(len(acks),1)
+        self.assertFalse(client.closed);self.assertIsNone(client.abort_snapshot())
+        self.assertFalse(parent.contents);self.assertIsNone(stream.pending)
+        self.assertEqual(self.budget.snapshot()['native_bytes'],str(len(body)))
+        with self.assertRaisesRegex(ChildTransportFailure,'child_transport_stopped'):
+            await asyncio.to_thread(ChildRPCPort(client,'pump').envelope,
+                dict(jsonrpc='2.0',id=1,method='getSlot',params=[]))
+        self.assertEqual(self.budget.snapshot()['http_attempts'],native_open_http_attempts)
+        self.assertFalse(any('ack' in key.lower() for key in self.budget.snapshot()))
+
+    async def test_remaining_witness_keeps_original_short_circuit_and_cancellation_domain(self):
+        from tests import test_child_transport as fixture
+        from meme_machine.operational.child_transport import ChildTransportFailure
+        callback=Mock(return_value=False)
+        client,parent=await fixture.ChildTransportTests.connected(self,cancelled=callback)
+        callback.return_value=True
+        # A draining request never consults the stop callback.
+        callback.reset_mock()
+        self.assertGreater(client._remaining(time.monotonic()+1,draining=True),0)
+        callback.assert_not_called()
+        with self.assertRaises(ChildTransportFailure) as caught:
+            client._remaining(time.monotonic()-1,draining=True)
+        callback.assert_not_called()
+        self.assertTrue(caught.exception._remaining_observation['operation_expired'])
+        self.assertFalse(caught.exception._remaining_observation['cancel_checked'])
+        with self.assertRaises(ChildTransportFailure) as caught:
+            client._remaining(time.monotonic()+1)
+        callback.assert_called_once_with()
+        self.assertTrue(caught.exception._remaining_observation['cancelled'])
+        self.assertFalse(caught.exception._remaining_observation['operation_expired'])
+        callback.reset_mock();client.abort()
+        with self.assertRaises(ChildTransportFailure) as caught:
+            client._remaining(time.monotonic()+1)
+        callback.assert_not_called()
+        self.assertTrue(caught.exception._remaining_observation['closed'])
+
+    async def test_native_eof_records_stream_only_before_original_closed_stream_guard(self):
+        from tests import test_child_transport as fixture
+        from tests import test_parent_native_transport as physical
+        from meme_machine.operational.parent_transport import ParentNativeStream
+        from meme_machine.operational.isolated_native_lifetime import NativeLifecycleObservation
+        from meme_machine.operational.child_transport import ChildTransportFailure,require_native_stream
+        import grpc
+        raw=physical._Native([grpc.aio.EOF])
+        async def factory():return raw
+        stream=await ParentNativeStream.open(self.budget,'robinhood_sequencer',factory,lambda _:None)
+        client,parent=await fixture.ChildTransportTests.connected(self,streams={'pons':stream})
+        observer=NativeLifecycleObservation();client._lifecycle=observer
+        native=next(iter(client._native_handles.values()))
+        self.assertIsNone(await asyncio.to_thread(native.read))
+        self.assertTrue(native.closed);self.assertFalse(client.closed)
+        rows=observer.snapshot()['events']
+        self.assertEqual(len(rows),1)
+        self.assertEqual((rows[0]['event'],rows[0]['reason'],rows[0]['stream_kind']),
+            ('STREAM_CLOSED','EOF','robinhood_sequencer'))
+        self.assertIsNone(observer.snapshot()['first_shared_abort'])
+        with self.assertRaisesRegex(ChildTransportFailure,'child_native_stream_required'):
+            require_native_stream(native)
+        self.assertFalse(client.closed);self.assertIsNone(parent.first_fault())
+
     async def test_fault_projection_failure_cannot_prevent_original_channel_quarantine(self):
         from tests import test_child_transport as fixture
         from meme_machine.operational import transport_bridge,parent_channel
         client,parent=await fixture.ChildTransportTests.connected(self)
-        with patch.object(transport_bridge,'transport_fault',side_effect=RuntimeError('PRIVATE')):
+        from meme_machine.operational.isolated_native_lifetime import NativeLifecycleObservation
+        observer=NativeLifecycleObservation();client._lifecycle=observer
+        with patch.object(transport_bridge,'transport_fault',side_effect=RuntimeError('PRIVATE')),\
+                patch.object(observer,'record',side_effect=RuntimeError('PRIVATE')):
             client.abort(ValueError('PRIVATE'),phase='CONTROL_EXCHANGE')
         self.assertTrue(client.closed)
         self.assertEqual(client.abort_snapshot()['error_type'],'PROJECTION_UNAVAILABLE')
@@ -483,6 +612,78 @@ class ParentCapacityChainTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.budget.snapshot()['http_attempts'],'0')
 
 
+class LifecycleObservationTests(unittest.TestCase):
+    def test_first_stop_and_close_order_are_fixed_bounded_detached_observations(self):
+        from meme_machine.operational.isolated_native_lifetime import NativeLifecycleObservation
+        ticks=iter(range(100,200));observer=NativeLifecycleObservation(clock=lambda:next(ticks))
+        observer.record('BOOTSTRAP','ENTRY_BOOTSTRAP')
+        observer.record('WORKER_FAILED','SOURCE_WORKER',worker='pons')
+        observer.record('STOP_REQUESTED','SOURCE_LIFECYCLE',reason='LIFECYCLE_FAILURE',prior_local=False,prior_global=False)
+        observer.record('STOP_REQUESTED','ENTRY_FINALLY',reason='ENTRY_CLEANUP',prior_local=True,prior_global=True)
+        observer.record('CHANNEL_ABORT_REQUESTED','CHANNEL_ABORT',reason='NORMAL_CLOSE')
+        value=observer.snapshot()
+        self.assertEqual(value['first_stop']['origin'],'SOURCE_LIFECYCLE')
+        self.assertEqual(value['first_stop']['monotonic'],102)
+        self.assertEqual(value['first_shared_abort']['monotonic'],104)
+        observer.record('CHANNEL_ABORT_REQUESTED','CHANNEL_ABORT',reason='TRANSPORT_ERROR')
+        self.assertEqual(observer.snapshot(),value)
+        value['first_stop']['origin']='PRIVATE'
+        self.assertEqual(observer.snapshot()['first_stop']['origin'],'SOURCE_LIFECYCLE')
+        self.assertLess(len(json.dumps(observer.snapshot()).encode()),4096)
+
+    def test_fixed_event_limit_keeps_first_stop_and_explicit_truncation(self):
+        from meme_machine.operational.isolated_native_lifetime import NativeLifecycleObservation
+        observer=NativeLifecycleObservation()
+        for event in ('BOOTSTRAP','SOURCE_READY','WORKER_STARTED','WORKER_ENDED'):
+            for origin in ('ENTRY_BOOTSTRAP','ENTRY_SIGNAL','SOURCE_WORKER','SOURCE_LIFECYCLE'):
+                observer.record(event,origin)
+        observer.record('STOP_REQUESTED','ENTRY_SIGNAL',reason='SIGNAL_TERM',prior_local=False,prior_global=False)
+        value=observer.snapshot()
+        self.assertEqual(len(value['events']),16);self.assertEqual(value['dropped_events'],1)
+        self.assertEqual(value['first_stop']['reason'],'SIGNAL_TERM')
+        self.assertLess(len(json.dumps(value).encode()),4096)
+
+    def test_entry_signal_records_actual_first_stop_before_cleanup_without_provider_start(self):
+        from meme_machine.runtime import stop
+        import signal
+        handlers={};output=io.StringIO()
+        def refused():
+            handlers[signal.SIGTERM](signal.SIGTERM,None)
+            raise ValueError('PRIVATE-source')
+        with patch.object(stop,'requested',threading.Event()),patch.object(entry.signal,'signal',
+                side_effect=lambda number,handler:handlers.__setitem__(number,handler)),                patch.object(entry.Path,'cwd',return_value=Path('/work/native')),                patch.object(entry.sys,'argv',['entry']),patch.object(entry,'_image_identity',side_effect=refused),                patch.object(entry.sys,'stdout',output):
+            self.assertEqual(entry.main(),2)
+        value=json.loads(output.getvalue())
+        self.assertEqual(value['status'],'BLOCKED');self.assertFalse(value['provider_workload_started'])
+        first=value['lifecycle_observation']['first_stop']
+        self.assertEqual((first['origin'],first['reason']),('ENTRY_SIGNAL','SIGNAL_TERM'))
+        self.assertFalse(first['prior_local']);self.assertFalse(first['prior_global'])
+        self.assertNotIn('PRIVATE',output.getvalue())
+
+    def test_faulty_record_and_snapshot_cannot_replace_original_shutdown_or_private_failure(self):
+        from meme_machine.operational.isolated_native_lifetime import (
+            NativeLifecycleObservation,observe_lifecycle,lifecycle_snapshot)
+        observer=NativeLifecycleObservation()
+        with patch.object(observer,'record',side_effect=RuntimeError('PRIVATE')):
+            observe_lifecycle(observer,'STOP_REQUESTED','ENTRY_FINALLY',reason='ENTRY_CLEANUP')
+        self.assertTrue(observer.snapshot()['lost'])
+        with patch.object(observer,'snapshot',side_effect=RuntimeError('PRIVATE')):
+            value=lifecycle_snapshot(observer)
+        self.assertTrue(value['lost']);self.assertNotIn('PRIVATE',json.dumps(value))
+
+    def test_invalid_private_or_regressed_observation_is_lost_without_leaking_or_replacing_stop(self):
+        from meme_machine.operational.isolated_native_lifetime import NativeLifecycleObservation
+        for now in (float('nan'),float('inf'),-1,True):
+            observer=NativeLifecycleObservation(clock=lambda:now)
+            observer.record('STOP_REQUESTED','ENTRY_FINALLY',reason='ENTRY_CLEANUP')
+            self.assertTrue(observer.snapshot()['lost']);self.assertIsNone(observer.snapshot()['first_stop'])
+        ticks=iter((2,1));observer=NativeLifecycleObservation(clock=lambda:next(ticks))
+        observer.record('BOOTSTRAP','ENTRY_BOOTSTRAP')
+        observer.record('WORKER_FAILED','SOURCE_WORKER',worker='pons')
+        observer.record('PRIVATE','PRIVATE',reason='PRIVATE')
+        self.assertTrue(observer.snapshot()['lost'])
+        self.assertNotIn('PRIVATE',json.dumps(observer.snapshot()))
+
 class TransportFaultPrivacyTests(unittest.TestCase):
     def test_only_fixed_phase_class_code_errno_and_native_source_site_are_retained(self):
         from meme_machine.operational.transport_bridge import transport_fault,BridgeRejected
@@ -493,6 +694,11 @@ class TransportFaultPrivacyTests(unittest.TestCase):
             self.assertEqual('boundary_code' in value,error.args==('parent_attempt_capacity',))
         self.assertEqual(value['error_number'],13)
         self.assertEqual(transport_fault(None,'PARENT_UPLOAD_DEADLINE')['error_type'],'NO_EXCEPTION')
+        from meme_machine.operational.child_transport import ChildTransportFailure
+        failure=ChildTransportFailure('child_transport_stopped')
+        failure._remaining_observation={'private':'PRIVATE'}
+        self.assertNotIn('admission',transport_fault(failure,'CONTENT_HANDOFF'))
+        self.assertNotIn('PRIVATE',json.dumps(transport_fault(failure,'CONTENT_HANDOFF')))
 
     def test_transport_snapshot_failure_never_replaces_original_child_failure(self):
         receipt=dict(status='BLOCKED',failure_code='isolated_native_pons_failed')
