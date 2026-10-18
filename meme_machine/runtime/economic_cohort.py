@@ -17,6 +17,7 @@ MAX_OBLIGATIONS=16384
 MAX_BYTES=4*1024*1024
 MAX_SUMMARIES=16
 MAX_COHORTS=8192
+MAX_POSITION=2**63-1
 
 
 def checksum(value):
@@ -40,7 +41,7 @@ def _rows(values,committed=False):
     for row in values:
         if type(row) not in (tuple,list) or len(row)!=(6 if committed else 5):raise ValueError('shape')
         scope,identity,digest,position,available=row[:5]
-        if type(position) is not int or position<0:raise ValueError('shape')
+        if type(position) is not int or not 0<=position<=MAX_POSITION:raise ValueError('shape')
         if type(available) not in (int,float) or not math.isfinite(available) or available<0:raise ValueError('shape')
         value=(_text(scope),_text(identity),_hash(digest),position,available)
         if committed:
@@ -81,6 +82,7 @@ class EconomicCohorts:
 
     def open(self,cohort_id,scope_ids):
         def apply():
+            if type(scope_ids) not in (list,tuple) or not 0<len(scope_ids)<=256:raise ValueError('bound')
             identity=_text(cohort_id);scopes=tuple(sorted(_text(s) for s in scope_ids))
             if not 0<len(scopes)<=256 or len(set(scopes))!=len(scopes):raise ValueError('shape')
             if identity in self.active:
@@ -88,10 +90,11 @@ class EconomicCohorts:
                 return
             stamp=checksum(identity)
             if stamp in self.cohort_ids:raise ValueError('reopened_cohort')
-            if len(self.cohort_ids)>=MAX_COHORTS or self.bytes+96>MAX_BYTES:
+            scope_bytes=sum(len(s.encode()) for s in scopes)
+            if len(self.cohort_ids)>=MAX_COHORTS or self.bytes+96+scope_bytes>MAX_BYTES:
                 self.unavailable('BOUND');return
             if len(self.active)>=MAX_ACTIVE:self.unavailable('BOUND');return
-            self.cohort_ids.add(stamp);self.bytes+=96
+            self.cohort_ids.add(stamp);self.bytes+=96+scope_bytes
             self.active[identity]=dict(scopes=scopes,arrivals={},committed={},fanout={},
                 first=self.clock(),last=None,closure=None)
         self._run(apply)
@@ -111,11 +114,19 @@ class EconomicCohorts:
                 cohort['arrivals'][key]=row;self.identities+=1;self.bytes+=size
         self._run(apply)
 
-    def committed(self,cohort_id,rows,obligations):
+    def committed(self,cohort_id,rows,obligations,*,fanout_complete=None):
         """Call only after the original outer source transaction COMMIT."""
         def apply():
             cohort=self.active[cohort_id]
-            for row in _rows(rows,True):
+            published=_rows(rows,True);expected={};seen={}
+            if self.lane=='pump':
+                if type(fanout_complete) not in (list,tuple) or len(fanout_complete)>2048:raise ValueError('fanout_witness')
+                for scope,event,count,digest in fanout_complete:
+                    key=(_text(scope),_text(event))
+                    if type(count) is not int or not 0<=count<=MAX_OBLIGATIONS or key in expected:raise ValueError('fanout_witness')
+                    expected[key]=(count,_hash(digest));seen[key]=(0,hashlib.sha256())
+                if set(expected)!={row[:2] for row in published}:raise ValueError('fanout_membership')
+            for row in published:
                 key=row[:2];arrival=cohort['arrivals'].get(key)
                 if arrival is None or arrival[:4]!=row[:4]:raise ValueError('membership')
                 old=cohort['committed'].get(key)
@@ -130,6 +141,9 @@ class EconomicCohorts:
                 value=(_text(identity),_text(scope),_text(event),_hash(source_hash),_text(consumer))
                 key=value[1:3]
                 if key not in cohort['committed']:raise ValueError('membership')
+                if self.lane=='pump':
+                    if key not in seen:raise ValueError('fanout_membership')
+                    count,hasher=seen[key];hasher.update(len(value[0].encode()).to_bytes(4,'big')+value[0].encode());seen[key]=(count+1,hasher)
                 prior=self.obligations.get(value[0])
                 if prior is not None:
                     if prior['value']!=value:raise ValueError('conflict')
@@ -141,6 +155,8 @@ class EconomicCohorts:
                     self.obligations[value[0]]=dict(value=value,acked=False,cohorts={cohort_id},bytes=size)
                     self.bytes+=size
                 cohort['fanout'][key].add(value[0])
+            if any(expected[key]!=(count,hasher.hexdigest()) for key,(count,hasher) in seen.items()):
+                raise ValueError('fanout_incomplete')
             cohort['last']=self.clock();self._finish(cohort_id)
         self._run(apply)
 
@@ -161,7 +177,8 @@ class EconomicCohorts:
     def seal(self,cohort_id,lower,upper,source_digest,*,complete):
         """An owned adapter's actual complete-source witness, not an authority."""
         def apply():
-            if type(lower) is not int or type(upper) is not int or not 0<=lower<=upper or type(complete) is not bool:
+            if (type(lower) is not int or type(upper) is not int or not 0<=lower<=upper<=MAX_POSITION
+                    or type(complete) is not bool):
                 raise ValueError('shape')
             cohort=self.active[cohort_id]
             if any(not lower<=row[3]<=upper for row in cohort['arrivals'].values()):raise ValueError('interval')
@@ -188,6 +205,8 @@ class EconomicCohorts:
             fanout_obligations=len(fanout),verified_full_acks=len(fanout),
             fanout_scope='COMPLETE_BINDINGS_AT_EACH_CANONICAL_COMMIT_NOT_FUTURE_MEMBERSHIP',
             economic_sha256=arrival_digest,fanout_sha256=obligation_digest,
+            original_available_wall_min=min((r[4] for r in cohort['arrivals'].values()),default=None),
+            original_available_wall_max=max((r[4] for r in cohort['arrivals'].values()),default=None),
             first_observed_monotonic=cohort['first'],last_commit_observed_monotonic=cohort['last'],
             completion_observed_monotonic=self.clock())
         self.cumulative_chain=checksum([self.cumulative_chain,row]);self.completed+=1
@@ -197,6 +216,7 @@ class EconomicCohorts:
             obligation=self.obligations[key];obligation['cohorts'].discard(identity)
             if not obligation['cohorts']:self.bytes-=obligation['bytes'];del self.obligations[key]
         for value in cohort['arrivals'].values():self.bytes-=sum(len(v.encode()) for v in value[:3])+32
+        self.bytes-=sum(len(s.encode()) for s in cohort['scopes'])
         self.identities-=len(cohort['arrivals']);del self.active[identity]
 
     def snapshot(self):
