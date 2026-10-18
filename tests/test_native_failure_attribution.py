@@ -354,6 +354,127 @@ class ParentCapacityChainTests(unittest.IsolatedAsyncioTestCase):
                 raise
             finally:await asyncio.to_thread(pool.shutdown,wait=True)
 
+    async def test_handoff_waits_for_original_accounting_release_before_value_and_capacity(self):
+        from tests import test_child_transport as fixture
+        from meme_machine.operational.child_transport import ChildRPCPort
+        client,parent=await fixture.ChildTransportTests.connected(self)
+        entered=asyncio.Event();gate=asyncio.Event();release=self.http.release
+        async def held(attempt,**kw):
+            entered.set();await gate.wait()
+            return await release(attempt,**kw)
+        task=None
+        try:
+            with patch.object(self.http,'release',held):
+                task=asyncio.create_task(asyncio.to_thread(ChildRPCPort(client,'pump').envelope,
+                    dict(jsonrpc='2.0',id=1,method='getSlot',params=[])))
+                await asyncio.wait_for(entered.wait(),2)
+                await asyncio.sleep(.03)
+                self.assertFalse(task.done())
+                self.assertEqual(next(iter(parent.contents.values())).status,'running')
+                gate.set();self.assertEqual((await asyncio.wait_for(task,2))['result'],'0x123')
+            self.assertFalse(parent.contents);self.assertFalse(self.http._states)
+            self.assertFalse(client.closed)
+        finally:
+            gate.set()
+            if task is not None:await asyncio.gather(task,return_exceptions=True)
+
+    async def test_parent_caller_deadline_failure_is_scoped_then_an_unrelated_consumer_progresses(self):
+        import sqlite3
+        from tests import test_child_transport as fixture
+        from meme_machine.operational.child_transport import ChildRPCPort,ChildParentFailure
+        client,parent=await fixture.ChildTransportTests.connected(self)
+        with sqlite3.connect(self.governor.path) as db:
+            db.execute('INSERT INTO pressure VALUES(?,?,0,0,0)',('solana',time.monotonic()+10))
+        captured=[];execute=self.http.execute
+        async def observed(attempt):
+            captured.append(attempt.deadline)
+            return await execute(attempt)
+        end=time.monotonic()+.08
+        with patch.object(self.http,'execute',observed):
+            with self.assertRaises(ChildParentFailure):
+                await asyncio.to_thread(ChildRPCPort(client,'pump').envelope,
+                    dict(jsonrpc='2.0',id=1,method='getSlot',params=[]),deadline=end)
+        self.assertEqual(len(captured),1);self.assertLessEqual(captured[0],end)
+        self.assertFalse(client.closed);self.assertIsNone(client.abort_snapshot())
+        self.assertFalse(parent.contents);self.assertFalse(self.http._states)
+        self.assertEqual(self.budget.snapshot()['http_attempts'],'0')
+        self.assertEqual((await asyncio.to_thread(ChildRPCPort(client,'pons').envelope,
+            dict(jsonrpc='2.0',id=2,method='eth_chainId',params=[])))['result'],'0x123')
+        self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
+
+    async def test_late_paid_body_is_fully_acked_then_refused_without_unrelated_quarantine(self):
+        from tests import test_child_transport as fixture
+        from meme_machine.operational.child_transport import ChildRPCPort,ChildParentFailure
+        client,parent=await fixture.ChildTransportTests.connected(self)
+        held=threading.Event();release=threading.Event();content=client._content;first=True;deadlines=[]
+        end=time.monotonic()+.15
+        def delayed(accepted,**fields):
+            nonlocal first
+            if first:
+                first=False;deadlines.append(fields['deadline']);held.set()
+                if not release.wait(2):raise TimeoutError('offline handoff gate')
+            return content(accepted,**fields)
+        task=None
+        try:
+            with patch.object(client,'_content',delayed):
+                task=asyncio.create_task(asyncio.to_thread(ChildRPCPort(client,'pump').envelope,
+                    dict(jsonrpc='2.0',id=1,method='getSlot',params=[]),deadline=end))
+                self.assertTrue(await asyncio.to_thread(held.wait,1))
+                self.assertGreater(deadlines[0],end+29)
+                other=await asyncio.to_thread(ChildRPCPort(client,'pons').envelope,
+                    dict(jsonrpc='2.0',id=2,method='eth_chainId',params=[]))
+                self.assertEqual(other['result'],'0x123')
+                await asyncio.sleep(max(0,end-time.monotonic())+.02);release.set()
+                with self.assertRaisesRegex(ChildParentFailure,'evidence_deadline_during_transport'):
+                    await asyncio.wait_for(task,2)
+            self.assertFalse(client.closed);self.assertIsNone(client.abort_snapshot())
+            self.assertFalse(parent.contents);self.assertFalse(self.http._states)
+            self.assertEqual(self.budget.snapshot()['http_attempts'],'2')
+            self.assertGreater(int(self.budget.snapshot()['http_bytes']),0)
+            self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
+            self.assertEqual(self.budget.snapshot()['http_uncertain_bytes'],'0')
+            acquired=[client._http_slots.acquire(blocking=False) for _ in range(parent.workers)]
+            self.assertTrue(all(acquired))
+            for _ in acquired:client._http_slots.release()
+        finally:
+            release.set()
+            if task is not None:await asyncio.gather(task,return_exceptions=True)
+
+    async def test_v5_only_subtractive_deadline_and_original_drain_clock_are_strict(self):
+        from tests import test_child_transport as fixture
+        from meme_machine.operational.child_transport import ChildRPCPort
+        client,parent=await fixture.ChildTransportTests.connected(self)
+        self.assertEqual(parent.hello()['provider_deadline_clock'],'SAME_HOST_MONOTONIC_US')
+        self.assertEqual(parent.hello()['accepted_http_drain_seconds'],30)
+        recorded=[];dispatch=parent.dispatch
+        async def observed(frame):
+            value=json.loads(frame[4:])
+            if value['verb']=='http_begin':recorded.append(value)
+            return await dispatch(frame)
+        parent.dispatch=observed
+        end=time.monotonic()+2
+        await asyncio.to_thread(ChildRPCPort(client,'pump').envelope,
+            dict(jsonrpc='2.0',id=1,method='getSlot',params=[]),deadline=end)
+        self.assertEqual(len(recorded),1)
+        self.assertIs(type(recorded[0]['provider_deadline_us']),int)
+        self.assertLessEqual(recorded[0]['provider_deadline_us']/1_000_000,end)
+        self.assertGreaterEqual(end-recorded[0]['provider_deadline_us']/1_000_000,0)
+        self.assertLess(end-recorded[0]['provider_deadline_us']/1_000_000,.000002)
+
+    async def test_parent_wire_deadline_rejects_invalid_values_before_any_attempt(self):
+        from tests import test_child_transport as fixture
+        from meme_machine.operational.transport_bridge import BridgeRejected
+        client,parent=await fixture.ChildTransportTests.connected(self)
+        for value in (None,True,False,0,-1,2**63,'1000000',1.5):
+            with self.subTest(value=value):
+                message=dict(alias='pump',batch=False,calls=[dict(method='getSlot',params=[])],
+                    provider_deadline_us=value)
+                with self.assertRaisesRegex(BridgeRejected,'parent_provider_deadline'):
+                    parent._begin(message)
+                self.assertFalse(parent.contents)
+                self.assertEqual(self.budget.snapshot()['http_attempts'],'0')
+        self.assertFalse(client.closed)
+
     async def test_capacity_wait_keeps_original_deadline_no_purchase_or_session_abort(self):
         from tests import test_child_transport as fixture
         from meme_machine.operational.child_transport import ChildRPCPort,ChildTransportFailure
@@ -477,8 +598,13 @@ class ParentCapacityChainTests(unittest.IsolatedAsyncioTestCase):
         try:
             with patch.object(self.http,'execute',held):
                 with self.assertRaisesRegex(ChildTransportFailure,'child_transport_stopped'):
-                    await asyncio.to_thread(ChildRPCPort(client,'pump').envelope,
-                        dict(jsonrpc='2.0',id=1,method='getSlot',params=[]),deadline=time.monotonic()+.05)
+                    # Deliberately reproduce the original wrong ownership
+                    # contract below the repaired HTTP wrapper: a token is
+                    # admitted, then its content gets the caller's short end.
+                    end=time.monotonic()+.05
+                    accepted=await asyncio.to_thread(client.request,'http_begin',alias='pump',
+                        calls=[dict(method='getSlot',params=[])],batch=False,deadline=end)
+                    await asyncio.to_thread(client._content,accepted,deadline=end)
             state=client.abort_snapshot()['admission']
             self.assertFalse(state['closed']);self.assertTrue(state['operation_expired'])
             self.assertFalse(state['channel_expired']);self.assertTrue(state['draining'])
@@ -604,7 +730,9 @@ class ParentCapacityChainTests(unittest.IsolatedAsyncioTestCase):
         client,parent=await fixture.ChildTransportTests.connected(self)
         values=[dict(parent.hello(),http_workers=value) for value in (0,9,True,'4',None)]
         missing=dict(parent.hello());missing.pop('http_workers');values.append(missing)
-        values.append(dict(parent.hello(),protocol='native-parent-transport-v3'))
+        values.extend(dict(parent.hello(),provider_deadline_clock=value) for value in (None,'PRIVATE','MONOTONIC'))
+        values.extend(dict(parent.hello(),accepted_http_drain_seconds=value) for value in (True,0,31,'30'))
+        values.extend(dict(parent.hello(),protocol=version) for version in ('native-parent-transport-v3','native-parent-transport-v4'))
         for value in values:
             upstream,downstream=socket.socketpair()
             try:

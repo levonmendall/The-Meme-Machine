@@ -136,11 +136,12 @@ class ParentChannel:
         return self._head_lifecycle.snapshot() if self._head_lifecycle is not None else None
 
     def hello(self):
-        return dict(session=self.session, protocol='native-parent-transport-v4',
+        return dict(session=self.session, protocol='native-parent-transport-v5',
             sources=[s.receipt() for s in self.http.sources.values()],
             streams=self._initial_streams+[s.receipt() for s in self.native_sources.values()],
             maximum_streams=self.max_streams,
-            http_workers=self.workers,
+            http_workers=self.workers,provider_deadline_clock='SAME_HOST_MONOTONIC_US',
+            accepted_http_drain_seconds=30,
             chunk_bytes=CHUNK, response_bytes=MAX_FRAME,
             upload_bytes=UPLOAD_MAX, upload_chunk_bytes=UPLOAD_CHUNK, upload_slots=1,
             maximum_messages=MAX_MESSAGES, replay='most_recent_only',
@@ -165,7 +166,7 @@ class ParentChannel:
                 and seq == self._next, 'parent_sequence')
             verb = message.get('verb')
             if verb == 'http_begin':
-                _require(set(message) == {'session', 'seq', 'verb', 'alias', 'calls', 'batch'},
+                _require(set(message) == {'session', 'seq', 'verb', 'alias', 'calls', 'batch','provider_deadline_us'},
                          'parent_begin_shape')
                 reply = self._begin(message)
             elif verb in ('poll', 'read', 'ack', 'cancel'):
@@ -382,6 +383,8 @@ class ParentChannel:
         _require(type(message['alias']) is str and message['alias'] in self.http.sources,
                  'parent_alias')
         source = self.http.sources[message['alias']]
+        provider_end=message['provider_deadline_us']
+        _require(type(provider_end) is int and 0<provider_end<2**63,'parent_provider_deadline')
         batch, calls = message['batch'], message['calls']
         _require(type(batch) is bool and type(calls) is list and 1 <= len(calls) <= 200
             and (batch or len(calls) == 1), 'parent_batch')
@@ -400,7 +403,7 @@ class ParentChannel:
         token = secrets.token_urlsafe(32)
         attempt_seconds=min(self.attempt_seconds,8) if source.read_class!='native' else self.attempt_seconds
         attempt = ParentAttempt(self.session, token, source.alias, tuple(frozen), batch,
-            min(self.deadline, asyncio.get_running_loop().time()+attempt_seconds))
+            min(self.deadline, asyncio.get_running_loop().time()+attempt_seconds,provider_end/1_000_000))
         content = _Content(None, 'http', attempt=attempt)
         self.contents[token] = content
         content.task = asyncio.create_task(self._http(content))
@@ -408,16 +411,16 @@ class ParentChannel:
 
     async def _http(self, content):
         delivered = None
+        outcome='failed'
         try:
             delivered = await self.http.execute(content.attempt)
             _require(type(delivered) is Delivered and delivered.eof
                 and type(delivered.body) is bytes and len(delivered.body) <= MAX_FRAME,
                 'parent_delivery')
-            content.body, content.status = delivered.body, 'delivered'
+            outcome='delivered'
         except asyncio.CancelledError:
-            content.status = 'canceled'
+            outcome='canceled'
         except BaseException as error:
-            content.status = 'failed'
             from meme_machine.runtime.robinhood.provider_authority import failure_class
             content.boundary = failure_class(error)
         finally:
@@ -429,8 +432,11 @@ class ParentChannel:
                 content.body, content.status = None, 'accounting_failed'
                 self.closed = True
                 self.stopped.set()
-            if self.closed:
-                content.body = None
+            else:
+                # No content ACK or released child slot may precede the
+                # original accepted provider/accounting owner's joined cleanup.
+                content.body=delivered.body if outcome=='delivered' and not self.closed else None
+                content.status=outcome
 
     async def _native(self, content, alias):
         try:

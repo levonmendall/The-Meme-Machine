@@ -561,6 +561,8 @@ class ParentNativeTransportTests(unittest.IsolatedAsyncioTestCase):
         return next(handle for handle,stream in reversed(list(channel.streams.items())) if not stream.closed)
 
     async def dispatch(self, channel, verb, **kwargs):
+        if verb=='http_begin' and 'provider_deadline_us' not in kwargs:
+            kwargs['provider_deadline_us']=int((time.monotonic()+30)*1_000_000)
         channel.test_seq += 1
         return decoded(await channel.dispatch(encode_frame(dict(
             session=channel.session, seq=channel.test_seq, verb=verb, **kwargs))))

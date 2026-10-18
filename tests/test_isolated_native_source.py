@@ -196,6 +196,30 @@ class NativeSourceHookTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.budget.snapshot()['http_bytes'],str(len(self.physical.body)))
         self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
 
+    async def test_original_source_deadline_refuses_late_admitted_body_but_keeps_exact_handoff_and_channel(self):
+        from meme_machine.runtime.evidence_worker import DeliveredRPCError
+        from meme_machine.runtime.provider_purchases import provider_work
+        rpc=self.rpc();content=self.channel._content
+        self.physical.body=b'{"jsonrpc":"2.0", "id":1, "result":103}'
+        end=time.monotonic()+.15
+        def late(accepted,**fields):
+            threading.Event().wait(max(0,end-time.monotonic())+.02)
+            return content(accepted,**fields)
+        def request():
+            with provider_work('history_receipt',family='pump'):
+                return rpc.call_delivered('getSlot',[],3,deadline=end)
+        with patch.object(self.channel,'_content',late):
+            with self.assertRaises(DeliveredRPCError) as caught:
+                await asyncio.to_thread(request)
+        handed=len(b'{"id":1,"jsonrpc":"2.0","result":103}')
+        self.assertEqual(caught.exception.receipt['bytes'],handed)
+        self.assertEqual(rpc.telemetry()['counters']['parent_public_handoff_bytes'],handed)
+        self.assertEqual(self.budget.snapshot()['http_attempts'],'1')
+        self.assertEqual(self.budget.snapshot()['http_bytes'],str(len(self.physical.body)))
+        self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
+        self.assertFalse(self.parent.contents);self.assertFalse(self.channel.closed)
+        self.assertIsNone(self.channel.abort_snapshot())
+
     async def test_parent_source_partial_failure_retains_parent_debt_without_fake_child_bytes(self):
         from meme_machine.runtime.evidence_worker import DeliveredRPCError
         from meme_machine.runtime.provider_purchases import provider_work

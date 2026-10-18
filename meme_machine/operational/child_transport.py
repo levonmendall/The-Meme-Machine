@@ -141,10 +141,12 @@ class ChildChannel:
             expected = {'session', 'protocol', 'sources', 'streams', 'chunk_bytes',
                 'response_bytes', 'maximum_messages', 'replay', 'acknowledgements','maximum_streams',
                 'upload_bytes','upload_chunk_bytes','upload_slots'}
-            expected.add('http_workers')
+            expected.update(('http_workers','provider_deadline_clock','accepted_http_drain_seconds'))
             _require(type(hello) is dict and set(hello) == expected
-                and hello['protocol'] == 'native-parent-transport-v4'
+                and hello['protocol'] == 'native-parent-transport-v5'
                 and type(hello['http_workers']) is int and 1<=hello['http_workers']<=8
+                and hello['provider_deadline_clock']=='SAME_HOST_MONOTONIC_US'
+                and type(hello['accepted_http_drain_seconds']) is int and hello['accepted_http_drain_seconds']==30
                 and type(hello['upload_bytes']) is int and hello['upload_bytes']==UPLOAD_MAX
                 and type(hello['upload_chunk_bytes']) is int and hello['upload_chunk_bytes']==UPLOAD_CHUNK
                 and type(hello['upload_slots']) is int and hello['upload_slots']==1
@@ -238,6 +240,13 @@ class ChildChannel:
                 _require(type(verb) is str and not {'session', 'seq', 'verb'} & set(fields)
                     and self.sequence <= self.maximum_messages, 'child_request_shape')
                 seq = self.sequence
+                if verb=='http_begin':
+                    _require('provider_deadline_us' not in fields,'child_request_shape')
+                    # Integer wire framing only. Floor cannot extend the caller's
+                    # admission/provider deadline. Both endpoints share the
+                    # authenticated same-host kernel monotonic clock.
+                    numerator,denominator=end.as_integer_ratio()
+                    fields=dict(fields,provider_deadline_us=(numerator*1_000_000)//denominator)
                 body = json.dumps(dict(session=self.session, seq=seq, verb=verb, **fields),
                     separators=(',', ':'), allow_nan=False).encode()
                 _require(0 < len(body) <= MAX_REQUEST, 'child_request_bound')
@@ -325,7 +334,11 @@ class ChildChannel:
             self._remaining(end)
             accepted = self.request('http_begin', alias=reference.alias,
                 calls=[dict(method=m, params=p) for m,p in calls], batch=batch, deadline=end)
-            return self._content(accepted, deadline=end)
+            # Admission/provider time remains end. Once a token exists, charged
+            # transport content/accounting has its own original fixed30s drain,
+            # measured once from acceptance and never refreshed by polling.
+            handoff_end=min(self.deadline,time.monotonic()+30)
+            return self._content(accepted, deadline=handoff_end)
         finally:self._http_slots.release()
 
     def demand(self, reference, methods):
@@ -711,10 +724,17 @@ class ChildRPCPort:
         raise AttributeError('immutable_child_rpc_port')
 
     def envelope(self, request, *, deadline=None):
-        return self.envelope_delivered(request,deadline=deadline)[0]
+        value,_=self.envelope_delivered(request,deadline=deadline)
+        if deadline is not None and time.monotonic()>=deadline:
+            raise ChildParentFailure('evidence_deadline_during_transport')
+        return value
 
     def envelope_delivered(self, request, *, deadline=None):
-        """Return exact child handoff bytes, separately from parent socket usage."""
+        """Return admitted handoff bytes, including late delivery for accounting.
+
+        Native callers of this low-level receipt API retain their original
+        post-handoff result deadline/cancellation guard before using a value.
+        """
         batch = type(request) is list
         calls = request if batch else [request]
         _require(1 <= len(calls) <= 200 and all(type(row) is dict

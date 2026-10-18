@@ -213,3 +213,62 @@ parent/upload/bridge cases passed in27.064s without skips under FAST network
 guard/Scratch. Independent bounded code and full-byte proof review found no
 remaining material blocker in this observation scope. Actual hosted causal
 witness, complete FULL/ACK output, kernel acceptance and capacity remain pending.
+
+The actual causal-witness run39089567223 on exact3387a738 failed both original
+cases after56 proof/attribution cases passed in28.771s. It proves initiating
+operation-deadline expiry: at monotonic103.500673780 the operation end was
+103.50059045263306, remaining=-0.0000833274s, closed=False, draining=True,
+cancel_checked=False, operation_expired=True and channel_expired=False. The
+shared abort request follows at103.500694789. Pons fails at103.525607332; the
+first stop is lifecycle failure at103.536414674 with both prior flags false.
+The parent observes CONTROL_ENDED at11.689s of its40s window and sends TERM
+later. Deadline expiry therefore precedes channel loss, Pons failure and stop;
+normal stop, earlier channel close and parent capacity are excluded for this run.
+The ZIP remains retained with SHA256
+`eb5a983c2c9aa9c3cc9ae94657df1bf7febeae12f3d0e6fbf3e6a5b484feaff8`.
+
+The source-level mismatch is two different ownership clocks. Child HTTP used the
+caller's result/admission end for the entire accepted content handoff. Parent
+HTTP did not receive that end, starting its own original8s source or30s native
+provider interval at acceptance. Legitimate provider/Governor completion near
+its end could therefore close the child capability before terminal accounting
+and failure delivery, canceling unrelated consumers. RepairRPC already requires
+exact admitted handoff before its original late/cancel result refusal.
+
+The corrected exact version5 protocol carries a mandatory positive bounded
+integer provider_deadline_us in the same-host kernel monotonic domain. The child
+uses an exact rational floor, never rounding the caller deadline upward. The
+parent clamps to that earlier end, its original8/30s limit and channel end; wire
+values cannot add provider time, priority, quota or authority. Mixed older
+protocols, unknown clock/drain declarations and malformed deadline values fail
+closed. No new clock namespace or host/kernel read is introduced.
+
+Queue and begin retain the original caller deadline. Once a parent token exists,
+its complete transport/accounting/ACK ownership uses one original fixed30s drain
+from token acceptance, clipped by channel end and never reset by a poll. The same
+four-slot child semaphore remains held through that terminal ownership. A normal
+value-only envelope rejects a late value with the existing scoped typed deadline
+boundary. The low-level delivered-receipt API retains exact late handoff bytes;
+its original native caller's result/cancellation guard still refuses them as a
+successful result. No fresh quote, USD evidence or financial permission is issued.
+Ambiguous send/handoff or drain-fence failure still closes the channel and retains
+parent uncertain accounting.
+
+A related real gated-release regression initially failed: parent HTTP published
+'delivered' before its original release owner joined, allowing ACK/value/child
+slot release while parent state remained occupied. Publication now occurs only
+after that same release completes; no I/O, receipt or allowance is replayed.
+The original permanent-accounting-failure regression remains unchanged and passes.
+
+Real offline regressions cover earlier provider expiry without acquisition,
+scoped failure followed by another consumer's progress, paid body held past the
+caller end with complete ACK then late-result refusal, exact original RepairRPC
+handed-byte retention, all slots returned after joined ownership, strict wire
+shape/limits, accepted cancellation and native ACK, before-send expiry, ambiguous
+partial transport and fail-closed drain. The corrected release case plus original
+permanent-fault case passed in0.117s. Nineteen focused ownership cases passed in
+3.302s. The final202 tests across12 source/child/parent/entry/upload/profile/Nitro/
+Pons Current modules passed in21.466s without skips. The two original copied-main
+and namespace test methods/assertions remain unchanged. A changed-source targeted
+hosted result is still required; none of this is kernel, financial, release or
+full-market acceptance.
