@@ -539,7 +539,13 @@ def source_work(work,stop,observe=None):
 
 
 class SelectiveSource:
-    def __init__(self,config,rpc,*,token=None,native_resources=None,native_ports=None):
+    def __init__(self,config,rpc,*,token=None,native_resources=None,native_ports=None,normal_generation=None):
+        if normal_generation is not None:
+            if native_resources is not None or native_ports is not None:
+                raise ValueError('normal_source_isolated_resources_conflict')
+            from .operational.normal_source_boot import require_native_generation
+            require_native_generation(normal_generation)
+        self.normal_generation=normal_generation
         self.native_resources=None;self.native_ports=None
         if native_resources is not None:
             from .runtime.isolated_native_bootstrap import require_runner_ports
@@ -579,6 +585,7 @@ class SelectiveSource:
             settled_handlers=0,closed_sessions=0,preserved_partial_sessions=0,
             unpreserved_sessions=0,queues={name:dict(accepted=0,committed=0)
                 for name in ('control','scout','rolling','candidate')})
+        if normal_generation is not None:self.source_drain['run_identity']=normal_generation.generation
         self.handlers=HandlerLedger(self.source_drain['run_identity'])
         self.economic_cohorts=None
         self.economic_cohort_requested=os.environ.get('MM_ECONOMIC_COHORT_DIAGNOSTICS')=='1'
@@ -589,6 +596,10 @@ class SelectiveSource:
             except Exception:pass # Optional diagnostics cannot prevent source startup.
         self.contained_observation=False;self.observation_drain_boundary=None
         self.session_teardowns={};self.session_deadlines={};self.optional_stops=set()
+
+    @property
+    def source_boot_identity_sha256(self):
+        return None if self.normal_generation is None else self.normal_generation.identity_sha256
 
     def shutdown_deadline(self,coordinator=None):
         deadline=getattr(self,'drain_deadline',None)
@@ -1282,7 +1293,11 @@ class SelectiveSource:
             if getattr(self,'economic_cohorts',None) is not None:state.writer._economic_cohort_meter=self.economic_cohorts
             # Refuse unidentified old callbacks before history/startup writes or
             # any provider dispatch. A new run's empty ledger cannot erase them.
-            try:self.retained_source_drain=retained_source_drain(state)
+            try:
+                if self.normal_generation is None:self.retained_source_drain=retained_source_drain(state)
+                else:
+                    self.retained_source_drain,self.retained_handler_recovery=self.normal_generation.begin(
+                        state,self.drain_snapshot())
             except EvidenceUnavailable as exc:
                 if (str(exc)!='source_drain_historical_handlers_unlocated'
                         or os.environ.get('MM_MODE')!='PAPER'
@@ -1431,7 +1446,8 @@ class SelectiveSource:
                                 publish_source_drain(state,self.retained_source_drain,body,
                                     handler_boundary=self.retained_handler_recovery,
                                     contained_observation=self.contained_observation,
-                                    observation_boundary=self.observation_drain_boundary)
+                                    observation_boundary=self.observation_drain_boundary,
+                                    normal_generation=self.normal_generation)
                         try:await self.work(terminal,0,label='source_commit')
                         except BaseException:
                             self.source_drain.update(state='RECOVERY_REQUIRED',terminal_record_unavailable=True)

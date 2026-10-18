@@ -3,7 +3,7 @@
 This is a checkpoint projection, never a capital or accounting authority. Native
 reads happen at recovery/receipt boundaries; nomination only reads this map.
 """
-from contextlib import closing
+from contextlib import closing, contextmanager
 import json
 import os
 from pathlib import Path
@@ -51,7 +51,22 @@ def _readonly(path):
     return sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True,isolation_level=None)
 
 
-def _shared_reader():
+@contextmanager
+def _readonly_snapshot(path, read_context=None):
+    if read_context is not None:
+        from meme_machine.runtime.native_restore_context import require_read_context
+        with require_read_context(read_context).database(path) as db:
+            yield db
+    else:
+        with closing(_readonly(path)) as db:
+            db.execute('BEGIN')
+            yield db
+
+
+def _shared_reader(read_context=None):
+    if read_context is not None:
+        from meme_machine.runtime.native_restore_context import require_read_context
+        return require_read_context(read_context)
     from meme_machine.shared_capital.runtime import selected,RuntimeCapital
     from types import SimpleNamespace
     database=os.environ.get('MM_PORTFOLIO_ACCOUNTING_DB')
@@ -64,21 +79,25 @@ def _shared_reader():
     return SimpleNamespace(ledger=lambda:state)
 
 
-def _sleeve_ack(position, capital):
-    path=os.environ.get('MM_DIRECTIONAL_SLEEVE_DB')
+def _sleeve_ack(position, capital, *, read_context=None):
+    if read_context is not None:
+        from meme_machine.runtime.native_restore_context import require_read_context
+        read_context=require_read_context(read_context)
+    path=(read_context.sleeve_path('pons') if read_context is not None
+        else os.environ.get('MM_DIRECTIONAL_SLEEVE_DB'))
     if not path:
         return os.environ.get('MM_DIRECTIONAL_COMPOSITE_REQUIRED')!='1'
     from meme_machine.runtime.directional_sleeve import policies
     from meme_machine.runtime.sleeve_reservations import SleeveReservations
     from meme_machine.shared_capital.native_sleeve import SharedSleeve
-    authority=_shared_reader()
-    with closing(_readonly(path)) as db:
-        db.execute('BEGIN')
+    authority=_shared_reader(read_context)
+    with _readonly_snapshot(path,read_context) as db:
         sleeve=object.__new__(SharedSleeve if authority else SleeveReservations)
         sleeve.db=db;sleeve.lock=threading.RLock()
         sleeve.identity=json.loads(db.execute('SELECT body FROM sleeve_genesis WHERE id=1').fetchone()[0])
         expected=dict(lane='pons',capital=capital,policies=policies('pons'),
-            cohort=os.environ.get('MM_DIRECTIONAL_COHORT_ID'),paper_only=True)
+            cohort=(read_context.cohort_id if read_context is not None else
+                os.environ.get('MM_DIRECTIONAL_COHORT_ID')),paper_only=True)
         from meme_machine.runtime.policy_compatibility import known_hash,regime_for
         if (dict(sleeve.identity,policies=expected['policies'])!=expected
                 or set(sleeve.identity['policies'])!=set(expected['policies'])
@@ -91,15 +110,22 @@ def _sleeve_ack(position, capital):
             and (held.get('scale_reservation') or {}).get('status')!='reserved')
 
 
-def _portfolio_ack(position, event_hash, *, lane='pons', cancelled=None):
+def _portfolio_ack(position, event_hash, *, lane='pons', cancelled=None, read_context=None):
     """Existing exact release receipts, shared by native directional adapters."""
-    path=os.environ.get('MM_PORTFOLIO_ACCOUNTING_DB')
+    if read_context is not None:
+        from meme_machine.runtime.native_restore_context import require_read_context
+        read_context=require_read_context(read_context)
+    path=(read_context.portfolio_path if read_context is not None
+        else os.environ.get('MM_PORTFOLIO_ACCOUNTING_DB'))
     if not path:return True
     from meme_machine.shared_capital.runtime import selected, RuntimeCapital
-    shared=selected(path)
+    if read_context is not None:
+        from meme_machine.runtime.native_restore_context import require_read_context
+        require_read_context(read_context).ledger()
+        shared=read_context.shared_path
+    else:shared=selected(path)
     if shared:
-        with closing(_readonly(shared)) as db:
-            db.execute('BEGIN')
+        with _readonly_snapshot(shared,read_context) as db:
             reader=object.__new__(RuntimeCapital);reader.db=db
             state=reader._read();key=lane+':'+position['id']
             if not state or key in state.get('runtime_pending',{}):return False
@@ -155,24 +181,27 @@ def _portfolio_ack(position, event_hash, *, lane='pons', cancelled=None):
             and (not held or held.get('state')!='OPEN'))
 
 
-def verify_lifecycle(root, qualifier, life):
+def verify_lifecycle(root, qualifier, life, *, read_context=None):
     """Read exact native replay and release acknowledgements; absence is unresolved."""
+    if read_context is not None:
+        from meme_machine.runtime.native_restore_context import require_read_context
+        read_context=require_read_context(read_context)
     from .pons_selective_capital import CohortCapital
     root=Path(root);capital_path=root/'pons-selective-cohort-capital.sqlite'
-    with closing(_readonly(capital_path)) as db:
-        db.execute('BEGIN')
+    with _readonly_snapshot(capital_path,read_context) as db:
         genesis=json.loads(db.execute('SELECT body FROM capital_genesis WHERE id=1').fetchone()[0])
         guard=object.__new__(CohortCapital);guard.path=str(capital_path);guard.capital=genesis['capital']
-        guard._reconcile(db,readonly=True,readonly_authority=_shared_reader())
+        guard._reconcile(db,readonly=True,readonly_authority=_shared_reader(read_context))
         rows=[json.loads(raw) for raw, in db.execute('SELECT body FROM capital_positions')]
     # qindex is the immutable controller/native path join, not a summary status.
-    rows=[r for r in rows if Path(r['trial_path']).resolve().parent==root.resolve()
+    original_path=(lambda value:read_context.identity(value,base=read_context.root/'pons')) if read_context is not None else (lambda value:Path(value).resolve())
+    rows=[r for r in rows if original_path(r['trial_path']).parent==original_path(root)
         and Path(r['trial_path']).name in ('trial-%03d.sqlite'%qualifier['index'],'trial-%d.sqlite'%qualifier['index'])]
     if len(rows)!=1:raise BoundaryError('selective_reentry_capital_lifecycle_join')
     row=rows[0];identity=row['id'];path=Path(row['trial_path'])
     if life.get('lifecycle_id') and life['lifecycle_id']!=identity:raise BoundaryError('selective_reentry_receipt_identity')
-    with closing(_readonly(path)) as native:
-        native.execute('BEGIN')
+    if read_context is not None:path=original_path(path)
+    with _readonly_snapshot(path,read_context) as native:
         store=object.__new__(Store);store.db=native
         paper=object.__new__(SelectivePaper);paper.store=store;paper.experiment=STRATEGY_NAMESPACE
         position=paper._get(identity);history=native_history(paper,identity)
@@ -222,7 +251,8 @@ def verify_lifecycle(root, qualifier, life):
     acknowledged=bool(terminal and row['status']=='settled' and row['reserved']==0
         and row.get('native_position')==position and row.get('native_settlement_hash')==digest(position)
         and row.get('native_journal_hash')==event_hash and row.get('native_accounting',{}).get('integral_complete')
-        and _sleeve_ack(position,genesis['capital']) and _portfolio_ack(position,event_hash))
+        and _sleeve_ack(position,genesis['capital'],read_context=read_context)
+        and _portfolio_ack(position,event_hash,read_context=read_context))
     return dict(index=qualifier['index'],lifecycle_id=identity,
         outcome='filled_trade' if filled else 'never_filled_cancellation' if zero_cancel else 'active_or_unresolved',
         native_terminal=terminal,terminal_ready=acknowledged and (filled or zero_cancel),native_position_hash=digest(position),
@@ -237,10 +267,10 @@ def validate_references(result):
     return value
 
 
-def refresh_reference(root, result, qualifier, life):
+def refresh_reference(root, result, qualifier, life, *, read_context=None):
     references=result.setdefault('reentry_references',{})
     curve=qualifier['curve'];state=references.setdefault(curve,{})
-    try:fact=verify_lifecycle(root,qualifier,life)
+    try:fact=verify_lifecycle(root,qualifier,life,read_context=read_context)
     except (BoundaryError,ValueError,KeyError,TypeError,OSError,sqlite3.Error) as error:
         fact=dict(index=qualifier['index'],lifecycle_id=life.get('lifecycle_id'),
             outcome='active_or_unresolved',terminal_ready=False,unavailable=str(error))
@@ -255,13 +285,13 @@ def refresh_reference(root, result, qualifier, life):
     return state
 
 
-def recover_references(root,result):
+def recover_references(root,result,*,read_context=None):
     validate_references(result)
     by_index={r.get('index'):r for r in result.get('lifecycles',[])}
     # Once at the existing recovery boundary. Retired exact references remain in
     # the same atomic cohort checkpoint, even when their native trial is retired.
     for qualifier in sorted(result.get('qualifiers',[]),key=lambda q:q['index']):
-        refresh_reference(root,result,qualifier,by_index.get(qualifier['index']) or {})
+        refresh_reference(root,result,qualifier,by_index.get(qualifier['index']) or {},read_context=read_context)
     return result.setdefault('reentry_references',{})
 
 

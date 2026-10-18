@@ -85,14 +85,8 @@ class Broker:
                         self._remember_watch(row['id'],event,row['observed'],row['generation'])
             check()
 
-    def _renew_retained_interpretation(self,key,*,startup_cancel=None):
-        """Keep the nomination and prior decisions; require new canonical work.
-
-        Adapter/configuration changes invalidate qualification, never token
-        identity, original age or an existing native owner's exit obligations.
-        The one recognized PAPER revision invalidates qualification after an
-        acknowledged transition. Other economic/deployment changes fail closed.
-        """
+    def _retained_interpretation_snapshot(self,key):
+        """Read the exact retained predicates shared with original recovery."""
         row=self.plane._row(key)
         saved=self.plane.db.execute('SELECT body,hash FROM pons_current_watch WHERE candidate=?',(key,)).fetchone()
         watch=json.loads(saved[0]) if saved else None
@@ -104,6 +98,49 @@ class Broker:
         unsynced_buy=(row is not None and watch is not None and row['generation']==1
             and (event.get('topics') or [None])[0]==topic('CurveBuy(address,address,uint256,uint256,uint256,uint256)')
             and watch.get('event')!=event)
+        return row,watch,row_policy,current,event,unsynced_buy
+
+    def retained_interpretation_ready(self,key):
+        """Pure stopped-input predicate; never renew, project, audit or open.
+
+        False means original startup has retained repair work, not that this
+        observer may perform it. The ordinary constructor retains that work.
+        """
+        row,watch,row_policy,current,event,unsynced_buy=self._retained_interpretation_snapshot(key)
+        if watch is not None and self.identity(watch['event'])!=key:return False
+        if row is None:
+            return (watch is not None and watch.get('interpretation')==self.policy
+                and self.identity(watch['event'])==key)
+        if not current or unsynced_buy:return False
+        if watch is not None:
+            # _sync_watch_order writes these three fields even when renewal is
+            # unnecessary. A stopped reader may only accept an already synced
+            # retained projection, never silently finish the original update.
+            return (watch.get('interpretation')==self.policy
+                and watch['generation']==row['generation']
+                and watch.get('latest_ordering')==json.loads(row['ordering'])
+                and watch.get('latest_id')==row['latest_id'])
+        if row['reason']=='strategy_horizon_expired':return True
+        from meme_machine.lanes.pons.pons_selective_continuation import ENTRY_THRESHOLDS
+        retained=json.loads(row['result']) if row['result'] else {}
+        stamp=retained.get('candidate',{}).get('stamp') or {}
+        if (retained.get('candidate',{}).get('state',{}).get('graduated') or
+                retained.get('launch_at') is not None and stamp.get('event_at',0)>
+                retained['launch_at']+ENTRY_THRESHOLDS['max_token_age_seconds']):return True
+        from meme_machine.lanes.pons.abi import topic
+        return not (row['pending'] or (event.get('topics') or [None])[0]==
+            topic('CurveBuy(address,address,uint256,uint256,uint256,uint256)'))
+
+    def _renew_retained_interpretation(self,key,*,startup_cancel=None):
+        """Keep the nomination and prior decisions; require new canonical work.
+
+        Adapter/configuration changes invalidate qualification, never token
+        identity, original age or an existing native owner's exit obligations.
+        The one recognized PAPER revision invalidates qualification after an
+        acknowledged transition. Other economic/deployment changes fail closed.
+        """
+        from meme_machine.lanes.pons.abi import topic
+        row,watch,row_policy,current,event,unsynced_buy=self._retained_interpretation_snapshot(key)
         if current and (watch is None or (watch.get('interpretation')==self.policy
                 and watch['generation']<=row['generation'] and not unsynced_buy)):return True
         if row is None and watch is None:return False
@@ -766,17 +803,24 @@ def coalesce_lifecycle_rows(rows):
     return result
 
 
-def recover_cohort(path,policy,*,capital_path=None):
+def recover_cohort(path,policy,*,capital_path=None,read_context=None):
     from .plane import alive
     from meme_machine.lanes.pons import BoundaryError
-    if not Path(path).is_file():raise BoundaryError('selective_existing_run_requires_explicit_recovery')
-    plane=Plane(path)
+    if read_context is None:
+        if not Path(path).is_file():raise BoundaryError('selective_existing_run_requires_explicit_recovery')
+        plane=Plane(path)
+    else:
+        from meme_machine.runtime.native_restore_context import require_read_context
+        read_context=require_read_context(read_context)
+        plane=read_context.pons_plane(path)
     try:
         saved=plane.checkpoint_read('pons_cohort')
         if not saved:
             raise BoundaryError('selective_existing_run_requires_explicit_recovery')
         rollover=saved['phase']=='finalizing'
-        if alive(saved['owner']):raise BoundaryError('selective_cohort_owner_still_alive')
+        if read_context is None:
+            if alive(saved['owner']):raise BoundaryError('selective_cohort_owner_still_alive')
+        else:read_context.require_owner_stopped(saved['owner'])
         result=saved['result']
         from meme_machine.runtime.pons_terminal_archive import controller_anchor
         controller_anchor(result)
@@ -795,15 +839,19 @@ def recover_cohort(path,policy,*,capital_path=None):
             # retain the original colocated layout.
             capital=(Path(capital_path) if capital_path is not None else
                 Path(path).parent/'pons-selective-cohort-capital.sqlite')
-            if not capital.is_file():raise BoundaryError('paper_policy_transition_cohort_evidence_unavailable')
-            with closing(sqlite3.connect(capital.resolve().as_uri()+'?mode=ro',uri=True)) as db:
-                db.execute('BEGIN')
+            if read_context is None and not capital.is_file():raise BoundaryError('paper_policy_transition_cohort_evidence_unavailable')
+            from meme_machine.lanes.pons.pons_reentry import _readonly_snapshot
+            with _readonly_snapshot(capital,read_context) as db:
                 genesis=json.loads(db.execute('SELECT body FROM capital_genesis WHERE id=1').fetchone()[0])
                 guard=CohortCapital.__new__(CohortCapital);guard.path=str(capital);guard.capital=genesis['capital']
                 from meme_machine.lanes.pons.pons_reentry import _shared_reader
-                guard._reconcile(db,readonly=True,readonly_authority=_shared_reader())
+                guard._reconcile(db,readonly=True,readonly_authority=_shared_reader(read_context))
                 require_flat_rows([json.loads(raw) for raw, in db.execute('SELECT body FROM capital_positions')],kind='capital')
-            require_external_flat()
+            if read_context is None:require_external_flat()
+            else:
+                from meme_machine.runtime.policy_compatibility import require_flat_portfolio
+                require_flat_portfolio(read_context.ledger())
+                for lane in ('pump','pons'):read_context.sleeve(lane)
             # All original vectors, times, lifecycle results and decision records
             # keep their existing identities. Only subsequent decisions select v1.
             result['previous_decision_policy_hash']=stored_policy
@@ -816,7 +864,8 @@ def recover_cohort(path,policy,*,capital_path=None):
             # this verified successor has its own unchanged observation budget.
             result['autonomous_observation_offset']=len(result.get('rows',[]))
         return result
-    finally:plane.close()
+    finally:
+        if read_context is None:plane.close()
 
 
 def restore_position_needs(path,capital_path):

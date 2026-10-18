@@ -139,15 +139,19 @@ def _retired_position(book,proof):
     return position
 
 
-def _sleeve_ack(book,position):
-    path=os.environ.get('MM_DIRECTIONAL_SLEEVE_DB')
+def _sleeve_ack(book,position,*,read_context=None):
+    if read_context is not None:
+        from meme_machine.runtime.native_restore_context import require_read_context
+        read_context=require_read_context(read_context)
+    path=(read_context.sleeve_path('pump') if read_context is not None
+        else os.environ.get('MM_DIRECTIONAL_SLEEVE_DB'))
     if not path:return os.environ.get('MM_DIRECTIONAL_COMPOSITE_REQUIRED')!='1'
     from meme_machine.runtime.sleeve_reservations import SleeveReservations
-    from meme_machine.lanes.pons.pons_reentry import _shared_reader
+    from meme_machine.lanes.pons.pons_reentry import _shared_reader,_readonly_snapshot
     from meme_machine.shared_capital.native_sleeve import SharedSleeve
-    authority=_shared_reader()
-    with closing(sqlite3.connect(Path(path).resolve().as_uri()+'?mode=ro',uri=True)) as db:
-        db.execute('BEGIN');sleeve=object.__new__(SharedSleeve if authority else SleeveReservations)
+    authority=_shared_reader(read_context)
+    with _readonly_snapshot(path,read_context) as db:
+        sleeve=object.__new__(SharedSleeve if authority else SleeveReservations)
         sleeve.db=db;sleeve.lock=threading.RLock()
         sleeve.identity=json.loads(db.execute('SELECT body FROM sleeve_genesis WHERE id=1').fetchone()[0])
         if sleeve.identity['lane']!='pump' or sleeve.identity['capital']!=book.identity['initial']:
@@ -160,8 +164,11 @@ def _sleeve_ack(book,position):
             and (held.get('scale_reservation') or {}).get('status')!='reserved')
 
 
-def release_acknowledged(book,proof):
+def release_acknowledged(book,proof,*,read_context=None):
     """Recheck delayed external acknowledgements without changing them."""
+    if read_context is not None:
+        from meme_machine.runtime.native_restore_context import require_read_context
+        require_read_context(read_context).require_database(book.db)
     try:
         retired=False
         try:position=book._load(proof['lifecycle_id'])
@@ -184,12 +191,12 @@ def release_acknowledged(book,proof):
                 or cancelled and position.get('scale_request') is not None):return False
         if retired:return True
         from meme_machine.lanes.pons.pons_reentry import _portfolio_ack
-        return _sleeve_ack(book,position) and _portfolio_ack(position,proof['terminal_event_hash'],
-            lane='pump',cancelled=cancelled)
+        return _sleeve_ack(book,position,read_context=read_context) and _portfolio_ack(position,proof['terminal_event_hash'],
+            lane='pump',cancelled=cancelled,read_context=read_context)
     except (KeyError,ValueError,TypeError,sqlite3.Error):return False
 
 
-def checkpoint_terminal_attempt(book,identity,signal,snapshot):
+def _terminal_attempt(book,identity,signal,snapshot,*,save,read_context=None):
     """Verify complete exact-lifecycle history at terminal/recovery boundaries.
 
     A retained reservation prefix is usable only with its complete native action
@@ -199,11 +206,11 @@ def checkpoint_terminal_attempt(book,identity,signal,snapshot):
     if book is None:return None
     try:
         saved=book.runtime_state(identity,KEY)
-        if saved is not None:return saved if release_acknowledged(book,saved) else None
+        if saved is not None:return saved if release_acknowledged(book,saved,read_context=read_context) else None
         anchor=book._archive()
         folded=(anchor or {}).get(FRONTIERS,{}).get(reference_key(signal.mint,signal.phase))
         if folded and folded['lifecycle_id']==identity:
-            return folded if release_acknowledged(book,folded) else None
+            return folded if release_acknowledged(book,folded,read_context=read_context) else None
         replay=book.replay();position=book._load(identity)
         prefix=(anchor or {}).get('positions',{}).get(identity)
         actions={};original=None;entry_quantity=entry_cost=None
@@ -257,9 +264,20 @@ def checkpoint_terminal_attempt(book,identity,signal,snapshot):
             authority='derived_native_history_only',release_authority=False)
         # A delayed release is not a missing native history. Save the proven
         # attempt once; later nominations still recheck all release ACKs.
-        book.checkpoint_runtime(identity,KEY,proof,claim=True)
-        return proof if release_acknowledged(book,proof) else None
+        if save:book.checkpoint_runtime(identity,KEY,proof,claim=True)
+        return proof if release_acknowledged(book,proof,read_context=read_context) else None
     except (KeyError,ValueError,TypeError,sqlite3.Error):return None
+
+
+def checkpoint_terminal_attempt(book,identity,signal,snapshot):
+    return _terminal_attempt(book,identity,signal,snapshot,save=True)
+
+
+def derive_terminal_attempt(book,identity,signal,snapshot,*,read_context):
+    """Identical terminal fold and real ACK checks without installing a proof."""
+    from meme_machine.runtime.native_restore_context import require_read_context
+    require_read_context(read_context).require_database(book.db)
+    return _terminal_attempt(book,identity,signal,snapshot,save=False,read_context=read_context)
 
 
 def checkpoint_cancelled_attempt(book,identity,signal,snapshot):

@@ -274,6 +274,7 @@ def main():
     parser.add_argument('--lane',required=True,choices=('pump','pons','meteora','ramses'))
     parser.add_argument('--state-root',required=True)
     parser.add_argument('--offline',action='store_true')
+    parser.add_argument('--normal-owner-channel',type=int)
     args=parser.parse_args()
     from meme_machine.runtime.operating_families import require_active
     require_active(args.lane,production=True)
@@ -285,11 +286,23 @@ def main():
         stop[0]=True
         requested.set()
     for sig in (signal.SIGTERM,signal.SIGINT):signal.signal(sig,shutdown)
-    lock=(Path(args.state_root)/args.lane/'lane.lock').open('a')
-    fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    context=None;lock=None
     try:
+        if args.normal_owner_channel is not None:
+            from .normal_boot_record import require
+            require(args.lane=='pons' and not args.offline,'pons_owner_entry_lane')
+            from .normal_pons_boot import accept_pons_owner_launch
+            context=accept_pons_owner_launch(args.normal_owner_channel)
+            require(Path(args.state_root)==Path(context.identity()['root']),'pons_owner_entry_root')
+        lock=(Path(args.state_root)/args.lane/'lane.lock').open('a')
+        fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         if args.offline:run_offline(args.state_root,args.lane,stop)
         else:
+            if context is not None:
+                from .normal_pons_boot import require_pons_owner_context
+                require_pons_owner_context(context,initial=True)
+                from .normal_boot_record import require
+                require(not requested.is_set(),'pons_owner_entry_stopping')
             from .bounded_provider import install
             install()
             publish=NativeHealthPublisher(args.state_root,args.lane)
@@ -312,7 +325,11 @@ def main():
                     publish('FAIL_CLOSED',**facts,native_failure=status.native_failure(error,args.lane))
                 except Exception:pass
                 raise
-    finally:lock.close()
+    finally:
+        try:
+            if lock is not None:lock.close()
+        finally:
+            if context is not None:context.close()
 
 
 if __name__=='__main__':main()

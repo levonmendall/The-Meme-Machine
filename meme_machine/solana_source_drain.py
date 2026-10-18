@@ -1557,9 +1557,15 @@ def begin_source_observation(state,boundary,body,*,handler_boundary=None):
 
 
 def publish_source_drain(state,boundary,body,*,handler_boundary=None,
-        contained_observation=False,observation_boundary=None):
+        contained_observation=False,observation_boundary=None,normal_generation=None):
     """Publish this run atomically without hiding its retained historical drain."""
     with state.writer.transaction():
+        if normal_generation is not None:
+            from .operational.normal_source_boot import require_native_generation
+            from .operational.normal_boot_record import require
+            require(not contained_observation and observation_boundary is None,'source_generation_mixed_scope')
+            require_native_generation(normal_generation).publish(state,body)
+            return
         if contained_observation:
             from .solana_evidence_plane import EvidenceUnavailable
             # Current teardown may legitimately preserve its own new replay

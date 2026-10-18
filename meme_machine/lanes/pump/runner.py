@@ -1431,8 +1431,12 @@ def _smoke_tail_should_exit(smoke_flat_tail,now,discovery_end,pending,active):
 
 
 @attributed_work('recovery_restart',family='pump',consumer='current')
-def restore_runtime(book,plane,confirmations,*,bind_allocation=True):
+def restore_runtime(book,plane,confirmations,*,bind_allocation=True,read_context=None):
     """Actual startup reconstruction; JSON reports are never consulted."""
+    if read_context is not None:
+        from meme_machine.runtime.native_restore_context import require_read_context
+        require_read_context(read_context).require_database(book.db)
+        if bind_allocation:raise ValueError('native_restore_allocation_binding_refused')
     created={};postgrad={};pending={};active={};qualifiers=[]
     book.replay()
     rows=book.db.execute('SELECT id,body FROM positions ORDER BY id').fetchall()
@@ -1456,8 +1460,12 @@ def restore_runtime(book,plane,confirmations,*,bind_allocation=True):
             decision_slot=original['slot'],policy_hash=original_policy,
             policy_revision=revision_for_hash(original_policy) or 'unavailable')
         if projection['status'] in ('cancelled','settled'):
-            from .pump_attempt_reference import checkpoint_terminal_attempt
-            proof=checkpoint_terminal_attempt(book,identity,signal,original)
+            if read_context is None:
+                from .pump_attempt_reference import checkpoint_terminal_attempt
+                proof=checkpoint_terminal_attempt(book,identity,signal,original)
+            else:
+                from .pump_attempt_reference import derive_terminal_attempt
+                proof=derive_terminal_attempt(book,identity,signal,original,read_context=read_context)
             if proof is not None:qrow['verified_terminal_attempt']=proof
         qualifiers.append(qrow)
         saved=state.get('confirmation_state') or {}

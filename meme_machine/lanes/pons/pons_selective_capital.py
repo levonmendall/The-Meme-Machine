@@ -192,10 +192,14 @@ class CohortCapital:
         from meme_machine.runtime.pons_terminal_archive import checkpoint_capital
         checkpoint_capital(self)
 
-    def reconcile(self):
-        with closing(self._connect()) as db:
-            db.execute('BEGIN')
-            result=self._reconcile(db)
+    def reconcile(self,*,read_context=None):
+        if read_context is not None:
+            from meme_machine.runtime.native_restore_context import require_read_context
+            read_context=require_read_context(read_context)
+        manager=closing(self._connect()) if read_context is None else read_context.database(self.path)
+        with manager as db:
+            if read_context is None:db.execute('BEGIN')
+            result=self._reconcile(db,readonly=read_context is not None,readonly_authority=read_context)
             rows=[json.loads(raw) for raw, in db.execute('SELECT body FROM capital_positions')]
         stale=[]
         for row in rows:
@@ -206,8 +210,14 @@ class CohortCapital:
             # leave a falsely reconciled consolidated snapshot. This check is
             # read-only and never creates missing native databases.
             try:
-                uri=Path(row['trial_path']).resolve().as_uri()+'?mode=ro'
-                with closing(sqlite3.connect(uri,uri=True,timeout=30)) as native:
+                if read_context is None:
+                    uri=Path(row['trial_path']).resolve().as_uri()+'?mode=ro'
+                    native_manager=closing(sqlite3.connect(uri,uri=True,timeout=30))
+                else:
+                    path=read_context.trial_identity(row['trial_path'],root=Path(self.path).parent)
+                    native_manager=read_context.database(path)
+                with native_manager as native:
+                    if read_context is not None:read_context.bound_trial(native)
                     value=native.execute('SELECT body FROM pons_selective_paper WHERE id=?',(row['id'],)).fetchone()
                     event=native.execute('SELECT body,hash FROM records WHERE category=? AND id=?',
                         (JOURNAL_CATEGORY,f'{row["id"]}:{position["version"]}')).fetchone()
