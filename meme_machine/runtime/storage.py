@@ -5,16 +5,16 @@ from pathlib import Path
 import sqlite3
 
 
-def audit_ring(db, table, trigger, *, limit=4096, key='seq', where='1=1', startup_cancel=None):
+def audit_ring(db, table, trigger, *, limit=4096, key='seq', where='1=1', startup_cancel=None, _retention=None):
     """Ordinary audit rows have no scheduling or capital authority."""
     if db.in_transaction:
-        return _audit_ring(db,table,trigger,limit=limit,key=key,where=where,startup_cancel=startup_cancel)
+        return _audit_ring(db,table,trigger,limit=limit,key=key,where=where,startup_cancel=startup_cancel,_retention=_retention)
     # Independent provider sessions use autocommit connections. Dropping and
     # restoring the append-only guard must be one serialized transaction; two
     # sessions must never race another session's temporarily removed trigger.
     db.execute('BEGIN IMMEDIATE')
     try:
-        _audit_ring(db,table,trigger,limit=limit,key=key,where=where,startup_cancel=startup_cancel)
+        _audit_ring(db,table,trigger,limit=limit,key=key,where=where,startup_cancel=startup_cancel,_retention=_retention)
         db.execute('COMMIT')
     except BaseException:
         if db.in_transaction:db.execute('ROLLBACK')
@@ -56,7 +56,7 @@ def _audit_boundary(db,table,*,limit,key,where,startup_cancel=None):
             with preserving_cleanup():db.set_progress_handler(None,0)
 
 
-def _audit_ring(db,table,trigger,*,limit,key,where,startup_cancel=None):
+def _audit_ring(db,table,trigger,*,limit,key,where,startup_cancel=None,_retention=None):
     # Seek the same retained boundary once. Rebuilding a 4,096-key NOT IN
     # set on every provider event repeatedly scans the entire hot audit ring.
     # All reads and pruning still run in the caller's serialized transaction.
@@ -92,6 +92,10 @@ def _audit_ring(db,table,trigger,*,limit,key,where,startup_cancel=None):
         for row in db.execute('SELECT * FROM progress WHERE sequence<? ORDER BY sequence',(cutoff,)).fetchall():
             pipeline(db,row)
     sql=db.execute('SELECT sql FROM sqlite_master WHERE name=?',(trigger,)).fetchone()
+    if _retention is not None:
+        from .native_audit_retention import delete
+        if delete(_retention,db,table,trigger,key=key,where=where,cutoff=cutoff,
+                rowid=rowid,guard=sql[0] if sql else None,limit=limit):return
     if sql:db.execute('DROP TRIGGER '+trigger)
     db.execute('DELETE FROM '+table+' WHERE ('+where+') AND '+key+'<?',(cutoff,))
     if sql:db.execute(sql[0])

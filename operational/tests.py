@@ -16,6 +16,7 @@ FAST=[
  'tests.test_pons_scheduling_reads',
  'tests.test_pons_protection_revision',
  'tests.test_pons_evidence_retention_revision',
+ 'tests.test_pons_native_audit_guards',
  'tests.test_pons_stalled_startup_stack',
  'tests.test_source_operation_publication',
  'tests.test_sleeve_prefix_scheduling',

@@ -140,6 +140,7 @@ class Plane:
         self._owner_thread = threading.get_ident()
         self._owner_pid = os.getpid()
         self._closed = False
+        self._native_audit_retention = None
         from meme_machine.runtime.operation_costs import connect
         self.db = connect(self.path, timeout=10, isolation_level=None, check_same_thread=False,
                           diagnostic_role='pons_plane')
@@ -151,6 +152,9 @@ class Plane:
             raise ValueError('candidate_store_integrity')
         version=self.db.execute('PRAGMA user_version').fetchone()[0]
         if version not in (0,1):raise ValueError('candidate_store_schema')
+        previous_audit_schema={name:sql for name,sql in self.db.execute(
+            "SELECT name,CASE WHEN type='table' THEN '' WHEN octet_length(sql)<=1024 THEN sql END "
+            "FROM sqlite_master WHERE name IN ('transitions','observations','history_no_delete','observations_no_delete') LIMIT 4")}
         self.db.executescript('''
         CREATE TABLE IF NOT EXISTS observation_counts(lane TEXT PRIMARY KEY,received INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS candidates(
@@ -224,14 +228,17 @@ class Plane:
             # Old/partial/foreign metadata cannot authorize a cached sweep.
             # Installation is atomic and does not scan retained economic rows.
             with self.lock:
+                from meme_machine.runtime.native_audit_retention import _NativeAuditRetention
+                self._native_audit_retention = _NativeAuditRetention(self,previous_audit_schema)
                 self.db.execute('BEGIN IMMEDIATE')
                 names=tuple(_EVIDENCE_RETENTION_SCHEMA)
                 try:
+                    changed=self._native_audit_retention.install()
                     if not self.db.execute('SELECT 1 FROM sqlite_master WHERE name IN ('+
                             ','.join('?' for _ in names)+') LIMIT 1',names).fetchone():
                         for sql in _EVIDENCE_RETENTION_SCHEMA.values():self.db.execute(sql)
-                        self.db.execute('COMMIT')
-                    else:self.db.execute('ROLLBACK')
+                        changed=True
+                    self.db.execute('COMMIT' if changed else 'ROLLBACK')
                 except BaseException:
                     from meme_machine.runtime.sqlite_failure import preserving_cleanup
                     with preserving_cleanup():
@@ -340,7 +347,10 @@ class Plane:
             self.db.execute('BEGIN IMMEDIATE')
             before = self.db.total_changes
             schema_token=self._protection_schema_version
+            retention=self._native_audit_retention
+            retention_token=None
             try:
+                if retention is not None:retention_token=retention.begin()
                 yield
                 changed=self.db.total_changes != before
                 self.db.execute('COMMIT' if changed else 'ROLLBACK')
@@ -352,6 +362,8 @@ class Plane:
                 with preserving_cleanup():
                     if self.db.in_transaction:self.db.execute('ROLLBACK')
                 raise
+            finally:
+                if retention is not None:retention.finish(retention_token)
 
     def _row(self, key):
         row=self.db.execute('SELECT * FROM candidates WHERE id=?',(key,)).fetchone()
@@ -370,7 +382,7 @@ class Plane:
         self.db.execute('INSERT INTO transitions(seq,candidate,generation,at,kind,reason,watermark,interpretation,details) VALUES(?,?,?,?,?,?,?,?,?)',
             (tail+1,row['id'],row['generation'],self.clock(),kind,reason,row['desired'],row['interpretation'],canonical(details)))
         from meme_machine.runtime.storage import audit_ring
-        audit_ring(self.db,'transitions','history_no_delete',where='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))',startup_cancel=startup_cancel)
+        audit_ring(self.db,'transitions','history_no_delete',where='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))',startup_cancel=startup_cancel,_retention=self._native_audit_retention)
 
     def maintain(self):
         """Port cache eviction and ordering fences without observer artifacts."""
@@ -386,7 +398,7 @@ class Plane:
             version = self.db.execute('PRAGMA data_version').fetchone()[0]
             evidence_evicted = False
             participating='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))'
-            audit_ring(self.db,'observations','observations_no_delete',key='rowid',where=participating)
+            audit_ring(self.db,'observations','observations_no_delete',key='rowid',where=participating,_retention=self._native_audit_retention)
             self.db.execute('DELETE FROM result_consumption WHERE '+participating+' AND NOT EXISTS(SELECT 1 FROM candidates c INDEXED BY candidate_generation_identity WHERE c.id=result_consumption.candidate AND c.generation=result_consumption.generation)')
             rolling_present = self.db.execute('SELECT 1 FROM rolling LIMIT 1').fetchone() is not None
             if rolling_present:
@@ -827,6 +839,7 @@ class Plane:
 
     def close(self):
         with self.lock:
+            if self._native_audit_retention is not None:self._native_audit_retention.close()
             self._closed=True;self._protection_cache=None;self.db.close()
 
 
