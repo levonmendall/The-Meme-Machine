@@ -43,8 +43,9 @@ def _compatible_pump_reset_prefix(archive,*,source_policy,target_policy):
 
 
 class History:
-    def __init__(self,path,*,policy,maximum_candidates=None,maximum_points=100000):
+    def __init__(self,path,*,policy,maximum_candidates=None,maximum_points=100000,native_work=None):
         self.path=Path(path)
+        self._native_work=native_work
         self.initial_file_sha256=None
         if self.path.is_file():
             with self.path.open('rb') as source:self.initial_file_sha256=hashlib.file_digest(source,'sha256').hexdigest()
@@ -136,11 +137,24 @@ class History:
     @contextmanager
     def transaction(self):
         self.db.execute('BEGIN IMMEDIATE')
+        self._native_observe('transaction_started',self)
         try:
             yield
             self.db.execute('COMMIT')
         except BaseException:
-            self.db.execute('ROLLBACK');raise
+            self.db.execute('ROLLBACK')
+            self._native_observe('transaction_finished',self,False)
+            raise
+        else:self._native_observe('transaction_finished',self,True)
+
+    def _native_observe(self,name,*args):
+        observer=getattr(self,'_native_work',None)
+        if observer is None:return None
+        try:return getattr(observer,name)(*args)
+        except Exception:
+            try:observer.unavailable()
+            except Exception:pass
+            return None
 
     def get_meta(self,key):
         row=self.db.execute('SELECT body,hash FROM meta WHERE key=?',(key,)).fetchone()
@@ -156,10 +170,15 @@ class History:
         return value
 
     def get(self,identity):
-        return self._verified(self.db.execute('SELECT body,hash FROM candidates WHERE id=?',(identity,)).fetchone())
+        raw=self.db.execute('SELECT body,hash FROM candidates WHERE id=?',(identity,)).fetchone()
+        value=self._verified(raw)
+        if raw is not None:self._native_observe('read',self,value,raw[1])
+        return value
 
     def save(self,row):
-        self.db.execute('INSERT OR REPLACE INTO candidates VALUES(?,?,?)',(row['id'],canonical(row),digest(row)))
+        identity=row['id'];raw=canonical(row);sha=digest(row)
+        self.db.execute('INSERT OR REPLACE INTO candidates VALUES(?,?,?)',(identity,raw,sha))
+        self._native_observe('saved',self,row,sha)
 
     def graduate(self,identity,evidence):
         old=self.get(identity)
@@ -398,8 +417,14 @@ class History:
         # Tombstones preserve identity but never enter the monitoring hot set.
         sql='SELECT body,hash FROM candidates'
         if not include_retired:sql+=" WHERE json_extract(body,'$.state')!='retired'"
-        rows=[self._verified(row) for row in self.db.execute(sql)]
-        return sorted(rows,key=lambda r:(r['last_checked'],r['id']))
+        frame=self._native_observe('inventory_started',self,include_retired)
+        rows=[]
+        for raw in self.db.execute(sql):
+            value=self._verified(raw);rows.append(value)
+            if frame is not None:self._native_observe('inventory_row',self,frame,value,raw[1])
+        rows=sorted(rows,key=lambda r:(r['last_checked'],r['id']))
+        if frame is not None:self._native_observe('inventory_finished',self,frame)
+        return rows
 
     def retire(self,row,*,expired_before=None):
         if row.get('position'):raise ValueError('survivor_open_position_retirement')
