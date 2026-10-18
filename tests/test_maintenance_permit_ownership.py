@@ -398,6 +398,83 @@ class MaintenancePermitOwnershipTests(unittest.IsolatedAsyncioTestCase):
         release.set();await self.completed(current)
         for future in queued:await self.completed(future)
 
+    async def test_completed_native_future_keeps_its_slot_until_owner_finalization(self):
+        for cleared_before_recheck in (False,True):
+            with self.subTest(cleared_before_recheck=cleared_before_recheck):
+                admission=OwnerAdmission(self.owner,clock=self.clock.monotonic)
+                ticket=await admission.boundary(30,asyncio.Event())
+                entered=threading.Event();finish_native=threading.Event()
+                terminal=threading.Event();finish_finalizer=threading.Event()
+                released=threading.Event();refused=threading.Event()
+                self.releases.extend((finish_native,finish_finalizer))
+                threads=[];timeouts=[];deadlines=set()
+                command=self.submit_maintenance(self.callback('first',entered=entered,
+                    release=finish_native),ticket)
+                admission.accepted(command)
+                await settled(entered.is_set)
+                def terminal_before_finalizer(future):
+                    # Future callbacks run after the actual native commit and
+                    # terminal publication, before owner finally acquires cv.
+                    threads.append(threading.get_ident());terminal.set()
+                    if not finish_finalizer.wait(5):timeouts.append('finalizer')
+                command.add_done_callback(terminal_before_finalizer)
+                original_request=self.owner.request_maintenance_boundary
+                original_release=self.owner._release_maintenance_locked
+                def released_ticket(current,outcome):
+                    result=original_release(current,outcome)
+                    if current is ticket and outcome=='completed':released.set()
+                    return result
+                def request(*,deadline):
+                    deadlines.add(deadline)
+                    try:return original_request(deadline=deadline)
+                    except EvidenceUnavailable as error:
+                        if str(error)=='maintenance_boundary_outstanding':
+                            refused.set()
+                            if cleared_before_recheck:
+                                # Genuine cleanup wins between the original
+                                # refusal and admission's subsequent cv check.
+                                finish_finalizer.set()
+                                if not released.wait(5):
+                                    raise AssertionError('native_finalizer_not_released')
+                        raise
+                self.owner._release_maintenance_locked=released_ticket
+                self.owner.request_maintenance_boundary=request
+                task=None
+                try:
+                    finish_native.set();await settled(terminal.is_set)
+                    self.assertTrue(command.done());self.assertFalse(command.cancelled())
+                    self.assertEqual(command.result(),'first')
+                    self.assertEqual(ticket.state,'ACCEPTED')
+                    self.assertIs(ticket.command_future,command)
+                    task=asyncio.create_task(admission.boundary(30,asyncio.Event()))
+                    await settled(refused.is_set)
+                    self.assertFalse(task.done())
+                    if not cleared_before_recheck:
+                        self.assertIs(self.owner._maintenance_ticket,ticket)
+                        self.assertEqual(ticket.state,'ACCEPTED')
+                        self.assertFalse(released.is_set())
+                        finish_finalizer.set()
+                    next_ticket=await asyncio.wait_for(task,3)
+                    self.assertIsNot(next_ticket,ticket)
+                    self.assertEqual(ticket.state,'RELEASED')
+                    self.assertEqual(next_ticket.state,'OPEN')
+                    self.assertEqual(deadlines,{30})
+                    self.assertEqual(threads,[self.owner.thread.ident])
+                    self.assertEqual(timeouts,[])
+                    self.assertFalse(command.cancelled())
+                    next_command=self.submit_maintenance(self.callback('next'),next_ticket)
+                    admission.accepted(next_command)
+                    self.assertEqual(await self.completed(next_command),'next')
+                    await settled(lambda:next_ticket.state=='RELEASED')
+                    self.assertEqual([name for name,_ in self.owner.state.events][-2:],
+                        ['first','next'])
+                finally:
+                    finish_finalizer.set()
+                    self.owner.request_maintenance_boundary=original_request
+                    self.owner._release_maintenance_locked=original_release
+                    if task is not None and not task.done():
+                        task.cancel();await asyncio.gather(task,return_exceptions=True)
+
     async def test_shutdown_releases_pending_ticket_and_completes_older_callback(self):
         entered=threading.Event()
         current=self.submit(self.callback('current',entered=entered,wait_closed=True))
