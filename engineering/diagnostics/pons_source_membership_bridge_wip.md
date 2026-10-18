@@ -15,6 +15,9 @@ already checked nonnative-quote or horizon predicates. These metadata stages
 publish only after the same original PonsHistory outer COMMIT. Savepoint release
 alone publishes nothing, rollback discards its stages, and failed COMMIT cannot
 advance the domain. No new query, provider request or persistent writer exists.
+The exported `committed_native_stages` counts fixed typed source/watch metadata
+items published after native COMMIT. Multiple stages may share one real outer
+COMMIT; this field is explicitly not a transaction count.
 
 The original broad MarketScout loop observes its final cursor transaction after
 the complete filtered public response pages have been retained. Its rows remain
@@ -70,6 +73,12 @@ and `pons-source-membership-original-adjacent.log`
 (`da62f193ba2ca496a00aaeee4495f5f601f5e0a706af6884af64ed8491b5e87c`).
 No full suite, live provider, AWS deployment, financial write or release claim
 is part of this component.
+The independent review's count-scope correction renames the export to
+`committed_native_stages`. The follow-up 14-case module passes in 0.953s,
+including two genuine population packets whose savepoints share exactly one
+real outer COMMIT while publishing two stages. The original 65-case receipt
+continues to describe the prior runtime; this small follow-up changes only
+measurement labels and its regression.
 
 Next required capabilities are actual existing-watch traversal/restart witnesses,
 the original broad/current factory head overlap bridge where needed, independent

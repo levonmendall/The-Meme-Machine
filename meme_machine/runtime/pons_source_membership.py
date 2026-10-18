@@ -39,7 +39,7 @@ class PonsSourceMembership:
     def __init__(self,owner):
         self.owner=owner;self.pid=os.getpid();self.lock=threading.Lock();self.loss=None
         self.domain=None;self.broad=None;self.watches={};self.expected=None
-        self.watch_census=False;self.native_commits=0
+        self.watch_census=False;self.committed_stages=0
 
     def unavailable(self,reason='MISSING_NATIVE_WITNESS'):
         self.loss=reason if reason in ('BOUND','CONTENTION','SOURCE_CHANGED','ROLLBACK',
@@ -160,7 +160,7 @@ class PonsSourceMembership:
         try:
             domain=self.domain;broad=self.broad
             return dict(result,state='UNKNOWN' if self.loss else 'MEASURING',reason=self.loss,
-                native_outer_commits=self.native_commits,
+                committed_native_stages=self.committed_stages,
                 factory_domain_installed=domain is not None,
                 factory_through=None if domain is None else domain.head[0],
                 factory_through_hash=None if domain is None else domain.head[1],
@@ -209,7 +209,7 @@ class _FactoryCommit(_Commit):
             if graduation:domain.pending.add(identity)
         domain.events+=count;domain.head=end;domain.bridges+=1
         domain.chain_hash=digest([domain.chain_hash,previous,end,count,checksum])
-        owner.native_commits+=1
+        owner.committed_stages+=1
 
 
 class _ResolutionCommit(_Commit):
@@ -221,7 +221,7 @@ class _ResolutionCommit(_Commit):
             if domain.resolved.get(identity)==checksum:return
             self.owner.unavailable();return
         domain.pending.remove(identity);domain.resolved[identity]=checksum
-        domain.chain_hash=digest([domain.chain_hash,identity,token,checksum]);self.owner.native_commits+=1
+        domain.chain_hash=digest([domain.chain_hash,identity,token,checksum]);self.owner.committed_stages+=1
 
 
 class _BroadCommit(_Commit):
@@ -233,7 +233,7 @@ class _BroadCommit(_Commit):
                 owner.unavailable('SOURCE_CHANGED');return
         owner.broad=(first if old is None else old[0],last,head,
             1 if old is None else old[3]+1,digest([None if old is None else old[4],first,last,head,count,checksum]),provider)
-        owner.native_commits+=1
+        owner.committed_stages+=1
 
 
 class _WatchCommit(_Commit):
@@ -244,7 +244,7 @@ class _WatchCommit(_Commit):
         # A prior DB row not witnessed in this process cannot be upgraded by an
         # INSERT OR IGNORE no-op. Existing read_pools rows supply that later.
         if not inserted and owner.watches.get(token)!=fields:return
-        owner.watches[token]=fields;owner.native_commits+=1;owner.watch_census=False
+        owner.watches[token]=fields;owner.committed_stages+=1;owner.watch_census=False
 
 
 class PonsPlaneObserver:

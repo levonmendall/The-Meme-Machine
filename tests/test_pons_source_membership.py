@@ -97,6 +97,18 @@ class PonsSourceMembershipTests(unittest.TestCase):
         self.assertEqual(meter.membership.snapshot()['factory_through'],top+1)
         self.assertEqual(meter.membership.snapshot()['committed_factory_bridges'],1)
 
+    def test_two_native_packet_stages_share_one_outer_commit_without_transaction_count_claim(self):
+        meter=self.factory();trace=[];self.history.db.set_trace_callback(trace.append)
+        try:
+            with self.history.transaction():
+                self.assertTrue(self.advance());self.assertTrue(self.advance())
+                self.assertEqual(meter.membership.snapshot()['committed_native_stages'],0)
+        finally:self.history.db.set_trace_callback(None)
+        value=meter.membership.snapshot()
+        self.assertEqual(trace.count('COMMIT'),1)
+        self.assertEqual(value['committed_native_stages'],2)
+        self.assertNotIn('native_outer_commits',value)
+
     def test_new_native_launch_and_graduation_resolve_only_after_authentication_commit(self):
         meter=self.factory();target=self.tape.top+2
         # Extend the synthetic chain prospectively: the launch and graduation
@@ -119,7 +131,7 @@ class PonsSourceMembershipTests(unittest.TestCase):
         value=meter.membership.snapshot()
         self.assertEqual(value['state'],'MEASURING',value)
         self.assertEqual(value['unresolved_factory_graduations'],0)
-        self.assertEqual(value['native_outer_commits'],2)
+        self.assertEqual(value['committed_native_stages'],2)
         self.assertFalse(value['full_universe_complete'])
 
     def test_real_nested_rollback_discards_stages_without_changing_original_error(self):
