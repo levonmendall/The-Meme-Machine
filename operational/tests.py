@@ -22,6 +22,7 @@ FAST=[
  'tests.test_pump_restore_cost_attribution',
  'tests.test_buffered_gap_origin_geometry',
  'tests.test_buffered_prejoin_recovery',
+ 'tests.test_cancelled_buffered_recovery',
  'tests.test_startup_archive_read_reuse',
  'tests.test_isolated_market_observer',
  'tests.test_isolated_native_workload',

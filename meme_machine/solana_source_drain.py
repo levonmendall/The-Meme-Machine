@@ -15,6 +15,10 @@ HANDLER_RECOVERY_KEY='source_handler_recovery'
 SOURCE_DRAIN_KEY='source_drain'
 SOURCE_DRAIN_BYTES=128*1024
 OBSERVATION_DRAIN_KEY='source_drain_observation'
+# One retained legacy cancellation has complete committed queues and an exact
+# preserved pre-feed callback. These pins admit inputs, never economic proof.
+CANCELLED_BUFFERED_CENSUS_SHA256='d01237f6fa0e819de4ab6b8c3068f6c8ba5565fec67d20d1780c7b302dd0caec'
+CANCELLED_BUFFERED_LEDGER_SHA256='97cafc5760e592ef574954bb49ba2b271852b676c66a504cfb73a9d55d9876b6'
 HISTORICAL_OBSERVATION_SHA256='5431d349aa8539ba935861cccb93c1f4c164bce9b0173bf4c77be7b562ffa8c9'
 PROGRAM_GAP_OBSERVATION_SHA256='948743b18d0a33cc85391d07ea4a4ae9dad34110c169ca95945a04473d6db228'
 PROGRAM_GAP_HANDLER_SHA256='29f00e3d71c40e1d306f50263b84f1ec25e455e20d112a5f04fdef25293d0fb0'
@@ -733,7 +737,7 @@ def _preparation_failed_inputs(db,raw,handlers,session_id,*,heads=None,expected_
         gap_origins=origins,job_ids={f:digest([f,PROGRAMS[f],457925003,457925009]) for f in ('pump','pumpswap')})
 
 
-def _buffered_log_inputs(db,raw,handlers,session_id,*,heads=None,expected_origins=None):
+def _buffered_log_inputs(db,raw,handlers,session_id,*,heads=None,expected_origins=None,_cancelled_source=False):
     """A committed queue does not settle its interrupted pre-feed WS callback.
 
     Derive one closed buffered-log incident from the original producer records.
@@ -746,10 +750,13 @@ def _buffered_log_inputs(db,raw,handlers,session_id,*,heads=None,expected_origin
     from .solana_rolling_history import program_scope
     require=_economic_require
     require(isinstance(raw,str) and isinstance(handlers,str) and type(session_id) is int and session_id>0)
+    require(type(_cancelled_source) is bool and (not _cancelled_source or
+        hashlib.sha256(raw.encode()).hexdigest()==CANCELLED_BUFFERED_CENSUS_SHA256
+        and hashlib.sha256(handlers.encode()).hexdigest()==CANCELLED_BUFFERED_LEDGER_SHA256))
     body=_retained_census(raw);accounting=body.get('handler_accounting')
     require(body['state']=='RECOVERY_REQUIRED' and _observation_reference(body) and _committed_census(body)
         and body.get('terminal_record_unavailable',False) is False
-        and body.get('unexpected_cancellation',False) is False
+        and body.get('unexpected_cancellation',False) is _cancelled_source
         and isinstance(accounting,dict) and accounting.get('version')==1 and accounting.get('valid') is True
         and accounting.get('run')==body.get('run_identity') and accounting.get('pid')==body.get('source_pid')
         and type(body.get('source_pid')) is int and body['source_pid']>0
@@ -759,6 +766,12 @@ def _buffered_log_inputs(db,raw,handlers,session_id,*,heads=None,expected_origin
         and all(type(accounting.get(k)) is int and accounting[k]>=0 for k in ('accepted','returned','recoverable'))
         and all(type(accounting.get(k)) is int and accounting[k]==0 for k in ('active','failed','unresolved'))
         and control_recovery(_health_from_db(db,CONTROL_RECOVERY_KEY,SOURCE_DRAIN_BYTES)) is None)
+    if _cancelled_source:
+        require(type(body.get('closed_sessions')) is int and body['closed_sessions']==2
+            and type(body.get('preserved_partial_sessions')) is int and body['preserved_partial_sessions']==1
+            and all(type(body.get(k)) in (int,float) and math.isfinite(body[k]) and body[k]>0
+                for k in ('started_at_monotonic','terminal_at_monotonic'))
+            and body['started_at_monotonic']<body['terminal_at_monotonic'])
     require(all(set(row)=={'accepted','committed','pending'} for row in body['queues'].values()))
     retained=_retained_handlers(handlers);records=accounting.get('records')
     current=[r for r in retained if r.get('run')==body['run_identity']]
@@ -883,7 +896,8 @@ def _buffered_log_inputs(db,raw,handlers,session_id,*,heads=None,expected_origin
     require(isinstance(provider,dict) and provider.get('provider')=='alchemy_solana_mainnet'
         and provider.get('network')=='solana-mainnet' and isinstance(provider.get('endpoint_identity'),str)
         and len(provider['endpoint_identity'])==64 and all(c in '0123456789abcdef' for c in provider['endpoint_identity']))
-    return dict(version=1,kind='ROLLING_ECONOMIC_REPLAY_INPUTS',input_class='COMMITTED_BUFFERED_LOGS',
+    return dict(version=1,kind='ROLLING_ECONOMIC_REPLAY_INPUTS',input_class=(
+        'CANCELLED_SOURCE_BUFFERED_LOGS' if _cancelled_source else 'COMMITTED_BUFFERED_LOGS'),
         failed_census_sha256=hashlib.sha256(raw.encode()).hexdigest(),handler_ledger_sha256=hashlib.sha256(handlers.encode()).hexdigest(),
         run_identity=body['run_identity'],source_pid=body['source_pid'],session=session,session_observation_id=session_id,
         session_sha256=hashlib.sha256(selected[4].encode()).hexdigest(),closed_join_observation_id=closed_row[0],
@@ -949,6 +963,10 @@ def _economic_recovery_inputs(db,raw,handlers,session_id,*,heads=None,expected_o
         and hashlib.sha256(raw.encode()).hexdigest()==PREPARATION_RECOVERY_CENSUS else _economic_failed_inputs)
     if validator is _economic_failed_inputs and isinstance(raw,str) and _committed_census(_retained_census(raw)):
         validator=_buffered_log_inputs
+    if (validator is _buffered_log_inputs
+            and hashlib.sha256(raw.encode()).hexdigest()==CANCELLED_BUFFERED_CENSUS_SHA256):
+        return validator(db,raw,handlers,session_id,heads=heads,expected_origins=expected_origins,
+            _cancelled_source=True)
     return validator(db,raw,handlers,session_id,heads=heads,expected_origins=expected_origins)
 
 
@@ -966,7 +984,7 @@ def current_economic_recovery_descriptor(state_or_db):
     if prior:
         _economic_require(len(prior)==1)
         descriptor=_retained_json(prior[0][3])
-        if descriptor.get('input_class')=='COMMITTED_BUFFERED_LOGS':
+        if descriptor.get('input_class') in ('COMMITTED_BUFFERED_LOGS','CANCELLED_SOURCE_BUFFERED_LOGS'):
             actual=_economic_recovery_inputs(db,raw,handlers,descriptor['session_observation_id'],
                 expected_origins=descriptor['gap_origins'])
         else:actual=_economic_recovery_inputs(db,raw,handlers,descriptor['session_observation_id'])
@@ -1122,7 +1140,7 @@ def verify_economic_recovery_descriptor(state_or_db,descriptor_or_reference):
             require(consumer.get('source')=='alchemy_finalized_repair' and points_cover(scope,lo,hi)
                 and life.unconsumed(scope) is None and rolling.missing(family,scope,lo,hi)==[])
             proofs[family]=proof
-            if descriptor.get('input_class')=='COMMITTED_BUFFERED_LOGS':
+            if descriptor.get('input_class') in ('COMMITTED_BUFFERED_LOGS','CANCELLED_SOURCE_BUFFERED_LOGS'):
                 buffered_partitions[family]=_buffered_log_partition(db,shared,descriptor,family,full,points_cover)
             a=descriptor['tail_lower_slot'];b=descriptor['tail_upper_slot'];origin=descriptor['gap_origins'][family]
             if a is None:continue
@@ -1152,7 +1170,7 @@ def verify_economic_recovery_descriptor(state_or_db,descriptor_or_reference):
         economic_tail_continuity_verified=True,economic_tail_recovered=not tail_missing,
         retained_economic_tail_unavailable=tail_missing)
     if buffered_partitions:
-        result.update(input_class='COMMITTED_BUFFERED_LOGS',scope='OBSERVED_BUFFERED_INTERVAL_ONLY',
+        result.update(input_class=descriptor['input_class'],scope='OBSERVED_BUFFERED_INTERVAL_ONLY',
             economic_tail_scope='OBSERVED_INTERVAL_AFTER_ARCHIVE_UPPER_ONLY',
             full_subscription_completeness_claim=False,retained_partitions=buffered_partitions)
     return result
