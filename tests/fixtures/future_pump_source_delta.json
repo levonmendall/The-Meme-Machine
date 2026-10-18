@@ -35,8 +35,8 @@
       "sha256": "be2aebae5e3955dfd8c73cabbf74ede5a7e4890db336ea5aa83c13be4f7cc1f0"
     },
     "meme_machine/operational/isolated_native_kernel_validation.py": {
-      "bytes": 24103,
-      "sha256": "10fef56f145e6a7520fd8731ac270ac820ea88ee4bc6da4d0521b8de6f114b40"
+      "bytes": 27998,
+      "sha256": "67557a0480dad9191e9624bbbac4c62dc145e33c64d799622818f3f127584dc0"
     },
     "meme_machine/operational/isolated_native_landlock_image.py": {
       "bytes": 13144,
@@ -3352,8 +3352,8 @@
       }
     }
   },
-  "implementation": "a3669e57c86d645483c70a603c11601b532ef13f",
-  "implementation_tree": "bb7f20467e6e2f046aaa661208d8d3ca5dd2dff6",
+  "implementation": "0dd9a46a68b34cc57fe8ef63b9f28a3ce15f2154",
+  "implementation_tree": "c500c8fb3cf87e4bb4edf3ff2455fbbb86d4e680",
   "legacy_guards": {
     "tests/test_pump_restore_source_guard.py": {
       "after_sha256": "ca109bc75ca006b2b720ac1938d811e1afcff6f28417578ce5b405eb670573ce",

@@ -371,3 +371,12 @@ noninherited descriptor cleanup after read failure. The verifier performs no
 SQLite writes. No unchanged hosted retry or passing FULL/ACK claim follows from
 these focused results; exact source proof and independent review precede any
 changed-source target.
+
+The exact cold-reader source proof binds runtime
+`0dd9a46a68b34cc57fe8ef63b9f28a3ce15f2154`, tree
+`c500c8fb3cf87e4bb4edf3ff2455fbbb86d4e680`. Only this validator helper's
+complete pin changes:43 reversible sources,34 other helpers, three unchanged
+pins, legacy/caller inverses and API census remain intact. The coupled complete
+source closure, all16 output cases and original-two-case AST contract passed27
+cases in19.845s without skips. Independent final code/proof review and any actual
+changed-source hosted outcome remain pending; FULL/ACK stays unproved.
