@@ -2987,7 +2987,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(SOURCE_RECORDER_PUBLICATION_DELTAS))
         for relative,(_,after,_,_,_) in SOURCE_RECORDER_PUBLICATION_DELTAS.items():
-            current=(ROOT/relative).read_bytes()
+            current=pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes())
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact recorder transport')
             prior=subprocess.check_output(['git','show',SOURCE_RECORDER_PUBLICATION_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(source_recorder_publication_predecessor(self,relative,current),prior)
@@ -3275,7 +3275,7 @@ class RobinhoodUSDTests(unittest.TestCase):
                 with self.assertRaises(AssertionError):publication_accounting_predecessor(self,relative,changed)
 
     def test_buffered_origin_geometry_preserves_unique_full_obligation_and_original_authority(self):
-        relative=BUFFERED_PREJOIN_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=BUFFERED_PREJOIN_SOURCE;current=pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes())
         prior=subprocess.check_output(['git','show',BUFFERED_ORIGIN_REFERENCE+':'+relative],cwd=ROOT)
         self.assertEqual(buffered_origin_predecessor(self,relative,current),prior)
         self.assertEqual(buffered_origin_predecessor(self,relative,prior),prior)
@@ -3297,7 +3297,7 @@ class RobinhoodUSDTests(unittest.TestCase):
     def test_buffered_prejoin_replay_preserves_original_partition_and_full_ack_authority(self):
         import hashlib
         relative=BUFFERED_PREJOIN_SOURCE
-        current=buffered_origin_predecessor(self,relative,(ROOT/relative).read_bytes())
+        current=buffered_origin_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),BUFFERED_PREJOIN_AFTER,
             relative+':active exact committed buffered-observation recovery')
         self.assertEqual(BUFFERED_PREJOIN_BEFORE,PREPARATION_REPLAY_AFTER,
@@ -3497,7 +3497,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_preparation_replay_preserves_terminal_incident_and_original_full_ack_authority(self):
         import hashlib
-        relative=PREPARATION_REPLAY_SOURCE;current=buffered_prejoin_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=PREPARATION_REPLAY_SOURCE;current=buffered_prejoin_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),PREPARATION_REPLAY_AFTER,
             relative+':active exact preparation-failure replay-input proof')
         self.assertEqual(PREPARATION_REPLAY_BEFORE,PREJOIN_SOURCE_AFTER,
@@ -3760,7 +3760,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_prejoin_observation_preserves_exact_incident_gaps_and_full_ack_authority(self):
         import hashlib
-        relative=PREJOIN_SOURCE;current=preparation_replay_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=PREJOIN_SOURCE;current=preparation_replay_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),PREJOIN_SOURCE_AFTER,
             relative+':active exact prejoin-observation proof')
         prior=subprocess.check_output(['git','show',PREJOIN_SOURCE_REFERENCE+':'+relative],cwd=ROOT)
@@ -4032,7 +4032,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_session_economic_recovery_preserves_original_incidents_and_exact_full_proofs(self):
         import hashlib
-        relative=SESSION_ECONOMIC_RECOVERY_SOURCE;current=prejoin_source_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=SESSION_ECONOMIC_RECOVERY_SOURCE;current=prejoin_source_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),SESSION_ECONOMIC_RECOVERY_AFTER,
             relative+':active exact independently bound session-recovery source')
         prior=subprocess.check_output(['git','show',SESSION_ECONOMIC_RECOVERY_REFERENCE+':'+relative],cwd=ROOT)
@@ -4190,7 +4190,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_recovered_economic_boundary_preserves_failed_census_and_all_previous_guards(self):
         import hashlib
-        relative=RECOVERED_ECONOMIC_BOUNDARY_SOURCE;current=session_economic_recovery_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=RECOVERED_ECONOMIC_BOUNDARY_SOURCE;current=session_economic_recovery_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),RECOVERED_ECONOMIC_BOUNDARY_AFTER,
             relative+':active exact recovered-economic boundary source')
         prior=subprocess.check_output(['git','show',RECOVERED_ECONOMIC_BOUNDARY_REFERENCE+':'+relative],cwd=ROOT)
@@ -4285,7 +4285,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(NATIVE_STARTUP_FAILURE_DELTAS))
         for relative,(_,after,_,_,_) in NATIVE_STARTUP_FAILURE_DELTAS.items():
-            current=(ROOT/relative).read_bytes()
+            current=pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes())
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact first-failure repair source')
             prior=subprocess.check_output(['git','show',NATIVE_STARTUP_FAILURE_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(native_startup_failure_predecessor(self,relative,current),prior)
@@ -4329,7 +4329,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_program_gap_boundary_reverses_exactly_without_weakening_recovery_or_funding(self):
         import hashlib
-        relative=PROGRAM_GAP_OBSERVATION_SOURCE;current=session_economic_recovery_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=PROGRAM_GAP_OBSERVATION_SOURCE;current=session_economic_recovery_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),PROGRAM_GAP_OBSERVATION_AFTER,
             relative+':active exact preserved-program-gap source')
         prior=subprocess.check_output(['git','show',PROGRAM_GAP_OBSERVATION_REFERENCE+':'+relative],cwd=ROOT)

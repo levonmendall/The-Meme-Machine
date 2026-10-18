@@ -66,6 +66,7 @@ jobs:
           group.close()
           modules = [
               'tests.test_pump_restore_source_guard',
+              'tests.test_operational_candidate_source_guard',
               'tests.test_prepared_evidence_decode',
               'tests.test_restore_reference_pages',
               'tests.test_source_operation_publication',
@@ -119,6 +120,7 @@ jobs:
               'tests.test_source_handler_recovery',
               'tests.test_control_interrupted_recovery',
               'tests.test_solana_source_drain',
+              'tests.test_cancelled_buffered_recovery',
               'tests.test_archive_full_log_content',
               'tests.test_archive_recovered_session',
               'tests.test_session_economic_recovery',

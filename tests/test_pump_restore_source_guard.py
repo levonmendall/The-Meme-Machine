@@ -32,7 +32,8 @@ def manifest(test):
 
 
 def authenticated_helper(test,value):
-    body=(ROOT/HELPER).read_bytes();record=value['added_sources'][HELPER]
+    from tests.test_operational_candidate_source_guard import candidate_source_predecessor
+    body=candidate_source_predecessor(test,HELPER,(ROOT/HELPER).read_bytes());record=value['added_sources'][HELPER]
     test.assertEqual(len(body),record['bytes'],'complete restoration helper length')
     test.assertEqual(hashlib.sha256(body).hexdigest(),record['sha256'],
         'complete restoration helper source, not an infrastructure exemption')
@@ -45,6 +46,8 @@ def pump_restore_predecessor(test,relative,current):
     functions still process their older intermediate bytes and negative cases
     without any new normalization or permissive fallback.
     """
+    from tests.test_operational_candidate_source_guard import candidate_source_predecessor
+    current=candidate_source_predecessor(test,relative,current)
     if relative not in PATHS:return current
     value=manifest(test);authenticated_helper(test,value)
     if isinstance(current,str):current=current.encode()
@@ -81,6 +84,8 @@ class PumpRestoreSourceGuardTests(unittest.TestCase):
 
     def test_legacy_guard_file_reverses_only_ten_active_reads_and_one_import(self):
         row=manifest(self)['legacy_guard'];current=(ROOT/row['path']).read_bytes()
+        from tests.test_operational_candidate_source_guard import original_guard_source
+        current=original_guard_source(self,row['path'],current)
         import_line=b'from tests.test_pump_restore_source_guard import pump_restore_predecessor\n'
         self.assertEqual(current.count(import_line),1)
         restored=current.replace(import_line,b'',1);count=0
