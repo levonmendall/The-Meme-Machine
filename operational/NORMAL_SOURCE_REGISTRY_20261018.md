@@ -44,13 +44,21 @@ not retroactively attributed to this source generation.
 The already-existing service_health table exposes the optional key
 `source_generation_frontier`. Its exact schema is
 `normal-source-publication-frontier-v1`, with fields `schema`,
-`identity_sha256`, `generation`, `active_programs`, and `economic`.
+`identity_sha256`, `generation`, `active_programs`, `economic`, and
+`initial_program_outbox_sequence`. The initial cut map has the three exact
+program scopes and the actual original upper sequence or null for no row.
 `economic.all` and each `economic.programs[program_scope]` contain
 `records,batches,first_sequence,last_sequence,prefix_sha256`. The three scopes
 are program:meteora, program:pump and program:pumpswap. Readers must join the
-immutable generation identity, exact sequence prefix and their independent
-expected work population. Missing metadata is unavailable, not zero. A source
+immutable generation identity, exact initial cuts/sequence prefix and their
+independent expected work population. The actual registry constructor publishes
+its zero-issued frontier in its existing transaction, before subscription I/O.
+Missing metadata is unavailable, not zero. A source
 prefix or history ACK alone proves neither a native decision nor protection.
+The pure `validate_publication_frontier` accepts a bounded raw row or decoded
+fixed object, validates shape/count/range/program/cut coherence, and returns a
+detached value. It authenticates no producer, capability, boot-support census or
+economic completion on its own.
 
 `derive_failed_generation_plan(StoppedNativeReadContext)` is a constructor-free
 read port. The caller supplies the original authenticated stopped/census/inode
@@ -99,10 +107,15 @@ below. They are offline fixtures, not AWS or production capacity evidence.
 
 - Final 15 registry cases and 18 original source cases pass in 5.448 seconds:
   `/workspace/recovery-evidence/normal-source-registry-final-focused.log`.
+- The separate initial-cut/zero-frontier/pure-validator follow-up passes 17
+  registry and 18 original source cases in 4.855 seconds:
+  `normal-source-registry-frontier-view-focused.log`. An injected failure after
+  the initial health insertion rolls back both health and generation schema;
+  direct malformed/missing/crossed-cut inputs are refused by the pure validator.
 - The fixed eight-native-frame / 65-scout-locator corpus retains identical
   original canonical/outbox/proof/native rows and the same three FULL batch
   commits. Process wchar is 642,720 versus 671,560 (+28,840 bytes); syscw is 312
-  versus 326. Timings are 0.02307 versus 0.02846 seconds in one ordered tiny
+  versus 326. Follow-up timings are 0.02247 versus 0.02623 seconds in one ordered tiny
   comparison. Both write_bytes deltas are zero on this disposable filesystem;
   this establishes no physical-disk or production capacity result. Setup and
   stream-lifetime transactions described above are outside that batch window.

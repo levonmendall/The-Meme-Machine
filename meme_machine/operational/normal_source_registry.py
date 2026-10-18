@@ -54,7 +54,8 @@ def _prefix():
 
 
 def _validate_prefix(value):
-    require(type(value) is dict and set(value)=={'records','batches','first_sequence','last_sequence','prefix_sha256'}
+    require(type(value) is dict and len(value)==5
+        and set(value)=={'records','batches','first_sequence','last_sequence','prefix_sha256'}
         and _number(value['records']) and _number(value['batches']) and value['batches']<=value['records']
         and all(value[key] is None if value['records']==0 else _number(value[key])
             for key in ('first_sequence','last_sequence'))
@@ -62,6 +63,51 @@ def _validate_prefix(value):
         and (value['batches']==0)==(value['records']==0)
         and (value['records']!=0 or value['prefix_sha256']=='0'*64)
         and hex_value(value['prefix_sha256'],64),'source_registry_economic_shape')
+
+
+def _validate_programs(active,economic):
+    require(type(active) is list and len(active)<=len(PROGRAM_SCOPES)
+        and all(type(scope) is str and scope in PROGRAM_SCOPES for scope in active)
+        and active==sorted(set(active)),'source_registry_active_programs')
+    require(type(economic) is dict and len(economic)==2 and set(economic)=={'all','programs'}
+        and type(economic['programs']) is dict and len(economic['programs'])==len(PROGRAM_SCOPES)
+        and set(economic['programs'])==set(PROGRAM_SCOPES),'source_registry_program_population')
+    for prefix in (economic['all'],*economic['programs'].values()):_validate_prefix(prefix)
+    require(economic['all']['records']==sum(row['records'] for row in economic['programs'].values()),
+        'source_registry_program_counts')
+    populated=[row for row in economic['programs'].values() if row['records']]
+    if populated:
+        total=economic['all']
+        require(total['first_sequence']==min(row['first_sequence'] for row in populated)
+            and total['last_sequence']==max(row['last_sequence'] for row in populated)
+            and max(row['batches'] for row in populated)<=total['batches']
+                <=sum(row['batches'] for row in populated),'source_registry_program_frontiers')
+
+
+def validate_publication_frontier(value):
+    """Strict bounded shape only; producer/boot-support joins remain mandatory.
+
+    Accept the one already-bounded health row or its already-decoded object.
+    This neither opens a DB nor authenticates a capability/current generation.
+    """
+    if type(value) is str:
+        require(0<len(value.encode())<=MAX_BODY,'source_registry_frontier_bound')
+        from .normal_boot_record import _json
+        value=_json(value)
+    require(type(value) is dict and len(value)==6 and set(value)=={'schema','identity_sha256',
+        'generation','active_programs','economic','initial_program_outbox_sequence'}
+        and value['schema']=='normal-source-publication-frontier-v1'
+        and hex_value(value['identity_sha256'],64) and hex_value(value['generation'],32),
+        'source_registry_public_frontier_shape')
+    _validate_programs(value['active_programs'],value['economic'])
+    initial=value['initial_program_outbox_sequence']
+    require(type(initial) is dict and len(initial)==len(PROGRAM_SCOPES) and set(initial)==set(PROGRAM_SCOPES)
+        and all(item is None or _number(item) for item in initial.values()),
+        'source_registry_public_initial_cut')
+    for scope,prefix in value['economic']['programs'].items():
+        require(prefix['records']==0 or initial[scope] is None or prefix['first_sequence']>initial[scope],
+            'source_registry_public_cut_crossed')
+    return deepcopy(value)
 
 
 def _validate_frontiers(value):
@@ -109,15 +155,7 @@ def _validate_generation(value):
             and (row['last_slot'] is None if row['frames']==0 else
                 _number(row['last_slot']) and row['last_slot']>0)
             and hex_value(row['prefix_sha256'],64),'source_registry_plane_shape')
-    require(type(value['active_programs']) is list and value['active_programs']==sorted(set(value['active_programs']))
-        and all(scope in PROGRAM_SCOPES for scope in value['active_programs']),
-        'source_registry_active_programs')
-    economic=value['economic'];require(type(economic) is dict and set(economic)=={'all','programs'}
-        and type(economic['programs']) is dict and set(economic['programs'])==set(PROGRAM_SCOPES),
-        'source_registry_program_population')
-    for prefix in (economic['all'],*economic['programs'].values()):_validate_prefix(prefix)
-    require(economic['all']['records']==sum(row['records'] for row in economic['programs'].values()),
-        'source_registry_program_counts')
+    _validate_programs(value['active_programs'],value['economic'])
     return value
 
 
@@ -197,6 +235,7 @@ class NativeSourceRegistry:
             state.writer.db.execute('INSERT INTO '+GENERATION_TABLE+' VALUES(?,?,?,?,?,?)',
                 (self.generation,canonical(capability.identity()).decode(),self.identity,
                  state.fence.endpoint_identity,raw,checksum))
+            self._publish_frontier(state,body)
 
     def _owner(self,state):
         self.capability._owner(state)
@@ -214,6 +253,13 @@ class NativeSourceRegistry:
         raw,checksum=_bounded(body)
         state.writer.db.execute('UPDATE '+GENERATION_TABLE+' SET body=?,hash=? WHERE id=?',
             (raw,checksum,self.generation))
+
+    def _publish_frontier(self,state,body):
+        require(state.writer.db.in_transaction,'source_registry_publication_boundary')
+        state.fence._health('source_generation_frontier',dict(schema='normal-source-publication-frontier-v1',
+            identity_sha256=self.identity,generation=self.generation,
+            initial_program_outbox_sequence=body['initial_frontiers']['program_outbox_sequence'],
+            active_programs=body['active_programs'],economic=deepcopy(body['economic'])))
 
     def open(self,state,*,stream,session,plane,transport,scopes,lower_slot,filter_sha256):
         self._owner(state)
@@ -294,9 +340,7 @@ class NativeSourceRegistry:
                 last_sequence=last[key],prefix_sha256=hashes[key])
         self._save_generation(state,body)
         # Descriptive same-transaction publication, not a reader-supplied ACK.
-        state.fence._health('source_generation_frontier',dict(schema='normal-source-publication-frontier-v1',
-            identity_sha256=self.identity,generation=self.generation,
-            active_programs=body['active_programs'],economic=deepcopy(value)))
+        self._publish_frontier(state,body)
 
     def closed(self,state,session,observation):
         """Reference the real original joined teardown receipt, not its text."""

@@ -5,6 +5,7 @@ the actual anonymous/kernel issuance is exercised by test_normal_source_boot.
 Real SQLite transactions, canonical ingestion and HandlerLedger/gap checks run.
 """
 import asyncio
+from copy import deepcopy
 import hashlib
 import json
 from pathlib import Path
@@ -110,6 +111,42 @@ class SourceRegistryTests(unittest.TestCase):
         worker=threading.Thread(target=foreign);worker.start();worker.join(1)
         self.assertFalse(worker.is_alive());self.assertEqual(len(errors),1)
         self.assertIn('source_generation_owner',str(errors[0]))
+
+    def test_genuine_initial_zero_frontier_is_atomic_bounded_and_not_missing(self):
+        raw=self.db.execute("SELECT value FROM service_health WHERE key='source_generation_frontier'").fetchone()[0]
+        value=registry.validate_publication_frontier(raw)
+        self.assertEqual(value['identity_sha256'],self.cap.identity_sha256)
+        self.assertEqual(value['generation'],self.cap.generation)
+        self.assertEqual(value['initial_program_outbox_sequence'],
+            self.value()['initial_frontiers']['program_outbox_sequence'])
+        self.assertEqual(value['economic']['all']['records'],0)
+        detached=registry.validate_publication_frontier(value)
+        detached['economic']['all']['records']=9
+        self.assertEqual(json.loads(raw)['economic']['all']['records'],0)
+        for bad in (None,{},dict(value,extra=False),'x'*(registry.MAX_BODY+1)):
+            with self.subTest(type=type(bad)),self.assertRaises(NormalBootUnavailable):
+                registry.validate_publication_frontier(bad)
+        crossed=deepcopy(value)
+        crossed['economic']['all']=dict(records=1,batches=1,first_sequence=5,last_sequence=5,prefix_sha256='b'*64)
+        crossed['economic']['programs']['program:pump']=deepcopy(crossed['economic']['all'])
+        crossed['initial_program_outbox_sequence']['program:pump']=5
+        with self.assertRaisesRegex(NormalBootUnavailable,'public_cut_crossed'):
+            registry.validate_publication_frontier(crossed)
+
+    def test_initial_frontier_failure_rolls_back_its_actual_generation_row(self):
+        original=source_fixtures.SourceCurrentCensusTests();original.setUp()
+        self.addCleanup(original.doCleanups);install(original.state)
+        original.cap.begin(original.state,original.census())
+        real=original.state.fence._health
+        def failed(key,value):
+            real(key,value)
+            if key=='source_generation_frontier':raise RuntimeError('initial_frontier_failure')
+        with patch.object(original.state.fence,'_health',side_effect=failed):
+            with self.assertRaisesRegex(RuntimeError,'initial_frontier_failure'):
+                registry.NativeSourceRegistry(original.state,original.cap)
+        db=original.state.writer.db
+        self.assertIsNone(db.execute("SELECT value FROM service_health WHERE key='source_generation_frontier'").fetchone())
+        self.assertIsNone(db.execute("SELECT name FROM sqlite_master WHERE name=?",(registry.GENERATION_TABLE,)).fetchone())
 
     def test_original_batch_commit_and_rollback_share_one_full_transaction(self):
         self.opened(plane='scout',scopes=['scout:pump'])
