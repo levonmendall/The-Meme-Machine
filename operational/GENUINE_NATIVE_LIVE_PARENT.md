@@ -55,6 +55,9 @@ original single 65-second drain. Independent owners continue draining after an
 ordinary cleanup failure. Incomplete cleanup raises `NativeOwnerDrainFailure`,
 retains the parent/tasks/original cause, and prevents host-fence release. A lost
 fence at scope exit restores temporary-directory globals and retains evidence.
+When the peer has already closed IPC or exited, the parent waits within that
+same drain interval instead of injecting TERM into interpreter finalization.
+An explicit stop, work deadline or cancellation retains the original TERM path.
 The external service stop remains containment, not proof of graceful shutdown.
 
 Focused offline tests use a real replayed synthetic $1,000 epoch, original native
@@ -65,6 +68,10 @@ not all four native market loops. Earlier failures remain retained: the Pump
 wall/monotonic adapter mismatch was corrected; a renewal fixture child exited
 without a terminal receipt before its stop handler was corrected. That first
 renewal verdict remains FAIL with its original cause unproved.
+The later combined run at `13adabb3` retained the same `-15` fixture failure.
+Its terminal IPC-close path exposed the unnecessary TERM race; the corrected
+regression deliberately restores default TERM after IPC close and still earns
+the real renewal and terminal receipt. Neither historical FAIL becomes a PASS.
 
 There is no claim here of live provider acquisition, kernel application, all-four
 economic processing, sustained capacity, historical recovery, normal readiness

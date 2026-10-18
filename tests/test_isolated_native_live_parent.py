@@ -197,6 +197,11 @@ if sys.argv[10]=='renew':
    renewed=True;break
  assert renewed
 resources.close();reader.close();channel.close()
+# Deliberately expose the teardown window: no accepted owner remains, while
+# CPython may restore default signal dispositions before actual process exit.
+# The parent must wait on natural IPC completion rather than inject TERM here.
+signal.signal(signal.SIGTERM,signal.SIG_DFL)
+time.sleep(.2)
 print(json.dumps(dict(status='COMPLETED',financial_authority=False,
  provenance='OFFLINE_IPC_SIZING_FIXTURE_NO_NATIVE_PIPELINES',normal_readiness=False,
  positive_native_sizing=True,genuine_renewal_observed=renewed,portfolio_sequence=value['portfolio_sequence'],
@@ -267,6 +272,7 @@ print(json.dumps(dict(status='COMPLETED',financial_authority=False,
             result=await task
             (scope.path/'parent-result.json').write_text(json.dumps(result,sort_keys=True))
             (scope.path/'offline-child-stderr.txt').write_bytes(bytes(parent._child.output['stderr']))
+            (scope.path/'offline-child-stdout.txt').write_bytes(bytes(parent._child.output['stdout']))
             (scope.path/'offline-child-exit.txt').write_text(str(parent._child.child.returncode))
             self.assertTrue(result['child'].get('genuine_renewal_observed'),result)
             self.assertGreaterEqual(result['sizing']['genuine_renewals'],1)
