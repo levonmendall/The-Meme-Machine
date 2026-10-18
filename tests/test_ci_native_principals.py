@@ -2,6 +2,8 @@
 import ast
 import errno
 import hashlib
+import io
+import json
 import os
 from pathlib import Path
 import stat
@@ -182,8 +184,56 @@ class NativeCIPrincipalTests(unittest.TestCase):
             # the real fixed coordinator must still traverse the loader edge.
             ci.install(str(ci.PREFIX),1000,1000)
         self.assertEqual(selected,['python3.12','ld-linux-x86-64.so.2','libfixture.so.1'])
+        self.assertEqual(installer.directory.call_args_list, [
+            unittest.mock.call(Path('/'),install=False),
+            unittest.mock.call(Path('/opt'),install=True),
+            unittest.mock.call(Path('/opt/hostedtoolcache'),install=True),
+            unittest.mock.call(Path('/opt/hostedtoolcache/Python'),install=True),
+            unittest.mock.call(ci.PREFIX.parent,install=True),
+            unittest.mock.call(ci.PREFIX,install=True)])
         installer.finish.assert_called_once_with()
         installer.close.assert_called_once_with()
+
+    def test_failed_directory_trust_publishes_actual_numeric_stat_without_private_paths(self):
+        self.prefix.chmod(0o777)
+        with self.assertRaisesRegex(ci.Refused,'directory_trust') as caught:
+            self.installation.directory(self.prefix,install=False)
+        result=ci.failure_record(caught.exception)
+        self.assertFalse(result['complete'])
+        self.assertEqual(result['status'],'FAILED')
+        self.assertEqual(result['directory_role'],'selected_runtime_parent')
+        self.assertEqual(result['source_stat']['mode'],0o777)
+        self.assertEqual(result['source_stat']['uid'],os.geteuid())
+        self.assertEqual(result['destination_stat']['mode'],0o777)
+        self.assertNotIn(str(self.prefix),ci.encoded(result).decode())
+        self.assertNotIn('facts',result)
+
+    def test_failure_projection_filters_untrusted_messages_fields_and_remains_failed(self):
+        private='PRIVATE-DO-NOT-PRINT'
+        error=ci.Refused(private,facts=dict(directory_role=private,
+            source_stat=dict(uid=True,gid=-1,inode=2**65,mode=0o775,raw_path=private),
+            private=private))
+        result=ci.failure_record(error)
+        self.assertEqual(result['status'],'FAILED');self.assertFalse(result['complete'])
+        self.assertIsNone(result['code'])
+        self.assertEqual(result['source_stat'],dict(mode=0o775))
+        self.assertNotIn(private,ci.encoded(result).decode())
+        self.assertIsNone(ci.failure_record(ci.Refused([private],facts=dict(directory_role=[private])))['code'])
+
+    def test_failure_json_is_emitted_but_main_reraises_original_refusal(self):
+        failure=ci.Refused('ci_runtime_directory_trust',facts=dict(directory_role='opt',
+            source_stat=dict(uid=1001,mode=0o775)))
+        output=io.StringIO()
+        with patch.object(ci.sys,'argv',['native_principals','--python-location',str(ci.PREFIX),
+                '--runner-uid','1001','--runner-gid','1001']), \
+                patch.object(ci,'install',side_effect=failure), \
+                patch.object(ci.sys,'stdout',output):
+            with self.assertRaises(ci.Refused) as caught:ci.main()
+        self.assertIs(caught.exception,failure)
+        result=json.loads(output.getvalue())
+        self.assertEqual(result['status'],'FAILED')
+        self.assertFalse(result['complete'])
+        self.assertEqual(result['directory_role'],'opt')
 
     def test_current_ci_partitions_all_original_675_cases_without_disabling_assertions(self):
         original = subprocess.check_output(['git','show',ORIGINAL+':.github/workflows/ci.yml'],

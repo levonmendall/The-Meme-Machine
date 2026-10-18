@@ -23,12 +23,14 @@ BLOCK = 128 * 1024
 
 
 class Refused(RuntimeError):
-    pass
+    def __init__(self, code, *, facts=None):
+        super().__init__(code)
+        self.facts = facts
 
 
-def require(value, code):
+def require(value, code, *, facts=None):
     if not value:
-        raise Refused(code)
+        raise Refused(code, facts=facts)
 
 
 def encoded(value):
@@ -42,6 +44,46 @@ def identity(info):
 
 def content_identity(info):
     return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_nlink)
+
+
+def _stat_fields(info):
+    return dict(device=info.st_dev, inode=info.st_ino, uid=info.st_uid,
+                gid=info.st_gid, mode=stat.S_IMODE(info.st_mode), links=info.st_nlink)
+
+
+def failure_record(error):
+    """Fixed numeric failure projection; never an exception message or path."""
+    record = dict(schema='fixed-hosted-ci-runtime-failure-v1', status='FAILED',
+                  complete=False, error_class='Refused' if isinstance(error, Refused) else 'OSError')
+    codes = {'ci_runtime_directory_owner', 'ci_runtime_directory_search',
+             'ci_runtime_directory_trust', 'ci_runtime_directory_changed',
+             'ci_runtime_path_changed', 'ci_runtime_file_trust', 'ci_runtime_shared_file',
+             'ci_runtime_regular_bound', 'ci_runtime_byte_bound', 'ci_runtime_file_bound',
+             'ci_runtime_content_changed', 'ci_runtime_metadata_only', 'ci_runtime_principals',
+             'ci_runtime_hosted_only', 'ci_runtime_fixed_selection', 'ci_runtime_executable',
+             'ci_runtime_fixed_loader', 'ci_runtime_executable_mode', 'ci_runtime_stdlib_missing',
+             'ci_runtime_extension_abi', 'ci_runtime_extension_missing',
+             'ci_runtime_library_missing', 'ci_runtime_library_escape', 'ci_runtime_path'}
+    code = error.args[0] if isinstance(error, Refused) and error.args else None
+    record['code'] = code if type(code) is str and code in codes else None
+    number = getattr(error, 'errno', None)
+    if type(number) is int and 0 < number < 4096:
+        record['errno'] = number
+    facts = getattr(error, 'facts', None)
+    if type(facts) is dict:
+        roles = {'root_anchor', 'opt', 'toolcache', 'python_cache', 'python_version',
+                 'python_prefix', 'selected_runtime_parent'}
+        role = facts.get('directory_role')
+        if type(role) is str and role in roles:
+            record['directory_role'] = role
+        for phase in ('source_stat', 'destination_stat'):
+            value = facts.get(phase)
+            if type(value) is dict:
+                clean = {key:value[key] for key in ('device','inode','uid','gid','mode','links')
+                         if type(value.get(key)) is int and 0 <= value[key] <= 2**64-1}
+                if clean:
+                    record[phase] = clean
+    return record
 
 
 def _open(path, *, directory=False):
@@ -101,6 +143,15 @@ class _Installation:
         self.total = 0
         self.stack = ExitStack()
 
+    def _directory_facts(self, path, before, after=None):
+        roles = {Path('/'):'root_anchor', Path('/opt'):'opt',
+                 Path('/opt/hostedtoolcache'):'toolcache',
+                 Path('/opt/hostedtoolcache/Python'):'python_cache',
+                 PREFIX.parent:'python_version', PREFIX:'python_prefix'}
+        return dict(directory_role=roles.get(path, 'selected_runtime_parent'),
+                    source_stat=_stat_fields(before),
+                    destination_stat=None if after is None else _stat_fields(after))
+
     def close(self):
         self.stack.close()
 
@@ -112,16 +163,17 @@ class _Installation:
         self.stack.callback(os.close, descriptor)
         before = os.fstat(descriptor)
         require(stat.S_ISDIR(before.st_mode) and before.st_uid in self.owners,
-                'ci_runtime_directory_owner')
+                'ci_runtime_directory_owner', facts=self._directory_facts(path,before))
         if install:
             # These are fixed cache ancestors or enumerated selected parents,
             # never a recursive tree operation. Preserve read/search bits.
-            require(before.st_mode & 0o111 == 0o111, 'ci_runtime_directory_search')
+            require(before.st_mode & 0o111 == 0o111, 'ci_runtime_directory_search',
+                    facts=self._directory_facts(path,before))
             os.fchown(descriptor, self.target_uid, self.target_gid)
             os.fchmod(descriptor, stat.S_IMODE(before.st_mode) & ~0o022)
         after = os.fstat(descriptor)
         require(after.st_uid == self.target_uid and not after.st_mode & 0o022,
-                'ci_runtime_directory_trust')
+                'ci_runtime_directory_trust', facts=self._directory_facts(path,before,after))
         _same_path(path, descriptor, directory=True)
         self.directories[path] = (descriptor, before, after)
 
@@ -206,8 +258,8 @@ def install(python_location, runner_uid, runner_gid):
     from meme_machine.operational import namespace_runtime as runtime
     installer = _Installation(PREFIX, runner_uid, runner_gid)
     try:
-        installer.directory(Path('/opt'), install=False)
-        for path in (Path('/opt/hostedtoolcache'), Path('/opt/hostedtoolcache/Python'),
+        installer.directory(Path('/'), install=False)
+        for path in (Path('/opt'), Path('/opt/hostedtoolcache'), Path('/opt/hostedtoolcache/Python'),
                      PREFIX.parent, PREFIX):
             installer.directory(path, install=True)
         stdlib = PREFIX/'lib/python3.12'
@@ -266,8 +318,12 @@ def main():
     parser.add_argument('--runner-uid', required=True, type=int)
     parser.add_argument('--runner-gid', required=True, type=int)
     args = parser.parse_args()
-    print(json.dumps(install(args.python_location, args.runner_uid, args.runner_gid),
-                     sort_keys=True), flush=True)
+    try:
+        result = install(args.python_location, args.runner_uid, args.runner_gid)
+    except (Refused, OSError) as error:
+        print(json.dumps(failure_record(error), sort_keys=True), flush=True)
+        raise
+    print(json.dumps(result, sort_keys=True), flush=True)
 
 
 if __name__ == '__main__':
