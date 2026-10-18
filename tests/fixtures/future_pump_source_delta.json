@@ -11,8 +11,8 @@
       "sha256": "66617a938b20c38e940947de02fa98f000d61aca9a2a0adcad8675f78051d7e1"
     },
     "meme_machine/operational/isolated_native_entry.py": {
-      "bytes": 17448,
-      "sha256": "f59d90c36a33f36fa74e463b5b96d1858be120278f6691be29fe1c1e1b71b756"
+      "bytes": 17659,
+      "sha256": "9a19ad8ca9dfc48e9151ae7758bf4127d2f3124f2e8d3a165d46493878abf78b"
     },
     "meme_machine/operational/isolated_native_image.py": {
       "bytes": 16287,
@@ -47,8 +47,8 @@
       "sha256": "56ff84c2d13695d8282a372f252780d942851e7f38b16476c3368dd387732983"
     },
     "meme_machine/operational/isolated_native_launcher.py": {
-      "bytes": 20966,
-      "sha256": "59fd3f76e7c0f677795841528200e8eff88a7071c6054a30891d7cb7aeabbb6b"
+      "bytes": 20969,
+      "sha256": "fe7becb7a3e953b4008428292b0dad775c8914f02ed242bf076069f14ec31f7e"
     },
     "meme_machine/operational/isolated_native_layout.py": {
       "bytes": 3341,
@@ -63,8 +63,8 @@
       "sha256": "aac354ffacd89937ba22c19e54ceee57242ddacf9d4e21aeb110b579671c409b"
     },
     "meme_machine/operational/isolated_native_source.py": {
-      "bytes": 22674,
-      "sha256": "a1523fd22c44f1c3d2d409de54036f2aa4c70368f8684c7187001f18a81475d1"
+      "bytes": 30057,
+      "sha256": "ec3c82bf4c059aab2a3a9eea26f8eda92b93d17d16dd092240bcb79cfa6fffbb"
     },
     "meme_machine/operational/native_landlock_policy.py": {
       "bytes": 10722,
@@ -3352,8 +3352,8 @@
       }
     }
   },
-  "implementation": "7c4e3a406d9e47d9c587fad03bfb5899a422a4f3",
-  "implementation_tree": "15c4211531221e2b4d19309202eed911f69dd80c",
+  "implementation": "b43e8d3f361992daebe3afd60fe1b4832e526f96",
+  "implementation_tree": "0306b4d44b9d0d4b3ceef8abdd1dc516db2606eb",
   "legacy_guards": {
     "tests/test_pump_restore_source_guard.py": {
       "after_sha256": "ca109bc75ca006b2b720ac1938d811e1afcff6f28417578ce5b405eb670573ce",

@@ -43,9 +43,16 @@ had expressed the original full-release exclusion in a different Boolean
 shape. The workflow now retains the original exact exclusion and independently
 adds the attribution exclusion; the old test and assertions are unchanged.
 The two affected workflow contract cases then passed in0.239 seconds. All
-failure logs remain retained. The complete future image proof must bind these
-new runtime bytes before the coupled diagnostic; no old346/7c4e unchanged-byte
-claim applies to this successor.
+failure logs remain retained. The complete future image proof now binds runtime
+`b43e8d3f361992daebe3afd60fe1b4832e526f96` and tree
+`0306b4d44b9d0d4b3ceef8abdd1dc516db2606eb`. Only the exact SHA/byte records of
+the three already-added source/entry/launcher helpers change. All43 reversible
+780-predecessor files,32 other added helper pins, three unchanged pins, original
+legacy guard bytes, seven caller inverses and API census remain identical.
+The implementation/tree and complete manifest hashes are retargeted explicitly;
+no old346/7c4e unchanged-byte claim applies to this successor. The coupled58
+source-proof/attribution/entry/mapping/helper cases passed in20.343 seconds under
+the official offline FAST network guard/Scratch driver, with no skips.
 
 The first actual original Pons exception still requires the single targeted
 hosted run with SQLite3.45.1. No Pons behavior repair is inferred or attempted
