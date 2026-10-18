@@ -61,6 +61,9 @@ try:
                 else:pons.require_pons_owner_context(cap,initial=True)
                 raise AssertionError('provider_or_native_constructor_reached')
         pons.require_pons_owner_context(cap,initial=True)
+        support=cap.boot_support()
+        support_sha=support.identity_sha256
+        assert support.outbox_support('program:pump')['upper_sequence'] is None
         with ThreadPoolExecutor(max_workers=1) as pool:
             thread_same=pool.submit(lambda:pons.current_pons_owner_context() is cap).result(2)
         copied=cap.identity();copied['owner']['pid']=0
@@ -78,6 +81,9 @@ try:
         with patch.object(pons.time,'monotonic',return_value=record['not_after_monotonic']+3600):
             ongoing=pons.require_pons_owner_context(cap) is cap
         cap.close();assert pons.current_pons_owner_context() is None
+        try:support.value()
+        except Exception:support_closed=True
+        else:support_closed=False
         try:pons.require_pons_owner_context(cap)
         except Exception:closed_refuses=True
         else:closed_refuses=False
@@ -86,7 +92,8 @@ try:
         except OSError:closed=True
         print(json.dumps(dict(identity_sha256=cap.identity_sha256,pid=os.getpid(),closed_fd=closed,
             owner_generation=cap.owner_generation,thread_same=thread_same,unpicklable=unpicklable,
-            ongoing=ongoing,closed_refuses=closed_refuses,fields=sorted(cap.identity()))),flush=True)
+            ongoing=ongoing,closed_refuses=closed_refuses,fields=sorted(cap.identity()),
+            support_sha=support_sha,support_closed=support_closed)),flush=True)
     sys.stdin.readline()
 except BaseException as error:
     print(type(error).__name__+':'+str(error),file=sys.stderr,flush=True)
@@ -141,7 +148,10 @@ class NativePonsOwnerTests(unittest.TestCase):
         self.assertEqual(value['launch']['record_sha256'],self.locator['record_sha256'])
         self.assertEqual(row['owner_generation'],value['owner_generation'])
         self.assertTrue(all(row[k] for k in ('closed_fd','thread_same','unpicklable','ongoing','closed_refuses')))
-        self.assertEqual(set(row['fields']),pons._KEYS)
+        self.assertEqual(set(row['fields']),pons._SUPPORT_KEYS)
+        self.assertEqual(row['support_sha'],self.context.boot_support().identity_sha256)
+        self.assertTrue(row['support_closed'])
+        self.assertEqual(value['schema'],'normal-pons-owner-subcap-v2')
         self.assertFalse(any('funding' in k or 'ready' in k or 'source_complete' in k for k in row['fields']))
         self.assertTrue(channel.closed);self.finish(child)
         with self.assertRaisesRegex(wire.NormalBootUnavailable,'already_issued'):pons.PonsOwnerLaunch(self.context)

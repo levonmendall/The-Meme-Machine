@@ -65,3 +65,38 @@ Root/systemd acquisition remains an explicit simulated premise. The first test
 failure is preserved: the old fixture omitted original SelectiveHistory schema;
 the fixture now installs that original schema before sealing its physical census.
 There was no actual AWS/kernel/provider validation or sustained-capacity test.
+
+## Actual private child association
+
+The successor uses strict `normal-source-subcap-v2`,
+`normal-pump-owner-subcap-v2` and `normal-pons-owner-subcap-v2` packets. The only
+new field is `boot_support`, copied from the actual private Supervisor boundary
+over each existing one-shot anonymous owner channel. Existing peer/PID/start,
+role, process-instance, root/source/tree/epoch, native clock, original acquisition
+window and cleanup checks remain in place. The child validates both the launch
+association and the actual sealed certificate's native-input/physical-generation
+digests before ACK. Existing 8KiB channel bounds remain unchanged.
+
+`cap.boot_support()` produces an exact private boundary only from an actual
+accepted source, Pump or Pons context. Its ongoing owner check is the original
+cheap process-private role check; it does not repeat Git/systemd/provider I/O on
+each read. Pump/Pons close invalidates already obtained boundaries. Legacy v1
+packet shapes remain readable for retained provenance and original compatibility,
+but lack support and refuse this new capability. No dictionary/descriptor can
+substitute for the original private owner object.
+
+The actual source registry's initial transaction compares its real source inode,
+fixed schema digest and all program starting cuts against the transferred
+boundary before its initial row/health publication or subscriptions. A mismatch
+rolls back that registry transaction. No-cap/legacy paths acquire no added
+support queries. Source/current economic prefix matching still requires the
+independent real key census and original native work/receipt outcomes.
+
+The consolidated source/Pump/Pons/support/registry selection passed 63 cases in
+27.933 seconds under the original offline driver, with no skips. Actual child
+protocol tests exercise support handoff, close invalidation, original expiry and
+role fences, wrong certificate refusal before ACK, and source starting-cut
+mutation refusal before subscription while preserving raw old source inputs.
+The actual native source fixture remains offline. No full Current/Survivor union,
+all-four protection, root advancement, held continuation, readiness or grant is
+established by these tests.

@@ -231,6 +231,14 @@ class NativeSourceRegistry:
                 economic=dict(all=_prefix(),programs={scope:_prefix() for scope in PROGRAM_SCOPES}),
                 planes={plane:dict(batches=0,frames=0,last_slot=None,prefix_sha256='0'*64)
                     for plane in PLANES})
+            if 'boot_support' in capability.identity():
+                from .normal_boot_support import source_schema_sha256
+                support=capability.boot_support().value();database=support['database']
+                info=state.writer.path.stat(follow_symlinks=False)
+                require((info.st_dev,info.st_ino)==(database['device'],database['inode'])
+                    and source_schema_sha256(state.writer.db)==database['schema_sha256']
+                    and body['initial_frontiers']['program_outbox_sequence']==support['programs'],
+                    'source_registry_boot_support_changed')
             raw,checksum=_bounded(body)
             state.writer.db.execute('INSERT INTO '+GENERATION_TABLE+' VALUES(?,?,?,?,?,?)',
                 (self.generation,canonical(capability.identity()).decode(),self.identity,

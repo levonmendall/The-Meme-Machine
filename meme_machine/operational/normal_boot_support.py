@@ -88,6 +88,13 @@ def validate_support_association(value,launch):
     return value
 
 
+def validate_support_record(value,launch,certificate):
+    value=validate_support_association(value,launch)
+    require(all(value['association'][key]==certificate[key] for key in
+        ('native_input_sha256','physical_generation_sha256')),'support_certificate_changed')
+    return value
+
+
 def _descriptor(reads,relative):
     path=reads.root/relative
     require(path in reads.databases and path in reads.files,'support_database_missing')
@@ -173,8 +180,10 @@ def _for_boot(context):
 
 def _for_child(owner):
     from .normal_pump_boot import NativePumpOwnerContext,require_pump_owner_context
+    from .normal_pons_boot import NativePonsOwnerContext,require_pons_owner_context
     from .normal_source_boot import NativeSourceGeneration,require_native_generation
     if type(owner) is NativePumpOwnerContext:check=lambda:require_pump_owner_context(owner)
+    elif type(owner) is NativePonsOwnerContext:check=lambda:require_pons_owner_context(owner)
     elif type(owner) is NativeSourceGeneration:check=lambda:require_native_generation(owner)
     else:require(False,'support_child_owner_type')
     check();identity=owner.identity()

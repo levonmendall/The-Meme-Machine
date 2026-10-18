@@ -131,3 +131,24 @@ class BootSupportTests(unittest.TestCase):
             except Exception as error:errors.append(error)
         worker=threading.Thread(target=foreign);worker.start();worker.join(2)
         self.assertEqual(len(errors),1);self.assertIn('context_owner',str(errors[0]))
+
+    def test_strict_legacy_packets_remain_readable_but_cannot_issue_boot_support(self):
+        from meme_machine.operational import normal_source_boot as source
+        from meme_machine.operational import normal_pump_boot as pump
+        from meme_machine.operational import normal_pons_boot as pons
+        from tests.test_normal_source_boot import SourceCurrentCensusTests
+        fixture=SourceCurrentCensusTests();fixture.setUp();self.addCleanup(fixture.doCleanups)
+        value=fixture.cap.identity()
+        self.assertEqual(source._packet(value)['schema'],'normal-source-subcap-v1')
+        with self.assertRaisesRegex(NormalBootUnavailable,'not_issued'):fixture.cap.boot_support()
+        for role,module,cls in (('pump',pump,pump.NativePumpOwnerContext),
+                ('pons',pons,pons.NativePonsOwnerContext)):
+            legacy={key:value[key] for key in ('launch','root','native_clock_sha256',
+                'issued_monotonic','not_after_monotonic')}
+            legacy.update(schema='normal-'+role+'-owner-subcap-v1',owner_generation='a'*32,
+                owner=dict(pid=os.getpid(),start_ticks=source._process_start(os.getpid()),process_instance='b'*32))
+            module._packet(legacy)
+            with patch.object(module,'_CURRENT',None):
+                cap=cls(legacy,_issuer=module._ISSUER)
+                with patch.object(module,'_CURRENT',cap):
+                    with self.assertRaisesRegex(NormalBootUnavailable,'not_issued'):cap.boot_support()

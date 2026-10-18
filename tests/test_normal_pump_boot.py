@@ -61,6 +61,9 @@ try:
                 else:pump.require_pump_owner_context(cap,initial=True)
                 raise AssertionError('provider_or_native_constructor_reached')
         pump.require_pump_owner_context(cap,initial=True)
+        support=cap.boot_support()
+        support_sha=support.identity_sha256
+        assert support.outbox_support('program:pump')['upper_sequence'] is None
         # This is a genuinely accepted Pump object. Neither other exact private
         # capability API may accept it as its own owner/source generation.
         from meme_machine.operational.normal_pons_boot import require_pons_owner_context
@@ -87,6 +90,9 @@ try:
         with patch.object(pump.time,'monotonic',return_value=record['not_after_monotonic']+3600):
             ongoing=pump.require_pump_owner_context(cap) is cap
         cap.close();assert pump.current_pump_owner_context() is None
+        try:support.value()
+        except Exception:support_closed=True
+        else:support_closed=False
         try:pump.require_pump_owner_context(cap)
         except Exception:closed_refuses=True
         else:closed_refuses=False
@@ -96,7 +102,7 @@ try:
         print(json.dumps(dict(identity_sha256=cap.identity_sha256,pid=os.getpid(),closed_fd=closed,
             owner_generation=cap.owner_generation,thread_same=thread_same,unpicklable=unpicklable,
             ongoing=ongoing,closed_refuses=closed_refuses,crossed_refused=crossed_refused,
-            fields=sorted(cap.identity()))),flush=True)
+            fields=sorted(cap.identity()),support_sha=support_sha,support_closed=support_closed)),flush=True)
     sys.stdin.readline()
 except BaseException as error:
     print(type(error).__name__+':'+str(error),file=sys.stderr,flush=True)
@@ -155,7 +161,10 @@ class NativePumpOwnerTests(unittest.TestCase):
         self.assertEqual(row['owner_generation'],value['owner_generation'])
         self.assertTrue(all(row[k] for k in ('closed_fd','thread_same','unpicklable','ongoing','closed_refuses')))
         self.assertEqual(row['crossed_refused'],[True,True])
-        self.assertEqual(set(row['fields']),pump._KEYS)
+        self.assertEqual(set(row['fields']),pump._SUPPORT_KEYS)
+        self.assertEqual(row['support_sha'],self.context.boot_support().identity_sha256)
+        self.assertTrue(row['support_closed'])
+        self.assertEqual(value['schema'],'normal-pump-owner-subcap-v2')
         self.assertFalse(any('funding' in k or 'ready' in k or 'source_complete' in k for k in row['fields']))
         self.assertTrue(channel.closed);self.finish(child)
         with self.assertRaisesRegex(wire.NormalBootUnavailable,'already_issued'):pump.PumpOwnerLaunch(self.context)
@@ -163,6 +172,20 @@ class NativePumpOwnerTests(unittest.TestCase):
     def test_real_fork_cannot_reuse_accepted_pump_context(self):
         channel=pump.PumpOwnerLaunch(self.context);child=self.launch(channel,mode='fork')
         self.bind(channel,child);self.assertTrue(json.loads(child.stdout.readline())['closed_refuses']);self.finish(child)
+
+    def test_support_from_wrong_native_certificate_refuses_real_child_before_ack(self):
+        for field in ('native_input_sha256','physical_generation_sha256'):
+            with self.subTest(field=field),patch.object(pump,'_ISSUED_CONTEXT',None):
+                channel=pump.PumpOwnerLaunch(self.context);child=self.launch(channel);send=pump._send
+                def changed(connected,value):
+                    value=deepcopy(value);value['boot_support']['association'][field]='f'*64
+                    send(connected,value)
+                with patch.object(pump,'_send',side_effect=changed):
+                    with self.assertRaisesRegex(wire.NormalBootUnavailable,'channel_eof'):self.bind(channel,child)
+                self.assertTrue(channel.closed);self.assertIsNone(channel.identity)
+                self.assertEqual(child.wait(timeout=5),2)
+                self.assertIn('support_certificate_changed',child.stderr.read())
+                self.assertEqual(child.stdout.read(),'')
 
     def test_crossed_packet_identity_cannot_ack_or_publish_context(self):
         for field in ('epoch','source','pid','instance'):

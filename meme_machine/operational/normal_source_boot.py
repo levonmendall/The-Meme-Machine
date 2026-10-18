@@ -28,6 +28,7 @@ _ISSUER=object()
 _ISSUED_CONTEXT=None
 _KEYS=set('schema launch source generation native_clock_sha256 root source_inputs '
     'unknown_historical_handlers issued_monotonic not_after_monotonic'.split())
+_SUPPORT_KEYS=_KEYS|{'boot_support'}
 _LAUNCH_KEYS=set('instance request_id stop_generation record_sha256 certificate_sha256 application_commit '
     'application_tree epoch_id inception_sha256 boot_id supervisor'.split())
 
@@ -99,7 +100,8 @@ def _launch_identity(record,record_sha256):
 
 
 def _packet(value):
-    require(type(value) is dict and set(value)==_KEYS and value['schema']=='normal-source-subcap-v1',
+    require(type(value) is dict and ((set(value)==_KEYS and value['schema']=='normal-source-subcap-v1')
+        or (set(value)==_SUPPORT_KEYS and value['schema']=='normal-source-subcap-v2')),
         'source_subcap_fields')
     launch=value['launch'];source=value['source']
     require(type(launch) is dict and set(launch)==_LAUNCH_KEYS and type(source) is dict
@@ -130,6 +132,9 @@ def _packet(value):
     require(hex_value(value['generation'],32) and hex_value(value['native_clock_sha256'],64)
         and type(value['root']) is str and Path(value['root']).is_absolute()
         and '..' not in Path(value['root']).parts,'source_subcap_scope')
+    if 'boot_support' in value:
+        from .normal_boot_support import validate_support_association
+        validate_support_association(value['boot_support'],launch)
     return value
 
 
@@ -149,6 +154,9 @@ def _validate_child(value,locator,record,peer):
     require(value['root']==os.environ.get('MM_STATE_ROOT') and
         Path(os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB',''))==Path(value['root'])/'shared/solana-evidence.sqlite',
         'source_fixed_state')
+    if 'boot_support' in value:
+        from .normal_boot_support import validate_support_record
+        validate_support_record(value['boot_support'],value['launch'],certificate)
     require(Path('/proc/sys/kernel/random/boot_id').read_text().strip()==record['boot_id'],
         'source_boot_identity')
     row=subprocess.run(['/usr/bin/systemctl','show',UNIT,'--property=MainPID,InvocationID,ActiveState'],
@@ -228,13 +236,14 @@ class SourceLaunch:
             time.monotonic()<record['not_after_monotonic'],'source_launch_deadline')
         self.context.require_current();self.process=process
         require(process.poll() is None and os.getsid(process.pid)==process.pid,'source_child_lifetime')
-        value=dict(schema='normal-source-subcap-v1',launch=_launch_identity(record,
+        value=dict(schema='normal-source-subcap-v2',launch=_launch_identity(record,
             self.context._launch._locator['record_sha256']),
             source={'pid':process.pid,'start_ticks':_process_start(process.pid)},generation=uuid.uuid4().hex,
             native_clock_sha256=_clock_sha256(),root=str(self.context._root),
             source_inputs=deepcopy(record['boot_eligibility']['source_inputs']),
             unknown_historical_handlers=record['boot_eligibility']['unknown_historical_handlers'],
-            issued_monotonic=time.monotonic(),not_after_monotonic=record['not_after_monotonic'])
+            issued_monotonic=time.monotonic(),not_after_monotonic=record['not_after_monotonic'],
+            boot_support=self.context.boot_support().value())
         try:
             self.child.close()
             self.parent.settimeout(max(.001,min(deadline,record['not_after_monotonic'])-time.monotonic()))
@@ -271,6 +280,10 @@ class NativeSourceGeneration:
     def generation(self):return self._value['generation']
 
     def identity(self):return deepcopy(self._value)
+
+    def boot_support(self):
+        from .normal_boot_support import _for_child
+        return _for_child(self)
 
     def _owner(self,state):
         owner=threading.get_ident()

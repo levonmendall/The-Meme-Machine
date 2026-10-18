@@ -24,12 +24,14 @@ _ISSUED_CONTEXT=None
 _CURRENT=None
 _ACCEPTED=False
 _KEYS=set('schema launch owner owner_generation native_clock_sha256 root issued_monotonic not_after_monotonic'.split())
+_SUPPORT_KEYS=_KEYS|{'boot_support'}
 _LAUNCH_KEYS=set('instance request_id stop_generation record_sha256 certificate_sha256 application_commit '
     'application_tree epoch_id inception_sha256 boot_id supervisor'.split())
 
 
 def _packet(value):
-    require(type(value) is dict and set(value)==_KEYS and value['schema']=='normal-pons-owner-subcap-v1',
+    require(type(value) is dict and ((set(value)==_KEYS and value['schema']=='normal-pons-owner-subcap-v1')
+        or (set(value)==_SUPPORT_KEYS and value['schema']=='normal-pons-owner-subcap-v2')),
         'pons_owner_fields')
     launch=value['launch'];owner=value['owner']
     require(type(launch) is dict and set(launch)==_LAUNCH_KEYS and type(owner) is dict
@@ -54,6 +56,9 @@ def _packet(value):
         for key in ('issued_monotonic','not_after_monotonic'))
         and 0<=value['issued_monotonic']<value['not_after_monotonic']<=value['issued_monotonic']+60,
         'pons_owner_interval')
+    if 'boot_support' in value:
+        from .normal_boot_support import validate_support_association
+        validate_support_association(value['boot_support'],launch)
     return value
 
 
@@ -76,6 +81,9 @@ def _validate_instance(value,locator,record):
         and _process_start(os.getpid())==value['owner']['start_ticks'],
         'pons_owner_process_changed')
     _environment(value)
+    if 'boot_support' in value:
+        from .normal_boot_support import validate_support_record
+        validate_support_record(value['boot_support'],value['launch'],record['boot_eligibility'])
     require(Path('/proc/sys/kernel/random/boot_id').read_text().strip()==record['boot_id'],
         'pons_owner_boot_changed')
     row=subprocess.run(['/usr/bin/systemctl','show',UNIT,'--property=MainPID,InvocationID,ActiveState'],
@@ -123,11 +131,12 @@ class PonsOwnerLaunch:
             'pons_owner_launch_expired')
         self.process=process
         require(process.poll() is None and os.getsid(process.pid)==process.pid,'pons_owner_child_lifetime')
-        value=dict(schema='normal-pons-owner-subcap-v1',
+        value=dict(schema='normal-pons-owner-subcap-v2',
             launch=_launch_identity(record,self.context._launch._locator['record_sha256']),
             owner=dict(pid=process.pid,start_ticks=_process_start(process.pid),process_instance=process_instance),
             owner_generation=uuid.uuid4().hex,native_clock_sha256=_clock_sha256(),root=str(self.context._root),
-            issued_monotonic=time.monotonic(),not_after_monotonic=record['not_after_monotonic'])
+            issued_monotonic=time.monotonic(),not_after_monotonic=record['not_after_monotonic'],
+            boot_support=self.context.boot_support().value())
         _packet(value)
         self.child.close()
         self.parent.settimeout(max(.001,min(deadline,record['not_after_monotonic'])-time.monotonic()))
@@ -159,6 +168,10 @@ class NativePonsOwnerContext:
     def owner_generation(self):return self._value['owner_generation']
 
     def identity(self):return deepcopy(self._value)
+
+    def boot_support(self):
+        from .normal_boot_support import _for_child
+        return _for_child(self)
 
     def require_current(self,*,initial=False):return require_pons_owner_context(self,initial=initial)
 

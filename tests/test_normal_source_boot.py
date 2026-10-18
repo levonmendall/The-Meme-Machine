@@ -68,10 +68,19 @@ try:
     except OSError:closed=True
     if fixture.get('run_native_source'):
         import asyncio
+        if fixture.get('change_source_cut'):
+            import sqlite3
+            from contextlib import closing
+            with closing(sqlite3.connect(os.path.join(cap.identity()['root'],'shared/solana-evidence.sqlite'))) as db:
+                db.execute('INSERT INTO candidate_outbox VALUES(?,?,?,?,?)',
+                    (2**62,'unowned-race','program:pump',7,1.));db.commit()
         from tests.test_normal_source_boot import run_native_fixture
         asyncio.run(run_native_fixture(cap))
+    support=cap.boot_support()
     print(json.dumps(dict(identity_sha256=cap.identity_sha256,pid=os.getpid(),closed=closed,
-        generation=cap.generation,has_funding_flag='funding_authority' in cap.identity())),flush=True)
+        generation=cap.generation,has_funding_flag='funding_authority' in cap.identity(),
+        support_identity_sha256=support.identity_sha256,
+        support_upper=support.outbox_support('program:pump')['upper_sequence'])),flush=True)
     sys.stdin.readline()
 except BaseException as error:
     print(type(error).__name__+':'+str(error),file=sys.stderr,flush=True)
@@ -115,7 +124,8 @@ class NativeSourceLaunchTests(unittest.TestCase):
         self.enterContext(patch.object(source,'_ISSUED_CONTEXT',None))
         self.enterContext(patch.object(source,'_clock_sha256',return_value='e'*64))
 
-    def launch(self,channel,*,run_native_source=False,revoke_before_entry=False,expire_before_entry=False):
+    def launch(self,channel,*,run_native_source=False,revoke_before_entry=False,expire_before_entry=False,
+            change_source_cut=False):
         env=dict(os.environ,MM_STATE_ROOT=str(self.case.root),
             MM_SOLANA_EVIDENCE_PLANE_DB=str(self.case.root/'shared/solana-evidence.sqlite'))
         child=subprocess.Popen([sys.executable,'-c',CHILD,str(channel.child_fd)],stdin=subprocess.PIPE,
@@ -129,7 +139,7 @@ class NativeSourceLaunchTests(unittest.TestCase):
         self.addCleanup(cleanup)
         child.stdin.write(json.dumps(dict(locator=self.locator,record=self.record,
             run_native_source=run_native_source,revoke_before_entry=revoke_before_entry,
-            expire_before_entry=expire_before_entry))+'\n');child.stdin.flush()
+            expire_before_entry=expire_before_entry,change_source_cut=change_source_cut))+'\n');child.stdin.flush()
         return child
 
     def test_actual_private_launch_peer_pid_start_run_and_one_shot_fd_are_bound(self):
@@ -141,6 +151,9 @@ class NativeSourceLaunchTests(unittest.TestCase):
         self.assertEqual(value['source']['start_ticks'],source._process_start(child.pid))
         self.assertEqual(row['generation'],value['generation'])
         self.assertTrue(row['closed']);self.assertFalse(row['has_funding_flag'])
+        self.assertEqual(row['support_identity_sha256'],self.context.boot_support().identity_sha256)
+        self.assertIsNone(row['support_upper'])
+        self.assertEqual(value['schema'],'normal-source-subcap-v2')
         self.assertEqual(value['unknown_historical_handlers'],2)
         self.assertEqual(value['launch']['record_sha256'],self.locator['record_sha256'])
         self.assertTrue(channel.closed)
@@ -159,8 +172,23 @@ class NativeSourceLaunchTests(unittest.TestCase):
                 channel.bind(child,deadline=time.monotonic()+5)
         self.assertTrue(channel.closed);self.assertIsNone(channel.identity)
         self.assertEqual(child.wait(timeout=5),2)
-        self.assertIn('source_child_instance',child.stderr.read())
+        self.assertIn('support_launch_changed',child.stderr.read())
         self.assertEqual(child.stdout.read(),'')
+
+    def test_genuine_source_owner_refuses_cut_change_before_any_subscription(self):
+        channel=source.SourceLaunch(self.context)
+        child=self.launch(channel,run_native_source=True,change_source_cut=True)
+        channel.bind(child,deadline=time.monotonic()+5)
+        self.assertEqual(child.wait(timeout=5),2)
+        self.assertIn('source_registry_boot_support_changed',child.stderr.read())
+        self.assertEqual(child.stdout.read(),'')
+        import sqlite3
+        from contextlib import closing
+        with closing(sqlite3.connect(self.case.root/'shared/solana-evidence.sqlite')) as db:
+            self.assertIsNone(db.execute("SELECT name FROM sqlite_master WHERE name='native_source_generations'").fetchone())
+            raw=db.execute("SELECT value FROM service_health WHERE key='source_drain'").fetchone()[0]
+            self.assertEqual(hashlib.sha256(raw.encode()).hexdigest(),
+                self.record['boot_eligibility']['source_inputs']['source_drain']['sha256'])
 
     def test_clock_failure_after_real_spawn_closes_both_channels_and_preserves_failure(self):
         channel=source.SourceLaunch(self.context);child=self.launch(channel)
