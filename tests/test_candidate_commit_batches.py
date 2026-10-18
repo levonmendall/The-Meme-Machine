@@ -270,21 +270,35 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         source=SelectiveSource(SimpleNamespace(credential='offline'),None)
         source.stop=asyncio.Event();source.control_connected=True;calls=[]
         async def work(fn,priority,**kw):
-            calls.append((priority,kw.get('label')));result=fn(self.state)
+            calls.append((priority,kw.get('label'),kw.get('component')));result=fn(self.state)
             source.stop.set();return result
         source.work=work;queue=asyncio.Queue()
         for slot in (100,101):await queue.put(frame(slot,logs=False))
         await asyncio.wait_for(source.control_commits(queue),.5)
-        self.assertEqual(calls,[(2,'source_commit')]);self.assertEqual(source.control_committed_slot,100)
+        self.assertEqual(calls,[(2,'source_commit','control')]);self.assertEqual(source.control_committed_slot,100)
         source.stop.clear();calls.clear()
         source.batched=True
         # Publication's delivery dependency must share its intake/FIFO class.
         # Every byte, including duplicate deliveries, remains accounted.
         await source.delivered('candidate_live','yellowstone',100,NOW)
         await source.delivered('candidate_live','yellowstone',100,NOW)
-        with patch.object(self.h.startup,'advance',return_value=None):
+        committed=self.state.writer.transaction_metrics['commit.calls']
+        original=self.h.lifecycle.publish
+        def publish():
+            # One owner turn still COMMITs accounting before entering the
+            # original publisher; combining admission cannot combine away its
+            # durable dependency or charge duplicate deliveries only once.
+            self.assertFalse(self.h.db.in_transaction)
+            self.assertEqual(self.state.writer.transaction_metrics['commit.calls'],committed+1)
+            self.assertEqual(self.h.db.execute(
+                'SELECT family,transport,raw_bytes FROM provider_delivery').fetchall(),
+                [('candidate_live','yellowstone',200)])
+            return original()
+        with patch.object(self.h.startup,'advance',return_value=None),patch.object(
+                self.h.lifecycle,'publish',side_effect=publish) as publication:
             await asyncio.wait_for(source.publish_history(),.5)
-        self.assertEqual(calls,[(2,'source_commit'),(2,'source_commit')])
+        publication.assert_called_once_with()
+        self.assertEqual(calls,[(2,'source_commit','history_publication')])
         self.assertFalse(source.pending_delivery)
 
     async def test_selective_consumer_decodes_each_snapshot_body_once_and_keeps_all_history(self):
