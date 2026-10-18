@@ -1,4 +1,5 @@
 """Offline USDG oracle and native quote composition; no market transport."""
+from tests.test_ea_performance_source_guard import performance_source, performance_guard_source
 import ast
 from contextlib import closing
 from decimal import Decimal
@@ -1916,7 +1917,7 @@ def rally_predecessor(test,relative,current,*,allow_previous_layers=False):
 
 def guarded_source(test,relative):
     """Apply the exact new layer, then let the original economic guards run."""
-    current=publication_accounting_predecessor(test,relative,pump_restore_predecessor(test,relative,(ROOT/relative).read_bytes()))
+    current=publication_accounting_predecessor(test,relative,pump_restore_predecessor(test,relative,performance_source(test,relative,(ROOT/relative).read_bytes())))
     return rally_predecessor(test,relative,current)
 
 
@@ -3008,7 +3009,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         # original hash, lease assertion, mutation and relative ordering survives.
         relative='tests/test_robinhood_usd_valuation.py'
         from tests.test_operational_candidate_source_guard import original_guard_source
-        current=original_guard_source(self,relative,(ROOT/relative).read_bytes())
+        current=original_guard_source(self,relative,performance_guard_source(self,relative,(ROOT/relative).read_bytes()))
         prior=subprocess.check_output(['git','show',SOURCE_RECORDER_PUBLICATION_REFERENCE+':'+relative],cwd=ROOT)
         def old_guard(body):
             parent=next(n for n in ast.parse(body).body if isinstance(n,ast.ClassDef) and n.name=='RobinhoodUSDTests')
@@ -3233,7 +3234,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(PUBLICATION_ACCOUNTING_DELTAS))
         for relative,(before,after,_) in PUBLICATION_ACCOUNTING_DELTAS.items():
-            current=cross_candidate_cold_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
+            current=cross_candidate_cold_predecessor(self,relative,pump_restore_predecessor(self,relative,performance_source(self,relative,(ROOT/relative).read_bytes())))
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact integrated successor')
             prior=subprocess.check_output(['git','show',PUBLICATION_ACCOUNTING_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':immutable exact tested predecessor')

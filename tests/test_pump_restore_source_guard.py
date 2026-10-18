@@ -1,4 +1,5 @@
 """Exact Pump restoration layer; all previous economic/source guards still run."""
+from tests.test_ea_performance_source_guard import performance_source, performance_guard_source
 import ast
 import hashlib
 import json
@@ -33,7 +34,7 @@ def manifest(test):
 
 def authenticated_helper(test,value):
     from tests.test_operational_candidate_source_guard import candidate_source_predecessor
-    body=candidate_source_predecessor(test,HELPER,(ROOT/HELPER).read_bytes());record=value['added_sources'][HELPER]
+    body=candidate_source_predecessor(test,HELPER,performance_source(test,HELPER,(ROOT/HELPER).read_bytes()));record=value['added_sources'][HELPER]
     test.assertEqual(len(body),record['bytes'],'complete restoration helper length')
     test.assertEqual(hashlib.sha256(body).hexdigest(),record['sha256'],
         'complete restoration helper source, not an infrastructure exemption')
@@ -83,7 +84,7 @@ class PumpRestoreSourceGuardTests(unittest.TestCase):
                 self.assertEqual(pump_restore_predecessor(self,relative,previous),previous)
 
     def test_legacy_guard_file_reverses_only_ten_active_reads_and_one_import(self):
-        row=manifest(self)['legacy_guard'];current=(ROOT/row['path']).read_bytes()
+        row=manifest(self)['legacy_guard'];current=performance_guard_source(self,row['path'],(ROOT/row['path']).read_bytes())
         from tests.test_operational_candidate_source_guard import original_guard_source
         current=original_guard_source(self,row['path'],current)
         import_line=b'from tests.test_pump_restore_source_guard import pump_restore_predecessor\n'
@@ -154,7 +155,7 @@ class PumpRestoreSourceGuardTests(unittest.TestCase):
                     pump_restore_predecessor(self,relative,current.replace(before,after,1))
 
     def test_complete_helper_pin_refuses_any_budget_path_hash_or_owner_mutation(self):
-        current=(ROOT/HELPER).read_bytes();read=Path.read_bytes
+        current=performance_source(self,HELPER,(ROOT/HELPER).read_bytes());read=Path.read_bytes
         changes=[current+b'\n# unreviewed helper\n',b'']
         for before,after in ((b'PAGE_REFERENCES = 128',b'PAGE_REFERENCES = 129'),
                 (b'SNAPSHOT_SECONDS = .025',b'SNAPSHOT_SECONDS = 1'),
