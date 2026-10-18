@@ -16,10 +16,10 @@ from unittest.mock import patch
 
 ROOT=Path(__file__).resolve().parents[1]
 BASE='780f4015efd9fba528e97223f8e8e3b1a7322e12'
-IMPLEMENTATION='3465199505c5d56f0bb4de2e67fdf73d2563f366'
-IMPLEMENTATION_TREE='bd2fde2607e485ee35a3092a48069ac379d17b52'
+IMPLEMENTATION='7c4e3a406d9e47d9c587fad03bfb5899a422a4f3'
+IMPLEMENTATION_TREE='15c4211531221e2b4d19309202eed911f69dd80c'
 MANIFEST=ROOT/'tests/fixtures/future_pump_source_delta.json'
-MANIFEST_SHA256='ad6e14adc8c6ad0c4a86f6f3ab2425d3ae94a79d4625a273d12e8f0e0cfce3be'
+MANIFEST_SHA256='186f4f981acc4f5f5e3702bdde3e9d0160335a63c1c0ddd4482b36e87949576b'
 PATHS=('meme_machine/lanes/pons/immutable_rpc.py',
  'meme_machine/lanes/pons/pons_selective_acquisition.py',
  'meme_machine/lanes/pons/pons_selective_capital.py',
@@ -42,6 +42,7 @@ PATHS=('meme_machine/lanes/pons/immutable_rpc.py',
  'meme_machine/lanes/pump/solana_read_rpc.py',
  'meme_machine/operational/bounded_provider.py',
  'meme_machine/operational/lane.py',
+ 'meme_machine/operational/namespace_canary.py',
  'meme_machine/portfolio_accounting.py',
  'meme_machine/runtime/candidate_history.py',
  'meme_machine/runtime/directional_sleeve.py',
@@ -102,7 +103,7 @@ DEPENDENCY_PATHS=('meme_machine/lanes/pons/rpc_profile.py',
 DELETED_PATHS=()
 LEGACY_GUARDS=('tests/test_pump_restore_source_guard.py','tests/test_robinhood_usd_valuation.py')
 CALLER_MANIFEST=ROOT/'tests/fixtures/future_source_callers.json'
-CALLER_MANIFEST_SHA256='74bcfbcba5d917a2bb9c2c9a187544f5164d52845337d6a364b7693186f16967'
+CALLER_MANIFEST_SHA256='ad53c128201da6d2289dafdcd5a539f603323636b75123bace6de0f44d6bacac'
 EXTERNAL_CALLERS=('tests/test_extended_survivor_hold_research.py','tests/test_forward_survivor.py',
     'tests/test_long_duration_positions.py','tests/test_pons_owner_admission.py',
     'tests/test_robinhood_scout.py','tests/test_shared_capital_strategy.py',

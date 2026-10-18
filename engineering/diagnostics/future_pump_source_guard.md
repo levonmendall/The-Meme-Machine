@@ -1,3 +1,43 @@
+# Current typed namespace diagnostic source contract
+
+The current exact future implementation is namespace diagnostic component
+`7c4e3a406d9e47d9c587fad03bfb5899a422a4f3`, tree
+`15c4211531221e2b4d19309202eed911f69dd80c`, based on `aba344d9`.
+Its namespace helper preserves all three original fixed mapping writes, values,
+ordering and safety gates. Only an actual positive typed OSError errno receives
+a fixed Blocked label. This diagnostic change does not establish that kernel
+mapping is permitted, repair a kernel policy, or grant fallback/financial authority.
+
+That runtime change invalidates the previous346 complete active-image contract;
+it is not claimed unchanged. The new 430,381-byte core manifest has SHA256
+`186f4f981acc4f5f5e3702bdde3e9d0160335a63c1c0ddd4482b36e87949576b`.
+It includes 43 modified-existing sources: the original42 records are unchanged,
+and namespace_canary.py gains one complete780 predecessor/successor byte pair,
+two unique contextual reverse hunks and exact AST node/layout deltas. The
+original35 added source/data pins, three unchanged pins, zero deletions and two
+whole legacy guard inverses remain unchanged. No runtime file is edited by this
+source-proof update.
+
+The caller manifest remains39,317 bytes, SHA256
+`ad53c128201da6d2289dafdcd5a539f603323636b75123bace6de0f44d6bacac`.
+Only its exact implementation/tree/core-hash metadata changes. All seven caller
+inverse records, the complete API-use census,44 active legacy readsites and two
+untouched internal reads remain unchanged. Existing partial-source, mutation,
+unknown dependency and active-checkout rejection checks cover the new source too.
+This remains test-only byte authentication; there is no runtime source approval,
+normal-operation authority, native kernel pass or market-capacity claim.
+
+Validation on pinned CPython3.12.14 used the supported offline FAST driver with
+its original network guard and Scratch supervision. The complete future closure
+and caller-census class plus new errno and original namespace modules passed
+28 tests in18.332 seconds without skips. This checks exact source provenance and
+diagnostic behavior; it does not convert prior copied-main SQLite failures or
+kernel mapping refusals into successes. All original long guard bodies and
+mutation assertions are unchanged, so their entire119-case bundle was not
+repeated for this single added-source proof.
+
+## Previous346 contract and preserved receipts
+
 The future Pump source guard is a test-only layer before the existing restoration
 and economic source checks. It is not runtime source approval, containment proof,
 recovery authority, financial authority or PAPER readiness.
