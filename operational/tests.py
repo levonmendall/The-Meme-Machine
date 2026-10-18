@@ -4,6 +4,7 @@ import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.r
 FAST=[
  'tests.test_normal_pump_boot',
  'tests.test_normal_pump_owner_caller',
+ 'tests.test_normal_source_registry',
  'tests.test_normal_pons_boot',
  'tests.test_normal_pons_owner_caller',
  'tests.test_normal_source_boot',

@@ -255,13 +255,14 @@ class SourceLaunch:
 
 class NativeSourceGeneration:
     """Private received scope; no completed market or allocation claim."""
-    __slots__=('_value','_identity_sha256','_pid','_owner_thread','_started','_boundary','_handler_boundary','_provider_identity')
+    __slots__=('_value','_identity_sha256','_pid','_owner_thread','_started','_boundary','_handler_boundary','_provider_identity','_registry')
     def __init__(self,value,*,_issuer=None):
         require(_issuer is _ISSUER,'source_generation_issuer')
         self._value=deepcopy(_packet(value));self._identity_sha256=digest(self._value)
         self._pid=os.getpid();self._owner_thread=None
         self._started=None;self._boundary=None;self._handler_boundary=None
         self._provider_identity=None
+        self._registry=None
 
     @property
     def identity_sha256(self):return self._identity_sha256
@@ -328,7 +329,9 @@ class NativeSourceGeneration:
             assert_source_drain_boundary(state,self._boundary,handler_boundary=self._handler_boundary)
             require(_health_from_db(state.writer.db,KEY,SOURCE_DRAIN_BYTES)==self._started,
                 'source_generation_current_changed')
-            state.fence._health(KEY,self._record(body))
+            wrapper=self._record(body)
+            if self._registry is not None:self._registry.terminal(state,wrapper)
+            state.fence._health(KEY,wrapper)
 
 
 def validate_current_generation(raw):
@@ -354,6 +357,14 @@ def validate_prewrite_generation(db,*,root,source_inputs,unknown_historical_hand
         and identity['unknown_historical_handlers']==unknown_historical_handlers,
         'source_previous_generation_historical_boundary')
     require(census['state']=='DRAINED' and census['pending_handlers']==0,'source_previous_generation_unresolved')
+    _authenticate_prior_provenance(value)
+    return dict(identity_sha256=value['identity_sha256'],generation=identity['generation'],
+        state='DRAINED',historical_handler_disposition_verified=False)
+
+
+def _authenticate_prior_provenance(value):
+    """Actual root/native-writer provenance; no drain or recovery conclusion."""
+    identity=value['identity']
     # The immutable original root seal, not the mutable native body's checksum,
     # authenticates this producer's application/controller/epoch provenance.
     from .normal_boot_record import OPERATIONS,_protected_bytes,_json,validate_envelope
@@ -375,8 +386,6 @@ def validate_prewrite_generation(db,*,root,source_inputs,unknown_historical_hand
     source=identity['source']
     require(_owner_dead(launch['boot_id']+':'+str(source['pid'])+':'+source['start_ticks']),
         'source_previous_generation_owner_unverified')
-    return dict(identity_sha256=value['identity_sha256'],generation=identity['generation'],
-        state='DRAINED',historical_handler_disposition_verified=False)
 
 
 def require_native_generation(value):

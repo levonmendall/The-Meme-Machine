@@ -747,6 +747,8 @@ class SelectiveHistory:
             pending.append((sequence,row.identity,row.scope,row.slot,available[row.identity]))
             sequence+=1;existing.add(row.identity)
         self.db.executemany('INSERT INTO candidate_outbox VALUES(?,?,?,?,?)',pending)
+        registry=getattr(self,'_normal_source_registry',None)
+        if registry is not None:registry.published(self,pending)
 
     @staticmethod
     def content_hash(body):
