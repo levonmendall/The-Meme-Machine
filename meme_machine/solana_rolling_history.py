@@ -174,6 +174,9 @@ class RollingHistory:
         self.db.execute('INSERT INTO cursors VALUES(?,?,?) ON CONFLICT(scope) DO UPDATE SET slot=MAX(slot,excluded.slot),updated=excluded.updated',
             (row.scope,row.slot,self.clock()))
         if inserted:self.history.writer._count('ingested_event')
+        if getattr(self.history.writer,'_economic_cohort_stage',None) is not None:
+            from .runtime.pump_economic_cohort import canonical as measured_canonical
+            measured_canonical(self.history.writer,row,economic_hash,available,bool(inserted))
         return row
 
     @measured('owner.rolling_store')
@@ -264,6 +267,10 @@ class RollingHistory:
             DO UPDATE SET slot=MAX(slot,excluded.slot),updated=excluded.updated''',
             [(scope,slot,updated) for scope,(slot,updated) in cursors.items()])
         if inserted:self.history.writer._count('ingested_event',inserted)
+        if getattr(self.history.writer,'_economic_cohort_stage',None) is not None:
+            from .runtime.pump_economic_cohort import canonical as measured_canonical
+            for row,product in zip(rows,serialized):
+                measured_canonical(self.history.writer,row,product.economic_hash,row.observed_at,True)
         return True
 
     def adopt(self,rows):

@@ -933,6 +933,10 @@ def pipeline_sample(root, expected_pid):
                           required_counters=required_counters(health,now_monotonic=started),
                           service_health=numeric(descriptive),
                           ipc_scope='EXPLICIT_REQUIRED_COUNTERS_ONLY_NOT_DUPLICATED_DESCRIPTIVE_IPC')
+            native=health.get('native_streams')
+            if isinstance(native,dict) and 'economic_cohorts' in native:
+                from meme_machine.runtime.pump_economic_cohort import projection
+                result['economic_cohorts']=projection(native['economic_cohorts'])
             if (os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1'
                     and os.environ.get('MM_SQLITE_DIAGNOSTIC_REQUIRED')=='1'):
                 telemetry=source_operation_costs(root,expected_pid)

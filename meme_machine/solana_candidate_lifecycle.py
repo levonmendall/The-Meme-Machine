@@ -103,7 +103,7 @@ class CandidateLifecycle:
     def emit(self,family,address,kind,body,*,at=None,_selection=None):
         return self.emit_raw(family,address,kind,canonical(body),at=at,_selection=_selection)
 
-    def emit_raw(self,family,address,kind,raw,*,at=None,_selection=None):
+    def emit_raw(self,family,address,kind,raw,*,at=None,_selection=None,_economic_identity=None):
         """Reuse exact already-canonical bytes; event/receipt identities unchanged."""
         require_active(family)
         at=self.clock() if at is None else at
@@ -116,8 +116,12 @@ class CandidateLifecycle:
             active=self.db.execute("SELECT 1 FROM candidate_lifecycle WHERE family=? AND address=? AND state IN ('queued','warming','active')",(family,address)).fetchone()
             pinned=self.db.execute('SELECT 1 FROM service_interests s JOIN interests i ON i.owner=s.owner AND i.scope=s.scope WHERE i.active=1 AND s.address=? AND s.scope=? LIMIT 1',(address,FAMILIES[family])).fetchone()
             if active or pinned:priority=2
+        checksum=hashlib.sha256(raw.encode()).hexdigest()
         inserted=self.db.execute('INSERT OR IGNORE INTO candidate_history_outbox(id,family,address,kind,body,hash,created,consumed,priority) VALUES(?,?,?,?,?,?,?,NULL,?)',
-            (identity,family,address,kind,raw,hashlib.sha256(raw.encode()).hexdigest(),at,priority)).rowcount
+            (identity,family,address,kind,raw,checksum,at,priority)).rowcount
+        if _economic_identity is not None and getattr(self.writer,'_economic_cohort_stage',None) is not None:
+            from .runtime.pump_economic_cohort import obligation
+            obligation(self.writer,identity,_economic_identity,checksum,coverage_scope(family,address))
         if inserted:
             from .solana_history_notifications import changed
             changed(self.history,publication=False,urgent_delivery=priority<=1)
@@ -218,6 +222,11 @@ class CandidateLifecycle:
     def queue_records(self,rows):
         """Called inside the canonical ingestion transaction."""
         for row in rows:
+            stage=getattr(self.writer,'_economic_cohort_stage',None)
+            fanout_hash=None;fanout_count=0
+            if stage is not None:
+                try:fanout_hash=hashlib.sha256()
+                except Exception:stage.owner.unavailable();stage=None
             for family,address,market in self.db.execute('''SELECT DISTINCT family,
                 substr(coverage_scope,length('candidate:'||family||':')+1),market_address
                 FROM evidence_bindings WHERE canonical_scope=? AND market_address IN ('''+','.join('?' for _ in row.addresses)+')',
@@ -230,10 +239,17 @@ class CandidateLifecycle:
                     # exact JSON. Do not decode and reserialize the same body
                     # once for every downstream candidate on the live path.
                     raw='{"available":'+canonical(stored[1])+',"record":'+stored[0]+'}'
-                    self.emit_raw(family,address,'canonical',raw)
+                    identity=(self.emit_raw(family,address,'canonical',raw) if stage is None else
+                        self.emit_raw(family,address,'canonical',raw,_economic_identity=(row.scope,row.identity)))
+                    if stage is not None:
+                        try:fanout_hash.update(len(identity.encode()).to_bytes(4,'big')+identity.encode());fanout_count+=1
+                        except Exception:stage.owner.unavailable()
                 else:
                     body=decode_body(stored[0],self.db)
                     self.emit(family,address,'canonical',dict(record=body,available=stored[1]))
+            if stage is not None:
+                try:stage.fanout_complete(row,fanout_count,fanout_hash.hexdigest())
+                except Exception:stage.owner.unavailable()
 
     @defer_busy_consumer
     def flush(self,*,limit=64):
@@ -456,6 +472,10 @@ class CandidateLifecycle:
         inserted=self.db.execute('INSERT OR IGNORE INTO candidate_pending_proofs VALUES(?,?,?,?,?,?,?,?)',
             (identity,proof.scope,proof.lower_slot,proof.upper_slot,proof.source,
              proof.endpoint_identity,canonical(proof.witness),proof.observed_at)).rowcount
+        stage=getattr(self.writer,'_economic_cohort_stage',None)
+        if stage is not None:
+            try:stage.proof(proof)
+            except Exception:stage.owner.unavailable()
         if inserted:
             from .solana_history_notifications import changed
             changed(self.history)

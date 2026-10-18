@@ -329,14 +329,23 @@ def commit_candidates(state,frame,addresses,session,*,publish=True,prepared=None
     if publish:history.lifecycle.publish()
 
 
-def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publish=True,prepared=None,timing=None):
+def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publish=True,prepared=None,timing=None,measurement=None):
     """The original ordered frames, under one atomic durable owner command."""
     if not 0<len(frames)<=CANDIDATE_COMMIT_BATCH:
         raise EvidenceUnavailable('candidate_commit_batch_bound')
     history=install(state)
     if prepared is not None and (grouped or len(prepared)!=len(frames)):
         raise EvidenceUnavailable('candidate_preparation_batch_shape')
+    stage=None;previous_stage=getattr(state.writer,'_economic_cohort_stage',None)
+    if measurement is not None:
+        try:
+            if (grouped or prepared is None or state.writer.db.in_transaction or previous_stage is not None
+                    or not getattr(history.lifecycle,'delivery_separated',False)):
+                measurement.unavailable('UNSUPPORTED_PATH')
+            else:stage=measurement.stage(session,frames)
+        except Exception:measurement.unavailable()
     try:
+        if stage is not None:state.writer._economic_cohort_stage=stage
         transaction=state.writer.transaction()
         with (transaction if timing is None else timing.transaction_exit(transaction)):
             for index,frame in enumerate(frames):
@@ -344,12 +353,18 @@ def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publis
                 else:commit_candidates(state,frame,addresses,session,publish=False,
                     prepared=None if prepared is None else prepared[index],timing=timing)
     except Exception:
+        if measurement is not None:measurement.unavailable('TRANSACTION_FAILED')
         # A discontinuity inside the enclosing batch rolls back with it.
         # Retain its unavailable interval outside that rollback, before retry.
         for scope in addresses.values():
             history.gap(scope,min(f.update.block.slot for f in frames),
                 max(f.update.block.slot for f in frames),'candidate_native_batch_failed')
         raise
+    finally:
+        if stage is not None:state.writer._economic_cohort_stage=previous_stage
+    if stage is not None:
+        try:measurement.complete(stage)
+        except Exception:measurement.unavailable()
     if publish:history.lifecycle.publish()
 
 
@@ -552,6 +567,13 @@ class SelectiveSource:
             unpreserved_sessions=0,queues={name:dict(accepted=0,committed=0)
                 for name in ('control','scout','rolling','candidate')})
         self.handlers=HandlerLedger(self.source_drain['run_identity'])
+        self.economic_cohorts=None
+        self.economic_cohort_requested=os.environ.get('MM_ECONOMIC_COHORT_DIAGNOSTICS')=='1'
+        if self.economic_cohort_requested:
+            try:
+                from .runtime.pump_economic_cohort import PumpEconomicCohorts
+                self.economic_cohorts=PumpEconomicCohorts(self.source_drain['run_identity'],self.config.identity)
+            except Exception:pass # Optional diagnostics cannot prevent source startup.
         self.contained_observation=False;self.observation_drain_boundary=None
         self.session_teardowns={};self.session_deadlines={};self.optional_stops=set()
 
@@ -750,13 +772,20 @@ class SelectiveSource:
         # A client-open stream is not independently certified provider admission.
         # First physical delivery is distinguished from subscription attempts.
         families=set(self.native_attempts)|{r['consumer'] for r in self.native_streams.values()}
-        return dict(client_open_streams=len(self.native_streams),peak_client_streams=self.native_peak,
+        result=dict(client_open_streams=len(self.native_streams),peak_client_streams=self.native_peak,
             delivering_streams=sum(r['delivering'] for r in self.native_streams.values()),
             by_consumer={f:dict(attempts=self.native_attempts.get(f,0),
                 client_open=sum(r['consumer']==f for r in self.native_streams.values()),
                 delivering=sum(r['consumer']==f and r['delivering'] for r in self.native_streams.values()))
                 for f in sorted(families)},errors=dict(self.native_errors),
             provider_quota_verified=False,provider_purchases=ledger(self).snapshot())
+        measurement=getattr(self,'economic_cohorts',None)
+        if measurement is not None:
+            try:result['economic_cohorts']=measurement.snapshot()
+            except Exception:result['economic_cohorts']=dict(state='UNKNOWN',reason='SNAPSHOT_UNAVAILABLE',funding_authority=False)
+        elif getattr(self,'economic_cohort_requested',False):
+            result['economic_cohorts']=dict(state='UNKNOWN',reason='CONSTRUCTION_UNAVAILABLE',funding_authority=False)
+        return result
 
     async def delivered(self,family,transport,size,seen,priority=2):
         from .runtime.provider_purchases import ledger,provider_work
@@ -939,10 +968,15 @@ class SelectiveSource:
             self.observe('economic_prepared',plane='rolling' if rolling else 'candidate',
                 slot=max(f.update.block.slot for f in frames),**preparation)
             claimed=[];finished_wall=[]
+            measurement=getattr(self,'economic_cohorts',None) if rolling else None
+            if measurement is not None:
+                if prepared is None:measurement.unavailable('UNSUPPORTED_PATH')
+                else:measurement.prepared(session,frames,prepared)
             def durable(state):
                 claimed.append(time.monotonic())
                 commit_candidate_batch(state,frames,addresses,session,
-                    grouped=grouped,publish=not self.batched,prepared=prepared,timing=self.candidate_phases)
+                    grouped=grouped,publish=not self.batched,prepared=prepared,timing=self.candidate_phases,
+                    **({} if measurement is None else dict(measurement=measurement)))
                 if rolling and not native_announced:
                     install(state).startup.native([s.split(':',2)[1] for s in addresses.values()])
                 claimed.append(time.monotonic());finished_wall.append(time.time())
@@ -996,6 +1030,8 @@ class SelectiveSource:
                 frame=join.feed(update,size,seen)
                 self.observe_join('control',join,str(floor))
                 if frame:
+                    measurement=getattr(self,'economic_cohorts',None)
+                    if measurement is not None:measurement.control_head(frame)
                     self.handlers.phase('CONTROL_QUEUE')
                     await queue.put(frame)
             control.source_session=handler_session
@@ -1229,6 +1265,7 @@ class SelectiveSource:
         self.work=work;self.stop=stop;self.batched=True
         loop=asyncio.get_running_loop()
         def boot(state):
+            if getattr(self,'economic_cohorts',None) is not None:state.writer._economic_cohort_meter=self.economic_cohorts
             # Refuse unidentified old callbacks before history/startup writes or
             # any provider dispatch. A new run's empty ledger cannot erase them.
             try:self.retained_source_drain=retained_source_drain(state)
@@ -2012,6 +2049,7 @@ class SelectiveSource:
         # slot; the partially subscribed first slot is never called complete.
         fresh_rolling=rolling and prospective_rolling
         join=CandidateTransactionJoin(addresses,full,filtered_from_slot=1 if fresh_rolling else floor,max_join_seconds=120 if rolling else 10);session=uuid.uuid4().hex
+        if rolling and getattr(self,'economic_cohorts',None) is not None:self.economic_cohorts.session(session,tip+1,addresses)
         log_frontiers={};logs_available=asyncio.Event()
         plane='rolling' if rolling else 'candidate'
         candidate_queue=CandidateCommitQueue(lambda a,c:self.frame_census(plane,a,c));join_progress=asyncio.Event()
