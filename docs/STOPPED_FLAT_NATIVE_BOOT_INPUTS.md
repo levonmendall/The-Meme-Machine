@@ -27,12 +27,14 @@ changes a broker verb nor makes full discovery closure pass. Nominations and
 reporting are separate startup work; no controller or historical evidence is
 discarded.
 
-Focused fixtures use real migrated $500-to-$1,000 financial history, original
+Focused fixtures use original $500 and separate new $1,000 epochs with actual
+shared/legacy financial replay, original
 four-regime native operations/ACKs, active query-only handles and a real disposable
 child's observed owner identity and death. Negatives cover missing configured
 book/terminal receipt, manual/dictionary issuer, foreign thread, lost fence,
 actual original-path inode replacement, connection replacement, expiration and
-mid-cold-replay cancellation.37 combined new/read-port tests passed in8.177s.
+mid-cold-replay cancellation. The first37 combined new/read-port tests passed
+in8.177s; the added separate $500 case is validated in its own follow-up receipt.
 These are synthetic stopped input proofs, not source installation, production
 boot, market, kernel or protection acceptance. No providers or production DBs
 were accessed.

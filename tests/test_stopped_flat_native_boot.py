@@ -71,6 +71,16 @@ class StoppedFlatNativeBootTests(unittest.TestCase):
         self.assertEqual(changes,[db.total_changes for db in snapshots.values()])
         self.assertEqual(self.writer.ledger(),before)
 
+    def test_original_500_epoch_full_replay_and_native_terminals_remain_separate(self):
+        self.root,self.writer,self.now,self.plan=self.fixture.fixture(owners=False,new_epoch=False)
+        context,_=self.original_context()
+        before=self.writer.ledger()
+        value=validate_stopped_flat_boot_inputs(context).value()
+        self.assertEqual(before['initial_capital'],'500.00')
+        self.assertEqual(value['epoch_id'],before['epoch_id'])
+        self.assertTrue(value['native_flat_inputs_verified'])
+        self.assertFalse(value['boot_authority'] or value['historical_drain_reclassified'])
+
     def test_inspection_dictionary_or_manual_record_cannot_issue_native_inputs(self):
         with self.assertRaisesRegex(NativeDependencyUnavailable,'read_context_required'):
             validate_stopped_flat_boot_inputs(dict(native_flat_inputs_verified=True))
