@@ -130,3 +130,10 @@ regression expires the original deadline during encoding while another original
 parent HTTP attempt remains owned, proves no new bytes/sequence/purchase or
 channel abort, then drains the original content normally. All21 affected
 capacity and original child-transport cases passed in2.860s without skips.
+
+The final pre-send successor is runtime
+`34151b4cb5c3aaf972984d36ee5ce13971677c76`, tree
+`beb9d64f64c13fc6fa8b883e9f95aab1767c92f2`. Its exact proof changes only the
+child helper record versus c392, plus explicit implementation/tree and manifest
+identities. The final coupled131 cases passed in28.833s without skips. The
+prior130 receipt remains evidence for its earlier source, not this final tree.

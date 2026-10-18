@@ -7,8 +7,8 @@
       "sha256": "db48faec22cb86895dca39239d270942a9c1abce3e1b13d75f0b9a3387a0ddf8"
     },
     "meme_machine/operational/child_transport.py": {
-      "bytes": 36587,
-      "sha256": "765f20af9e36656acea5de1fe764c8cf9341796107e1f7b5b6a9c610d2c8e320"
+      "bytes": 36991,
+      "sha256": "c192dda0dad63f900ee12a1dc820f3afcef1bf270b3a42637c875d7a62cff03f"
     },
     "meme_machine/operational/isolated_native_entry.py": {
       "bytes": 18160,
@@ -3352,8 +3352,8 @@
       }
     }
   },
-  "implementation": "c39204e64bf4bc93a313975dbf98ba38d44ffcc1",
-  "implementation_tree": "0ab608245d377bb03119f4733202b17871bbb36b",
+  "implementation": "34151b4cb5c3aaf972984d36ee5ce13971677c76",
+  "implementation_tree": "beb9d64f64c13fc6fa8b883e9f95aab1767c92f2",
   "legacy_guards": {
     "tests/test_pump_restore_source_guard.py": {
       "after_sha256": "ca109bc75ca006b2b720ac1938d811e1afcff6f28417578ce5b405eb670573ce",
