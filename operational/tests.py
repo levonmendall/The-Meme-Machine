@@ -12,6 +12,7 @@ FAST=[
  'tests.test_pons_retention_covering_index',
  'tests.test_pons_projection_source_reuse',
  'tests.test_pons_scheduling_reads',
+ 'tests.test_pons_protection_revision',
  'tests.test_source_operation_publication',
  'tests.test_sleeve_prefix_scheduling',
  'tests.test_provider_budget_namespace_read',
