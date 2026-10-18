@@ -24,7 +24,7 @@ class NativeKernelOutputTests(unittest.TestCase):
         self.case=PumpCacheSourceAuthorityTests('runTest');self.case.setUp()
         self.addCleanup(self.case.doCleanups)
         self.source=self.case.root/'solana-evidence.sqlite'
-        self.state,self.history,_plane,_expected=self.case.selective_fixture(self.source)
+        self.state,self.history,self.plane,_expected=self.case.selective_fixture(self.source)
         self.db=self.state.writer.db
         self.consumer=sqlite3.connect(self.case.cache_path,isolation_level=None)
         self.addCleanup(self.consumer.close)
@@ -41,6 +41,42 @@ class NativeKernelOutputTests(unittest.TestCase):
         self.assertGreater(count,0)
         self.assertEqual(count,self.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE kind='canonical' AND consumed IS NOT NULL").fetchone()[0])
         with self.assertRaisesRegex(ValueError,'lineage'):self.count('0'*64)
+
+    def test_partial_output_checks_keep_real_full_ack_without_promoting_missing_reports(self):
+        expected=self.count()
+        references=self.consumer.execute('SELECT COUNT(*) FROM canonical_event_refs').fetchone()[0]
+        self.plane.close();self.state.writer.close();self.consumer.close()
+        observation={}
+        with self.assertRaises(FileNotFoundError):
+            validation.native_outputs(self.case.root,endpoint_identity=self.case.endpoint.identity,
+                _observation=observation)
+        self.assertEqual(observation['status'],'PARTIAL')
+        self.assertEqual(observation['canonical_full_ack'],expected)
+        self.assertEqual(observation['candidate_references'],references)
+        self.assertGreater(expected,0)
+        self.assertEqual(observation['completed_stages'],
+            ['ROOT','DATABASE_INVENTORY','HISTORY_COUNTS','FULL_ACK_BINDING'])
+        self.assertIsNone(observation['pump_report_read'])
+        self.assertEqual(observation['current_stage'],'PUMP_REPORT')
+        self.assertFalse(observation['authoritative_readiness'])
+        self.assertFalse(observation['historical_projection_eligible'])
+        self.assertFalse(validation.verified(dict(child=dict(status='COMPLETED'),output_checks=observation)))
+
+    def test_partial_output_checks_preserve_corrupt_ack_refusal_and_unknown_ack_count(self):
+        self.db.execute('UPDATE candidate_history_outbox SET body=?,hash=? WHERE id=?',
+            ('{}',hashlib.sha256(b'{}').hexdigest(),self.identity))
+        self.plane.close();self.state.writer.close();self.consumer.close()
+        observation={}
+        with self.assertRaisesRegex(ValueError,'kernel_validation_source_ack_shape') as caught:
+            validation.native_outputs(self.case.root,endpoint_identity=self.case.endpoint.identity,
+                _observation=observation)
+        self.assertEqual(validation._output_failure_code(caught.exception),'kernel_validation_source_ack_shape')
+        self.assertEqual(observation['status'],'PARTIAL')
+        self.assertGreater(observation['candidate_references'],0)
+        self.assertIsNone(observation['canonical_full_ack'])
+        self.assertEqual(observation['current_stage'],'FULL_ACK_BINDING')
+        self.assertNotIn('FULL_ACK_BINDING',observation['completed_stages'])
+        self.assertFalse(validation.verified(dict(output_checks=observation)))
 
     def test_self_hashed_empty_and_missing_or_cross_bound_receipts_do_not_count(self):
         self.db.execute('UPDATE candidate_history_outbox SET body=?,hash=? WHERE id=?',
@@ -86,6 +122,16 @@ class NativeKernelOutputTests(unittest.TestCase):
 
 
 class NativeKernelSQLitePathTests(unittest.TestCase):
+    def test_output_failure_projection_retains_only_exact_local_literals(self):
+        for error in (ValueError('kernel_validation_source_ack_shape'),
+                ValueError('PRIVATE-provider-path-SQL'),ValueError(['PRIVATE']),
+                type('PRIVATE',(ValueError,),{})('kernel_validation_source_ack_shape'),
+                FileNotFoundError(2,'PRIVATE')):
+            code=validation._output_failure_code(error)
+            self.assertEqual(code,'kernel_validation_source_ack_shape' if type(error) is ValueError
+                and error.args==('kernel_validation_source_ack_shape',) else None)
+            self.assertNotIn('PRIVATE',str(code))
+
     def test_canonical_ack_census_overflow_refuses_before_decoding_any_body(self):
         # Deliberately malformed negative rows; no synthetic ACK is accepted.
         with closing(sqlite3.connect(':memory:')) as db:

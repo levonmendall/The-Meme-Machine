@@ -28,6 +28,26 @@ MAX_RESULT=65536
 _FINANCIAL_TABLES=frozenset(('genesis','positions','journal','sleeve_genesis','sleeve_positions',
     'sleeve_journal','capital_genesis','capital_positions','capital_journal',
     'portfolio_genesis','portfolio_events','shared_capital_events','shared_capital_projection'))
+_OUTPUT_FAILURE_CODES=frozenset((
+    'kernel_validation_ack_binding','kernel_validation_ack_bound',
+    'kernel_validation_canonical_lineage','kernel_validation_canonical_reference',
+    'kernel_validation_canonical_reference_binding','kernel_validation_canonical_source',
+    'kernel_validation_consumer_ack_hash','kernel_validation_database_count',
+    'kernel_validation_database_inode','kernel_validation_database_sidecar',
+    'kernel_validation_endpoint_identity','kernel_validation_file_bound',
+    'kernel_validation_original_ack_identity','kernel_validation_output_root',
+    'kernel_validation_pons_checkpoint','kernel_validation_reference_candidate',
+    'kernel_validation_reference_event','kernel_validation_source_ack_hash',
+    'kernel_validation_source_ack_shape'))
+
+
+def _output_failure_code(error):
+    # Exact local guard literals only. No arbitrary ValueError text or paths.
+    if (type(error) is ValueError and len(error.args)==1 and type(error.args[0]) is str
+            and len(error.args[0])<=100 and error.args[0] in _OUTPUT_FAILURE_CODES):
+        return error.args[0]
+    return None
+
 
 
 def _json_file(path,maximum=MAX_RESULT):
@@ -128,17 +148,33 @@ def _canonical_acks(db,consumer,source,*,endpoint_identity):
     return len(rows)
 
 
-def native_outputs(root,*,endpoint_identity):
+def native_outputs(root,*,endpoint_identity,_observation=None):
     """Read only after the actual native process/owners have stopped."""
+    if _observation is not None:
+        if type(_observation) is not dict:raise TypeError('native_output_observation')
+        _observation.clear()
+        _observation.update(schema='native-output-checks-v1',status='PARTIAL',
+            authoritative_readiness=False,historical_projection_eligible=False,
+            current_stage='ROOT',completed_stages=[],database_count=None,financial_tables_absent=None,
+            candidate_references=None,source_receipts=None,canonical_full_ack=None,
+            pump_report_read=None,pons_checkpoint_found=None)
+    def attempting(stage):
+        if _observation is not None:_observation['current_stage']=stage
+    def observed(stage,**values):
+        if _observation is not None:
+            _observation.update(values)
+            _observation['completed_stages'].append(stage)
     root=Path(root)
     info=root.lstat()
     if (root.resolve(strict=True)!=root.absolute() or not stat.S_ISDIR(info.st_mode)
             or info.st_uid!=os.geteuid() or stat.S_IMODE(info.st_mode)!=0o700):
         raise ValueError('kernel_validation_output_root')
+    observed('ROOT')
     result=dict(financial_tables_absent=True,database_count=0,
         candidate_references=0,canonical_full_ack=0,source_receipts=0,
         unexercised=['Pons_economic_candidates','held_positions','fills','settlement',
             'retained_production_restoration','sustained_market_capacity'])
+    attempting('DATABASE_INVENTORY')
     databases=list(root.rglob('*.sqlite'))
     if len(databases)>64:raise ValueError('kernel_validation_database_count')
     for path in databases:
@@ -146,6 +182,9 @@ def native_outputs(root,*,endpoint_identity):
             tables={row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             if tables&_FINANCIAL_TABLES:result['financial_tables_absent']=False
         result['database_count']+=1
+    observed('DATABASE_INVENTORY',database_count=result['database_count'],
+        financial_tables_absent=result['financial_tables_absent'])
+    attempting('HISTORY_COUNTS')
     source=root/'solana-evidence.sqlite';history=root/'candidate-history.sqlite'
     with closing(_readonly(source)) as db,closing(_readonly(history)) as consumer:
         db.execute('BEGIN');consumer.execute('BEGIN')
@@ -154,14 +193,25 @@ def native_outputs(root,*,endpoint_identity):
             tables={row[0] for row in consumer.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             if 'source_receipts' in tables:
                 result['source_receipts']=consumer.execute('SELECT COUNT(*) FROM source_receipts').fetchone()[0]
+            observed('HISTORY_COUNTS',candidate_references=result['candidate_references'],
+                source_receipts=result['source_receipts'])
+            if 'source_receipts' in tables:
+                attempting('FULL_ACK_BINDING')
                 result['canonical_full_ack']=_canonical_acks(db,consumer,source,endpoint_identity=endpoint_identity)
+                observed('FULL_ACK_BINDING',canonical_full_ack=result['canonical_full_ack'])
         finally:
             consumer.execute('ROLLBACK');db.execute('ROLLBACK')
+    attempting('PUMP_REPORT')
     pump=_json_file(root/'pump-current/report.json',1024*1024)
+    observed('PUMP_REPORT',pump_report_read=True)
+    attempting('PONS_CHECKPOINT')
     with closing(_readonly(root/'pons-candidates.sqlite')) as db:
         row=db.execute("SELECT body FROM runtime WHERE key='pons_cohort'").fetchone()
+        if _observation is not None:_observation['pons_checkpoint_found']=row is not None
         if row is None:raise ValueError('kernel_validation_pons_checkpoint')
         pons=json.loads(row[0])['result']
+    observed('PONS_CHECKPOINT',pons_checkpoint_found=True)
+    attempting('REGIME_READ')
     result['regimes']={
         'pump_current':pump.get('strategy_id')=='pump-acceleration-independent-v1',
         'pump_survivor':'pumpswap-survivor-momentum-v1' in pump.get('active_regimes',[]) and
@@ -169,6 +219,7 @@ def native_outputs(root,*,endpoint_identity):
         'pons_current':'pons-selective-continuation-v1' in pons.get('active_regimes',[]),
         'pons_survivor':'pons-postgrad-survivor-momentum-v1' in pons.get('active_regimes',[]) and
             (pons.get('survivor') or {}).get('accounting',{}).get('financial_book_constructed') is False}
+    observed('REGIME_READ',status='COMPLETE')
     return result
 
 
@@ -289,11 +340,15 @@ async def _exercise(scope,approval,*,launcher=_REAL_LAUNCH,seconds=WINDOW_SECOND
             result['kernel_applied']=launcher is _REAL_LAUNCH
         if owner._reaped and child.get('observation',{}).get('all_workers_joined') is True:
             stage='native_outputs'
+            result['output_checks']={}
             result['native_outputs']=native_outputs(Path(scope)/'native-work/native/state',
-                endpoint_identity=parent.http.sources['pump-discovery'].identity)
+                endpoint_identity=parent.http.sources['pump-discovery'].identity,_observation=result['output_checks'])
     except BaseException as error:
         if isinstance(error,(KeyboardInterrupt,SystemExit)):raise
         result['failure']=dict(stage=stage,error_class=type(error).__name__)
+        if stage=='native_outputs':
+            code=_output_failure_code(error)
+            if code is not None:result['failure']['boundary_code']=code
         number=getattr(error,'errno',None)
         if type(number) is int and 0<number<4096:result['failure']['error_number']=number
     finally:

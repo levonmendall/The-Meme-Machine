@@ -282,3 +282,41 @@ and full attribution module passed47 cases in25.721s without skips after the
 202-case functional result. Independent code/full-byte review cleared this
 precise bounded scope. Hosted copied-main behavior remains pending; the prior
 39089567223 failure and causal clocks remain preserved as evidence.
+
+The ownership-corrected actual run39090511002 on exact703ad6b5 passed61 focused
+proof cases in21.271s, then retained one original failure and one output-verifier
+error in47.942s. The copied child completed the genuine40.0386s parent window.
+The first stop was its original window TERM; source, Pump, Pons, sizing, two
+decoders and one history worker joined. The decoder completed one nonprobe task
+and two probes; history completed six nonprobe tasks. The first shared abort was
+normal close after joins. No earlier worker/transport/parent fatal fault occurred.
+Thus the measured operation-deadline/shared-channel failure was corrected; kernel,
+FULL/ACK output and sustained market acceptance remain unproven.
+
+Post-stop native_outputs raised an exact ValueError, whose fixed guard reason
+was previously discarded. GitHub's artifact inventory for39090511002 contains
+zero artifacts; the complete retained log ZIP has the generic class/stage but
+no private SQLite/report files or precise guard line to recover. The separate
+namespace case still reports setgroups errno13 under its unchanged assertion.
+HTTP88/223 RPC elements and all zero reserved bytes are retained; uncertain HTTP
+67,108,864 and native369,098,752 bytes remain authentic, not erased. External
+providers and production writes remain zero; financial authority and kernel_applied
+remain false.
+
+The narrow output diagnostic exposes only19 existing exact local ValueError
+literals, restricted to the native_outputs failure stage. Unknown text, classes,
+subclasses and malformed values produce no code. A separate bounded output_checks
+projection carries current/completed fixed stages and only counts already read
+successfully: full database inventory, history references/receipts, strict
+canonical FULL/ACK binding, and later report/checkpoint reads. Unreached fields
+remain null and failures stay PARTIAL. No partial native_outputs is assigned and
+verified() is unchanged, as are the original path/sidecar and FULL/ACK verifiers.
+The original output/result limits, SQL/read paths and timeouts remain unchanged.
+
+The real native source→CandidateHistory→ACK fixture proves that a later missing
+report preserves already-earned FULL/ACK counts only as PARTIAL observations.
+A corrupted ACK still raises its original guard, retains an unknown ACK count,
+and cannot promote via partial data. Exact-code privacy, unhashable/subclass
+negatives, original forged/crossed ACK tests and SQLite sidecar/WAL checks pass:
+nine focused cases passed after adding explicit current-stage provenance. No
+source guard or test assertion was weakened to expose this failure reason.
