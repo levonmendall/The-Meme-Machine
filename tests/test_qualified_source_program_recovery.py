@@ -1,10 +1,12 @@
 """Private detached run lifetime under real retained actor locks; no providers."""
 import fcntl
 import os
+from pathlib import Path
 import pickle
 import threading
 import time
 import unittest
+from unittest.mock import patch
 
 from meme_machine.operational import normal_boot as boot
 from meme_machine.operational import normal_boot_record as wire
@@ -15,6 +17,8 @@ from tests import test_normal_source_recovery as original
 
 class QualifiedProgramRunTests(unittest.TestCase):
     def setUp(self):
+        self.enterContext(patch.dict(os.environ,PYTHONPATH=os.pathsep.join((
+            str(Path(__file__).resolve().parents[1]),os.environ.get('PYTHONPATH','')))))
         self.source=original.QualifiedRecoveryTargetTests();self.source.setUp()
         self.addCleanup(self.source.doCleanups);self.source.failed_source()
         self.context,self.databases=self.source.context()
