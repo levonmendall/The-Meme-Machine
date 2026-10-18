@@ -474,7 +474,7 @@ class CandidateLifecycle:
              proof.endpoint_identity,canonical(proof.witness),proof.observed_at)).rowcount
         stage=getattr(self.writer,'_economic_cohort_stage',None)
         if stage is not None:
-            try:stage.proof(proof)
+            try:stage.proof(proof,identity)
             except Exception:stage.owner.unavailable()
         if inserted:
             from .solana_history_notifications import changed
@@ -506,6 +506,8 @@ class CandidateLifecycle:
         if separated:
             from .solana_history_delivery import readonly_history,verified_proof
         opener=readonly_history(self.path) if separated else CandidateHistory(self.path,clock=self.clock,write_wait_seconds=0)
+        measurement=getattr(self.writer,'_economic_cohort_meter',None) if separated else None
+        published=[] if measurement is not None else None
         with closing(opener) as shared, self.writer.transaction():
             if exact:
                 # The independent consumer just FULL-committed these receipts.
@@ -585,8 +587,18 @@ class CandidateLifecycle:
                     if not unresolved and (old is None or lo<=old[0]+1):self.checkpoint(scope,hi,identity)
                     self.db.execute('DELETE FROM candidate_pending_proofs WHERE id=?',(identity,))
                     self._published_count+=1
+                    if published is not None:
+                        # The original identity is distinct from an event ACK.
+                        # This metadata receives credit only below, after the
+                        # same outer source transaction has really committed.
+                        try:published.append((identity,digest([proof.scope,proof.lower_slot,proof.upper_slot,
+                            proof.source,proof.endpoint_identity,proof.witness,proof.observed_at])))
+                        except Exception:measurement.unavailable()
         # Both original commit fences have completed. Never skip failed work or
         # advance the round-robin cursor after a busy/failed canonical commit.
+        if measurement is not None:
+            try:measurement.published_proofs(tuple(published))
+            except Exception:measurement.unavailable()
         if exact:return
         last=None if not proofs else (proofs[-1][3],proofs[-1][4],proofs[-1][0])
         finished=len(proofs)<64 or last==horizon

@@ -20,6 +20,8 @@ class PumpEconomicCohorts:
         self.scopes=tuple(FAMILIES[family] for family in ('pump','pumpswap'))
         self.meter=EconomicCohorts('pump',dict(source_pid=os.getpid(),run_identity=run_identity,
             endpoint_sha256=endpoint))
+        from .native_proof_publication import NativeProofPublications
+        self.proof_publications=NativeProofPublications(self.meter.binding_hash)
         self.sessions={};self.frames={};self.windows={};self.source_closed=deque(maxlen=16)
         self.source_evictions=0;self.closed_upper=None;self.head=None;self.head_pending=None
 
@@ -109,13 +111,14 @@ class PumpEconomicCohorts:
                 self.meter.committed(frame['cohort'],rows,stage.fanout.get(key,[]),
                     fanout_complete=stage.completed.get(key,[]))
                 frame['committed']=True
-            for scope,lo,hi,witness in stage.proofs:
+            for proof_id,scope,lo,hi,witness in stage.proofs:
                 for identity,window in list(self.windows.items()):
                     if hi<window['lower'] or window['upper'] is not None and lo>window['upper']:continue
-                    values=window['proofs'].setdefault(scope,[]);value=(lo,hi,witness)
+                    values=window['proofs'].setdefault(scope,[]);value=(lo,hi,witness,proof_id)
                     if value not in values:
                         if len(values)>=32:self.unavailable('BOUND');return
                         values.append(value)
+                    self.proof_publications.register(proof_id,witness)
             self._seal()
         except Exception:self.unavailable()
 
@@ -124,12 +127,13 @@ class PumpEconomicCohorts:
         for identity,window in list(self.windows.items()):
             lower,upper=window['lower'],window['upper']
             if upper is None or not all(self.frames[key]['committed'] for key in window['frames']):continue
-            complete=True;proof=[]
+            complete=True;proof=[];proof_ids=set()
             for scope in (program_scope('pump'),program_scope('pumpswap')):
                 cursor=lower
-                for lo,hi,witness in sorted(window['proofs'].get(scope,())):
+                for lo,hi,witness,proof_id in sorted(window['proofs'].get(scope,())):
                     if lo>cursor:break
-                    if hi>=cursor:cursor=hi+1;proof.append((scope,lo,hi,witness))
+                    if hi>=cursor:
+                        cursor=hi+1;proof.append((scope,lo,hi,witness));proof_ids.add(proof_id)
                 if cursor<=upper:complete=False
             if not complete:continue
             if self.closed_upper is not None and lower!=self.closed_upper+1:
@@ -139,6 +143,7 @@ class PumpEconomicCohorts:
             self.meter.seal(identity,lower,upper,source_digest,complete=True,
                 expected_economics=(len(census),checksum(census)))
             if self.meter.loss:return
+            self.proof_publications.expect(identity,lower,upper,source_digest,tuple(sorted(proof_ids)))
             if len(self.source_closed)==self.source_closed.maxlen:self.source_evictions+=1
             self.source_closed.append(dict(cohort_sha256=checksum(identity),lower=lower,upper=upper,
                 source_sha256=source_digest,lower_market_wall=window['lower_market_wall'],
@@ -148,6 +153,15 @@ class PumpEconomicCohorts:
             # identities remain in the bounded meter until actual FULL ACK.
             for key in window['frames']:self.frames.pop(key,None)
             del self.windows[identity]
+        self._retain_proof_metadata()
+
+    def _retain_proof_metadata(self):
+        self.proof_publications.retain({value[3] for window in self.windows.values()
+            for values in window['proofs'].values() for value in values})
+
+    def published_proofs(self,rows):
+        self.proof_publications.published(rows)
+        self._retain_proof_metadata()
 
     def acknowledge(self,rows):self.meter.acknowledged(rows)
     def snapshot(self):
@@ -155,6 +169,7 @@ class PumpEconomicCohorts:
         result.update(source_closed=[dict(row) for row in self.source_closed],source_summary_evictions=self.source_evictions,
             source_clock_contract='AUTHENTICATED_BLOCK_TIME_SECONDS_NOT_KERNEL_CREATION_TIME',
             head_contract='OBSERVED_LINKED_FINALIZED_HEADERS_NOT_DURABLE_CONTROL_OR_UNSEEN_TIP')
+        result['proof_publication']=self.proof_publications.snapshot()
         head=self.head
         if head is not None:
             head=dict(head);wall=time.time();mono=time.monotonic()
@@ -242,12 +257,22 @@ def projection(value):
                 hashes=('cohort_sha256','source_sha256'))
             if r['lower']>r['upper']:raise ValueError('interval')
             result['source_closed'].append(r)
+        from .native_proof_publication import projection as proof_projection
+        result['proof_publication']=proof_projection(value['proof_publication'],result['binding_sha256'])
         head=value.get('observed_finalized_head');result['observed_finalized_head']=None
         if head is not None:
             result['observed_finalized_head']=select(head,counts=('slot','parent_slot','market_wall',
                 'linked_child_slot','linked_child_market_wall'),hashes=('block_sha256','parent_sha256','linked_child_sha256'),
                 numbers=('received_wall','observed_wall','observed_monotonic',
                     'sample_wall','sample_monotonic','observation_age_seconds','market_age_seconds','wall_monotonic_delta_seconds'))
+        if len(json.dumps(result,allow_nan=False).encode())>24*1024:
+            # Preserve the original 24-KiB envelope and every original field.
+            # Only optional proof sample vectors may be omitted; all validated
+            # population counts, digests and explicit omission counts remain.
+            proof=result['proof_publication']
+            if proof.get('schema')=='native-source-proof-publication-v1':
+                proof['active']=[];proof['active_omitted']=proof['active_windows']
+                proof['closed']=[];proof['closed_omitted']=min(proof['completed_windows'],16)
         if len(json.dumps(result,allow_nan=False).encode())>24*1024:raise ValueError('bound')
         return result
     except Exception:
@@ -285,10 +310,13 @@ class _Stage:
         if key is not None:
             self.completed.setdefault(key,[]).append((row.scope,row.identity,count,digest))
 
-    def proof(self,proof):
+    def proof(self,proof,identity):
         proof.validate()
+        from ..solana_evidence_plane import digest
+        if identity!=digest([proof.scope,proof.lower_slot,proof.upper_slot,proof.witness]):
+            self.owner.unavailable();return
         if len(self.proofs)>=16:self.owner.unavailable('BOUND');return
-        self.proofs.append((proof.scope,proof.lower_slot,proof.upper_slot,
+        self.proofs.append((identity,proof.scope,proof.lower_slot,proof.upper_slot,
             checksum([proof.scope,proof.lower_slot,proof.upper_slot,proof.source,
                 proof.endpoint_identity,proof.witness,proof.observed_at])))
 
