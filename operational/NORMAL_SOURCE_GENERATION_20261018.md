@@ -22,8 +22,9 @@ epoch/inception, boot and native clock, Supervisor PID/start/InvocationID, and
 actual child PID/start. The child additionally verifies SO_PEERCRED, parentage,
 the fixed systemd unit and its own installed source. The original certificate
 window is never extended. Partial IPC reads retain their original absolute
-deadline. A final entry check refuses a revoked or replaced
-instance before provider/runtime constructors. The legacy OBSERVATION path and
+deadline. A final entry check refuses a revoked, replaced or originally expired
+instance before provider/runtime constructors, including expiry after its IPC
+acknowledgment. The legacy OBSERVATION path and
 its original financial guard remain unchanged.
 
 The returned `NativeSourceGeneration` is process bound and privately issued;
@@ -41,6 +42,12 @@ session joins, FULL/ACK, cancellation and teardown. Its private run identity is
 the new generation. The actual canonical writer owns publication under the
 original transaction. The actual FinalizedFence provider identity is retained
 alongside the root provenance.
+
+The immutable root seal authenticates the Supervisor/application/controller/
+epoch provenance. Child PID/start, generation, provider and census fields are
+issued by that Supervisor over the checked private channel and retained by the
+original trusted native writer; they are not themselves root-sealed fields.
+This is not an independent root attestation of source census completeness.
 
 Only `source_drain_current_generation` is new. Its bounded wrapper holds the
 typed producer identity and the original source's actual running/terminal
@@ -98,6 +105,17 @@ source-generation cases passed in 4.354 seconds, with no skips, in
 read proves progress cannot renew that deadline. An early command used
 nonexistent module names and was rejected by
 the driver's unchanged selected-suite check before running tests.
+
+Independent review then found the first entry verifier did not recheck the
+original acceptance window after the IPC acknowledgment. The correction adds
+that check after the actual entry identity/clock work, immediately before the
+constructors. All 18 source cases pass in 4.801 seconds in
+`normal-source-entry-expiry-correction-focused.log`. Replacing only that verifier
+with the exact original `f0ade0ad` function reproduces the expected regression:
+the actual accepted child reaches the provider-constructor trap after virtual
+expiry. The one-case counterfactual and preserved failure directory are recorded
+in `normal-source-entry-expiry-original-counterfactual.log`. Steady-state drain
+does not acquire a new operating lifetime from the boot acceptance expiry.
 
 Root ownership, protected unit responses and unavailable native namespace
 clock data are explicitly simulated in the acquisition fixtures. Native

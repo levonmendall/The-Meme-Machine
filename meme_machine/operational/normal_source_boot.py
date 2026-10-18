@@ -395,6 +395,8 @@ def require_source_entry_generation(value):
         _process_start(os.getppid())==identity['launch']['supervisor']['start_ticks'] and
         _process_start(os.getpid())==identity['source']['start_ticks'],'source_entry_instance_changed')
     require(_clock_sha256()==identity['native_clock_sha256'],'source_entry_clock_changed')
+    require(record['issued_monotonic']<=time.monotonic()<record['not_after_monotonic'],
+        'source_entry_expired')
     return value
 
 

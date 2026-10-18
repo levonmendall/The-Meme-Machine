@@ -52,6 +52,17 @@ try:
         with patch.object(source,'_read_record',return_value=(revoked,record)), \
              patch('meme_machine.operational.bounded_provider.install',side_effect=AssertionError('provider install')):
             asyncio.run(evidence_worker.main_async(normal_generation=cap))
+    if fixture.get('expire_before_entry'):
+        sys.stdin.readline()
+        import asyncio
+        from meme_machine.runtime import evidence_worker
+        with patch.object(source,'_read_record',return_value=(locator,record)), \
+             patch.object(source,'_clock_sha256',return_value='e'*64), \
+             patch.object(source.time,'monotonic',return_value=record['not_after_monotonic']), \
+             patch('meme_machine.operational.bounded_provider.install',side_effect=AssertionError('provider install')), \
+             patch.object(evidence_worker,'Governor',side_effect=AssertionError('provider governor')), \
+             patch.object(evidence_worker,'serve',side_effect=AssertionError('native state constructor')):
+            asyncio.run(evidence_worker.main_async(normal_generation=cap))
     closed=False
     try:os.fstat(int(sys.argv[1]))
     except OSError:closed=True
@@ -104,7 +115,7 @@ class NativeSourceLaunchTests(unittest.TestCase):
         self.enterContext(patch.object(source,'_ISSUED_CONTEXT',None))
         self.enterContext(patch.object(source,'_clock_sha256',return_value='e'*64))
 
-    def launch(self,channel,*,run_native_source=False,revoke_before_entry=False):
+    def launch(self,channel,*,run_native_source=False,revoke_before_entry=False,expire_before_entry=False):
         env=dict(os.environ,MM_STATE_ROOT=str(self.case.root),
             MM_SOLANA_EVIDENCE_PLANE_DB=str(self.case.root/'shared/solana-evidence.sqlite'))
         child=subprocess.Popen([sys.executable,'-c',CHILD,str(channel.child_fd)],stdin=subprocess.PIPE,
@@ -117,7 +128,8 @@ class NativeSourceLaunchTests(unittest.TestCase):
                 if stream is not None:stream.close()
         self.addCleanup(cleanup)
         child.stdin.write(json.dumps(dict(locator=self.locator,record=self.record,
-            run_native_source=run_native_source,revoke_before_entry=revoke_before_entry))+'\n');child.stdin.flush()
+            run_native_source=run_native_source,revoke_before_entry=revoke_before_entry,
+            expire_before_entry=expire_before_entry))+'\n');child.stdin.flush()
         return child
 
     def test_actual_private_launch_peer_pid_start_run_and_one_shot_fd_are_bound(self):
@@ -169,6 +181,17 @@ class NativeSourceLaunchTests(unittest.TestCase):
         error=child.stderr.read()
         self.assertIn('source_entry_instance_changed',error)
         self.assertNotIn('provider install',error)
+        self.assertEqual(child.stdout.read(),'')
+
+    def test_actual_accepted_child_expiry_refuses_before_provider_or_native_constructor(self):
+        channel=source.SourceLaunch(self.context);child=self.launch(channel,expire_before_entry=True)
+        channel.bind(child,deadline=time.monotonic()+5)
+        child.stdin.write('cross original expiry\n');child.stdin.flush();child.stdin.close()
+        self.assertEqual(child.wait(timeout=5),2)
+        error=child.stderr.read()
+        self.assertIn('source_entry_expired',error)
+        for constructor in ('provider install','provider governor','native state constructor'):
+            self.assertNotIn(constructor,error)
         self.assertEqual(child.stdout.read(),'')
 
     def test_actual_child_native_commits_have_root_provenance_and_dead_source_replay(self):
