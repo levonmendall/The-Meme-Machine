@@ -21,11 +21,12 @@ TABLE="pons_selective_paper"
 GENESIS_CATEGORY="pons_selective_paper_genesis"
 DECISION_CATEGORY="pons_selective_paper_decision"
 JOURNAL_CATEGORY="pons_selective_paper_journal"
+_HELD_PAPER_ISSUER=object()
 
 
 class SelectivePaper:
     def __init__(self, store, experiment, capital, *, delay=2, natural_policy_hash=None,
-                 on_commit=None, clock_ns=time.time_ns):
+                 on_commit=None, clock_ns=time.time_ns, held_population=None):
         if not str(experiment).startswith(STRATEGY_NAMESPACE):
             raise BoundaryError("pons_selective_experiment_namespace")
         if capital <= 0 or delay < 1:
@@ -38,6 +39,10 @@ class SelectivePaper:
         self.natural_policy_hash=str(natural_policy_hash)
         self.on_commit=on_commit
         self.clock_ns=clock_ns
+        if held_population is not None:
+            from meme_machine.runtime.native_held_population import _NativePaperCapture
+            if type(held_population) is not _NativePaperCapture:raise TypeError('native_held_capture_required')
+            self._held_population=held_population
         self.store.db.execute('CREATE TABLE IF NOT EXISTS pons_journal_checkpoint(id INTEGER PRIMARY KEY CHECK(id=1),body TEXT NOT NULL,hash TEXT NOT NULL)')
         self.portfolio=None
         self.store.db.execute(
@@ -126,6 +131,10 @@ class SelectivePaper:
         else:
             self.store.put(GENESIS_CATEGORY,self.experiment,requested)
 
+        held=getattr(self,'_held_population',None)
+        if held is not None:
+            path=self.store.db.execute('PRAGMA database_list').fetchone()[2]
+            held._attach(self,path,stored if exists else requested,_HELD_PAPER_ISSUER)
         from meme_machine.runtime.native_boundary import attach
         self.portfolio=attach(self,'pons')
 
@@ -134,6 +143,8 @@ class SelectivePaper:
         return sorted((e for e in events if e['position']['id']==identity),key=lambda e:e['position']['version'])
 
     def positions(self):
+        held=getattr(self,'_held_population',None)
+        capture=held._replay_start(self,_HELD_PAPER_ISSUER) if held is not None else None
         out=[]
         for body, in self.store.db.execute(
             f"SELECT body FROM {TABLE}"
@@ -154,6 +165,10 @@ class SelectivePaper:
             replay.setdefault(p["id"],[]).append(event)
         from meme_machine.runtime.storage import pons_prefix
         prefix=pons_prefix(self)
+        if capture is not None:
+            for value in prefix.values():
+                event=value['event'];p=event['position']
+                held._replay_row(self,capture,p,p['version'],event.get('previous_hash'),digest(event))
         latest={identity:value['event']['position'] for identity,value in prefix.items()}
         for identity,events in replay.items():
             events.sort(key=lambda e:e["position"]["version"])
@@ -169,10 +184,13 @@ class SelectivePaper:
                 if previous and event.get("recorded_at_ns",0)<previous.get("recorded_at_ns",0):
                     raise BoundaryError("selective_accounting_clock_regression")
                 self._verify_flow(previous,event)
+                if capture is not None:
+                    held._replay_row(self,capture,p,p['version'],event.get('previous_hash'),digest(event))
                 previous=event
             if events:latest[identity]=events[-1]["position"]
         if {p["id"]:p for p in out}!=latest:
             raise BoundaryError("selective_projection_mismatch")
+        if capture is not None:held._replay_done(self,capture,latest,(0,'0'*64))
         return out
 
     @staticmethod
@@ -321,6 +339,8 @@ class SelectivePaper:
             f"INSERT OR REPLACE INTO {TABLE} VALUES(?,?)",
             (p["id"],canonical(p)),
         )
+        held=getattr(self,'_held_population',None)
+        if held is not None:held._stage(self,p,p['version'],event['previous_hash'],digest(event),_HELD_PAPER_ISSUER)
 
     def reserve(
         self,identity,*,market,amount,gas_budget,now,features,kind="natural"
@@ -369,8 +389,12 @@ class SelectivePaper:
             )
             self._save(p,"reserve",now)
             self.store.db.execute("COMMIT")
+            held=getattr(self,'_held_population',None)
+            if held is not None:held._commit(self,_HELD_PAPER_ISSUER)
         except Exception:
             self.store.db.execute("ROLLBACK")
+            held=getattr(self,'_held_population',None)
+            if held is not None:held._rollback(self,_HELD_PAPER_ISSUER)
             raise
         if self.portfolio:self.portfolio.flush()
         if self.on_commit:self.on_commit(self,p)
@@ -391,8 +415,13 @@ class SelectivePaper:
                 p.update(amount=amount,version=p['version']+1,last_at=int(now))
                 self._save(p,'resize',now)
             self.store.db.execute('COMMIT')
+            held=getattr(self,'_held_population',None)
+            if held is not None:held._commit(self,_HELD_PAPER_ISSUER)
         except BaseException:
-            self.store.db.execute('ROLLBACK');raise
+            self.store.db.execute('ROLLBACK')
+            held=getattr(self,'_held_population',None)
+            if held is not None:held._rollback(self,_HELD_PAPER_ISSUER)
+            raise
         if self.portfolio:self.portfolio.flush()
         if self.on_commit:self.on_commit(self,p)
         from meme_machine.runtime.storage import compact_pons
@@ -551,8 +580,12 @@ class SelectivePaper:
             self._save(p,action,now,quote)
             self.reconcile()
             self.store.db.execute("COMMIT")
+            held=getattr(self,'_held_population',None)
+            if held is not None:held._commit(self,_HELD_PAPER_ISSUER)
         except Exception:
             self.store.db.execute("ROLLBACK")
+            held=getattr(self,'_held_population',None)
+            if held is not None:held._rollback(self,_HELD_PAPER_ISSUER)
             raise
         if self.portfolio:self.portfolio.flush()
         if self.on_commit:self.on_commit(self,p)

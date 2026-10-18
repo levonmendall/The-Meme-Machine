@@ -26,10 +26,14 @@ def _integer(value):
 
 
 class PaperBook:
-    def __init__(self, path, *, run_id, lane, policy_hash, initial):
+    def __init__(self, path, *, run_id, lane, policy_hash, initial, held_population=None):
         _integer(initial)
         self.identity = dict(run_id=run_id, lane=lane, policy_hash=policy_hash, initial=initial)
         self.lock = threading.RLock()
+        if held_population is not None:
+            from meme_machine.runtime.native_held_population import _NativePaperCapture
+            if type(held_population) is not _NativePaperCapture:raise TypeError('native_held_capture_required')
+            self._held_population = held_population
         self.db = sqlite3.connect(path, isolation_level=None, timeout=30, check_same_thread=False)
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.execute('PRAGMA synchronous=FULL')
@@ -70,6 +74,10 @@ class PaperBook:
                 self.db.execute('COMMIT')
             except BaseException:
                 self.db.execute('ROLLBACK');self.db.close();raise
+        held=getattr(self,'_held_population',None)
+        if held is not None:
+            from meme_machine.runtime.survivor_paper_book import _HELD_PAPER_ISSUER
+            held._attach(self,path,self.identity,_HELD_PAPER_ISSUER)
         self.replay()
         from meme_machine.runtime.native_boundary import attach
         try:self.portfolio=attach(self,'pump' if 'pump' in self.identity['lane'] else 'pons')
@@ -81,15 +89,22 @@ class PaperBook:
     @contextmanager
     def transaction(self):
         with self.lock:
+            held=getattr(self,'_held_population',None)
             self.db.execute('BEGIN IMMEDIATE')
+            committed=False
             try:
                 yield
                 self.db.execute('COMMIT')
+                committed=True
+                if held is not None:held._commit(self,_HELD_PAPER_ISSUER)
                 if getattr(self,'portfolio',None):self.portfolio.flush()
                 from meme_machine.runtime.storage import compact_pump
                 compact_pump(self)
             except BaseException:
-                if self.db.in_transaction:self.db.execute('ROLLBACK')
+                if self.db.in_transaction:
+                    self.db.execute('ROLLBACK')
+                    if held is not None:held._rollback(self,_HELD_PAPER_ISSUER)
+                elif not committed and held is not None:held._uncertain(self,_HELD_PAPER_ISSUER)
                 raise
 
     def _load(self, identity):
@@ -289,6 +304,6 @@ class PaperBook:
 
 # The preserved accounting primitive has identical native transitions; only
 # terminal history representation and cumulative replay are extended.
-from meme_machine.runtime.survivor_paper_book import PaperBook as _PreservedBook
+from meme_machine.runtime.survivor_paper_book import PaperBook as _PreservedBook, _HELD_PAPER_ISSUER
 for _method in ("_record","_archive","_compact_preserved","reconcile","replay","transition","reserve","_shared_backing"):
     setattr(PaperBook,_method,getattr(_PreservedBook,_method))

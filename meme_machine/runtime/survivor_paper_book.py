@@ -11,6 +11,8 @@ import sqlite3
 import threading
 from pathlib import Path
 
+_HELD_PAPER_ISSUER = object()
+
 
 def _json(value):
     return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False)
@@ -27,10 +29,14 @@ def _integer(value):
 
 
 class PaperBook:
-    def __init__(self, path, *, run_id, lane, policy_hash, initial):
+    def __init__(self, path, *, run_id, lane, policy_hash, initial, held_population=None):
         _integer(initial)
         self.identity = dict(run_id=run_id, lane=lane, policy_hash=policy_hash, initial=initial)
         self.lock = threading.RLock()
+        if held_population is not None:
+            from .native_held_population import _NativePaperCapture
+            if type(held_population) is not _NativePaperCapture:raise TypeError('native_held_capture_required')
+            self._held_population = held_population
         from meme_machine.runtime.preserved_checkpoint import snapshot
         native_lane={'pumpswap-survivor-momentum-v1':'pump','pons-postgrad-survivor-momentum-v1':'pons'}.get(lane)
         folder='pump-survivor' if native_lane=='pump' else 'pons-selective-continuation-v1-cohort/pons-survivor'
@@ -86,6 +92,8 @@ class PaperBook:
                 self.db.execute('COMMIT')
             except BaseException:
                 self.db.execute('ROLLBACK');self.db.close();raise
+        held=getattr(self,'_held_population',None)
+        if held is not None:held._attach(self,path,self.identity,_HELD_PAPER_ISSUER)
         self.replay()
         from meme_machine.runtime.native_boundary import attach
         self.portfolio=attach(self,'pump' if 'pump' in self.identity['lane'] else 'pons')
@@ -93,13 +101,20 @@ class PaperBook:
     @contextmanager
     def transaction(self):
         with self.lock:
+            held=getattr(self,'_held_population',None)
             self.db.execute('BEGIN IMMEDIATE')
+            committed=False
             try:
                 yield
                 self.db.execute('COMMIT')
+                committed=True
+                if held is not None:held._commit(self,_HELD_PAPER_ISSUER)
                 if getattr(self,'portfolio',None):self.portfolio.flush()
             except BaseException:
-                if self.db.in_transaction:self.db.execute('ROLLBACK')
+                if self.db.in_transaction:
+                    self.db.execute('ROLLBACK')
+                    if held is not None:held._rollback(self,_HELD_PAPER_ISSUER)
+                elif not committed and held is not None:held._uncertain(self,_HELD_PAPER_ISSUER)
                 raise
 
     def _load(self, identity):
@@ -134,6 +149,8 @@ class PaperBook:
                         (seq, _json(body), previous, _hash([seq, previous, body])))
         self.db.execute('INSERT OR REPLACE INTO positions VALUES(?,?)',
                         (position['id'], _json(position)))
+        held=getattr(self,'_held_population',None)
+        if held is not None:held._stage(self,position,seq,previous,_hash([seq,previous,body]),_HELD_PAPER_ISSUER)
 
     def reserve(self, identity, amount, at, evidence):
         _integer(amount)
@@ -248,6 +265,8 @@ class PaperBook:
         """Verify immutable chain, then independently rebuild cash and occupations."""
         with self.lock:
             anchor=self._archive()
+            held=getattr(self,'_held_population',None)
+            capture=held._replay_start(self,_HELD_PAPER_ISSUER) if held is not None else None
             positions,previous,count,cash=({},'0'*64,0,self.identity['initial']) if anchor is None else (
                 anchor['positions'],anchor['final_hash'],anchor['seq'],anchor['cash'])
             for seq, raw, prior, checksum in self.db.execute('SELECT * FROM journal ORDER BY seq'):
@@ -315,9 +334,11 @@ class PaperBook:
                 if cash < 0 and not self._shared_backing([*positions.values(),p]):
                     raise ValueError('paper_replay_negative_cash')
                 positions[identity] = p; previous = checksum
+                if capture is not None:held._replay_row(self,capture,p,seq,prior,checksum)
             actual = {identity: json.loads(raw) for identity, raw in self.db.execute('SELECT * FROM positions')}
             if positions != actual or cash != self.reconcile()['cash']:
                 raise ValueError('paper_projection_differs_from_replay')
+            if capture is not None:held._replay_done(self,capture,positions,(count,previous))
             return dict(verified=True, events=count, final_hash=previous, cash=cash)
 
     def _shared_backing(self,positions):
