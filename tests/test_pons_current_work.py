@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 from meme_machine.operational import normal_pons_boot as pons
 from tests import test_normal_pons_boot as owner_fixture
-from tests.test_pons_native_work import native_fixture
+from tests.test_pons_native_work import native_fixture,owner_child_script
 
 
 @contextmanager
@@ -202,14 +202,8 @@ def run_native_case(cap,mode):
 class PonsCurrentWorkTests(unittest.TestCase):
     def child(self,mode):
         case=owner_fixture.NativePonsOwnerTests();case.setUp();self.addCleanup(case.doCleanups)
-        anchor=('        pons.require_pons_owner_context(cap,initial=True)\n'
-                '        with ThreadPoolExecutor(max_workers=1) as pool:\n')
-        self.assertEqual(owner_fixture.CHILD.count(anchor),1)
-        script=owner_fixture.CHILD.replace(anchor,
-            '        pons.require_pons_owner_context(cap,initial=True)\n'
-            '        from tests.test_pons_current_work import run_native_case\n'
-            '        run_native_case(cap,mode)\n'
-            '        with ThreadPoolExecutor(max_workers=1) as pool:\n')
+        script=owner_child_script('        from tests.test_pons_current_work import run_native_case\n'
+            '        run_native_case(cap,mode)\n')
         channel=pons.PonsOwnerLaunch(case.context)
         with patch.object(owner_fixture,'CHILD',script):child=case.launch(channel,mode=mode)
         value=case.bind(channel,child);raw=child.stdout.readline()

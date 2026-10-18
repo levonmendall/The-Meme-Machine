@@ -10,6 +10,7 @@ from unittest.mock import patch
 from meme_machine.operational import normal_pons_boot as pons
 from meme_machine.solana_selective_source import SelectiveSource
 from tests import test_normal_pons_boot as owner_fixture
+from tests.test_pons_native_work import owner_child_script
 
 
 NATIVE_SOURCE=r'''
@@ -56,12 +57,7 @@ NATIVE_SOURCE=r'''
 class PonsOwnerSourceBindingTests(unittest.TestCase):
     def test_real_private_owner_and_factory_commit_compose_without_source_or_held_authority(self):
         case=owner_fixture.NativePonsOwnerTests();case.setUp();self.addCleanup(case.doCleanups)
-        anchor=('        pons.require_pons_owner_context(cap,initial=True)\n'
-                '        with ThreadPoolExecutor(max_workers=1) as pool:\n')
-        self.assertEqual(owner_fixture.CHILD.count(anchor),1)
-        script=owner_fixture.CHILD.replace(anchor,
-            '        pons.require_pons_owner_context(cap,initial=True)\n'+NATIVE_SOURCE+
-            '        with ThreadPoolExecutor(max_workers=1) as pool:\n')
+        script=owner_child_script(NATIVE_SOURCE)
         script=script.replace('        cap.close();assert pons.current_pons_owner_context() is None\n',
             '        cap.close();assert pons.current_pons_owner_context() is None\n'
             "        assert meter.snapshot()['state']=='UNKNOWN'\n")

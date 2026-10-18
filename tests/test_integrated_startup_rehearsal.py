@@ -758,6 +758,13 @@ class IntegratedStartupRehearsal(unittest.TestCase):
     def test_real_provider_admission_rejection_keeps_pending_and_original_deadline(self):
         from meme_machine.lanes.pons import BoundaryError
         from meme_machine.lanes.pons.provider_admission import Admission
+        # This offline scheduling fixture already owns a synthetic monotonic
+        # clock. Bind its matching disposable domain without depending on the
+        # host's procfs time-namespace visibility; production identity stays strict.
+        domain = json.dumps(dict(version=1, boot_id='11111111-1111-4111-8111-111111111111',
+            time_namespace_device=4, time_namespace_inode=8), sort_keys=True, separators=(',', ':'))
+        clock_domain = patch('meme_machine.runtime.provider_clock.current_identity', return_value=domain)
+        clock_domain.start();self.addCleanup(clock_domain.stop)
         now = [100.];physical = []
         admission = Admission(self.root / 'admission.sqlite', 'https://provider.invalid',
             lane='pons', clock=lambda: now[0], sleeper=lambda seconds: now.__setitem__(0, now[0] + seconds))
