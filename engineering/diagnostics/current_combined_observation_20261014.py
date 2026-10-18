@@ -519,6 +519,13 @@ def required_source_drain(health):
     return result
 
 
+def current_work_observation(lanes):
+    pump=lanes.get('pump') if isinstance(lanes,dict) else None
+    if not isinstance(pump,dict) or 'native_current_work' not in pump:return None
+    from meme_machine.runtime.pump_current_work import project_current_work
+    return project_current_work(pump['native_current_work'])
+
+
 def required_counters(health, *, now_monotonic=None):
     """Select fixed diagnostic schemas before the descriptive 128-key clip.
 
@@ -1576,6 +1583,8 @@ def observe_once(root, output, source_revision, *, measurement_seconds=900):
                     pons_operation_costs=pons_costs,
                     fixed_scope_frontiers=selected_frontiers(providers), pipeline=pipeline,
                     sqlite_coverage_scope='CANONICAL_PARENT_ONLY_CHILD_HEALTH_UNAVAILABLE')
+                current_work=current_work_observation(lanes)
+                if current_work is not None:sample['pump_native_work']=current_work
                 sample['counters'] = counters(group, dict(pids, supervisor=main_pid),
                     pipeline.get('required_counters',{}).get('owner_scheduler'), lanes=lanes)
                 sample['receipt_cohort'] = cohort.sample(root, pipeline)

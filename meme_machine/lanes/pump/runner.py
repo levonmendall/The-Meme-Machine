@@ -198,6 +198,10 @@ def _progress(candidate,stage,reason=None,**details):
 
 def _save(report):
     if PIPELINE is not None:report["opportunity_coverage"]=PIPELINE.snapshot()
+    if os.environ.get('MM_ECONOMIC_COHORT_DIAGNOSTICS')=='1':
+        native_work=getattr(CANDIDATE_HISTORY,'_native_current_work',None)
+        report['native_current_work']=(native_work.snapshot() if native_work is not None else
+            dict(state='UNKNOWN',reason='CONSTRUCTION_UNAVAILABLE',funding_authority=False))
     if ACCOUNTING is not None:
         report["accounting"]=ACCOUNTING.reconcile()
         report["accounting_replay"]=ACCOUNTING.replay()
@@ -1075,6 +1079,10 @@ def _record_attempt(report,signal,q,stage,extra=None,*,snapshot=None):
             observed_at=int(signal.observed_at),qualified=bool(q.qualified),
             decision=dict(vector=asdict(signal),qualification=asdict(q),
                           policy_hash=policy_hash(),stage=stage))
+        native_work=getattr(CANDIDATE_HISTORY,'_native_current_work',None)
+        if native_work is not None and signal.phase==MODE_LATE_CURVE:
+            native_work.decision(CANDIDATE_HISTORY,signal.mint,signal.phase,stage,
+                q.qualified,row['decision_id'])
     from meme_machine.runtime.directional_sleeve import open_sleeve
     sleeve=open_sleeve('pump',INITIAL_LAMPORTS)
     if sleeve is not None:
@@ -1514,7 +1522,11 @@ def main(*,campaign=False,discovery_seconds=None):
     from meme_machine.lanes.pump.solana_evidence_health import HealthWatch
     evidence_watch=HealthWatch(time.monotonic())
     plane=_startup_work('pump.runtime_evidence_open',RuntimeEvidence,owner='pump')
+    from meme_machine.runtime.pump_current_work import create_current_work
+    native_work=create_current_work(CANDIDATE_HISTORY,run_id,actual_policy_hash)
+    if native_work is not None:CANDIDATE_HISTORY._native_current_work=native_work
     tape=LocalPumpTape(plane)
+    if native_work is not None:tape.native_work=native_work
     tape.candidate_history_graduation_horizon=max(POLICY.max_postgrad_entry_age_s,600)
     broker_path=os.environ.get("MM_SOLANA_EVIDENCE_BROKER_DB",DEFAULT_BROKER_DB)
     broker=_startup_work('pump.evidence_broker_open',EvidenceBroker,broker_path)
@@ -1575,7 +1587,8 @@ def main(*,campaign=False,discovery_seconds=None):
                     survivor_handoff_ready=native.get('durable_handoff') is True,
                     exit_path_bound=callable(_monitor_positions),
                     flat=not active and not pending and not any((native.get('accounting') or {}).get(k)
-                        for k in ('open_positions','reserved'))))
+                        for k in ('open_positions','reserved'))),
+                **({'native_current_work':native_work.snapshot()} if native_work is not None else {}))
             if maintenance_only:
                 stop.set()
                 if now-last_save>=2:_save(report);last_save=now
@@ -1583,6 +1596,7 @@ def main(*,campaign=False,discovery_seconds=None):
             if campaign:_retire_postgrad(report,postgrad,pending,active,pumpswap_stream,int(time.time()))
             health=plane.health(PUMP_SCOPE)
             if health['usable']:health=plane.health(SWAP_SCOPE)
+            if native_work is not None:native_work.source_observation(health.get('native_source_generation'))
             evidence_watch.observe(health,time.monotonic())
             report['evidence_liveness']=evidence_watch.snapshot()
             if evidence_watch.failure:
@@ -1605,6 +1619,7 @@ def main(*,campaign=False,discovery_seconds=None):
             for event in fresh:
                 creation=_observed_creation(tape,created,event["mint"])
                 if creation is None:
+                    if native_work is not None:native_work.disposition(event,'MISSING_CREATION')
                     continue
                 if event["mint"] not in created:
                     created[event["mint"]]=dict(
@@ -1664,8 +1679,12 @@ def main(*,campaign=False,discovery_seconds=None):
                     mint=event.get("mint")
                     state=created.get(mint)
                     if state is None or state.get("graduated"):
+                        if native_work is not None:
+                            native_work.disposition(event,'MISSING_CREATION' if state is None else 'NATIVE_FILTERED')
                         continue
                     if now-int(last_eval.get(mint,0))<5:
+                        if native_work is not None:
+                            native_work.disposition(event,'COALESCED_NOT_DUE',int(last_eval[mint])+5)
                         continue
                     creation=state["creation"]
                     try:
@@ -1673,8 +1692,10 @@ def main(*,campaign=False,discovery_seconds=None):
                             creation["initial_real_token_reserves"],
                             event["real_token_reserves"])
                     except (KeyError,ValueError,TypeError):
+                        if native_work is not None:native_work.disposition(event,'INCOMPLETE')
                         continue
                     if progress<POLICY.min_curve_progress_bps:
+                        if native_work is not None:native_work.disposition(event,'POLICY_FILTERED')
                         continue
                     last_eval[mint]=now
                     _progress(mint,"prospect_observed",mode=MODE_LATE_CURVE)
@@ -1694,12 +1715,14 @@ def main(*,campaign=False,discovery_seconds=None):
                             CANDIDATE_HISTORY.volume_quality('pump',mint,state['volume_quality'])
                         prospect_q,prospect_reasons=_late_stream_prospect(prospect)
                     except (ValueError,KeyError,TypeError) as exc:
+                        if native_work is not None:native_work.disposition(event,'INCOMPLETE')
                         reason=str(exc) or type(exc).__name__
                         _progress(mint,"prospect_incomplete",reason,mode=MODE_LATE_CURVE)
                         counts=report.setdefault("prospect_screen_incomplete_counts",{})
                         counts[reason]=counts.get(reason,0)+1
                         continue
                     if prospect_reasons:
+                        if native_work is not None:native_work.disposition(event,'POLICY_FILTERED')
                         reason="strategy_prospect:"+",".join(prospect_reasons)
                         _progress(mint,"prospect_screened",reason,mode=MODE_LATE_CURVE)
                         counts=report.setdefault("prospect_screen_rejection_counts",{})
@@ -1711,6 +1734,7 @@ def main(*,campaign=False,discovery_seconds=None):
                     _progress(mint,"admitted",mode=MODE_LATE_CURVE)
                     _progress(mint,"evidence_requested",mode=MODE_LATE_CURVE,decision_at=now)
                     _progress(mint,"decision_evidence_requested",mode=MODE_LATE_CURVE,decision_at=now)
+                    if native_work is not None:native_work.request(event,now,MODE_LATE_CURVE)
                     try:
                         sessions.ensure(25)
                         snapshot=sessions.pump.snapshot(mint,now,priority=True)
@@ -1769,6 +1793,8 @@ def main(*,campaign=False,discovery_seconds=None):
                             mint=mint,mode=MODE_LATE_CURVE,observed_at=now,
                             stage="incomplete",qualified=False,
                             limitation=str(exc) or type(exc).__name__))
+
+            if native_work is not None:native_work.finish()
 
             # Natural post-graduation and second-leg candidates are retained
             # without a count cap. Only expensive PumpSwap watch/qualification work

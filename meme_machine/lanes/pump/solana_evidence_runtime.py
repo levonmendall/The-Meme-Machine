@@ -215,8 +215,9 @@ class LocalPumpHistory:
     def status(self,now):return dict(complete=self._history_complete,decision_window=self.decision_window_status(now),events=len(self.rows),historical_provider_calls=0)
 
 class LocalPumpTape:
-    def __init__(self,plane):
+    def __init__(self,plane,*,native_work=None):
         self.plane=plane
+        self.native_work=native_work
         # Ordered normalized rows from the most recent cursor advance. Strategy
         # callers keep their existing event shape; candidate-history persistence
         # consumes this side channel so promotion has complete pre-grad economics.

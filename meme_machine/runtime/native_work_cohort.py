@@ -5,6 +5,7 @@ native outcomes. This module has no SQL/provider/queue/strategy authority. A
 closed stage never means the source, all consumers or protection are complete.
 """
 from collections import Counter,deque
+import json
 import math
 import threading
 import time
@@ -29,6 +30,79 @@ PENDING=('DEFERRED','INCOMPLETE','MISSING_HISTORY','MISSING_CREATION','COVERAGE_
 COMMITTED=('HISTORY_COMMITTED','DECISION_COMMITTED','WORK_COMPLETED','POLICY_RETIRED')
 
 
+def project_native_work(value):
+    """Fixed bounded public stage metadata; samples never replace its census."""
+    try:
+        if (type(value) is not dict or value.get('schema')!='native-work-cohort-v1'
+                or value.get('stage') not in STAGES or value.get('state') not in ('MEASURING','UNKNOWN')):
+            raise ValueError('shape')
+        result=dict(schema='native-work-cohort-v1',stage=value['stage'],state=value['state'],
+            binding_sha256=_hash(value['binding_sha256']),
+            cumulative_summary_sha256=_hash(value['cumulative_summary_sha256']),
+            historical_completion=False,readiness_authority=False,funding_authority=False)
+        reason=value.get('reason')
+        if reason not in (None,'NATIVE_BOUNDARY_UNAVAILABLE','TRANSACTION_FAILED','BOUND','CONTENTION'):
+            raise ValueError('reason')
+        result['reason']=reason
+        def integer(number):
+            if type(number) is not int or not 0<=number<=MAX_POSITION:raise ValueError('integer')
+            return number
+        def clock(number):
+            if type(number) not in (int,float) or not math.isfinite(number) or number<0:raise ValueError('clock')
+            return number
+        for key in ('active_cohorts','expected_units','metadata_bytes','pending_units',
+                    'completed_cohorts','summary_evictions'):
+            result[key]=integer(value[key])
+        result['bounds']=dict(active=MAX_ACTIVE,units=MAX_UNITS,rows=MAX_ROWS,
+            metadata_bytes=MAX_BYTES,cohorts=MAX_COHORTS,summaries=MAX_SUMMARIES)
+        allowed=(*TERMINAL[value['stage']],*PENDING)
+        def row(item,closed):
+            if type(item) is not dict:raise ValueError('row')
+            answer={key:_hash(item[key]) for key in ('cohort_sha256','frontier_sha256','expected_sha256')}
+            answer['expected_units']=integer(item['expected_units'])
+            dispositions=item['dispositions']
+            if type(dispositions) is not dict or len(dispositions)>len(allowed):raise ValueError('dispositions')
+            answer['dispositions']={name:integer(count) for name,count in dispositions.items() if name in allowed}
+            if len(answer['dispositions'])!=len(dispositions):raise ValueError('dispositions')
+            if closed:
+                if any(name not in TERMINAL[value['stage']] for name in answer['dispositions']):
+                    raise ValueError('closed_pending')
+                for key in ('traversal_sha256','outcomes_sha256'):answer[key]=_hash(item[key])
+                for key in ('first_observed_monotonic','completion_observed_monotonic'):answer[key]=clock(item[key])
+                answer['committed_units']=integer(item['committed_units'])
+                if (sum(answer['dispositions'].values())!=answer['expected_units']
+                        or answer['committed_units']!=sum(count for name,count in answer['dispositions'].items() if name in COMMITTED)
+                        or answer['completion_observed_monotonic']<answer['first_observed_monotonic']):
+                    raise ValueError('population')
+            else:
+                if type(item['census_sealed']) is not bool:raise ValueError('seal')
+                answer['census_sealed']=item['census_sealed'];answer['observed_units']=integer(item['observed_units'])
+                if (sum(answer['dispositions'].values())!=answer['observed_units']
+                        or answer['observed_units']>answer['expected_units']):raise ValueError('population')
+            return answer
+        for key,maximum in (('active',MAX_ACTIVE),('closed',MAX_SUMMARIES)):
+            rows=value[key]
+            if type(rows) is not list or len(rows)>maximum:raise ValueError('bound')
+            # Validate every advertised row, then retain only fixed samples.
+            selected=[row(item,key=='closed') for item in rows]
+            omitted=integer(value.get(key+'_samples_omitted',0))
+            if omitted+len(selected)>maximum:raise ValueError('bound')
+            result[key]=selected[-4:]
+            result[key+'_samples_omitted']=omitted+len(selected)-len(result[key])
+        if len(value['active'])+value.get('active_samples_omitted',0)!=result['active_cohorts']:
+            raise ValueError('population')
+        if (result['completed_cohorts']-result['summary_evictions']
+                !=len(value['closed'])+value.get('closed_samples_omitted',0)
+                or result['pending_units']>result['expected_units']
+                or result['expected_units']>MAX_UNITS or result['metadata_bytes']>MAX_BYTES):
+            raise ValueError('population')
+        result['contract']='NATIVE_STAGE_COUNTS_AND_DIGESTS_WITH_EXPLICIT_SAMPLES_NOT_ALL_CONSUMER_COMPLETION'
+        result['full_market_rate']='UNKNOWN_REQUIRES_BOUND_SOURCE_AND_ALL_NATIVE_STAGES'
+        if len(json.dumps(result,allow_nan=False).encode())>8192:raise ValueError('bound')
+        return result
+    except Exception:return dict(state='UNKNOWN',reason='PROJECTION_UNAVAILABLE',funding_authority=False)
+
+
 class NativeWorkCohorts:
     def __init__(self,binding,stage,*,clock=time.monotonic):
         if type(binding) is not dict or not binding or len(binding)>16 or stage not in STAGES:
@@ -44,6 +118,7 @@ class NativeWorkCohorts:
         self.lock=threading.Lock();self.loss=None;self.active={};self.seen={}
         self.units=0;self.bytes=0;self.completed=0;self.evictions=0;self.chain='0'*64
         self.closed=deque(maxlen=MAX_SUMMARIES)
+        self.last_clock=None
 
     def unavailable(self,reason='NATIVE_BOUNDARY_UNAVAILABLE'):
         if reason not in ('NATIVE_BOUNDARY_UNAVAILABLE','TRANSACTION_FAILED','BOUND'):
@@ -59,7 +134,9 @@ class NativeWorkCohorts:
 
     def _now(self):
         value=self.clock()
-        if type(value) not in (int,float) or not math.isfinite(value) or value<0:raise ValueError('clock')
+        if (type(value) not in (int,float) or not math.isfinite(value) or value<0
+                or self.last_clock is not None and value<self.last_clock):raise ValueError('clock')
+        self.last_clock=value
         return value
 
     def begin(self,cohort_sha256,frontier_sha256):

@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import patch
 
 from meme_machine.runtime.economic_cohort import checksum
-from meme_machine.runtime.native_work_cohort import NativeWorkCohorts
+from meme_machine.runtime.native_work_cohort import NativeWorkCohorts, project_native_work
 
 
 class NativeWorkCohortTests(unittest.TestCase):
@@ -98,6 +98,11 @@ class NativeWorkCohortTests(unittest.TestCase):
         self.assertEqual(meter.snapshot()['state'],'UNKNOWN')
         meter=NativeWorkCohorts(dict(owner_pid=123),'NATIVE_EVALUATION',clock=lambda:float('nan'))
         meter.begin(cid,checksum('frontier'));self.assertEqual(meter.snapshot()['state'],'UNKNOWN')
+        clocks=iter((10,9))
+        meter=NativeWorkCohorts(dict(owner_pid=123),'NATIVE_EVALUATION',clock=lambda:next(clocks))
+        cid=self.begin(meter,rows)
+        meter.observe(cid,((*rows[0],'DECISION_COMMITTED',checksum('receipt'),None),))
+        self.assertEqual(meter.snapshot()['state'],'UNKNOWN')
 
     def test_snapshot_is_detached_and_foreign_cohort_or_reopen_refuses(self):
         meter=self.meter();rows=((checksum('request'),checksum('input')),)
@@ -106,3 +111,24 @@ class NativeWorkCohortTests(unittest.TestCase):
         result=meter.snapshot();result['closed'][0]['dispositions'].clear()
         self.assertEqual(meter.snapshot()['closed'][0]['dispositions'],{'DECISION_COMMITTED':1})
         meter.begin(cid,checksum('native-frontier'));self.assertEqual(meter.snapshot()['state'],'UNKNOWN')
+
+    def test_fixed_projection_keeps_complete_counts_chain_and_explicit_sample_omissions(self):
+        meter=self.meter()
+        for number in range(10):
+            cid=checksum(['cohort',number]);rows=((checksum(['request',number]),checksum('input')),)
+            meter.begin(cid,checksum(['frontier',number]));meter.expect(cid,rows)
+            self.seal(meter,cid,rows)
+            meter.observe(cid,((*rows[0],'DECISION_COMMITTED',checksum(['receipt',number]),None),))
+        raw=meter.snapshot();raw['private_provider']='https://private.invalid/token'
+        result=project_native_work(raw)
+        self.assertEqual(result['completed_cohorts'],10)
+        self.assertEqual(result['cumulative_summary_sha256'],raw['cumulative_summary_sha256'])
+        self.assertEqual(len(result['closed']),4);self.assertEqual(result['closed_samples_omitted'],6)
+        self.assertNotIn('private',str(result));self.assertEqual(project_native_work(result),result)
+        closed=raw['closed'][0];original=dict(closed['dispositions']);committed=closed['committed_units']
+        for pending in ('INCOMPLETE','DEFERRED','MISSING_HISTORY'):
+            closed['dispositions']={pending:1};closed['committed_units']=0
+            self.assertEqual(project_native_work(raw)['state'],'UNKNOWN')
+        closed['dispositions']=original;closed['committed_units']=committed
+        raw['closed'][0]['expected_units']=99
+        self.assertEqual(project_native_work(raw)['state'],'UNKNOWN')

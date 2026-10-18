@@ -73,6 +73,7 @@ def consume_pump_discovery(tape,sequence):
     from contextlib import closing
     from .runtime.candidate_history import open_candidate_history,order_economic_records
     reader=tape.plane._selective_reader();db=reader.db
+    native_work=getattr(tape,'native_work',None);first_sequence=sequence;work_batch=None
     from .solana_prewarm_startup import require_released
     require_released(db)
     db.execute('BEGIN')
@@ -87,16 +88,19 @@ def consume_pump_discovery(tape,sequence):
                 if index:row['transaction_index']=index[0]
         ordered=order_economic_records(material,db,FAMILIES['pump']);orders={r['identity']:i for r,i in ordered}
         native={r['identity']:r['transaction_index'] for r in material}
-        events=[];history_rows=[]
+        events=[];history_rows=[];work_events=[]
         for (seq,raw,slot,identity,sig,index,event_index,market_time,available),record in zip(rows,material,strict=True):
             # These exact bodies were decoded and ordered above in this same
             # canonical read transaction. Do not expand rich lineage twice.
             event=dict(record['payload']['event'],_economic_order=orders[identity],available_time=int(available))
+            if native_work is not None:work_events.append(event)
             history_rows.append(dict(identity=identity,signature=sig,slot=slot,
                 transaction_index=native[identity],
                 event_index=event_index,market_time=market_time,event=event))
             if event.get('event_type') not in ('create','migration'):events.append(event)
             sequence=seq
+        if native_work is not None:
+            work_batch=native_work.capture(first_sequence,rows,material,work_events)
     finally:db.execute('ROLLBACK')
     history=open_candidate_history()
     if history is not None:
@@ -105,6 +109,7 @@ def consume_pump_discovery(tape,sequence):
                 graduation_horizon=getattr(tape,'candidate_history_graduation_horizon',None))
             tape.candidate_history_retained_path=str(history.path.resolve())
             tape.candidate_history_retained_count=retained
+            if native_work is not None and work_batch is not None:native_work.retained(work_batch,history,retained)
     tape.candidate_history_rows=history_rows
     # Sequence belongs to this outbox, not to a global market slot. Late history
     # below a former discovery slot remains visible on the next durable read.
