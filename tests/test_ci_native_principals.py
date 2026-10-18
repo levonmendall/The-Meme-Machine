@@ -330,13 +330,25 @@ class NativeCIPrincipalTests(unittest.TestCase):
             cwd=ROOT, text=True)
         current = (ROOT/'.github/workflows/ci.yml').read_text()
         old, new = native_modules(original), native_modules(current)
-        self.assertEqual((len(old),len(new)), (49,48))
-        self.assertEqual(new, [name for name in old if name != ROOT_MODULE])
+        added=['tests.test_isolated_native_live_parent','tests.test_current_provider_history']
+        self.assertEqual((len(old),len(new)), (49,50))
+        self.assertEqual(new, [name for name in old if name != ROOT_MODULE]+added)
         def count(modules):
             return sum(sum(isinstance(case,(ast.FunctionDef,ast.AsyncFunctionDef)) and
                 case.name.startswith('test_') for owner in ast.parse((ROOT/(module.replace('.','/')+'.py')).read_text()).body
                 if isinstance(owner,ast.ClassDef) for case in owner.body) for module in modules)
-        self.assertEqual((count([ROOT_MODULE]),count(new)), (87,588))
+        def names(module,body):
+            return {module+'.'+owner.name+'.'+case.name
+                for owner in ast.parse(body).body if isinstance(owner,ast.ClassDef)
+                for case in owner.body if isinstance(case,(ast.FunctionDef,ast.AsyncFunctionDef))
+                and case.name.startswith('test_')}
+        original_names=set().union(*(names(module,subprocess.check_output(
+            ['git','show',ORIGINAL+':'+module.replace('.','/')+'.py'],cwd=ROOT)) for module in old))
+        current_names=set().union(*(names(module,(ROOT/(module.replace('.','/')+'.py')).read_bytes())
+            for module in [ROOT_MODULE,*new]))
+        self.assertEqual(len(original_names),675,'every original affected test identity is retained')
+        self.assertEqual(original_names-current_names,set(),'no original affected case disappears')
+        self.assertEqual((count([ROOT_MODULE]),count(new)), (89,627))
         root = current[current.index('      - name: Run affected root service-diagnostic regressions'):]
         root = root[:root.index('      - name: Run affected native isolation')]
         self.assertIn("'tests.test_current_combined_diagnostic', '--verbose'", root)

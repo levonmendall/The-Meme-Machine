@@ -1,5 +1,67 @@
 {
   "api_census": {
+    "engineering/diagnostics/build_operational_candidate_source_proof.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "inverse_record",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "rally_delta",
+          "rally_delta"
+        ]
+      ],
+      "source_references": [
+        [
+          "inverse_record",
+          "tests.test_robinhood_usd_valuation",
+          "rally_delta",
+          "call",
+          "Call(func=Name(id='rally_delta', ctx=Load()), args=[Name(id='before', ctx=Load()), Name(id='after', ctx=Load())], keywords=[])"
+        ]
+      ],
+      "text_markers": [
+        [
+          "",
+          "aa2f196b77dc69a37c8cb2b94254adc76c1f0e4711e5961971e5286b21832a60"
+        ],
+        [
+          "",
+          "dded8b065b7ddae09f65c459dfa2d532ed268a87bd8ca15728e527278477f5d9"
+        ],
+        [
+          "calls.walk",
+          "9e1b9bec7c0fb54747b503ff1767e758b8a885d66b25375218728a36dc1efe7d"
+        ],
+        [
+          "calls.walk",
+          "9e94c7304b591845dc4d37ad127326ac432c45dc13103c45df3fdb8b540c092c"
+        ],
+        [
+          "calls.walk",
+          "c2d265ec6d281796167dd60bccd3c583163afa9c50a3a668a838fbbbd66538fe"
+        ],
+        [
+          "main",
+          "7b327a9c2ddb5efe0199d2af174bdcf1b29d576cadc12ac7b855923059bc3d1d"
+        ]
+      ]
+    },
+    "engineering/diagnostics/pump_restore_metadata_345_cost.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "run",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "run",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ]
+      ]
+    },
     "engineering/diagnostics/pump_restore_reference_cost.py": {
       "dynamic_loads": [],
       "imports": [],
@@ -411,6 +473,10 @@
         ],
         [
           "",
+          "6901761793b98e30f017d0a000c753411151e5ee086fdb3e9e69db3f91b6ffce"
+        ],
+        [
+          "",
           "7b2975cb1d0c7de1a36d7f2ab9785c2a325f9590d65538461dd7dc0b141491b7"
         ]
       ]
@@ -566,6 +632,34 @@
       "text_markers": [
         [
           "",
+          "4494bd288c630d41027eaf34a16f99c2f0453150c36340c592b61be5374b1e7c"
+        ],
+        [
+          "",
+          "6901761793b98e30f017d0a000c753411151e5ee086fdb3e9e69db3f91b6ffce"
+        ],
+        [
+          "",
+          "7b2975cb1d0c7de1a36d7f2ab9785c2a325f9590d65538461dd7dc0b141491b7"
+        ],
+        [
+          "",
+          "7b327a9c2ddb5efe0199d2af174bdcf1b29d576cadc12ac7b855923059bc3d1d"
+        ],
+        [
+          "",
+          "7b327a9c2ddb5efe0199d2af174bdcf1b29d576cadc12ac7b855923059bc3d1d"
+        ],
+        [
+          "",
+          "7b327a9c2ddb5efe0199d2af174bdcf1b29d576cadc12ac7b855923059bc3d1d"
+        ],
+        [
+          "",
+          "7b327a9c2ddb5efe0199d2af174bdcf1b29d576cadc12ac7b855923059bc3d1d"
+        ],
+        [
+          "",
           "84aed436a5165d847dded8bffdcc806eb3a0cc0dae4a00f74d1b455a6fe5d617"
         ],
         [
@@ -579,6 +673,14 @@
         [
           "",
           "aa2f196b77dc69a37c8cb2b94254adc76c1f0e4711e5961971e5286b21832a60"
+        ],
+        [
+          "",
+          "aa2f196b77dc69a37c8cb2b94254adc76c1f0e4711e5961971e5286b21832a60"
+        ],
+        [
+          "",
+          "dded8b065b7ddae09f65c459dfa2d532ed268a87bd8ca15728e527278477f5d9"
         ],
         [
           "",
@@ -607,6 +709,10 @@
         [
           "FuturePumpSourceGuardTests.test_new_aliased_qualified_dynamic_and_escaped_source_api_references_are_visible",
           "48896f7a95cb463a124994ee7f1c07718832200913e9845c8788ead1b184e27b"
+        ],
+        [
+          "FuturePumpSourceGuardTests.test_new_aliased_qualified_dynamic_and_escaped_source_api_references_are_visible",
+          "6901761793b98e30f017d0a000c753411151e5ee086fdb3e9e69db3f91b6ffce"
         ],
         [
           "_active_read_inventory.visit",
@@ -1037,7 +1143,7 @@
       ]
     }
   },
-  "base": "780f4015efd9fba528e97223f8e8e3b1a7322e12",
+  "base": "b10b7a13a0e872038018a43816e2ff0f75c93e55",
   "callers": {
     "tests/test_extended_survivor_hold_research.py": {
       "after_sha256": "9cfa8e48e6b4d78b13946f4cc13f8ce6837a8772ffa489c85d6ac7b617e3bc2e",
@@ -1166,9 +1272,9 @@
       ]
     }
   },
-  "core_manifest_sha256": "18e822003bc6130097d73d4ef3599988098078ae4766010ea6150bf819457ed0",
+  "core_manifest_sha256": "e7c1c26b06e75293e87c3615efc7e44fe75e39d5a79e61d89014ae83474e1e59",
   "failed_ci_commit": "5bd959f4e3e39f030d3f87368e833cc63beccf55",
-  "implementation": "9c6af394605c96ab269e5fbd65c624f36389ee70",
-  "implementation_tree": "14bd353d240e1411e41da141c7c8b0c6f25d826a",
+  "implementation": "6078c72a0b1c5dbefae8701a485f58f020f6182c",
+  "implementation_tree": "67d0231910635920a7a5fc60ef8b159f287a5946",
   "schema": "authenticated-future-source-callers-v1"
 }

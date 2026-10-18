@@ -4,7 +4,10 @@ These proofs are not native live-source throughput or held financial protection.
 The mandatory Nitro capability is checked before opening any native store.
 """
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 from dataclasses import replace
+from functools import partial
 import json
 import socket
 import sqlite3
@@ -119,7 +122,7 @@ class IsolatedPonsCurrentTests(unittest.IsolatedAsyncioTestCase):
         plane=self.resources.pons_plane();foreign=self.root/'must-not-open.sqlite'
         with patch('sqlite3.connect',side_effect=AssertionError('SQLite opened')):
             with self.assertRaisesRegex(ValueError,'broker_plane_owner'):Broker(foreign,POLICY_HASH,plane=plane)
-            with self.assertRaisesRegex(ValueError,'checkpoint_plane_owner'):
+            with self.assertRaisesRegex(ValueError,'candidate_checkpoint_owner'):
                 save_cohort_checkpoint(dict(candidate_plane_path=str(foreign)),0,'offline',plane=plane)
         self.assertFalse(foreign.exists());self.assert_no_money()
 
@@ -223,6 +226,12 @@ class IsolatedPonsCurrentTests(unittest.IsolatedAsyncioTestCase):
         from meme_machine.lanes.pons import pons_selective_cohort as cohort
         from meme_machine.runtime import stop
         actual_save=cohort.save_cohort_checkpoint;phases=[];updates=[]
+        if not hasattr(self,'_current_executor'):
+            # One actual Current consumer retains its real SQLite owner for the
+            # same-cap restart. The shared default executor may choose a new
+            # thread; it cannot transfer an existing Plane's ownership.
+            self._current_executor=ThreadPoolExecutor(max_workers=1,thread_name_prefix='fixture-pons-current')
+            self.addCleanup(self._current_executor.shutdown,wait=True,cancel_futures=False)
         def checkpoint(result,cursor,phase,**kwargs):
             actual_save(result,cursor,phase,**kwargs);phases.append(phase)
             if cancel_after_checkpoint and phase=='discovery_ready':stop.requested.set()
@@ -234,9 +243,10 @@ class IsolatedPonsCurrentTests(unittest.IsolatedAsyncioTestCase):
                 patch('meme_machine.lanes.pons.pons_survivor_runtime.PaperBook',
                     side_effect=AssertionError('financial constructor reached')):
             with self.assertRaises(stop.Shutdown if expected_error is None else expected_error) as caught:
-                await asyncio.wait_for(asyncio.to_thread(cohort.run,
-                    self.ports.rpc_port('pons','current').source,campaign=True,
-                    native_resources=self.resources,native_ports=self.ports),10)
+                call=partial(cohort.run,self.ports.rpc_port('pons','current').source,campaign=True,
+                    native_resources=self.resources,native_ports=self.ports)
+                await asyncio.wait_for(asyncio.get_running_loop().run_in_executor(
+                    self._current_executor,copy_context().run,call),10)
         self.last_error=caught.exception
         return phases,updates
 

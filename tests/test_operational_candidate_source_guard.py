@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import unittest
 from unittest.mock import patch
+from tests.test_future_pump_source_guard import future_pump_predecessor
 
 ROOT=Path(__file__).resolve().parents[1]
 MANIFEST=ROOT/'tests/fixtures/operational_candidate_source_delta.json'
@@ -94,7 +95,7 @@ class OperationalCandidateSourceGuardTests(unittest.TestCase):
     def test_sixteen_complete_sources_reverse_exactly_to_approved_780(self):
         value=manifest(self)
         for relative,record in value['files'].items():
-            current=(ROOT/relative).read_bytes()
+            current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
             with self.subTest(relative=relative):
                 self.assertEqual(hashlib.sha256(current).hexdigest(),record['after_sha256'])
                 before=candidate_source_predecessor(self,relative,current)
@@ -130,7 +131,7 @@ class OperationalCandidateSourceGuardTests(unittest.TestCase):
         for relative,record in value['guards'].items():
             self.assertEqual(record['before_sha256'],BASE_GUARDS[relative],
                 'whole original guard hash is independently pinned to approved 780')
-            current=(ROOT/relative).read_bytes()
+            current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
             self.assertEqual(hashlib.sha256(current).hexdigest(),record['after_sha256'])
             restored=original_guard_source(self,relative,current)
             self.assertEqual(hashlib.sha256(restored).hexdigest(),record['before_sha256'],
@@ -169,7 +170,7 @@ class OperationalCandidateSourceGuardTests(unittest.TestCase):
             *('module/FunctionDef:'+name for name in ('_buffered_log_inputs','_economic_recovery_inputs',
                 'current_economic_recovery_descriptor','verify_economic_recovery_descriptor'))})
         self.assertEqual(set(record['layouts']),{'module'})
-        current=(ROOT/relative).read_bytes()
+        current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
         pairs=((b'd01237f6fa0e819de4ab6b8c3068f6c8ba5565fec67d20d1780c7b302dd0caec',b'f'*64),
             (b'97cafc5760e592ef574954bb49ba2b271852b676c66a504cfb73a9d55d9876b6',b'e'*64),
             (b'_cancelled_source=False',b'_cancelled_source=True'),
@@ -188,7 +189,7 @@ class OperationalCandidateSourceGuardTests(unittest.TestCase):
 
     def test_unknown_truncated_or_partially_reversed_source_never_passes(self):
         for relative,record in manifest(self)['files'].items():
-            current=(ROOT/relative).read_bytes()
+            current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
             mutations=[b'',current+b'\n# unknown successor\n']
             for change in record['changes']:
                 changed=current.replace(change['after'].encode(),change['before'].encode(),1)
@@ -226,7 +227,7 @@ class OperationalCandidateSourceGuardTests(unittest.TestCase):
                 (b'threading.get_ident()!=self._owner_thread',b'False'),(b'self._owner_inode',b'None')),
         }
         for relative,pairs in mutations.items():
-            current=(ROOT/relative).read_bytes()
+            current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
             for before,after in pairs:
                 self.assertIn(before,current,relative+':real guarded source fragment')
                 with self.subTest(relative=relative,before=before),self.assertRaises(AssertionError):
@@ -238,7 +239,7 @@ class OperationalCandidateSourceGuardTests(unittest.TestCase):
             with self.subTest(sha256=hashlib.sha256(changed).hexdigest()),\
                     patch.object(Path,'read_bytes',new=lambda path:changed if path==MANIFEST else read(path)),\
                     self.assertRaises(AssertionError):
-                candidate_source_predecessor(self,PONS_PATHS[0],(ROOT/PONS_PATHS[0]).read_bytes())
+                candidate_source_predecessor(self,PONS_PATHS[0],future_pump_predecessor(self,PONS_PATHS[0],(ROOT/PONS_PATHS[0]).read_bytes()))
         self.assertEqual(candidate_source_predecessor(self,'unrelated/source.py',b'unchanged'),b'unchanged')
 
     def test_maintenance_boundaries_keyset_and_fixed_failure_codes_are_pinned(self):
@@ -279,7 +280,7 @@ class OperationalCandidateSourceGuardTests(unittest.TestCase):
             'meme_machine/runtime/status.py','meme_machine/runtime/survivor_history.py',
             'meme_machine/solana_source_drain.py'})
         for relative,pairs in mutations.items():
-            current=(ROOT/relative).read_bytes()
+            current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
             for before,after in pairs:
                 self.assertIn(before,current,relative+':actual reviewed maintenance safeguard')
                 with self.subTest(relative=relative,before=before),self.assertRaises(AssertionError):

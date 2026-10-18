@@ -169,7 +169,8 @@ jobs:
       - name: Run affected root service-diagnostic regressions
         if: ${{ !cancelled() && steps.pinned_dependencies.outcome == 'success' && steps.trusted_native_runtime.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.validation != 'full') && (github.event_name != 'workflow_dispatch' || inputs.validation != 'native-attribution') }}
         run: |
-          # All 87 original cases stay in the root phase; two actual service
+          # All original root cases plus the reviewed additions stay here;
+          # two actual service
           # identity cases retain their existing systemd/account prerequisites.
           sudo env CI=true PYTHONDONTWRITEBYTECODE=1 "$(command -v python)" - <<'PY'
           import os
@@ -195,7 +196,8 @@ jobs:
         # still leaves the job failed; cancellation and missing setup stop it.
         if: ${{ !cancelled() && steps.pinned_dependencies.outcome == 'success' && steps.trusted_native_runtime.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.validation != 'full') && (github.event_name != 'workflow_dispatch' || inputs.validation != 'native-attribution') }}
         run: |
-          # Run the original remaining 48 modules/588 cases as the real runner.
+          # Run every original native module plus the protected live-parent and
+          # current-provider components as the real runner.
           # No CAP_SYS_RESOURCE may invalidate the hard-AS negative regression.
           # Keep the actual copied-main case and every failure intact;
           # this remains synthetic component validation, not kernel/live readiness.
@@ -278,6 +280,8 @@ jobs:
               'tests.test_integrated_startup_rehearsal',
               'tests.test_paper_policy_compatibility',
               'tests.test_isolated_native_kernel_validation',
+              'tests.test_isolated_native_live_parent',
+              'tests.test_current_provider_history',
           ]
           print('FOCUSED_NATIVE_VALIDATION_ONLY: synthetic offline; not full release or kernel acceptance', flush=True)
           print('FOCUSED_NATIVE_MODULES: ' + ','.join(modules), flush=True)
