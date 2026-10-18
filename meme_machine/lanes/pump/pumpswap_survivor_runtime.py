@@ -53,10 +53,16 @@ class Runtime:
         elif native_ports is not None:raise ValueError('isolated_native_resources_required')
         self.root=Path(root);self.root.mkdir(parents=True,exist_ok=True)
         self.capital=capital;self.run_id=run_id;self.confirmations=confirmations
+        self.native_work=None
         if self.native_resources is None:
             self.sleeve=open_sleeve('pump',capital)
             if self.sleeve is None:raise ValueError('survivor_shared_sleeve_required')
-            self.history=History(str(self.root/'history.sqlite'),policy=POLICY_HASH)
+            if os.environ.get('MM_ECONOMIC_COHORT_DIAGNOSTICS')=='1':
+                from meme_machine.runtime.pump_survivor_work import create_survivor_work
+                self.native_work=create_survivor_work(self.root/'history.sqlite',run_id,POLICY_HASH)
+            history_options=dict(policy=POLICY_HASH)
+            if self.native_work is not None:history_options['native_work']=self.native_work
+            self.history=History(str(self.root/'history.sqlite'),**history_options)
         else:
             self.sleeve=open_sleeve('pump',None,native_resources=self.native_resources)
             self.history=self.native_resources.survivor_history('pump')
@@ -160,7 +166,10 @@ class Runtime:
         finally:db.execute('ROLLBACK')
         checkpoint=row.get('evidence_checkpoint')
         if checkpoint and checkpoint['through']==at and checkpoint['consumed_slot']==slot:
-            self._ack_history_checkpoint(row,checkpoint);return
+            self._ack_history_checkpoint(row,checkpoint)
+            work=getattr(self,'native_work',None)
+            if work is not None:work.prepared(self.history,row['id'],checkpoint)
+            return
         grad=row['graduation'];lo,hi=self.plane.bounds(SWAP_SCOPE,row['through'],at,upper_slot=slot)
         records=self.plane.reader.window(SWAP_SCOPE,lo,hi,as_of=time.time(),address=grad['pool'],kind='event',limit=10000)
         def order(record):
@@ -197,6 +206,8 @@ class Runtime:
         self.history.append(row['id'],through=at,events=events,points=sorted(points.items()),
             complete=True,evidence_checkpoint=checkpoint)
         self._ack_history_checkpoint(row,checkpoint)
+        work=getattr(self,'native_work',None)
+        if work is not None:work.prepared(self.history,row['id'],checkpoint)
 
     def _ack_history_checkpoint(self,row,checkpoint):
         owner='pump:survivor:'+row['id']
@@ -472,6 +483,8 @@ class Runtime:
         from meme_machine.runtime.isolated_native_bootstrap import maintain_bookless_runtime
         bookless=maintain_bookless_runtime(self,'pump')
         discovery_deferred=False
+        native_work=getattr(self,'native_work',None)
+        if native_work is not None:native_work.finish()
         try:
             from meme_machine.runtime.storage import compact_survivor
             if not bookless:compact_survivor(self,'pump')
@@ -490,6 +503,9 @@ class Runtime:
                     self.last_error='survivor_candidate_capacity_pressure'
                 self.discover()
             rows=[r for r in self.history.rows() if not r.get('position') and r['state']!='retired']
+            if native_work is not None and admit and not rows:
+                native_work.attention(rows,now=None,minimum_age=POLICY['minimum_age_seconds'],
+                    maximum_age=POLICY['maximum_age_seconds'])
             if admit and rows:
                 # Fair, lossless scheduling: oldest checked candidate first so a
                 # quiet older row cannot permanently starve later graduations.
@@ -497,6 +513,9 @@ class Runtime:
                     -self._quality_rank(r,self.now()),int(r['graduation']['at']),r['id']))
                 row['last_checked']=self.now();self.history.save(row)
                 age=self.now()-row['graduation']['at']
+                if native_work is not None:native_work.attention(rows,
+                    now=age+row['graduation']['at'],minimum_age=POLICY['minimum_age_seconds'],
+                    maximum_age=POLICY['maximum_age_seconds'])
                 if age>POLICY['maximum_age_seconds']:
                     self.history.retire(row,expired_before=self.now()-POLICY['maximum_age_seconds'])
                     self.plane.command(op='release',owner='pump:survivor:'+row['id'],scope=SWAP_SCOPE,resolved=False)
@@ -504,9 +523,11 @@ class Runtime:
                     # Incremental local monitoring starts at graduation, without
                     # RPC hydration or entry authority before the ten-minute floor.
                     top=self.plane.frontier(SWAP_SCOPE);at=self.plane.block_time(top)
+                    if native_work is not None:native_work.select(self.history,row,at,top)
                     self._increment(row,at,top)
                     if age<POLICY['minimum_age_seconds']:row=self.history.get(row['id']);row['state']='aging';self.history.save(row)
                     else:
+                        if native_work is not None:native_work.request(self.history,row)
                         state=self.fresh_state(row['id'],priority=30)
                         qualification_facts=self.reconstruct(state,Quotes(state,self.now()))
                         decision=evaluate_entry(qualification_facts)
@@ -543,6 +564,7 @@ class Runtime:
                         if any(reason in decision['all_rejections'] for reason in ('price_extension','base_range_extension')):
                             row['extension_blocked_regime']=regime;self.history.save(row)
                         row,observed,regime=self._publish_qualification(row,decision,regime,state=state)
+                        if native_work is not None:native_work.evaluated(self.history,row,self.candidate_history)
                         if decision['candidate'] and self._allocation_allowed(row,decision):
                             sizing=self.sleeve.sizing_basis(POLICY["target_sleeve_bps"])
                             if int(sizing.get('allocatable_target',0)) < GAS*2+1:
@@ -584,6 +606,7 @@ class Runtime:
             from meme_machine.runtime.survivor_commit import exceptional_evidence_failure
             exceptional_evidence_failure(self,family='pump_survivor',blocker=str(exc))
         result=dict(strategy=STRATEGY_ID,policy_hash=POLICY_HASH,active=True,paper_only=True,
+                    **({'native_work':native_work.snapshot()} if native_work is not None else {}),
                     rally_lifecycles=None if bookless else self.sleeve.rally_report(),
                     execution_work_model=dict(owner='existing_pump_survivor_worker',
                         intake='canonical_solana_evidence_plane',additional_workers=0,

@@ -11,6 +11,7 @@ FAST=[
  'tests.test_native_work_cohort',
  'tests.test_native_ordered_work',
  'tests.test_native_ordered_current',
+ 'tests.test_pump_survivor_work',
  'tests.test_pump_current_work',
  'tests.test_pump_current_input_prefix',
  'tests.test_pump_current_input_native',
