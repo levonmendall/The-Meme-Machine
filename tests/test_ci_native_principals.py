@@ -1,0 +1,222 @@
+"""Metadata-only CI setup and complete original affected-suite partition."""
+import ast
+import errno
+import hashlib
+import os
+from pathlib import Path
+import stat
+import subprocess
+import tempfile
+import unittest
+from unittest.mock import patch
+from unittest.mock import Mock
+from types import SimpleNamespace
+
+from engineering.ci import native_principals as ci
+
+ROOT = Path(__file__).resolve().parents[1]
+ORIGINAL = '1e7af8de5654470b83dca11d92e90b37697ff8b2'
+ROOT_MODULE = 'tests.test_current_combined_diagnostic'
+
+
+def native_modules(text):
+    start = text.index('      - name: Run affected native isolation and complete copied-main regressions')
+    block = text[start:]
+    block = block[block.index('          modules = ['):]
+    return ast.literal_eval(block[block.index('['):block.index('          print(')].strip())
+
+
+class NativeCIPrincipalTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.prefix = Path(self.temporary.name)/'runtime'
+        self.prefix.mkdir(mode=0o755)
+        self.prefix.chmod(0o755)
+        self.installation = ci._Installation(self.prefix, os.geteuid(), os.getegid(),
+            target_uid=os.geteuid(), target_gid=os.getegid())
+        self.addCleanup(self.installation.close)
+
+    def file(self, relative='lib/python3.12/owned.py', body=b'actual unchanged runtime bytes\n'):
+        path = self.prefix/relative
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o755)
+        for directory in (path.parent, *path.parent.parents):
+            if directory == self.prefix or self.prefix in directory.parents:
+                directory.chmod(0o755)
+        path.write_bytes(body)
+        path.chmod(0o644)
+        return path
+
+    def test_exact_selected_metadata_installation_preserves_content_and_inode(self):
+        path = self.file()
+        before = path.stat()
+        self.installation.selected(path)
+        receipt = self.installation.finish()
+        self.assertEqual(path.read_bytes(), b'actual unchanged runtime bytes\n')
+        self.assertEqual((path.stat().st_dev, path.stat().st_ino), (before.st_dev, before.st_ino))
+        self.assertEqual(receipt['files'], 1)
+        self.assertTrue(receipt['metadata_only'])
+        self.assertEqual(receipt['source_content_sha256'], receipt['destination_content_sha256'])
+        self.assertEqual(receipt['records'][0]['sha256'], hashlib.sha256(path.read_bytes()).hexdigest())
+        source = receipt['records'][0]['source_stat']
+        destination = receipt['records'][0]['destination_stat']
+        self.assertEqual(source[:7], destination[:7])
+        self.assertEqual(source[8:], destination[8:])
+        self.assertGreaterEqual(destination[7], source[7])  # chown updates ctime
+        for descriptor, *_ in self.installation.files.values():
+            self.installation.close()
+            with self.assertRaises(OSError) as caught: os.fstat(descriptor)
+            self.assertEqual(caught.exception.errno, errno.EBADF)
+
+    def test_only_enumerated_directory_modes_change_and_sibling_is_untouched(self):
+        path = self.file()
+        sibling = path.parent/'unselected.py'
+        sibling.write_bytes(b'not selected');sibling.chmod(0o666)
+        path.parent.chmod(0o777)
+        self.installation.selected(path)
+        receipt = self.installation.finish()
+        self.assertEqual(stat.S_IMODE(path.parent.stat().st_mode), 0o755)
+        self.assertEqual(stat.S_IMODE(sibling.stat().st_mode), 0o666)
+        self.assertEqual(receipt['files'], 1)
+        self.assertFalse(any(row['path'] == str(sibling) for row in receipt['records']))
+
+    def test_group_world_writable_or_unknown_owner_file_never_becomes_trusted(self):
+        path = self.file();path.chmod(0o666)
+        with self.assertRaisesRegex(ci.Refused, 'file_trust'): self.installation.selected(path)
+        self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o666)
+        path.chmod(0o644)
+        self.installation.owners = (os.geteuid()+10000,)
+        with self.assertRaisesRegex(ci.Refused, 'file_trust'): self.installation.selected(path)
+
+    def test_symlink_leaf_or_parent_and_shared_inode_are_refused(self):
+        path = self.file()
+        link = self.prefix/'alias.py';link.symlink_to(path)
+        with self.assertRaises(OSError): self.installation.selected(link)
+        alias = self.prefix/'alias';alias.symlink_to(path.parent, target_is_directory=True)
+        with self.assertRaises(OSError): self.installation.selected(alias/path.name)
+        hard = self.prefix/'hard.py';os.link(path, hard)
+        with self.assertRaisesRegex(ci.Refused, 'shared_file'): self.installation.selected(path)
+
+    def test_special_file_is_nonblocking_and_refused(self):
+        path = self.prefix/'fifo';os.mkfifo(path, 0o600)
+        with self.assertRaisesRegex(ci.Refused, 'regular_bound'): self.installation.selected(path)
+
+    def test_special_privilege_bits_and_root_only_read_modes_are_not_installed(self):
+        path = self.file()
+        for mode in (0o4644, 0o2644, 0o1644, 0o600):
+            path.chmod(mode)
+            with self.subTest(mode=mode), self.assertRaisesRegex(ci.Refused, 'file_trust'):
+                self.installation.selected(path)
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), mode)
+
+    def test_complete_file_byte_and_individual_bounds(self):
+        path = self.file()
+        with patch.object(ci, 'MAX_FILE', 3):
+            with self.assertRaisesRegex(ci.Refused, 'regular_bound'): self.installation.selected(path)
+        with patch.object(ci, 'MAX_BYTES', 3):
+            with self.assertRaisesRegex(ci.Refused, 'byte_bound'): self.installation.selected(path)
+        with patch.object(ci, 'MAX_FILES', 0):
+            with self.assertRaisesRegex(ci.Refused, 'file_bound'): self.installation.selected(path)
+
+    def test_truncated_actual_read_fails_without_loop_or_completion(self):
+        path = self.file()
+        with patch.object(ci.os, 'read', return_value=b''):
+            with self.assertRaisesRegex(ci.Refused, 'content_changed'): self.installation.selected(path)
+        self.assertFalse(self.installation.files)
+
+    def test_final_content_or_path_replacement_refuses_completion(self):
+        path = self.file();self.installation.selected(path)
+        path.write_bytes(b'changed after original selection')
+        with self.assertRaisesRegex(ci.Refused, 'content_changed'): self.installation.finish()
+
+    def test_stable_open_inode_does_not_authorize_replaced_path(self):
+        path = self.file();self.installation.selected(path)
+        path.rename(path.with_suffix('.retained'))
+        self.file(body=b'new file at original selected pathname\n')
+        with self.assertRaisesRegex(ci.Refused, 'path_changed|content_changed'):
+            self.installation.finish()
+
+    def test_fixed_public_installer_rejects_unknown_runtime_or_principals_before_open(self):
+        with patch.object(ci, '_Installation') as installation, patch.dict(os.environ,
+                {'CI':'true', 'GITHUB_ACTIONS':'true'}), patch.object(ci.os, 'geteuid', return_value=0):
+            for location, uid, gid in (('/tmp/python',1000,1000), (str(ci.PREFIX),0,1000),
+                    (str(ci.PREFIX),1000,0), (str(ci.PREFIX),True,1000)):
+                with self.assertRaises(ci.Refused): ci.install(location,uid,gid)
+            installation.assert_not_called()
+
+    def test_fixed_loader_transitive_dependency_is_included_in_actual_install_plan(self):
+        from meme_machine.operational import isolated_native_image as image
+        from meme_machine.operational import namespace_runtime as runtime
+        selected = []
+        installer = Mock()
+        executable = ci.PREFIX/'bin/python3.12'
+        installer.files = {executable:(None,None,SimpleNamespace(st_mode=0o755),None)}
+        def read(path):
+            selected.append(path.name)
+            return (b'python' if path.name == 'python3.12' else
+                    b'loader' if path.name == 'ld-linux-x86-64.so.2' else b'dependency')
+        installer.read.side_effect = read
+        def elf(data):
+            return ('/lib64/ld-linux-x86-64.so.2',[]) if data == b'python' else (
+                (None,['libfixture.so.1']) if data == b'loader' else (None,[]))
+        exists, resolve = Path.exists, Path.resolve
+        def fixture_exists(path):
+            return True if path.name == 'libfixture.so.1' else exists(path)
+        def fixture_resolve(path, **kwargs):
+            return path if path == executable or path.name == 'libfixture.so.1' else resolve(path,**kwargs)
+        with patch.object(ci,'_Installation',return_value=installer), \
+                patch.object(ci.os,'geteuid',return_value=0), \
+                patch.dict(os.environ,{'CI':'true','GITHUB_ACTIONS':'true'}), \
+                patch.object(ci.sys,'base_prefix',str(ci.PREFIX)), \
+                patch.object(ci.sys,'executable',str(executable)), \
+                patch.object(ci.sys,'version_info',(3,12,14)), \
+                patch.object(ci.platform,'machine',return_value='x86_64'), \
+                patch.object(ci.sysconfig,'get_config_var',return_value='.cpython-312-x86_64-linux-gnu.so'), \
+                patch.object(runtime,'_sources',return_value=[]), \
+                patch.object(runtime,'EXTENSIONS',[]), \
+                patch.object(runtime,'_elf',side_effect=elf), \
+                patch.object(image,'NATIVE_MODULES',[]), patch.object(image,'NATIVE_PACKAGES',{}), \
+                patch.object(Path,'exists',fixture_exists), \
+                patch.object(Path,'resolve',fixture_resolve):
+            # There are no actual filesystem or ownership operations here;
+            # the real fixed coordinator must still traverse the loader edge.
+            ci.install(str(ci.PREFIX),1000,1000)
+        self.assertEqual(selected,['python3.12','ld-linux-x86-64.so.2','libfixture.so.1'])
+        installer.finish.assert_called_once_with()
+        installer.close.assert_called_once_with()
+
+    def test_current_ci_partitions_all_original_675_cases_without_disabling_assertions(self):
+        original = subprocess.check_output(['git','show',ORIGINAL+':.github/workflows/ci.yml'],
+            cwd=ROOT, text=True)
+        current = (ROOT/'.github/workflows/ci.yml').read_text()
+        old, new = native_modules(original), native_modules(current)
+        self.assertEqual((len(old),len(new)), (49,48))
+        self.assertEqual(new, [name for name in old if name != ROOT_MODULE])
+        def count(modules):
+            return sum(sum(isinstance(case,(ast.FunctionDef,ast.AsyncFunctionDef)) and
+                case.name.startswith('test_') for owner in ast.parse((ROOT/(module.replace('.','/')+'.py')).read_text()).body
+                if isinstance(owner,ast.ClassDef) for case in owner.body) for module in modules)
+        self.assertEqual((count([ROOT_MODULE]),count(new)), (87,588))
+        root = current[current.index('      - name: Run affected root service-diagnostic regressions'):]
+        root = root[:root.index('      - name: Run affected native isolation')]
+        self.assertIn("'tests.test_current_combined_diagnostic', '--verbose'", root)
+        self.assertIn('sudo env', root)
+        native = current[current.index('      - name: Run affected native isolation'):]
+        native = native[:native.index('      - name: Check CI execution-principal')]
+        self.assertNotIn('sudo env', native)
+        self.assertIn("('CapInh', 'CapPrm', 'CapEff', 'CapAmb')", native)
+        self.assertIn('ci_unprivileged_native_principal_required', native)
+        self.assertIn('ci_native_capabilities_must_be_empty', native)
+        for block in (root,native):
+            self.assertIn('max(soft, 4096)', block)
+            self.assertIn('steps.trusted_native_runtime.outcome', block)
+            self.assertIn("(github.event_name != 'workflow_dispatch' || inputs.validation != 'full')", block)
+            self.assertIn('!cancelled()', block)
+
+    def test_ci_helper_is_outside_every_fixed_copied_native_image_input(self):
+        from meme_machine.operational.isolated_native_image import _source_file
+        self.assertFalse(_source_file('engineering/ci/native_principals.py'))
+
+
+if __name__ == '__main__':
+    unittest.main()
