@@ -53,3 +53,39 @@ two-file layer failed22 legacy source assertions among108 cases in115.821
 seconds; its log and failed scratch were preserved. That failure established
 why the shared42-file source contract was required. No full release or live
 kernel/capacity pass is claimed.
+
+CI39080063441 on `5bd959f4e3e39f030d3f87368e833cc63beccf55` then exposed
+an external caller boundary: `test_solana_history_separation` supplied a fresh
+active-checkout source directly to an exported older predecessor helper. The
+original guard modules passed, but the complete CI run failed one of 1,186
+cases in412.353 seconds, with four skips; its native stage was skipped. That
+failed receipt is preserved.
+
+The separate 39,317-byte `future_source_callers.json` manifest has SHA256
+`74bcfbcba5d917a2bb9c2c9a187544f5164d52845337d6a364b7693186f16967`.
+It authenticates all seven external test callers and their exact whole-file
+inverse to main780. Seven fresh-read wrappers cover14 loop-expanded reads of
+eight distinct paths, preserving bytes/text types before the original helper
+chain. All three subsequent mutation calls still receive their original
+unnormalized mutated inputs. Assertions, predecessor bodies and derived
+comparisons are unchanged. The original `ad6e14` core manifest is byte-identical.
+
+One explicit closure case parses all975 tracked Python files and compares the
+complete39-file legacy-helper reference census with its fixed reviewed
+inventory. It covers imported aliases, qualified/module access, dynamic
+loaders, escaped/reexported helper references and text matches; negative
+fixtures exercise new routes. The existing operational audit already enters
+through `guarded_source`; the source-manifest generator intentionally retains
+raw before/after bytes. Fixture-only imports and loader strings require no
+new normalization. The repository census runs once in the closure case, not
+at every active source read.
+
+The exact original failing source case passed in0.741 seconds. The final
+focused offline OPERATIONAL run passed119 cases in217.013 seconds without
+skips: the complete new closure, both original guard classes and all seven
+external active-source cases. It used the supported network guard/Scratch
+driver. Independent code review cleared the shared guard SHA256
+`7c2cfb814e4722c068f75b275a5f0b1a0ddbf9c57ae725811b09ec5d7289251e`
+and the separate caller manifest above. This follow-up changes tests and this
+evidence note only; it does not convert the copied-main SQLite failure or the
+failed remote CI receipt to a pass.

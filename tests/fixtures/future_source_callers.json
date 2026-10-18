@@ -1,0 +1,1152 @@
+{
+  "api_census": {
+    "engineering/diagnostics/pump_restore_reference_cost.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "run.trace",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ]
+      ]
+    },
+    "engineering/issue138/generate_source_manifest.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "RALLY_BASE",
+          "RALLY_BASE"
+        ],
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "RALLY_SCHEMA",
+          "RALLY_SCHEMA"
+        ],
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "rally_delta",
+          "rally_delta"
+        ]
+      ],
+      "source_references": [
+        [
+          "main",
+          "tests.test_robinhood_usd_valuation",
+          "rally_delta",
+          "call",
+          "Call(func=Name(id='rally_delta', ctx=Load()), args=[Attribute(value=Name(id='before', ctx=Load()), attr='stdout', ctx=Load()), Name(id='after', ctx=Load())], keywords=[])"
+        ]
+      ],
+      "text_markers": []
+    },
+    "engineering/redundant_acquisition/measure.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "NOW",
+          "NOW"
+        ],
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "ReadRPC",
+          "ReadRPC"
+        ]
+      ],
+      "source_references": [],
+      "text_markers": [
+        [
+          "pump_cases",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "pump_cases",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ]
+      ]
+    },
+    "engineering/robinhood_scout/projection.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "main",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "main",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "main",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "main",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "main",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "main",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ]
+      ]
+    },
+    "engineering/solana_capacity/bandwidth_cost.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "main",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ]
+      ]
+    },
+    "engineering/solana_capacity/offline_journal.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "main",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ]
+      ]
+    },
+    "engineering/solana_capacity/offline_report.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "main",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "main",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "report",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "report",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "report",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "report",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "report",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "report",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "report",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "report",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "report",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "report",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "report",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ]
+      ]
+    },
+    "engineering/solana_prewarm/validate_affected.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "main",
+          "af5c8dea9d4a58809c6c930ee1a249d1a82408d760c3eefd80084bbd82cb5c60"
+        ]
+      ]
+    },
+    "meme_machine/lanes/pump/postgrad.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "held_rpc_mode",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "held_rpc_mode",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ]
+      ]
+    },
+    "meme_machine/lanes/ramses/ramses_campaign.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "CampaignBooks._publish_funding",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "CampaignBooks._publish_funding",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "CampaignBooks._publish_funding",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ]
+      ]
+    },
+    "meme_machine/operational/isolated_native_landlock_launcher.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "_packet",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "_setup",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "launch_native",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ]
+      ]
+    },
+    "meme_machine/operational/isolated_native_launcher.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "prove_image",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "prove_image",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ]
+      ]
+    },
+    "meme_machine/operational/parent_head_lifecycle.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "_source",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "_source",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ]
+      ]
+    },
+    "meme_machine/operational/supervisor.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "Supervisor.environment",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "Supervisor.environment",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "validate_environment",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "validate_environment",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ]
+      ]
+    },
+    "meme_machine/runtime/solana_warming.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "compatibility",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ]
+      ]
+    },
+    "meme_machine/solana_history_restore.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "prepare",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ]
+      ]
+    },
+    "operational/strategy-change-audit.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "RALLY_BASE",
+          "RALLY_BASE"
+        ],
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "RALLY_MANIFEST_SHA256",
+          "RALLY_MANIFEST_SHA256"
+        ],
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "RALLY_SCHEMA",
+          "RALLY_SCHEMA"
+        ],
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "guarded_source",
+          "guarded_source"
+        ],
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "rally_manifest",
+          "rally_manifest"
+        ]
+      ],
+      "source_references": [
+        [
+          "",
+          "tests.test_robinhood_usd_valuation",
+          "guarded_source",
+          "call",
+          "Call(func=Name(id='guarded_source', ctx=Load()), args=[Name(id='source_guard', ctx=Load()), Constant(value='operational/strategy-change-audit.py')], keywords=[])"
+        ],
+        [
+          "",
+          "tests.test_robinhood_usd_valuation",
+          "rally_manifest",
+          "call",
+          "Call(func=Name(id='rally_manifest', ctx=Load()), args=[Name(id='source_guard', ctx=Load())], keywords=[])"
+        ],
+        [
+          "reviewed_current",
+          "tests.test_robinhood_usd_valuation",
+          "guarded_source",
+          "call",
+          "Call(func=Name(id='guarded_source', ctx=Load()), args=[Name(id='source_guard', ctx=Load()), Name(id='path', ctx=Load())], keywords=[])"
+        ]
+      ],
+      "text_markers": []
+    },
+    "operational/tests.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "",
+          "4494bd288c630d41027eaf34a16f99c2f0453150c36340c592b61be5374b1e7c"
+        ],
+        [
+          "",
+          "7b2975cb1d0c7de1a36d7f2ab9785c2a325f9590d65538461dd7dc0b141491b7"
+        ]
+      ]
+    },
+    "tests/lanes/pump/test_postgrad_read_efficiency.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "PumpRequestParity.test_mode_selection_is_paper_only_and_rejects_unknown_values",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "PumpRequestParity.test_mode_selection_is_paper_only_and_rejects_unknown_values",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "PumpRequestParity.test_mode_selection_is_paper_only_and_rejects_unknown_values",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "PumpRequestParity.test_survivor_controller_switch_routes_held_only_not_entry",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ]
+      ]
+    },
+    "tests/lanes/ramses/test_ramses_continuous_campaign.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "RamsesCampaignTests.test_campaign_keeps_one_process_budget_after_multiple_settlements",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "RamsesCampaignTests.test_campaign_keeps_one_process_budget_after_multiple_settlements",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "RamsesCampaignTests.test_funding_crashes_publish_once_with_original_budget_and_no_exposure",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "RamsesCampaignTests.test_funding_crashes_publish_once_with_original_budget_and_no_exposure",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "RamsesCampaignTests.test_recovery_preserves_existing_open_position_and_loss_without_refunding",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "RamsesCampaignTests.test_unqualified_first_asset_does_not_freeze_later_qualified_asset_out",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ]
+      ]
+    },
+    "tests/test_canonical_money.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "NOW",
+          "NOW"
+        ],
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "ReadRPC",
+          "ReadRPC"
+        ]
+      ],
+      "source_references": [],
+      "text_markers": []
+    },
+    "tests/test_extended_survivor_hold_research.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "ResearchModelTests.test_no_production_policy_service_or_allowance_changes",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "opportunity_predecessor",
+          "opportunity_predecessor"
+        ]
+      ],
+      "source_references": [
+        [
+          "ResearchModelTests.test_no_production_policy_service_or_allowance_changes",
+          "tests.test_robinhood_usd_valuation",
+          "opportunity_predecessor",
+          "call",
+          "Call(func=Name(id='opportunity_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='relative', ctx=Load()), Call(func=Name(id='future_pump_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='relative', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='relative', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])], keywords=[])"
+        ]
+      ],
+      "text_markers": [
+        [
+          "ResearchModelTests.test_no_production_policy_service_or_allowance_changes",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "ResearchModelTests.test_no_production_policy_service_or_allowance_changes",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ]
+      ]
+    },
+    "tests/test_forward_survivor.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "ForwardSurvivorTests.test_original_inclusive_maximum_age_and_frozen_policies",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "assert_holding_delta",
+          "assert_holding_delta"
+        ]
+      ],
+      "source_references": [
+        [
+          "ForwardSurvivorTests.test_original_inclusive_maximum_age_and_frozen_policies",
+          "tests.test_robinhood_usd_valuation",
+          "assert_holding_delta",
+          "call",
+          "Call(func=Name(id='assert_holding_delta', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Name(id='original', ctx=Load()), Call(func=Name(id='future_pump_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Call(func=Attribute(value=Call(func=Name(id='Path', ctx=Load()), args=[Name(id='path', ctx=Load())], keywords=[]), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])], keywords=[])"
+        ]
+      ],
+      "text_markers": []
+    },
+    "tests/test_future_pump_source_guard.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "future_pump_predecessor",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "rally_delta",
+          "rally_delta"
+        ]
+      ],
+      "source_references": [
+        [
+          "future_pump_predecessor",
+          "tests.test_robinhood_usd_valuation",
+          "rally_delta",
+          "call",
+          "Call(func=Name(id='rally_delta', ctx=Load()), args=[Name(id='restored', ctx=Load()), Name(id='current', ctx=Load())], keywords=[])"
+        ]
+      ],
+      "text_markers": [
+        [
+          "",
+          "84aed436a5165d847dded8bffdcc806eb3a0cc0dae4a00f74d1b455a6fe5d617"
+        ],
+        [
+          "",
+          "aa2f196b77dc69a37c8cb2b94254adc76c1f0e4711e5961971e5286b21832a60"
+        ],
+        [
+          "",
+          "aa2f196b77dc69a37c8cb2b94254adc76c1f0e4711e5961971e5286b21832a60"
+        ],
+        [
+          "",
+          "aa2f196b77dc69a37c8cb2b94254adc76c1f0e4711e5961971e5286b21832a60"
+        ],
+        [
+          "",
+          "dded8b065b7ddae09f65c459dfa2d532ed268a87bd8ca15728e527278477f5d9"
+        ],
+        [
+          "",
+          "dded8b065b7ddae09f65c459dfa2d532ed268a87bd8ca15728e527278477f5d9"
+        ],
+        [
+          "",
+          "dded8b065b7ddae09f65c459dfa2d532ed268a87bd8ca15728e527278477f5d9"
+        ],
+        [
+          "",
+          "e06816f43bca86dc944802a16a74b0913beca0aae5131c8858a2e9766ef17a54"
+        ],
+        [
+          "",
+          "ede0be9e73416a9f678331969e62d51715e3b17b3912be7f96c6b52fa53d9b48"
+        ],
+        [
+          "FuturePumpSourceGuardTests.test_new_aliased_qualified_dynamic_and_escaped_source_api_references_are_visible",
+          "25e3253838e27ec5ac3ca441d322d14790d9d5fe6eaedffd1137d3408f653a7b"
+        ],
+        [
+          "FuturePumpSourceGuardTests.test_new_aliased_qualified_dynamic_and_escaped_source_api_references_are_visible",
+          "48896f7a95cb463a124994ee7f1c07718832200913e9845c8788ead1b184e27b"
+        ],
+        [
+          "_active_read_inventory.visit",
+          "e06816f43bca86dc944802a16a74b0913beca0aae5131c8858a2e9766ef17a54"
+        ],
+        [
+          "_legacy_api_census",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "_legacy_api_census",
+          "84aed436a5165d847dded8bffdcc806eb3a0cc0dae4a00f74d1b455a6fe5d617"
+        ],
+        [
+          "_legacy_api_census",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ]
+      ]
+    },
+    "tests/test_isolated_native_landlock_image.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "ActualCopiedImageTests.test_actual_existing_build_manifest_and_copied_runtime_can_be_pinned_without_exec",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "ActualCopiedImageTests.test_actual_existing_build_manifest_and_copied_runtime_can_be_pinned_without_exec",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "NativeLandlockImageTests.test_rules_pin_exact_readonly_files_and_directories_for_existing_path_rule_consumer",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "bind",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "rewrite",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ]
+      ]
+    },
+    "tests/test_isolated_native_launcher.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "ImageAdmissionTests.test_writer_bounds_and_manifest_identity_are_checked_without_host_install_dependency",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "ImageAdmissionTests.test_writer_bounds_and_manifest_identity_are_checked_without_host_install_dependency",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ]
+      ]
+    },
+    "tests/test_isolated_native_spawn.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "ActualCopiedSpawnTests.test_actual_copied_runtime_spawn_tracker_lifetime_and_import_death",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "ActualCopiedSpawnTests.test_actual_copied_runtime_spawn_tracker_lifetime_and_import_death",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "ActualCopiedSpawnTests.test_actual_copied_runtime_spawn_tracker_lifetime_and_import_death",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ]
+      ]
+    },
+    "tests/test_long_duration_positions.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "SourceDeltaTests.test_reviewed_stale_helper_changes_only_adverse_guard_and_confirmation_order",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "assert_holding_delta",
+          "assert_holding_delta"
+        ],
+        [
+          "SourceDeltaTests.test_reviewed_stale_helper_changes_only_adverse_guard_and_confirmation_order",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "opportunity_predecessor",
+          "opportunity_predecessor"
+        ]
+      ],
+      "source_references": [
+        [
+          "SourceDeltaTests.test_reviewed_stale_helper_changes_only_adverse_guard_and_confirmation_order",
+          "tests.test_robinhood_usd_valuation",
+          "assert_holding_delta",
+          "call",
+          "Call(func=Name(id='assert_holding_delta', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Name(id='original', ctx=Load()), Name(id='current', ctx=Load())], keywords=[])"
+        ],
+        [
+          "SourceDeltaTests.test_reviewed_stale_helper_changes_only_adverse_guard_and_confirmation_order",
+          "tests.test_robinhood_usd_valuation",
+          "assert_holding_delta",
+          "call",
+          "Call(func=Name(id='assert_holding_delta', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Name(id='original', ctx=Load()), Name(id='mutation', ctx=Load())], keywords=[])"
+        ],
+        [
+          "SourceDeltaTests.test_reviewed_stale_helper_changes_only_adverse_guard_and_confirmation_order",
+          "tests.test_robinhood_usd_valuation",
+          "opportunity_predecessor",
+          "call",
+          "Call(func=Name(id='opportunity_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Call(func=Attribute(value=Name(id='current', ctx=Load()), attr='encode', ctx=Load()), args=[], keywords=[])], keywords=[])"
+        ]
+      ],
+      "text_markers": []
+    },
+    "tests/test_native_landlock_policy.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "ActualNativeSeccompTests.test_actual_copied_two_decoder_one_history_and_tracker_under_inherited_filter",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "ActualNativeSeccompTests.test_actual_copied_two_decoder_one_history_and_tracker_under_inherited_filter",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ]
+      ]
+    },
+    "tests/test_parent_sizing.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "NOW",
+          "NOW"
+        ],
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "ReadRPC",
+          "ReadRPC"
+        ]
+      ],
+      "source_references": [],
+      "text_markers": []
+    },
+    "tests/test_pons_owner_admission.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "OwnerAdmissionTests.test_existing_economic_policy_and_native_exit_functions_are_exact",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "assert_holding_delta",
+          "assert_holding_delta"
+        ],
+        [
+          "OwnerAdmissionTests.test_existing_economic_policy_and_native_exit_functions_are_exact",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "opportunity_predecessor",
+          "opportunity_predecessor"
+        ]
+      ],
+      "source_references": [
+        [
+          "OwnerAdmissionTests.test_existing_economic_policy_and_native_exit_functions_are_exact",
+          "tests.test_robinhood_usd_valuation",
+          "assert_holding_delta",
+          "call",
+          "Call(func=Name(id='assert_holding_delta', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Call(func=Name(id='economic', ctx=Load()), args=[Name(id='before', ctx=Load())], keywords=[]), Call(func=Name(id='economic', ctx=Load()), args=[Name(id='after', ctx=Load())], keywords=[])], keywords=[keyword(arg='reviewed_opportunity', value=Constant(value=False))])"
+        ],
+        [
+          "OwnerAdmissionTests.test_existing_economic_policy_and_native_exit_functions_are_exact",
+          "tests.test_robinhood_usd_valuation",
+          "opportunity_predecessor",
+          "call",
+          "Call(func=Name(id='opportunity_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Name(id='changed', ctx=Load())], keywords=[])"
+        ],
+        [
+          "OwnerAdmissionTests.test_existing_economic_policy_and_native_exit_functions_are_exact",
+          "tests.test_robinhood_usd_valuation",
+          "opportunity_predecessor",
+          "call",
+          "Call(func=Name(id='opportunity_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Name(id='current', ctx=Load())], keywords=[])"
+        ]
+      ],
+      "text_markers": []
+    },
+    "tests/test_pons_usd_bridge_routes.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "NOW",
+          "NOW"
+        ],
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "ReadRPC",
+          "ReadRPC"
+        ],
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "WNATIVE",
+          "WNATIVE"
+        ],
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "abi",
+          "abi"
+        ]
+      ],
+      "source_references": [],
+      "text_markers": []
+    },
+    "tests/test_pons_usd_overlap.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "NOW",
+          "NOW"
+        ],
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "ReadRPC",
+          "ReadRPC"
+        ]
+      ],
+      "source_references": [],
+      "text_markers": []
+    },
+    "tests/test_pump_pons_live_paper_integration.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "LivePaperOptimizationIntegration.test_default_off_and_original_pump_reads_preserved",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ],
+        [
+          "LivePaperOptimizationIntegration.test_default_off_and_original_pump_reads_preserved",
+          "8ba8496a2525ae171ffd104d632dede6ef418d9b95962a9d88e2fcdbc8d48d24"
+        ]
+      ]
+    },
+    "tests/test_ramses_source_attribution.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "RamsesSourceAttributionTests.test_approved_strategy_comparison_uses_current_exact_plumbing_rules",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "RALLY_BASE",
+          "RALLY_BASE"
+        ],
+        [
+          "RamsesSourceAttributionTests.test_approved_strategy_comparison_uses_current_exact_plumbing_rules",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "RALLY_MANIFEST_SHA256",
+          "RALLY_MANIFEST_SHA256"
+        ],
+        [
+          "RamsesSourceAttributionTests.test_approved_strategy_comparison_uses_current_exact_plumbing_rules",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "RALLY_SCHEMA",
+          "RALLY_SCHEMA"
+        ]
+      ],
+      "source_references": [],
+      "text_markers": []
+    },
+    "tests/test_robinhood_scout.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "EvidenceTests.test_current_complete_vectors_match_frozen_reference",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "OPPORTUNITY_BASE",
+          "OPPORTUNITY_BASE"
+        ],
+        [
+          "EvidenceTests.test_current_complete_vectors_match_frozen_reference",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "OPPORTUNITY_REFERENCE",
+          "OPPORTUNITY_REFERENCE"
+        ],
+        [
+          "EvidenceTests.test_current_complete_vectors_match_frozen_reference",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "opportunity_predecessor",
+          "opportunity_predecessor"
+        ]
+      ],
+      "source_references": [
+        [
+          "EvidenceTests.test_current_complete_vectors_match_frozen_reference",
+          "tests.test_robinhood_usd_valuation",
+          "opportunity_predecessor",
+          "call",
+          "Call(func=Name(id='opportunity_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Name(id='current_source', ctx=Load())], keywords=[])"
+        ]
+      ],
+      "text_markers": []
+    },
+    "tests/test_shared_capital_strategy.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "StrategyCapitalTests.test_unselected_epoch_keeps_native_authority_and_frozen_economics",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "assert_holding_delta",
+          "assert_holding_delta"
+        ]
+      ],
+      "source_references": [
+        [
+          "StrategyCapitalTests.test_unselected_epoch_keeps_native_authority_and_frozen_economics",
+          "tests.test_robinhood_usd_valuation",
+          "assert_holding_delta",
+          "call",
+          "Call(func=Name(id='assert_holding_delta', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Name(id='original', ctx=Load()), Call(func=Name(id='future_pump_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='root', ctx=Load()), op=Div(), right=Name(id='path', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])], keywords=[])"
+        ]
+      ],
+      "text_markers": []
+    },
+    "tests/test_solana_history_separation.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "HistoryCalculationTests.test_only_acquisition_nodes_changed_in_runtime_and_original_economics_pin",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "opportunity_predecessor",
+          "opportunity_predecessor"
+        ]
+      ],
+      "source_references": [
+        [
+          "HistoryCalculationTests.test_only_acquisition_nodes_changed_in_runtime_and_original_economics_pin",
+          "tests.test_robinhood_usd_valuation",
+          "opportunity_predecessor",
+          "call",
+          "Call(func=Name(id='opportunity_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='relative', ctx=Load()), Name(id='changed', ctx=Load())], keywords=[])"
+        ],
+        [
+          "HistoryCalculationTests.test_only_acquisition_nodes_changed_in_runtime_and_original_economics_pin",
+          "tests.test_robinhood_usd_valuation",
+          "opportunity_predecessor",
+          "call",
+          "Call(func=Name(id='opportunity_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='relative', ctx=Load()), Name(id='source', ctx=Load())], keywords=[])"
+        ]
+      ],
+      "text_markers": []
+    },
+    "tests/test_startup_archive_read_reuse.py": {
+      "dynamic_loads": [],
+      "imports": [],
+      "source_references": [],
+      "text_markers": [
+        [
+          "StartupArchiveReadReuseTests.test_every_cold_reference_rereads_canonical_row_manifest_and_authenticates_ref",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "StartupArchiveReadReuseTests.test_every_cold_reference_rereads_canonical_row_manifest_and_authenticates_ref",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "StartupArchiveReadReuseTests.test_every_cold_reference_rereads_canonical_row_manifest_and_authenticates_ref.mutate",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "StartupArchiveReadReuseTests.test_explicit_cancelled_startup_read_reuses_one_archive_with_exact_order_and_no_writes",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "StartupArchiveReadReuseTests.test_explicit_cancelled_startup_read_reuses_one_archive_with_exact_order_and_no_writes.trace",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ]
+      ]
+    }
+  },
+  "base": "780f4015efd9fba528e97223f8e8e3b1a7322e12",
+  "callers": {
+    "tests/test_extended_survivor_hold_research.py": {
+      "after_sha256": "9cfa8e48e6b4d78b13946f4cc13f8ce6837a8772ffa489c85d6ac7b617e3bc2e",
+      "before_sha256": "a6b75b1972e5ae8fa81f5743f3cb910561421d4a06df4a2435ad3221c2f227ea",
+      "read_inventory": [
+        [
+          "ResearchModelTests.test_no_production_policy_service_or_allowance_changes",
+          "read_bytes",
+          "(ROOT/relative).read_bytes()"
+        ]
+      ],
+      "wrappers": [
+        [
+          "(ROOT/relative).read_bytes()",
+          "future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())",
+          1
+        ]
+      ]
+    },
+    "tests/test_forward_survivor.py": {
+      "after_sha256": "71e2f9c5e93dcfb409fc418ef7047ba07ed2e24c9804c5a432bb158381e555c8",
+      "before_sha256": "db20de0b5dc2620e8e8940c8e31a878ba286237bb793f6864394376f4383a57b",
+      "read_inventory": [
+        [
+          "ForwardSurvivorTests.test_original_inclusive_maximum_age_and_frozen_policies",
+          "read_bytes",
+          "Path(path).read_bytes()"
+        ]
+      ],
+      "wrappers": [
+        [
+          "Path(path).read_bytes()",
+          "future_pump_predecessor(self,path,Path(path).read_bytes())",
+          1
+        ]
+      ]
+    },
+    "tests/test_long_duration_positions.py": {
+      "after_sha256": "b9826116a65198323a7be144712e5b8709543debf1aa8eb6d16a2f030b8a50d2",
+      "before_sha256": "e9ae58701f26ba163778742c6bc8c760f1d0e1d5c96bc2555d34d95c14aa7f84",
+      "read_inventory": [
+        [
+          "SourceDeltaTests.test_reviewed_stale_helper_changes_only_adverse_guard_and_confirmation_order",
+          "read_text",
+          "Path(path).read_text()"
+        ]
+      ],
+      "wrappers": [
+        [
+          "Path(path).read_text()",
+          "future_pump_predecessor(self,path,Path(path).read_text().encode()).decode()",
+          1
+        ]
+      ]
+    },
+    "tests/test_pons_owner_admission.py": {
+      "after_sha256": "cd0b31d55abea272953658352ae958933b3bebe518a8f8ee58475065e8069261",
+      "before_sha256": "e92bde84d6d1493ecad13e77ea3f8b17305cbd8d64ad6307fd8a58d3e5ad6cd2",
+      "read_inventory": [
+        [
+          "OwnerAdmissionTests.test_existing_economic_policy_and_native_exit_functions_are_exact",
+          "read_bytes",
+          "Path(path).read_bytes()"
+        ]
+      ],
+      "wrappers": [
+        [
+          "Path(path).read_bytes()",
+          "future_pump_predecessor(self,path,Path(path).read_bytes())",
+          1
+        ]
+      ]
+    },
+    "tests/test_robinhood_scout.py": {
+      "after_sha256": "261444a255bec39f872b86202984b93b58dc0e7140c360157047575aca8a50c5",
+      "before_sha256": "551426124174821f723c443e43c4a0f2e71e9b07b417df2aae66c9b89613bd70",
+      "read_inventory": [
+        [
+          "EvidenceTests.test_current_complete_vectors_match_frozen_reference",
+          "read_bytes",
+          "(Path(__file__).resolve().parents[1]/path).read_bytes()"
+        ]
+      ],
+      "wrappers": [
+        [
+          "(Path(__file__).resolve().parents[1]/path).read_bytes()",
+          "future_pump_predecessor(self,path,(Path(__file__).resolve().parents[1]/path).read_bytes())",
+          1
+        ]
+      ]
+    },
+    "tests/test_shared_capital_strategy.py": {
+      "after_sha256": "093e2c156119ff4a5874eb4fe63767754c8f0fda296dbe9eb1fbb44067d790af",
+      "before_sha256": "fb8d929bed2ae92b4dc30ae8c8cee58e80f817ded5d60933dd0974d97d12db31",
+      "read_inventory": [
+        [
+          "StrategyCapitalTests.test_unselected_epoch_keeps_native_authority_and_frozen_economics",
+          "read_bytes",
+          "(root/path).read_bytes()"
+        ]
+      ],
+      "wrappers": [
+        [
+          "(root/path).read_bytes()",
+          "future_pump_predecessor(self,path,(root/path).read_bytes())",
+          1
+        ]
+      ]
+    },
+    "tests/test_solana_history_separation.py": {
+      "after_sha256": "83f437fbe0254e1e71660fd6651a7f4333911d5f905b6abcd2b77ac0550842a0",
+      "before_sha256": "e7f2a1552e50eef898b4bf8920b0d40a21a67af2849ed9a79aaca60874969608",
+      "read_inventory": [
+        [
+          "HistoryCalculationTests.test_only_acquisition_nodes_changed_in_runtime_and_original_economics_pin",
+          "read_bytes",
+          "(root/relative).read_bytes()"
+        ]
+      ],
+      "wrappers": [
+        [
+          "(root/relative).read_bytes()",
+          "future_pump_predecessor(self,relative,(root/relative).read_bytes())",
+          1
+        ]
+      ]
+    }
+  },
+  "core_manifest_sha256": "ad6e14adc8c6ad0c4a86f6f3ab2425d3ae94a79d4625a273d12e8f0e0cfce3be",
+  "failed_ci_commit": "5bd959f4e3e39f030d3f87368e833cc63beccf55",
+  "implementation": "3465199505c5d56f0bb4de2e67fdf73d2563f366",
+  "implementation_tree": "bd2fde2607e485ee35a3092a48069ac379d17b52",
+  "schema": "authenticated-future-source-callers-v1"
+}

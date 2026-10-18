@@ -101,6 +101,14 @@ DEPENDENCY_PATHS=('meme_machine/lanes/pons/rpc_profile.py',
  'meme_machine/runtime/native_commit_measurement.py')
 DELETED_PATHS=()
 LEGACY_GUARDS=('tests/test_pump_restore_source_guard.py','tests/test_robinhood_usd_valuation.py')
+CALLER_MANIFEST=ROOT/'tests/fixtures/future_source_callers.json'
+CALLER_MANIFEST_SHA256='74bcfbcba5d917a2bb9c2c9a187544f5164d52845337d6a364b7693186f16967'
+EXTERNAL_CALLERS=('tests/test_extended_survivor_hold_research.py','tests/test_forward_survivor.py',
+    'tests/test_long_duration_positions.py','tests/test_pons_owner_admission.py',
+    'tests/test_robinhood_scout.py','tests/test_shared_capital_strategy.py',
+    'tests/test_solana_history_separation.py')
+LEGACY_MODULES=tuple(path[:-3].replace('/','.') for path in LEGACY_GUARDS)
+CALLER_IMPORT=b'from tests.test_future_pump_source_guard import future_pump_predecessor\n'
 IMPORTS={name:'from tests.test_future_pump_source_guard import future_pump_predecessor\n'
     for name in LEGACY_GUARDS}
 # These are active file reads only. No original predecessor implementation,
@@ -533,6 +541,190 @@ def _active_image_changes():
     return sorted({raw.decode() for raw in changed+untracked+ignored if raw and _image_source(raw.decode())})
 
 
+def caller_manifest(test):
+    raw=CALLER_MANIFEST.read_bytes()
+    test.assertEqual(_sha(raw),CALLER_MANIFEST_SHA256,'complete reviewed exported-helper caller manifest')
+    value=json.loads(raw)
+    test.assertEqual(set(value),{'schema','base','failed_ci_commit','implementation',
+        'implementation_tree','core_manifest_sha256','callers','api_census'})
+    test.assertEqual(value['schema'],'authenticated-future-source-callers-v1')
+    test.assertEqual((value['base'],value['failed_ci_commit'],value['implementation'],
+        value['implementation_tree'],value['core_manifest_sha256']),
+        (BASE,'5bd959f4e3e39f030d3f87368e833cc63beccf55',IMPLEMENTATION,
+            IMPLEMENTATION_TREE,MANIFEST_SHA256))
+    test.assertEqual(set(value['callers']),set(EXTERNAL_CALLERS))
+    return value
+
+
+def external_caller_predecessor(test,relative,current):
+    """Restore the entire caller; no legacy helper/mutation input is rewritten."""
+    test.assertIn(relative,EXTERNAL_CALLERS)
+    row=caller_manifest(test)['callers'][relative]
+    test.assertEqual(_sha(current),row['after_sha256'],relative+':complete active caller')
+    test.assertEqual(current.count(CALLER_IMPORT),1)
+    restored=current.replace(CALLER_IMPORT,b'',1)
+    for original,wrapped,count in row['wrappers']:
+        before,after=original.encode(),wrapped.encode()
+        test.assertEqual(restored.count(after),count,relative+':one inventoried active read')
+        restored=restored.replace(after,before)
+    test.assertEqual(_sha(restored),row['before_sha256'],relative+':every780caller byte restored')
+    return restored
+
+
+def _literal_string(node,bindings):
+    if isinstance(node,ast.Constant) and isinstance(node.value,str):return node.value
+    if isinstance(node,ast.Name):return bindings.get(node.id)
+    if isinstance(node,ast.BinOp) and isinstance(node.op,ast.Add):
+        before,after=(_literal_string(item,bindings) for item in (node.left,node.right))
+        if before is not None and after is not None:return before+after
+    return None
+
+
+def _legacy_api_census(sources,source_names):
+    """Static references across repository Python, not a runtime import/exec.
+
+    Imports, qualified accesses, escaping aliases and resolved dynamic loads are
+    retained. A new reference cannot inherit admission merely from an old import.
+    ABI/RPC fixtures and constants are recorded without rewriting their callers.
+    """
+    result={}
+    basenames={module.rsplit('.',1)[-1]:module for module in LEGACY_MODULES}
+    owners={name:module for module,names in source_names.items() for name in names
+        if name not in ('baseline','manifest','authenticated_helper')
+        and sum(name in other for other in source_names.values())==1}
+    for relative,raw in sources:
+        if relative in LEGACY_GUARDS:continue
+        text=raw.decode();tree=ast.parse(text);parents={};scopes={}
+        def visit(node,scope=()):
+            if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef,ast.ClassDef)):scope=scope+(node.name,)
+            scopes[node]='.'.join(scope)
+            for child in ast.iter_child_nodes(node):parents[child]=node;visit(child,scope)
+        visit(tree)
+        symbols={};modules={};bindings={};imports=[];loads=[];references=[];markers=[]
+        factories={'__import__','import_module','spec_from_file_location'}
+        api_names=set().union(*source_names.values())
+        for node in ast.walk(tree):
+            if isinstance(node,ast.Assign) and len(node.targets)==1 and isinstance(node.targets[0],ast.Name):
+                value=_literal_string(node.value,bindings)
+                if value is not None:bindings[node.targets[0].id]=value
+            if isinstance(node,ast.ImportFrom):
+                if node.module in ('importlib','importlib.util'):
+                    factories.update(item.asname or item.name for item in node.names
+                        if item.name in ('import_module','spec_from_file_location'))
+                if node.module in LEGACY_MODULES:
+                    for item in node.names:
+                        alias=item.asname or item.name;symbols[alias]=(node.module,item.name)
+                        imports.append((scopes[node],'symbol',node.module,item.name,alias))
+                elif node.module=='tests':
+                    for item in node.names:
+                        if item.name in basenames:
+                            alias=item.asname or item.name;module=basenames[item.name];modules[alias]=module
+                            imports.append((scopes[node],'module',module,None,alias))
+                else:
+                    # A fixed legacy helper can also be re-exported by an
+                    # already inventoried engineering/audit module. A newly
+                    # introduced same-name route requires explicit review.
+                    for item in node.names:
+                        if item.name in owners:
+                            alias=item.asname or item.name;symbols[alias]=(owners[item.name],item.name)
+                            imports.append((scopes[node],'possible_reexport',node.module,item.name,alias))
+            elif isinstance(node,ast.Import):
+                for item in node.names:
+                    if item.name in LEGACY_MODULES:
+                        alias=item.asname or item.name;modules[alias]=item.name
+                        imports.append((scopes[node],'module',item.name,None,alias))
+            elif isinstance(node,ast.Constant) and isinstance(node.value,(str,bytes)):
+                value=node.value.decode(errors='replace') if isinstance(node.value,bytes) else node.value
+                if any(name in value for name in basenames) or value in api_names:
+                    markers.append((scopes[node],_sha(value.encode())))
+        for node in ast.walk(tree):
+            if not isinstance(node,ast.Call):continue
+            factory=ast.unparse(node.func)
+            if not (factory.endswith(('.import_module','.spec_from_file_location'))
+                    or factory in factories):continue
+            for argument in node.args:
+                target=_literal_string(argument,bindings)
+                if target is None or not any(name in target for name in basenames):continue
+                loads.append((scopes[node],factory,target,ast.dump(node,include_attributes=False)))
+                parent=parents.get(node)
+                if target in LEGACY_MODULES and isinstance(parent,ast.Assign):
+                    for binding in parent.targets:
+                        if isinstance(binding,ast.Name):modules[binding.id]=target
+        for node in ast.walk(tree):
+            target=None
+            if isinstance(node,ast.Name) and isinstance(node.ctx,ast.Load) and node.id in symbols:
+                target=symbols[node.id]
+            elif isinstance(node,ast.Name) and isinstance(node.ctx,ast.Load) and node.id in modules:
+                parent=parents.get(node)
+                if not isinstance(parent,ast.Attribute) or parent.value is not node:
+                    references.append((scopes[node],modules[node.id],None,'escaped_module',
+                        ast.dump(parent,include_attributes=False)))
+            elif isinstance(node,ast.Attribute) and isinstance(node.ctx,ast.Load):
+                module=modules.get(ast.unparse(node.value))
+                if module is not None:target=(module,node.attr)
+                elif node.attr in owners:target=(owners[node.attr],node.attr)
+            if target is None or target[1] not in source_names[target[0]]:continue
+            parent=parents.get(node)
+            kind='call' if isinstance(parent,ast.Call) and parent.func is node else 'escaped_symbol'
+            references.append((scopes[node],*target,kind,ast.dump(parent,include_attributes=False)))
+        if imports or loads or references or markers:
+            result[relative]=dict(imports=sorted(imports,key=repr),dynamic_loads=sorted(loads,key=repr),
+                source_references=sorted(references,key=repr),text_markers=sorted(markers,key=repr))
+    return result
+
+
+def _legacy_source_names():
+    result={}
+    for path,module in zip(LEGACY_GUARDS,LEGACY_MODULES):
+        tree=ast.parse(_git('show',BASE+':'+path))
+        result[module]={node.name for node in tree.body if isinstance(node,ast.FunctionDef)
+            and node.name not in ('abi','text_abi')}
+    return result
+
+
+def _repository_api_census():
+    names=set(_git('ls-files','-z','--','*.py').split(b'\0'))
+    names.update(_git('ls-files','--others','--exclude-standard','-z','--','*.py').split(b'\0'))
+    def sources():
+        for name in sorted(names):
+            if not name:continue
+            relative=name.decode();path=ROOT/relative
+            if path.is_symlink():raise AssertionError('caller census requires actual repository source')
+            yield relative,path.read_bytes()
+    return _legacy_api_census(sources(),_legacy_source_names())
+
+
+def _caller_read_inventory(raw,source_names):
+    text=raw.decode();tree=ast.parse(text);scopes={};relevant=set()
+    def visit(node,scope=()):
+        if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef,ast.ClassDef)):scope=scope+(node.name,)
+        scopes[node]=scope
+        for child in ast.iter_child_nodes(node):visit(child,scope)
+    visit(tree)
+    for node in ast.walk(tree):
+        if (isinstance(node,ast.ImportFrom) and node.module in source_names
+                and any(item.name in source_names[node.module] for item in node.names)):
+            relevant.add(scopes[node])
+    rows=[]
+    for node in ast.walk(tree):
+        if (isinstance(node,ast.Call) and isinstance(node.func,ast.Attribute)
+                and node.func.attr in ('read_bytes','read_text')
+                and any(scopes[node][:len(scope)]==scope for scope in relevant)):
+            rows.append(('.'.join(scopes[node]),node.func.attr,ast.get_source_segment(text,node)))
+    return sorted(rows)
+
+
+def _fresh_normalization_read(node):
+    if not isinstance(node,ast.Call) or len(node.args)!=3 or node.keywords:return None
+    raw=node.args[2];mode='read_bytes'
+    if (isinstance(raw,ast.Call) and isinstance(raw.func,ast.Attribute) and raw.func.attr=='encode'
+            and not raw.args and not raw.keywords):
+        raw=raw.func.value;mode='read_text'
+    if (not isinstance(raw,ast.Call) or not isinstance(raw.func,ast.Attribute)
+            or raw.func.attr!=mode):return None
+    return mode
+
+
 class FuturePumpSourceGuardTests(unittest.TestCase):
     def test_complete_frozen_image_source_delta_and_dependency_closure_are_pinned(self):
         value=manifest(self);authenticated_dependencies(self,value)
@@ -634,6 +826,70 @@ class FuturePumpSourceGuardTests(unittest.TestCase):
                     self.assertRaises(AssertionError):
                 future_pump_predecessor(self,PATHS[0],(ROOT/PATHS[0]).read_bytes())
         self.assertEqual(future_pump_predecessor(self,'unrelated/source.py',b'unchanged'),b'unchanged')
+
+    def test_external_callers_reverse_whole_files_and_only_fresh_read_boundaries(self):
+        value=caller_manifest(self);source_names=_legacy_source_names()
+        for relative,row in value['callers'].items():
+            current=(ROOT/relative).read_bytes()
+            restored=external_caller_predecessor(self,relative,current)
+            self.assertEqual(restored,_git('show',BASE+':'+relative))
+            self.assertEqual(_caller_read_inventory(restored,source_names),
+                [tuple(item) for item in row['read_inventory']])
+            tree=ast.parse(current);parents={child:node for node in ast.walk(tree)
+                for child in ast.iter_child_nodes(node)}
+            normalized=[node for node in ast.walk(tree) if isinstance(node,ast.Call)
+                and isinstance(node.func,ast.Name) and node.func.id=='future_pump_predecessor']
+            self.assertEqual(len(normalized),len(row['read_inventory']))
+            for node in normalized:
+                mode=_fresh_normalization_read(node)
+                self.assertIn(mode,('read_bytes','read_text'),relative+':mutations/intermediates stay unnormalized')
+                if mode=='read_text':
+                    decoded=parents[node]
+                    self.assertIsInstance(decoded,ast.Attribute);self.assertEqual(decoded.attr,'decode')
+                    self.assertIsInstance(parents[decoded],ast.Call)
+                    self.assertEqual(parents[decoded].args,[]);self.assertEqual(parents[decoded].keywords,[])
+            for changed in (b'',current+b'\n# unreviewed caller\n'):
+                with self.subTest(relative=relative),self.assertRaises(AssertionError):
+                    external_caller_predecessor(self,relative,changed)
+
+    def test_repository_exported_source_api_census_matches_fixed_reviewed_contract(self):
+        expected=caller_manifest(self)['api_census']
+        actual=json.loads(json.dumps(_repository_api_census(),sort_keys=True,allow_nan=False))
+        self.assertEqual(actual,expected,
+            'new imports/calls/aliases/qualified/dynamic references require explicit boundary review')
+
+    def test_new_aliased_qualified_dynamic_and_escaped_source_api_references_are_visible(self):
+        module=LEGACY_MODULES[1];source_names=_legacy_source_names()
+        cases=[
+            f'from {module} import opportunity_predecessor as guard\nguard(test,path,raw)\n',
+            f'import {module} as guard\nguard.opportunity_predecessor(test,path,raw)\n',
+            'from tests import test_robinhood_usd_valuation as guard\nguard.opportunity_predecessor(test,path,raw)\n',
+            f'import {module}\n{module}.opportunity_predecessor(test,path,raw)\n',
+            f'from importlib import import_module as load\nguard=load({module!r})\n'
+                'guard.opportunity_predecessor(test,path,raw)\n',
+            f'guard=__import__({module!r},fromlist=["*"])\nguard.opportunity_predecessor(test,path,raw)\n',
+            'import importlib.util\nspec=importlib.util.spec_from_file_location("guard",'
+                '"tests/test_robinhood_usd_valuation.py")\n',
+            f'from {module} import opportunity_predecessor as original\nalias=original\nalias(test,path,raw)\n',
+            f'import {module} as guard\ngetattr(guard,"opportunity_predecessor")(test,path,raw)\n',
+            'from engineering.issue138.generate_source_manifest import rally_delta as delta\ndelta(old,new)\n',
+            'import engineering.issue138.generate_source_manifest as generator\ngenerator.rally_delta(old,new)\n',
+            'from importlib import import_module as load\n'
+                'load("engineering.issue138.generate_source_manifest").rally_delta(old,new)\n',
+        ]
+        for code in cases:
+            with self.subTest(code=code):
+                census=_legacy_api_census([('tests/new_caller.py',code.encode())],source_names)
+                self.assertIn('tests/new_caller.py',census)
+                row=census['tests/new_caller.py']
+                self.assertTrue(row['source_references'] or row['dynamic_loads'])
+        before=f'from {module} import opportunity_predecessor as original\noriginal(test,path,raw)\n'
+        after=before+'alias=original\nalias(test,path,changed)\n'
+        self.assertNotEqual(_legacy_api_census([('known.py',before.encode())],source_names),
+            _legacy_api_census([('known.py',after.encode())],source_names))
+        for value in ('changed','current','raw.replace(b"old",b"new")'):
+            node=ast.parse('future_pump_predecessor(test,path,'+value+')',mode='eval').body
+            self.assertIsNone(_fresh_normalization_read(node))
 
 
 if __name__=='__main__':unittest.main()
