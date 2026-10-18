@@ -62,6 +62,16 @@ def _failure_details(error,stage):
     return result
 
 
+def _capture_transport_abort(receipt,channel):
+    try:
+        snapshot=getattr(channel,'abort_snapshot',None)
+        value=snapshot() if callable(snapshot) else None
+    except BaseException:
+        value=dict(phase='UNKNOWN',error_type='PROJECTION_UNAVAILABLE',
+            source_module=None,source_line=None,trace_complete=False)
+    if value is not None:receipt['transport_abort']=value
+
+
 class IsolatedEntryBlocked(ValueError):
     pass
 
@@ -309,6 +319,7 @@ def main(*,layout=None):
             # Closing channel/reader/cache/SQLite here would race the owners
             # whose failed drain triggered this handoff. Generic libraries do
             # not exit; only this fixed descriptor/image-checked entry does.
+            _capture_transport_abort(receipt,channel)
             _terminal_process_exit(receipt)
         closing=[owner.close for owner in (ports,resources,reader) if owner is not None]
         if channel is not None:closing.append(channel.abort_and_join)
@@ -321,6 +332,7 @@ def main(*,layout=None):
                     failure_type=type(error).__name__)
         if spawn_scope is not None:
             receipt['native_kernel_lifecycle']=spawn_scope.kernel_lifecycle_snapshot()
+        _capture_transport_abort(receipt,channel)
         print(json.dumps(receipt,sort_keys=True,separators=(',',':')),flush=True)
     return 0 if receipt['status']=='COMPLETED' else 2
 

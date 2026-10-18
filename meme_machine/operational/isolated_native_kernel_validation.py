@@ -312,6 +312,7 @@ async def _exercise(scope,approval,*,launcher=_REAL_LAUNCH,seconds=WINDOW_SECOND
                 result['parent_cleanup_joined']=True
             except Exception:result['parent_cleanup_failed']=True
             result['fixture_counters']=parent.counters()
+            result['parent_first_fault']=parent.channel.first_fault()
             state=parent.budget.snapshot()
             result['budget_counters']={key:int(state[key]) for key in ('http_attempts','rpc_elements',
                 'http_bytes','http_reserved','http_uncertain_bytes','native_bytes','native_reserved','native_uncertain_bytes','native_opens')}

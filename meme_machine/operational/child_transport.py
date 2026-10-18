@@ -127,6 +127,8 @@ class ChildChannel:
         self.lock = threading.RLock()
         self.sequence = 1
         self.closed = False
+        self._fault_lock=threading.Lock()
+        self._first_abort=None
         self._read_lane=None
         self._native_reads={}
         self._read_owner=threading.local()
@@ -135,8 +137,10 @@ class ChildChannel:
             expected = {'session', 'protocol', 'sources', 'streams', 'chunk_bytes',
                 'response_bytes', 'maximum_messages', 'replay', 'acknowledgements','maximum_streams',
                 'upload_bytes','upload_chunk_bytes','upload_slots'}
+            expected.add('http_workers')
             _require(type(hello) is dict and set(hello) == expected
-                and hello['protocol'] == 'native-parent-transport-v3'
+                and hello['protocol'] == 'native-parent-transport-v4'
+                and type(hello['http_workers']) is int and 1<=hello['http_workers']<=8
                 and type(hello['upload_bytes']) is int and hello['upload_bytes']==UPLOAD_MAX
                 and type(hello['upload_chunk_bytes']) is int and hello['upload_chunk_bytes']==UPLOAD_CHUNK
                 and type(hello['upload_slots']) is int and hello['upload_slots']==1
@@ -154,6 +158,8 @@ class ChildChannel:
             self.sources = MappingProxyType({ref.alias: ref for ref in refs})
             _require(len(self.sources)==len(refs),'child_sources')
             self.maximum_streams=hello['maximum_streams']
+            self.http_workers=hello['http_workers']
+            self._http_slots=threading.BoundedSemaphore(self.http_workers)
             self._native_handles={}
             self._native_sources={}
             self._native_lock=threading.RLock()
@@ -177,8 +183,8 @@ class ChildChannel:
             # RPC, write and close operations still need that execution lane.
             self._read_lane=ThreadPoolExecutor(max_workers=self.maximum_streams,
                 thread_name_prefix='isolated-native-read')
-        except BaseException:
-            self.abort()
+        except BaseException as error:
+            self.abort(error,phase='CONTROL_EXCHANGE')
             raise
 
     def _remaining(self, deadline, *, draining=False):
@@ -209,9 +215,11 @@ class ChildChannel:
             draining=verb in ('poll','read','ack','cancel','native_close','close','native_upload_cancel')
             _require(draining or not(self.cancelled is not None and self.cancelled()),
                 'child_transport_stopped')
+            end = min(self.deadline, time.monotonic()+30 if deadline is None else deadline)
+            # No byte or sequence has been sent. Local admission expiration
+            # cannot make an unrelated accepted operation ambiguous.
+            self._remaining(end,draining=draining)
             try:
-                end = min(self.deadline, time.monotonic()+30 if deadline is None else deadline)
-                self._remaining(end,draining=draining)
                 _require(type(verb) is str and not {'session', 'seq', 'verb'} & set(fields)
                     and self.sequence <= self.maximum_messages, 'child_request_shape')
                 seq = self.sequence
@@ -226,8 +234,8 @@ class ChildChannel:
                     'child_reply_identity')
                 self.sequence += 1
                 return {key:value for key,value in response.items() if key not in ('session','seq')}
-            except BaseException:
-                self.abort()
+            except BaseException as error:
+                self.abort(error,phase='CONTROL_EXCHANGE')
                 raise
 
     def _content(self, accepted, *, deadline, native=False, expected_stream=None):
@@ -278,18 +286,24 @@ class ChildChannel:
             if not self.closed:
                 self.request('cancel', token=token, deadline=deadline)
             raise
-        except BaseException:
+        except BaseException as error:
             # Ambiguous control loss closes the parent session, which owns the
             # real uncertain cleanup. Do not mint a replacement receipt/token.
-            self.abort()
+            self.abort(error,phase='CONTENT_HANDOFF')
             raise
 
     def http(self, reference, calls, *, batch=False, deadline=None):
         _require(self.sources.get(reference.alias) is reference, 'child_source_owner')
         end = min(self.deadline, time.monotonic()+30 if deadline is None else deadline)
-        accepted = self.request('http_begin', alias=reference.alias,
-            calls=[dict(method=m, params=p) for m,p in calls], batch=batch, deadline=end)
-        return self._content(accepted, deadline=end)
+        while True:
+            remaining=self._remaining(end)
+            if self._http_slots.acquire(timeout=min(.05,remaining)):break
+        try:
+            self._remaining(end)
+            accepted = self.request('http_begin', alias=reference.alias,
+                calls=[dict(method=m, params=p) for m,p in calls], batch=batch, deadline=end)
+            return self._content(accepted, deadline=end)
+        finally:self._http_slots.release()
 
     def demand(self, reference, methods):
         _require(self.sources.get(reference.alias) is reference, 'child_source_owner')
@@ -350,11 +364,11 @@ class ChildChannel:
             _require(len(self._native_reads)<self.maximum_streams,'child_native_read_capacity')
             context=contextvars.copy_context()
             try:future=self._read_lane.submit(context.run,self._run_native_read,stream,timeout)
-            except BaseException:
+            except BaseException as error:
                 # ThreadPoolExecutor may enqueue before starting a worker.
                 # Refuse the whole channel, cancel its queued work and retain
                 # the lane for the outer owner's real join after any failure.
-                self.abort()
+                self.abort(error,phase='NATIVE_READ_SUBMIT')
                 raise
             self._native_reads[stream.stream]=future
             return future
@@ -432,16 +446,29 @@ class ChildChannel:
         except BaseException as error:
             if upload is not None and not committed and not self.closed:
                 try:self.request('native_upload_cancel',upload=upload,stream=stream,deadline=end)
-                except BaseException:self.abort()
+                except BaseException as cleanup_error:self.abort(cleanup_error,phase='NATIVE_UPLOAD_CANCEL')
             elif committed and not self.closed and not isinstance(error,ChildParentFailure) \
                     and str(error)!='child_native_write_canceled':
                 # A terminal parent failure has already joined stream cleanup;
                 # any ambiguous commit/poll instead closes the sole capability.
-                self.abort()
+                self.abort(error,phase='NATIVE_UPLOAD')
             raise
         finally:self._upload_lock.release()
 
-    def abort(self):
+    def abort_snapshot(self):
+        with self._fault_lock:
+            return None if self._first_abort is None else dict(self._first_abort)
+
+    def abort(self,error=None,*,phase=None):
+        if error is not None:
+            try:
+                from .transport_bridge import transport_fault
+                fault=transport_fault(error,phase)
+            except BaseException:
+                fault=dict(phase='UNKNOWN',error_type='PROJECTION_UNAVAILABLE',
+                    source_module=None,source_line=None,trace_complete=False)
+            with self._fault_lock:
+                if self._first_abort is None:self._first_abort=fault
         self.closed = True
         try:
             self.socket.shutdown(socket.SHUT_RDWR)

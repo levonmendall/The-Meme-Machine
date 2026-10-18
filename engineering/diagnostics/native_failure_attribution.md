@@ -59,3 +59,53 @@ hosted run with SQLite3.45.1. No Pons behavior repair is inferred or attempted
 from the fixed label alone. No provider/AWS dispatch, authoritative history,
 financial write, normal readiness, full release, kernel acceptance or sustained
 market-capacity proof is provided by this diagnostic component.
+
+The targeted hosted run39087225236 on exact `d14e40a58243e7b8aa4d2d4de049764be96b269e`
+failed both unchanged cases after36 proof/attribution cases passed in24.998s.
+The original copied-main Pons exception is now observed: exact `ValueError`,
+`meme_machine.runtime.isolated_native_bootstrap` line252, the composite
+`isolated_native_runner_ports_required` guard. This receipt does not distinguish
+its individual predicates or prove the upstream channel-close cause. The
+separate namespace case reports actual `namespace_setgroups_refused`, errno13;
+its original assertion still fails. The copied child remains BLOCKED and joined
+process work is not a terminal FULL/ACK, kernel or capacity proof.
+
+A controlled offline reproduction establishes an independent valid-concurrency
+defect: four accepted HTTP contents occupy the parent's unchanged hard four
+`running`/`delivered` slots, and a fifth unpaced `http_begin` closes the whole
+channel with `parent_attempt_capacity`. A later strict runner-ports guard then
+rejects that closed channel while the exact type/resource predicates still
+hold. This is a supported possible chain, not established causality for run39087225236.
+Native stream reads/control/upload and local historian work retain their original
+separate limits; only RPC HTTP attempts share this four-slot class.
+
+The correction advertises the original fixed parent HTTP worker limit in an
+exact version4 hello and reserves one child semaphore slot per HTTP call before
+sending any begin. The original whole-call monotonic deadline and cancellation
+remain active while waiting, with no request, purchase or timeout refresh.
+Accepted calls hold the slot through the complete original content handoff and
+ACK/cancel/uncertain cleanup path. Native/control messages retain their separate
+original capacity. The parent still independently rejects a raw fifth request;
+no worker, operation, frame, quota or provider limit grows. An expired unsent
+control request refuses locally without quarantining unrelated accepted work;
+a partial or otherwise ambiguous exchange retains original channel shutdown.
+
+First fatal parent and child transport observations now retain only fixed phase,
+recognized exact exception class, known boundary enum, bounded actual errno and
+an allowlisted native source line. Normal close/peer EOF does not manufacture a
+fault. Failed projection cannot prevent the original physical shutdown, later
+cleanup cannot replace the first fault, and the child terminal receipt plus
+parent validator result expose these observations. No exception text, path,
+SQL, packet or credential is emitted. These new observations are required before
+attributing a subsequent copied-main failure to capacity or another cause.
+
+The first94-case focused run retained three errors: two new control probes asked
+for a numeric Pons activity marker before any Pons admission, and the composed
+lifecycle fixture silently failed its own synchronous cleanup dispatch, leaving
+the global stop event set for the unchanged queued-Solana cancellation case.
+The probes now use the original demand control without physical acquisition;
+fixture cleanup uses its actual synchronous dispatcher and proves restoration
+of the original stop event. The affected11 cases passed in2.624s, followed by
+all94 attribution/child/parent/upload/entry cases in4.534s without skips under
+FAST network guard/Scratch. No old assertion or provider guard changed. The
+original failed logs and Scratch directories remain retained.

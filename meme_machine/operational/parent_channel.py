@@ -17,6 +17,7 @@ from .parent_transport import ParentHTTP, ParentNativeStream, ParentTransportFai
 from .transport_bridge import (
     BridgeRejected, ParentAttempt, ReadCall, Delivered, _json, _params, _require,
     decode_request, encode_frame, read_request_frame,
+    transport_fault,
 )
 
 CHUNK = 64 * 1024
@@ -113,6 +114,17 @@ class ParentChannel:
         self._upload = None
         self._head_lifecycle = None
         self._loop = asyncio.get_running_loop()
+        self._first_fault = None
+
+    def _record_fault(self,phase,error):
+        if self._first_fault is None:
+            try:self._first_fault=transport_fault(error,phase)
+            except BaseException:
+                self._first_fault=dict(phase='UNKNOWN',error_type='PROJECTION_UNAVAILABLE',
+                    source_module=None,source_line=None,trace_complete=False)
+
+    def first_fault(self):
+        return None if self._first_fault is None else dict(self._first_fault)
 
     def start_head_measurement(self, approval, image, *, refresh=True):
         """Explicit already-fenced parent call; never selected by child data."""
@@ -124,10 +136,11 @@ class ParentChannel:
         return self._head_lifecycle.snapshot() if self._head_lifecycle is not None else None
 
     def hello(self):
-        return dict(session=self.session, protocol='native-parent-transport-v3',
+        return dict(session=self.session, protocol='native-parent-transport-v4',
             sources=[s.receipt() for s in self.http.sources.values()],
             streams=self._initial_streams+[s.receipt() for s in self.native_sources.values()],
             maximum_streams=self.max_streams,
+            http_workers=self.workers,
             chunk_bytes=CHUNK, response_bytes=MAX_FRAME,
             upload_bytes=UPLOAD_MAX, upload_chunk_bytes=UPLOAD_CHUNK, upload_slots=1,
             maximum_messages=MAX_MESSAGES, replay='most_recent_only',
@@ -281,10 +294,11 @@ class ParentChannel:
             self._previous = seq, identity, result
             self._next += 1
             return result
-        except BaseException:
+        except BaseException as error:
             # dispatch may be canceled after accepted demand/accounting. The
             # caller must close, never retry it under a replacement sequence.
             self.closed = True
+            self._record_fault('PARENT_DISPATCH',error)
             self.stopped.set()
             self._discard_upload(self._upload)
             raise
@@ -300,6 +314,7 @@ class ParentChannel:
     async def _expire_upload(self,upload):
         await asyncio.sleep(max(0,upload.deadline-asyncio.get_running_loop().time()))
         if self._upload is upload and not upload.committed:
+            self._record_fault('PARENT_UPLOAD_DEADLINE',None)
             self._discard_upload(upload)
             self.closed=True
             self.stopped.set()
@@ -409,7 +424,8 @@ class ParentChannel:
             try:
                 await self.http.release(content.attempt,
                     uncertain=not(type(delivered) is Delivered and delivered.eof))
-            except BaseException:
+            except BaseException as error:
+                self._record_fault('PARENT_HTTP_RELEASE',error)
                 content.body, content.status = None, 'accounting_failed'
                 self.closed = True
                 self.stopped.set()
@@ -429,6 +445,7 @@ class ParentChannel:
         except BaseException as error:
             content.boundary = _native_boundary(error)
             if content.boundary is None:
+                self._record_fault('PARENT_NATIVE_READ',error)
                 content.status = 'failed'
                 self.closed = True
                 self.stopped.set()
@@ -439,6 +456,7 @@ class ParentChannel:
                     if isinstance(cleanup_error,asyncio.CancelledError) and content.stream.cleanup_verified:
                         content.status='canceled'
                     else:
+                        self._record_fault('PARENT_NATIVE_CLEANUP',cleanup_error)
                         content.status = 'accounting_failed'
                         self.closed = True
                         self.stopped.set()
@@ -475,6 +493,7 @@ class ParentChannel:
             content.status = 'canceled'
         except BaseException as error:
             content.boundary = _native_boundary(error)
+            if content.boundary is None:self._record_fault('PARENT_NATIVE_CONTROL',error)
             if upload is not None:await self._failed_upload_cleanup(content)
             content.status = 'failed'
             if content.boundary is None:
@@ -489,7 +508,8 @@ class ParentChannel:
         # Failed/ambiguous SDK writes never publish terminal status before the
         # original stream's unread uncertainty and physical cleanup are joined.
         try:await content.stream.aclose()
-        except BaseException:
+        except BaseException as error:
+            self._record_fault('PARENT_NATIVE_CLEANUP',error)
             content.status='accounting_failed'
             self.closed=True
             self.stopped.set()
@@ -633,8 +653,8 @@ async def serve_connected(reader, writer, channel, *, child_exited=None):
                 return_when=asyncio.FIRST_COMPLETED)
             if work in done:
                 await work
-    except (asyncio.IncompleteReadError, ConnectionError, BridgeRejected, TimeoutError):
-        pass
+    except (asyncio.IncompleteReadError, ConnectionError, BridgeRejected, TimeoutError) as error:
+        if isinstance(error,(BridgeRejected,TimeoutError)):channel._record_fault('PARENT_FRAME',error)
     finally:
         work.cancel()
         stopped.cancel()

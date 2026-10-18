@@ -14,6 +14,7 @@ import math
 import re
 import secrets
 import struct
+import sys
 from types import MappingProxyType
 from typing import Protocol
 
@@ -33,6 +34,61 @@ _FORBIDDEN = frozenset(('url', 'uri', 'endpoint', 'path', 'sql', 'allowance',
 
 class BridgeRejected(ValueError):
     """Fixed public rejection code; never an underlying transport exception."""
+
+
+_FAULT_PHASES=frozenset(('CONTROL_EXCHANGE','CONTENT_HANDOFF','NATIVE_READ_SUBMIT',
+    'NATIVE_UPLOAD','NATIVE_UPLOAD_CANCEL','PARENT_DISPATCH','PARENT_HTTP_RELEASE',
+    'PARENT_NATIVE_READ','PARENT_NATIVE_CLEANUP','PARENT_NATIVE_CONTROL','PARENT_FRAME',
+    'PARENT_UPLOAD_DEADLINE'))
+_FAULT_MODULES=frozenset(('meme_machine.operational.transport_bridge',
+    'meme_machine.operational.child_transport','meme_machine.operational.parent_channel',
+    'meme_machine.operational.parent_transport','meme_machine.operational.bounded_provider'))
+_FAULT_CODES=frozenset(('parent_attempt_capacity','parent_sequence','parent_altered_replay',
+    'parent_unknown_verb','parent_call','parent_alias',
+    'parent_foreign_token','parent_native_capacity','parent_native_backpressure',
+    'parent_native_control','parent_chunk_ack','parent_chunk_offset','parent_content_shape',
+    'child_transport_stopped','child_parent_eof','child_reply_identity','child_control_bound',
+    'child_invalid_json','child_content_bound','child_chunk_shape','child_chunk_integrity',
+    'child_chunk_ack','child_native_read_identity','child_parent_attempt_failed',
+    'child_native_control_failed','child_native_stream_identity','frame_bound','frame_length',
+    'invalid_json','parent_upload_deadline_elapsed'))
+
+
+def transport_fault(error,phase):
+    """First observed fatal transport boundary; no provider/exception text."""
+    if phase not in _FAULT_PHASES:raise ValueError('transport_fault_phase')
+    result=dict(phase=phase,error_type='UNKNOWN',source_module=None,source_line=None,
+        trace_complete=True)
+    if error is None:
+        if phase=='PARENT_UPLOAD_DEADLINE':
+            result.update(error_type='NO_EXCEPTION',boundary_code='parent_upload_deadline_elapsed')
+        return result
+    kind=type(error)
+    classes=(OSError,PermissionError,TimeoutError,ConnectionError,ConnectionResetError,
+        BrokenPipeError,ValueError,TypeError,RuntimeError,asyncio.CancelledError,BridgeRejected)
+    for item in classes:
+        if kind is item:result['error_type']=item.__name__;break
+    for module_name,class_name in (
+            ('meme_machine.operational.child_transport','ChildTransportFailure'),
+            ('meme_machine.operational.child_transport','ChildParentFailure'),
+            ('meme_machine.operational.parent_transport','ParentTransportFailure')):
+        module=sys.modules.get(module_name)
+        if module is not None and kind is getattr(module,class_name,None):result['error_type']=class_name
+    args=BaseException.args.__get__(error,kind)
+    if len(args)==1 and type(args[0]) is str and len(args[0])<=100 and args[0] in _FAULT_CODES:
+        result['boundary_code']=args[0]
+    try:number=getattr(error,'errno',None)
+    except BaseException:number=None
+    if type(number) is int and 0<number<4096:result['error_number']=number
+    trace=BaseException.__traceback__.__get__(error,kind);frames=0
+    while trace is not None and frames<64:
+        module=trace.tb_frame.f_globals.get('__name__')
+        if (type(module) is str and module in _FAULT_MODULES
+                and trace.tb_frame.f_code.co_name!='_require' and 0<trace.tb_lineno<10000):
+            result.update(source_module=module,source_line=trace.tb_lineno)
+        trace=trace.tb_next;frames+=1
+    result['trace_complete']=trace is None
+    return result
 
 
 def _require(condition, code):
