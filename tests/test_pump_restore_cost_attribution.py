@@ -66,8 +66,10 @@ class PumpRestoreCostAttributionTests(unittest.TestCase):
         self.assertNotIn('recovery_verified',facts)
         self.assertNotIn('checkpoint_authority',facts)
 
-    def test_only_two_fixed_pump_cost_identities_are_admitted(self):
-        self.assertEqual(tuple(name for name in costs.NAMES if name.startswith('pump.')),(OUTER,CHILD))
+    def test_only_fixed_pump_parent_and_acquisition_stage_identities_are_admitted(self):
+        self.assertEqual(tuple(name for name in costs.NAMES if name.startswith('pump.')),
+            (OUTER, CHILD, 'pump.restore_metadata', 'pump.restore_hot_bodies',
+             'pump.restore_cold_metadata', 'pump.restore_manifests', 'pump.restore_chunks'))
         for identity in ('pump.accounting_restore','pump.any_candidate','pump.private-token'):
             with self.assertRaisesRegex(ValueError,'operation_cost_identity'):
                 with costs.operation(identity):self.fail('unknown cost identity executed')

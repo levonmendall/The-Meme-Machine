@@ -35,10 +35,21 @@ NAMES = (
     'owner.scout_commit', 'owner.control_commit', 'owner.delivery_capture',
     'owner.delivery_ack', 'owner.proof_publish', 'owner.history_plan',
     'pump.observed_candidates_restore', 'pump.observed_candidate_events',
+    'pump.restore_metadata', 'pump.restore_hot_bodies',
+    'pump.restore_cold_metadata', 'pump.restore_manifests', 'pump.restore_chunks',
+)
+RESTORE_COUNT_NAMES = (
+    'pages_started', 'pages_completed', 'references', 'source_groups',
+    'hot_keys_selected', 'hot_bytes_selected', 'cold_keys_selected', 'scalar_source_reads',
+    'fallback_reference_size', 'fallback_reference_parse', 'fallback_reference_shape',
+    'fallback_source_snapshot_expired', 'fallback_source_read_error',
+    'fallback_encoded_budget', 'fallback_prepared_budget', 'fallback_prepare_error',
+    'fallback_chunk_shape', 'fallback_chunk_snapshot_expired',
+    'fallback_chunk_read_error', 'fallback_chunk_budget',
 )
 SQL_BUCKETS = ('statement', 'statement_many', 'fetch', 'transaction', 'checkpoint')
 ACTIVE_LIMIT = 16
-_SKIP_RUNNABLE = frozenset(('owner.order_attest',))
+_SKIP_RUNNABLE = frozenset(('owner.order_attest', *(name for name in NAMES if name.startswith('pump.restore_'))))
 _FIELDS = (
     'calls', 'failed_calls', 'unmeasured_calls', 'runnable_measured_calls',
     'runnable_unavailable_calls', 'submitted_calls', 'pending_calls',
@@ -70,10 +81,31 @@ _sequence = 0
 _recorder_valid = True
 _recording_lost_calls = 0
 _active_overflow_calls = 0
+_restore_counts = dict.fromkeys(RESTORE_COUNT_NAMES, 0)
 
 
 def enabled():
     return os.environ.get('MM_OPERATION_COST_DIAGNOSTICS') == '1'
+
+
+def restore_counts(values):
+    """Merge one fixed page's numeric facts; optional recording cannot mask work.
+
+    The caller buffers locally, so there is no per-reference lock or process
+    probe. A zero is meaningful only after at least one page reached this merge;
+    an empty snapshot population is UNEXERCISED, not evidence of zero fallbacks.
+    """
+    if not enabled():
+        return
+    try:
+        if (type(values) is not dict or set(values) != set(RESTORE_COUNT_NAMES)
+                or any(type(value) is not int or value < 0 for value in values.values())):
+            raise ValueError('operation_cost_restore_counts')
+        with _lock:
+            for name, value in values.items():
+                _restore_counts[name] += value
+    except BaseException:
+        _lost()
 
 
 def _validate(name):
@@ -454,6 +486,8 @@ def snapshot():
                 recorder_valid=_recorder_valid, recording_lost_calls=_recording_lost_calls,
                 active_limit=ACTIVE_LIMIT, active_overflow_calls=_active_overflow_calls,
                 rows=rows, active=active, not_reached=[name for name in NAMES if name not in reached],
+                restore_reference_counts=dict(_restore_counts) if _restore_counts['pages_started'] else {},
+                restore_reference_count_scope='PAGE_TOTALS_FIRST_FALLBACK_REASON_PER_REFERENCE',
                 not_reached_status='UNEXERCISED',
                 sql_scope='SELECTED_INSTRUMENTED_CONNECTIONS_IN_INNERMOST_OPERATION',
                 sql_nested_scope='OUTERMOST_NATIVE_BOUNDARY_DURATIONS_ONLY',

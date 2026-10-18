@@ -1,9 +1,10 @@
 """Actual native FULL/ACK corpus through bounded startup source pages."""
-from contextlib import closing
+from contextlib import closing, contextmanager, ExitStack
 from copy import deepcopy
 import hashlib
 import gc
 import json
+import os
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -15,10 +16,23 @@ from unittest.mock import patch
 
 from meme_machine.runtime.candidate_history import CandidateHistory
 from meme_machine.runtime import candidate_restore_reads as pages
+from meme_machine.runtime import operation_costs as costs
 from meme_machine.runtime.stop import Shutdown
 from meme_machine.solana_evidence_plane import digest
 from meme_machine.solana_evidence_storage import encode
 from tests.test_startup_archive_read_reuse import ArchiveCorpus, archive_io
+
+
+@contextmanager
+def diagnostics():
+    with ExitStack() as stack:
+        stack.enter_context(patch.dict(os.environ, MM_OPERATION_COST_DIAGNOSTICS='1'))
+        for name, value in (('_rows', costs._new_rows()), ('_active', {}),
+                            ('_restore_counts', dict.fromkeys(costs.RESTORE_COUNT_NAMES, 0)),
+                            ('_sequence', 0), ('_recorder_valid', True),
+                            ('_recording_lost_calls', 0), ('_active_overflow_calls', 0)):
+            stack.enter_context(patch.object(costs, name, value))
+        yield
 
 
 class RestoreReferencePagesTests(unittest.TestCase):
@@ -49,7 +63,9 @@ class RestoreReferencePagesTests(unittest.TestCase):
                 self.assertEqual(actual, self.corpus.expected)
                 self.assertEqual((io['reads'], io['decodes']), (1, 1))
                 expected_pages = (len(self.corpus.refs) + pages.PAGE_REFERENCES - 1) // pages.PAGE_REFERENCES
-                self.assertEqual(sum('FROM canonical_evidence WHERE identity IN' in q for q in queries), 2 * expected_pages)
+                self.assertEqual(sum('SELECT identity,octet_length(body)' in q for q in queries), expected_pages)
+                self.assertEqual(sum('SELECT identity,body,hash,archive' in q for q in queries), expected_pages)
+                self.assertEqual(sum('SELECT identity,hash,archive' in q for q in queries), 1)
                 self.assertEqual(sum('FROM scoped_cold_manifests WHERE id IN' in q for q in queries), 1)
                 self.assertFalse(reader.db.in_transaction)
                 self.assertTrue(decoded)
@@ -112,7 +128,7 @@ class RestoreReferencePagesTests(unittest.TestCase):
 
     def test_source_sql_cancellation_rolls_back_owned_reader_and_does_not_replace_normal_hook(self):
         cancelled = threading.Event()
-        with closing(CandidateHistory(self.corpus.consumer)) as shared:
+        with diagnostics(), closing(CandidateHistory(self.corpus.consumer)) as shared:
             # Normal readers are independent and retain their callback.
             shared.events('pump', self.corpus.mint)
             normal = next(iter(shared._source_readers.values())); callbacks = []
@@ -126,6 +142,10 @@ class RestoreReferencePagesTests(unittest.TestCase):
                 with patch.object(reader, '_database', database):
                     with self.assertRaises(Shutdown): self.read(shared, reader)
                 self.assertFalse(reader.db.in_transaction)
+                counts = costs.snapshot()['restore_reference_counts']
+                self.assertEqual(counts['pages_started'], 1)
+                self.assertEqual(counts['pages_completed'], 0)
+                self.assertEqual(sum(value for name, value in counts.items() if name.startswith('fallback_')), 0)
             normal.execute('SELECT 1').fetchone()
             self.assertTrue(callbacks)
             normal.set_progress_handler(None, 0)
@@ -141,11 +161,66 @@ class RestoreReferencePagesTests(unittest.TestCase):
         self.corpus.unchanged()
 
     def test_expired_sql_page_uses_original_scalar_without_favorable_history_or_ack(self):
-        with closing(CandidateHistory(self.corpus.consumer)) as shared, \
+        with diagnostics(), closing(CandidateHistory(self.corpus.consumer)) as shared, \
                 shared.restoration_reader(cancelled=lambda: False, archives={}) as reader:
             with patch.object(pages, 'SNAPSHOT_SECONDS', 0):
                 self.assertEqual(self.read(shared, reader), self.corpus.expected)
             self.assertFalse(reader.db.in_transaction)
+            counters = costs.snapshot()['restore_reference_counts']
+            self.assertGreater(counters['fallback_source_snapshot_expired'], 0)
+            self.assertEqual(counters['fallback_encoded_budget'], 0)
+            self.assertEqual(counters['fallback_source_snapshot_expired'], counters['scalar_source_reads'])
+        self.corpus.unchanged()
+
+    def test_cold_metadata_and_manifest_share_hot_snapshot_while_writer_advances(self):
+        self.corpus.history.db.execute('PRAGMA journal_mode=WAL')
+        with closing(CandidateHistory(self.corpus.consumer)) as shared, \
+                shared.restoration_reader(cancelled=lambda: False, archives={}) as reader:
+            original = reader._database; seen = []; writer_errors = []
+            changed = next(iter(self.corpus.identities))
+            def advance():
+                try:
+                    with closing(sqlite3.connect(self.corpus.source, timeout=0)) as writer:
+                        for table in ('rolling_economic_events', 'records', 'shared_history_cache', 'scoped_cold_records'):
+                            writer.execute('UPDATE ' + table + ' SET hash=? WHERE identity=?',
+                                ('writer-new-generation', changed))
+                        writer.commit()
+                except BaseException as error: writer_errors.append(error)
+            def database(path):
+                db = original(path)
+                def trace(sql):
+                    if sql.startswith('SELECT identity,hash,archive') and not seen:
+                        self.assertTrue(db.in_transaction)
+                        seen.append(1)
+                        writer = threading.Thread(target=advance); writer.start(); writer.join(2)
+                        self.assertFalse(writer.is_alive())
+                db.set_trace_callback(trace)
+                return db
+            with patch.object(reader, '_database', database):
+                self.assertEqual(self.read(shared, reader), self.corpus.expected)
+            self.assertEqual(seen, [1]); self.assertEqual(writer_errors, [])
+            self.assertFalse(reader.db.in_transaction)
+            self.assertEqual(reader.db.execute('SELECT hash FROM canonical_evidence WHERE identity=?',
+                (changed,)).fetchone(), ('writer-new-generation',))
+        # Restart must authenticate the writer's new head, not the old snapshot.
+        with closing(CandidateHistory(self.corpus.consumer)) as shared, \
+                shared.restoration_reader(cancelled=lambda: False, archives={}) as reader:
+            with self.assertRaisesRegex(ValueError, 'candidate_history_corruption'):
+                self.read(shared, reader)
+
+    def test_page_diagnostics_are_fixed_no_payload_and_original_scalar_fault_path(self):
+        with diagnostics(), closing(CandidateHistory(self.corpus.consumer)) as shared, \
+                shared.restoration_reader(cancelled=lambda:False,archives={}) as reader, \
+                patch.object(reader, '_source_rows', side_effect=sqlite3.OperationalError('private-path-or-sql')):
+            self.assertEqual(self.read(shared, reader), self.corpus.expected)
+            sample = costs.snapshot(); counts = sample['restore_reference_counts']
+            self.assertEqual(counts['pages_started'], counts['pages_completed'])
+            self.assertEqual(counts['references'], len(self.corpus.refs))
+            self.assertEqual(counts['fallback_source_read_error'], len(self.corpus.refs))
+            self.assertEqual(counts['scalar_source_reads'], len(self.corpus.refs))
+            self.assertEqual(counts['fallback_source_snapshot_expired'], 0)
+            self.assertNotIn('private-path-or-sql', json.dumps(sample))
+            self.assertNotIn(str(self.corpus.source), json.dumps(sample))
         self.corpus.unchanged()
 
     def test_foreign_reader_scope_and_closed_reader_refuse_without_borrowing_transaction(self):
@@ -225,6 +300,66 @@ class RestoreReferenceChunkTests(unittest.TestCase):
         expected = self.shared.events('pump','mint')
         with self.shared.restoration_reader(cancelled=lambda:False,archives={}) as reader:
             self.assertEqual(self.read(reader),expected)
+
+    def test_length_only_admission_counts_unicode_octets_and_preserves_legacy_hash(self):
+        body = deepcopy(self.body)
+        body['payload']['legacy_unicode'] = '\u2603' * 1024
+        self.replace_body(body)
+        raw = json.dumps(body, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+        self.db.execute('UPDATE facts SET body=?', (raw,))
+        expected = self.shared.events('pump','mint',kind_prefix='pump_')
+        queries = []
+        with diagnostics(), patch.object(pages, 'PAGE_BYTES', len(raw)), \
+                self.shared.restoration_reader(cancelled=lambda:False,archives={}) as reader:
+            original = reader._database
+            def database(path):
+                db = original(path); db.set_trace_callback(queries.append); return db
+            with patch.object(reader, '_database', database):
+                self.assertEqual(self.read(reader), expected)
+            counts = costs.snapshot()['restore_reference_counts']
+            self.assertEqual(counts['hot_keys_selected'], 0)
+            self.assertEqual(counts['fallback_encoded_budget'], 2)
+            self.assertEqual(counts['scalar_source_reads'], 2)
+            self.assertTrue(any(q.startswith('SELECT identity,octet_length(body) FROM') for q in queries))
+            self.assertFalse(any(q.startswith('SELECT identity,body,hash,archive') for q in queries))
+        # With exact encoded-byte admission, the same body is acquired once;
+        # original stored content hash is still checked per reference.
+        with diagnostics(), patch.object(pages, 'PAGE_BYTES', len(raw.encode('utf-8'))), \
+                self.shared.restoration_reader(cancelled=lambda:False,archives={}) as reader:
+            self.assertEqual(self.read(reader), expected)
+            counts = costs.snapshot()['restore_reference_counts']
+            self.assertEqual(counts['hot_keys_selected'], 1)
+            self.assertEqual(counts['hot_bytes_selected'], len(raw.encode('utf-8')))
+            self.assertEqual(counts['scalar_source_reads'], 0)
+        self.db.execute("UPDATE facts SET hash='corrupt-stored-hash'")
+        with self.shared.restoration_reader(cancelled=lambda:False,archives={}) as reader:
+            with self.assertRaisesRegex(ValueError, 'candidate_history_corruption'): self.read(reader)
+
+    def test_null_first_duplicate_cannot_be_replaced_by_later_hot_body(self):
+        self.db.execute('UPDATE facts SET body=NULL,archive=?', ('absent-manifest',))
+        self.db.execute('CREATE TABLE scoped_cold_manifests(id TEXT PRIMARY KEY,path TEXT,hash TEXT)')
+        self.db.execute('INSERT INTO alternates VALUES(?,?,?,NULL)',
+            ('source-record', encode(self.body, self.db), digest(self.body)))
+        with self.assertRaisesRegex(ValueError, 'candidate_canonical_reference_requires_restore'):
+            self.shared.events('pump','mint',kind_prefix='pump_')
+        with self.shared.restoration_reader(cancelled=lambda:False,archives={}) as reader:
+            with self.assertRaisesRegex(ValueError, 'candidate_canonical_reference_requires_restore'):
+                self.read(reader)
+            self.assertFalse(reader.db.in_transaction)
+
+    def test_distinct_encoded_prepared_and_chunk_budget_reasons_count_first_fallback_once(self):
+        expected = self.shared.events('pump','mint',kind_prefix='pump_')
+        encoded = len(self.db.execute('SELECT body FROM facts').fetchone()[0])
+        for limit, bound, reason in ((1, 'PAGE_BYTES', 'encoded_budget'),
+                                    (1, 'PREPARED_BYTES', 'prepared_budget'),
+                                    (encoded, 'PAGE_BYTES', 'chunk_budget')):
+            with self.subTest(reason=reason), diagnostics(), patch.object(pages, bound, limit), \
+                    self.shared.restoration_reader(cancelled=lambda:False,archives={}) as reader:
+                self.assertEqual(self.read(reader), expected)
+                counts = costs.snapshot()['restore_reference_counts']
+                self.assertEqual(counts['fallback_' + reason], 2)
+                self.assertEqual(sum(value for name, value in counts.items() if name.startswith('fallback_')), 2)
+                self.assertEqual(counts['scalar_source_reads'], 2)
 
     def test_missing_or_corrupt_actual_chunk_fails_without_empty_event_or_ack(self):
         with self.shared.restoration_reader(cancelled=lambda:False,archives={}) as reader:

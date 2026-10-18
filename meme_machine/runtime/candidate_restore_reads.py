@@ -13,6 +13,7 @@ import threading
 import time
 
 from .journal import digest
+from . import operation_costs as costs
 from .sqlite_failure import connect, preserving_cleanup
 
 PAGE_REFERENCES = 128
@@ -73,6 +74,7 @@ class _Lookup:
         if self.fallback:
             db = self.reader._database(path)
             self.reader.check()
+            self.reader._count('scalar_source_reads')
             return db.execute('SELECT body,hash,archive FROM canonical_evidence WHERE identity=?',
                 (ref['canonical_identity'],)).fetchone(), db
         return self.row, None
@@ -91,6 +93,11 @@ class RestoreReferenceReader:
         self.path = None
         self.deadline = None
         self.closed = False
+        self.counts = None
+
+    def _count(self, name, amount=1):
+        if self.counts is not None:
+            self.counts[name] += amount
 
     def __enter__(self):
         self.check()
@@ -185,25 +192,46 @@ class RestoreReferenceReader:
         keys = tuple(dict.fromkeys(item.ref['canonical_identity'] for item in group))
         marks = self._marks(keys)
         with self._snapshot(db):
-            metadata = self._first(db.execute('SELECT identity,length(CAST(body AS BLOB)),hash,archive '
-                'FROM canonical_evidence WHERE identity IN (' + marks + ')', keys).fetchall())
+            # Reading columns after a rich body still walks its overflow chain,
+            # even when octet_length itself can use the record header. Acquire
+            # ONLY identity/length before admitting the original full bodies.
+            with costs.operation('pump.restore_metadata'):
+                metadata = self._first(db.execute('SELECT identity,octet_length(body) '
+                    'FROM canonical_evidence WHERE identity IN (' + marks + ')', keys).fetchall())
             selected = []
             for key in keys:
                 row = metadata.get(key)
                 if row is not None and row[0] is not None and 0 <= row[0] <= budget:
                     selected.append(key); budget -= row[0]
-            bodies = self._first(db.execute('SELECT identity,body,hash,archive FROM canonical_evidence '
-                'WHERE identity IN (' + self._marks(selected) + ')', selected), len(selected)) if selected else {}
-            archives = tuple(dict.fromkeys(row[2] for row in metadata.values() if row[0] is None))
-            manifests = self._first(db.execute('SELECT id,path,hash FROM scoped_cold_manifests '
-                'WHERE id IN (' + self._marks(archives) + ')', archives).fetchall()) if archives else {}
+            self._count('hot_keys_selected', len(selected))
+            self._count('hot_bytes_selected', sum(metadata[key][0] for key in selected))
+            bodies = {}
+            if selected:
+                with costs.operation('pump.restore_hot_bodies'):
+                    bodies = self._first(db.execute('SELECT identity,body,hash,archive FROM canonical_evidence '
+                        'WHERE identity IN (' + self._marks(selected) + ')', selected), len(selected))
+            cold_keys = tuple(key for key, row in metadata.items() if row[0] is None)
+            self._count('cold_keys_selected', len(cold_keys))
+            cold = {}
+            if cold_keys:
+                with costs.operation('pump.restore_cold_metadata'):
+                    cold = self._first(db.execute('SELECT identity,hash,archive FROM canonical_evidence '
+                        'WHERE identity IN (' + self._marks(cold_keys) + ')', cold_keys).fetchall())
+            archives = tuple(dict.fromkeys(row[1] for row in cold.values()))
+            manifests = {}
+            if archives:
+                with costs.operation('pump.restore_manifests'):
+                    manifests = self._first(db.execute('SELECT id,path,hash FROM scoped_cold_manifests '
+                        'WHERE id IN (' + self._marks(archives) + ')', archives).fetchall())
             for item in group:
                 key = item.ref['canonical_identity']; meta = metadata.get(key)
                 if meta is None: item.row = None
                 elif meta[0] is None:
-                    item.row = (None, meta[1], meta[2]); item.manifest = manifests.get(meta[2])
+                    if key in cold:
+                        item.row = (None, *cold[key]); item.manifest = manifests.get(cold[key][1])
+                    else: self._fallback((item,), 'source_read_error')
                 elif key in bodies: item.row = bodies[key]
-                else: item.fallback = True
+                else: self._fallback((item,), 'encoded_budget')
         return budget
 
     def _prepare(self, lookups, budget):
@@ -216,7 +244,7 @@ class RestoreReferenceReader:
             try:
                 prepared = prepare_decode(item.row[0])
                 if prepared_bytes + prepared.inflated_outer_bytes > PREPARED_BYTES:
-                    self._fallback((item,))
+                    self._fallback((item,), 'prepared_budget')
                     continue
                 # Each reference owns its mutable outer, including duplicates.
                 item.prepared = prepared
@@ -226,7 +254,7 @@ class RestoreReferenceReader:
                 # bypass the successful-preparation byte allowance. Drop them
                 # and reproduce the original scalar result/error at this ref's
                 # turn. Shutdown is BaseException and propagates immediately.
-                self._fallback((item,))
+                self._fallback((item,), 'prepare_error')
             finally:
                 prepared = None
         groups = {}
@@ -241,12 +269,12 @@ class RestoreReferenceReader:
             except (TypeError, ValueError):
                 # Preserve original per-reference error precedence. Unusual
                 # marker values are evaluated only by the scalar decoder.
-                self._fallback(group)
+                self._fallback(group, 'chunk_shape')
                 continue
             if not keys: continue
             try:
                 db = self._database(path)
-                with self._snapshot(db):
+                with self._snapshot(db), costs.operation('pump.restore_chunks'):
                     sizes = dict(db.execute('SELECT hash,length(body) FROM hot_chunks WHERE hash IN (' +
                         self._marks(keys) + ')', keys))
                     selected = []
@@ -261,18 +289,18 @@ class RestoreReferenceReader:
                     # A genuinely absent chunk remains absent, so finish_decode
                     # raises the original missing-chunk failure in ref order.
                     if any(key in sizes and key not in chunks for _, _, key in item.prepared.references):
-                        self._fallback((item,))
+                        self._fallback((item,), 'chunk_budget')
                     else:
                         item.chunks = chunks; item.decoded_chunks = scoped_decoded
             except _PageExpired:
-                self._fallback(group)
+                self._fallback(group, 'chunk_snapshot_expired')
             except (sqlite3.Error, OSError):
-                self._fallback(group)
+                self._fallback(group, 'chunk_read_error')
         return budget
 
-    @staticmethod
-    def _fallback(items):
+    def _fallback(self, items, reason):
         for item in items:
+            if not item.fallback: self._count('fallback_' + reason)
             item.fallback = True
             item.row = item.manifest = item.prepared = None
             # Release speculative buffers without touching another reference's
@@ -292,6 +320,7 @@ class RestoreReferenceReader:
         iterator = iter(rows)
         pending = None
         while True:
+            self.counts = dict.fromkeys(costs.RESTORE_COUNT_NAMES, 0) if costs.enabled() else None
             lookups = []; reference_bytes = 0
             for _ in range(PAGE_REFERENCES):
                 self.check()
@@ -306,7 +335,7 @@ class RestoreReferenceReader:
                 item = _Lookup(self, lane, candidate, identity, kind, None, raw, checksum)
                 reference_bytes += size
                 if size > REFERENCE_BYTES:
-                    item.fallback = True
+                    self._fallback((item,), 'reference_size')
                 else:
                     try:
                         ref = json.loads(raw)
@@ -315,10 +344,14 @@ class RestoreReferenceReader:
                     except Exception:
                         # Reparse at its original turn, with no retained JSON
                         # document/traceback or speculative error precedence.
-                        item.fallback = True
+                        self._fallback((item,), 'reference_parse')
                 lookups.append(item)
                 if size > REFERENCE_BYTES: break
-            if not lookups: return
+            if not lookups:
+                self.counts = None
+                return
+            self._count('pages_started')
+            self._count('references', len(lookups))
             try:
                 groups = {}
                 for item in lookups:
@@ -326,16 +359,18 @@ class RestoreReferenceReader:
                     try:
                         path = item.ref['path']; key = item.ref['canonical_identity']
                         if type(path) is not str or type(key) is not str:
-                            item.path = self.history._reference_path(path); item.fallback = True
+                            item.path = self.history._reference_path(path)
+                            self._fallback((item,), 'reference_shape')
                         else: groups.setdefault(path, []).append(item)
-                    except (ValueError, TypeError, KeyError): item.fallback = True
+                    except (ValueError, TypeError, KeyError): self._fallback((item,), 'reference_shape')
                 budget = PAGE_BYTES
                 for group in groups.values():
+                    self._count('source_groups')
                     try: budget = self._source_rows(group, budget)
                     except _PageExpired:
-                        self._fallback(group)
+                        self._fallback(group, 'source_snapshot_expired')
                     except (sqlite3.Error, OSError, ValueError, TypeError, KeyError):
-                        self._fallback(group)
+                        self._fallback(group, 'source_read_error')
                 self._prepare(lookups, budget)
                 for item in lookups:
                     self.check()
@@ -351,7 +386,11 @@ class RestoreReferenceReader:
                     item.row = item.manifest = item.prepared = item.raw = item.ref = None
                     item.chunks = {}; item.decoded_chunks = {}
                     yield record
+                self._count('pages_completed')
             finally:
+                if self.counts is not None:
+                    costs.restore_counts(self.counts)
+                    self.counts = None
                 for item in lookups:
                     item.row = item.manifest = item.prepared = item.raw = None
                     item.chunks.clear(); item.decoded_chunks.clear()

@@ -23,7 +23,8 @@ class OperationCostsTests(unittest.TestCase):
         stack.enter_context(patch.dict(os.environ, {'MM_OPERATION_COST_DIAGNOSTICS': '1'}))
         for name, value in (('_rows', costs._new_rows()), ('_active', {}),
                             ('_sequence', 0), ('_recorder_valid', True),
-                            ('_recording_lost_calls', 0), ('_active_overflow_calls', 0)):
+                            ('_recording_lost_calls', 0), ('_active_overflow_calls', 0),
+                            ('_restore_counts', dict.fromkeys(costs.RESTORE_COUNT_NAMES, 0))):
             stack.enter_context(patch.object(costs, name, value))
         stack.enter_context(patch.object(costs, 'runnable_snapshot', return_value=None))
         self.temporary = stack.enter_context(tempfile.TemporaryDirectory())
@@ -58,7 +59,7 @@ class OperationCostsTests(unittest.TestCase):
         self.assertEqual(sample['not_reached_status'], 'UNEXERCISED')
 
     def test_names_are_fixed_and_private_arguments_are_never_retained(self):
-        self.assertEqual(len(costs.NAMES), 32)
+        self.assertEqual(len(costs.NAMES), 37)
         for name in ('https://private.invalid/?apikey=secret', '', None, [], True):
             with self.assertRaisesRegex(ValueError, 'operation_cost_identity'):
                 with costs.operation(name):
@@ -96,6 +97,30 @@ class OperationCostsTests(unittest.TestCase):
         row = self.row('owner.order_attest')
         self.assertEqual(row['runnable_unavailable_calls'], 1)
         self.assertEqual(row['runnable_measured_calls'], 0)
+
+    def test_restore_stages_and_page_counts_never_probe_scheduler_or_keep_private_values(self):
+        counts = dict.fromkeys(costs.RESTORE_COUNT_NAMES, 0)
+        counts.update(pages_started=1, references=7, fallback_encoded_budget=2)
+        self.assertEqual(costs.snapshot()['restore_reference_counts'], {})
+        with patch.object(costs, 'runnable_snapshot') as runnable:
+            for name in costs.NAMES:
+                if name.startswith('pump.restore_'):
+                    with costs.operation(name):
+                        pass
+            costs.restore_counts(counts)
+        runnable.assert_not_called()
+        self.assertEqual(costs.snapshot()['restore_reference_counts'], counts)
+        with patch.dict(os.environ, MM_OPERATION_COST_DIAGNOSTICS='0'), \
+                patch.object(costs, '_lock', side_effect=AssertionError('unexpected-lock')):
+            costs.restore_counts(counts)
+        self.assertEqual(costs.snapshot()['restore_reference_counts'], counts)
+        for invalid in ({'private-path': 1}, dict(counts, references=-1),
+                        dict(counts, references=True), dict(counts, references='private-value')):
+            costs.restore_counts(invalid)
+        sample = costs.snapshot()
+        self.assertEqual(sample['restore_reference_counts'], counts)
+        self.assertFalse(sample['recorder_valid'])
+        self.assertNotIn('private-value', json.dumps(sample))
 
     def test_direct_child_costs_are_invocation_local_and_include_grandchildren_once(self):
         samples = ((0, 0, None), (1, 1, None), (2, 2, None), (3, 3, None),
