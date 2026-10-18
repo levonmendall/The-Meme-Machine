@@ -558,22 +558,27 @@ class ParentCapacityChainTests(unittest.IsolatedAsyncioTestCase):
         from meme_machine.operational.isolated_native_lifetime import NativeLifecycleObservation
         from meme_machine.operational.child_transport import ChildTransportFailure,require_native_stream
         import grpc
-        raw=physical._Native([grpc.aio.EOF])
-        async def factory():return raw
-        stream=await ParentNativeStream.open(self.budget,'robinhood_sequencer',factory,lambda _:None)
-        client,parent=await fixture.ChildTransportTests.connected(self,streams={'pons':stream})
-        observer=NativeLifecycleObservation();client._lifecycle=observer
-        native=next(iter(client._native_handles.values()))
-        self.assertIsNone(await asyncio.to_thread(native.read))
-        self.assertTrue(native.closed);self.assertFalse(client.closed)
-        rows=observer.snapshot()['events']
-        self.assertEqual(len(rows),1)
-        self.assertEqual((rows[0]['event'],rows[0]['reason'],rows[0]['stream_kind']),
-            ('STREAM_CLOSED','EOF','robinhood_sequencer'))
-        self.assertIsNone(observer.snapshot()['first_shared_abort'])
-        with self.assertRaisesRegex(ChildTransportFailure,'child_native_stream_required'):
-            require_native_stream(native)
-        self.assertFalse(client.closed);self.assertIsNone(parent.first_fault())
+        for transport,alias in (('yellowstone','pump'),('solana_websocket','pump'),
+                ('robinhood_sequencer','pons')):
+            with self.subTest(transport=transport):
+                raw=physical._Native([grpc.aio.EOF])
+                async def factory():return raw
+                stream=await ParentNativeStream.open(self.budget,transport,factory,lambda _:None)
+                client,parent=await fixture.ChildTransportTests.connected(self,streams={alias:stream})
+                observer=NativeLifecycleObservation();client._lifecycle=observer
+                native=next(iter(client._native_handles.values()))
+                self.assertIsNone(await asyncio.to_thread(native.read))
+                self.assertTrue(native.closed);self.assertFalse(client.closed)
+                rows=observer.snapshot()['events']
+                self.assertEqual(len(rows),1)
+                self.assertEqual((rows[0]['event'],rows[0]['reason'],rows[0]['stream_kind']),
+                    ('STREAM_CLOSED','EOF',transport))
+                self.assertFalse(observer.snapshot()['lost'])
+                self.assertIsNone(observer.snapshot()['first_shared_abort'])
+                with self.assertRaisesRegex(ChildTransportFailure,'child_native_stream_required'):
+                    require_native_stream(native)
+                self.assertFalse(client.closed);self.assertIsNone(parent.first_fault())
+                await asyncio.to_thread(client.close)
 
     async def test_fault_projection_failure_cannot_prevent_original_channel_quarantine(self):
         from tests import test_child_transport as fixture

@@ -40,7 +40,7 @@ class NativeLifecycleObservation:
         try:
             if (event not in self._EVENTS or origin not in self._ORIGINS
                     or worker not in (None,'pump','pons','sizing')
-                    or stream_kind not in (None,'yellowstone','websocket','robinhood_sequencer')
+                    or stream_kind not in (None,'yellowstone','solana_websocket','robinhood_sequencer')
                     or reason is not None and reason not in self._REASONS
                     or prior_local is not None and type(prior_local) is not bool
                     or prior_global is not None and type(prior_global) is not bool):

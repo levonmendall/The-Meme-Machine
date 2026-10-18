@@ -193,3 +193,11 @@ real hello fixes the fixture; the affected case passed unchanged guards. The
 final161 focused attribution/source/entry/child/parent/upload/bridge cases passed
 in8.681s without skips. This is mechanism and observation evidence, not a claim
 that the hosted initiating cause or complete native readiness is resolved.
+
+Independent review found one observer enum mismatch: the genuine descriptor uses
+`solana_websocket`, whereas the first observer allowed `websocket`. The observer
+now accepts the original exact transport enum. The real connected-stream EOF
+regression exercises Yellowstone, Solana WebSocket and Robinhood/Nitro without
+renaming descriptors; all three retain the first stream event with lost=False,
+leave the shared channel open, and preserve the original closed-stream guard.
+That case plus the five observer regressions passed without skips.
