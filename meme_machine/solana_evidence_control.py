@@ -6,6 +6,7 @@ mutation share one commit. Expired requests cannot be replayed after receipt GC.
 import concurrent.futures
 from collections import deque
 import heapq
+import math
 import os
 import re
 import threading
@@ -21,6 +22,16 @@ MAX_COMMAND_BYTES=32768
 MAX_RECEIPTS=8192
 OWNER_SLOW_SECONDS=1.0
 OWNER_OPERATION_LIMIT=8
+MAINTENANCE_PERMIT_SECONDS=.100
+
+
+class _MaintenanceBoundary:
+    """One FIFO scheduling ticket; it contains no native callback or Needs."""
+    def __init__(self,owner,sequence,requested,deadline):
+        self.owner=owner;self.requested_sequence=sequence;self.requested_at=requested
+        self.deadline=deadline;self.ready=concurrent.futures.Future()
+        self.state='PENDING';self.permit_deadline=None;self.command_future=None
+
 
 
 def owner_operation(fn):
@@ -85,30 +96,46 @@ class PriorityOwner:
         self.admission_notify=None
         self._checkpoint_epoch=0; self._checkpoint_busy=False
         self._checkpoint_handoff=None
+        self._maintenance_ticket=None
         self.thread=threading.Thread(target=self._run,args=(factory,),name='solana-evidence-owner',daemon=True)
         self.thread.start()
 
-    def submit(self, fn, *, priority=1, expires=None, admit_before=None):
+    def submit(self, fn, *, priority=1, expires=None, admit_before=None,_maintenance_ticket=None):
         future=concurrent.futures.Future()
         with self.cv:
             if self.closed: raise EvidenceUnavailable('evidence_owner_unavailable')
+            ticket=self._maintenance_ticket
+            spending=_maintenance_ticket is not None
+            if spending and (ticket is not _maintenance_ticket or ticket.state!='OPEN'
+                    or priority!=4 or self._checkpoint_busy or self._checkpoint_handoff is not None
+                    or self._urgent_queued):
+                raise EvidenceUnavailable('maintenance_boundary_unavailable')
+            if priority<2 and ticket is not None and ticket.state=='OPEN':
+                self._release_maintenance_locked(ticket,'urgent_invalidated')
             limit=self.capacity if priority==0 else self.capacity-self.reserved
-            if len(self.queue)>=limit:
+            reserved=int(ticket is not None and ticket.state=='OPEN' and not spending)
+            if len(self.queue)+reserved>=limit:
                 self.metrics['rejected']=self.metrics.get('rejected',0)+1
                 raise EvidenceUnavailable('evidence_control_overloaded')
             accepted_at=self.clock()
+            if spending and accepted_at>=ticket.permit_deadline:
+                self._release_maintenance_locked(ticket,'expired')
+                raise EvidenceUnavailable('maintenance_boundary_expired')
             if admit_before is not None:
                 if accepted_at>=admit_before:
                     raise EvidenceUnavailable('evidence_admission_offer_expired')
                 # Close the scheduling-snapshot race with a new urgent/older
                 # admission. Ordinary submissions retain their existing path.
-                if self.queue or self._checkpoint_busy or self._checkpoint_handoff is not None:
+                if not spending and (self.queue or self._checkpoint_busy or self._checkpoint_handoff is not None):
                     raise EvidenceUnavailable('evidence_admission_offer_unavailable')
             self.sequence+=1
             future.owner_sequence=self.sequence
             future.owner_accepted_at=accepted_at
             self.enqueued[self.sequence]=accepted_at
             heapq.heappush(self.queue,(priority,self.sequence,expires,fn,future))
+            if spending:
+                ticket.state='ACCEPTED';ticket.command_future=future
+                self.metrics['maintenance_boundary.accepted']=self.metrics.get('maintenance_boundary.accepted',0)+1
             if priority<2:self._urgent_queued+=1
             self.cv.notify()
             self.metrics['queue_peak']=max(self.metrics.get('queue_peak',0),len(self.queue))
@@ -116,6 +143,108 @@ class PriorityOwner:
         # It has no power to reorder, cancel or choose admitted work.
         if self.admission_notify is not None:self.admission_notify()
         return future
+
+    def request_maintenance_boundary(self,*,deadline):
+        """Reserve one normal FIFO position, without accepting a native turn."""
+        with self.cv:
+            now=self.clock()
+            if self.closed:raise EvidenceUnavailable('evidence_owner_unavailable')
+            if (type(deadline) not in (int,float) or not math.isfinite(deadline)
+                    or not now<deadline<2**63):raise EvidenceUnavailable('maintenance_boundary_deadline')
+            if self._maintenance_ticket is not None:
+                raise EvidenceUnavailable('maintenance_boundary_outstanding')
+            if len(self.queue)>=self.capacity-self.reserved:
+                self.metrics['rejected']=self.metrics.get('rejected',0)+1
+                raise EvidenceUnavailable('evidence_control_overloaded')
+            self.sequence+=1
+            ticket=_MaintenanceBoundary(self,self.sequence,now,deadline)
+            self._maintenance_ticket=ticket;self.enqueued[self.sequence]=now
+            heapq.heappush(self.queue,(4,self.sequence,None,ticket,ticket.ready))
+            self.metrics['maintenance_boundary.requested']=self.metrics.get('maintenance_boundary.requested',0)+1
+            self.metrics['queue_peak']=max(self.metrics.get('queue_peak',0),len(self.queue))
+            self.cv.notify_all()
+            return ticket
+
+    def _release_maintenance_locked(self,ticket,outcome):
+        if ticket is not self._maintenance_ticket:return
+        if ticket.state=='PENDING':
+            self.queue=[row for row in self.queue if row[3] is not ticket]
+            heapq.heapify(self.queue);self.enqueued.pop(ticket.requested_sequence,None)
+        ticket.state='RELEASED';self._maintenance_ticket=None
+        self.metrics['maintenance_boundary.'+outcome]=self.metrics.get('maintenance_boundary.'+outcome,0)+1
+        if not ticket.ready.done():
+            try:ticket.ready.set_exception(EvidenceUnavailable('maintenance_boundary_'+outcome))
+            except concurrent.futures.InvalidStateError:
+                # A notification waiter may cancel concurrently without taking
+                # owner.cv. Only that terminal cancellation is harmless.
+                if not ticket.ready.cancelled():raise
+        self.cv.notify_all()
+
+    def cancel_maintenance_boundary(self,ticket):
+        """Abandon only an unspent scheduling ticket, never accepted native work."""
+        with self.cv:
+            if ticket is not self._maintenance_ticket:return False
+            if ticket.state=='ACCEPTED':return False
+            self._release_maintenance_locked(ticket,'cancelled');return True
+
+    def submit_maintenance(self,fn,ticket):
+        with self.cv:
+            if (ticket is not self._maintenance_ticket or ticket.state!='OPEN'
+                    or not callable(fn)):raise EvidenceUnavailable('maintenance_boundary_unavailable')
+            return self.submit(fn,priority=4,admit_before=ticket.permit_deadline,
+                _maintenance_ticket=ticket)
+
+    def _next_work(self):
+        """Older FIFO work, one reserved boundary, and unchanged urgent priority."""
+        with self.cv:
+            while True:
+                ticket=self._maintenance_ticket
+                if ticket is not None and ticket.state=='OPEN':
+                    if self.closed or self._urgent_queued or self.clock()>=ticket.permit_deadline:
+                        self._release_maintenance_locked(ticket,
+                            'closed' if self.closed else 'urgent_invalidated' if self._urgent_queued else 'expired')
+                        continue
+                    self.cv.wait(timeout=max(.001,ticket.permit_deadline-self.clock()))
+                    continue
+                self.cv.wait_for(lambda:(self.queue or self.closed) and self._checkpoint_handoff is None)
+                if not self.queue and self.closed:return None
+                ticket=self._maintenance_ticket
+                # The real native command consumes the already reserved FIFO
+                # slot. It keeps its genuine later acceptance/sequence clock.
+                reserved=(ticket is not None and ticket.state=='ACCEPTED' and self.queue[0][0]>=2)
+                if reserved:
+                    index=next((i for i,row in enumerate(self.queue) if row[4] is ticket.command_future),None)
+                    if index is None:raise EvidenceUnavailable('maintenance_boundary_command_missing')
+                    item=self.queue[index];self.queue[index]=self.queue[-1];self.queue.pop();heapq.heapify(self.queue)
+                elif self.queue[0][0]>=2:
+                    _,index=min((row[1],i) for i,row in enumerate(self.queue))
+                    item=self.queue[index];self.queue[index]=self.queue[-1];self.queue.pop();heapq.heapify(self.queue)
+                    self.metrics['nonurgent_fifo_selections']=self.metrics.get('nonurgent_fifo_selections',0)+1
+                    if self.clock()-self.enqueued[item[1]]>=1.0:
+                        self.metrics['aged_selections']=self.metrics.get('aged_selections',0)+1
+                else:item=heapq.heappop(self.queue)
+                if ticket is not None and item[3] is ticket:
+                    self.enqueued.pop(ticket.requested_sequence)
+                    # A scheduling operation invalidates older checkpoint
+                    # tickets just as every other serialized operation does.
+                    self._checkpoint_epoch+=1
+                    if (self.closed or self.clock()>=ticket.deadline):
+                        self._release_maintenance_locked(ticket,'closed' if self.closed else 'expired')
+                        continue
+                    # Future.cancel() does not take owner.cv. Claim this
+                    # notification atomically before exposing an OPEN permit.
+                    if not ticket.ready.set_running_or_notify_cancel():
+                        self._release_maintenance_locked(ticket,'cancelled')
+                        continue
+                    now=self.clock();ticket.permit_deadline=min(ticket.deadline,now+MAINTENANCE_PERMIT_SECONDS)
+                    ticket.state='OPEN'
+                    wait=int(max(0,now-ticket.requested_at)*1_000_000)
+                    self.metrics['maintenance_boundary.granted']=self.metrics.get('maintenance_boundary.granted',0)+1
+                    self.metrics['maintenance_boundary.wait_total_us']=self.metrics.get('maintenance_boundary.wait_total_us',0)+wait
+                    self.metrics['maintenance_boundary.wait_peak_us']=max(self.metrics.get('maintenance_boundary.wait_peak_us',0),wait)
+                    ticket.ready.set_result(ticket);self.cv.notify_all();continue
+                self._checkpoint_busy=True
+                return item
 
     def _run(self,factory):
         with self.cv:
@@ -126,25 +255,15 @@ class PriorityOwner:
             self.ready.set_exception(exc); self.closed=True; return
         try:
             while True:
+                item=self._next_work()
+                if item is None:break
                 with self.cv:
-                    self.cv.wait_for(lambda:(self.queue or self.closed) and self._checkpoint_handoff is None)
-                    if not self.queue and self.closed: break
                     # Exit/reservation and foreground work retain strict priority.
                     # Source commits and bounded background slices share FIFO
                     # admission order. A one-second aging rescue still made each
                     # completed archive wait behind newer source commits, idling
                     # its worker and accumulating hot history (Run 381). Neither
                     # source nor maintenance may repeatedly overtake the other.
-                    eligible=[]
-                    if self.queue[0][0]>=2:
-                        eligible=[(row[1],i) for i,row in enumerate(self.queue)]
-                    if eligible:
-                        _,index=min(eligible);item=self.queue[index]
-                        self.metrics['nonurgent_fifo_selections']=self.metrics.get('nonurgent_fifo_selections',0)+1
-                        if self.clock()-self.enqueued[item[1]]>=1.0:
-                            self.metrics['aged_selections']=self.metrics.get('aged_selections',0)+1
-                        self.queue[index]=self.queue[-1];self.queue.pop();heapq.heapify(self.queue)
-                    else:item=heapq.heappop(self.queue)
                     priority,sequence,expires,fn,future=item
                     if priority<2:self._urgent_queued-=1
                     queued=self.clock()-self.enqueued.pop(sequence)
@@ -216,6 +335,9 @@ class PriorityOwner:
                                 outcome=outcome))
                         self.active_operation=None
                         self._checkpoint_epoch+=1; self._checkpoint_busy=False
+                        ticket=self._maintenance_ticket
+                        if ticket is not None and ticket.command_future is future:
+                            self._release_maintenance_locked(ticket,'completed')
                         if interrupted:self.metrics['background_yields']=self.metrics.get('background_yields',0)+1
                         self.metrics[prefix+'.execution_peak_us']=max(self.metrics.get(prefix+'.execution_peak_us',0),elapsed)
                         self.metrics[prefix+'.execution_total_us']=self.metrics.get(prefix+'.execution_total_us',0)+elapsed
@@ -225,7 +347,7 @@ class PriorityOwner:
     def checkpoint_ticket(self):
         """Conservative owner-generation fence, never database authority."""
         with self.cv:
-            if self.closed or self.queue or self._checkpoint_busy:return None
+            if self.closed or self.queue or self._checkpoint_busy or self._maintenance_ticket is not None:return None
             return self._checkpoint_epoch
 
     def checkpoint_ticket_after_current(self):
@@ -255,7 +377,8 @@ class PriorityOwner:
         if threading.get_ident()!=self.thread.ident:
             raise EvidenceUnavailable('checkpoint_handoff_owner_thread')
         with self.cv:
-            if self.closed or not self._checkpoint_busy or self._checkpoint_handoff is not None:
+            if (self.closed or not self._checkpoint_busy or self._checkpoint_handoff is not None
+                    or self._maintenance_ticket is not None and self._maintenance_ticket.state in ('OPEN','ACCEPTED')):
                 raise EvidenceUnavailable('checkpoint_handoff_unavailable')
             token=object();self._checkpoint_handoff=token
             self._checkpoint_handoff_started=self.clock()
@@ -281,7 +404,11 @@ class PriorityOwner:
                 recent_slow_operations=[dict(row) for row in self.recent_slow_operations])
 
     def close(self):
-        with self.cv: self.closed=True; self.cv.notify_all()
+        with self.cv:
+            self.closed=True
+            ticket=self._maintenance_ticket
+            if ticket is not None and ticket.state!='ACCEPTED':self._release_maintenance_locked(ticket,'closed')
+            self.cv.notify_all()
         self.thread.join(timeout=5)
         if self.thread.is_alive(): raise EvidenceUnavailable('evidence_owner_shutdown_timeout')
 

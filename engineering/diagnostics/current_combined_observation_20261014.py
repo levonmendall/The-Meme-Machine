@@ -593,10 +593,17 @@ def required_counters(health, *, now_monotonic=None):
     owner = health.get('owner_scheduler', {})
     owner_pattern = re.compile(r'(?:owner_pid|native_thread_id|queued|queue_peak|rejected|admission_waited|aged_selections|'
         r'nonurgent_fifo_selections|background_yields|checkpoint_handoffs|checkpoint_handoff_(?:total|peak)_us|'
+        r'maintenance_boundary\.(?:requested|granted|accepted|completed|expired|cancelled|closed|urgent_invalidated|wait_total_us|wait_peak_us)|'
         r'priority[0-6]\.(?:completed|(?:queue|execution)_(?:total|peak)_us))')
     owner_counters = {key: value for key, value in owner.items()
         if isinstance(key, str) and owner_pattern.fullmatch(key) and finite_number(value)
         } if isinstance(owner, dict) else {}
+    admission=owner.get('owner_admission',{}) if isinstance(owner,dict) else {}
+    admission=admission.get('counters',{}) if isinstance(admission,dict) else {}
+    for key in ('boundary_deadline_exhausted','expired_before_native','boundary_refused',
+                'cooperative_yield','native_or_admission_failed','native_entered','native_completed','native_failed'):
+        value=admission.get(key) if isinstance(admission,dict) else None
+        if finite_number(value):owner_counters['maintenance_admission.'+key]=value
     def operation(row):
         if not isinstance(row,dict):return UNAVAILABLE
         stage=row.get('stage');component=row.get('component');module=row.get('origin_module')

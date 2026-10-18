@@ -953,7 +953,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
     config=AlchemyEndpoint.parse(endpoint)
     import logging
     logger=logging.Logger('alchemy_evidence_transport');logger.addHandler(logging.NullHandler());logger.propagate=False
-    owner=PriorityOwner(lambda:ServiceState(path,config))
+    owner=PriorityOwner(lambda:ServiceState(path,config),clock=time.monotonic)
     pending_commands=PendingCommands(owner)
     await asyncio.wrap_future(owner.ready)
     decoder_pool=ProcessPoolExecutor(max_workers=STREAM_DECODE_WORKERS,mp_context=multiprocessing.get_context('spawn'))
@@ -972,7 +972,7 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
         # Owner completion updates and event-loop snapshots share its existing
         # lock. Other counter keys remain event-loop-owned and never await here.
         with owner.cv:return dict(counts)
-    async def work(fn,priority=1,*,label=None,component=None,accepted=None,admit_before=None):
+    async def work(fn,priority=1,*,label=None,component=None,accepted=None,admit_before=None,maintenance_ticket=None):
         if label not in (None,'source_commit','candidate_development','archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish','maintenance_decision','history_dispatch','history_apply','candidate_delivery_capture','candidate_delivery_ack'):
             raise EvidenceUnavailable('owner_stage_identity')
         if component not in (None,'control','candidate','scout','history_publication','delivery_accounting'):
@@ -1011,7 +1011,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
         # owner can admit it. Rejection happens before mutation; a retry submits
         # the same command once, preserving its immutable evidence/deadline.
         # Admission offers retain their separate expiry/recheck semantics.
-        future=await admit(owner,timed,**submit_options)
+        future=(owner.submit_maintenance(timed,maintenance_ticket) if maintenance_ticket is not None
+                else await admit(owner,timed,**submit_options))
         if accepted is not None:accepted(future)
         wrapped=asyncio.wrap_future(future)
         try:value,_,_=await asyncio.shield(wrapped)
@@ -1121,8 +1122,16 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
             while not stop.is_set():
                 offer=await admission.before_maintenance()
                 if stop.is_set():break
-                submitted=time.monotonic()
+                ticket=None
                 try:
+                    deadline=runtime.admission_deadline()
+                    if offer is not None:deadline=min(deadline,offer.row['deadline'])
+                    ticket=await admission.boundary(deadline,stop)
+                    if ticket is None or stop.is_set():break
+                    # Only now does the real native command exist. Its truthful
+                    # acceptance clock follows all older FIFO work; waiting for
+                    # a scheduling marker is never a renewed command lease.
+                    submitted=time.monotonic()
                     def turn(state):
                         # Refuse an expired queued command before native arbitration.
                         # FIFO, debt deadlines and the owner lease stay unchanged.
@@ -1140,7 +1149,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
                             return result
                     result=await work(turn,4,label='maintenance_decision',
                         accepted=lambda future:admission.accepted(future,offer),
-                        admit_before=offer.row['deadline'] if offer is not None else None)
+                        admit_before=offer.row['deadline'] if offer is not None else None,
+                        maintenance_ticket=ticket)
                     admission.publish(runtime.generation,result)
                     if result.get('cold_recovery_required'):
                         await recover(work,decoder_pool,path,stop,wall=runtime.wall,
@@ -1164,7 +1174,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
                         continue
                 except EvidenceUnavailable as exc:
                     admission.refused(offer,exc)
-                    if str(exc) in ('evidence_admission_offer_expired','evidence_admission_offer_unavailable','evidence_command_expired'):
+                    if str(exc) in ('evidence_admission_offer_expired','evidence_admission_offer_unavailable','evidence_command_expired',
+                            'maintenance_boundary_expired','maintenance_boundary_unavailable','maintenance_boundary_urgent_invalidated'):
                         await asyncio.sleep(0)
                         continue
                     if str(exc)!='evidence_background_yield':
@@ -1177,6 +1188,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
                 except BaseException as exc:
                     admission.refused(offer,exc);admission.failed=True;admission.recheck()
                     raise
+                finally:
+                    if ticket is not None:owner.cancel_maintenance_boundary(ticket)
                 await admission.idle(stop,flight.future)
 
         async def checkpoint():

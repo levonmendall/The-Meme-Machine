@@ -64,6 +64,7 @@ class MaintenanceRuntime:
         self.failure = None
         self.last_observation = None
         self.last_progress = {}
+        self._next_admission = None
         self.observation_total = 0.0
         self.execution_total = 0.0
         self.epoch = now
@@ -265,6 +266,25 @@ class MaintenanceRuntime:
             progress[scope]=dr if scope in record_required else du
         return progress,records
 
+    def _admission_bound(self, observation):
+        """Bound only the next observation opportunity, never native service.
+
+        The last actual owner observation starts a fixed transport window (30s
+        under the original leases). Its bound survives unspent permit retries.
+        It grants no debt/progress/cohort claim: the newly accepted real turn
+        must freshly enforce every earlier safety, recovery and drought cutoff.
+        No aggregate progress count is treated as proof a cohort was cleared.
+        """
+        self._next_admission=(observation.monotonic+
+            min(2*self.leases.pair,self.leases.drought))
+
+    def admission_deadline(self):
+        deadline=self._next_admission
+        if (self.failure or self.state.fence.session!=self.generation or
+                type(deadline) not in (int,float) or not math.isfinite(deadline)):
+            raise EvidenceUnavailable('maintenance_admission_bound_unavailable')
+        return deadline
+
     def _cooperative(self, exc):
         # The owner flag records a prior interrupt, not the cause of every later
         # SQLite error. Require the actual interrupt result as well.
@@ -443,6 +463,7 @@ class MaintenanceRuntime:
         self.cold_progress_before={}
         for need in needs:
             if not need.units:self.arbiter.origin.pop((need.side,need.scope),None)
+        self._admission_bound(observation)
         # The next ordinary turn owns admission of remaining young work. Do
         # not reserve a decision here and strand it without its native execution.
 
@@ -477,6 +498,7 @@ class MaintenanceRuntime:
                     raise EvidenceUnavailable('maintenance_archive_worker_lease_exceeded')
             with self.execution_lease(start+self.leases.execution):
                 observation=self.adapter.observe(self.generation)
+                self._admission_bound(observation)
                 self.observation_total += observation.elapsed
                 previous=self.last_observation
                 self.last_observation=observation

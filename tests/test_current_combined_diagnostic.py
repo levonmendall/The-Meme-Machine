@@ -523,6 +523,13 @@ class DiagnosticCollectionTests(unittest.TestCase):
         owner = {f'unrelated_{i}': i for i in range(160)}
         owner.update(owner_admission={'generation': 'gen-1'}, queued=4)
         owner['priority5.queue_total_us'] = 8901
+        appointment={f'maintenance_boundary.{key}':index+1 for index,key in enumerate((
+            'requested','granted','accepted','completed','expired','cancelled','closed',
+            'urgent_invalidated','wait_total_us','wait_peak_us'))}
+        owner.update(appointment)
+        owner['maintenance_boundary.private_identity']='secret.invalid'
+        owner['owner_admission']['counters']=dict(native_entered=12,expired_before_native=3,
+            boundary_deadline_exhausted=1,private_identity='secret.invalid')
         with sqlite3.connect(self.path) as db:
             db.execute("UPDATE service_health SET value=? WHERE key='ipc'", (json.dumps(ipc),))
             db.execute("UPDATE service_health SET value=? WHERE key='owner_scheduler'", (json.dumps(owner),))
@@ -550,6 +557,10 @@ class DiagnosticCollectionTests(unittest.TestCase):
         self.assertNotIn('retention_phase.plan.secret',retained['storage_stages'])
         self.assertEqual(retained['owner_scheduler']['priority5.queue_total_us'], 8901)
         self.assertEqual(retained['owner_scheduler']['queued'], 4)
+        self.assertEqual({key:retained['owner_scheduler'][key] for key in appointment},appointment)
+        self.assertEqual(retained['owner_scheduler']['maintenance_admission.expired_before_native'],3)
+        self.assertEqual(retained['owner_scheduler']['maintenance_admission.native_entered'],12)
+        self.assertEqual(retained['owner_scheduler']['maintenance_admission.boundary_deadline_exhausted'],1)
         self.assertNotIn('secret.invalid', output.read_text())
         self.assertNotIn('arbitrary-address-key', retained['ipc_pipeline'])
 

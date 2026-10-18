@@ -207,6 +207,60 @@ class OwnerAdmission:
             await offer.released.wait()
         return None
 
+    async def boundary(self, deadline, stop):
+        """Wait for one real FIFO boundary, without accepting a native turn."""
+        ticket=None;returned=False;wrapped=None;refusals=0
+        try:
+            while not stop.is_set():
+                if self.clock()>=deadline:
+                    self.counters['boundary_deadline_exhausted']+=1
+                    raise EvidenceUnavailable('maintenance_boundary_deadline')
+                try:ticket=self.owner.request_maintenance_boundary(deadline=deadline)
+                except EvidenceUnavailable as exc:
+                    if str(exc)=='maintenance_boundary_outstanding':
+                        # A real Future becomes terminal before the owner's
+                        # original finally releases its slot. Wait for exactly
+                        # our completed predecessor; never replace its owner.
+                        with self.owner.cv:
+                            prior=self.owner._maintenance_ticket
+                            finishing=(self.maintenance_future is not None
+                                and self.maintenance_future.done() and
+                                (prior is None or prior.state=='ACCEPTED'
+                                    and prior.command_future is self.maintenance_future))
+                        if not finishing:raise
+                    elif str(exc)!='evidence_control_overloaded':raise
+                    refusals+=1
+                    # Match the existing bounded producer backpressure instead
+                    # of spinning while the same full owner queue drains.
+                    pause=min(.2,.01*2**min(refusals-1,5),max(0,deadline-self.clock()))
+                    try:await asyncio.wait_for(stop.wait(),pause)
+                    except TimeoutError:pass
+                    continue
+                wrapped=asyncio.wrap_future(ticket.ready)
+                stopped=asyncio.create_task(stop.wait())
+                try:
+                    done,_=await asyncio.wait((wrapped,stopped),
+                        timeout=max(0,deadline-self.clock()),return_when=asyncio.FIRST_COMPLETED)
+                    if stop.is_set():return None
+                    if wrapped not in done:
+                        self.counters['boundary_deadline_exhausted']+=1
+                        raise EvidenceUnavailable('maintenance_boundary_deadline')
+                    wrapped.result()
+                finally:
+                    stopped.cancel()
+                    await asyncio.gather(stopped,return_exceptions=True)
+                if stop.is_set():return None
+                returned=True
+                return ticket
+            return None
+        finally:
+            if ticket is not None and not returned:
+                self.owner.cancel_maintenance_boundary(ticket)
+                # Never cancel an accepted concurrent future through its asyncio
+                # wrapper. Consume the eventual owned marker outcome instead.
+                if wrapped is not None:
+                    wrapped.add_done_callback(lambda f:f.exception() if not f.cancelled() else None)
+
     def accepted(self, future, offer=None):
         self.maintenance_future = future
         if offer is None:
@@ -224,11 +278,18 @@ class OwnerAdmission:
         self._finish(offer, 'accepted')
 
     def refused(self, offer, error):
+        reason=str(error)
+        key=('expired_before_native' if reason=='evidence_command_expired' else
+             'boundary_refused' if reason in ('maintenance_boundary_expired',
+                 'maintenance_boundary_unavailable','maintenance_boundary_urgent_invalidated') else
+             'cooperative_yield' if reason=='evidence_background_yield' else 'native_or_admission_failed')
+        self.counters[key]+=1
         if offer is not None:
             offer.row['admission_error'] = str(error)[:120]
             self._finish(offer, 'timeout' if str(error) == 'evidence_admission_offer_expired' else 'refused')
 
     def entry(self, offer):
+        self.counters['native_entered']+=1
         if offer is not None:
             at = self.clock()
             offer.row['owner_entry']=at
@@ -236,6 +297,7 @@ class OwnerAdmission:
                 offer.row['owner_queue_wait']=at-offer.row['owner_acceptance']
 
     def completed(self, offer, *, result=None, error=None, event=None):
+        self.counters['native_completed' if error is None else 'native_failed']+=1
         if offer is not None:
             offer.row.update(completion=self.clock(), maintenance_result=(
                 str(error)[:120] if error is not None else
