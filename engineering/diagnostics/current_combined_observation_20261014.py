@@ -62,7 +62,7 @@ def operation_costs(row, expected_pid=None):
     Completed operation totals overlap parents. SQL is nested, selected-factory
     attribution, not every SQLite connection or a GIL/lock-holder verdict.
     """
-    from meme_machine.runtime.operation_costs import NAMES, SQL_BUCKETS, _FIELDS, _SQL_FIELDS
+    from meme_machine.runtime.operation_costs import NAMES, SQL_BUCKETS, _FIELDS, _SQL_FIELDS, RESTORE_COUNT_NAMES
     if not isinstance(row, dict) or row.get('enabled') is not True:
         return dict(available=False, reason='OPERATION_COSTS_UNAVAILABLE')
     if type(row.get('pid')) is not int or expected_pid is not None and row['pid'] != expected_pid:
@@ -95,6 +95,20 @@ def operation_costs(row, expected_pid=None):
     for key in ('pid', 'collected_monotonic', 'collected_wall', 'recording_lost_calls', 'active_overflow_calls'):
         result[key] = row.get(key) if finite_number(row.get(key)) else UNAVAILABLE
     result['recorder_valid'] = row.get('recorder_valid') if type(row.get('recorder_valid')) is bool else UNAVAILABLE
+    counts = row.get('restore_reference_counts')
+    result.update(restore_reference_counts=UNAVAILABLE, restore_reference_count_status=UNAVAILABLE,
+        restore_reference_count_fields=list(RESTORE_COUNT_NAMES),
+        restore_reference_count_scope='PAGE_TOTALS_FIRST_FALLBACK_REASON_PER_REFERENCE')
+    if type(counts) is dict and not counts:
+        result.update(restore_reference_counts={}, restore_reference_count_status='UNEXERCISED')
+    elif (type(counts) is dict and len(counts) == len(RESTORE_COUNT_NAMES)
+            and set(counts) == set(RESTORE_COUNT_NAMES)
+            and all(type(value) is int and 0 <= value < 2**63 for value in counts.values())
+            and 0 < counts['pages_started'] <= counts['references']
+            and counts['pages_completed'] <= counts['pages_started']
+            and counts['scalar_source_reads'] <= counts['references']
+            and sum(value for name, value in counts.items() if name.startswith('fallback_')) <= counts['references']):
+        result.update(restore_reference_counts=dict(counts), restore_reference_count_status='OBSERVED')
     return result
 
 

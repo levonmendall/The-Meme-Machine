@@ -156,3 +156,29 @@ The actual I/O counterfactual is the independently recorded pinned-3.45 query an
 complete acquisition A/B above; structural query assertions alone are not a disk
 performance proof. No complete release suite, production state, provider, AWS
 workflow or kernel profile was exercised by this component.
+
+## Retained count projection follow-up
+
+The existing combined diagnostic uses an explicit allowlist projection and would
+otherwise drop the new map. Its `operation_costs` projection now retains exactly
+the 20 compiled counter names, with integral values in `[0, 2**63)`. It checks
+started/completed/reference/scalar counts and the first-fallback total for internal
+consistency. It publishes compiled field order and scope, never supplied strings.
+Exact complete valid population is `OBSERVED`; an intentional empty map is
+`UNEXERCISED`; absent, foreign, malformed or inconsistent population is
+`UNAVAILABLE`, with no invented zeros. Existing recorder availability/coverage,
+PID validation, SQL arrays and all readiness/financial gates are unchanged.
+The raw observations can retain these counters after this follow-up. Protected
+administration reduction must explicitly project them before they appear in the
+public forensic summary; that separate integration is not part of this app edit.
+
+`pump-length-only-count-projection-focused.log` ran 89 cases in 0.182 seconds:
+86 passed, two existing environment skips and one unchanged nonroot access-order
+failure. The exact 780 test and byte-identical access module reproduce that failure
+in `pump-length-only-count-projection-baseline-access.log`, preserving
+`/tmp/mm-engineering-_rf0o1xi`. The original module failure is preserved at
+`/tmp/mm-engineering-swv_yso5`. A targeted command used an incorrect test class
+name (two loader errors, `/tmp/mm-engineering-xa4q75he`); the corrected original
+FAST command passed all four affected count/privacy/coverage/retention cases in
+`pump-length-only-count-projection-corrected-targeted.log`. No assertion or access
+guard was weakened to hide those environment or command-selection failures.
