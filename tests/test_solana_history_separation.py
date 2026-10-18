@@ -1,4 +1,5 @@
 """Retained economic fixtures; no provider traffic or installed epoch access."""
+from tests.test_future_pump_source_guard import future_pump_predecessor
 import asyncio
 import copy
 from dataclasses import replace
@@ -1115,7 +1116,7 @@ class HistoryCalculationTests(unittest.TestCase):
         relative='meme_machine/lanes/pump/pumpswap_survivor_runtime.py'
         root=Path(__file__).resolve().parents[1]
         previous=ast.parse(subprocess.check_output(['git','show','ea4f4f1bfb12ef0d3ce01d4df70a93f6d37e7605:'+relative],cwd=root))
-        source=(root/relative).read_bytes()
+        source=future_pump_predecessor(self,relative,(root/relative).read_bytes())
         # First verify the exact approved opportunity-access layer against the
         # combined manifest, then retain this original acquisition/economics
         # comparison on its operational predecessor. No runtime node is exempt.

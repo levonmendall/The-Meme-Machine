@@ -93,8 +93,14 @@ def configured(path=None):
         return _stores[path]
 
 class Reuse:
-    def __init__(self,endpoint,store,lane='unknown'):
-        self.domain=hashlib.sha256((str(CHAIN_ID)+':'+endpoint).encode()).hexdigest()
+    def __init__(self,endpoint,store,lane='unknown',*,endpoint_identity=None):
+        if endpoint_identity is not None:
+            import re
+            if endpoint is not None or type(endpoint_identity) is not str or not re.fullmatch(r'[0-9a-f]{64}',endpoint_identity):
+                raise ValueError('isolated_immutable_source_identity')
+            identity='isolated_source:'+endpoint_identity
+        else:identity=endpoint
+        self.domain=hashlib.sha256((str(CHAIN_ID)+':'+identity).encode()).hexdigest()
         self.store=store;self.lane=lane;self.counts=Counter();self.chain=None
     def key(self,method,params,pins=None,receipts=None):
         pins=pins or {};receipts=receipts or {}

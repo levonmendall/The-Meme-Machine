@@ -1,5 +1,6 @@
 """Real SQLite checkpoint progress after stale generations, with safe handoff."""
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from dataclasses import replace
 from pathlib import Path
@@ -150,6 +151,72 @@ class CheckpointHandoffTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(.02);self.assertFalse(later.done())
         finally:self.owner.release_checkpoint_handoff(token)
         self.assertTrue(await asyncio.wrap_future(later))
+
+    async def test_owned_checkpoint_lane_breaks_shared_pool_waiter_starvation(self):
+        # Reproduce the causal cycle, then use the same native handoff/SQL with
+        # an independently owned single worker. No deadline or owner priority
+        # changes, fabricated completion or cancellation of accepted I/O.
+        loop=asyncio.get_running_loop()
+        loop.set_default_executor(ThreadPoolExecutor(max_workers=1))
+        disk=ThreadPoolExecutor(max_workers=1,thread_name_prefix='checkpoint-test')
+        await self.work(lambda state:state.writer.ingest(self.rows(1)))
+        for executor in (None,disk):
+            occupied=threading.Event();release=threading.Event()
+            def blocking_waiter():
+                occupied.set()
+                if not release.wait(3):raise TimeoutError('offline waiter release')
+            blocker=loop.run_in_executor(None,blocking_waiter)
+            while not occupied.is_set():await asyncio.sleep(.001)
+            task=asyncio.create_task(reclaim_at_boundary(self.owner,self.path,executor=executor))
+            try:
+                if executor is None:
+                    async with asyncio.timeout(1):
+                        while self.owner._checkpoint_handoff is None:await asyncio.sleep(.001)
+                    later=self.owner.submit(lambda state:state.writer.ingest(self.rows(2)),priority=0)
+                    await asyncio.sleep(.03)
+                    self.assertFalse(task.done())
+                    self.assertFalse(later.done())
+                    # Original cancellation must still join queued disk I/O.
+                    task.cancel()
+                    release.set();await blocker
+                    with self.assertRaises(asyncio.CancelledError):await task
+                    await asyncio.wrap_future(later)
+                else:
+                    self.assertEqual(await asyncio.wait_for(asyncio.shield(task),1),(0,0,0))
+                    self.assertFalse(blocker.done())
+                    await self.work(lambda state:state.writer.ingest(self.rows(3)),priority=0)
+            finally:
+                release.set()
+                await blocker
+                if not task.done():
+                    task.cancel()
+                    await asyncio.gather(task,return_exceptions=True)
+        await asyncio.to_thread(disk.shutdown,wait=True)
+        self.assertEqual(await self.work(lambda state:state.writer.db.execute('SELECT COUNT(*) FROM records').fetchone()[0]),48)
+        self.assertEqual(await self.work(lambda state:state.writer.db.execute('PRAGMA integrity_check').fetchone()[0]),'ok')
+
+    async def test_owned_lane_cancellation_joins_original_io_before_mutation(self):
+        entered=threading.Event();release=threading.Event()
+        disk=ThreadPoolExecutor(max_workers=1,thread_name_prefix='checkpoint-test')
+        def delayed(path):
+            entered.set()
+            if not release.wait(3):raise TimeoutError('offline disk release')
+            return checkpoint_and_reclaim(path)
+        try:
+            with patch('meme_machine.solana_checkpoint.checkpoint_and_reclaim',side_effect=delayed):
+                task=asyncio.create_task(reclaim_at_boundary(self.owner,self.path,executor=disk))
+                await self.wait_event(entered)
+                task.cancel()
+                later=self.owner.submit(lambda state:state.writer.ingest(self.rows(1)),priority=0)
+                await asyncio.sleep(.02)
+                self.assertFalse(task.done());self.assertFalse(later.done())
+                release.set()
+                with self.assertRaises(asyncio.CancelledError):await task
+                await asyncio.wrap_future(later)
+        finally:
+            release.set()
+            await asyncio.to_thread(disk.shutdown,wait=True)
+        self.assertEqual(await self.work(lambda state:state.writer.db.execute('PRAGMA synchronous').fetchone()[0]),2)
 
 
 if __name__=='__main__':unittest.main()

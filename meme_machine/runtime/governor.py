@@ -170,7 +170,7 @@ class Governor:
             return min(60.0,15.0*(2**min(streak-1,2)))
         return min(30.0,8.0*(2**min(streak-1,2)))
 
-    def acquire(self,provider,lane,priority=50,*,deadline_seconds=30,methods=()):
+    def acquire(self,provider,lane,priority=50,*,deadline_seconds=30,methods=(),cancelled=None):
         from .operating_families import require_active,active_scope_sql
         require_active(lane)
         live=active_scope_sql('lane')
@@ -197,6 +197,9 @@ class Governor:
             db.execute('INSERT INTO queue(id,provider,lane,priority,created,deadline) VALUES(?,?,?,?,?,?)',(identity,provider,lane,priority,started,started+deadline_seconds))
             db.execute('COMMIT')
             while True:
+                if cancelled is not None and cancelled():
+                    reason='attempt_canceled'
+                    raise TimeoutError('operational_provider_attempt_canceled')
                 now=time.monotonic()
                 if now-started>deadline_seconds:raise TimeoutError('operational_provider_queue_deadline')
                 db.execute('BEGIN IMMEDIATE')

@@ -935,7 +935,48 @@ async def publish_operation_costs(path,owner,stop):
             if not failed:raise
 
 
-async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
+async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None,
+                native_resources=None,native_ports=None):
+    """Join every constructed owner even if startup or final health fails."""
+    import asyncio
+    workers={}
+    try:
+        return await _serve_owned(path,endpoint,repair_rpc=repair_rpc,stop=stop,
+            source_driver=source_driver,native_resources=native_resources,
+            native_ports=native_ports,_workers=workers)
+    finally:
+        failures=[]
+        # Source tasks/accepted delivery are drained by _serve_owned first.
+        # Every constructed resource is attempted even if another close fails.
+        for name in ('owner','delivery','history','decoder','checkpoint','spawn'):
+            worker=workers.get(name)
+            if worker is None:continue
+            metric_owner=(getattr(worker,'pool',None) if name=='history' else worker)
+            # The spawning thread owns Linux PDEATHSIG for every worker and
+            # tracker. Retain it if an earlier owner could not join; the fixed
+            # entry/outer process fence owns that incomplete-drain handoff.
+            if name=='spawn' and failures:continue
+            try:
+                if name in ('delivery','decoder','checkpoint'):
+                    await asyncio.to_thread(worker.shutdown,wait=True,cancel_futures=True)
+                else:await asyncio.to_thread(worker.close)
+                if native_resources is not None and name in ('decoder','history'):
+                    from .runtime.isolated_native_spawn import current_spawn_scope
+                    scope=current_spawn_scope()
+                    if scope is not None:
+                        read=getattr(metric_owner,'kernel_lifecycle_snapshot',None)
+                        scope.record_kernel_executor(name,read() if callable(read) else dict(state='UNAVAILABLE'))
+            except BaseException as exc:failures.append(exc)
+        commands=workers.get('commands')
+        if commands is not None and not failures:
+            ports,generation=commands
+            try:ports._source_commands_retire(generation)
+            except BaseException as exc:failures.append(exc)
+        if failures:raise failures[0]
+
+
+async def _serve_owned(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None,
+                native_resources=None,native_ports=None,_workers):
     """Model B startup, bounded socket handling and one canonical owner."""
     if source_driver is None:
         raise EvidenceUnavailable('legacy_startup_archived_model_b_driver_required')
@@ -950,18 +991,61 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
     from .solana_evidence_transport import Subscription
     from .solana_evidence_plane import EvidenceWriter
     from .solana_evidence_control import PriorityOwner,PendingCommands,MAX_COMMAND_BYTES,admit
-    config=AlchemyEndpoint.parse(endpoint)
+    initializer=None
+    if native_resources is not None:
+        from .runtime.isolated_native_bootstrap import require_runner_ports
+        from .runtime.isolated_native_execution import install_isolated_native_execution
+        require_runner_ports(native_resources,native_ports)
+        if (endpoint is not None or Path(path)!=native_resources.root/'solana-evidence.sqlite'
+                or getattr(source_driver,'native_resources',None) is not native_resources
+                or getattr(source_driver,'native_ports',None) is not native_ports
+                or getattr(repair_rpc,'_native_resources',None) is not native_resources
+                or getattr(repair_rpc,'_native_ports',None) is not native_ports):
+            raise ValueError('isolated_native_source_owner_required')
+        native_resources._unused_native_path('solana-evidence.sqlite')
+        config=repair_rpc.config
+        initializer=install_isolated_native_execution
+    elif native_ports is not None:
+        raise ValueError('isolated_native_resources_required')
+    else:config=AlchemyEndpoint.parse(endpoint)
     import logging
     logger=logging.Logger('alchemy_evidence_transport');logger.addHandler(logging.NullHandler());logger.propagate=False
-    owner=PriorityOwner(lambda:ServiceState(path,config))
+    def state_factory():
+        if native_resources is not None:
+            install_isolated_native_execution(native_resources)
+        return ServiceState(path,config)
+    owner=PriorityOwner(state_factory)
+    _workers['owner']=owner
     pending_commands=PendingCommands(owner)
     await asyncio.wrap_future(owner.ready)
-    decoder_pool=ProcessPoolExecutor(max_workers=STREAM_DECODE_WORKERS,mp_context=multiprocessing.get_context('spawn'))
+    if native_resources is not None:
+        from .runtime.isolated_native_spawn import current_spawn_scope
+        spawn_scope=current_spawn_scope()
+        if spawn_scope is not None:
+            _workers['spawn']=spawn_scope
+            spawn_scope.register_source(native_resources)
+        from .runtime.isolated_native_executor import IsolatedSpawnExecutor
+        decoder_pool=IsolatedSpawnExecutor(max_workers=STREAM_DECODE_WORKERS,
+            initializer=initializer,role='decoder')
+    else:
+        decoder_pool=ProcessPoolExecutor(max_workers=STREAM_DECODE_WORKERS,
+            mp_context=multiprocessing.get_context('spawn'))
+    _workers['decoder']=decoder_pool
     await asyncio.gather(*(asyncio.wrap_future(decoder_pool.submit(source_decoder_probe))
                            for _ in range(STREAM_DECODE_WORKERS)))
     from .solana_history_work import HistoryExecutor,enabled as separated_history
-    historical_executor=HistoryExecutor() if separated_history() else None
-    delivery_executor=ThreadPoolExecutor(max_workers=1,thread_name_prefix='candidate-history') if historical_executor is not None else None
+    historical_executor=((HistoryExecutor() if native_resources is None else
+        HistoryExecutor(native_resources=native_resources)) if separated_history() else None)
+    if historical_executor is not None:_workers['history']=historical_executor
+    checkpoint_executor=None
+    if native_resources is not None:
+        checkpoint_executor=ThreadPoolExecutor(max_workers=1,
+            thread_name_prefix='isolated-canonical-checkpoint',initializer=initializer)
+        _workers['checkpoint']=checkpoint_executor
+    delivery_options=dict(max_workers=1,thread_name_prefix='candidate-history')
+    if initializer is not None:delivery_options['initializer']=initializer
+    delivery_executor=ThreadPoolExecutor(**delivery_options) if historical_executor is not None else None
+    if delivery_executor is not None:_workers['delivery']=delivery_executor
     if historical_executor is not None:
         source_driver.historical_executor=historical_executor
         source_driver.delivery_executor=delivery_executor
@@ -1022,7 +1106,8 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
             wrapped.add_done_callback(lambda f:f.exception() if not f.cancelled() else None)
             raise
         return value
-    stop=stop or asyncio.Event();socket_path=str(path)+'.sock';Path(socket_path).unlink(missing_ok=True)
+    stop=stop or asyncio.Event();socket_path=str(path)+'.sock'
+    if native_resources is None:Path(socket_path).unlink(missing_ok=True)
     clients=set()
     from .solana_owner_admission import OwnerAdmission,SourceState
     admission=OwnerAdmission(owner,clock=time.monotonic)
@@ -1074,11 +1159,15 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
                 except (OSError,TimeoutError,RuntimeError):pass
                 clients.discard(task)
 
-    server=None;tasks=[]
+    server=None;command_generation=None;tasks=[]
     storage_ready=asyncio.Event()
     try:
-        server=await asyncio.start_unix_server(consumer,path=socket_path,limit=MAX_COMMAND_BYTES+1,backlog=32)
-        os.chmod(socket_path,0o600)
+        if native_resources is not None:
+            command_generation=native_ports._source_commands_start(consumer)
+            _workers['commands']=(native_ports,command_generation)
+        else:
+            server=await asyncio.start_unix_server(consumer,path=socket_path,limit=MAX_COMMAND_BYTES+1,backlog=32)
+            os.chmod(socket_path,0o600)
         async def health():
             # Health publication has its own single outstanding owner request.
             # Its scheduler wait must not idle a completed archive worker.
@@ -1186,7 +1275,11 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
             while not stop.is_set():
                 started=time.monotonic()
                 ticket=await work(lambda state:owner.checkpoint_ticket_after_current(),2,label='checkpoint_prepare')
-                pending=asyncio.create_task(asyncio.to_thread(EvidenceWriter.checkpoint,path))
+                if checkpoint_executor is None:
+                    pending=asyncio.create_task(asyncio.to_thread(EvidenceWriter.checkpoint,path))
+                else:
+                    from .solana_checkpoint import checkpoint_bulk
+                    pending=asyncio.create_task(checkpoint_bulk(path,executor=checkpoint_executor))
                 try:result=await asyncio.shield(pending)
                 except asyncio.CancelledError:
                     await pending
@@ -1226,7 +1319,10 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
                             # releases the boundary and preserves their snapshots.
                             from .solana_checkpoint import reclaim_at_boundary
                             boundary_started=time.monotonic()
-                            final=await reclaim_at_boundary(owner,path)
+                            if checkpoint_executor is None:
+                                final=await reclaim_at_boundary(owner,path)
+                            else:
+                                final=await reclaim_at_boundary(owner,path,executor=checkpoint_executor)
                             boundary_us=int((time.monotonic()-boundary_started)*1_000_000)
                             counts['checkpoint.boundary_calls']=counts.get('checkpoint.boundary_calls',0)+1
                             counts['checkpoint.boundary_total_microseconds']=counts.get('checkpoint.boundary_total_microseconds',0)+boundary_us
@@ -1294,27 +1390,37 @@ async def serve(path,endpoint,*,repair_rpc=None,stop=None,source_driver=None):
     finally:
         admission.close()
         owner.admission_notify=None
-        await work(lambda state:state.fence.health('phase','DRAINING'),0)
-        if server:server.close();await server.wait_closed()
+        cleanup_failures=[]
+        try:await work(lambda state:state.fence.health('phase','DRAINING'),0)
+        except BaseException as exc:cleanup_failures.append(exc)
+        try:
+            if server:server.close();await server.wait_closed()
+            if command_generation is not None:
+                await native_ports._source_commands_close(command_generation)
+        except BaseException as exc:cleanup_failures.append(exc)
         for task in tasks:task.cancel()
-        await asyncio.gather(*tasks,return_exceptions=True)
-        if clients:await asyncio.gather(*list(clients),return_exceptions=True)
-        # Persist the final bounded counters after producers stop; a short drain
-        # can otherwise finish between maintenance snapshots and hide pressure.
-        final_snapshot=counter_snapshot()
-        if source_driver is not None:
-            final_snapshot['pipeline']={k:dict(v) for k,v in getattr(source_driver,'pipeline_metrics',{}).items()}
-            final_snapshot['join_state']=source_join_snapshot(source_driver)
-            drain=getattr(source_driver,'drain_snapshot',None)
-            if callable(drain):final_snapshot['source_drain']=drain()
-            from .runtime.operation_costs import enabled as costs_enabled,snapshot as costs_snapshot
-            if costs_enabled():final_snapshot['operation_costs']=costs_snapshot()
-        await work(lambda state:state.fence.health('ipc',final_snapshot),0)
-        scheduler=owner.telemetry()
-        scheduler['owner_admission']=admission.telemetry()
-        await work(lambda state:state.fence.health('owner_scheduler',scheduler),0)
-        await asyncio.to_thread(owner.close)
-        if delivery_executor is not None:await asyncio.to_thread(delivery_executor.shutdown,wait=True,cancel_futures=True)
-        if historical_executor is not None:await asyncio.to_thread(historical_executor.close)
-        await asyncio.to_thread(decoder_pool.shutdown,wait=True,cancel_futures=True)
-        Path(socket_path).unlink(missing_ok=True)
+        try:await asyncio.gather(*tasks,return_exceptions=True)
+        except BaseException as exc:cleanup_failures.append(exc)
+        try:
+            if clients:await asyncio.gather(*list(clients),return_exceptions=True)
+        except BaseException as exc:cleanup_failures.append(exc)
+        # Final health is evidence, not permission to skip joining workers if
+        # storage has failed. The outer owner always closes every executor.
+        try:
+            final_snapshot=counter_snapshot()
+            if source_driver is not None:
+                final_snapshot['pipeline']={k:dict(v) for k,v in getattr(source_driver,'pipeline_metrics',{}).items()}
+                final_snapshot['join_state']=source_join_snapshot(source_driver)
+                drain=getattr(source_driver,'drain_snapshot',None)
+                if callable(drain):final_snapshot['source_drain']=drain()
+                from .runtime.operation_costs import enabled as costs_enabled,snapshot as costs_snapshot
+                if costs_enabled():final_snapshot['operation_costs']=costs_snapshot()
+            await work(lambda state:state.fence.health('ipc',final_snapshot),0)
+            scheduler=owner.telemetry()
+            scheduler['owner_admission']=admission.telemetry()
+            await work(lambda state:state.fence.health('owner_scheduler',scheduler),0)
+        except BaseException as exc:cleanup_failures.append(exc)
+        try:
+            if native_resources is None:Path(socket_path).unlink(missing_ok=True)
+        except BaseException as exc:cleanup_failures.append(exc)
+        if cleanup_failures:raise cleanup_failures[0]

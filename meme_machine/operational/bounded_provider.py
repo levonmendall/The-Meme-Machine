@@ -4,7 +4,8 @@ Reuses the previously validated physical/native transport boundaries and frozen
 read-only method prices. It does not run the technical proof, inject a restart,
 alter strategy work or assert measured billing. No network occurs on import.
 """
-from contextlib import closing
+from contextlib import closing,contextmanager
+from contextvars import ContextVar
 import json
 import os
 from pathlib import Path
@@ -503,11 +504,11 @@ class Budget:
             elif self.expired(state):
                 failure=failure or 'bounded_run_wall_limit'
             if kind=='open':
-                if transport not in ('yellowstone','solana_websocket'):failure=failure or 'native_transport_bound'
+                if transport not in ('yellowstone','solana_websocket','robinhood_sequencer'):failure=failure or 'native_transport_bound'
                 if self.expired(state):failure=failure or 'bounded_run_wall_limit'
                 # Existing SDK frames, charged/ready groups and one look-ahead
                 # frame. Never enlarge the installed physical capacity.
-                reserve=MAX_FRAME*(5 if transport=='solana_websocket' else 4)
+                reserve=MAX_FRAME*(5 if transport in ('solana_websocket','robinhood_sequencer') else 4)
                 total=sum(int(state[k]) for k in ('native_bytes','native_uncertain_bytes','native_reserved'))
                 if int(state['native_reserved'])+reserve>self.limits['native_inflight_bytes']:
                     failure=failure or 'native_inflight_limit'
@@ -699,6 +700,23 @@ class HTTPReceipt:
     def close(self):self.budget.http_event(self.token,close=True,uncertain=not self.eof)
 
 
+def http_body_state(raw,size,*,requested=None):
+    """Known Content-Length overrides short/empty-read EOF inference.
+
+    read1 may return short chunks while a body is still open. A buffered read
+    smaller than requested, or an empty read1, establishes transport EOF only
+    when no positive declared remainder contradicts it. Unframed/chunked reads
+    retain their original EOF rules; callers retain their own transport policy.
+    """
+    remaining=getattr(raw,'length',None)
+    ended=(size==0 and requested!=0) or requested is not None and size<requested
+    if remaining is not None:
+        if type(remaining) is not int or remaining<0:return 'INCOMPLETE'
+        if remaining==0:return 'COMPLETE'
+        return 'INCOMPLETE' if ended else 'OPEN'
+    return 'COMPLETE' if ended else 'OPEN'
+
+
 class DeliveredResponse:
     def __init__(self,raw,budget,router=None):self.raw=raw;self.budget=budget;self.router=router
     def __getattr__(self,name):return getattr(self.raw,name)
@@ -712,14 +730,61 @@ class DeliveredResponse:
         maximum=receipt.remaining if receipt else MAX_FRAME
         if maximum<=0:self.budget.fail('bounded_http_response_limit')
         requested=min(n,maximum) if n>=0 else maximum
+        if _head_read_bound.get() is not None:
+            return self._head_read(requested,maximum,receipt)
         data=self.raw.read(requested)
-        if receipt and len(data)<requested:receipt.eof=True
+        state=http_body_state(self.raw,len(data),requested=requested)
+        if receipt and state=='COMPLETE':receipt.eof=True
         try:self.budget.http_delivery(len(data))
         except CeilingReached as error:
             if self.router is None:raise
             self.router.advance(self.budget,error.reason)
         if receipt and len(data)>=maximum:self.budget.fail('bounded_http_response_limit')
+        if state=='INCOMPLETE':raise ValueError('bounded_http_incomplete_body')
         return data
+
+    def _head_read(self,requested,maximum,receipt):
+        # Buffered read(n), chunk parsing and an unknown wrapper can each hide
+        # repeated socket reads. Admit only the native fixed-length response,
+        # and check the absolute bound around every single buffered read1.
+        import http.client
+        import io
+        import socket
+        raw=self.raw
+        if (type(raw) is not http.client.HTTPResponse or raw.chunked
+                or type(raw.length) is not int or raw.length<0):
+            raise ValueError('bounded_head_response_transport')
+        if raw.length==0:
+            _head_remaining()
+            if receipt:receipt.eof=True
+            return b''
+        if type(raw.fp) is not io.BufferedReader or type(raw.fp.raw) is not socket.SocketIO:
+            raise ValueError('bounded_head_response_transport')
+        sock=raw.fp.raw._sock
+        if not callable(getattr(sock,'settimeout',None)) or not callable(getattr(sock,'gettimeout',None)):
+            raise ValueError('bounded_head_response_transport')
+        original_timeout=sock.gettimeout()
+        parts=[];size=0
+        while size<requested:
+            remaining=_head_remaining()
+            sock.settimeout(min(remaining,original_timeout) if original_timeout is not None else remaining)
+            data=raw.read1(min(65536,requested-size))
+            if type(data) is not bytes:raise ValueError('bounded_head_response_transport')
+            if data:
+                # Preserve actual delivered bytes even if cancellation/deadline
+                # is discovered immediately after this bounded read.
+                try:self.budget.http_delivery(len(data))
+                except CeilingReached as error:
+                    if self.router is None:raise
+                    self.router.advance(self.budget,error.reason)
+                size+=len(data);parts.append(data)
+            if receipt and raw.length==0:receipt.eof=True
+            if not data and raw.length>0:
+                raise ValueError('bounded_head_response_incomplete')
+            _head_remaining()
+            if not data or raw.length==0:break
+        if receipt and size>=maximum:self.budget.fail('bounded_http_response_limit')
+        return b''.join(parts)
 
 
 async def account_native(budget,transport,size):
@@ -893,6 +958,33 @@ class AccountedWebSocketContext(WebSocketContext):
             if reader is not None:reader.close();self.ledger_reader=None
 
 
+_head_read_bound=ContextVar('native_head_read_bound',default=None)
+
+
+@contextmanager
+def head_read_bound(deadline,cancelled):
+    """Only restrict an existing Budget transport; never add allowance."""
+    import math
+    if (type(deadline) not in (int,float) or not math.isfinite(deadline)
+            or not callable(cancelled)):
+        raise ValueError('bounded_head_read_contract')
+    prior=_head_read_bound.get()
+    effective=(deadline,cancelled) if prior is None else (
+        min(prior[0],deadline),lambda:prior[1]() or cancelled())
+    token=_head_read_bound.set(effective)
+    try:yield
+    finally:_head_read_bound.reset(token)
+
+
+def _head_remaining():
+    bound=_head_read_bound.get()
+    if bound is None:return None
+    if bound[1]():raise TimeoutError('bounded_head_read_cancelled')
+    remaining=bound[0]-time.monotonic()
+    if remaining<=0:raise TimeoutError('bounded_head_read_deadline')
+    return remaining
+
+
 def install():
     mode=os.environ.get('MM_PROVIDER_OPERATION_MODE','VALIDATION')
     if mode not in ('VALIDATION','CONTINUOUS'):raise ValueError('explicit_provider_operation_mode_required')
@@ -917,15 +1009,22 @@ def install():
         def redirect_request(self,*args,**kwargs):budget.fail('bounded_http_redirect')
     opener=build_opener(ProxyHandler({}),NoRedirect()).open
     def opened(request,*args,**kwargs):
+        _head_remaining()
         try:body=json.loads(request.data)
         except (ValueError,TypeError,AttributeError):budget.fail('bounded_non_rpc_http')
         charged=budget.reserve_http(request.full_url,body if isinstance(body,list) else [body])
         try:
             budget.admission()
-            response=opener(request,timeout=min(8,float(kwargs.get('timeout',8))))
+            remaining=_head_remaining()
+            timeout=min(8,float(kwargs.get('timeout',8)))
+            if remaining is not None:timeout=min(timeout,remaining)
+            response=opener(request,timeout=timeout)
         except BaseException:
             charged.close();raise
         return DeliveredResponse(response,charged,budget if isinstance(budget,PhaseBudget) else None)
+    # Read-only identity for diagnostic components that reuse this exact
+    # installed transport. It grants no allowance and creates no new Budget.
+    opened._mm_operational_budget=budget
     urllib.request.urlopen=opened;provider.urlopen=opened
     # The audited native wrappers are reused without proof scheduling hooks or
     # its forced disconnect: ready_at remains None for the operational run.

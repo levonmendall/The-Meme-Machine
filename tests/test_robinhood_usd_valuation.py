@@ -9,6 +9,7 @@ import tempfile
 import threading
 import unittest
 from unittest.mock import patch
+from tests.test_future_pump_source_guard import future_pump_predecessor
 from tests.test_pump_restore_source_guard import pump_restore_predecessor
 
 from meme_machine.lanes.ramses.abi import calldata
@@ -1916,7 +1917,7 @@ def rally_predecessor(test,relative,current,*,allow_previous_layers=False):
 
 def guarded_source(test,relative):
     """Apply the exact new layer, then let the original economic guards run."""
-    current=publication_accounting_predecessor(test,relative,pump_restore_predecessor(test,relative,(ROOT/relative).read_bytes()))
+    current=publication_accounting_predecessor(test,relative,pump_restore_predecessor(test,relative,future_pump_predecessor(test,relative,(ROOT/relative).read_bytes())))
     return rally_predecessor(test,relative,current)
 
 
@@ -2911,7 +2912,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         import hashlib
         for path in sorted(CROSS_CANDIDATE_COLD_PATHS):
             with self.subTest(path=path):
-                current=pump_restore_predecessor(self,path,(ROOT/path).read_bytes())
+                current=pump_restore_predecessor(self,path,future_pump_predecessor(self,path,(ROOT/path).read_bytes()))
                 old=subprocess.check_output(['git','show',CROSS_CANDIDATE_COLD_BASE+':'+path],cwd=ROOT)
                 self.assertNotEqual(current,old)
                 self.assertEqual(cross_candidate_cold_predecessor(self,path,current),old)
@@ -2987,7 +2988,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(SOURCE_RECORDER_PUBLICATION_DELTAS))
         for relative,(_,after,_,_,_) in SOURCE_RECORDER_PUBLICATION_DELTAS.items():
-            current=(ROOT/relative).read_bytes()
+            current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact recorder transport')
             prior=subprocess.check_output(['git','show',SOURCE_RECORDER_PUBLICATION_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(source_recorder_publication_predecessor(self,relative,current),prior)
@@ -3007,7 +3008,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         # Pin the one necessary old79 entry normalization independently. Every
         # original hash, lease assertion, mutation and relative ordering survives.
         relative='tests/test_robinhood_usd_valuation.py'
-        current=(ROOT/relative).read_bytes()
+        current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
         prior=subprocess.check_output(['git','show',SOURCE_RECORDER_PUBLICATION_REFERENCE+':'+relative],cwd=ROOT)
         def old_guard(body):
             parent=next(n for n in ast.parse(body).body if isinstance(n,ast.ClassDef) and n.name=='RobinhoodUSDTests')
@@ -3024,7 +3025,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_sleeve_empty_prefix_reverses_only_exact_optional_compaction_scheduling(self):
         import hashlib
-        relative=SLEEVE_EMPTY_PREFIX_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=SLEEVE_EMPTY_PREFIX_SOURCE;current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),SLEEVE_EMPTY_PREFIX_AFTER,
             relative+':active source must use the exact positive empty-prefix scheduling check')
         prior=subprocess.check_output(['git','show',SLEEVE_EMPTY_PREFIX_REFERENCE+':'+relative],cwd=ROOT)
@@ -3065,7 +3066,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_archive_log_order_reverses_only_exact_distinct_post_prefix_sequence_match(self):
         import hashlib
-        relative=ARCHIVE_LOG_ORDER_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=ARCHIVE_LOG_ORDER_SOURCE;current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),ARCHIVE_LOG_ORDER_AFTER,
             relative+':active source must use the exact retained-line order repair')
         self.assertEqual(ARCHIVE_LOG_ORDER_BEFORE,ARCHIVE_LOG_CONSISTENCY_AFTER,
@@ -3108,7 +3109,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_provider_budget_namespace_read_reverses_only_exact_phase_sql_pushdown(self):
         import hashlib
-        relative=PROVIDER_NAMESPACE_READ_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=PROVIDER_NAMESPACE_READ_SOURCE;current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),PROVIDER_NAMESPACE_READ_AFTER,
             relative+':active source must use the exact validated namespace SQL selection')
         prior=subprocess.check_output(['git','show',PROVIDER_NAMESPACE_READ_REFERENCE+':'+relative],cwd=ROOT)
@@ -3138,7 +3139,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_pump_cost_environment_reverses_only_exact_opt_in_lane_tuple(self):
         import hashlib
-        relative=PUMP_COST_ENVIRONMENT_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=PUMP_COST_ENVIRONMENT_SOURCE;current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),PUMP_COST_ENVIRONMENT_AFTER,
             relative+':active source must forward the exact existing opt-in flag to Pump')
         self.assertEqual(PUMP_COST_ENVIRONMENT_BEFORE,SOURCE_PARENT_DRAIN_AFTER,
@@ -3232,7 +3233,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(PUBLICATION_ACCOUNTING_DELTAS))
         for relative,(before,after,_) in PUBLICATION_ACCOUNTING_DELTAS.items():
-            current=cross_candidate_cold_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
+            current=cross_candidate_cold_predecessor(self,relative,pump_restore_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())))
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact integrated successor')
             prior=subprocess.check_output(['git','show',PUBLICATION_ACCOUNTING_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':immutable exact tested predecessor')
@@ -3275,7 +3276,7 @@ class RobinhoodUSDTests(unittest.TestCase):
                 with self.assertRaises(AssertionError):publication_accounting_predecessor(self,relative,changed)
 
     def test_buffered_origin_geometry_preserves_unique_full_obligation_and_original_authority(self):
-        relative=BUFFERED_PREJOIN_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=BUFFERED_PREJOIN_SOURCE;current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
         prior=subprocess.check_output(['git','show',BUFFERED_ORIGIN_REFERENCE+':'+relative],cwd=ROOT)
         self.assertEqual(buffered_origin_predecessor(self,relative,current),prior)
         self.assertEqual(buffered_origin_predecessor(self,relative,prior),prior)
@@ -3297,7 +3298,7 @@ class RobinhoodUSDTests(unittest.TestCase):
     def test_buffered_prejoin_replay_preserves_original_partition_and_full_ack_authority(self):
         import hashlib
         relative=BUFFERED_PREJOIN_SOURCE
-        current=buffered_origin_predecessor(self,relative,(ROOT/relative).read_bytes())
+        current=buffered_origin_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),BUFFERED_PREJOIN_AFTER,
             relative+':active exact committed buffered-observation recovery')
         self.assertEqual(BUFFERED_PREJOIN_BEFORE,PREPARATION_REPLAY_AFTER,
@@ -3407,7 +3408,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_retained_path_factoring_preserves_original_source_guards(self):
         import hashlib
-        relative=RETAINED_PATH_FACTOR_SOURCE;current=pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=RETAINED_PATH_FACTOR_SOURCE;current=pump_restore_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),RETAINED_PATH_FACTOR_AFTER)
         prior=subprocess.check_output(['git','show',RETAINED_PATH_FACTOR_REFERENCE+':'+relative],cwd=ROOT)
         self.assertEqual(retained_path_factoring_predecessor(self,relative,current),prior)
@@ -3432,7 +3433,7 @@ class RobinhoodUSDTests(unittest.TestCase):
     def test_pump_restore_archive_reuse_preserves_fresh_authority_and_cancellation(self):
         import hashlib
         relative=PUMP_RESTORE_ARCHIVE_REUSE_SOURCE
-        current=cross_candidate_cold_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
+        current=cross_candidate_cold_predecessor(self,relative,pump_restore_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())))
         self.assertEqual(hashlib.sha256(current).hexdigest(),PUMP_RESTORE_ARCHIVE_REUSE_AFTER,
             relative+':active exact operation-local startup archive reuse')
         self.assertEqual(PUMP_RESTORE_ARCHIVE_REUSE_BEFORE,CANONICAL_COLD_DELTAS[relative][1],
@@ -3497,7 +3498,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_preparation_replay_preserves_terminal_incident_and_original_full_ack_authority(self):
         import hashlib
-        relative=PREPARATION_REPLAY_SOURCE;current=buffered_prejoin_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=PREPARATION_REPLAY_SOURCE;current=buffered_prejoin_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),PREPARATION_REPLAY_AFTER,
             relative+':active exact preparation-failure replay-input proof')
         self.assertEqual(PREPARATION_REPLAY_BEFORE,PREJOIN_SOURCE_AFTER,
@@ -3577,7 +3578,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_source_parent_drain_preserves_exact_timeouts_identity_and_financial_guards(self):
         import hashlib
-        relative=SOURCE_PARENT_DRAIN_SOURCE;current=pump_cost_environment_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=SOURCE_PARENT_DRAIN_SOURCE;current=pump_cost_environment_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),SOURCE_PARENT_DRAIN_AFTER,
             relative+':active exact cooperative source-parent drain repair')
         self.assertEqual(SOURCE_PARENT_DRAIN_BEFORE,RESTORED_HISTORY_AFTER,
@@ -3689,7 +3690,7 @@ class RobinhoodUSDTests(unittest.TestCase):
                 (b'if item is None:',b'if False:')),
         }
         for relative,(before,after) in CANONICAL_COLD_DELTAS.items():
-            current=pump_restore_archive_reuse_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
+            current=pump_restore_archive_reuse_predecessor(self,relative,pump_restore_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())))
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,
                 relative+':active exact canonical cold-path repair')
             prior=subprocess.check_output(['git','show',CANONICAL_COLD_REFERENCE+':'+relative],cwd=ROOT)
@@ -3718,7 +3719,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_pump_restore_selection_reverses_only_three_fixed_index_declarations(self):
         import hashlib
-        relative=PUMP_RESTORE_SELECTION_SOURCE;current=canonical_cold_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
+        relative=PUMP_RESTORE_SELECTION_SOURCE;current=canonical_cold_predecessor(self,relative,pump_restore_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())))
         self.assertEqual(hashlib.sha256(current).hexdigest(),PUMP_RESTORE_SELECTION_AFTER,
             relative+':active exact restore-selection index repair')
         self.assertEqual(PUMP_RESTORE_SELECTION_BEFORE,RETAINED_CANONICAL_AFTER,
@@ -3760,7 +3761,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_prejoin_observation_preserves_exact_incident_gaps_and_full_ack_authority(self):
         import hashlib
-        relative=PREJOIN_SOURCE;current=preparation_replay_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=PREJOIN_SOURCE;current=preparation_replay_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),PREJOIN_SOURCE_AFTER,
             relative+':active exact prejoin-observation proof')
         prior=subprocess.check_output(['git','show',PREJOIN_SOURCE_REFERENCE+':'+relative],cwd=ROOT)
@@ -3864,7 +3865,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(MAINTENANCE_ENTRY_CLOCK_DELTAS))
         for relative,(_,after,_) in MAINTENANCE_ENTRY_CLOCK_DELTAS.items():
-            current=source_recorder_publication_predecessor(self,relative,(ROOT/relative).read_bytes())
+            current=source_recorder_publication_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes()))
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact maintenance clock repair')
             prior=subprocess.check_output(['git','show',MAINTENANCE_ENTRY_CLOCK_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(maintenance_entry_clock_predecessor(self,relative,current),prior)
@@ -3888,7 +3889,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_survivor_increment_continuity_reverses_only_exact_required_window_precheck(self):
         import hashlib,json
-        relative=SURVIVOR_INCREMENT_CONTINUITY_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=SURVIVOR_INCREMENT_CONTINUITY_SOURCE;current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),SURVIVOR_INCREMENT_CONTINUITY_AFTER,
             relative+':active exact Survivor required-window continuity repair')
         prior=subprocess.check_output(['git','show',SURVIVOR_INCREMENT_CONTINUITY_REFERENCE+':'+relative],cwd=ROOT)
@@ -3938,7 +3939,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_archive_log_consistency_reverses_only_exact_zero_match_rejection(self):
         import hashlib
-        relative=ARCHIVE_LOG_CONSISTENCY_SOURCE;current=archive_log_order_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=ARCHIVE_LOG_CONSISTENCY_SOURCE;current=archive_log_order_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),ARCHIVE_LOG_CONSISTENCY_AFTER,
             relative+':active exact complete-log-consistency repair')
         prior=subprocess.check_output(['git','show',ARCHIVE_LOG_CONSISTENCY_REFERENCE+':'+relative],cwd=ROOT)
@@ -3982,7 +3983,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_retained_archive_log_shape_reverses_only_exact_join_and_receipt_metadata(self):
         import hashlib
-        relative=RETAINED_ARCHIVE_LOG_SHAPE_SOURCE;current=archive_log_consistency_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=RETAINED_ARCHIVE_LOG_SHAPE_SOURCE;current=archive_log_consistency_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),RETAINED_ARCHIVE_LOG_SHAPE_AFTER,
             relative+':active exact retained-archive-log repair')
         prior=subprocess.check_output(['git','show',RETAINED_ARCHIVE_LOG_SHAPE_REFERENCE+':'+relative],cwd=ROOT)
@@ -4032,7 +4033,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_session_economic_recovery_preserves_original_incidents_and_exact_full_proofs(self):
         import hashlib
-        relative=SESSION_ECONOMIC_RECOVERY_SOURCE;current=prejoin_source_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=SESSION_ECONOMIC_RECOVERY_SOURCE;current=prejoin_source_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),SESSION_ECONOMIC_RECOVERY_AFTER,
             relative+':active exact independently bound session-recovery source')
         prior=subprocess.check_output(['git','show',SESSION_ECONOMIC_RECOVERY_REFERENCE+':'+relative],cwd=ROOT)
@@ -4104,7 +4105,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_frozen_paused_reader_preserves_original_financial_and_native_proof(self):
         import hashlib
-        relative=FROZEN_PAUSED_READER_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=FROZEN_PAUSED_READER_SOURCE;current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),FROZEN_PAUSED_READER_AFTER,
             relative+':active exact protected paused-reader proof')
         prior=subprocess.check_output(['git','show',FROZEN_PAUSED_READER_REFERENCE+':'+relative],cwd=ROOT)
@@ -4150,7 +4151,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_retained_canonical_reference_reverses_only_exact_reader_compatibility(self):
         import hashlib
-        relative=RETAINED_CANONICAL_SOURCE;current=pump_restore_selection_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
+        relative=RETAINED_CANONICAL_SOURCE;current=pump_restore_selection_predecessor(self,relative,pump_restore_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())))
         self.assertEqual(hashlib.sha256(current).hexdigest(),RETAINED_CANONICAL_AFTER,
             relative+':active exact retained canonical-reference reader')
         prior=subprocess.check_output(['git','show',RETAINED_CANONICAL_REFERENCE+':'+relative],cwd=ROOT)
@@ -4190,7 +4191,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_recovered_economic_boundary_preserves_failed_census_and_all_previous_guards(self):
         import hashlib
-        relative=RECOVERED_ECONOMIC_BOUNDARY_SOURCE;current=session_economic_recovery_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=RECOVERED_ECONOMIC_BOUNDARY_SOURCE;current=session_economic_recovery_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),RECOVERED_ECONOMIC_BOUNDARY_AFTER,
             relative+':active exact recovered-economic boundary source')
         prior=subprocess.check_output(['git','show',RECOVERED_ECONOMIC_BOUNDARY_REFERENCE+':'+relative],cwd=ROOT)
@@ -4250,7 +4251,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         self.assertEqual(set(mutations),set(ARCHIVE_COMPLETE_LOGS_DELTAS))
         for relative,(_,after,_,_,_) in ARCHIVE_COMPLETE_LOGS_DELTAS.items():
             current=retained_archive_log_shape_predecessor(self,relative,
-                publication_accounting_predecessor(self,relative,(ROOT/relative).read_bytes()))
+                publication_accounting_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())))
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact archive-log correction')
             prior=subprocess.check_output(['git','show',ARCHIVE_COMPLETE_LOGS_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(archive_complete_logs_predecessor(self,relative,current),prior)
@@ -4285,7 +4286,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(NATIVE_STARTUP_FAILURE_DELTAS))
         for relative,(_,after,_,_,_) in NATIVE_STARTUP_FAILURE_DELTAS.items():
-            current=(ROOT/relative).read_bytes()
+            current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact first-failure repair source')
             prior=subprocess.check_output(['git','show',NATIVE_STARTUP_FAILURE_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(native_startup_failure_predecessor(self,relative,current),prior)
@@ -4304,7 +4305,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_survivor_monitor_replay_delta_preserves_fresh_proof_and_exact_prior_economics(self):
         import hashlib
-        relative=SURVIVOR_MONITOR_REPLAY_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=SURVIVOR_MONITOR_REPLAY_SOURCE;current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),SURVIVOR_MONITOR_REPLAY_AFTER,
             relative+':active exact reviewed post-harvest replay source')
         prior=subprocess.check_output(['git','show',SURVIVOR_MONITOR_REPLAY_REFERENCE+':'+relative],cwd=ROOT)
@@ -4329,7 +4330,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_program_gap_boundary_reverses_exactly_without_weakening_recovery_or_funding(self):
         import hashlib
-        relative=PROGRAM_GAP_OBSERVATION_SOURCE;current=session_economic_recovery_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=PROGRAM_GAP_OBSERVATION_SOURCE;current=session_economic_recovery_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),PROGRAM_GAP_OBSERVATION_AFTER,
             relative+':active exact preserved-program-gap source')
         prior=subprocess.check_output(['git','show',PROGRAM_GAP_OBSERVATION_REFERENCE+':'+relative],cwd=ROOT)
@@ -4372,7 +4373,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         self.assertEqual(set(mutations),set(STARTUP_HISTORY_CANCEL_DELTAS))
         for relative,(_,after,_,_) in STARTUP_HISTORY_CANCEL_DELTAS.items():
             current=native_startup_failure_predecessor(self,relative,
-                publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes())))
+                publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes()))))
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact reviewed cancellation source')
             prior=subprocess.check_output(['git','show',STARTUP_HISTORY_CANCEL_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(startup_history_cancellation_predecessor(self,relative,current),prior)
@@ -4391,7 +4392,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_exact_restored_history_delta_preserves_original_supervisor_and_helper(self):
         relative='meme_machine/operational/supervisor.py'
-        current=(ROOT/relative).read_bytes()
+        current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
         prior=subprocess.check_output(['git','show',RESTORED_HISTORY_REFERENCE+':'+relative],cwd=ROOT)
         self.assertEqual(restored_provider_history_predecessor(self,relative,current),prior)
         self.assertEqual(opportunity_predecessor(self,relative,current),
@@ -4402,7 +4403,7 @@ class RobinhoodUSDTests(unittest.TestCase):
             self.assertNotEqual(changed,current)
             with self.assertRaises(AssertionError):restored_provider_history_predecessor(self,relative,changed)
             with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)
-        helper=(ROOT/RESTORED_HISTORY_HELPER).read_bytes()
+        helper=future_pump_predecessor(self,RESTORED_HISTORY_HELPER,(ROOT/RESTORED_HISTORY_HELPER).read_bytes())
         restored_provider_helper(self,helper)
         for changed in (helper+b'\n# unreviewed guard change\n',
                 helper.replace(b"supervisor.admission != 'OBSERVATION'",b'False',1)):
@@ -4414,7 +4415,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         manifest=rally_manifest(self)
         self.assertTrue(manifest['files'])
         for relative,record in manifest['files'].items():
-            source=publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
+            source=publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())))
             prior=subprocess.check_output(['git','show',RALLY_BASE+':'+relative],cwd=ROOT)
             self.assertNotEqual(source,prior,relative+':only actual reviewed deltas belong in this layer')
             self.assertEqual(rally_predecessor(self,relative,source),prior)
@@ -4427,7 +4428,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         manifest=rally_manifest(self)
         self.assertTrue(manifest['added_sources'])
         for relative,record in manifest['added_sources'].items():
-            source=(ROOT/relative).read_bytes()
+            source=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
             self.assertEqual(hashlib.sha256(source).hexdigest(),record['sha256'],relative)
             self.assertNotEqual(subprocess.run(['git','cat-file','-e',RALLY_BASE+':'+relative],cwd=ROOT,
                 stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=False).returncode,0,
@@ -5157,7 +5158,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         # PR #129 finalization names e1070404 as the implementation predecessor;
         # later reviewed transport/storage repairs are no longer USD changes.
         assert_holding_delta(self,'tests/test_operational_nine.py',
-            baseline('tests/test_operational_nine.py'),(ROOT/'tests/test_operational_nine.py').read_bytes())
+            baseline('tests/test_operational_nine.py'),future_pump_predecessor(self,'tests/test_operational_nine.py',(ROOT/'tests/test_operational_nine.py').read_bytes()))
         economic_reference='b1f215edd3dc079b623401c7e09e9c91a380e6a0'
         for rel in ('meme_machine/lanes/pump/pump_acceleration_strategy.py',
                     'meme_machine/lanes/pump/pumpswap_survivor.py',

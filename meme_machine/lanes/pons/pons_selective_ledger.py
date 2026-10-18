@@ -25,7 +25,9 @@ JOURNAL_CATEGORY="pons_selective_paper_journal"
 
 class SelectivePaper:
     def __init__(self, store, experiment, capital, *, delay=2, natural_policy_hash=None,
-                 on_commit=None, clock_ns=time.time_ns):
+                 on_commit=None, clock_ns=time.time_ns, native_resources=None):
+        from meme_machine.runtime.isolated_native_execution import reject_financial_construction
+        reject_financial_construction(native_resources)
         if not str(experiment).startswith(STRATEGY_NAMESPACE):
             raise BoundaryError("pons_selective_experiment_namespace")
         if capital <= 0 or delay < 1:

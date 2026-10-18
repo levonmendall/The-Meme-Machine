@@ -397,6 +397,8 @@ class RuntimeCapital(PumpPonsCapital):
 class SharedNativePortfolio:
     shared=True
     def __init__(self,database,lane):
+        from meme_machine.runtime.isolated_native_execution import reject_financial_construction
+        reject_financial_construction()
         if lane not in ('pump','pons'):raise CapitalError('paused_family_capital_admission:'+lane)
         self.database=Path(database);self.lane=lane
         path=selected(database)

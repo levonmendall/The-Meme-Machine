@@ -3,6 +3,7 @@
 The real policies, provider allowances and supervisor deadlines are immutable.
 No HTTP client, historical download, trading service or real PAPER epoch is used.
 """
+from tests.test_future_pump_source_guard import future_pump_predecessor
 from copy import deepcopy
 from decimal import Decimal
 import json
@@ -61,7 +62,7 @@ class ResearchModelTests(unittest.TestCase):
             original=subprocess.check_output(['git','show',PRIMARY_COMMIT+':'+relative],cwd=ROOT)
             # Exact approved v1 changes are independent of this research model;
             # its original no-policy/service/allowance-change proof still holds.
-            current=opportunity_predecessor(self,relative,(ROOT/relative).read_bytes())
+            current=opportunity_predecessor(self,relative,future_pump_predecessor(self,relative,(ROOT/relative).read_bytes()))
             self.assertEqual(current,original,relative)
         model = build()
         self.assertEqual(model['baseline']['current_bridge_seconds'], 129600)

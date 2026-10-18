@@ -231,7 +231,9 @@ class NativeBoundary:
         self.prepared.append((native,event))
 
 
-def attach(book,lane):
+def attach(book,lane,*,native_resources=None):
+    from meme_machine.runtime.isolated_native_execution import reject_financial_construction
+    reject_financial_construction(native_resources)
     database = os.environ.get("MM_PORTFOLIO_ACCOUNTING_DB")
     if not database:return None
     from meme_machine.runtime.usd_valuation import NativeValueReader,native_reader

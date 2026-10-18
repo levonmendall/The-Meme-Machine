@@ -1,4 +1,5 @@
 """Owner-approved count-veto removal and durable worker-pressure disposition."""
+from tests.test_future_pump_source_guard import future_pump_predecessor
 import ast
 from copy import deepcopy
 import os
@@ -32,7 +33,7 @@ class OwnerAdmissionTests(unittest.TestCase):
         path='meme_machine/lanes/pons/pons_postgrad_survivor.py'
         old=subprocess.check_output(['git','show','cbfcb4137f10474ffc7fe0e19f0b8772f25c1563:'+path],text=True)
         from tests.test_robinhood_usd_valuation import assert_holding_delta,opportunity_predecessor
-        current=Path(path).read_bytes()
+        current=future_pump_predecessor(self,path,Path(path).read_bytes())
         # Verify the entire exact approved package before excluding the already
         # reviewed admission helper from the original economic comparison.
         prior=opportunity_predecessor(self,path,current)
