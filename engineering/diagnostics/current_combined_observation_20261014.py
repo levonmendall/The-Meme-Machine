@@ -53,8 +53,7 @@ NATIVE_OPERATIONS = frozenset('pump.' + name for name in (
     'startup_cleanup.pipeline_open', 'startup_cleanup.runtime_evidence_open',
     'startup_cleanup.evidence_broker_open', 'startup_cleanup.sessions_open',
     'startup_cleanup.survivor_worker_open')) | frozenset(('pons.shared_capital_restore','pons.cohort_recovery',
-    'pons.candidate_restore','pons.survivor_restore','pons.observation_start',
-    'pons.startup_warmup_checkpoint','pons.startup_discovery_checkpoint'))
+    'pons.candidate_restore'))
 
 
 def operation_costs(row, expected_pid=None):

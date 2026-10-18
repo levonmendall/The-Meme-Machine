@@ -445,7 +445,7 @@ class Worker:
             # initial read-only capital replay may observe startup cancellation;
             # ordinary protection/settlement steps keep their existing behavior.
             from meme_machine.runtime import status
-            with operation('pons.survivor_restore'), (status.operation('pons.survivor_restore') if pons else nullcontext()):
+            with operation('pons.survivor_restore'), (status.diagnostic_startup('pons.survivor_restore') if pons else nullcontext()):
                 with native_startup_replay(requested.is_set):self.service=self.factory()
         from meme_machine.operational.position_continuation import position_only
         maintenance=position_only();admit=admit and not maintenance

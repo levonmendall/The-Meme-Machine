@@ -1,6 +1,7 @@
 """Bounded startup observations remain independent of signal/query authority."""
 from contextlib import ExitStack
 from copy import deepcopy
+import ast
 import json,os,select,signal,subprocess,sys,tempfile,threading,time,unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -48,6 +49,7 @@ class StalledStartupStackTests(unittest.TestCase):
     def setUp(self):
         self.stack=ExitStack();self.addCleanup(self.stack.close)
         self.stack.enter_context(patch.dict(os.environ,dict(MM_OPERATION_COST_DIAGNOSTICS='1',MM_LANE_PROCESS_INSTANCE='a'*32),clear=True))
+        self.stack.enter_context(patch.object(status,'_startup_stages',[]))
 
     def row(self):
         return dict(version=1,state='CAPTURED',scope=status.STARTUP_STACK_SCOPE,at=1000.,monotonic=106.,pid=11,
@@ -88,6 +90,68 @@ class StalledStartupStackTests(unittest.TestCase):
                 self.assertGreater(row['process_start_ticks'],0);self.assertTrue(row['trigger_active_bracket'])
         self.assertIsNone(status.stalled_startup_stack());self.assertEqual(stop.requested.is_set(),before)
 
+    def test_all_seven_stages_keep_original_native_and_replay_contracts(self):
+        from meme_machine.shared_capital import runtime
+        public=status.STARTUP_STACK_OPERATIONS-status.STARTUP_DIAGNOSTIC_OPERATIONS
+        self.assertEqual(public,{'pons.shared_capital_restore','pons.cohort_recovery','pons.candidate_restore'})
+        before=stop.requested.is_set();replay=runtime._STARTUP_REPLAY_CANCEL.get()
+        for name in sorted(status.STARTUP_STACK_OPERATIONS):
+            with self.subTest(name=name):
+                with status.operation(name):
+                    self.assertEqual('native_operation' in status.snapshot(),name in public)
+                recent=list(status._completed)
+                with status.diagnostic_startup(name),patch.object(status,'STARTUP_STACK_MIN_SECONDS',0):
+                    self.assertNotIn('native_operation',status.snapshot())
+                    self.assertIs(runtime._STARTUP_REPLAY_CANCEL.get(),replay)
+                    row=status.stalled_startup_stack()
+                    if name in public:self.assertIsNone(row)
+                    else:self.assertEqual(row['trigger_operation'],name)
+                    self.assertEqual(list(status._completed),recent)
+                    observed=diagnostic.native_lifecycle(dict(pons=dict(native_operation=dict(
+                        operation=name,state='ACTIVE',pid=os.getpid(),native_thread_id=os.getpid(),
+                        at=1.,monotonic=1.))))['pons']['native_operation']
+                    self.assertEqual(observed!='UNAVAILABLE',name in public)
+                self.assertFalse(status._startup_stages)
+                self.assertIsNone(status.stalled_startup_stack())
+        self.assertEqual(stop.requested.is_set(),before)
+
+    def test_private_stage_optin_bound_failures_and_cleanup_never_change_native_state(self):
+        from meme_machine.shared_capital import runtime
+        recent=list(status._completed);replay=runtime._STARTUP_REPLAY_CANCEL.get()
+        with patch.dict(os.environ,MM_OPERATION_COST_DIAGNOSTICS='0'),status.diagnostic_startup('pons.observation_start'):
+            self.assertFalse(status._startup_stages)
+        with status.diagnostic_startup('pons.unreviewed'):self.assertFalse(status._startup_stages)
+        self.assertTrue(status.lock.acquire(False))
+        try:
+            with status.diagnostic_startup('pons.observation_start'):self.assertFalse(status._startup_stages)
+        finally:status.lock.release()
+        with ExitStack() as nested:
+            for _ in range(status.STARTUP_DIAGNOSTIC_LIMIT+3):nested.enter_context(status.diagnostic_startup('pons.observation_start'))
+            self.assertEqual(len(status._startup_stages),status.STARTUP_DIAGNOSTIC_LIMIT)
+            self.assertNotIn('native_operation',status.snapshot())
+        self.assertFalse(status._startup_stages)
+        original=RuntimeError('PRIVATE_NOT_PUBLISHED')
+        with self.assertRaises(RuntimeError) as caught:
+            with status.diagnostic_startup('pons.startup_warmup_checkpoint'):raise original
+        self.assertIs(caught.exception,original);self.assertFalse(status._startup_stages)
+        with self.assertRaises(stop.Shutdown):
+            with status.diagnostic_startup('pons.startup_discovery_checkpoint'):raise stop.Shutdown()
+        self.assertFalse(status._startup_stages);self.assertEqual(list(status._completed),recent)
+        self.assertIs(runtime._STARTUP_REPLAY_CANCEL.get(),replay)
+
+    def test_actual_new_wrapper_census_uses_only_private_stage_scope(self):
+        expected={
+            'meme_machine/lanes/pons/pons_selective_cohort.py':{
+                'pons.observation_start','pons.startup_warmup_checkpoint','pons.startup_discovery_checkpoint'},
+            'meme_machine/runtime/survivor_history.py':{'pons.survivor_restore'}}
+        for relative,names in expected.items():
+            calls=[node for node in ast.walk(ast.parse((ROOT/relative).read_bytes())) if isinstance(node,ast.Call)
+                and isinstance(node.func,ast.Attribute) and isinstance(node.func.value,ast.Name)
+                and node.func.value.id=='status' and node.args and isinstance(node.args[0],ast.Constant)
+                and node.args[0].value in status.STARTUP_DIAGNOSTIC_OPERATIONS]
+            self.assertEqual({node.args[0].value for node in calls},names)
+            self.assertTrue(all(node.func.attr=='diagnostic_startup' for node in calls))
+
     def test_probe_is_diagnostic_pons_only_and_has_fixed_frequency_and_stage_caps(self):
         publish=lane.NativeHealthPublisher('/disposable','pons');row=self.row()
         with patch.object(status,'stalled_startup_stack',return_value=row) as capture,patch.object(lane.time,'monotonic',return_value=100):
@@ -116,6 +180,13 @@ class StalledStartupStackTests(unittest.TestCase):
                 with status.lock:status._operations.clear()
                 return row
             with patch.object(status,'cancellation_stack',side_effect=completed):self.assertIsNone(status.stalled_startup_stack())
+        with status.diagnostic_startup('pons.observation_start'),patch.object(status,'STARTUP_STACK_MIN_SECONDS',0):
+            original=status.cancellation_stack
+            def private_completed(**kwargs):
+                row=original(**kwargs)
+                with status.lock:status._startup_stages.clear()
+                return row
+            with patch.object(status,'cancellation_stack',side_effect=private_completed):self.assertIsNone(status.stalled_startup_stack())
 
     def test_public_projection_refuses_bad_identity_stage_clock_frames_and_extra_payload(self):
         row=self.row();lane_row=dict(pid=11,process_instance='a'*32)
@@ -139,19 +210,26 @@ class StalledStartupStackTests(unittest.TestCase):
 
     def test_actual_survivor_factory_records_only_its_startup_scope(self):
         from meme_machine.runtime.survivor_history import Worker
-        observed=[]
+        from meme_machine.shared_capital import runtime
+        observed=[];steps=[]
         class Service:
-            def step(self,*,admit):return {}
+            def step(self,*,admit):
+                steps.append((list(status._startup_stages),runtime._STARTUP_REPLAY_CANCEL.get(),status.snapshot()))
+                return {}
             def close(self):pass
         def factory():
-            with status.lock:observed.extend(row['operation'] for row in status._operations)
+            with status.lock:observed.extend(row['operation'] for row in status._startup_stages)
+            self.assertNotIn('native_operation',status.snapshot())
+            self.assertTrue(callable(runtime._STARTUP_REPLAY_CANCEL.get()))
             return Service()
         with patch.dict(os.environ,dict(MM_RUNTIME_LANE='pons')):
             worker=Worker(factory,enrichment_enabled=False)
             try:worker.prime();worker.close()
             finally:worker.pool.shutdown(wait=True)
         self.assertIn('pons.survivor_restore',observed)
-        with status.lock:self.assertFalse(any(row['operation']=='pons.survivor_restore' for row in status._operations))
+        self.assertTrue(steps)
+        self.assertTrue(all(not rows and replay is None and 'native_operation' not in snapshot for rows,replay,snapshot in steps))
+        with status.lock:self.assertFalse(status._startup_stages)
 
     def test_real_child_native_sql_preserves_query_and_publishes_before_deferred_term(self):
         with tempfile.TemporaryDirectory() as directory:

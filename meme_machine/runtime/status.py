@@ -6,6 +6,7 @@ from contextlib import contextmanager
 lock=threading.Lock()
 state=dict(phase='RECONCILING',reconciled=False)
 _operations=[]
+_startup_stages=[]
 _completed=deque(maxlen=8)
 _signal=None
 
@@ -14,6 +15,9 @@ _signal=None
 STARTUP_STACK_OPERATIONS=frozenset(('pons.shared_capital_restore','pons.cohort_recovery',
     'pons.candidate_restore','pons.survivor_restore','pons.observation_start',
     'pons.startup_warmup_checkpoint','pons.startup_discovery_checkpoint'))
+STARTUP_DIAGNOSTIC_OPERATIONS=frozenset(('pons.survivor_restore','pons.observation_start',
+    'pons.startup_warmup_checkpoint','pons.startup_discovery_checkpoint'))
+STARTUP_DIAGNOSTIC_LIMIT=8
 STARTUP_STACK_MIN_SECONDS=5.
 STARTUP_STACK_INTERVAL_SECONDS=10.
 STARTUP_STACK_PER_STAGE=2
@@ -57,7 +61,7 @@ def stalled_startup_stack(*,excluded=()):
     if not lock.acquire(blocking=False):return None
     try:
         now=time.monotonic();pid=os.getpid();main=threading.main_thread()
-        choices=[row for row in _operations if row['operation'] in STARTUP_STACK_OPERATIONS
+        choices=[row for row in (*_operations,*_startup_stages) if row['operation'] in STARTUP_STACK_OPERATIONS
             and row['operation'] not in excluded and row['pid']==pid
             and now-row['monotonic']>=STARTUP_STACK_MIN_SECONDS]
         if not choices:return None
@@ -73,7 +77,7 @@ def stalled_startup_stack(*,excluded=()):
         if before!=after or before[0]!=before[1] or captured['pid']!=pid:return None
         if not lock.acquire(blocking=False):return None
         try:
-            if not any(row is trigger for row in _operations):return None
+            if not any(row is trigger for row in (*_operations,*_startup_stages)):return None
         finally:lock.release()
         age=captured['monotonic']-identity['monotonic']
         if age<STARTUP_STACK_MIN_SECONDS:return None
@@ -189,7 +193,7 @@ def cancellation_stack(*,allowed_frames=None):
 def operation(identity):
     """Fixed startup identifiers; descriptive facts never change readiness."""
     if (not isinstance(identity,str) or len(identity)>80 or
-            not (identity.startswith('pump.') or identity in STARTUP_STACK_OPERATIONS)):
+            not (identity.startswith('pump.') or identity in ('pons.shared_capital_restore','pons.cohort_recovery','pons.candidate_restore'))):
         yield;return
     try:
         row=dict(operation=identity,at=time.time(),monotonic=time.monotonic(),
@@ -215,6 +219,37 @@ def operation(identity):
                 if recorded:_operations.remove(row)
                 _completed.append(done)
         except Exception:pass
+
+
+@contextmanager
+def diagnostic_startup(identity):
+    """Private stalled-frame trigger, never native status or replay authority.
+
+    The original three restoration operations retain their original public
+    contract. Later startup/provider boundaries are observed only through this
+    bounded diagnostic registry, with no completed/native-operation publication.
+    """
+    recorded=None
+    if (isinstance(identity,str) and identity in STARTUP_DIAGNOSTIC_OPERATIONS
+            and os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1'):
+        try:
+            row=dict(operation=identity,at=time.time(),monotonic=time.monotonic(),
+                pid=os.getpid(),native_thread_id=threading.get_native_id(),state='ACTIVE')
+            if lock.acquire(blocking=False):
+                try:
+                    if len(_startup_stages)<STARTUP_DIAGNOSTIC_LIMIT:
+                        _startup_stages.append(row);recorded=row
+                finally:lock.release()
+        except Exception:pass
+    try:yield
+    finally:
+        if recorded is not None:
+            try:
+                with lock:
+                    for index,row in enumerate(_startup_stages):
+                        if row is recorded:
+                            del _startup_stages[index];break
+            except Exception:pass
 
 def update(phase,**fields):
     with lock:
