@@ -776,7 +776,8 @@ class Preparation:
                 for k in ('headers', 'receipts', 'txs'):
                     combined[k].update(s[k])
             tape = collect_v4_activity(None, pool_id=grad['transition']['market'], key=key,
-                token=token, start_block=row['block'] + 1, end_block=end, _shared=combined)
+                token=token, start_block=row['block'] + 1, end_block=end, _shared=combined,
+                economic_cohorts=getattr(runtime,'economic_cohorts',None))
             runtime._append_tape(row, end, header, tape)
             if end == number(p['target']):
                 self.history.finish_recovery(token, block=end, block_hash=header['hash'])
@@ -812,7 +813,8 @@ class Preparation:
                 shared = dict(combined,raw=[e for e in combined['raw']
                     if e['topics'][1] == markets[row['id']] and order(e)[0] > row['block']])
                 tape = collect_v4_activity(None,pool_id=markets[row['id']],key=PoolKey(**row['graduation']['key']),
-                    token=row['id'],start_block=row['block']+1,end_block=end,_shared=shared)
+                    token=row['id'],start_block=row['block']+1,end_block=end,_shared=shared,
+                    economic_cohorts=getattr(runtime,'economic_cohorts',None))
                 runtime._append_tape(row,end,header,tape)
                 if end == number(p['target']):
                     self.history.finish_recovery(row['id'],block=end,block_hash=header['hash'])

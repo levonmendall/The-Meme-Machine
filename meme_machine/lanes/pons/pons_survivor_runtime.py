@@ -142,7 +142,7 @@ class Runtime:
     observation_interval_seconds=3
 
     @survivor_constructor('pons')
-    def __init__(self,root,capital,run_id,endpoint,*,scout_path=None,native_resources=None,native_ports=None):
+    def __init__(self,root,capital,run_id,endpoint,*,scout_path=None,native_resources=None,native_ports=None,economic_cohorts=None):
         self.native_resources=None;self.native_ports=None
         if native_resources is not None:
             from meme_machine.runtime.isolated_native_bootstrap import validate_survivor_constructor
@@ -158,13 +158,18 @@ class Runtime:
         # transport retains the exact parent-issued reference in its own port.
         self.endpoint=(endpoint if self.native_resources is None else
             'alchemy:'+endpoint.endpoint_identity)
+        if economic_cohorts is not None:
+            from meme_machine.runtime.pons_economic_cohort import validated
+            economic_cohorts=validated(economic_cohorts,self.endpoint)
+        self.economic_cohorts=economic_cohorts
         if self.native_resources is None:
             self.sleeve=open_sleeve('pons',capital)
             if self.sleeve is None:raise BoundaryError('survivor_shared_sleeve_required')
-            self.history=PonsHistory(str(self.root/'history.sqlite'),policy=POLICY_HASH)
+            self.history=PonsHistory(str(self.root/'history.sqlite'),policy=POLICY_HASH,economic_cohorts=economic_cohorts)
         else:
             self.sleeve=open_sleeve('pons',None,native_resources=self.native_resources)
             self.history=self.native_resources.survivor_history('pons')
+            self.history.economic_cohorts=economic_cohorts
         from meme_machine.runtime.survivor_history import compact_restored_history
         compact_restored_history(self.history,lane='pons')
         if self.native_resources is None:
@@ -402,7 +407,8 @@ class Runtime:
             from meme_machine.runtime.journal import digest
             context.cache.begin_receipts('survivor',row['id'].lower(),digest([row['block'],row.get('block_hash')]))
         tape=collect_v4_activity(self.endpoint,pool_id=pool,key=key,token=row['id'],
-            start_block=start,end_block=end,max_events=256,acquisition_state=self.history,evidence_context=context)
+            start_block=start,end_block=end,max_events=256,acquisition_state=self.history,evidence_context=context,
+            economic_cohorts=getattr(self,'economic_cohorts',None))
         # The preceding boundary must still have the authenticated hash recorded
         # at the last watermark. A fork never becomes clean historical evidence.
         h,previous=self.rpc.batch([('eth_getBlockByNumber',[hex(b),False])
@@ -455,7 +461,10 @@ class Runtime:
             p=str(e['price_index']);old=points.get(e['event_at'])
             points[e['event_at']]=dict(price=p,low=str(min(int(p),int(old['low']))) if old else p,
                 high=str(max(int(p),int(old['high']))) if old else p)
-        self.history.append_block(row['id'],block=end,header=h,events=events,points=sorted(points.items()))
+        from meme_machine.runtime.pons_economic_cohort import survivor,survivor_publication
+        stage=survivor(getattr(self,'economic_cohorts',None),row,end,h,tape)
+        with survivor_publication(self.history,stage):
+            self.history.append_block(row['id'],block=end,header=h,events=events,points=sorted(points.items()))
 
     @evidence_work('deep_watch')
     def _increment_candidates(self,rows,top,*,held=False):
@@ -483,7 +492,8 @@ class Runtime:
                 digest([(r['id'],r['block'],r.get('block_hash')) for r in active]))
         elif hasattr(context.cache,'receipt_scope'):context.cache.receipt_scope=None
         tapes=collect_v4_activities(self.endpoint,markets=markets,start_block=start,end_block=end,
-            acquisition_state=self.history,evidence_context=context)
+            acquisition_state=self.history,evidence_context=context,
+            economic_cohorts=getattr(self,'economic_cohorts',None))
         blocks=sorted({end}|{r['block'] for r in active})
         values=[]
         for offset in range(0,len(blocks),50):

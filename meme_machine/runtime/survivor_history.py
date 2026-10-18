@@ -183,6 +183,7 @@ class History:
 
     def append(self,identity,*,through,events,points,complete,evidence_checkpoint=None):
         points=list(points)
+        economic_observer=getattr(self,'_economic_event_observer',None)
         with self.transaction():
             row=self.get(identity)
             if row is None or through<row['through']:raise ValueError('survivor_history_watermark')
@@ -200,6 +201,11 @@ class History:
                 if old is None:quality_events.append(event)
                 self.db.execute('INSERT OR IGNORE INTO events VALUES(?,?,?,?,?)',
                     (identity,event['id'],event['at'],canonical(event),digest(event)))
+                if economic_observer is not None:
+                    try:economic_observer(event['id'],old is None,event)
+                    except Exception:
+                        observer_owner=getattr(self,'economic_cohorts',None)
+                        if observer_owner is not None:observer_owner.unavailable()
             prefix=self.get_meta('archive_prefix:'+identity)
             for at,price in points:
                 if at>through:raise ValueError('survivor_future_price')

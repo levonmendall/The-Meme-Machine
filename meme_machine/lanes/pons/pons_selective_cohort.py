@@ -829,10 +829,10 @@ def _record_qualification(attempts,identity,generation,evaluation,category,*,at,
         decision=dict(evaluation['vector'],reentry_explanation=explanation))
 
 
-def run(endpoint,*,campaign=False,native_resources=None,native_ports=None):
+def run(endpoint,*,campaign=False,native_resources=None,native_ports=None,economic_cohorts=None):
     if native_resources is None:
         if native_ports is not None:raise ValueError('isolated_native_runner_ports_without_resources')
-        return _run(endpoint,campaign=campaign)
+        return _run(endpoint,campaign=campaign,economic_cohorts=economic_cohorts)
     from meme_machine.runtime.isolated_native_execution import isolated_native_execution
     from meme_machine.runtime.isolated_pons_current import PonsCurrentContext
     with isolated_native_execution(native_resources):
@@ -841,11 +841,11 @@ def run(endpoint,*,campaign=False,native_resources=None,native_ports=None):
             endpoint=endpoint)
         try:
             return _run(context.provenance,campaign=campaign,native_resources=native_resources,
-                native_ports=native_ports,native_context=context)
+                native_ports=native_ports,native_context=context,economic_cohorts=economic_cohorts)
         finally:context.close()
 
 
-def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,native_context=None):
+def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,native_context=None,economic_cohorts=None):
     if native_context is None and (native_resources is not None or native_ports is not None):
         raise ValueError('isolated_native_pons_current_context_required')
     if native_context is not None:
@@ -854,6 +854,9 @@ def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,nativ
             raise ValueError('isolated_native_pons_current_owner')
         native_context.require_nonfinancial()
     if type(campaign) is not bool:raise BoundaryError('selective_campaign_flag')
+    if economic_cohorts is not None:
+        from meme_machine.runtime.pons_economic_cohort import validated
+        economic_cohorts=validated(economic_cohorts,endpoint)
     ROOT.mkdir(parents=True,exist_ok=True)
     # Preserve existing evidence and lane capital on repeated invocation.
     occupied=list(ROOT.glob("trial-*.sqlite*"))
@@ -959,12 +962,12 @@ def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,nativ
         if native_context is None:
             run_id=os.environ['MM_PAPER_EPOCH']
             survivor=Worker(lambda:Runtime(ROOT/'pons-survivor',STRATEGY_CAPITAL_QUOTE,run_id,endpoint,
-                scout_path=plane_path(ROOT/'candidate-evidence.sqlite')))
+                scout_path=plane_path(ROOT/'candidate-evidence.sqlite'),economic_cohorts=economic_cohorts))
         else:
             run_id=native_resources.facts.value()['scope']
             survivor=Worker(lambda:Runtime(native_resources.root/'pons-survivor',None,run_id,
                 native_ports.rpc_port('pons','survivor').source,scout_path=Path(native_context.plane.path),
-                native_resources=native_resources,native_ports=native_ports),native_resources=native_resources)
+                native_resources=native_resources,native_ports=native_ports,economic_cohorts=economic_cohorts),native_resources=native_resources)
             native_context.startup_owned(survivor)
         result['active_regimes']=['pons-selective-continuation-v1','pons-postgrad-survivor-momentum-v1']
     feed=SequencerBlockClock() if native_context is None else native_context.feed
@@ -978,6 +981,7 @@ def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,nativ
             config=result['operational_configuration_hash'],startup_cancel=requested.is_set,
             **({} if native_context is None else {'plane':native_context.plane}))
     if native_context is not None:native_context.startup_owned(queue)
+    if economic_cohorts is not None:queue.plane.economic_cohorts=economic_cohorts
     if requested.is_set():raise Shutdown()
     scout=MarketScout(queue.plane) if campaign else None
     attempts=Attempts(queue.plane)

@@ -6,12 +6,13 @@ checkpoint belongs to the same transaction as the authenticated observations.
 """
 from meme_machine.runtime.survivor_history import History
 from meme_machine.runtime.journal import canonical, digest
-from contextlib import contextmanager
+from contextlib import contextmanager,nullcontext
 import json
 
 
 class PonsHistory(History):
-    def __init__(self, path, *, policy):
+    def __init__(self, path, *, policy, economic_cohorts=None):
+        self.economic_cohorts=economic_cohorts
         super().__init__(path, policy=policy, maximum_candidates=None)
         self.volume_quote_asset='ROBINHOOD_NATIVE'
         self.db.executescript('''
@@ -22,6 +23,15 @@ class PonsHistory(History):
 
     @contextmanager
     def transaction(self):
+        observer=nullcontext()
+        if getattr(self,'economic_cohorts',None) is not None:
+            from meme_machine.runtime.pons_economic_cohort import survivor_transaction
+            observer=survivor_transaction(self)
+        with observer:
+            with self._native_transaction():yield
+
+    @contextmanager
+    def _native_transaction(self):
         if not self.db.in_transaction:
             with super().transaction():yield
         else:

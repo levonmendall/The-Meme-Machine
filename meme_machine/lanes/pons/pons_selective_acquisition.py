@@ -1360,8 +1360,14 @@ def evaluate_candidate(
         ordering={f"{int(e['blockNumber'],16)}:{e['transactionHash']}:{int(e['logIndex'],16)}":
             [int(e[k],16) for k in ('blockNumber','transactionIndex','logIndex')] for e in covered}
         history=CurrentHistory(plane,endpoint)
+        measurement_stage=None
+        if getattr(plane,'economic_cohorts',None) is not None:
+            from meme_machine.runtime.pons_economic_cohort import current
+            measurement_stage=current(plane,candidate['curve'],candidate['header'],covered,market,
+                getattr(ctx,'window_coverage',None),time.time())
         history.remember(candidate['curve'],candidate['header'],
-            [dict(e,canonical_order=ordering[e['identity']]) for e in market],from_time=max(0,asof-60))
+            [dict(e,canonical_order=ordering[e['identity']]) for e in market],from_time=max(0,asof-60),
+            measurement_stage=measurement_stage)
     sessions.extend(market_sessions)
     ctx.timing["receipt_window_authentication_seconds"]=time.monotonic()-window_started
 
