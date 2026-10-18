@@ -2,6 +2,8 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+ 'tests.test_normal_pons_boot',
+ 'tests.test_normal_pons_owner_caller',
  'tests.test_normal_source_boot',
  'tests.test_normal_boot_context',
  'tests.test_operational_candidate_source_guard',

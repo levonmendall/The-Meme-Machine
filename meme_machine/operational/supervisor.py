@@ -358,8 +358,28 @@ class Supervisor:
         import uuid
         instance=uuid.uuid4().hex
         env=self.environment(lane);env['MM_LANE_PROCESS_INSTANCE']=instance
-        self.processes[lane]=subprocess.Popen(args,cwd=folder,env=env,start_new_session=True)
-        self.process_instances[lane]=instance
+        channel=None
+        try:
+            options=dict(cwd=folder,env=env,start_new_session=True)
+            if lane=='pons' and getattr(self,'normal_boot',None) is not None:
+                from .normal_pons_boot import PonsOwnerLaunch
+                deadline=time.monotonic()+15
+                channel=PonsOwnerLaunch(self.normal_boot)
+                options['pass_fds']=(channel.child_fd,)
+                args+=['--normal-owner-channel',str(channel.child_fd)]
+            self.processes[lane]=subprocess.Popen(args,**options)
+            self.process_instances[lane]=instance
+            if channel is not None:
+                try:self.pons_owner_generation=channel.bind(self.processes[lane],
+                    deadline=deadline,process_instance=instance)
+                except BaseException:
+                    # Retain the actual process/instance for the outer owner
+                    # even if its original cleanup also needs another attempt.
+                    try:self.stop_process(self.processes[lane])
+                    except BaseException:pass
+                    raise
+        finally:
+            if channel is not None:channel.close()
         if getattr(self,'shared_capital',None):
             for suffix in ('current','survivor'):
                 self.shared_capital.owner(lane+'_'+suffix,instance,self.processes[lane].pid,ready=False,at=int(time.time()))
