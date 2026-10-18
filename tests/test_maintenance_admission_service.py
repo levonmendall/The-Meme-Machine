@@ -21,6 +21,25 @@ from tests.maintenance_production_harness import rows,ingest,SCOPES
 
 
 class NativeObservationWindowTests(unittest.TestCase):
+    def test_fixed_appointment_failures_survive_original_privacy_redaction(self):
+        from meme_machine.runtime.evidence_worker import failure_diagnostic
+        reasons=('maintenance_admission_bound_unavailable','maintenance_boundary_deadline',
+            'maintenance_boundary_outstanding','maintenance_boundary_unavailable',
+            'maintenance_boundary_expired','maintenance_boundary_cancelled',
+            'maintenance_boundary_closed','maintenance_boundary_urgent_invalidated',
+            'maintenance_boundary_command_missing')
+        for reason in reasons:
+            with self.subTest(reason=reason):
+                self.assertEqual(failure_diagnostic(EvidenceUnavailable(reason)),
+                    'evidence_worker_failed:EvidenceUnavailable:'+reason)
+        private='https://private-canary.invalid/key?credential=do-not-publish'
+        for reason in ('maintenance_boundary_'+private,'maintenance_boundary_deadline '+private,
+                'maintenance_boundary_new_unknown'):
+            self.assertEqual(failure_diagnostic(EvidenceUnavailable(reason)),
+                'evidence_worker_failed:EvidenceUnavailable')
+        self.assertEqual(failure_diagnostic(ValueError(private)),
+            'evidence_worker_failed:ValueError')
+
     def test_transport_bound_is_absolute_sql_free_and_real_observations_refresh_it(self):
         with native_fixture.native_runtime() as (state,runtime,clock):
             flight=ArchiveFlight();runtime.turn(flight,0)

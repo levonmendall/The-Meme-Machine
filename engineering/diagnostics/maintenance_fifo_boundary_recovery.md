@@ -101,11 +101,16 @@ Validation receipts in `/workspace/recovery-evidence/`:
 | `maintenance-reservation-admission-collector-startup-cases.log` | 73 cases/7.487s, 1 existing archived-model skip |
 | `maintenance-reservation-real-serve.log` | 6 new native cases/0.611s, no skips |
 | `maintenance-permit-independent-final.log` | 16 independent ownership/race cases/0.327s, no skips |
+| `maintenance-permit-independent-finalizer.log` | 17 independent ownership/race cases/0.366s, no skips |
+| `maintenance-reservation-final-terminal.log` | 54 final ownership/native/privacy/original SQLite-error cases/2.501s, no skips |
 
-The final completed-predecessor cleanup retry has an additional deterministic
-helper regression; its separate receipt must accompany the frozen integration.
+The final completed-predecessor cleanup retry has a deterministic helper
+regression covering both completion interleavings in the17-case receipt.
 The earlier135-case bundle predates only that narrow retry branch; unchanged
 native execution, mutation and lease paths retain their recorded evidence.
+Nine explicit appointment failure literals are admitted by the original worker
+redactor. Unknown codes, messages with private suffixes and third-party error
+messages remain redacted; no wildcard or formatter behavior changes.
 
 This appointment cannot preempt an atomic callback, guarantee service under
 unbounded urgent work, or expand the original45/3/15second native budgets. An
