@@ -35,6 +35,7 @@ FAST=[
  'tests.test_archive_full_log_content',
  'tests.test_survivor_retained_gap',
  'tests.test_maintenance_owner_entry_clock',
+ 'tests.test_maintenance_permit_ownership',
  'tests.test_prejoin_observation_recovery',
  'tests.test_pump_restore_selection_index',
  'tests.test_canonical_cold_archive_cohort',
