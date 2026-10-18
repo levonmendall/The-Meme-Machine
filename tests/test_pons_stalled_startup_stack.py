@@ -2,7 +2,7 @@
 from contextlib import ExitStack
 from copy import deepcopy
 import ast
-import json,os,select,signal,subprocess,sys,tempfile,threading,time,unittest
+import json,os,select,signal,sqlite3,subprocess,sys,tempfile,threading,time,unittest
 from pathlib import Path
 from unittest.mock import patch
 from meme_machine.runtime import status,stop
@@ -19,7 +19,7 @@ network_guard()
 from meme_machine.runtime import status,stop
 from meme_machine.operational import lane
 from meme_machine.runtime.robinhood.plane import Plane
-root=Path(sys.argv[1]);seen=[False];progress=[0];result=[None];n=60000000
+root=Path(sys.argv[1]);seen=[False];progress=[0];result=[None];query_active=[False];n=60000000
 os.environ.update(MM_MODE='PAPER',MM_OPERATIONAL_PHASE='OFFLINE_TEST',MM_OPERATION_COST_DIAGNOSTICS='1',MM_LANE_PROCESS_INSTANCE='a'*32)
 def shutdown(signum,frame):status.cancellation_signal(signum);stop.requested.set()
 signal.signal(signal.SIGTERM,shutdown)
@@ -29,13 +29,20 @@ class NativeGate(sqlite3.Connection):
     def execute(self,sql,*args):
         if sql=='PRAGMA quick_check' and not seen[0]:
             seen[0]=True;print('SQL_ENTERED',flush=True)
-            result[0]=super().execute('WITH RECURSIVE x(n) AS (VALUES(0) UNION ALL SELECT n+1 FROM x WHERE n<'+str(n)+') SELECT sum(n) FROM x').fetchone()[0]
+            # The parent holds this disposable DB EXCLUSIVE until two genuine
+            # heartbeat publications while TERM is pending. SQLite itself
+            # blocks this unchanged query; no Python callback/handler defers it.
+            reader=connect(root/'startup-barrier.sqlite',timeout=20)
+            try:
+                query_active[0]=True
+                result[0]=reader.execute('WITH RECURSIVE x(n) AS (VALUES(0) UNION ALL SELECT n+1 FROM x WHERE n<'+str(n)+') SELECT sum(n) FROM x').fetchone()[0]
+            finally:query_active[0]=False;reader.close()
         return super().execute(sql,*args)
 def connect(*args,**kwargs):kwargs['factory']=NativeGate;return original(*args,**kwargs)
 def health(root,lane_name,phase,**facts):
     original_health(root,lane_name,phase,**facts)
     row=facts.get('stalled_startup_stack')
-    if row is not None:print('HEALTH '+json.dumps(dict(stack=row,signal_seen='cancellation_signal' in facts,event_set=stop.requested.is_set())),flush=True)
+    if row is not None:print('HEALTH '+json.dumps(dict(stack=row,phase=phase,query_active=query_active[0],signal_seen='cancellation_signal' in facts,event_set=stop.requested.is_set())),flush=True)
 publish=lane.NativeHealthPublisher(root,'pons')
 with patch.object(sqlite3,'connect',connect),patch.object(lane,'health',health):
     worker=threading.Thread(target=publish.heartbeat,args=(stop.requested,status),name='health');worker.start()
@@ -232,32 +239,44 @@ class StalledStartupStackTests(unittest.TestCase):
         with status.lock:self.assertFalse(status._startup_stages)
 
     def test_real_child_native_sql_preserves_query_and_publishes_before_deferred_term(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory() as directory,ExitStack() as resources:
+            barrier=sqlite3.connect(Path(directory)/'startup-barrier.sqlite')
+            resources.callback(barrier.close)
+            self.assertEqual(barrier.execute('PRAGMA journal_mode=DELETE').fetchone(),('delete',))
+            barrier.execute('CREATE TABLE fixture_barrier(id INTEGER PRIMARY KEY)')
+            barrier.execute('INSERT INTO fixture_barrier VALUES(1)');barrier.commit()
+            barrier.execute('BEGIN EXCLUSIVE')
             child=subprocess.Popen([sys.executable,'-B','-u','-c',CHILD,directory],cwd=ROOT,
                 stdout=subprocess.PIPE,stderr=subprocess.PIPE,bufsize=0)
-            samples=[];sent=False;deadline=time.monotonic()+25
+            samples=[];sent=False;released=False;entered=False;deadline=time.monotonic()+25
             try:
                 while time.monotonic()<deadline:
                     self.assertTrue(select.select([child.stdout],[],[],max(.01,deadline-time.monotonic()))[0],'child deadline')
                     line=child.stdout.readline().decode()
                     if line.startswith('HEALTH '):
                         row=json.loads(line[7:]);samples.append(row)
-                        if not sent:
+                        if not released:
+                            self.assertTrue(entered);self.assertTrue(row['query_active'])
+                            self.assertNotIn(row['phase'],('STOPPED','FAIL_CLOSED'))
                             self.assertFalse(row['signal_seen']);self.assertFalse(row['event_set'])
-                            child.send_signal(signal.SIGTERM);sent=True
+                            if not sent:child.send_signal(signal.SIGTERM);sent=True
+                            elif len(samples)>=2:
+                                barrier.rollback();released=True
+                    elif line=='SQL_ENTERED\n':entered=True
                     elif line.startswith('DONE '):done=json.loads(line[5:]);break
                     elif not line:break
                 else:self.fail('native child did not finish')
                 output,errors=child.communicate(timeout=3)
                 self.assertEqual(child.returncode,0,errors)
                 if 'done' not in locals():self.fail('missing DONE: '+output.decode()+errors.decode())
-                self.assertTrue(sent);self.assertEqual(done['value'],done['expected'])
+                self.assertTrue(sent);self.assertTrue(released);self.assertEqual(done['value'],done['expected'])
                 self.assertEqual(done['progress_handlers'],0);self.assertEqual(done['signal_seen'],15);self.assertTrue(done['health_joined'])
                 self.assertGreaterEqual(len([row for row in samples if not row['signal_seen']]),2)
                 stack=samples[0]['stack'];self.assertGreaterEqual(stack['trigger_age_seconds'],5)
                 self.assertIn(dict(module='meme_machine.runtime.robinhood.plane',function='__init__'),
                     [{k:frame[k] for k in ('module','function')} for frame in stack['frames']])
             finally:
+                barrier.rollback()
                 if child.poll() is None:child.kill();child.communicate(timeout=3)
                 child.stdout.close();child.stderr.close()
 

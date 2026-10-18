@@ -79,3 +79,31 @@ the existing controls. It remains a capacity discriminator. Existing
 slots are different populations. Improved restoration time or head-gap proxies
 cannot establish sustained full economic-market throughput, normal readiness
 or one-hour autonomous PAPER acceptance.
+
+## Hosted fixture correction
+
+Focused GitHub CI 39098442871 on `593dedc3914a42af1e91a21d51a47295562b423b`
+failed one of 1301 cases in 333.514s (four existing skips). The unchanged
+stalled-startup child query finished in about 7.204s, between its first eligible
+roughly-six-second health publication and the next two-second heartbeat. The
+test sent TERM after the first publication but required two records before the
+deferred handler became visible. The exact original case passed locally in
+9.587s; the fixture, reporter and status source were byte-identical to b10.
+The failing GitHub receipt remains a failure.
+
+The test-only correction holds a separate disposable DELETE-mode SQLite DB
+EXCLUSIVE while the same 60-million-row recursive SQL expression executes on
+an owned reader. TERM is still sent after the first health record. The parent
+releases the lock only after the second actual nonterminal, query-active health
+record still has no signal observation or set cancellation Event. SQLite owns
+this wait; no Python UDF, progress handler, sleep-based signal deferral, reporter
+change or SQL interruption is introduced. The original result, two pre-signal
+records, zero progress handlers, SIGTERM identity, joined health owner and
+25-second outer assertions remain.
+
+The corrected exact case passed in 19.845s; the complete original 12-case
+stalled-startup module passed in 16.892s without skips or failures. All runtime,
+source-proof and old guard bytes remain identical to the already-reviewed
+performance candidate. The previous 235 focused checks are retained as evidence
+for those unchanged bytes. Exact source approvals must bind the corrected head;
+the failed previous head cannot substitute for a new successful GitHub check.
