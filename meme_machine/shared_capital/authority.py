@@ -247,11 +247,12 @@ def funding_decision(state, request, at):
 _REPLAY_PREFIXES=OrderedDict()
 _REPLAY_PREFIX_LOCK=threading.RLock()
 _REPLAY_PREFIX_BYTES=4*1024*1024
+_HELD_REPLAY_ISSUER=object()
 
 class CapitalAuthority:
     """Only capital-granting API of the feature; inert until migration is installed."""
 
-    def __init__(self, database, *, fault=None, startup_cancel=None):
+    def __init__(self, database, *, fault=None, startup_cancel=None, held_replay=None):
         from meme_machine.runtime.isolated_native_execution import reject_financial_construction
         reject_financial_construction()
         if startup_cancel is not None and not callable(startup_cancel):
@@ -280,7 +281,8 @@ class CapitalAuthority:
         # A verified owner retains its original mutation/settlement behavior.
         self._startup_replay_cancel=startup_cancel
         try:
-            self.verify_replay()
+            if held_replay is None:self.verify_replay()
+            else:self.verify_replay(held_replay=held_replay)
         except BaseException:
             from meme_machine.runtime.sqlite_failure import preserving_cleanup
             with preserving_cleanup():self.db.close()
@@ -346,10 +348,24 @@ class CapitalAuthority:
                 capital=capital_view(state), risk=risk, lanes=lanes, ledger=state))
 
     @exact
-    def verify_replay(self):
+    def verify_replay(self, *, held_replay=None):
+        if held_replay is not None:
+            from meme_machine.runtime.held_financial_prefix import _FinancialReplayCapture
+            if type(held_replay) is not _FinancialReplayCapture:
+                raise TypeError('held_financial_replay_capture_required')
+            held_replay._begin(self,_HELD_REPLAY_ISSUER)
         self._replaying = True
         try:
-            return self._verify_replay()
+            if held_replay is None:return self._verify_replay()
+            # _verify_replay's with block has returned only after the original
+            # read transaction's COMMIT returned. A staged capture is unusable
+            # until then; observer refusals never change the original summary.
+            result=self._verify_replay(held_replay=held_replay)
+            held_replay._publish(self,_HELD_REPLAY_ISSUER)
+            return result
+        except BaseException:
+            if held_replay is not None:held_replay._discard(self,_HELD_REPLAY_ISSUER)
+            raise
         finally:
             self._replaying = False
 
@@ -403,7 +419,7 @@ class CapitalAuthority:
                     sum(len(value[3].encode()) for value in _REPLAY_PREFIXES.values())>_REPLAY_PREFIX_BYTES):
                 _REPLAY_PREFIXES.popitem(last=False)
 
-    def _verify_replay(self):
+    def _verify_replay(self, *, held_replay=None):
         with self._transaction(write=False):
             self._check_startup_replay_cancel()
             key=self._replay_prefix_key()
@@ -428,6 +444,12 @@ class CapitalAuthority:
                 raise CapitalError('replayed_projection_mismatch')
             summary=dict(events=count,journal_hash=previous,state_sha256=digest(state),conservation=True)
             self._remember_replay_prefix(key,count,previous,state)
+            if held_replay is not None:
+                # Actual original replay state, inside the same successful
+                # snapshot. No supplied inspection dictionary issues an anchor.
+                self._check_startup_replay_cancel()
+                held_replay._stage(self,state,summary,_HELD_REPLAY_ISSUER)
+                self._check_startup_replay_cancel()
             return summary
 
     @exact
