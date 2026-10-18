@@ -266,6 +266,7 @@ class Supervisor:
         if lane=='solana' and getattr(self,'admission','NORMAL')=='OBSERVATION':env['MM_OPERATIONAL_PHASE']='OBSERVATION'
         if lane in ('pump','pons','solana'):
             env['MM_OPERATION_COST_DIAGNOSTICS']='1' if os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1' else '0'
+            env['MM_ECONOMIC_COHORT_DIAGNOSTICS']='1' if os.environ.get('MM_ECONOMIC_COHORT_DIAGNOSTICS')=='1' else '0'
         from meme_machine.paper_policy_revision import ACTIVE_REVISION
         env['MM_PAPER_POLICY_REVISION']=ACTIVE_REVISION
         if lane in ('pump','pons'):

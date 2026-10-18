@@ -296,7 +296,14 @@ def acknowledge(life,snapshot,result):
                 raise EvidenceUnavailable('candidate_delivery_ack_content')
         elif compact_raw is not None or compact_hash is not None:
             raise EvidenceUnavailable('candidate_delivery_ack_content')
-    if acknowledgements:life.acknowledge_rows(acknowledgements)
+    if acknowledgements:
+        life.acknowledge_rows(acknowledgements)
+        measurement=getattr(life.writer,'_economic_cohort_meter',None)
+        if measurement is not None:
+            try:
+                if life.db.in_transaction:measurement.unavailable('UNSUPPORTED_PATH')
+                else:measurement.acknowledge(tuple((row[0],row[5]) for row in snapshot['rows']))
+            except Exception:measurement.unavailable()
     refreshed=result['refreshed']
     if [r[0] for r in refreshed]!=[r[0] for r in snapshot['refresh']]:
         raise EvidenceUnavailable('candidate_refresh_ack_order')
