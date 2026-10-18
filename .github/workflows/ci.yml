@@ -82,6 +82,7 @@ jobs:
               'tests.test_pons_projection_source_reuse',
               'tests.test_pons_retention_covering_index',
               'tests.test_pons_protection_revision',
+              'tests.test_pons_stalled_startup_stack',
               'tests.test_shared_capital_recovery',
               'tests.test_shared_capital_concurrency',
               'tests.test_shared_capital_economics',
