@@ -824,9 +824,21 @@ def _allocation_allowed(queue,scheduled,evaluation,attempts,*,native_resources=N
         native_resources=native_resources)
 
 
-def _record_qualification(attempts,identity,generation,evaluation,category,*,at,explanation):
-    return attempts.record(identity,generation,'qualification',category,at=at,
+def _record_qualification(attempts,identity,generation,evaluation,category,*,at,explanation,native_request=None):
+    body=attempts.record(identity,generation,'qualification',category,at=at,
         decision=dict(evaluation['vector'],reentry_explanation=explanation))
+    if native_request is not None:
+        from meme_machine.runtime.pons_current_work import qualified
+        qualified(attempts.plane,native_request,body)
+    return body
+
+
+def _current_decision(queue,request,identity,generation,state,reason=None):
+    result=queue.plane.decision(identity,generation,state,reason)
+    if result and request is not None:
+        from meme_machine.runtime.pons_current_work import decided
+        decided(queue.plane,request,state)
+    return result
 
 
 def run(endpoint,*,campaign=False,native_resources=None,native_ports=None,economic_cohorts=None):
@@ -982,6 +994,9 @@ def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,nativ
             **({} if native_context is None else {'plane':native_context.plane}))
     if native_context is not None:native_context.startup_owned(queue)
     if economic_cohorts is not None:queue.plane.economic_cohorts=economic_cohorts
+    from meme_machine.runtime.pons_current_work import work_for
+    native_current_work=work_for(queue.plane)
+    native_current_request=None
     if requested.is_set():raise Shutdown()
     scout=MarketScout(queue.plane) if campaign else None
     attempts=Attempts(queue.plane)
@@ -1257,6 +1272,8 @@ def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,nativ
             if hydration is None:
                 committed=next(queue.committed(),None)
                 if committed is not None:
+                    # A retained outbox is not a newly issued provider request.
+                    native_current_request=None
                     scheduled,value=committed
                     attempts.record(scheduled['key'],scheduled['work']['generation'],'qualification',
                         decision_category(value),at=value.get('evaluation_completed_at',scheduled['queued_at']),decision=value['vector'])
@@ -1302,6 +1319,8 @@ def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,nativ
                     evidence_context=evidence_context,
                     on_stage=hydration_stage,canonical_refresh=scheduled.get('canonical_refresh',False),
                     **({} if native_resources is None else {'native_resources':native_resources}))
+                native_current_request=(None if native_current_work is None else
+                    native_current_work.issued(queue,scheduled,hydration))
                 continue
             if not hydration.done():continue
             finished=hydration;hydration=None
@@ -1330,7 +1349,7 @@ def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,nativ
                             if evaluation.get("screened_stage")=="trajectory"
                             else evaluation.get("prospect_preflight")) or {}
                     reasons=screen.get("reasons") or ["strategy_prospect"]
-                    queue.plane.decision(identity,scheduled["work"]["generation"],
+                    _current_decision(queue,native_current_request,identity,scheduled["work"]["generation"],
                         'strategy_rejected' if category=='STRATEGY_REJECT' else category.lower(),",".join(reasons))
                     stage=evaluation.get("screened_stage") or "current_state"
                     reason="strategy_"+stage+":"+",".join(reasons)
@@ -1347,9 +1366,12 @@ def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,nativ
                     public["wallet_convergence"]=None
                     _,explanation=reentry_decision(references.get(evaluation.get('curve')),evaluation['vector'])
                     public['reentry_explanation']=explanation
-                    attempts.record(identity,scheduled['work']['generation'],'qualification',category,
+                    body=attempts.record(identity,scheduled['work']['generation'],'qualification',category,
                         at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),
                         decision=dict(evaluation['vector'],reentry_explanation=explanation))
+                    if native_current_request is not None:
+                        from meme_machine.runtime.pons_current_work import qualified
+                        qualified(queue.plane,native_current_request,body)
                     result["rows"].append(public)
                     result["evidence_acquisition"]=evidence_context.telemetry()
                     _append_jsonl(ROWS_LOG,public)
@@ -1364,8 +1386,11 @@ def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,nativ
                 else:record_work(identity,'terminal',','.join(evaluation['vector'].get('all_rejections') or ['incomplete_evidence']),'reconstruction_incomplete')
                 coverage()
                 decision_state='qualified' if category=='QUALIFIED' else 'strategy_rejected' if category=='STRATEGY_REJECT' else category.lower()
-                if not queue.plane.decision(identity,scheduled['work']['generation'],decision_state):continue
+                if not _current_decision(queue,native_current_request,identity,scheduled['work']['generation'],decision_state):continue
                 overlay=_attach_wallet_overlay(evaluation["vector"],skill)
+                if native_current_request is not None:
+                    from meme_machine.runtime.pons_current_work import overlaid
+                    overlaid(queue.plane,native_current_request,evaluation['vector'],overlay)
                 public=public_evaluation(evaluation)
                 public["candidate_identity"]=identity
                 public["candidate_generation"]=scheduled["work"]["generation"]
@@ -1383,7 +1408,8 @@ def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,nativ
                         active=active is not None and not active[1].done())
                 public['reentry_explanation']=explanation
                 _record_qualification(attempts,identity,scheduled['work']['generation'],evaluation,category,
-                    at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),explanation=explanation)
+                    at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),explanation=explanation,
+                    **({} if native_current_request is None else {'native_request':native_current_request}))
                 if authorization_rejection is not None:
                     blocking=dict(curve=curve)
                     if active is not None:

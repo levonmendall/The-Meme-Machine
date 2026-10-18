@@ -329,6 +329,10 @@ class Broker:
     def rows(self):
         with self.plane.lock:
             rows=self.plane.db.execute("SELECT * FROM candidates WHERE lane='pons' AND pending=1 AND interpretation=?",(canonical(self.policy),)).fetchall()
+        if getattr(self.plane,'economic_cohorts',None) is not None:
+            from meme_machine.runtime.pons_current_work import work_for
+            work=work_for(self.plane)
+            if work is not None:work.inventory(self,rows)
         return {r['id']:self._scheduled(dict(r)) for r in rows}
 
     def _scheduled(self,r):
@@ -521,6 +525,10 @@ class Broker:
                                 volume_quality=quality)
                         self.plane.db.execute('UPDATE pons_current_watch SET body=?,hash=?,next_at=? WHERE candidate=?',
                             (canonical(watch),digest(watch),next_at,scheduled['key']))
+        if finished and getattr(self.plane,'economic_cohorts',None) is not None:
+            from meme_machine.runtime.pons_current_work import work_for
+            work=work_for(self.plane)
+            if work is not None:work.prepared(scheduled,value)
         return finished
 
     def committed(self):
@@ -535,7 +543,12 @@ class Broker:
             yield self._scheduled(row),value
 
     def acknowledge(self,scheduled):
-        return self.plane.consume(scheduled['key'],scheduled['work']['generation'])
+        result=self.plane.consume(scheduled['key'],scheduled['work']['generation'])
+        if result and getattr(self.plane,'economic_cohorts',None) is not None:
+            from meme_machine.runtime.pons_current_work import work_for
+            work=work_for(self.plane)
+            if work is not None:work.consumed(scheduled)
+        return result
 
     def failure(self,scheduled,reason,*,screen=None,evidence=None):
         from meme_machine.lanes.pons.pons_selective_continuation import ENTRY_THRESHOLDS
@@ -777,6 +790,10 @@ def save_cohort_checkpoint(result,cursor,phase,*,plane=None):
             result.pop('native_archive_paths',None)
             plane.checkpoint('pons_cohort',dict(result=result,cursor=cursor,phase=phase,
                 owner=process_identity(),checkpoint_at=time.time()))
+            if getattr(plane,'economic_cohorts',None) is not None:
+                from meme_machine.runtime.pons_current_work import work_for
+                work=work_for(plane)
+                if work is not None:work.checkpoint(result,cursor,phase)
     finally:
         if owned:plane.close()
 
