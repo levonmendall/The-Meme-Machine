@@ -12,6 +12,7 @@ import unittest
 
 from meme_machine.solana_evidence_control import PriorityOwner
 from meme_machine.solana_evidence_plane import EvidenceUnavailable, EvidenceWriter
+from meme_machine.solana_owner_admission import OwnerAdmission
 from tests.maintenance_production_harness import Clock
 
 
@@ -256,6 +257,146 @@ class MaintenancePermitOwnershipTests(unittest.IsolatedAsyncioTestCase):
         ordinary=self.submit(self.callback('source'))
         self.assertEqual(await self.completed(ordinary),'source')
         self.assertEqual([name for name,_ in self.owner.state.events],['source'])
+
+    async def test_notification_cancel_is_atomic_with_the_actual_owner_claim(self):
+        for cancel_first in (True,False):
+            with self.subTest(cancel_before_claim=cancel_first):
+                current,release=await self.blocked_source()
+                ticket=self.owner.request_maintenance_boundary(deadline=30)
+                claimed=threading.Event();finish_claim=threading.Event()
+                self.releases.append(finish_claim)
+                original=ticket.ready.set_running_or_notify_cancel
+                def gated_claim():
+                    if not cancel_first:result=original()
+                    claimed.set()
+                    if not finish_claim.wait(5):raise AssertionError('notification_claim_not_released')
+                    return original() if cancel_first else result
+                # Gate the real Future's atomic operation, never replace the
+                # Future or cancel a native accepted-command future.
+                ticket.ready.set_running_or_notify_cancel=gated_claim
+                following=self.submit(self.callback('following'))
+                release.set();await settled(claimed.is_set)
+                self.assertEqual(ticket.ready.cancel(),cancel_first)
+                finish_claim.set();await self.completed(current)
+                if cancel_first:
+                    await settled(lambda:ticket.state=='RELEASED')
+                    self.assertTrue(ticket.ready.cancelled())
+                    self.assertIsNone(ticket.permit_deadline)
+                    self.assertIsNone(ticket.command_future)
+                else:
+                    await self.opened(ticket)
+                    command=self.submit_maintenance(self.callback('maintenance'),ticket)
+                    await self.completed(command)
+                await self.completed(following)
+                self.assertTrue(self.owner.thread.is_alive())
+                self.assertEqual(self.owner.state.events[-1][0],'following')
+                self.assertEqual(ticket.state,'RELEASED')
+
+    async def test_pending_refusal_notification_cancel_cannot_kill_the_writer(self):
+        current,release=await self.blocked_source()
+        ticket=self.owner.request_maintenance_boundary(deadline=1)
+        publishing=threading.Event();finish_publish=threading.Event()
+        self.releases.append(finish_publish)
+        original=ticket.ready.set_exception
+        def gated_refusal(error):
+            publishing.set()
+            if not finish_publish.wait(5):raise AssertionError('notification_refusal_not_released')
+            return original(error)
+        ticket.ready.set_exception=gated_refusal
+        following=self.submit(self.callback('following'))
+        self.clock.advance(1);release.set()
+        await settled(publishing.is_set)
+        cancelled=ticket.ready.cancel()
+        finish_publish.set();await self.completed(current);await self.completed(following)
+        self.assertEqual(ticket.state,'RELEASED')
+        self.assertIsNone(ticket.permit_deadline);self.assertIsNone(ticket.command_future)
+        if cancelled:self.assertTrue(ticket.ready.cancelled())
+        else:self.assertIsInstance(ticket.ready.exception(),EvidenceUnavailable)
+        self.assertTrue(self.owner.thread.is_alive())
+        self.assertEqual(self.owner.state.events[-1][0],'following')
+
+    async def test_actual_boundary_pending_cancel_and_stop_preserve_old_work(self):
+        for outcome in ('cancel','stop'):
+            with self.subTest(outcome=outcome):
+                current,release=await self.blocked_source()
+                admission=OwnerAdmission(self.owner,clock=self.clock.monotonic)
+                stop=asyncio.Event();task=asyncio.create_task(admission.boundary(30,stop))
+                await settled(lambda:self.owner._maintenance_ticket is not None)
+                ticket=self.owner._maintenance_ticket
+                self.assertEqual(ticket.state,'PENDING')
+                if outcome=='cancel':
+                    task.cancel()
+                    with self.assertRaises(asyncio.CancelledError):await task
+                else:
+                    stop.set();self.assertIsNone(await asyncio.wait_for(task,3))
+                self.assertEqual(ticket.state,'RELEASED')
+                self.assertFalse(ticket.ready.cancelled())
+                self.assertFalse(current.cancelled());self.assertFalse(current.done())
+                following=self.submit(self.callback('following'))
+                release.set();await self.completed(current);await self.completed(following)
+                self.assertEqual(self.owner.state.events[-1][0],'following')
+
+    async def test_stop_or_cancel_during_handoff_cleanup_cannot_lose_the_permit(self):
+        class GatedStop:
+            def __init__(self):
+                self.event=asyncio.Event();self.started=asyncio.Event()
+                self.cleaning=asyncio.Event();self.release=asyncio.Event();self.finished=asyncio.Event()
+            def is_set(self):return self.event.is_set()
+            async def wait(self):
+                self.started.set()
+                try:return await self.event.wait()
+                finally:
+                    self.cleaning.set()
+                    try:await self.release.wait()
+                    finally:self.finished.set()
+        for outcome in ('cancel','stop'):
+            with self.subTest(outcome=outcome):
+                current,release=await self.blocked_source()
+                admission=OwnerAdmission(self.owner,clock=self.clock.monotonic)
+                stop=GatedStop();task=asyncio.create_task(admission.boundary(30,stop))
+                await asyncio.wait_for(stop.started.wait(),3)
+                ticket=self.owner._maintenance_ticket
+                release.set();await self.completed(current)
+                await asyncio.wait_for(stop.cleaning.wait(),3)
+                self.assertEqual(ticket.state,'OPEN')
+                following=self.submit(self.callback('following'))
+                try:
+                    if outcome=='cancel':
+                        task.cancel()
+                        with self.assertRaises(asyncio.CancelledError):await task
+                    else:
+                        stop.event.set();stop.release.set()
+                        self.assertIsNone(await asyncio.wait_for(task,3))
+                finally:stop.release.set()
+                await settled(stop.finished.is_set)
+                self.assertEqual(ticket.state,'RELEASED')
+                self.assertIsNone(ticket.command_future)
+                await self.completed(following)
+                self.assertEqual(self.owner.state.events[-1][0],'following')
+
+    async def test_actual_boundary_full_queue_retries_keep_the_absolute_deadline(self):
+        current,release=await self.blocked_source()
+        capacity=self.owner.capacity-self.owner.reserved
+        queued=[self.submit(self.callback('older'+str(i))) for i in range(capacity)]
+        admission=OwnerAdmission(self.owner,clock=self.clock.monotonic)
+        original=self.owner.request_maintenance_boundary;attempts=[0];deadlines=set()
+        def recorded(*,deadline):
+            attempts[0]+=1;deadlines.add(deadline)
+            return original(deadline=deadline)
+        self.owner.request_maintenance_boundary=recorded
+        task=asyncio.create_task(admission.boundary(3,asyncio.Event()))
+        try:
+            await settled(lambda:attempts[0]>=2)
+            self.clock.advance(3)
+            with self.assertRaisesRegex(EvidenceUnavailable,'maintenance_boundary_deadline'):
+                await asyncio.wait_for(task,3)
+        finally:self.owner.request_maintenance_boundary=original
+        self.assertEqual(deadlines,{3})
+        self.assertEqual(admission.counters['boundary_deadline_exhausted'],1)
+        self.assertIsNone(self.owner._maintenance_ticket)
+        self.assertFalse(current.cancelled());self.assertFalse(current.done())
+        release.set();await self.completed(current)
+        for future in queued:await self.completed(future)
 
     async def test_shutdown_releases_pending_ticket_and_completes_older_callback(self):
         entered=threading.Event()
