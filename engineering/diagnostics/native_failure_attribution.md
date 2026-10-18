@@ -201,3 +201,15 @@ regression exercises Yellowstone, Solana WebSocket and Robinhood/Nitro without
 renaming descriptors; all three retain the first stream event with lost=False,
 leave the shared channel open, and preserve the original closed-stream guard.
 That case plus the five observer regressions passed without skips.
+
+The complete causal-witness source proof binds runtime
+`e4748cd2f1973733fa7fc18d498af972777e532a`, tree
+`12d086d54ea4488a24141493b24465a53089b101`. Exactly six already-added helper
+SHA/byte records change; the43 reversible780 sources,29 other helper records,
+three unchanged pins, original guards, seven caller inverses and exported-API
+census remain identical. Implementation/tree and manifest identities are
+retargeted explicitly. The final171 source-proof/attribution/source/entry/child/
+parent/upload/bridge cases passed in27.064s without skips under FAST network
+guard/Scratch. Independent bounded code and full-byte proof review found no
+remaining material blocker in this observation scope. Actual hosted causal
+witness, complete FULL/ACK output, kernel acceptance and capacity remain pending.

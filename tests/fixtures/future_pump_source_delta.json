@@ -7,12 +7,12 @@
       "sha256": "db48faec22cb86895dca39239d270942a9c1abce3e1b13d75f0b9a3387a0ddf8"
     },
     "meme_machine/operational/child_transport.py": {
-      "bytes": 36991,
-      "sha256": "c192dda0dad63f900ee12a1dc820f3afcef1bf270b3a42637c875d7a62cff03f"
+      "bytes": 38512,
+      "sha256": "76e62f2b3148d647fb78ef0b6703d8b2fdc7e29ae97d00dce9230ef3885611df"
     },
     "meme_machine/operational/isolated_native_entry.py": {
-      "bytes": 18160,
-      "sha256": "2812f4e92b219ee8abebe857565155128166eb35b43fb17da58321f666fb899e"
+      "bytes": 18902,
+      "sha256": "1a834eae0765ac167b791fd5842a8a871a70d9f36717eaea669f18edc014c5a5"
     },
     "meme_machine/operational/isolated_native_image.py": {
       "bytes": 16287,
@@ -35,8 +35,8 @@
       "sha256": "be2aebae5e3955dfd8c73cabbf74ede5a7e4890db336ea5aa83c13be4f7cc1f0"
     },
     "meme_machine/operational/isolated_native_kernel_validation.py": {
-      "bytes": 20694,
-      "sha256": "12c841fc847a3106854a2fbbc88cabc9cddd67b2fe0247a7f9b6e632430b9357"
+      "bytes": 21009,
+      "sha256": "a4b2a2587207bb0ef713e7c07462b7d3ef24ed6c178f79a6a5a5ff07c0777a6d"
     },
     "meme_machine/operational/isolated_native_landlock_image.py": {
       "bytes": 13144,
@@ -55,16 +55,16 @@
       "sha256": "25c7f8358e013cfb7501d136ddff84c85e3fbfc0dca4dac0af862c9c357c7db2"
     },
     "meme_machine/operational/isolated_native_lifetime.py": {
-      "bytes": 647,
-      "sha256": "f021a33ee767d104c8580813c3d8a3f3988f66f02f5cc56275733bdc90ef8fa3"
+      "bytes": 4690,
+      "sha256": "179be7949d6fab3f73f9d9a01c93259f8156d8cfb5e221e2bbe11dbf9d6a2905"
     },
     "meme_machine/operational/isolated_native_pons_kernel_corpus.py": {
       "bytes": 17919,
       "sha256": "aac354ffacd89937ba22c19e54ceee57242ddacf9d4e21aeb110b579671c409b"
     },
     "meme_machine/operational/isolated_native_source.py": {
-      "bytes": 30057,
-      "sha256": "ec3c82bf4c059aab2a3a9eea26f8eda92b93d17d16dd092240bcb79cfa6fffbb"
+      "bytes": 31045,
+      "sha256": "f679acf2994b48d8b23133b3be38fd77170a03587a8d2234073aae849d31d6ab"
     },
     "meme_machine/operational/native_landlock_policy.py": {
       "bytes": 10722,
@@ -95,8 +95,8 @@
       "sha256": "762d7fd879540fed6a85e5b689b958f9f62a3b565ba735f80bd626a54c13c647"
     },
     "meme_machine/operational/transport_bridge.py": {
-      "bytes": 19411,
-      "sha256": "2cdb94a45c21f1d31cd5e7fb375342fd82192542b5ded38bf3c9a71fbe0ffbf3"
+      "bytes": 20519,
+      "sha256": "14ac4b4c9e1d1d885d1f1f55fabfb11f2084e032090bf0e7552054578e8a4112"
     },
     "meme_machine/runtime/isolated_native_admission.py": {
       "bytes": 7779,
@@ -3352,8 +3352,8 @@
       }
     }
   },
-  "implementation": "34151b4cb5c3aaf972984d36ee5ce13971677c76",
-  "implementation_tree": "beb9d64f64c13fc6fa8b883e9f95aab1767c92f2",
+  "implementation": "e4748cd2f1973733fa7fc18d498af972777e532a",
+  "implementation_tree": "12d086d54ea4488a24141493b24465a53089b101",
   "legacy_guards": {
     "tests/test_pump_restore_source_guard.py": {
       "after_sha256": "ca109bc75ca006b2b720ac1938d811e1afcff6f28417578ce5b405eb670573ce",
