@@ -159,9 +159,10 @@ class ParentSizingProducer:
         self._pump=None;self._pons=NativeValueReader('pons',rpc=pons_rpc)
         self._lock=threading.Lock()
 
-    def produce(self,financial,state,*,scope,source_commit,source_tree):
+    def produce(self,financial,state,*,scope,source_commit,source_tree,renew_pons=False):
         # No provider work is purchased for an unbound/non-flat replay result.
         financial_basis(financial,state)
+        require(type(renew_pons) is bool,'parent_sizing_renewal_shape')
         require(self._lock.acquire(blocking=False),'parent_sizing_acquisition_in_flight')
         try:
             now=int(self.clock())
@@ -176,7 +177,16 @@ class ParentSizingProducer:
                 pump=sol_usd(response['value'][0],now=int(self.clock()),
                     slot=response['context']['slot'],evidence_hash=digest(response))
                 self._pump=pump
-            pons=self._pons(int(self.clock()))
+            # Only this producer owns this reader. A publication needs positive
+            # remaining lifetime; the ordinary native reader also legitimately
+            # serves equality at its expiry. Drop its optional *result* cache
+            # when renewal is requested or equality has been reached, so the
+            # original route/oracle/canonical acquisition earns new evidence.
+            # Never relabel an old value or discard the oracle/route safeguards.
+            now=int(self.clock());cached=self._pons.cached
+            if renew_pons or (cached is not None and not cached.observed_at<=now<cached.valid_until):
+                self._pons.cached=None
+            pons=self._pons(now)
             return build_sizing_receipt(financial,state,scope=scope,source_commit=source_commit,
                 source_tree=source_tree,pump_value=pump,pons_value=pons,now=int(self.clock()))
         finally:self._lock.release()
