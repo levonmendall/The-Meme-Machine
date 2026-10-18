@@ -361,17 +361,22 @@ class Supervisor:
         channel=None
         try:
             options=dict(cwd=folder,env=env,start_new_session=True)
-            if lane=='pons' and getattr(self,'normal_boot',None) is not None:
-                from .normal_pons_boot import PonsOwnerLaunch
+            if lane in ('pump','pons') and getattr(self,'normal_boot',None) is not None:
+                if lane=='pons':
+                    from .normal_pons_boot import PonsOwnerLaunch as OwnerLaunch
+                else:
+                    from .normal_pump_boot import PumpOwnerLaunch as OwnerLaunch
                 deadline=time.monotonic()+15
-                channel=PonsOwnerLaunch(self.normal_boot)
+                channel=OwnerLaunch(self.normal_boot)
                 options['pass_fds']=(channel.child_fd,)
                 args+=['--normal-owner-channel',str(channel.child_fd)]
             self.processes[lane]=subprocess.Popen(args,**options)
             self.process_instances[lane]=instance
             if channel is not None:
-                try:self.pons_owner_generation=channel.bind(self.processes[lane],
-                    deadline=deadline,process_instance=instance)
+                try:
+                    identity=channel.bind(self.processes[lane],deadline=deadline,process_instance=instance)
+                    if lane=='pons':self.pons_owner_generation=identity
+                    else:self.pump_owner_generation=identity
                 except BaseException:
                     # Retain the actual process/instance for the outer owner
                     # even if its original cleanup also needs another attempt.

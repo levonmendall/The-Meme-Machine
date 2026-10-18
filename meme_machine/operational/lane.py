@@ -288,19 +288,22 @@ def main():
     try:
         if args.normal_owner_channel is not None:
             from .normal_boot_record import require
-            require(args.lane=='pons' and not args.offline,'pons_owner_entry_lane')
-            from .normal_pons_boot import accept_pons_owner_launch
-            context=accept_pons_owner_launch(args.normal_owner_channel)
-            require(Path(args.state_root)==Path(context.identity()['root']),'pons_owner_entry_root')
+            if args.lane=='pons':
+                require(not args.offline,'pons_owner_entry_lane')
+                from .normal_pons_boot import accept_pons_owner_launch as accept_owner,require_pons_owner_context as check_owner
+            else:
+                require(args.lane=='pump' and not args.offline,'pump_owner_entry_lane')
+                from .normal_pump_boot import accept_pump_owner_launch as accept_owner,require_pump_owner_context as check_owner
+            context=accept_owner(args.normal_owner_channel)
+            require(Path(args.state_root)==Path(context.identity()['root']),args.lane+'_owner_entry_root')
         lock=(Path(args.state_root)/args.lane/'lane.lock').open('a')
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         if args.offline:run_offline(args.state_root,args.lane,stop)
         else:
             if context is not None:
-                from .normal_pons_boot import require_pons_owner_context
-                require_pons_owner_context(context,initial=True)
+                check_owner(context,initial=True)
                 from .normal_boot_record import require
-                require(not requested.is_set(),'pons_owner_entry_stopping')
+                require(not requested.is_set(),args.lane+'_owner_entry_stopping')
             from .bounded_provider import install
             install()
             publish=NativeHealthPublisher(args.state_root,args.lane)
