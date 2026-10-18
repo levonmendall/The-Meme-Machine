@@ -34,9 +34,16 @@ class PumpCurrentWork:
         self.batch = None
         self.requested = None
         self.decision_stages=dict(optimistic_preflight=0,full_point_in_time=0)
+        self.input_context=None;self.input_context_unavailable=False
+        try:
+            from .pump_current_input_prefix import create_input_context
+            self.input_context=create_input_context(epoch,instance)
+        except Exception:self.input_context_unavailable=True
 
     def unavailable(self, reason='NATIVE_BOUNDARY_UNAVAILABLE'):
         self.inputs.unavailable(reason); self.evaluations.unavailable(reason)
+        context=getattr(self,'input_context',None)
+        if context is not None:context.unavailable()
 
     def _owned(self):
         if self.owner != (os.getpid(), threading.get_native_id()):
@@ -68,7 +75,17 @@ class PumpCurrentWork:
             binding = dict(self.binding, source_identity_sha256=value['identity_sha256'])
             self.inputs = NativeWorkCohorts(binding, 'DISCOVERY_INPUT')
             self.evaluations = NativeWorkCohorts(binding, 'NATIVE_EVALUATION')
+            if self.input_context is not None:self.input_context.bind_source(detached)
         except Exception: self.unavailable()
+
+    def capture_input_prefix(self,reader,first,rows,records,*,as_of):
+        if self.input_context is None:return None
+        from .stop import requested
+        return self.input_context.capture(reader,first,rows,records,as_of=as_of,cancelled=requested.is_set)
+
+    def retained_input_prefix(self,ticket,history,retained):
+        if ticket is not None and self.input_context is not None:
+            self.input_context.retained(ticket,history,retained,self.history_path)
 
     def capture(self, first, rows, records, events):
         """Independent entire original bounded outbox selection, before outcomes."""
@@ -211,6 +228,9 @@ class PumpCurrentWork:
                 source_identity_sha256=None if self.source is None else self.source['identity_sha256'],
                 source_generation_bound=self.source is not None,
                 source_record_membership='UNKNOWN_REQUIRES_ACTUAL_PUBLICATION_FRONTIER',
+                native_input_prefix=(self.input_context.snapshot() if self.input_context is not None else
+                    dict(state='UNKNOWN',reason='INPUT_PREFIX_UNAVAILABLE',funding_authority=False)
+                    if self.input_context_unavailable else None),
                 discovery=project_native_work(self.inputs.snapshot()),
                 evaluation=project_native_work(self.evaluations.snapshot()),
                 actual_decision_stages=dict(self.decision_stages),
@@ -281,6 +301,16 @@ def project_current_work(value):
             protection='SEPARATE_ACTUAL_HELD_POPULATION',
             full_market_rate='UNKNOWN_REQUIRES_ALL_SOURCE_AND_NATIVE_CONSUMER_STAGES',
             historical_completion=False,readiness_authority=False,funding_authority=False)
+        from .pump_current_input_prefix import project_input_context
+        result['native_input_prefix']=project_input_context(value.get('native_input_prefix'))
+        # Source/native census details remain represented by complete counts and
+        # digests if optional common samples no longer fit the original envelope.
+        if len(json.dumps(result,allow_nan=False).encode())>16384:
+            for name in ('discovery','evaluation'):
+                stage=result[name]
+                if stage.get('schema')!='native-work-cohort-v1':continue
+                for key in ('active','closed'):
+                    stage[key+'_samples_omitted']+=len(stage[key]);stage[key]=[]
         if len(json.dumps(result,allow_nan=False).encode())>16384:raise ValueError('bound')
         return result
     except Exception:return dict(state='UNKNOWN',reason='PROJECTION_UNAVAILABLE',funding_authority=False)

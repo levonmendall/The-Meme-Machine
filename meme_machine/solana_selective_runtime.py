@@ -73,12 +73,13 @@ def consume_pump_discovery(tape,sequence):
     from contextlib import closing
     from .runtime.candidate_history import open_candidate_history,order_economic_records
     reader=tape.plane._selective_reader();db=reader.db
-    native_work=getattr(tape,'native_work',None);first_sequence=sequence;work_batch=None
+    native_work=getattr(tape,'native_work',None);first_sequence=sequence;work_batch=None;input_prefix=None
     from .solana_prewarm_startup import require_released
     require_released(db)
     db.execute('BEGIN')
     try:
-        rows=reader.discovery(sequence,as_of=tape.plane.clock())
+        as_of=tape.plane.clock()
+        rows=reader.discovery(sequence,as_of=as_of)
         material=[decode_body(r[1],db) for r in rows]
         # Upgraded native-order attestations remain independent of old stored bytes.
         for row in material:
@@ -100,6 +101,7 @@ def consume_pump_discovery(tape,sequence):
             if event.get('event_type') not in ('create','migration'):events.append(event)
             sequence=seq
         if native_work is not None:
+            input_prefix=native_work.capture_input_prefix(reader,first_sequence,rows,material,as_of=as_of)
             work_batch=native_work.capture(first_sequence,rows,material,work_events)
     finally:db.execute('ROLLBACK')
     history=open_candidate_history()
@@ -109,6 +111,7 @@ def consume_pump_discovery(tape,sequence):
                 graduation_horizon=getattr(tape,'candidate_history_graduation_horizon',None))
             tape.candidate_history_retained_path=str(history.path.resolve())
             tape.candidate_history_retained_count=retained
+            if native_work is not None:native_work.retained_input_prefix(input_prefix,history,retained)
             if native_work is not None and work_batch is not None:native_work.retained(work_batch,history,retained)
     tape.candidate_history_rows=history_rows
     # Sequence belongs to this outbox, not to a global market slot. Late history
