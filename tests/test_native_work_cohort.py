@@ -67,6 +67,31 @@ class NativeWorkCohortTests(unittest.TestCase):
         self.assertEqual(meter.snapshot()['expected_units'],1)
         self.assertEqual(meter.snapshot()['completed_cohorts'],0)
 
+    def test_incomplete_outcomes_do_not_rehash_full_census_but_closure_verifies_it(self):
+        from meme_machine.runtime import native_work_cohort as module
+        meter=self.meter('DISCOVERY_INPUT')
+        rows=tuple(sorted((checksum(['key',n]),checksum(['input',n])) for n in range(128)))
+        cid=self.begin(meter,rows);self.seal(meter,cid,rows)
+        census_hashes=[];original=module.checksum
+        def hashed(value):
+            if value==rows:census_hashes.append(True)
+            return original(value)
+        with patch.object(module,'checksum',side_effect=hashed):
+            for item in rows[:-1]:meter.observe(cid,((*item,'POLICY_FILTERED',None,None),))
+            self.assertEqual(census_hashes,[])
+            self.assertEqual(meter.completed,0)
+            meter.observe(cid,((*rows[-1],'POLICY_FILTERED',None,None),))
+        self.assertTrue(census_hashes)
+        self.assertEqual(meter.snapshot()['completed_cohorts'],1)
+        # Fault injection in retained internal memory must still fail final
+        # membership verification, even when its member count is unchanged.
+        other=self.meter('DISCOVERY_INPUT');cid=self.begin(other,rows);self.seal(other,cid,rows)
+        key=rows[0][0];other.active[cid]['expected'][key]=checksum('changed-retained-input')
+        changed=tuple(sorted(other.active[cid]['expected'].items()))
+        other.observe(cid,tuple((*item,'POLICY_FILTERED',None,None) for item in changed))
+        self.assertEqual(other.snapshot()['state'],'UNKNOWN')
+        self.assertEqual(other.snapshot()['completed_cohorts'],0)
+
     def test_exact_duplicates_are_idempotent_but_crossed_input_or_receipt_refuses(self):
         rows=((checksum('request'),checksum('input')),)
         meter=self.meter();cid=self.begin(meter,rows);meter.expect(cid,rows)

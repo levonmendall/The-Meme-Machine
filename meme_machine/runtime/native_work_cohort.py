@@ -209,10 +209,17 @@ class NativeWorkCohorts:
     def _finish(self,cid):
         row=self.active[cid]
         if row['seal'] is None:return
+        # Expected membership is sealed before outcomes; the public expect()
+        # path rejects every later expansion/change. An incomplete population
+        # cannot close, so do not sort/hash all its members for each outcome.
+        # The complete native census is still checked immediately before any
+        # closure, including a same-cardinality corruption of stored members.
+        count=row['seal'][0]
+        if len(row['expected'])!=count:raise ValueError('changed_census')
+        if (len(row['outcomes'])!=count or any(value[0] not in TERMINAL[self.stage]
+                for value in row['outcomes'].values())):return
         actual=tuple(sorted(row['expected'].items()))
         if (len(actual),checksum(actual))!=row['seal'][:2]:raise ValueError('changed_census')
-        if (len(row['outcomes'])!=len(actual) or any(value[0] not in TERMINAL[self.stage]
-                for value in row['outcomes'].values())):return
         now=self._now();clocks=[value[3] for value in row['outcomes'].values()]
         if now<row['first'] or any(value>now for value in clocks):raise ValueError('clock')
         counts=dict(sorted(Counter(value[0] for value in row['outcomes'].values()).items()))
