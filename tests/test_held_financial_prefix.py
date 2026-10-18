@@ -1,7 +1,9 @@
 """Dormant prefix observer over real temporary native/shared transactions.
 
-Provider/qualification/owner readiness are the original explicit offline
-fixtures.  No test claims live owner provenance or held protection authority.
+Provider/qualification/owner readiness are original explicit offline fixtures.
+Private native-owner packets simulate the already-acquired host/root/source
+premise; these tests do not exercise real protected owner acquisition.  No
+supplied boolean/dictionary substitutes for the helper's private owner object.
 """
 from dataclasses import FrozenInstanceError
 from decimal import Inexact, Rounded, localcontext
@@ -15,7 +17,7 @@ import unittest
 from unittest.mock import patch
 
 from meme_machine.runtime import held_financial_prefix as module
-from meme_machine.runtime.held_financial_prefix import _FinancialPrefix
+from meme_machine.runtime.held_financial_prefix import _FinancialPrefix, _FinancialReplayCapture, _RetainedFinancialRead
 from meme_machine.shared_capital import CapitalError
 from meme_machine.shared_capital.model import canonical, digest
 from meme_machine.shared_capital.runtime import RuntimeCapital
@@ -25,9 +27,34 @@ from tests import test_pump_pons_capital_preparation as fixtures
 class HeldFinancialPrefixTests(unittest.TestCase):
     fixture = fixtures.RuntimeIntegrationTests.fixture
 
+    def capture(self, authority, *, family='pump', epoch=None, inception=None, root=None):
+        from meme_machine.operational import normal_pump_boot as pump, normal_pons_boot as pons
+        from meme_machine.operational.normal_source_boot import _process_start
+        lane = pump if family=='pump' else pons
+        state = authority.ledger();at = time.monotonic()
+        packet = dict(schema='normal-'+family+'-owner-subcap-v1',
+            launch=dict(instance='b'*32,request_id='offline-held',stop_generation='INITIAL',
+                record_sha256='a'*64,certificate_sha256='c'*64,
+                application_commit='1'*40,application_tree='2'*40,
+                epoch_id=state['epoch_id'] if epoch is None else epoch,
+                inception_sha256=state['inception_sha256'] if inception is None else inception,
+                boot_id='11111111-2222-3333-4444-555555555555',
+                supervisor=dict(pid=os.getpid(),start_ticks=_process_start(os.getpid()),invocation_id='d'*32)),
+            owner=dict(pid=os.getpid(),start_ticks=_process_start(os.getpid()),process_instance='e'*32),
+            owner_generation='f'*32,native_clock_sha256='9'*64,
+            root=str(authority.path.parent if root is None else root),
+            issued_monotonic=at,not_after_monotonic=at+60)
+        owner_type = lane.NativePumpOwnerContext if family=='pump' else lane.NativePonsOwnerContext
+        # Simulate only the external already-acquired native owner boundary.
+        # The anchor itself must still come from the genuine original verifier.
+        owner = owner_type(packet,_issuer=lane._ISSUER)
+        current = patch.object(lane,'_CURRENT',owner);current.start();self.addCleanup(current.stop)
+        return _FinancialReplayCapture(owner)
+
     def prefix(self, authority):
-        proof = authority.verify_replay()
-        return _FinancialPrefix(authority, authority.ledger(), proof)
+        capture = self.capture(authority)
+        authority.verify_replay(held_replay=capture)
+        return capture.prefix()
 
     def advance(self, prefix, **bounds):
         return prefix.advance(deadline=time.monotonic() + 10, cancelled=lambda: False, **bounds)
@@ -87,14 +114,15 @@ class HeldFinancialPrefixTests(unittest.TestCase):
         paper.advance('pons-native', now=now+1, action='entry', quote=fixture.quote(now+1,'buy',6250,1000))
         return paper, guard, fixture
 
-    def test_initial_cut_uses_original_replay_cache_without_scan_or_new_connection(self):
+    def test_initial_cut_uses_real_private_anchor_without_second_scan_or_new_connection(self):
         _, authority, _, _ = self.fixture()
-        proof = authority.verify_replay();state = authority.ledger()
+        capture = self.capture(authority)
+        proof = authority.verify_replay(held_replay=capture);state = authority.ledger()
         changes = authority.db.total_changes
         with patch.object(authority, '_authenticated_replay_prefix', side_effect=AssertionError('full scan')), \
                 patch.object(authority, 'verify_replay', side_effect=AssertionError('second replay')), \
                 patch('sqlite3.connect', side_effect=AssertionError('new connection')):
-            prefix = _FinancialPrefix(authority, state, proof)
+            prefix = capture.prefix()
             value = self.advance(prefix)
         self.assertEqual(value.status, 'COVERED_CUT')
         self.assertEqual(value.state_sha256, digest(state))
@@ -124,21 +152,16 @@ class HeldFinancialPrefixTests(unittest.TestCase):
         self.assertFalse(authority.db.in_transaction)
         with self.assertRaises(FrozenInstanceError):value.sequence = 0
 
-    def test_missing_cache_or_supplied_state_and_proof_cannot_bootstrap(self):
-        from meme_machine.shared_capital import authority as original
+    def test_only_published_original_anchor_can_bootstrap_once(self):
         _, authority, _, _ = self.fixture()
-        proof = authority.verify_replay();state = authority.ledger()
-        changed = dict(state, at=state['at']+1)
-        for supplied, summary in ((changed,proof), (state,dict(proof,events=proof['events']+1)),
-                                   (state,dict(proof,conservation=False))):
-            with self.assertRaises(CapitalError):_FinancialPrefix(authority, supplied, summary)
-        key = authority._replay_prefix_key()
-        with original._REPLAY_PREFIX_LOCK:cached = original._REPLAY_PREFIXES.pop(key)
-        try:
-            with self.assertRaisesRegex(CapitalError, 'initial_replay_unavailable'):
-                _FinancialPrefix(authority, state, proof)
-        finally:
-            with original._REPLAY_PREFIX_LOCK:original._REPLAY_PREFIXES[key] = cached
+        capture = self.capture(authority)
+        with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):capture.prefix()
+        for supplied in (authority.ledger(),authority.verify_replay(),True,object()):
+            with self.assertRaises(CapitalError):_FinancialPrefix(supplied)
+        authority.verify_replay(held_replay=capture)
+        capture.prefix()
+        with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):capture.prefix()
+        with self.assertRaises(TypeError):_FinancialReplayCapture(capture._identity)
 
     def test_actual_four_regimes_replay_contiguously_and_keep_exact_member_bodies(self):
         root, authority, now, _ = self.fixture();prefix = self.prefix(authority)
@@ -266,11 +289,20 @@ class HeldFinancialPrefixTests(unittest.TestCase):
     def test_foreign_thread_and_pid_never_query_connection(self):
         _, authority, _, _ = self.fixture();prefix = self.prefix(authority)
         trace = [];authority.db.set_trace_callback(trace.append);values = []
-        thread = threading.Thread(target=lambda:values.append(self.advance(prefix)))
-        thread.start();thread.join(timeout=5);self.assertFalse(thread.is_alive())
-        self.assertEqual(values[0].reason,'FOREIGN_OWNER');self.assertEqual(trace,[])
-        with patch.object(module.os,'getpid',return_value=os.getpid()+100000):
-            self.assertEqual(self.advance(prefix).reason,'FOREIGN_OWNER')
+        cache = prefix._view_cache
+        with patch.object(prefix,'_view',side_effect=AssertionError('owned projection access')), \
+                patch.object(prefix._capture,'_check',side_effect=AssertionError('owner capability access')):
+            thread = threading.Thread(target=lambda:values.append(self.advance(prefix)))
+            thread.start();thread.join(timeout=5);self.assertFalse(thread.is_alive())
+            with patch.object(module.os,'getpid',return_value=os.getpid()+100000):
+                values.append(self.advance(prefix))
+        for value in values:
+            self.assertEqual((value.status,value.reason),('UNKNOWN','FOREIGN_OWNER'))
+            self.assertEqual((value.current_members,value.terminal_members,value.pending),((),(),()))
+            self.assertEqual(len(value.counts),9)
+            self.assertTrue(all(count=='UNESTABLISHED' for _,count in value.counts))
+        self.assertEqual(len(values),2)
+        self.assertIs(prefix._view_cache,cache)
         self.assertEqual(trace,[])
 
     def test_existing_transaction_is_never_committed_or_rolled_back(self):
@@ -313,7 +345,7 @@ class HeldFinancialPrefixTests(unittest.TestCase):
         self.assertFalse(authority.db.in_transaction)
         self.assertEqual(authority.db.total_changes,changes)
 
-    def test_missing_interval_stays_incomplete_until_exact_original_rows_exist(self):
+    def test_missing_interval_with_schema_mutation_never_repairs_itself_from_new_head(self):
         _, authority, now, _ = self.fixture();prefix = self.prefix(authority)
         authority.command('first','runtime_publish',{},now)
         authority.command('second','runtime_publish',{},now+1)
@@ -322,13 +354,12 @@ class HeldFinancialPrefixTests(unittest.TestCase):
         authority.db.execute('DROP TRIGGER shared_capital_no_delete')
         authority.db.execute('DELETE FROM shared_capital_events WHERE sequence=?',(lost[0],))
         value = self.advance(prefix)
-        self.assertEqual(value.status,'INCOMPLETE');self.assertEqual(value.reason,'MISSING_SEQUENCE')
+        self.assertEqual(value.status,'UNKNOWN')
         self.assertEqual(value.rows,0)
         # Restore the exact real committed row, never a supplied substitute hash.
         authority.db.execute('INSERT INTO shared_capital_events VALUES(?,?,?,?,?,?,?)',lost)
         value = self.advance(prefix)
-        self.assertEqual(value.status,'COVERED_CUT')
-        self.assertEqual(value.state_sha256,authority.verify_replay()['state_sha256'])
+        self.assertEqual(value.status,'UNKNOWN');self.assertEqual(value.reason,'LATCHED')
 
     def test_original_progress_handler_and_authorizer_remain_installed(self):
         _, authority, now, _ = self.fixture();prefix = self.prefix(authority)
@@ -361,18 +392,34 @@ class HeldFinancialPrefixTests(unittest.TestCase):
         for corrupt in ('parent','result','state_hash','oversize'):
             with self.subTest(corrupt=corrupt):
                 _, authority, now, _ = self.fixture();prefix = self.prefix(authority)
-                authority.command('new','runtime_publish',{},now)
-                row = list(authority.db.execute('SELECT * FROM shared_capital_events ORDER BY sequence DESC LIMIT 1').fetchone())
-                authority.db.execute('DROP TRIGGER shared_capital_no_update')
+                prepared=[]
+                def capture_before_commit(stage):
+                    if stage=='before_commit':
+                        prepared.append(authority.db.execute('SELECT * FROM shared_capital_events '
+                            'ORDER BY sequence DESC LIMIT 1').fetchone())
+                        raise RuntimeError('original_uncommitted_fixture_event')
+                authority.fault=capture_before_commit
+                try:
+                    with self.assertRaisesRegex(RuntimeError,'original_uncommitted_fixture_event'):
+                        authority.command('new','runtime_publish',{},now)
+                finally:authority.fault=None
+                self.assertEqual(len(prepared),1)
+                self.assertFalse(authority.db.in_transaction)
+                row=list(prepared[0])
                 if corrupt=='parent':row[5] = 'f'*64
                 elif corrupt=='result':row[3] = canonical({'accepted':False})
                 elif corrupt=='state_hash':row[4] = 'f'*64
                 else:row[2] += ' '*(module._MAX_BYTES+1)
                 row[6] = hashlib.sha256((row[5]+row[2]+row[3]+row[4]).encode()).hexdigest()
-                authority.db.execute('UPDATE shared_capital_events SET body=?,result=?,state_hash=?,previous=?,hash=? WHERE sequence=?',
-                                     (row[2],row[3],row[4],row[5],row[6],row[0]))
+                # Append a malformed future row without weakening the schema.
+                # It derives from the actual original rolled-back transition;
+                # no synthetic body/hash is accepted as a positive authority.
+                authority.db.execute('INSERT INTO shared_capital_events VALUES(?,?,?,?,?,?,?)',row)
                 changes = authority.db.total_changes;value = self.advance(prefix)
                 self.assertEqual(value.status,'UNKNOWN');self.assertIsInstance(value.error,CapitalError)
+                expected=('capital_journal_integrity' if corrupt=='parent' else
+                    'held_financial_row_bound' if corrupt=='oversize' else 'nondeterministic_capital_replay')
+                self.assertEqual(str(value.error),expected)
                 self.assertEqual(self.advance(prefix).reason,'LATCHED')
                 self.assertEqual(authority.db.total_changes,changes)
                 self.assertFalse(authority.db.in_transaction)
@@ -396,6 +443,189 @@ class HeldFinancialPrefixTests(unittest.TestCase):
             self.assertEqual(context.flags,before.flags)
             self.assertEqual(context.traps,before.traps)
         self.assertEqual(value.state_sha256,authority.verify_replay()['state_sha256'])
+
+    def test_default_replay_sql_is_unchanged_and_does_not_touch_capture_schema(self):
+        _, authority, _, _ = self.fixture()
+        authority.verify_replay()  # Warm the existing original verifier cache equally.
+        first = [];authority.db.set_trace_callback(first.append)
+        with patch.object(module,'_schema',side_effect=AssertionError('inactive observer')):
+            proof = authority.verify_replay()
+        second = [];authority.db.set_trace_callback(second.append)
+        with patch.object(module,'_schema',side_effect=AssertionError('inactive observer')):
+            self.assertEqual(authority.verify_replay(held_replay=None),proof)
+        authority.db.set_trace_callback(None)
+        self.assertEqual(first,second)
+        self.assertFalse(any('sqlite_schema' in sql or 'PRAGMA' in sql for sql in first))
+        self.assertEqual(first[0],'BEGIN');self.assertEqual(first[-1],'COMMIT')
+
+    def test_unchanged_cut_and_status_polling_reuse_immutable_member_projection(self):
+        root, authority, now, _ = self.fixture();prefix = self.prefix(authority)
+        self.native(root,now);first = self.cover(prefix)
+        self.assertTrue(first.current_members)
+        with patch.object(module,'deepcopy',side_effect=AssertionError('unnecessary full copy')), \
+                patch.object(module,'canonical',side_effect=AssertionError('unnecessary member serialization')):
+            same = self.advance(prefix)
+            self.assertEqual(same.status,'COVERED_CUT')
+            self.assertIs(same.current_members,first.current_members)
+            cancelled = prefix.advance(deadline=time.monotonic()+5,cancelled=lambda:True)
+            self.assertEqual(cancelled.reason,'CANCELLED')
+            self.assertIs(cancelled.pending,first.pending)
+            with patch.object(module,'_schema',side_effect=ValueError('observer_failed')):
+                unknown = self.advance(prefix)
+            self.assertEqual(unknown.status,'UNKNOWN')
+            self.assertIs(self.advance(prefix).terminal_members,first.terminal_members)
+
+    def test_interior_tamper_before_anchor_reaches_real_original_verifier(self):
+        _, authority, now, _ = self.fixture()
+        authority.command('later','runtime_publish',{},now)
+        capture = self.capture(authority)
+        endpoints = authority.db.execute('SELECT sequence,hash,state_hash FROM shared_capital_events'
+            ' WHERE sequence IN (1,(SELECT MAX(sequence) FROM shared_capital_events)) ORDER BY sequence').fetchall()
+        authority.db.execute('DROP TRIGGER shared_capital_no_update')
+        authority.db.execute("UPDATE shared_capital_events SET body=body||' ' WHERE sequence=2")
+        self.assertEqual(authority.db.execute('SELECT sequence,hash,state_hash FROM shared_capital_events'
+            ' WHERE sequence IN (1,(SELECT MAX(sequence) FROM shared_capital_events)) ORDER BY sequence').fetchall(),endpoints)
+        with self.assertRaisesRegex(CapitalError,'capital_journal_integrity'):
+            authority.verify_replay(held_replay=capture)
+        with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):capture.prefix()
+        self.assertIsNone(capture._anchor)
+
+    def test_missing_immutable_trigger_before_anchor_refuses_observer_only(self):
+        _, authority, _, _ = self.fixture();capture = self.capture(authority)
+        proof = authority.verify_replay()
+        authority.db.execute('DROP TRIGGER shared_capital_no_update')
+        self.assertEqual(authority.verify_replay(held_replay=capture),proof)
+        with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):capture.prefix()
+        self.assertIsInstance(capture._failure,CapitalError)
+        self.assertFalse(authority.db.in_transaction)
+
+    def test_drop_and_identical_restore_after_anchor_break_schema_generation(self):
+        _, authority, _, _ = self.fixture();prefix = self.prefix(authority)
+        schema = authority.db.execute("SELECT sql FROM sqlite_schema WHERE name='shared_capital_no_update'").fetchone()[0]
+        head = authority.db.execute('SELECT * FROM shared_capital_events ORDER BY sequence DESC LIMIT 1').fetchone()
+        authority.db.execute('DROP TRIGGER shared_capital_no_update')
+        authority.db.execute(schema)
+        self.assertEqual(authority.db.execute('SELECT * FROM shared_capital_events ORDER BY sequence DESC LIMIT 1').fetchone(),head)
+        value = self.advance(prefix)
+        self.assertEqual(value.status,'UNKNOWN');self.assertEqual(str(value.error),'held_financial_schema_changed')
+        self.assertEqual(self.advance(prefix).reason,'LATCHED')
+
+    def test_staged_anchor_cannot_escape_original_commit_failure(self):
+        _, authority, _, _ = self.fixture();capture = self.capture(authority)
+        observed = []
+        def authorize(action,arg1,*args):
+            if action==sqlite3.SQLITE_TRANSACTION and arg1=='COMMIT':
+                observed.append((capture._phase,authority.db.in_transaction))
+                with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):capture.prefix()
+                return sqlite3.SQLITE_DENY
+            return sqlite3.SQLITE_OK
+        authority.db.set_authorizer(authorize)
+        try:
+            with self.assertRaises(sqlite3.DatabaseError):authority.verify_replay(held_replay=capture)
+        finally:authority.db.set_authorizer(None)
+        self.assertEqual(observed,[('STAGED',True)])
+        self.assertFalse(authority.db.in_transaction)
+        self.assertIsNone(capture._anchor)
+        with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):capture.prefix()
+
+    def test_original_cancellation_after_staging_discards_anchor_and_exception(self):
+        from meme_machine.runtime.stop import Shutdown
+        _, authority, _, _ = self.fixture();capture = self.capture(authority)
+        def cancelled():return capture._phase=='STAGED'
+        with patch.object(authority,'_startup_replay_cancel',cancelled):
+            with self.assertRaises(Shutdown):authority.verify_replay(held_replay=capture)
+        self.assertIsNone(capture._anchor);self.assertFalse(authority.db.in_transaction)
+        self.assertFalse(authority._replaying)
+        with self.assertRaises(CapitalError):capture.prefix()
+
+    def test_ordinary_capture_refusal_preserves_original_summary(self):
+        _, authority, _, _ = self.fixture();capture = self.capture(authority)
+        proof = authority.verify_replay();failure = ValueError('observer_only')
+        with patch.object(module,'_schema',side_effect=failure):
+            self.assertEqual(authority.verify_replay(held_replay=capture),proof)
+        self.assertIs(capture._failure,failure)
+        with self.assertRaises(CapitalError) as caught:capture.prefix()
+        self.assertIs(caught.exception.__cause__,failure)
+
+    def test_native_owner_root_epoch_inception_and_lifetime_are_not_supplied_flags(self):
+        _, authority, _, _ = self.fixture();proof = authority.verify_replay()
+        for fields in ({'epoch':'crossed'}, {'inception':'0'*64}, {'root':authority.path.parent/'foreign'}):
+            with self.subTest(fields=fields):
+                capture = self.capture(authority,**fields)
+                self.assertEqual(authority.verify_replay(held_replay=capture),proof)
+                with self.assertRaises(CapitalError):capture.prefix()
+        capture = self.capture(authority,family='pons')
+        authority.verify_replay(held_replay=capture)
+        prefix = capture.prefix();self.assertEqual(self.advance(prefix).status,'COVERED_CUT')
+        capture._owner.close()
+        self.assertEqual(self.advance(prefix).status,'UNKNOWN')
+
+    def test_constructor_uses_its_original_initial_replay_for_capture(self):
+        _, authority, _, _ = self.fixture();capture = self.capture(authority)
+        peer = RuntimeCapital(authority.path,held_replay=capture);self.addCleanup(peer.close)
+        prefix = capture.prefix()
+        self.assertIs(prefix._authority,peer)
+        self.assertEqual(self.advance(prefix).status,'COVERED_CUT')
+
+    def test_retained_owned_rollback_preserves_primary_and_requires_real_owner_cleanup(self):
+        _, authority, now, _ = self.fixture();prefix = self.prefix(authority)
+        primary = RuntimeError('original_observation_failure');denied = []
+        def authorize(action,arg1,*args):
+            if action==sqlite3.SQLITE_TRANSACTION and arg1=='ROLLBACK':
+                denied.append(True);return sqlite3.SQLITE_DENY
+            return sqlite3.SQLITE_OK
+        authority.db.set_authorizer(authorize)
+        self.addCleanup(lambda:authority.db.set_authorizer(None))
+        with patch.object(module,'_head',side_effect=primary):
+            with self.assertRaises(_RetainedFinancialRead) as caught:self.advance(prefix)
+        issue = caught.exception
+        self.assertIs(issue.primary,primary);self.assertIs(issue.__cause__,primary)
+        self.assertIs(issue.authority,authority);self.assertIs(issue.prefix,prefix)
+        self.assertTrue(issue.transaction_active);self.assertTrue(authority.db.in_transaction)
+        with self.assertRaises(_RetainedFinancialRead) as again:self.advance(prefix)
+        self.assertIs(again.exception,issue)
+        # The original BEGIN naturally refuses; caller must not otherwise reuse
+        # or raw-commit the borrowed owner while this handoff is retained.
+        with self.assertRaises(sqlite3.OperationalError):authority.ledger()
+        with self.assertRaises(_RetainedFinancialRead) as failed_cleanup:
+            prefix.cleanup_retained_read(deadline=time.monotonic()+5,cancelled=lambda:False)
+        self.assertIs(failed_cleanup.exception.__cause__,primary)
+        self.assertIsNotNone(issue.cleanup_error);self.assertIsNotNone(issue.latest_cleanup_error)
+        self.assertTrue(authority.db.in_transaction)
+        errors = []
+        def foreign():
+            try:prefix.cleanup_retained_read(deadline=time.monotonic()+5,cancelled=lambda:False)
+            except CapitalError as exc:errors.append(exc)
+        thread = threading.Thread(target=foreign);thread.start();thread.join(timeout=5)
+        self.assertFalse(thread.is_alive());self.assertEqual(len(errors),1)
+        self.assertTrue(authority.db.in_transaction)
+        authority.db.set_authorizer(None)
+        released = prefix.cleanup_retained_read(deadline=time.monotonic()+5,cancelled=lambda:False)
+        self.assertEqual(released.status,'UNKNOWN');self.assertEqual(issue.cleanup_state,'RELEASED')
+        self.assertFalse(authority.db.in_transaction)
+        self.assertIsNone(getattr(authority,'_held_financial_retained_read',None))
+        self.assertEqual(self.advance(prefix).reason,'LATCHED')
+        # Only now can the original owner resume; cleanup grants nothing.
+        authority.command('after-cleanup','runtime_publish',{},now)
+        authority.verify_replay()
+        self.assertGreaterEqual(len(denied),2)
+
+    def test_execute_failure_after_real_begin_still_releases_owned_read(self):
+        _, authority, _, _ = self.fixture();prefix = self.prefix(authority)
+        original_one = module._one;primary = RuntimeError('execute_failed_after_begin')
+        changes = authority.db.total_changes;trace = [];authority.db.set_trace_callback(trace.append)
+        def one(db,sql,parameters=()):
+            result = original_one(db,sql,parameters)
+            if sql=='BEGIN':
+                self.assertTrue(db.in_transaction)
+                raise primary
+            return result
+        with patch.object(module,'_one',side_effect=one):value = self.advance(prefix)
+        self.assertEqual(value.status,'UNKNOWN');self.assertIs(value.error,primary)
+        self.assertFalse(authority.db.in_transaction)
+        self.assertIsNone(getattr(authority,'_held_financial_retained_read',None))
+        self.assertEqual(authority.db.total_changes,changes)
+        self.assertIn('ROLLBACK',trace)
 
 
 if __name__ == '__main__':

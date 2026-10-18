@@ -1,10 +1,11 @@
-"""Dormant, private observation of an already-replayed shared financial journal.
+"""Dormant observation anchored inside the original successful replay snapshot.
 
-This is not a boot, owner, protection, readiness or funding capability.  The
-caller must construct it at the authentic owner replay seam.  RuntimeCapital
-does not record its constructing thread; this helper binds only *its own*
-creating PID/thread.  A covered journal cut is not live all-writer completeness.
-No runtime imports or installs this helper by default.
+The approved source's financial actors append only through original _write;
+they never rewrite old rows or mutate schema.  Exact known schema and its
+SQLite generation must remain continuous.  Hostile raw SQL/root restoring
+schema_version, arbitrary Python mutation and hostile SQLite are outside that
+premise.  Path metadata associates an owned connection, not kernel FD identity.
+This is not held-population, protection, boot, readiness or funding authority.
 """
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -12,6 +13,7 @@ import hashlib
 import json
 import math
 import os
+from pathlib import Path
 import sqlite3
 import threading
 import time
@@ -25,6 +27,7 @@ from meme_machine.shared_capital.runtime import RuntimeCapital
 _MAX_ROWS = 256
 _MAX_BYTES = 2 * 1024 * 1024
 _MAX_STATE_BYTES = 32 * 1024 * 1024
+_ANCHOR_ISSUER = object()
 _TEXT_FIELDS = ('operation_id', 'body', 'result', 'state_hash', 'previous', 'hash')
 _PENDING = (
     ('RESERVATION', 'reservations'), ('COMMITMENT', 'commitments'),
@@ -38,6 +41,8 @@ class _FinancialView:
     """Detached original bodies are immutable JSON text, never authority."""
     status: str
     reason: str
+    owner_sha256: str
+    schema_version: int
     sequence: int
     journal_hash: str
     state_sha256: str
@@ -52,8 +57,220 @@ class _FinancialView:
     error: Exception | None = field(default=None, repr=False, compare=False)
 
 
+_FOREIGN_OWNER_VIEW = _FinancialView(
+    status='UNKNOWN', reason='FOREIGN_OWNER', owner_sha256='UNAVAILABLE',
+    schema_version=-1, sequence=-1, journal_hash='UNAVAILABLE',
+    state_sha256='UNAVAILABLE', cut_sequence=-1, cut_journal_hash='UNAVAILABLE',
+    rows=0, text_bytes=0, current_members=(), terminal_members=(), pending=(),
+    counts=(('RESERVATION', 'UNESTABLISHED'), ('COMMITMENT', 'UNESTABLISHED'),
+            ('OBLIGATION', 'UNESTABLISHED'), ('PENDING_DELIVERY', 'UNESTABLISHED'),
+            ('PENDING_BACKING', 'UNESTABLISHED'), ('RUNTIME_PENDING', 'UNESTABLISHED'),
+            ('RUNTIME_INBOX', 'UNESTABLISHED'), ('GLOBAL_OPEN', 'UNESTABLISHED'),
+            ('LEGACY_NATIVE_PENDING', 'UNESTABLISHED')))
+
+
 class _Deferred(Exception):
     pass
+
+
+class _RetainedFinancialRead(RuntimeError):
+    """The owner must resolve this borrowed read transaction before any reuse.
+
+    No transaction token exists in SQLite.  Raw COMMIT/reuse while this handoff
+    is retained is forbidden: cleanup must not target a later unrelated read.
+    Neither cleanup nor this exception may close the original owner connection.
+    """
+    def __init__(self, prefix, primary, cleanup_error, transaction_active):
+        super().__init__('held_financial_owned_read_cleanup_required')
+        self.prefix, self.authority = prefix, prefix._authority
+        self.primary, self.cleanup_error = primary, cleanup_error
+        self.latest_cleanup_error = cleanup_error
+        self.transaction_active = transaction_active
+        self.cleanup_state = 'RETAINED'
+        self.cleanup_attempts = 0
+
+
+def _normalized_sql(value):
+    # Normalize whitespace/keyword case only outside quoted SQL tokens. Do not
+    # erase literal changes such as RAISE's diagnostic text or quoted names.
+    out, quote, index = [], None, 0
+    while index < len(value):
+        char = value[index]
+        if quote:
+            out.append(char)
+            if char == quote:
+                if index + 1 < len(value) and value[index+1] == quote:
+                    out.append(quote);index += 1
+                else:quote = None
+        elif char in ("'", '"', '`'):
+            quote = char;out.append(char)
+        elif not char.isspace():
+            out.append(char.lower())
+        index += 1
+    return ''.join(out)
+
+
+_EXPECTED_SCHEMA = tuple(sorted((
+    ('table', 'shared_capital_projection', 'shared_capital_projection', _normalized_sql(
+        'CREATE TABLE shared_capital_projection(id INTEGER PRIMARY KEY CHECK(id=1), body TEXT NOT NULL, hash TEXT NOT NULL)')),
+    ('table', 'shared_capital_events', 'shared_capital_events', _normalized_sql(
+        'CREATE TABLE shared_capital_events(sequence INTEGER PRIMARY KEY, operation_id TEXT NOT NULL UNIQUE,'
+        ' body TEXT NOT NULL, result TEXT NOT NULL, state_hash TEXT NOT NULL, previous TEXT NOT NULL, hash TEXT NOT NULL)')),
+    ('index', 'sqlite_autoindex_shared_capital_events_1', 'shared_capital_events', None),
+    ('trigger', 'shared_capital_no_update', 'shared_capital_events', _normalized_sql(
+        "CREATE TRIGGER shared_capital_no_update BEFORE UPDATE ON shared_capital_events BEGIN SELECT RAISE(ABORT,'append_only'); END")),
+    ('trigger', 'shared_capital_no_delete', 'shared_capital_events', _normalized_sql(
+        "CREATE TRIGGER shared_capital_no_delete BEFORE DELETE ON shared_capital_events BEGIN SELECT RAISE(ABORT,'append_only'); END")),
+)))
+
+
+def _schema(db):
+    generation = _one(db, 'PRAGMA main.schema_version')
+    if not generation or type(generation[0]) is not int or generation[0] < 0:
+        raise CapitalError('held_financial_schema_generation')
+    where = " FROM main.sqlite_schema WHERE tbl_name IN ('shared_capital_events','shared_capital_projection')"
+    cursor = db.execute('SELECT length(CAST(type AS BLOB)),length(CAST(name AS BLOB)),'
+        'length(CAST(tbl_name AS BLOB)),length(CAST(sql AS BLOB))' + where + ' LIMIT 6')
+    try:
+        metadata = cursor.fetchall()
+    finally:
+        cursor.close()
+    if (len(metadata) != len(_EXPECTED_SCHEMA) or any(
+            any(type(size) is not int or not 0 < size <= 128 for size in row[:3])
+            or row[3] is not None and (type(row[3]) is not int or not 0 < row[3] <= 16384)
+            for row in metadata)):
+        raise CapitalError('held_financial_schema_bound')
+    # CASE admission remains in the same statement as text materialization,
+    # including the post-snapshot check; a catalog race cannot bypass bounds.
+    admitted = ["CASE WHEN typeof("+name+")='text' AND length(CAST("+name+
+                " AS BLOB)) BETWEEN 1 AND 128 THEN "+name+" END"
+                for name in ('type','name','tbl_name')]
+    admitted.append("CASE WHEN sql IS NULL THEN NULL WHEN typeof(sql)='text' AND "
+                    "length(CAST(sql AS BLOB)) BETWEEN 1 AND 16384 THEN sql ELSE 0 END")
+    cursor = db.execute('SELECT '+','.join(admitted) + where + ' LIMIT 6')
+    try:
+        rows = tuple(sorted((kind, name, table, _normalized_sql(sql) if sql is not None else None)
+                            for kind, name, table, sql in cursor))
+    finally:
+        cursor.close()
+    if rows != _EXPECTED_SCHEMA:
+        raise CapitalError('held_financial_schema_mismatch')
+    if _one(db, 'PRAGMA main.schema_version') != generation:
+        raise CapitalError('held_financial_schema_changed')
+    return generation[0]
+
+
+@dataclass(frozen=True)
+class _ReplayAnchor:
+    capture: object = field(repr=False)
+    authority: object = field(repr=False)
+    db: object = field(repr=False)
+    key: tuple = field(repr=False)
+    raw_state: str = field(repr=False)
+    sequence: int
+    journal_hash: str
+    state_sha256: str
+    schema_version: int
+    issuer: object = field(repr=False)
+
+    def __reduce__(self):
+        raise TypeError('held_financial_anchor_is_process_private')
+
+
+class _FinancialReplayCapture:
+    """One private original-verifier capture under an existing native owner."""
+    def __init__(self, owner):
+        from meme_machine.operational.normal_pump_boot import NativePumpOwnerContext, require_pump_owner_context
+        from meme_machine.operational.normal_pons_boot import NativePonsOwnerContext, require_pons_owner_context
+        if type(owner) is NativePumpOwnerContext:
+            self._require = require_pump_owner_context
+        elif type(owner) is NativePonsOwnerContext:
+            self._require = require_pons_owner_context
+        else:
+            raise TypeError('held_financial_private_native_owner_required')
+        self._owner = self._require(owner)
+        self._thread = (os.getpid(), threading.get_ident())
+        self._identity = owner.identity()
+        self._owner_sha = owner.identity_sha256
+        self._phase, self._failure = 'NEW', None
+        self._authority = self._anchor = None
+
+    def __reduce__(self):
+        raise TypeError('held_financial_capture_is_process_private')
+
+    def _check(self):
+        if self._thread != (os.getpid(), threading.get_ident()):
+            raise CapitalError('held_financial_foreign_owner')
+        if self._require(self._owner) is not self._owner or self._owner.identity_sha256 != self._owner_sha:
+            raise CapitalError('held_financial_owner_changed')
+
+    def _observe(self, operation, *args):
+        if self._failure is not None:
+            return
+        try:
+            self._check()
+            operation(*args)
+        except Exception as exc:
+            self._failure, self._phase, self._anchor = exc, 'UNKNOWN', None
+
+    def _begin(self, authority, issuer):
+        self._observe(self._start, authority, issuer)
+
+    def _start(self, authority, issuer):
+        if (issuer is not original._HELD_REPLAY_ISSUER or self._phase != 'NEW'
+                or type(authority) is not RuntimeCapital or type(authority.db) is not sqlite3.Connection):
+            raise CapitalError('held_financial_original_replay_required')
+        if authority.path.resolve() != Path(self._identity['root'])/'shared-capital.sqlite':
+            raise CapitalError('held_financial_owner_root_mismatch')
+        self._authority, self._phase = authority, 'VERIFYING'
+
+    def _stage(self, authority, state, summary, issuer):
+        self._observe(self._staging, authority, state, summary, issuer)
+
+    def _staging(self, authority, state, summary, issuer):
+        if (issuer is not original._HELD_REPLAY_ISSUER or self._phase != 'VERIFYING'
+                or authority is not self._authority or not authority._replaying or not authority.db.in_transaction):
+            raise CapitalError('held_financial_original_snapshot_required')
+        identity = self._identity['launch']
+        if (type(state) is not dict or state['epoch_id'] != identity['epoch_id']
+                or state['inception_sha256'] != identity['inception_sha256']):
+            raise CapitalError('held_financial_owner_epoch_mismatch')
+        key = authority._replay_prefix_key()
+        if key is None or key[-2:] != (RuntimeCapital._apply, RuntimeCapital._reconcile):
+            raise CapitalError('held_financial_original_reducer_required')
+        cursor = authority.db.execute('PRAGMA database_list')
+        try:
+            databases = cursor.fetchall()
+        finally:
+            cursor.close()
+        mains = [row[2] for row in databases if row[1] == 'main']
+        if mains != [str(Path(self._identity['root'])/'shared-capital.sqlite')]:
+            raise CapitalError('held_financial_owned_connection_mismatch')
+        raw = canonical(state)
+        if len(raw.encode()) > _MAX_STATE_BYTES or hashlib.sha256(raw.encode()).hexdigest() != summary['state_sha256']:
+            raise CapitalError('held_financial_initial_state_bound')
+        self._anchor = _ReplayAnchor(self, authority, authority.db, key, raw, summary['events'],
+            summary['journal_hash'], summary['state_sha256'], _schema(authority.db), _ANCHOR_ISSUER)
+        self._phase = 'STAGED'
+
+    def _publish(self, authority, issuer):
+        self._observe(self._publication, authority, issuer)
+
+    def _publication(self, authority, issuer):
+        if (issuer is not original._HELD_REPLAY_ISSUER or self._phase != 'STAGED'
+                or authority is not self._authority or authority.db.in_transaction):
+            raise CapitalError('held_financial_original_replay_not_finished')
+        self._phase = 'PUBLISHED'
+
+    def _discard(self, authority, issuer):
+        if issuer is original._HELD_REPLAY_ISSUER and authority is self._authority:
+            self._anchor, self._phase = None, 'DISCARDED'
+
+    def prefix(self):
+        self._check()
+        if self._failure is not None or self._phase != 'PUBLISHED' or self._anchor is None:
+            raise CapitalError('held_financial_anchor_unavailable') from self._failure
+        return _FinancialPrefix(self._anchor)
 
 
 def _one(db, sql, parameters=()):
@@ -86,36 +303,28 @@ def _head(db, sequence=None):
 
 
 class _FinancialPrefix:
-    def __init__(self, authority, state, replay_proof):
-        if type(authority) is not RuntimeCapital or type(authority.db) is not sqlite3.Connection:
-            raise CapitalError('held_financial_original_authority_required')
-        self._authority, self._db = authority, authority.db
+    def __init__(self, anchor):
+        if type(anchor) is not _ReplayAnchor or anchor.issuer is not _ANCHOR_ISSUER:
+            raise CapitalError('held_financial_original_anchor_required')
+        capture = anchor.capture
+        if type(capture) is not _FinancialReplayCapture:
+            raise CapitalError('held_financial_original_anchor_required')
+        capture._check()
+        if capture._phase != 'PUBLISHED' or capture._anchor is not anchor or capture._failure is not None:
+            raise CapitalError('held_financial_anchor_unavailable')
+        capture._phase, capture._anchor = 'TAKEN', None
+        self._capture = capture
+        self._authority, self._db = anchor.authority, anchor.db
         self._owner = (os.getpid(), threading.get_ident())
-        self._key = authority._replay_prefix_key()
+        self._key, self._schema_version = anchor.key, anchor.schema_version
         self._apply = RuntimeCapital._apply
         self._reconcile = RuntimeCapital._reconcile
-        if self._key is None or self._key[-2:] != (self._apply, self._reconcile):
-            raise CapitalError('held_financial_original_reducer_required')
         self._failure = None
         self._cut = None
-        # This cache is populated only by the original successful verifier.
-        # Do not call _authenticated_replay_prefix: that scans the whole journal.
-        if not original._REPLAY_PREFIX_LOCK.acquire(blocking=False):
-            raise CapitalError('held_financial_initial_replay_unavailable')
-        try:
-            cached = original._REPLAY_PREFIXES.get(self._key)
-        finally:
-            original._REPLAY_PREFIX_LOCK.release()
-        if cached is None:
-            raise CapitalError('held_financial_initial_replay_unavailable')
-        sequence, anchor, state_hash, raw_state = cached
-        expected = dict(events=sequence, journal_hash=anchor, state_sha256=state_hash, conservation=True)
-        if (type(replay_proof) is not dict or replay_proof != expected
-                or type(state) is not dict or canonical(state) != raw_state
-                or hashlib.sha256(raw_state.encode()).hexdigest() != state_hash):
-            raise CapitalError('held_financial_initial_replay_mismatch')
-        self._state = json.loads(raw_state)
-        self._sequence, self._anchor, self._state_hash = sequence, anchor, state_hash
+        self._retained = None
+        self._view_cache = None
+        self._state = json.loads(anchor.raw_state)
+        self._sequence, self._anchor, self._state_hash = anchor.sequence, anchor.journal_hash, anchor.state_sha256
         self._identity = tuple(self._state[k] for k in ('epoch_id', 'inception_sha256')) + (digest(self._state['policy']),)
         # A detached original reducer needs no connection, locks or live flags.
         self._adapter = object.__new__(RuntimeCapital)
@@ -124,36 +333,77 @@ class _FinancialPrefix:
         self._adapter.fault = None
         with arithmetic():
             self._reconcile(self._adapter, self._state)
-        if not authority._mutex.acquire(blocking=False):
-            raise CapitalError('held_financial_owner_busy')
-        own_transaction = False
-        try:
-            self._bound()
-            if self._db.in_transaction:
-                raise CapitalError('held_financial_owner_transaction_active')
-            _one(self._db, 'BEGIN')
-            own_transaction = True
-            if _head(self._db) != (sequence, anchor, state_hash):
-                raise CapitalError('held_financial_initial_head_changed')
-            self._projection(self._state, state_hash)
-            self._bound()
-        finally:
-            try:
-                if own_transaction and self._db.in_transaction:
-                    from meme_machine.runtime.sqlite_failure import preserving_cleanup
-                    with preserving_cleanup():
-                        _one(self._db, 'ROLLBACK')
-            finally:
-                authority._mutex.release()
+        self._bound()
+        # Build once on the creating thread; foreign status refusal must not
+        # allocate/mutate an owner projection lazily.
+        self._view('INCOMPLETE', 'ANCHORED_PREFIX')
+
+    def __reduce__(self):
+        raise TypeError('held_financial_prefix_is_process_private')
 
     def _bound(self):
         if (os.getpid(), threading.get_ident()) != self._owner:
             raise CapitalError('held_financial_foreign_owner')
+        self._capture._check()
         if (self._authority.db is not self._db
                 or self._authority._replay_prefix_key() != self._key
                 or RuntimeCapital._apply is not self._apply
                 or RuntimeCapital._reconcile is not self._reconcile):
             raise CapitalError('held_financial_binding_changed')
+
+    def _schema_current(self):
+        if _schema(self._db) != self._schema_version:
+            raise CapitalError('held_financial_schema_changed')
+
+    def _raise_retained(self):
+        issue = self._retained or getattr(self._authority, '_held_financial_retained_read', None)
+        if issue is not None:
+            raise issue from issue.primary or issue.cleanup_error
+
+    def cleanup_retained_read(self, *, deadline, cancelled):
+        """Same creating owner only; resolve this handoff before authority reuse.
+
+        Caller must not raw-COMMIT/BEGIN or otherwise reuse the borrowed owner
+        while retained; SQLite cannot distinguish an unrelated replacement
+        transaction.  Revoked provenance does not forbid this physical cleanup.
+        """
+        if (os.getpid(), threading.get_ident()) != self._owner:
+            raise CapitalError('held_financial_foreign_cleanup_owner')
+        if (type(deadline) not in (int, float) or not math.isfinite(deadline) or not callable(cancelled)):
+            raise ValueError('held_financial_cleanup_bounds')
+        issue = self._retained
+        if issue is None:
+            raise CapitalError('held_financial_no_retained_read')
+        try:
+            deferred = cancelled() or time.monotonic() >= deadline
+        except BaseException as exc:
+            issue.latest_cleanup_error, issue.cleanup_state = exc, 'DEFERRED'
+            self._raise_retained()
+        if deferred:
+            issue.cleanup_state = 'DEFERRED'
+            self._raise_retained()
+        if not self._authority._mutex.acquire(blocking=False):
+            issue.cleanup_state = 'OWNER_BUSY'
+            self._raise_retained()
+        try:
+            issue.cleanup_attempts += 1
+            if self._db.in_transaction:
+                _one(self._db, 'ROLLBACK')
+            if self._db.in_transaction:
+                raise CapitalError('held_financial_cleanup_still_active')
+        except BaseException as exc:
+            issue.latest_cleanup_error, issue.cleanup_state = exc, 'RETAINED'
+            try:issue.transaction_active = self._db.in_transaction
+            except Exception:issue.transaction_active = None
+            self._raise_retained()
+        finally:
+            self._authority._mutex.release()
+        issue.transaction_active, issue.cleanup_state = False, 'RELEASED'
+        self._retained = None
+        if getattr(self._authority, '_held_financial_retained_read', None) is issue:
+            self._authority._held_financial_retained_read = None
+        self._failure = issue
+        return self._view('UNKNOWN', 'RETAINED_READ_RELEASED', error=issue)
 
     def _projection(self, state, state_hash):
         meta = _one(self._db, 'SELECT typeof(body),length(CAST(body AS BLOB)),'
@@ -167,25 +417,27 @@ class _FinancialPrefix:
             raise CapitalError('replayed_projection_mismatch')
 
     def _view(self, status, reason, rows=0, text_bytes=0, error=None):
-        state = self._state
-        current, terminal, pending = [], [], []
-        for key, row in sorted(state['positions'].items()):
-            (current if row['status'] == 'OPEN' else terminal).append((key, canonical(row)))
-        for kind, name in _PENDING:
-            pending.extend((kind, key, canonical(row)) for key, row in sorted(state.get(name, {}).items()))
-        # Keep original delivery bodies/order and their original identities.
-        pending.extend(('PENDING_DELIVERY', str(index), canonical(row))
-                       for index, row in enumerate(state['pending_deliveries']))
-        pending.extend(('GLOBAL_OPEN', key, body) for key, body in current)
-        counts = tuple((kind, sum(item[0] == kind for item in pending))
-                       for kind in (*[item[0] for item in _PENDING], 'PENDING_DELIVERY', 'GLOBAL_OPEN'))
-        # This selected shared journal cannot establish the separate legacy
-        # native pending population.  Never encode its absence as zero.
-        counts += (('LEGACY_NATIVE_PENDING', 'UNESTABLISHED'),)
+        if self._view_cache is None:
+            state = self._state
+            current, terminal, pending = [], [], []
+            for key, row in sorted(state['positions'].items()):
+                (current if row['status'] == 'OPEN' else terminal).append((key, canonical(row)))
+            for kind, name in _PENDING:
+                pending.extend((kind, key, canonical(row)) for key, row in sorted(state.get(name, {}).items()))
+            # Keep original delivery bodies/order and their original identities.
+            pending.extend(('PENDING_DELIVERY', str(index), canonical(row))
+                           for index, row in enumerate(state['pending_deliveries']))
+            pending.extend(('GLOBAL_OPEN', key, body) for key, body in current)
+            counts = tuple((kind, sum(item[0] == kind for item in pending))
+                           for kind in (*[item[0] for item in _PENDING], 'PENDING_DELIVERY', 'GLOBAL_OPEN'))
+            # This shared journal cannot establish separate legacy native pending.
+            counts += (('LEGACY_NATIVE_PENDING', 'UNESTABLISHED'),)
+            self._view_cache = tuple(current), tuple(terminal), tuple(pending), counts
+        current, terminal, pending, counts = self._view_cache
         cut = self._cut or (self._sequence, self._anchor, self._state_hash)
-        return _FinancialView(status, reason, self._sequence, self._anchor, self._state_hash,
-                              cut[0], cut[1], rows, text_bytes, tuple(current), tuple(terminal),
-                              tuple(pending), counts, error)
+        return _FinancialView(status, reason, self._capture._owner_sha, self._schema_version,
+                              self._sequence, self._anchor, self._state_hash,
+                              cut[0], cut[1], rows, text_bytes, current, terminal, pending, counts, error)
 
     def _state_for_join(self):
         """Owner-only detached state at the last covered prefix, not live proof.
@@ -195,6 +447,7 @@ class _FinancialPrefix:
         authenticate native owners; no supplied mapping grants that authority.
         """
         self._bound()
+        self._raise_retained()
         if self._failure is not None:
             raise CapitalError('held_financial_prefix_unknown') from self._failure
         return self._sequence, self._anchor, self._state_hash, deepcopy(self._state)
@@ -212,8 +465,9 @@ class _FinancialPrefix:
                 or type(max_bytes) is not int or not 1 <= max_bytes <= _MAX_BYTES):
             raise ValueError('held_financial_advance_bounds')
         if (os.getpid(), threading.get_ident()) != self._owner:
-            # Do not touch the connection or mutate owner state from a foreign thread.
-            return self._view('UNKNOWN', 'FOREIGN_OWNER')
+            # Fixed unavailable projection: no owned state/cache/DB/cap access.
+            return _FOREIGN_OWNER_VIEW
+        self._raise_retained()
         if self._failure is not None:
             return self._view('UNKNOWN', 'LATCHED', error=self._failure)
 
@@ -228,6 +482,7 @@ class _FinancialPrefix:
         rows, used = 0, 0
         candidate = None
         failure = None
+        primary = None
         reason = 'TAIL_LIMIT'
         try:
             check()
@@ -237,8 +492,12 @@ class _FinancialPrefix:
                 raise _Deferred('OWNER_BUSY')
             if self._db.in_transaction:
                 raise _Deferred('OWNER_TRANSACTION_ACTIVE')
-            _one(self._db, 'BEGIN')
+            # A failed execute may have toggled SQLite's transaction state.
+            # Reserve cleanup responsibility before the attempt, after proving
+            # that no original owner transaction was active under its mutex.
             own_transaction = True
+            _one(self._db, 'BEGIN')
+            self._schema_current()
             head = _head(self._db)
             if _head(self._db, self._sequence) != (self._sequence, self._anchor, self._state_hash):
                 raise CapitalError('capital_journal_integrity')
@@ -277,7 +536,7 @@ class _FinancialPrefix:
                     break
                 admitted.append(meta[0])
                 used += size
-            candidate = deepcopy(self._state)
+            candidate = deepcopy(self._state) if admitted else self._state
             sequence, anchor, state_hash = self._sequence, self._anchor, self._state_hash
             if admitted:
                 cursor = self._db.execute('SELECT * FROM shared_capital_events'
@@ -319,21 +578,35 @@ class _FinancialPrefix:
             if identity != self._identity:
                 raise CapitalError('held_financial_identity_changed')
             self._bound()
+            self._schema_current()
             check()
         except _Deferred as exc:
             candidate = None
             reason = str(exc)
+            primary = exc
         except Exception as exc:
             candidate = None
-            failure = exc
+            primary = failure = exc
+        except BaseException as exc:
+            primary = exc
+            raise
         finally:
             try:
-                if own_transaction and self._db.in_transaction:
+                if own_transaction:
+                    cleanup_error = None
+                    active = None
                     try:
-                        _one(self._db, 'ROLLBACK')
-                    except Exception as exc:
-                        candidate = None
-                        failure = failure or exc
+                        if self._db.in_transaction:
+                            _one(self._db, 'ROLLBACK')
+                    except BaseException as exc:
+                        cleanup_error = exc
+                    try:active = self._db.in_transaction
+                    except Exception as exc:cleanup_error = cleanup_error or exc
+                    if cleanup_error is not None or active is not False:
+                        issue = _RetainedFinancialRead(self, primary, cleanup_error, active)
+                        self._retained = issue
+                        self._authority._held_financial_retained_read = issue
+                        raise issue from primary or cleanup_error
             finally:
                 if locked:
                     self._authority._mutex.release()
@@ -353,10 +626,12 @@ class _FinancialPrefix:
                 raise _Deferred('OWNER_BUSY')
             if self._db.in_transaction:
                 raise _Deferred('OWNER_TRANSACTION_ACTIVE')
+            self._schema_current()
             latest = _head(self._db)
             if latest[0] < cut[0] or latest[0] == cut[0] and latest != cut:
                 raise CapitalError('capital_journal_integrity')
             self._bound()
+            self._schema_current()
             check()
         except _Deferred as exc:
             return self._view('INCOMPLETE', str(exc))
@@ -367,6 +642,8 @@ class _FinancialPrefix:
             if locked:
                 self._authority._mutex.release()
         self._state = candidate
+        if rows:
+            self._view_cache = None
         self._sequence, self._anchor, self._state_hash = sequence, anchor, state_hash
         covered = sequence == cut[0]
         if covered and latest != cut:

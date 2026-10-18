@@ -1,55 +1,113 @@
-# Dormant shared-financial prefix observation
+# Dormant financial replay prefix
 
-This component is a lower read-only primitive for the separate held-population
-work. Nothing imports or installs it in normal operation. It issues no boot,
-held protection, source closure, readiness or funding capability. The original
-flat-only read context and certificate are unchanged.
+This private observer covers one authenticated original shared-journal cut.
+It issues no held-boot, population, protection, readiness or funding authority.
+No application path enables it by default. Original financial reducers, grants,
+settlements, Decimal rules, provider calls and SQL handlers retain their roles.
 
-`_FinancialPrefix(authority, state, replay_proof)` accepts the exact original
-`RuntimeCapital` type and reducer. Its initial state must match the private
-process-local replay cache populated by the original successful verifier. The
-supplied summary or a caller hash cannot replace that cache. Construction must
-occur at the genuine owner replay seam: the original authority does not retain
-its creating thread, so this helper cannot retrospectively attest connection
-birth. It binds its own creating PID/thread, existing connection and original
-path/inode cache key. This is not independently authenticated root physical
-membership, legacy selection or authorization of an arbitrary book.
+## Actual original replay anchor
 
-The initial original cache is bounded to 4 MiB by existing code. A valid larger
-or evicted state refuses observation rather than rejecting native work. The
-helper does not invoke the original prefix authenticator, which scans the full
-journal, or run a second full replay.
+`_FinancialReplayCapture(owner)` requires an existing exact private
+`NativePumpOwnerContext` or `NativePonsOwnerContext`. Its creating PID/thread,
+source/tree/root/epoch/inception lineage and actual original RuntimeCapital
+connection/reducers are bound. Native owner acquisition is an external existing
+root/host boundary; an identity dictionary cannot replace the private owner.
+Path metadata and PRAGMA's original connection locator associate the physical
+book; they do not authenticate a kernel SQLite file descriptor.
 
-`advance` captures an actual journal head and follows the indexed interval to
-that fixed cut, at most 256 rows and 2 MiB of SQL text per call. SQL first checks
-the types and byte lengths before fetching journal bodies. Original event,
-result, parent, state-hash and projection checks run with the exact original
-reducers and Decimal context on detached state. The live authority's replay
-flag, writes, handlers, existing transactions and native outcomes remain
-unchanged. An original nonblocking mutex protects each short owned SQL snapshot
-and its later head check. No connection, writer, pool, settlement or provider
-call is created. Cancellation/deadline checks are cooperative; an executing
-original SQL/reducer or busy wait is not a hard wall-clock deadline.
+Call the original `authority.verify_replay(held_replay=capture)`, then consume
+`capture.prefix()` once. Alternatively pass `held_replay=capture` to the existing
+RuntimeCapital constructor to capture its original initial verification. The
+successful original `_verify_replay` stages actual rebuilt state and its exact
+head inside the same original read snapshot, after projection reconciliation
+and cancellation checks. Publication happens only after the original outer
+transaction returns successfully. Original replay/COMMIT/cancellation failures
+discard the staged anchor and propagate unchanged. Ordinary observer/schema/
+size refusals latch the capture UNKNOWN and preserve the original result.
+Cached summaries, cache entries, endpoint checks and caller state cannot issue
+an anchor. The inactive constructor/verifier paths add no SQL, helper import,
+capture or member allocation.
 
-Other authorized writers' events are read from the actual global journal, not
-inferred from one owner's notifications. Missing sequences and head growth keep
-the result incomplete. Conflicting committed content latches UNKNOWN with the
-original exception retained privately. COVERED_CUT describes the captured head
-at the final check; another writer can commit immediately afterward. It is not
-an ongoing all-writer completeness guarantee.
+## Append-only continuity and bounded work
 
-Views retain exact original current/terminal position and pending bodies as
-immutable JSON text. The eight selected shared-state classes are counted;
-LEGACY_NATIVE_PENDING is explicitly UNESTABLISHED. An owner-checked detached
-state accessor preserves original aliases, native requests, cursors and delivery
-maps for future bidirectional joins. It is not itself a native book, paused,
-capital/trial, sleeve or protection census. Complete held population and actual
-version-bound quote/USD outcomes remain separate required components.
+This mechanism assumes exact approved code and the original exclusive launch
+lineage under trusted root/OS. All approved financial actors append through
+the original serialized `_write`, which performs a plain journal INSERT and
+projection update. No approved actor rewrites historical events, drops journal
+guards, replaces the journal or assigns schema_version. Additional authorized
+connections need no enumeration: indexed contiguous replay to the actual
+global head covers their appends, independent of local notification delivery.
 
-There are no runtime hooks in this foundation. Normal runtime source and SQL
-are unchanged. The focused tests use actual temporary original native/shared
-books, including genuine Pons SelectivePaper/CohortCapital, all four regimes,
-lost global ACK, native reserve/fill/partial/scale/terminal and peer-writer
-events. Host owner/readiness/provider premises remain explicit offline fixture
-inputs. No protected/live sizing or held execution claim follows from a test
-pass.
+The anchor pins the literal original event/projection table definitions,
+original no-update/no-delete trigger definitions and SQLite schema generation.
+Matching ignores whitespace and SQL letter case outside quoted tokens; literal
+contents and quoted names remain exact. It does not accept arbitrary equivalent
+SQL programs. Catalog text admission uses CASE bounds in the fetching statement.
+Every subsequent bounded read checks that schema and generation. Dropping and
+restoring an identical trigger after anchoring changes generation and refuses,
+even if journal endpoints and projection remain identical. Hostile raw SQL/root
+restoring schema_version, malicious Python mutation and hostile SQLite are
+outside this approved-actor premise. This is not a hostile database integrity
+claim or detection of arbitrary historical mutation without that premise.
+
+`advance(deadline=..., cancelled=..., max_rows=256, max_bytes=2*1024*1024)` uses
+the same original connection and its nonblocking mutex. It admits text lengths
+before fetching at most 256 indexed rows between its old prefix and fixed upper
+cut, then applies the original detached reducer and reconciliation under the
+original exact Decimal context. Parent/order/body/result/state hashes must
+match. A growing head remains INCOMPLETE until the newer tail is covered.
+Schema, fork, invalid body or deterministic replay contradictions latch UNKNOWN.
+No original whole-prefix scan runs per advance. State metadata is bounded at
+32 MiB; these logical bounds do not promise RSS or live runtime capacity.
+Unchanged-head, cancelled and latched status polling reuses the immutable member/
+pending projection; no additional full-state copy or per-member serialization
+runs without admitted new events. Original schema/projection/hash checks remain.
+
+The fixed private view retains original member/pending bodies and terminal
+rows. All nine pending classes are named; the separate legacy native pending
+population is `UNESTABLISHED`, never an invented zero. `_state_for_join()` is an
+owner-checked detached original state at the reported prefix, retaining exact
+native aliases, requests, delivery and cursor maps for later two-way joins.
+Neither a covered cut nor one process-local view proves live global completeness,
+native owner/controller closure, quote/USD freshness or later sleeve/cohort ACKs.
+
+## Retained read ownership
+
+The observer begins only its own short read snapshot when the original owner
+has no active transaction. It closes cursors and rolls back only that snapshot;
+it never replaces progress/authorizer handlers or closes the borrowed owner.
+If its rollback fails or release cannot be established, it raises
+`_RetainedFinancialRead` carrying the exact primary cause, cleanup error,
+authority, prefix and cleanup state. Reusing the prefix raises the same retained
+handoff. The caller must not resume the original authority, raw-COMMIT or start
+another transaction before resolving it. SQLite exposes no transaction token;
+raw caller reuse could make a later unrelated transaction indistinguishable and
+is outside the owned handoff contract. Original BEGIN naturally refuses while
+the retained read remains active.
+
+Only the creating PID/thread may call
+`cleanup_retained_read(deadline=..., cancelled=...)`. It uses the original
+nonblocking mutex and actual ROLLBACK, without handler changes or connection
+closure. Cleanup refusal/failure retains the original primary cause and handoff.
+Actual `db.in_transaction == False` releases physical ownership, after which
+the observer remains UNKNOWN. Revoked provenance does not prevent this physical
+cleanup. Subsequent observation needs a new genuine original replay capture;
+cleanup success grants no financial or readiness authority.
+
+Tests use original disposable shared/native fixtures, actual transactions and
+real SQLite failure/authorizer seams. The host/root acquisition premise of the
+existing private owner packet is explicitly simulated; no test claims actual
+protected source acquisition, live all-writer collection or held protection.
+The previous nineteen-test fixed-corpus cost is historical evidence for its
+previous implementation. New schema/anchor checks change that cost and require
+fresh measured reporting on the successor; no AWS benefit is claimed here.
+
+Validation of the corrected source: 31 focused cases passed in 1.748s, then
+46 original financial recovery/concurrency/native-capital cases passed in
+10.526s. The inactive verifier SQL trace is unchanged. One original four-regime
+fixture produced 30 new financial events; its single observer tail used 30 SQL
+statements, 37.56ms wall and 37.60ms process CPU. This is a bounded local cost
+receipt, not a matched production throughput comparison or an AWS benefit.
+No provider, image/kernel, protected acquisition, held restart or operational
+readiness was exercised. Native book capture/per-COMMIT joins remain separate
+unselected work and must not be inferred from this financial cut.
