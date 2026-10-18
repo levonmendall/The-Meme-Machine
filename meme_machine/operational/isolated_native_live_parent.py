@@ -7,6 +7,7 @@ does not create a Budget, grant, financial book, signing or production writer.
 Only the existing copied child receives detached sizing data and private IPC.
 """
 import asyncio
+from contextlib import closing
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 import json
@@ -14,6 +15,7 @@ import os
 from pathlib import Path
 import secrets
 import socket
+import sqlite3
 import stat
 import threading
 import time
@@ -91,6 +93,86 @@ class ProtectedFinancialInput:
         self.validate()
         require(self._encoded is not None,'live_financial_snapshot_required')
         return json.loads(self._encoded)
+
+
+class ProtectedProviderInput:
+    """Original continuous authorities supplied by the protected admin caller.
+
+    This port authenticates no supplied JSON and creates no allowance. The
+    trusted callback proves the original fixed ledger selection, source/unit
+    fence and exclusive writer scope. Accepted parent work may hold reservations
+    during validation; only entry and joined exit require them all closed.
+    """
+    def __init__(self,budget,governor,admission,*,validate_scope):
+        from meme_machine.runtime.governor import Governor
+        from meme_machine.lanes.pons.provider_admission import Admission
+        require(type(budget) is Budget and type(governor) is Governor
+            and type(admission) is Admission and admission.offline_profile is None
+            and callable(validate_scope),'live_provider_original_controls')
+        self.budget,self.governor,self.admission=budget,governor,admission
+        self._controls=(budget,governor,admission)
+        self._owner=(os.getpid(),threading.get_ident());self._validate=validate_scope
+        self._paths=tuple(str(Path(value.path).absolute()) for value in (budget,governor,admission))
+        require(len(set(self._paths))==3,'live_provider_distinct_controls')
+        self._configuration=budget.configuration
+        self._inodes=tuple(self._inode(path) for path in self._paths)
+        self.validate(closed=True)
+
+    @staticmethod
+    def _inode(value):
+        path=Path(value);info=path.lstat()
+        require(path.resolve(strict=True)==path and stat.S_ISREG(info.st_mode)
+            and info.st_uid==os.geteuid() and info.st_nlink==1 and not info.st_mode&0o077,
+            'live_provider_control_inode')
+        return info.st_dev,info.st_ino,info.st_mode,info.st_uid,info.st_gid,info.st_nlink
+
+    def validate(self,*,closed=False):
+        require(self._owner==(os.getpid(),threading.get_ident()) and type(closed) is bool,
+            'live_provider_owner')
+        require(self._validate() is True,'live_provider_scope_unverified')
+        require(all(current is original for current,original in zip(
+            (self.budget,self.governor,self.admission),self._controls)),
+            'live_provider_controls_changed')
+        require(self._paths==tuple(str(Path(value.path).absolute()) for value in
+            (self.budget,self.governor,self.admission)),'live_provider_selection_changed')
+        require(self._inodes==tuple(self._inode(path) for path in self._paths),
+            'live_provider_control_inode_changed')
+        # ParentHTTP already owns exactly one physical Budget boundary. A
+        # globally installed operational wrapper would charge Yellowstone twice.
+        import grpc.aio
+        from grpc.aio._channel import secure_channel
+        require(grpc.aio.secure_channel is secure_channel,'live_provider_transport_already_wrapped')
+        from .position_continuation import load_continuous,provider_interval
+        profile=load_continuous()
+        require(os.environ.get('MM_PROVIDER_OPERATION_MODE')=='CONTINUOUS'
+            and os.environ.get('MM_PROVIDER_USAGE_DB')==self._paths[0]
+            and not any(os.environ.get(name) for name in ('MM_BOUNDED_PROVIDER_DB',
+                'MM_BOUNDED_PROVIDER_ENVELOPE','MM_POSITION_CONTINUATION_ENVELOPE'))
+            and profile==self.budget.envelope
+            and self.governor.solana_interval==provider_interval('solana')
+            and self.admission.interval==provider_interval('robinhood'),
+            'live_provider_original_profile_required')
+        state=self.budget.snapshot()
+        require(self.budget.phase=='bootstrap' and self.budget.prefix=='' and self.budget.continuous is True
+            and self.budget.configuration==self._configuration
+            and self.budget.verify_configuration(state)==''
+            and state.get('reason')=='' and state.get('new_risk_ready')=='false'
+            and self.admission.offline_profile is None,'live_provider_continuous_funding_closed')
+        if closed:
+            require(state.get('http_reserved')==state.get('native_reserved')=='0',
+                'live_provider_reservations_open')
+            # A completely consumed receipt can have remaining=0 while still
+            # OPEN. Observe original closure too; never reap or refund here.
+            with closing(sqlite3.connect(Path(self._paths[0]).as_uri()+'?mode=ro',uri=True,
+                    timeout=.1,isolation_level=None)) as db:
+                until=time.monotonic()+5
+                db.execute('PRAGMA query_only=ON')
+                db.set_progress_handler(lambda:int(time.monotonic()>=until),1000)
+                for table in ('streams','http_receipts'):
+                    require(db.execute('SELECT 1 FROM '+table+" WHERE typeof(closed)!='integer' OR closed!=1 LIMIT 1").fetchone() is None,
+                        'live_provider_receipts_open')
+                require(time.monotonic()<until,'live_provider_receipt_read_bound')
+        return True
 
 
 def _private_root(path):
@@ -213,19 +295,27 @@ class LiveNativeParent:
     history. The protected caller must verify remaining quotas/debt and original
     profile/pacing. No environment switch selects this class.
     """
-    def __init__(self,root,*,budget,governor,admission,environ):
+    def __init__(self,root,*,budget,governor,admission,environ,provider_scope=None):
         from meme_machine.runtime.governor import Governor
         from meme_machine.lanes.pons.provider_admission import Admission
         require(type(budget) is Budget and type(governor) is Governor and type(admission) is Admission
             and admission.offline_profile is None,'live_parent_original_controls')
         self.root=_private_root(root)
-        for path in (budget.path,governor.path,admission.path):_owned_file(self.root,path)
-        usage=budget.snapshot()
-        require(budget.phase=='bootstrap' and not budget.continuous and type(budget.seconds) is int
-            and 0<budget.seconds<=1800 and usage.get('reason')==''
-            and usage.get('new_risk_ready','false')=='false'
-            and usage.get('http_reserved')==usage.get('native_reserved')=='0',
-            'live_parent_bounded_funding_closed_budget')
+        if provider_scope is None:
+            for path in (budget.path,governor.path,admission.path):_owned_file(self.root,path)
+            usage=budget.snapshot()
+            require(budget.phase=='bootstrap' and not budget.continuous and type(budget.seconds) is int
+                and 0<budget.seconds<=1800 and usage.get('reason')==''
+                and usage.get('new_risk_ready','false')=='false'
+                and usage.get('http_reserved')==usage.get('native_reserved')=='0',
+                'live_parent_bounded_funding_closed_budget')
+        else:
+            require(type(provider_scope) is ProtectedProviderInput
+                and (provider_scope.budget,provider_scope.governor,provider_scope.admission)==
+                    (budget,governor,admission),'live_parent_protected_controls_required')
+            require(dict(environ)==dict(os.environ),'live_parent_original_environment_required')
+            provider_scope.validate(closed=True)
+        self._provider_scope=provider_scope
         require(len({str(Path(row).resolve()) for row in (budget.path,governor.path,admission.path)})==3,
             'live_parent_distinct_controls')
         self.budget=budget;self.sources,self.native=_sources(environ,governor,admission)
@@ -252,15 +342,18 @@ class LiveNativeParent:
         return task
 
     async def _acquire(self,financial,source,scope,previous=None):
+        if self._provider_scope is not None:self._provider_scope.validate()
         financial.validate();summary,state=financial.detached()
         lifetime=SIZING_SECONDS if previous is None else previous.value()['valid_until']-time.time()
         require(lifetime>0,'live_sizing_expired_before_acquisition')
         deadline=time.monotonic()+min(SIZING_SECONDS,lifetime)
         result=await self._sizing.call(self._sizing.produce,summary,state,scope,source,deadline,previous is not None)
         financial.validate()
+        if self._provider_scope is not None:self._provider_scope.validate()
         return result
 
     async def _write(self,descriptor,produced,session,financial):
+        if self._provider_scope is not None:self._provider_scope.validate()
         financial.validate();facts=produced.value()
         require(time.time()<facts['valid_until'],'live_sizing_expired_before_publication')
         raw=canonical(dict(schema='protected-parent-native-sizing-v1',session=session,facts=facts)).encode()+b'\n'
@@ -300,7 +393,11 @@ class LiveNativeParent:
             and 0<seconds<=WORK_SECONDS,'live_parent_single_attempt')
         self._attempted=True;source=approval.value();stage='financial_capture'
         result=dict(schema='isolated-native-live-processing-v1',status='BLOCKED',financial_authority=False,
-            production_state_writes=0,authoritative_historical_recovery=False,normal_readiness=False,
+            production_state_writes=None if self._provider_scope is not None else 0,
+            financial_state_writes=0,canonical_state_writes=0,
+            provider_control_scope=('ORIGINAL_CONTINUOUS_CONTROLS' if self._provider_scope is not None
+                else 'PRIVATE_BOUNDED_CONTROLS'),
+            authoritative_historical_recovery=False,normal_readiness=False,
             full_market_speed_proven=False,operational_acceptance_demonstrated=False,kernel_applied=False,
             source_commit=source['source_commit'],source_tree=source['source_tree'])
         transport=None;facts_read=None;facts_write=None;local_socket=None;primary=None;origin=None
@@ -343,7 +440,9 @@ class LiveNativeParent:
             next_storage=0;next_ownership=0
             while time.monotonic()<deadline and not self._window_stop.is_set():
                 if time.monotonic()>=next_ownership:
-                    financial.validate();next_ownership=time.monotonic()+1
+                    financial.validate()
+                    if self._provider_scope is not None:self._provider_scope.validate()
+                    next_ownership=time.monotonic()+1
                 if time.monotonic()>=next_storage:scope.check();next_storage=time.monotonic()+.25
                 if self._publisher.done():self._publisher.result();raise LiveParentRefused('live_sizing_owner_ended')
                 if any(task.done() for task in self._servers):
@@ -446,6 +545,7 @@ class LiveNativeParent:
             raise failure from (origin if origin is not None else errors[0][1] if errors else None)
         self._closed=True
         try:
+            if self._provider_scope is not None:self._provider_scope.validate(closed=True)
             usage=self.budget.snapshot()
             result['budget_counters']={key:int(usage[key]) for key in ('http_attempts','rpc_elements',
                 'http_bytes','http_reserved','http_uncertain_bytes','native_bytes','native_reserved',

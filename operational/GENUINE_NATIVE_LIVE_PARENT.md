@@ -6,7 +6,10 @@ copied native entry to the existing parent HTTP/native transports and the
 existing `ParentSizingProducer`. The child receives detached positive native
 sizing facts over FD4 and public provider data over FD3. It receives no provider
 credentials, financial database paths, financial constructors, grants or signing
-authority. Production state is never opened by this component.
+authority. Financial and canonical production state is never opened by this
+component. A protected caller can additionally supply the original continuous
+provider controls through `ProtectedProviderInput`; their real usage, uncertainty,
+queue and pacing writes remain authoritative provider accounting.
 
 The trusted protected caller must authenticate the exact application/dependency
 approval, diagnostic request/unit/source identity and ownership fence. It supplies
@@ -19,16 +22,25 @@ authenticate arbitrary JSON. Full stopped discovery closure is not a sizing
 prerequisite. Original flat financial/native obligations and protection predicates
 remain prerequisites of the protected caller.
 
-The caller also supplies existing bounded bootstrap `Budget`, Solana `Governor`
-and Pons `Admission` objects in the admitted private parent directory. This class
-does not create allowance, reset ledgers, import production provider history or
-increase quotas. The protected integration must establish the original remaining
-allowance, uncertainty/debt, provider history and pacing. The complete native
+The default caller supplies existing bounded bootstrap `Budget`, Solana
+`Governor` and Pons `Admission` objects in the admitted private parent directory.
+The separate protected port accepts those exact original continuous objects
+outside the private cache only under the creating-thread source/unit/provider
+fence. It requires the original selected continuous envelope and real pacing,
+funding closed, no recorded failure, unchanged owned private file identities,
+and no installed second physical-accounting wrapper. Entry and joined exit also
+require zero reservations and every original HTTP/native receipt closed; a fully
+consumed OPEN receipt remains OPEN. Periodic validation permits the parent's own
+accepted in-flight reservations. Neither path creates allowance, resets ledgers,
+imports provider history, rebases clocks or increases quotas. The protected
+integration must establish the original remaining allowance, uncertainty/debt,
+backoff, current book binding and pacing. Current same-path book observations do
+not authenticate historical provider stock. The complete native
 source registry uses actual configured endpoint identities: six runner/discovery
 roles, eighteen source priority/operation roles, two source stream aliases and
 three native transports. Separate child and sizing worker lanes share those same
-controls. The existing shared-channel capacity-overflow closure is an outstanding
-all-four concurrency dependency; more workers are not used to hide it.
+controls. Accepted HTTP uses the reviewed shared-channel backpressure and fixed
+owned transport drain; no additional workers conceal queue pressure.
 
 `LiveNativeScope` explicitly labels this private `/tmp` allocation
 `DISPOSABLE_LIVE_NATIVE_OBSERVATION`. It retains the original engineering
@@ -73,10 +85,19 @@ Its terminal IPC-close path exposed the unnecessary TERM race; the corrected
 regression deliberately restores default TERM after IPC close and still earns
 the real renewal and terminal receipt. Neither historical FAIL becomes a PASS.
 
+The protected continuous fixture uses the same actual financial/FD3/FD4 path
+with original continuous books outside the child cache. Prior counters and
+uncertain debt survive unchanged, actual new physical usage is added to those
+same books, and joined exit leaves zero reservations. Its result reports
+`production_state_writes=null`, with financial/canonical writes zero and explicit
+`ORIGINAL_CONTINUOUS_CONTROLS`; it cannot claim no production provider writes.
+The combined 54 focused cases passed in 48.701 seconds under FAST's network guard
+and Scratch. The small IPC child is still not a live all-four market proof.
+
 There is no claim here of live provider acquisition, kernel application, all-four
 economic processing, sustained capacity, historical recovery, normal readiness
 or one-hour acceptance. Genuine LIVE-scope execution under the actual kernel and
 service identity, independently authenticated source/dependencies, protected admin
-embedding, shared-channel backpressure and the separately reviewed Pons native
+embedding, exact current-source/dependency review and the separately reviewed Pons native
 owner lifetime remain integration dependencies. No broker action, permission,
 approval manifest or deployed source is changed by this component.

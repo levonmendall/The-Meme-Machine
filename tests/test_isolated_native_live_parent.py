@@ -65,6 +65,94 @@ class ProtectedFinancialInputTests(unittest.TestCase):
             live.ProtectedFinancialInput(lambda:(financial,state),lambda:True).capture()
 
 
+class ProtectedProviderInputTests(unittest.TestCase):
+    def setUp(self):
+        from meme_machine.operational.bounded_provider import Budget
+        from meme_machine.runtime.governor import Governor
+        from meme_machine.lanes.pons.provider_admission import Admission
+        from tests.test_provider_clock_domain import identity
+        # Explicit offline clock domain, as in the original transport fixture;
+        # this Cloud worker cannot stat the real time-namespace descriptor.
+        self.enterContext(patch('meme_machine.runtime.provider_clock.current_identity',return_value=identity()))
+        self.temporary=tempfile.TemporaryDirectory();self.addCleanup(self.temporary.cleanup)
+        self.root=Path(self.temporary.name);self.controls=self.root/'original';self.controls.mkdir(mode=0o700)
+        self.profile=json.loads((Path(__file__).resolve().parents[1]/
+            'operational/pump-first-release/deployment/paper-continuous.four-regime.json').read_bytes())
+        self.file=self.root/'continuous.json';self.file.write_text(json.dumps(self.profile))
+        self.path=self.controls/'usage.sqlite'
+        self.enterContext(patch.dict(os.environ,dict(MM_PROVIDER_OPERATION_MODE='CONTINUOUS',
+            MM_PROVIDER_USAGE_DB=str(self.path),MM_CONTINUOUS_PROVIDER_ENVELOPE=str(self.file))))
+        for name in ('MM_BOUNDED_PROVIDER_DB','MM_BOUNDED_PROVIDER_ENVELOPE','MM_POSITION_CONTINUATION_ENVELOPE'):
+            os.environ.pop(name,None)
+        self.budget=Budget.create(self.path,continuous=self.profile)
+        self.governor=Governor(self.controls/'governor.sqlite')
+        self.admission=Admission(self.controls/'pons.sqlite',transport_fixtures.PONS,lane='pons')
+        for path in (self.path,Path(self.governor.path),Path(self.admission.path)):path.chmod(0o600)
+        self.current=True;self.validations=0
+
+    def validate(self):
+        self.validations+=1
+        return self.current
+
+    def port(self):
+        return live.ProtectedProviderInput(self.budget,self.governor,self.admission,
+            validate_scope=self.validate)
+
+    def test_original_continuous_objects_keep_exact_consumption_uncertainty_and_private_cache_separate(self):
+        self.budget.change(dict(http_attempts=2,http_bytes=17,http_uncertain_bytes=29))
+        before=self.budget.snapshot();port=self.port();port.validate(closed=True)
+        self.assertEqual(self.budget.snapshot(),before)
+        cache=self.root/'private-cache';cache.mkdir(mode=0o700)
+        with patch.dict(os.environ,MM_SOLANA_READ_RPC_URL=transport_fixtures.SOL,
+                MM_ROBINHOOD_READ_RPC_URL=transport_fixtures.PONS):
+            parent=live.LiveNativeParent(cache,budget=self.budget,governor=self.governor,
+                admission=self.admission,environ=dict(os.environ),provider_scope=port)
+        self.assertIs(parent.budget,self.budget)
+        self.assertEqual(self.budget.snapshot(),before)
+        self.assertFalse(parent._http)
+        self.assertGreater(self.validations,1)
+        with self.assertRaisesRegex(ValueError,'control_path'):
+            live.LiveNativeParent(cache,budget=self.budget,governor=self.governor,
+                admission=self.admission,environ={}) # default private bounded path is unchanged.
+
+    def test_owned_scope_loss_foreign_thread_and_replaced_original_control_refuse(self):
+        port=self.port();self.current=False
+        with self.assertRaisesRegex(ValueError,'scope_unverified'):port.validate()
+        self.current=True;failures=[]
+        def foreign():
+            try:port.validate()
+            except Exception as error:failures.append(error)
+        thread=threading.Thread(target=foreign);thread.start();thread.join()
+        self.assertEqual(str(failures[0]),'live_provider_owner')
+        path=Path(self.governor.path);path.rename(path.with_suffix('.retained'))
+        path.write_bytes(b'not an admission authority');path.chmod(0o600)
+        with self.assertRaisesRegex(ValueError,'inode_changed'):port.validate()
+
+    def test_unwrapped_transport_original_profile_and_funding_are_mandatory(self):
+        import grpc.aio
+        port=self.port()
+        with patch.object(grpc.aio,'secure_channel',lambda *_a,**_k:None):
+            with self.assertRaisesRegex(ValueError,'already_wrapped'):port.validate()
+        with patch.dict(os.environ,MM_PROVIDER_OPERATION_MODE='VALIDATION'):
+            with self.assertRaisesRegex(ValueError,'original_profile'):port.validate()
+        self.governor.solana_interval+=.1
+        with self.assertRaisesRegex(ValueError,'original_profile'):port.validate()
+        self.governor.solana_interval-=.1
+        with self.budget.db() as db:
+            db.execute("UPDATE run SET value='true' WHERE key='new_risk_ready'")
+        with self.assertRaisesRegex(ValueError,'funding_closed'):port.validate()
+
+    def test_accepted_reservations_allowed_but_zero_byte_open_receipt_cannot_pass_joined_exit(self):
+        port=self.port()
+        with self.budget.db() as db:
+            db.execute("INSERT INTO http_receipts VALUES('negative-open-receipt',0,0,'offline-negative')")
+        self.assertTrue(port.validate())
+        self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
+        with self.assertRaisesRegex(ValueError,'receipts_open'):port.validate(closed=True)
+        with self.budget.db() as db:db.execute('UPDATE http_receipts SET closed=1')
+        self.assertTrue(port.validate(closed=True))
+
+
 class LiveScopeTests(unittest.TestCase):
     def test_live_scope_has_exact_binding_original_growth_and_refuses_offline_launcher_path(self):
         from meme_machine.operational.namespace_canary import _scratch,Blocked
@@ -237,6 +325,53 @@ print(json.dumps(dict(status='COMPLETED',financial_authority=False,
             self.assertGreater(result['budget_counters']['http_attempts'],0)
             self.assertEqual(self.launches,1)
             scope.success=True
+
+    async def test_protected_original_continuous_book_real_usd_ipc_and_join_preserve_prior_debt(self):
+        from meme_machine.operational.bounded_provider import Budget
+        from meme_machine.runtime.governor import Governor
+        from meme_machine.lanes.pons.provider_admission import Admission
+        profile=json.loads((Path(__file__).resolve().parents[1]/
+            'operational/pump-first-release/deployment/paper-continuous.four-regime.json').read_bytes())
+        file=self.root/'original-profile.json';file.write_text(json.dumps(profile))
+        original=self.root/'original-continuous.sqlite'
+        with patch.dict(os.environ,MM_PROVIDER_OPERATION_MODE='CONTINUOUS',MM_PROVIDER_USAGE_DB=str(original),
+                MM_CONTINUOUS_PROVIDER_ENVELOPE=str(file),MM_SOLANA_READ_RPC_URL=self.sol._url,
+                MM_ROBINHOOD_READ_RPC_URL=self.pons._url,MM_SOLANA_YELLOWSTONE_TOKEN='offline-only'):
+            for name in ('MM_BOUNDED_PROVIDER_DB','MM_BOUNDED_PROVIDER_ENVELOPE','MM_POSITION_CONTINUATION_ENVELOPE'):
+                os.environ.pop(name,None)
+            self.budget=Budget.create(original,continuous=profile)
+            self.budget.change(dict(http_attempts=2,http_bytes=17,http_uncertain_bytes=29))
+            self.governor=Governor(self.root/'original-governor.sqlite')
+            self.admission=Admission(self.root/'original-admission.sqlite',self.pons._url,lane='pons')
+            for path in (self.budget.path,self.governor.path,self.admission.path):Path(path).chmod(0o600)
+            self.physical.budget=self.budget;self.launches=0
+            financial,state=sizing_fixtures.actual_snapshot(self.harness());self.sequence=financial['combined_sequence']
+            reader=live.ProtectedFinancialInput(lambda:(financial,state),lambda:True)
+            providers=live.ProtectedProviderInput(self.budget,self.governor,self.admission,
+                validate_scope=lambda:True)
+            approved=approval();before=self.budget.snapshot()
+            with LiveNativeScope(request(approved),approved,unit_identity=unit(),validate_scope=lambda:True) as scope:
+                cache=scope.path/'parent';cache.mkdir(mode=0o700)
+                parent=live.LiveNativeParent(cache,budget=self.budget,governor=self.governor,
+                    admission=self.admission,environ=dict(os.environ),provider_scope=providers)
+                result=await parent._run(scope,approved,reader,seconds=.5,_prepare=self.prepare,
+                    _launch=self.launch,_opener=self.http.opener)
+                self.assertTrue(parent.parent_owners_joined(),result)
+                self.assertTrue(result['child'].get('positive_native_sizing'),result)
+                self.assertEqual(result['provider_control_scope'],'ORIGINAL_CONTINUOUS_CONTROLS')
+                self.assertIsNone(result['production_state_writes'])
+                self.assertEqual(result['financial_state_writes'],0)
+                self.assertEqual(result['canonical_state_writes'],0)
+                self.assertFalse(result['kernel_applied'])
+                providers.validate(closed=True)
+                after=self.budget.snapshot()
+                self.assertEqual(after['started'],before['started'])
+                self.assertEqual(after['resource_configuration'],before['resource_configuration'])
+                self.assertGreater(int(after['http_attempts']),int(before['http_attempts']))
+                self.assertGreaterEqual(int(after['http_uncertain_bytes']),29)
+                self.assertEqual(after['http_reserved'],after['native_reserved'])
+                self.assertEqual(after['http_reserved'],'0')
+                scope.success=True
 
     async def test_unverified_financial_scope_stops_before_image_or_provider_and_still_joins(self):
         approved=approval();reads=[]
