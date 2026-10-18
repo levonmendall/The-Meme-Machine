@@ -82,6 +82,20 @@ class NativeCIPrincipalTests(unittest.TestCase):
         self.assertEqual(receipt['files'], 1)
         self.assertFalse(any(row['path'] == str(sibling) for row in receipt['records']))
 
+    def test_actual_empty_regular_stdlib_file_retains_original_zero_inclusive_contract(self):
+        from meme_machine.operational import namespace_runtime as runtime
+        path=self.file('lib/python3.12/urllib/__init__.py',body=b'')
+        before=path.stat()
+        self.assertEqual(runtime._read(path,(self.prefix,),owner=os.geteuid()),b'')
+        self.assertEqual(self.installation.selected(path),hashlib.sha256(b'').hexdigest())
+        result=self.installation.finish()
+        self.assertEqual(result['files'],1);self.assertEqual(result['bytes'],0)
+        self.assertEqual(path.read_bytes(),b'')
+        self.assertEqual(result['records'][0]['sha256'],hashlib.sha256(b'').hexdigest())
+        self.assertEqual(ci.content_identity(before),ci.content_identity(path.stat()))
+        self.assertEqual(stat.S_IMODE(path.stat().st_mode),0o644)
+        self.assertEqual(path.stat().st_uid,os.geteuid())
+
     def test_group_world_writable_or_unknown_owner_file_never_becomes_trusted(self):
         path = self.file();path.chmod(0o666)
         with self.assertRaisesRegex(ci.Refused, 'file_trust'): self.installation.selected(path)
@@ -114,7 +128,14 @@ class NativeCIPrincipalTests(unittest.TestCase):
     def test_complete_file_byte_and_individual_bounds(self):
         path = self.file()
         with patch.object(ci, 'MAX_FILE', 3):
-            with self.assertRaisesRegex(ci.Refused, 'regular_bound'): self.installation.selected(path)
+            with self.assertRaisesRegex(ci.Refused, 'regular_bound') as caught:
+                self.installation.selected(path)
+            result=ci.failure_record(caught.exception)
+            self.assertEqual(result['source_stat']['size'],path.stat().st_size)
+            self.assertEqual(result['source_stat']['mode'],0o644)
+            self.assertEqual(result['source_stat']['uid'],os.geteuid())
+            self.assertEqual(result['code'],'ci_runtime_regular_bound')
+            self.assertFalse(result['complete'])
         with patch.object(ci, 'MAX_BYTES', 3):
             with self.assertRaisesRegex(ci.Refused, 'byte_bound'): self.installation.selected(path)
         with patch.object(ci, 'MAX_FILES', 0):

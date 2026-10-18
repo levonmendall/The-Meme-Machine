@@ -87,3 +87,38 @@ unhashable inputs and preservation of the original failure after projection.
 All17 focused cases passed in0.206 seconds using the supported FAST driver.
 Actual hosted installation and both nonprobe executor roles still need a new
 CI receipt; no full copied-main or kernel success is claimed here.
+
+Run39083740509 on `bb9dad188b826847141987ac92a6fe738f63be07` passed the
+corrected ancestor chain, then failed the helper's individual-file admission
+during standard-library selection. Every test phase was again skipped. The
+helper incorrectly required positive file size; the original runtime reader
+accepts empty regular files. The hosted file identity/size was not retained,
+so that receipt does not establish a particular hosted filename. The correction
+matches the original `0 <= size <= 64MiB` contract, retains all other guards and
+adds actual size to bounded file-admission failure facts. A real empty
+`urllib/__init__.py` fixture passes the original reader and the helper with the
+correct SHA256 of empty bytes and unchanged content/inode/mode/owner facts.
+
+A complete read-only audit used the original `isolated_native_image._runtime`
+and unchanged `namespace_runtime._read`, including the complete transitive
+ELF/loader dependency closure, on the actual local pinned CPython3.12.14
+installation. All237 distinct files totaling39,165,191 bytes passed the original
+strict reader. The sole empty selected source was `urllib/__init__.py`; no
+size, owner, mode, link or aggregate-bound mismatch remained. The helper selector
+produced exactly the same237-file set, bytes, hashes and metadata identities.
+The observer used a virtual output writer and a read-only engine, with stable
+metadata at two fences; it performed no runtime ownership installation.
+Its complete receipt has SHA256
+`fba0706f71ce18fe3dd9e006e7770ea8a14bd9f430186e8a20019b4f7b995aaa`
+at `/workspace/recovery-evidence/ci-selected-core-audit.json`. This authenticates
+the local audit artifact only; the local build and its builtin/extension layout
+do not substitute for hosted-CI filesystem facts or kernel acceptance. An
+initial observer lacked the virtual mkdir target required by the original
+selector and stopped before producing a complete receipt; that observer error
+was corrected without changing the original selector or reader.
+
+All18 focused helper regressions passed in0.202 seconds under the supported
+FAST network guard/Scratch driver. The original675 affected cases, source
+checks, runtime reader, permissions policy and principal partition are unchanged.
+The next hosted receipt must still establish actual installation and copied-main
+completion with nonprobe work and joins for both executor roles.
