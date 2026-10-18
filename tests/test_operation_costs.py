@@ -59,7 +59,7 @@ class OperationCostsTests(unittest.TestCase):
         self.assertEqual(sample['not_reached_status'], 'UNEXERCISED')
 
     def test_names_are_fixed_and_private_arguments_are_never_retained(self):
-        self.assertEqual(len(costs.NAMES), 37)
+        self.assertEqual(len(costs.NAMES), 38)
         for name in ('https://private.invalid/?apikey=secret', '', None, [], True):
             with self.assertRaisesRegex(ValueError, 'operation_cost_identity'):
                 with costs.operation(name):

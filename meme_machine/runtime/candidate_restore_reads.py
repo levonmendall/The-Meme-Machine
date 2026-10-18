@@ -185,53 +185,79 @@ class RestoreReferenceReader:
     def _marks(keys):
         return ','.join('?' for _ in keys)
 
+    def _capture_source(self, db, key, budget, manifests):
+        # SQLite admits the body before materializing it. All source columns
+        # and a cold manifest belong to this same bounded read snapshot; no
+        # metadata-only hint can authorize a later snapshot's body size/hash.
+        cursor = db.execute('''SELECT octet_length(body),
+            CASE WHEN body IS NULL OR octet_length(body)<=CAST(? AS INTEGER) THEN body END,
+            CASE WHEN body IS NULL OR octet_length(body)<=CAST(? AS INTEGER) THEN hash END,
+            CASE WHEN body IS NULL OR octet_length(body)<=CAST(? AS INTEGER) THEN archive END
+            FROM canonical_evidence WHERE identity=?''', (budget, budget, budget, key))
+        try: row = cursor.fetchone()
+        finally:
+            with preserving_cleanup(): cursor.close()
+        if row is None: return None, None, 0
+        size, body, checksum, archive = row
+        if size is not None and (type(size) is not int or size < 0):
+            raise ValueError('candidate_restore_source_byte_bound')
+        if size is not None and size > budget: return None, None, None
+        if body is not None:
+            actual = len(body.encode() if isinstance(body, str) else body)
+            if actual != size or actual > budget:
+                raise ValueError('candidate_restore_source_byte_bound')
+        elif size is not None:
+            raise ValueError('candidate_restore_source_byte_bound')
+        manifest = None
+        if body is None:
+            if archive not in manifests:
+                with costs.operation('pump.restore_manifests'):
+                    cursor = db.execute('SELECT path,hash FROM scoped_cold_manifests WHERE id=?', (archive,))
+                    try: manifests[archive] = cursor.fetchone()
+                    finally:
+                        with preserving_cleanup(): cursor.close()
+            manifest = manifests[archive]
+        return (body, checksum, archive), manifest, size or 0
+
     def _source_rows(self, group, budget):
         path = self.history._reference_path(group[0].ref['path'])
-        for item in group: item.path = path
+        by_key = {}
+        for item in group:
+            item.path = path
+            by_key.setdefault(item.ref['canonical_identity'], []).append(item)
         db = self._database(path)
-        keys = tuple(dict.fromkeys(item.ref['canonical_identity'] for item in group))
-        marks = self._marks(keys)
-        with self._snapshot(db):
-            # Reading columns after a rich body still walks its overflow chain,
-            # even when octet_length itself can use the record header. Acquire
-            # ONLY identity/length before admitting the original full bodies.
-            with costs.operation('pump.restore_metadata'):
-                metadata = self._first(db.execute('SELECT identity,octet_length(body) '
-                    'FROM canonical_evidence WHERE identity IN (' + marks + ')', keys).fetchall())
-            selected = []
-            for key in keys:
-                row = metadata.get(key)
-                if row is not None and row[0] is not None and 0 <= row[0] <= budget:
-                    selected.append(key); budget -= row[0]
-            self._count('hot_keys_selected', len(selected))
-            self._count('hot_bytes_selected', sum(metadata[key][0] for key in selected))
-            bodies = {}
-            if selected:
-                with costs.operation('pump.restore_hot_bodies'):
-                    bodies = self._first(db.execute('SELECT identity,body,hash,archive FROM canonical_evidence '
-                        'WHERE identity IN (' + self._marks(selected) + ')', selected), len(selected))
-            cold_keys = tuple(key for key, row in metadata.items() if row[0] is None)
-            self._count('cold_keys_selected', len(cold_keys))
-            cold = {}
-            if cold_keys:
-                with costs.operation('pump.restore_cold_metadata'):
-                    cold = self._first(db.execute('SELECT identity,hash,archive FROM canonical_evidence '
-                        'WHERE identity IN (' + self._marks(cold_keys) + ')', cold_keys).fetchall())
-            archives = tuple(dict.fromkeys(row[1] for row in cold.values()))
-            manifests = {}
-            if archives:
-                with costs.operation('pump.restore_manifests'):
-                    manifests = self._first(db.execute('SELECT id,path,hash FROM scoped_cold_manifests '
-                        'WHERE id IN (' + self._marks(archives) + ')', archives).fetchall())
-            for item in group:
-                key = item.ref['canonical_identity']; meta = metadata.get(key)
-                if meta is None: item.row = None
-                elif meta[0] is None:
-                    if key in cold:
-                        item.row = (None, *cold[key]); item.manifest = manifests.get(cold[key][1])
-                    else: self._fallback((item,), 'source_read_error')
-                elif key in bodies: item.row = bodies[key]
-                else: self._fallback((item,), 'encoded_budget')
+        todo = list(by_key)
+        while todo:
+            self.check()
+            before = len(todo)
+            try:
+                with self._snapshot(db), costs.operation('pump.restore_source_capture'):
+                    manifests = {}
+                    for key in tuple(todo):
+                        self.check()
+                        if time.monotonic() >= self.deadline: raise _PageExpired()
+                        row, manifest, size = self._capture_source(db, key, budget, manifests)
+                        if size is None:
+                            self._fallback(by_key[key], 'encoded_budget')
+                        else:
+                            # Only a complete coherent capture survives expiry.
+                            # Duplicates share immutable captured bytes; decoding
+                            # still constructs one owned outer per reference.
+                            for item in by_key[key]: item.row, item.manifest = row, manifest
+                            budget -= size
+                            if row is not None:
+                                if row[0] is None: self._count('cold_keys_selected')
+                                else:
+                                    self._count('hot_keys_selected')
+                                    self._count('hot_bytes_selected', size)
+                        todo.remove(key)
+            except _PageExpired:
+                self.check()
+                if len(todo) == before:
+                    # A lease that makes no progress cannot retry forever.
+                    # Resolve just this original-order key by the unchanged
+                    # scalar path at its own yield turn, never speculatively.
+                    self._fallback(by_key[todo.pop(0)], 'source_snapshot_expired')
         return budget
 
     def _prepare(self, lookups, budget):

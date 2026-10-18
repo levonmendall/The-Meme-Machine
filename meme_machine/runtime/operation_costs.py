@@ -35,7 +35,7 @@ NAMES = (
     'owner.scout_commit', 'owner.control_commit', 'owner.delivery_capture',
     'owner.delivery_ack', 'owner.proof_publish', 'owner.history_plan',
     'pump.observed_candidates_restore', 'pump.observed_candidate_events',
-    'pump.restore_metadata', 'pump.restore_hot_bodies',
+    'pump.restore_metadata', 'pump.restore_hot_bodies', 'pump.restore_source_capture',
     'pump.restore_cold_metadata', 'pump.restore_manifests', 'pump.restore_chunks',
 )
 RESTORE_COUNT_NAMES = (

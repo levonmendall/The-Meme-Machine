@@ -62,11 +62,14 @@ class RestoreReferencePagesTests(unittest.TestCase):
                     actual = self.read(shared, reader)
                 self.assertEqual(actual, self.corpus.expected)
                 self.assertEqual((io['reads'], io['decodes']), (1, 1))
-                expected_pages = (len(self.corpus.refs) + pages.PAGE_REFERENCES - 1) // pages.PAGE_REFERENCES
-                self.assertEqual(sum('SELECT identity,octet_length(body)' in q for q in queries), expected_pages)
-                self.assertEqual(sum('SELECT identity,body,hash,archive' in q for q in queries), expected_pages)
-                self.assertEqual(sum('SELECT identity,hash,archive' in q for q in queries), 1)
-                self.assertEqual(sum('FROM scoped_cold_manifests WHERE id IN' in q for q in queries), 1)
+                # Each complete point capture uses the canonical view once.
+                # It retains first-match semantics and never scans unused UNION
+                # tails or performs a detached metadata-then-body lookup.
+                self.assertEqual(sum('SELECT octet_length(body)' in q for q in queries), len(self.corpus.refs))
+                self.assertEqual(sum('CASE WHEN body IS NULL' in q for q in queries), len(self.corpus.refs))
+                self.assertEqual(sum('SELECT identity,body,hash,archive' in q for q in queries), 0)
+                self.assertEqual(sum('SELECT identity,hash,archive' in q for q in queries), 0)
+                self.assertEqual(sum('SELECT path,hash FROM scoped_cold_manifests WHERE id=' in q for q in queries), 1)
                 self.assertFalse(reader.db.in_transaction)
                 self.assertTrue(decoded)
                 self.assertFalse(hasattr(shared, '_source_readers'))
@@ -189,7 +192,7 @@ class RestoreReferencePagesTests(unittest.TestCase):
             def database(path):
                 db = original(path)
                 def trace(sql):
-                    if sql.startswith('SELECT identity,hash,archive') and not seen:
+                    if sql.startswith('SELECT path,hash FROM scoped_cold_manifests') and not seen:
                         self.assertTrue(db.in_transaction)
                         seen.append(1)
                         writer = threading.Thread(target=advance); writer.start(); writer.join(2)
@@ -207,6 +210,82 @@ class RestoreReferencePagesTests(unittest.TestCase):
                 shared.restoration_reader(cancelled=lambda: False, archives={}) as reader:
             with self.assertRaisesRegex(ValueError, 'candidate_history_corruption'):
                 self.read(shared, reader)
+
+    def test_expired_lease_retains_complete_captures_without_scalar_replay(self):
+        with diagnostics(), closing(CandidateHistory(self.corpus.consumer)) as shared, \
+                shared.restoration_reader(cancelled=lambda: False, archives={}) as reader:
+            original = reader._capture_source; captured = []
+            def capture(db, key, budget, manifests):
+                row = original(db, key, budget, manifests); captured.append(key)
+                if len(captured) % 3 == 0: reader.deadline = 0
+                return row
+            with patch.object(reader, '_capture_source', capture):
+                self.assertEqual(self.read(shared, reader), self.corpus.expected)
+            sample = costs.snapshot(); counts = sample['restore_reference_counts']
+            self.assertEqual(counts['scalar_source_reads'], 0)
+            self.assertEqual(counts['fallback_source_snapshot_expired'], 0)
+            self.assertEqual(len(captured), len(set(captured)))
+            # Capture diagnostics sample leases, avoiding a fresh recorder for
+            # every canonical key even when one lease captures several keys.
+            self.assertLess(sample['rows']['pump.restore_source_capture']['calls'], len(captured))
+            self.assertFalse(reader.db.in_transaction)
+        self.corpus.unchanged()
+
+    def test_fresh_lease_rechecks_actual_archival_row_and_matching_manifest(self):
+        from meme_machine.solana_scoped_retirement import ScopedRetirement
+        self.assertEqual(ScopedRetirement(self.corpus.history).restore('pump', self.corpus.mint),64)
+        later = json.loads(self.corpus.refs[-1][2])['canonical_identity']
+        with closing(CandidateHistory(self.corpus.consumer)) as shared, \
+                shared.restoration_reader(cancelled=lambda: False, archives={}) as reader:
+            original = reader._capture_source; changed = []; actual = []
+            def capture(db, key, budget, manifests):
+                row = original(db, key, budget, manifests)
+                if not changed:
+                    # The original source archive operation commits while the
+                    # current read snapshot remains coherent. The next lease
+                    # must fetch the new NULL body/hash/archive+manifest anew.
+                    self.corpus.retire({later}); changed.append(True); reader.deadline = 0
+                if key == later: actual.append(row)
+                return row
+            with patch.object(reader, '_capture_source', capture):
+                self.assertEqual(self.read(shared, reader), self.corpus.expected)
+            self.assertEqual(len(actual),1)
+            self.assertIsNone(actual[0][0][0]);self.assertIsNotNone(actual[0][1])
+            self.assertFalse(reader.db.in_transaction)
+
+    def test_partial_cold_capture_is_not_retained_and_no_progress_falls_back_one_key(self):
+        with diagnostics(), closing(CandidateHistory(self.corpus.consumer)) as shared, \
+                shared.restoration_reader(cancelled=lambda: False, archives={}) as reader:
+            original = reader._capture_source; interrupted = []
+            def capture(db, key, budget, manifests):
+                if not interrupted:
+                    # Real canonical source data was selected, but the complete
+                    # source/manifest unit was not returned to the page owner.
+                    row = db.execute('SELECT body,hash,archive FROM canonical_evidence WHERE identity=?',(key,)).fetchone()
+                    self.assertIsNotNone(row);interrupted.append(key)
+                    raise pages._PageExpired()
+                return original(db, key, budget, manifests)
+            with patch.object(reader, '_capture_source', capture):
+                self.assertEqual(self.read(shared, reader), self.corpus.expected)
+            counts = costs.snapshot()['restore_reference_counts']
+            self.assertEqual(counts['fallback_source_snapshot_expired'],1)
+            self.assertEqual(counts['scalar_source_reads'],1)
+            self.assertFalse(reader.db.in_transaction)
+        self.corpus.unchanged()
+
+    def test_cancellation_outranks_expiry_and_never_falls_back_a_pending_key(self):
+        cancelled = threading.Event()
+        with diagnostics(), closing(CandidateHistory(self.corpus.consumer)) as shared, \
+                shared.restoration_reader(cancelled=cancelled.is_set, archives={}) as reader:
+            def capture(*args):
+                cancelled.set();raise pages._PageExpired()
+            with patch.object(reader, '_capture_source', capture),self.assertRaises(Shutdown):
+                self.read(shared, reader)
+            counts = costs.snapshot()['restore_reference_counts']
+            self.assertEqual(counts['fallback_source_snapshot_expired'],0)
+            self.assertEqual(counts['scalar_source_reads'],0)
+            self.assertFalse(reader.db.in_transaction)
+        self.corpus.unchanged()
 
     def test_page_diagnostics_are_fixed_no_payload_and_original_scalar_fault_path(self):
         with diagnostics(), closing(CandidateHistory(self.corpus.consumer)) as shared, \
@@ -320,7 +399,8 @@ class RestoreReferenceChunkTests(unittest.TestCase):
             self.assertEqual(counts['hot_keys_selected'], 0)
             self.assertEqual(counts['fallback_encoded_budget'], 2)
             self.assertEqual(counts['scalar_source_reads'], 2)
-            self.assertTrue(any(q.startswith('SELECT identity,octet_length(body) FROM') for q in queries))
+            self.assertTrue(any(q.startswith('SELECT octet_length(body),') and
+                'CASE WHEN body IS NULL OR octet_length(body)<=CAST(' in q for q in queries))
             self.assertFalse(any(q.startswith('SELECT identity,body,hash,archive') for q in queries))
         # With exact encoded-byte admission, the same body is acquired once;
         # original stored content hash is still checked per reference.
