@@ -146,6 +146,53 @@ class PonsEconomicCohortTests(unittest.TestCase):
         self.assertEqual(runtime.history.db.execute('SELECT count(*) FROM events').fetchone()[0],3)
         self.assertEqual(meter.snapshot()['state'],'UNKNOWN')
 
+    def shared_markets(self,enabled):
+        from collections import Counter
+        from engineering.pons_history.fixtures import Tape
+        from meme_machine.lanes.pons.protocols import PoolKey
+        from meme_machine.lanes.pons.identity import load
+        from meme_machine.lanes.pons.pons_selective_acquisition import SelectiveEvidenceContext
+        tape=Tape(candidates=64);tape.counts=Counter();tape.per_scope=190;tape.max_response=2000000;tape.timeout=10
+        start=tape.grad+65;meter=PonsEconomicCohorts('synthetic-64-native',ENDPOINT) if enabled else None
+        history=PonsHistory(self.root/('shared-'+str(enabled)+'.sqlite'),policy=POLICY_HASH,
+            economic_cohorts=meter);self.addCleanup(history.close)
+        runtime=Runtime.__new__(Runtime);runtime.history=history;runtime.economic_cohorts=meter
+        markets=[]
+        for i,token in enumerate(tape.tokens):
+            record=tape.records[token]
+            key=PoolKey(*sorted((token,record['pairToken']),key=lambda x:int(x,16)),
+                record['poolFee'],record['tickSpacing'],load('pons_v2_hook')['address'].lower())
+            markets.append(dict(pool_id=key.pool_id(),key=key,token=token))
+            evidence=graduation(i+1,at=int(tape.header(start-1)['timestamp'],16),block=start-1)
+            evidence.update(block_hash=tape.header(start-1)['hash'],key=asdict(key))
+            evidence['transition']['market']=key.pool_id()
+            history.graduate(token,evidence)
+            history.append_block(token,block=start-1,header=tape.header(start-1),events=[],
+                points=[(evidence['at'],str(10**18))])
+        context=SelectiveEvidenceContext(ENDPOINT);context.deadline=110
+        with patch('meme_machine.lanes.pons.pons_selective_acquisition._rpc',return_value=tape),\
+                patch('time.monotonic',return_value=100),patch('time.time',return_value=2000000000):
+            tapes=v4.collect_v4_activities(ENDPOINT,markets=markets,start_block=start,end_block=start,
+                evidence_context=context,economic_cohorts=meter)
+            for market in markets:
+                runtime._append_tape(history.get(market['token']),start,tape.header(start),tapes[market['token']])
+        return history,tape,meter
+
+    def test_actual_64_market_decoder_and_history_commits_share_one_measurement_cohort(self):
+        results=[];methods=[]
+        for enabled in (False,True):
+            history,tape,meter=self.shared_markets(enabled)
+            results.append(history.db.execute('SELECT candidate,body,hash FROM events ORDER BY candidate,id').fetchall())
+            methods.append(dict(tape.methods))
+            if enabled:
+                result=meter.snapshot();self.assertEqual(result['state'],'MEASURING',result)
+                self.assertEqual(result['active_cohorts'],1)
+                self.assertEqual((result['active'][0]['unique_economics'],result['active'][0]['canonical_publications']),(64,64))
+                self.assertEqual(result['native_history_transactions']['survivor_v4_history'],64)
+                self.assertEqual(result['completed_cohorts'],0);self.assertFalse(result['active'][0]['source_complete'])
+                self.assertFalse(meter.pending)
+        self.assertEqual(results[0],results[1]);self.assertEqual(methods[0],methods[1])
+
     def test_foreign_outer_transaction_is_unmeasured_not_falsely_committed(self):
         runtime,tape,_,options,meter=self.survivor();activity=self.decoded(runtime,tape,options)
         runtime.history.db.execute('BEGIN')

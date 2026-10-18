@@ -13,7 +13,8 @@ import threading
 from .economic_cohort import EconomicCohorts,checksum
 
 MAX_STAGE_ROWS=2048
-MAX_PENDING=8
+MAX_PENDING=64
+MAX_PENDING_ROWS=64*256
 
 
 class PonsEconomicCohorts:
@@ -21,10 +22,13 @@ class PonsEconomicCohorts:
         from .robinhood.pons import shared_evidence_domain
         self.source=shared_evidence_domain(endpoint)
         self.pid=os.getpid();self.lock=threading.Lock();self.pending={}
+        self.group=threading.local()
         self.meter=EconomicCohorts('pons',dict(source_pid=self.pid,
             run_identity=run_identity,source_generation=self.source,
             consumer_contract='current_curve_history_and_survivor_v4_history'))
         self.publications=dict(current_curve_history=0,survivor_v4_history=0)
+        from .pons_factory_census import PonsFactoryCensus
+        self.factory=PonsFactoryCensus(self)
 
     def unavailable(self,reason='NATIVE_BOUNDARY_UNAVAILABLE'):
         self.meter.unavailable(reason)
@@ -63,7 +67,7 @@ class PonsEconomicCohorts:
         try:
             if (os.getpid()!=self.pid or len(raw)>MAX_STAGE_ROWS or len(rows)>MAX_STAGE_ROWS
                     or len(self.pending)>=MAX_PENDING
-                    or sum(len(value[3]) for value in self.pending.values())+len(rows)>MAX_STAGE_ROWS):
+                    or sum(len(value[3]) for value in self.pending.values())+len(rows)>MAX_PENDING_ROWS):
                 self.unavailable('BOUND');return
             # Keep only bounded identity/semantic metadata. No economic body or
             # receipt is retained by this side channel after the native return.
@@ -77,7 +81,10 @@ class PonsEconomicCohorts:
                     transaction_index=row.get('transaction_index'),log_index=row.get('log_index'))
                 entries[row['identity']]=(identity,checksum(row),int(event['blockNumber'],16),available,checksum(native))
             if len(entries)!=len(rows):raise ValueError('economic_cohort_duplicate_normalized_identity')
-            self.pending[(token,last)]=(pool,first,last,entries)
+            group=getattr(self.group,'current',None)
+            if group is not None and ((pool,token) not in group[2] or (first,last)!=group[:2]):
+                raise ValueError('economic_cohort_group_identity')
+            self.pending[(token,last)]=(pool,first,last,entries,group)
         except Exception:self.unavailable()
         finally:self.lock.release()
 
@@ -88,7 +95,7 @@ class PonsEconomicCohorts:
             prepared=self.pending.pop((row['id'],end),None)
             if prepared is None:
                 self.unavailable('UNSUPPORTED_PATH');return None
-            pool,first,last,entries=prepared
+            pool,first,last,entries,group=prepared
             if pool!=row['graduation']['transition']['market'] or int(header['number'],16)!=end:
                 raise ValueError('economic_cohort_native_frontier')
             selected={};expected={}
@@ -99,10 +106,13 @@ class PonsEconomicCohorts:
                 selected[event['identity']]=('pons:pool:'+pool,identity,event_hash,block,available)
                 expected[event['identity']]=native_hash
             scope='pons:pool:'+pool;lower=max(first,row['block']+1)
-            cid='survivor_v4_history:'+checksum([self.source,scope,lower,last,header['hash']])
-            self.meter.open(cid,(scope,));self.meter.arrivals(cid,tuple(selected.values()))
+            scopes=(scope,);key=scope
+            if group is not None:
+                lower=first;scopes=tuple('pons:pool:'+p for p,_ in group[2]);key=group
+            cid='survivor_v4_history:'+checksum([self.source,key,lower,last,header['hash']])
+            self.meter.open(cid,scopes);self.meter.arrivals(cid,tuple(selected.values()))
             return _Stage(self,cid,'survivor_v4_history',selected,lower,last,
-                checksum([self.source,scope,lower,last,header['hash'],sorted(r[:4] for r in selected.values())]),expected)
+                checksum([self.source,key,lower,last,header['hash']]),expected)
         except Exception:self.unavailable();return None
         finally:self.lock.release()
 
@@ -112,6 +122,7 @@ class PonsEconomicCohorts:
             result.update(state='UNKNOWN',reason='CONTENTION');return result
         try:
             result.update(native_history_transactions=dict(self.publications),
+                factory_domain=self.factory.snapshot(),
                 configured_pool_universe='UNKNOWN',native_generation_dispositions='UNEXERCISED',
                 current_held_v4_history='UNEXERCISED',source_full_ack='NOT_A_PONS_CONTRACT')
             return result
@@ -229,6 +240,28 @@ def prepared_v4(owner,pool,token,first,last,raw,rows,available):
     if owner is not None:
         try:owner.prepared_v4(pool,token,first,last,raw,rows,available)
         except Exception:owner.unavailable()
+
+
+@contextmanager
+def shared_v4(owner,markets,first,last):
+    """One original <=64-market acquisition is one diagnostic cohort.
+
+    Every pool still traverses its original decoder and its own real native
+    history COMMIT. This is configured turn membership, not a global universe.
+    """
+    if owner is None:
+        yield;return
+    previous=getattr(owner.group,'current',None)
+    try:
+        members=tuple(sorted((m['pool_id'],m['token']) for m in markets))
+        if (previous is not None or not 1<=len(members)<=64 or len(set(members))!=len(members)):
+            raise ValueError('economic_cohort_group_bound')
+        owner.group.current=(first,last,members)
+    except Exception:owner.unavailable()
+    try:yield
+    except BaseException:
+        owner.unavailable();raise
+    finally:owner.group.current=previous
 
 
 def survivor(owner,row,end,header,tape):

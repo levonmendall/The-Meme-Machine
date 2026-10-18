@@ -429,6 +429,8 @@ def collect_v4_activities(endpoint,*,markets,start_block,end_block,max_events=25
     shared=_transport(endpoint,pool_ids=ids,start_block=start_block,end_block=end_block,
         max_events=max_events*len(markets),acquisition_state=acquisition_state,evidence_context=evidence_context,
         canonical_targets=canonical_targets,initial_calls=initial_calls,initial_values=initial_values)
-    tapes={m['token']:collect_v4_activity(endpoint,**m,start_block=start_block,
-        end_block=end_block,max_events=max_events,_shared=shared,economic_cohorts=economic_cohorts) for m in markets}
+    from meme_machine.runtime.pons_economic_cohort import shared_v4
+    with shared_v4(economic_cohorts,markets,start_block,end_block):
+        tapes={m['token']:collect_v4_activity(endpoint,**m,start_block=start_block,
+            end_block=end_block,max_events=max_events,_shared=shared,economic_cohorts=economic_cohorts) for m in markets}
     return (tapes,shared['canonical_headers']) if return_headers else tapes
