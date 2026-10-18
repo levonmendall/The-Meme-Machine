@@ -53,7 +53,8 @@ NATIVE_OPERATIONS = frozenset('pump.' + name for name in (
     'startup_cleanup.pipeline_open', 'startup_cleanup.runtime_evidence_open',
     'startup_cleanup.evidence_broker_open', 'startup_cleanup.sessions_open',
     'startup_cleanup.survivor_worker_open')) | frozenset(('pons.shared_capital_restore','pons.cohort_recovery',
-    'pons.candidate_restore'))
+    'pons.candidate_restore','pons.survivor_restore','pons.observation_start',
+    'pons.startup_warmup_checkpoint','pons.startup_discovery_checkpoint'))
 
 
 def operation_costs(row, expected_pid=None):
@@ -115,7 +116,7 @@ def operation_costs(row, expected_pid=None):
 def descriptive_lanes(lanes):
     # The required fixed profile is retained separately; do not duplicate a
     # large partially clipped copy in descriptive health on every sample.
-    return numeric({name: {key: value for key, value in lane.items() if key != 'operation_costs'}
+    return numeric({name: {key: value for key, value in lane.items() if key not in ('operation_costs','stalled_startup_stack')}
                     if isinstance(lane, dict) else lane for name, lane in lanes.items()})
 
 
@@ -228,6 +229,44 @@ def native_failure(row, lane, name, expected=None):
     return facts
 
 
+def stalled_startup_stack(row,lane):
+    """Fixed public facts; startup observation never becomes cancellation proof."""
+    from meme_machine.runtime.status import (STARTUP_STACK_OPERATIONS,STARTUP_STACK_FRAMES,
+        STARTUP_STACK_MIN_SECONDS,STARTUP_STACK_MAX_CAPTURES,STARTUP_STACK_SCOPE)
+    if not isinstance(row,dict) or not isinstance(lane,dict):return UNAVAILABLE
+    integers=('pid','process_start_ticks','main_native_thread_id','main_thread_start_ticks',
+        'reporter_native_thread_id','trigger_native_thread_id','capture_sequence','capture_limit')
+    if any(type(row.get(key)) is not int or not 0<row[key]<2**63 for key in integers):return UNAVAILABLE
+    if (type(row.get('version')) is not int or row['version']!=1 or row.get('scope')!=STARTUP_STACK_SCOPE
+            or row['pid']!=lane.get('pid') or row['main_native_thread_id']!=row['pid']
+            or row['process_start_ticks']!=row['main_thread_start_ticks']
+            or not isinstance(row.get('trigger_operation'),str) or row['trigger_operation'] not in STARTUP_STACK_OPERATIONS
+            or row.get('trigger_active_bracket') is not True
+            or not 1<=row['capture_sequence']<=row['capture_limit']==STARTUP_STACK_MAX_CAPTURES):return UNAVAILABLE
+    clocks=('at','monotonic','trigger_started_monotonic','trigger_age_seconds')
+    if any(not finite_number(row.get(key)) or row[key]<0 for key in clocks):return UNAVAILABLE
+    if (row['trigger_age_seconds']<STARTUP_STACK_MIN_SECONDS
+            or abs(row['monotonic']-row['trigger_started_monotonic']-row['trigger_age_seconds'])>.05):return UNAVAILABLE
+    instance=row.get('process_instance')
+    if (not isinstance(instance,str) or re.fullmatch('[0-9a-f]{32}',instance) is None
+            or instance!=lane.get('process_instance')):return UNAVAILABLE
+    provided=row.get('frames')
+    if not isinstance(provided,list) or len(provided)>8:return UNAVAILABLE
+    frames=[]
+    for frame in provided:
+        if not isinstance(frame,dict):return UNAVAILABLE
+        module,function,line=frame.get('module'),frame.get('function'),frame.get('line')
+        if (not isinstance(module,str) or not isinstance(function,str) or function not in STARTUP_STACK_FRAMES.get(module,())
+                or type(line) is not int or not 0<line<10**7):return UNAVAILABLE
+        frames.append(dict(module=module,function=function,line=line))
+    if row.get('state') not in ('CAPTURED','UNAVAILABLE') or (row['state']=='CAPTURED')!=bool(frames):return UNAVAILABLE
+    result={key:row[key] for key in (*integers,*clocks)}
+    result.update(version=1,state=row['state'],scope=STARTUP_STACK_SCOPE,process_instance=instance,
+        trigger_operation=row['trigger_operation'],trigger_active_bracket=True,
+        frames=frames,frames_truncated=row.get('frames_truncated') is True)
+    return result if len(json.dumps(result,separators=(',',':')).encode())<=4096 else UNAVAILABLE
+
+
 def native_lifecycle(lanes, *, expected_workers=None):
     """Essential native startup/cancellation facts before descriptive clipping."""
     def cancellation_stack(row):
@@ -277,6 +316,7 @@ def native_lifecycle(lanes, *, expected_workers=None):
             native_operation=operation(lane.get('native_operation')),
             native_recent_operations=[operation(row) for row in recent[:8]] if isinstance(recent, list) else UNAVAILABLE,
             cancellation_signal=signal_facts,cancellation_stack=cancellation_stack(lane.get('cancellation_stack')),
+            stalled_startup_stack=stalled_startup_stack(lane.get('stalled_startup_stack'),lane) if name=='pons' else UNAVAILABLE,
             native_failure=native_failure(lane.get('native_failure'), lane, name,
                 None if expected_workers is None else expected_workers.get(name, {})))
     return result
@@ -621,11 +661,32 @@ def selected_frontiers(providers):
         for kind in ('frontiers', 'program_frontiers')}
 
 
+def without_startup_stack(value):
+    """Drop only optional captures when the original byte guard needs space."""
+    result=dict(value)
+    for key in ('native_lifecycle','final_native_health'):
+        row=result.get(key)
+        if not isinstance(row,dict):continue
+        row=dict(row);result[key]=row
+        if key=='final_native_health':
+            lifecycle=row.get('native_lifecycle')
+            if not isinstance(lifecycle,dict):continue
+            lifecycle=dict(lifecycle);row['native_lifecycle']=lifecycle
+        else:lifecycle=row
+        pons=lifecycle.get('pons')
+        if isinstance(pons,dict):
+            pons=dict(pons);lifecycle['pons']=pons;pons.pop('stalled_startup_stack',None)
+    return result
+
+
 def write_metadata(output, name, value):
     body_bytes = len(json.dumps(value, sort_keys=True, allow_nan=False).encode()) + 1
     other_bytes = sum((output / item).stat().st_size for item in
         ('clock.json', 'result.json', 'supervisor-fatal.json', 'guard-failure.json')
         if item != name and (output / item).exists())
+    if other_bytes + body_bytes > TERMINAL_BYTES:
+        value=without_startup_stack(value)
+        body_bytes=len(json.dumps(value,sort_keys=True,allow_nan=False).encode())+1
     if other_bytes + body_bytes > TERMINAL_BYTES:
         raise ValueError('diagnostic_metadata_reserve')
     atomic_json(output / name, value)
@@ -1273,6 +1334,9 @@ def counters(group, pids, owner=None, *, lanes=None):
 def append_sample(path, sample):
     body = json.dumps(sample, sort_keys=True, allow_nan=False, separators=(',', ':')).encode() + b'\n'
     size = path.stat().st_size if path.exists() else 0
+    if len(body) > INPUT_BYTES or size + len(body) > OUTPUT_BYTES - 2 * TERMINAL_BYTES:
+        sample=without_startup_stack(sample)
+        body=json.dumps(sample,sort_keys=True,allow_nan=False,separators=(',',':')).encode()+b'\n'
     if len(body) > INPUT_BYTES or size + len(body) > OUTPUT_BYTES - 2 * TERMINAL_BYTES:
         raise ValueError('diagnostic_output_limit')
     with path.open('ab') as stream:

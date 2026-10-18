@@ -444,7 +444,8 @@ class Worker:
             # The factory owns its SQLite objects on this executor. Only its
             # initial read-only capital replay may observe startup cancellation;
             # ordinary protection/settlement steps keep their existing behavior.
-            with operation('pons.survivor_restore'):
+            from meme_machine.runtime import status
+            with operation('pons.survivor_restore'), (status.operation('pons.survivor_restore') if pons else nullcontext()):
                 with native_startup_replay(requested.is_set):self.service=self.factory()
         from meme_machine.operational.position_continuation import position_only
         maintenance=position_only();admit=admit and not maintenance

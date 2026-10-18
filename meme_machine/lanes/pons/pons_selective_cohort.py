@@ -1008,7 +1008,9 @@ def run(endpoint,*,campaign=False):
         from meme_machine.operational.position_continuation import position_only,pons_current_safety
         if position_only():
             start_ts=int(time.time())
-        else:rpc,cursor,start_ts=_start_observation(endpoint,feed,saved=saved,maintenance=startup_maintenance)
+        else:
+            with status.operation('pons.observation_start'):
+                rpc,cursor,start_ts=_start_observation(endpoint,feed,saved=saved,maintenance=startup_maintenance)
         startup_head=cursor
         if scout is not None:
             scout_cursor=queue.plane.checkpoint_read('pons_scout_market_cursor')
@@ -1048,7 +1050,8 @@ def run(endpoint,*,campaign=False):
             ready=warm_state["ready"],exhausted=warm_state["exhausted"],
             qualification_coverage='canonical_selected_curve_windows' if campaign else 'public_nomination_warmup',
         )
-        _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase="warmup_complete",plane=queue.plane)
+        with status.operation('pons.startup_warmup_checkpoint'):
+            _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase="warmup_complete",plane=queue.plane)
         if not campaign and covered<TAPE_WARM_REQUIRED_CHAIN_SECONDS:
             raise BoundaryError("selective_tape_warmup_incomplete")
 
@@ -1056,7 +1059,8 @@ def run(endpoint,*,campaign=False):
         elif not isinstance(result.get('discovery_ends_at'),(int,float)):
             result['discovery_ends_at']=time.time()+DISCOVERY_SECONDS
         deadline=None if continuous else time.monotonic()+max(0,result['discovery_ends_at']-time.time())
-        save_cohort_checkpoint(result,cursor,'discovery_ready',plane=queue.plane)
+        with status.operation('pons.startup_discovery_checkpoint'):
+            save_cohort_checkpoint(result,cursor,'discovery_ready',plane=queue.plane)
         next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
         while (
             (continuous or time.monotonic()<deadline or (campaign and position_only()))
