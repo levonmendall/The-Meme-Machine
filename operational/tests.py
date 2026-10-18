@@ -5,6 +5,7 @@ FAST=[
  'tests.test_economic_cohort',
  'tests.test_economic_cohort_measurement',
  'tests.test_native_proof_publication',
+ 'tests.test_native_work_cohort',
  'tests.test_operational_candidate_source_guard',
  'tests.test_pump_restore_source_guard',
  'tests.test_prepared_evidence_decode',
