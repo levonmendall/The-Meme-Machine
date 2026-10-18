@@ -32,6 +32,65 @@ OUTPUT_BOUND=65536
 SETUP_BOUND=1024*1024+16384
 NATIVE_WALL=1865
 STOP_GRACE=65
+_PREPARED=object()
+
+
+class PreparedNativeImage:
+    """One parent-owned build, prepared before short-lived sizing acquisition.
+
+    The original child setup still pins/hashes every copied inode before policy
+    installation. This object is neither kernel proof nor a serialized image
+    approval; only prepare_native can issue it, for this PID/thread/scope.
+    """
+    __slots__=('_scope','_approval','_staged','_owner','_used','_live_scope')
+
+    def __init__(self,scope,approval,staged,*,_issuer=None,live_scope=None):
+        image.require(_issuer is _PREPARED,'native_landlock_preparation_issuer')
+        object.__setattr__(self,'_scope',scope);object.__setattr__(self,'_approval',approval)
+        object.__setattr__(self,'_staged',dict(staged,manifest=json.loads(image.encoded(staged['manifest']))))
+        object.__setattr__(self,'_owner',(os.getpid(),threading.get_ident()))
+        object.__setattr__(self,'_used',False)
+        object.__setattr__(self,'_live_scope',live_scope)
+
+    def __setattr__(self,*args):raise AttributeError('immutable_native_image_preparation')
+
+    def _take(self,scope,approval):
+        image.require(not self._used and self._scope==scope and self._approval is approval
+            and self._owner==(os.getpid(),threading.get_ident()),'native_landlock_preparation_scope')
+        if self._live_scope is not None:self._live_scope.require_launch(approval)
+        raw=(self._staged['root']/'manifest.json').read_bytes()
+        image.require(hashlib.sha256(raw).hexdigest()==self._staged['manifest_sha256']
+            and raw==image.encoded(self._staged['manifest']),'native_landlock_preparation_changed')
+        object.__setattr__(self,'_used',True)
+        return self._staged
+
+
+def prepare_native(scope,approval,*,scope_capability=None):
+    """Perform the existing authenticated copy before obtaining five-second USD."""
+    image.require(type(approval) is image.NativeImageApproval and os.geteuid()!=0
+        and threading.current_thread() is threading.main_thread(),
+        'native_landlock_approved_unprivileged_parent_required')
+    if scope_capability is None:scope=boundary._scratch(scope,os.getpid())
+    else:
+        from .isolated_native_live_scope import LiveNativeScope
+        image.require(type(scope_capability) is LiveNativeScope
+            and Path(scope)==scope_capability.require_launch(approval),'native_landlock_live_scope')
+        scope=scope_capability.path
+    return PreparedNativeImage(scope,approval,image.build(scope,approval,profile=PROFILE),
+        _issuer=_PREPARED,live_scope=scope_capability)
+
+
+def native_policy_record(stderr):
+    """The fixed pre-exec installation observation, never a readiness claim."""
+    lines=[line.removeprefix(b'NATIVE_POLICY_INSTALLED ') for line in stderr.splitlines()
+        if line.startswith(b'NATIVE_POLICY_INSTALLED ')]
+    if len(lines)!=1 or len(lines[0])>256:return None
+    try:row=json.loads(lines[0])
+    except (ValueError,UnicodeError):return None
+    if (type(row) is dict and set(row)=={'profile','landlock_abi','installed'}
+            and row['profile']==PROFILE and type(row['landlock_abi']) is int
+            and 6<=row['landlock_abi']<=65535 and row['installed'] is True):return row
+    return None
 
 
 def _prctl(kernel,option,value,code):
@@ -46,8 +105,10 @@ def _arm_parent(kernel,expected):
 
 
 def _packet(value):
-    image.require(type(value) is dict and set(value)=={'scope','image','work','parent_pid',
-        'transport_fd','facts_fd','approval','manifest','manifest_sha256','profile'},'native_landlock_spec')
+    keys={'scope','image','work','parent_pid','transport_fd','facts_fd','approval','manifest',
+        'manifest_sha256','profile'}
+    image.require(type(value) is dict and set(value) in (keys,keys|{'live_scope'}),'native_landlock_spec')
+    if 'live_scope' in value:image.require(type(value['live_scope']) is dict,'native_landlock_live_scope')
     image.require(value['profile']==PROFILE and type(value['parent_pid']) is int
         and 1<value['parent_pid']<2**31,'native_landlock_profile')
     scope=Path(value['scope'])
@@ -198,7 +259,10 @@ def _setup(value):
     _arm_parent(kernel,value['parent_pid'])
     cancellation=_NativeCancellation()
     for number in (signal.SIGTERM,signal.SIGINT):signal.signal(number,cancellation)
-    boundary._scratch(value['scope'],value['parent_pid'])
+    if 'live_scope' not in value:boundary._scratch(value['scope'],value['parent_pid'])
+    else:
+        from .isolated_native_live_scope import verify_live_scope
+        verify_live_scope(value['scope'],value['live_scope'],parent_pid=value['parent_pid'],approval=value['approval'])
     boundary._private(value['work'],empty=True)
     signal.signal(signal.SIGCHLD,signal.SIG_DFL)
     # Approval/build bytes arrived only over the original protected-parent
@@ -377,20 +441,29 @@ def _send_setup(stream,raw):
     finally:stream.close()
 
 
-def launch_native(scope,approval,transport,facts_read_fd):
+def launch_native(scope,approval,transport,facts_read_fd,*,prepared=None):
     """Explicit fixed native target with original provider/facts capabilities."""
     image.require(type(approval) is image.NativeImageApproval and os.geteuid()!=0
         and threading.current_thread() is threading.main_thread()
         and signal.getsignal(signal.SIGCHLD)==signal.SIG_DFL,
         'native_landlock_approved_unprivileged_parent_required')
-    scope=boundary._scratch(scope,os.getpid())
-    staged=image.build(scope,approval,profile=PROFILE)
+    if type(prepared) is PreparedNativeImage and prepared._live_scope is not None:
+        scope=prepared._live_scope.require_launch(approval)
+        image.require(Path(scope)==prepared._scope,'native_landlock_live_scope')
+    else:scope=boundary._scratch(scope,os.getpid())
+    if prepared is None:staged=image.build(scope,approval,profile=PROFILE)
+    else:
+        image.require(type(prepared) is PreparedNativeImage,'native_landlock_preparation_required')
+        staged=prepared._take(scope,approval)
     work=scope/'native-work'
     image.require(not work.exists(),'native_landlock_scope_already_used');work.mkdir(mode=0o700)
     _channel_descriptors(transport.fileno(),facts_read_fd)
-    value=_packet(dict(scope=str(scope),image=str(staged['root']),work=str(work),parent_pid=os.getpid(),
+    packet=dict(scope=str(scope),image=str(staged['root']),work=str(work),parent_pid=os.getpid(),
         transport_fd=transport.fileno(),facts_fd=facts_read_fd,approval=approval.value(),
-        manifest=staged['manifest'],manifest_sha256=staged['manifest_sha256'],profile=PROFILE))
+        manifest=staged['manifest'],manifest_sha256=staged['manifest_sha256'],profile=PROFILE)
+    if prepared is not None and prepared._live_scope is not None:
+        packet['live_scope']=prepared._live_scope.statement(approval)
+    value=_packet(packet)
     code='import runpy,sys;sys.path.insert(0,'+repr(str(Path(__file__).resolve().parents[2]))+');runpy.run_module("meme_machine.operational.isolated_native_landlock_launcher",run_name="__main__")'
     child=subprocess.Popen([sys.executable,'-I','-B','-S','-c',code,'--setup'],stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,stderr=subprocess.PIPE,env={},close_fds=True,

@@ -218,6 +218,40 @@ class ParentSizingPortTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.budget.snapshot()['http_reserved'],'0')
         self.assertIsNone(producer._pons.cached)
 
+    async def test_expiry_equality_and_requested_renewal_earn_real_new_native_usd(self):
+        producer=await self.producer();financial,state=actual_snapshot(self.harness())
+        args=dict(scope='offline-renewal',source_commit='a'*40,source_tree='b'*40)
+        original=self.market.call
+        def advancing_chain(method,params,*,scope=None):
+            if method=='eth_getBlockByNumber':
+                number=0x4bdc170+(self.now[0]-NOW) if params[0]=='latest' else int(params[0],16)
+                at=NOW+number-0x4bdc170
+                return dict(number=hex(number),hash='0x'+digest(['sizing-renewal-header',number,at]),timestamp=hex(at))
+            return original(method,params,scope=scope)
+        self.market.call=advancing_chain
+        initial=(await asyncio.to_thread(producer.produce,financial,state,**args)).value()
+        purchases=len(self.physical.calls)
+        self.now[0]=initial['valid_until']
+        renewed=(await asyncio.to_thread(producer.produce,financial,state,**args)).value()
+        self.assertGreater(len(self.physical.calls),purchases)
+        self.assertGreater(renewed['valid_until'],initial['valid_until'])
+        purchases=len(self.physical.calls);self.now[0]+=1;self.market.now=self.now[0]
+        fresh=(await asyncio.to_thread(producer.produce,financial,state,renew_pons=True,**args)).value()
+        self.assertGreater(len(self.physical.calls),purchases)
+        self.assertGreater(fresh['valid_until'],renewed['valid_until'])
+        self.assertEqual(initial['valid_until'],NOW+5)
+
+    async def test_renewal_of_genuinely_stale_header_does_not_extend_or_zero_fallback(self):
+        from meme_machine.runtime.usd_valuation import ValuationUnavailable
+        producer=await self.producer();financial,state=actual_snapshot(self.harness())
+        args=dict(scope='offline-stale-renewal',source_commit='a'*40,source_tree='b'*40)
+        initial=(await asyncio.to_thread(producer.produce,financial,state,**args)).value()
+        self.now[0]=initial['valid_until']+1
+        with self.assertRaises(ValuationUnavailable):
+            await asyncio.to_thread(producer.produce,financial,state,renew_pons=True,**args)
+        self.assertIsNone(producer._pons.cached)
+        self.assertEqual(initial['valid_until'],NOW+5)
+
     async def test_authenticated_url_does_not_substitute_for_actual_solana_chain_validation(self):
         producer=await self.producer();financial,state=actual_snapshot(self.harness())
         self.genesis='wrong-chain'
