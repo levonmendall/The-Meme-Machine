@@ -62,8 +62,9 @@ economic completion on its own.
 
 `derive_failed_generation_plan(StoppedNativeReadContext)` is a constructor-free
 read port. The caller supplies the original authenticated stopped/census/inode
-and read-transaction fences; the function acquires no files, providers, writer
-or privileged route. It verifies the existing root/native producer provenance,
+and read-transaction fences; the function opens no arbitrary/native input file,
+provider, writer or privileged route. The original provenance verifier does
+read the one fixed protected prior root launch record. It verifies root/native producer provenance,
 original historical boundary, current census checksum, bounded registry rows
 and complete session EOF. It refuses missing/crossed sessions, changed closure
 receipts, queue algebra errors and unsupported handler populations. The private

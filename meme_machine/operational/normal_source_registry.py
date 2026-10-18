@@ -503,7 +503,7 @@ def _handlers(db,current,sessions,context):
 
 
 def derive_failed_generation_plan(read_context):
-    """No opens, providers, historical rewrites, ACKs or completion flags."""
+    """No native-input opens, providers, historical rewrites or completion flags."""
     from meme_machine.runtime.native_restore_context import require_read_context
     from .normal_source_boot import KEY,validate_current_generation,_authenticate_prior_provenance
     from .normal_boot import _source_inputs
