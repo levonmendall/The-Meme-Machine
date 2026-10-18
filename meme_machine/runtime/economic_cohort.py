@@ -201,7 +201,8 @@ class EconomicCohorts:
         # Solana authenticated consumer FULL-COMMIT plus canonical source ACK.
         # A source interval alone must never imply its consumer completion.
         if self.lane!='pump':return
-        if closure is None or not closure[3] or set(cohort['arrivals'])!=set(cohort['committed']):return
+        if (closure is None or not closure[3] or cohort['last'] is None
+                or set(cohort['arrivals'])!=set(cohort['committed'])):return
         fanout=set().union(*cohort['fanout'].values()) if cohort['fanout'] else set()
         if any(not self.obligations[key]['acked'] for key in fanout):return
         arrival_digest=checksum(sorted(row[:4] for row in cohort['arrivals'].values()))

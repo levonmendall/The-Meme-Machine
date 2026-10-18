@@ -117,4 +117,6 @@ class EconomicCohortTests(unittest.TestCase):
             self.assertEqual(meter.snapshot()['completed_cohorts'],0)
         meter=self.meter();meter.open('empty',('scope',))
         meter.seal('empty',10,10,checksum('native-proof'),complete=True,expected_economics=(0,checksum([])))
+        self.assertEqual(meter.snapshot()['completed_cohorts'],0)
+        meter.committed('empty',(),(),fanout_complete=())
         self.assertEqual(meter.snapshot()['completed_cohorts'],1)
