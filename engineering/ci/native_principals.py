@@ -48,7 +48,8 @@ def content_identity(info):
 
 def _stat_fields(info):
     return dict(device=info.st_dev, inode=info.st_ino, uid=info.st_uid,
-                gid=info.st_gid, mode=stat.S_IMODE(info.st_mode), links=info.st_nlink)
+                gid=info.st_gid, mode=stat.S_IMODE(info.st_mode), links=info.st_nlink,
+                size=info.st_size)
 
 
 def failure_record(error):
@@ -79,7 +80,7 @@ def failure_record(error):
         for phase in ('source_stat', 'destination_stat'):
             value = facts.get(phase)
             if type(value) is dict:
-                clean = {key:value[key] for key in ('device','inode','uid','gid','mode','links')
+                clean = {key:value[key] for key in ('device','inode','uid','gid','mode','links','size')
                          if type(value.get(key)) is int and 0 <= value[key] <= 2**64-1}
                 if clean:
                     record[phase] = clean
@@ -107,8 +108,8 @@ def _open(path, *, directory=False):
 
 
 def _digest(descriptor, expected):
-    require(stat.S_ISREG(expected.st_mode) and 0 < expected.st_size <= MAX_FILE,
-            'ci_runtime_regular_bound')
+    require(stat.S_ISREG(expected.st_mode) and 0 <= expected.st_size <= MAX_FILE,
+            'ci_runtime_regular_bound', facts=dict(source_stat=_stat_fields(expected)))
     os.lseek(descriptor, 0, os.SEEK_SET)
     digest = hashlib.sha256()
     remaining = expected.st_size
@@ -192,12 +193,13 @@ class _Installation:
         descriptor = _open(path)
         self.stack.callback(os.close, descriptor)
         before = os.fstat(descriptor)
-        require(stat.S_ISREG(before.st_mode), 'ci_runtime_regular_bound')
+        facts=dict(source_stat=_stat_fields(before))
+        require(stat.S_ISREG(before.st_mode), 'ci_runtime_regular_bound', facts=facts)
         require(before.st_uid in (self.owners if inside else (0,))
                 and not before.st_mode & 0o7022 and before.st_mode & 0o004,
-                'ci_runtime_file_trust')
-        require(not inside or before.st_nlink == 1, 'ci_runtime_shared_file')
-        require(self.total + before.st_size <= MAX_BYTES, 'ci_runtime_byte_bound')
+                'ci_runtime_file_trust', facts=facts)
+        require(not inside or before.st_nlink == 1, 'ci_runtime_shared_file', facts=facts)
+        require(self.total + before.st_size <= MAX_BYTES, 'ci_runtime_byte_bound', facts=facts)
         digest = _digest(descriptor, before)
         if inside:
             os.fchown(descriptor, self.target_uid, self.target_gid)
