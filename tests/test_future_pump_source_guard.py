@@ -16,10 +16,10 @@ from unittest.mock import patch
 
 ROOT=Path(__file__).resolve().parents[1]
 BASE='780f4015efd9fba528e97223f8e8e3b1a7322e12'
-IMPLEMENTATION='b43e8d3f361992daebe3afd60fe1b4832e526f96'
-IMPLEMENTATION_TREE='0306b4d44b9d0d4b3ceef8abdd1dc516db2606eb'
+IMPLEMENTATION='c39204e64bf4bc93a313975dbf98ba38d44ffcc1'
+IMPLEMENTATION_TREE='0ab608245d377bb03119f4733202b17871bbb36b'
 MANIFEST=ROOT/'tests/fixtures/future_pump_source_delta.json'
-MANIFEST_SHA256='8b57360ddc145de31186dec452c60cd1be65a782492c1e54cc801b7643c15165'
+MANIFEST_SHA256='3b60047df1e5f6e5bdae7e21432bf331f6892213e28886e1129c0c4c0f7b2c0f'
 PATHS=('meme_machine/lanes/pons/immutable_rpc.py',
  'meme_machine/lanes/pons/pons_selective_acquisition.py',
  'meme_machine/lanes/pons/pons_selective_capital.py',
@@ -103,7 +103,7 @@ DEPENDENCY_PATHS=('meme_machine/lanes/pons/rpc_profile.py',
 DELETED_PATHS=()
 LEGACY_GUARDS=('tests/test_pump_restore_source_guard.py','tests/test_robinhood_usd_valuation.py')
 CALLER_MANIFEST=ROOT/'tests/fixtures/future_source_callers.json'
-CALLER_MANIFEST_SHA256='08ee26803c53ca1c85963582d9ddb4cb3323a1e2449a6bc1edb0dd003f6f65a0'
+CALLER_MANIFEST_SHA256='23b6d8baac6469a4960089f7331bd93eff5e30b625dcbdbe442258209619f356'
 EXTERNAL_CALLERS=('tests/test_extended_survivor_hold_research.py','tests/test_forward_survivor.py',
     'tests/test_long_duration_positions.py','tests/test_pons_owner_admission.py',
     'tests/test_robinhood_scout.py','tests/test_shared_capital_strategy.py',

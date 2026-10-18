@@ -109,3 +109,15 @@ of the original stop event. The affected11 cases passed in2.624s, followed by
 all94 attribution/child/parent/upload/entry cases in4.534s without skips under
 FAST network guard/Scratch. No old assertion or provider guard changed. The
 original failed logs and Scratch directories remain retained.
+
+The successor complete image proof binds the exact runtime correction
+`c39204e64bf4bc93a313975dbf98ba38d44ffcc1`, tree
+`0ab608245d377bb03119f4733202b17871bbb36b`. Only the five already-added
+child/parent/bridge/entry/validator helper SHA/byte records change. All43
+780-inverse records,30 other added-helper records, three unchanged pins, old
+guard bodies/assertions, seven caller inverses and exported-API census remain
+identical. Source manifests, implementation/tree and four guard constants are
+retargeted explicitly. The coupled130 source-proof/attribution/child/parent/
+upload/entry/bridge cases passed in28.330s without skips under the official
+FAST driver. This is offline correction evidence; the first-fault-aware actual
+hosted copied-main result remains pending.

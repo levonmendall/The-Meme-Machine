@@ -7,12 +7,12 @@
       "sha256": "db48faec22cb86895dca39239d270942a9c1abce3e1b13d75f0b9a3387a0ddf8"
     },
     "meme_machine/operational/child_transport.py": {
-      "bytes": 35017,
-      "sha256": "66617a938b20c38e940947de02fa98f000d61aca9a2a0adcad8675f78051d7e1"
+      "bytes": 36587,
+      "sha256": "765f20af9e36656acea5de1fe764c8cf9341796107e1f7b5b6a9c610d2c8e320"
     },
     "meme_machine/operational/isolated_native_entry.py": {
-      "bytes": 17659,
-      "sha256": "9a19ad8ca9dfc48e9151ae7758bf4127d2f3124f2e8d3a165d46493878abf78b"
+      "bytes": 18160,
+      "sha256": "2812f4e92b219ee8abebe857565155128166eb35b43fb17da58321f666fb899e"
     },
     "meme_machine/operational/isolated_native_image.py": {
       "bytes": 16287,
@@ -35,8 +35,8 @@
       "sha256": "be2aebae5e3955dfd8c73cabbf74ede5a7e4890db336ea5aa83c13be4f7cc1f0"
     },
     "meme_machine/operational/isolated_native_kernel_validation.py": {
-      "bytes": 20624,
-      "sha256": "1a4b043e2dc5263f0e678cd7c822a56a3072521882387928370abdd9edd3e3c1"
+      "bytes": 20694,
+      "sha256": "12c841fc847a3106854a2fbbc88cabc9cddd67b2fe0247a7f9b6e632430b9357"
     },
     "meme_machine/operational/isolated_native_landlock_image.py": {
       "bytes": 13144,
@@ -71,8 +71,8 @@
       "sha256": "972a4c8be1a2a5aba134c37fb522c9eaa4790afc4611894134e8c56317424059"
     },
     "meme_machine/operational/parent_channel.py": {
-      "bytes": 33166,
-      "sha256": "173a9a246466c991a0364b5f58d4bc48e2e6f57fadcf8ec8003b91dcacc24153"
+      "bytes": 34317,
+      "sha256": "3b2dc79122f407c8ff761c0c6b05cf58e6325a72db413f03fb34c1db72e55307"
     },
     "meme_machine/operational/parent_head_lifecycle.py": {
       "bytes": 23740,
@@ -95,8 +95,8 @@
       "sha256": "762d7fd879540fed6a85e5b689b958f9f62a3b565ba735f80bd626a54c13c647"
     },
     "meme_machine/operational/transport_bridge.py": {
-      "bytes": 16058,
-      "sha256": "4ea7347a808d2cbebb46ffe72d25e595ec71497e2451665d47d5d7f7892b3b6e"
+      "bytes": 19411,
+      "sha256": "2cdb94a45c21f1d31cd5e7fb375342fd82192542b5ded38bf3c9a71fbe0ffbf3"
     },
     "meme_machine/runtime/isolated_native_admission.py": {
       "bytes": 7779,
@@ -3352,8 +3352,8 @@
       }
     }
   },
-  "implementation": "b43e8d3f361992daebe3afd60fe1b4832e526f96",
-  "implementation_tree": "0306b4d44b9d0d4b3ceef8abdd1dc516db2606eb",
+  "implementation": "c39204e64bf4bc93a313975dbf98ba38d44ffcc1",
+  "implementation_tree": "0ab608245d377bb03119f4733202b17871bbb36b",
   "legacy_guards": {
     "tests/test_pump_restore_source_guard.py": {
       "after_sha256": "ca109bc75ca006b2b720ac1938d811e1afcff6f28417578ce5b405eb670573ce",

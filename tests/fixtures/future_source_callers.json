@@ -1144,9 +1144,9 @@
       ]
     }
   },
-  "core_manifest_sha256": "8b57360ddc145de31186dec452c60cd1be65a782492c1e54cc801b7643c15165",
+  "core_manifest_sha256": "3b60047df1e5f6e5bdae7e21432bf331f6892213e28886e1129c0c4c0f7b2c0f",
   "failed_ci_commit": "5bd959f4e3e39f030d3f87368e833cc63beccf55",
-  "implementation": "b43e8d3f361992daebe3afd60fe1b4832e526f96",
-  "implementation_tree": "0306b4d44b9d0d4b3ceef8abdd1dc516db2606eb",
+  "implementation": "c39204e64bf4bc93a313975dbf98ba38d44ffcc1",
+  "implementation_tree": "0ab608245d377bb03119f4733202b17871bbb36b",
   "schema": "authenticated-future-source-callers-v1"
 }
