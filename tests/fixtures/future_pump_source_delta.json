@@ -2305,6 +2305,133 @@
         }
       }
     },
+    "meme_machine/operational/namespace_canary.py": {
+      "after_sha256": "1be8af8f10462771d4f422b550fb2ee33954a7f057e633d691fb02c00e0e6136",
+      "before_sha256": "a6955a7240d28958f00dabdefcd18408eeb0d1e1d9e12398337aaf21d161f4c7",
+      "changes": [
+        {
+          "after": "    _require(not alive.poll(0), 'namespace_parent_changed')\n\n\ndef _write_user_mapping(name, value):\n    codes = {'setgroups':'namespace_setgroups_refused',\n             'uid_map':'namespace_uid_map_refused', 'gid_map':'namespace_gid_map_refused'}\n    _require(name in codes, 'namespace_mapping_unreviewed')\n    try:\n        Path('/proc/self/' + name).write_text(value)\n    except OSError as error:\n        number = error.errno\n        if type(number) is int and 0 < number < 4096:\n            raise Blocked(codes[name], number) from None\n        raise\n\n\ndef _setup(spec):\n    kernel = Kernel()\n    _require(os.geteuid() != 0, 'namespace_nonroot_required')\n",
+          "before": "    _require(not alive.poll(0), 'namespace_parent_changed')\n\n\ndef _setup(spec):\n    kernel = Kernel()\n    _require(os.geteuid() != 0, 'namespace_nonroot_required')\n"
+        },
+        {
+          "after": "    kernel.prctl(38, 1, 'namespace_no_new_privileges_refused')\n    _arm_parent(kernel,spec['parent_pid'])\n    kernel.unshare(USER)\n    _write_user_mapping('setgroups', 'deny')\n    _write_user_mapping('uid_map', '0 ' + str(uid) + ' 1\\n')\n    _write_user_mapping('gid_map', '0 ' + str(gid) + ' 1\\n')\n    kernel.unshare(MOUNT | NET | PID | IPC)\n    kernel.mount(None, '/', flags=MS_REC | MS_PRIVATE)\n    _arm_parent(kernel,spec['parent_pid'])\n",
+          "before": "    kernel.prctl(38, 1, 'namespace_no_new_privileges_refused')\n    _arm_parent(kernel,spec['parent_pid'])\n    kernel.unshare(USER)\n    Path('/proc/self/setgroups').write_text('deny')\n    Path('/proc/self/uid_map').write_text('0 ' + str(uid) + ' 1\\n')\n    Path('/proc/self/gid_map').write_text('0 ' + str(gid) + ' 1\\n')\n    kernel.unshare(MOUNT | NET | PID | IPC)\n    kernel.mount(None, '/', flags=MS_REC | MS_PRIVATE)\n    _arm_parent(kernel,spec['parent_pid'])\n"
+        }
+      ],
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/Import:ctypes",
+            "module/Import:errno",
+            "module/Import:json",
+            "module/Import:os",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:platform",
+            "module/Import:re",
+            "module/Import:resource",
+            "module/Import:select",
+            "module/Import:selectors",
+            "module/Import:signal",
+            "module/Import:socket",
+            "module/Import:stat",
+            "module/Import:subprocess",
+            "module/Import:sys",
+            "module/Import:time",
+            "module/Assign:Name(id='USER', ctx=Store())",
+            "module/Assign:Name(id='MOUNT', ctx=Store())",
+            "module/Assign:Name(id='PID', ctx=Store())",
+            "module/Assign:Name(id='NET', ctx=Store())",
+            "module/Assign:Name(id='IPC', ctx=Store())",
+            "module/Assign:Tuple(elts=[Name(id='MS_RDONLY', ctx=Store()), Name(id='MS_NOSUID', ctx=Store()), Name(id='MS_NODEV', ctx=Store())], ctx=Store())",
+            "module/Assign:Tuple(elts=[Name(id='MS_BIND', ctx=Store()), Name(id='MS_REC', ctx=Store()), Name(id='MS_PRIVATE', ctx=Store()), Name(id='MS_REMOUNT', ctx=Store())], ctx=Store())",
+            "module/Assign:Name(id='_MAX_RESULT', ctx=Store())",
+            "module/Assign:Name(id='_MARKERS', ctx=Store())",
+            "module/Assign:Name(id='_CHECKS', ctx=Store())",
+            "module/ClassDef:Blocked",
+            "module/FunctionDef:_require",
+            "module/ClassDef:Kernel",
+            "module/FunctionDef:_private",
+            "module/FunctionDef:_ipc_only",
+            "module/FunctionDef:_bind",
+            "module/FunctionDef:_drop_capabilities",
+            "module/FunctionDef:_lock_namespaces",
+            "module/FunctionDef:_arm_parent",
+            "module/FunctionDef:_arm_pid1_parent",
+            "module/FunctionDef:_write_user_mapping",
+            "module/FunctionDef:_setup",
+            "module/FunctionDef:_spec",
+            "module/FunctionDef:_square",
+            "module/FunctionDef:_probe",
+            "module/FunctionDef:_scratch",
+            "module/FunctionDef:_collect",
+            "module/FunctionDef:_kill_probe",
+            "module/FunctionDef:canary",
+            "module/FunctionDef:main",
+            "module/If:If(test=Compare(left=Name(id='__name__', ctx=Load()), ops=[Eq()], comparators=[Constant(value='__main__')]), body=[Raise(exc=Call(func=Name(id='SystemExit', ctx=Load()), args=[Call(func=Name(id='main', ctx=Load()), args=[], keywords=[])], keywords=[]))], orelse=[])"
+          ],
+          "before": [
+            "module/docstring",
+            "module/Import:ctypes",
+            "module/Import:errno",
+            "module/Import:json",
+            "module/Import:os",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:platform",
+            "module/Import:re",
+            "module/Import:resource",
+            "module/Import:select",
+            "module/Import:selectors",
+            "module/Import:signal",
+            "module/Import:socket",
+            "module/Import:stat",
+            "module/Import:subprocess",
+            "module/Import:sys",
+            "module/Import:time",
+            "module/Assign:Name(id='USER', ctx=Store())",
+            "module/Assign:Name(id='MOUNT', ctx=Store())",
+            "module/Assign:Name(id='PID', ctx=Store())",
+            "module/Assign:Name(id='NET', ctx=Store())",
+            "module/Assign:Name(id='IPC', ctx=Store())",
+            "module/Assign:Tuple(elts=[Name(id='MS_RDONLY', ctx=Store()), Name(id='MS_NOSUID', ctx=Store()), Name(id='MS_NODEV', ctx=Store())], ctx=Store())",
+            "module/Assign:Tuple(elts=[Name(id='MS_BIND', ctx=Store()), Name(id='MS_REC', ctx=Store()), Name(id='MS_PRIVATE', ctx=Store()), Name(id='MS_REMOUNT', ctx=Store())], ctx=Store())",
+            "module/Assign:Name(id='_MAX_RESULT', ctx=Store())",
+            "module/Assign:Name(id='_MARKERS', ctx=Store())",
+            "module/Assign:Name(id='_CHECKS', ctx=Store())",
+            "module/ClassDef:Blocked",
+            "module/FunctionDef:_require",
+            "module/ClassDef:Kernel",
+            "module/FunctionDef:_private",
+            "module/FunctionDef:_ipc_only",
+            "module/FunctionDef:_bind",
+            "module/FunctionDef:_drop_capabilities",
+            "module/FunctionDef:_lock_namespaces",
+            "module/FunctionDef:_arm_parent",
+            "module/FunctionDef:_arm_pid1_parent",
+            "module/FunctionDef:_setup",
+            "module/FunctionDef:_spec",
+            "module/FunctionDef:_square",
+            "module/FunctionDef:_probe",
+            "module/FunctionDef:_scratch",
+            "module/FunctionDef:_collect",
+            "module/FunctionDef:_kill_probe",
+            "module/FunctionDef:canary",
+            "module/FunctionDef:main",
+            "module/If:If(test=Compare(left=Name(id='__name__', ctx=Load()), ops=[Eq()], comparators=[Constant(value='__main__')]), body=[Raise(exc=Call(func=Name(id='SystemExit', ctx=Load()), args=[Call(func=Name(id='main', ctx=Load()), args=[], keywords=[])], keywords=[]))], orelse=[])"
+          ]
+        }
+      },
+      "nodes": {
+        "module/FunctionDef:_setup": {
+          "after": "3093bfa81bbfdc62d432f3503deae4e54f5395af0ed2e07409be13aec761a32b",
+          "before": "048b3c07f8d1dae46ed13e9a93270ed5e7daef5a7e5259097ba0b7cb713138e4"
+        },
+        "module/FunctionDef:_write_user_mapping": {
+          "after": "acbf104cabfc17788ece0843c3dce016672cbbe408047385a4030c14562cab89",
+          "before": null
+        }
+      }
+    },
     "meme_machine/portfolio_accounting.py": {
       "after_sha256": "b2914a550e880854916ced2b26c24fea376076afe03e565c4cd36f68fb5befe4",
       "before_sha256": "141089825e84fca7912e0d3f4da139841ed7bbda3ce1e77eb0256244e374ca15",
@@ -3225,8 +3352,8 @@
       }
     }
   },
-  "implementation": "3465199505c5d56f0bb4de2e67fdf73d2563f366",
-  "implementation_tree": "bd2fde2607e485ee35a3092a48069ac379d17b52",
+  "implementation": "7c4e3a406d9e47d9c587fad03bfb5899a422a4f3",
+  "implementation_tree": "15c4211531221e2b4d19309202eed911f69dd80c",
   "legacy_guards": {
     "tests/test_pump_restore_source_guard.py": {
       "after_sha256": "ca109bc75ca006b2b720ac1938d811e1afcff6f28417578ce5b405eb670573ce",
