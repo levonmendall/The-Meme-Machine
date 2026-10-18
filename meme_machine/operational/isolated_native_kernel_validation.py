@@ -16,6 +16,7 @@ import socket
 import sqlite3
 import stat
 import time
+import zlib
 
 from .isolated_native_landlock_launcher import launch_native,PROFILE
 from .isolated_native_image import NativeImageApproval
@@ -80,6 +81,66 @@ def _hash(value):
     return type(value) is str and len(value)==64 and all(c in '0123456789abcdef' for c in value)
 
 
+def _cold_canonical(db,source,identity,archive,cache):
+    """Read the original scoped archive after join, never a reference alone.
+
+    The native writer publishes this content-addressed file before clearing its
+    hot pointer. Preserve its 32 MiB decoded limit and complete compressed hash;
+    additionally contain this parent read to the disposable source's own file.
+    One archive may be cached, with fresh descriptor/path fences on every use.
+    """
+    def refuse():raise ValueError('kernel_validation_canonical_source')
+    def fingerprint(info):
+        return tuple(getattr(info,key) for key in
+            ('st_dev','st_ino','st_mode','st_uid','st_nlink','st_size','st_mtime_ns','st_ctime_ns'))
+    if not _hash(archive):refuse()
+    manifest=db.execute('SELECT path,hash,records,hot_bytes,cold_bytes FROM scoped_cold_manifests WHERE id=?',
+        (archive,)).fetchone()
+    directory=Path(source).with_suffix('.scoped-cold');path=directory/(archive+'.zlib')
+    if (manifest is None or manifest[:2]!=(str(path),archive)
+            or type(manifest[2]) is not int or not 0<manifest[2]<=1000
+            or type(manifest[3]) is not int or not 0<manifest[3]<=16*1024*1024
+            or type(manifest[4]) is not int or not 0<manifest[4]<=33*1024*1024):refuse()
+    before=directory.lstat()
+    if (directory.resolve(strict=True)!=directory.absolute() or not stat.S_ISDIR(before.st_mode)
+            or before.st_uid!=os.geteuid()):refuse()
+    parent=os.open(directory,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+    try:
+        if fingerprint(os.fstat(parent))!=fingerprint(before):refuse()
+        descriptor=os.open(path.name,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK,dir_fd=parent)
+        try:
+            info=os.fstat(descriptor)
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid!=os.geteuid()
+                    or info.st_nlink!=1 or info.st_size!=manifest[4]):refuse()
+            key=(archive,manifest,fingerprint(info));entry=cache.get('entry')
+            if entry is not None and entry[0]==key:records=entry[1]
+            else:
+                cache.clear();parts=[];remaining=info.st_size
+                while remaining:
+                    part=os.read(descriptor,min(65536,remaining))
+                    if not part:refuse()
+                    parts.append(part);remaining-=len(part)
+                if os.read(descriptor,1):refuse()
+                packed=b''.join(parts)
+                if hashlib.sha256(packed).hexdigest()!=manifest[1]:refuse()
+                decoder=zlib.decompressobj();raw=decoder.decompress(packed,32*1024*1024+1)
+                if len(raw)>32*1024*1024 or not decoder.eof or decoder.unused_data:refuse()
+                records=json.loads(raw)
+                if type(records) is not list or len(records)!=manifest[2]:refuse()
+            if (fingerprint(os.fstat(descriptor))!=fingerprint(info)
+                    or fingerprint(os.stat(path.name,dir_fd=parent,follow_symlinks=False))!=fingerprint(info)
+                    or fingerprint(os.fstat(parent))!=fingerprint(before)
+                    or fingerprint(directory.lstat())!=fingerprint(before)):refuse()
+        finally:os.close(descriptor)
+    finally:os.close(parent)
+    # Retain the original first matching sequence lookup, not a dict that could
+    # silently select a later duplicate. Its complete body is verified below.
+    item=next((item for item in records if item['record']['identity']==identity),None)
+    if type(item) is not dict or set(item)!={'record','available'}:refuse()
+    cache['entry']=(key,records)
+    return item
+
+
 def _canonical_acks(db,consumer,source,*,endpoint_identity):
     """Bind counted ACKs to their exact native record, lineage and reference."""
     from meme_machine.runtime.journal import canonical,digest
@@ -87,6 +148,7 @@ def _canonical_acks(db,consumer,source,*,endpoint_identity):
     if not _hash(endpoint_identity):raise ValueError('kernel_validation_endpoint_identity')
     rows=db.execute("SELECT id,family,address,body,hash FROM candidate_history_outbox WHERE kind='canonical' AND consumed IS NOT NULL ORDER BY id LIMIT 1025").fetchall()
     if len(rows)>1024:raise ValueError('kernel_validation_ack_bound')
+    archives={}
     for identity,family,address,raw,checksum in rows:
         if (not _hash(identity) or family not in ('pump','pumpswap') or type(address) is not str
                 or not 0<len(address)<=128 or type(raw) is not str or len(raw.encode())>4096
@@ -108,12 +170,17 @@ def _canonical_acks(db,consumer,source,*,endpoint_identity):
         expected=dict(source_hash=compact['source_hash'],scope='candidate:'+family+':'+address,
             canonical_identity=record_id)
         if json.loads(receipt[3])!=expected:raise ValueError('kernel_validation_ack_binding')
-        stored=db.execute('SELECT body,hash,slot,scope FROM canonical_evidence WHERE identity=?',(record_id,)).fetchone()
-        if (stored is None or stored[0] is None or not _hash(stored[1]) or stored[2]!=slot
+        stored=db.execute('SELECT body,hash,slot,scope,archive,first_seen FROM canonical_evidence WHERE identity=?',(record_id,)).fetchone()
+        if (stored is None or not _hash(stored[1]) or stored[2]!=slot
                 or stored[3]!='program:'+family):raise ValueError('kernel_validation_canonical_source')
-        record=decode_body(stored[0],db)
+        if stored[0] is None:
+            item=_cold_canonical(db,source,record_id,stored[4],archives)
+            if item['available']!=stored[5]:raise ValueError('kernel_validation_canonical_source')
+            record=item['record']
+        else:record=decode_body(stored[0],db)
         if (type(record) is not dict or record.get('identity')!=record_id or record.get('slot')!=slot
-                or record.get('scope')!='program:'+family or digest(record)!=stored[1]):
+                or record.get('scope')!='program:'+family or digest(record)!=stored[1]
+                or stored[5]!=compact['available']):
             raise ValueError('kernel_validation_canonical_source')
         original=dict(record=record,available=compact['available'])
         if digest(original)!=compact['source_hash'] or digest([family,address,'canonical',original])!=identity:

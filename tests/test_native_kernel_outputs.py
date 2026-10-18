@@ -5,6 +5,7 @@ source acknowledgement create the positive rows. Corruptions touch only these
 disposable test copies; no fabricated acknowledgement supplies the positive.
 """
 from contextlib import closing
+import copy
 import hashlib
 import json
 import os
@@ -12,6 +13,7 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
+import zlib
 from unittest.mock import patch
 
 from meme_machine.operational import isolated_native_kernel_validation as validation
@@ -41,6 +43,138 @@ class NativeKernelOutputTests(unittest.TestCase):
         self.assertGreater(count,0)
         self.assertEqual(count,self.db.execute("SELECT COUNT(*) FROM candidate_history_outbox WHERE kind='canonical' AND consumed IS NOT NULL").fetchone()[0])
         with self.assertRaisesRegex(ValueError,'lineage'):self.count('0'*64)
+
+    def test_actual_native_retirement_keeps_original_full_ack_verifiable(self):
+        from meme_machine.solana_scoped_retirement import ScopedRetirement
+        expected=self.count()
+        retired=ScopedRetirement(self.history).retire(measure_hot_bytes=False)
+        self.assertGreater(retired['retired_records'],0)
+        self.assertTrue(self.db.execute('SELECT 1 FROM canonical_evidence WHERE body IS NULL AND archive IS NOT NULL').fetchone())
+        before=(self.db.total_changes,self.consumer.total_changes)
+        self.assertEqual(self.count(),expected)
+        self.assertEqual((self.db.total_changes,self.consumer.total_changes),before)
+
+    def retire(self):
+        from meme_machine.solana_scoped_retirement import ScopedRetirement
+        self.assertGreater(ScopedRetirement(self.history).retire(measure_hot_bytes=False)['retired_records'],0)
+        archive=self.db.execute('SELECT archive FROM canonical_evidence WHERE identity=?',
+            (self.compact['record']['identity'],)).fetchone()[0]
+        self.assertIsNotNone(archive)
+        return archive,Path(self.db.execute('SELECT path FROM scoped_cold_manifests WHERE id=?',
+            (archive,)).fetchone()[0])
+
+    def replace_archive(self,archive,path,records=None,*,packed=None):
+        # Negative-only corruption: rehashing an altered archive must never
+        # replace the original economic body/availability/source ACK identity.
+        raw=None if records is None else canonical(records).encode()
+        packed=zlib.compress(raw) if packed is None else packed
+        replacement=hashlib.sha256(packed).hexdigest()
+        target=path.with_name(replacement+'.zlib');target.write_bytes(packed)
+        self.db.execute('UPDATE scoped_cold_manifests SET id=?,path=?,hash=?,records=?,cold_bytes=? WHERE id=?',
+            (replacement,str(target),replacement,1 if records is None else len(records),len(packed),archive))
+        for table in ('rolling_economic_events','scoped_cold_records'):
+            self.db.execute('UPDATE '+table+' SET archive=? WHERE archive=?',(replacement,archive))
+        return replacement,target
+
+    def test_cold_archive_complete_hash_body_and_availability_are_all_required(self):
+        archive,path=self.retire();original=path.read_bytes()
+        records=json.loads(zlib.decompress(original));record_id=self.compact['record']['identity']
+        target=next(index for index,item in enumerate(records) if item['record']['identity']==record_id)
+        for field in ('body','available','first_duplicate'):
+            altered=copy.deepcopy(records)
+            if field=='body':altered[target]['record']['payload']['event']['PRIVATE']='forged'
+            elif field=='available':altered[target]['available']+=1
+            else:
+                bad=copy.deepcopy(altered[target]);bad['record']['payload']['event']['PRIVATE']='forged'
+                altered.insert(0,bad)
+            replacement,file=self.replace_archive(archive,path,altered)
+            with self.subTest(field=field),self.assertRaisesRegex(ValueError,'canonical_source'):self.count()
+            # Restore only this disposable archive's exact original metadata.
+            self.db.execute('UPDATE scoped_cold_manifests SET id=?,path=?,hash=?,records=?,cold_bytes=? WHERE id=?',
+                (archive,str(path),archive,len(records),len(original),replacement))
+            for table in ('rolling_economic_events','scoped_cold_records'):
+                self.db.execute('UPDATE '+table+' SET archive=? WHERE archive=?',(archive,replacement))
+            if file!=path:file.unlink()
+        path.write_bytes(original[:-1]+bytes([original[-1]^1]))
+        with self.assertRaisesRegex(ValueError,'canonical_source'):self.count()
+
+    def test_cold_archive_links_foreign_manifest_and_population_bounds_refuse(self):
+        archive,path=self.retire();original=path.read_bytes()
+        foreign=self.case.root/'unrelated';foreign.write_bytes(original)
+        for kind in ('symlink','hardlink'):
+            path.unlink()
+            if kind=='symlink':path.symlink_to(foreign)
+            else:os.link(foreign,path)
+            with self.subTest(kind=kind),self.assertRaises((ValueError,OSError)):self.count()
+            path.unlink();path.write_bytes(original)
+        path.unlink();os.mkfifo(path)
+        with self.assertRaisesRegex(ValueError,'canonical_source'):self.count()
+        path.unlink();path.write_bytes(original)
+        self.db.execute('UPDATE scoped_cold_manifests SET path=? WHERE id=?',(str(foreign),archive))
+        with self.assertRaisesRegex(ValueError,'canonical_source'):self.count()
+        self.db.execute('UPDATE scoped_cold_manifests SET path=? WHERE id=?',(str(path),archive))
+        for field,value in (('records',1001),('hot_bytes',16*1024*1024+1),('cold_bytes',33*1024*1024+1)):
+            old=self.db.execute('SELECT '+field+' FROM scoped_cold_manifests WHERE id=?',(archive,)).fetchone()[0]
+            self.db.execute('UPDATE scoped_cold_manifests SET '+field+'=? WHERE id=?',(value,archive))
+            with self.subTest(field=field),self.assertRaisesRegex(ValueError,'canonical_source'):self.count()
+            self.db.execute('UPDATE scoped_cold_manifests SET '+field+'=? WHERE id=?',(old,archive))
+        self.assertEqual(foreign.read_bytes(),original)
+        self.assertGreater(self.count(),0)
+
+    def test_cold_archive_inflate_tail_missing_identity_and_changed_fd_fail_closed(self):
+        archive,path=self.retire();original=path.read_bytes();records=json.loads(zlib.decompress(original))
+        # Real bounded zlib decoder, with no guard or limit monkeypatch.
+        for packed in (zlib.compress(b' '*(32*1024*1024+1)),original+b'private-tail',
+                zlib.compress(canonical([dict(record=dict(identity='unrelated'),available=1)]).encode())):
+            replacement,file=self.replace_archive(archive,path,packed=packed)
+            with self.assertRaises((ValueError,StopIteration)):self.count()
+            self.db.execute('UPDATE scoped_cold_manifests SET id=?,path=?,hash=?,records=?,cold_bytes=? WHERE id=?',
+                (archive,str(path),archive,len(records),len(original),replacement))
+            for table in ('rolling_economic_events','scoped_cold_records'):
+                self.db.execute('UPDATE '+table+' SET archive=? WHERE archive=?',(archive,replacement))
+            if file!=path:file.unlink()
+        actual=validation.os.read;changed=False
+        def reading(fd,size):
+            nonlocal changed
+            result=actual(fd,size)
+            if not changed:
+                changed=True
+                with path.open('ab') as writer:writer.write(b'changed-after-read')
+            return result
+        with patch.object(validation.os,'read',reading),self.assertRaisesRegex(ValueError,'canonical_source'):
+            self.count()
+
+    def test_cold_archive_cache_never_bypasses_later_ack_or_reference_checks(self):
+        self.retire()
+        expected=self.count();self.assertGreater(expected,1)
+        self.consumer.execute('DELETE FROM canonical_event_refs WHERE rowid=(SELECT rowid FROM canonical_event_refs ORDER BY rowid DESC LIMIT 1)')
+        with self.assertRaisesRegex(ValueError,'canonical_reference'):self.count()
+
+    def test_cold_archive_read_failure_closes_every_noninherited_owned_descriptor(self):
+        self.retire();actual=validation.os.open;opened=[]
+        def opening(*args,**kwargs):
+            fd=actual(*args,**kwargs);opened.append(fd)
+            self.assertFalse(os.get_inheritable(fd))
+            return fd
+        with patch.object(validation.os,'open',opening),patch.object(validation.os,'read',
+                side_effect=OSError(5,'PRIVATE')):
+            with self.assertRaises(OSError):self.count()
+        self.assertEqual(len(opened),2)
+        for fd in opened:
+            with self.assertRaises(OSError):os.fstat(fd)
+
+    def test_hot_sep1_uses_original_codec_and_hash_checks_before_and_after_retirement(self):
+        from meme_machine.solana_evidence_storage import prepare
+        rows=self.db.execute('SELECT identity,body FROM rolling_economic_events').fetchall()
+        for identity,raw in rows:
+            # The original lossless encoder accepts a validated canonical_body;
+            # whitespace changes storage width only, never decoded economics or
+            # the genuine source/ACK/reference hashes created in setUp.
+            body=json.loads(raw);encoded,chunks=prepare(body,canonical_body=raw+' '*2048)
+            self.assertTrue(encoded.startswith(b'SEP1'));self.assertEqual(chunks,())
+            self.db.execute('UPDATE rolling_economic_events SET body=? WHERE identity=?',(encoded,identity))
+        expected=self.count();self.assertGreater(expected,0)
+        self.retire();self.assertEqual(self.count(),expected)
 
     def test_partial_output_checks_keep_real_full_ack_without_promoting_missing_reports(self):
         expected=self.count()

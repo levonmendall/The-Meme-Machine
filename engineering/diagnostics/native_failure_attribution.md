@@ -330,3 +330,44 @@ output-corruption/privacy/path and original-two-case AST contract checks passed
 in18.356s without skips. Independent full-byte/code review cleared this exact
 observation scope; no outcome of the pending better-instrumented hosted read is
 assumed.
+
+The actual diagnostic39091071394 on exact0cb2a5c8 passed61 proof cases in30.055s
+and retained the original namespace failure plus one strict output error in48.164s.
+The child again completed its40.0351s window and all source/consumer/preparation
+owners joined. Its fixed output reason is kernel_validation_canonical_source.
+Completed inventory/history stages observed13 nonfinancial databases,223 candidate
+references and341 source receipts. FULL/ACK remains null, with PARTIAL output
+checks; no native_outputs result or kernel/market/financial acceptance exists.
+
+A genuine offline native decode→CandidateHistory FULL→source ACK fixture passes
+the old verifier before retirement. The original ScopedRetirement.retire then
+archives consumed records and leaves the same canonical identity/hash/availability
+with body=NULL and archive=id. The old verifier rejects this valid representation
+before reading it. This exact single-case failure is preserved in
+native-output-cold-original-failure.log (0.171s); the actual hosted row cannot be
+inspected because the run supplies no retained private database. Cold storage is
+therefore a proven reader defect, while its attribution to390910 remains unknown.
+
+The post-join verifier now resolves the original scoped-cold format, retaining the
+whole compressed hash, original32MiB decoded bound, first matching sequence entry,
+full original record digest, first availability, ACK identity/source hash, endpoint
+lineage and exact CandidateHistory reference binding. The original hot TEXT/SEP1
+codec stays unchanged. This parent-only read requires the native producer's exact
+content-addressed manifest/path within this disposable source's .scoped-cold
+directory. Owned nofollow noninherited directory/file descriptors, nonblocking
+nonregular-file refusal, single-link/size and stable inode/ctime/path checks bound
+the read; all descriptors close on failure. The native16MiB logical batch and
+33MiB packed bound remain finite; only one decoded archive is cached, rechecking
+its authenticated identity and file fences on every use. No writer, provider,
+restore action or authority is constructed.
+
+Sixteen focused output cases passed in1.039s. They include real native retirement,
+lossless SEP1 storage, original forged/crossed ACK and reference negatives,
+self-consistently rehashed altered economics/availability, first duplicate lookup,
+complete compressed hash, oversized inflation, trailing compressed data, missing
+identity, changing read file, foreign paths, symlink/hardlink/FIFO refusal, fixed
+manifest populations, cache continuation into later reference guards, and
+noninherited descriptor cleanup after read failure. The verifier performs no
+SQLite writes. No unchanged hosted retry or passing FULL/ACK claim follows from
+these focused results; exact source proof and independent review precede any
+changed-source target.
