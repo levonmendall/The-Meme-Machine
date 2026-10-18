@@ -1,5 +1,6 @@
 """Metadata-only CI setup and complete original affected-suite partition."""
 import ast
+import base64
 import errno
 import hashlib
 import io
@@ -13,6 +14,7 @@ import unittest
 from unittest.mock import patch
 from unittest.mock import Mock
 from types import SimpleNamespace
+from importlib.metadata import PackagePath
 
 from engineering.ci import native_principals as ci
 
@@ -172,6 +174,7 @@ class NativeCIPrincipalTests(unittest.TestCase):
         from meme_machine.operational import namespace_runtime as runtime
         selected = []
         installer = Mock()
+        installer.finish.return_value = {}
         executable = ci.PREFIX/'bin/python3.12'
         installer.files = {executable:(None,None,SimpleNamespace(st_mode=0o755),None)}
         def read(path):
@@ -199,6 +202,7 @@ class NativeCIPrincipalTests(unittest.TestCase):
                 patch.object(runtime,'EXTENSIONS',[]), \
                 patch.object(runtime,'_elf',side_effect=elf), \
                 patch.object(image,'NATIVE_MODULES',[]), patch.object(image,'NATIVE_PACKAGES',{}), \
+                patch.object(image,'DEPENDENCIES',{}), \
                 patch.object(Path,'exists',fixture_exists), \
                 patch.object(Path,'resolve',fixture_resolve):
             # There are no actual filesystem or ownership operations here;
@@ -214,6 +218,71 @@ class NativeCIPrincipalTests(unittest.TestCase):
             unittest.mock.call(ci.PREFIX,install=True)])
         installer.finish.assert_called_once_with()
         installer.close.assert_called_once_with()
+
+    def test_exact_dependency_hash_narrows_write_bits_and_preserves_original_owner_and_private_reads(self):
+        from meme_machine.operational import namespace_runtime as runtime
+        prepared=[]
+        for mode in (0o664,0o600,0o711):
+            path=self.file('lib/python3.12/site-packages/pkg/file_'+str(mode)+'.py')
+            path.chmod(mode);before=path.stat();digest=hashlib.sha256(path.read_bytes()).hexdigest()
+            prepared.append((mode,path,before,digest))
+        for mode,path,before,digest in prepared:
+            self.assertEqual(self.installation.selected(path,dependency_sha256=digest),digest)
+            after=path.stat()
+            self.assertEqual(ci.content_identity(before),ci.content_identity(after))
+            self.assertEqual((after.st_uid,after.st_gid),(before.st_uid,before.st_gid))
+            self.assertEqual(stat.S_IMODE(after.st_mode),mode&~0o022)
+            self.assertEqual(runtime._read(path,(self.prefix,),owner=(0,os.geteuid())),path.read_bytes())
+        result=self.installation.finish()
+        self.assertEqual(result['schema'],'fixed-hosted-ci-runtime-ownership-v2')
+        self.assertTrue(all(row['trust_policy']=='original_package_owner' for row in result['records']))
+        self.assertTrue(all(row['sha256']==row['record_sha256'] for row in result['records']))
+
+    def test_crossed_dependency_hash_or_nonpackage_path_cannot_narrow_metadata(self):
+        path=self.file('lib/python3.12/site-packages/pkg/source.py');path.chmod(0o664)
+        with self.assertRaisesRegex(ci.Refused,'record_hash'):
+            self.installation.selected(path,dependency_sha256='0'*64)
+        self.assertEqual(stat.S_IMODE(path.stat().st_mode),0o664)
+        outside=self.file('lib/python3.12/arbitrary.py');outside.chmod(0o664)
+        for expected in ('1'*64,True,'invalid'):
+            with self.assertRaisesRegex(ci.Refused,'fixed_selection'):
+                self.installation.selected(outside,dependency_sha256=expected)
+        self.assertEqual(stat.S_IMODE(outside.stat().st_mode),0o664)
+
+    def distribution_fixture(self):
+        from meme_machine.operational import isolated_native_image as image
+        path=self.file('lib/python3.12/site-packages/pkg/source.py');path.chmod(0o664)
+        entry=PackagePath('pkg/source.py')
+        entry.hash=SimpleNamespace(mode='sha256',value=base64.urlsafe_b64encode(
+            hashlib.sha256(path.read_bytes()).digest()).rstrip(b'=').decode())
+        distribution=SimpleNamespace(version='1.0',files=[entry,PackagePath('fixture.dist-info/METADATA')],
+            locate_file=lambda relative:path.parents[1]/relative)
+        selected=SimpleNamespace(DEPENDENCIES={'fixture':('1.0','f'*64,('pkg/',))},
+            importlib=SimpleNamespace(metadata=SimpleNamespace(distribution=Mock(return_value=distribution))),
+            _package_file=image._package_file)
+        return path,entry,distribution,selected
+
+    def test_complete_original_distribution_path_and_record_selection_authenticates_bytes(self):
+        path,entry,distribution,image=self.distribution_fixture()
+        summaries,elf=ci._selected_distributions(self.installation,image,None)
+        self.assertEqual(elf,[])
+        self.assertEqual(summaries['fixture']['selected_files'],1)
+        self.assertEqual(summaries['fixture']['version'],'1.0')
+        self.assertEqual(stat.S_IMODE(path.stat().st_mode),0o644)
+        self.assertEqual(len(self.installation.finish()['records']),1)
+
+    def test_unknown_distribution_version_duplicate_or_crossed_record_cannot_install(self):
+        path,entry,distribution,image=self.distribution_fixture()
+        distribution.version='2.0'
+        with self.assertRaisesRegex(ci.Refused,'dependency_version'):
+            ci._selected_distributions(self.installation,image,None)
+        distribution.version='1.0';distribution.files=[entry,entry]
+        with self.assertRaisesRegex(ci.Refused,'record_bound'):
+            ci._selected_distributions(self.installation,image,None)
+        distribution.files=[entry];entry.hash.value=base64.urlsafe_b64encode(b'x'*32).decode()
+        with self.assertRaisesRegex(ci.Refused,'record_hash'):
+            ci._selected_distributions(self.installation,image,None)
+        self.assertEqual(stat.S_IMODE(path.stat().st_mode),0o664)
 
     def test_failed_directory_trust_publishes_actual_numeric_stat_without_private_paths(self):
         self.prefix.chmod(0o777)

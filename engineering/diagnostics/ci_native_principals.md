@@ -122,3 +122,57 @@ FAST network guard/Scratch driver. The original675 affected cases, source
 checks, runtime reader, permissions policy and principal partition are unchanged.
 The next hosted receipt must still establish actual installation and copied-main
 completion with nonprobe work and joins for both executor roles.
+
+Hosted CI39084155482 on `aba344d9954d190ccbe8291a696ea8452ca6e4ab`
+successfully installed the selected core:280 files,58,682,934 bytes and30
+directories, with identical before/after content hashes. Stage A passed1,189
+cases in357.532 seconds with four skips; root diagnostics passed87 in0.995
+seconds with two skips; the helper passed18 in0.192 seconds. The actual
+nonroot phase observed UID/eUID1001, all four capability sets empty and
+SQLite3.45.1, then failed588 cases in104.601 seconds with two failures and four
+errors. Four errors reached the unchanged original package trusted-file
+predicate. That receipt does not distinguish the failed owner, mode or size
+predicate. A separate namespace setup failure lost its actual mapping-write
+errno; its diagnostic correction has a separate component and source proof.
+The Landlock copied-main case stopped before child launch or economic work.
+No copied-main, executor or kernel success is inferred from this run.
+
+The CI-only follow-up adds the exact six original `DEPENDENCIES` versions and
+the original `_package_file` path selection to metadata installation. Every
+selected file must be under the fixed setup-python prefix's `site-packages`,
+have the exact installed SHA256 RECORD digest and retain all existing
+descriptor, recognized-owner, single-link, content and bound checks. Package
+files preserve their original root-or-runner UID/GID and read/execute bits;
+only group/other write bits are removed after the full digest comparison.
+This preserves legitimate private runner-owned files accepted by the unchanged
+original package reader. Core ownership and system-library requirements remain
+unchanged. The pip installation explicitly uses umask0022. The v2 receipt
+distinguishes root-owned core files from original-owner package files and
+records actual before/after numeric metadata and installed RECORD digests.
+Installed RECORDs are offline bootstrap evidence and grant no live source,
+dependency, kernel or financial approval. The original detached approval and
+`_packages` checks remain authoritative and unchanged.
+
+A complete read-only inventory invoked the original `_runtime`, `_packages`
+and strict reader plus transitive loader/ELF closure on the actual local
+CPython3.12.14 installation:417 distinct files totaling73,508,768 bytes,
+including178 selected dependency files and ten empty files, all accepted by
+the original readers with stable metadata at both fences. All existing
+512-file/64MiB-file/128MiB-total helper bounds and applicable source predicates
+were satisfied. The dependency selector selected the same178 actual files,
+hashes and metadata when tested separately at their actual installation roots.
+This Cloud installation uses user-site roots for five packages and the Python
+prefix for one. It therefore correctly fails the helper's fixed hosted-prefix
+prerequisite. No files were relocated, no metadata changed and no fixed-prefix
+rule was relaxed. This audit does not establish hosted package metadata or a
+single-prefix installation. The complete local receipt is
+`/workspace/recovery-evidence/ci-original-image-audit.json`; the prior core-only
+receipt remains preserved separately.
+
+All22 helper cases passed in0.195 seconds under the supported offline FAST
+driver. An initial new fixture created siblings after retaining their parent
+directory identity and correctly failed the final directory fence; it was
+corrected to finish fixture construction before selection. The original675
+cases, principals, runtime reader and assertions remain unchanged. The next
+hosted receipt must establish the selected package metadata installation and
+actual complete copied-main execution; neither is claimed by these local tests.
