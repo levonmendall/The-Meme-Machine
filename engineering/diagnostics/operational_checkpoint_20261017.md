@@ -128,3 +128,29 @@ kernel/coupled-main result is still required before live-native testing.
 Complete FAST/OPERATIONAL, authoritative financial/native readiness and the
 uninterrupted one-hour PAPER acceptance remain outstanding. No short sample,
 synthetic result, flat portfolio or source-guard pass substitutes for them.
+
+## Caller-boundary integration, October 18 UTC
+
+Exact candidate5bd CI39080063441 completed 1,186 cases in412.353 seconds:
+1,181 passed, four skipped and one failed because an external history test
+passed new runtime bytes directly to a legacy source verifier. The native
+step was skipped. This was a test-interface integration failure, not evidence
+of completed native processing.
+
+Commit `291da939ceb5c5208338a68ffe28a182eef17118` closes that shared interface.
+A census of975 tracked Python files found seven external fresh-read sites;
+all receive exact reversible normalization. The three mutation-stage calls
+and every original assertion remain intact. Each complete caller file
+reverses to its exact780 bytes. The separate39,317-byte caller manifest has
+SHA256 `74bcfbcba5d917a2bb9c2c9a187544f5164d52845337d6a364b7693186f16967`.
+The original422,509-byte native-source manifest remains unchanged. Independent
+review cleared the exact source proofs and the fixed static API census; this
+is not general analysis of arbitrary Python dynamic dispatch.
+
+All119 focused guard/caller cases passed in217.013 seconds without skips.
+The exact original CI failure also passed separately in0.741 seconds. Runtime
+image bytes remain346. CI now runs the native subset after a Stage A failure
+when dependency setup succeeded and the job was not canceled. Any failure
+still fails the job; full-release dispatch remains separate. The corrected
+complete copied-main result is pending. No AWS state or financial history was
+changed by this test-only correction.
