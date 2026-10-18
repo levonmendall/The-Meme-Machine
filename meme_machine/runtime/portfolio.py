@@ -14,6 +14,8 @@ from meme_machine.portfolio_lane_integration import LaneEvent, PortfolioLaneProd
 
 class NativePortfolio:
     def __new__(cls,database,lane):
+        from meme_machine.runtime.isolated_native_execution import reject_financial_construction
+        reject_financial_construction()
         if cls is NativePortfolio:
             from meme_machine.shared_capital.runtime import selected,SharedNativePortfolio
             if selected(database):return SharedNativePortfolio(database,lane)

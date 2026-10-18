@@ -14,7 +14,9 @@ from .pons_selective_continuation import POLICY_HASH
 from .pons_selective_ledger import STRATEGY_NAMESPACE, DECISION_CATEGORY, JOURNAL_CATEGORY
 
 class CohortCapital:
-    def __init__(self,path,capital):
+    def __init__(self,path,capital,*,native_resources=None):
+        from meme_machine.runtime.isolated_native_execution import reject_financial_construction
+        reject_financial_construction(native_resources)
         if type(capital) is not int or capital<=0:raise BoundaryError('selective_cohort_capital_invalid')
         self.path=str(path);self.capital=capital
         Path(path).parent.mkdir(parents=True,exist_ok=True)

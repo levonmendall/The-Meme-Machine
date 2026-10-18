@@ -59,7 +59,15 @@ def _transport(endpoint,*,pool_ids,start_block,end_block,max_events,acquisition_
             context=SelectiveEvidenceContext(endpoint,cache=durable_cache(history.plane,shared_evidence_domain(endpoint)))
     context=context or SelectiveEvidenceContext(endpoint)
     from meme_machine.runtime.robinhood.provider_authority import reference
-    if context.endpoint!=reference(endpoint):raise BoundaryError('selective_v4_provider_context_disagreement')
+    parent=getattr(context,'parent_port',None)
+    if parent is None:
+        matching=context.endpoint==reference(endpoint)
+    else:
+        from meme_machine.operational.child_transport import require_rpc_port
+        require_rpc_port(parent,'robinhood')
+        matching=(context.endpoint is parent.source and
+            (endpoint is parent.source or endpoint=='alchemy:'+parent.source.endpoint_identity))
+    if not matching:raise BoundaryError('selective_v4_provider_context_disagreement')
     # A long-lived context shares only immutable hash/receipt facts. Numeric
     # membership is reacquired on every range, including quiet markets and forks.
     context.cache.headers_by_number.clear()

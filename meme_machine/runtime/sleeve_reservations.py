@@ -40,7 +40,9 @@ def _opportunity_native(method):
 
 
 class SleeveReservations:
-    def __init__(self,path,*,lane,capital,policies,cohort):
+    def __init__(self,path,*,lane,capital,policies,cohort,native_resources=None):
+        from meme_machine.runtime.isolated_native_execution import reject_financial_construction
+        reject_financial_construction(native_resources)
         if lane not in ('pump','pons') or type(capital) is not int or capital <= 0 or len(policies) != 2:
             raise ValueError('sleeve_identity')
         Path(path).parent.mkdir(parents=True,exist_ok=True)
@@ -297,10 +299,14 @@ class SleeveReservations:
                 record(self.db,self.identity,event_id,key,identity,regime,status,at,decision,outcome=outcome)
             self.opportunity_error=None
             self.db.execute('DELETE FROM opportunity_receipts WHERE id IN (SELECT id FROM opportunity_receipts ORDER BY at DESC,id DESC LIMIT -1 OFFSET 10000)')
-            protected={self.asset_key(json.loads(r).get('asset')) for r, in self.db.execute('SELECT body FROM sleeve_positions') if json.loads(r)['status']!='settled'}
+            protected=self._protected_opportunity_assets()
             excess=self.db.execute('SELECT asset FROM opportunity_links ORDER BY at DESC,asset DESC LIMIT -1 OFFSET 10000').fetchall()
             self.db.executemany('DELETE FROM opportunity_links WHERE asset=?',((a,) for a, in excess if a not in protected))
             return link
+
+    def _protected_opportunity_assets(self):
+        return {self.asset_key(json.loads(r).get('asset')) for r, in
+            self.db.execute('SELECT body FROM sleeve_positions') if json.loads(r)['status']!='settled'}
 
     def observe(self,identity,*,strategy,at,state,evidence,regime):
         if strategy not in self.identity['policies']:

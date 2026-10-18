@@ -252,6 +252,8 @@ class CapitalAuthority:
     """Only capital-granting API of the feature; inert until migration is installed."""
 
     def __init__(self, database, *, fault=None, startup_cancel=None):
+        from meme_machine.runtime.isolated_native_execution import reject_financial_construction
+        reject_financial_construction()
         if startup_cancel is not None and not callable(startup_cancel):
             raise ValueError('startup_replay_cancel_check')
         self.path = Path(database)

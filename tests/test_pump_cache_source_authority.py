@@ -68,8 +68,8 @@ class PumpCacheSourceAuthorityTests(unittest.TestCase):
                 (signature, 0, (program_scope('pump'),), None, self.seen),))
         return value
 
-    def selective_fixture(self):
-        state, history = state_at(self.root / 'canonical.sqlite', lambda: self.seen)
+    def selective_fixture(self,canonical_path=None):
+        state, history = state_at(canonical_path or self.root / 'canonical.sqlite', lambda: self.seen)
         self.addCleanup(state.writer.close)
         state.fence.endpoint_identity = history.endpoint_identity = self.endpoint.identity
         history.lifecycle.delivery_separated = True

@@ -27,7 +27,7 @@ def interpretation(policy):
 
 
 class Broker:
-    def __init__(self,path,policy,*,on_terminal=None,clock=time.time,source=None,config=None,startup_cancel=None):
+    def __init__(self,path,policy,*,on_terminal=None,clock=time.time,source=None,config=None,startup_cancel=None,plane=None):
         def check():
             if startup_cancel is not None and startup_cancel():
                 from meme_machine.runtime.stop import Shutdown
@@ -35,7 +35,11 @@ class Broker:
         if startup_cancel is not None and not callable(startup_cancel):
             raise ValueError('pons_startup_cancel_check')
         check()
-        self.plane=Plane(path,clock=clock);self.clock=clock
+        if plane is not None and (type(plane) is not Plane or Path(plane.path)!=Path(path)):
+            raise ValueError('pons_broker_plane_owner')
+        self._owns_plane=plane is None
+        self.plane=Plane(path,clock=clock) if plane is None else plane
+        self.clock=clock
         self.policy=interpretation(policy);self.on_terminal=on_terminal
         self.policy.update(source=digest(source or "authenticated_alchemy"),config=config)
         from meme_machine.lanes.pons.provider_admission import fingerprint
@@ -540,7 +544,8 @@ class Broker:
 
     def telemetry(self):return self.plane.snapshot('pons')
 
-    def close(self):self.plane.close()
+    def close(self):
+        if self._owns_plane:self.plane.close()
 
 
 @lru_cache(maxsize=16)

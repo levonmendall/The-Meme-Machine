@@ -175,15 +175,31 @@ def _worker_limits():
     os.nice(5)
 
 
+def _isolated_worker_limits():
+    from .runtime.isolated_native_execution import install_isolated_native_execution
+    install_isolated_native_execution()
+    _worker_limits()
+
+
 class HistoryExecutor:
     """A crash replaces only this one lazy worker, never canonical intake."""
-    def __init__(self):self.pool=None
+    def __init__(self,*,native_resources=None):
+        if native_resources is not None:
+            from .runtime.isolated_native_resources import require_resources
+            require_resources(native_resources)
+        self.pool=None
+        self._isolated=native_resources is not None
     def submit(self,fn,*args):
         if self.pool is not None and getattr(self.pool,'_broken',False):
             self.pool.shutdown(wait=True,cancel_futures=True);self.pool=None
         if self.pool is None:
-            self.pool=ProcessPoolExecutor(max_workers=1,
-                mp_context=multiprocessing.get_context('spawn'),initializer=_worker_limits)
+            if self._isolated:
+                from .runtime.isolated_native_executor import IsolatedSpawnExecutor
+                self.pool=IsolatedSpawnExecutor(max_workers=1,
+                    initializer=_isolated_worker_limits,role='history')
+            else:
+                self.pool=ProcessPoolExecutor(max_workers=1,
+                    mp_context=multiprocessing.get_context('spawn'),initializer=_worker_limits)
         return self.pool.submit(fn,*args)
     def close(self):
         if self.pool is not None:self.pool.shutdown(wait=True,cancel_futures=True);self.pool=None
