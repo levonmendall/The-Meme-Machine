@@ -10,6 +10,8 @@ from meme_machine.operational import lane
 from engineering.diagnostics import current_combined_observation_20261014 as diagnostic
 
 ROOT=Path(__file__).resolve().parents[1]
+NATIVE_SQL=('WITH RECURSIVE x(n) AS (SELECT id-1 FROM fixture_barrier WHERE id=1 '
+            'UNION ALL SELECT n+1 FROM x WHERE n<{limit}) SELECT sum(n) FROM x')
 CHILD=r'''
 import json,os,signal,sqlite3,sys,threading,time
 from pathlib import Path
@@ -20,6 +22,7 @@ from meme_machine.runtime import status,stop
 from meme_machine.operational import lane
 from meme_machine.runtime.robinhood.plane import Plane
 root=Path(sys.argv[1]);seen=[False];progress=[0];result=[None];query_active=[False];n=60000000
+native_sql=__NATIVE_SQL__
 os.environ.update(MM_MODE='PAPER',MM_OPERATIONAL_PHASE='OFFLINE_TEST',MM_OPERATION_COST_DIAGNOSTICS='1',MM_LANE_PROCESS_INSTANCE='a'*32)
 def shutdown(signum,frame):status.cancellation_signal(signum);stop.requested.set()
 signal.signal(signal.SIGTERM,shutdown)
@@ -31,11 +34,12 @@ class NativeGate(sqlite3.Connection):
             seen[0]=True;print('SQL_ENTERED',flush=True)
             # The parent holds this disposable DB EXCLUSIVE until two genuine
             # heartbeat publications while TERM is pending. SQLite itself
-            # blocks this unchanged query; no Python callback/handler defers it.
+            # blocks the table-dependent aggregate in this same execute call;
+            # no prior query or Python callback/handler defers TERM.
             reader=connect(root/'startup-barrier.sqlite',timeout=20)
             try:
                 query_active[0]=True
-                result[0]=reader.execute('WITH RECURSIVE x(n) AS (VALUES(0) UNION ALL SELECT n+1 FROM x WHERE n<'+str(n)+') SELECT sum(n) FROM x').fetchone()[0]
+                result[0]=reader.execute(native_sql.format(limit=n)).fetchone()[0]
             finally:query_active[0]=False;reader.close()
         return super().execute(sql,*args)
 def connect(*args,**kwargs):kwargs['factory']=NativeGate;return original(*args,**kwargs)
@@ -49,7 +53,7 @@ with patch.object(sqlite3,'connect',connect),patch.object(lane,'health',health):
     with status.operation('pons.candidate_restore'):plane=Plane(root/'candidate.sqlite')
     plane.close();facts=status.snapshot();facts.pop('phase',None);publish('STOPPED',**facts);worker.join(3)
 print('DONE '+json.dumps(dict(value=result[0],expected=n*(n+1)//2,signal_seen=status.snapshot().get('cancellation_signal',{}).get('signal'),progress_handlers=progress[0],health_joined=not worker.is_alive())),flush=True)
-'''
+'''.replace('__NATIVE_SQL__',repr(NATIVE_SQL))
 
 
 class StalledStartupStackTests(unittest.TestCase):
@@ -238,6 +242,29 @@ class StalledStartupStackTests(unittest.TestCase):
         self.assertTrue(all(not rows and replay is None and 'native_operation' not in snapshot for rows,replay,snapshot in steps))
         with status.lock:self.assertFalse(status._startup_stages)
 
+    def test_native_query_barrier_requires_real_database_access_without_recursive_work(self):
+        with tempfile.TemporaryDirectory() as directory,ExitStack() as resources:
+            path=Path(directory)/'startup-barrier.sqlite'
+            barrier=sqlite3.connect(path);resources.callback(barrier.close)
+            self.assertEqual(barrier.execute('PRAGMA journal_mode=DELETE').fetchone(),('delete',))
+            barrier.execute('CREATE TABLE fixture_barrier(id INTEGER PRIMARY KEY)')
+            barrier.execute('INSERT INTO fixture_barrier VALUES(1)');barrier.commit()
+            self.assertEqual(barrier.execute('SELECT id FROM fixture_barrier').fetchall(),[(1,)])
+            reader=sqlite3.connect(path,timeout=.05);resources.callback(reader.close)
+            barrier.execute('BEGIN EXCLUSIVE')
+            try:
+                # Bound zero completes without recursive CPU work, so SQLITE_BUSY
+                # proves a genuine DB dependency rather than an unfinished sum.
+                with self.assertRaises(sqlite3.OperationalError) as caught:
+                    reader.execute(NATIVE_SQL.format(limit=0)).fetchone()
+                self.assertIn(caught.exception.sqlite_errorcode,(sqlite3.SQLITE_BUSY,sqlite3.SQLITE_LOCKED))
+                print('NATIVE_SQL_LOCK_DISCRIMINATOR '+json.dumps(dict(
+                    sqlite_version=sqlite3.sqlite_version,limit=0,
+                    sqlite_errorcode=caught.exception.sqlite_errorcode)),flush=True)
+            finally:barrier.rollback()
+            self.assertEqual(reader.execute(NATIVE_SQL.format(limit=0)).fetchone(),(0,))
+            self.assertEqual(reader.execute(NATIVE_SQL.format(limit=1000)).fetchone(),(1000*1001//2,))
+
     def test_real_child_native_sql_preserves_query_and_publishes_before_deferred_term(self):
         with tempfile.TemporaryDirectory() as directory,ExitStack() as resources:
             barrier=sqlite3.connect(Path(directory)/'startup-barrier.sqlite')
@@ -275,6 +302,11 @@ class StalledStartupStackTests(unittest.TestCase):
                 stack=samples[0]['stack'];self.assertGreaterEqual(stack['trigger_age_seconds'],5)
                 self.assertIn(dict(module='meme_machine.runtime.robinhood.plane',function='__init__'),
                     [{k:frame[k] for k in ('module','function')} for frame in stack['frames']])
+                print('NATIVE_SQL_STALLED_FIXTURE '+json.dumps(dict(
+                    recursive_limit=60000000,pre_signal_samples=len([row for row in samples if not row['signal_seen']]),
+                    first_capture_age_seconds=stack['trigger_age_seconds'],value=done['value'],
+                    progress_handlers=done['progress_handlers'],signal=done['signal_seen'],
+                    health_joined=done['health_joined'])),flush=True)
             finally:
                 barrier.rollback()
                 if child.poll() is None:child.kill();child.communicate(timeout=3)

@@ -91,19 +91,42 @@ deferred handler became visible. The exact original case passed locally in
 9.587s; the fixture, reporter and status source were byte-identical to b10.
 The failing GitHub receipt remains a failure.
 
-The test-only correction holds a separate disposable DELETE-mode SQLite DB
-EXCLUSIVE while the same 60-million-row recursive SQL expression executes on
-an owned reader. TERM is still sent after the first health record. The parent
-releases the lock only after the second actual nonterminal, query-active health
-record still has no signal observation or set cancellation Event. SQLite owns
-this wait; no Python UDF, progress handler, sleep-based signal deferral, reporter
-change or SQL interruption is introduced. The original result, two pre-signal
-records, zero progress handlers, SIGTERM identity, joined health owner and
-25-second outer assertions remain.
+The first test-only barrier correction, head
+`df1db5c9818c1e968da1cd6b656fa0af364049e6`, passed its exact case locally in
+19.845s and its 12-case module in 16.892s. However, hosted CI 39099344192
+failed the same case in 325.247s across 1301 cases (four existing skips): a
+health row already had `query_active=false`. That correction's constant-only
+recursive query never referenced the locked database. The local SQLite 3.53.1
+lock observation did not prove the same dependency on hosted SQLite 3.45.1.
+The original failure and this second failed head remain failed receipts; the
+first correction's portable-lock claim is withdrawn.
 
-The corrected exact case passed in 19.845s; the complete original 12-case
-stalled-startup module passed in 16.892s without skips or failures. All runtime,
-source-proof and old guard bytes remain identical to the already-reviewed
-performance candidate. The previous 235 focused checks are retained as evidence
-for those unchanged bytes. Exact source approvals must bind the corrected head;
-the failed previous head cannot substitute for a new successful GitHub check.
+The corrected fixture now seeds the same aggregate's recursion with
+`SELECT id-1 FROM fixture_barrier WHERE id=1`, from the disposable database's
+single row `(1)`. This is an actual table read in the same SQLite `execute`
+call as the recursive aggregate. It keeps seed zero, recursive limit
+60,000,000 and sum 1,800,000,030,000,000. There is no preceding blocking SQL
+call that returns to Python while TERM is pending. The parent still holds the
+disposable DELETE-mode database EXCLUSIVE, sends TERM after the first genuine
+health record, and releases only after a second nonterminal, query-active
+record with no observed signal or set cancellation Event. No Python UDF,
+progress handler, sleep-based signal deferral, reporter change or SQL
+interruption is introduced. All original result, two-record, zero-handler,
+SIGTERM, owner-join and 25-second outer assertions remain.
+
+A new shared-query discriminator uses a zero recursive limit: while the lock
+is held, the query must return actual `SQLITE_BUSY` or `SQLITE_LOCKED`; after
+release it must return zero, and a limit of 1000 must return 500500. Its locked
+failure cannot be explained by recursive CPU work. This passed locally in
+0.053s with `SQLITE_BUSY` (5). The corrected original child case passed in
+16.661s. The final 13-case module passed in 16.986s without skips or failures;
+its actual child recorded six pre-handler health samples, the first after
+6.002s, the complete expected sum, zero progress handlers, SIGTERM 15 and a
+joined health owner. These observations retain the original signal semantics;
+they do not separately attest SQLite's internal prepare-versus-step boundary.
+
+All production runtime, source-proof and old guard bytes remain identical to
+the already-reviewed performance candidate. The previous 235 focused checks
+remain evidence for those unchanged bytes. Fresh exact-head GitHub checks are
+required; neither failed previous head substitutes for them. No deployment or
+AWS performance gain is claimed by this fixture correction.
