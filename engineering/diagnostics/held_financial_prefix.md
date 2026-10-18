@@ -16,7 +16,8 @@ Path metadata and PRAGMA's original connection locator associate the physical
 book; they do not authenticate a kernel SQLite file descriptor.
 
 Call the original `authority.verify_replay(held_replay=capture)`, then consume
-`capture.prefix()` once. Alternatively pass `held_replay=capture` to the existing
+`capture.prefix(deadline=..., cancelled=...)` once under the caller's existing
+absolute lease. Alternatively pass `held_replay=capture` to the existing
 RuntimeCapital constructor to capture its original initial verification. The
 successful original `_verify_replay` stages actual rebuilt state and its exact
 head inside the same original read snapshot, after projection reconciliation
@@ -63,9 +64,19 @@ Unchanged-head, cancelled and latched status polling reuses the immutable member
 pending projection; no additional full-state copy or per-member serialization
 runs without admitted new events. Original schema/projection/hash checks remain.
 
+New-event projections and detached join copies are provisional until their last
+fallible encoding/copy/owner check finishes and the original absolute lease is
+checked again. Only then may the prefix publish its state, cursor, fixed cut and
+immutable view together. Expiry or cancellation keeps all prior published facts
+unchanged and returns INCOMPLETE; it neither renews the lease nor latches a valid
+tail as corrupt. Anchor acquisition is one-shot even when its final projection
+expires. Original startup cancellation is also checked immediately before an
+original replay anchor becomes consumable.
+
 The fixed private view retains original member/pending bodies and terminal
 rows. All nine pending classes are named; the separate legacy native pending
-population is `UNESTABLISHED`, never an invented zero. `_state_for_join()` is an
+population is `UNESTABLISHED`, never an invented zero.
+`_state_for_join(deadline=..., cancelled=...)` is an
 owner-checked detached original state at the reported prefix, retaining exact
 native aliases, requests, delivery and cursor maps for later two-way joins.
 Neither a covered cut nor one process-local view proves live global completeness,
@@ -92,7 +103,9 @@ closure. Cleanup refusal/failure retains the original primary cause and handoff.
 Actual `db.in_transaction == False` releases physical ownership, after which
 the observer remains UNKNOWN. Revoked provenance does not prevent this physical
 cleanup. Subsequent observation needs a new genuine original replay capture;
-cleanup success grants no financial or readiness authority.
+cleanup success grants no financial or readiness authority. If the final cleanup
+response crosses the lease after actual ROLLBACK, the view remains UNKNOWN with
+the original cause and the physical cleanup state remains RELEASED.
 
 Tests use original disposable shared/native fixtures, actual transactions and
 real SQLite failure/authorizer seams. The host/root acquisition premise of the
@@ -102,9 +115,13 @@ The previous nineteen-test fixed-corpus cost is historical evidence for its
 previous implementation. New schema/anchor checks change that cost and require
 fresh measured reporting on the successor; no AWS benefit is claimed here.
 
-Validation of the corrected source: 31 focused cases passed in 1.748s, then
-46 original financial recovery/concurrency/native-capital cases passed in
-10.526s. The inactive verifier SQL trace is unchanged. One original four-regime
+The final-lease correction passed all 36 focused cases in 1.968s, including
+expiry during actual member serialization, partial-prefix preservation, final
+view construction, detached join copying and the physical-cleanup return.
+The preceding anchor correction's 31-case result (1.748s) and 46 original
+financial recovery/concurrency/native-capital passes (10.526s) are retained;
+the original authority file is byte-unchanged by this helper-only successor.
+The inactive verifier SQL trace is unchanged. One original four-regime
 fixture produced 30 new financial events; its single observer tail used 30 SQL
 statements, 37.56ms wall and 37.60ms process CPU. This is a bounded local cost
 receipt, not a matched production throughput comparison or an AWS benefit.

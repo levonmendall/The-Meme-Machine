@@ -54,7 +54,13 @@ class HeldFinancialPrefixTests(unittest.TestCase):
     def prefix(self, authority):
         capture = self.capture(authority)
         authority.verify_replay(held_replay=capture)
-        return capture.prefix()
+        return self.take(capture)
+
+    def take(self, capture):
+        return capture.prefix(deadline=time.monotonic()+10,cancelled=lambda:False)
+
+    def join(self, prefix):
+        return prefix._state_for_join(deadline=time.monotonic()+10,cancelled=lambda:False)
 
     def advance(self, prefix, **bounds):
         return prefix.advance(deadline=time.monotonic() + 10, cancelled=lambda: False, **bounds)
@@ -122,7 +128,7 @@ class HeldFinancialPrefixTests(unittest.TestCase):
         with patch.object(authority, '_authenticated_replay_prefix', side_effect=AssertionError('full scan')), \
                 patch.object(authority, 'verify_replay', side_effect=AssertionError('second replay')), \
                 patch('sqlite3.connect', side_effect=AssertionError('new connection')):
-            prefix = capture.prefix()
+            prefix = self.take(capture)
             value = self.advance(prefix)
         self.assertEqual(value.status, 'COVERED_CUT')
         self.assertEqual(value.state_sha256, digest(state))
@@ -136,16 +142,16 @@ class HeldFinancialPrefixTests(unittest.TestCase):
         root, authority, now, _ = self.fixture();prefix = self.prefix(authority)
         self.native(root,now)
         value = self.cover(prefix)
-        sequence, anchor, checksum, state = prefix._state_for_join()
+        sequence, anchor, checksum, state = self.join(prefix)
         self.assertEqual((sequence,anchor,checksum),(value.sequence,value.journal_hash,value.state_sha256))
         actual = authority.ledger()
         for name in ('native_aliases','runtime_native_requests','native_deliveries','native_cursors'):
             self.assertEqual(state[name],actual[name]);self.assertTrue(state[name])
             state[name].clear()
-        self.assertTrue(prefix._state_for_join()[3]['native_aliases'])
+        self.assertTrue(self.join(prefix)[3]['native_aliases'])
         errors = []
         def foreign():
-            try:prefix._state_for_join()
+            try:self.join(prefix)
             except CapitalError as exc:errors.append(exc)
         thread = threading.Thread(target=foreign);thread.start();thread.join(timeout=5)
         self.assertFalse(thread.is_alive());self.assertEqual(len(errors),1)
@@ -155,12 +161,12 @@ class HeldFinancialPrefixTests(unittest.TestCase):
     def test_only_published_original_anchor_can_bootstrap_once(self):
         _, authority, _, _ = self.fixture()
         capture = self.capture(authority)
-        with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):capture.prefix()
+        with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):self.take(capture)
         for supplied in (authority.ledger(),authority.verify_replay(),True,object()):
-            with self.assertRaises(CapitalError):_FinancialPrefix(supplied)
+            with self.assertRaises(CapitalError):_FinancialPrefix(supplied,deadline=time.monotonic()+10,cancelled=lambda:False)
         authority.verify_replay(held_replay=capture)
-        capture.prefix()
-        with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):capture.prefix()
+        self.take(capture)
+        with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):self.take(capture)
         with self.assertRaises(TypeError):_FinancialReplayCapture(capture._identity)
 
     def test_actual_four_regimes_replay_contiguously_and_keep_exact_member_bodies(self):
@@ -487,7 +493,7 @@ class HeldFinancialPrefixTests(unittest.TestCase):
             ' WHERE sequence IN (1,(SELECT MAX(sequence) FROM shared_capital_events)) ORDER BY sequence').fetchall(),endpoints)
         with self.assertRaisesRegex(CapitalError,'capital_journal_integrity'):
             authority.verify_replay(held_replay=capture)
-        with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):capture.prefix()
+        with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):self.take(capture)
         self.assertIsNone(capture._anchor)
 
     def test_missing_immutable_trigger_before_anchor_refuses_observer_only(self):
@@ -495,7 +501,7 @@ class HeldFinancialPrefixTests(unittest.TestCase):
         proof = authority.verify_replay()
         authority.db.execute('DROP TRIGGER shared_capital_no_update')
         self.assertEqual(authority.verify_replay(held_replay=capture),proof)
-        with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):capture.prefix()
+        with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):self.take(capture)
         self.assertIsInstance(capture._failure,CapitalError)
         self.assertFalse(authority.db.in_transaction)
 
@@ -516,7 +522,7 @@ class HeldFinancialPrefixTests(unittest.TestCase):
         def authorize(action,arg1,*args):
             if action==sqlite3.SQLITE_TRANSACTION and arg1=='COMMIT':
                 observed.append((capture._phase,authority.db.in_transaction))
-                with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):capture.prefix()
+                with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):self.take(capture)
                 return sqlite3.SQLITE_DENY
             return sqlite3.SQLITE_OK
         authority.db.set_authorizer(authorize)
@@ -526,7 +532,7 @@ class HeldFinancialPrefixTests(unittest.TestCase):
         self.assertEqual(observed,[('STAGED',True)])
         self.assertFalse(authority.db.in_transaction)
         self.assertIsNone(capture._anchor)
-        with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):capture.prefix()
+        with self.assertRaisesRegex(CapitalError,'anchor_unavailable'):self.take(capture)
 
     def test_original_cancellation_after_staging_discards_anchor_and_exception(self):
         from meme_machine.runtime.stop import Shutdown
@@ -536,7 +542,7 @@ class HeldFinancialPrefixTests(unittest.TestCase):
             with self.assertRaises(Shutdown):authority.verify_replay(held_replay=capture)
         self.assertIsNone(capture._anchor);self.assertFalse(authority.db.in_transaction)
         self.assertFalse(authority._replaying)
-        with self.assertRaises(CapitalError):capture.prefix()
+        with self.assertRaises(CapitalError):self.take(capture)
 
     def test_ordinary_capture_refusal_preserves_original_summary(self):
         _, authority, _, _ = self.fixture();capture = self.capture(authority)
@@ -544,7 +550,7 @@ class HeldFinancialPrefixTests(unittest.TestCase):
         with patch.object(module,'_schema',side_effect=failure):
             self.assertEqual(authority.verify_replay(held_replay=capture),proof)
         self.assertIs(capture._failure,failure)
-        with self.assertRaises(CapitalError) as caught:capture.prefix()
+        with self.assertRaises(CapitalError) as caught:self.take(capture)
         self.assertIs(caught.exception.__cause__,failure)
 
     def test_native_owner_root_epoch_inception_and_lifetime_are_not_supplied_flags(self):
@@ -553,17 +559,17 @@ class HeldFinancialPrefixTests(unittest.TestCase):
             with self.subTest(fields=fields):
                 capture = self.capture(authority,**fields)
                 self.assertEqual(authority.verify_replay(held_replay=capture),proof)
-                with self.assertRaises(CapitalError):capture.prefix()
+                with self.assertRaises(CapitalError):self.take(capture)
         capture = self.capture(authority,family='pons')
         authority.verify_replay(held_replay=capture)
-        prefix = capture.prefix();self.assertEqual(self.advance(prefix).status,'COVERED_CUT')
+        prefix = self.take(capture);self.assertEqual(self.advance(prefix).status,'COVERED_CUT')
         capture._owner.close()
         self.assertEqual(self.advance(prefix).status,'UNKNOWN')
 
     def test_constructor_uses_its_original_initial_replay_for_capture(self):
         _, authority, _, _ = self.fixture();capture = self.capture(authority)
         peer = RuntimeCapital(authority.path,held_replay=capture);self.addCleanup(peer.close)
-        prefix = capture.prefix()
+        prefix = self.take(capture)
         self.assertIs(prefix._authority,peer)
         self.assertEqual(self.advance(prefix).status,'COVERED_CUT')
 
@@ -626,6 +632,112 @@ class HeldFinancialPrefixTests(unittest.TestCase):
         self.assertIsNone(getattr(authority,'_held_financial_retained_read',None))
         self.assertEqual(authority.db.total_changes,changes)
         self.assertIn('ROLLBACK',trace)
+
+    def test_final_member_serialization_refuses_expiry_or_cancel_without_publishing(self):
+        for partial, refusal in ((False,'DEADLINE'),(True,'DEADLINE'),(True,'CANCELLED')):
+            with self.subTest(partial=partial,refusal=refusal):
+                root,authority,now,_=self.fixture();prefix=self.prefix(authority)
+                self.native(root,now)
+                target=next(iter(authority.ledger()['positions']))
+                if partial:
+                    self.assertEqual(self.advance(prefix,max_rows=1).status,'INCOMPLETE')
+                before=(prefix._state,prefix._sequence,prefix._anchor,prefix._state_hash,
+                    prefix._cut,prefix._view_cache)
+                changes=authority.db.total_changes;clock=[100.];stopped=[False];encoded=[]
+                original=module.canonical
+                def serializing(row):
+                    raw=original(row)
+                    if type(row) is dict and row.get('id')==target:
+                        encoded.append(raw)
+                        self.assertIs(prefix._state,before[0])
+                        self.assertIs(prefix._view_cache,before[5])
+                        if refusal=='DEADLINE':clock[0]=110.
+                        else:stopped[0]=True
+                    return raw
+                with patch.object(module.time,'monotonic',side_effect=lambda:clock[0]), \
+                        patch.object(module,'canonical',side_effect=serializing):
+                    value=prefix.advance(deadline=110.,cancelled=lambda:stopped[0])
+                self.assertTrue(encoded)
+                self.assertEqual((value.status,value.reason),('INCOMPLETE',refusal))
+                self.assertEqual((value.sequence,value.journal_hash,value.state_sha256),before[1:4])
+                self.assertIs(prefix._state,before[0]);self.assertIs(prefix._view_cache,before[5])
+                self.assertEqual((prefix._sequence,prefix._anchor,prefix._state_hash,prefix._cut),before[1:5])
+                self.assertIsNone(prefix._failure);self.assertFalse(authority.db.in_transaction)
+                self.assertEqual(authority.db.total_changes,changes)
+                self.assertEqual(self.cover(prefix).status,'COVERED_CUT')
+
+    def test_final_view_construction_cannot_publish_after_original_deadline(self):
+        _,authority,now,_=self.fixture();prefix=self.prefix(authority)
+        authority.command('final-view','runtime_publish',{},now)
+        before=(prefix._state,prefix._sequence,prefix._cut,prefix._view_cache)
+        clock=[100.];original=prefix._view;built=[]
+        def view(*args,**kwargs):
+            result=original(*args,**kwargs)
+            if kwargs.get('snapshot') is not None:
+                built.append(result);clock[0]=110.
+            return result
+        with patch.object(module.time,'monotonic',side_effect=lambda:clock[0]), \
+                patch.object(prefix,'_view',side_effect=view):
+            result=prefix.advance(deadline=110.,cancelled=lambda:False)
+        self.assertEqual(len(built),1);self.assertEqual(built[0].status,'COVERED_CUT')
+        self.assertEqual((result.status,result.reason),('INCOMPLETE','DEADLINE'))
+        self.assertIs(prefix._state,before[0]);self.assertIs(prefix._view_cache,before[3])
+        self.assertEqual((prefix._sequence,prefix._cut),before[1:3])
+        self.assertFalse(authority.db.in_transaction)
+
+    def test_anchor_and_join_final_copies_share_caller_lease(self):
+        root,authority,now,_=self.fixture();self.native(root,now)
+        capture=self.capture(authority);authority.verify_replay(held_replay=capture)
+        target=next(iter(authority.ledger()['positions']));clock=[100.];original=module.canonical
+        def serialized(row):
+            raw=original(row)
+            if type(row) is dict and row.get('id')==target:clock[0]=110.
+            return raw
+        with patch.object(module.time,'monotonic',side_effect=lambda:clock[0]), \
+                patch.object(module,'canonical',side_effect=serialized):
+            with self.assertRaisesRegex(module._Deferred,'DEADLINE'):
+                capture.prefix(deadline=110.,cancelled=lambda:False)
+        self.assertEqual(capture._phase,'TAKEN');self.assertIsNone(capture._anchor)
+        with self.assertRaises(CapitalError):self.take(capture)
+        prefix=self.prefix(authority);before=prefix._state;clock[0]=100.;copy=module.deepcopy;copied=[]
+        def detached(state):
+            result=copy(state);copied.append(result);clock[0]=110.;return result
+        with patch.object(module.time,'monotonic',side_effect=lambda:clock[0]), \
+                patch.object(module,'deepcopy',side_effect=detached):
+            with self.assertRaisesRegex(module._Deferred,'DEADLINE'):
+                prefix._state_for_join(deadline=110.,cancelled=lambda:False)
+        self.assertEqual(len(copied),1);self.assertIs(prefix._state,before)
+        self.assertFalse(authority.db.in_transaction)
+        self.assertEqual(self.join(prefix)[3],authority.ledger())
+
+    def test_original_cancel_after_final_publication_checks_keeps_anchor_private(self):
+        from meme_machine.runtime.stop import Shutdown
+        _,authority,_,_=self.fixture();capture=self.capture(authority)
+        with patch.object(authority,'_startup_replay_cancel',lambda:capture._phase=='PUBLISHABLE'):
+            with self.assertRaises(Shutdown):authority.verify_replay(held_replay=capture)
+        self.assertIsNone(capture._anchor);self.assertEqual(capture._phase,'DISCARDED')
+        self.assertFalse(authority.db.in_transaction);self.assertFalse(authority._replaying)
+        with self.assertRaises(CapitalError):self.take(capture)
+
+    def test_late_cleanup_response_preserves_actual_release_and_original_cause(self):
+        _,authority,_,_=self.fixture();prefix=self.prefix(authority);primary=RuntimeError('primary')
+        authority.db.set_authorizer(lambda action,arg1,*args: sqlite3.SQLITE_DENY
+            if action==sqlite3.SQLITE_TRANSACTION and arg1=='ROLLBACK' else sqlite3.SQLITE_OK)
+        try:
+            with patch.object(module,'_head',side_effect=primary):
+                with self.assertRaises(_RetainedFinancialRead) as caught:self.advance(prefix)
+        finally:authority.db.set_authorizer(None)
+        issue=caught.exception;original=prefix._view;clock=[100.]
+        def view(*args,**kwargs):
+            result=original(*args,**kwargs);clock[0]=110.;return result
+        with patch.object(module.time,'monotonic',side_effect=lambda:clock[0]), \
+                patch.object(prefix,'_view',side_effect=view):
+            result=prefix.cleanup_retained_read(deadline=110.,cancelled=lambda:False)
+        self.assertEqual((result.status,result.reason),('UNKNOWN','DEADLINE'))
+        self.assertIs(result.error,issue);self.assertIs(issue.primary,primary)
+        self.assertEqual(issue.cleanup_state,'RELEASED');self.assertFalse(issue.transaction_active)
+        self.assertFalse(authority.db.in_transaction);self.assertIs(prefix._failure,issue)
+        self.assertIsNone(getattr(authority,'_held_financial_retained_read',None))
 
 
 if __name__ == '__main__':

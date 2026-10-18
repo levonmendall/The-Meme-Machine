@@ -73,6 +73,18 @@ class _Deferred(Exception):
     pass
 
 
+def _lease_check(deadline, cancelled):
+    if (type(deadline) not in (int, float) or not math.isfinite(deadline)
+            or not callable(cancelled)):
+        raise ValueError('held_financial_lease_bounds')
+    def check():
+        if cancelled():
+            raise _Deferred('CANCELLED')
+        if time.monotonic() >= deadline:
+            raise _Deferred('DEADLINE')
+    return check
+
+
 class _RetainedFinancialRead(RuntimeError):
     """The owner must resolve this borrowed read transaction before any reuse.
 
@@ -255,22 +267,27 @@ class _FinancialReplayCapture:
 
     def _publish(self, authority, issuer):
         self._observe(self._publication, authority, issuer)
+        # Preserve the original startup cancellation authority after the last
+        # fallible capture check and before making the anchor consumable.
+        authority._check_startup_replay_cancel()
+        if self._phase == 'PUBLISHABLE':
+            self._phase = 'PUBLISHED'
 
     def _publication(self, authority, issuer):
         if (issuer is not original._HELD_REPLAY_ISSUER or self._phase != 'STAGED'
                 or authority is not self._authority or authority.db.in_transaction):
             raise CapitalError('held_financial_original_replay_not_finished')
-        self._phase = 'PUBLISHED'
+        self._phase = 'PUBLISHABLE'
 
     def _discard(self, authority, issuer):
         if issuer is original._HELD_REPLAY_ISSUER and authority is self._authority:
             self._anchor, self._phase = None, 'DISCARDED'
 
-    def prefix(self):
+    def prefix(self, *, deadline, cancelled):
         self._check()
         if self._failure is not None or self._phase != 'PUBLISHED' or self._anchor is None:
             raise CapitalError('held_financial_anchor_unavailable') from self._failure
-        return _FinancialPrefix(self._anchor)
+        return _FinancialPrefix(self._anchor, deadline=deadline, cancelled=cancelled)
 
 
 def _one(db, sql, parameters=()):
@@ -303,7 +320,8 @@ def _head(db, sequence=None):
 
 
 class _FinancialPrefix:
-    def __init__(self, anchor):
+    def __init__(self, anchor, *, deadline, cancelled):
+        check = _lease_check(deadline, cancelled)
         if type(anchor) is not _ReplayAnchor or anchor.issuer is not _ANCHOR_ISSUER:
             raise CapitalError('held_financial_original_anchor_required')
         capture = anchor.capture
@@ -313,6 +331,9 @@ class _FinancialPrefix:
         if capture._phase != 'PUBLISHED' or capture._anchor is not anchor or capture._failure is not None:
             raise CapitalError('held_financial_anchor_unavailable')
         capture._phase, capture._anchor = 'TAKEN', None
+        # Taking an issued anchor is one-shot even if its original caller
+        # lease expires. A second call cannot renew that failed acquisition.
+        check()
         self._capture = capture
         self._authority, self._db = anchor.authority, anchor.db
         self._owner = (os.getpid(), threading.get_ident())
@@ -333,10 +354,11 @@ class _FinancialPrefix:
         self._adapter.fault = None
         with arithmetic():
             self._reconcile(self._adapter, self._state)
-        self._bound()
         # Build once on the creating thread; foreign status refusal must not
         # allocate/mutate an owner projection lazily.
-        self._view('INCOMPLETE', 'ANCHORED_PREFIX')
+        self._view_cache = self._project(self._state, check)
+        self._bound()
+        check()
 
     def __reduce__(self):
         raise TypeError('held_financial_prefix_is_process_private')
@@ -369,8 +391,7 @@ class _FinancialPrefix:
         """
         if (os.getpid(), threading.get_ident()) != self._owner:
             raise CapitalError('held_financial_foreign_cleanup_owner')
-        if (type(deadline) not in (int, float) or not math.isfinite(deadline) or not callable(cancelled)):
-            raise ValueError('held_financial_cleanup_bounds')
+        check = _lease_check(deadline, cancelled)
         issue = self._retained
         if issue is None:
             raise CapitalError('held_financial_no_retained_read')
@@ -403,7 +424,13 @@ class _FinancialPrefix:
         if getattr(self._authority, '_held_financial_retained_read', None) is issue:
             self._authority._held_financial_retained_read = None
         self._failure = issue
-        return self._view('UNKNOWN', 'RETAINED_READ_RELEASED', error=issue)
+        # Physical release stays true even if the final response crosses the
+        # original lease. No success/covered observation is issued by cleanup.
+        try:
+            return self._finish_current('UNKNOWN', 'RETAINED_READ_RELEASED', check, error=issue)
+        except BaseException as exc:
+            issue.latest_cleanup_error = exc
+            raise exc from issue.primary or issue
 
     def _projection(self, state, state_hash):
         meta = _one(self._db, 'SELECT typeof(body),length(CAST(body AS BLOB)),'
@@ -416,41 +443,69 @@ class _FinancialPrefix:
         if checksum != state_hash or digest(projection) != checksum or projection != state:
             raise CapitalError('replayed_projection_mismatch')
 
-    def _view(self, status, reason, rows=0, text_bytes=0, error=None):
-        if self._view_cache is None:
-            state = self._state
-            current, terminal, pending = [], [], []
-            for key, row in sorted(state['positions'].items()):
-                (current if row['status'] == 'OPEN' else terminal).append((key, canonical(row)))
-            for kind, name in _PENDING:
-                pending.extend((kind, key, canonical(row)) for key, row in sorted(state.get(name, {}).items()))
-            # Keep original delivery bodies/order and their original identities.
-            pending.extend(('PENDING_DELIVERY', str(index), canonical(row))
-                           for index, row in enumerate(state['pending_deliveries']))
-            pending.extend(('GLOBAL_OPEN', key, body) for key, body in current)
-            counts = tuple((kind, sum(item[0] == kind for item in pending))
-                           for kind in (*[item[0] for item in _PENDING], 'PENDING_DELIVERY', 'GLOBAL_OPEN'))
-            # This shared journal cannot establish separate legacy native pending.
-            counts += (('LEGACY_NATIVE_PENDING', 'UNESTABLISHED'),)
-            self._view_cache = tuple(current), tuple(terminal), tuple(pending), counts
-        current, terminal, pending, counts = self._view_cache
-        cut = self._cut or (self._sequence, self._anchor, self._state_hash)
+    @staticmethod
+    def _project(state, check):
+        def encoded(row):
+            check()
+            raw = canonical(row)
+            check()
+            return raw
+        check()
+        current, terminal, pending = [], [], []
+        for key, row in sorted(state['positions'].items()):
+            (current if row['status'] == 'OPEN' else terminal).append((key, encoded(row)))
+        for kind, name in _PENDING:
+            pending.extend((kind, key, encoded(row)) for key, row in sorted(state.get(name, {}).items()))
+        pending.extend(('PENDING_DELIVERY', str(index), encoded(row))
+                       for index, row in enumerate(state['pending_deliveries']))
+        pending.extend(('GLOBAL_OPEN', key, body) for key, body in current)
+        counts = []
+        for kind in (*[item[0] for item in _PENDING], 'PENDING_DELIVERY', 'GLOBAL_OPEN'):
+            check()
+            counts.append((kind, sum(item[0] == kind for item in pending)))
+        counts.append(('LEGACY_NATIVE_PENDING', 'UNESTABLISHED'))
+        result = tuple(current), tuple(terminal), tuple(pending), tuple(counts)
+        check()
+        return result
+
+    def _view(self, status, reason, rows=0, text_bytes=0, error=None, *, projection=None,
+              snapshot=None, cut=None):
+        current, terminal, pending, counts = self._view_cache if projection is None else projection
+        sequence, anchor, state_hash = snapshot or (self._sequence, self._anchor, self._state_hash)
+        cut = cut or self._cut or (sequence, anchor, state_hash)
         return _FinancialView(status, reason, self._capture._owner_sha, self._schema_version,
-                              self._sequence, self._anchor, self._state_hash,
+                              sequence, anchor, state_hash,
                               cut[0], cut[1], rows, text_bytes, current, terminal, pending, counts, error)
 
-    def _state_for_join(self):
+    def _finish_current(self, status, reason, check, *, error=None):
+        """Old immutable facts only; refusal never publishes provisional work."""
+        result = self._view(status, reason, error=error)
+        try:
+            check()
+        except _Deferred as exc:
+            return self._view('UNKNOWN' if error is not None else 'INCOMPLETE', str(exc), error=error)
+        except Exception as exc:
+            if error is None:self._failure = error = exc
+            return self._view('UNKNOWN', 'RETURN_CHECK_FAILED', error=error)
+        return result
+
+    def _state_for_join(self, *, deadline, cancelled):
         """Owner-only detached state at the last covered prefix, not live proof.
 
         Retains original aliases, requests, cursors and delivery identity maps.
         The caller must pair this cut with advance's status and independently
         authenticate native owners; no supplied mapping grants that authority.
         """
+        check = _lease_check(deadline, cancelled)
+        check()
         self._bound()
         self._raise_retained()
         if self._failure is not None:
             raise CapitalError('held_financial_prefix_unknown') from self._failure
-        return self._sequence, self._anchor, self._state_hash, deepcopy(self._state)
+        result = self._sequence, self._anchor, self._state_hash, deepcopy(self._state)
+        self._bound()
+        check()
+        return result
 
     def advance(self, *, deadline, cancelled, max_rows=_MAX_ROWS, max_bytes=_MAX_BYTES):
         """Replay at most one admitted indexed tail chunk on the owner connection.
@@ -464,18 +519,13 @@ class _FinancialPrefix:
                 or not callable(cancelled) or type(max_rows) is not int or not 1 <= max_rows <= _MAX_ROWS
                 or type(max_bytes) is not int or not 1 <= max_bytes <= _MAX_BYTES):
             raise ValueError('held_financial_advance_bounds')
+        check = _lease_check(deadline, cancelled)
         if (os.getpid(), threading.get_ident()) != self._owner:
             # Fixed unavailable projection: no owned state/cache/DB/cap access.
             return _FOREIGN_OWNER_VIEW
         self._raise_retained()
         if self._failure is not None:
-            return self._view('UNKNOWN', 'LATCHED', error=self._failure)
-
-        def check():
-            if cancelled():
-                raise _Deferred('CANCELLED')
-            if time.monotonic() >= deadline:
-                raise _Deferred('DEADLINE')
+            return self._finish_current('UNKNOWN', 'LATCHED', check, error=self._failure)
 
         own_transaction = False
         locked = False
@@ -501,9 +551,7 @@ class _FinancialPrefix:
             head = _head(self._db)
             if _head(self._db, self._sequence) != (self._sequence, self._anchor, self._state_hash):
                 raise CapitalError('capital_journal_integrity')
-            if self._cut is None:
-                self._cut = head
-            cut = self._cut
+            cut = self._cut or head
             if head[0] < cut[0] or _head(self._db, cut[0]) != cut:
                 raise CapitalError('capital_journal_integrity')
             sql = ('SELECT sequence,' + ','.join('typeof(' + name + '),length(CAST(' + name + ' AS BLOB))'
@@ -612,9 +660,9 @@ class _FinancialPrefix:
                     self._authority._mutex.release()
         if failure is not None:
             self._failure = failure
-            return self._view('UNKNOWN', 'REPLAY_FAILED', error=failure)
+            return self._finish_current('UNKNOWN', 'REPLAY_FAILED', check, error=failure)
         if candidate is None:
-            return self._view('INCOMPLETE', reason)
+            return self._finish_current('INCOMPLETE', reason, check)
         # The original owner mutex protects only this connection.  Another
         # authorized writer may have committed beyond the fixed read snapshot.
         locked = False
@@ -634,22 +682,32 @@ class _FinancialPrefix:
             self._schema_current()
             check()
         except _Deferred as exc:
-            return self._view('INCOMPLETE', str(exc))
+            return self._finish_current('INCOMPLETE', str(exc), check)
         except Exception as exc:
             self._failure = exc
-            return self._view('UNKNOWN', 'HEAD_CHECK_FAILED', error=exc)
+            return self._finish_current('UNKNOWN', 'HEAD_CHECK_FAILED', check, error=exc)
         finally:
             if locked:
                 self._authority._mutex.release()
-        self._state = candidate
-        if rows:
-            self._view_cache = None
-        self._sequence, self._anchor, self._state_hash = sequence, anchor, state_hash
         covered = sequence == cut[0]
         if covered and latest != cut:
             reason = 'HEAD_ADVANCED'
-        result = self._view('COVERED_CUT' if covered and latest == cut else 'INCOMPLETE',
-                            reason, rows, used)
-        if covered:
-            self._cut = None
+        try:
+            projection = self._project(candidate, check) if rows else self._view_cache
+            result = self._view('COVERED_CUT' if covered and latest == cut else 'INCOMPLETE',
+                reason, rows, used, projection=projection,
+                snapshot=(sequence, anchor, state_hash), cut=cut)
+            self._bound()
+            check()
+        except _Deferred as exc:
+            return self._finish_current('INCOMPLETE', str(exc), check)
+        except Exception as exc:
+            self._failure = exc
+            return self._finish_current('UNKNOWN', 'PROJECTION_FAILED', check, error=exc)
+        # All fallible projection/detach work precedes this original-lease
+        # publication point. Expiry leaves the prior state/cursor/cache intact.
+        self._state = candidate
+        self._sequence, self._anchor, self._state_hash = sequence, anchor, state_hash
+        self._view_cache = projection
+        self._cut = None if covered else cut
         return result
