@@ -101,11 +101,14 @@ class StoppedNativeReadContext:
         self.check()
         self.verify_boundary()
 
-    def check(self):
+    def _check_owner_deadline(self):
         _require(not self._closed and self._owner == (os.getpid(), threading.get_ident()),
                  'native_restore_context_owner')
         if time.monotonic() >= self.deadline:
             raise TimeoutError('native_restore_deadline')
+
+    def check(self):
+        self._check_owner_deadline()
         for db in self._databases.values():
             _require(type(db) is sqlite3.Connection and db.in_transaction
                      and db.execute('PRAGMA query_only').fetchone()[0] == 1,
@@ -305,10 +308,14 @@ class StoppedNativeReadContext:
                 self._views[key] = sleeve
         return self._views[key]
 
+    def bound_trial(self, db):
+        self.bound_bodies(db, ('records', 'pons_selective_paper', 'pons_journal_checkpoint',
+                              'pons_selective_controller_groups'))
+
     def store(self, path):
         from meme_machine.lanes.pons.evidence import Store
         with self.database(path) as db:
-            self.bound_bodies(db, ('records', 'pons_selective_paper', 'pons_journal_checkpoint'))
+            self.bound_trial(db)
             store = object.__new__(Store)
             store.db = db
             for category, identity in db.execute('SELECT category,id FROM records'):
@@ -465,6 +472,10 @@ class StoppedNativeReadContext:
             reader.path = self.shared_path
             reader.fault = None
             reader._replaying = False
+            # Reuse the original per-event cold replay cancellation boundary.
+            # This checks only local owner/deadline; full snapshot/fence checks
+            # still bracket the scope, without one PRAGMA per DB per event.
+            reader._startup_replay_cancel = self._check_owner_deadline
             proof = reader.verify_replay()
             state = reader._read()
             _require(proof.get('conservation') is True and state is not None,

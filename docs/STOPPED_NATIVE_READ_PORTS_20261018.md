@@ -129,3 +129,30 @@ approval and independent review are still required before any integration. The
 existing dormant admin PR105 must eventually inline reviewed code within its
 original four-worker bundle; this application draft adds no fifth worker or
 privileged execution path.
+
+## Narrow review corrections
+
+The correction above original component `1ffb8232` bounds every trial records,
+projection, journal-checkpoint and controller-group field before the capital
+cross-check fetches any native JSON. It reuses the same fixed prebound population
+when creating a Store view. An over-limit dependency remains unavailable rather
+than entering the native decoder first; ordinary reconciliation is unchanged.
+
+A retained Pons never-filled cancellation now reuses the original exact native
+event/capital/sleeve/global release-ACK verifier. It does not require a global
+SETTLED position that this genuine release never created. Missing retired trial
+evidence still refuses, and filled settlements retain their original ACK check.
+The existing per-event financial replay cancellation hook now checks the local
+context owner and deadline; full snapshot/fence checks still bracket the scope.
+
+All 28 focused cases passed in 4.625 seconds under the original offline driver.
+The three new cases reproduce the three findings against exact original `1ffb`
+runtime bytes (two bound subcases, cancellation refusal and continued replay).
+That counterfactual failed as expected; no source branch reset was used and
+the corrected bytes were restored in a `finally` block. Logs are
+`/workspace/recovery-evidence/stopped-native-read-ports-1ffb-counterfactual.log`
+and `stopped-native-read-ports-corrections-focused.log`. An earlier baseline
+fixture omitted its stopped-owner proof and contained only one replay event;
+its separate failure receipt remains `...counterfactual-fixture-first.log`.
+No broad suite, AWS/provider work, boot permission or positive full-closure
+producer was added. The correction author is separate from its pending reviewer.

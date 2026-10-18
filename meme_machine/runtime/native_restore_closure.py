@@ -322,14 +322,30 @@ def _pons_current(context, capital, plane_path):
         attempt = reference.get('last_attempt') or {}
         _require(attempt.get('terminal_ready') is True, 'native_restore_pons_attempt_unresolved')
     sleeve = context.sleeve('pons')
-    for reference in references.values():
+    from meme_machine.lanes.pons.pons_reentry import verify_lifecycle
+    for curve, reference in references.items():
         for key in ('last_attempt', 'last_filled_trade'):
             attempt = reference.get(key)
             if not attempt:
                 continue
-            _require(attempt.get('terminal_ready') is True
-                     and sleeve.reentry_verified(attempt['lifecycle_id']) is not None,
+            _require(attempt.get('terminal_ready') is True,
                      'native_restore_retired_pons_reference_ack')
+            if key == 'last_attempt' and attempt.get('outcome') == 'never_filled_cancellation':
+                # Release ACKs have no invented global SETTLED position. Reuse
+                # the actual native terminal event/capital/sleeve/global join;
+                # an erased retired trial cannot be replaced by its summary.
+                qualifier = by_index.get(attempt.get('index'))
+                _require(qualifier is not None and qualifier.get('curve') == curve,
+                         'native_restore_retired_cancellation_evidence_unavailable')
+                actual = verify_lifecycle(root, qualifier,
+                    dict(lifecycle_id=attempt['lifecycle_id']), read_context=context)
+                _require(actual.get('terminal_ready') is True
+                         and actual.get('outcome') == 'never_filled_cancellation'
+                         and actual.get('native_position_hash') == attempt.get('native_position_hash'),
+                         'native_restore_pons_cancel_reference_ack')
+            else:
+                _require(sleeve.reentry_verified(attempt['lifecycle_id']) is not None,
+                         'native_restore_retired_pons_reference_ack')
             if key == 'last_filled_trade':
                 _require(attempt.get('vector_id') == digest(attempt['vector'])
                          and attempt['vector'].get('asof') == attempt.get('original_at'),
