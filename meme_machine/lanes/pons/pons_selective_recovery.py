@@ -302,7 +302,7 @@ def resume_lifecycle_steps(endpoint,*,db_path,capital_path=None,exceptional_cont
     return (yield from result)
 
 
-def _pending_recoveries(root,qualifiers,lifecycles):
+def _pending_recoveries(root,qualifiers,lifecycles,*,read_context=None):
     """Restore native trial ownership before the cohort admits another candidate."""
     from contextlib import closing
     import re
@@ -310,17 +310,29 @@ def _pending_recoveries(root,qualifiers,lifecycles):
     from .pons_selective_paper import STRATEGY_CAPITAL_QUOTE
     root=Path(root)
     capital_path=root/'pons-selective-cohort-capital.sqlite'
-    guard=CohortCapital(capital_path,STRATEGY_CAPITAL_QUOTE)
-    with closing(guard._connect()) as db:
-        guard._reconcile(db)
+    if read_context is None:
+        guard=CohortCapital(capital_path,STRATEGY_CAPITAL_QUOTE)
+        manager=closing(guard._connect())
+    else:
+        from meme_machine.runtime.native_restore_context import require_read_context
+        read_context=require_read_context(read_context)
+        guard,_=read_context.capital(capital_path)
+        manager=read_context.database(capital_path)
+    with manager as db:
+        if read_context is None:guard._reconcile(db)
+        else:guard._reconcile(db,readonly=True,readonly_authority=read_context)
         rows=[json.loads(raw) for raw, in db.execute('SELECT body FROM capital_positions')]
     completed={r['index']:r for r in coalesce_lifecycle_rows(lifecycles) if 'index' in r}
     qualified={r['index']:r for r in qualifiers}
     pending=[]
     for row in rows:
-        path=Path(row['trial_path'])
+        path=(Path(row['trial_path']) if read_context is None else
+            read_context.trial_identity(row['trial_path'],root=root))
         match=re.fullmatch(r'trial-(\d+)\.sqlite',path.name)
-        if not match or path.resolve().parent!=root.resolve() or not path.is_file():
+        if not match or (read_context is None and
+                (path.resolve().parent!=root.resolve() or not path.is_file())) or (
+                read_context is not None and (path.parent!=read_context.identity(root)
+                or not read_context.contains(path))):
             raise BoundaryError('selective_recovery_trial_path_identity')
         index=int(match.group(1));prior=completed.get(index)
         if row['status']=='settled' and prior and prior.get('status') in ('settled','entry_failed'):

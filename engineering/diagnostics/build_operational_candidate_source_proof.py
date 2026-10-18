@@ -13,13 +13,25 @@ import sys
 
 ROOT=Path(__file__).resolve().parents[2]
 BASE='780f4015efd9fba528e97223f8e8e3b1a7322e12'
-IMPLEMENTATION='4b1c54a508e82e5fb7a975dc75362081cdcf77e5'
-PATHS=('engineering/diagnostics/current_combined_observation_20261014.py',
-       'meme_machine/lanes/pons/pons_selective_cohort.py','meme_machine/operational/lane.py',
-       'meme_machine/runtime/candidate_restore_reads.py','meme_machine/runtime/operation_costs.py',
-       'meme_machine/runtime/robinhood/plane.py','meme_machine/runtime/robinhood/pons.py',
-       'meme_machine/runtime/status.py','meme_machine/runtime/survivor_history.py',
-       'meme_machine/solana_source_drain.py')
+IMPLEMENTATION='f00a7727d9f64926aa36e1044f854c5ed91df990'
+PATHS=(
+    'engineering/diagnostics/current_combined_observation_20261014.py',
+    'meme_machine/lanes/pons/pons_selective_cohort.py',
+    'meme_machine/operational/lane.py',
+    'meme_machine/runtime/candidate_restore_reads.py',
+    'meme_machine/runtime/evidence_worker.py',
+    'meme_machine/runtime/operation_costs.py',
+    'meme_machine/runtime/robinhood/plane.py',
+    'meme_machine/runtime/robinhood/pons.py',
+    'meme_machine/runtime/status.py',
+    'meme_machine/runtime/survivor_history.py',
+    'meme_machine/solana_evidence_control.py',
+    'meme_machine/solana_evidence_service.py',
+    'meme_machine/solana_maintenance_runtime.py',
+    'meme_machine/solana_maintenance_state.py',
+    'meme_machine/solana_owner_admission.py',
+    'meme_machine/solana_source_drain.py',
+)
 GUARDS=('tests/test_pump_restore_source_guard.py','tests/test_robinhood_usd_valuation.py')
 
 
@@ -67,13 +79,14 @@ def main():
     if actual!=set(PATHS):raise ValueError('changed_runtime_census')
     value=dict(schema='authenticated-operational-candidate-source-delta-v1',base=BASE,
         base_tree=git('rev-parse',BASE+'^{tree}').decode().strip(),implementation=IMPLEMENTATION,
-        implementation_tree=git('rev-parse',IMPLEMENTATION+'^{tree}').decode().strip(),files={},guards={})
+        implementation_tree=git('rev-parse',IMPLEMENTATION+'^{tree}').decode().strip(),
+        guard_reference=BASE,files={},guards={})
     for relative in PATHS:
         before=git('show',BASE+':'+relative);after=git('show',IMPLEMENTATION+':'+relative)
         if (ROOT/relative).read_bytes()!=after:raise ValueError('working_runtime_not_frozen')
         value['files'][relative]=inverse_record(before,after)
     for relative in GUARDS:
-        before=git('show',IMPLEMENTATION+':'+relative);after=(ROOT/relative).read_bytes()
+        before=git('show',BASE+':'+relative);after=(ROOT/relative).read_bytes()
         value['guards'][relative]=dict(inverse_record(before,after),fixed_read_hooks=calls(after))
     path=ROOT/'tests/fixtures/operational_candidate_source_delta.json'
     raw=(json.dumps(value,sort_keys=True,indent=2)+'\n').encode();path.write_bytes(raw)

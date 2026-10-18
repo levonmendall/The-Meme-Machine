@@ -159,6 +159,12 @@ class Supervisor:
             raise RuntimeError('one_PAPER_supervisor_already_running') from None
         database=self.root/'portfolio.sqlite'
         try:
+            if not self.offline and self.admission in ('NORMAL','AUTONOMY'):
+                # Root seals the actual systemd/kernel instance after start.
+                # Wait and independently replay under original ownership before
+                # selected()/connection() can open a financial runtime writer.
+                from .normal_boot import consume_normal_boot
+                self.normal_boot=consume_normal_boot(self,cancelled=lambda:self.stop_requested)
             from meme_machine.shared_capital.runtime import selected,connection
             shared=selected(database)
             if not self.offline and self.admission=='BOOTSTRAP' and shared is None:
@@ -208,6 +214,8 @@ class Supervisor:
                     require_flat_portfolio(account.snapshot())
                 self.pause_proof=self._assert_paused_lanes_clear(account)
         except BaseException:
+            context=getattr(self,'normal_boot',None)
+            if context is not None:context.close()
             self.lock.close();self.lock=None
             raise
         if self.offline:_atomic_json(self.root/'OFFLINE_ONLY.json',dict(offline=True,market_calls=0,epoch_id=self.epoch))
@@ -351,8 +359,33 @@ class Supervisor:
         import uuid
         instance=uuid.uuid4().hex
         env=self.environment(lane);env['MM_LANE_PROCESS_INSTANCE']=instance
-        self.processes[lane]=subprocess.Popen(args,cwd=folder,env=env,start_new_session=True)
-        self.process_instances[lane]=instance
+        channel=None
+        try:
+            options=dict(cwd=folder,env=env,start_new_session=True)
+            if lane in ('pump','pons') and getattr(self,'normal_boot',None) is not None:
+                if lane=='pons':
+                    from .normal_pons_boot import PonsOwnerLaunch as OwnerLaunch
+                else:
+                    from .normal_pump_boot import PumpOwnerLaunch as OwnerLaunch
+                deadline=time.monotonic()+15
+                channel=OwnerLaunch(self.normal_boot)
+                options['pass_fds']=(channel.child_fd,)
+                args+=['--normal-owner-channel',str(channel.child_fd)]
+            self.processes[lane]=subprocess.Popen(args,**options)
+            self.process_instances[lane]=instance
+            if channel is not None:
+                try:
+                    identity=channel.bind(self.processes[lane],deadline=deadline,process_instance=instance)
+                    if lane=='pons':self.pons_owner_generation=identity
+                    else:self.pump_owner_generation=identity
+                except BaseException:
+                    # Retain the actual process/instance for the outer owner
+                    # even if its original cleanup also needs another attempt.
+                    try:self.stop_process(self.processes[lane])
+                    except BaseException:pass
+                    raise
+        finally:
+            if channel is not None:channel.close()
         if getattr(self,'shared_capital',None):
             for suffix in ('current','survivor'):
                 self.shared_capital.owner(lane+'_'+suffix,instance,self.processes[lane].pid,ready=False,at=int(time.time()))
@@ -368,11 +401,27 @@ class Supervisor:
         # with the evidence worker, which starts before the lane process.
         (self.root/'pump').mkdir(exist_ok=True,mode=0o700)
         env=self.environment('solana')
-        self.evidence=subprocess.Popen([sys.executable,'-m','meme_machine.runtime.evidence_worker'],cwd=self.root,env=env,start_new_session=True)
+        command=[sys.executable,'-m','meme_machine.runtime.evidence_worker']
+        deadline=None
+        context=getattr(self,'normal_boot',None)
+        channel=None
+        try:
+            pass_fds=()
+            if context is not None:
+                from .normal_source_boot import SourceLaunch
+                deadline=time.monotonic()+15
+                channel=SourceLaunch(context);pass_fds=(channel.child_fd,)
+                command+=['--normal-boot-channel',str(channel.child_fd)]
+            options=dict(cwd=self.root,env=env,start_new_session=True)
+            if pass_fds:options['pass_fds']=pass_fds
+            self.evidence=subprocess.Popen(command,**options)
+            if channel is not None:self.source_boot_generation=channel.bind(self.evidence,deadline=deadline)
+        finally:
+            if channel is not None:channel.close()
         ticks=self._source_start_ticks(self.evidence.pid)
         if ticks is None:raise RuntimeError('source_process_identity_unavailable')
         self.evidence._mm_source_start_ticks=ticks
-        deadline=time.monotonic()+15
+        if deadline is None:deadline=time.monotonic()+15
         while not Path(env['MM_SOLANA_EVIDENCE_PLANE_DB']+'.sock').exists():
             if self.evidence.poll() is not None:raise RuntimeError('shared_evidence_failed')
             if time.monotonic()>=deadline:raise RuntimeError('shared_evidence_start_timeout')
@@ -638,6 +687,11 @@ class Supervisor:
         try:
             health,portfolio,rss=observe(self.root,funding_lanes=funding_lanes(budget.envelope))
             readiness(health,portfolio,rss,budget.envelope)
+            if getattr(self,'normal_boot',None) is not None:
+                # Boot/source provenance is not completion of the finite native
+                # Current+Survivor work population. Until its genuine composite
+                # witness is wired, no positive readiness can be published.
+                raise ValueError('normal_boot_economic_generation_witness_missing')
             failure=getattr(self,'current_readiness_failure',None)
             if failure:raise ValueError(failure)
             frontiers={}

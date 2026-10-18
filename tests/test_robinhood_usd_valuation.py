@@ -3007,7 +3007,8 @@ class RobinhoodUSDTests(unittest.TestCase):
         # Pin the one necessary old79 entry normalization independently. Every
         # original hash, lease assertion, mutation and relative ordering survives.
         relative='tests/test_robinhood_usd_valuation.py'
-        current=(ROOT/relative).read_bytes()
+        from tests.test_operational_candidate_source_guard import original_guard_source
+        current=original_guard_source(self,relative,(ROOT/relative).read_bytes())
         prior=subprocess.check_output(['git','show',SOURCE_RECORDER_PUBLICATION_REFERENCE+':'+relative],cwd=ROOT)
         def old_guard(body):
             parent=next(n for n in ast.parse(body).body if isinstance(n,ast.ClassDef) and n.name=='RobinhoodUSDTests')
@@ -3864,7 +3865,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         }
         self.assertEqual(set(mutations),set(MAINTENANCE_ENTRY_CLOCK_DELTAS))
         for relative,(_,after,_) in MAINTENANCE_ENTRY_CLOCK_DELTAS.items():
-            current=source_recorder_publication_predecessor(self,relative,(ROOT/relative).read_bytes())
+            current=source_recorder_publication_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact maintenance clock repair')
             prior=subprocess.check_output(['git','show',MAINTENANCE_ENTRY_CLOCK_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(maintenance_entry_clock_predecessor(self,relative,current),prior)

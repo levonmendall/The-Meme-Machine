@@ -220,11 +220,14 @@ def commit_scout(state,update,seen):
     commit_scout_fact(state,scout_fact(update,seen))
 
 @measured('owner.scout_commit')
-def commit_scout_batch(state,facts):
+def commit_scout_batch(state,facts,*,registry=None):
     if not 0<len(facts)<=SCOUT_COMMIT_BATCH:raise EvidenceUnavailable('candidate_scout_batch_bound')
     history=install(state)
     with state.writer.source_frame():
         history.observe_many(facts)
+        if registry is not None:
+            slots=[fact['slot'] for fact in facts if fact is not None]
+            if slots:registry.committed(state,'scout',slots)
 
 def block_message(frame):
     b=frame.update.block
@@ -329,7 +332,7 @@ def commit_candidates(state,frame,addresses,session,*,publish=True,prepared=None
     if publish:history.lifecycle.publish()
 
 
-def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publish=True,prepared=None,timing=None,measurement=None):
+def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publish=True,prepared=None,timing=None,measurement=None,registry=None,plane=None):
     """The original ordered frames, under one atomic durable owner command."""
     if not 0<len(frames)<=CANDIDATE_COMMIT_BATCH:
         raise EvidenceUnavailable('candidate_commit_batch_bound')
@@ -352,6 +355,7 @@ def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publis
                 if grouped:commit_rolling_group(state,frame,addresses,session,publish=False)
                 else:commit_candidates(state,frame,addresses,session,publish=False,
                     prepared=None if prepared is None else prepared[index],timing=timing)
+            if registry is not None:registry.committed(state,plane,[frame.update.block.slot for frame in frames])
     except Exception:
         if measurement is not None:measurement.unavailable('TRANSACTION_FAILED')
         # A discontinuity inside the enclosing batch rolls back with it.
@@ -539,7 +543,12 @@ def source_work(work,stop,observe=None):
 
 
 class SelectiveSource:
-    def __init__(self,config,rpc,*,token=None):
+    def __init__(self,config,rpc,*,token=None,normal_generation=None):
+        if normal_generation is not None:
+            from .operational.normal_source_boot import require_native_generation
+            require_native_generation(normal_generation)
+        self.normal_generation=normal_generation
+        self.normal_registry=None
         self.config=config;self.rpc=rpc;self.token=token or config.credential
         self.work=None;self.stop=None
         self.observer=None
@@ -566,6 +575,7 @@ class SelectiveSource:
             settled_handlers=0,closed_sessions=0,preserved_partial_sessions=0,
             unpreserved_sessions=0,queues={name:dict(accepted=0,committed=0)
                 for name in ('control','scout','rolling','candidate')})
+        if normal_generation is not None:self.source_drain['run_identity']=normal_generation.generation
         self.handlers=HandlerLedger(self.source_drain['run_identity'])
         self.economic_cohorts=None
         self.economic_cohort_requested=os.environ.get('MM_ECONOMIC_COHORT_DIAGNOSTICS')=='1'
@@ -576,6 +586,10 @@ class SelectiveSource:
             except Exception:pass # Optional diagnostics cannot prevent source startup.
         self.contained_observation=False;self.observation_drain_boundary=None
         self.session_teardowns={};self.session_deadlines={};self.optional_stops=set()
+
+    @property
+    def source_boot_identity_sha256(self):
+        return None if self.normal_generation is None else self.normal_generation.identity_sha256
 
     def shutdown_deadline(self,coordinator=None):
         deadline=getattr(self,'drain_deadline',None)
@@ -907,6 +921,8 @@ class SelectiveSource:
                 with state.writer.transaction():
                     for frame in batch:commit_control(state,frame,active=self.control_connected)
                     remaining=complete_control_recovery(state,CONTROL)
+                    if self.normal_registry is not None:
+                        self.normal_registry.committed(state,'control',[frame.update.block.slot for frame in batch])
                 self.source_drain['control_pending_replay']=remaining
                 # Scheduling may follow only the durable authenticated receipt;
                 # a socket, raw slot notification or submitted command is not it.
@@ -976,6 +992,7 @@ class SelectiveSource:
                 claimed.append(time.monotonic())
                 commit_candidate_batch(state,frames,addresses,session,
                     grouped=grouped,publish=not self.batched,prepared=prepared,timing=self.candidate_phases,
+                    registry=self.normal_registry,plane='rolling' if rolling else 'candidate',
                     **({} if measurement is None else dict(measurement=measurement)))
                 if rolling and not native_announced:
                     install(state).startup.native([s.split(':',2)[1] for s in addresses.values()])
@@ -1036,6 +1053,7 @@ class SelectiveSource:
                     await queue.put(frame)
             control.source_session=handler_session
             control.source_scopes=(CONTROL,)
+            control.source_plane='control'
             try:
                 await self.stream(channel,req,control,'shared');return
             except EvidenceUnavailable as exc:
@@ -1072,9 +1090,13 @@ class SelectiveSource:
                         required=self.source_drain.get('control_pending_replay')
                         retained=preserve_handlers(state,self.handlers,interrupted,
                             dict(kind='CONTROL_REPLAY',**required) if required else None)
-                        install(state)._observation(None,'control_session_drain',dict(**body,
-                            replay_from_slot=floor,unfinished_replay_floor=body['oldest_slot'],
-                            complete_history_claim=False))
+                        receipt=dict(**body,replay_from_slot=floor,
+                            unfinished_replay_floor=body['oldest_slot'],complete_history_claim=False)
+                        if self.normal_registry is not None:receipt['session']=handler_session
+                        install(state)._observation(None,'control_session_drain',receipt)
+                        if self.normal_registry is not None:
+                            self.normal_registry.closed(state,handler_session,
+                                state.writer.db.execute('SELECT last_insert_rowid()').fetchone()[0])
                         return retained
                 try:
                     retained=await self.work(preserve,0,label='source_commit')
@@ -1115,6 +1137,14 @@ class SelectiveSource:
         from .runtime.operating_families import require_active
         require_active(family)
         stream_id=uuid.uuid4().hex
+        registered=False
+        if self.normal_registry is not None:
+            registry=self.normal_registry
+            await self.work(lambda state:registry.open(state,stream=stream_id,
+                session=handler.source_session,plane=handler.source_plane,transport='yellowstone',
+                scopes=handler.source_scopes,lower_slot=request.from_slot,
+                filter_sha256=hashlib.sha256(request.SerializeToString()).hexdigest()),2,label='source_commit')
+            registered=True
         self.observe('subscribe',stream_id=stream_id,family=family,request=request)
         call=channel.stream_stream('/geyser.Geyser/Subscribe',request_serializer=lambda r:r.SerializeToString(),
             response_deserializer=lambda r:r)(metadata=(('x-token',self.token),))
@@ -1193,10 +1223,17 @@ class SelectiveSource:
                 status=exc.code().name,details=details[:2048])
             raise EvidenceUnavailable('candidate_native_'+exc.code().name.lower()) from None
         finally:
+            import sys
+            primary=sys.exc_info()[1]
             if pending:pending.cancel();await asyncio.gather(pending,return_exceptions=True)
             closed.cancel();await asyncio.gather(closed,return_exceptions=True)
             call.cancel()
             self.observe('unsubscribe',stream_id=stream_id,family=family)
+            if registered:
+                try:await self.work(lambda state:self.normal_registry.stopped(state,stream_id),2,label='source_commit')
+                except BaseException:
+                    self.source_drain['unpreserved_sessions']+=1
+                    if primary is None:raise
 
     async def scout_stream(self,channel,tip,handler):
         """Retry locators within the provider's actual bounded replay window.
@@ -1221,6 +1258,10 @@ class SelectiveSource:
                     await self.work(gap,1)
                     floor=next_floor
             request=scout_request();request.from_slot=floor
+            if self.normal_registry is not None:
+                handler.source_session=uuid.uuid4().hex;handler.source_plane='scout'
+                handler.source_scopes=tuple('scout:'+name for name in
+                    ('pump','meteora') if name=='pump' or 'a' in request.accounts)
             try:
                 await self.stream(channel,request,handler,'pump' if not enabled('meteora') else 'discovery',optional=True)
                 if not position_only():return
@@ -1248,7 +1289,8 @@ class SelectiveSource:
             while len(batch)<SCOUT_COMMIT_BATCH:
                 try:batch.append(queue.get_nowait())
                 except asyncio.QueueEmpty:break
-            await self.work(lambda s:commit_scout_batch(s,batch),5,label='source_commit',component='scout')
+            await self.work(lambda s:commit_scout_batch(s,batch,registry=self.normal_registry),
+                5,label='source_commit',component='scout')
             if isinstance(queue,AcceptedQueue):queue.committed(batch)
             else:
                 for _ in batch:queue.task_done()
@@ -1268,7 +1310,11 @@ class SelectiveSource:
             if getattr(self,'economic_cohorts',None) is not None:state.writer._economic_cohort_meter=self.economic_cohorts
             # Refuse unidentified old callbacks before history/startup writes or
             # any provider dispatch. A new run's empty ledger cannot erase them.
-            try:self.retained_source_drain=retained_source_drain(state)
+            try:
+                if self.normal_generation is None:self.retained_source_drain=retained_source_drain(state)
+                else:
+                    self.retained_source_drain,self.retained_handler_recovery=self.normal_generation.begin(
+                        state,self.drain_snapshot())
             except EvidenceUnavailable as exc:
                 if (str(exc)!='source_drain_historical_handlers_unlocated'
                         or os.environ.get('MM_MODE')!='PAPER'
@@ -1294,6 +1340,11 @@ class SelectiveSource:
                 self.observation_drain_boundary=begin_source_observation(state,self.retained_source_drain,
                     self.drain_snapshot(),handler_boundary=self.retained_handler_recovery)
             h=install(state)
+            if self.normal_generation is not None:
+                from .operational.normal_source_registry import NativeSourceRegistry
+                self.normal_registry=NativeSourceRegistry(state,self.normal_generation)
+                self.normal_generation._registry=self.normal_registry
+                h._normal_source_registry=self.normal_registry
             from .solana_history_notifications import install as notifications
             notifications(h,loop,self.history_changed)
             if not position_only():h.startup.begin()
@@ -1415,7 +1466,8 @@ class SelectiveSource:
                                 publish_source_drain(state,self.retained_source_drain,body,
                                     handler_boundary=self.retained_handler_recovery,
                                     contained_observation=self.contained_observation,
-                                    observation_boundary=self.observation_drain_boundary)
+                                    observation_boundary=self.observation_drain_boundary,
+                                    normal_generation=self.normal_generation)
                         try:await self.work(terminal,0,label='source_commit')
                         except BaseException:
                             self.source_drain.update(state='RECOVERY_REQUIRED',terminal_record_unavailable=True)
@@ -2085,11 +2137,21 @@ class SelectiveSource:
                 raise
         native.source_session=session
         native.source_scopes=tuple(addresses.values())
+        native.source_plane=plane
         async def logs():
             closed=asyncio.create_task(StopEither(self.stop,local_stop).wait())
+            ws_id=None;registered_session=False
             try:
-                async with connect(self.config.stream_url,max_size=MAX_FRAME_BYTES,max_queue=2,ping_interval=10,ping_timeout=None) as ws:
+                if self.normal_registry is not None:
                     ws_id=uuid.uuid4().hex
+                    subscribed=sorted(r['scope'] for r in desired if r['family']!='meteora')
+                    await self.work(lambda state:self.normal_registry.open(state,stream=ws_id,
+                        session=session,plane=plane,transport='websocket',scopes=subscribed,lower_slot=floor,
+                        filter_sha256=digest(dict(method='logsSubscribe',addresses=sorted(r['address']
+                            for r in desired if r['family']!='meteora'),commitment='finalized'))),2,label='source_commit')
+                    registered_session=True
+                async with connect(self.config.stream_url,max_size=MAX_FRAME_BYTES,max_queue=2,ping_interval=10,ping_timeout=None) as ws:
+                    if ws_id is None:ws_id=uuid.uuid4().hex
                     self.observe('websocket_open',stream_id=ws_id,addresses=[r['address'] for r in desired if r['family']!='meteora'])
                     pending={};registered={}
                     for number,row in enumerate((r for r in sorted(desired,key=lambda r:r['priority']) if r['family']!='meteora'),1):
@@ -2138,7 +2200,14 @@ class SelectiveSource:
                             self.handlers.fail(number,exc);raise
                         else:self.handlers.finish(number)
             finally:
+                import sys
+                primary=sys.exc_info()[1]
                 closed.cancel();await asyncio.gather(closed,return_exceptions=True)
+                if registered_session:
+                    try:await self.work(lambda state:self.normal_registry.stopped(state,ws_id),2,label='source_commit')
+                    except BaseException:
+                        self.source_drain['unpreserved_sessions']+=1
+                        if primary is None:raise
         tasks=[asyncio.create_task(self.candidate_commits(candidate_queue,addresses,session,
             rolling=rolling,grouped=all(r['family']=='meteora' and r['priority']>1 for r in desired),
             priority=native_commit_priority(desired),producer_done=producer_done))];waiter=None
@@ -2333,6 +2402,9 @@ class SelectiveSource:
                                 retained.extend(preserve_handlers(state,self.handlers,[item],recovery))
                             h._observation(None,'source_session_drain',dict(**body,replay_from_slot=floor,
                                 recovery_obligations=obligations,handler_dispositions=retained,complete_history_claim=False))
+                            if self.normal_registry is not None:
+                                self.normal_registry.closed(state,session,
+                                    state.writer.db.execute('SELECT last_insert_rowid()').fetchone()[0])
                             return retained
                     try:
                         retained=await self.work(disconnect,1 if any(r['priority']<=1 for r in desired) else 3,label='source_commit')
