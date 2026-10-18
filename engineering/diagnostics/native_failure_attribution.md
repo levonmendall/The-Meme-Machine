@@ -380,3 +380,29 @@ pins, legacy/caller inverses and API census remain intact. The coupled complete
 source closure, all16 output cases and original-two-case AST contract passed27
 cases in19.845s without skips. Independent final code/proof review and any actual
 changed-source hosted outcome remain pending; FULL/ACK stays unproved.
+
+Independent root code/full-byte review cleared exact5694c408 and its runtime0dd9.
+The single changed-source targeted run39091826472 on5694c408 completed at
+2026-10-18T02:57:40Z. Its61 proof cases passed in19.596s. The ORIGINAL complete
+copied-main case passed with unchanged assertions: child completed40.04167s,
+source/all consumers joined, two decoder owners joined after one nonprobe and two
+probe tasks, and one history owner joined after five nonprobe tasks. The strict
+post-join output read completed every stage:223 canonical FULL/ACK bindings,
+223 exact candidate references,341 source receipts,13 nonfinancial databases,
+Pump report, Pons checkpoint and all four regime reports. The previous run's
+specific canonical-source predicate remains unavailable without its database;
+this genuine strict outcome does not invent that missing historical branch.
+
+The targeted workflow remains FAIL solely because the separate ORIGINAL namespace
+case still refuses setgroups with actual errno13. It ran two original cases in
+46.263s with one failure and no errors. The copied-main receipt itself remains
+BLOCKED/kernel_applied=false under its deliberately patched kernel fixture;
+actual kernel enforcement, Pons economic candidates, held positions, fills,
+settlement, production restoration and sustained market capacity remain unproved.
+Actual hosted SQLite was3.45.1, UID1001 and all four capability fields zero.
+External providers, production writes and financial authority remained zero/false.
+Parent accounting preserves89 HTTP attempts/225 RPC elements,390,437 HTTP bytes,
+zero reserved bytes,67,108,864 uncertain HTTP bytes, five native opens and
+369,098,752 uncertain native bytes. No quota/debt was erased. The terminal
+receipt/logs are referenced by native-cold-canonical-39091826472 in the retained
+engineering evidence; this result warrants no unchanged retry or full-market claim.
