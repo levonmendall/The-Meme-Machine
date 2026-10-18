@@ -294,6 +294,10 @@ class CandidateHistory:
         missing files, other cohorts and symbolic links supply no fallback.
         Startup independently verifies the configured epoch and financial state.
         """
+        context=getattr(self,'_native_read_context',None)
+        if context is not None:
+            from .native_restore_context import require_read_context
+            return require_read_context(context).reference_identity(value,candidate_path=self.path,cold=cold)
         return retained_reference_path(value,candidate_path=self.path,cold=cold)
 
     def _reference_body(self,lane,candidate,identity,kind,ref,*,prepared=None,_archive_cache=None,_check=None,
@@ -301,7 +305,14 @@ class CandidateHistory:
         from meme_machine.solana_evidence_plane import decode_body
         if _check is not None:_check()
         path=self._reference_path(ref['path'])
-        if _restore_lookup is None:
+        context=getattr(self,'_native_read_context',None)
+        if context is not None:
+            from .native_restore_context import require_read_context
+            require_read_context(context).require_database(self.db)
+            if _restore_lookup is not None or _archive_cache is not None:
+                raise ValueError('native_restore_reference_read_scope')
+            row,db=context.canonical_record(path,ref['canonical_identity'])
+        elif _restore_lookup is None:
             self._source_readers=getattr(self,'_source_readers',{})
             if path not in self._source_readers:
                 self._source_readers[path]=diagnostic_connect(path.as_uri()+'?mode=ro',diagnostic_role='candidate_reference',uri=True,timeout=30)
@@ -352,7 +363,8 @@ class CandidateHistory:
                     _archive_cache.clear();cached=None
                 if _check is not None:_check()
             if records is None:
-                packed=cold_path.read_bytes()
+                packed=(context.read_artifact(cold_path,sha256=manifest[1]) if context is not None
+                    else cold_path.read_bytes())
                 if _check is not None:_check()
                 if hashlib.sha256(packed).hexdigest()!=manifest[1]:raise ValueError('candidate_history_corruption')
                 if _check is not None:_check()
