@@ -9,6 +9,7 @@ FAST=[
  'tests.test_pons_factory_census',
  'tests.test_pons_source_membership',
  'tests.test_pons_owner_source_binding',
+ 'tests.test_pons_native_work',
  'tests.test_operational_candidate_source_guard',
  'tests.test_native_failure_attribution',
  'tests.test_namespace_mapping_errno',

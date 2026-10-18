@@ -298,6 +298,8 @@ def history_stage(history,stage):
 
 def history_rollback(frame):
     """Discard only this fixed observer's staged metadata on native rollback."""
+    from .pons_native_work import rollback
+    rollback(frame)
     for stage,_,_,_ in frame:
         if type(stage) in (_FactoryCommit,_ResolutionCommit):
             try:stage.owner.unavailable('ROLLBACK')

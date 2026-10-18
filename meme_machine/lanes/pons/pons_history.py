@@ -144,8 +144,45 @@ class PonsHistory(History):
     def get(self, identity):
         return self._checkpoint(super().get(identity))
 
+    def save(self,row):
+        if getattr(self,'_native_work_save',None) is None:return super().save(row)
+        was_transaction=self.db.in_transaction
+        result=super().save(row)
+        # The optional observer runs after the original SQL return. In an owned
+        # transaction its metadata is retained until the real outer COMMIT.
+        if getattr(self,'_native_work_save',None) is not None:
+            from meme_machine.runtime.pons_native_work import saved
+            saved(self,row,was_transaction=was_transaction)
+        return result
+
     def rows(self, *, include_retired=False):
-        rows = [self._checkpoint(row) for row in super().rows(include_retired=include_retired)]
+        frame=None
+        if getattr(self,'_native_work_rows',None) is not None:
+            from meme_machine.runtime.pons_native_work import rows_frame
+            frame=rows_frame(self)
+        if frame is None:
+            rows = [self._checkpoint(row) for row in super().rows(include_retired=include_retired)]
+        else:
+            # Identical native query/verification/output. The same original
+            # cursor's SQLITE_DONE supplies the finite turn census; no reread.
+            sql='SELECT body,hash FROM candidates'
+            if not include_retired:sql+=" WHERE json_extract(body,'$.state')!='retired'"
+            rows=[];keys=[]
+            try:
+                for raw in self.db.execute(sql):
+                    row=self._verified(raw);rows.append(row)
+                    try:
+                        frame.record(row,raw[1])
+                        if not row.get('position') and row['state']!='retired':
+                            if len(keys)<32768:keys.append(frame.key(row,raw[1]))
+                            else:frame.owner.unavailable('BOUND')
+                    except Exception:frame.owner.unavailable()
+                rows=sorted(rows,key=lambda r:(r['last_checked'],r['id']))
+                rows=[self._checkpoint(row) for row in rows]
+            except BaseException:
+                frame.owner.unavailable('TRANSACTION_FAILED');raise
+            try:frame.finish(keys)
+            except Exception:frame.owner.unavailable()
         return sorted(rows, key=lambda r: (r.get('qualification_attempt', 0), r['last_checked'], r['id']))
 
     def history_batch(self, rows, top, *, limit=64):

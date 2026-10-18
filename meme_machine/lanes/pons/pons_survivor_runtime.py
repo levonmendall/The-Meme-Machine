@@ -479,7 +479,7 @@ class Runtime:
             self.history.append_block(row['id'],block=end,header=h,events=events,points=sorted(points.items()))
 
     @evidence_work('deep_watch')
-    def _increment_candidates(self,rows,top,*,held=False):
+    def _increment_candidates(self,rows,top,*,held=False,native_work_frame=None):
         if not rows:return
         population=len(rows)
         pending=[r for r in rows if r.get('block') is not None and r['block']<top]
@@ -492,6 +492,8 @@ class Runtime:
         # Separate acquisition credit for overlapping checkpoints: an older
         # recovery cannot claim a newer pool without advancing that pool.
         rows=self.history.history_batch([r for r in pending if first<=r['block']<first+window],top)
+        if native_work_frame is not None and not held:
+            native_work_frame.history_requests(rows)
         if not rows:return
         start=min(row['block'] for row in rows)+1;end=min(top,start+window-1)
         if end<start:return
@@ -994,7 +996,7 @@ class Runtime:
         from meme_machine.runtime.isolated_native_admission import survivor_allocation_allowed
         return survivor_allocation_allowed(self,row,decision,lane='pons',policy=POLICY_HASH)
 
-    def _publish_qualification(self,row,decision,regime,*,state,signal=None):
+    def _publish_qualification(self,row,decision,regime,*,state,signal=None,native_request=None):
         if getattr(self,'native_resources',None) is not None:
             from meme_machine.runtime.isolated_native_admission import require_survivor_resources
             require_survivor_resources(self,'pons')
@@ -1012,13 +1014,19 @@ class Runtime:
         row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
             generation=observed['generation'],regime=regime,plane_generation=self.plane.get(key)['generation'])
         if getattr(self,'scout',None) is not None:self._schedule_watch(row,state['at'],signal)
-        self.history.save(row)
+        if native_request is None:self.history.save(row)
+        else:
+            from meme_machine.runtime.pons_native_work import qualification_save,work_for
+            with qualification_save(self.history,work_for(self),row,decision,state,native_request):
+                self.history.save(row)
         return row,observed,regime
 
     @decision_work(4)
     def step(self,*,admit):
         from meme_machine.runtime.isolated_native_bootstrap import maintain_bookless_runtime
         bookless=maintain_bookless_runtime(self,'pons')
+        from meme_machine.runtime.pons_native_work import survivor_inputs,work_for
+        native_work=work_for(self);native_work_frame=None
         errors=[]
         try:
             from meme_machine.runtime.storage import compact_survivor
@@ -1085,18 +1093,27 @@ class Runtime:
                     errors.append(str(exc))
                     self.historical_readiness=dict(ready=False,category='INCOMPLETE_EVIDENCE',
                         reason=str(exc),qualification_authority=False,pre_enrollment_coverage='UNOBSERVED')
-            rows=[r for r in self.history.rows() if not r.get('position') and r['state']!='retired']
+            with survivor_inputs(self.history,native_work) as native_work_frame:
+                rows=[r for r in self.history.rows() if not r.get('position') and r['state']!='retired']
             if admit and rows:
                 for expired in list(rows):
                     if self.now()-expired['graduation']['at']>POLICY['universe']['max_seconds_after_graduation']:
                         self.history.retire(expired,expired_before=self.now()-POLICY['universe']['max_seconds_after_graduation']);rows.remove(expired)
+                        if native_work_frame is not None:native_work_frame.filtered(expired,retired=True)
                 if getattr(self,'scout',None) is not None:
-                    rows=[r for r in rows if self._deep_watch_due(r,self.now())]
+                    def native_due(row):
+                        due=self._deep_watch_due(row,self.now())
+                        if not due and native_work_frame is not None:native_work_frame.filtered(row)
+                        return due
+                    rows=[r for r in rows if native_due(r)]
+                if native_work_frame is not None:native_work_frame.eligibility(rows,admit=admit)
                 if rows:
                     top=int(_latest_header(self.rpc)['number'],16)
                     signals={r['id']:self.scout.signal(r['graduation']['transition']['market'])
                         for r in rows} if getattr(self,'scout',None) is not None else {}
-                    try:self._increment_candidates(rows,top)
+                    try:
+                        if native_work_frame is None:self._increment_candidates(rows,top)
+                        else:self._increment_candidates(rows,top,native_work_frame=native_work_frame)
                     except (ValueError,BoundaryError) as exc:errors.append(str(exc))
                     rows=[self.history.get(r['id']) for r in rows]
                     if getattr(self,'scout',None) is not None:
@@ -1104,6 +1121,7 @@ class Runtime:
                             if r['block']==top:
                                 r['scout_hydrated_signal']=signals[r['id']]
                                 self.history.save(r)
+            elif native_work_frame is not None:native_work_frame.eligibility(rows,admit=admit)
             if admit and rows:
                 row=self.history.qualification_turn(rows,self.now())
                 age=self.now()-row['graduation']['at']
@@ -1114,6 +1132,7 @@ class Runtime:
                     if age<POLICY['universe']['min_seconds_after_graduation']:row['state']='aging';self.history.save(row)
                     elif end-row['block']<=40:
                         signal=self.scout.signal(row['graduation']['transition']['market']) if getattr(self,'scout',None) else None
+                        native_request=None if native_work_frame is None else native_work_frame.request(row)
                         state=self.fresh_state(row['id']);quotes=self.fresh_quotes(state,self.sleeve.sizing_basis(500)["target"])
                         decision=self.qualify(self.reconstruct(state,quotes));f=decision['features']
                         regime=dict(at=state['at'],rally_cycle=decision.get('rally_cycle'),
@@ -1122,7 +1141,11 @@ class Runtime:
                         # Qualification is durable before native funding. The
                         # owner removed the two-position admission veto; capital,
                         # full execution requalification and risk still govern.
-                        row,observed,regime=self._publish_qualification(row,decision,regime,state=state,signal=signal)
+                        if native_request is None:
+                            row,observed,regime=self._publish_qualification(row,decision,regime,state=state,signal=signal)
+                        else:
+                            row,observed,regime=self._publish_qualification(row,decision,regime,
+                                state=state,signal=signal,native_request=native_request)
                         if decision['candidate'] and self._allocation_allowed(row,decision):
                             from meme_machine.runtime.lifecycle_identity import issue
                             row['position']=issue(self.run_id+':'+digest([STRATEGY_VERSION,row['id'],regime]))

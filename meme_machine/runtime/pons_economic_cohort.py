@@ -38,6 +38,10 @@ class PonsEconomicCohorts:
         self.factory=PonsFactoryCensus(self)
         from .pons_source_membership import PonsSourceMembership
         self.membership=PonsSourceMembership(self)
+        self.native_work=None
+        if native_owner is not None:
+            from .pons_native_work import PonsNativeWork
+            self.native_work=PonsNativeWork(self)
 
     def unavailable(self,reason='NATIVE_BOUNDARY_UNAVAILABLE'):
         self.meter.unavailable(reason)
@@ -143,6 +147,7 @@ class PonsEconomicCohorts:
                 source_membership=self.membership.snapshot(),
                 native_owner_provenance='UNISSUED' if self.native_owner is None else 'SEALED_SUPERVISOR_PONS_OWNER_ONLY',
                 native_owner_identity_sha256=None if self.native_owner is None else self.native_owner.identity_sha256,
+                native_consumer_work=None if self.native_work is None else self.native_work.snapshot(),
                 configured_pool_universe='UNKNOWN',native_generation_dispositions='UNEXERCISED',
                 current_held_v4_history='UNEXERCISED',source_full_ack='NOT_A_PONS_CONTRACT')
             return result
