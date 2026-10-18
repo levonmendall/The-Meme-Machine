@@ -136,13 +136,17 @@ class QualifiedSourceRecoveryTarget:
 
     def value(self):
         verify_qualified_recovery_target(self)
-        return deepcopy(self._value)
+        value=deepcopy(self._value)
+        self._context.verify_boundary()
+        return value
 
 
 def derive_qualified_recovery_target(read_context):
     """Original read scope only; caller dictionaries cannot issue this target."""
     value=_snapshot(read_context)
-    return QualifiedSourceRecoveryTarget(read_context,value,_issuer=_ISSUER)
+    target=QualifiedSourceRecoveryTarget(read_context,value,_issuer=_ISSUER)
+    read_context.verify_boundary()
+    return target
 
 
 def verify_qualified_recovery_target(target):
@@ -150,4 +154,5 @@ def verify_qualified_recovery_target(target):
     require(type(target) is QualifiedSourceRecoveryTarget,'recovery_target_required')
     require(target._owner==(os.getpid(),threading.get_ident()),'recovery_target_owner')
     require(digest(_snapshot(target._context))==target._sha256,'recovery_target_changed')
+    target._context.verify_boundary()
     return target

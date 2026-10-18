@@ -99,3 +99,25 @@ Logs are retained under `/workspace/recovery-evidence/` as
 `first-focused`, `child-cause`, `real-pair` and `eight-case-first` logs. Actual
 AWS fit, execution/recovery receipt, all-four outcomes, continuation and normal
 readiness remain unproved.
+
+## Final-work lifetime correction
+
+Independent review of `4d5a6ec4` found that final target hashing and detached
+copying could cross the original scope expiry or lose its guard after the
+underlying population checks. The successor now calls the existing original
+`verify_boundary()` after the verification digest, after the final detached
+copy, and after initial construction's own copy/hash before returning a target.
+It neither renews a deadline nor repeats the population scan for these checks.
+
+The original eight tests plus two deterministic final-work regressions pass
+10/10 in 9.947 seconds. The same new regressions against unchanged `4d5a6ec4`
+produce five expected failures: deadline and guard loss during final hashing,
+deadline and guard loss during final copying, and expiry during initial mint's
+final hash. They use the real read context and actual private failed source
+fixture; only the exact final work boundary is gated. The counterfactual log is
+`qualified-source-recovery-target-final-work-4d5a-counterfactual.log`, with
+retained scratch `/tmp/mm-engineering-5g1v15qb`. The successor result is
+`qualified-source-recovery-target-final-work-focused.log`. The earlier 8+24
+evidence remains valid and retained; the original adjacent modules were not
+rerun for this narrow new-helper correction. The short-RO executor handoff and
+all completion/authority limitations above remain unchanged.

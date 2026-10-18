@@ -269,3 +269,41 @@ class QualifiedRecoveryTargetTests(unittest.TestCase):
         with self.assertRaises(TimeoutError):target.value()
         context.deadline=time.monotonic()+5;context.close()
         with self.assertRaisesRegex(ValueError,'context_owner'):target.value()
+
+    def test_final_hash_and_detach_refuse_expiry_or_guard_loss_during_work(self):
+        self.failed_source();context,_=self.context();target=recovery.derive_qualified_recovery_target(context)
+        schema='qualified-native-source-recovery-target-v1'
+        for phase in ('digest','deepcopy'):
+            for loss in ('deadline','guard'):
+                with self.subTest(phase=phase,loss=loss):
+                    original=getattr(recovery,phase);reached=[];deadline=context.deadline
+                    def final_work(value):
+                        result=original(value)
+                        if type(value) is dict and value.get('schema')==schema:
+                            reached.append(True)
+                            if loss=='deadline':context.deadline=time.monotonic()-1
+                            else:self.boundary_valid=False
+                        return result
+                    try:
+                        with patch.object(recovery,phase,side_effect=final_work):
+                            if loss=='deadline':
+                                with self.assertRaises(TimeoutError):target.value()
+                            else:
+                                with self.assertRaisesRegex(ValueError,'snapshot_changed'):target.value()
+                        self.assertEqual(reached,[True])
+                    finally:
+                        context.deadline=deadline;self.boundary_valid=True
+
+    def test_initial_mint_final_hash_refuses_expiry_before_return(self):
+        self.failed_source();context,_=self.context();original=recovery.digest;deadline=context.deadline
+        reached=[]
+        def final_hash(value):
+            result=original(value)
+            if type(value) is dict and value.get('schema')=='qualified-native-source-recovery-target-v1':
+                reached.append(True);context.deadline=time.monotonic()-1
+            return result
+        try:
+            with patch.object(recovery,'digest',side_effect=final_hash):
+                with self.assertRaises(TimeoutError):recovery.derive_qualified_recovery_target(context)
+            self.assertEqual(reached,[True])
+        finally:context.deadline=deadline
