@@ -288,6 +288,8 @@ class NativePrewriteReplayTests(unittest.TestCase):
             continuous_provider_db=str(provider)),self.case.now)
         evidence=ServiceState(self.root/'shared/solana-evidence.sqlite',
             AlchemyEndpoint.parse('https://solana-mainnet.g.alchemy.com/v2/offline_fixture_only'))
+        from meme_machine.solana_selective_source import install
+        install(evidence)
         raw=json.dumps(dict(state='RECOVERY_REQUIRED',accepted_handlers=2,settled_handlers=0,pending_handlers=2,
             terminal=True,all_accepted_committed=True,unpreserved_sessions=0,
             queues={name:dict(accepted=0,committed=0,pending=0) for name in ('control','scout','rolling','candidate')}))

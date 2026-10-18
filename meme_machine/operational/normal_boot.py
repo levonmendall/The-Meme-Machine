@@ -209,11 +209,11 @@ def _source_inputs(db):
 
 class BootContext:
     """Private same-instance boot result; never a positive source/readiness claim."""
-    __slots__=('_launch','_root','_owner','_identity','_closed')
-    def __init__(self,launch,root,identity,*,_issuer=None):
+    __slots__=('_launch','_root','_owner','_identity','_closed','_support')
+    def __init__(self,launch,root,identity,*,_issuer=None,_support=None):
         require(_issuer is _ISSUER,'context_issuer')
         self._launch=launch;self._root=root;self._owner=(os.getpid(),threading.get_ident())
-        self._identity=deepcopy(identity);self._closed=False
+        self._identity=deepcopy(identity);self._closed=False;self._support=deepcopy(_support)
 
     def require_current(self):
         require(not self._closed and self._owner==(os.getpid(),threading.get_ident()),'context_owner')
@@ -223,6 +223,10 @@ class BootContext:
         return deepcopy(self._identity)
 
     def close(self):self._closed=True
+
+    def boot_support(self):
+        from .normal_boot_support import _for_boot
+        return _for_boot(self)
 
 
 def consume_normal_boot(supervisor,*,cancelled):
@@ -275,6 +279,8 @@ def consume_normal_boot(supervisor,*,cancelled):
                 and time.time()>=provider['backoff_until'] and all(provider['counters'][name]==0
                     for name in ('http_reserved','native_reserved'))
                 and all(row['open_rows']==0 for row in provider['transports'].values()),'provider_controls')
+            from .normal_boot_support import _capture
+            support=_capture(reads,record,launch._locator['record_sha256'])
             require(reads.metadata_sha256()==certificate['physical_generation_sha256'],'prewrite_physical_generation')
         finally:context.close()
     launch.require_current(initial=True)
@@ -284,7 +290,7 @@ def consume_normal_boot(supervisor,*,cancelled):
         application_tree=record['application_tree'],supervisor=deepcopy(record['supervisor']),
         epoch_id=value['epoch_id'],inception_sha256=value['inception_sha256'],
         preserved_source_inputs=source,unknown_historical_handlers=certificate['unknown_historical_handlers'])
-    context=BootContext(launch,root,identity,_issuer=_ISSUER)
+    context=BootContext(launch,root,identity,_issuer=_ISSUER,_support=support)
     # Final Git/unit checks are fallible work, not an acceptance-time snapshot.
     # Recheck their original window and cancellation after they finish and
     # immediately before the private context becomes reachable by any caller.
