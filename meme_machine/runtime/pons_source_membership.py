@@ -5,6 +5,7 @@ Broad scout rows remain nominations until the real native decoders consume them.
 """
 import os
 import threading
+import math
 
 from .journal import digest
 
@@ -50,6 +51,7 @@ class PonsSourceMembership:
         try:
             if os.getpid()!=self.pid or self.owner.pid!=self.pid:
                 self.unavailable('SOURCE_CHANGED');return
+            self.owner.require_owner()
             function()
         except Exception:self.unavailable()
         finally:self.lock.release()
@@ -77,22 +79,71 @@ class PonsSourceMembership:
             return _FactoryCommit(self,fields)
         except Exception:self.unavailable();return None
 
-    def resolved(self,prep,event,token,disposition):
+    def resolved(self,prep,event,token,disposition,present,plan):
         if self.loss:return None
         try:
             if getattr(prep.history,'economic_cohorts',None) is not self.owner:
                 raise ValueError('owner')
-            return _ResolutionCommit(self,(_identity(event),token,digest(disposition)))
+            from meme_machine.lanes.pons.pons_historical import POLICY
+            from meme_machine.lanes.pons.pons_natural_observation import ZERO
+            evidence=disposition['evidence'];terminal=disposition['disposition']
+            native_quote=evidence['record']['pairToken'].lower()==ZERO
+            if (terminal not in (None,'non_native_quote','strategy_horizon_expired')
+                    or disposition['event_identity']!=_identity(event)
+                    or evidence['block']!=int(event['blockNumber'],16)
+                    or evidence['block_hash']!=event['blockHash']
+                    or evidence['record']['token'].lower()!=token.lower()
+                    or terminal is None and present is not True
+                    or terminal=='non_native_quote' and native_quote
+                    or terminal=='strategy_horizon_expired' and (not native_quote
+                        or int(plan['target']['timestamp'],16)-evidence['at']<=POLICY['universe']['max_seconds_after_graduation'])):
+                raise ValueError('native_disposition')
+            return _ResolutionCommit(self,(_identity(event),token,digest([token,disposition,present])))
         except Exception:self.unavailable();return None
 
-    def expect_watches(self,history,rows):
+    def expect_watches(self,history,rows,*,replace=True):
         def apply():
             if getattr(history,'economic_cohorts',None) is not self.owner or len(rows)>MAX_MEMBERS:
                 raise ValueError('owner_or_bound')
             expected={r['id']:_watch_fields(r) for r in rows}
             if len(expected)!=len(rows):raise ValueError('duplicate')
-            self.expected=expected;self.watch_census=False
+            if replace:self.expected=expected
+            else:
+                if self.expected is None or len(set(self.expected)|set(expected))>MAX_MEMBERS:
+                    raise ValueError('watch_expected_bound')
+                self.expected.update(expected)
+            self.watch_census=False
         self._apply(apply)
+
+    def broad_packet(self,scout,rpc,first,last,headers,previous,rows):
+        if self.loss:return None
+        try:
+            if getattr(scout.plane,'economic_cohorts',None) is not self.owner or len(rows)>MAX_ROWS:
+                raise ValueError('owner_or_bound')
+            endpoint=getattr(rpc,'endpoint',None)
+            provider=getattr(rpc,'provider_fingerprint',None)
+            if provider is None:
+                if not isinstance(endpoint,str) or not endpoint:raise ValueError('provider_identity')
+                from meme_machine.lanes.pons.provider_admission import fingerprint
+                provider=fingerprint(endpoint)
+            if not isinstance(provider,str) or not 0<len(provider)<=256:raise ValueError('provider_identity')
+            head=headers[0]
+            if (type(first) is not int or type(last) is not int or not 0<=first<=last
+                    or int(head['number'],16)!=last or not isinstance(head['hash'],str)
+                    or not 0<len(head['hash'])<=128):raise ValueError('range')
+            prior=None if previous is None else (previous['block'],previous['hash'])
+            identities=tuple((_identity(event),digest(event)) for event in rows)
+            query=tuple([scout.launch,scout.graduation,*scout.curve_topics])
+            return _BroadCommit(self,(first,last,head['hash'],prior,digest([provider,query]),len(rows),digest(identities)))
+        except Exception:self.unavailable();return None
+
+    def watch_packet(self,scout,row,inserted):
+        if self.loss or not inserted:return None
+        try:
+            if getattr(scout.plane,'economic_cohorts',None) is not self.owner:
+                raise ValueError('watch_owner')
+            return _WatchCommit(self,(row['id'],_watch_fields(row),True))
+        except Exception:self.unavailable();return None
 
     def seal_watches(self):
         def apply():
@@ -121,13 +172,20 @@ class PonsSourceMembership:
                 broad_nomination_chain_sha256=None if broad is None else broad[4],
                 broad_nomination_contract='RAW_VARIANTS_NOT_CANONICAL_ECONOMICS',
                 expected_watch_members=None if self.expected is None else len(self.expected),
-                committed_watch_members=len(self.watches),watch_census_complete=self.watch_census)
+                committed_watch_members=len(self.watches),watch_census_complete=self.watch_census,
+                owner_provenance='CONFIGURED_PROVIDER_DOMAIN_ONLY' if self.owner.native_owner is None
+                    else 'SEALED_SUPERVISOR_PONS_OWNER_NOT_CANONICAL_SOURCE_GENERATION',
+                watch_contract='AUTHENTICATED_NATIVE_ROW_REGISTRATION_NOT_ALL_CURRENT_OR_HELD_MEMBERSHIP')
         finally:self.lock.release()
 
 
 def _watch_fields(row):
     grad=row['graduation'];token=row['id'];pool=grad['transition']['market']
-    if not 0<len(token)<=64 or not 0<len(pool)<=128:raise ValueError('watch_bound')
+    if (type(token) is not str or not 0<len(token)<=64 or type(pool) is not str or not 0<len(pool)<=128
+            or type(grad['block']) is not int or grad['block']<0
+            or type(grad['block_hash']) is not str or not 0<len(grad['block_hash'])<=128
+            or type(grad['at']) not in (int,float) or not math.isfinite(grad['at']) or grad['at']<0):
+        raise ValueError('watch_bound')
     return (pool,grad['block'],grad['block_hash'],grad['at']+7*86400)
 
 
@@ -140,7 +198,7 @@ class _Commit:
 class _FactoryCommit(_Commit):
     def apply(self):
         owner=self.owner;domain=owner.domain
-        if domain is None:owner.unavailable();return
+        if domain is None:return
         provider,policy,chain,previous,end,count,checksum,rows=self.fields
         if (domain.binding!=owner.owner.source or domain.pid!=os.getpid()
                 or (provider,policy,chain)!=(domain.provider,domain.policy,domain.chain)
@@ -186,27 +244,31 @@ class _WatchCommit(_Commit):
         # A prior DB row not witnessed in this process cannot be upgraded by an
         # INSERT OR IGNORE no-op. Existing read_pools rows supply that later.
         if not inserted and owner.watches.get(token)!=fields:return
-        owner.watches[token]=fields;owner.native_commits+=1
+        owner.watches[token]=fields;owner.native_commits+=1;owner.watch_census=False
 
 
 class PonsPlaneObserver:
     """Fixed typed fanout of the SAME native Plane COMMIT result."""
     def __init__(self,owner):self.owner=owner;self.frame=None;self.closed=False
     def begin(self):
-        if self.closed or self.frame is not None:self.owner.unavailable();return None
-        self.frame=[];return self.frame
+        try:
+            if self.closed or self.frame is not None:self.owner.unavailable();return None
+            self.frame=[];return self.frame
+        except Exception:self.owner.unavailable();return None
     def stage(self,stage):
         if (type(stage) not in (_BroadCommit,_WatchCommit) or stage.owner is not self.owner
                 or self.frame is None or len(self.frame)>=MAX_STAGES):
             self.owner.unavailable('BOUND');return
         self.frame.append(stage)
     def finish(self,frame,*,committed,uncertain=False):
-        if self.closed or frame is None or self.frame is not frame or uncertain:
-            self.owner.unavailable('UNCONFIRMED_COMMIT');self.frame=None;return
-        self.frame=None
-        if committed:
-            for stage in frame:stage.committed()
-        elif frame:self.owner.unavailable('ROLLBACK')
+        try:
+            if self.closed or frame is None or self.frame is not frame or uncertain:
+                self.owner.unavailable('UNCONFIRMED_COMMIT');self.frame=None;return
+            self.frame=None
+            if committed:
+                for stage in frame:stage.committed()
+            elif frame:self.owner.unavailable('ROLLBACK')
+        except Exception:self.owner.unavailable()
     def close(self):
         if self.frame is not None:self.owner.unavailable('UNCONFIRMED_COMMIT')
         self.frame=None;self.closed=True
@@ -220,9 +282,11 @@ def plane_observer(plane):
 def bind_plane(plane):
     owner=getattr(getattr(plane,'economic_cohorts',None),'membership',None)
     if owner is None:return
-    observer=plane_observer(plane)
-    if observer is None:plane._pons_membership_observer=PonsPlaneObserver(owner)
-    elif observer.owner is not owner:owner.unavailable()
+    try:
+        observer=plane_observer(plane)
+        if observer is None:plane._pons_membership_observer=PonsPlaneObserver(owner)
+        elif observer.owner is not owner:owner.unavailable()
+    except Exception:owner.unavailable()
 
 
 def history_stage(history,stage):
@@ -230,3 +294,50 @@ def history_stage(history,stage):
     frames=getattr(history,'_economic_frames',None)
     if not frames or len(frames[-1])>=MAX_STAGES:stage.owner.unavailable('BOUND');return
     frames[-1].append((stage,None,None,None))
+
+
+def history_rollback(frame):
+    """Discard only this fixed observer's staged metadata on native rollback."""
+    for stage,_,_,_ in frame:
+        if type(stage) in (_FactoryCommit,_ResolutionCommit):
+            try:stage.owner.unavailable('ROLLBACK')
+            except Exception:pass
+
+
+def source_invalidated(scout):
+    observer=plane_observer(scout.plane)
+    if observer is not None:
+        try:observer.owner.unavailable('SOURCE_CHANGED')
+        except Exception:pass
+
+
+def factory_packet(prep,evidence,events):
+    owner=getattr(getattr(prep.history,'economic_cohorts',None),'membership',None)
+    if owner is not None:
+        try:history_stage(prep.history,owner.factory_packet(prep,evidence,events))
+        except Exception:owner.unavailable()
+
+
+def resolved(prep,event,token,disposition,present,plan):
+    owner=getattr(getattr(prep.history,'economic_cohorts',None),'membership',None)
+    if owner is not None:
+        try:history_stage(prep.history,owner.resolved(prep,event,token,disposition,present,plan))
+        except Exception:owner.unavailable()
+
+
+def broad_packet(scout,rpc,first,last,headers,previous,rows):
+    observer=plane_observer(scout.plane)
+    if observer is not None:
+        try:
+            stage=observer.owner.broad_packet(scout,rpc,first,last,headers,previous,rows)
+            if stage is not None:observer.stage(stage)
+        except Exception:observer.owner.unavailable()
+
+
+def watch_packet(scout,row,inserted):
+    observer=plane_observer(scout.plane)
+    if observer is not None:
+        try:
+            stage=observer.owner.watch_packet(scout,row,inserted)
+            if stage is not None:observer.stage(stage)
+        except Exception:observer.owner.unavailable()

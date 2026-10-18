@@ -48,6 +48,8 @@ class PonsFactoryCensus:
                 self.value=self._unknown('OWNER_CHANGED');return
             self.active=None
             self.value=replay.result() if success else self._unknown('NATIVE_REPLAY_FAILED')
+            if self.value['source_complete']:
+                self.owner.membership.install_factory(replay,self.value)
         except Exception:self.value=self._unknown('MEASUREMENT_FAILED')
         finally:self.lock.release()
 

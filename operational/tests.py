@@ -7,6 +7,7 @@ FAST=[
  'tests.test_pons_economic_cohort',
  'tests.test_economic_cohort_measurement',
  'tests.test_pons_factory_census',
+ 'tests.test_pons_source_membership',
  'tests.test_operational_candidate_source_guard',
  'tests.test_native_failure_attribution',
  'tests.test_namespace_mapping_errno',

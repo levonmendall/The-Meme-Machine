@@ -501,6 +501,9 @@ class Preparation:
                 p = self.history.get_meta(self.plan_key)
                 p['ready'] = False
                 self.history.set_meta(self.plan_key, p)
+                if kind==self.population_kind:
+                    from meme_machine.runtime.pons_source_membership import factory_packet
+                    factory_packet(self,evidence,all_logs)
             return True
         except (BoundaryError, ValueError) as exc:
             reason = str(exc)
@@ -721,11 +724,12 @@ class Preparation:
                   or int(p['target']['timestamp'], 16) - evidence['at'] > POLICY['universe']['max_seconds_after_graduation']):
             disposition = 'strategy_horizon_expired'
         with self.history.transaction():
-            self.history.set_meta('pons_historical_identity:' + token, dict(
+            identity_disposition=dict(
                 nomination=ident, event_identity=event_id(event), curve=curve, evidence=evidence,
                 launch=launch,
                 disposition=disposition, category='STRUCTURAL_INELIGIBLE' if disposition == 'non_native_quote'
-                else 'EXPIRED_BY_STRATEGY_HORIZON' if disposition else 'PENDING_HISTORY'))
+                else 'EXPIRED_BY_STRATEGY_HORIZON' if disposition else 'PENDING_HISTORY')
+            self.history.set_meta('pons_historical_identity:' + token, identity_disposition)
             if disposition is None:
                 old = self.history.get(token)
                 if old and old['graduation'] != evidence:
@@ -745,6 +749,8 @@ class Preparation:
                         points=[(evidence['at'], str(price_index(transition['initialization_sqrt_price_x96'], token, key)))])
             self.history.graduation_complete(ident)
             self.history.set_meta(pending_key,None)
+            from meme_machine.runtime.pons_source_membership import resolved
+            resolved(self,event,token,identity_disposition,True if disposition is None else None,p)
         self.last_authenticated_candidate=token
         return True
 

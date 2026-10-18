@@ -186,6 +186,10 @@ class Runtime:
         if scout_path is not None:
             from .pons_natural_observation import MarketScout
             self.scout=MarketScout(self.plane)
+        if economic_cohorts is not None:
+            self.plane.economic_cohorts=economic_cohorts
+            from meme_machine.runtime.pons_source_membership import bind_plane
+            bind_plane(self.plane)
         self.attempts=Attempts(self.plane)
         self.rpc=None;self.current=None;self.last_error=None
         # A flat no-allocation scope has no held observation to shadow. It must
@@ -310,12 +314,20 @@ class Runtime:
         if self.history.pending_graduations():
             with evidence_work('canonical_verification'):worker.authenticate_step()
         if not getattr(self,'scout_registered',False):
-            for row in self.history.rows():self.scout.register_pool(row)
+            native_rows=self.history.rows()
+            membership=getattr(getattr(self,'economic_cohorts',None),'membership',None)
+            if membership is not None:membership.expect_watches(self.history,native_rows)
+            for row in native_rows:self.scout.register_pool(row)
+            if membership is not None:membership.seal_watches()
             self.scout_registered=True
         token=getattr(worker,'last_authenticated_candidate',None)
         if token is not None:
             row=self.history.get(token)
-            if row:self.scout.register_pool(row)
+            if row:
+                membership=getattr(getattr(self,'economic_cohorts',None),'membership',None)
+                if membership is not None:membership.expect_watches(self.history,[row],replace=False)
+                self.scout.register_pool(row)
+                if membership is not None:membership.seal_watches()
             worker.last_authenticated_candidate=None
         self.historical_readiness=dict(ready=True,mode='shared_public_scout',
             qualification_authority=False,market_wide_coverage_required=False,

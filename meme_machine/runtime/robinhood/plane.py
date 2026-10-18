@@ -253,6 +253,11 @@ class Plane:
             schema_token=self._protection_schema_version
             observer=getattr(self,'_native_commit_observer',None)
             frame=observer.begin() if observer is not None else None
+            membership=getattr(self,'_pons_membership_observer',None)
+            if membership is not None:
+                from meme_machine.runtime.pons_source_membership import plane_observer
+                membership=plane_observer(self)
+            membership_frame=membership.begin() if membership is not None else None
             try:
                 yield
                 changed=self.db.total_changes != before
@@ -268,9 +273,12 @@ class Plane:
                         rolled_back=True
                 if observer is not None:observer.finish(frame,committed=False,
                     uncertain=not rolled_back)
+                if membership is not None:membership.finish(membership_frame,committed=False,
+                    uncertain=not rolled_back)
                 raise
             else:
                 if observer is not None:observer.finish(frame,committed=changed)
+                if membership is not None:membership.finish(membership_frame,committed=changed)
 
     def _row(self, key):
         row=self.db.execute('SELECT * FROM candidates WHERE id=?',(key,)).fetchone()
@@ -733,6 +741,11 @@ class Plane:
             self._closed=True;self._protection_cache=None;self.db.close()
             observer=getattr(self,'_native_commit_observer',None)
             if observer is not None:observer.close()
+            membership=getattr(self,'_pons_membership_observer',None)
+            if membership is not None:
+                from meme_machine.runtime.pons_source_membership import plane_observer
+                membership=plane_observer(self)
+                if membership is not None:membership.close()
 
 
 def native_ledger_locator(lane,ledger_path):

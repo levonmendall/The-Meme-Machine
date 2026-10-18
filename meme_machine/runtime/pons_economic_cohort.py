@@ -18,20 +18,35 @@ MAX_PENDING_ROWS=64*256
 
 
 class PonsEconomicCohorts:
-    def __init__(self,run_identity,endpoint):
+    def __init__(self,run_identity,endpoint,*,native_owner=None):
         from .robinhood.pons import shared_evidence_domain
         self.source=shared_evidence_domain(endpoint)
+        self.native_owner=native_owner
+        if native_owner is not None:
+            from meme_machine.operational.normal_pons_boot import require_pons_owner_context
+            require_pons_owner_context(native_owner)
         self.pid=os.getpid();self.lock=threading.Lock();self.pending={}
         self.group=threading.local()
         self.meter=EconomicCohorts('pons',dict(source_pid=self.pid,
-            run_identity=run_identity,source_generation=self.source,
+            run_identity=run_identity,configured_provider_domain=self.source,
+            source_generation='UNESTABLISHED',
+            source_generation_contract='NOT_ISSUED_BY_PROVIDER_DOMAIN',
+            native_owner_identity_sha256='UNISSUED' if native_owner is None else native_owner.identity_sha256,
             consumer_contract='current_curve_history_and_survivor_v4_history'))
         self.publications=dict(current_curve_history=0,survivor_v4_history=0)
         from .pons_factory_census import PonsFactoryCensus
         self.factory=PonsFactoryCensus(self)
+        from .pons_source_membership import PonsSourceMembership
+        self.membership=PonsSourceMembership(self)
 
     def unavailable(self,reason='NATIVE_BOUNDARY_UNAVAILABLE'):
         self.meter.unavailable(reason)
+
+    def require_owner(self):
+        if self.pid!=os.getpid():raise ValueError('native_owner_process_changed')
+        if self.native_owner is not None:
+            from meme_machine.operational.normal_pons_boot import require_pons_owner_context
+            require_pons_owner_context(self.native_owner)
 
     def _stage(self,consumer,scope,lower,upper,end_hash,raw,rows,available):
         if self.meter.loss:return None
@@ -117,12 +132,17 @@ class PonsEconomicCohorts:
         finally:self.lock.release()
 
     def snapshot(self):
+        try:self.require_owner()
+        except Exception:self.unavailable()
         result=self.meter.snapshot()
         if not self.lock.acquire(False):
             result.update(state='UNKNOWN',reason='CONTENTION');return result
         try:
             result.update(native_history_transactions=dict(self.publications),
                 factory_domain=self.factory.snapshot(),
+                source_membership=self.membership.snapshot(),
+                native_owner_provenance='UNISSUED' if self.native_owner is None else 'SEALED_SUPERVISOR_PONS_OWNER_ONLY',
+                native_owner_identity_sha256=None if self.native_owner is None else self.native_owner.identity_sha256,
                 configured_pool_universe='UNKNOWN',native_generation_dispositions='UNEXERCISED',
                 current_held_v4_history='UNEXERCISED',source_full_ack='NOT_A_PONS_CONTRACT')
             return result
@@ -173,6 +193,10 @@ def survivor_transaction(history):
     try:
         yield
     except BaseException:
+        try:
+            from .pons_source_membership import history_rollback
+            history_rollback(frame)
+        except Exception:pass
         owner.unavailable('TRANSACTION_FAILED');raise
     else:
         try:
@@ -275,6 +299,7 @@ def validated(owner,endpoint):
     try:
         from .robinhood.pons import shared_evidence_domain
         if type(owner) is PonsEconomicCohorts and owner.pid==os.getpid() and owner.source==shared_evidence_domain(endpoint):
+            owner.require_owner()
             return owner
         owner.unavailable()
     except Exception:
