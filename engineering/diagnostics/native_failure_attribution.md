@@ -121,3 +121,12 @@ retargeted explicitly. The coupled130 source-proof/attribution/child/parent/
 upload/entry/bridge cases passed in28.330s without skips under the official
 FAST driver. This is offline correction evidence; the first-fault-aware actual
 hosted copied-main result remains pending.
+
+Independent review found a second unsent-admission deadline check still inside
+the quarantine catch after JSON encoding. It now runs outside both catches,
+strictly before socket mutation; malformed local shapes retain the original
+fail-closed catch and actual send/read failures retain shutdown. A controlled
+regression expires the original deadline during encoding while another original
+parent HTTP attempt remains owned, proves no new bytes/sequence/purchase or
+channel abort, then drains the original content normally. All21 affected
+capacity and original child-transport cases passed in2.860s without skips.

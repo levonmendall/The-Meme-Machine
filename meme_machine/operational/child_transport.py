@@ -226,7 +226,15 @@ class ChildChannel:
                 body = json.dumps(dict(session=self.session, seq=seq, verb=verb, **fields),
                     separators=(',', ':'), allow_nan=False).encode()
                 _require(0 < len(body) <= MAX_REQUEST, 'child_request_bound')
-                self.socket.settimeout(min(1.0, self._remaining(end,draining=draining)))
+            except BaseException as error:
+                self.abort(error,phase='CONTROL_EXCHANGE')
+                raise
+            # Encoding or descheduling may consume the remaining admission
+            # window. This final check is still before any socket mutation or
+            # send; malformed shapes above retain their fail-closed behavior.
+            remaining=self._remaining(end,draining=draining)
+            try:
+                self.socket.settimeout(min(1.0, remaining))
                 self.socket.sendall(struct.pack('!I', len(body)) + body)
                 response = self._read(end,draining=draining)
                 _require(type(response) is dict and response.get('session') == self.session

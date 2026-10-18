@@ -395,6 +395,40 @@ class ParentCapacityChainTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(client.sequence,before);self.assertFalse(client.closed)
         await asyncio.to_thread(ChildRPCPort(client,'pons').demand,['eth_chainId'])
 
+    async def test_encoding_deadline_refusal_is_unsent_while_another_parent_attempt_is_owned(self):
+        from tests import test_child_transport as fixture
+        from meme_machine.operational import child_transport
+        client,parent=await fixture.ChildTransportTests.connected(self)
+        gate=asyncio.Event();execute=self.http.execute
+        async def held(attempt):
+            await gate.wait()
+            return await execute(attempt)
+        with patch.object(self.http,'execute',held):
+            accepted=await asyncio.to_thread(client.request,'http_begin',alias='pump',
+                calls=[dict(method='getSlot',params=[])],batch=False)
+            before=client.sequence;deadline=time.monotonic()+.05
+            encode=json.dumps
+            def expired_after_encoding(value,*args,**kwargs):
+                encoded=encode(value,*args,**kwargs)
+                if type(value) is dict and value.get('verb')=='demand':
+                    # Actual time, in the caller thread, expires strictly after
+                    # initial admission and before the final pre-send check.
+                    threading.Event().wait(max(0,deadline-time.monotonic())+.01)
+                return encoded
+            try:
+                with patch.object(child_transport.json,'dumps',expired_after_encoding):
+                    with self.assertRaisesRegex(child_transport.ChildTransportFailure,'child_transport_stopped'):
+                        await asyncio.to_thread(client.request,'demand',alias='pons',
+                            methods=['eth_chainId'],deadline=deadline)
+                self.assertEqual(client.sequence,before)
+                self.assertFalse(client.closed);self.assertIsNone(client.abort_snapshot())
+                self.assertEqual(parent.contents[accepted['token']].status,'running')
+                self.assertEqual(self.budget.snapshot()['http_attempts'],'0')
+            finally:gate.set()
+            await asyncio.to_thread(client._content,accepted,deadline=time.monotonic()+2)
+        self.assertFalse(client.closed);self.assertFalse(parent.contents)
+        self.assertIsNone(parent.first_fault())
+
     async def test_partial_control_write_quarantines_and_retains_first_private_safe_abort(self):
         import socket
         from tests import test_child_transport as fixture
