@@ -159,6 +159,12 @@ class Supervisor:
             raise RuntimeError('one_PAPER_supervisor_already_running') from None
         database=self.root/'portfolio.sqlite'
         try:
+            if not self.offline and self.admission in ('NORMAL','AUTONOMY'):
+                # Root seals the actual systemd/kernel instance after start.
+                # Wait and independently replay under original ownership before
+                # selected()/connection() can open a financial runtime writer.
+                from .normal_boot import consume_normal_boot
+                self.normal_boot=consume_normal_boot(self,cancelled=lambda:self.stop_requested)
             from meme_machine.shared_capital.runtime import selected,connection
             shared=selected(database)
             if not self.offline and self.admission=='BOOTSTRAP' and shared is None:
@@ -208,6 +214,8 @@ class Supervisor:
                     require_flat_portfolio(account.snapshot())
                 self.pause_proof=self._assert_paused_lanes_clear(account)
         except BaseException:
+            context=getattr(self,'normal_boot',None)
+            if context is not None:context.close()
             self.lock.close();self.lock=None
             raise
         if self.offline:_atomic_json(self.root/'OFFLINE_ONLY.json',dict(offline=True,market_calls=0,epoch_id=self.epoch))
