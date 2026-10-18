@@ -7,6 +7,7 @@ closed stage never means the source, all consumers or protection are complete.
 from collections import Counter,deque
 import json
 import math
+import os
 import threading
 import time
 
@@ -18,6 +19,8 @@ MAX_ROWS=5000
 MAX_BYTES=8*1024*1024
 MAX_COHORTS=8192
 MAX_SUMMARIES=16
+NATIVE_ORDER='pump_current_outbox_v1'
+WINDOW_BYTES=128
 STAGES=('DISCOVERY_INPUT','NATIVE_PREPARATION','NATIVE_EVALUATION','NATIVE_WORK_DISPOSITION','HELD_PROTECTION')
 TERMINAL={
     'DISCOVERY_INPUT':('NATIVE_FILTERED','POLICY_FILTERED','COALESCED_NOT_DUE','REQUESTED','HISTORY_COMMITTED'),
@@ -55,11 +58,31 @@ def project_native_work(value):
             result[key]=integer(value[key])
         result['bounds']=dict(active=MAX_ACTIVE,units=MAX_UNITS,rows=MAX_ROWS,
             metadata_bytes=MAX_BYTES,cohorts=MAX_COHORTS,summaries=MAX_SUMMARIES)
+        ordered=value.get('native_order')
+        if ordered is not None:
+            if (type(ordered) is not dict or set(ordered)!={'domain','binding_sha256',
+                    'highest_issued_position','issued_windows','retained_closed_keys'}
+                    or ordered['domain']!=NATIVE_ORDER or ordered['binding_sha256']!=result['binding_sha256']
+                    or type(ordered['retained_closed_keys']) is not int
+                    or ordered['retained_closed_keys']!=0):raise ValueError('native_order')
+            issued=integer(ordered['issued_windows']);highest=ordered['highest_issued_position']
+            if (issued==0 and highest is not None or issued and (type(highest) is not int
+                    or not issued<=highest<=MAX_POSITION)):raise ValueError('native_order')
+            result['native_order']=dict(ordered,issued_windows=issued)
+            del result['bounds']['cohorts'];result['bounds']['retained_closed_keys']=0
         allowed=(*TERMINAL[value['stage']],*PENDING)
+        native_positions=set()
         def row(item,closed):
             if type(item) is not dict:raise ValueError('row')
             answer={key:_hash(item[key]) for key in ('cohort_sha256','frontier_sha256','expected_sha256')}
             answer['expected_units']=integer(item['expected_units'])
+            if ordered is not None:
+                position=integer(item['native_window_position'])
+                if (position==0 or position>highest or position in native_positions
+                        or answer['cohort_sha256']!=checksum([result['binding_sha256'],NATIVE_ORDER,
+                            position,answer['frontier_sha256']])):raise ValueError('native_order')
+                native_positions.add(position)
+                answer['native_window_position']=position
             dispositions=item['dispositions']
             if type(dispositions) is not dict or len(dispositions)>len(allowed):raise ValueError('dispositions')
             answer['dispositions']={name:integer(count) for name,count in dispositions.items() if name in allowed}
@@ -97,6 +120,8 @@ def project_native_work(value):
                 or result['expected_units']>MAX_UNITS or result['metadata_bytes']>MAX_BYTES):
             raise ValueError('population')
         result['contract']='NATIVE_STAGE_COUNTS_AND_DIGESTS_WITH_EXPLICIT_SAMPLES_NOT_ALL_CONSUMER_COMPLETION'
+        if ordered is not None and issued!=result['completed_cohorts']+result['active_cohorts']:
+            raise ValueError('native_order')
         result['full_market_rate']='UNKNOWN_REQUIRES_BOUND_SOURCE_AND_ALL_NATIVE_STAGES'
         if len(json.dumps(result,allow_nan=False).encode())>8192:raise ValueError('bound')
         return result
@@ -104,7 +129,7 @@ def project_native_work(value):
 
 
 class NativeWorkCohorts:
-    def __init__(self,binding,stage,*,clock=time.monotonic):
+    def __init__(self,binding,stage,*,clock=time.monotonic,native_order=None):
         if type(binding) is not dict or not binding or len(binding)>16 or stage not in STAGES:
             raise ValueError('native_work_binding')
         detached={}
@@ -115,6 +140,16 @@ class NativeWorkCohorts:
             elif type(value) is not int or not 0<=value<=MAX_POSITION:raise ValueError('native_work_binding')
             detached[key]=value
         self.binding=checksum(detached);self.stage=stage;self.clock=clock
+        if native_order is not None:
+            required=('owner_pid','owner_tid','owner_instance','source_identity_sha256',
+                'private_owner_sha256','epoch_sha256','policy_sha256','regime')
+            if (native_order!=NATIVE_ORDER or any(key not in binding for key in required)
+                    or binding['owner_pid']!=os.getpid() or binding['owner_tid']!=threading.get_native_id()
+                    or binding['regime']!='pump_current'):
+                raise ValueError('native_work_order')
+            for key in ('source_identity_sha256','private_owner_sha256','epoch_sha256','policy_sha256'):_hash(binding[key])
+        self.native_order=native_order;self.native_owner=(os.getpid(),threading.get_native_id())
+        self.native_highest=None;self.native_issued=0
         self.lock=threading.Lock();self.loss=None;self.active={};self.seen={}
         self.units=0;self.bytes=0;self.completed=0;self.evictions=0;self.chain='0'*64
         self.closed=deque(maxlen=MAX_SUMMARIES)
@@ -128,9 +163,15 @@ class NativeWorkCohorts:
     def _apply(self,operation):
         if self.loss:return
         if not self.lock.acquire(False):self.loss='CONTENTION';return
-        try:operation()
+        try:
+            self._native_check()
+            operation()
         except Exception:self.unavailable()
         finally:self.lock.release()
+
+    def _native_check(self):
+        if self.native_order is not None and self.native_owner!=(os.getpid(),threading.get_native_id()):
+            raise ValueError('native_owner')
 
     def _now(self):
         value=self.clock()
@@ -139,16 +180,36 @@ class NativeWorkCohorts:
         self.last_clock=value
         return value
 
-    def begin(self,cohort_sha256,frontier_sha256):
+    def begin(self,cohort_sha256,frontier_sha256,*,native_window=None):
         def apply():
             cid=_hash(cohort_sha256);frontier=_hash(frontier_sha256)
+            position=None
+            if self.native_order is not None:
+                if (type(native_window) is not tuple or len(native_window)!=4
+                        or native_window[:2]!=(self.binding,self.native_order)
+                        or native_window[3]!=frontier or type(native_window[2]) is not int
+                        or not 0<native_window[2]<=MAX_POSITION):raise ValueError('native_window')
+                position=native_window[2]
+                if cid!=checksum([self.binding,self.native_order,position,frontier]):
+                    raise ValueError('native_window_identity')
+            elif native_window is not None:raise ValueError('native_window')
             if cid in self.seen:raise ValueError('reopen')
             if cid in self.active:
-                if self.active[cid]['frontier']!=frontier:raise ValueError('conflict')
+                if (self.active[cid]['frontier']!=frontier
+                        or self.active[cid].get('position')!=position):raise ValueError('conflict')
                 return
-            if len(self.active)>=MAX_ACTIVE or len(self.seen)+len(self.active)>=MAX_COHORTS:
+            if (self.native_order is not None and (self.native_highest is not None
+                    and position<=self.native_highest or self.native_issued>=MAX_POSITION)):
+                raise ValueError('stale_window')
+            if (len(self.active)>=MAX_ACTIVE or self.native_order is None
+                    and len(self.seen)+len(self.active)>=MAX_COHORTS
+                    or self.native_order is not None and self.bytes+WINDOW_BYTES>MAX_BYTES):
                 self.unavailable('BOUND');return
-            self.active[cid]=dict(frontier=frontier,expected={},outcomes={},seal=None,first=self._now())
+            row=dict(frontier=frontier,expected={},outcomes={},seal=None,first=self._now(),position=position)
+            self._native_check()
+            self.active[cid]=row
+            if self.native_order is not None:
+                self.native_highest=position;self.native_issued+=1;self.bytes+=WINDOW_BYTES
         self._apply(apply)
 
     def expect(self,cohort_sha256,rows):
@@ -228,16 +289,23 @@ class NativeWorkCohorts:
             outcomes_sha256=checksum(sorted((key,*value[:3]) for key,value in row['outcomes'].items())),
             first_observed_monotonic=row['first'],completion_observed_monotonic=now,
             committed_units=sum(counts.get(key,0) for key in COMMITTED))
-        self.completed+=1;self.chain=checksum([self.chain,result]);self.seen[cid]=row['seal']
+        if self.native_order is not None:result['native_window_position']=row['position']
+        chain=checksum([self.chain,result])
+        if self.native_order is not None:
+            self._now();self._native_check()
+        self.completed+=1;self.chain=chain
+        if self.native_order is None:self.seen[cid]=row['seal']
         if len(self.closed)==MAX_SUMMARIES:self.evictions+=1
         self.closed.append(result)
-        self.units-=len(actual);self.bytes-=160*len(actual)+96*len(row['outcomes']);del self.active[cid]
+        self.units-=len(actual);self.bytes-=160*len(actual)+96*len(row['outcomes'])
+        if self.native_order is not None:self.bytes-=WINDOW_BYTES
+        del self.active[cid]
 
     def snapshot(self):
         if not self.lock.acquire(False):
             return dict(state='UNKNOWN',reason='CONTENTION',funding_authority=False)
         try:
-            return dict(schema='native-work-cohort-v1',binding_sha256=self.binding,stage=self.stage,
+            result=dict(schema='native-work-cohort-v1',binding_sha256=self.binding,stage=self.stage,
                 state='UNKNOWN' if self.loss else 'MEASURING',reason=self.loss,
                 contract='EXACT_NATIVE_TRAVERSAL_AND_STAGE_OUTCOMES_NOT_SOURCE_OR_ALL_CONSUMER_COMPLETION',
                 active_cohorts=len(self.active),expected_units=self.units,metadata_bytes=self.bytes,
@@ -246,7 +314,8 @@ class NativeWorkCohorts:
                 active=[dict(cohort_sha256=cid,frontier_sha256=row['frontier'],
                     expected_units=len(row['expected']),expected_sha256=checksum(tuple(sorted(row['expected'].items()))),
                     census_sealed=row['seal'] is not None,observed_units=len(row['outcomes']),
-                    dispositions=dict(sorted(Counter(value[0] for value in row['outcomes'].values()).items())))
+                    dispositions=dict(sorted(Counter(value[0] for value in row['outcomes'].values()).items())),
+                    **({'native_window_position':row['position']} if self.native_order is not None else {}))
                     for cid,row in sorted(self.active.items())],
                 completed_cohorts=self.completed,summary_evictions=self.evictions,cumulative_summary_sha256=self.chain,
                 closed=[dict(row,dispositions=dict(row['dispositions'])) for row in self.closed],
@@ -254,4 +323,11 @@ class NativeWorkCohorts:
                     cohorts=MAX_COHORTS,summaries=MAX_SUMMARIES),
                 full_market_rate='UNKNOWN_REQUIRES_BOUND_SOURCE_AND_ALL_NATIVE_STAGES',
                 historical_completion=False,readiness_authority=False,funding_authority=False)
+            if self.native_order is not None:
+                result['native_order']=dict(domain=self.native_order,binding_sha256=self.binding,
+                    highest_issued_position=self.native_highest,issued_windows=self.native_issued,
+                    retained_closed_keys=len(self.seen))
+                del result['bounds']['cohorts'];result['bounds']['retained_closed_keys']=0
+            self._native_check()
+            return result
         finally:self.lock.release()
