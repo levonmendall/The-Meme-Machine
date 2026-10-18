@@ -1,5 +1,128 @@
 # Pump restoration reference acquisition
 
+## EA coherent-capture successor
+
+The current correction starts from the actual installed application
+`ea7221c3d858ffa8799cd02bfa83a576906f6c21`. It preserves the original
+25ms cooperative source-snapshot cutoff and every existing page, byte,
+cancellation, canonical-reference and archive guard. The older component and its
+receipts below remain historical evidence, not measurements of this successor.
+
+### Actual failure and accounting
+
+Combined run `39095028426`, retained in
+`/workspace/recovery-evidence/ea7221-native-forensics-39096250221.json`, restored
+398,937 references across 14,796 candidates. Restoration took 627.220235s;
+candidate event acquisition took 609.814488s. Of 9,790 source groups, 3,358
+metadata operations failed; 327,293 references (82.04%) subsequently used the
+original scalar path. Every recorded fallback was source snapshot expiry.
+
+The old metadata `fetchall` had to finish the entire admitted group before any
+capture could survive. Expiry discarded its partial work and caused all group
+references to repeat acquisition through scalar reads. A source snapshot already
+ended before decoding or consumer yields; it did not span native consumer work.
+
+Operation SQL is charged to the innermost active recorder. Parent-only selected
+SQL was 260.512365s; acquisition-child selected SQL adds 216.444168s. Thus total
+selected SQL was 476.956533s, leaving 132.857955s outside selected SQL in the
+609.814488s event span. Adding child wall time to parent wall time would double
+count their nesting. Whole-device pressure and concurrent Pons work were also
+observed; these costs do not identify exclusive lock or fsync causes.
+
+### Complete captures across short leases
+
+Each unique source key now uses one first-match point query through the original
+canonical view. SQLite evaluates an `octet_length`/CASE byte guard before returning
+body/hash/archive. The actual captured body bytes are checked again. An explicit
+length/null distinction prevents an over-budget hot body from becoming a cold
+record. A cold row and its matching manifest are captured in the same snapshot.
+Every cursor closes before rollback. A missing row is recorded only after that
+key's genuine query EOF; an interrupted statement does not prove absence.
+
+Only complete captured units survive an expired lease. The next unchanged 25ms
+lease handles unresolved keys; metadata-only hints never authorize a later body.
+Each lease either completes at least one key or marks only the next unresolved
+key for the unchanged scalar path at its original reference turn. Consequently
+the existing at-most-128-key group makes finite progress without an additional
+retry budget or a longer lease. Cancellation is checked before expiry fallback.
+Retained encoded bytes are debited once per unique key; duplicate references
+still receive independent prepared outer values. All original chunk, per-reference
+path/hash, archive validation, error order and normal scalar readers remain.
+
+The one new fixed cost name is `pump.restore_source_capture`. Its calls count
+acquisition leases, not keys. Its wall span includes nested manifest work, while
+its selected SQL counters remain exclusive of nested recorders. The existing
+20-field reference-count contract is unchanged. Collector and protected reader
+already import the application's fixed `NAMES`, so no admin whitelist is added.
+
+### Matched native discriminator
+
+`/workspace/recovery-evidence/pump_restore_resumable_discriminator.py` compares
+the exact EA `_source_rows` Git object with this production port. Both use the
+same 1,024-reference native decoded corpus, original FULL history delivery/ACK,
+retirement/hot restoration and unchanged consumer tables. Each measured pass
+allows an independent original writer to make exactly 64 FULL CONTROL commits
+and eight PASSIVE checkpoints, with zero checkpoint busy results. Writes occur
+after acquisition at every sixteenth reference; this is not a claim of a writer
+running inside every read snapshot. A focused archival-race case separately
+changes a later row during an actual snapshot and authenticates it afresh.
+
+Final production-port receipt: `pump-restore-coherent-lease-ab.json` and `.log`
+under `/workspace/recovery-evidence/`. All four passes produced output SHA256
+`8dce60d17ad734213636ada29b43e884869ca8aa4a47a675d2a9a4d9413a1dd3`.
+
+| One matched pass | Exact EA | Coherent capture |
+| --- | ---: | ---: |
+| Warm wall seconds | 0.139133 | 0.160476 |
+| Warm thread CPU seconds | 0.082978 | 0.093821 |
+| Controlled-expiry wall seconds | 0.523972 | 0.451845 |
+| Controlled-expiry thread CPU seconds | 0.127122 | 0.099184 |
+| Controlled-expiry logical read bytes | 11,018,569 | 5,546,313 |
+| Controlled-expiry read syscalls | 2,694 | 1,358 |
+| Controlled-expiry scalar fallback reads | 1,024 | 0 |
+
+Expiry is produced by a disclosed 4ms delay in the real SQLite 1,000-VM progress
+callback, using the unchanged 25ms cutoff. It is synthetic latency, not AWS I/O.
+Physical reads were zero. The warmer case costs approximately 21ms more per
+1,024 references in this pair; it is not a neutral-wall result. The expiry case
+cuts repeated reads by about half and wall time by 13.8%. This does not establish
+a 300s startup, an AWS speedup or sustained market capacity. The prototype
+`pump-restore-resumable-final.json` and first per-key-recorder production-port
+`pump-restore-coherent-production-ab.json` are retained separately; their timing
+is not substituted for the final port.
+
+An independent existing SQLite 3.45.1 C API library executed 42 point-query cases
+over the exact native canonical view: Unicode/BLOB byte admission, actual NULL,
+cold, shared, archived, conflicting later duplicate and missing rows across six
+budgets. All matched original first-row semantics; every measured query had zero
+FULLSCAN_STEP and 31–80 VM steps. Receipt/probe:
+`pump-restore-coherent-sqlite345.json`, `.log`, and
+`pump_restore_coherent_sqlite345.py`. This is SQL compatibility, not a complete
+Python 3.45 runtime or AWS execution claim. Native Python fixtures used local
+SQLite 3.53.1. No provider or authoritative-state operation was performed.
+
+The final affected OPERATIONAL bundle passed all 121 cases in 11.867s without
+skips: reference pages, archive reuse, retained canonical references, candidate
+history, restore-cost attribution, reference-path walks and operation costs.
+Receipt: `pump-restore-coherent-final-focused.log`. Fault cases cover retained
+partial-page progress, incomplete cold capture, a genuine archival race between
+leases, cancellation overriding expiry, first-error order, actual byte admission,
+chunk corruption, detached mutable values and rollback before decode/yield.
+
+An earlier 181-case adjacent run is retained in
+`pump-restore-coherent-adjacent.log`, scratch `/tmp/mm-engineering-lt38p3sw`:
+two skips and two failures. One was the old fixed cost-name count (37), corrected
+to 38 for the new literal and covered by the final pass. The other was the
+unchanged diagnostic-access root prerequisite: this unprivileged environment
+refuses before reaching the test's expected unrelated-parent check. That test
+and runtime remain unchanged; it is not counted as passing here. An initial
+29-case port run also retained two obsolete query-shape assertions in
+`pump-restore-coherent-first-focused.log`, scratch `/tmp/mm-engineering-ycoaezvt`;
+the revised assertions demand coherent CASE captures and preserve all semantic
+checks. The subsequent 29-case and final 121-case bundles passed.
+
+## Historical bounded-page component
+
 This component is based on application `54dc2fa1e61c09c3c84749d550a4d06305561b54`.
 It reduces repeated canonical-source acquisition during the existing cancellable
 Pump startup pass. It does not prove AWS throughput, reconcile historical work,

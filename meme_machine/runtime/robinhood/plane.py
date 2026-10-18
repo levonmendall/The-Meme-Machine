@@ -47,6 +47,49 @@ def _schema_sql(value):
     return ' '.join(value.replace('IF NOT EXISTS ','').split()).rstrip(';') if isinstance(value,str) else None
 
 
+# These are invalidation witnesses, never cardinality or permission counters.
+# SQLite runs the triggers for plain/legacy connections as well as this owner.
+_EVIDENCE_RETENTION_SCHEMA={
+    'evidence_retention_revision':'''CREATE TABLE evidence_retention_revision(
+      namespace TEXT PRIMARY KEY NOT NULL,generation INTEGER NOT NULL
+      CHECK(typeof(generation)='integer' AND generation>=0))''',
+    'evidence_retention_revision_insert':'''CREATE TRIGGER evidence_retention_revision_insert
+      BEFORE INSERT ON evidence_retention_revision WHEN NEW.generation<>0
+        OR EXISTS(SELECT 1 FROM evidence_retention_revision WHERE namespace=NEW.namespace)
+      BEGIN SELECT RAISE(ABORT,'evidence_retention_revision_insert'); END''',
+    'evidence_retention_revision_update':'''CREATE TRIGGER evidence_retention_revision_update
+      BEFORE UPDATE ON evidence_retention_revision WHEN NEW.namespace<>OLD.namespace
+        OR typeof(NEW.generation)<>'integer' OR NEW.generation<>OLD.generation+1
+        OR NEW.generation<=OLD.generation
+      BEGIN SELECT RAISE(ABORT,'evidence_retention_revision_update'); END''',
+    'evidence_retention_revision_delete':'''CREATE TRIGGER evidence_retention_revision_delete
+      BEFORE DELETE ON evidence_retention_revision
+      BEGIN SELECT RAISE(ABORT,'evidence_retention_revision_delete'); END''',
+}
+for _table in ('evidence','receipt_obligations'):
+    for _kind,_rows in (('insert',('NEW',)),('delete',('OLD',)),('update',('OLD','NEW'))):
+        _name='evidence_retention_'+_table+'_'+_kind
+        _body=' '.join('INSERT INTO evidence_retention_revision(namespace,generation) '
+            'SELECT '+row+'.namespace,0 WHERE typeof('+row+".namespace)='text' AND NOT EXISTS("
+            'SELECT 1 FROM evidence_retention_revision WHERE namespace='+row+'.namespace); '
+            'UPDATE evidence_retention_revision SET generation=generation+1 '
+            'WHERE namespace='+row+'.namespace;' for row in _rows)
+        _EVIDENCE_RETENTION_SCHEMA[_name]=('CREATE TRIGGER '+_name+' AFTER '+_kind.upper()+
+            ' ON '+_table+' BEGIN '+_body+' END')
+
+_EVIDENCE_USAGE_TRIGGERS={
+    'receipt_cache_insert':'''CREATE TRIGGER IF NOT EXISTS receipt_cache_insert AFTER INSERT ON evidence
+          WHEN NEW.namespace LIKE 'pons:shared:%:receipt' BEGIN
+          INSERT INTO receipt_cache_usage VALUES(NEW.namespace,
+            length(CAST(NEW.key||NEW.body||NEW.provenance AS BLOB)),1)
+          ON CONFLICT(namespace) DO UPDATE SET bytes=bytes+excluded.bytes,records=records+1; END''',
+    'receipt_cache_delete':'''CREATE TRIGGER IF NOT EXISTS receipt_cache_delete AFTER DELETE ON evidence
+          WHEN OLD.namespace LIKE 'pons:shared:%:receipt' BEGIN
+          UPDATE receipt_cache_usage SET bytes=bytes-length(CAST(OLD.key||OLD.body||OLD.provenance AS BLOB)),
+            records=records-1 WHERE namespace=OLD.namespace; END''',
+}
+
+
 def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False)
 
@@ -92,6 +135,8 @@ class Plane:
         self._maintenance_stamp = None
         self._protection_cache = None
         self._protection_schema_version = None
+        self._evidence_retention_schema_version = None
+        self._evidence_retention_cache = OrderedDict()
         self._owner_thread = threading.get_ident()
         self._owner_pid = os.getpid()
         self._closed = False
@@ -176,12 +221,62 @@ class Plane:
             with self.transaction():
                 self.db.execute('INSERT INTO candidate_protection_revision SELECT 1,0 WHERE NOT EXISTS(SELECT 1 FROM candidate_protection_revision)')
                 self._protection_generation()
+            # Old/partial/foreign metadata cannot authorize a cached sweep.
+            # Installation is atomic and does not scan retained economic rows.
+            with self.lock:
+                self.db.execute('BEGIN IMMEDIATE')
+                names=tuple(_EVIDENCE_RETENTION_SCHEMA)
+                try:
+                    if not self.db.execute('SELECT 1 FROM sqlite_master WHERE name IN ('+
+                            ','.join('?' for _ in names)+') LIMIT 1',names).fetchone():
+                        for sql in _EVIDENCE_RETENTION_SCHEMA.values():self.db.execute(sql)
+                        self.db.execute('COMMIT')
+                    else:self.db.execute('ROLLBACK')
+                except BaseException:
+                    from meme_machine.runtime.sqlite_failure import preserving_cleanup
+                    with preserving_cleanup():
+                        if self.db.in_transaction:self.db.execute('ROLLBACK')
+                    raise
         except BaseException:
             from meme_machine.runtime.sqlite_failure import preserving_cleanup
             with preserving_cleanup():self.db.close()
             raise
         info=Path(self.path).stat();self._owner_inode=(info.st_dev,info.st_ino)
         self.recover()
+
+    def _evidence_retention_schema(self):
+        version=self.db.execute('PRAGMA schema_version').fetchone()[0]
+        if version!=self._evidence_retention_schema_version:
+            # Even an exact drop/recreate invalidates all previous tokens.
+            self._evidence_retention_cache.clear()
+            names=tuple(_EVIDENCE_RETENTION_SCHEMA)
+            actual={name:_schema_sql(sql) for name,sql in self.db.execute(
+                'SELECT name,sql FROM sqlite_master WHERE name IN ('+
+                ','.join('?' for _ in names)+") OR (type='trigger' AND tbl_name IN "
+                "('evidence','receipt_obligations','evidence_retention_revision'))",names)}
+            expected=dict(_EVIDENCE_RETENTION_SCHEMA,**_EVIDENCE_USAGE_TRIGGERS)
+            if actual!={name:_schema_sql(sql) for name,sql in expected.items()}:
+                return None
+        return version
+
+    def _evidence_retention_revision(self,namespace):
+        row=self.db.execute('SELECT generation FROM evidence_retention_revision WHERE namespace=?',
+            (namespace,)).fetchone()
+        generation=0 if row is None else row[0]
+        cached=self._evidence_retention_cache.get(namespace)
+        if (type(namespace) is not str or type(generation) is not int or not 0<=generation<2**63
+                or cached is not None and generation<cached[0]):
+            self._evidence_retention_cache.clear()
+            return None
+        return generation
+
+    @contextmanager
+    def _evidence_retention_transaction(self):
+        # total_changes does not count DDL: the original no-write transaction
+        # rolls such DDL back. Never publish its speculative schema version.
+        with self.lock:
+            committed_schema=self.db.execute('PRAGMA schema_version').fetchone()[0]
+            with self.transaction():yield committed_schema
 
     def _protection_generation(self):
         version=self.db.execute('PRAGMA schema_version').fetchone()[0]
@@ -249,7 +344,8 @@ class Plane:
                 yield
                 changed=self.db.total_changes != before
                 self.db.execute('COMMIT' if changed else 'ROLLBACK')
-                if not changed:self._protection_schema_version=schema_token
+                if not changed:
+                    self._protection_schema_version=schema_token
             except BaseException:
                 self._protection_schema_version=schema_token
                 from meme_machine.runtime.sqlite_failure import preserving_cleanup
@@ -285,8 +381,8 @@ class Plane:
             stamp = (self.db.total_changes, self.db.execute('PRAGMA data_version').fetchone()[0],active_scope_sql('key'))
             if self._maintenance_stamp == stamp and self._maintenance_at <= now < self._maintenance_due:
                 return
-        pending_protection=None
-        with self.transaction():
+        pending_protection=None;pending_evidence=OrderedDict()
+        with self._evidence_retention_transaction() as committed_evidence_schema:
             version = self.db.execute('PRAGMA data_version').fetchone()[0]
             evidence_evicted = False
             participating='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))'
@@ -295,14 +391,23 @@ class Plane:
             rolling_present = self.db.execute('SELECT 1 FROM rolling LIMIT 1').fetchone() is not None
             if rolling_present:
                 self.db.execute('DELETE FROM rolling WHERE at<? AND candidate IN (SELECT id FROM candidates WHERE '+active_sql('lane')+')',(self.clock()-86400,))
+            evidence_schema=self._evidence_retention_schema()
             for namespace in self.evidence_namespaces():
                 limit=8192 if namespace.endswith(':receipt') else 4096
+                revision=self._evidence_retention_revision(namespace) if evidence_schema is not None else None
+                scope=active_scope_sql('namespace')
+                if revision is not None and self._evidence_retention_cache.get(namespace)==(revision,scope,limit):
+                    continue
                 # Below the original retained-set bound there is no eligible
                 # eviction. Avoid rebuilding/sorting that entire set on every
                 # header/cache update while discovery and protection compete.
-                if self.db.execute('SELECT COUNT(*) FROM evidence WHERE namespace=?',(namespace,)).fetchone()[0]<=limit:
-                    continue
-                evidence_evicted |= self.db.execute('DELETE FROM evidence WHERE namespace=? AND key NOT IN (SELECT key FROM evidence WHERE namespace=? ORDER BY created DESC,key DESC LIMIT ?) AND NOT EXISTS(SELECT 1 FROM receipt_obligations o WHERE o.namespace=evidence.namespace AND o.key=evidence.key)',(namespace,namespace,limit)).rowcount > 0
+                if self.db.execute('SELECT COUNT(*) FROM evidence WHERE namespace=?',(namespace,)).fetchone()[0]>limit:
+                    evidence_evicted |= self.db.execute('DELETE FROM evidence WHERE namespace=? AND key NOT IN (SELECT key FROM evidence WHERE namespace=? ORDER BY created DESC,key DESC LIMIT ?) AND NOT EXISTS(SELECT 1 FROM receipt_obligations o WHERE o.namespace=evidence.namespace AND o.key=evidence.key)',(namespace,namespace,limit)).rowcount > 0
+                if revision is not None:
+                    after=self._evidence_retention_revision(namespace)
+                    if after is not None:
+                        pending_evidence[namespace]=(after,scope,limit)
+                        if len(pending_evidence)>128:pending_evidence.popitem(last=False)
             # Membership is small and freshly evaluated at the original age
             # cutoff. Protected rows need no payload/result hydration.
             keys=[row[0] for row in self.db.execute('SELECT id FROM candidates INDEXED BY candidate_retirement_membership WHERE '+active_sql('lane')+' AND pending=0 AND claim IS NULL AND observed<?',(now-86400,))]
@@ -334,6 +439,9 @@ class Plane:
             self.db.execute('INSERT INTO runtime VALUES(?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body WHERE runtime.body<>excluded.body',('window_history_archive',canonical(archive)))
             if pending_protection is not None and self._protection_generation()!=pending_protection[0]:
                 pending_protection=None
+            # Capture while the original transaction lock still excludes local
+            # writers. A later commit must not be certified by this sweep.
+            completed_stamp=(self.db.total_changes,version,active_scope_sql('key'))
         with self.lock:
             # Publish only after the original transaction exits normally. A
             # no-write ROLLBACK closes a committed read snapshot; a write path
@@ -341,6 +449,17 @@ class Plane:
             if pending_protection is not None and (self._protection_cache is None
                     or self._protection_cache[0]<=pending_protection[0]):
                 self._protection_cache=pending_protection
+            if evidence_schema!=committed_evidence_schema:
+                pending_evidence.clear();evidence_schema=None
+            for namespace,value in pending_evidence.items():
+                prior=self._evidence_retention_cache.get(namespace)
+                if prior is None or prior[0]<=value[0]:
+                    self._evidence_retention_cache[namespace]=value
+                    self._evidence_retention_cache.move_to_end(namespace)
+                    if len(self._evidence_retention_cache)>128:self._evidence_retention_cache.popitem(last=False)
+            # Validation tokens, like clean revisions, are never published from
+            # a transaction whose commit/rollback has not completed normally.
+            self._evidence_retention_schema_version=evidence_schema
             # Eviction must also evict the warm view. Another writer invalidates
             # the stamp; clock rollback and the next age boundary force a sweep.
             if evidence_evicted:self._immutable.clear();self._immutable_bytes = 0
@@ -355,7 +474,7 @@ class Plane:
             deadlines = [now+60] + [x+86400+.000001 for x in (next_candidate,next_rolling) if x is not None]
             self._maintenance_at = now
             self._maintenance_due = min(deadlines)
-            self._maintenance_stamp = (self.db.total_changes, version,active_scope_sql('key'))
+            self._maintenance_stamp = completed_stamp
 
     def evidence_namespaces(self):
         """Seek each retained namespace without walking its cached bodies.

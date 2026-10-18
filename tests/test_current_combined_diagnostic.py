@@ -648,6 +648,27 @@ class DiagnosticCollectionTests(unittest.TestCase):
         self.assertEqual(coverage.check('pons', {'available': False}, 100), 'operation_cost_coverage_lost:pons')
         self.assertEqual(row['collected_monotonic'], 99)
 
+    def test_source_capture_cost_survives_original_dynamic_retained_projection(self):
+        from contextvars import ContextVar
+        from meme_machine.runtime import operation_costs as costs
+        name='pump.restore_source_capture'
+        with patch.dict(os.environ,{'MM_OPERATION_COST_DIAGNOSTICS':'1'}), \
+                patch.object(costs,'_rows',costs._new_rows()), \
+                patch.object(costs,'_active',{}),patch.object(costs,'_sequence',0), \
+                patch.object(costs,'_current',ContextVar('capture_projection',default=None)):
+            with costs.operation(name):pass
+            raw=costs.snapshot()
+        projected=diagnostic.operation_costs(raw,os.getpid())
+        self.assertTrue(projected['available'])
+        self.assertEqual(projected['rows'][name][projected['fields'].index('calls')],1)
+        self.assertNotIn(name,projected['not_reached'])
+        self.assertEqual(len(costs.RESTORE_COUNT_NAMES),20,'original restoration population stays unchanged')
+        output=self.root/'capture-cost.jsonl'
+        diagnostic.append_sample(output,dict(pump_operation_costs=projected))
+        retained=json.loads(output.read_text())['pump_operation_costs']
+        self.assertEqual(retained,projected)
+        self.assertEqual(retained['rows'][name][retained['fields'].index('calls')],1)
+
     def test_restore_counts_survive_retained_numeric_projection_with_exact_fixed_population(self):
         from meme_machine.runtime import operation_costs as costs
         counts = dict.fromkeys(costs.RESTORE_COUNT_NAMES, 0)

@@ -1,4 +1,5 @@
 """Complete frozen operational inverse; every original economic guard still runs."""
+from tests.test_ea_performance_source_guard import performance_source, performance_guard_source
 import hashlib
 import json
 from pathlib import Path
@@ -94,7 +95,7 @@ class OperationalCandidateSourceGuardTests(unittest.TestCase):
     def test_sixteen_complete_sources_reverse_exactly_to_approved_780(self):
         value=manifest(self)
         for relative,record in value['files'].items():
-            current=(ROOT/relative).read_bytes()
+            current=performance_source(self,relative,(ROOT/relative).read_bytes())
             with self.subTest(relative=relative):
                 self.assertEqual(hashlib.sha256(current).hexdigest(),record['after_sha256'])
                 before=candidate_source_predecessor(self,relative,current)
@@ -130,7 +131,7 @@ class OperationalCandidateSourceGuardTests(unittest.TestCase):
         for relative,record in value['guards'].items():
             self.assertEqual(record['before_sha256'],BASE_GUARDS[relative],
                 'whole original guard hash is independently pinned to approved 780')
-            current=(ROOT/relative).read_bytes()
+            current=performance_guard_source(self,relative,(ROOT/relative).read_bytes())
             self.assertEqual(hashlib.sha256(current).hexdigest(),record['after_sha256'])
             restored=original_guard_source(self,relative,current)
             self.assertEqual(hashlib.sha256(restored).hexdigest(),record['before_sha256'],
@@ -188,7 +189,7 @@ class OperationalCandidateSourceGuardTests(unittest.TestCase):
 
     def test_unknown_truncated_or_partially_reversed_source_never_passes(self):
         for relative,record in manifest(self)['files'].items():
-            current=(ROOT/relative).read_bytes()
+            current=performance_source(self,relative,(ROOT/relative).read_bytes())
             mutations=[b'',current+b'\n# unknown successor\n']
             for change in record['changes']:
                 changed=current.replace(change['after'].encode(),change['before'].encode(),1)
@@ -226,7 +227,7 @@ class OperationalCandidateSourceGuardTests(unittest.TestCase):
                 (b'threading.get_ident()!=self._owner_thread',b'False'),(b'self._owner_inode',b'None')),
         }
         for relative,pairs in mutations.items():
-            current=(ROOT/relative).read_bytes()
+            current=performance_source(self,relative,(ROOT/relative).read_bytes())
             for before,after in pairs:
                 self.assertIn(before,current,relative+':real guarded source fragment')
                 with self.subTest(relative=relative,before=before),self.assertRaises(AssertionError):
