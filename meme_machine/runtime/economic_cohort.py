@@ -174,7 +174,7 @@ class EconomicCohorts:
             for identity in sorted(changed):self._finish(identity)
         self._run(apply)
 
-    def seal(self,cohort_id,lower,upper,source_digest,*,complete):
+    def seal(self,cohort_id,lower,upper,source_digest,*,complete,expected_economics=None):
         """An owned adapter's actual complete-source witness, not an authority."""
         def apply():
             if (type(lower) is not int or type(upper) is not int or not 0<=lower<=upper<=MAX_POSITION
@@ -182,6 +182,14 @@ class EconomicCohorts:
                 raise ValueError('shape')
             cohort=self.active[cohort_id]
             if any(not lower<=row[3]<=upper for row in cohort['arrivals'].values()):raise ValueError('interval')
+            if self.lane=='pump' and complete:
+                if type(expected_economics) not in (tuple,list) or len(expected_economics)!=2:
+                    raise ValueError('decoder_census')
+                count,digest=expected_economics
+                if type(count) is not int or not 0<=count<=MAX_IDENTITIES:raise ValueError('decoder_census')
+                if (count,_hash(digest))!=(len(cohort['arrivals']),
+                        checksum(sorted(row[:4] for row in cohort['arrivals'].values()))):
+                    raise ValueError('decoder_census_mismatch')
             closure=(lower,upper,_hash(source_digest),complete)
             if cohort['closure'] is not None and cohort['closure']!=closure:raise ValueError('closure_conflict')
             cohort['closure']=closure;self._finish(cohort_id)
