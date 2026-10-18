@@ -145,12 +145,14 @@ restore_audit_table(db)
 broker.close()
 os.environ['MM_OPERATIONAL_PHASE']='OBSERVATION'
 captured=[]
-class CapturedPlane(Plane):
-    def __init__(self,*args,**kwargs):
-        super().__init__(*args,**kwargs)
-        if not captured:install_audit_view(self.db)
-        captured.append(self)
-pons.Plane=CapturedPlane
+def captured_plane(*args,**kwargs):
+    # Preserve the exact native owner type and its full real constructor.
+    # Only the disposable audit view is installed at the returned-owner seam.
+    plane=Plane(*args,**kwargs)
+    if not captured:install_audit_view(plane.db)
+    captured.append(plane)
+    return plane
+pons.Plane=captured_plane
 def shutdown(signum,_frame):
     status.cancellation_signal(signum);stop.requested.set()
 signal.signal(signal.SIGTERM,shutdown)
@@ -276,7 +278,11 @@ class StartupHistoryCancellationTests(unittest.TestCase):
             seeded=child.stdout.readline().decode().strip()
             self.assertTrue(seeded.startswith('SEEDED '),seeded)
             self.assertTrue(select.select([child.stdout],[],[],5)[0],'audit SQLite VM not reached')
-            self.assertEqual(child.stdout.readline().decode().strip(),'AUDIT_SQLITE_VM_ENTERED')
+            marker=child.stdout.readline().decode().strip()
+            if not marker:
+                output,errors=child.communicate(timeout=3)
+                self.fail('Pons child exited before audit SQLite VM: '+errors.decode()+output.decode())
+            self.assertEqual(marker,'AUDIT_SQLITE_VM_ENTERED')
             os.kill(child.pid,signal.SIGTERM)
             output,errors=child.communicate(timeout=3)
             self.assertEqual(child.returncode,0,errors.decode())

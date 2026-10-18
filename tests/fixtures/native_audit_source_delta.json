@@ -1,0 +1,1148 @@
+{
+  "base": "0e9a0ffe1912c28258735909ebce933803585556",
+  "base_tree": "8646cdcd1de820e909090f0c1fd899e12dffe9ea",
+  "files": {
+    "meme_machine/runtime/robinhood/plane.py": {
+      "after_bytes": 61046,
+      "after_sha256": "8c923dbeb4c433f7774cd65b701aebcbd5a21544dd44b0204d97e8b004e71d2e",
+      "before_bytes": 60003,
+      "before_sha256": "af3b14b42233e0c72e91ba52190c6212ca9ddea576fa0109115f06047343fadf",
+      "changes": [
+        {
+          "after": "        self._evidence_retention_schema_version = None\n        self._evidence_retention_cache = OrderedDict()\n        self._owner_thread = threading.get_ident()\n        self._owner_pid = os.getpid()\n        self._closed = False\n        self._native_audit_retention = None\n        from meme_machine.runtime.operation_costs import connect\n        self.db = connect(self.path, timeout=10, isolation_level=None, check_same_thread=False,\n                          diagnostic_role='pons_plane')\n        self.db.row_factory = sqlite3.Row\n        self.db.execute('PRAGMA journal_mode=WAL')\n",
+          "before": "        self._evidence_retention_schema_version = None\n        self._evidence_retention_cache = OrderedDict()\n        self._owner_thread = threading.get_ident()\n        self._owner_pid = os.getpid()\n        self._closed = False\n        from meme_machine.runtime.operation_costs import connect\n        self.db = connect(self.path, timeout=10, isolation_level=None, check_same_thread=False,\n                          diagnostic_role='pons_plane')\n        self.db.row_factory = sqlite3.Row\n        self.db.execute('PRAGMA journal_mode=WAL')\n"
+        },
+        {
+          "after": "        self.db.execute('PRAGMA foreign_keys=ON')\n        if self.db.execute('PRAGMA quick_check').fetchone()[0] != 'ok':\n            raise ValueError('candidate_store_integrity')\n        version=self.db.execute('PRAGMA user_version').fetchone()[0]\n        if version not in (0,1):raise ValueError('candidate_store_schema')\n        previous_audit_schema={name:sql for name,sql in self.db.execute(\n            \"SELECT name,CASE WHEN type='table' THEN '' WHEN octet_length(sql)<=1024 THEN sql END \"\n            \"FROM sqlite_master WHERE name IN ('transitions','observations','history_no_delete','observations_no_delete') LIMIT 4\")}\n        self.db.executescript('''\n        CREATE TABLE IF NOT EXISTS observation_counts(lane TEXT PRIMARY KEY,received INTEGER NOT NULL);\n        CREATE TABLE IF NOT EXISTS candidates(\n          id TEXT PRIMARY KEY,lane TEXT NOT NULL,generation INTEGER NOT NULL,\n          interpretation TEXT NOT NULL,latest_id TEXT NOT NULL,observed REAL NOT NULL,\n",
+          "before": "        self.db.execute('PRAGMA foreign_keys=ON')\n        if self.db.execute('PRAGMA quick_check').fetchone()[0] != 'ok':\n            raise ValueError('candidate_store_integrity')\n        version=self.db.execute('PRAGMA user_version').fetchone()[0]\n        if version not in (0,1):raise ValueError('candidate_store_schema')\n        self.db.executescript('''\n        CREATE TABLE IF NOT EXISTS observation_counts(lane TEXT PRIMARY KEY,received INTEGER NOT NULL);\n        CREATE TABLE IF NOT EXISTS candidates(\n          id TEXT PRIMARY KEY,lane TEXT NOT NULL,generation INTEGER NOT NULL,\n          interpretation TEXT NOT NULL,latest_id TEXT NOT NULL,observed REAL NOT NULL,\n"
+        },
+        {
+          "after": "                self.db.execute('INSERT INTO candidate_protection_revision SELECT 1,0 WHERE NOT EXISTS(SELECT 1 FROM candidate_protection_revision)')\n                self._protection_generation()\n            # Old/partial/foreign metadata cannot authorize a cached sweep.\n            # Installation is atomic and does not scan retained economic rows.\n            with self.lock:\n                from meme_machine.runtime.native_audit_retention import _NativeAuditRetention\n                self._native_audit_retention = _NativeAuditRetention(self,previous_audit_schema)\n                self.db.execute('BEGIN IMMEDIATE')\n                names=tuple(_EVIDENCE_RETENTION_SCHEMA)\n                try:\n                    changed=self._native_audit_retention.install()\n                    if not self.db.execute('SELECT 1 FROM sqlite_master WHERE name IN ('+\n                            ','.join('?' for _ in names)+') LIMIT 1',names).fetchone():\n                        for sql in _EVIDENCE_RETENTION_SCHEMA.values():self.db.execute(sql)\n                        changed=True\n                    self.db.execute('COMMIT' if changed else 'ROLLBACK')\n                except BaseException:\n                    from meme_machine.runtime.sqlite_failure import preserving_cleanup\n                    with preserving_cleanup():\n                        if self.db.in_transaction:self.db.execute('ROLLBACK')\n                    raise\n",
+          "before": "                self.db.execute('INSERT INTO candidate_protection_revision SELECT 1,0 WHERE NOT EXISTS(SELECT 1 FROM candidate_protection_revision)')\n                self._protection_generation()\n            # Old/partial/foreign metadata cannot authorize a cached sweep.\n            # Installation is atomic and does not scan retained economic rows.\n            with self.lock:\n                self.db.execute('BEGIN IMMEDIATE')\n                names=tuple(_EVIDENCE_RETENTION_SCHEMA)\n                try:\n                    if not self.db.execute('SELECT 1 FROM sqlite_master WHERE name IN ('+\n                            ','.join('?' for _ in names)+') LIMIT 1',names).fetchone():\n                        for sql in _EVIDENCE_RETENTION_SCHEMA.values():self.db.execute(sql)\n                        self.db.execute('COMMIT')\n                    else:self.db.execute('ROLLBACK')\n                except BaseException:\n                    from meme_machine.runtime.sqlite_failure import preserving_cleanup\n                    with preserving_cleanup():\n                        if self.db.in_transaction:self.db.execute('ROLLBACK')\n                    raise\n"
+        },
+        {
+          "after": "    def transaction(self):\n        with self.lock:\n            self.db.execute('BEGIN IMMEDIATE')\n            before = self.db.total_changes\n            schema_token=self._protection_schema_version\n            retention=self._native_audit_retention\n            retention_token=None\n            try:\n                if retention is not None:retention_token=retention.begin()\n                yield\n                changed=self.db.total_changes != before\n                self.db.execute('COMMIT' if changed else 'ROLLBACK')\n                if not changed:\n                    self._protection_schema_version=schema_token\n",
+          "before": "    def transaction(self):\n        with self.lock:\n            self.db.execute('BEGIN IMMEDIATE')\n            before = self.db.total_changes\n            schema_token=self._protection_schema_version\n            try:\n                yield\n                changed=self.db.total_changes != before\n                self.db.execute('COMMIT' if changed else 'ROLLBACK')\n                if not changed:\n                    self._protection_schema_version=schema_token\n"
+        },
+        {
+          "after": "                self._protection_schema_version=schema_token\n                from meme_machine.runtime.sqlite_failure import preserving_cleanup\n                with preserving_cleanup():\n                    if self.db.in_transaction:self.db.execute('ROLLBACK')\n                raise\n            finally:\n                if retention is not None:retention.finish(retention_token)\n\n    def _row(self, key):\n        row=self.db.execute('SELECT * FROM candidates WHERE id=?',(key,)).fetchone()\n        return dict(row) if row else None\n\n",
+          "before": "                self._protection_schema_version=schema_token\n                from meme_machine.runtime.sqlite_failure import preserving_cleanup\n                with preserving_cleanup():\n                    if self.db.in_transaction:self.db.execute('ROLLBACK')\n                raise\n\n    def _row(self, key):\n        row=self.db.execute('SELECT * FROM candidates WHERE id=?',(key,)).fetchone()\n        return dict(row) if row else None\n\n"
+        },
+        {
+          "after": "            archive=self.history_archive() or {}\n            tail=archive.get('transition_high_water',0)\n        self.db.execute('INSERT INTO transitions(seq,candidate,generation,at,kind,reason,watermark,interpretation,details) VALUES(?,?,?,?,?,?,?,?,?)',\n            (tail+1,row['id'],row['generation'],self.clock(),kind,reason,row['desired'],row['interpretation'],canonical(details)))\n        from meme_machine.runtime.storage import audit_ring\n        audit_ring(self.db,'transitions','history_no_delete',where='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))',startup_cancel=startup_cancel,_retention=self._native_audit_retention)\n\n    def maintain(self):\n        \"\"\"Port cache eviction and ordering fences without observer artifacts.\"\"\"\n        from meme_machine.runtime.storage import audit_ring\n        from meme_machine.runtime.operating_families import active_sql,active_scope_sql\n",
+          "before": "            archive=self.history_archive() or {}\n            tail=archive.get('transition_high_water',0)\n        self.db.execute('INSERT INTO transitions(seq,candidate,generation,at,kind,reason,watermark,interpretation,details) VALUES(?,?,?,?,?,?,?,?,?)',\n            (tail+1,row['id'],row['generation'],self.clock(),kind,reason,row['desired'],row['interpretation'],canonical(details)))\n        from meme_machine.runtime.storage import audit_ring\n        audit_ring(self.db,'transitions','history_no_delete',where='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))',startup_cancel=startup_cancel)\n\n    def maintain(self):\n        \"\"\"Port cache eviction and ordering fences without observer artifacts.\"\"\"\n        from meme_machine.runtime.storage import audit_ring\n        from meme_machine.runtime.operating_families import active_sql,active_scope_sql\n"
+        },
+        {
+          "after": "        pending_protection=None;pending_evidence=OrderedDict()\n        with self._evidence_retention_transaction() as committed_evidence_schema:\n            version = self.db.execute('PRAGMA data_version').fetchone()[0]\n            evidence_evicted = False\n            participating='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))'\n            audit_ring(self.db,'observations','observations_no_delete',key='rowid',where=participating,_retention=self._native_audit_retention)\n            self.db.execute('DELETE FROM result_consumption WHERE '+participating+' AND NOT EXISTS(SELECT 1 FROM candidates c INDEXED BY candidate_generation_identity WHERE c.id=result_consumption.candidate AND c.generation=result_consumption.generation)')\n            rolling_present = self.db.execute('SELECT 1 FROM rolling LIMIT 1').fetchone() is not None\n            if rolling_present:\n                self.db.execute('DELETE FROM rolling WHERE at<? AND candidate IN (SELECT id FROM candidates WHERE '+active_sql('lane')+')',(self.clock()-86400,))\n            evidence_schema=self._evidence_retention_schema()\n",
+          "before": "        pending_protection=None;pending_evidence=OrderedDict()\n        with self._evidence_retention_transaction() as committed_evidence_schema:\n            version = self.db.execute('PRAGMA data_version').fetchone()[0]\n            evidence_evicted = False\n            participating='candidate NOT IN (SELECT id FROM candidates WHERE NOT ('+active_sql('lane')+'))'\n            audit_ring(self.db,'observations','observations_no_delete',key='rowid',where=participating)\n            self.db.execute('DELETE FROM result_consumption WHERE '+participating+' AND NOT EXISTS(SELECT 1 FROM candidates c INDEXED BY candidate_generation_identity WHERE c.id=result_consumption.candidate AND c.generation=result_consumption.generation)')\n            rolling_present = self.db.execute('SELECT 1 FROM rolling LIMIT 1').fetchone() is not None\n            if rolling_present:\n                self.db.execute('DELETE FROM rolling WHERE at<? AND candidate IN (SELECT id FROM candidates WHERE '+active_sql('lane')+')',(self.clock()-86400,))\n            evidence_schema=self._evidence_retention_schema()\n"
+        },
+        {
+          "after": "            database_bytes=Path(self.path).stat().st_size,\n            wal_bytes=transient_file_size(Path(self.path+'-wal')))\n\n    def close(self):\n        with self.lock:\n            if self._native_audit_retention is not None:self._native_audit_retention.close()\n            self._closed=True;self._protection_cache=None;self.db.close()\n\n\ndef native_ledger_locator(lane,ledger_path):\n    \"\"\"Portable locator for the two fixed native book namespaces.\n",
+          "before": "            database_bytes=Path(self.path).stat().st_size,\n            wal_bytes=transient_file_size(Path(self.path+'-wal')))\n\n    def close(self):\n        with self.lock:\n            self._closed=True;self._protection_cache=None;self.db.close()\n\n\ndef native_ledger_locator(lane,ledger_path):\n    \"\"\"Portable locator for the two fixed native book namespaces.\n"
+        }
+      ],
+      "layouts": {},
+      "nodes": {
+        "module/ClassDef:Plane/FunctionDef:__init__": {
+          "after": "d039fb85273cfad2faf08a2056fdbd181678f974eebe083500c5d0cffe8b2673",
+          "before": "bf5ceb985913a221f92d2e9533377644e88daac36e2307a631cea34837ddd19e"
+        },
+        "module/ClassDef:Plane/FunctionDef:_audit": {
+          "after": "50de3443d1bc92251989dcb855dbfb41be720f1ad08d10be017e4e25556a8098",
+          "before": "870e2ad2b00635ca2772a1ecd021f75058673dea4dbd9819a0f2a72445461391"
+        },
+        "module/ClassDef:Plane/FunctionDef:close": {
+          "after": "7021fcd53b0b958914e32059b708969878ac471cf63ce4ffe10f53ebe86f0a6c",
+          "before": "274e254e77a9444b6a3d18a467a85d237f42bc20399e5c4cbe7cb4298eddcd73"
+        },
+        "module/ClassDef:Plane/FunctionDef:maintain": {
+          "after": "14c0b75f24869c006b35b2b1546ae9bd9ad5c3e0b861bfa7c118500e87837d48",
+          "before": "609594de4a3538e60bb6b01c32fe56d22649fa65db9a9def845b9d85e9a3fd74"
+        },
+        "module/ClassDef:Plane/FunctionDef:transaction": {
+          "after": "a91d94297434b6bd672f2bfd01865f443c611284ce022c7b44008a636d4b5fd2",
+          "before": "be76479b25729ca9bdc2b75d4799b16ed7ca6a7e4676c8ccc2819332cbb79521"
+        }
+      }
+    },
+    "meme_machine/runtime/storage.py": {
+      "after_bytes": 20133,
+      "after_sha256": "0b1844f9af7d5edc401db4e3781ed8d0a544d003491a540108c1200011779d6b",
+      "before_bytes": 19815,
+      "before_sha256": "847623ca28c595a49431f5c45c1f3de3f15bc16b86d623b52338c04c0097cd18",
+      "changes": [
+        {
+          "after": "import os\nfrom pathlib import Path\nimport sqlite3\n\n\ndef audit_ring(db, table, trigger, *, limit=4096, key='seq', where='1=1', startup_cancel=None, _retention=None):\n    \"\"\"Ordinary audit rows have no scheduling or capital authority.\"\"\"\n    if db.in_transaction:\n        return _audit_ring(db,table,trigger,limit=limit,key=key,where=where,startup_cancel=startup_cancel,_retention=_retention)\n    # Independent provider sessions use autocommit connections. Dropping and\n    # restoring the append-only guard must be one serialized transaction; two\n    # sessions must never race another session's temporarily removed trigger.\n    db.execute('BEGIN IMMEDIATE')\n    try:\n        _audit_ring(db,table,trigger,limit=limit,key=key,where=where,startup_cancel=startup_cancel,_retention=_retention)\n        db.execute('COMMIT')\n    except BaseException:\n        if db.in_transaction:db.execute('ROLLBACK')\n        raise\n\n",
+          "before": "import os\nfrom pathlib import Path\nimport sqlite3\n\n\ndef audit_ring(db, table, trigger, *, limit=4096, key='seq', where='1=1', startup_cancel=None):\n    \"\"\"Ordinary audit rows have no scheduling or capital authority.\"\"\"\n    if db.in_transaction:\n        return _audit_ring(db,table,trigger,limit=limit,key=key,where=where,startup_cancel=startup_cancel)\n    # Independent provider sessions use autocommit connections. Dropping and\n    # restoring the append-only guard must be one serialized transaction; two\n    # sessions must never race another session's temporarily removed trigger.\n    db.execute('BEGIN IMMEDIATE')\n    try:\n        _audit_ring(db,table,trigger,limit=limit,key=key,where=where,startup_cancel=startup_cancel)\n        db.execute('COMMIT')\n    except BaseException:\n        if db.in_transaction:db.execute('ROLLBACK')\n        raise\n\n"
+        },
+        {
+          "after": "        if startup_cancel is not None:\n            from .sqlite_failure import preserving_cleanup\n            with preserving_cleanup():db.set_progress_handler(None,0)\n\n\ndef _audit_ring(db,table,trigger,*,limit,key,where,startup_cancel=None,_retention=None):\n    # Seek the same retained boundary once. Rebuilding a 4,096-key NOT IN\n    # set on every provider event repeatedly scans the entire hot audit ring.\n    # All reads and pruning still run in the caller's serialized transaction.\n    if type(limit) is not int or limit<1:raise ValueError('audit_retention_limit')\n    # A unique integer rowid range bounds the whole table's population, hence\n",
+          "before": "        if startup_cancel is not None:\n            from .sqlite_failure import preserving_cleanup\n            with preserving_cleanup():db.set_progress_handler(None,0)\n\n\ndef _audit_ring(db,table,trigger,*,limit,key,where,startup_cancel=None):\n    # Seek the same retained boundary once. Rebuilding a 4,096-key NOT IN\n    # set on every provider event repeatedly scans the entire hot audit ring.\n    # All reads and pruning still run in the caller's serialized transaction.\n    if type(limit) is not int or limit<1:raise ValueError('audit_retention_limit')\n    # A unique integer rowid range bounds the whole table's population, hence\n"
+        },
+        {
+          "after": "        if not db.in_transaction:db.execute('BEGIN')\n        install(db)\n        for row in db.execute('SELECT * FROM progress WHERE sequence<? ORDER BY sequence',(cutoff,)).fetchall():\n            pipeline(db,row)\n    sql=db.execute('SELECT sql FROM sqlite_master WHERE name=?',(trigger,)).fetchone()\n    if _retention is not None:\n        from .native_audit_retention import delete\n        if delete(_retention,db,table,trigger,key=key,where=where,cutoff=cutoff,\n                rowid=rowid,guard=sql[0] if sql else None,limit=limit):return\n    if sql:db.execute('DROP TRIGGER '+trigger)\n    db.execute('DELETE FROM '+table+' WHERE ('+where+') AND '+key+'<?',(cutoff,))\n    if sql:db.execute(sql[0])\n\n\n",
+          "before": "        if not db.in_transaction:db.execute('BEGIN')\n        install(db)\n        for row in db.execute('SELECT * FROM progress WHERE sequence<? ORDER BY sequence',(cutoff,)).fetchall():\n            pipeline(db,row)\n    sql=db.execute('SELECT sql FROM sqlite_master WHERE name=?',(trigger,)).fetchone()\n    if sql:db.execute('DROP TRIGGER '+trigger)\n    db.execute('DELETE FROM '+table+' WHERE ('+where+') AND '+key+'<?',(cutoff,))\n    if sql:db.execute(sql[0])\n\n\n"
+        }
+      ],
+      "layouts": {},
+      "nodes": {
+        "module/FunctionDef:_audit_ring": {
+          "after": "8f0bd8c9fdc4ea0a4423a22893ea4037697dffa5f3029a57d77103371ad37af8",
+          "before": "386975c7fe838e3b3aab0489a95cb4eed93439f2b3c6c1a350136c099be8f460"
+        },
+        "module/FunctionDef:audit_ring": {
+          "after": "047f5ba330a196878cdb3704360ce3c0a35b70f6fea6abe236b31fd1d43f5282",
+          "before": "81e7201167ace69a2f371b132c2706327fb157e045cebaeec3bbbb8c7860ef1f"
+        }
+      }
+    }
+  },
+  "guards": {
+    "tests/test_ea_performance_source_guard.py": {
+      "after_bytes": 13802,
+      "after_sha256": "49221885f27f305564cecf12a298f4f302ea0d7da1bfce431b53fe7914ce6eef",
+      "before_bytes": 13417,
+      "before_sha256": "1928e1c6f7a8c09ff68af91a917a58b5693ff2e5c20b5e4ec3b2e39d60657861",
+      "changes": [
+        {
+          "after": "\"\"\"Exact performance-only successor; the unchanged EA and strategy guards follow.\"\"\"\nfrom tests.test_native_audit_source_guard import audit_predecessor, audit_predecessor_runtime_delta\nimport ast\nimport hashlib\nimport json\nfrom pathlib import Path\nimport subprocess\n",
+          "before": "\"\"\"Exact performance-only successor; the unchanged EA and strategy guards follow.\"\"\"\nimport ast\nimport hashlib\nimport json\nfrom pathlib import Path\nimport subprocess\n"
+        },
+        {
+          "after": "        value=manifest(self)\n        changed=git('diff','--name-status',BASE,IMPLEMENTATION,'--','meme_machine').decode().splitlines()\n        self.assertEqual(set(changed),{'M\\t'+path for path in PATHS})\n        self.assertEqual(git('rev-parse',BASE+'^{tree}').decode().strip(),BASE_TREE)\n        self.assertEqual(git('rev-parse',IMPLEMENTATION+'^{tree}').decode().strip(),IMPLEMENTATION_TREE)\n        self.assertEqual(audit_predecessor_runtime_delta(self,git('diff','--name-only',IMPLEMENTATION,'--','meme_machine')),b'',\n            'no active runtime source differs from the complete frozen candidate')\n        for option in ((),('--ignored',)):\n            extra=git('ls-files','--others',*option,'--exclude-standard','--','meme_machine').decode().splitlines()\n            self.assertEqual([path for path in extra if '__pycache__' not in Path(path).parts and not path.endswith('.pyc')],[],\n                'new unlisted runtime inputs are not part of this exact successor')\n        for path,row in value['files'].items():\n            current=audit_predecessor(self,path,(ROOT/path).read_bytes())\n            self.assertEqual(current,git('show',IMPLEMENTATION+':'+path))\n            before=performance_source(self,path,current)\n            self.assertEqual(before,git('show',BASE+':'+path))\n            self.assertEqual(performance_source(self,path,before),before)\n            self.assertEqual(performance_source(self,path,current.decode()),before.decode())\n",
+          "before": "        value=manifest(self)\n        changed=git('diff','--name-status',BASE,IMPLEMENTATION,'--','meme_machine').decode().splitlines()\n        self.assertEqual(set(changed),{'M\\t'+path for path in PATHS})\n        self.assertEqual(git('rev-parse',BASE+'^{tree}').decode().strip(),BASE_TREE)\n        self.assertEqual(git('rev-parse',IMPLEMENTATION+'^{tree}').decode().strip(),IMPLEMENTATION_TREE)\n        self.assertEqual(git('diff','--name-only',IMPLEMENTATION,'--','meme_machine'),b'',\n            'no active runtime source differs from the complete frozen candidate')\n        for option in ((),('--ignored',)):\n            extra=git('ls-files','--others',*option,'--exclude-standard','--','meme_machine').decode().splitlines()\n            self.assertEqual([path for path in extra if '__pycache__' not in Path(path).parts and not path.endswith('.pyc')],[],\n                'new unlisted runtime inputs are not part of this exact successor')\n        for path,row in value['files'].items():\n            current=(ROOT/path).read_bytes()\n            self.assertEqual(current,git('show',IMPLEMENTATION+':'+path))\n            before=performance_source(self,path,current)\n            self.assertEqual(before,git('show',BASE+':'+path))\n            self.assertEqual(performance_source(self,path,before),before)\n            self.assertEqual(performance_source(self,path,current.decode()),before.decode())\n"
+        },
+        {
+          "after": "        value=manifest(self);total=0\n        declaration=\"'tests.test_ea_performance_source_guard',\"\n        for path in ('operational/tests.py','.github/workflows/ci.yml'):\n            self.assertEqual((ROOT/path).read_text().count(declaration),1)\n        for path,expected in GUARDS.items():\n            current=audit_predecessor(self,path,(ROOT/path).read_bytes());row=value['guards'][path]\n            self.assertEqual(row['before_sha256'],expected)\n            before=performance_guard_source(self,path,current)\n            self.assertEqual(before,git('show',BASE+':'+path),\n                'all old constants, assertions, predecessor bodies and mutation calls remain exact')\n            self.assertEqual(read_hooks(current),row['fixed_read_hooks'])\n",
+          "before": "        value=manifest(self);total=0\n        declaration=\"'tests.test_ea_performance_source_guard',\"\n        for path in ('operational/tests.py','.github/workflows/ci.yml'):\n            self.assertEqual((ROOT/path).read_text().count(declaration),1)\n        for path,expected in GUARDS.items():\n            current=(ROOT/path).read_bytes();row=value['guards'][path]\n            self.assertEqual(row['before_sha256'],expected)\n            before=performance_guard_source(self,path,current)\n            self.assertEqual(before,git('show',BASE+':'+path),\n                'all old constants, assertions, predecessor bodies and mutation calls remain exact')\n            self.assertEqual(read_hooks(current),row['fixed_read_hooks'])\n"
+        },
+        {
+          "after": "                with self.subTest(path=path),self.assertRaises(AssertionError):\n                    performance_guard_source(self,path,changed)\n        self.assertEqual(total,10)\n\n    def test_immutable_inner_proof_and_original_exported_predecessor_bodies(self):\n        self.assertEqual(hashlib.sha256(audit_predecessor(self,INNER_MANIFEST,(ROOT/INNER_MANIFEST).read_bytes())).hexdigest(),INNER_MANIFEST_SHA256)\n        for path,names in {\n                'tests/test_operational_candidate_source_guard.py':('candidate_source_predecessor','original_guard_source','_inverse'),\n                'tests/test_pump_restore_source_guard.py':('pump_restore_predecessor',),\n                'tests/test_robinhood_usd_valuation.py':('opportunity_predecessor','assert_holding_delta','rally_delta')}.items():\n            before=ast.parse(git('show',BASE+':'+path));after=ast.parse(audit_predecessor(self,path,(ROOT/path).read_bytes()))\n            for name in names:\n                nodes=[next(node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name==name)\n                    for tree in (before,after)]\n                self.assertEqual(ast.dump(nodes[0]),ast.dump(nodes[1]),path+':'+name)\n        # The earlier complete caller census found these seven raw strategy\n        # boundaries. Their files and selected strategies are unchanged here;\n        # no performance normalization belongs in mutation/intermediate calls.\n        for path in UNCHANGED_EXTERNAL_CALLERS:\n            self.assertEqual(audit_predecessor(self,path,(ROOT/path).read_bytes()),git('show',BASE+':'+path))\n            self.assertEqual(git('show',IMPLEMENTATION+':'+path),git('show',BASE+':'+path))\n\n    def test_unknown_truncated_partial_and_crossed_sources_fail_closed(self):\n        for path,row in manifest(self)['files'].items():\n            current=audit_predecessor(self,path,(ROOT/path).read_bytes())\n            changed=[b'',current+b'\\n# unknown runtime bytes\\n']\n            for hunk in row['changes']:\n                partial=current.replace(hunk['after'].encode(),hunk['before'].encode(),1)\n                if hashlib.sha256(partial).hexdigest()!=row['before_sha256']:changed.append(partial)\n            for raw in changed:\n                with self.subTest(path=path),self.assertRaises(AssertionError):performance_source(self,path,raw)\n            for other in PATHS:\n                if other!=path:\n                    with self.subTest(path=path,other=other),self.assertRaises(AssertionError):\n                        performance_source(self,path,audit_predecessor(self,other,(ROOT/other).read_bytes()))\n        self.assertEqual(performance_source(self,'unrelated/source.py',b'unchanged'),b'unchanged')\n\n    def test_manifest_tampering_never_becomes_a_source_exemption(self):\n        original=MANIFEST.read_bytes();read=Path.read_bytes\n        for changed in (original+b'\\n',b'{}',original.replace(BASE.encode(),b'f'*40,1)):\n            with patch.object(Path,'read_bytes',new=lambda path:changed if path==MANIFEST else read(path)),\\\n                    self.assertRaises(AssertionError):\n                performance_source(self,PATHS[0],audit_predecessor(self,PATHS[0],(ROOT/PATHS[0]).read_bytes()))\n\n",
+          "before": "                with self.subTest(path=path),self.assertRaises(AssertionError):\n                    performance_guard_source(self,path,changed)\n        self.assertEqual(total,10)\n\n    def test_immutable_inner_proof_and_original_exported_predecessor_bodies(self):\n        self.assertEqual(hashlib.sha256((ROOT/INNER_MANIFEST).read_bytes()).hexdigest(),INNER_MANIFEST_SHA256)\n        for path,names in {\n                'tests/test_operational_candidate_source_guard.py':('candidate_source_predecessor','original_guard_source','_inverse'),\n                'tests/test_pump_restore_source_guard.py':('pump_restore_predecessor',),\n                'tests/test_robinhood_usd_valuation.py':('opportunity_predecessor','assert_holding_delta','rally_delta')}.items():\n            before=ast.parse(git('show',BASE+':'+path));after=ast.parse((ROOT/path).read_bytes())\n            for name in names:\n                nodes=[next(node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name==name)\n                    for tree in (before,after)]\n                self.assertEqual(ast.dump(nodes[0]),ast.dump(nodes[1]),path+':'+name)\n        # The earlier complete caller census found these seven raw strategy\n        # boundaries. Their files and selected strategies are unchanged here;\n        # no performance normalization belongs in mutation/intermediate calls.\n        for path in UNCHANGED_EXTERNAL_CALLERS:\n            self.assertEqual((ROOT/path).read_bytes(),git('show',BASE+':'+path))\n            self.assertEqual(git('show',IMPLEMENTATION+':'+path),git('show',BASE+':'+path))\n\n    def test_unknown_truncated_partial_and_crossed_sources_fail_closed(self):\n        for path,row in manifest(self)['files'].items():\n            current=(ROOT/path).read_bytes()\n            changed=[b'',current+b'\\n# unknown runtime bytes\\n']\n            for hunk in row['changes']:\n                partial=current.replace(hunk['after'].encode(),hunk['before'].encode(),1)\n                if hashlib.sha256(partial).hexdigest()!=row['before_sha256']:changed.append(partial)\n            for raw in changed:\n                with self.subTest(path=path),self.assertRaises(AssertionError):performance_source(self,path,raw)\n            for other in PATHS:\n                if other!=path:\n                    with self.subTest(path=path,other=other),self.assertRaises(AssertionError):\n                        performance_source(self,path,(ROOT/other).read_bytes())\n        self.assertEqual(performance_source(self,'unrelated/source.py',b'unchanged'),b'unchanged')\n\n    def test_manifest_tampering_never_becomes_a_source_exemption(self):\n        original=MANIFEST.read_bytes();read=Path.read_bytes\n        for changed in (original+b'\\n',b'{}',original.replace(BASE.encode(),b'f'*40,1)):\n            with patch.object(Path,'read_bytes',new=lambda path:changed if path==MANIFEST else read(path)),\\\n                    self.assertRaises(AssertionError):\n                performance_source(self,PATHS[0],(ROOT/PATHS[0]).read_bytes())\n\n"
+        }
+      ],
+      "fixed_read_hooks": [
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='path', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/EAPerformanceSourceGuardTests/test_complete_three_file_frozen_and_active_runtime_delta"
+        },
+        {
+          "call": "Call(func=Name(id='audit_predecessor_runtime_delta', ctx=Load()), args=[Name(id='self', ctx=Load()), Call(func=Name(id='git', ctx=Load()), args=[Constant(value='diff'), Constant(value='--name-only'), Name(id='IMPLEMENTATION', ctx=Load()), Constant(value='--'), Constant(value='meme_machine')], keywords=[])], keywords=[])",
+          "caller": "module/EAPerformanceSourceGuardTests/test_complete_three_file_frozen_and_active_runtime_delta"
+        },
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='INNER_MANIFEST', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='INNER_MANIFEST', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/EAPerformanceSourceGuardTests/test_immutable_inner_proof_and_original_exported_predecessor_bodies"
+        },
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='path', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/EAPerformanceSourceGuardTests/test_immutable_inner_proof_and_original_exported_predecessor_bodies"
+        },
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='path', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/EAPerformanceSourceGuardTests/test_immutable_inner_proof_and_original_exported_predecessor_bodies"
+        },
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Subscript(value=Name(id='PATHS', ctx=Load()), slice=Constant(value=0), ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Subscript(value=Name(id='PATHS', ctx=Load()), slice=Constant(value=0), ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/EAPerformanceSourceGuardTests/test_manifest_tampering_never_becomes_a_source_exemption"
+        },
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='path', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/EAPerformanceSourceGuardTests/test_ten_active_read_wrappers_restore_three_whole_original_guard_files"
+        },
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='other', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='other', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/EAPerformanceSourceGuardTests/test_unknown_truncated_partial_and_crossed_sources_fail_closed"
+        },
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='path', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/EAPerformanceSourceGuardTests/test_unknown_truncated_partial_and_crossed_sources_fail_closed"
+        }
+      ],
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/ImportFrom:0:tests.test_native_audit_source_guard",
+            "module/Import:ast",
+            "module/Import:hashlib",
+            "module/Import:json",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:subprocess",
+            "module/Import:unittest",
+            "module/ImportFrom:0:unittest.mock",
+            "module/Assign:Name(id='ROOT', ctx=Store())",
+            "module/Assign:Name(id='BASE', ctx=Store())",
+            "module/Assign:Name(id='BASE_TREE', ctx=Store())",
+            "module/Assign:Name(id='IMPLEMENTATION', ctx=Store())",
+            "module/Assign:Name(id='IMPLEMENTATION_TREE', ctx=Store())",
+            "module/Assign:Name(id='MANIFEST', ctx=Store())",
+            "module/Assign:Name(id='MANIFEST_SHA256', ctx=Store())",
+            "module/Assign:Name(id='INNER_MANIFEST', ctx=Store())",
+            "module/Assign:Name(id='INNER_MANIFEST_SHA256', ctx=Store())",
+            "module/Assign:Name(id='PATHS', ctx=Store())",
+            "module/Assign:Name(id='GUARDS', ctx=Store())",
+            "module/Assign:Name(id='READS', ctx=Store())",
+            "module/Assign:Name(id='UNCHANGED_EXTERNAL_CALLERS', ctx=Store())",
+            "module/FunctionDef:manifest",
+            "module/FunctionDef:_inverse",
+            "module/FunctionDef:performance_source",
+            "module/FunctionDef:performance_guard_source",
+            "module/FunctionDef:read_hooks",
+            "module/FunctionDef:git",
+            "module/ClassDef:EAPerformanceSourceGuardTests"
+          ],
+          "before": [
+            "module/docstring",
+            "module/Import:ast",
+            "module/Import:hashlib",
+            "module/Import:json",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:subprocess",
+            "module/Import:unittest",
+            "module/ImportFrom:0:unittest.mock",
+            "module/Assign:Name(id='ROOT', ctx=Store())",
+            "module/Assign:Name(id='BASE', ctx=Store())",
+            "module/Assign:Name(id='BASE_TREE', ctx=Store())",
+            "module/Assign:Name(id='IMPLEMENTATION', ctx=Store())",
+            "module/Assign:Name(id='IMPLEMENTATION_TREE', ctx=Store())",
+            "module/Assign:Name(id='MANIFEST', ctx=Store())",
+            "module/Assign:Name(id='MANIFEST_SHA256', ctx=Store())",
+            "module/Assign:Name(id='INNER_MANIFEST', ctx=Store())",
+            "module/Assign:Name(id='INNER_MANIFEST_SHA256', ctx=Store())",
+            "module/Assign:Name(id='PATHS', ctx=Store())",
+            "module/Assign:Name(id='GUARDS', ctx=Store())",
+            "module/Assign:Name(id='READS', ctx=Store())",
+            "module/Assign:Name(id='UNCHANGED_EXTERNAL_CALLERS', ctx=Store())",
+            "module/FunctionDef:manifest",
+            "module/FunctionDef:_inverse",
+            "module/FunctionDef:performance_source",
+            "module/FunctionDef:performance_guard_source",
+            "module/FunctionDef:read_hooks",
+            "module/FunctionDef:git",
+            "module/ClassDef:EAPerformanceSourceGuardTests"
+          ]
+        }
+      },
+      "nodes": {
+        "module/ClassDef:EAPerformanceSourceGuardTests/FunctionDef:test_complete_three_file_frozen_and_active_runtime_delta": {
+          "after": "e5490ef9e7439ed94f8bf83d7bea9449cf1ebe8c60ccda106f96a0e49ce62473",
+          "before": "9c9569373ed40fab6912e85e2f65a632fec7a8a6ef6247852a4672a02ef43f35"
+        },
+        "module/ClassDef:EAPerformanceSourceGuardTests/FunctionDef:test_immutable_inner_proof_and_original_exported_predecessor_bodies": {
+          "after": "d9d9364cf1e7f44a8e24158febd417f28efd9704b323fb3f4c0be40f6d0ec743",
+          "before": "b3ab1df851fbd9822436bf00c73431579e9c4af45763f587bf54a03864848f4a"
+        },
+        "module/ClassDef:EAPerformanceSourceGuardTests/FunctionDef:test_manifest_tampering_never_becomes_a_source_exemption": {
+          "after": "95b46fd00922cde3afc819ac82bda3adb1028c96f7381b1ab6f62621beec350c",
+          "before": "ddd165cd01dac65a7b0bc519be33b7fd297204c50b7d7795acb9ac9e9f31ffc4"
+        },
+        "module/ClassDef:EAPerformanceSourceGuardTests/FunctionDef:test_ten_active_read_wrappers_restore_three_whole_original_guard_files": {
+          "after": "427c2275c72004bcbb08bbb03178e3d20bc54781348ffe463d25ece65e5e7488",
+          "before": "0f65da70b3fd657b9a6cf451d7e7ef7eea8210a3105f304b8d055b7297b2a66f"
+        },
+        "module/ClassDef:EAPerformanceSourceGuardTests/FunctionDef:test_unknown_truncated_partial_and_crossed_sources_fail_closed": {
+          "after": "788e8f417146902c447a29d99417d0bb030e82da2e07e7c3163931cb5258119b",
+          "before": "a9591edb4aa6f1c3369ad6d4eb642504276389ee5c7d9e9eb7925bb3cdcc147a"
+        },
+        "module/ImportFrom:0:tests.test_native_audit_source_guard": {
+          "after": "dd30e427f73056de61ae2519a235b6708a17aac42733ce0d0c6f4257efe03a9e",
+          "before": null
+        }
+      }
+    },
+    "tests/test_operational_candidate_source_guard.py": {
+      "after_bytes": 20196,
+      "after_sha256": "a5e8aaf018df946f60443c7cb31f3c6c750053a27fcc0c21004fa2e5d6f1ed48",
+      "before_bytes": 19964,
+      "before_sha256": "c559427ecb5b3f79bf28d62279a16f57e880e8646ed7c3f478c500dd258c8790",
+      "changes": [
+        {
+          "after": "\"\"\"Complete frozen operational inverse; every original economic guard still runs.\"\"\"\nfrom tests.test_native_audit_source_guard import audit_predecessor, audit_predecessor_runtime_delta\nfrom tests.test_ea_performance_source_guard import performance_source, performance_guard_source\nimport hashlib\nimport json\nfrom pathlib import Path\nimport unittest\n",
+          "before": "\"\"\"Complete frozen operational inverse; every original economic guard still runs.\"\"\"\nfrom tests.test_ea_performance_source_guard import performance_source, performance_guard_source\nimport hashlib\nimport json\nfrom pathlib import Path\nimport unittest\n"
+        },
+        {
+          "after": "\nclass OperationalCandidateSourceGuardTests(unittest.TestCase):\n    def test_sixteen_complete_sources_reverse_exactly_to_approved_780(self):\n        value=manifest(self)\n        for relative,record in value['files'].items():\n            current=performance_source(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))\n            with self.subTest(relative=relative):\n                self.assertEqual(hashlib.sha256(current).hexdigest(),record['after_sha256'])\n                before=candidate_source_predecessor(self,relative,current)\n                self.assertEqual(hashlib.sha256(before).hexdigest(),record['before_sha256'])\n                self.assertEqual(candidate_source_predecessor(self,relative,before),before)\n",
+          "before": "\nclass OperationalCandidateSourceGuardTests(unittest.TestCase):\n    def test_sixteen_complete_sources_reverse_exactly_to_approved_780(self):\n        value=manifest(self)\n        for relative,record in value['files'].items():\n            current=performance_source(self,relative,(ROOT/relative).read_bytes())\n            with self.subTest(relative=relative):\n                self.assertEqual(hashlib.sha256(current).hexdigest(),record['after_sha256'])\n                before=candidate_source_predecessor(self,relative,current)\n                self.assertEqual(hashlib.sha256(before).hexdigest(),record['before_sha256'])\n                self.assertEqual(candidate_source_predecessor(self,relative,before),before)\n"
+        },
+        {
+          "after": "                    'test_program_gap_boundary_reverses_exactly_without_weakening_recovery_or_funding'))},\n        }\n        for relative,record in value['guards'].items():\n            self.assertEqual(record['before_sha256'],BASE_GUARDS[relative],\n                'whole original guard hash is independently pinned to approved 780')\n            current=performance_guard_source(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))\n            self.assertEqual(hashlib.sha256(current).hexdigest(),record['after_sha256'])\n            restored=original_guard_source(self,relative,current)\n            self.assertEqual(hashlib.sha256(restored).hexdigest(),record['before_sha256'],\n                'all original assertions, constants, mutations and predecessors remain byte identical')\n            self.assertEqual(set(record['nodes']),expected[relative]);self.assertEqual(record['layouts'],{})\n",
+          "before": "                    'test_program_gap_boundary_reverses_exactly_without_weakening_recovery_or_funding'))},\n        }\n        for relative,record in value['guards'].items():\n            self.assertEqual(record['before_sha256'],BASE_GUARDS[relative],\n                'whole original guard hash is independently pinned to approved 780')\n            current=performance_guard_source(self,relative,(ROOT/relative).read_bytes())\n            self.assertEqual(hashlib.sha256(current).hexdigest(),record['after_sha256'])\n            restored=original_guard_source(self,relative,current)\n            self.assertEqual(hashlib.sha256(restored).hexdigest(),record['before_sha256'],\n                'all original assertions, constants, mutations and predecessors remain byte identical')\n            self.assertEqual(set(record['nodes']),expected[relative]);self.assertEqual(record['layouts'],{})\n"
+        },
+        {
+          "after": "            self.assertEqual((ROOT/path).read_text().count(declaration),1,\n                path+':actual cancelled-source behavioral regressions must execute')\n\n    def test_unknown_truncated_or_partially_reversed_source_never_passes(self):\n        for relative,record in manifest(self)['files'].items():\n            current=performance_source(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))\n            mutations=[b'',current+b'\\n# unknown successor\\n']\n            for change in record['changes']:\n                changed=current.replace(change['after'].encode(),change['before'].encode(),1)\n                self.assertNotEqual(changed,current)\n                # A one-delta file reverses completely to the explicitly pinned\n",
+          "before": "            self.assertEqual((ROOT/path).read_text().count(declaration),1,\n                path+':actual cancelled-source behavioral regressions must execute')\n\n    def test_unknown_truncated_or_partially_reversed_source_never_passes(self):\n        for relative,record in manifest(self)['files'].items():\n            current=performance_source(self,relative,(ROOT/relative).read_bytes())\n            mutations=[b'',current+b'\\n# unknown successor\\n']\n            for change in record['changes']:\n                changed=current.replace(change['after'].encode(),change['before'].encode(),1)\n                self.assertNotEqual(changed,current)\n                # A one-delta file reverses completely to the explicitly pinned\n"
+        },
+        {
+          "after": "                (b\"cached[3]==scope\",b'True'),(b\"if status!='settled':protected.add(candidate)\",b'pass'),\n                (b'now-86400',b'now-1'),(b'if pending_protection is not None and self._protection_generation()!=pending_protection[0]:',b'if False:'),\n                (b'threading.get_ident()!=self._owner_thread',b'False'),(b'self._owner_inode',b'None')),\n        }\n        for relative,pairs in mutations.items():\n            current=performance_source(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))\n            for before,after in pairs:\n                self.assertIn(before,current,relative+':real guarded source fragment')\n                with self.subTest(relative=relative,before=before),self.assertRaises(AssertionError):\n                    candidate_source_predecessor(self,relative,current.replace(before,after,1))\n\n",
+          "before": "                (b\"cached[3]==scope\",b'True'),(b\"if status!='settled':protected.add(candidate)\",b'pass'),\n                (b'now-86400',b'now-1'),(b'if pending_protection is not None and self._protection_generation()!=pending_protection[0]:',b'if False:'),\n                (b'threading.get_ident()!=self._owner_thread',b'False'),(b'self._owner_inode',b'None')),\n        }\n        for relative,pairs in mutations.items():\n            current=performance_source(self,relative,(ROOT/relative).read_bytes())\n            for before,after in pairs:\n                self.assertIn(before,current,relative+':real guarded source fragment')\n                with self.subTest(relative=relative,before=before),self.assertRaises(AssertionError):\n                    candidate_source_predecessor(self,relative,current.replace(before,after,1))\n\n"
+        }
+      ],
+      "fixed_read_hooks": [
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='relative', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='relative', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/OperationalCandidateSourceGuardTests/test_original_guards_reverse_exactly_and_only_active_read_dispatch_changes"
+        },
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='relative', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='relative', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/OperationalCandidateSourceGuardTests/test_protection_expiry_scope_raw_writes_rollback_and_borrow_guards_cannot_be_weakened"
+        },
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='relative', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='relative', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/OperationalCandidateSourceGuardTests/test_sixteen_complete_sources_reverse_exactly_to_approved_780"
+        },
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='relative', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='relative', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/OperationalCandidateSourceGuardTests/test_unknown_truncated_or_partially_reversed_source_never_passes"
+        }
+      ],
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/ImportFrom:0:tests.test_native_audit_source_guard",
+            "module/ImportFrom:0:tests.test_ea_performance_source_guard",
+            "module/Import:hashlib",
+            "module/Import:json",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:unittest",
+            "module/ImportFrom:0:unittest.mock",
+            "module/Assign:Name(id='ROOT', ctx=Store())",
+            "module/Assign:Name(id='MANIFEST', ctx=Store())",
+            "module/Assign:Name(id='MANIFEST_SHA256', ctx=Store())",
+            "module/Assign:Name(id='BASE', ctx=Store())",
+            "module/Assign:Name(id='BASE_TREE', ctx=Store())",
+            "module/Assign:Name(id='BASE_GUARDS', ctx=Store())",
+            "module/Assign:Name(id='IMPLEMENTATION', ctx=Store())",
+            "module/Assign:Name(id='IMPLEMENTATION_TREE', ctx=Store())",
+            "module/Assign:Name(id='PONS_PATHS', ctx=Store())",
+            "module/Assign:Name(id='PATHS', ctx=Store())",
+            "module/FunctionDef:manifest",
+            "module/FunctionDef:candidate_source_predecessor",
+            "module/FunctionDef:original_guard_source",
+            "module/FunctionDef:_inverse",
+            "module/ClassDef:OperationalCandidateSourceGuardTests"
+          ],
+          "before": [
+            "module/docstring",
+            "module/ImportFrom:0:tests.test_ea_performance_source_guard",
+            "module/Import:hashlib",
+            "module/Import:json",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:unittest",
+            "module/ImportFrom:0:unittest.mock",
+            "module/Assign:Name(id='ROOT', ctx=Store())",
+            "module/Assign:Name(id='MANIFEST', ctx=Store())",
+            "module/Assign:Name(id='MANIFEST_SHA256', ctx=Store())",
+            "module/Assign:Name(id='BASE', ctx=Store())",
+            "module/Assign:Name(id='BASE_TREE', ctx=Store())",
+            "module/Assign:Name(id='BASE_GUARDS', ctx=Store())",
+            "module/Assign:Name(id='IMPLEMENTATION', ctx=Store())",
+            "module/Assign:Name(id='IMPLEMENTATION_TREE', ctx=Store())",
+            "module/Assign:Name(id='PONS_PATHS', ctx=Store())",
+            "module/Assign:Name(id='PATHS', ctx=Store())",
+            "module/FunctionDef:manifest",
+            "module/FunctionDef:candidate_source_predecessor",
+            "module/FunctionDef:original_guard_source",
+            "module/FunctionDef:_inverse",
+            "module/ClassDef:OperationalCandidateSourceGuardTests"
+          ]
+        }
+      },
+      "nodes": {
+        "module/ClassDef:OperationalCandidateSourceGuardTests/FunctionDef:test_original_guards_reverse_exactly_and_only_active_read_dispatch_changes": {
+          "after": "2fa7f87408d9eb97a720f70224ef6f53582502d4ad664c3253046808603041e2",
+          "before": "b5efe03795097b421ad34de4ea974882fbb3013b6af680d6c52bd79495945957"
+        },
+        "module/ClassDef:OperationalCandidateSourceGuardTests/FunctionDef:test_protection_expiry_scope_raw_writes_rollback_and_borrow_guards_cannot_be_weakened": {
+          "after": "2dab62a84d1a5c32718b33f286166cc3b74ac975f5b8741751434e17ac150c93",
+          "before": "bbcf5dfeaa39b3f078f661661f80b0097e3a6e761e4ba650b26c16953a1a3f1f"
+        },
+        "module/ClassDef:OperationalCandidateSourceGuardTests/FunctionDef:test_sixteen_complete_sources_reverse_exactly_to_approved_780": {
+          "after": "ef6112b336aaf8753960f5bf3cb940d00bfecfc96a86fa28c25889f037cb7644",
+          "before": "e578ab120f4312285a106ca272e4b30494426a91625f5f58ddb61e3da620dbb0"
+        },
+        "module/ClassDef:OperationalCandidateSourceGuardTests/FunctionDef:test_unknown_truncated_or_partially_reversed_source_never_passes": {
+          "after": "23d6c052041971b57b259794a85cd16334af3121fb6be23c7ac71e985d79fa3f",
+          "before": "32da75d5e3898b69974366418549fe3f389de4f5aa8503cd14a695263e673d84"
+        },
+        "module/ImportFrom:0:tests.test_native_audit_source_guard": {
+          "after": "dd30e427f73056de61ae2519a235b6708a17aac42733ce0d0c6f4257efe03a9e",
+          "before": null
+        }
+      }
+    },
+    "tests/test_pump_restore_source_guard.py": {
+      "after_bytes": 11129,
+      "after_sha256": "acfc626404cee8a6b7353065688c427199eba3affe30d35ceb3b6e2cc2535d99",
+      "before_bytes": 10931,
+      "before_sha256": "bb02f48091cbd3c8366d3e9de263373f79d81316a7a402d14e75140e43e52b9f",
+      "changes": [
+        {
+          "after": "\"\"\"Exact Pump restoration layer; all previous economic/source guards still run.\"\"\"\nfrom tests.test_native_audit_source_guard import audit_predecessor, audit_predecessor_runtime_delta\nfrom tests.test_ea_performance_source_guard import performance_source, performance_guard_source\nimport ast\nimport hashlib\nimport json\nfrom pathlib import Path\n",
+          "before": "\"\"\"Exact Pump restoration layer; all previous economic/source guards still run.\"\"\"\nfrom tests.test_ea_performance_source_guard import performance_source, performance_guard_source\nimport ast\nimport hashlib\nimport json\nfrom pathlib import Path\n"
+        },
+        {
+          "after": "    return value\n\n\ndef authenticated_helper(test,value):\n    from tests.test_operational_candidate_source_guard import candidate_source_predecessor\n    body=candidate_source_predecessor(test,HELPER,performance_source(test,HELPER,audit_predecessor(test,HELPER,(ROOT/HELPER).read_bytes())));record=value['added_sources'][HELPER]\n    test.assertEqual(len(body),record['bytes'],'complete restoration helper length')\n    test.assertEqual(hashlib.sha256(body).hexdigest(),record['sha256'],\n        'complete restoration helper source, not an infrastructure exemption')\n\n\n",
+          "before": "    return value\n\n\ndef authenticated_helper(test,value):\n    from tests.test_operational_candidate_source_guard import candidate_source_predecessor\n    body=candidate_source_predecessor(test,HELPER,performance_source(test,HELPER,(ROOT/HELPER).read_bytes()));record=value['added_sources'][HELPER]\n    test.assertEqual(len(body),record['bytes'],'complete restoration helper length')\n    test.assertEqual(hashlib.sha256(body).hexdigest(),record['sha256'],\n        'complete restoration helper source, not an infrastructure exemption')\n\n\n"
+        },
+        {
+          "after": "                previous=pump_restore_predecessor(self,relative,current)\n                self.assertEqual(hashlib.sha256(previous).hexdigest(),record['before_sha256'])\n                self.assertEqual(pump_restore_predecessor(self,relative,previous),previous)\n\n    def test_legacy_guard_file_reverses_only_ten_active_reads_and_one_import(self):\n        row=manifest(self)['legacy_guard'];current=performance_guard_source(self,row['path'],audit_predecessor(self,row['path'],(ROOT/row['path']).read_bytes()))\n        from tests.test_operational_candidate_source_guard import original_guard_source\n        current=original_guard_source(self,row['path'],current)\n        import_line=b'from tests.test_pump_restore_source_guard import pump_restore_predecessor\\n'\n        self.assertEqual(current.count(import_line),1)\n        restored=current.replace(import_line,b'',1);count=0\n",
+          "before": "                previous=pump_restore_predecessor(self,relative,current)\n                self.assertEqual(hashlib.sha256(previous).hexdigest(),record['before_sha256'])\n                self.assertEqual(pump_restore_predecessor(self,relative,previous),previous)\n\n    def test_legacy_guard_file_reverses_only_ten_active_reads_and_one_import(self):\n        row=manifest(self)['legacy_guard'];current=performance_guard_source(self,row['path'],(ROOT/row['path']).read_bytes())\n        from tests.test_operational_candidate_source_guard import original_guard_source\n        current=original_guard_source(self,row['path'],current)\n        import_line=b'from tests.test_pump_restore_source_guard import pump_restore_predecessor\\n'\n        self.assertEqual(current.count(import_line),1)\n        restored=current.replace(import_line,b'',1);count=0\n"
+        },
+        {
+          "after": "                self.assertIn(before,current)\n                with self.subTest(relative=relative,before=before),self.assertRaises(AssertionError):\n                    pump_restore_predecessor(self,relative,current.replace(before,after,1))\n\n    def test_complete_helper_pin_refuses_any_budget_path_hash_or_owner_mutation(self):\n        current=performance_source(self,HELPER,audit_predecessor(self,HELPER,(ROOT/HELPER).read_bytes()));read=Path.read_bytes\n        changes=[current+b'\\n# unreviewed helper\\n',b'']\n        for before,after in ((b'PAGE_REFERENCES = 128',b'PAGE_REFERENCES = 129'),\n                (b'SNAPSHOT_SECONDS = .025',b'SNAPSHOT_SECONDS = 1'),\n                (b\"'?mode=ro'\",b\"'?mode=rw'\"),\n                (b'digest(ref) != checksum',b'False'),\n",
+          "before": "                self.assertIn(before,current)\n                with self.subTest(relative=relative,before=before),self.assertRaises(AssertionError):\n                    pump_restore_predecessor(self,relative,current.replace(before,after,1))\n\n    def test_complete_helper_pin_refuses_any_budget_path_hash_or_owner_mutation(self):\n        current=performance_source(self,HELPER,(ROOT/HELPER).read_bytes());read=Path.read_bytes\n        changes=[current+b'\\n# unreviewed helper\\n',b'']\n        for before,after in ((b'PAGE_REFERENCES = 128',b'PAGE_REFERENCES = 129'),\n                (b'SNAPSHOT_SECONDS = .025',b'SNAPSHOT_SECONDS = 1'),\n                (b\"'?mode=ro'\",b\"'?mode=rw'\"),\n                (b'digest(ref) != checksum',b'False'),\n"
+        }
+      ],
+      "fixed_read_hooks": [
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='HELPER', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='HELPER', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/PumpRestoreSourceGuardTests/test_complete_helper_pin_refuses_any_budget_path_hash_or_owner_mutation"
+        },
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Subscript(value=Name(id='row', ctx=Load()), slice=Constant(value='path'), ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Subscript(value=Name(id='row', ctx=Load()), slice=Constant(value='path'), ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/PumpRestoreSourceGuardTests/test_legacy_guard_file_reverses_only_ten_active_reads_and_one_import"
+        },
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='test', ctx=Load()), Name(id='HELPER', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='HELPER', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/authenticated_helper"
+        }
+      ],
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/ImportFrom:0:tests.test_native_audit_source_guard",
+            "module/ImportFrom:0:tests.test_ea_performance_source_guard",
+            "module/Import:ast",
+            "module/Import:hashlib",
+            "module/Import:json",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:unittest",
+            "module/ImportFrom:0:unittest.mock",
+            "module/Assign:Name(id='ROOT', ctx=Store())",
+            "module/Assign:Name(id='MANIFEST', ctx=Store())",
+            "module/Assign:Name(id='MANIFEST_SHA256', ctx=Store())",
+            "module/Assign:Name(id='BASE', ctx=Store())",
+            "module/Assign:Name(id='IMPLEMENTATION', ctx=Store())",
+            "module/Assign:Name(id='IMPLEMENTATION_TREE', ctx=Store())",
+            "module/Assign:Name(id='PATHS', ctx=Store())",
+            "module/Assign:Name(id='HELPER', ctx=Store())",
+            "module/FunctionDef:manifest",
+            "module/FunctionDef:authenticated_helper",
+            "module/FunctionDef:pump_restore_predecessor",
+            "module/ClassDef:PumpRestoreSourceGuardTests"
+          ],
+          "before": [
+            "module/docstring",
+            "module/ImportFrom:0:tests.test_ea_performance_source_guard",
+            "module/Import:ast",
+            "module/Import:hashlib",
+            "module/Import:json",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:unittest",
+            "module/ImportFrom:0:unittest.mock",
+            "module/Assign:Name(id='ROOT', ctx=Store())",
+            "module/Assign:Name(id='MANIFEST', ctx=Store())",
+            "module/Assign:Name(id='MANIFEST_SHA256', ctx=Store())",
+            "module/Assign:Name(id='BASE', ctx=Store())",
+            "module/Assign:Name(id='IMPLEMENTATION', ctx=Store())",
+            "module/Assign:Name(id='IMPLEMENTATION_TREE', ctx=Store())",
+            "module/Assign:Name(id='PATHS', ctx=Store())",
+            "module/Assign:Name(id='HELPER', ctx=Store())",
+            "module/FunctionDef:manifest",
+            "module/FunctionDef:authenticated_helper",
+            "module/FunctionDef:pump_restore_predecessor",
+            "module/ClassDef:PumpRestoreSourceGuardTests"
+          ]
+        }
+      },
+      "nodes": {
+        "module/ClassDef:PumpRestoreSourceGuardTests/FunctionDef:test_complete_helper_pin_refuses_any_budget_path_hash_or_owner_mutation": {
+          "after": "dbdf900da6a5dc1e50cff2a15703bf74e466258a106c2ba744662c4dd684afcf",
+          "before": "b4784f983e37a9fd3929e088dfbc8488ab40fb1758a145d7efeb1ae657799e7f"
+        },
+        "module/ClassDef:PumpRestoreSourceGuardTests/FunctionDef:test_legacy_guard_file_reverses_only_ten_active_reads_and_one_import": {
+          "after": "35defa2556f974334d04a56a6a273813d0a0b7053bb275ee5fcc0ec1eacc2dd7",
+          "before": "d2321d8eed06b64c27f376ad094b14763f2b83449ebe5174f6fd76216102b9bc"
+        },
+        "module/FunctionDef:authenticated_helper": {
+          "after": "01da1688459b8c499d9aacaf9bd4d6b490b4c08d32985bd5fb10946f8d5235f0",
+          "before": "74df3d45c59c166c0c591a1aaeb956da535e849ceb7a47cf4e2ebfdbdc375306"
+        },
+        "module/ImportFrom:0:tests.test_native_audit_source_guard": {
+          "after": "dd30e427f73056de61ae2519a235b6708a17aac42733ce0d0c6f4257efe03a9e",
+          "before": null
+        }
+      }
+    },
+    "tests/test_robinhood_usd_valuation.py": {
+      "after_bytes": 376814,
+      "after_sha256": "5512e1b375dfbe960f1e6927e9528ff51b28a2a329657d3a1e42b7b47107b3e6",
+      "before_bytes": 376582,
+      "before_sha256": "ce12131d6f8732471dec8f46fa35930e3c30e965ed3f27e08346f29ab3381c2e",
+      "changes": [
+        {
+          "after": "\"\"\"Offline USDG oracle and native quote composition; no market transport.\"\"\"\nfrom tests.test_native_audit_source_guard import audit_predecessor, audit_predecessor_runtime_delta\nfrom tests.test_ea_performance_source_guard import performance_source, performance_guard_source\nimport ast\nfrom contextlib import closing\nfrom decimal import Decimal\nfrom pathlib import Path\n",
+          "before": "\"\"\"Offline USDG oracle and native quote composition; no market transport.\"\"\"\nfrom tests.test_ea_performance_source_guard import performance_source, performance_guard_source\nimport ast\nfrom contextlib import closing\nfrom decimal import Decimal\nfrom pathlib import Path\n"
+        },
+        {
+          "after": "    return prior\n\n\ndef guarded_source(test,relative):\n    \"\"\"Apply the exact new layer, then let the original economic guards run.\"\"\"\n    current=publication_accounting_predecessor(test,relative,pump_restore_predecessor(test,relative,performance_source(test,relative,audit_predecessor(test,relative,(ROOT/relative).read_bytes()))))\n    return rally_predecessor(test,relative,current)\n\n\n# Fixed, opt-in reached-operation costs are descriptive infrastructure only.\n# Pin both complete sources, reverse these exact bytes to the ced262d4 checkpoint,\n",
+          "before": "    return prior\n\n\ndef guarded_source(test,relative):\n    \"\"\"Apply the exact new layer, then let the original economic guards run.\"\"\"\n    current=publication_accounting_predecessor(test,relative,pump_restore_predecessor(test,relative,performance_source(test,relative,(ROOT/relative).read_bytes())))\n    return rally_predecessor(test,relative,current)\n\n\n# Fixed, opt-in reached-operation costs are descriptive infrastructure only.\n# Pin both complete sources, reverse these exact bytes to the ced262d4 checkpoint,\n"
+        },
+        {
+          "after": "                    with self.assertRaises(AssertionError):maintenance_entry_clock_predecessor(self,relative,changed)\n        # Pin the one necessary old79 entry normalization independently. Every\n        # original hash, lease assertion, mutation and relative ordering survives.\n        relative='tests/test_robinhood_usd_valuation.py'\n        from tests.test_operational_candidate_source_guard import original_guard_source\n        current=original_guard_source(self,relative,performance_guard_source(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n        prior=subprocess.check_output(['git','show',SOURCE_RECORDER_PUBLICATION_REFERENCE+':'+relative],cwd=ROOT)\n        def old_guard(body):\n            parent=next(n for n in ast.parse(body).body if isinstance(n,ast.ClassDef) and n.name=='RobinhoodUSDTests')\n            selected=next(n for n in parent.body if isinstance(n,ast.FunctionDef)\n                and n.name=='test_maintenance_entry_clock_preserves_exact_original_leases_and_native_guards')\n",
+          "before": "                    with self.assertRaises(AssertionError):maintenance_entry_clock_predecessor(self,relative,changed)\n        # Pin the one necessary old79 entry normalization independently. Every\n        # original hash, lease assertion, mutation and relative ordering survives.\n        relative='tests/test_robinhood_usd_valuation.py'\n        from tests.test_operational_candidate_source_guard import original_guard_source\n        current=original_guard_source(self,relative,performance_guard_source(self,relative,(ROOT/relative).read_bytes()))\n        prior=subprocess.check_output(['git','show',SOURCE_RECORDER_PUBLICATION_REFERENCE+':'+relative],cwd=ROOT)\n        def old_guard(body):\n            parent=next(n for n in ast.parse(body).body if isinstance(n,ast.ClassDef) and n.name=='RobinhoodUSDTests')\n            selected=next(n for n in parent.body if isinstance(n,ast.FunctionDef)\n                and n.name=='test_maintenance_entry_clock_preserves_exact_original_leases_and_native_guards')\n"
+        },
+        {
+          "after": "                    (b'if mint in created:continue',b'if True:continue')))),\n            'meme_machine/runtime/operation_costs.py':(),\n        }\n        self.assertEqual(set(mutations),set(PUBLICATION_ACCOUNTING_DELTAS))\n        for relative,(before,after,_) in PUBLICATION_ACCOUNTING_DELTAS.items():\n            current=cross_candidate_cold_predecessor(self,relative,pump_restore_predecessor(self,relative,performance_source(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))))\n            self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact integrated successor')\n            prior=subprocess.check_output(['git','show',PUBLICATION_ACCOUNTING_REFERENCE+':'+relative],cwd=ROOT)\n            self.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':immutable exact tested predecessor')\n            self.assertEqual(publication_accounting_predecessor(self,relative,current),prior)\n            self.assertEqual(publication_accounting_predecessor(self,relative,prior),prior)\n",
+          "before": "                    (b'if mint in created:continue',b'if True:continue')))),\n            'meme_machine/runtime/operation_costs.py':(),\n        }\n        self.assertEqual(set(mutations),set(PUBLICATION_ACCOUNTING_DELTAS))\n        for relative,(before,after,_) in PUBLICATION_ACCOUNTING_DELTAS.items():\n            current=cross_candidate_cold_predecessor(self,relative,pump_restore_predecessor(self,relative,performance_source(self,relative,(ROOT/relative).read_bytes())))\n            self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact integrated successor')\n            prior=subprocess.check_output(['git','show',PUBLICATION_ACCOUNTING_REFERENCE+':'+relative],cwd=ROOT)\n            self.assertEqual(hashlib.sha256(prior).hexdigest(),before,relative+':immutable exact tested predecessor')\n            self.assertEqual(publication_accounting_predecessor(self,relative,current),prior)\n            self.assertEqual(publication_accounting_predecessor(self,relative,prior),prior)\n"
+        },
+        {
+          "after": "                (b'lambda:int(bool(startup_cancel()))',b'lambda:0'),\n                (b'with preserving_cleanup():db.set_progress_handler(None,0)',b'with preserving_cleanup():pass')),\n        }\n        self.assertEqual(set(mutations),set(NATIVE_STARTUP_FAILURE_DELTAS))\n        for relative,(_,after,_,_,_) in NATIVE_STARTUP_FAILURE_DELTAS.items():\n            current=pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))\n            self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact first-failure repair source')\n            prior=subprocess.check_output(['git','show',NATIVE_STARTUP_FAILURE_REFERENCE+':'+relative],cwd=ROOT)\n            self.assertEqual(native_startup_failure_predecessor(self,relative,current),prior)\n            self.assertEqual(rally_predecessor(self,relative,current),rally_predecessor(self,relative,prior))\n            self.assertEqual(opportunity_predecessor(self,relative,current),\n",
+          "before": "                (b'lambda:int(bool(startup_cancel()))',b'lambda:0'),\n                (b'with preserving_cleanup():db.set_progress_handler(None,0)',b'with preserving_cleanup():pass')),\n        }\n        self.assertEqual(set(mutations),set(NATIVE_STARTUP_FAILURE_DELTAS))\n        for relative,(_,after,_,_,_) in NATIVE_STARTUP_FAILURE_DELTAS.items():\n            current=pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes())\n            self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact first-failure repair source')\n            prior=subprocess.check_output(['git','show',NATIVE_STARTUP_FAILURE_REFERENCE+':'+relative],cwd=ROOT)\n            self.assertEqual(native_startup_failure_predecessor(self,relative,current),prior)\n            self.assertEqual(rally_predecessor(self,relative,current),rally_predecessor(self,relative,prior))\n            self.assertEqual(opportunity_predecessor(self,relative,current),\n"
+        }
+      ],
+      "fixed_read_hooks": [
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='relative', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='relative', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/RobinhoodUSDTests/test_native_startup_failure_delta_preserves_all_prior_authority_and_source_guards"
+        },
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='relative', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='relative', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/RobinhoodUSDTests/test_publication_accounting_turn_preserves_durable_delta_cancellation_and_passive_pump_costs"
+        },
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='relative', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='relative', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/RobinhoodUSDTests/test_source_recorder_publication_reverses_only_exact_diagnostic_transport_and_test_read"
+        },
+        {
+          "call": "Call(func=Name(id='audit_predecessor', ctx=Load()), args=[Name(id='test', ctx=Load()), Name(id='relative', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='relative', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/guarded_source"
+        }
+      ],
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/ImportFrom:0:tests.test_native_audit_source_guard",
+            "module/ImportFrom:0:tests.test_ea_performance_source_guard",
+            "module/Import:ast",
+            "module/ImportFrom:0:contextlib",
+            "module/ImportFrom:0:decimal",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:subprocess",
+            "module/ImportFrom:0:types",
+            "module/Import:tempfile",
+            "module/Import:threading",
+            "module/Import:unittest",
+            "module/ImportFrom:0:unittest.mock",
+            "module/ImportFrom:0:tests.test_pump_restore_source_guard",
+            "module/ImportFrom:0:meme_machine.lanes.ramses.abi",
+            "module/ImportFrom:0:meme_machine.lanes.ramses.identity",
+            "module/ImportFrom:0:meme_machine.runtime.usd_valuation",
+            "module/Assign:Name(id='ROOT', ctx=Store())",
+            "module/Assign:Name(id='BASE', ctx=Store())",
+            "module/Assign:Name(id='NOW', ctx=Store())",
+            "module/Assign:Name(id='ROUND', ctx=Store())",
+            "module/Assign:Name(id='UPDATED', ctx=Store())",
+            "module/Assign:Name(id='AGGREGATOR', ctx=Store())",
+            "module/Assign:Name(id='WNATIVE', ctx=Store())",
+            "module/Assign:Name(id='POOL', ctx=Store())",
+            "module/FunctionDef:baseline",
+            "module/Assign:Name(id='HOLDING_DELTAS', ctx=Store())",
+            "module/Assign:Subscript(value=Subscript(value=Name(id='HOLDING_DELTAS', ctx=Load()), slice=Constant(value='meme_machine/lanes/pump/runner.py'), ctx=Load()), slice=Constant(value='main'), ctx=Store())",
+            "module/Assign:Name(id='ATTENTION_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='OPERATION_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='ACQUISITION_SOURCE_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='LIFECYCLE_PACKAGE_BASE', ctx=Store())",
+            "module/Assign:Name(id='LIFECYCLE_PACKAGE_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='LIFECYCLE_SOURCE_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='OPPORTUNITY_BASE', ctx=Store())",
+            "module/Assign:Name(id='OPPORTUNITY_STRATEGY_BASE', ctx=Store())",
+            "module/Assign:Name(id='OPPORTUNITY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='OPPORTUNITY_ORIGINAL_MANIFEST_SHA256', ctx=Store())",
+            "module/Assign:Name(id='OPPORTUNITY_MANIFEST', ctx=Store())",
+            "module/Assign:Name(id='OPPORTUNITY_ADDED_SOURCES', ctx=Store())",
+            "module/Assign:Name(id='RALLY_BASE', ctx=Store())",
+            "module/Assign:Name(id='RALLY_MANIFEST', ctx=Store())",
+            "module/Assign:Name(id='RALLY_SCHEMA', ctx=Store())",
+            "module/Assign:Name(id='RALLY_MANIFEST_SHA256', ctx=Store())",
+            "module/Assign:Name(id='RALLY_CHANGED_SOURCES', ctx=Store())",
+            "module/Assign:Name(id='RALLY_ADDED_SOURCES', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_RECORDER_PUBLICATION_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_RECORDER_PUBLICATION_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_RECORDER_TEST_BODY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_RECORDER_TEST_READ_OLD', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_RECORDER_TEST_READ_NEW', ctx=Store())",
+            "module/FunctionDef:source_recorder_publication_predecessor",
+            "module/Assign:Name(id='MAINTENANCE_ENTRY_CLOCK_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='MAINTENANCE_ENTRY_CLOCK_DELTAS', ctx=Store())",
+            "module/FunctionDef:maintenance_entry_clock_predecessor",
+            "module/Assign:Name(id='SURVIVOR_INCREMENT_CONTINUITY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_INCREMENT_CONTINUITY_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_INCREMENT_CONTINUITY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_INCREMENT_CONTINUITY_AFTER', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_INCREMENT_CONTINUITY_PRIORS', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_INCREMENT_CONTINUITY_BLOCK', ctx=Store())",
+            "module/FunctionDef:survivor_increment_continuity_predecessor",
+            "module/Assign:Name(id='SLEEVE_EMPTY_PREFIX_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='SLEEVE_EMPTY_PREFIX_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='SLEEVE_EMPTY_PREFIX_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='SLEEVE_EMPTY_PREFIX_AFTER', ctx=Store())",
+            "module/Assign:Name(id='SLEEVE_EMPTY_PREFIX_IMPORT_OLD', ctx=Store())",
+            "module/Assign:Name(id='SLEEVE_EMPTY_PREFIX_IMPORT_NEW', ctx=Store())",
+            "module/FunctionDef:sleeve_empty_prefix_predecessor",
+            "module/Assign:Name(id='ARCHIVE_LOG_ORDER_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_ORDER_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_ORDER_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_ORDER_AFTER', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_ORDER_OLD', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_ORDER_NEW', ctx=Store())",
+            "module/FunctionDef:archive_log_order_predecessor",
+            "module/Assign:Name(id='ARCHIVE_LOG_CONSISTENCY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_CONSISTENCY_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_CONSISTENCY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_CONSISTENCY_AFTER', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_CONSISTENCY_OLD', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_CONSISTENCY_NEW', ctx=Store())",
+            "module/FunctionDef:archive_log_consistency_predecessor",
+            "module/Assign:Name(id='RETAINED_ARCHIVE_LOG_SHAPE_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_ARCHIVE_LOG_SHAPE_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_ARCHIVE_LOG_SHAPE_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_ARCHIVE_LOG_SHAPE_AFTER', ctx=Store())",
+            "module/FunctionDef:retained_archive_log_shape_predecessor",
+            "module/Assign:Name(id='ARCHIVE_COMPLETE_LOGS_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_COMPLETE_LOGS_DELTAS', ctx=Store())",
+            "module/FunctionDef:archive_complete_logs_predecessor",
+            "module/Assign:Name(id='PROVIDER_NAMESPACE_READ_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PROVIDER_NAMESPACE_READ_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PROVIDER_NAMESPACE_READ_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='PROVIDER_NAMESPACE_READ_AFTER', ctx=Store())",
+            "module/FunctionDef:provider_namespace_read_predecessor",
+            "module/Assign:Name(id='PUMP_COST_ENVIRONMENT_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_COST_ENVIRONMENT_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_COST_ENVIRONMENT_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_COST_ENVIRONMENT_AFTER', ctx=Store())",
+            "module/Assign:Name(id='PUMP_COST_ENVIRONMENT_OLD', ctx=Store())",
+            "module/Assign:Name(id='PUMP_COST_ENVIRONMENT_NEW', ctx=Store())",
+            "module/FunctionDef:pump_cost_environment_predecessor",
+            "module/Assign:Name(id='SOURCE_PARENT_DRAIN_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_PARENT_DRAIN_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_PARENT_DRAIN_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_PARENT_DRAIN_AFTER', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_PARENT_DRAIN_CHANGED', ctx=Store())",
+            "module/FunctionDef:source_parent_drain_predecessor",
+            "module/Assign:Name(id='PUBLICATION_ACCOUNTING_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PUBLICATION_ACCOUNTING_DELTAS', ctx=Store())",
+            "module/FunctionDef:publication_accounting_predecessor",
+            "module/Assign:Name(id='BUFFERED_PREJOIN_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='BUFFERED_PREJOIN_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='BUFFERED_PREJOIN_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='BUFFERED_PREJOIN_AFTER', ctx=Store())",
+            "module/Assign:Name(id='BUFFERED_PREJOIN_CHANGED', ctx=Store())",
+            "module/Assign:Name(id='BUFFERED_PREJOIN_ADDED', ctx=Store())",
+            "module/Assign:Name(id='BUFFERED_ORIGIN_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='BUFFERED_ORIGIN_AFTER', ctx=Store())",
+            "module/FunctionDef:buffered_origin_predecessor",
+            "module/FunctionDef:buffered_prejoin_predecessor",
+            "module/Assign:Name(id='PREPARATION_REPLAY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PREPARATION_REPLAY_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PREPARATION_REPLAY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='PREPARATION_REPLAY_AFTER', ctx=Store())",
+            "module/Assign:Name(id='PREPARATION_REPLAY_CHANGED', ctx=Store())",
+            "module/Assign:Name(id='PREPARATION_REPLAY_ADDED', ctx=Store())",
+            "module/Assign:Name(id='PREPARATION_REPLAY_CONSTANTS', ctx=Store())",
+            "module/FunctionDef:preparation_replay_predecessor",
+            "module/Assign:Name(id='PREJOIN_SOURCE_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PREJOIN_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PREJOIN_SOURCE_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='PREJOIN_SOURCE_AFTER', ctx=Store())",
+            "module/Assign:Name(id='PREJOIN_SOURCE_CHANGED', ctx=Store())",
+            "module/Assign:Name(id='PREJOIN_SOURCE_CONSTANTS', ctx=Store())",
+            "module/FunctionDef:prejoin_source_predecessor",
+            "module/Assign:Name(id='SESSION_ECONOMIC_RECOVERY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='SESSION_ECONOMIC_RECOVERY_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='SESSION_ECONOMIC_RECOVERY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='SESSION_ECONOMIC_RECOVERY_AFTER', ctx=Store())",
+            "module/Assign:Name(id='SESSION_ECONOMIC_RECOVERY_CHANGED', ctx=Store())",
+            "module/Assign:Name(id='SESSION_ECONOMIC_RECOVERY_ADDED', ctx=Store())",
+            "module/Assign:Name(id='SESSION_ECONOMIC_RECOVERY_PRIORS', ctx=Store())",
+            "module/FunctionDef:session_economic_recovery_predecessor",
+            "module/Assign:Name(id='FROZEN_PAUSED_READER_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='FROZEN_PAUSED_READER_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='FROZEN_PAUSED_READER_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='FROZEN_PAUSED_READER_AFTER', ctx=Store())",
+            "module/FunctionDef:frozen_paused_reader_predecessor",
+            "module/Assign:Name(id='PUMP_RESTORE_ARCHIVE_REUSE_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_RESTORE_ARCHIVE_REUSE_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_RESTORE_ARCHIVE_REUSE_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_RESTORE_ARCHIVE_REUSE_AFTER', ctx=Store())",
+            "module/FunctionDef:pump_restore_archive_reuse_predecessor",
+            "module/Assign:Name(id='CANONICAL_COLD_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='CANONICAL_COLD_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='CANONICAL_COLD_MAIN_BINDING', ctx=Store())",
+            "module/FunctionDef:canonical_cold_predecessor",
+            "module/Assign:Name(id='PUMP_RESTORE_SELECTION_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_RESTORE_SELECTION_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_RESTORE_SELECTION_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_RESTORE_SELECTION_AFTER', ctx=Store())",
+            "module/Assign:Name(id='PUMP_RESTORE_SELECTION_DDL', ctx=Store())",
+            "module/FunctionDef:pump_restore_selection_predecessor",
+            "module/Assign:Name(id='RETAINED_CANONICAL_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_CANONICAL_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_CANONICAL_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_CANONICAL_AFTER', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_CANONICAL_ADDITIONS', ctx=Store())",
+            "module/FunctionDef:retained_canonical_predecessor",
+            "module/Assign:Name(id='NATIVE_STARTUP_FAILURE_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='NATIVE_STARTUP_FAILURE_DELTAS', ctx=Store())",
+            "module/FunctionDef:native_startup_failure_predecessor",
+            "module/Assign:Name(id='SURVIVOR_MONITOR_REPLAY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_MONITOR_REPLAY_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_MONITOR_REPLAY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_MONITOR_REPLAY_AFTER', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_MONITOR_REPLAY_OLD_BLOCK', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_MONITOR_REPLAY_NEW_BLOCK', ctx=Store())",
+            "module/FunctionDef:survivor_monitor_replay_predecessor",
+            "module/Assign:Name(id='RECOVERED_ECONOMIC_BOUNDARY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='RECOVERED_ECONOMIC_BOUNDARY_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='RECOVERED_ECONOMIC_BOUNDARY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='RECOVERED_ECONOMIC_BOUNDARY_AFTER', ctx=Store())",
+            "module/Assign:Name(id='RECOVERED_ECONOMIC_BOUNDARY_ASSIGNMENTS', ctx=Store())",
+            "module/FunctionDef:recovered_economic_boundary_predecessor",
+            "module/Assign:Name(id='PROGRAM_GAP_OBSERVATION_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PROGRAM_GAP_OBSERVATION_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PROGRAM_GAP_OBSERVATION_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='PROGRAM_GAP_OBSERVATION_AFTER', ctx=Store())",
+            "module/Assign:Name(id='PROGRAM_GAP_OBSERVATION_LAYER_AFTER', ctx=Store())",
+            "module/Assign:Name(id='PROGRAM_GAP_OBSERVATION_ADDITIONS', ctx=Store())",
+            "module/FunctionDef:program_gap_observation_predecessor",
+            "module/Assign:Name(id='STARTUP_HISTORY_CANCEL_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='STARTUP_HISTORY_CANCEL_DELTAS', ctx=Store())",
+            "module/FunctionDef:startup_history_cancellation_predecessor",
+            "module/FunctionDef:rally_manifest",
+            "module/FunctionDef:rally_nodes",
+            "module/FunctionDef:rally_delta",
+            "module/Assign:Name(id='CROSS_CANDIDATE_COLD_BASE', ctx=Store())",
+            "module/Assign:Name(id='CROSS_CANDIDATE_COLD_REVIEW', ctx=Store())",
+            "module/Assign:Name(id='CROSS_CANDIDATE_COLD_PATHS', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_PATH_FACTOR_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_PATH_FACTOR_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_PATH_FACTOR_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_PATH_FACTOR_AFTER', ctx=Store())",
+            "module/FunctionDef:retained_path_factoring_predecessor",
+            "module/FunctionDef:cross_candidate_cold_predecessor",
+            "module/FunctionDef:rally_predecessor",
+            "module/FunctionDef:guarded_source",
+            "module/Assign:Name(id='OPERATION_COST_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='OPERATION_COST_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='PONS_DISCOVERY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PONS_DISCOVERY_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PONS_DISCOVERY_BEFORE_SHA256', ctx=Store())",
+            "module/Assign:Name(id='PONS_DISCOVERY_AFTER_SHA256', ctx=Store())",
+            "module/Assign:Name(id='PONS_DISCOVERY_REPLACEMENTS', ctx=Store())",
+            "module/FunctionDef:pons_discovery_predecessor",
+            "module/Assign:Name(id='RESTORED_HISTORY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='RESTORED_HISTORY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='RESTORED_HISTORY_AFTER', ctx=Store())",
+            "module/Assign:Name(id='RESTORED_HISTORY_HELPER', ctx=Store())",
+            "module/Assign:Name(id='RESTORED_HISTORY_HELPER_SHA256', ctx=Store())",
+            "module/Assign:Name(id='RESTORED_HISTORY_OLD_BLOCK', ctx=Store())",
+            "module/Assign:Name(id='RESTORED_HISTORY_NEW_BLOCK', ctx=Store())",
+            "module/FunctionDef:restored_provider_helper",
+            "module/FunctionDef:restored_provider_history_predecessor",
+            "module/Assign:Name(id='CONTAINED_OBSERVATION_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='CONTAINED_OBSERVATION_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='CONTAINED_OBSERVATION_PHASE', ctx=Store())",
+            "module/Assign:Name(id='CONTAINED_CACHE_WINDOW_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='CONTAINED_CACHE_WINDOW_AFTER', ctx=Store())",
+            "module/FunctionDef:contained_observation_predecessor",
+            "module/Assign:Name(id='CPU_CAPACITY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='CPU_CAPACITY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='CPU_CAPACITY_AFTER', ctx=Store())",
+            "module/FunctionDef:cpu_capacity_predecessor",
+            "module/Assign:Name(id='BACKUP_CONFIGURATION_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='BACKUP_CONFIGURATION_AFTER', ctx=Store())",
+            "module/FunctionDef:backup_configuration_predecessor",
+            "module/FunctionDef:operation_cost_predecessor",
+            "module/FunctionDef:reviewed_operation_costs",
+            "module/Assign:Name(id='OBSERVATION_ROUTE_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='OBSERVATION_ROUTE_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='OBSERVATION_ROUTE_BEFORE_SHA256', ctx=Store())",
+            "module/Assign:Name(id='OBSERVATION_ROUTE_AFTER_SHA256', ctx=Store())",
+            "module/Assign:Name(id='OBSERVATION_ROUTE_BLOCK', ctx=Store())",
+            "module/FunctionDef:observation_route_predecessor",
+            "module/Assign:Name(id='COHORT_AUTHORITY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='COHORT_AUTHORITY_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='NATIVE_STARTUP_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='NATIVE_STARTUP_DELTAS', ctx=Store())",
+            "module/FunctionDef:native_startup_predecessor",
+            "module/FunctionDef:reviewed_native_startup",
+            "module/Assign:Name(id='OBSERVATION_FOLLOWUP_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='OBSERVATION_FOLLOWUP_DELTAS', ctx=Store())",
+            "module/FunctionDef:observation_followup_predecessor",
+            "module/FunctionDef:cohort_authority_predecessor",
+            "module/Assign:Name(id='STARTUP_CANCEL_DELTAS', ctx=Store())",
+            "module/FunctionDef:startup_cancel_predecessor",
+            "module/FunctionDef:assert_opportunity_added_source",
+            "module/FunctionDef:opportunity_predecessor",
+            "module/Assign:Name(id='PUMP_DIAGNOSTIC_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_DIAGNOSTIC_NODES', ctx=Store())",
+            "module/Assign:Name(id='COMBINED_PUMP_DIAGNOSTIC_NODES', ctx=Store())",
+            "module/ClassDef:_RemoveReviewedPumpDiagnostics",
+            "module/FunctionDef:pump_economic_tree",
+            "module/FunctionDef:assert_attention_node",
+            "module/FunctionDef:assert_holding_delta",
+            "module/FunctionDef:abi",
+            "module/FunctionDef:text_abi",
+            "module/ClassDef:ReadRPC",
+            "module/ClassDef:RobinhoodUSDTests",
+            "module/If:If(test=Compare(left=Name(id='__name__', ctx=Load()), ops=[Eq()], comparators=[Constant(value='__main__')]), body=[Expr(value=Call(func=Attribute(value=Name(id='unittest', ctx=Load()), attr='main', ctx=Load()), args=[], keywords=[]))], orelse=[])"
+          ],
+          "before": [
+            "module/docstring",
+            "module/ImportFrom:0:tests.test_ea_performance_source_guard",
+            "module/Import:ast",
+            "module/ImportFrom:0:contextlib",
+            "module/ImportFrom:0:decimal",
+            "module/ImportFrom:0:pathlib",
+            "module/Import:subprocess",
+            "module/ImportFrom:0:types",
+            "module/Import:tempfile",
+            "module/Import:threading",
+            "module/Import:unittest",
+            "module/ImportFrom:0:unittest.mock",
+            "module/ImportFrom:0:tests.test_pump_restore_source_guard",
+            "module/ImportFrom:0:meme_machine.lanes.ramses.abi",
+            "module/ImportFrom:0:meme_machine.lanes.ramses.identity",
+            "module/ImportFrom:0:meme_machine.runtime.usd_valuation",
+            "module/Assign:Name(id='ROOT', ctx=Store())",
+            "module/Assign:Name(id='BASE', ctx=Store())",
+            "module/Assign:Name(id='NOW', ctx=Store())",
+            "module/Assign:Name(id='ROUND', ctx=Store())",
+            "module/Assign:Name(id='UPDATED', ctx=Store())",
+            "module/Assign:Name(id='AGGREGATOR', ctx=Store())",
+            "module/Assign:Name(id='WNATIVE', ctx=Store())",
+            "module/Assign:Name(id='POOL', ctx=Store())",
+            "module/FunctionDef:baseline",
+            "module/Assign:Name(id='HOLDING_DELTAS', ctx=Store())",
+            "module/Assign:Subscript(value=Subscript(value=Name(id='HOLDING_DELTAS', ctx=Load()), slice=Constant(value='meme_machine/lanes/pump/runner.py'), ctx=Load()), slice=Constant(value='main'), ctx=Store())",
+            "module/Assign:Name(id='ATTENTION_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='OPERATION_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='ACQUISITION_SOURCE_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='LIFECYCLE_PACKAGE_BASE', ctx=Store())",
+            "module/Assign:Name(id='LIFECYCLE_PACKAGE_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='LIFECYCLE_SOURCE_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='OPPORTUNITY_BASE', ctx=Store())",
+            "module/Assign:Name(id='OPPORTUNITY_STRATEGY_BASE', ctx=Store())",
+            "module/Assign:Name(id='OPPORTUNITY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='OPPORTUNITY_ORIGINAL_MANIFEST_SHA256', ctx=Store())",
+            "module/Assign:Name(id='OPPORTUNITY_MANIFEST', ctx=Store())",
+            "module/Assign:Name(id='OPPORTUNITY_ADDED_SOURCES', ctx=Store())",
+            "module/Assign:Name(id='RALLY_BASE', ctx=Store())",
+            "module/Assign:Name(id='RALLY_MANIFEST', ctx=Store())",
+            "module/Assign:Name(id='RALLY_SCHEMA', ctx=Store())",
+            "module/Assign:Name(id='RALLY_MANIFEST_SHA256', ctx=Store())",
+            "module/Assign:Name(id='RALLY_CHANGED_SOURCES', ctx=Store())",
+            "module/Assign:Name(id='RALLY_ADDED_SOURCES', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_RECORDER_PUBLICATION_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_RECORDER_PUBLICATION_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_RECORDER_TEST_BODY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_RECORDER_TEST_READ_OLD', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_RECORDER_TEST_READ_NEW', ctx=Store())",
+            "module/FunctionDef:source_recorder_publication_predecessor",
+            "module/Assign:Name(id='MAINTENANCE_ENTRY_CLOCK_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='MAINTENANCE_ENTRY_CLOCK_DELTAS', ctx=Store())",
+            "module/FunctionDef:maintenance_entry_clock_predecessor",
+            "module/Assign:Name(id='SURVIVOR_INCREMENT_CONTINUITY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_INCREMENT_CONTINUITY_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_INCREMENT_CONTINUITY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_INCREMENT_CONTINUITY_AFTER', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_INCREMENT_CONTINUITY_PRIORS', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_INCREMENT_CONTINUITY_BLOCK', ctx=Store())",
+            "module/FunctionDef:survivor_increment_continuity_predecessor",
+            "module/Assign:Name(id='SLEEVE_EMPTY_PREFIX_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='SLEEVE_EMPTY_PREFIX_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='SLEEVE_EMPTY_PREFIX_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='SLEEVE_EMPTY_PREFIX_AFTER', ctx=Store())",
+            "module/Assign:Name(id='SLEEVE_EMPTY_PREFIX_IMPORT_OLD', ctx=Store())",
+            "module/Assign:Name(id='SLEEVE_EMPTY_PREFIX_IMPORT_NEW', ctx=Store())",
+            "module/FunctionDef:sleeve_empty_prefix_predecessor",
+            "module/Assign:Name(id='ARCHIVE_LOG_ORDER_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_ORDER_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_ORDER_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_ORDER_AFTER', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_ORDER_OLD', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_ORDER_NEW', ctx=Store())",
+            "module/FunctionDef:archive_log_order_predecessor",
+            "module/Assign:Name(id='ARCHIVE_LOG_CONSISTENCY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_CONSISTENCY_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_CONSISTENCY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_CONSISTENCY_AFTER', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_CONSISTENCY_OLD', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_LOG_CONSISTENCY_NEW', ctx=Store())",
+            "module/FunctionDef:archive_log_consistency_predecessor",
+            "module/Assign:Name(id='RETAINED_ARCHIVE_LOG_SHAPE_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_ARCHIVE_LOG_SHAPE_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_ARCHIVE_LOG_SHAPE_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_ARCHIVE_LOG_SHAPE_AFTER', ctx=Store())",
+            "module/FunctionDef:retained_archive_log_shape_predecessor",
+            "module/Assign:Name(id='ARCHIVE_COMPLETE_LOGS_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='ARCHIVE_COMPLETE_LOGS_DELTAS', ctx=Store())",
+            "module/FunctionDef:archive_complete_logs_predecessor",
+            "module/Assign:Name(id='PROVIDER_NAMESPACE_READ_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PROVIDER_NAMESPACE_READ_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PROVIDER_NAMESPACE_READ_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='PROVIDER_NAMESPACE_READ_AFTER', ctx=Store())",
+            "module/FunctionDef:provider_namespace_read_predecessor",
+            "module/Assign:Name(id='PUMP_COST_ENVIRONMENT_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_COST_ENVIRONMENT_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_COST_ENVIRONMENT_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_COST_ENVIRONMENT_AFTER', ctx=Store())",
+            "module/Assign:Name(id='PUMP_COST_ENVIRONMENT_OLD', ctx=Store())",
+            "module/Assign:Name(id='PUMP_COST_ENVIRONMENT_NEW', ctx=Store())",
+            "module/FunctionDef:pump_cost_environment_predecessor",
+            "module/Assign:Name(id='SOURCE_PARENT_DRAIN_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_PARENT_DRAIN_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_PARENT_DRAIN_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_PARENT_DRAIN_AFTER', ctx=Store())",
+            "module/Assign:Name(id='SOURCE_PARENT_DRAIN_CHANGED', ctx=Store())",
+            "module/FunctionDef:source_parent_drain_predecessor",
+            "module/Assign:Name(id='PUBLICATION_ACCOUNTING_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PUBLICATION_ACCOUNTING_DELTAS', ctx=Store())",
+            "module/FunctionDef:publication_accounting_predecessor",
+            "module/Assign:Name(id='BUFFERED_PREJOIN_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='BUFFERED_PREJOIN_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='BUFFERED_PREJOIN_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='BUFFERED_PREJOIN_AFTER', ctx=Store())",
+            "module/Assign:Name(id='BUFFERED_PREJOIN_CHANGED', ctx=Store())",
+            "module/Assign:Name(id='BUFFERED_PREJOIN_ADDED', ctx=Store())",
+            "module/Assign:Name(id='BUFFERED_ORIGIN_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='BUFFERED_ORIGIN_AFTER', ctx=Store())",
+            "module/FunctionDef:buffered_origin_predecessor",
+            "module/FunctionDef:buffered_prejoin_predecessor",
+            "module/Assign:Name(id='PREPARATION_REPLAY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PREPARATION_REPLAY_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PREPARATION_REPLAY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='PREPARATION_REPLAY_AFTER', ctx=Store())",
+            "module/Assign:Name(id='PREPARATION_REPLAY_CHANGED', ctx=Store())",
+            "module/Assign:Name(id='PREPARATION_REPLAY_ADDED', ctx=Store())",
+            "module/Assign:Name(id='PREPARATION_REPLAY_CONSTANTS', ctx=Store())",
+            "module/FunctionDef:preparation_replay_predecessor",
+            "module/Assign:Name(id='PREJOIN_SOURCE_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PREJOIN_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PREJOIN_SOURCE_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='PREJOIN_SOURCE_AFTER', ctx=Store())",
+            "module/Assign:Name(id='PREJOIN_SOURCE_CHANGED', ctx=Store())",
+            "module/Assign:Name(id='PREJOIN_SOURCE_CONSTANTS', ctx=Store())",
+            "module/FunctionDef:prejoin_source_predecessor",
+            "module/Assign:Name(id='SESSION_ECONOMIC_RECOVERY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='SESSION_ECONOMIC_RECOVERY_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='SESSION_ECONOMIC_RECOVERY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='SESSION_ECONOMIC_RECOVERY_AFTER', ctx=Store())",
+            "module/Assign:Name(id='SESSION_ECONOMIC_RECOVERY_CHANGED', ctx=Store())",
+            "module/Assign:Name(id='SESSION_ECONOMIC_RECOVERY_ADDED', ctx=Store())",
+            "module/Assign:Name(id='SESSION_ECONOMIC_RECOVERY_PRIORS', ctx=Store())",
+            "module/FunctionDef:session_economic_recovery_predecessor",
+            "module/Assign:Name(id='FROZEN_PAUSED_READER_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='FROZEN_PAUSED_READER_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='FROZEN_PAUSED_READER_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='FROZEN_PAUSED_READER_AFTER', ctx=Store())",
+            "module/FunctionDef:frozen_paused_reader_predecessor",
+            "module/Assign:Name(id='PUMP_RESTORE_ARCHIVE_REUSE_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_RESTORE_ARCHIVE_REUSE_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_RESTORE_ARCHIVE_REUSE_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_RESTORE_ARCHIVE_REUSE_AFTER', ctx=Store())",
+            "module/FunctionDef:pump_restore_archive_reuse_predecessor",
+            "module/Assign:Name(id='CANONICAL_COLD_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='CANONICAL_COLD_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='CANONICAL_COLD_MAIN_BINDING', ctx=Store())",
+            "module/FunctionDef:canonical_cold_predecessor",
+            "module/Assign:Name(id='PUMP_RESTORE_SELECTION_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_RESTORE_SELECTION_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_RESTORE_SELECTION_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_RESTORE_SELECTION_AFTER', ctx=Store())",
+            "module/Assign:Name(id='PUMP_RESTORE_SELECTION_DDL', ctx=Store())",
+            "module/FunctionDef:pump_restore_selection_predecessor",
+            "module/Assign:Name(id='RETAINED_CANONICAL_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_CANONICAL_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_CANONICAL_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_CANONICAL_AFTER', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_CANONICAL_ADDITIONS', ctx=Store())",
+            "module/FunctionDef:retained_canonical_predecessor",
+            "module/Assign:Name(id='NATIVE_STARTUP_FAILURE_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='NATIVE_STARTUP_FAILURE_DELTAS', ctx=Store())",
+            "module/FunctionDef:native_startup_failure_predecessor",
+            "module/Assign:Name(id='SURVIVOR_MONITOR_REPLAY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_MONITOR_REPLAY_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_MONITOR_REPLAY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_MONITOR_REPLAY_AFTER', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_MONITOR_REPLAY_OLD_BLOCK', ctx=Store())",
+            "module/Assign:Name(id='SURVIVOR_MONITOR_REPLAY_NEW_BLOCK', ctx=Store())",
+            "module/FunctionDef:survivor_monitor_replay_predecessor",
+            "module/Assign:Name(id='RECOVERED_ECONOMIC_BOUNDARY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='RECOVERED_ECONOMIC_BOUNDARY_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='RECOVERED_ECONOMIC_BOUNDARY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='RECOVERED_ECONOMIC_BOUNDARY_AFTER', ctx=Store())",
+            "module/Assign:Name(id='RECOVERED_ECONOMIC_BOUNDARY_ASSIGNMENTS', ctx=Store())",
+            "module/FunctionDef:recovered_economic_boundary_predecessor",
+            "module/Assign:Name(id='PROGRAM_GAP_OBSERVATION_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PROGRAM_GAP_OBSERVATION_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PROGRAM_GAP_OBSERVATION_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='PROGRAM_GAP_OBSERVATION_AFTER', ctx=Store())",
+            "module/Assign:Name(id='PROGRAM_GAP_OBSERVATION_LAYER_AFTER', ctx=Store())",
+            "module/Assign:Name(id='PROGRAM_GAP_OBSERVATION_ADDITIONS', ctx=Store())",
+            "module/FunctionDef:program_gap_observation_predecessor",
+            "module/Assign:Name(id='STARTUP_HISTORY_CANCEL_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='STARTUP_HISTORY_CANCEL_DELTAS', ctx=Store())",
+            "module/FunctionDef:startup_history_cancellation_predecessor",
+            "module/FunctionDef:rally_manifest",
+            "module/FunctionDef:rally_nodes",
+            "module/FunctionDef:rally_delta",
+            "module/Assign:Name(id='CROSS_CANDIDATE_COLD_BASE', ctx=Store())",
+            "module/Assign:Name(id='CROSS_CANDIDATE_COLD_REVIEW', ctx=Store())",
+            "module/Assign:Name(id='CROSS_CANDIDATE_COLD_PATHS', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_PATH_FACTOR_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_PATH_FACTOR_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_PATH_FACTOR_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='RETAINED_PATH_FACTOR_AFTER', ctx=Store())",
+            "module/FunctionDef:retained_path_factoring_predecessor",
+            "module/FunctionDef:cross_candidate_cold_predecessor",
+            "module/FunctionDef:rally_predecessor",
+            "module/FunctionDef:guarded_source",
+            "module/Assign:Name(id='OPERATION_COST_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='OPERATION_COST_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='PONS_DISCOVERY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PONS_DISCOVERY_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='PONS_DISCOVERY_BEFORE_SHA256', ctx=Store())",
+            "module/Assign:Name(id='PONS_DISCOVERY_AFTER_SHA256', ctx=Store())",
+            "module/Assign:Name(id='PONS_DISCOVERY_REPLACEMENTS', ctx=Store())",
+            "module/FunctionDef:pons_discovery_predecessor",
+            "module/Assign:Name(id='RESTORED_HISTORY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='RESTORED_HISTORY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='RESTORED_HISTORY_AFTER', ctx=Store())",
+            "module/Assign:Name(id='RESTORED_HISTORY_HELPER', ctx=Store())",
+            "module/Assign:Name(id='RESTORED_HISTORY_HELPER_SHA256', ctx=Store())",
+            "module/Assign:Name(id='RESTORED_HISTORY_OLD_BLOCK', ctx=Store())",
+            "module/Assign:Name(id='RESTORED_HISTORY_NEW_BLOCK', ctx=Store())",
+            "module/FunctionDef:restored_provider_helper",
+            "module/FunctionDef:restored_provider_history_predecessor",
+            "module/Assign:Name(id='CONTAINED_OBSERVATION_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='CONTAINED_OBSERVATION_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='CONTAINED_OBSERVATION_PHASE', ctx=Store())",
+            "module/Assign:Name(id='CONTAINED_CACHE_WINDOW_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='CONTAINED_CACHE_WINDOW_AFTER', ctx=Store())",
+            "module/FunctionDef:contained_observation_predecessor",
+            "module/Assign:Name(id='CPU_CAPACITY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='CPU_CAPACITY_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='CPU_CAPACITY_AFTER', ctx=Store())",
+            "module/FunctionDef:cpu_capacity_predecessor",
+            "module/Assign:Name(id='BACKUP_CONFIGURATION_BEFORE', ctx=Store())",
+            "module/Assign:Name(id='BACKUP_CONFIGURATION_AFTER', ctx=Store())",
+            "module/FunctionDef:backup_configuration_predecessor",
+            "module/FunctionDef:operation_cost_predecessor",
+            "module/FunctionDef:reviewed_operation_costs",
+            "module/Assign:Name(id='OBSERVATION_ROUTE_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='OBSERVATION_ROUTE_SOURCE', ctx=Store())",
+            "module/Assign:Name(id='OBSERVATION_ROUTE_BEFORE_SHA256', ctx=Store())",
+            "module/Assign:Name(id='OBSERVATION_ROUTE_AFTER_SHA256', ctx=Store())",
+            "module/Assign:Name(id='OBSERVATION_ROUTE_BLOCK', ctx=Store())",
+            "module/FunctionDef:observation_route_predecessor",
+            "module/Assign:Name(id='COHORT_AUTHORITY_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='COHORT_AUTHORITY_DELTAS', ctx=Store())",
+            "module/Assign:Name(id='NATIVE_STARTUP_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='NATIVE_STARTUP_DELTAS', ctx=Store())",
+            "module/FunctionDef:native_startup_predecessor",
+            "module/FunctionDef:reviewed_native_startup",
+            "module/Assign:Name(id='OBSERVATION_FOLLOWUP_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='OBSERVATION_FOLLOWUP_DELTAS', ctx=Store())",
+            "module/FunctionDef:observation_followup_predecessor",
+            "module/FunctionDef:cohort_authority_predecessor",
+            "module/Assign:Name(id='STARTUP_CANCEL_DELTAS', ctx=Store())",
+            "module/FunctionDef:startup_cancel_predecessor",
+            "module/FunctionDef:assert_opportunity_added_source",
+            "module/FunctionDef:opportunity_predecessor",
+            "module/Assign:Name(id='PUMP_DIAGNOSTIC_REFERENCE', ctx=Store())",
+            "module/Assign:Name(id='PUMP_DIAGNOSTIC_NODES', ctx=Store())",
+            "module/Assign:Name(id='COMBINED_PUMP_DIAGNOSTIC_NODES', ctx=Store())",
+            "module/ClassDef:_RemoveReviewedPumpDiagnostics",
+            "module/FunctionDef:pump_economic_tree",
+            "module/FunctionDef:assert_attention_node",
+            "module/FunctionDef:assert_holding_delta",
+            "module/FunctionDef:abi",
+            "module/FunctionDef:text_abi",
+            "module/ClassDef:ReadRPC",
+            "module/ClassDef:RobinhoodUSDTests",
+            "module/If:If(test=Compare(left=Name(id='__name__', ctx=Load()), ops=[Eq()], comparators=[Constant(value='__main__')]), body=[Expr(value=Call(func=Attribute(value=Name(id='unittest', ctx=Load()), attr='main', ctx=Load()), args=[], keywords=[]))], orelse=[])"
+          ]
+        }
+      },
+      "nodes": {
+        "module/ClassDef:RobinhoodUSDTests/FunctionDef:test_native_startup_failure_delta_preserves_all_prior_authority_and_source_guards": {
+          "after": "0a899bfc3e762ba96172e839365b790b949dfc9366a1cc3eb7c5e6dfdcd7090a",
+          "before": "e97709e46806b80f29d063661d0da03828cb6b08d1afd4c5431d5f3b3b7309e3"
+        },
+        "module/ClassDef:RobinhoodUSDTests/FunctionDef:test_publication_accounting_turn_preserves_durable_delta_cancellation_and_passive_pump_costs": {
+          "after": "200275397cf2b77dde0142331bfc8fd5d31f042e75edee34a94de00e3ab4e417",
+          "before": "2a16ce30a69d17a00845d40368b49485e62ce9275d321e9fef5ee1294aa0909d"
+        },
+        "module/ClassDef:RobinhoodUSDTests/FunctionDef:test_source_recorder_publication_reverses_only_exact_diagnostic_transport_and_test_read": {
+          "after": "6baf0f5956aa2c7e513715846423ff53d03878da6f100c6c8140c96a52eb2cac",
+          "before": "5771e492c64d06a1dba471a95e3392ef5bc32e720a634e009649913c4a222c5a"
+        },
+        "module/FunctionDef:guarded_source": {
+          "after": "a522010261964c229365272ed4b129033bd6f765a25c65b7861c0921f7224395",
+          "before": "3f3492aff8b88e9bf4b0b16f9e02acba7b92c47dd541ca341db74700eb0a5cc8"
+        },
+        "module/ImportFrom:0:tests.test_native_audit_source_guard": {
+          "after": "dd30e427f73056de61ae2519a235b6708a17aac42733ce0d0c6f4257efe03a9e",
+          "before": null
+        }
+      }
+    }
+  },
+  "helpers": {
+    "meme_machine/runtime/native_audit_retention.py": {
+      "bytes": 8451,
+      "imports": [
+        "Import(names=[alias(name='os')])",
+        "Import(names=[alias(name='sqlite3')])",
+        "Import(names=[alias(name='threading')])",
+        "Import(names=[alias(name='weakref')])",
+        "ImportFrom(module='operating_families', names=[alias(name='active_sql')], level=1)",
+        "ImportFrom(module='pathlib', names=[alias(name='Path')], level=0)",
+        "ImportFrom(module='robinhood.plane', names=[alias(name='Plane')], level=1)"
+      ],
+      "sha256": "b987d9e587d04f4655500b1fbcb3212c5d8f93e68e4dc3273c00b08453543785"
+    }
+  },
+  "implementation": "c0190478fcfe64e4db96c54189ec470cdb5ec686",
+  "implementation_tree": "041d380654e06e41fb66f2cffd789994350195c6",
+  "inner": {
+    "tests/fixtures/ea_performance_source_delta.json": {
+      "bytes": 127368,
+      "sha256": "9b99d04abfa913311a0c7dc771390908a3a60e4c36f88c4f241d6ba4fc0a8e50"
+    },
+    "tests/fixtures/operational_candidate_source_delta.json": {
+      "bytes": 326364,
+      "sha256": "f1982ceef86d7acab5666c66bf951651d0f565dfd765300b691195b372f1b79c"
+    },
+    "tests/fixtures/pump_restore_reference_source_delta.json": {
+      "bytes": 26456,
+      "sha256": "c9d5139401a5fb5b06bdd019ff796abefd1375dd2278e89a55741ae285e971a8"
+    }
+  },
+  "proof_inputs": {
+    "engineering/diagnostics/build_native_audit_source_proof.py": {
+      "bytes": 15687,
+      "sha256": "b25f82809cc91599d0eb5b394557f208e4303aae466689f5cdaaecdb77cb66ca"
+    },
+    "engineering/diagnostics/native_audit_source_guard.template.txt": {
+      "bytes": 11608,
+      "sha256": "224372b9fb54787ac4a3f5799753d969b33a681a97f1727230f959e5c9ec1e48"
+    }
+  },
+  "schema": "authenticated-native-audit-source-delta-v1"
+}

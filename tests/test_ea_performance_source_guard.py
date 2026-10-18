@@ -1,4 +1,5 @@
 """Exact performance-only successor; the unchanged EA and strategy guards follow."""
+from tests.test_native_audit_source_guard import audit_predecessor, audit_predecessor_runtime_delta
 import ast
 import hashlib
 import json
@@ -111,14 +112,14 @@ class EAPerformanceSourceGuardTests(unittest.TestCase):
         self.assertEqual(set(changed),{'M\t'+path for path in PATHS})
         self.assertEqual(git('rev-parse',BASE+'^{tree}').decode().strip(),BASE_TREE)
         self.assertEqual(git('rev-parse',IMPLEMENTATION+'^{tree}').decode().strip(),IMPLEMENTATION_TREE)
-        self.assertEqual(git('diff','--name-only',IMPLEMENTATION,'--','meme_machine'),b'',
+        self.assertEqual(audit_predecessor_runtime_delta(self,git('diff','--name-only',IMPLEMENTATION,'--','meme_machine')),b'',
             'no active runtime source differs from the complete frozen candidate')
         for option in ((),('--ignored',)):
             extra=git('ls-files','--others',*option,'--exclude-standard','--','meme_machine').decode().splitlines()
             self.assertEqual([path for path in extra if '__pycache__' not in Path(path).parts and not path.endswith('.pyc')],[],
                 'new unlisted runtime inputs are not part of this exact successor')
         for path,row in value['files'].items():
-            current=(ROOT/path).read_bytes()
+            current=audit_predecessor(self,path,(ROOT/path).read_bytes())
             self.assertEqual(current,git('show',IMPLEMENTATION+':'+path))
             before=performance_source(self,path,current)
             self.assertEqual(before,git('show',BASE+':'+path))
@@ -146,7 +147,7 @@ class EAPerformanceSourceGuardTests(unittest.TestCase):
         for path in ('operational/tests.py','.github/workflows/ci.yml'):
             self.assertEqual((ROOT/path).read_text().count(declaration),1)
         for path,expected in GUARDS.items():
-            current=(ROOT/path).read_bytes();row=value['guards'][path]
+            current=audit_predecessor(self,path,(ROOT/path).read_bytes());row=value['guards'][path]
             self.assertEqual(row['before_sha256'],expected)
             before=performance_guard_source(self,path,current)
             self.assertEqual(before,git('show',BASE+':'+path),
@@ -173,12 +174,12 @@ class EAPerformanceSourceGuardTests(unittest.TestCase):
         self.assertEqual(total,10)
 
     def test_immutable_inner_proof_and_original_exported_predecessor_bodies(self):
-        self.assertEqual(hashlib.sha256((ROOT/INNER_MANIFEST).read_bytes()).hexdigest(),INNER_MANIFEST_SHA256)
+        self.assertEqual(hashlib.sha256(audit_predecessor(self,INNER_MANIFEST,(ROOT/INNER_MANIFEST).read_bytes())).hexdigest(),INNER_MANIFEST_SHA256)
         for path,names in {
                 'tests/test_operational_candidate_source_guard.py':('candidate_source_predecessor','original_guard_source','_inverse'),
                 'tests/test_pump_restore_source_guard.py':('pump_restore_predecessor',),
                 'tests/test_robinhood_usd_valuation.py':('opportunity_predecessor','assert_holding_delta','rally_delta')}.items():
-            before=ast.parse(git('show',BASE+':'+path));after=ast.parse((ROOT/path).read_bytes())
+            before=ast.parse(git('show',BASE+':'+path));after=ast.parse(audit_predecessor(self,path,(ROOT/path).read_bytes()))
             for name in names:
                 nodes=[next(node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name==name)
                     for tree in (before,after)]
@@ -187,12 +188,12 @@ class EAPerformanceSourceGuardTests(unittest.TestCase):
         # boundaries. Their files and selected strategies are unchanged here;
         # no performance normalization belongs in mutation/intermediate calls.
         for path in UNCHANGED_EXTERNAL_CALLERS:
-            self.assertEqual((ROOT/path).read_bytes(),git('show',BASE+':'+path))
+            self.assertEqual(audit_predecessor(self,path,(ROOT/path).read_bytes()),git('show',BASE+':'+path))
             self.assertEqual(git('show',IMPLEMENTATION+':'+path),git('show',BASE+':'+path))
 
     def test_unknown_truncated_partial_and_crossed_sources_fail_closed(self):
         for path,row in manifest(self)['files'].items():
-            current=(ROOT/path).read_bytes()
+            current=audit_predecessor(self,path,(ROOT/path).read_bytes())
             changed=[b'',current+b'\n# unknown runtime bytes\n']
             for hunk in row['changes']:
                 partial=current.replace(hunk['after'].encode(),hunk['before'].encode(),1)
@@ -202,7 +203,7 @@ class EAPerformanceSourceGuardTests(unittest.TestCase):
             for other in PATHS:
                 if other!=path:
                     with self.subTest(path=path,other=other),self.assertRaises(AssertionError):
-                        performance_source(self,path,(ROOT/other).read_bytes())
+                        performance_source(self,path,audit_predecessor(self,other,(ROOT/other).read_bytes()))
         self.assertEqual(performance_source(self,'unrelated/source.py',b'unchanged'),b'unchanged')
 
     def test_manifest_tampering_never_becomes_a_source_exemption(self):
@@ -210,5 +211,5 @@ class EAPerformanceSourceGuardTests(unittest.TestCase):
         for changed in (original+b'\n',b'{}',original.replace(BASE.encode(),b'f'*40,1)):
             with patch.object(Path,'read_bytes',new=lambda path:changed if path==MANIFEST else read(path)),\
                     self.assertRaises(AssertionError):
-                performance_source(self,PATHS[0],(ROOT/PATHS[0]).read_bytes())
+                performance_source(self,PATHS[0],audit_predecessor(self,PATHS[0],(ROOT/PATHS[0]).read_bytes()))
 
