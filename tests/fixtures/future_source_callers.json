@@ -240,6 +240,14 @@
       "source_references": [],
       "text_markers": [
         [
+          "PreparedNativeImage.__init__",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
+          "PreparedNativeImage._take",
+          "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
+        ],
+        [
           "_packet",
           "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
         ],
@@ -659,6 +667,20 @@
           "05b3abf2579a5eb66403cd78be557fd860633a1fe2103c7642030defe32c657f"
         ]
       ]
+    },
+    "tests/test_isolated_native_live_parent.py": {
+      "dynamic_loads": [],
+      "imports": [
+        [
+          "",
+          "symbol",
+          "tests.test_robinhood_usd_valuation",
+          "NOW",
+          "NOW"
+        ]
+      ],
+      "source_references": [],
+      "text_markers": []
     },
     "tests/test_isolated_native_spawn.py": {
       "dynamic_loads": [],
@@ -1144,9 +1166,9 @@
       ]
     }
   },
-  "core_manifest_sha256": "62f5397b8b73d5f6270130413f53735c4b2ec8c745386b051491c49fdfac5974",
+  "core_manifest_sha256": "18e822003bc6130097d73d4ef3599988098078ae4766010ea6150bf819457ed0",
   "failed_ci_commit": "5bd959f4e3e39f030d3f87368e833cc63beccf55",
-  "implementation": "0dd9a46a68b34cc57fe8ef63b9f28a3ce15f2154",
-  "implementation_tree": "c500c8fb3cf87e4bb4edf3ff2455fbbb86d4e680",
+  "implementation": "9c6af394605c96ab269e5fbd65c624f36389ee70",
+  "implementation_tree": "14bd353d240e1411e41da141c7c8b0c6f25d826a",
   "schema": "authenticated-future-source-callers-v1"
 }

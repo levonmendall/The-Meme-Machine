@@ -16,10 +16,10 @@ from unittest.mock import patch
 
 ROOT=Path(__file__).resolve().parents[1]
 BASE='780f4015efd9fba528e97223f8e8e3b1a7322e12'
-IMPLEMENTATION='0dd9a46a68b34cc57fe8ef63b9f28a3ce15f2154'
-IMPLEMENTATION_TREE='c500c8fb3cf87e4bb4edf3ff2455fbbb86d4e680'
+IMPLEMENTATION='9c6af394605c96ab269e5fbd65c624f36389ee70'
+IMPLEMENTATION_TREE='14bd353d240e1411e41da141c7c8b0c6f25d826a'
 MANIFEST=ROOT/'tests/fixtures/future_pump_source_delta.json'
-MANIFEST_SHA256='62f5397b8b73d5f6270130413f53735c4b2ec8c745386b051491c49fdfac5974'
+MANIFEST_SHA256='18e822003bc6130097d73d4ef3599988098078ae4766010ea6150bf819457ed0'
 PATHS=('meme_machine/lanes/pons/immutable_rpc.py',
  'meme_machine/lanes/pons/pons_selective_acquisition.py',
  'meme_machine/lanes/pons/pons_selective_capital.py',
@@ -67,6 +67,7 @@ UNCHANGED=('meme_machine/solana_evidence_storage.py',
     'meme_machine/runtime/candidate_restore_reads.py','requirements.txt')
 DEPENDENCY_PATHS=('meme_machine/lanes/pons/rpc_profile.py',
  'meme_machine/operational/child_transport.py',
+ 'meme_machine/operational/current_provider_history.py',
  'meme_machine/operational/isolated_native_entry.py',
  'meme_machine/operational/isolated_native_image.py',
  'meme_machine/operational/isolated_native_image_probe.py',
@@ -79,6 +80,8 @@ DEPENDENCY_PATHS=('meme_machine/lanes/pons/rpc_profile.py',
  'meme_machine/operational/isolated_native_launcher.py',
  'meme_machine/operational/isolated_native_layout.py',
  'meme_machine/operational/isolated_native_lifetime.py',
+ 'meme_machine/operational/isolated_native_live_parent.py',
+ 'meme_machine/operational/isolated_native_live_scope.py',
  'meme_machine/operational/isolated_native_pons_kernel_corpus.py',
  'meme_machine/operational/isolated_native_source.py',
  'meme_machine/operational/native_landlock_policy.py',
@@ -103,7 +106,7 @@ DEPENDENCY_PATHS=('meme_machine/lanes/pons/rpc_profile.py',
 DELETED_PATHS=()
 LEGACY_GUARDS=('tests/test_pump_restore_source_guard.py','tests/test_robinhood_usd_valuation.py')
 CALLER_MANIFEST=ROOT/'tests/fixtures/future_source_callers.json'
-CALLER_MANIFEST_SHA256='aac403b2d3143a55b251302041a22a2af7065d61608dc57ae804f23e170c8fd0'
+CALLER_MANIFEST_SHA256='df6a19317ba05036be01ec26e5c311477c1a26bdfc96b83df903a6ee24e7ccef'
 EXTERNAL_CALLERS=('tests/test_extended_survivor_hold_research.py','tests/test_forward_survivor.py',
     'tests/test_long_duration_positions.py','tests/test_pons_owner_admission.py',
     'tests/test_robinhood_scout.py','tests/test_shared_capital_strategy.py',

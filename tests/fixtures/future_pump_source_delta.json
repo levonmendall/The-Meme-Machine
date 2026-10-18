@@ -10,6 +10,10 @@
       "bytes": 39912,
       "sha256": "405bda4ea7b593ee085969e59418229fd2ebf3e327c8ad3eb6e2689f450b9eaf"
     },
+    "meme_machine/operational/current_provider_history.py": {
+      "bytes": 6142,
+      "sha256": "2b20e66c029f1504d53780f27406c4a13c9b7ec3339fd11b3f7b4000a4aea9c5"
+    },
     "meme_machine/operational/isolated_native_entry.py": {
       "bytes": 18902,
       "sha256": "1a834eae0765ac167b791fd5842a8a871a70d9f36717eaea669f18edc014c5a5"
@@ -43,8 +47,8 @@
       "sha256": "4aa391dbf5fbb29b1caabb7eed1f92a5b05bf41a501128485c1269a4440cd603"
     },
     "meme_machine/operational/isolated_native_landlock_launcher.py": {
-      "bytes": 20972,
-      "sha256": "56ff84c2d13695d8282a372f252780d942851e7f38b16476c3368dd387732983"
+      "bytes": 25153,
+      "sha256": "cdc6aec3cc7acb598833e454a3f9831c474121439b8e339c8e5feae2847a2359"
     },
     "meme_machine/operational/isolated_native_launcher.py": {
       "bytes": 20969,
@@ -57,6 +61,14 @@
     "meme_machine/operational/isolated_native_lifetime.py": {
       "bytes": 4690,
       "sha256": "179be7949d6fab3f73f9d9a01c93259f8156d8cfb5e221e2bbe11dbf9d6a2905"
+    },
+    "meme_machine/operational/isolated_native_live_parent.py": {
+      "bytes": 32710,
+      "sha256": "c007156e0d842d2d17787f4c5db3857104c2a39b0a559c02de437612da65ee15"
+    },
+    "meme_machine/operational/isolated_native_live_scope.py": {
+      "bytes": 10911,
+      "sha256": "c8587c0c53fe47ce89bf387d651cc08a6b71bf4562597c97b1a0f7bba9936297"
     },
     "meme_machine/operational/isolated_native_pons_kernel_corpus.py": {
       "bytes": 17919,
@@ -79,8 +91,8 @@
       "sha256": "2eb21df5ace68d4ec0975281d07af31c2e4fb39a3f6f319acc7c2de8c37fdac5"
     },
     "meme_machine/operational/parent_sizing.py": {
-      "bytes": 10648,
-      "sha256": "942ae280166907d79497f64e6644995bdb54b3506e6e7c234fe44a66705ca5ba"
+      "bytes": 11396,
+      "sha256": "f7d8dfa096f2289b154e84871c7555e2638bea72095d5ac142ed60ee3f815d97"
     },
     "meme_machine/operational/parent_transport.py": {
       "bytes": 44978,
@@ -3352,8 +3364,8 @@
       }
     }
   },
-  "implementation": "0dd9a46a68b34cc57fe8ef63b9f28a3ce15f2154",
-  "implementation_tree": "c500c8fb3cf87e4bb4edf3ff2455fbbb86d4e680",
+  "implementation": "9c6af394605c96ab269e5fbd65c624f36389ee70",
+  "implementation_tree": "14bd353d240e1411e41da141c7c8b0c6f25d826a",
   "legacy_guards": {
     "tests/test_pump_restore_source_guard.py": {
       "after_sha256": "ca109bc75ca006b2b720ac1938d811e1afcff6f28417578ce5b405eb670573ce",
