@@ -523,6 +523,13 @@ class DiagnosticCollectionTests(unittest.TestCase):
         owner = {f'unrelated_{i}': i for i in range(160)}
         owner.update(owner_admission={'generation': 'gen-1'}, queued=4)
         owner['priority5.queue_total_us'] = 8901
+        appointment={f'maintenance_boundary.{key}':index+1 for index,key in enumerate((
+            'requested','granted','accepted','completed','expired','cancelled','closed',
+            'urgent_invalidated','wait_total_us','wait_peak_us'))}
+        owner.update(appointment)
+        owner['maintenance_boundary.private_identity']='secret.invalid'
+        owner['owner_admission']['counters']=dict(native_entered=12,expired_before_native=3,
+            boundary_deadline_exhausted=1,private_identity='secret.invalid')
         with sqlite3.connect(self.path) as db:
             db.execute("UPDATE service_health SET value=? WHERE key='ipc'", (json.dumps(ipc),))
             db.execute("UPDATE service_health SET value=? WHERE key='owner_scheduler'", (json.dumps(owner),))
@@ -550,6 +557,10 @@ class DiagnosticCollectionTests(unittest.TestCase):
         self.assertNotIn('retention_phase.plan.secret',retained['storage_stages'])
         self.assertEqual(retained['owner_scheduler']['priority5.queue_total_us'], 8901)
         self.assertEqual(retained['owner_scheduler']['queued'], 4)
+        self.assertEqual({key:retained['owner_scheduler'][key] for key in appointment},appointment)
+        self.assertEqual(retained['owner_scheduler']['maintenance_admission.expired_before_native'],3)
+        self.assertEqual(retained['owner_scheduler']['maintenance_admission.native_entered'],12)
+        self.assertEqual(retained['owner_scheduler']['maintenance_admission.boundary_deadline_exhausted'],1)
         self.assertNotIn('secret.invalid', output.read_text())
         self.assertNotIn('arbitrary-address-key', retained['ipc_pipeline'])
 
@@ -636,6 +647,50 @@ class DiagnosticCollectionTests(unittest.TestCase):
                          'operation_cost_recorder_lost:pons')
         self.assertEqual(coverage.check('pons', {'available': False}, 100), 'operation_cost_coverage_lost:pons')
         self.assertEqual(row['collected_monotonic'], 99)
+
+    def test_restore_counts_survive_retained_numeric_projection_with_exact_fixed_population(self):
+        from meme_machine.runtime import operation_costs as costs
+        counts = dict.fromkeys(costs.RESTORE_COUNT_NAMES, 0)
+        counts.update(pages_started=1, pages_completed=1, references=2, source_groups=1,
+            hot_keys_selected=1, hot_bytes_selected=4096, cold_keys_selected=1,
+            scalar_source_reads=1, fallback_encoded_budget=1)
+        raw = dict(enabled=True, pid=44, collected_monotonic=100, collected_wall=200,
+            recorder_valid=True, recording_lost_calls=0, active_overflow_calls=0,
+            rows={}, active=[], not_reached=list(costs.NAMES), restore_reference_counts=counts,
+            restore_reference_count_scope='private-never-trust-supplied-scope')
+        projected = diagnostic.operation_costs(raw, 44)
+        output = self.root / 'restore-counts.jsonl'
+        diagnostic.append_sample(output, dict(pump_operation_costs=projected))
+        retained = json.loads(output.read_text())['pump_operation_costs']
+        self.assertEqual(retained['restore_reference_count_status'], 'OBSERVED')
+        self.assertEqual(retained['restore_reference_count_fields'], list(costs.RESTORE_COUNT_NAMES))
+        self.assertEqual(retained['restore_reference_counts'], counts)
+        self.assertLess(len(json.dumps(retained['restore_reference_counts']).encode()), 2048)
+        self.assertNotIn('private-never-trust', output.read_text())
+        self.assertIsNone(diagnostic.OperationCoverage().check('pump', retained, 100))
+        self.assertEqual(raw['restore_reference_counts'], counts)
+
+    def test_missing_malformed_or_foreign_restore_counts_remain_unknown_not_zero(self):
+        from meme_machine.runtime import operation_costs as costs
+        raw = dict(enabled=True, pid=44, rows={}, active=[], not_reached=list(costs.NAMES))
+        counts = dict.fromkeys(costs.RESTORE_COUNT_NAMES, 0)
+        counts.update(pages_started=1, references=2)
+        for value in (None, 'private-token', {**counts, 'private-path': 1},
+                      dict(counts, references=True), dict(counts, references=-1),
+                      dict(counts, references=2**63), dict(counts, pages_started=0),
+                      dict(counts, pages_completed=2), dict(counts, scalar_source_reads=3),
+                      dict(counts, fallback_reference_parse=2, fallback_encoded_budget=1)):
+            with self.subTest(kind=type(value).__name__):
+                result = diagnostic.operation_costs(dict(raw, restore_reference_counts=value), 44)
+                self.assertTrue(result['available'])
+                self.assertEqual(result['restore_reference_count_status'], 'UNAVAILABLE')
+                self.assertEqual(result['restore_reference_counts'], 'UNAVAILABLE')
+                self.assertNotIn('private-token', json.dumps(result))
+                self.assertNotIn('private-path', json.dumps(result))
+        self.assertEqual(diagnostic.operation_costs(raw, 44)['restore_reference_count_status'], 'UNAVAILABLE')
+        result = diagnostic.operation_costs(dict(raw, restore_reference_counts={}), 44)
+        self.assertEqual(result['restore_reference_count_status'], 'UNEXERCISED')
+        self.assertEqual(result['restore_reference_counts'], {})
 
     def test_development_attribution_survives_real_collection_with_fixed_private_schema(self):
         ipc={f'unrelated_{i}':i for i in range(160)}

@@ -193,6 +193,143 @@ class ControlMembershipRetentionTests(unittest.TestCase):
         self.retire()
         self.assertEqual(self.control_slots(),{0,20})
 
+    def test_resumed_key_page_does_not_rewalk_a_growing_protected_prefix(self):
+        from meme_machine.solana_maintenance_state import (continuity_retirement_guards,
+            continuity_retirement_page,continuity_retirement_advance)
+        from meme_machine.solana_selective_runtime import CONTROL
+        writer=self.state.writer;db=self.h.db;costs={};previous=0;total=0
+        tables=('stream_receipts','stream_deliveries','stream_order')
+        for protected in (1024,4096):
+            self.seed_control(range(total,protected+256))
+            for slot in range(previous,protected):self.defer(slot)
+            total=protected+256;previous=protected
+            guards=continuity_retirement_guards(writer,CONTROL,tables)
+            for table in tables:
+                signature=table!='stream_receipts'
+                columns='slot,signature' if signature else 'slot'
+                after=(protected-1,'second') if signature else (protected-1,)
+                horizon=(total-1,'second') if signature else (total-1,)
+                key=(CONTROL,table,'prefix')
+                continuity_retirement_advance(writer,[(key,(after,horizon))])
+                hints=dict(writer._retention_continuity_pages);changes=db.total_changes
+                steps=[0]
+                def count_vm():steps[0]+=1;return 0
+                db.set_progress_handler(count_vm,1)
+                try:
+                    selected,update,more,unexamined=continuity_retirement_page(
+                        writer,CONTROL,table,'prefix',0,total,1000,guards[table])
+                finally:db.set_progress_handler(None,0)
+                costs[protected,table]=steps[0]
+                expected={r[0] for r in db.execute('SELECT rowid FROM '+table+
+                    ' WHERE scope=? AND slot>=? AND slot<?',(CONTROL,protected,total))}
+                self.assertEqual(set(selected),expected)
+                self.assertEqual(len(selected),512 if signature else 256)
+                self.assertEqual(update,(key,None));self.assertFalse(more)
+                self.assertTrue(unexamined,'a resumed horizon cannot prove earlier protected pages idle')
+                self.assertEqual(writer._retention_continuity_pages,hints)
+                self.assertEqual(db.total_changes,changes)
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM maintenance_progress').fetchone()[0],0)
+        for table in tables:
+            self.assertLessEqual(costs[4096,table],costs[1024,table]+1000,
+                'the existing bounded page must seek its full cursor, not repeat the growing prefix: '+table)
+
+    def test_complete_cursor_ranges_preserve_same_slot_signature_boundaries(self):
+        from meme_machine.solana_maintenance_state import (continuity_retirement_guards,
+            continuity_retirement_page,continuity_retirement_advance)
+        from meme_machine.solana_selective_runtime import CONTROL
+        self.seed_control(range(21));writer=self.state.writer;db=self.h.db
+        tables=('stream_receipts','stream_deliveries','stream_order')
+        guards=continuity_retirement_guards(writer,CONTROL,tables)
+        changes=db.total_changes
+        for table in tables:
+            signature=table!='stream_receipts'
+            columns='slot,signature' if signature else 'slot'
+            def cursor(slot,last=False):return (slot,'second' if last else 'first') if signature else (slot,)
+            raw=[(r[0],tuple(r[1:])) for r in db.execute('SELECT rowid,'+columns+
+                ' FROM '+table+' WHERE scope=? ORDER BY '+columns,(CONTROL,))]
+            cases=(
+                ('absent',5,15,None,None),
+                ('below_lower',5,15,cursor(3,True),cursor(14,True)),
+                ('equal_lower',5,15,cursor(5),cursor(14,True)),
+                ('above_lower',0,15,cursor(5),cursor(14,True)),
+                ('upper_shrunk',5,8,cursor(5),cursor(20,True)),
+                ('lower_raised',8,15,cursor(5,True),cursor(14,True)),
+                ('horizon_shrunk',5,15,cursor(4,True),cursor(6)),
+                ('at_horizon',5,15,cursor(6),cursor(6)),
+                ('cursor_outside_upper',5,8,cursor(9),cursor(12,True)),
+                ('horizon_below_lower',5,15,cursor(3),cursor(4,True)),
+                ('zero_width',5,5,cursor(3),cursor(14,True)),
+            )
+            for kind in ('prefix','suffix'):
+                key=(CONTROL,table,kind)
+                for name,lower,upper,after,horizon in cases:
+                    with self.subTest(table=table,kind=kind,case=name):
+                        continuity_retirement_advance(writer,[(key,None)])
+                        if after is not None:
+                            continuity_retirement_advance(writer,[(key,(after,horizon))])
+                        before=dict(writer._retention_continuity_pages)
+                        eligible=[r for r in raw if lower<=r[1][0]<upper]
+                        resumed=after is not None
+                        if (after is not None and after[0]>=upper or
+                                horizon is not None and horizon[0]<lower):
+                            after=horizon=None
+                        if horizon is None:horizon=eligible[-1][1] if eligible else None
+                        eligible=[r for r in eligible if (horizon is None or r[1]<=horizon)
+                            and (after is None or r[1]>after)]
+                        page=eligible[:3];more=len(eligible)>3
+                        expected_hint=(page[-1][1],horizon) if more else None
+                        expected_unexamined=False if upper<=lower else resumed or more
+                        selected,update,actual_more,unexamined=continuity_retirement_page(
+                            writer,CONTROL,table,kind,lower,upper,3,guards[table])
+                        self.assertEqual(set(selected),{r[0] for r in page})
+                        self.assertEqual(update,(key,expected_hint))
+                        self.assertEqual(actual_more,more)
+                        self.assertEqual(unexamined,expected_unexamined)
+                        self.assertEqual(writer._retention_continuity_pages,before)
+                        if signature and name=='equal_lower':
+                            self.assertEqual(page[0][1],(5,'second'))
+                        if signature and name=='horizon_shrunk':
+                            self.assertEqual(page[-1][1],(6,'first'))
+        self.assertEqual(db.total_changes,changes)
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM maintenance_progress').fetchone()[0],0)
+
+    def test_cancelled_resumed_page_preserves_hint_and_restart_reexamines_keys(self):
+        import sqlite3
+        from meme_machine.solana_maintenance_state import DebtAgeAdapter,continuity_retirement_guards,continuity_retirement_page
+        from meme_machine.solana_selective_runtime import CONTROL
+        self.seed_control(range(1280))
+        for slot in range(1024):self.defer(slot)
+        original=self.h.db.execute('SELECT * FROM candidate_pending_proofs ORDER BY id').fetchall()
+        first=self.retire(1000);self.assertFalse(first.made_progress)
+        writer=self.state.writer;db=self.h.db
+        hints=dict(writer._retention_continuity_pages);changes=db.total_changes
+        guard=continuity_retirement_guards(writer,CONTROL,('stream_deliveries',))['stream_deliveries']
+        previous=getattr(writer,'_owner_progress_handler',None);calls=[0]
+        def cancel():calls[0]+=1;return 1
+        writer._owner_progress_handler=cancel
+        try:
+            with self.assertRaises(sqlite3.OperationalError):
+                with DebtAgeAdapter(writer).budget():
+                    continuity_retirement_page(writer,CONTROL,'stream_deliveries','prefix',0,1280,1000,guard)
+        finally:
+            writer._owner_progress_handler=previous
+            db.set_progress_handler(previous,1000 if previous else 0)
+        self.assertGreater(calls[0],0)
+        self.assertEqual(writer._retention_continuity_pages,hints)
+        self.assertEqual(db.total_changes,changes)
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM maintenance_progress').fetchone()[0],0)
+        self.assertFalse(db.in_transaction)
+        writer.close();self.state,self.h=startup_fixture.state_at(self.path,lambda:self.now[0])
+        self.assertFalse(hasattr(self.state.writer,'_retention_continuity_pages'))
+        first=self.retire(1000);self.assertFalse(first.made_progress)
+        second=self.retire(1000);self.assertEqual(second.continuity_rows,1280)
+        self.assertEqual(self.h.db.execute('SELECT units,records FROM maintenance_progress WHERE scope=? AND side=?',
+            (CONTROL,'retirement')).fetchone(),(1280,0))
+        self.assertEqual(self.h.db.execute('SELECT * FROM candidate_pending_proofs ORDER BY id').fetchall(),original)
+        for table in ('stream_receipts','stream_deliveries','stream_order'):
+            self.assertEqual(self.control_slots(table),set(range(1024)))
+        self.assertEqual(self.h.db.execute('PRAGMA integrity_check').fetchone()[0],'ok')
+
     def test_retirement_preserves_control_membership_for_current_child_and_pending_proof(self):
         """Synthetic lifecycle regression, not attribution of a retained absence."""
         from dataclasses import replace

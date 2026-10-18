@@ -10,6 +10,7 @@ import sqlite3
 from pathlib import Path
 import time
 from functools import lru_cache
+from contextlib import nullcontext
 from .plane import Plane, canonical, digest, plane_path
 
 
@@ -709,29 +710,33 @@ def normalized_cached(ctx,event,build):
     return row
 
 
-def save_cohort_checkpoint(result,cursor,phase):
+def save_cohort_checkpoint(result,cursor,phase,*,plane=None):
     path=result.get('candidate_plane_path')
     if not path:return
     from .plane import process_identity
-    plane=Plane(path)
+    owned=plane is None
+    if not owned and type(plane) is not Plane:raise ValueError('candidate_checkpoint_owner')
+    plane=Plane(path) if owned else plane
     try:
         # Recovery authority is this atomic SQLite checkpoint. Old observer
         # JSONL is a bounded projection and cannot suppress fresh evaluation.
-        rows=result.get('rows',[])
-        if len(rows)>4096:
-            drop=rows[:-4096];fold=result.setdefault('archived_observations',{})
-            fold['count']=fold.get('count',0)+len(drop)
-            reasons=fold.setdefault('rejections',{})
-            for row in drop:
-                for reason in (row.get('vector') or {}).get('all_rejections') or []:reasons[reason]=reasons.get(reason,0)+1
-            result['rows']=rows[-4096:]
-            result['autonomous_observation_offset']=max(0,result.get('autonomous_observation_offset',0)-len(drop))
-        for kind in ('discovery_sessions','sequencer_recoveries'):
-            result[kind]=result.get(kind,[])[-64:]
-        result.pop('native_archive_paths',None)
-        plane.checkpoint('pons_cohort',dict(result=result,cursor=cursor,phase=phase,
-            owner=process_identity(),checkpoint_at=time.time()))
-    finally:plane.close()
+        with nullcontext(plane) if owned else plane.borrow_checkpoint(path):
+            rows=result.get('rows',[])
+            if len(rows)>4096:
+                drop=rows[:-4096];fold=result.setdefault('archived_observations',{})
+                fold['count']=fold.get('count',0)+len(drop)
+                reasons=fold.setdefault('rejections',{})
+                for row in drop:
+                    for reason in (row.get('vector') or {}).get('all_rejections') or []:reasons[reason]=reasons.get(reason,0)+1
+                result['rows']=rows[-4096:]
+                result['autonomous_observation_offset']=max(0,result.get('autonomous_observation_offset',0)-len(drop))
+            for kind in ('discovery_sessions','sequencer_recoveries'):
+                result[kind]=result.get(kind,[])[-64:]
+            result.pop('native_archive_paths',None)
+            plane.checkpoint('pons_cohort',dict(result=result,cursor=cursor,phase=phase,
+                owner=process_identity(),checkpoint_at=time.time()))
+    finally:
+        if owned:plane.close()
 
 
 def coalesce_lifecycle_rows(rows):

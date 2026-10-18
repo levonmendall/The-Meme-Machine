@@ -308,6 +308,61 @@ class SourceOperationPublicationTests(unittest.TestCase):
             self.assertEqual(self.read(ready['pid']),observed)
         self.assertTrue(box['final']['unchanged_after_stop'])
 
+    @contextmanager
+    def replacement_before_fstat(self,count):
+        original=os.fstat;observed=[];remaining=count
+        def replaced(fd):
+            nonlocal remaining
+            if remaining and os.readlink('/proc/self/fd/'+str(fd))==str(self.path):
+                # Exercise a real unlinked open inode, not a forged stat row.
+                temporary=self.path.with_name(self.path.name+'.test-replacement')
+                temporary.write_bytes(self.path.read_bytes());temporary.chmod(0o600)
+                os.replace(temporary,self.path);remaining-=1
+                info=original(fd);observed.append((fd,info.st_nlink));return info
+            return original(fd)
+        with patch.object(diagnostic.os,'fstat',side_effect=replaced):yield observed
+
+    def test_real_atomic_replace_between_open_and_fstat_reopens_once_without_new_clock(self):
+        with self.publisher() as box:
+            pid=box['ready']['pid'];before=json.loads(box['raw'])['operation_costs']['collected_monotonic']
+            with self.replacement_before_fstat(1) as observed:value=self.read(pid)
+            self.assertEqual([links for _,links in observed],[0])
+            self.assertEqual(value['state'],'OBSERVED',value)
+            self.assertEqual(value['atomic_reopens'],1)
+            self.assertEqual(value['operation_costs']['collected_monotonic'],before)
+            self.assertIsNone(diagnostic.OperationCoverage().check('solana',value['operation_costs'],time.monotonic()))
+            for fd,_ in observed:
+                with self.assertRaises(OSError):os.fstat(fd)
+
+    def test_second_real_replacement_race_still_refuses_and_closes_both_descriptors(self):
+        with self.publisher() as box:
+            with self.replacement_before_fstat(2) as observed:value=self.read(box['ready']['pid'])
+            self.assertEqual([links for _,links in observed],[0,0])
+            self.assertEqual(value['state'],diagnostic.UNAVAILABLE)
+            self.assertEqual(value['operation_costs']['transport_refusal'],
+                dict(stage='FILE_LINK_COUNT',error_type='ValueError',atomic_reopens=1))
+            for fd,_ in observed:
+                with self.assertRaises(OSError):os.fstat(fd)
+
+    def test_unlinked_nonprivate_inode_does_not_qualify_for_reopen(self):
+        with self.publisher() as box:
+            self.path.chmod(0o644)
+            with self.replacement_before_fstat(2) as observed:value=self.read(box['ready']['pid'])
+            self.assertEqual(len(observed),1)
+            self.assertEqual(value['operation_costs']['transport_refusal'],
+                dict(stage='FILE_METADATA',error_type='ValueError',atomic_reopens=0))
+
+    def test_transport_refusal_exports_only_fixed_stage_type_and_actual_errno(self):
+        with self.publisher() as box:
+            with patch.object(diagnostic.os,'open',side_effect=PermissionError(13,PRIVATE)):
+                value=self.read(box['ready']['pid'])
+            self.assertEqual(value['operation_costs']['transport_refusal'],
+                dict(stage='FILE_OPEN',error_type='PermissionError',errno=13,atomic_reopens=0))
+            self.path.write_text('{')
+            value=self.read(box['ready']['pid'])
+            self.assertEqual(value['operation_costs']['transport_refusal'],
+                dict(stage='DOCUMENT_DECODE',error_type='JSONDecodeError',atomic_reopens=0))
+
     def test_cancelled_accepted_atomic_write_joins_before_terminal_stopped_without_late_active(self):
         with self.publisher() as box:pass
         self.assertEqual(box['waiting']['state'],'CANCEL_PENDING')

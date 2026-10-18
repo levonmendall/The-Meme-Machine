@@ -104,10 +104,17 @@ def continuity_retirement_page(writer,scope,table,kind,lower,upper,limit,guard):
     if horizon is None:return [],(key,None),False,resumed
     compare='('+columns+')' if signature else columns
     markers='('+','.join('?' for _ in range(width))+')' if signature else '?'
-    where=base+' AND '+compare+'<='+markers
-    values=(*args,*horizon)
-    if after is not None:
-        where+=' AND '+compare+'>'+markers;values=(*values,*after)
+    # Use one effective lower bound. With both slot>=lower and key>after,
+    # SQLite can seek the weaker slot bound and rewalk protected prefix keys.
+    # A complete cursor at/above lower implies that slot bound; a cursor below
+    # lower is itself implied. Keep the current upper and fixed horizon intact.
+    if after is not None and after[0]>=lower:
+        where='scope=? AND '+compare+'>'+markers+' AND slot<?'
+        values=(scope,*after,upper)
+    else:
+        where=base;values=args
+    where+=' AND '+compare+'<='+markers
+    values=(*values,*horizon)
     rows=writer.db.execute('SELECT rowid,'+columns+' FROM '+table+' WHERE '+where+
         ' ORDER BY '+order+' LIMIT ?',(*values,limit+1)).fetchall()
     page=rows[:limit];more=len(rows)>limit

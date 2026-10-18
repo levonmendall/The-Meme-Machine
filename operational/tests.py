@@ -2,6 +2,7 @@
 import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.request
 
 FAST=[
+ 'tests.test_operational_candidate_source_guard',
  'tests.test_pump_restore_source_guard',
  'tests.test_prepared_evidence_decode',
  'tests.test_restore_reference_pages',
@@ -12,6 +13,8 @@ FAST=[
  'tests.test_pons_retention_covering_index',
  'tests.test_pons_projection_source_reuse',
  'tests.test_pons_scheduling_reads',
+ 'tests.test_pons_protection_revision',
+ 'tests.test_pons_stalled_startup_stack',
  'tests.test_source_operation_publication',
  'tests.test_sleeve_prefix_scheduling',
  'tests.test_provider_budget_namespace_read',
@@ -20,6 +23,7 @@ FAST=[
  'tests.test_pump_restore_cost_attribution',
  'tests.test_buffered_gap_origin_geometry',
  'tests.test_buffered_prejoin_recovery',
+ 'tests.test_cancelled_buffered_recovery',
  'tests.test_startup_archive_read_reuse',
  'tests.test_isolated_market_observer',
  'tests.test_isolated_native_workload',
@@ -31,6 +35,8 @@ FAST=[
  'tests.test_archive_full_log_content',
  'tests.test_survivor_retained_gap',
  'tests.test_maintenance_owner_entry_clock',
+ 'tests.test_maintenance_permit_ownership',
+ 'tests.test_maintenance_admission_service',
  'tests.test_prejoin_observation_recovery',
  'tests.test_pump_restore_selection_index',
  'tests.test_canonical_cold_archive_cohort',

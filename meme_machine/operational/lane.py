@@ -44,6 +44,7 @@ class NativeHealthPublisher:
         self.root=root;self.lane=lane
         self.lock=threading.Lock();self.terminal=threading.Event()
         self.cancellation_stack=None;self.cancellation_stack_attempted=False
+        self.startup_stack=None;self.startup_counts={};self.startup_next_at=0.;self.startup_captures=0
 
     def __call__(self,phase,**fields):
         terminal=phase=='STOPPED' or phase=='FAIL_CLOSED' and isinstance(fields.get('native_failure'),dict)
@@ -56,10 +57,30 @@ class NativeHealthPublisher:
             if not terminal and self.terminal.is_set():return
             if self.cancellation_stack is not None:
                 fields['cancellation_stack']=self.cancellation_stack
+            if self.startup_stack is not None:fields['stalled_startup_stack']=self.startup_stack
             try:health(self.root,self.lane,phase,**fields)
             except Exception as error:
                 print('health publication unavailable:'+type(error).__name__,flush=True)
         finally:self.lock.release()
+
+    def sample_stalled_startup(self,status):
+        # No new thread, normal-processing profiler, startup control or authority.
+        # Failure/limits affect only this optional descriptive field.
+        try:
+            if self.lane!='pons' or os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')!='1':return
+            if self.startup_captures>=status.STARTUP_STACK_MAX_CAPTURES:return
+            now=time.monotonic()
+            if now<self.startup_next_at:return
+            excluded=tuple(name for name,count in self.startup_counts.items()
+                if count>=status.STARTUP_STACK_PER_STAGE)
+            row=status.stalled_startup_stack(excluded=excluded)
+            if row is None:return
+            self.startup_next_at=now+status.STARTUP_STACK_INTERVAL_SECONDS
+            name=row['trigger_operation'];self.startup_counts[name]=self.startup_counts.get(name,0)+1
+            self.startup_captures+=1
+            self.startup_stack=dict(row,capture_sequence=self.startup_captures,
+                capture_limit=status.STARTUP_STACK_MAX_CAPTURES)
+        except Exception:pass
 
     def heartbeat(self,requested,status):
         stopping=False
@@ -80,6 +101,7 @@ class NativeHealthPublisher:
             # TERM can precede the first periodic sample. Preserve the active
             # executor/operation and original signal immediately, then retain
             # changes until terminal publication fences further health writes.
+            self.sample_stalled_startup(status)
             value=status.snapshot();phase=value.pop('phase')
             self(phase,**value)
 

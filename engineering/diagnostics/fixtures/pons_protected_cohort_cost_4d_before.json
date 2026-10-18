@@ -1,0 +1,609 @@
+{
+  "benchmark_sha256": "b79a8bf59016f946f98ed019f550f1f0bed46afaa94a8dc3c6979324f6c25931",
+  "financial_authority": false,
+  "fixture": {
+    "candidates": 1696,
+    "cohort_bytes": 4932009,
+    "database_bytes": 356257792,
+    "evidence_rows": 5120,
+    "observations": 4096,
+    "old_protected_candidates": 1696,
+    "requested_geometry_bytes": 355524608,
+    "retained_attempt_population_unexercised": true,
+    "retained_attempt_rows": 0,
+    "transitions": 4096
+  },
+  "measurements": [
+    {
+      "cpu_seconds": 0.0015900640000001687,
+      "operation": "local_turn_unchanged",
+      "rchar_each": 14467.0,
+      "repeat": 4,
+      "sql_calls": null,
+      "sql_shapes": null,
+      "thread_io_delta": {
+        "cancelled_write_bytes": 0,
+        "rchar": 57868,
+        "read_bytes": 0,
+        "syscr": 22,
+        "syscw": 0,
+        "wchar": 0,
+        "write_bytes": 0
+      },
+      "traced": false,
+      "wall_seconds": 0.0015898819947324228
+    },
+    {
+      "cpu_seconds": 0.09422588199999815,
+      "operation": "local_turn_peer_commit",
+      "rchar_each": 8888451.0,
+      "repeat": 4,
+      "sql_calls": null,
+      "sql_shapes": null,
+      "thread_io_delta": {
+        "cancelled_write_bytes": 0,
+        "rchar": 35553804,
+        "read_bytes": 0,
+        "syscr": 8688,
+        "syscw": 0,
+        "wchar": 0,
+        "write_bytes": 0
+      },
+      "traced": false,
+      "wall_seconds": 0.09430478800277342
+    },
+    {
+      "cpu_seconds": 0.0891958689999992,
+      "operation": "maintain_peer_commit",
+      "rchar_each": 8835203.0,
+      "repeat": 4,
+      "sql_calls": null,
+      "sql_shapes": null,
+      "thread_io_delta": {
+        "cancelled_write_bytes": 0,
+        "rchar": 35340812,
+        "read_bytes": 0,
+        "syscr": 8636,
+        "syscw": 0,
+        "wchar": 0,
+        "write_bytes": 0
+      },
+      "traced": false,
+      "wall_seconds": 0.0891869110018888
+    },
+    {
+      "cpu_seconds": 0.4727945420000008,
+      "operation": "checkpoint_fresh_plane",
+      "rchar_each": 385698689.75,
+      "repeat": 4,
+      "sql_calls": null,
+      "sql_shapes": null,
+      "thread_io_delta": {
+        "cancelled_write_bytes": 0,
+        "rchar": 1542794759,
+        "read_bytes": 0,
+        "syscr": 376702,
+        "syscw": 14525,
+        "wchar": 39773728,
+        "write_bytes": 0
+      },
+      "traced": false,
+      "wall_seconds": 0.4728022819981561
+    },
+    {
+      "cpu_seconds": 0.026867946999999504,
+      "operation": "local_turn_unchanged",
+      "rchar_each": 2227332.0,
+      "repeat": 4,
+      "sql_calls": 107,
+      "sql_shapes": [
+        {
+          "calls": 17,
+          "sql": "BEGIN IMMEDIATE"
+        },
+        {
+          "calls": 1,
+          "sql": "DELETE FROM result_consumption WHERE candidate NOT IN (SELECT id FROM candidates WHERE NOT (lane IN (?,?))) AND NOT EXISTS(SELECT ? FROM candidates c INDEXED BY candidate_generation_identity WHERE c.id=result_consumption.candidate AND c.generation=result_consumption.generation)"
+        },
+        {
+          "calls": 1,
+          "sql": "INSERT INTO runtime VALUES(?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body WHERE runtime.body<>excluded.body"
+        },
+        {
+          "calls": 9,
+          "sql": "PRAGMA data_version"
+        },
+        {
+          "calls": 1,
+          "sql": "PRAGMA table_info(observations)"
+        },
+        {
+          "calls": 17,
+          "sql": "ROLLBACK"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT * FROM candidates INDEXED BY candidate_claimed WHERE lane IN (?,?) AND claim IS NOT NULL"
+        },
+        {
+          "calls": 1,
+          "sql": "SELECT * FROM candidates INDEXED BY candidate_retirement WHERE lane IN (?,?) AND pending=? AND claim IS NULL AND observed<?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT * FROM candidates WHERE lane IN (?,?) AND pending=? AND claim IS NULL AND lane=?"
+        },
+        {
+          "calls": 1,
+          "sql": "SELECT ? FROM rolling LIMIT ?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT COALESCE(MAX(seq),?) FROM transitions"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT COALESCE(MAX(sequence),?) FROM progress_sources WHERE source=?"
+        },
+        {
+          "calls": 2,
+          "sql": "SELECT COUNT(*) FROM evidence WHERE namespace=?"
+        },
+        {
+          "calls": 13,
+          "sql": "SELECT body FROM runtime WHERE key=?"
+        },
+        {
+          "calls": 1,
+          "sql": "SELECT key,body FROM runtime WHERE ((key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT IN (?,?)) AND (key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT IN (?,?))) AND (key LIKE ? OR key=?)"
+        },
+        {
+          "calls": 1,
+          "sql": "SELECT key,body FROM runtime WHERE ((key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT IN (?,?)) AND (key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT IN (?,?))) AND key LIKE ?"
+        },
+        {
+          "calls": 2,
+          "sql": "SELECT namespace FROM evidence WHERE ((namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT IN (?,?)) AND (namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT IN (?,?))) AND namespace>? ORDER BY namespace LIMIT ?"
+        },
+        {
+          "calls": 1,
+          "sql": "SELECT namespace FROM evidence WHERE ((namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT IN (?,?)) AND (namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT IN (?,?))) ORDER BY namespace LIMIT ?"
+        },
+        {
+          "calls": 1,
+          "sql": "SELECT observed FROM candidates INDEXED BY candidate_retirement WHERE lane IN (?,?) AND pending=? AND claim IS NULL AND observed>=? ORDER BY observed LIMIT ?"
+        },
+        {
+          "calls": 1,
+          "sql": "SELECT rowid FROM observations ORDER BY rowid DESC LIMIT ?"
+        },
+        {
+          "calls": 1,
+          "sql": "SELECT rowid FROM observations ORDER BY rowid LIMIT ?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT seconds FROM service WHERE lane=? ORDER BY at DESC LIMIT ?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT t.* FROM transitions t JOIN candidates c ON c.id=t.candidate\n                WHERE c.lane=? AND t.seq>? AND t.seq<=? ORDER BY t.seq LIMIT ?"
+        },
+        {
+          "calls": 8,
+          "sql": "SELECT w.*,c.generation,c.state,c.pending,c.claim,c.result\n                FROM pons_current_watch w LEFT JOIN candidates c ON c.id=w.candidate\n                WHERE w.next_at<=? AND (c.id IS NULL OR (c.pending=? OR c.interpretation<>?) AND c.claim IS NULL\n                    AND c.state NOT IN (?,?))\n                AND NOT EXISTS (SELECT ? FROM runtime n WHERE n.key LIKE ?\n                    AND json_extract(n.body,?)=w.candidate\n                    AND json_extract(n.body,?)<>?)\n                ORDER BY w.attempt,w.next_at,w.candidate"
+        },
+        {
+          "calls": 4,
+          "sql": "WITH ready AS MATERIALIZED (\n              SELECT c.id,c.generation FROM candidates c INDEXED BY candidate_delivery\n              LEFT JOIN result_consumption a ON c.id=a.candidate AND c.generation=a.generation\n              WHERE c.lane=? AND c.result IS NOT NULL AND c.completed=c.desired\n                AND a.candidate IS NULL)\n              SELECT c.* FROM ready r JOIN candidates c\n                ON c.id=r.id AND c.generation=r.generation\n              ORDER BY c.priority,c.deadline,c.id"
+        }
+      ],
+      "thread_io_delta": {
+        "cancelled_write_bytes": 0,
+        "rchar": 8909328,
+        "read_bytes": 0,
+        "syscr": 2183,
+        "syscw": 0,
+        "wchar": 0,
+        "write_bytes": 0
+      },
+      "traced": true,
+      "wall_seconds": 0.026865290998102864
+    },
+    {
+      "cpu_seconds": 0.08484726400000042,
+      "operation": "local_turn_peer_commit",
+      "rchar_each": 8888452.0,
+      "repeat": 4,
+      "sql_calls": 164,
+      "sql_shapes": [
+        {
+          "calls": 20,
+          "sql": "BEGIN IMMEDIATE"
+        },
+        {
+          "calls": 4,
+          "sql": "DELETE FROM result_consumption WHERE candidate NOT IN (SELECT id FROM candidates WHERE NOT (lane IN (?,?))) AND NOT EXISTS(SELECT ? FROM candidates c INDEXED BY candidate_generation_identity WHERE c.id=result_consumption.candidate AND c.generation=result_consumption.generation)"
+        },
+        {
+          "calls": 4,
+          "sql": "INSERT INTO runtime VALUES(?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body WHERE runtime.body<>excluded.body"
+        },
+        {
+          "calls": 12,
+          "sql": "PRAGMA data_version"
+        },
+        {
+          "calls": 4,
+          "sql": "PRAGMA table_info(observations)"
+        },
+        {
+          "calls": 20,
+          "sql": "ROLLBACK"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT * FROM candidates INDEXED BY candidate_claimed WHERE lane IN (?,?) AND claim IS NOT NULL"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT * FROM candidates INDEXED BY candidate_retirement WHERE lane IN (?,?) AND pending=? AND claim IS NULL AND observed<?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT * FROM candidates WHERE lane IN (?,?) AND pending=? AND claim IS NULL AND lane=?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT ? FROM rolling LIMIT ?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT COALESCE(MAX(seq),?) FROM transitions"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT COALESCE(MAX(sequence),?) FROM progress_sources WHERE source=?"
+        },
+        {
+          "calls": 8,
+          "sql": "SELECT COUNT(*) FROM evidence WHERE namespace=?"
+        },
+        {
+          "calls": 16,
+          "sql": "SELECT body FROM runtime WHERE key=?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT key,body FROM runtime WHERE ((key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT IN (?,?)) AND (key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT IN (?,?))) AND (key LIKE ? OR key=?)"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT key,body FROM runtime WHERE ((key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT IN (?,?)) AND (key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT IN (?,?))) AND key LIKE ?"
+        },
+        {
+          "calls": 8,
+          "sql": "SELECT namespace FROM evidence WHERE ((namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT IN (?,?)) AND (namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT IN (?,?))) AND namespace>? ORDER BY namespace LIMIT ?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT namespace FROM evidence WHERE ((namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT IN (?,?)) AND (namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT IN (?,?))) ORDER BY namespace LIMIT ?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT observed FROM candidates INDEXED BY candidate_retirement WHERE lane IN (?,?) AND pending=? AND claim IS NULL AND observed>=? ORDER BY observed LIMIT ?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT rowid FROM observations ORDER BY rowid DESC LIMIT ?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT rowid FROM observations ORDER BY rowid LIMIT ?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT seconds FROM service WHERE lane=? ORDER BY at DESC LIMIT ?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT t.* FROM transitions t JOIN candidates c ON c.id=t.candidate\n                WHERE c.lane=? AND t.seq>? AND t.seq<=? ORDER BY t.seq LIMIT ?"
+        },
+        {
+          "calls": 8,
+          "sql": "SELECT w.*,c.generation,c.state,c.pending,c.claim,c.result\n                FROM pons_current_watch w LEFT JOIN candidates c ON c.id=w.candidate\n                WHERE w.next_at<=? AND (c.id IS NULL OR (c.pending=? OR c.interpretation<>?) AND c.claim IS NULL\n                    AND c.state NOT IN (?,?))\n                AND NOT EXISTS (SELECT ? FROM runtime n WHERE n.key LIKE ?\n                    AND json_extract(n.body,?)=w.candidate\n                    AND json_extract(n.body,?)<>?)\n                ORDER BY w.attempt,w.next_at,w.candidate"
+        },
+        {
+          "calls": 4,
+          "sql": "WITH ready AS MATERIALIZED (\n              SELECT c.id,c.generation FROM candidates c INDEXED BY candidate_delivery\n              LEFT JOIN result_consumption a ON c.id=a.candidate AND c.generation=a.generation\n              WHERE c.lane=? AND c.result IS NOT NULL AND c.completed=c.desired\n                AND a.candidate IS NULL)\n              SELECT c.* FROM ready r JOIN candidates c\n                ON c.id=r.id AND c.generation=r.generation\n              ORDER BY c.priority,c.deadline,c.id"
+        }
+      ],
+      "thread_io_delta": {
+        "cancelled_write_bytes": 0,
+        "rchar": 35553808,
+        "read_bytes": 0,
+        "syscr": 8688,
+        "syscw": 0,
+        "wchar": 0,
+        "write_bytes": 0
+      },
+      "traced": true,
+      "wall_seconds": 0.08483865300877369
+    },
+    {
+      "cpu_seconds": 0.08061931899999664,
+      "operation": "maintain_peer_commit",
+      "rchar_each": 8835204.0,
+      "repeat": 4,
+      "sql_calls": 80,
+      "sql_shapes": [
+        {
+          "calls": 4,
+          "sql": "BEGIN IMMEDIATE"
+        },
+        {
+          "calls": 4,
+          "sql": "DELETE FROM result_consumption WHERE candidate NOT IN (SELECT id FROM candidates WHERE NOT (lane IN (?,?))) AND NOT EXISTS(SELECT ? FROM candidates c INDEXED BY candidate_generation_identity WHERE c.id=result_consumption.candidate AND c.generation=result_consumption.generation)"
+        },
+        {
+          "calls": 4,
+          "sql": "INSERT INTO runtime VALUES(?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body WHERE runtime.body<>excluded.body"
+        },
+        {
+          "calls": 8,
+          "sql": "PRAGMA data_version"
+        },
+        {
+          "calls": 4,
+          "sql": "PRAGMA table_info(observations)"
+        },
+        {
+          "calls": 4,
+          "sql": "ROLLBACK"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT * FROM candidates INDEXED BY candidate_retirement WHERE lane IN (?,?) AND pending=? AND claim IS NULL AND observed<?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT ? FROM rolling LIMIT ?"
+        },
+        {
+          "calls": 8,
+          "sql": "SELECT COUNT(*) FROM evidence WHERE namespace=?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT body FROM runtime WHERE key=?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT key,body FROM runtime WHERE ((key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT IN (?,?)) AND (key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT IN (?,?))) AND (key LIKE ? OR key=?)"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT key,body FROM runtime WHERE ((key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT IN (?,?)) AND (key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT LIKE ? AND key NOT IN (?,?))) AND key LIKE ?"
+        },
+        {
+          "calls": 8,
+          "sql": "SELECT namespace FROM evidence WHERE ((namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT IN (?,?)) AND (namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT IN (?,?))) AND namespace>? ORDER BY namespace LIMIT ?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT namespace FROM evidence WHERE ((namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT IN (?,?)) AND (namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT LIKE ? AND namespace NOT IN (?,?))) ORDER BY namespace LIMIT ?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT observed FROM candidates INDEXED BY candidate_retirement WHERE lane IN (?,?) AND pending=? AND claim IS NULL AND observed>=? ORDER BY observed LIMIT ?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT rowid FROM observations ORDER BY rowid DESC LIMIT ?"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT rowid FROM observations ORDER BY rowid LIMIT ?"
+        }
+      ],
+      "thread_io_delta": {
+        "cancelled_write_bytes": 0,
+        "rchar": 35340816,
+        "read_bytes": 0,
+        "syscr": 8636,
+        "syscw": 0,
+        "wchar": 0,
+        "write_bytes": 0
+      },
+      "traced": true,
+      "wall_seconds": 0.08062457199775963
+    },
+    {
+      "cpu_seconds": 1.8859477500000015,
+      "operation": "checkpoint_fresh_plane",
+      "rchar_each": 384457603.5,
+      "repeat": 4,
+      "sql_calls": 164,
+      "sql_shapes": [
+        {
+          "calls": 4,
+          "sql": "\n        CREATE INDEX IF NOT EXISTS candidate_claimed ON candidates(lane,claim_until) WHERE claim IS NOT NULL;"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE INDEX IF NOT EXISTS candidate_delivery ON candidates(lane,priority,deadline,id,generation)\n          WHERE result IS NOT NULL AND completed=desired;"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE INDEX IF NOT EXISTS candidate_generation_identity ON candidates(id,generation);"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE INDEX IF NOT EXISTS candidate_lane_identity ON candidates(lane,id);"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE INDEX IF NOT EXISTS candidate_pending ON candidates(lane,pending,priority,deadline);"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE INDEX IF NOT EXISTS candidate_retirement ON candidates(observed) WHERE pending=? AND claim IS NULL;"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE INDEX IF NOT EXISTS evidence_retention_order ON evidence(namespace,created DESC,key DESC);"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE INDEX IF NOT EXISTS pons_watch_due ON pons_current_watch(next_at,attempt,candidate);"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE INDEX IF NOT EXISTS rolling_retirement ON rolling(at);"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE INDEX IF NOT EXISTS transition_retention_order ON transitions(seq,candidate);"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TABLE IF NOT EXISTS candidates(\n          id TEXT PRIMARY KEY,lane TEXT NOT NULL,generation INTEGER NOT NULL,\n          interpretation TEXT NOT NULL,latest_id TEXT NOT NULL,observed REAL NOT NULL,\n          ordering TEXT NOT NULL,desired TEXT NOT NULL,completed TEXT,\n          payload TEXT NOT NULL,state TEXT NOT NULL,reason TEXT,pending INTEGER NOT NULL,\n          priority INTEGER NOT NULL,rank REAL NOT NULL,deadline REAL NOT NULL,queued REAL NOT NULL,\n          claim TEXT,owner TEXT,claim_generation INTEGER,claim_until REAL,result TEXT);"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TABLE IF NOT EXISTS evidence(\n          namespace TEXT,key TEXT,body TEXT,provenance TEXT,created REAL,\n          PRIMARY KEY(namespace,key));"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TABLE IF NOT EXISTS observation_archive(candidate TEXT PRIMARY KEY,ordering TEXT NOT NULL);"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TABLE IF NOT EXISTS observation_counts(lane TEXT PRIMARY KEY,received INTEGER NOT NULL);"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TABLE IF NOT EXISTS observations(\n          candidate TEXT NOT NULL,observation TEXT NOT NULL,body TEXT NOT NULL,at REAL NOT NULL,\n          PRIMARY KEY(candidate,observation));"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TABLE IF NOT EXISTS pons_current_watch(\n          candidate TEXT PRIMARY KEY,body TEXT NOT NULL,hash TEXT NOT NULL,\n          next_at REAL NOT NULL,attempt INTEGER NOT NULL DEFAULT ?);"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TABLE IF NOT EXISTS receipt_cache_usage(namespace TEXT PRIMARY KEY,bytes INTEGER,records INTEGER);"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TABLE IF NOT EXISTS receipt_obligations(\n          namespace TEXT,key TEXT,consumer TEXT,owner TEXT,generation TEXT,\n          PRIMARY KEY(namespace,key,consumer,owner,generation),\n          FOREIGN KEY(namespace,key) REFERENCES evidence(namespace,key) ON DELETE CASCADE);"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TABLE IF NOT EXISTS result_consumption(candidate TEXT,generation INTEGER,at REAL,\n          PRIMARY KEY(candidate,generation));"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TABLE IF NOT EXISTS rolling(\n          candidate TEXT,identity TEXT,at INTEGER,block INTEGER,body TEXT,provenance TEXT,\n          PRIMARY KEY(candidate,identity));"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TABLE IF NOT EXISTS runtime(key TEXT PRIMARY KEY,body TEXT);"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TABLE IF NOT EXISTS service(lane TEXT,seconds REAL,logical INTEGER,physical INTEGER,at REAL);"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TABLE IF NOT EXISTS transitions(\n          seq INTEGER PRIMARY KEY,candidate TEXT,generation INTEGER,at REAL,kind TEXT,\n          reason TEXT,watermark TEXT,interpretation TEXT,details TEXT);"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TRIGGER IF NOT EXISTS history_no_delete BEFORE DELETE ON transitions\n          BEGIN SELECT RAISE(ABORT,?); END;"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TRIGGER IF NOT EXISTS history_no_update BEFORE UPDATE ON transitions\n          BEGIN SELECT RAISE(ABORT,?); END;"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TRIGGER IF NOT EXISTS observations_no_delete BEFORE DELETE ON observations\n          BEGIN SELECT RAISE(ABORT,?); END;"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TRIGGER IF NOT EXISTS observations_no_update BEFORE UPDATE ON observations\n          BEGIN SELECT RAISE(ABORT,?); END;"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TRIGGER IF NOT EXISTS receipt_cache_delete AFTER DELETE ON evidence\n          WHEN OLD.namespace LIKE ? BEGIN\n          UPDATE receipt_cache_usage SET bytes=bytes-length(CAST(OLD.key||OLD.body||OLD.provenance AS BLOB)),\n            records=records-? WHERE namespace=OLD.namespace; END;"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        CREATE TRIGGER IF NOT EXISTS receipt_cache_insert AFTER INSERT ON evidence\n          WHEN NEW.namespace LIKE ? BEGIN\n          INSERT INTO receipt_cache_usage VALUES(NEW.namespace,\n            length(CAST(NEW.key||NEW.body||NEW.provenance AS BLOB)),?)\n          ON CONFLICT(namespace) DO UPDATE SET bytes=bytes+excluded.bytes,records=records+?; END;"
+        },
+        {
+          "calls": 4,
+          "sql": "\n        PRAGMA user_version=?;"
+        },
+        {
+          "calls": 8,
+          "sql": "BEGIN IMMEDIATE"
+        },
+        {
+          "calls": 4,
+          "sql": "COMMIT"
+        },
+        {
+          "calls": 4,
+          "sql": "INSERT INTO runtime VALUES(?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body WHERE runtime.body<>excluded.body"
+        },
+        {
+          "calls": 4,
+          "sql": "PRAGMA foreign_keys=ON"
+        },
+        {
+          "calls": 4,
+          "sql": "PRAGMA journal_mode=WAL"
+        },
+        {
+          "calls": 4,
+          "sql": "PRAGMA quick_check"
+        },
+        {
+          "calls": 4,
+          "sql": "PRAGMA synchronous=FULL"
+        },
+        {
+          "calls": 4,
+          "sql": "PRAGMA user_version"
+        },
+        {
+          "calls": 4,
+          "sql": "ROLLBACK"
+        },
+        {
+          "calls": 4,
+          "sql": "SELECT * FROM candidates INDEXED BY candidate_claimed WHERE lane IN (?,?) AND claim IS NOT NULL"
+        }
+      ],
+      "thread_io_delta": {
+        "cancelled_write_bytes": 0,
+        "rchar": 1537830414,
+        "read_bytes": 0,
+        "syscr": 375490,
+        "syscw": 10893,
+        "wchar": 29820096,
+        "write_bytes": 0
+      },
+      "traced": true,
+      "wall_seconds": 1.8859116790008557
+    }
+  ],
+  "production_state_copied": false,
+  "protected_candidates_unchanged": true,
+  "protection_membership_sha256": "6b29788b3cf393c70d73d7c6ca79081ae89c77a02acc9d6db0078a7aeb7571e0",
+  "provider_requests": 0,
+  "schema": "pons-protected-cohort-cost-v1",
+  "scope": "ORIGINAL_NATIVE_LOCAL_CALLS_SYNTHETIC_PROTECTED_POPULATION_NOT_FULL_MARKET_OR_AWS_ATTRIBUTION",
+  "source_commit": "4d255c12cbb7f516d06bb31ce3f6af79b8c6be96"
+}
