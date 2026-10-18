@@ -22,21 +22,34 @@ class DeliveredRPCError(ValueError):
         self.method=method;self.rpc_code=rpc_code;self.http_status=http_status
 
 class RepairRPC:
-    def __init__(self,endpoint,governor):
+    def __init__(self,endpoint,governor,*,native_resources=None,native_ports=None):
         from meme_machine.solana_provider_config import AlchemyEndpoint
         from collections import Counter
         import threading
-        self.config=AlchemyEndpoint.parse(endpoint)
-        self.endpoint=self.config.http_url;self.governor=governor
+        self._native_resources=None;self._native_ports=None
+        if native_resources is not None:
+            from .isolated_native_bootstrap import require_runner_ports
+            native_ports=require_runner_ports(native_resources,native_ports)
+            if endpoint is not None or governor is not None:
+                raise ValueError('isolated_native_source_transport_required')
+            self._native_resources=native_resources;self._native_ports=native_ports
+            self.config=native_ports.source_config()
+            self.endpoint=None;self.governor=None
+        elif native_ports is not None:
+            raise ValueError('isolated_native_resources_required')
+        else:
+            self.config=AlchemyEndpoint.parse(endpoint)
+            self.endpoint=self.config.http_url;self.governor=governor
+        self.network_verified=False
         self.genesis_reads=None
-        cache=os.environ.get('MM_SOLANA_EVIDENCE_BROKER_DB')
+        cache=os.environ.get('MM_SOLANA_EVIDENCE_BROKER_DB') if native_resources is None else None
         if cache:
             from meme_machine.lanes.pump.solana_immutable_rpc import ImmutableReads
             self.genesis_reads=ImmutableReads(cache,self.endpoint)
         self.counts=Counter({k:0 for k in ('physical_requests','logical_calls','repair_calls','identity_calls','failures','429s','unsupported_methods','queue_microseconds','transport_microseconds')});self.lock=threading.Lock()
         self.flights={}
         self.block_repair_profile=None
-        capability=os.environ.get('MM_RPC_CAPABILITIES')
+        capability=os.environ.get('MM_RPC_CAPABILITIES') if native_resources is None else None
         if capability:
             from meme_machine.solana_provider_config import GENESIS
             try:
@@ -52,25 +65,65 @@ class RepairRPC:
         from .provider_purchases import ledger
         with self.lock:counts=dict(self.counts)
         methods={k.split(':',1)[1]:v for k,v in counts.items() if k.startswith('method:')}
-        return dict(counters=counts,estimated_alchemy=estimate(methods),
+        result=dict(counters=counts,estimated_alchemy=estimate(methods),
                     endpoint_identity=self.config.identity,provider=self.config.provider,
                     provider_purchases=ledger(self).snapshot())
+        if self._native_ports is not None:
+            result.update(transport_authority='PROTECTED_PARENT',
+                parent_handoff_bytes_are_physical_socket_measurement=False)
+        return result
     def validate_network(self):
         from meme_machine.solana_provider_config import GENESIS
+        self.network_verified=False
         if self.call('getGenesisHash',[],False)!=GENESIS:
             raise ValueError('solana_network_identity_mismatch')
+        self.network_verified=True
     def call(self,method,params,priority=False):
         return self.call_delivered(method,params,1 if priority else 4)[0]
-    def call_delivered(self,method,params,priority=4):
+    @staticmethod
+    def _check_call_bounds(deadline,cancelled):
+        import math,time
+        if deadline is not None and (type(deadline) not in (int,float)
+                or not math.isfinite(deadline) or time.monotonic()>=deadline):
+            raise ValueError('repair_deadline')
+        if cancelled is not None:
+            if not callable(cancelled):raise ValueError('repair_cancel_check')
+            if cancelled():raise ValueError('repair_cancelled')
+
+    def call_delivered(self,method,params,priority=4,*,deadline=None,cancelled=None):
         from .provider_purchases import ledger
+        bounded=deadline is not None or cancelled is not None
+        def check_bounds(delivered=None):
+            try:self._check_call_bounds(deadline,cancelled)
+            except Exception as exc:
+                receipt=delivered if delivered is not None else dict(bytes=0,cu=0,calls=0)
+                if delivered is None and self._native_ports is not None:
+                    receipt.update(accounting_scope='PROTECTED_PARENT_ONLY',
+                        bytes_scope='EXACT_PARENT_PUBLIC_HANDOFF_NOT_PROVIDER_SOCKET')
+                raise DeliveredRPCError('repair_response_unavailable',receipt,
+                    cause_kind=type(exc).__name__,method=method) from None
+        # Explicit caller bounds apply before logical demand, cache or joining
+        # another caller's purchase. Unbounded callers retain the native path.
+        if bounded:check_bounds()
+        if self._native_ports is not None:
+            # Logical demand precedes cache/singleflight decisions just as the
+            # original consumer ledger does. Parent purchases still occur only
+            # for the actual physical attempt; a follower is not another one.
+            self._parent_source_port(method,priority).demand([method])
+        def request_physical():
+            options={}
+            if deadline is not None:options['deadline']=deadline
+            if cancelled is not None:options['cancelled']=cancelled
+            return self._call_delivered(method,params,priority,**options)
         ledger(self).consumer([method],family='pump')
         if method=='getGenesisHash' and not params and self.genesis_reads is not None:
             receipt=dict(bytes=0,cu=0,calls=0)
             def fetch():
-                value,physical=self._call_delivered(method,params,priority)
+                value,physical=request_physical()
                 receipt.update(physical,calls=1)
                 return value
             value=self.genesis_reads.call(method,params,fetch)
+            if bounded:check_bounds(receipt)
             return value,receipt
         if (method in ('getTransactionsForAddress','getTransaction','getBlock') and len(params)==2
                 and isinstance(params[1],dict) and params[1].get('commitment')=='finalized'):
@@ -84,6 +137,15 @@ class RepairRPC:
             if not leader:
                 ledger(self).consumer([method],cache_hit=True,shared=True,family='pump')
                 try:
+                    if bounded:
+                        from concurrent.futures import TimeoutError as FutureTimeout
+                        import time
+                        while not future.done():
+                            check_bounds()
+                            wait=.05 if deadline is None else min(.05,max(0,deadline-time.monotonic()))
+                            try:future.result(timeout=wait)
+                            except FutureTimeout:pass
+                        check_bounds()
                     value,_=future.result()
                     from copy import deepcopy
                     return deepcopy(value),dict(bytes=0,cu=0,calls=0)
@@ -93,16 +155,21 @@ class RepairRPC:
                         retryable=exc.retryable,cause_kind=exc.cause_kind,method=exc.method,
                         rpc_code=exc.rpc_code,http_status=exc.http_status)) from None
             try:
-                result=self._call_delivered(method,params,priority)
+                result=request_physical()
                 from copy import deepcopy
                 future.set_result(deepcopy(result));return result
             except BaseException as exc:future.set_exception(exc);raise
             finally:
                 with self.lock:self.flights.pop(key,None)
-        return self._call_delivered(method,params,priority)
+        return request_physical()
 
-    def _call_delivered(self,method,params,priority=4):
+    def _call_delivered(self,method,params,priority=4,*,deadline=None,cancelled=None):
         import time
+        if self._native_ports is not None:
+            options={}
+            if deadline is not None:options['deadline']=deadline
+            if cancelled is not None:options['cancelled']=cancelled
+            return self._parent_call_delivered(method,params,priority,**options)
         if method not in ('getTransactionsForAddress','getGenesisHash','getSlot','getProgramAccountsV2','getTransaction') and not (method=='getBlock' and self.block_repair_profile and self.block_repair_profile.get('validated') is True):
             raise ValueError('repair_method_forbidden')
         maximum=16*1024*1024;timeout=8
@@ -114,7 +181,19 @@ class RepairRPC:
         purchases=ledger(self);label=work_label(family='pump');purchased=False;failed=True
         started=time.monotonic();transport=None;received=0;charged=0;code=None
         try:
-            self.governor.acquire('solana','evidence',int(priority) if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB') else (2 if priority<=2 else 50),deadline_seconds=8,methods=(method,))
+            options=dict(deadline_seconds=8,methods=(method,))
+            if deadline is not None:
+                if type(deadline) not in (int,float) or not time.monotonic()<deadline:
+                    raise ValueError('repair_deadline')
+                options['deadline_seconds']=min(8,deadline-time.monotonic())
+            if cancelled is not None:
+                if not callable(cancelled):raise ValueError('repair_cancel_check')
+                if cancelled():raise ValueError('repair_cancelled')
+            self.governor.acquire('solana','evidence',int(priority) if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB') else (2 if priority<=2 else 50),**options)
+            if cancelled is not None and cancelled():raise ValueError('repair_cancelled')
+            if deadline is not None:
+                timeout=min(timeout,deadline-time.monotonic())
+                if timeout<=0:raise ValueError('repair_deadline')
             self._count('queue_microseconds',int((time.monotonic()-started)*1e6))
             transport=time.monotonic()
             self._count('physical_requests');self._count('logical_calls');self._count('method:'+method)
@@ -122,8 +201,10 @@ class RepairRPC:
             self._count('repair_calls' if method=='getTransactionsForAddress' else 'identity_calls')
             request=urllib.request.Request(self.endpoint,json.dumps(dict(jsonrpc='2.0',id=1,method=method,params=params)).encode(),{'Content-Type':'application/json'})
             purchases.started(label,[method],len(request.data),retry=label.get('retry_attempt',0));purchased=True
-            with urllib.request.urlopen(request,timeout=timeout) as response:raw=response.read(maximum+1)
+            with urllib.request.urlopen(request,timeout=timeout) as response:
+                raw=response.read(maximum+1);response_completed=time.monotonic()
             received=len(raw)
+            if deadline is not None and time.monotonic()>=deadline:raise ValueError('repair_deadline')
             if len(raw)>maximum:raise ValueError('repair_response_bound')
             value=json.loads(raw)
             code=(value.get('error') or {}).get('code')
@@ -137,6 +218,10 @@ class RepairRPC:
             self.config.public(value)
             self.governor.succeeded('solana',(method,))
             failed=False
+            observer=getattr(self,'market_head_observer',None)
+            if observer is not None:
+                observer.physical_response(self,method,params,value['result'],
+                    started=transport,completed=response_completed)
             return value['result'],dict(bytes=received,cu=charged)
         except urllib.error.HTTPError as exc:
             if exc.code==429:
@@ -155,6 +240,71 @@ class RepairRPC:
             if purchased:purchases.completed(label,received,failed=failed)
             if transport is not None:self._count('transport_microseconds',int((time.monotonic()-transport)*1e6))
             self._count('delivered_response_bytes',received);self._count('current_pricing_cu',charged)
+
+    def _parent_source_port(self,method,priority):
+        from .isolated_native_bootstrap import require_runner_ports
+        require_runner_ports(self._native_resources,self._native_ports)
+        if type(priority) is not int or priority not in (1,2,3,4,5,6):
+            raise ValueError('isolated_native_source_priority')
+        if method not in ('getTransactionsForAddress','getGenesisHash','getSlot',
+                'getProgramAccountsV2','getTransaction'):
+            raise ValueError('repair_method_forbidden')
+        from .provider_purchases import work_label
+        label=work_label(family='pump')
+        return self._native_ports.source_rpc(priority,operation=label.get('operation'))
+
+    def _parent_call_delivered(self,method,params,priority,*,deadline=None,cancelled=None):
+        """Keep native response parsing; the protected parent owns purchases.
+
+        Child delivery bytes are the exact public handoff, not a reconstructed
+        JSON length or a claim about provider socket/allowance accounting.
+        Original parent ledgers alone report CU, attempts and physical bytes.
+        """
+        import time
+        port=self._parent_source_port(method,priority)
+        received=0;code=None
+        receipt=dict(bytes=0,cu=0,calls=0,accounting_scope='PROTECTED_PARENT_ONLY',
+            bytes_scope='EXACT_PARENT_PUBLIC_HANDOFF_NOT_PROVIDER_SOCKET')
+        self._count('logical_calls');self._count('parent_rpc_calls')
+        try:
+            import math
+            end=time.monotonic()+8
+            if deadline is not None:
+                if type(deadline) not in (int,float) or not math.isfinite(deadline):
+                    raise ValueError('repair_deadline')
+                end=min(end,deadline)
+            if time.monotonic()>=end:raise ValueError('repair_deadline')
+            if cancelled is not None:
+                if not callable(cancelled):raise ValueError('repair_cancel_check')
+                if cancelled():raise ValueError('repair_cancelled')
+            value,handed=port.envelope_delivered(dict(jsonrpc='2.0',id=1,method=method,params=params),
+                deadline=end)
+            received=handed['bytes'];receipt['bytes']=received
+            code=(value.get('error') or {}).get('code')
+            if code in (429,-32005):self._count('429s')
+            if code==-32601:self._count('unsupported_methods')
+            # Caller stop cannot revoke an admitted parent attempt or its
+            # durable accounting. Retain its exact handoff before refusing a
+            # late/cancelled result; the parent alone owns physical purchases.
+            if cancelled is not None and cancelled():raise ValueError('repair_cancelled')
+            if time.monotonic()>=end:raise ValueError('repair_deadline')
+            if value.get('id')!=1 or 'error' in value or 'result' not in value:
+                raise ValueError('repair_response_unavailable')
+            self.config.public(value)
+            return value['result'],receipt
+        except Exception as exc:
+            self._count('failures')
+            from meme_machine.runtime.sqlite_failure import carry
+            http_status={'provider_http_429':429,'provider_http_502':502,
+                'provider_http_503':503,'provider_http_504':504}.get(str(exc))
+            if http_status==429:self._count('429s')
+            retryable=(isinstance(exc,(TimeoutError,json.JSONDecodeError))
+                or code in (429,-32603,-32005,-32016) or http_status is not None)
+            raise carry(exc,DeliveredRPCError('repair_response_unavailable',receipt,
+                retryable=retryable,cause_kind=type(exc).__name__,method=method,
+                rpc_code=code,http_status=http_status)) from None
+        finally:
+            self._count('parent_public_handoff_bytes',received)
 
 
 @contextmanager

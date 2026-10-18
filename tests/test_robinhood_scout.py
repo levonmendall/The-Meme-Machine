@@ -1,4 +1,5 @@
 """Production scout/cohort/Survivor paths on deterministic offline event tapes."""
+from tests.test_future_pump_source_guard import future_pump_predecessor
 from collections import Counter
 from copy import deepcopy
 import json
@@ -432,7 +433,7 @@ class EvidenceTests(unittest.TestCase):
         with patch('engineering.robinhood_scout.replay.REFERENCE',OPPORTUNITY_REFERENCE):
             approved=reference_module('pons_selective_continuation.py')
         path='meme_machine/lanes/pons/pons_selective_continuation.py'
-        current_source=(Path(__file__).resolve().parents[1]/path).read_bytes()
+        current_source=future_pump_predecessor(self,path,(Path(__file__).resolve().parents[1]/path).read_bytes())
         self.assertEqual(hashlib.sha256(opportunity_predecessor(self,path,current_source)).hexdigest(),
                          predecessor.source_sha256)
         for override in ({},dict(current_snipe_bps=1),dict(launch_at=111),

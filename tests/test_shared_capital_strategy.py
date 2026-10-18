@@ -1,4 +1,5 @@
 """Independent regimes, original alpha contracts, aggregate risk, one-add scaling."""
+from tests.test_future_pump_source_guard import future_pump_predecessor
 from dataclasses import replace
 from decimal import Decimal
 import tempfile
@@ -175,4 +176,4 @@ class StrategyCapitalTests(unittest.TestCase):
                         else "b577cc1c67f4d64f887b430f5e933f376b607dc2")
             from tests.test_robinhood_usd_valuation import assert_holding_delta
             original=subprocess.check_output(["git","show",expected+":"+path],cwd=root)
-            assert_holding_delta(self,path,original,(root/path).read_bytes())
+            assert_holding_delta(self,path,original,future_pump_predecessor(self,path,(root/path).read_bytes()))

@@ -114,6 +114,8 @@ def legacy_backing(book,identity,units):
 
 class SharedSleeve(SleeveReservations):
     def __init__(self,*args,**kwargs):
+        from meme_machine.runtime.isolated_native_execution import reject_financial_construction
+        reject_financial_construction(kwargs.get('native_resources'))
         database=os.environ.get('MM_PORTFOLIO_ACCOUNTING_DB')
         path=selected(database) if database else None
         if path is None:raise CapitalError('shared_authority_not_selected')

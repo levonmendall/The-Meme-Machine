@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import unittest
 from unittest.mock import patch
+from tests.test_future_pump_source_guard import future_pump_predecessor
 
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -76,7 +77,7 @@ class PumpRestoreSourceGuardTests(unittest.TestCase):
     def test_all_three_complete_sources_and_added_helper_are_exactly_authenticated(self):
         value=manifest(self);authenticated_helper(self,value)
         for relative,record in value['files'].items():
-            current=(ROOT/relative).read_bytes()
+            current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
             with self.subTest(relative=relative):
                 self.assertEqual(hashlib.sha256(current).hexdigest(),record['after_sha256'])
                 previous=pump_restore_predecessor(self,relative,current)
@@ -84,7 +85,7 @@ class PumpRestoreSourceGuardTests(unittest.TestCase):
                 self.assertEqual(pump_restore_predecessor(self,relative,previous),previous)
 
     def test_legacy_guard_file_reverses_only_ten_active_reads_and_one_import(self):
-        row=manifest(self)['legacy_guard'];current=performance_guard_source(self,row['path'],(ROOT/row['path']).read_bytes())
+        row=manifest(self)['legacy_guard'];current=future_pump_predecessor(self,row['path'],performance_guard_source(self,row['path'],(ROOT/row['path']).read_bytes()))
         from tests.test_operational_candidate_source_guard import original_guard_source
         current=original_guard_source(self,row['path'],current)
         import_line=b'from tests.test_pump_restore_source_guard import pump_restore_predecessor\n'
@@ -113,14 +114,14 @@ class PumpRestoreSourceGuardTests(unittest.TestCase):
         self.assertEqual({key for key in codec if not key.startswith('module/ClassDef:_PreparedDecode/')},allowed)
         # The unchanged whole-file predecessor includes the original writer,
         # encoder, chunk hash/size limits, archive publication and retirement.
-        codec_before=pump_restore_predecessor(self,PATHS[2],(ROOT/PATHS[2]).read_bytes())
+        codec_before=pump_restore_predecessor(self,PATHS[2],future_pump_predecessor(self,PATHS[2],(ROOT/PATHS[2]).read_bytes()))
         functions={node.name for node in ast.parse(codec_before).body if isinstance(node,ast.FunctionDef)}
         self.assertIn('decode',functions)
         self.assertNotIn('prepare_decode',functions);self.assertNotIn('finish_decode',functions)
 
     def test_partial_reversal_added_source_and_unreviewed_bytes_never_pass(self):
         for relative,record in manifest(self)['files'].items():
-            current=(ROOT/relative).read_bytes()
+            current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
             changes=[current+b'\n# unreviewed change\n',b'']
             for change in record['changes']:
                 after=change['after'].encode();self.assertEqual(current.count(after),1)
@@ -148,14 +149,14 @@ class PumpRestoreSourceGuardTests(unittest.TestCase):
                 (b"('meta','logMessages')",b"('meta','otherLogs')")),
         }
         for relative,pairs in mutations.items():
-            current=(ROOT/relative).read_bytes()
+            current=future_pump_predecessor(self,relative,(ROOT/relative).read_bytes())
             for before,after in pairs:
                 self.assertIn(before,current)
                 with self.subTest(relative=relative,before=before),self.assertRaises(AssertionError):
                     pump_restore_predecessor(self,relative,current.replace(before,after,1))
 
     def test_complete_helper_pin_refuses_any_budget_path_hash_or_owner_mutation(self):
-        current=performance_source(self,HELPER,(ROOT/HELPER).read_bytes());read=Path.read_bytes
+        current=future_pump_predecessor(self,HELPER,performance_source(self,HELPER,(ROOT/HELPER).read_bytes()));read=Path.read_bytes
         changes=[current+b'\n# unreviewed helper\n',b'']
         for before,after in ((b'PAGE_REFERENCES = 128',b'PAGE_REFERENCES = 129'),
                 (b'SNAPSHOT_SECONDS = .025',b'SNAPSHOT_SECONDS = 1'),
@@ -167,7 +168,7 @@ class PumpRestoreSourceGuardTests(unittest.TestCase):
             with self.subTest(sha256=hashlib.sha256(changed).hexdigest()),\
                     patch.object(Path,'read_bytes',new=lambda path:changed if path==ROOT/HELPER else read(path)),\
                     self.assertRaises(AssertionError):
-                pump_restore_predecessor(self,PATHS[0],(ROOT/PATHS[0]).read_bytes())
+                pump_restore_predecessor(self,PATHS[0],future_pump_predecessor(self,PATHS[0],(ROOT/PATHS[0]).read_bytes()))
 
     def test_manifest_mutations_and_unknown_source_are_not_new_exemptions(self):
         original=MANIFEST.read_bytes();read=Path.read_bytes
@@ -175,5 +176,5 @@ class PumpRestoreSourceGuardTests(unittest.TestCase):
             with self.subTest(sha256=hashlib.sha256(changed).hexdigest()),\
                     patch.object(Path,'read_bytes',new=lambda path:changed if path==MANIFEST else read(path)),\
                     self.assertRaises(AssertionError):
-                pump_restore_predecessor(self,PATHS[0],(ROOT/PATHS[0]).read_bytes())
+                pump_restore_predecessor(self,PATHS[0],future_pump_predecessor(self,PATHS[0],(ROOT/PATHS[0]).read_bytes()))
         self.assertEqual(pump_restore_predecessor(self,'unrelated/source.py',b'unchanged'),b'unchanged')

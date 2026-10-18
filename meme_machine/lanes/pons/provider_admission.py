@@ -619,7 +619,7 @@ class Admission:
             if claimed:db.execute('DELETE FROM offline_protective_phases WHERE account=? AND owner=?',
                 (resources.account,self.session))
             db.close()
-    def acquire(self,scope,deadline=None,*,methods=None,public=False,reuse_reservation=None):
+    def acquire(self,scope,deadline=None,*,methods=None,public=False,reuse_reservation=None,cancelled=None):
         from meme_machine.operational.position_continuation import position_only
         if (_decision_priority.get() or 0)>=20 and not _position_work.get() and position_only():
             raise BoundaryError('bootstrap_optional_work_closed')
@@ -646,6 +646,8 @@ class Admission:
             depth=db.execute('SELECT COUNT(*) FROM queue WHERE '+live+' AND endpoint=?',(self.endpoint,)).fetchone()[0]
             db.execute('COMMIT')
             while True:
+                if cancelled is not None and cancelled():
+                    raise BoundaryError('provider_parent_attempt_canceled')
                 now=self.clock()
                 if now>=deadline:raise BoundaryError('provider_shared_admission_deadline')
                 db.execute('BEGIN IMMEDIATE')
@@ -775,7 +777,7 @@ class Admission:
             return tuple(rows[k] for k in ('physical_http_requests','completed_transport_attempts')) if len(rows)==2 else None
         finally:db.close()
 
-    def invoke(self,call,methods,scope,retry_count=0,deadline=None,timing=None,batch=False,role=None,public=False):
+    def invoke(self,call,methods,scope,retry_count=0,deadline=None,timing=None,batch=False,role=None,public=False,cancelled=None):
         from meme_machine.runtime.robinhood.provider_usage import _active
         from meme_machine.runtime.robinhood.provider_authority import failure_class, safe_label
         attempt=dict(physical_requests=0,path=str(self.path),endpoint_fingerprint=self.endpoint,
@@ -786,7 +788,11 @@ class Admission:
         from meme_machine.runtime.provider_purchases import work_label
         attempt['purchase_work']=work_label(family='pons')
         token=_active.set(attempt)
-        try:admitted=self.acquire(scope,deadline,methods=methods,public=public)
+        try:
+            if cancelled is None:
+                admitted=self.acquire(scope,deadline,methods=methods,public=public)
+            else:
+                admitted=self.acquire(scope,deadline,methods=methods,public=public,cancelled=cancelled)
         except BaseException:
             _active.reset(token)
             raise

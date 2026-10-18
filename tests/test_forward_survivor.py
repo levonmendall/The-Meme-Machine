@@ -1,4 +1,5 @@
 """Prospective operation on synthetic canonical tapes; no market acceptance."""
+from tests.test_future_pump_source_guard import future_pump_predecessor
 from copy import deepcopy
 from contextlib import ExitStack
 import os
@@ -330,7 +331,7 @@ class ForwardSurvivorTests(unittest.TestCase):
                       if path.endswith('pons_postgrad_survivor.py') else 'b1f215ed')
             original=subprocess.check_output(['git','show',revision+':'+path])
             from tests.test_robinhood_usd_valuation import assert_holding_delta
-            assert_holding_delta(self,path,original,Path(path).read_bytes())
+            assert_holding_delta(self,path,original,future_pump_predecessor(self,path,Path(path).read_bytes()))
 
     def test_pump_uses_complete_maturity_bounded_long_structure(self):
         from tests.lanes.pump.test_pumpswap_survivor import facts

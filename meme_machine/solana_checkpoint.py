@@ -11,6 +11,8 @@ telemetry measures that latency rather than describing it as a zero-cost reset.
 """
 from __future__ import annotations
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import contextvars
 from contextlib import closing
 from pathlib import Path
 import sqlite3
@@ -33,7 +35,21 @@ def checkpoint_and_reclaim(path):
         return checkpoint_result(db,db.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone())
 
 
-async def reclaim_at_boundary(owner,path):
+async def _checkpoint_io(function,path,executor):
+    if type(executor) is not ThreadPoolExecutor or executor._max_workers!=1:
+        raise ValueError('isolated_checkpoint_executor_required')
+    context=contextvars.copy_context()
+    return await asyncio.get_running_loop().run_in_executor(
+        executor,context.run,function,path)
+
+
+async def checkpoint_bulk(path,*,executor):
+    """Isolated source's one owned disk lane; no shared waiter pool."""
+    from .solana_evidence_plane import EvidenceWriter
+    return await _checkpoint_io(EvidenceWriter.checkpoint,path,executor)
+
+
+async def reclaim_at_boundary(owner,path,*,executor=None):
     """One accepted handoff and one worker, fully joined even on cancellation."""
     from .solana_evidence_control import admit
     accepted=asyncio.wrap_future(await admit(owner,
@@ -45,7 +61,8 @@ async def reclaim_at_boundary(owner,path):
             try:token=await asyncio.shield(accepted)
             except asyncio.CancelledError:cancelled=True
         if not cancelled:
-            pending=asyncio.create_task(asyncio.to_thread(checkpoint_and_reclaim,path))
+            pending=asyncio.create_task(asyncio.to_thread(checkpoint_and_reclaim,path)
+                if executor is None else _checkpoint_io(checkpoint_and_reclaim,path,executor))
             while True:
                 try:
                     result=await asyncio.shield(pending)

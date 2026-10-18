@@ -76,6 +76,8 @@ class MarketScout:
                     expires REAL, cursor INTEGER, attempt INTEGER DEFAULT 0);
                 CREATE INDEX IF NOT EXISTS pons_scout_pool_active ON pons_scout_pools(expires,cursor);
             ''')
+        from meme_machine.runtime.pons_source_membership import bind_plane
+        bind_plane(plane)
 
     def _checkpoint(self, key, value):
         # Called inside our existing Plane transaction, never a nested BEGIN.
@@ -212,6 +214,8 @@ class MarketScout:
             if len(headers)!=len(calls) or headers[0].get('number')!=hex(last):
                 raise BoundaryError('scout_public_boundary_identity')
             if expected and headers[-1].get('hash')!=expected['hash']:
+                from meme_machine.runtime.pons_source_membership import source_invalidated
+                source_invalidated(self)
                 enrollment=self.plane.checkpoint_read('pons_scout_enrollment')
                 rewind=enrollment['first']-1
                 with self.plane.transaction():
@@ -239,6 +243,8 @@ class MarketScout:
                 self._checkpoint('pons_scout_market_cursor',last)
                 self._checkpoint('pons_scout_market_boundary',dict(block=last,hash=headers[0]['hash']))
                 self._clear_gap('market',first,last)
+                from meme_machine.runtime.pons_source_membership import broad_packet
+                broad_packet(self,rpc,first,last,headers,expected,rows)
         except (BoundaryError,ValueError) as exc:
             if str(exc)=='scout_public_reorg':first=self.plane.checkpoint_read('pons_scout_market_cursor')+1
             self.gap(first,last,str(exc)); raise
@@ -253,9 +259,11 @@ class MarketScout:
             if old and tuple(old) != identity:
                 # The native history has already proved the old anchor orphaned.
                 self.plane.db.execute('DELETE FROM pons_scout_pools WHERE token=?',(row['id'],))
-            self.plane.db.execute('INSERT OR IGNORE INTO pons_scout_pools '
+            inserted=self.plane.db.execute('INSERT OR IGNORE INTO pons_scout_pools '
                 '(token,pool,graduation,expires,cursor) VALUES(?,?,?,?,?)',
                 (row['id'],*identity,grad['at']+7*86400,grad['block']-1))
+            from meme_machine.runtime.pons_source_membership import watch_packet
+            watch_packet(self,row,inserted.rowcount==1)
 
     def maintain(self):
         """Retain identities forever; compact raw events after their horizon.

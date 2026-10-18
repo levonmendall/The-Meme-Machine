@@ -1,4 +1,5 @@
 """Owner-approved age-independent native holding; all market facts offline."""
+from tests.test_future_pump_source_guard import future_pump_predecessor
 from copy import deepcopy
 from dataclasses import replace
 import json
@@ -35,7 +36,7 @@ class SourceDeltaTests(unittest.TestCase):
         self.assertIsInstance(stale.test,ast.BoolOp);self.assertIsInstance(stale.test.op,ast.And)
         stale.test.values.insert(0,ast.Name(id='soft',ctx=ast.Load()))
         helper.body.insert(helper.body.index(stale)+1,confirmation)
-        current=Path(path).read_text()
+        current=future_pump_predecessor(self,path,Path(path).read_text().encode()).decode()
         # Independent review of the entire module, including original constants,
         # policy identity, qualification and every other function/interface.
         self.assertEqual(ast.dump(expected),ast.dump(ast.parse(

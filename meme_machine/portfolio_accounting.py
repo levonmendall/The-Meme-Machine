@@ -261,6 +261,8 @@ class PortfolioAccounting:
     """
 
     def __init__(self, database, *, receipt_path=None, export_path=None, wait_for_writer=False):
+        from meme_machine.runtime.isolated_native_execution import reject_financial_construction
+        reject_financial_construction()
         self.path = Path(database)
         self.receipt_path = Path(receipt_path) if receipt_path is not None else None
         self.export_path = Path(export_path) if export_path is not None else None

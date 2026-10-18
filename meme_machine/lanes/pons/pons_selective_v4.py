@@ -59,7 +59,15 @@ def _transport(endpoint,*,pool_ids,start_block,end_block,max_events,acquisition_
             context=SelectiveEvidenceContext(endpoint,cache=durable_cache(history.plane,shared_evidence_domain(endpoint)))
     context=context or SelectiveEvidenceContext(endpoint)
     from meme_machine.runtime.robinhood.provider_authority import reference
-    if context.endpoint!=reference(endpoint):raise BoundaryError('selective_v4_provider_context_disagreement')
+    parent=getattr(context,'parent_port',None)
+    if parent is None:
+        matching=context.endpoint==reference(endpoint)
+    else:
+        from meme_machine.operational.child_transport import require_rpc_port
+        require_rpc_port(parent,'robinhood')
+        matching=(context.endpoint is parent.source and
+            (endpoint is parent.source or endpoint=='alchemy:'+parent.source.endpoint_identity))
+    if not matching:raise BoundaryError('selective_v4_provider_context_disagreement')
     # A long-lived context shares only immutable hash/receipt facts. Numeric
     # membership is reacquired on every range, including quiet markets and forks.
     context.cache.headers_by_number.clear()
@@ -173,6 +181,7 @@ def _transport(endpoint,*,pool_ids,start_block,end_block,max_events,acquisition_
 def collect_v4_activity(
     endpoint,*,pool_id,key,token,start_block,end_block,
     preholder_groups=(),max_events=256,_shared=None,acquisition_state=None,evidence_context=None,log_batch_elements=4,
+    economic_cohorts=None,
 ):
     manager=load("uniswap_v4_manager")["address"].lower()
     if int(end_block)<int(start_block):
@@ -255,6 +264,9 @@ def collect_v4_activity(
                 context.cache.remember_transaction(tx,bh,txs[(tx,bh)])
             context.block_reads[('authenticated_v4_sender',tx,bh)]=txs[(tx,bh)]['from']
             while len(context.block_reads)>4096:context.block_reads.popitem(last=False)
+    if economic_cohorts is not None:
+        from meme_machine.runtime.pons_economic_cohort import prepared_v4
+        prepared_v4(economic_cohorts,pool_id,token,start_block,end_block,raw,rows,time.time())
     return activity_summary(rows,preholder_groups=preholder_groups,provider_sessions=sessions)
 
 
@@ -401,7 +413,7 @@ def rolling_position_activity(endpoint,*,rpc,history,pool_id,key,token,header,se
         provider_sessions=tape['provider_sessions'])
 
 
-def collect_v4_activities(endpoint,*,markets,start_block,end_block,max_events=256,acquisition_state=None,evidence_context=None,canonical_targets=None,return_headers=False,initial_calls=(),initial_values=None):
+def collect_v4_activities(endpoint,*,markets,start_block,end_block,max_events=256,acquisition_state=None,evidence_context=None,canonical_targets=None,return_headers=False,initial_calls=(),initial_values=None,economic_cohorts=None):
     """One authenticated bounded range for at most 64 independent markets.
 
     Shared transport does not share candidate populations: each result traverses
@@ -417,6 +429,8 @@ def collect_v4_activities(endpoint,*,markets,start_block,end_block,max_events=25
     shared=_transport(endpoint,pool_ids=ids,start_block=start_block,end_block=end_block,
         max_events=max_events*len(markets),acquisition_state=acquisition_state,evidence_context=evidence_context,
         canonical_targets=canonical_targets,initial_calls=initial_calls,initial_values=initial_values)
-    tapes={m['token']:collect_v4_activity(endpoint,**m,start_block=start_block,
-        end_block=end_block,max_events=max_events,_shared=shared) for m in markets}
+    from meme_machine.runtime.pons_economic_cohort import shared_v4
+    with shared_v4(economic_cohorts,markets,start_block,end_block):
+        tapes={m['token']:collect_v4_activity(endpoint,**m,start_block=start_block,
+            end_block=end_block,max_events=max_events,_shared=shared,economic_cohorts=economic_cohorts) for m in markets}
     return (tapes,shared['canonical_headers']) if return_headers else tapes

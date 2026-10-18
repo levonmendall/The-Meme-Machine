@@ -170,10 +170,13 @@ class CurrentHistory:
             self.plane.db.execute('DELETE FROM pons_current_history WHERE domain=? AND curve=?',(self.domain,curve))
 
     def remember(self,curve,header,events,*,from_time,delta_from=None,coverage=None,retain_ids=(),
-                 expected_frontier=None,publication_guard=None):
+                 expected_frontier=None,publication_guard=None,measurement_stage=None):
         from meme_machine.runtime.robinhood.pons import shared_evidence_domain
+        from meme_machine.runtime.pons_economic_cohort import current_publication,capture
         curve=curve.lower();block=int(header['number'],16);at=int(header['timestamp'],16)
-        with self.plane.transaction():
+        if measurement_stage is not None and measurement_stage.owner.source!=self.source_generation:
+            measurement_stage.owner.unavailable();measurement_stage=None
+        with current_publication(measurement_stage),self.plane.transaction():
             if shared_evidence_domain(self.endpoint)!=self.source_generation:
                 raise BoundaryError('pons_current_history_source_generation_changed')
             old=self.get(curve)
@@ -206,6 +209,7 @@ class CurrentHistory:
                 if previous is not None and previous!=event:raise BoundaryError('pons_current_history_event_conflict')
                 self.plane.db.execute('INSERT OR IGNORE INTO pons_current_events VALUES(?,?,?,?,?,?)',
                     (self.domain,curve,identity,event['event_at'],canonical(event),digest(event)))
+                capture(measurement_stage,identity,previous is None,event)
             lower=max(lower,at-900)
             row=dict(from_time=lower,through=at,block=block,block_hash=header['hash'],
                 observed_at=time.time(),authority='canonical_receipt_authenticated_complete_log_ranges',

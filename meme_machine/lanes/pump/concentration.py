@@ -46,6 +46,10 @@ class ConcentrationReader:
                 self.program_rpc = new_pool_scan_rpc(
                     limit=40,
                     pacer=primary_rpc.read_pacer,
+                    **({} if getattr(primary_rpc,'parent_port',None) is None else dict(
+                        parent_port=primary_rpc.parent_port,
+                        shared_reads=primary_rpc._parent_reads,
+                        evidence_broker=primary_rpc._parent_broker)),
                 )
             else:
                 self.program_rpc = ProgramScanRPC(primary_rpc.url, limit=40)

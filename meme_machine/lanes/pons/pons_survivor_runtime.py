@@ -19,6 +19,7 @@ from meme_machine.runtime.survivor_commit import commit,monitor,handoff_ready,sc
 from .pons_history import PonsHistory
 from .pons_attempts import Attempts, decision_category, failure_category
 from meme_machine.runtime.survivor_paper_book import PaperBook
+from meme_machine.runtime.isolated_native_bootstrap import survivor_constructor
 from meme_machine.runtime.robinhood.plane import Plane
 from meme_machine.runtime.robinhood.pons import plane_path
 from meme_machine.runtime.robinhood.provider_usage import evidence_work
@@ -140,31 +141,70 @@ class Runtime:
     # admission, range limits and position-first ordering stay authoritative.
     observation_interval_seconds=3
 
-    def __init__(self,root,capital,run_id,endpoint,*,scout_path=None):
+    @survivor_constructor('pons')
+    def __init__(self,root,capital,run_id,endpoint,*,scout_path=None,native_resources=None,native_ports=None,economic_cohorts=None):
+        self.native_resources=None;self.native_ports=None
+        if native_resources is not None:
+            from meme_machine.runtime.isolated_native_bootstrap import validate_survivor_constructor
+            self.native_resources=validate_survivor_constructor(root,capital,run_id,'pons',native_resources,native_ports)
+            self.native_ports=native_ports
+            if (endpoint is not native_ports.rpc_port('pons','survivor').source or
+                    scout_path != self.native_resources.root/'pons-candidates.sqlite'):
+                raise ValueError('isolated_native_pons_source_identity')
+        elif native_ports is not None:raise ValueError('isolated_native_resources_required')
         self.root=Path(root);self.root.mkdir(parents=True,exist_ok=True)
-        self.capital=capital;self.run_id=run_id;self.endpoint=endpoint
-        self.sleeve=open_sleeve('pons',capital)
-        if self.sleeve is None:raise BoundaryError('survivor_shared_sleeve_required')
-        self.history=PonsHistory(str(self.root/'history.sqlite'),policy=POLICY_HASH)
+        self.capital=capital;self.run_id=run_id
+        # History/filter domains need public source metadata, while native RPC
+        # transport retains the exact parent-issued reference in its own port.
+        self.endpoint=(endpoint if self.native_resources is None else
+            'alchemy:'+endpoint.endpoint_identity)
+        if economic_cohorts is not None:
+            from meme_machine.runtime.pons_economic_cohort import validated
+            economic_cohorts=validated(economic_cohorts,self.endpoint)
+        self.economic_cohorts=economic_cohorts
+        if self.native_resources is None:
+            self.sleeve=open_sleeve('pons',capital)
+            if self.sleeve is None:raise BoundaryError('survivor_shared_sleeve_required')
+            self.history=PonsHistory(str(self.root/'history.sqlite'),policy=POLICY_HASH,economic_cohorts=economic_cohorts)
+        else:
+            self.sleeve=open_sleeve('pons',None,native_resources=self.native_resources)
+            self.history=self.native_resources.survivor_history('pons')
+            self.history.economic_cohorts=economic_cohorts
         from meme_machine.runtime.survivor_history import compact_restored_history
         compact_restored_history(self.history,lane='pons')
-        self.book=PaperBook(str(self.root/'paper.sqlite'),run_id=run_id,lane=STRATEGY_VERSION,
-                            policy_hash=POLICY_HASH,initial=capital)
-        from meme_machine.runtime.survivor_terminal_archive import compact
-        compact(self.book,self.sleeve,self.history)
-        self.plane=Plane(scout_path if scout_path is not None else plane_path(self.root/'candidate-evidence.sqlite'))
+        if self.native_resources is None:
+            self.book=PaperBook(str(self.root/'paper.sqlite'),run_id=run_id,lane=STRATEGY_VERSION,
+                                policy_hash=POLICY_HASH,initial=capital)
+            from meme_machine.runtime.survivor_terminal_archive import compact
+            compact(self.book,self.sleeve,self.history)
+            self.plane=Plane(scout_path if scout_path is not None else plane_path(self.root/'candidate-evidence.sqlite'))
+        else:
+            self.book=None
+            self.candidate_history=self.native_resources.candidate_history()
+            self.plane=self.native_resources.pons_plane()
         self.scout=None
         if scout_path is not None:
             from .pons_natural_observation import MarketScout
             self.scout=MarketScout(self.plane)
+        if economic_cohorts is not None:
+            self.plane.economic_cohorts=economic_cohorts
+            from meme_machine.runtime.pons_source_membership import bind_plane
+            bind_plane(self.plane)
         self.attempts=Attempts(self.plane)
         self.rpc=None;self.current=None;self.last_error=None
-        # Experimental PAPER shadow only; the native monitor always decides
-        # exits using its original fresh quote before this optional observer.
-        from .held_paper_shadow import PaperHeldShadow
-        self.held_paper_shadow=PaperHeldShadow(endpoint,asynchronous=True)
+        # A flat no-allocation scope has no held observation to shadow. It must
+        # not construct a hidden URL-bearing transport or financial controller.
+        if self.native_resources is None:
+            from .held_paper_shadow import PaperHeldShadow
+            self.held_paper_shadow=PaperHeldShadow(endpoint,asynchronous=True)
+        else:
+            self.held_paper_shadow=None
+            from meme_machine.runtime.isolated_native_bootstrap import require_bookless_runtime
+            require_bookless_runtime(self,'pons')
 
-    def now(self):return int(time.time())
+    def now(self):
+        resources=getattr(self,'native_resources',None)
+        return int(resources.clock()) if resources is not None else int(time.time())
 
     def historical_preparation_step(self):
         """Explicit preparation turn on this runtime's existing history authority.
@@ -194,7 +234,8 @@ class Runtime:
 
     def _provider(self):
         if self.rpc is None or self.rpc.used>150:
-            self.rpc=configured_rpc(self.endpoint,limit=200,per_scope=200,retries=0)
+            self.rpc=(configured_rpc(self.endpoint,limit=200,per_scope=200,retries=0) if getattr(self,'native_resources',None) is None else
+                self.native_ports.pons_rpc('survivor',limit=200,per_scope=200,retries=0))
         # Session rotation preserves deployment pins, but each new transport
         # still has to establish canonical chain identity before reuse.
         if not getattr(self.rpc,'chain_verified',False):self.rpc.verify_chain()
@@ -273,12 +314,20 @@ class Runtime:
         if self.history.pending_graduations():
             with evidence_work('canonical_verification'):worker.authenticate_step()
         if not getattr(self,'scout_registered',False):
-            for row in self.history.rows():self.scout.register_pool(row)
+            native_rows=self.history.rows()
+            membership=getattr(getattr(self,'economic_cohorts',None),'membership',None)
+            if membership is not None:membership.expect_watches(self.history,native_rows)
+            for row in native_rows:self.scout.register_pool(row)
+            if membership is not None:membership.seal_watches()
             self.scout_registered=True
         token=getattr(worker,'last_authenticated_candidate',None)
         if token is not None:
             row=self.history.get(token)
-            if row:self.scout.register_pool(row)
+            if row:
+                membership=getattr(getattr(self,'economic_cohorts',None),'membership',None)
+                if membership is not None:membership.expect_watches(self.history,[row],replace=False)
+                self.scout.register_pool(row)
+                if membership is not None:membership.seal_watches()
             worker.last_authenticated_candidate=None
         self.historical_readiness=dict(ready=True,mode='shared_public_scout',
             qualification_authority=False,market_wide_coverage_required=False,
@@ -370,7 +419,8 @@ class Runtime:
             from meme_machine.runtime.journal import digest
             context.cache.begin_receipts('survivor',row['id'].lower(),digest([row['block'],row.get('block_hash')]))
         tape=collect_v4_activity(self.endpoint,pool_id=pool,key=key,token=row['id'],
-            start_block=start,end_block=end,max_events=256,acquisition_state=self.history,evidence_context=context)
+            start_block=start,end_block=end,max_events=256,acquisition_state=self.history,evidence_context=context,
+            economic_cohorts=getattr(self,'economic_cohorts',None))
         # The preceding boundary must still have the authenticated hash recorded
         # at the last watermark. A fork never becomes clean historical evidence.
         h,previous=self.rpc.batch([('eth_getBlockByNumber',[hex(b),False])
@@ -392,7 +442,14 @@ class Runtime:
             if context is not None:context.cache.invalidate_canonical_aliases()
             from .pons_selective_acquisition import SelectiveEvidenceContext
             cache=durable_cache(self.plane,domain) if domain is not None else None
-            context=SelectiveEvidenceContext(self.endpoint,cache=cache)
+            if getattr(self,'native_resources',None) is None:
+                context=SelectiveEvidenceContext(self.endpoint,cache=cache)
+            else:
+                from meme_machine.runtime.isolated_native_bootstrap import require_runner_ports
+                ports=require_runner_ports(self.native_resources,self.native_ports)
+                context=SelectiveEvidenceContext(None,cache=cache,
+                    parent_port=ports.rpc_port('pons','survivor'),immutable_store=ports.pons_store(),
+                    native_profile=ports.pons_profile('survivor'))
             self.position_evidence_context=context
         return context
 
@@ -416,10 +473,13 @@ class Runtime:
             p=str(e['price_index']);old=points.get(e['event_at'])
             points[e['event_at']]=dict(price=p,low=str(min(int(p),int(old['low']))) if old else p,
                 high=str(max(int(p),int(old['high']))) if old else p)
-        self.history.append_block(row['id'],block=end,header=h,events=events,points=sorted(points.items()))
+        from meme_machine.runtime.pons_economic_cohort import survivor,survivor_publication
+        stage=survivor(getattr(self,'economic_cohorts',None),row,end,h,tape)
+        with survivor_publication(self.history,stage):
+            self.history.append_block(row['id'],block=end,header=h,events=events,points=sorted(points.items()))
 
     @evidence_work('deep_watch')
-    def _increment_candidates(self,rows,top,*,held=False):
+    def _increment_candidates(self,rows,top,*,held=False,native_work_frame=None):
         if not rows:return
         population=len(rows)
         pending=[r for r in rows if r.get('block') is not None and r['block']<top]
@@ -432,6 +492,8 @@ class Runtime:
         # Separate acquisition credit for overlapping checkpoints: an older
         # recovery cannot claim a newer pool without advancing that pool.
         rows=self.history.history_batch([r for r in pending if first<=r['block']<first+window],top)
+        if native_work_frame is not None and not held:
+            native_work_frame.history_requests(rows)
         if not rows:return
         start=min(row['block'] for row in rows)+1;end=min(top,start+window-1)
         if end<start:return
@@ -444,7 +506,8 @@ class Runtime:
                 digest([(r['id'],r['block'],r.get('block_hash')) for r in active]))
         elif hasattr(context.cache,'receipt_scope'):context.cache.receipt_scope=None
         tapes=collect_v4_activities(self.endpoint,markets=markets,start_block=start,end_block=end,
-            acquisition_state=self.history,evidence_context=context)
+            acquisition_state=self.history,evidence_context=context,
+            economic_cohorts=getattr(self,'economic_cohorts',None))
         blocks=sorted({end}|{r['block'] for r in active})
         values=[]
         for offset in range(0,len(blocks),50):
@@ -929,12 +992,45 @@ class Runtime:
                 # settlement. The original position decision is already final.
                 shadow.counts['isolated_unexpected_probe_error']+=1
 
+    def _allocation_allowed(self,row,decision):
+        from meme_machine.runtime.isolated_native_admission import survivor_allocation_allowed
+        return survivor_allocation_allowed(self,row,decision,lane='pons',policy=POLICY_HASH)
+
+    def _publish_qualification(self,row,decision,regime,*,state,signal=None,native_request=None):
+        if getattr(self,'native_resources',None) is not None:
+            from meme_machine.runtime.isolated_native_admission import require_survivor_resources
+            require_survivor_resources(self,'pons')
+        key='pons:survivor:'+row['id']
+        self.plane.observe(key,'pons',state['block_hash'],decision,ordering=(state['block'],),
+            watermark=dict(block=state['block'],hash=state['block_hash']),interpretation=dict(policy=POLICY_HASH),
+            observed=time.time(),deadline=None,priority=4,needs_work=False)
+        self.attempts.record(row['id'],row.get('qualification_attempt',0),'qualification',
+            decision_category(decision),at=state['at'],decision=decision)
+        observed=self.sleeve.observe(row['id'],strategy=STRATEGY_VERSION,at=state['at'],
+            state='qualified' if decision['candidate'] else decision['stage'],evidence=decision,regime=regime)
+        regime=observed['regime']
+        self.sleeve.opportunity(row['id'],identity=row['id'],regime='survivor',
+            status=observed['state'],at=state.get('market_time',state.get('at')),decision=decision)
+        row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
+            generation=observed['generation'],regime=regime,plane_generation=self.plane.get(key)['generation'])
+        if getattr(self,'scout',None) is not None:self._schedule_watch(row,state['at'],signal)
+        if native_request is None:self.history.save(row)
+        else:
+            from meme_machine.runtime.pons_native_work import qualification_save,work_for
+            with qualification_save(self.history,work_for(self),row,decision,state,native_request):
+                self.history.save(row)
+        return row,observed,regime
+
     @decision_work(4)
     def step(self,*,admit):
+        from meme_machine.runtime.isolated_native_bootstrap import maintain_bookless_runtime
+        bookless=maintain_bookless_runtime(self,'pons')
+        from meme_machine.runtime.pons_native_work import survivor_inputs,work_for
+        native_work=work_for(self);native_work_frame=None
         errors=[]
         try:
             from meme_machine.runtime.storage import compact_survivor
-            compact_survivor(self,'pons')
+            if not bookless:compact_survivor(self,'pons')
             self._provider()
             def position_priority(row):
                 if not row.get('position'):return 3
@@ -997,18 +1093,27 @@ class Runtime:
                     errors.append(str(exc))
                     self.historical_readiness=dict(ready=False,category='INCOMPLETE_EVIDENCE',
                         reason=str(exc),qualification_authority=False,pre_enrollment_coverage='UNOBSERVED')
-            rows=[r for r in self.history.rows() if not r.get('position') and r['state']!='retired']
+            with survivor_inputs(self.history,native_work) as native_work_frame:
+                rows=[r for r in self.history.rows() if not r.get('position') and r['state']!='retired']
             if admit and rows:
                 for expired in list(rows):
                     if self.now()-expired['graduation']['at']>POLICY['universe']['max_seconds_after_graduation']:
                         self.history.retire(expired,expired_before=self.now()-POLICY['universe']['max_seconds_after_graduation']);rows.remove(expired)
+                        if native_work_frame is not None:native_work_frame.filtered(expired,retired=True)
                 if getattr(self,'scout',None) is not None:
-                    rows=[r for r in rows if self._deep_watch_due(r,self.now())]
+                    def native_due(row):
+                        due=self._deep_watch_due(row,self.now())
+                        if not due and native_work_frame is not None:native_work_frame.filtered(row)
+                        return due
+                    rows=[r for r in rows if native_due(r)]
+                if native_work_frame is not None:native_work_frame.eligibility(rows,admit=admit)
                 if rows:
                     top=int(_latest_header(self.rpc)['number'],16)
                     signals={r['id']:self.scout.signal(r['graduation']['transition']['market'])
                         for r in rows} if getattr(self,'scout',None) is not None else {}
-                    try:self._increment_candidates(rows,top)
+                    try:
+                        if native_work_frame is None:self._increment_candidates(rows,top)
+                        else:self._increment_candidates(rows,top,native_work_frame=native_work_frame)
                     except (ValueError,BoundaryError) as exc:errors.append(str(exc))
                     rows=[self.history.get(r['id']) for r in rows]
                     if getattr(self,'scout',None) is not None:
@@ -1016,6 +1121,7 @@ class Runtime:
                             if r['block']==top:
                                 r['scout_hydrated_signal']=signals[r['id']]
                                 self.history.save(r)
+            elif native_work_frame is not None:native_work_frame.eligibility(rows,admit=admit)
             if admit and rows:
                 row=self.history.qualification_turn(rows,self.now())
                 age=self.now()-row['graduation']['at']
@@ -1026,30 +1132,21 @@ class Runtime:
                     if age<POLICY['universe']['min_seconds_after_graduation']:row['state']='aging';self.history.save(row)
                     elif end-row['block']<=40:
                         signal=self.scout.signal(row['graduation']['transition']['market']) if getattr(self,'scout',None) else None
+                        native_request=None if native_work_frame is None else native_work_frame.request(row)
                         state=self.fresh_state(row['id']);quotes=self.fresh_quotes(state,self.sleeve.sizing_basis(500)["target"])
                         decision=self.qualify(self.reconstruct(state,quotes));f=decision['features']
                         regime=dict(at=state['at'],rally_cycle=decision.get('rally_cycle'),
                             base_id=[f.get('base_low'),f.get('base_high')],buyer_population=self.facts['organic_flow']['buyer_groups'],
                             independent_demand=f['independent_buyers_30m'],flow_regime=f['buy_sell_ratio_bps']//10000)
-                        key='pons:survivor:'+row['id']
-                        self.plane.observe(key,'pons',state['block_hash'],decision,ordering=(state['block'],),
-                            watermark=dict(block=state['block'],hash=state['block_hash']),interpretation=dict(policy=POLICY_HASH),
-                            observed=time.time(),deadline=None,priority=4,needs_work=False)
-                        self.attempts.record(row['id'],row.get('qualification_attempt',0),'qualification',
-                            decision_category(decision),at=state['at'],decision=decision)
-                        observed=self.sleeve.observe(row['id'],strategy=STRATEGY_VERSION,at=state['at'],
-                            state='qualified' if decision['candidate'] else decision['stage'],evidence=decision,regime=regime)
-                        regime=observed['regime']
-                        self.sleeve.opportunity(row['id'],identity=row['id'],regime='survivor',
-                            status=observed['state'],at=state.get('market_time',state.get('at')),decision=decision)
-                        row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
-                            generation=observed['generation'],regime=regime,plane_generation=self.plane.get(key)['generation'])
-                        if getattr(self,'scout',None) is not None:self._schedule_watch(row,state['at'],signal)
                         # Qualification is durable before native funding. The
                         # owner removed the two-position admission veto; capital,
                         # full execution requalification and risk still govern.
-                        self.history.save(row)
-                        if decision['candidate']:
+                        if native_request is None:
+                            row,observed,regime=self._publish_qualification(row,decision,regime,state=state,signal=signal)
+                        else:
+                            row,observed,regime=self._publish_qualification(row,decision,regime,
+                                state=state,signal=signal,native_request=native_request)
+                        if decision['candidate'] and self._allocation_allowed(row,decision):
                             from meme_machine.runtime.lifecycle_identity import issue
                             row['position']=issue(self.run_id+':'+digest([STRATEGY_VERSION,row['id'],regime]))
                             row['state']='reserved';self.history.save(row);self._enter(row)
@@ -1068,13 +1165,13 @@ class Runtime:
         # writes the separate candidate plane, never this native history.
         final_rows=self.history.rows()
         self.attempts.maintain(self.now(),protected=(r['id'] for r in final_rows))
-        return dict(strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,active=True,paper_only=True,
-                    rally_lifecycles=self.sleeve.rally_report(),
+        result=dict(strategy=STRATEGY_VERSION,policy_hash=POLICY_HASH,active=True,paper_only=True,
+                    rally_lifecycles=None if bookless else self.sleeve.rally_report(),
                     admission=dict(position_count_limit=None,capital_authority='native_shared_sleeve',
                         legacy_policy_count_is_not_enforced=True,owner_change='2026-10-09'),
                     position_safety=[r.get('position_safety',dict(at=0,evidence_current=False,
                         blocker='pons_survivor_position_not_observed')) for r in final_rows if r.get('position')],
-                    native_execution_cost=execution_cost(self.book),
+                    native_execution_cost=None if bookless else execution_cost(self.book),
                     candidate_count=len(final_rows),last_boundary=self.last_error,
                     discovery_capacity_deferred=False,
                     pending_graduations=self.history.pending_graduations(),
@@ -1082,12 +1179,17 @@ class Runtime:
                     acquisition=getattr(self,'acquisition',None),
                     historical_readiness=getattr(self,'historical_readiness',None),
                     qualification_authority='candidate_specific_authenticated_evidence',
-                    accounting=self.book.reconcile(),accounting_replay=self.book.replay(),
-                    policies=self.sleeve.identity['policies'],sleeve=self.sleeve.reconcile(),
-                    durable_handoff=handoff_ready(self.book,final_rows),
+                    accounting=None if bookless else self.book.reconcile(),
+                    accounting_replay=None if bookless else self.book.replay(),
+                    policies=self.sleeve.identity['policies'],sleeve=None if bookless else self.sleeve.reconcile(),
+                    durable_handoff=False if bookless else handoff_ready(self.book,final_rows),
                     held_paper_shadow=(getattr(self,'held_paper_shadow',None).status()
                         if getattr(self,'held_paper_shadow',None) is not None else
                         dict(enabled=False,mode='PAPER_SHADOW_ONLY')))
+        if bookless:
+            from meme_machine.runtime.isolated_native_bootstrap import bookless_report
+            result.update(bookless_report(self,'pons'))
+        return result
 
     @position_work
     @attributed_work('pons_held_protection',consumer='survivor')
@@ -1216,4 +1318,8 @@ class Runtime:
     def close(self):
         shadow=getattr(self,'held_paper_shadow',None)
         if shadow is not None:shadow.close()
-        self.book.close();self.history.close();self.sleeve.close();self.plane.close()
+        if getattr(self,'native_resources',None) is None:
+            self.book.close();self.history.close();self.sleeve.close();self.plane.close()
+        else:
+            from meme_machine.runtime.isolated_native_bootstrap import close_bookless_runtime
+            close_bookless_runtime(self,'pons')

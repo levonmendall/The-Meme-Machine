@@ -314,4 +314,3 @@ class InputProjectionTests(unittest.TestCase):
             self.assertEqual(view[field]['cumulative_summary_sha256'],value[field]['cumulative_summary_sha256'])
         self.assertLessEqual(len(json.dumps(view).encode()),16384)
         self.assertEqual(project_current_work(view),view)
-

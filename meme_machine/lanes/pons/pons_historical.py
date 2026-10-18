@@ -14,6 +14,7 @@ import json
 import time
 
 from meme_machine.runtime.journal import canonical, digest
+from meme_machine.runtime.pons_factory_census import observe_resume,invalidate_before,record as factory_record_observation
 from meme_machine.runtime.robinhood.provider_authority import require_canonical
 from . import BoundaryError, CHAIN_ID
 from .identity import metadata as load, authenticate
@@ -220,6 +221,7 @@ class Preparation:
             raise BoundaryError('historical_header_number')
         return h
 
+    @invalidate_before
     @decision_work(5)
     def begin(self, *, prospective=False, enrollment_block=None):
         """Enroll forward at a canonical head, or freeze an explicit research head."""
@@ -271,6 +273,7 @@ class Preparation:
         return plan
 
     @decision_work(5)
+    @invalidate_before
     def boundary_step(self):
         p = self.history.get_meta(self.plan_key)
         if p is None:
@@ -401,6 +404,7 @@ class Preparation:
                 'ON CONFLICT(kind,id) DO UPDATE SET valid=1',
                 (ident, kind, order(e)[0], canonical(e), digest(e)))
 
+    @invalidate_before
     def _packet(self, kind, query, first, last, anchor, consume=None, participants=None):
         frontier = self._frontier(kind, first, anchor)
         start = frontier['block'] + 1
@@ -497,6 +501,9 @@ class Preparation:
                 p = self.history.get_meta(self.plan_key)
                 p['ready'] = False
                 self.history.set_meta(self.plan_key, p)
+                if kind==self.population_kind:
+                    from meme_machine.runtime.pons_source_membership import factory_packet
+                    factory_packet(self,evidence,all_logs)
             return True
         except (BoundaryError, ValueError) as exc:
             reason = str(exc)
@@ -649,6 +656,7 @@ class Preparation:
         return True
 
     @decision_work(2)
+    @invalidate_before
     def authenticate_step(self):
         """Reuse native factory/graduation/curve authentication; never price-select."""
         if not self.restored:
@@ -716,11 +724,12 @@ class Preparation:
                   or int(p['target']['timestamp'], 16) - evidence['at'] > POLICY['universe']['max_seconds_after_graduation']):
             disposition = 'strategy_horizon_expired'
         with self.history.transaction():
-            self.history.set_meta('pons_historical_identity:' + token, dict(
+            identity_disposition=dict(
                 nomination=ident, event_identity=event_id(event), curve=curve, evidence=evidence,
                 launch=launch,
                 disposition=disposition, category='STRUCTURAL_INELIGIBLE' if disposition == 'non_native_quote'
-                else 'EXPIRED_BY_STRATEGY_HORIZON' if disposition else 'PENDING_HISTORY'))
+                else 'EXPIRED_BY_STRATEGY_HORIZON' if disposition else 'PENDING_HISTORY')
+            self.history.set_meta('pons_historical_identity:' + token, identity_disposition)
             if disposition is None:
                 old = self.history.get(token)
                 if old and old['graduation'] != evidence:
@@ -740,6 +749,8 @@ class Preparation:
                         points=[(evidence['at'], str(price_index(transition['initialization_sqrt_price_x96'], token, key)))])
             self.history.graduation_complete(ident)
             self.history.set_meta(pending_key,None)
+            from meme_machine.runtime.pons_source_membership import resolved
+            resolved(self,event,token,identity_disposition,True if disposition is None else None,p)
         self.last_authenticated_candidate=token
         return True
 
@@ -776,7 +787,8 @@ class Preparation:
                 for k in ('headers', 'receipts', 'txs'):
                     combined[k].update(s[k])
             tape = collect_v4_activity(None, pool_id=grad['transition']['market'], key=key,
-                token=token, start_block=row['block'] + 1, end_block=end, _shared=combined)
+                token=token, start_block=row['block'] + 1, end_block=end, _shared=combined,
+                economic_cohorts=getattr(runtime,'economic_cohorts',None))
             runtime._append_tape(row, end, header, tape)
             if end == number(p['target']):
                 self.history.finish_recovery(token, block=end, block_hash=header['hash'])
@@ -812,7 +824,8 @@ class Preparation:
                 shared = dict(combined,raw=[e for e in combined['raw']
                     if e['topics'][1] == markets[row['id']] and order(e)[0] > row['block']])
                 tape = collect_v4_activity(None,pool_id=markets[row['id']],key=PoolKey(**row['graduation']['key']),
-                    token=row['id'],start_block=row['block']+1,end_block=end,_shared=shared)
+                    token=row['id'],start_block=row['block']+1,end_block=end,_shared=shared,
+                    economic_cohorts=getattr(runtime,'economic_cohorts',None))
                 runtime._append_tape(row,end,header,tape)
                 if end == number(p['target']):
                     self.history.finish_recovery(row['id'],block=end,block_hash=header['hash'])
@@ -919,6 +932,7 @@ class Preparation:
             if digest([token,at,price]) != checksum:
                 raise BoundaryError('historical_price_replay_corruption')
 
+    @observe_resume
     @decision_work(5)
     def resume(self):
         """Validate the database, original chain and frontier before reuse.
@@ -961,6 +975,8 @@ class Preparation:
         for kind in kinds:
             rows = self.history.db.execute('SELECT id,first,last,body,hash FROM pons_historical_ranges '
                 'WHERE kind=? AND valid=1 ORDER BY first,last', (kind,)).fetchall()
+            if kind == self.population_kind:
+                factory_record_observation(self,'population',p,len(rows))
             origin = self.history.get_meta('pons_historical_origin:'+kind)
             retention = self.history.get_meta('pons_historical_retention_anchor:'+kind)
             if origin is None or origin['provider_fingerprint'] != p['provider_fingerprint'] or origin['policy'] != POLICY_HASH:
@@ -987,6 +1003,8 @@ class Preparation:
                 logs.sort(key=order)
                 if digest(logs) != e['event_digest'] or [event_id(x) for x in logs] != e['identities']:
                     raise BoundaryError('historical_range_event_replay')
+                if kind == self.population_kind:
+                    factory_record_observation(self,'range',first,last,e,logs)
                 prior_end, prior_hash = last, e['end']['hash']
             frontier = self.history.get_meta('pons_historical_frontier:' + kind)
             if frontier != dict(block=prior_end, block_hash=prior_hash):
@@ -1076,13 +1094,15 @@ class Preparation:
         gaps = self.history.db.execute('SELECT COUNT(*) FROM pons_historical_gaps' +
                   (' WHERE kind=?' if self.forward_only else ''),
                   (self.population_kind,) if self.forward_only else ()).fetchone()[0]
-        incomplete = [r['id'] for r in self.history.rows() if r.get('block', -1) < top
+        candidates = self.history.rows()
+        incomplete = [r['id'] for r in candidates if r.get('block', -1) < top
                       or r.get('complete') is not True or r.get('recovery')
                       or not self.forward_only and not self._candidate_coverage(r,top)]
         # Reconcile every graduation against a durable native identity/disposition.
         missing = []
         pending = self.history.pending_graduations()
         if self.restored and domain_ready and frontier['block'] == top and not gaps and not incomplete and not pending:
+            factory_record_observation(self,'reconciliation',False)
             # Do not repeatedly materialize/decode the entire population during
             # each incomplete backfill turn. The final independent census check
             # streams indexed graduation rows only, with one native ABI load.
@@ -1093,8 +1113,15 @@ class Preparation:
                 disposition = self.history.get_meta('pons_historical_identity:' + token)
                 if disposition is None or disposition['event_identity'] != event_id(e):
                     missing.append(event_id(e))
-                elif disposition['disposition'] is None and self.history.get(token) is None:
-                    missing.append(event_id(e))
+                    factory_record_observation(self,'graduation',e,token,disposition,False)
+                elif disposition['disposition'] is None:
+                    retained = self.history.get(token)
+                    if retained is None:
+                        missing.append(event_id(e))
+                    factory_record_observation(self,'graduation',e,token,disposition,retained is not None)
+                else:
+                    factory_record_observation(self,'graduation',e,token,disposition,None)
+            factory_record_observation(self,'reconciliation',True)
         ready = (self.restored and domain_ready and frontier['block'] == top and not gaps
                  and not incomplete and not missing and not pending)
         if self.forward_only:
@@ -1109,6 +1136,7 @@ class Preparation:
             pre_enrollment_coverage='UNOBSERVED' if self.forward_only else 'requested historical domain',
             prospective_census_complete=self.restored and frontier['block']==top and not gaps,
             historical_opportunity_recall_complete=not self.forward_only and ready)
+        factory_record_observation(self,'readiness',p,result,candidates)
         p.update(ready=ready, readiness=result)
         self.history.set_meta(self.plan_key, p)
         return result
@@ -1131,6 +1159,7 @@ class Preparation:
         return through >= top
 
     @decision_work(5)
+    @invalidate_before
     def extend(self, head):
         """Resume rolling acquisition; enrollment and candidate deadlines persist."""
         if not self.restored:
@@ -1142,6 +1171,7 @@ class Preparation:
                  POLICY['universe']['max_seconds_after_graduation']), ready=False)
         self.history.set_meta(self.plan_key, p)
 
+    @invalidate_before
     def maintain(self, *, recovery_before, limit=256):
         """Retire only complete material outside strategy AND recovery retention.
 

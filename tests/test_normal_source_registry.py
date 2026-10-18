@@ -402,4 +402,3 @@ class RegistrySubscriptionOrderTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(RuntimeError,'original_transport_constructor'):
             await source.stream(SimpleNamespace(stream_stream=transport),request,handler,'shared')
         self.assertEqual(fixture.value()['sessions'],1)
-

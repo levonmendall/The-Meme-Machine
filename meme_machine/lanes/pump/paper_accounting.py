@@ -26,7 +26,9 @@ def _integer(value):
 
 
 class PaperBook:
-    def __init__(self, path, *, run_id, lane, policy_hash, initial):
+    def __init__(self, path, *, run_id, lane, policy_hash, initial, native_resources=None):
+        from meme_machine.runtime.isolated_native_execution import reject_financial_construction
+        reject_financial_construction(native_resources)
         _integer(initial)
         self.identity = dict(run_id=run_id, lane=lane, policy_hash=policy_hash, initial=initial)
         self.lock = threading.RLock()

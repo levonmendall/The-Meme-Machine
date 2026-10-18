@@ -16,6 +16,7 @@ from meme_machine.runtime.execution_capacity import buyer_persistence
 from meme_machine.runtime.journal import digest
 from meme_machine.runtime.survivor_commit import commit,monitor,handoff_ready,scale
 from meme_machine.runtime.survivor_history import History
+from meme_machine.runtime.isolated_native_bootstrap import survivor_constructor
 from meme_machine.runtime.survivor_paper_book import PaperBook
 from meme_machine.solana_evidence_plane import decode_body
 from .engine import GAS,MAYHEM_AGENT_WALLET
@@ -42,26 +43,47 @@ class Quotes:
 
 
 class Runtime:
-    def __init__(self,root,capital,run_id,confirmations):
+    @survivor_constructor('pump')
+    def __init__(self,root,capital,run_id,confirmations,*,native_resources=None,native_ports=None):
+        self.native_resources=None;self.native_ports=None
+        if native_resources is not None:
+            from meme_machine.runtime.isolated_native_bootstrap import validate_survivor_constructor
+            self.native_resources=validate_survivor_constructor(root,capital,run_id,'pump',native_resources,native_ports)
+            self.native_ports=native_ports
+        elif native_ports is not None:raise ValueError('isolated_native_resources_required')
         self.root=Path(root);self.root.mkdir(parents=True,exist_ok=True)
         self.capital=capital;self.run_id=run_id;self.confirmations=confirmations
-        self.sleeve=open_sleeve('pump',capital)
-        if self.sleeve is None:raise ValueError('survivor_shared_sleeve_required')
-        self.history=History(str(self.root/'history.sqlite'),policy=POLICY_HASH)
+        if self.native_resources is None:
+            self.sleeve=open_sleeve('pump',capital)
+            if self.sleeve is None:raise ValueError('survivor_shared_sleeve_required')
+            self.history=History(str(self.root/'history.sqlite'),policy=POLICY_HASH)
+        else:
+            self.sleeve=open_sleeve('pump',None,native_resources=self.native_resources)
+            self.history=self.native_resources.survivor_history('pump')
         self.history.volume_quote_asset='SOL'
         from meme_machine.runtime.survivor_history import compact_restored_history
         from .pumpswap_survivor import reduce_reset_history
         compact_restored_history(self.history,lane='pump',reducer=reduce_reset_history)
-        self.book=PaperBook(str(self.root/'paper.sqlite'),run_id=run_id,lane=STRATEGY_ID,
-                            policy_hash=POLICY_HASH,initial=capital)
-        from meme_machine.runtime.survivor_terminal_archive import compact
-        compact(self.book,self.sleeve,self.history)
-        self.plane=RuntimeEvidence(owner='pump:survivor')
-        from meme_machine.runtime.candidate_history import open_candidate_history
-        self.candidate_history=open_candidate_history()
+        if self.native_resources is None:
+            self.book=PaperBook(str(self.root/'paper.sqlite'),run_id=run_id,lane=STRATEGY_ID,
+                                policy_hash=POLICY_HASH,initial=capital)
+            from meme_machine.runtime.survivor_terminal_archive import compact
+            compact(self.book,self.sleeve,self.history)
+            self.plane=RuntimeEvidence(owner='pump:survivor')
+            from meme_machine.runtime.candidate_history import open_candidate_history
+            self.candidate_history=open_candidate_history()
+        else:
+            self.book=None
+            self.plane=self.native_ports.pump_evidence('pump:survivor')
+            self.candidate_history=self.native_resources.candidate_history()
         self.rpc=None;self.current=None;self.last_error=None
+        if self.native_resources is not None:
+            from meme_machine.runtime.isolated_native_bootstrap import require_bookless_runtime
+            require_bookless_runtime(self,'pump')
 
-    def now(self):return int(time.time())
+    def now(self):
+        resources=getattr(self,'native_resources',None)
+        return int(resources.clock()) if resources is not None else int(time.time())
 
     def _quality_rank(self,row,now):
         from meme_machine.runtime.volume_quality import attention
@@ -71,7 +93,8 @@ class Runtime:
     def _provider(self,priority=30):
         if self.rpc is None or self.rpc.calls>160:
             pacer=None if self.rpc is None else self.rpc.read_pacer
-            self.rpc=new_rpc(limit=240,pacer=pacer)
+            self.rpc=(new_rpc(limit=240,pacer=pacer) if getattr(self,'native_resources',None) is None else
+                self.native_ports.pump_rpc('survivor',limit=240,pacer=pacer))
             self.rpc.evidence_priority=priority
             self.adapter=PostGraduationAdapter(self.rpc)
             if held_rpc_mode()=='optimized':
@@ -425,11 +448,33 @@ class Runtime:
             shared.record_funding(row['decision_id'],'pump',row['id'],
                 status=status,at=self.now(),reason=reason,details=details)
 
+    def _allocation_allowed(self,row,decision):
+        from meme_machine.runtime.isolated_native_admission import survivor_allocation_allowed
+        return survivor_allocation_allowed(self,row,decision,lane='pump',policy=POLICY_HASH)
+
+    def _publish_qualification(self,row,decision,regime,*,state):
+        if getattr(self,'native_resources',None) is not None:
+            from meme_machine.runtime.isolated_native_admission import require_survivor_resources
+            require_survivor_resources(self,'pump')
+        observed=self.sleeve.observe(row['id'],strategy=STRATEGY_ID,at=state['market_time'],
+            state='qualified' if decision['candidate'] else decision['stage'],evidence=decision,regime=regime)
+        # Preserve the first observed cycle instead of moving its breakout.
+        regime=observed['regime']
+        self.sleeve.opportunity(row['id'],identity=row['id'],regime='survivor',
+            status=observed['state'],at=state.get('market_time',state.get('at')),decision=decision)
+        row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
+            generation=observed['generation'],regime=regime)
+        self._decision(row,decision,state['market_time'])
+        self.history.save(row)
+        return row,observed,regime
+
     def step(self,*,admit):
+        from meme_machine.runtime.isolated_native_bootstrap import maintain_bookless_runtime
+        bookless=maintain_bookless_runtime(self,'pump')
         discovery_deferred=False
         try:
             from meme_machine.runtime.storage import compact_survivor
-            compact_survivor(self,'pump')
+            if not bookless:compact_survivor(self,'pump')
             rows=self.history.rows()
             for row in rows:
                 if row.get('position'):
@@ -497,19 +542,8 @@ class Runtime:
                                 decision['candidate']=False;decision['all_rejections'].append('extension_requires_new_reset_base')
                         if any(reason in decision['all_rejections'] for reason in ('price_extension','base_range_extension')):
                             row['extension_blocked_regime']=regime;self.history.save(row)
-                        observed=self.sleeve.observe(row['id'],strategy=STRATEGY_ID,at=state['market_time'],
-                            state='qualified' if decision['candidate'] else decision['stage'],evidence=decision,regime=regime)
-                        # The sleeve freezes a cycle's first observed breakout.
-                        # Later canonical observations cannot mint another cycle
-                        # from a moving decision time or completed base window.
-                        regime=observed['regime']
-                        self.sleeve.opportunity(row['id'],identity=row['id'],regime='survivor',
-                            status=observed['state'],at=state.get('market_time',state.get('at')),decision=decision)
-                        row=self.history.get(row['id']);row.update(state=observed['state'],decision=decision,
-                            generation=observed['generation'],regime=regime)
-                        self._decision(row,decision,state['market_time'])
-                        self.history.save(row)
-                        if decision['candidate']:
+                        row,observed,regime=self._publish_qualification(row,decision,regime,state=state)
+                        if decision['candidate'] and self._allocation_allowed(row,decision):
                             sizing=self.sleeve.sizing_basis(POLICY["target_sleeve_bps"])
                             if int(sizing.get('allocatable_target',0)) < GAS*2+1:
                                 # Qualification remains durable even when funding is
@@ -549,8 +583,8 @@ class Runtime:
             self.last_error=str(exc)
             from meme_machine.runtime.survivor_commit import exceptional_evidence_failure
             exceptional_evidence_failure(self,family='pump_survivor',blocker=str(exc))
-        return dict(strategy=STRATEGY_ID,policy_hash=POLICY_HASH,active=True,paper_only=True,
-                    rally_lifecycles=self.sleeve.rally_report(),
+        result=dict(strategy=STRATEGY_ID,policy_hash=POLICY_HASH,active=True,paper_only=True,
+                    rally_lifecycles=None if bookless else self.sleeve.rally_report(),
                     execution_work_model=dict(owner='existing_pump_survivor_worker',
                         intake='canonical_solana_evidence_plane',additional_workers=0,
                         additional_broad_market_scans=0,new_candidates_per_turn_limit=1,
@@ -570,10 +604,19 @@ class Runtime:
                     discovery_capacity_deferred=discovery_deferred,
                     candidate_capacity_pressure=(
                         self.history.get_meta('candidate_capacity_pressure') or 0),
-                    accounting=self.book.reconcile(),accounting_replay=self.book.replay(),
-                    policies=self.sleeve.identity['policies'],sleeve=self.sleeve.reconcile(),
-                    durable_handoff=handoff_ready(self.book,self.history.rows()))
+                    accounting=None if bookless else self.book.reconcile(),
+                    accounting_replay=None if bookless else self.book.replay(),
+                    policies=self.sleeve.identity['policies'],sleeve=None if bookless else self.sleeve.reconcile(),
+                    durable_handoff=False if bookless else handoff_ready(self.book,self.history.rows()))
+        if bookless:
+            from meme_machine.runtime.isolated_native_bootstrap import bookless_report
+            result.update(bookless_report(self,'pump'))
+        return result
 
     def close(self):
-        if getattr(self,'candidate_history',None) is not None:self.candidate_history.close()
-        self.book.close();self.history.close();self.sleeve.close();self.plane.close()
+        if getattr(self,'native_resources',None) is None:
+            if getattr(self,'candidate_history',None) is not None:self.candidate_history.close()
+            self.book.close();self.history.close();self.sleeve.close();self.plane.close()
+        else:
+            from meme_machine.runtime.isolated_native_bootstrap import close_bookless_runtime
+            close_bookless_runtime(self,'pump')

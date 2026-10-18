@@ -215,15 +215,20 @@ def _record_candidate_boundary(pipeline,identity,event,sequence,context,boundary
     return row
 
 
-def _checkpoint(result,*,cursor,feed,rpc,phase,plane=None):
+def _checkpoint(result,*,cursor,feed,rpc,phase,plane=None,native_context=None):
     active_provider=rpc.telemetry() if rpc is not None else dict(state='CLOSED',reason='bootstrap_discovery_closed')
     from meme_machine.runtime.pons_terminal_archive import retire_controller
     # The existing capital reader repairs lost release ACKs. Refresh only the
     # corresponding known terminal references before normal retirement/checkpoint.
-    cohort_accounting=_cohort_accounting() if (ROOT/'pons-selective-cohort-capital.sqlite').exists() else result.get('cohort_accounting')
-    refresh_pending_ack(ROOT,result)
-    retire_controller(result)
-    save_cohort_checkpoint(result,cursor,phase,plane=plane)
+    if native_context is None:
+        cohort_accounting=_cohort_accounting() if (ROOT/'pons-selective-cohort-capital.sqlite').exists() else result.get('cohort_accounting')
+        refresh_pending_ack(ROOT,result)
+        retire_controller(result)
+        save_cohort_checkpoint(result,cursor,phase,plane=plane)
+    else:
+        result.update(native_context.report(result))
+        cohort_accounting=result['cohort_accounting']
+        save_cohort_checkpoint(result,cursor,phase,plane=native_context.plane)
     snapshot=dict(
         kind="pons-selective-continuation-v1-checkpoint",
         namespace=STRATEGY_NAMESPACE,
@@ -294,8 +299,11 @@ def _recover_sequencer(feed,cursor,recoveries):
 
 
 @foreground_work
-def _discovery(endpoint):
-    rpc=configured_discovery_rpc(endpoint,limit=200,per_scope=190,retries=0)
+def _discovery(endpoint,*,native_ports=None):
+    rpc=(configured_discovery_rpc(endpoint,limit=200,per_scope=190,retries=0) if native_ports is None else
+        configured_discovery_rpc(parent_port=native_ports.rpc_port('pons','discovery'),
+            immutable_store=native_ports.pons_store(),native_profile=native_ports.pons_profile('discovery'),
+            limit=200,per_scope=190,retries=0))
     rpc.verify_chain()
     return rpc
 
@@ -310,7 +318,7 @@ def _recoverable_provider_boundary(exc):
 
 
 def _recover_discovery(
-    endpoint,rpc,cursor,sessions,recoveries,*,on_failure=None,
+    endpoint,rpc,cursor,sessions,recoveries,*,on_failure=None,native_ports=None,
 ):
     """Rotate only after a proven transient provider/session boundary."""
     boundary=str(getattr(rpc,"_last_boundary","") or "provider_session_failure")
@@ -348,7 +356,8 @@ def _recover_discovery(
         elif attempt>1:
             _stop_sleep(PROVIDER_RECOVERY_SLEEP_SECONDS)
         try:
-            replacement=_discovery(endpoint)
+            replacement=(_discovery(endpoint) if native_ports is None else
+                _discovery(endpoint,native_ports=native_ports))
         except BoundaryError as exc:
             last=str(exc)
             if not _recoverable_provider_boundary(exc):
@@ -418,11 +427,13 @@ def _current_curve_events(rpc,start,end):
     return rows
 
 
-def _start_observation(endpoint,feed,*,saved=None,maintenance=None):
+def _start_observation(endpoint,feed,*,saved=None,maintenance=None,native_ports=None):
     """Observation startup cannot suspend already-owned native positions."""
     while True:
         try:
-            rpc=_discovery(endpoint);feed.connect()
+            rpc=(_discovery(endpoint) if native_ports is None else
+                _discovery(endpoint,native_ports=native_ports))
+            feed.connect()
             cursor=feed.wait_for_after(-1,timeout=5.0)
             if cursor is None:raise BoundaryError('selective_sequencer_start_timeout')
             at=feed.state.latest_header_timestamp
@@ -613,19 +624,21 @@ def _read_curve_range(rpc,first,observed_end):
 @foreground_work
 def _poll(
     endpoint,rpc,cursor,tape,feed,sessions,recoveries=None,
-    on_provider_failure=None, scout=None, nominate=None,
+    on_provider_failure=None, scout=None, nominate=None,native_ports=None,
 ):
     from meme_machine.operational.position_continuation import position_only
     if position_only():return rpc,cursor,[]
     if recoveries is None:
         recoveries=[]
     if rpc.used>150:
-        try:replacement=_discovery(endpoint)
+        try:
+            replacement=(_discovery(endpoint) if native_ports is None else
+                _discovery(endpoint,native_ports=native_ports))
         except BoundaryError as exc:
             if not _recoverable_provider_boundary(exc):raise
             rpc._last_boundary=str(exc)
             rpc=_recover_discovery(endpoint,rpc,cursor,sessions,recoveries,
-                on_failure=on_provider_failure)
+                on_failure=on_provider_failure,**({} if native_ports is None else {'native_ports':native_ports}))
         else:
             telemetry=rpc.telemetry()
             sessions.append(telemetry)
@@ -646,7 +659,7 @@ def _poll(
             rpc._last_boundary=str(exc)
             rpc=_recover_discovery(
                 endpoint,rpc,cursor,sessions,recoveries,
-                on_failure=on_provider_failure,
+                on_failure=on_provider_failure,**({} if native_ports is None else {'native_ports':native_ports}),
             )
 
     if latest is None:
@@ -684,7 +697,7 @@ def _poll(
                 rpc._last_boundary=str(exc)
                 rpc=_recover_discovery(
                     endpoint,rpc,cursor,sessions,recoveries,
-                    on_failure=on_provider_failure,
+                    on_failure=on_provider_failure,**({} if native_ports is None else {'native_ports':native_ports}),
                 )
         if observed_end<first:
             return rpc,cursor,[]
@@ -743,7 +756,12 @@ def _collect_completed(result,futures):
     return remaining
 
 
-def _cohort_accounting():
+def _cohort_accounting(*,native_resources=None):
+    if native_resources is not None:
+        from meme_machine.runtime.isolated_native_resources import require_resources
+        from meme_machine.runtime.isolated_pons_current import unexercised_finance
+        require_resources(native_resources)
+        return unexercised_finance()
     from .pons_selective_capital import CohortCapital
     return CohortCapital(ROOT/'pons-selective-cohort-capital.sqlite',STRATEGY_CAPITAL_QUOTE).reconcile()
 
@@ -800,15 +818,64 @@ def _collect_observations(*args,queue,scout=None,**kwargs):
     return discovered
 
 
-def run(endpoint,*,campaign=False):
+def _allocation_allowed(queue,scheduled,evaluation,attempts,*,native_resources=None):
+    from meme_machine.runtime.isolated_native_admission import current_pons_allocation_allowed
+    return current_pons_allocation_allowed(queue,scheduled,evaluation,attempts,
+        native_resources=native_resources)
+
+
+def _record_qualification(attempts,identity,generation,evaluation,category,*,at,explanation,native_request=None):
+    body=attempts.record(identity,generation,'qualification',category,at=at,
+        decision=dict(evaluation['vector'],reentry_explanation=explanation))
+    if native_request is not None:
+        from meme_machine.runtime.pons_current_work import qualified
+        qualified(attempts.plane,native_request,body)
+    return body
+
+
+def _current_decision(queue,request,identity,generation,state,reason=None):
+    result=queue.plane.decision(identity,generation,state,reason)
+    if result and request is not None:
+        from meme_machine.runtime.pons_current_work import decided
+        decided(queue.plane,request,state)
+    return result
+
+
+def run(endpoint,*,campaign=False,native_resources=None,native_ports=None,economic_cohorts=None):
+    if native_resources is None:
+        if native_ports is not None:raise ValueError('isolated_native_runner_ports_without_resources')
+        return _run(endpoint,campaign=campaign,economic_cohorts=economic_cohorts)
+    from meme_machine.runtime.isolated_native_execution import isolated_native_execution
+    from meme_machine.runtime.isolated_pons_current import PonsCurrentContext
+    with isolated_native_execution(native_resources):
+        context=PonsCurrentContext(native_resources,native_ports,{name:globals()[name] for name in (
+            'ROOT','REPORT','SKILL_DB','PROGRESS','ROWS_LOG','QUALIFIERS_LOG','PROVIDER_LOG','RECOVERY_LOG')},
+            endpoint=endpoint)
+        try:
+            return _run(context.provenance,campaign=campaign,native_resources=native_resources,
+                native_ports=native_ports,native_context=context,economic_cohorts=economic_cohorts)
+        finally:context.close()
+
+
+def _run(endpoint,*,campaign=False,native_resources=None,native_ports=None,native_context=None,economic_cohorts=None):
+    if native_context is None and (native_resources is not None or native_ports is not None):
+        raise ValueError('isolated_native_pons_current_context_required')
+    if native_context is not None:
+        if (native_context.resources is not native_resources or native_context.ports is not native_ports
+                or native_context.provenance!=endpoint):
+            raise ValueError('isolated_native_pons_current_owner')
+        native_context.require_nonfinancial()
     if type(campaign) is not bool:raise BoundaryError('selective_campaign_flag')
+    if economic_cohorts is not None:
+        from meme_machine.runtime.pons_economic_cohort import validated
+        economic_cohorts=validated(economic_cohorts,endpoint)
     ROOT.mkdir(parents=True,exist_ok=True)
     # Preserve existing evidence and lane capital on repeated invocation.
     occupied=list(ROOT.glob("trial-*.sqlite*"))
     occupied += [p for p in (PROGRESS,ROWS_LOG,QUALIFIERS_LOG,PROVIDER_LOG,RECOVERY_LOG,REPORT,
                             ROOT/"pons-selective-cohort-capital.sqlite") if p.exists()]
     recovered=None
-    if occupied:
+    if occupied and native_context is None:
         from meme_machine.runtime import status
         from meme_machine.runtime.stop import requested,Shutdown
         from meme_machine.shared_capital.runtime import native_startup_replay
@@ -822,9 +889,13 @@ def run(endpoint,*,campaign=False):
                     capital_path=ROOT/'pons-selective-cohort-capital.sqlite')
         if requested.is_set():raise Shutdown()
 
-    from .pons_selective_capital import CohortCapital
-    CohortCapital(ROOT/'pons-selective-cohort-capital.sqlite',STRATEGY_CAPITAL_QUOTE).recover_shared_terminals(release_absent=True)
-    initial_accounting=_cohort_accounting()
+    if native_context is None:
+        from .pons_selective_capital import CohortCapital
+        CohortCapital(ROOT/'pons-selective-cohort-capital.sqlite',STRATEGY_CAPITAL_QUOTE).recover_shared_terminals(release_absent=True)
+        initial_accounting=_cohort_accounting()
+    else:
+        native_context.require_nonfinancial()
+        initial_accounting=_cohort_accounting(native_resources=native_resources)
     started=time.time()
     result=dict(
         kind="pons-selective-continuation-v1-independent-cohort",
@@ -855,7 +926,8 @@ def run(endpoint,*,campaign=False):
         reentry_policy=dict(REENTRY_POLICY),
         outcome_blind=True,reranking=False,replacement=False,
         wallet_skill_namespace=STRATEGY_NAMESPACE,
-        strategy_capital_quote=_current_pons_realized_equity(),
+        strategy_capital_quote=(_current_pons_realized_equity() if native_resources is None else
+            _current_pons_realized_equity(native_resources=native_resources)),
         rows=[],qualifiers=[],lifecycles=[],discovery_sessions=[],
         sequencer_recoveries=[],evidence_acquisition=None,started_at=started,
     )
@@ -870,14 +942,23 @@ def run(endpoint,*,campaign=False):
     if result.get('selection_rule') is not None and result['selection_rule']!=selected_rule:
         result.setdefault('previous_selection_rule',result['selection_rule'])
     result.update(selection_rule=selected_rule,policy_revision=POLICY_REVISION)
-    result['candidate_plane_path']=str(plane_path(ROOT/'candidate-evidence.sqlite'))
+    result['candidate_plane_path']=str(plane_path(ROOT/'candidate-evidence.sqlite') if native_context is None else native_context.plane.path)
+    if native_context is not None:
+        result['operational_configuration'].update(physical_lifecycle_workers=0,
+            financial_authority=False,financial_lifecycles='UNEXERCISED')
+        result.update(native_context.report(result))
+        saved=native_context.plane.checkpoint_read('pons_cohort')
+        restored=native_context.restore(saved)
+        if restored is not None:result=restored
     result['native_archive_paths']=dict(rows=str(ROWS_LOG),qualifiers=str(QUALIFIERS_LOG),
         lifecycles=str(ROOT/'completed-lifecycles.jsonl'),discovery_sessions=str(PROVIDER_LOG),
         sequencer_recoveries=str(RECOVERY_LOG))
     result['operational_configuration_hash']=hashlib.sha256(json.dumps(
         result['operational_configuration'],sort_keys=True,separators=(',',':')).encode()).hexdigest()
     skill=WalletSkillBook(str(SKILL_DB))
+    if native_context is not None:native_context.startup_owned(skill)
     pipeline=Pipeline(ROOT/"opportunity-pipeline.sqlite","pons",POLICY_HASH)
+    if native_context is not None:native_context.startup_owned(pipeline)
     queue=None
     def coverage(*,drain=False):
         if queue is not None:
@@ -890,22 +971,36 @@ def run(endpoint,*,campaign=False):
     if os.environ.get('MM_DIRECTIONAL_COMPOSITE_REQUIRED')=='1':
         from meme_machine.runtime.survivor_history import Worker
         from .pons_survivor_runtime import Runtime
-        run_id=os.environ['MM_PAPER_EPOCH']
-        survivor=Worker(lambda:Runtime(ROOT/'pons-survivor',STRATEGY_CAPITAL_QUOTE,run_id,endpoint,
-            scout_path=plane_path(ROOT/'candidate-evidence.sqlite')))
+        if native_context is None:
+            run_id=os.environ['MM_PAPER_EPOCH']
+            survivor=Worker(lambda:Runtime(ROOT/'pons-survivor',STRATEGY_CAPITAL_QUOTE,run_id,endpoint,
+                scout_path=plane_path(ROOT/'candidate-evidence.sqlite'),economic_cohorts=economic_cohorts))
+        else:
+            run_id=native_resources.facts.value()['scope']
+            survivor=Worker(lambda:Runtime(native_resources.root/'pons-survivor',None,run_id,
+                native_ports.rpc_port('pons','survivor').source,scout_path=Path(native_context.plane.path),
+                native_resources=native_resources,native_ports=native_ports,economic_cohorts=economic_cohorts),native_resources=native_resources)
+            native_context.startup_owned(survivor)
         result['active_regimes']=['pons-selective-continuation-v1','pons-postgrad-survivor-momentum-v1']
-    feed=SequencerBlockClock();cursor=0;start_ts=None
+    feed=SequencerBlockClock() if native_context is None else native_context.feed
+    cursor=0;start_ts=None
     tape=[]
     from meme_machine.runtime import status
     from meme_machine.runtime.stop import requested,Shutdown
     if requested.is_set():raise Shutdown()
     with status.operation('pons.candidate_restore'):
-        queue=Broker(plane_path(ROOT/'candidate-evidence.sqlite'),POLICY_HASH,clock=time.time,source=endpoint,
-            config=result['operational_configuration_hash'],startup_cancel=requested.is_set)
+        queue=Broker(result['candidate_plane_path'],POLICY_HASH,clock=time.time,source=endpoint,
+            config=result['operational_configuration_hash'],startup_cancel=requested.is_set,
+            **({} if native_context is None else {'plane':native_context.plane}))
+    if native_context is not None:native_context.startup_owned(queue)
+    if economic_cohorts is not None:queue.plane.economic_cohorts=economic_cohorts
+    from meme_machine.runtime.pons_current_work import work_for
+    native_current_work=work_for(queue.plane)
+    native_current_request=None
     if requested.is_set():raise Shutdown()
     scout=MarketScout(queue.plane) if campaign else None
     attempts=Attempts(queue.plane)
-    saved=queue.plane.checkpoint_read('pons_cohort') if recovered else None
+    saved=queue.plane.checkpoint_read('pons_cohort') if recovered or native_context is not None else None
     if recovered and saved is None:raise BoundaryError('selective_discovery_recovery_watermark')
     if saved is not None and type(saved.get('cursor')) is int:cursor=saved['cursor']
     def record_work(identity,stage,reason=None,classification=None,**details):
@@ -922,14 +1017,26 @@ def run(endpoint,*,campaign=False):
     for pending,_value in queue.committed():
         if (pending['key'],pending['work']['generation']) in consumed:queue.acknowledge(pending)
     domain=hashlib.sha256(endpoint.encode()).hexdigest()+':'+POLICY_HASH
-    evidence_context=SelectiveEvidenceContext(endpoint,cache=durable_cache(queue.plane,domain))
-    startup_context=SelectiveEvidenceContext(endpoint,cache=durable_cache(queue.plane,domain))
+    evidence_options=({} if native_ports is None else dict(parent_port=native_ports.rpc_port('pons','current'),
+        immutable_store=native_ports.pons_store(),native_profile=native_ports.pons_profile('current')))
+    evidence_context=SelectiveEvidenceContext(endpoint if native_ports is None else None,
+        cache=durable_cache(queue.plane,domain),**evidence_options)
+    startup_context=SelectiveEvidenceContext(endpoint if native_ports is None else None,
+        cache=durable_cache(queue.plane,domain),**evidence_options)
     startup_enabled=campaign and (saved is None or queue.plane.checkpoint_read('pons_current_startup') is not None)
     startup_head=None
-    hydration_pool=ThreadPoolExecutor(max_workers=1,thread_name_prefix='pons-hydration')
+    worker_options={}
+    if native_context is not None:
+        from meme_machine.runtime.isolated_native_execution import install_isolated_native_execution
+        worker_options=dict(initializer=install_isolated_native_execution,initargs=(native_resources,))
+    hydration_pool=ThreadPoolExecutor(max_workers=1,thread_name_prefix='pons-hydration',**worker_options)
+    if native_context is not None:
+        native_context.startup_owned(hydration_pool,lambda:hydration_pool.shutdown(wait=True))
     # One live-discovery slot and one bounded startup slot; both retain the
     # existing physical governor. Neither waits for the other's provider work.
-    discovery_pool=ThreadPoolExecutor(max_workers=2,thread_name_prefix='pons-discovery')
+    discovery_pool=ThreadPoolExecutor(max_workers=2,thread_name_prefix='pons-discovery',**worker_options)
+    if native_context is not None:
+        native_context.startup_owned(discovery_pool,lambda:discovery_pool.shutdown(wait=True))
     discovery_future=None
     priming_future=None
     priming_resume_at=0.
@@ -943,18 +1050,20 @@ def run(endpoint,*,campaign=False):
         result["last_transient_provider_boundary"]=str(boundary)
         _checkpoint(
             result,cursor=current_cursor,feed=feed,rpc=failed_rpc,
-            phase="provider_recovery",plane=queue.plane,
+            phase="provider_recovery",plane=queue.plane,native_context=native_context,
         )
 
     def _discover_observations(*args,**kwargs):
+        if native_ports is not None:kwargs['native_ports']=native_ports
         return _collect_observations(*args,**kwargs,queue=queue,scout=scout)
 
     pool=None;futures=[]
     try:
-        pool=LifecyclePool(max_workers=MAX_CONCURRENT_LIFECYCLES)
+        if native_context is not None:native_context.enter_loop()
+        if native_context is None:pool=LifecyclePool(max_workers=MAX_CONCURRENT_LIFECYCLES)
         futures=[]
         active_curve_futures={}
-        references=recover_references(ROOT,result)
+        references=recover_references(ROOT,result) if native_context is None else {}
         collected_futures=set()
 
         def collect_curve_future(curve):
@@ -991,8 +1100,14 @@ def run(endpoint,*,campaign=False):
             # Continuous Current management cannot wait for Survivor startup.
             if continuous:result['survivor']=survivor.tick(time.time(),admit=False)
             else:survivor.prime()
-        from meme_machine.runtime.status import update
-        update('MANAGING' if futures else 'DISCOVERING',reconciled=True,restored_positions=len(futures))
+        from meme_machine.runtime.status import update as native_update
+        def update(phase,**details):
+            if native_context is None:return native_update(phase,**details)
+            return native_update(phase,reconciled=False,financial_authority=False,
+                authoritative_readiness=False,held_protection='UNEXERCISED')
+        if native_context is None:
+            update('MANAGING' if futures else 'DISCOVERING',reconciled=True,restored_positions=len(futures))
+        else:update('DISCOVERING',reconciled=False,financial_authority=False,authoritative_readiness=False)
 
         def startup_maintenance(reason):
             result['observation_start_boundary']=reason
@@ -1006,11 +1121,14 @@ def run(endpoint,*,campaign=False):
             if current or survivor_pending:update('MANAGING',reconciled=True,observation_deferred=True)
             return current or survivor_pending
         from meme_machine.operational.position_continuation import position_only,pons_current_safety
+        if native_context is not None and position_only():
+            raise BoundaryError('isolated_native_observation_closed')
         if position_only():
             start_ts=int(time.time())
         else:
             with status.diagnostic_startup('pons.observation_start'):
-                rpc,cursor,start_ts=_start_observation(endpoint,feed,saved=saved,maintenance=startup_maintenance)
+                rpc,cursor,start_ts=_start_observation(endpoint,feed,saved=saved,maintenance=startup_maintenance,
+                    **({} if native_ports is None else {'native_ports':native_ports}))
         startup_head=cursor
         if scout is not None:
             scout_cursor=queue.plane.checkpoint_read('pons_scout_market_cursor')
@@ -1051,7 +1169,7 @@ def run(endpoint,*,campaign=False):
             qualification_coverage='canonical_selected_curve_windows' if campaign else 'public_nomination_warmup',
         )
         with status.diagnostic_startup('pons.startup_warmup_checkpoint'):
-            _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase="warmup_complete",plane=queue.plane)
+            _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase="warmup_complete",plane=queue.plane,native_context=native_context)
         if not campaign and covered<TAPE_WARM_REQUIRED_CHAIN_SECONDS:
             raise BoundaryError("selective_tape_warmup_incomplete")
 
@@ -1067,6 +1185,9 @@ def run(endpoint,*,campaign=False):
             and (campaign or (len(result["rows"])<MAX_ENROLLED
                               and _qualifier_count(result)<COHORT_TARGET))
         ):
+            if native_context is not None and position_only():
+                result['boundary']='isolated_native_observation_closed'
+                break
             if position_only():
                 for optional in (discovery_future,priming_future,hydration):
                     if optional is not None:optional.cancel()
@@ -1083,7 +1204,7 @@ def run(endpoint,*,campaign=False):
                             for k in ('open_positions','reserved'))))
                 feed.close()
                 if time.monotonic()>=next_checkpoint:
-                    _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase='position_continuation',plane=queue.plane)
+                    _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase='position_continuation',plane=queue.plane,native_context=native_context)
                     next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
                 _stop_sleep(.25);continue
             if discovery_future is None:
@@ -1112,7 +1233,8 @@ def run(endpoint,*,campaign=False):
             native=result.get('survivor') or {}
             update('MANAGING' if active_curve_futures else 'DISCOVERING',reconciled=True,
                 native_continuation=dict(current_restored=True,
-                    position_safety=pons_current_safety(ROOT/'pons-selective-cohort-capital.sqlite')+native.get('position_safety',[]),
+                    position_safety=(pons_current_safety(ROOT/'pons-selective-cohort-capital.sqlite')+native.get('position_safety',[])
+                        if native_context is None else []),
                     survivor_replay_verified=(native.get('accounting_replay') or {}).get('verified') is True,
                     survivor_handoff_ready=native.get('durable_handoff') is True,
                     exit_path_bound=callable(submit_existing_lifecycles),
@@ -1143,13 +1265,15 @@ def run(endpoint,*,campaign=False):
                 result['evidence_queue']=queue.telemetry()
             if time.monotonic()>=next_checkpoint:
                 _checkpoint(
-                    result,cursor=cursor,feed=feed,rpc=rpc,phase="discovery",plane=queue.plane
+                    result,cursor=cursor,feed=feed,rpc=rpc,phase="discovery",plane=queue.plane,native_context=native_context
                 )
                 next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
             replayed=False
             if hydration is None:
                 committed=next(queue.committed(),None)
                 if committed is not None:
+                    # A retained outbox is not a newly issued provider request.
+                    native_current_request=None
                     scheduled,value=committed
                     attempts.record(scheduled['key'],scheduled['work']['generation'],'qualification',
                         decision_category(value),at=value.get('evaluation_completed_at',scheduled['queued_at']),decision=value['vector'])
@@ -1193,7 +1317,10 @@ def run(endpoint,*,campaign=False):
                     evidence_observed_at=observed_at,
                     evidence_observed_monotonic=observed_monotonic,
                     evidence_context=evidence_context,
-                    on_stage=hydration_stage,canonical_refresh=scheduled.get('canonical_refresh',False))
+                    on_stage=hydration_stage,canonical_refresh=scheduled.get('canonical_refresh',False),
+                    **({} if native_resources is None else {'native_resources':native_resources}))
+                native_current_request=(None if native_current_work is None else
+                    native_current_work.issued(queue,scheduled,hydration))
                 continue
             if not hydration.done():continue
             finished=hydration;hydration=None
@@ -1202,7 +1329,8 @@ def run(endpoint,*,campaign=False):
             try:
                 evaluation=finished.result()
                 from meme_machine.runtime.directional_sleeve import open_sleeve
-                sleeve=open_sleeve('pons',STRATEGY_CAPITAL_QUOTE)
+                sleeve=(open_sleeve('pons',STRATEGY_CAPITAL_QUOTE) if native_resources is None else
+                    open_sleeve('pons',STRATEGY_CAPITAL_QUOTE,native_resources=native_resources))
                 if sleeve is not None:
                     try:
                         _publish_current_opportunity(sleeve,evaluation,identity)
@@ -1221,7 +1349,7 @@ def run(endpoint,*,campaign=False):
                             if evaluation.get("screened_stage")=="trajectory"
                             else evaluation.get("prospect_preflight")) or {}
                     reasons=screen.get("reasons") or ["strategy_prospect"]
-                    queue.plane.decision(identity,scheduled["work"]["generation"],
+                    _current_decision(queue,native_current_request,identity,scheduled["work"]["generation"],
                         'strategy_rejected' if category=='STRATEGY_REJECT' else category.lower(),",".join(reasons))
                     stage=evaluation.get("screened_stage") or "current_state"
                     reason="strategy_"+stage+":"+",".join(reasons)
@@ -1238,9 +1366,12 @@ def run(endpoint,*,campaign=False):
                     public["wallet_convergence"]=None
                     _,explanation=reentry_decision(references.get(evaluation.get('curve')),evaluation['vector'])
                     public['reentry_explanation']=explanation
-                    attempts.record(identity,scheduled['work']['generation'],'qualification',category,
+                    body=attempts.record(identity,scheduled['work']['generation'],'qualification',category,
                         at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),
                         decision=dict(evaluation['vector'],reentry_explanation=explanation))
+                    if native_current_request is not None:
+                        from meme_machine.runtime.pons_current_work import qualified
+                        qualified(queue.plane,native_current_request,body)
                     result["rows"].append(public)
                     result["evidence_acquisition"]=evidence_context.telemetry()
                     _append_jsonl(ROWS_LOG,public)
@@ -1255,8 +1386,11 @@ def run(endpoint,*,campaign=False):
                 else:record_work(identity,'terminal',','.join(evaluation['vector'].get('all_rejections') or ['incomplete_evidence']),'reconstruction_incomplete')
                 coverage()
                 decision_state='qualified' if category=='QUALIFIED' else 'strategy_rejected' if category=='STRATEGY_REJECT' else category.lower()
-                if not queue.plane.decision(identity,scheduled['work']['generation'],decision_state):continue
+                if not _current_decision(queue,native_current_request,identity,scheduled['work']['generation'],decision_state):continue
                 overlay=_attach_wallet_overlay(evaluation["vector"],skill)
+                if native_current_request is not None:
+                    from meme_machine.runtime.pons_current_work import overlaid
+                    overlaid(queue.plane,native_current_request,evaluation['vector'],overlay)
                 public=public_evaluation(evaluation)
                 public["candidate_identity"]=identity
                 public["candidate_generation"]=scheduled["work"]["generation"]
@@ -1273,9 +1407,9 @@ def run(endpoint,*,campaign=False):
                         references.get(curve),evaluation['vector'],
                         active=active is not None and not active[1].done())
                 public['reentry_explanation']=explanation
-                attempts.record(identity,scheduled['work']['generation'],'qualification',category,
-                    at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),
-                    decision=dict(evaluation['vector'],reentry_explanation=explanation))
+                _record_qualification(attempts,identity,scheduled['work']['generation'],evaluation,category,
+                    at=evaluation.get('evaluation_completed_at',scheduled['queued_at']),explanation=explanation,
+                    **({} if native_current_request is None else {'native_request':native_current_request}))
                 if authorization_rejection is not None:
                     blocking=dict(curve=curve)
                     if active is not None:
@@ -1289,7 +1423,10 @@ def run(endpoint,*,campaign=False):
                     public["live_authorization"]="rejected"
                     public["authorization_rejection"]=authorization_rejection
                 elif evaluation["vector"].get("current_threshold_pass"):
-                    if (not pool.entry_capacity_available() if hasattr(pool,'entry_capacity_available') else
+                    if not _allocation_allowed(queue,scheduled,evaluation,attempts,native_resources=native_resources):
+                        public['live_authorization']='isolated_denied'
+                        public['authorization_rejection']='isolated_native_no_allocation'
+                    elif (not pool.entry_capacity_available() if hasattr(pool,'entry_capacity_available') else
                             sum(not future.done() for _,future in futures)>=MAX_CONCURRENT_LIFECYCLES):
                         generation=scheduled['work']['generation']
                         if not queue.defer_execution_worker(identity,generation,worker_limit=MAX_CONCURRENT_LIFECYCLES):
@@ -1308,7 +1445,7 @@ def run(endpoint,*,campaign=False):
                     evaluation["vector"].get("current_threshold_pass")
                     and authorization_rejection is None
                 ):
-                    if public.get('live_authorization')=='worker_deferred':continue
+                    if public.get('live_authorization') in ('worker_deferred','isolated_denied'):continue
                     if not queue.plane.decision(identity,scheduled['work']['generation'],'entry_confirmation'):
                         continue
                     qindex=_next_trial_index(result)
@@ -1324,7 +1461,7 @@ def run(endpoint,*,campaign=False):
                     _append_jsonl(QUALIFIERS_LOG,qualifier)
                     _checkpoint(
                         result,cursor=cursor,feed=feed,rpc=rpc,
-                        phase="qualifier_persisted",plane=queue.plane,
+                        phase="qualifier_persisted",plane=queue.plane,native_context=native_context,
                     )
                     next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS
                     evaluation["candidate_plane_path"]=result["candidate_plane_path"]
@@ -1379,6 +1516,9 @@ def run(endpoint,*,campaign=False):
         # transport exceeds the deadline, leave connections on their owner and
         # let process termination/replay complete recovery; never race close().
         from concurrent.futures import wait,TimeoutError as FutureTimeout
+        import sys
+        primary_error=sys.exc_info()[0]
+        survivor_close_error=None
         if pool is not None and hasattr(pool,'request_handoff'):pool.request_handoff()
         if pool is not None and hasattr(pool,'telemetry'):result['current_workers']=pool.telemetry()
         drain_deadline=time.monotonic()+5
@@ -1392,6 +1532,11 @@ def run(endpoint,*,campaign=False):
                 result['survivor']=survivor.close(timeout=max(0,drain_deadline-time.monotonic()))
         except FutureTimeout:
             pending.add(survivor.close_future)
+        except BaseException as error:
+            if native_context is None:raise
+            # A failed native factory/step still closes on its owner. Preserve
+            # the original exception and drain the other private native owners.
+            survivor_close_error=error
         if pending:
             discovery_pool.shutdown(wait=False,cancel_futures=True)
             hydration_pool.shutdown(wait=False,cancel_futures=True)
@@ -1417,21 +1562,24 @@ def run(endpoint,*,campaign=False):
                     life['index']=qindex
                     _record_completed_lifecycle(result,life)
                     collected_futures.add(id(future))
-                    _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase='position_drain',plane=queue.plane)
+                    _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase='position_drain',plane=queue.plane,native_context=native_context)
             finally:pool.shutdown(wait=True)
         # Remaining queued observations retain their original clocks and an
         # explicit shutdown terminal, never a synthetic fresh evaluation.
         # Pending identities remain durable and measurable. No synthetic fresh clocks.
         queue.plane.recover()
         result['evidence_queue']=queue.telemetry()
-        result['cohort_accounting']=_cohort_accounting()
+        result['cohort_accounting']=(_cohort_accounting() if native_resources is None else
+            _cohort_accounting(native_resources=native_resources))
         result["evidence_acquisition"]=evidence_context.telemetry()
         result["sequencer_discovery"]=feed.status()
         coverage(drain=True)
-        if rpc is not None:
-            _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase="finalizing",plane=queue.plane)
+        if rpc is not None or native_context is not None:
+            _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase="finalizing",plane=queue.plane,native_context=native_context)
         pipeline.close()
         feed.close();skill.close();queue.close()
+        if native_context is not None:native_context.drained()
+        if survivor_close_error is not None and primary_error is None:raise survivor_close_error
 
     result["lifecycles"].sort(key=lambda row:row.get("index",-1))
     counts=dict(result.get('archived_observations',{}).get('rejections',{}))
@@ -1465,25 +1613,34 @@ def run(endpoint,*,campaign=False):
         ),
     )
     result["ended_at"]=time.time()
+    if native_context is not None:result.update(native_context.report(result))
     return result
 
 
 
 @decision_work(4)
-def _evaluate_current_candidate(*args,**kwargs):
+def _evaluate_current_candidate(*args,native_resources=None,**kwargs):
     """Keep USD acquisition and refusal on the existing qualification worker.
 
     A temporarily unavailable rate refuses this candidate through the original
     boundary path; it must not terminate discovery or position maintenance.
     """
     from meme_machine.runtime.usd_valuation import ValuationUnavailable
-    try:capital=_current_pons_realized_equity()
+    try:
+        capital=(_current_pons_realized_equity() if native_resources is None else
+            _current_pons_realized_equity(native_resources=native_resources))
     except ValuationUnavailable:
+        raise BoundaryError('native_USD_value_missing_or_stale') from None
+    except ValueError as exc:
+        if native_resources is None or str(exc)!='isolated_sizing_stale':raise
         raise BoundaryError('native_USD_value_missing_or_stale') from None
     return evaluate_candidate(*args,strategy_capital_quote=capital,**kwargs)
 
 
-def _current_pons_realized_equity():
+def _current_pons_realized_equity(*,native_resources=None):
+    if native_resources is not None:
+        from meme_machine.runtime.isolated_native_resources import require_resources
+        return require_resources(native_resources).basis('pons',500)['realized_equity']
     from meme_machine.runtime.directional_sleeve import open_sleeve
     sleeve=open_sleeve('pons',STRATEGY_CAPITAL_QUOTE)
     if sleeve is None:return STRATEGY_CAPITAL_QUOTE

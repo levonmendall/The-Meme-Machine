@@ -28,7 +28,10 @@ def composite_hash(lane):
     return digest(composite_policy(lane))
 
 
-def open_sleeve(lane,capital):
+def open_sleeve(lane,capital,*,native_resources=None):
+    if native_resources is not None:
+        from meme_machine.runtime.isolated_native_resources import require_resources
+        return require_resources(native_resources).open_sleeve(lane,policies=policies(lane))
     path=os.environ.get('MM_DIRECTIONAL_SLEEVE_DB')
     if not path:
         # Standalone historical native ledger replay has no allocation authority.

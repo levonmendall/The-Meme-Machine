@@ -434,7 +434,10 @@ class PostGraduationAdapter:
                 # admission/backoff and method-level 429 telemetry.
                 from .solana_read_rpc import new_pool_scan_rpc
                 self.scan_rpc = new_pool_scan_rpc(
-                    limit=scan_limit,pacer=rpc.read_pacer)
+                    limit=scan_limit,pacer=rpc.read_pacer,
+                    **({} if getattr(rpc,'parent_port',None) is None else dict(
+                        parent_port=rpc.parent_port,shared_reads=rpc._parent_reads,
+                        evidence_broker=rpc._parent_broker)))
             else:
                 self.scan_rpc = PoolScanRPC(rpc.url, limit=scan_limit)
         self.scan_verified = False

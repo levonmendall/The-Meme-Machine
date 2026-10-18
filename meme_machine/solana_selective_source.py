@@ -543,13 +543,28 @@ def source_work(work,stop,observe=None):
 
 
 class SelectiveSource:
-    def __init__(self,config,rpc,*,token=None,normal_generation=None):
+    def __init__(self,config,rpc,*,token=None,native_resources=None,native_ports=None,normal_generation=None):
         if normal_generation is not None:
+            if native_resources is not None or native_ports is not None:
+                raise ValueError('normal_source_isolated_resources_conflict')
             from .operational.normal_source_boot import require_native_generation
             require_native_generation(normal_generation)
         self.normal_generation=normal_generation
         self.normal_registry=None
-        self.config=config;self.rpc=rpc;self.token=token or config.credential
+        self.native_resources=None;self.native_ports=None
+        if native_resources is not None:
+            from .runtime.isolated_native_bootstrap import require_runner_ports
+            require_runner_ports(native_resources,native_ports)
+            if (token is not None or config is not getattr(rpc,'config',None)
+                    or getattr(rpc,'_native_resources',None) is not native_resources
+                    or getattr(rpc,'_native_ports',None) is not native_ports):
+                raise ValueError('isolated_native_source_transport_required')
+            self.native_resources=native_resources;self.native_ports=native_ports
+            self.token=None
+        elif native_ports is not None:
+            raise ValueError('isolated_native_resources_required')
+        else:self.token=token or config.credential
+        self.config=config;self.rpc=rpc
         self.work=None;self.stop=None
         self.observer=None
         self.batched=False;self.pending_delivery={};self.delivery_lock=asyncio.Lock();self.control_connected=False
@@ -1147,7 +1162,8 @@ class SelectiveSource:
             registered=True
         self.observe('subscribe',stream_id=stream_id,family=family,request=request)
         call=channel.stream_stream('/geyser.Geyser/Subscribe',request_serializer=lambda r:r.SerializeToString(),
-            response_deserializer=lambda r:r)(metadata=(('x-token',self.token),))
+            response_deserializer=lambda r:r)(metadata=() if self.native_resources is not None
+                else (('x-token',self.token),))
         pending=None;phase='subscription_write'
         closed=asyncio.create_task(StopEither(self.stop,*([local_stop] if local_stop is not None else [])).wait())
         async def send(request):
@@ -1216,7 +1232,7 @@ class SelectiveSource:
             # does not enqueue forensic work on the canonical owner.
             from .solana_provider_config import SECRET_PATTERN
             details=exc.details() or ''
-            for secret in (self.token,self.config.credential):
+            for secret in (() if self.native_resources is not None else (self.token,self.config.credential)):
                 if isinstance(secret,str) and secret:details=details.replace(secret,'[redacted]')
             details=SECRET_PATTERN.sub('[redacted]',details)
             self.observe('native_error',stream_id=stream_id,family=family,phase=phase,
@@ -1360,8 +1376,10 @@ class SelectiveSource:
             raise EvidenceUnavailable('candidate_preparation_executor_required')
         tip=await self.measured_rpc('getSlot',[dict(commitment='finalized')],'shared',2)
         self.control_bootstrap_tip=tip
-        async with grpc.aio.secure_channel(HOST,grpc.ssl_channel_credentials(),options=[
-                ('grpc.max_receive_message_length',MAX_FRAME_BYTES),('grpc.max_send_message_length',4*1024*1024),('grpc.http2.bdp_probe',0)]) as channel:
+        channel_context=(self.native_ports.source_channel() if self.native_resources is not None else
+            grpc.aio.secure_channel(HOST,grpc.ssl_channel_credentials(),options=[
+                ('grpc.max_receive_message_length',MAX_FRAME_BYTES),('grpc.max_send_message_length',4*1024*1024),('grpc.http2.bdp_probe',0)]))
+        async with channel_context as channel:
             control_queue=AcceptedQueue(64,lambda a,c:self.frame_census('control',a,c))
             scout_queue=AcceptedQueue(SCOUT_COMMIT_BATCH,lambda a,c:self.frame_census('scout',a,c))
             control_done=asyncio.Event();scout_done=asyncio.Event()
@@ -2150,7 +2168,9 @@ class SelectiveSource:
                         filter_sha256=digest(dict(method='logsSubscribe',addresses=sorted(r['address']
                             for r in desired if r['family']!='meteora'),commitment='finalized'))),2,label='source_commit')
                     registered_session=True
-                async with connect(self.config.stream_url,max_size=MAX_FRAME_BYTES,max_queue=2,ping_interval=10,ping_timeout=None) as ws:
+                connection=(self.native_ports.source_websocket() if self.native_resources is not None else
+                    connect(self.config.stream_url,max_size=MAX_FRAME_BYTES,max_queue=2,ping_interval=10,ping_timeout=None))
+                async with connection as ws:
                     if ws_id is None:ws_id=uuid.uuid4().hex
                     self.observe('websocket_open',stream_id=ws_id,addresses=[r['address'] for r in desired if r['family']!='meteora'])
                     pending={};registered={}

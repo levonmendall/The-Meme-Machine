@@ -183,6 +183,7 @@ class History:
 
     def append(self,identity,*,through,events,points,complete,evidence_checkpoint=None):
         points=list(points)
+        economic_observer=getattr(self,'_economic_event_observer',None)
         with self.transaction():
             row=self.get(identity)
             if row is None or through<row['through']:raise ValueError('survivor_history_watermark')
@@ -200,6 +201,11 @@ class History:
                 if old is None:quality_events.append(event)
                 self.db.execute('INSERT OR IGNORE INTO events VALUES(?,?,?,?,?)',
                     (identity,event['id'],event['at'],canonical(event),digest(event)))
+                if economic_observer is not None:
+                    try:economic_observer(event['id'],old is None,event)
+                    except Exception:
+                        observer_owner=getattr(self,'economic_cohorts',None)
+                        if observer_owner is not None:observer_owner.unavailable()
             prefix=self.get_meta('archive_prefix:'+identity)
             for at,price in points:
                 if at>through:raise ValueError('survivor_future_price')
@@ -426,7 +432,11 @@ def compact_restored_history(history,*,lane,reducer=None):
 
 class Worker:
     """One bounded task at a time; never blocks fast native decision scheduling."""
-    def __init__(self,factory,*,enrichment_enabled=True):
+    def __init__(self,factory,*,enrichment_enabled=True,native_resources=None):
+        if native_resources is not None:
+            from meme_machine.runtime.isolated_native_resources import require_resources
+            require_resources(native_resources)
+        self.native_resources=native_resources
         from concurrent.futures import ThreadPoolExecutor
         self.pool=ThreadPoolExecutor(max_workers=1,thread_name_prefix='survivor')
         self.factory=factory;self.service=None;self.future=None;self.last=0;self.status={}
@@ -434,6 +444,13 @@ class Worker:
         self.closed=False;self.close_future=None;self.enrichment_enabled=enrichment_enabled
 
     def _step(self,admit):
+        if self.native_resources is not None:
+            from meme_machine.runtime.isolated_native_execution import isolated_native_execution
+            with isolated_native_execution(self.native_resources):
+                return self._native_step(admit)
+        return self._native_step(admit)
+
+    def _native_step(self,admit):
         from contextlib import nullcontext
         from meme_machine.runtime import operation_costs
         pons=os.environ.get('MM_RUNTIME_LANE')=='pons'
@@ -467,7 +484,8 @@ class Worker:
         if admit:self.admission_enabled_steps+=1
         if not status.get('last_boundary'):self.successful_steps+=1
         return dict(status,machinery=dict(completed_steps=self.completed_steps,
-            successful_steps=self.successful_steps,allocation_authority=bool(admit),
+            successful_steps=self.successful_steps,
+            allocation_authority=bool(admit) and self.native_resources is None,
             admission_enabled_steps=self.admission_enabled_steps,
             last_step_completed_at=time.time()))
 
