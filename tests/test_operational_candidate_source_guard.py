@@ -7,17 +7,35 @@ from unittest.mock import patch
 
 ROOT=Path(__file__).resolve().parents[1]
 MANIFEST=ROOT/'tests/fixtures/operational_candidate_source_delta.json'
-MANIFEST_SHA256='82e884824ceb0a04e9b0974dea050201f41e13ed869544a729cc8c1ab596f6aa'
+MANIFEST_SHA256='f1982ceef86d7acab5666c66bf951651d0f565dfd765300b691195b372f1b79c'
 BASE='780f4015efd9fba528e97223f8e8e3b1a7322e12'
 BASE_TREE='7646978bbfb2076aea90625c3c4a32cd4556491c'
-IMPLEMENTATION='4b1c54a508e82e5fb7a975dc75362081cdcf77e5'
-IMPLEMENTATION_TREE='86e2f44620203b0d3015a57a9d40df2d9dafe212'
+BASE_GUARDS={
+    'tests/test_pump_restore_source_guard.py':'b65170a1c90e628901b167ab8d73308ec055f13d8b597cad91c5f04b196172c1',
+    'tests/test_robinhood_usd_valuation.py':'025ffbfc71a288edda446ce8aed0a31134e56b9e2c56df9a4d65d029a67fc5a1',
+}
+IMPLEMENTATION='f00a7727d9f64926aa36e1044f854c5ed91df990'
+IMPLEMENTATION_TREE='fba8f9b10a7dc9d8d09201d801b8d8eda2d106b6'
 PONS_PATHS=('meme_machine/lanes/pons/pons_selective_cohort.py',
        'meme_machine/runtime/robinhood/pons.py','meme_machine/runtime/robinhood/plane.py')
-PATHS=('engineering/diagnostics/current_combined_observation_20261014.py',
-       'meme_machine/operational/lane.py','meme_machine/runtime/candidate_restore_reads.py',
-       'meme_machine/runtime/operation_costs.py','meme_machine/runtime/status.py',
-       'meme_machine/runtime/survivor_history.py','meme_machine/solana_source_drain.py',*PONS_PATHS)
+PATHS=(
+    'engineering/diagnostics/current_combined_observation_20261014.py',
+    'meme_machine/lanes/pons/pons_selective_cohort.py',
+    'meme_machine/operational/lane.py',
+    'meme_machine/runtime/candidate_restore_reads.py',
+    'meme_machine/runtime/evidence_worker.py',
+    'meme_machine/runtime/operation_costs.py',
+    'meme_machine/runtime/robinhood/plane.py',
+    'meme_machine/runtime/robinhood/pons.py',
+    'meme_machine/runtime/status.py',
+    'meme_machine/runtime/survivor_history.py',
+    'meme_machine/solana_evidence_control.py',
+    'meme_machine/solana_evidence_service.py',
+    'meme_machine/solana_maintenance_runtime.py',
+    'meme_machine/solana_maintenance_state.py',
+    'meme_machine/solana_owner_admission.py',
+    'meme_machine/solana_source_drain.py',
+)
 
 
 def manifest(test):
@@ -28,7 +46,8 @@ def manifest(test):
     test.assertEqual(value['schema'],'authenticated-operational-candidate-source-delta-v1')
     test.assertEqual((value['base'],value['base_tree'],value['implementation'],value['implementation_tree']),
         (BASE,BASE_TREE,IMPLEMENTATION,IMPLEMENTATION_TREE))
-    test.assertEqual(set(value['files']),set(PATHS),'ten complete changed runtime sources only')
+    test.assertEqual(value['guard_reference'],BASE,'legacy guard originals come from approved 780')
+    test.assertEqual(set(value['files']),set(PATHS),'sixteen complete changed runtime sources only')
     return value
 
 
@@ -72,7 +91,7 @@ def _inverse(test,relative,current,record):
 
 
 class OperationalCandidateSourceGuardTests(unittest.TestCase):
-    def test_ten_complete_sources_reverse_exactly_to_approved_780(self):
+    def test_sixteen_complete_sources_reverse_exactly_to_approved_780(self):
         value=manifest(self)
         for relative,record in value['files'].items():
             current=(ROOT/relative).read_bytes()
@@ -99,6 +118,7 @@ class OperationalCandidateSourceGuardTests(unittest.TestCase):
                 'module/ClassDef:RobinhoodUSDTests/FunctionDef:test_native_startup_failure_delta_preserves_all_prior_authority_and_source_guards',
                 'module/ClassDef:RobinhoodUSDTests/FunctionDef:test_source_recorder_publication_reverses_only_exact_diagnostic_transport_and_test_read',
                 *('module/ClassDef:RobinhoodUSDTests/FunctionDef:'+name for name in (
+                    'test_maintenance_entry_clock_preserves_exact_original_leases_and_native_guards',
                     'test_buffered_origin_geometry_preserves_unique_full_obligation_and_original_authority',
                     'test_buffered_prejoin_replay_preserves_original_partition_and_full_ack_authority',
                     'test_preparation_replay_preserves_terminal_incident_and_original_full_ack_authority',
@@ -108,6 +128,8 @@ class OperationalCandidateSourceGuardTests(unittest.TestCase):
                     'test_program_gap_boundary_reverses_exactly_without_weakening_recovery_or_funding'))},
         }
         for relative,record in value['guards'].items():
+            self.assertEqual(record['before_sha256'],BASE_GUARDS[relative],
+                'whole original guard hash is independently pinned to approved 780')
             current=(ROOT/relative).read_bytes()
             self.assertEqual(hashlib.sha256(current).hexdigest(),record['after_sha256'])
             restored=original_guard_source(self,relative,current)
@@ -218,3 +240,53 @@ class OperationalCandidateSourceGuardTests(unittest.TestCase):
                     self.assertRaises(AssertionError):
                 candidate_source_predecessor(self,PONS_PATHS[0],(ROOT/PONS_PATHS[0]).read_bytes())
         self.assertEqual(candidate_source_predecessor(self,'unrelated/source.py',b'unchanged'),b'unchanged')
+
+    def test_maintenance_boundaries_keyset_and_fixed_failure_codes_are_pinned(self):
+        mutations={
+            'meme_machine/solana_evidence_control.py':(
+                (b"if ticket.state=='ACCEPTED':return False",b'if False:return False'),
+                (b'if spending and accepted_at>=ticket.permit_deadline:',b'if False:'),
+                (b'now+MAINTENANCE_PERMIT_SECONDS',b'now+MAINTENANCE_PERMIT_SECONDS+1'),
+                (b'priority!=4 or self._checkpoint_busy or self._checkpoint_handoff is not None',b'False'),
+                (b'len(self.queue)+reserved>=limit',b'len(self.queue)>=limit')),
+            'meme_machine/solana_evidence_service.py':(
+                (b'ticket=await admission.boundary(deadline,stop)',b'ticket=None'),
+                (b'if ticket is None or stop.is_set():break',b'if False:break'),
+                (b'if ticket is not None:owner.cancel_maintenance_boundary(ticket)',b'if False:pass'),
+                (b'owner.submit_maintenance(timed,maintenance_ticket)',b'owner.submit(timed)')),
+            'meme_machine/solana_owner_admission.py':(
+                (b'self.owner.request_maintenance_boundary(deadline=deadline)',
+                    b'self.owner.request_maintenance_boundary(deadline=self.clock()+30)'),
+                (b'timeout=max(0,deadline-self.clock())',b'timeout=30'),
+                (b'if ticket is not None and not returned:',b'if False:')),
+            'meme_machine/solana_maintenance_runtime.py':(
+                (b'0<=submitted<=entered<=current',b'True'),
+                (b'start=entered;owner_delay=entered-submitted',b'start=current;owner_delay=0'),
+                (b'self._next_admission=(observation.monotonic+',b'self._next_admission=(self.monotonic()+'),
+                (b'with self.execution_lease(start+self.leases.execution):',b'with self.execution_lease(current+self.leases.execution):')),
+            'meme_machine/solana_maintenance_state.py':(
+                (b'if after is not None and after[0]>=lower:',b'if after is not None:'),
+                (b"where='scope=? AND '+compare+'>'+markers+' AND slot<?'",b'where=base'),
+                (b"where+=' AND '+compare+'<='+markers",b'where+=\' AND 1\'')),
+            'meme_machine/runtime/evidence_worker.py':(
+                (b"'maintenance_boundary_command_missing'",b"'arbitrary_provider_error'"),),
+        }
+        self.assertEqual(set(mutations),set(PATHS)-{
+            'engineering/diagnostics/current_combined_observation_20261014.py',
+            'meme_machine/lanes/pons/pons_selective_cohort.py','meme_machine/operational/lane.py',
+            'meme_machine/runtime/candidate_restore_reads.py','meme_machine/runtime/operation_costs.py',
+            'meme_machine/runtime/robinhood/plane.py','meme_machine/runtime/robinhood/pons.py',
+            'meme_machine/runtime/status.py','meme_machine/runtime/survivor_history.py',
+            'meme_machine/solana_source_drain.py'})
+        for relative,pairs in mutations.items():
+            current=(ROOT/relative).read_bytes()
+            for before,after in pairs:
+                self.assertIn(before,current,relative+':actual reviewed maintenance safeguard')
+                with self.subTest(relative=relative,before=before),self.assertRaises(AssertionError):
+                    candidate_source_predecessor(self,relative,current.replace(before,after,1))
+        for module in ('test_maintenance_permit_ownership','test_maintenance_admission_service',
+                'test_pipeline_retention_boundary'):
+            declaration="'tests."+module+"',"
+            for path in ('operational/tests.py','.github/workflows/ci.yml'):
+                self.assertEqual((ROOT/path).read_text().count(declaration),1,
+                    path+':actual maintenance/retention behavioral regressions execute once')

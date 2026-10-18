@@ -3,14 +3,14 @@
   "base_tree": "7646978bbfb2076aea90625c3c4a32cd4556491c",
   "files": {
     "engineering/diagnostics/current_combined_observation_20261014.py": {
-      "after_bytes": 103674,
-      "after_sha256": "a4eb43bdb861fcdb2d228771777a7b204764d7f563de3f893d205e58cf7afe17",
+      "after_bytes": 104223,
+      "after_sha256": "31e42bdb16d37ad86f6e064da55e6fb22b74a6684f156ca3c5fc496709894578",
       "before_bytes": 96638,
       "before_sha256": "5a3adec8c1e28069a43cd521551e7aa7f886260390dbd36e82ce0d3d0a2b0ba2",
       "changes": [
         {
-          "after": "    'current_runtime_restore', 'observed_candidates_restore', 'observed_candidate_events',\n    'startup_cleanup.candidate_history_open', 'startup_cleanup.accounting_restore',\n    'startup_cleanup.pipeline_open', 'startup_cleanup.runtime_evidence_open',\n    'startup_cleanup.evidence_broker_open', 'startup_cleanup.sessions_open',\n    'startup_cleanup.survivor_worker_open')) | frozenset(('pons.shared_capital_restore','pons.cohort_recovery',\n    'pons.candidate_restore','pons.survivor_restore','pons.observation_start',\n    'pons.startup_warmup_checkpoint','pons.startup_discovery_checkpoint'))\n\n\ndef operation_costs(row, expected_pid=None):\n    \"\"\"Fixed numeric arrays before clipping; never expanded SQL or payloads.\n\n    Completed operation totals overlap parents. SQL is nested, selected-factory\n    attribution, not every SQLite connection or a GIL/lock-holder verdict.\n    \"\"\"\n    from meme_machine.runtime.operation_costs import NAMES, SQL_BUCKETS, _FIELDS, _SQL_FIELDS, RESTORE_COUNT_NAMES\n    if not isinstance(row, dict) or row.get('enabled') is not True:\n        return dict(available=False, reason='OPERATION_COSTS_UNAVAILABLE')\n    if type(row.get('pid')) is not int or expected_pid is not None and row['pid'] != expected_pid:\n        return dict(available=False, reason='OPERATION_COST_PID_MISMATCH')\n    fields = list(_FIELDS) + [bucket + '.' + key for bucket in SQL_BUCKETS for key in _SQL_FIELDS]\n",
-          "before": "    'current_runtime_restore', 'observed_candidates_restore', 'observed_candidate_events',\n    'startup_cleanup.candidate_history_open', 'startup_cleanup.accounting_restore',\n    'startup_cleanup.pipeline_open', 'startup_cleanup.runtime_evidence_open',\n    'startup_cleanup.evidence_broker_open', 'startup_cleanup.sessions_open',\n    'startup_cleanup.survivor_worker_open')) | frozenset(('pons.shared_capital_restore','pons.cohort_recovery',\n    'pons.candidate_restore'))\n\n\ndef operation_costs(row, expected_pid=None):\n    \"\"\"Fixed numeric arrays before clipping; never expanded SQL or payloads.\n\n    Completed operation totals overlap parents. SQL is nested, selected-factory\n    attribution, not every SQLite connection or a GIL/lock-holder verdict.\n    \"\"\"\n    from meme_machine.runtime.operation_costs import NAMES, SQL_BUCKETS, _FIELDS, _SQL_FIELDS\n    if not isinstance(row, dict) or row.get('enabled') is not True:\n        return dict(available=False, reason='OPERATION_COSTS_UNAVAILABLE')\n    if type(row.get('pid')) is not int or expected_pid is not None and row['pid'] != expected_pid:\n        return dict(available=False, reason='OPERATION_COST_PID_MISMATCH')\n    fields = list(_FIELDS) + [bucket + '.' + key for bucket in SQL_BUCKETS for key in _SQL_FIELDS]\n"
+          "after": "    \"\"\"Fixed numeric arrays before clipping; never expanded SQL or payloads.\n\n    Completed operation totals overlap parents. SQL is nested, selected-factory\n    attribution, not every SQLite connection or a GIL/lock-holder verdict.\n    \"\"\"\n    from meme_machine.runtime.operation_costs import NAMES, SQL_BUCKETS, _FIELDS, _SQL_FIELDS, RESTORE_COUNT_NAMES\n    if not isinstance(row, dict) or row.get('enabled') is not True:\n        return dict(available=False, reason='OPERATION_COSTS_UNAVAILABLE')\n    if type(row.get('pid')) is not int or expected_pid is not None and row['pid'] != expected_pid:\n        return dict(available=False, reason='OPERATION_COST_PID_MISMATCH')\n    fields = list(_FIELDS) + [bucket + '.' + key for bucket in SQL_BUCKETS for key in _SQL_FIELDS]\n",
+          "before": "    \"\"\"Fixed numeric arrays before clipping; never expanded SQL or payloads.\n\n    Completed operation totals overlap parents. SQL is nested, selected-factory\n    attribution, not every SQLite connection or a GIL/lock-holder verdict.\n    \"\"\"\n    from meme_machine.runtime.operation_costs import NAMES, SQL_BUCKETS, _FIELDS, _SQL_FIELDS\n    if not isinstance(row, dict) or row.get('enabled') is not True:\n        return dict(available=False, reason='OPERATION_COSTS_UNAVAILABLE')\n    if type(row.get('pid')) is not int or expected_pid is not None and row['pid'] != expected_pid:\n        return dict(available=False, reason='OPERATION_COST_PID_MISMATCH')\n    fields = list(_FIELDS) + [bucket + '.' + key for bucket in SQL_BUCKETS for key in _SQL_FIELDS]\n"
         },
         {
           "after": "        sql_scope='SELECTED_INSTRUMENTED_CONNECTIONS_IN_INNERMOST_OPERATION',\n        operation_scope='COMPLETED_PARENT_TOTALS_OVERLAP_CHILDREN_ACTIVE_WORK_NOT_COMPLETED')\n    for key in ('pid', 'collected_monotonic', 'collected_wall', 'recording_lost_calls', 'active_overflow_calls'):\n        result[key] = row.get(key) if finite_number(row.get(key)) else UNAVAILABLE\n    result['recorder_valid'] = row.get('recorder_valid') if type(row.get('recorder_valid')) is bool else UNAVAILABLE\n    counts = row.get('restore_reference_counts')\n    result.update(restore_reference_counts=UNAVAILABLE, restore_reference_count_status=UNAVAILABLE,\n        restore_reference_count_fields=list(RESTORE_COUNT_NAMES),\n        restore_reference_count_scope='PAGE_TOTALS_FIRST_FALLBACK_REASON_PER_REFERENCE')\n    if type(counts) is dict and not counts:\n        result.update(restore_reference_counts={}, restore_reference_count_status='UNEXERCISED')\n    elif (type(counts) is dict and len(counts) == len(RESTORE_COUNT_NAMES)\n            and set(counts) == set(RESTORE_COUNT_NAMES)\n            and all(type(value) is int and 0 <= value < 2**63 for value in counts.values())\n            and 0 < counts['pages_started'] <= counts['references']\n            and counts['pages_completed'] <= counts['pages_started']\n            and counts['scalar_source_reads'] <= counts['references']\n            and sum(value for name, value in counts.items() if name.startswith('fallback_')) <= counts['references']):\n        result.update(restore_reference_counts=dict(counts), restore_reference_count_status='OBSERVED')\n    return result\n\n\ndef descriptive_lanes(lanes):\n    # The required fixed profile is retained separately; do not duplicate a\n    # large partially clipped copy in descriptive health on every sample.\n    return numeric({name: {key: value for key, value in lane.items() if key not in ('operation_costs','stalled_startup_stack')}\n                    if isinstance(lane, dict) else lane for name, lane in lanes.items()})\n\n\nclass OperationCoverage:\n    \"\"\"Diagnostic recorder loss stops attribution; never changes trading gates.\"\"\"\n",
@@ -23,6 +23,10 @@
         {
           "after": "        result[name] = dict(phase=numeric(lane.get('phase')) or UNAVAILABLE,\n            reconciled=lane['reconciled'] if type(lane.get('reconciled')) is bool else 'UNKNOWN',\n            native_operation=operation(lane.get('native_operation')),\n            native_recent_operations=[operation(row) for row in recent[:8]] if isinstance(recent, list) else UNAVAILABLE,\n            cancellation_signal=signal_facts,cancellation_stack=cancellation_stack(lane.get('cancellation_stack')),\n            stalled_startup_stack=stalled_startup_stack(lane.get('stalled_startup_stack'),lane) if name=='pons' else UNAVAILABLE,\n            native_failure=native_failure(lane.get('native_failure'), lane, name,\n                None if expected_workers is None else expected_workers.get(name, {})))\n    return result\n\n\n",
           "before": "        result[name] = dict(phase=numeric(lane.get('phase')) or UNAVAILABLE,\n            reconciled=lane['reconciled'] if type(lane.get('reconciled')) is bool else 'UNKNOWN',\n            native_operation=operation(lane.get('native_operation')),\n            native_recent_operations=[operation(row) for row in recent[:8]] if isinstance(recent, list) else UNAVAILABLE,\n            cancellation_signal=signal_facts,cancellation_stack=cancellation_stack(lane.get('cancellation_stack')),\n            native_failure=native_failure(lane.get('native_failure'), lane, name,\n                None if expected_workers is None else expected_workers.get(name, {})))\n    return result\n\n\n"
+        },
+        {
+          "after": "    storage_stages = {key: value for key, value in storage.items()\n                      if isinstance(key, str) and storage_pattern.fullmatch(key) and finite_number(value)}\n    owner = health.get('owner_scheduler', {})\n    owner_pattern = re.compile(r'(?:owner_pid|native_thread_id|queued|queue_peak|rejected|admission_waited|aged_selections|'\n        r'nonurgent_fifo_selections|background_yields|checkpoint_handoffs|checkpoint_handoff_(?:total|peak)_us|'\n        r'maintenance_boundary\\.(?:requested|granted|accepted|completed|expired|cancelled|closed|urgent_invalidated|wait_total_us|wait_peak_us)|'\n        r'priority[0-6]\\.(?:completed|(?:queue|execution)_(?:total|peak)_us))')\n    owner_counters = {key: value for key, value in owner.items()\n        if isinstance(key, str) and owner_pattern.fullmatch(key) and finite_number(value)\n        } if isinstance(owner, dict) else {}\n    admission=owner.get('owner_admission',{}) if isinstance(owner,dict) else {}\n    admission=admission.get('counters',{}) if isinstance(admission,dict) else {}\n    for key in ('boundary_deadline_exhausted','expired_before_native','boundary_refused',\n                'cooperative_yield','native_or_admission_failed','native_entered','native_completed','native_failed'):\n        value=admission.get(key) if isinstance(admission,dict) else None\n        if finite_number(value):owner_counters['maintenance_admission.'+key]=value\n    def operation(row):\n        if not isinstance(row,dict):return UNAVAILABLE\n        stage=row.get('stage');component=row.get('component');module=row.get('origin_module')\n        if stage not in (*stages,'UNLABELLED') or component not in (*components,'NONE'):\n            return UNAVAILABLE\n",
+          "before": "    storage_stages = {key: value for key, value in storage.items()\n                      if isinstance(key, str) and storage_pattern.fullmatch(key) and finite_number(value)}\n    owner = health.get('owner_scheduler', {})\n    owner_pattern = re.compile(r'(?:owner_pid|native_thread_id|queued|queue_peak|rejected|admission_waited|aged_selections|'\n        r'nonurgent_fifo_selections|background_yields|checkpoint_handoffs|checkpoint_handoff_(?:total|peak)_us|'\n        r'priority[0-6]\\.(?:completed|(?:queue|execution)_(?:total|peak)_us))')\n    owner_counters = {key: value for key, value in owner.items()\n        if isinstance(key, str) and owner_pattern.fullmatch(key) and finite_number(value)\n        } if isinstance(owner, dict) else {}\n    def operation(row):\n        if not isinstance(row,dict):return UNAVAILABLE\n        stage=row.get('stage');component=row.get('component');module=row.get('origin_module')\n        if stage not in (*stages,'UNLABELLED') or component not in (*components,'NONE'):\n            return UNAVAILABLE\n"
         },
         {
           "after": "        ('slot', 'updated', 'market_time', 'linked_child_slot') if type(row.get(key)) in (int, float)})\n        for row in evidence.get(kind, []) if isinstance(row, dict) and row.get('scope') in allowed]\n        for kind in ('frontiers', 'program_frontiers')}\n\n\ndef without_startup_stack(value):\n    \"\"\"Drop only optional captures when the original byte guard needs space.\"\"\"\n    result=dict(value)\n    for key in ('native_lifecycle','final_native_health'):\n        row=result.get(key)\n        if not isinstance(row,dict):continue\n        row=dict(row);result[key]=row\n        if key=='final_native_health':\n            lifecycle=row.get('native_lifecycle')\n            if not isinstance(lifecycle,dict):continue\n            lifecycle=dict(lifecycle);row['native_lifecycle']=lifecycle\n        else:lifecycle=row\n        pons=lifecycle.get('pons')\n        if isinstance(pons,dict):\n            pons=dict(pons);lifecycle['pons']=pons;pons.pop('stalled_startup_stack',None)\n    return result\n\n\ndef write_metadata(output, name, value):\n    body_bytes = len(json.dumps(value, sort_keys=True, allow_nan=False).encode()) + 1\n    other_bytes = sum((output / item).stat().st_size for item in\n        ('clock.json', 'result.json', 'supervisor-fatal.json', 'guard-failure.json')\n        if item != name and (output / item).exists())\n    if other_bytes + body_bytes > TERMINAL_BYTES:\n        value=without_startup_stack(value)\n        body_bytes=len(json.dumps(value,sort_keys=True,allow_nan=False).encode())+1\n    if other_bytes + body_bytes > TERMINAL_BYTES:\n        raise ValueError('diagnostic_metadata_reserve')\n    atomic_json(output / name, value)\n\n\n",
@@ -190,10 +194,6 @@
         }
       },
       "nodes": {
-        "module/Assign:Name(id='NATIVE_OPERATIONS', ctx=Store())": {
-          "after": "4cf1e5d5612806fd38d59a5b1cd8c66e807ae7137e457ea7bc9d9b8eafd1ed6f",
-          "before": "d922cda6e44b472c1bd81ae4931d7a53b6ce10c50f57b8bd852b063904e49bac"
-        },
         "module/FunctionDef:append_sample": {
           "after": "5ab80c50f4cb53f2bbaa9aaab65020eb3016570064047a1c2d961e4c5ad2269d",
           "before": "3561355d6a2f820b9bfec40a3d6cc3a3c0396d3b799ac7dd877465e405411bcf"
@@ -209,6 +209,10 @@
         "module/FunctionDef:operation_costs": {
           "after": "7ef9c99fc9bb5abbd1e2a1e7e77cb3864865640ac576420c01cd6d860de3a277",
           "before": "b7bd729a016461c2420daf767d8ac722d4100bad35e02776bd94d35c4059066d"
+        },
+        "module/FunctionDef:required_counters": {
+          "after": "3a46293e39dceae40bb2bc28a01fcf29dfeae6f54fb73c18c1324d927f70e95d",
+          "before": "8af42bae7ad389ef05feec7b193a71197a6e4a999302ebe92f1d077732d3fc92"
         },
         "module/FunctionDef:source_operation_costs": {
           "after": "127d78a91eb55beaef966ac21d0e1f3a7a15fd8d8572ba2e6d51e63c6f19216e",
@@ -229,8 +233,8 @@
       }
     },
     "meme_machine/lanes/pons/pons_selective_cohort.py": {
-      "after_bytes": 80126,
-      "after_sha256": "59906b20b628e87674bc082758a93c3586dcaefe5dfc808fa22187295fc5ed35",
+      "after_bytes": 80153,
+      "after_sha256": "c6a5eb20557c35be481a32be2dc47ef12db9a4fbdb81957929d3ed2a69155f5e",
       "before_bytes": 79722,
       "before_sha256": "4d6851b400f75d760cee7a6954da38917aa3fc879a9ccbe6cbdcf43148c6ed3a",
       "changes": [
@@ -243,11 +247,11 @@
           "before": "\n    def _checkpoint_provider_failure(failed_rpc,boundary,current_cursor):\n        result[\"last_transient_provider_boundary\"]=str(boundary)\n        _checkpoint(\n            result,cursor=current_cursor,feed=feed,rpc=failed_rpc,\n            phase=\"provider_recovery\",\n        )\n\n    def _discover_observations(*args,**kwargs):\n        return _collect_observations(*args,**kwargs,queue=queue,scout=scout)\n\n"
         },
         {
-          "after": "            if current or survivor_pending:update('MANAGING',reconciled=True,observation_deferred=True)\n            return current or survivor_pending\n        from meme_machine.operational.position_continuation import position_only,pons_current_safety\n        if position_only():\n            start_ts=int(time.time())\n        else:\n            with status.operation('pons.observation_start'):\n                rpc,cursor,start_ts=_start_observation(endpoint,feed,saved=saved,maintenance=startup_maintenance)\n        startup_head=cursor\n        if scout is not None:\n            scout_cursor=queue.plane.checkpoint_read('pons_scout_market_cursor')\n            # Inclusive enrollment catches graduations during startup. Retained\n            # gaps resume at their original height; no seven-day startup census.\n",
+          "after": "            if current or survivor_pending:update('MANAGING',reconciled=True,observation_deferred=True)\n            return current or survivor_pending\n        from meme_machine.operational.position_continuation import position_only,pons_current_safety\n        if position_only():\n            start_ts=int(time.time())\n        else:\n            with status.diagnostic_startup('pons.observation_start'):\n                rpc,cursor,start_ts=_start_observation(endpoint,feed,saved=saved,maintenance=startup_maintenance)\n        startup_head=cursor\n        if scout is not None:\n            scout_cursor=queue.plane.checkpoint_read('pons_scout_market_cursor')\n            # Inclusive enrollment catches graduations during startup. Retained\n            # gaps resume at their original height; no seven-day startup census.\n",
           "before": "            if current or survivor_pending:update('MANAGING',reconciled=True,observation_deferred=True)\n            return current or survivor_pending\n        from meme_machine.operational.position_continuation import position_only,pons_current_safety\n        if position_only():\n            start_ts=int(time.time())\n        else:rpc,cursor,start_ts=_start_observation(endpoint,feed,saved=saved,maintenance=startup_maintenance)\n        startup_head=cursor\n        if scout is not None:\n            scout_cursor=queue.plane.checkpoint_read('pons_scout_market_cursor')\n            # Inclusive enrollment catches graduations during startup. Retained\n            # gaps resume at their original height; no seven-day startup census.\n"
         },
         {
-          "after": "            required_chain_seconds=TAPE_WARM_REQUIRED_CHAIN_SECONDS,\n            maximum_wall_seconds=TAPE_WARM_MAX_SECONDS,\n            ready=warm_state[\"ready\"],exhausted=warm_state[\"exhausted\"],\n            qualification_coverage='canonical_selected_curve_windows' if campaign else 'public_nomination_warmup',\n        )\n        with status.operation('pons.startup_warmup_checkpoint'):\n            _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase=\"warmup_complete\",plane=queue.plane)\n        if not campaign and covered<TAPE_WARM_REQUIRED_CHAIN_SECONDS:\n            raise BoundaryError(\"selective_tape_warmup_incomplete\")\n\n        if continuous:result['discovery_ends_at']=None\n        elif not isinstance(result.get('discovery_ends_at'),(int,float)):\n            result['discovery_ends_at']=time.time()+DISCOVERY_SECONDS\n        deadline=None if continuous else time.monotonic()+max(0,result['discovery_ends_at']-time.time())\n        with status.operation('pons.startup_discovery_checkpoint'):\n            save_cohort_checkpoint(result,cursor,'discovery_ready',plane=queue.plane)\n        next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS\n        while (\n            (continuous or time.monotonic()<deadline or (campaign and position_only()))\n            and (campaign or (len(result[\"rows\"])<MAX_ENROLLED\n                              and _qualifier_count(result)<COHORT_TARGET))\n",
+          "after": "            required_chain_seconds=TAPE_WARM_REQUIRED_CHAIN_SECONDS,\n            maximum_wall_seconds=TAPE_WARM_MAX_SECONDS,\n            ready=warm_state[\"ready\"],exhausted=warm_state[\"exhausted\"],\n            qualification_coverage='canonical_selected_curve_windows' if campaign else 'public_nomination_warmup',\n        )\n        with status.diagnostic_startup('pons.startup_warmup_checkpoint'):\n            _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase=\"warmup_complete\",plane=queue.plane)\n        if not campaign and covered<TAPE_WARM_REQUIRED_CHAIN_SECONDS:\n            raise BoundaryError(\"selective_tape_warmup_incomplete\")\n\n        if continuous:result['discovery_ends_at']=None\n        elif not isinstance(result.get('discovery_ends_at'),(int,float)):\n            result['discovery_ends_at']=time.time()+DISCOVERY_SECONDS\n        deadline=None if continuous else time.monotonic()+max(0,result['discovery_ends_at']-time.time())\n        with status.diagnostic_startup('pons.startup_discovery_checkpoint'):\n            save_cohort_checkpoint(result,cursor,'discovery_ready',plane=queue.plane)\n        next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS\n        while (\n            (continuous or time.monotonic()<deadline or (campaign and position_only()))\n            and (campaign or (len(result[\"rows\"])<MAX_ENROLLED\n                              and _qualifier_count(result)<COHORT_TARGET))\n",
           "before": "            required_chain_seconds=TAPE_WARM_REQUIRED_CHAIN_SECONDS,\n            maximum_wall_seconds=TAPE_WARM_MAX_SECONDS,\n            ready=warm_state[\"ready\"],exhausted=warm_state[\"exhausted\"],\n            qualification_coverage='canonical_selected_curve_windows' if campaign else 'public_nomination_warmup',\n        )\n        _checkpoint(result,cursor=cursor,feed=feed,rpc=rpc,phase=\"warmup_complete\")\n        if not campaign and covered<TAPE_WARM_REQUIRED_CHAIN_SECONDS:\n            raise BoundaryError(\"selective_tape_warmup_incomplete\")\n\n        if continuous:result['discovery_ends_at']=None\n        elif not isinstance(result.get('discovery_ends_at'),(int,float)):\n            result['discovery_ends_at']=time.time()+DISCOVERY_SECONDS\n        deadline=None if continuous else time.monotonic()+max(0,result['discovery_ends_at']-time.time())\n        save_cohort_checkpoint(result,cursor,'discovery_ready')\n        next_checkpoint=time.monotonic()+CHECKPOINT_SECONDS\n        while (\n            (continuous or time.monotonic()<deadline or (campaign and position_only()))\n            and (campaign or (len(result[\"rows\"])<MAX_ENROLLED\n                              and _qualifier_count(result)<COHORT_TARGET))\n"
         },
         {
@@ -282,7 +286,7 @@
           "before": "fed6dcf6f3973a4aaa8005d9c89d4ae05927d6138a917a3c1fcee2b9412b6d07"
         },
         "module/FunctionDef:run": {
-          "after": "af9170eaedd160ed32e1027124ee5def856b6383263de582a3f3fafc3ea666cf",
+          "after": "a72ebf4e817954bc7d009d3c71dbc94376b03a1680f9da2e1cebf8b196ee5e85",
           "before": "3cfe26677bb4626cc2faebf87042c6347219d306199e9bab67c47856f236153c"
         }
       }
@@ -508,6 +512,81 @@
         },
         "module/ImportFrom:1:None": {
           "after": "889385cb0b3d44335990347cfddbfd179bdbe9db1fe20ed4f8258b2db6fec839",
+          "before": null
+        }
+      }
+    },
+    "meme_machine/runtime/evidence_worker.py": {
+      "after_bytes": 27121,
+      "after_sha256": "a8a81d47138248a38cf7a959c3ff231e4732f0a274c79e3ee41d0fc05ea8865c",
+      "before_bytes": 26717,
+      "before_sha256": "523f8e87cb3cde5ade9e11fb27f75fa8d1e43f9cffbe50c0dda58c8cc7c4295b",
+      "changes": [
+        {
+          "after": "                    source_driver=SelectiveSource(rpc.config,rpc,token=token or rpc.config.credential))\n\n# Only source-defined fixed reason codes may cross the process boundary.\nSAFE_EVIDENCE_REASONS=frozenset(('address_history_page_bound', 'address_history_response_shape_unverified', 'admitted_frame_drain_timeout', 'archive_batch_bound', 'archive_manifest_record_count', 'archive_snapshot_bound', 'archive_snapshot_source_changed', 'archive_worker_metric', 'authoritative_alchemy_endpoint_required', 'authoritative_subscription_rejected', 'checkpoint_handoff_owner_thread', 'checkpoint_handoff_token', 'checkpoint_handoff_unavailable', 'checkpoint_inside_source_transaction', 'checkpoint_ticket_owner_thread', 'consumer_command_bound', 'consumer_command_forbidden', 'consumer_counter_bound', 'consumer_cursor_regression', 'decoded_event_address_missing', 'dlmm_local_transaction_identity_or_order', 'dlmm_signature_census_missing_start_boundary', 'evidence_ack_identity', 'evidence_admission_offer_expired', 'evidence_admission_offer_unavailable', 'evidence_background_yield', 'evidence_cold_start', 'evidence_command_envelope', 'evidence_command_expired', 'evidence_command_identity_conflict', 'evidence_command_unacknowledged', 'evidence_control_overloaded', 'evidence_interest_command_bound', 'evidence_owner_shutdown_timeout', 'evidence_owner_unavailable', 'evidence_receipt_capacity', 'evidence_request_identity_conflict', 'evidence_requires_offline_archive_restore', 'evidence_time_boundary_unavailable', 'evidence_writer_already_running', 'exact_finalized_block_time_unavailable', 'filtered_block_bound', 'filtered_block_unavailable', 'filtered_census_shape', 'finalized_block_fence_shape', 'finalized_block_unavailable', 'frozen_log_decoder_required', 'hot_store_capacity', 'hot_store_capacity_bound', 'incomplete_finalized_logs', 'incomplete_interval_proof', 'ingestion_backlog_gap', 'ingestion_batch_bound', 'ingestion_payload_bound', 'ingestion_queue_overflow', 'interest_account_bound', 'interest_address', 'interest_checkpoint_ahead_of_source', 'interest_checkpoint_conflict', 'interest_checkpoint_owner_inactive', 'interest_checkpoint_regression', 'interest_checkpoint_shape', 'interest_checkpoint_unknown_owner', 'interest_owned_by_other_consumer', 'interest_owner_bound', 'interest_owner_capacity', 'invalid_finalized_record', 'invalid_gap', 'invalid_interest', 'invalid_interval_proof', 'invalid_pump_time_window', 'invalid_query_window', 'invalid_subscription_interest', 'lifecycle_evidence_priority', 'lifecycle_interest_downgrade', 'local_evidence_query_bound', 'local_ordered_commit_stalled', 'maintenance_admission_revoked', 'maintenance_archive_concurrency', 'maintenance_archive_slice_exceeds_512', 'maintenance_archive_worker_lease_exceeded', 'maintenance_cannot_reserve_both_sides', 'maintenance_clock_regressed', 'maintenance_clock_relationship_invalid', 'maintenance_completion_identity', 'maintenance_completion_transaction_open', 'maintenance_completion_unavailable', 'maintenance_deadline_invalid', 'maintenance_decision_in_flight', 'maintenance_demand_invalid', 'maintenance_durable_progress_invalid', 'maintenance_episode_bound', 'maintenance_episode_invalid', 'maintenance_execution_lease_exceeded', 'maintenance_finalized_frontier_invalid', 'maintenance_floor_ahead_of_hot_evidence', 'maintenance_floor_contradiction', 'maintenance_generation_changed', 'maintenance_invalid_service_lease', 'maintenance_missing_recovery_clock', 'maintenance_no_two_sided_reservation', 'maintenance_nonrecord_demand_bound', 'maintenance_nonrecord_demand_invalid', 'maintenance_observation_clock', 'maintenance_observation_inside_transaction', 'maintenance_observation_python_bound', 'maintenance_observation_row_bound', 'maintenance_observation_vm_bound', 'maintenance_owner_lease_exceeded', 'maintenance_pin_count_contradiction', 'maintenance_progress_bound', 'maintenance_progress_clock_invalid', 'maintenance_progress_outside_transaction', 'maintenance_progress_regressed', 'maintenance_progress_shape', 'maintenance_readiness_incomplete', 'maintenance_receipt_clock_invalid', 'maintenance_receipt_generation_changed', 'maintenance_recovery_source_unavailable', 'maintenance_scope_bound', 'maintenance_service_deadline_exhausted', 'maintenance_source_clock_invalid', 'maintenance_stale_or_wrong_generation', 'maintenance_storage_failure', 'maintenance_store_poisoned', 'maintenance_synopsis_contradiction', 'maintenance_synopsis_trigger_identity', 'nested_source_frame', 'notification_subscription_mismatch', 'owner_stage_identity', 'prepared_source_identity_mismatch', 'pump_consumer_backlog_archived', 'pump_event_lineage_mismatch', 'pump_local_snapshot_boundary_required', 'pump_normalized_event_missing', 'query_bound', 'reconnect_cursor_regression', 'record_below_hot_retention_floor', 'repair_duplicate_signature', 'repair_not_bounded_or_exhausted', 'repair_order_or_bounds', 'repair_page_budget', 'repair_page_budget_or_state', 'repair_pagination_stalled', 'repair_upper_boundary_not_finalized', 'restored_subscription_capacity', 'retention_batch_bound', 'retention_inside_source_transaction', 'service_draining', 'shared_evidence_plane_required', 'source_block_shape', 'source_message_shape', 'source_message_size_limit', 'source_receive_idle_timeout', 'source_transaction_shape', 'storage_capacity_critical', 'storage_stage_identity', 'stream_commit_batch_bound', 'stream_ordered_drain_incomplete', 'stream_receiver_stopped', 'subscription_capacity', 'unknown_source_subscription', 'unresolved_evidence_gap', 'unresolved_lifecycle_interest', 'unsupported_evidence_class', 'writer_failed', 'writer_start_timeout', 'writer_stop_timeout', 'writer_thread_violation'))\n\nSAFE_EVIDENCE_REASONS=SAFE_EVIDENCE_REASONS | frozenset((\n    'maintenance_admission_bound_unavailable','maintenance_boundary_deadline',\n    'maintenance_boundary_outstanding','maintenance_boundary_unavailable',\n    'maintenance_boundary_expired','maintenance_boundary_cancelled',\n    'maintenance_boundary_closed','maintenance_boundary_urgent_invalidated',\n    'maintenance_boundary_command_missing'))\n\nSAFE_CANDIDATE_REASONS=frozenset([\"activity_filter_identity\",\"authoritative_subscription_rejected\",\"bootstrap_optional_work_closed\",\"candidate_activity_task_stopped\",\"candidate_addresses_required\",\"candidate_block_repair_economic_identity\",\"candidate_block_repair_identity_or_completeness\",\"candidate_block_repair_transaction_identity\",\"candidate_content_scope\",\"candidate_economic_content_conflict\",\"candidate_join_wait_bound\",\"candidate_late_log_content\",\"candidate_live_task_stopped\",\"candidate_log_buffer_pressure\",\"candidate_log_content_conflict\",\"candidate_log_status_conflict\",\"candidate_native_eof\",\"candidate_native_frame_bound\",\"candidate_native_parent_gap\",\"candidate_page_lease_stale\",\"candidate_replay_floor_required\",\"candidate_replay_receipt_conflict\",\"candidate_required_content_missing\",\"candidate_scout_census_shape\",\"candidate_scout_fields_missing\",\"candidate_scout_filter\",\"candidate_scout_owner\",\"candidate_source_task_stopped\",\"candidate_websocket_ack_timeout\",\"incomplete_finalized_logs\",\"repair_pagination_stalled\",\"rolling_delivery_frontier_unavailable\",\"unknown_source_subscription\",\"yellowstone_census_buffer_bound\",\"yellowstone_conflicting_content\",\"yellowstone_conflicting_status_census\",\"yellowstone_content_census_mismatch\",\"yellowstone_content_filter_identity\",\"yellowstone_duplicate_signature\",\"yellowstone_finalized_bank_mismatch\",\"yellowstone_finalized_block_shape\",\"yellowstone_frame_bound\",\"yellowstone_incomplete_status_census\",\"yellowstone_late_census_content\",\"yellowstone_status_filter_identity\",\"yellowstone_transaction_error_encoding\",\"yellowstone_transaction_index_shape\",\"yellowstone_transaction_plane_required\",\"yellowstone_unfiltered_transaction\"])\n\nSAFE_CANDIDATE_REASONS=SAFE_CANDIDATE_REASONS | frozenset((\n    'accepted_source_frame_drain_incomplete','source_handler_record_bound',\n    'source_handler_recovery_corrupt','source_handler_recovery_conflict',\n",
+          "before": "                    source_driver=SelectiveSource(rpc.config,rpc,token=token or rpc.config.credential))\n\n# Only source-defined fixed reason codes may cross the process boundary.\nSAFE_EVIDENCE_REASONS=frozenset(('address_history_page_bound', 'address_history_response_shape_unverified', 'admitted_frame_drain_timeout', 'archive_batch_bound', 'archive_manifest_record_count', 'archive_snapshot_bound', 'archive_snapshot_source_changed', 'archive_worker_metric', 'authoritative_alchemy_endpoint_required', 'authoritative_subscription_rejected', 'checkpoint_handoff_owner_thread', 'checkpoint_handoff_token', 'checkpoint_handoff_unavailable', 'checkpoint_inside_source_transaction', 'checkpoint_ticket_owner_thread', 'consumer_command_bound', 'consumer_command_forbidden', 'consumer_counter_bound', 'consumer_cursor_regression', 'decoded_event_address_missing', 'dlmm_local_transaction_identity_or_order', 'dlmm_signature_census_missing_start_boundary', 'evidence_ack_identity', 'evidence_admission_offer_expired', 'evidence_admission_offer_unavailable', 'evidence_background_yield', 'evidence_cold_start', 'evidence_command_envelope', 'evidence_command_expired', 'evidence_command_identity_conflict', 'evidence_command_unacknowledged', 'evidence_control_overloaded', 'evidence_interest_command_bound', 'evidence_owner_shutdown_timeout', 'evidence_owner_unavailable', 'evidence_receipt_capacity', 'evidence_request_identity_conflict', 'evidence_requires_offline_archive_restore', 'evidence_time_boundary_unavailable', 'evidence_writer_already_running', 'exact_finalized_block_time_unavailable', 'filtered_block_bound', 'filtered_block_unavailable', 'filtered_census_shape', 'finalized_block_fence_shape', 'finalized_block_unavailable', 'frozen_log_decoder_required', 'hot_store_capacity', 'hot_store_capacity_bound', 'incomplete_finalized_logs', 'incomplete_interval_proof', 'ingestion_backlog_gap', 'ingestion_batch_bound', 'ingestion_payload_bound', 'ingestion_queue_overflow', 'interest_account_bound', 'interest_address', 'interest_checkpoint_ahead_of_source', 'interest_checkpoint_conflict', 'interest_checkpoint_owner_inactive', 'interest_checkpoint_regression', 'interest_checkpoint_shape', 'interest_checkpoint_unknown_owner', 'interest_owned_by_other_consumer', 'interest_owner_bound', 'interest_owner_capacity', 'invalid_finalized_record', 'invalid_gap', 'invalid_interest', 'invalid_interval_proof', 'invalid_pump_time_window', 'invalid_query_window', 'invalid_subscription_interest', 'lifecycle_evidence_priority', 'lifecycle_interest_downgrade', 'local_evidence_query_bound', 'local_ordered_commit_stalled', 'maintenance_admission_revoked', 'maintenance_archive_concurrency', 'maintenance_archive_slice_exceeds_512', 'maintenance_archive_worker_lease_exceeded', 'maintenance_cannot_reserve_both_sides', 'maintenance_clock_regressed', 'maintenance_clock_relationship_invalid', 'maintenance_completion_identity', 'maintenance_completion_transaction_open', 'maintenance_completion_unavailable', 'maintenance_deadline_invalid', 'maintenance_decision_in_flight', 'maintenance_demand_invalid', 'maintenance_durable_progress_invalid', 'maintenance_episode_bound', 'maintenance_episode_invalid', 'maintenance_execution_lease_exceeded', 'maintenance_finalized_frontier_invalid', 'maintenance_floor_ahead_of_hot_evidence', 'maintenance_floor_contradiction', 'maintenance_generation_changed', 'maintenance_invalid_service_lease', 'maintenance_missing_recovery_clock', 'maintenance_no_two_sided_reservation', 'maintenance_nonrecord_demand_bound', 'maintenance_nonrecord_demand_invalid', 'maintenance_observation_clock', 'maintenance_observation_inside_transaction', 'maintenance_observation_python_bound', 'maintenance_observation_row_bound', 'maintenance_observation_vm_bound', 'maintenance_owner_lease_exceeded', 'maintenance_pin_count_contradiction', 'maintenance_progress_bound', 'maintenance_progress_clock_invalid', 'maintenance_progress_outside_transaction', 'maintenance_progress_regressed', 'maintenance_progress_shape', 'maintenance_readiness_incomplete', 'maintenance_receipt_clock_invalid', 'maintenance_receipt_generation_changed', 'maintenance_recovery_source_unavailable', 'maintenance_scope_bound', 'maintenance_service_deadline_exhausted', 'maintenance_source_clock_invalid', 'maintenance_stale_or_wrong_generation', 'maintenance_storage_failure', 'maintenance_store_poisoned', 'maintenance_synopsis_contradiction', 'maintenance_synopsis_trigger_identity', 'nested_source_frame', 'notification_subscription_mismatch', 'owner_stage_identity', 'prepared_source_identity_mismatch', 'pump_consumer_backlog_archived', 'pump_event_lineage_mismatch', 'pump_local_snapshot_boundary_required', 'pump_normalized_event_missing', 'query_bound', 'reconnect_cursor_regression', 'record_below_hot_retention_floor', 'repair_duplicate_signature', 'repair_not_bounded_or_exhausted', 'repair_order_or_bounds', 'repair_page_budget', 'repair_page_budget_or_state', 'repair_pagination_stalled', 'repair_upper_boundary_not_finalized', 'restored_subscription_capacity', 'retention_batch_bound', 'retention_inside_source_transaction', 'service_draining', 'shared_evidence_plane_required', 'source_block_shape', 'source_message_shape', 'source_message_size_limit', 'source_receive_idle_timeout', 'source_transaction_shape', 'storage_capacity_critical', 'storage_stage_identity', 'stream_commit_batch_bound', 'stream_ordered_drain_incomplete', 'stream_receiver_stopped', 'subscription_capacity', 'unknown_source_subscription', 'unresolved_evidence_gap', 'unresolved_lifecycle_interest', 'unsupported_evidence_class', 'writer_failed', 'writer_start_timeout', 'writer_stop_timeout', 'writer_thread_violation'))\n\nSAFE_CANDIDATE_REASONS=frozenset([\"activity_filter_identity\",\"authoritative_subscription_rejected\",\"bootstrap_optional_work_closed\",\"candidate_activity_task_stopped\",\"candidate_addresses_required\",\"candidate_block_repair_economic_identity\",\"candidate_block_repair_identity_or_completeness\",\"candidate_block_repair_transaction_identity\",\"candidate_content_scope\",\"candidate_economic_content_conflict\",\"candidate_join_wait_bound\",\"candidate_late_log_content\",\"candidate_live_task_stopped\",\"candidate_log_buffer_pressure\",\"candidate_log_content_conflict\",\"candidate_log_status_conflict\",\"candidate_native_eof\",\"candidate_native_frame_bound\",\"candidate_native_parent_gap\",\"candidate_page_lease_stale\",\"candidate_replay_floor_required\",\"candidate_replay_receipt_conflict\",\"candidate_required_content_missing\",\"candidate_scout_census_shape\",\"candidate_scout_fields_missing\",\"candidate_scout_filter\",\"candidate_scout_owner\",\"candidate_source_task_stopped\",\"candidate_websocket_ack_timeout\",\"incomplete_finalized_logs\",\"repair_pagination_stalled\",\"rolling_delivery_frontier_unavailable\",\"unknown_source_subscription\",\"yellowstone_census_buffer_bound\",\"yellowstone_conflicting_content\",\"yellowstone_conflicting_status_census\",\"yellowstone_content_census_mismatch\",\"yellowstone_content_filter_identity\",\"yellowstone_duplicate_signature\",\"yellowstone_finalized_bank_mismatch\",\"yellowstone_finalized_block_shape\",\"yellowstone_frame_bound\",\"yellowstone_incomplete_status_census\",\"yellowstone_late_census_content\",\"yellowstone_status_filter_identity\",\"yellowstone_transaction_error_encoding\",\"yellowstone_transaction_index_shape\",\"yellowstone_transaction_plane_required\",\"yellowstone_unfiltered_transaction\"])\n\nSAFE_CANDIDATE_REASONS=SAFE_CANDIDATE_REASONS | frozenset((\n    'accepted_source_frame_drain_incomplete','source_handler_record_bound',\n    'source_handler_recovery_corrupt','source_handler_recovery_conflict',\n"
+        }
+      ],
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/Import:asyncio",
+            "module/Import:json",
+            "module/Import:os",
+            "module/Import:signal",
+            "module/Import:sys",
+            "module/ImportFrom:0:contextlib",
+            "module/Import:urllib.error",
+            "module/Import:urllib.request",
+            "module/ImportFrom:0:pathlib",
+            "module/ImportFrom:0:meme_machine.runtime.governor",
+            "module/ImportFrom:0:meme_machine.solana_evidence_transport",
+            "module/ImportFrom:0:meme_machine.solana_evidence_service",
+            "module/ClassDef:DeliveredRPCError",
+            "module/ClassDef:RepairRPC",
+            "module/FunctionDef:owner_thread_fairness",
+            "module/AsyncFunctionDef:main_async",
+            "module/Assign:Name(id='SAFE_EVIDENCE_REASONS', ctx=Store())",
+            "module/Assign:Name(id='SAFE_EVIDENCE_REASONS', ctx=Store())#1",
+            "module/Assign:Name(id='SAFE_CANDIDATE_REASONS', ctx=Store())",
+            "module/Assign:Name(id='SAFE_CANDIDATE_REASONS', ctx=Store())#1",
+            "module/Assign:Name(id='SAFE_CANDIDATE_REASONS', ctx=Store())#2",
+            "module/FunctionDef:failure_diagnostic",
+            "module/FunctionDef:main",
+            "module/If:If(test=Compare(left=Name(id='__name__', ctx=Load()), ops=[Eq()], comparators=[Constant(value='__main__')]), body=[Expr(value=Call(func=Name(id='main', ctx=Load()), args=[], keywords=[]))], orelse=[])"
+          ],
+          "before": [
+            "module/docstring",
+            "module/Import:asyncio",
+            "module/Import:json",
+            "module/Import:os",
+            "module/Import:signal",
+            "module/Import:sys",
+            "module/ImportFrom:0:contextlib",
+            "module/Import:urllib.error",
+            "module/Import:urllib.request",
+            "module/ImportFrom:0:pathlib",
+            "module/ImportFrom:0:meme_machine.runtime.governor",
+            "module/ImportFrom:0:meme_machine.solana_evidence_transport",
+            "module/ImportFrom:0:meme_machine.solana_evidence_service",
+            "module/ClassDef:DeliveredRPCError",
+            "module/ClassDef:RepairRPC",
+            "module/FunctionDef:owner_thread_fairness",
+            "module/AsyncFunctionDef:main_async",
+            "module/Assign:Name(id='SAFE_EVIDENCE_REASONS', ctx=Store())",
+            "module/Assign:Name(id='SAFE_CANDIDATE_REASONS', ctx=Store())",
+            "module/Assign:Name(id='SAFE_CANDIDATE_REASONS', ctx=Store())#1",
+            "module/Assign:Name(id='SAFE_CANDIDATE_REASONS', ctx=Store())#2",
+            "module/FunctionDef:failure_diagnostic",
+            "module/FunctionDef:main",
+            "module/If:If(test=Compare(left=Name(id='__name__', ctx=Load()), ops=[Eq()], comparators=[Constant(value='__main__')]), body=[Expr(value=Call(func=Name(id='main', ctx=Load()), args=[], keywords=[]))], orelse=[])"
+          ]
+        }
+      },
+      "nodes": {
+        "module/Assign:Name(id='SAFE_EVIDENCE_REASONS', ctx=Store())#1": {
+          "after": "bdc08eb4333e22d72082ef3e58cd60305e1c0cd23f6d2424065bf2e35f962fa0",
           "before": null
         }
       }
@@ -948,13 +1027,13 @@
       }
     },
     "meme_machine/runtime/status.py": {
-      "after_bytes": 14374,
-      "after_sha256": "cf2b4d7f75d6fd08b6a64b82e1d285fe37424d7485ee031b05e3db2884907777",
+      "after_bytes": 15989,
+      "after_sha256": "7fff0bfa573e6219e30498ee202250897d7e867282ffbb736264223e4c344398",
       "before_bytes": 9034,
       "before_sha256": "e8c112aa574cbb94a7342b1572af4c6dded71a09117bfb82215ee3c6612835ea",
       "changes": [
         {
-          "after": "\"\"\"Process-local bounded health; no execution or permission authority.\"\"\"\nimport os,re,sys,threading,time\nfrom pathlib import Path\nfrom collections import deque\nfrom contextlib import contextmanager\nlock=threading.Lock()\nstate=dict(phase='RECONCILING',reconciled=False)\n_operations=[]\n_completed=deque(maxlen=8)\n_signal=None\n\n# Diagnostic-only startup triggers. No normal processing or financial gate uses\n# these identities, ages, frames or counters.\nSTARTUP_STACK_OPERATIONS=frozenset(('pons.shared_capital_restore','pons.cohort_recovery',\n    'pons.candidate_restore','pons.survivor_restore','pons.observation_start',\n    'pons.startup_warmup_checkpoint','pons.startup_discovery_checkpoint'))\nSTARTUP_STACK_MIN_SECONDS=5.\nSTARTUP_STACK_INTERVAL_SECONDS=10.\nSTARTUP_STACK_PER_STAGE=2\nSTARTUP_STACK_MAX_CAPTURES=len(STARTUP_STACK_OPERATIONS)*STARTUP_STACK_PER_STAGE\nSTARTUP_STACK_SCOPE='OBSERVED_STARTUP_MAIN_PYTHON_FRAMES_NOT_SIGNAL_CANCEL_OR_SQL_CAUSE'\nSTARTUP_STACK_FRAMES={\n    'meme_machine.runtime.sqlite_failure':frozenset(('_call','execute','fetchone','fetchall','executescript')),\n    'meme_machine.runtime.operation_costs':frozenset(('execute','fetchone','fetchall','executescript','_sql')),\n    'meme_machine.runtime.robinhood.plane':frozenset(('__init__','recover','transaction','maintain','checkpoint','snapshot','borrow_checkpoint','_protection_generation')),\n    'meme_machine.runtime.robinhood.pons':frozenset(('__init__','save_cohort_checkpoint','recover_cohort','restore_position_needs')),\n    'meme_machine.lanes.pons.pons_selective_cohort':frozenset(('run','_checkpoint','_cohort_accounting','_start_observation','coverage')),\n    'meme_machine.lanes.pons.pons_selective_capital':frozenset(('__init__','recover_shared_terminals','reconcile','_reconcile','_connect')),\n    'meme_machine.runtime.directional_sleeve':frozenset(('open_sleeve',)),\n    'meme_machine.shared_capital.runtime':frozenset(('selected','connection','__init__','ledger','_replay','_reconcile')),\n    'meme_machine.shared_capital.native_sleeve':frozenset(('__init__','reconcile','close','sizing_basis','_shared_attribution')),\n    'meme_machine.runtime.native_boundary':frozenset(('attach','__init__','recover','flush','journal_hashes')),\n    'meme_machine.runtime.survivor_history':frozenset(('_step','prime','tick','close')),\n    'meme_machine.operational.lane':frozenset(('run_native','main')),\n    'meme_machine.lanes.pons.provider':frozenset(('_http','_http_batch','call','batch','verify_chain')),\n    'meme_machine.lanes.pons.provider_topology':frozenset(('configured_rpc','configured_discovery_rpc','verify_chain','call','batch')),\n    'meme_machine.lanes.pons.sequencer_feed':frozenset(('connect','_read_exact','recv_message','wait_for_range_after','wait_for_after')),\n}\n\n\ndef _startup_start_ticks(path,expected):\n    with Path(path).open('r') as source:raw=source.read(4097)\n    if len(raw)>4096:raise ValueError('startup_identity_bound')\n    leader,tail=raw.rsplit(')',1);fields=tail.split()\n    if int(leader.split('(',1)[0])!=expected:raise ValueError('startup_identity_pid')\n    start=int(fields[19])\n    if start<=0:raise ValueError('startup_identity_start')\n    return start\n\n\ndef stalled_startup_stack(*,excluded=()):\n    \"\"\"Existing health owner only; bracket one actual still-active startup.\n\n    This never sets a signal/Event, installs a SQL handler, cancels a query or\n    asserts a lock/SQL cause. Main frames can differ from the triggering worker.\n    \"\"\"\n    if not lock.acquire(blocking=False):return None\n    try:\n        now=time.monotonic();pid=os.getpid();main=threading.main_thread()\n        choices=[row for row in _operations if row['operation'] in STARTUP_STACK_OPERATIONS\n            and row['operation'] not in excluded and row['pid']==pid\n            and now-row['monotonic']>=STARTUP_STACK_MIN_SECONDS]\n        if not choices:return None\n        trigger=min(choices,key=lambda row:(row['native_thread_id']!=main.native_id,row['monotonic']))\n        identity=dict(trigger)\n    finally:lock.release()\n    try:\n        if main.native_id!=pid:return None\n        paths=('/proc/self/stat','/proc/self/task/'+str(pid)+'/stat')\n        before=tuple(_startup_start_ticks(path,pid) for path in paths)\n        captured=cancellation_stack(allowed_frames=STARTUP_STACK_FRAMES)\n        after=tuple(_startup_start_ticks(path,pid) for path in paths)\n        if before!=after or before[0]!=before[1] or captured['pid']!=pid:return None\n        if not lock.acquire(blocking=False):return None\n        try:\n            if not any(row is trigger for row in _operations):return None\n        finally:lock.release()\n        age=captured['monotonic']-identity['monotonic']\n        if age<STARTUP_STACK_MIN_SECONDS:return None\n        instance=os.environ.get('MM_LANE_PROCESS_INSTANCE')\n        return dict(version=1,state=captured['state'],scope=STARTUP_STACK_SCOPE,\n            at=captured['at'],monotonic=captured['monotonic'],pid=pid,\n            process_start_ticks=before[0],main_native_thread_id=pid,main_thread_start_ticks=before[1],\n            reporter_native_thread_id=captured['reporter_native_thread_id'],\n            process_instance=instance if isinstance(instance,str) and re.fullmatch('[0-9a-f]{32}',instance) else None,\n            trigger_operation=identity['operation'],trigger_native_thread_id=identity['native_thread_id'],\n            trigger_started_monotonic=identity['monotonic'],trigger_age_seconds=age,\n            trigger_active_bracket=True,frames=captured['frames'],frames_truncated=captured['frames_truncated'])\n    except Exception:return None\n\n\n_FAILURE_CLASSES=frozenset(('Exception','RuntimeError','FileNotFoundError','PermissionError',\n    'KeyError','ValueError','TypeError','AssertionError','ImportError','ModuleNotFoundError',\n    'OSError','TimeoutError','OperationalError','IntegrityError','DatabaseError',\n    'EvidenceUnavailable','EvidenceConflict','StorageGuardError','ValuationUnavailable',\n",
+          "after": "\"\"\"Process-local bounded health; no execution or permission authority.\"\"\"\nimport os,re,sys,threading,time\nfrom pathlib import Path\nfrom collections import deque\nfrom contextlib import contextmanager\nlock=threading.Lock()\nstate=dict(phase='RECONCILING',reconciled=False)\n_operations=[]\n_startup_stages=[]\n_completed=deque(maxlen=8)\n_signal=None\n\n# Diagnostic-only startup triggers. No normal processing or financial gate uses\n# these identities, ages, frames or counters.\nSTARTUP_STACK_OPERATIONS=frozenset(('pons.shared_capital_restore','pons.cohort_recovery',\n    'pons.candidate_restore','pons.survivor_restore','pons.observation_start',\n    'pons.startup_warmup_checkpoint','pons.startup_discovery_checkpoint'))\nSTARTUP_DIAGNOSTIC_OPERATIONS=frozenset(('pons.survivor_restore','pons.observation_start',\n    'pons.startup_warmup_checkpoint','pons.startup_discovery_checkpoint'))\nSTARTUP_DIAGNOSTIC_LIMIT=8\nSTARTUP_STACK_MIN_SECONDS=5.\nSTARTUP_STACK_INTERVAL_SECONDS=10.\nSTARTUP_STACK_PER_STAGE=2\nSTARTUP_STACK_MAX_CAPTURES=len(STARTUP_STACK_OPERATIONS)*STARTUP_STACK_PER_STAGE\nSTARTUP_STACK_SCOPE='OBSERVED_STARTUP_MAIN_PYTHON_FRAMES_NOT_SIGNAL_CANCEL_OR_SQL_CAUSE'\nSTARTUP_STACK_FRAMES={\n    'meme_machine.runtime.sqlite_failure':frozenset(('_call','execute','fetchone','fetchall','executescript')),\n    'meme_machine.runtime.operation_costs':frozenset(('execute','fetchone','fetchall','executescript','_sql')),\n    'meme_machine.runtime.robinhood.plane':frozenset(('__init__','recover','transaction','maintain','checkpoint','snapshot','borrow_checkpoint','_protection_generation')),\n    'meme_machine.runtime.robinhood.pons':frozenset(('__init__','save_cohort_checkpoint','recover_cohort','restore_position_needs')),\n    'meme_machine.lanes.pons.pons_selective_cohort':frozenset(('run','_checkpoint','_cohort_accounting','_start_observation','coverage')),\n    'meme_machine.lanes.pons.pons_selective_capital':frozenset(('__init__','recover_shared_terminals','reconcile','_reconcile','_connect')),\n    'meme_machine.runtime.directional_sleeve':frozenset(('open_sleeve',)),\n    'meme_machine.shared_capital.runtime':frozenset(('selected','connection','__init__','ledger','_replay','_reconcile')),\n    'meme_machine.shared_capital.native_sleeve':frozenset(('__init__','reconcile','close','sizing_basis','_shared_attribution')),\n    'meme_machine.runtime.native_boundary':frozenset(('attach','__init__','recover','flush','journal_hashes')),\n    'meme_machine.runtime.survivor_history':frozenset(('_step','prime','tick','close')),\n    'meme_machine.operational.lane':frozenset(('run_native','main')),\n    'meme_machine.lanes.pons.provider':frozenset(('_http','_http_batch','call','batch','verify_chain')),\n    'meme_machine.lanes.pons.provider_topology':frozenset(('configured_rpc','configured_discovery_rpc','verify_chain','call','batch')),\n    'meme_machine.lanes.pons.sequencer_feed':frozenset(('connect','_read_exact','recv_message','wait_for_range_after','wait_for_after')),\n}\n\n\ndef _startup_start_ticks(path,expected):\n    with Path(path).open('r') as source:raw=source.read(4097)\n    if len(raw)>4096:raise ValueError('startup_identity_bound')\n    leader,tail=raw.rsplit(')',1);fields=tail.split()\n    if int(leader.split('(',1)[0])!=expected:raise ValueError('startup_identity_pid')\n    start=int(fields[19])\n    if start<=0:raise ValueError('startup_identity_start')\n    return start\n\n\ndef stalled_startup_stack(*,excluded=()):\n    \"\"\"Existing health owner only; bracket one actual still-active startup.\n\n    This never sets a signal/Event, installs a SQL handler, cancels a query or\n    asserts a lock/SQL cause. Main frames can differ from the triggering worker.\n    \"\"\"\n    if not lock.acquire(blocking=False):return None\n    try:\n        now=time.monotonic();pid=os.getpid();main=threading.main_thread()\n        choices=[row for row in (*_operations,*_startup_stages) if row['operation'] in STARTUP_STACK_OPERATIONS\n            and row['operation'] not in excluded and row['pid']==pid\n            and now-row['monotonic']>=STARTUP_STACK_MIN_SECONDS]\n        if not choices:return None\n        trigger=min(choices,key=lambda row:(row['native_thread_id']!=main.native_id,row['monotonic']))\n        identity=dict(trigger)\n    finally:lock.release()\n    try:\n        if main.native_id!=pid:return None\n        paths=('/proc/self/stat','/proc/self/task/'+str(pid)+'/stat')\n        before=tuple(_startup_start_ticks(path,pid) for path in paths)\n        captured=cancellation_stack(allowed_frames=STARTUP_STACK_FRAMES)\n        after=tuple(_startup_start_ticks(path,pid) for path in paths)\n        if before!=after or before[0]!=before[1] or captured['pid']!=pid:return None\n        if not lock.acquire(blocking=False):return None\n        try:\n            if not any(row is trigger for row in (*_operations,*_startup_stages)):return None\n        finally:lock.release()\n        age=captured['monotonic']-identity['monotonic']\n        if age<STARTUP_STACK_MIN_SECONDS:return None\n        instance=os.environ.get('MM_LANE_PROCESS_INSTANCE')\n        return dict(version=1,state=captured['state'],scope=STARTUP_STACK_SCOPE,\n            at=captured['at'],monotonic=captured['monotonic'],pid=pid,\n            process_start_ticks=before[0],main_native_thread_id=pid,main_thread_start_ticks=before[1],\n            reporter_native_thread_id=captured['reporter_native_thread_id'],\n            process_instance=instance if isinstance(instance,str) and re.fullmatch('[0-9a-f]{32}',instance) else None,\n            trigger_operation=identity['operation'],trigger_native_thread_id=identity['native_thread_id'],\n            trigger_started_monotonic=identity['monotonic'],trigger_age_seconds=age,\n            trigger_active_bracket=True,frames=captured['frames'],frames_truncated=captured['frames_truncated'])\n    except Exception:return None\n\n\n_FAILURE_CLASSES=frozenset(('Exception','RuntimeError','FileNotFoundError','PermissionError',\n    'KeyError','ValueError','TypeError','AssertionError','ImportError','ModuleNotFoundError',\n    'OSError','TimeoutError','OperationalError','IntegrityError','DatabaseError',\n    'EvidenceUnavailable','EvidenceConflict','StorageGuardError','ValuationUnavailable',\n",
           "before": "\"\"\"Process-local bounded health; no execution or permission authority.\"\"\"\nimport os,re,sys,threading,time\nfrom collections import deque\nfrom contextlib import contextmanager\nlock=threading.Lock()\nstate=dict(phase='RECONCILING',reconciled=False)\n_operations=[]\n_completed=deque(maxlen=8)\n_signal=None\n\n_FAILURE_CLASSES=frozenset(('Exception','RuntimeError','FileNotFoundError','PermissionError',\n    'KeyError','ValueError','TypeError','AssertionError','ImportError','ModuleNotFoundError',\n    'OSError','TimeoutError','OperationalError','IntegrityError','DatabaseError',\n    'EvidenceUnavailable','EvidenceConflict','StorageGuardError','ValuationUnavailable',\n"
         },
         {
@@ -966,8 +1045,8 @@
           "before": "        while frame is not None and scanned<128 and len(row['frames'])<8:\n            module=frame.f_globals.get('__name__');function=frame.f_code.co_name\n            if (isinstance(module,str) and len(module)<=160 and\n                    re.fullmatch(r'meme_machine(?:\\.[A-Za-z_][A-Za-z0-9_]*)+',module) and\n                    isinstance(function,str) and\n                    re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,79}',function)):\n                row['frames'].append(dict(module=module,function=function,line=frame.f_lineno))\n            scanned+=1;frame=frame.f_back\n        row['frames_truncated']=frame is not None\n        row.update(state='CAPTURED' if row['frames'] else 'UNAVAILABLE',\n                   reason='owned_python_frames' if row['frames'] else 'no_owned_frames')\n"
         },
         {
-          "after": "\n@contextmanager\ndef operation(identity):\n    \"\"\"Fixed startup identifiers; descriptive facts never change readiness.\"\"\"\n    if (not isinstance(identity,str) or len(identity)>80 or\n            not (identity.startswith('pump.') or identity in STARTUP_STACK_OPERATIONS)):\n        yield;return\n    try:\n        row=dict(operation=identity,at=time.time(),monotonic=time.monotonic(),\n                 pid=os.getpid(),native_thread_id=threading.get_native_id(),state='ACTIVE')\n        with lock:\n",
-          "before": "\n@contextmanager\ndef operation(identity):\n    \"\"\"Fixed startup identifiers; descriptive facts never change readiness.\"\"\"\n    if (not isinstance(identity,str) or len(identity)>80 or\n            not (identity.startswith('pump.') or identity in ('pons.shared_capital_restore','pons.cohort_recovery','pons.candidate_restore'))):\n        yield;return\n    try:\n        row=dict(operation=identity,at=time.time(),monotonic=time.monotonic(),\n                 pid=os.getpid(),native_thread_id=threading.get_native_id(),state='ACTIVE')\n        with lock:\n"
+          "after": "            if error_type:done['error_type']=error_type\n            with lock:\n                if recorded:_operations.remove(row)\n                _completed.append(done)\n        except Exception:pass\n\n\n@contextmanager\ndef diagnostic_startup(identity):\n    \"\"\"Private stalled-frame trigger, never native status or replay authority.\n\n    The original three restoration operations retain their original public\n    contract. Later startup/provider boundaries are observed only through this\n    bounded diagnostic registry, with no completed/native-operation publication.\n    \"\"\"\n    recorded=None\n    if (isinstance(identity,str) and identity in STARTUP_DIAGNOSTIC_OPERATIONS\n            and os.environ.get('MM_OPERATION_COST_DIAGNOSTICS')=='1'):\n        try:\n            row=dict(operation=identity,at=time.time(),monotonic=time.monotonic(),\n                pid=os.getpid(),native_thread_id=threading.get_native_id(),state='ACTIVE')\n            if lock.acquire(blocking=False):\n                try:\n                    if len(_startup_stages)<STARTUP_DIAGNOSTIC_LIMIT:\n                        _startup_stages.append(row);recorded=row\n                finally:lock.release()\n        except Exception:pass\n    try:yield\n    finally:\n        if recorded is not None:\n            try:\n                with lock:\n                    for index,row in enumerate(_startup_stages):\n                        if row is recorded:\n                            del _startup_stages[index];break\n            except Exception:pass\n\ndef update(phase,**fields):\n    with lock:\n        state.update(phase=phase,progress_at=time.time(),**fields)\n\n",
+          "before": "            if error_type:done['error_type']=error_type\n            with lock:\n                if recorded:_operations.remove(row)\n                _completed.append(done)\n        except Exception:pass\n\ndef update(phase,**fields):\n    with lock:\n        state.update(phase=phase,progress_at=time.time(),**fields)\n\n"
         }
       ],
       "layouts": {
@@ -981,9 +1060,12 @@
             "module/Assign:Name(id='lock', ctx=Store())",
             "module/Assign:Name(id='state', ctx=Store())",
             "module/Assign:Name(id='_operations', ctx=Store())",
+            "module/Assign:Name(id='_startup_stages', ctx=Store())",
             "module/Assign:Name(id='_completed', ctx=Store())",
             "module/Assign:Name(id='_signal', ctx=Store())",
             "module/Assign:Name(id='STARTUP_STACK_OPERATIONS', ctx=Store())",
+            "module/Assign:Name(id='STARTUP_DIAGNOSTIC_OPERATIONS', ctx=Store())",
+            "module/Assign:Name(id='STARTUP_DIAGNOSTIC_LIMIT', ctx=Store())",
             "module/Assign:Name(id='STARTUP_STACK_MIN_SECONDS', ctx=Store())",
             "module/Assign:Name(id='STARTUP_STACK_INTERVAL_SECONDS', ctx=Store())",
             "module/Assign:Name(id='STARTUP_STACK_PER_STAGE', ctx=Store())",
@@ -997,6 +1079,7 @@
             "module/FunctionDef:cancellation_signal",
             "module/FunctionDef:cancellation_stack",
             "module/FunctionDef:operation",
+            "module/FunctionDef:diagnostic_startup",
             "module/FunctionDef:update",
             "module/FunctionDef:thread_inventory",
             "module/FunctionDef:snapshot"
@@ -1023,6 +1106,14 @@
         }
       },
       "nodes": {
+        "module/Assign:Name(id='STARTUP_DIAGNOSTIC_LIMIT', ctx=Store())": {
+          "after": "7d740554b7db026ade146b6aef3c2739b7adb46917f39ad6e5976d61c03944e4",
+          "before": null
+        },
+        "module/Assign:Name(id='STARTUP_DIAGNOSTIC_OPERATIONS', ctx=Store())": {
+          "after": "ee50850c2dc007726e9b42e539dbd112f7baea8c2dea9339a7f28d1f6a38358f",
+          "before": null
+        },
         "module/Assign:Name(id='STARTUP_STACK_FRAMES', ctx=Store())": {
           "after": "70657966cd5170a43cf17f26951b6d66da39840df3fd2f05b47cbe6b3f400971",
           "before": null
@@ -1051,6 +1142,10 @@
           "after": "88a78e2f5a25cb6098113ce6403822e5fdd992b0f5a5144e53e4efcaee8ad8ed",
           "before": null
         },
+        "module/Assign:Name(id='_startup_stages', ctx=Store())": {
+          "after": "3d83576c186a37f68890f5241c7388d952ef186be102a24874002fc099313ac9",
+          "before": null
+        },
         "module/FunctionDef:_startup_start_ticks": {
           "after": "4620ad2f644a274935e07d39733f0f598daa8ca8fac9047ca309cdc41cd66dae",
           "before": null
@@ -1059,12 +1154,12 @@
           "after": "fa4d93ea0930998221ade15f0bc809476fc116e0e38a85e1848959f6f2763bcd",
           "before": "7eb0034378301fdf3ddcca323c62a95b1b47b7fca4b4cf049812453f01af11a0"
         },
-        "module/FunctionDef:operation": {
-          "after": "a8f00ce5d0d266481e9cef9f0eadbf127bf50a8c25f64fc156e479d922c6bb93",
-          "before": "04ca3530f1c9b3ba2b1894131fcfd0ba8eeb9bf45f6322f84146593b885fabdc"
+        "module/FunctionDef:diagnostic_startup": {
+          "after": "3d16c67919d03ca0e22be9aaa0d7cfb58c2d81691ea8f510eaba54886e89877d",
+          "before": null
         },
         "module/FunctionDef:stalled_startup_stack": {
-          "after": "6e60477a47fe86a7211d71c7267a1a6655a2411ed1e53347a2ea3ea8a9259941",
+          "after": "e4d6c7501a2be135caab9fbf2d2ed0f5c3cba5179cb5e757f1b003ae58b3ae62",
           "before": null
         },
         "module/ImportFrom:0:pathlib": {
@@ -1074,21 +1169,449 @@
       }
     },
     "meme_machine/runtime/survivor_history.py": {
-      "after_bytes": 32166,
-      "after_sha256": "7c082347f493a01dcf2ea804d998a014234cc730d80a5708838775608f0dbd6a",
+      "after_bytes": 32175,
+      "after_sha256": "39a00ce3d6d094690c883bce3cbd344af513c68087a61dbbb92ca278260bff07",
       "before_bytes": 32042,
       "before_sha256": "3543f77391118073aafefba34e5bcf954b764175b381f810d4b41f842f407a38",
       "changes": [
         {
-          "after": "            from meme_machine.shared_capital.runtime import native_startup_replay\n            from meme_machine.runtime.stop import requested\n            # The factory owns its SQLite objects on this executor. Only its\n            # initial read-only capital replay may observe startup cancellation;\n            # ordinary protection/settlement steps keep their existing behavior.\n            from meme_machine.runtime import status\n            with operation('pons.survivor_restore'), (status.operation('pons.survivor_restore') if pons else nullcontext()):\n                with native_startup_replay(requested.is_set):self.service=self.factory()\n        from meme_machine.operational.position_continuation import position_only\n        maintenance=position_only();admit=admit and not maintenance\n        with operation('pons.survivor_step'):\n            if maintenance:\n",
+          "after": "            from meme_machine.shared_capital.runtime import native_startup_replay\n            from meme_machine.runtime.stop import requested\n            # The factory owns its SQLite objects on this executor. Only its\n            # initial read-only capital replay may observe startup cancellation;\n            # ordinary protection/settlement steps keep their existing behavior.\n            from meme_machine.runtime import status\n            with operation('pons.survivor_restore'), (status.diagnostic_startup('pons.survivor_restore') if pons else nullcontext()):\n                with native_startup_replay(requested.is_set):self.service=self.factory()\n        from meme_machine.operational.position_continuation import position_only\n        maintenance=position_only();admit=admit and not maintenance\n        with operation('pons.survivor_step'):\n            if maintenance:\n",
           "before": "            from meme_machine.shared_capital.runtime import native_startup_replay\n            from meme_machine.runtime.stop import requested\n            # The factory owns its SQLite objects on this executor. Only its\n            # initial read-only capital replay may observe startup cancellation;\n            # ordinary protection/settlement steps keep their existing behavior.\n            with operation('pons.survivor_restore'):\n                with native_startup_replay(requested.is_set):self.service=self.factory()\n        from meme_machine.operational.position_continuation import position_only\n        maintenance=position_only();admit=admit and not maintenance\n        with operation('pons.survivor_step'):\n            if maintenance:\n"
         }
       ],
       "layouts": {},
       "nodes": {
         "module/ClassDef:Worker/FunctionDef:_step": {
-          "after": "2695a7aa6735c06dc2d211faceda062210fa1ae131004ac6c9b5c14954ff5544",
+          "after": "342ce0ef99067e132731887d5b28e4430d5b01726d42f6c90629da2daca5c520",
           "before": "5602130beaca9b1a1cbcd01b112b7bdf19503cd12ce068d4b0af5ef0df523300"
+        }
+      }
+    },
+    "meme_machine/solana_evidence_control.py": {
+      "after_bytes": 26073,
+      "after_sha256": "10f148f07039cdea7551ec3a329a73e7a02932cdd4c54d513c4a43f3742efd3c",
+      "before_bytes": 18016,
+      "before_sha256": "f3dd7bbed344f50c6489bc39c2855d8c854daf2ae4129daba84e9f0b9ae6bc79",
+      "changes": [
+        {
+          "after": "mutation share one commit. Expired requests cannot be replayed after receipt GC.\n\"\"\"\nimport concurrent.futures\nfrom collections import deque\nimport heapq\nimport math\nimport os\nimport re\nimport threading\nimport time\nfrom time import thread_time as owner_thread_time\n",
+          "before": "mutation share one commit. Expired requests cannot be replayed after receipt GC.\n\"\"\"\nimport concurrent.futures\nfrom collections import deque\nimport heapq\nimport os\nimport re\nimport threading\nimport time\nfrom time import thread_time as owner_thread_time\n"
+        },
+        {
+          "after": "ATTEMPT_SECONDS=.5\nMAX_COMMAND_BYTES=32768\nMAX_RECEIPTS=8192\nOWNER_SLOW_SECONDS=1.0\nOWNER_OPERATION_LIMIT=8\nMAINTENANCE_PERMIT_SECONDS=.100\n\n\nclass _MaintenanceBoundary:\n    \"\"\"One FIFO scheduling ticket; it contains no native callback or Needs.\"\"\"\n    def __init__(self,owner,sequence,requested,deadline):\n        self.owner=owner;self.requested_sequence=sequence;self.requested_at=requested\n        self.deadline=deadline;self.ready=concurrent.futures.Future()\n        self.state='PENDING';self.permit_deadline=None;self.command_future=None\n\n\n\ndef owner_operation(fn):\n    \"\"\"Fixed source identity only; never callback arguments, SQL or locals.\"\"\"\n    identity=getattr(fn,'owner_operation',{})\n",
+          "before": "ATTEMPT_SECONDS=.5\nMAX_COMMAND_BYTES=32768\nMAX_RECEIPTS=8192\nOWNER_SLOW_SECONDS=1.0\nOWNER_OPERATION_LIMIT=8\n\n\ndef owner_operation(fn):\n    \"\"\"Fixed source identity only; never callback arguments, SQL or locals.\"\"\"\n    identity=getattr(fn,'owner_operation',{})\n"
+        },
+        {
+          "after": "        self._urgent_queued=0\n        self.closed=False; self.ready=concurrent.futures.Future()\n        self.admission_notify=None\n        self._checkpoint_epoch=0; self._checkpoint_busy=False\n        self._checkpoint_handoff=None\n        self._maintenance_ticket=None\n        self.thread=threading.Thread(target=self._run,args=(factory,),name='solana-evidence-owner',daemon=True)\n        self.thread.start()\n\n    def submit(self, fn, *, priority=1, expires=None, admit_before=None,_maintenance_ticket=None):\n        future=concurrent.futures.Future()\n        with self.cv:\n            if self.closed: raise EvidenceUnavailable('evidence_owner_unavailable')\n            ticket=self._maintenance_ticket\n            spending=_maintenance_ticket is not None\n            if spending and (ticket is not _maintenance_ticket or ticket.state!='OPEN'\n                    or priority!=4 or self._checkpoint_busy or self._checkpoint_handoff is not None\n                    or self._urgent_queued):\n                raise EvidenceUnavailable('maintenance_boundary_unavailable')\n            if priority<2 and ticket is not None and ticket.state=='OPEN':\n                self._release_maintenance_locked(ticket,'urgent_invalidated')\n            limit=self.capacity if priority==0 else self.capacity-self.reserved\n            reserved=int(ticket is not None and ticket.state=='OPEN' and not spending)\n            if len(self.queue)+reserved>=limit:\n                self.metrics['rejected']=self.metrics.get('rejected',0)+1\n                raise EvidenceUnavailable('evidence_control_overloaded')\n            accepted_at=self.clock()\n            if spending and accepted_at>=ticket.permit_deadline:\n                self._release_maintenance_locked(ticket,'expired')\n                raise EvidenceUnavailable('maintenance_boundary_expired')\n            if admit_before is not None:\n                if accepted_at>=admit_before:\n                    raise EvidenceUnavailable('evidence_admission_offer_expired')\n                # Close the scheduling-snapshot race with a new urgent/older\n                # admission. Ordinary submissions retain their existing path.\n                if not spending and (self.queue or self._checkpoint_busy or self._checkpoint_handoff is not None):\n                    raise EvidenceUnavailable('evidence_admission_offer_unavailable')\n            self.sequence+=1\n            future.owner_sequence=self.sequence\n            future.owner_accepted_at=accepted_at\n            self.enqueued[self.sequence]=accepted_at\n            heapq.heappush(self.queue,(priority,self.sequence,expires,fn,future))\n            if spending:\n                ticket.state='ACCEPTED';ticket.command_future=future\n                self.metrics['maintenance_boundary.accepted']=self.metrics.get('maintenance_boundary.accepted',0)+1\n            if priority<2:self._urgent_queued+=1\n            self.cv.notify()\n            self.metrics['queue_peak']=max(self.metrics.get('queue_peak',0),len(self.queue))\n        # A scheduling observer wakes the event loop outside the owner lock.\n        # It has no power to reorder, cancel or choose admitted work.\n        if self.admission_notify is not None:self.admission_notify()\n        return future\n\n    def request_maintenance_boundary(self,*,deadline):\n        \"\"\"Reserve one normal FIFO position, without accepting a native turn.\"\"\"\n        with self.cv:\n            now=self.clock()\n            if self.closed:raise EvidenceUnavailable('evidence_owner_unavailable')\n            if (type(deadline) not in (int,float) or not math.isfinite(deadline)\n                    or not now<deadline<2**63):raise EvidenceUnavailable('maintenance_boundary_deadline')\n            if self._maintenance_ticket is not None:\n                raise EvidenceUnavailable('maintenance_boundary_outstanding')\n            if len(self.queue)>=self.capacity-self.reserved:\n                self.metrics['rejected']=self.metrics.get('rejected',0)+1\n                raise EvidenceUnavailable('evidence_control_overloaded')\n            self.sequence+=1\n            ticket=_MaintenanceBoundary(self,self.sequence,now,deadline)\n            self._maintenance_ticket=ticket;self.enqueued[self.sequence]=now\n            heapq.heappush(self.queue,(4,self.sequence,None,ticket,ticket.ready))\n            self.metrics['maintenance_boundary.requested']=self.metrics.get('maintenance_boundary.requested',0)+1\n            self.metrics['queue_peak']=max(self.metrics.get('queue_peak',0),len(self.queue))\n            self.cv.notify_all()\n            return ticket\n\n    def _release_maintenance_locked(self,ticket,outcome):\n        if ticket is not self._maintenance_ticket:return\n        if ticket.state=='PENDING':\n            self.queue=[row for row in self.queue if row[3] is not ticket]\n            heapq.heapify(self.queue);self.enqueued.pop(ticket.requested_sequence,None)\n        ticket.state='RELEASED';self._maintenance_ticket=None\n        self.metrics['maintenance_boundary.'+outcome]=self.metrics.get('maintenance_boundary.'+outcome,0)+1\n        if not ticket.ready.done():\n            try:ticket.ready.set_exception(EvidenceUnavailable('maintenance_boundary_'+outcome))\n            except concurrent.futures.InvalidStateError:\n                # A notification waiter may cancel concurrently without taking\n                # owner.cv. Only that terminal cancellation is harmless.\n                if not ticket.ready.cancelled():raise\n        self.cv.notify_all()\n\n    def cancel_maintenance_boundary(self,ticket):\n        \"\"\"Abandon only an unspent scheduling ticket, never accepted native work.\"\"\"\n        with self.cv:\n            if ticket is not self._maintenance_ticket:return False\n            if ticket.state=='ACCEPTED':return False\n            self._release_maintenance_locked(ticket,'cancelled');return True\n\n    def submit_maintenance(self,fn,ticket):\n        with self.cv:\n            if (ticket is not self._maintenance_ticket or ticket.state!='OPEN'\n                    or not callable(fn)):raise EvidenceUnavailable('maintenance_boundary_unavailable')\n            return self.submit(fn,priority=4,admit_before=ticket.permit_deadline,\n                _maintenance_ticket=ticket)\n\n    def _next_work(self):\n        \"\"\"Older FIFO work, one reserved boundary, and unchanged urgent priority.\"\"\"\n        with self.cv:\n            while True:\n                ticket=self._maintenance_ticket\n                if ticket is not None and ticket.state=='OPEN':\n                    if self.closed or self._urgent_queued or self.clock()>=ticket.permit_deadline:\n                        self._release_maintenance_locked(ticket,\n                            'closed' if self.closed else 'urgent_invalidated' if self._urgent_queued else 'expired')\n                        continue\n                    self.cv.wait(timeout=max(.001,ticket.permit_deadline-self.clock()))\n                    continue\n                self.cv.wait_for(lambda:(self.queue or self.closed) and self._checkpoint_handoff is None)\n                if not self.queue and self.closed:return None\n                ticket=self._maintenance_ticket\n                # The real native command consumes the already reserved FIFO\n                # slot. It keeps its genuine later acceptance/sequence clock.\n                reserved=(ticket is not None and ticket.state=='ACCEPTED' and self.queue[0][0]>=2)\n                if reserved:\n                    index=next((i for i,row in enumerate(self.queue) if row[4] is ticket.command_future),None)\n                    if index is None:raise EvidenceUnavailable('maintenance_boundary_command_missing')\n                    item=self.queue[index];self.queue[index]=self.queue[-1];self.queue.pop();heapq.heapify(self.queue)\n                elif self.queue[0][0]>=2:\n                    _,index=min((row[1],i) for i,row in enumerate(self.queue))\n                    item=self.queue[index];self.queue[index]=self.queue[-1];self.queue.pop();heapq.heapify(self.queue)\n                    self.metrics['nonurgent_fifo_selections']=self.metrics.get('nonurgent_fifo_selections',0)+1\n                    if self.clock()-self.enqueued[item[1]]>=1.0:\n                        self.metrics['aged_selections']=self.metrics.get('aged_selections',0)+1\n                else:item=heapq.heappop(self.queue)\n                if ticket is not None and item[3] is ticket:\n                    self.enqueued.pop(ticket.requested_sequence)\n                    # A scheduling operation invalidates older checkpoint\n                    # tickets just as every other serialized operation does.\n                    self._checkpoint_epoch+=1\n                    if (self.closed or self.clock()>=ticket.deadline):\n                        self._release_maintenance_locked(ticket,'closed' if self.closed else 'expired')\n                        continue\n                    # Future.cancel() does not take owner.cv. Claim this\n                    # notification atomically before exposing an OPEN permit.\n                    if not ticket.ready.set_running_or_notify_cancel():\n                        self._release_maintenance_locked(ticket,'cancelled')\n                        continue\n                    now=self.clock();ticket.permit_deadline=min(ticket.deadline,now+MAINTENANCE_PERMIT_SECONDS)\n                    ticket.state='OPEN'\n                    wait=int(max(0,now-ticket.requested_at)*1_000_000)\n                    self.metrics['maintenance_boundary.granted']=self.metrics.get('maintenance_boundary.granted',0)+1\n                    self.metrics['maintenance_boundary.wait_total_us']=self.metrics.get('maintenance_boundary.wait_total_us',0)+wait\n                    self.metrics['maintenance_boundary.wait_peak_us']=max(self.metrics.get('maintenance_boundary.wait_peak_us',0),wait)\n                    ticket.ready.set_result(ticket);self.cv.notify_all();continue\n                self._checkpoint_busy=True\n                return item\n\n    def _run(self,factory):\n        with self.cv:\n            self.metrics.update(owner_pid=os.getpid(),native_thread_id=threading.get_native_id())\n        try:\n            self.state=factory(); self.ready.set_result(True)\n        except BaseException as exc:\n            self.ready.set_exception(exc); self.closed=True; return\n        try:\n            while True:\n                item=self._next_work()\n                if item is None:break\n                with self.cv:\n                    # Exit/reservation and foreground work retain strict priority.\n                    # Source commits and bounded background slices share FIFO\n                    # admission order. A one-second aging rescue still made each\n                    # completed archive wait behind newer source commits, idling\n                    # its worker and accumulating hot history (Run 381). Neither\n                    # source nor maintenance may repeatedly overtake the other.\n                    priority,sequence,expires,fn,future=item\n                    if priority<2:self._urgent_queued-=1\n                    queued=self.clock()-self.enqueued.pop(sequence)\n                    prefix='priority'+str(priority)\n                    wait=int(max(0,queued)*1_000_000)\n",
+          "before": "        self._urgent_queued=0\n        self.closed=False; self.ready=concurrent.futures.Future()\n        self.admission_notify=None\n        self._checkpoint_epoch=0; self._checkpoint_busy=False\n        self._checkpoint_handoff=None\n        self.thread=threading.Thread(target=self._run,args=(factory,),name='solana-evidence-owner',daemon=True)\n        self.thread.start()\n\n    def submit(self, fn, *, priority=1, expires=None, admit_before=None):\n        future=concurrent.futures.Future()\n        with self.cv:\n            if self.closed: raise EvidenceUnavailable('evidence_owner_unavailable')\n            limit=self.capacity if priority==0 else self.capacity-self.reserved\n            if len(self.queue)>=limit:\n                self.metrics['rejected']=self.metrics.get('rejected',0)+1\n                raise EvidenceUnavailable('evidence_control_overloaded')\n            accepted_at=self.clock()\n            if admit_before is not None:\n                if accepted_at>=admit_before:\n                    raise EvidenceUnavailable('evidence_admission_offer_expired')\n                # Close the scheduling-snapshot race with a new urgent/older\n                # admission. Ordinary submissions retain their existing path.\n                if self.queue or self._checkpoint_busy or self._checkpoint_handoff is not None:\n                    raise EvidenceUnavailable('evidence_admission_offer_unavailable')\n            self.sequence+=1\n            future.owner_sequence=self.sequence\n            future.owner_accepted_at=accepted_at\n            self.enqueued[self.sequence]=accepted_at\n            heapq.heappush(self.queue,(priority,self.sequence,expires,fn,future))\n            if priority<2:self._urgent_queued+=1\n            self.cv.notify()\n            self.metrics['queue_peak']=max(self.metrics.get('queue_peak',0),len(self.queue))\n        # A scheduling observer wakes the event loop outside the owner lock.\n        # It has no power to reorder, cancel or choose admitted work.\n        if self.admission_notify is not None:self.admission_notify()\n        return future\n\n    def _run(self,factory):\n        with self.cv:\n            self.metrics.update(owner_pid=os.getpid(),native_thread_id=threading.get_native_id())\n        try:\n            self.state=factory(); self.ready.set_result(True)\n        except BaseException as exc:\n            self.ready.set_exception(exc); self.closed=True; return\n        try:\n            while True:\n                with self.cv:\n                    self.cv.wait_for(lambda:(self.queue or self.closed) and self._checkpoint_handoff is None)\n                    if not self.queue and self.closed: break\n                    # Exit/reservation and foreground work retain strict priority.\n                    # Source commits and bounded background slices share FIFO\n                    # admission order. A one-second aging rescue still made each\n                    # completed archive wait behind newer source commits, idling\n                    # its worker and accumulating hot history (Run 381). Neither\n                    # source nor maintenance may repeatedly overtake the other.\n                    eligible=[]\n                    if self.queue[0][0]>=2:\n                        eligible=[(row[1],i) for i,row in enumerate(self.queue)]\n                    if eligible:\n                        _,index=min(eligible);item=self.queue[index]\n                        self.metrics['nonurgent_fifo_selections']=self.metrics.get('nonurgent_fifo_selections',0)+1\n                        if self.clock()-self.enqueued[item[1]]>=1.0:\n                            self.metrics['aged_selections']=self.metrics.get('aged_selections',0)+1\n                        self.queue[index]=self.queue[-1];self.queue.pop();heapq.heapify(self.queue)\n                    else:item=heapq.heappop(self.queue)\n                    priority,sequence,expires,fn,future=item\n                    if priority<2:self._urgent_queued-=1\n                    queued=self.clock()-self.enqueued.pop(sequence)\n                    prefix='priority'+str(priority)\n                    wait=int(max(0,queued)*1_000_000)\n"
+        },
+        {
+          "after": "                                completed_monotonic=self.clock(),execution_microseconds=elapsed,\n                                execution_cpu_microseconds=int(max(0,owner_thread_time()-cpu_started)*1_000_000),\n                                outcome=outcome))\n                        self.active_operation=None\n                        self._checkpoint_epoch+=1; self._checkpoint_busy=False\n                        ticket=self._maintenance_ticket\n                        if ticket is not None and ticket.command_future is future:\n                            self._release_maintenance_locked(ticket,'completed')\n                        if interrupted:self.metrics['background_yields']=self.metrics.get('background_yields',0)+1\n                        self.metrics[prefix+'.execution_peak_us']=max(self.metrics.get(prefix+'.execution_peak_us',0),elapsed)\n                        self.metrics[prefix+'.execution_total_us']=self.metrics.get(prefix+'.execution_total_us',0)+elapsed\n                        self.metrics[prefix+'.completed']=self.metrics.get(prefix+'.completed',0)+1\n        finally: self.state.close()\n\n    def checkpoint_ticket(self):\n        \"\"\"Conservative owner-generation fence, never database authority.\"\"\"\n        with self.cv:\n            if self.closed or self.queue or self._checkpoint_busy or self._maintenance_ticket is not None:return None\n            return self._checkpoint_epoch\n\n    def checkpoint_ticket_after_current(self):\n        \"\"\"Issue a marker in FIFO after all older admitted owner work.\"\"\"\n        if threading.get_ident()!=self.thread.ident:\n",
+          "before": "                                completed_monotonic=self.clock(),execution_microseconds=elapsed,\n                                execution_cpu_microseconds=int(max(0,owner_thread_time()-cpu_started)*1_000_000),\n                                outcome=outcome))\n                        self.active_operation=None\n                        self._checkpoint_epoch+=1; self._checkpoint_busy=False\n                        if interrupted:self.metrics['background_yields']=self.metrics.get('background_yields',0)+1\n                        self.metrics[prefix+'.execution_peak_us']=max(self.metrics.get(prefix+'.execution_peak_us',0),elapsed)\n                        self.metrics[prefix+'.execution_total_us']=self.metrics.get(prefix+'.execution_total_us',0)+elapsed\n                        self.metrics[prefix+'.completed']=self.metrics.get(prefix+'.completed',0)+1\n        finally: self.state.close()\n\n    def checkpoint_ticket(self):\n        \"\"\"Conservative owner-generation fence, never database authority.\"\"\"\n        with self.cv:\n            if self.closed or self.queue or self._checkpoint_busy:return None\n            return self._checkpoint_epoch\n\n    def checkpoint_ticket_after_current(self):\n        \"\"\"Issue a marker in FIFO after all older admitted owner work.\"\"\"\n        if threading.get_ident()!=self.thread.ident:\n"
+        },
+        {
+          "after": "        existing queue. Only an explicit matching release resumes mutation.\n        \"\"\"\n        if threading.get_ident()!=self.thread.ident:\n            raise EvidenceUnavailable('checkpoint_handoff_owner_thread')\n        with self.cv:\n            if (self.closed or not self._checkpoint_busy or self._checkpoint_handoff is not None\n                    or self._maintenance_ticket is not None and self._maintenance_ticket.state in ('OPEN','ACCEPTED')):\n                raise EvidenceUnavailable('checkpoint_handoff_unavailable')\n            token=object();self._checkpoint_handoff=token\n            self._checkpoint_handoff_started=self.clock()\n            self.metrics['checkpoint_handoffs']=self.metrics.get('checkpoint_handoffs',0)+1\n            return token\n",
+          "before": "        existing queue. Only an explicit matching release resumes mutation.\n        \"\"\"\n        if threading.get_ident()!=self.thread.ident:\n            raise EvidenceUnavailable('checkpoint_handoff_owner_thread')\n        with self.cv:\n            if self.closed or not self._checkpoint_busy or self._checkpoint_handoff is not None:\n                raise EvidenceUnavailable('checkpoint_handoff_unavailable')\n            token=object();self._checkpoint_handoff=token\n            self._checkpoint_handoff_started=self.clock()\n            self.metrics['checkpoint_handoffs']=self.metrics.get('checkpoint_handoffs',0)+1\n            return token\n"
+        },
+        {
+          "after": "                    self.clock()-self.active_operation['started_monotonic'])*1_000_000))\n            return dict(self.metrics,queued=len(self.queue),active_operation=active,\n                recent_slow_operations=[dict(row) for row in self.recent_slow_operations])\n\n    def close(self):\n        with self.cv:\n            self.closed=True\n            ticket=self._maintenance_ticket\n            if ticket is not None and ticket.state!='ACCEPTED':self._release_maintenance_locked(ticket,'closed')\n            self.cv.notify_all()\n        self.thread.join(timeout=5)\n        if self.thread.is_alive(): raise EvidenceUnavailable('evidence_owner_shutdown_timeout')\n\n\ndef command_priority(request):\n",
+          "before": "                    self.clock()-self.active_operation['started_monotonic'])*1_000_000))\n            return dict(self.metrics,queued=len(self.queue),active_operation=active,\n                recent_slow_operations=[dict(row) for row in self.recent_slow_operations])\n\n    def close(self):\n        with self.cv: self.closed=True; self.cv.notify_all()\n        self.thread.join(timeout=5)\n        if self.thread.is_alive(): raise EvidenceUnavailable('evidence_owner_shutdown_timeout')\n\n\ndef command_priority(request):\n"
+        }
+      ],
+      "layouts": {
+        "module": {
+          "after": [
+            "module/docstring",
+            "module/Import:concurrent.futures",
+            "module/ImportFrom:0:collections",
+            "module/Import:heapq",
+            "module/Import:math",
+            "module/Import:os",
+            "module/Import:re",
+            "module/Import:threading",
+            "module/Import:time",
+            "module/ImportFrom:0:time",
+            "module/Import:sqlite3",
+            "module/ImportFrom:1:solana_evidence_plane",
+            "module/Assign:Name(id='COMMAND_SECONDS', ctx=Store())",
+            "module/Assign:Name(id='ATTEMPT_SECONDS', ctx=Store())",
+            "module/Assign:Name(id='MAX_COMMAND_BYTES', ctx=Store())",
+            "module/Assign:Name(id='MAX_RECEIPTS', ctx=Store())",
+            "module/Assign:Name(id='OWNER_SLOW_SECONDS', ctx=Store())",
+            "module/Assign:Name(id='OWNER_OPERATION_LIMIT', ctx=Store())",
+            "module/Assign:Name(id='MAINTENANCE_PERMIT_SECONDS', ctx=Store())",
+            "module/ClassDef:_MaintenanceBoundary",
+            "module/FunctionDef:owner_operation",
+            "module/AsyncFunctionDef:admit",
+            "module/FunctionDef:command_envelope",
+            "module/ClassDef:PriorityOwner",
+            "module/FunctionDef:command_priority",
+            "module/ClassDef:PendingCommands"
+          ],
+          "before": [
+            "module/docstring",
+            "module/Import:concurrent.futures",
+            "module/ImportFrom:0:collections",
+            "module/Import:heapq",
+            "module/Import:os",
+            "module/Import:re",
+            "module/Import:threading",
+            "module/Import:time",
+            "module/ImportFrom:0:time",
+            "module/Import:sqlite3",
+            "module/ImportFrom:1:solana_evidence_plane",
+            "module/Assign:Name(id='COMMAND_SECONDS', ctx=Store())",
+            "module/Assign:Name(id='ATTEMPT_SECONDS', ctx=Store())",
+            "module/Assign:Name(id='MAX_COMMAND_BYTES', ctx=Store())",
+            "module/Assign:Name(id='MAX_RECEIPTS', ctx=Store())",
+            "module/Assign:Name(id='OWNER_SLOW_SECONDS', ctx=Store())",
+            "module/Assign:Name(id='OWNER_OPERATION_LIMIT', ctx=Store())",
+            "module/FunctionDef:owner_operation",
+            "module/AsyncFunctionDef:admit",
+            "module/FunctionDef:command_envelope",
+            "module/ClassDef:PriorityOwner",
+            "module/FunctionDef:command_priority",
+            "module/ClassDef:PendingCommands"
+          ]
+        },
+        "module/ClassDef:PriorityOwner": {
+          "after": [
+            "module/ClassDef:PriorityOwner/FunctionDef:__init__",
+            "module/ClassDef:PriorityOwner/FunctionDef:submit",
+            "module/ClassDef:PriorityOwner/FunctionDef:request_maintenance_boundary",
+            "module/ClassDef:PriorityOwner/FunctionDef:_release_maintenance_locked",
+            "module/ClassDef:PriorityOwner/FunctionDef:cancel_maintenance_boundary",
+            "module/ClassDef:PriorityOwner/FunctionDef:submit_maintenance",
+            "module/ClassDef:PriorityOwner/FunctionDef:_next_work",
+            "module/ClassDef:PriorityOwner/FunctionDef:_run",
+            "module/ClassDef:PriorityOwner/FunctionDef:checkpoint_ticket",
+            "module/ClassDef:PriorityOwner/FunctionDef:checkpoint_ticket_after_current",
+            "module/ClassDef:PriorityOwner/FunctionDef:checkpoint_current",
+            "module/ClassDef:PriorityOwner/FunctionDef:checkpoint_handoff_after_current",
+            "module/ClassDef:PriorityOwner/FunctionDef:release_checkpoint_handoff",
+            "module/ClassDef:PriorityOwner/FunctionDef:telemetry",
+            "module/ClassDef:PriorityOwner/FunctionDef:close"
+          ],
+          "before": [
+            "module/ClassDef:PriorityOwner/FunctionDef:__init__",
+            "module/ClassDef:PriorityOwner/FunctionDef:submit",
+            "module/ClassDef:PriorityOwner/FunctionDef:_run",
+            "module/ClassDef:PriorityOwner/FunctionDef:checkpoint_ticket",
+            "module/ClassDef:PriorityOwner/FunctionDef:checkpoint_ticket_after_current",
+            "module/ClassDef:PriorityOwner/FunctionDef:checkpoint_current",
+            "module/ClassDef:PriorityOwner/FunctionDef:checkpoint_handoff_after_current",
+            "module/ClassDef:PriorityOwner/FunctionDef:release_checkpoint_handoff",
+            "module/ClassDef:PriorityOwner/FunctionDef:telemetry",
+            "module/ClassDef:PriorityOwner/FunctionDef:close"
+          ]
+        },
+        "module/ClassDef:_MaintenanceBoundary": {
+          "after": [
+            "module/ClassDef:_MaintenanceBoundary/docstring",
+            "module/ClassDef:_MaintenanceBoundary/FunctionDef:__init__"
+          ],
+          "before": null
+        }
+      },
+      "nodes": {
+        "module/Assign:Name(id='MAINTENANCE_PERMIT_SECONDS', ctx=Store())": {
+          "after": "9139e192da71dc40e63fc79674dc505e14c69582d3bf64bf3535ada6ca406ddf",
+          "before": null
+        },
+        "module/ClassDef:PriorityOwner/FunctionDef:__init__": {
+          "after": "7c42b0d3d928797c603da974e5f2f0ce4809404d414db53273018950ed24d645",
+          "before": "232af1e8ba43b6d88896db2f1dd3325fb39e64cb29ce3032b3b728b05c2cdccb"
+        },
+        "module/ClassDef:PriorityOwner/FunctionDef:_next_work": {
+          "after": "a0e5e1ea22608c465bd9b4ecae0d76caacb32aff43ea677a6c6e208f385e59be",
+          "before": null
+        },
+        "module/ClassDef:PriorityOwner/FunctionDef:_release_maintenance_locked": {
+          "after": "64f88064fea0c786a6edb0d2ff7275810a4d1019a238b4feed66e0c35e083334",
+          "before": null
+        },
+        "module/ClassDef:PriorityOwner/FunctionDef:_run": {
+          "after": "03e9473cde967c20c67ef6e02877d56378f95d83dc6ff6b0424b7305a7b8620c",
+          "before": "c2c421673ee4d0c96c3ee6efd0d1493ab2a14e81324887e3bbcdf3bef91160b5"
+        },
+        "module/ClassDef:PriorityOwner/FunctionDef:cancel_maintenance_boundary": {
+          "after": "e5bf89125989fea3977400ef3665372811d54492500a87af1cb1fbf558a5ff53",
+          "before": null
+        },
+        "module/ClassDef:PriorityOwner/FunctionDef:checkpoint_handoff_after_current": {
+          "after": "f97fa9a6dca901c71135c009f48d5ab29d350994bf98580d62291dfed7cf8aa8",
+          "before": "50913f4a17a7738dd5eb9101e2d85a2eb0da006016347547989384bdedeb909f"
+        },
+        "module/ClassDef:PriorityOwner/FunctionDef:checkpoint_ticket": {
+          "after": "5cd146bb2e06bd1da453397d0deb949fc8c698497f7d6d004abbacbe2bd4dffa",
+          "before": "53288b3519a7458c2ba7eb168278541ed37015a56b21695ae52d358cabcfb93d"
+        },
+        "module/ClassDef:PriorityOwner/FunctionDef:close": {
+          "after": "96dc31621807fdb86b89e27cab33a2e5520a4f641f2cc193da497f61b9edbb9f",
+          "before": "35a98a78c71d1cbaec767040afc9c049c296bfb8f0fe7953ddd925ae529a62a8"
+        },
+        "module/ClassDef:PriorityOwner/FunctionDef:request_maintenance_boundary": {
+          "after": "3e90e5ee9a912d4c4bfc7150e5a33710ed28baac92b4de0a9a6a25fafae72c4a",
+          "before": null
+        },
+        "module/ClassDef:PriorityOwner/FunctionDef:submit": {
+          "after": "83371c051ae12adfd98cbb1dfaa3d87302fc95669580b41f5d770966ab20a36b",
+          "before": "0d981bbabba311fb8124dc092eb2c0ac5f63a39b02d7e1e2ed5ea2726bf5f1cd"
+        },
+        "module/ClassDef:PriorityOwner/FunctionDef:submit_maintenance": {
+          "after": "d92d4a4d48a08f6cf6173608066235dabc7a7ca4652cc17ac5eb634f587fa9d5",
+          "before": null
+        },
+        "module/ClassDef:_MaintenanceBoundary": {
+          "after": "a544bac6a2b510e4cd2a257d09d66f3b13f2fc032193d01833dbc82e5493dfe3",
+          "before": null
+        },
+        "module/ClassDef:_MaintenanceBoundary/FunctionDef:__init__": {
+          "after": "5c1f80e913f3f97b9881e1ce0937c6ff6a744fbb4b0dc4d9f77ad370b9d7d8f1",
+          "before": null
+        },
+        "module/ClassDef:_MaintenanceBoundary/docstring": {
+          "after": "949c36808be29f1c7196e5d875c66fa4a7ff6fb6af077ba3c8cfbdc1ff991975",
+          "before": null
+        },
+        "module/Import:math": {
+          "after": "f329650e2c61a07a1bab85b32296a6d93760e313e108904819fa27d09cf3954d",
+          "before": null
+        }
+      }
+    },
+    "meme_machine/solana_evidence_service.py": {
+      "after_bytes": 85144,
+      "after_sha256": "2644baf4b6396608bde735e29d00adc22e5a67a39a4eb94c22d2bdc998ce1f84",
+      "before_bytes": 84154,
+      "before_sha256": "b1f0e8d9aaa5db37e73ea544be47725f04f7b97f6e6ad12613c8012770bc5e72",
+      "changes": [
+        {
+          "after": "    from .solana_evidence_plane import EvidenceWriter\n    from .solana_evidence_control import PriorityOwner,PendingCommands,MAX_COMMAND_BYTES,admit\n    config=AlchemyEndpoint.parse(endpoint)\n    import logging\n    logger=logging.Logger('alchemy_evidence_transport');logger.addHandler(logging.NullHandler());logger.propagate=False\n    owner=PriorityOwner(lambda:ServiceState(path,config),clock=time.monotonic)\n    pending_commands=PendingCommands(owner)\n    await asyncio.wrap_future(owner.ready)\n    decoder_pool=ProcessPoolExecutor(max_workers=STREAM_DECODE_WORKERS,mp_context=multiprocessing.get_context('spawn'))\n    await asyncio.gather(*(asyncio.wrap_future(decoder_pool.submit(source_decoder_probe))\n                           for _ in range(STREAM_DECODE_WORKERS)))\n",
+          "before": "    from .solana_evidence_plane import EvidenceWriter\n    from .solana_evidence_control import PriorityOwner,PendingCommands,MAX_COMMAND_BYTES,admit\n    config=AlchemyEndpoint.parse(endpoint)\n    import logging\n    logger=logging.Logger('alchemy_evidence_transport');logger.addHandler(logging.NullHandler());logger.propagate=False\n    owner=PriorityOwner(lambda:ServiceState(path,config))\n    pending_commands=PendingCommands(owner)\n    await asyncio.wrap_future(owner.ready)\n    decoder_pool=ProcessPoolExecutor(max_workers=STREAM_DECODE_WORKERS,mp_context=multiprocessing.get_context('spawn'))\n    await asyncio.gather(*(asyncio.wrap_future(decoder_pool.submit(source_decoder_probe))\n                           for _ in range(STREAM_DECODE_WORKERS)))\n"
+        },
+        {
+          "after": "    counts={}\n    def counter_snapshot():\n        # Owner completion updates and event-loop snapshots share its existing\n        # lock. Other counter keys remain event-loop-owned and never await here.\n        with owner.cv:return dict(counts)\n    async def work(fn,priority=1,*,label=None,component=None,accepted=None,admit_before=None,maintenance_ticket=None):\n        if label not in (None,'source_commit','candidate_development','archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish','maintenance_decision','history_dispatch','history_apply','candidate_delivery_capture','candidate_delivery_ack'):\n            raise EvidenceUnavailable('owner_stage_identity')\n        if component not in (None,'control','candidate','scout','history_publication','delivery_accounting'):\n            raise EvidenceUnavailable('owner_component_identity')\n        submitted=time.monotonic()\n",
+          "before": "    counts={}\n    def counter_snapshot():\n        # Owner completion updates and event-loop snapshots share its existing\n        # lock. Other counter keys remain event-loop-owned and never await here.\n        with owner.cv:return dict(counts)\n    async def work(fn,priority=1,*,label=None,component=None,accepted=None,admit_before=None):\n        if label not in (None,'source_commit','candidate_development','archive_plan','archive_commit_plan','retention','maintenance_health','health_ipc','health_scheduler','checkpoint_prepare','checkpoint_finish','maintenance_decision','history_dispatch','history_apply','candidate_delivery_capture','candidate_delivery_ack'):\n            raise EvidenceUnavailable('owner_stage_identity')\n        if component not in (None,'control','candidate','scout','history_publication','delivery_accounting'):\n            raise EvidenceUnavailable('owner_component_identity')\n        submitted=time.monotonic()\n"
+        },
+        {
+          "after": "        if admit_before is not None:submit_options['admit_before']=admit_before\n        # Every producer keeps its one bounded outstanding command until the\n        # owner can admit it. Rejection happens before mutation; a retry submits\n        # the same command once, preserving its immutable evidence/deadline.\n        # Admission offers retain their separate expiry/recheck semantics.\n        future=(owner.submit_maintenance(timed,maintenance_ticket) if maintenance_ticket is not None\n                else await admit(owner,timed,**submit_options))\n        if accepted is not None:accepted(future)\n        wrapped=asyncio.wrap_future(future)\n        try:value,_,_=await asyncio.shield(wrapped)\n        except asyncio.CancelledError:\n            # Accepted owner work outlives a cancelled maintenance waiter. Its\n",
+          "before": "        if admit_before is not None:submit_options['admit_before']=admit_before\n        # Every producer keeps its one bounded outstanding command until the\n        # owner can admit it. Rejection happens before mutation; a retry submits\n        # the same command once, preserving its immutable evidence/deadline.\n        # Admission offers retain their separate expiry/recheck semantics.\n        future=await admit(owner,timed,**submit_options)\n        if accepted is not None:accepted(future)\n        wrapped=asyncio.wrap_future(future)\n        try:value,_,_=await asyncio.shield(wrapped)\n        except asyncio.CancelledError:\n            # Accepted owner work outlives a cancelled maintenance waiter. Its\n"
+        },
+        {
+          "after": "            admission.generation=runtime.generation\n            flight=ArchiveFlight()\n            while not stop.is_set():\n                offer=await admission.before_maintenance()\n                if stop.is_set():break\n                ticket=None\n                try:\n                    deadline=runtime.admission_deadline()\n                    if offer is not None:deadline=min(deadline,offer.row['deadline'])\n                    ticket=await admission.boundary(deadline,stop)\n                    if ticket is None or stop.is_set():break\n                    # Only now does the real native command exist. Its truthful\n                    # acceptance clock follows all older FIFO work; waiting for\n                    # a scheduling marker is never a renewed command lease.\n                    submitted=time.monotonic()\n                    def turn(state):\n                        # Refuse an expired queued command before native arbitration.\n                        # FIFO, debt deadlines and the owner lease stay unchanged.\n                        entered=time.monotonic()\n                        if entered-submitted>runtime.leases.owner:\n",
+          "before": "            admission.generation=runtime.generation\n            flight=ArchiveFlight()\n            while not stop.is_set():\n                offer=await admission.before_maintenance()\n                if stop.is_set():break\n                submitted=time.monotonic()\n                try:\n                    def turn(state):\n                        # Refuse an expired queued command before native arbitration.\n                        # FIFO, debt deadlines and the owner lease stay unchanged.\n                        entered=time.monotonic()\n                        if entered-submitted>runtime.leases.owner:\n"
+        },
+        {
+          "after": "                        else:\n                            admission.completed(offer,result=result,event=runtime.ring[-1])\n                            return result\n                    result=await work(turn,4,label='maintenance_decision',\n                        accepted=lambda future:admission.accepted(future,offer),\n                        admit_before=offer.row['deadline'] if offer is not None else None,\n                        maintenance_ticket=ticket)\n                    admission.publish(runtime.generation,result)\n                    if result.get('cold_recovery_required'):\n                        await recover(work,decoder_pool,path,stop,wall=runtime.wall,\n                            monotonic=runtime.monotonic,force=True,flight=flight,\n                            on_complete=lambda state,observation:runtime.cold_completed(observation,flight),clock=runtime.clock,\n",
+          "before": "                        else:\n                            admission.completed(offer,result=result,event=runtime.ring[-1])\n                            return result\n                    result=await work(turn,4,label='maintenance_decision',\n                        accepted=lambda future:admission.accepted(future,offer),\n                        admit_before=offer.row['deadline'] if offer is not None else None)\n                    admission.publish(runtime.generation,result)\n                    if result.get('cold_recovery_required'):\n                        await recover(work,decoder_pool,path,stop,wall=runtime.wall,\n                            monotonic=runtime.monotonic,force=True,flight=flight,\n                            on_complete=lambda state,observation:runtime.cold_completed(observation,flight),clock=runtime.clock,\n"
+        },
+        {
+          "after": "                    if result['side'] is not None:\n                        await asyncio.sleep(0)\n                        continue\n                except EvidenceUnavailable as exc:\n                    admission.refused(offer,exc)\n                    if str(exc) in ('evidence_admission_offer_expired','evidence_admission_offer_unavailable','evidence_command_expired',\n                            'maintenance_boundary_expired','maintenance_boundary_unavailable','maintenance_boundary_urgent_invalidated'):\n                        await asyncio.sleep(0)\n                        continue\n                    if str(exc)!='evidence_background_yield':\n                        admission.failed=True\n                        admission.generation_invalid='generation' in str(exc)\n",
+          "before": "                    if result['side'] is not None:\n                        await asyncio.sleep(0)\n                        continue\n                except EvidenceUnavailable as exc:\n                    admission.refused(offer,exc)\n                    if str(exc) in ('evidence_admission_offer_expired','evidence_admission_offer_unavailable','evidence_command_expired'):\n                        await asyncio.sleep(0)\n                        continue\n                    if str(exc)!='evidence_background_yield':\n                        admission.failed=True\n                        admission.generation_invalid='generation' in str(exc)\n"
+        },
+        {
+          "after": "                    await asyncio.sleep(0)\n                    continue\n                except BaseException as exc:\n                    admission.refused(offer,exc);admission.failed=True;admission.recheck()\n                    raise\n                finally:\n                    if ticket is not None:owner.cancel_maintenance_boundary(ticket)\n                await admission.idle(stop,flight.future)\n\n        async def checkpoint():\n            # One outstanding disk flush, with no pending-work queue. Retention\n            # and source commits must not wait behind a slow PASSIVE page copy.\n",
+          "before": "                    await asyncio.sleep(0)\n                    continue\n                except BaseException as exc:\n                    admission.refused(offer,exc);admission.failed=True;admission.recheck()\n                    raise\n                await admission.idle(stop,flight.future)\n\n        async def checkpoint():\n            # One outstanding disk flush, with no pending-work queue. Retention\n            # and source commits must not wait behind a slow PASSIVE page copy.\n"
+        }
+      ],
+      "layouts": {},
+      "nodes": {
+        "module/AsyncFunctionDef:serve": {
+          "after": "2be3bdfdf4369578546b573d34986a8ea4e587a6cc69f3b6b6d246eefadb36f6",
+          "before": "093e24bb1dad757e1d63927754f2423117e2f42128f1f16508160e6d13c87042"
+        }
+      }
+    },
+    "meme_machine/solana_maintenance_runtime.py": {
+      "after_bytes": 36531,
+      "after_sha256": "4c1eb3df7e275fe9df1e8716d1a4eff399f21571b66a995a8f4fa0dcb9477091",
+      "before_bytes": 35426,
+      "before_sha256": "3c9fbb12f6e5b0a53a73fc014c70a0b68ba836feb8b8c17f810bba9e384f24ff",
+      "changes": [
+        {
+          "after": "        self.demand_since = {}\n        self.nonrecord_since = {}\n        self.failure = None\n        self.last_observation = None\n        self.last_progress = {}\n        self._next_admission = None\n        self.observation_total = 0.0\n        self.execution_total = 0.0\n        self.epoch = now\n        self._load()\n        self._publish()\n",
+          "before": "        self.demand_since = {}\n        self.nonrecord_since = {}\n        self.failure = None\n        self.last_observation = None\n        self.last_progress = {}\n        self.observation_total = 0.0\n        self.execution_total = 0.0\n        self.epoch = now\n        self._load()\n        self._publish()\n"
+        },
+        {
+          "after": "            # Housekeeping or floor progress cannot renew a successful record\n            # service drought while record retirement is actually needed.\n            progress[scope]=dr if scope in record_required else du\n        return progress,records\n\n    def _admission_bound(self, observation):\n        \"\"\"Bound only the next observation opportunity, never native service.\n\n        The last actual owner observation starts a fixed transport window (30s\n        under the original leases). Its bound survives unspent permit retries.\n        It grants no debt/progress/cohort claim: the newly accepted real turn\n        must freshly enforce every earlier safety, recovery and drought cutoff.\n        No aggregate progress count is treated as proof a cohort was cleared.\n        \"\"\"\n        self._next_admission=(observation.monotonic+\n            min(2*self.leases.pair,self.leases.drought))\n\n    def admission_deadline(self):\n        deadline=self._next_admission\n        if (self.failure or self.state.fence.session!=self.generation or\n                type(deadline) not in (int,float) or not math.isfinite(deadline)):\n            raise EvidenceUnavailable('maintenance_admission_bound_unavailable')\n        return deadline\n\n    def _cooperative(self, exc):\n        # The owner flag records a prior interrupt, not the cause of every later\n        # SQLite error. Require the actual interrupt result as well.\n        if isinstance(exc, EvidenceUnavailable):\n            return str(exc) == 'evidence_background_yield'\n",
+          "before": "            # Housekeeping or floor progress cannot renew a successful record\n            # service drought while record retirement is actually needed.\n            progress[scope]=dr if scope in record_required else du\n        return progress,records\n\n    def _cooperative(self, exc):\n        # The owner flag records a prior interrupt, not the cause of every later\n        # SQLite error. Require the actual interrupt result as well.\n        if isinstance(exc, EvidenceUnavailable):\n            return str(exc) == 'evidence_background_yield'\n"
+        },
+        {
+          "after": "                    raise EvidenceUnavailable('maintenance_progress_clock_invalid')\n                self.arbiter.origin[key]=max(self.arbiter.origin.get(key,credited),credited)\n        self.cold_progress_before={}\n        for need in needs:\n            if not need.units:self.arbiter.origin.pop((need.side,need.scope),None)\n        self._admission_bound(observation)\n        # The next ordinary turn owns admission of remaining young work. Do\n        # not reserve a decision here and strand it without its native execution.\n\n\n    @measured('owner.maintenance')\n",
+          "before": "                    raise EvidenceUnavailable('maintenance_progress_clock_invalid')\n                self.arbiter.origin[key]=max(self.arbiter.origin.get(key,credited),credited)\n        self.cold_progress_before={}\n        for need in needs:\n            if not need.units:self.arbiter.origin.pop((need.side,need.scope),None)\n        # The next ordinary turn owns admission of remaining young work. Do\n        # not reserve a decision here and strand it without its native execution.\n\n\n    @measured('owner.maintenance')\n"
+        },
+        {
+          "after": "                    if not flight.pending[0]:flight.pending=None\n                elif current-flight.submitted>=self.leases.worker:\n                    raise EvidenceUnavailable('maintenance_archive_worker_lease_exceeded')\n            with self.execution_lease(start+self.leases.execution):\n                observation=self.adapter.observe(self.generation)\n                self._admission_bound(observation)\n                self.observation_total += observation.elapsed\n                previous=self.last_observation\n                self.last_observation=observation\n                if self._newly_eligible_old_evidence(observation,previous):\n                    self.cold_progress_before={(r[1],r[0]):(r[3],r[5]) for r in observation.recent_progress}\n",
+          "before": "                    if not flight.pending[0]:flight.pending=None\n                elif current-flight.submitted>=self.leases.worker:\n                    raise EvidenceUnavailable('maintenance_archive_worker_lease_exceeded')\n            with self.execution_lease(start+self.leases.execution):\n                observation=self.adapter.observe(self.generation)\n                self.observation_total += observation.elapsed\n                previous=self.last_observation\n                self.last_observation=observation\n                if self._newly_eligible_old_evidence(observation,previous):\n                    self.cold_progress_before={(r[1],r[0]):(r[3],r[5]) for r in observation.recent_progress}\n"
+        }
+      ],
+      "layouts": {
+        "module/ClassDef:MaintenanceRuntime": {
+          "after": [
+            "module/ClassDef:MaintenanceRuntime/docstring",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:__init__",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_load",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_publish",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_record",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_episode",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_nonrecord_service_origin",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_resolve_nonrecord",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_demands",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:execution_lease",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_native_progress",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_admission_bound",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:admission_deadline",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_cooperative",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_complete_decision",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_housekeeping_first",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_newly_eligible_old_evidence",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:cold_record_required",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:cold_nonrecord_required",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:cold_completed",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:turn"
+          ],
+          "before": [
+            "module/ClassDef:MaintenanceRuntime/docstring",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:__init__",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_load",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_publish",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_record",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_episode",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_nonrecord_service_origin",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_resolve_nonrecord",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_demands",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:execution_lease",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_native_progress",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_cooperative",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_complete_decision",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_housekeeping_first",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:_newly_eligible_old_evidence",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:cold_record_required",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:cold_nonrecord_required",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:cold_completed",
+            "module/ClassDef:MaintenanceRuntime/FunctionDef:turn"
+          ]
+        }
+      },
+      "nodes": {
+        "module/ClassDef:MaintenanceRuntime/FunctionDef:__init__": {
+          "after": "42e74dfea4c171aa2286648f41d2a9a332ffa1308783c23112fb5491d5a2a3b1",
+          "before": "f9223b9d8684ea33b6211b400ad5bf9321d5555a5c490047f452c4183c34d7c5"
+        },
+        "module/ClassDef:MaintenanceRuntime/FunctionDef:_admission_bound": {
+          "after": "146c5902e5c3657d7afbdb73b6bc9c2aef019601e026c89a1fd005acfcff4f9c",
+          "before": null
+        },
+        "module/ClassDef:MaintenanceRuntime/FunctionDef:admission_deadline": {
+          "after": "09ca1c7223b7020d4a5f94cf8020307571283d9e664a4ed7f265d6138163fc7e",
+          "before": null
+        },
+        "module/ClassDef:MaintenanceRuntime/FunctionDef:cold_completed": {
+          "after": "e0d2dfe6b72591c00bbc908d34a0071546ab54aef74d671d5628c3a571b2d749",
+          "before": "0b75a5a20725f989bb61dc217b8815b8b0d2e9866a45ff952f84eb63593ebafa"
+        },
+        "module/ClassDef:MaintenanceRuntime/FunctionDef:turn": {
+          "after": "c24db517e3b280f0a5f54fb7923da366d76ab2d4ce32348b6a85658432ccb20f",
+          "before": "b1b07566f11a8c6707e82d52b4b235331621724bb5b64371fd210d3a148328d5"
+        }
+      }
+    },
+    "meme_machine/solana_maintenance_state.py": {
+      "after_bytes": 41323,
+      "after_sha256": "296061b701f0fe0be5085c8066c3d97584792a6b87592137748de73ce28693fc",
+      "before_bytes": 40921,
+      "before_sha256": "ff969a5af937e6228c1458e3d5e383eb2e1fef486caade0437020c0af13c675e",
+      "changes": [
+        {
+          "after": "        descending='slot DESC,signature DESC' if signature else 'slot DESC'\n        horizon=writer.db.execute('SELECT '+columns+' FROM '+table+' WHERE '+base+' ORDER BY '+descending+' LIMIT 1',args).fetchone()\n    if horizon is None:return [],(key,None),False,resumed\n    compare='('+columns+')' if signature else columns\n    markers='('+','.join('?' for _ in range(width))+')' if signature else '?'\n    # Use one effective lower bound. With both slot>=lower and key>after,\n    # SQLite can seek the weaker slot bound and rewalk protected prefix keys.\n    # A complete cursor at/above lower implies that slot bound; a cursor below\n    # lower is itself implied. Keep the current upper and fixed horizon intact.\n    if after is not None and after[0]>=lower:\n        where='scope=? AND '+compare+'>'+markers+' AND slot<?'\n        values=(scope,*after,upper)\n    else:\n        where=base;values=args\n    where+=' AND '+compare+'<='+markers\n    values=(*values,*horizon)\n    rows=writer.db.execute('SELECT rowid,'+columns+' FROM '+table+' WHERE '+where+\n        ' ORDER BY '+order+' LIMIT ?',(*values,limit+1)).fetchall()\n    page=rows[:limit];more=len(rows)>limit\n    # One bounded validation statement, not one SQL round trip per receipt or\n    # signature. The IN set is already a fixed key page before filtering.\n",
+          "before": "        descending='slot DESC,signature DESC' if signature else 'slot DESC'\n        horizon=writer.db.execute('SELECT '+columns+' FROM '+table+' WHERE '+base+' ORDER BY '+descending+' LIMIT 1',args).fetchone()\n    if horizon is None:return [],(key,None),False,resumed\n    compare='('+columns+')' if signature else columns\n    markers='('+','.join('?' for _ in range(width))+')' if signature else '?'\n    where=base+' AND '+compare+'<='+markers\n    values=(*args,*horizon)\n    if after is not None:\n        where+=' AND '+compare+'>'+markers;values=(*values,*after)\n    rows=writer.db.execute('SELECT rowid,'+columns+' FROM '+table+' WHERE '+where+\n        ' ORDER BY '+order+' LIMIT ?',(*values,limit+1)).fetchall()\n    page=rows[:limit];more=len(rows)>limit\n    # One bounded validation statement, not one SQL round trip per receipt or\n    # signature. The IN set is already a fixed key page before filtering.\n"
+        }
+      ],
+      "layouts": {},
+      "nodes": {
+        "module/FunctionDef:continuity_retirement_page": {
+          "after": "297ff0e80464f569cae5f992217ea3b49718c3217263e1e4fc93c0e0d1ef8e48",
+          "before": "3f26d0fd820109462bbc72642a437d12d203f60e60248b2a09f434eab2791779"
+        }
+      }
+    },
+    "meme_machine/solana_owner_admission.py": {
+      "after_bytes": 15676,
+      "after_sha256": "18f969c499e07902ec40a6902d5e07d56d5b3fe21e16a894ea99d6b92798722f",
+      "before_bytes": 12034,
+      "before_sha256": "183c900e1ec2e5f19243bc5c14e7ca289a8e028ad5f1a5020d4ee330fc415530",
+      "changes": [
+        {
+          "after": "                    offer.row['maintenance_submit'] = self.clock()\n                    return offer\n            await offer.released.wait()\n        return None\n\n    async def boundary(self, deadline, stop):\n        \"\"\"Wait for one real FIFO boundary, without accepting a native turn.\"\"\"\n        ticket=None;returned=False;wrapped=None;refusals=0\n        try:\n            while not stop.is_set():\n                if self.clock()>=deadline:\n                    self.counters['boundary_deadline_exhausted']+=1\n                    raise EvidenceUnavailable('maintenance_boundary_deadline')\n                try:ticket=self.owner.request_maintenance_boundary(deadline=deadline)\n                except EvidenceUnavailable as exc:\n                    if str(exc)=='maintenance_boundary_outstanding':\n                        # A real Future becomes terminal before the owner's\n                        # original finally releases its slot. Wait for exactly\n                        # our completed predecessor; never replace its owner.\n                        with self.owner.cv:\n                            prior=self.owner._maintenance_ticket\n                            finishing=(self.maintenance_future is not None\n                                and self.maintenance_future.done() and\n                                (prior is None or prior.state=='ACCEPTED'\n                                    and prior.command_future is self.maintenance_future))\n                        if not finishing:raise\n                    elif str(exc)!='evidence_control_overloaded':raise\n                    refusals+=1\n                    # Match the existing bounded producer backpressure instead\n                    # of spinning while the same full owner queue drains.\n                    pause=min(.2,.01*2**min(refusals-1,5),max(0,deadline-self.clock()))\n                    try:await asyncio.wait_for(stop.wait(),pause)\n                    except TimeoutError:pass\n                    continue\n                wrapped=asyncio.wrap_future(ticket.ready)\n                stopped=asyncio.create_task(stop.wait())\n                try:\n                    done,_=await asyncio.wait((wrapped,stopped),\n                        timeout=max(0,deadline-self.clock()),return_when=asyncio.FIRST_COMPLETED)\n                    if stop.is_set():return None\n                    if wrapped not in done:\n                        self.counters['boundary_deadline_exhausted']+=1\n                        raise EvidenceUnavailable('maintenance_boundary_deadline')\n                    wrapped.result()\n                finally:\n                    stopped.cancel()\n                    await asyncio.gather(stopped,return_exceptions=True)\n                if stop.is_set():return None\n                returned=True\n                return ticket\n            return None\n        finally:\n            if ticket is not None and not returned:\n                self.owner.cancel_maintenance_boundary(ticket)\n                # Never cancel an accepted concurrent future through its asyncio\n                # wrapper. Consume the eventual owned marker outcome instead.\n                if wrapped is not None:\n                    wrapped.add_done_callback(lambda f:f.exception() if not f.cancelled() else None)\n\n    def accepted(self, future, offer=None):\n        self.maintenance_future = future\n        if offer is None:\n            return\n        # submit() itself checked the absolute deadline under owner.cv, before\n",
+          "before": "                    offer.row['maintenance_submit'] = self.clock()\n                    return offer\n            await offer.released.wait()\n        return None\n\n    def accepted(self, future, offer=None):\n        self.maintenance_future = future\n        if offer is None:\n            return\n        # submit() itself checked the absolute deadline under owner.cv, before\n"
+        },
+        {
+          "after": "        if 'owner_entry' in offer.row:\n            offer.row['owner_queue_wait']=offer.row['owner_entry']-at\n        self._finish(offer, 'accepted')\n\n    def refused(self, offer, error):\n        reason=str(error)\n        key=('expired_before_native' if reason=='evidence_command_expired' else\n             'boundary_refused' if reason in ('maintenance_boundary_expired',\n                 'maintenance_boundary_unavailable','maintenance_boundary_urgent_invalidated') else\n             'cooperative_yield' if reason=='evidence_background_yield' else 'native_or_admission_failed')\n        self.counters[key]+=1\n        if offer is not None:\n            offer.row['admission_error'] = str(error)[:120]\n            self._finish(offer, 'timeout' if str(error) == 'evidence_admission_offer_expired' else 'refused')\n\n    def entry(self, offer):\n        self.counters['native_entered']+=1\n        if offer is not None:\n            at = self.clock()\n            offer.row['owner_entry']=at\n            if 'owner_acceptance' in offer.row:\n                offer.row['owner_queue_wait']=at-offer.row['owner_acceptance']\n\n    def completed(self, offer, *, result=None, error=None, event=None):\n        self.counters['native_completed' if error is None else 'native_failed']+=1\n        if offer is not None:\n            offer.row.update(completion=self.clock(), maintenance_result=(\n                str(error)[:120] if error is not None else\n                'decision' if result and result.get('side') else 'no_decision'))\n            offer.row.update(selected_side=None,durable_progress={},durable_records={})\n",
+          "before": "        if 'owner_entry' in offer.row:\n            offer.row['owner_queue_wait']=offer.row['owner_entry']-at\n        self._finish(offer, 'accepted')\n\n    def refused(self, offer, error):\n        if offer is not None:\n            offer.row['admission_error'] = str(error)[:120]\n            self._finish(offer, 'timeout' if str(error) == 'evidence_admission_offer_expired' else 'refused')\n\n    def entry(self, offer):\n        if offer is not None:\n            at = self.clock()\n            offer.row['owner_entry']=at\n            if 'owner_acceptance' in offer.row:\n                offer.row['owner_queue_wait']=at-offer.row['owner_acceptance']\n\n    def completed(self, offer, *, result=None, error=None, event=None):\n        if offer is not None:\n            offer.row.update(completion=self.clock(), maintenance_result=(\n                str(error)[:120] if error is not None else\n                'decision' if result and result.get('side') else 'no_decision'))\n            offer.row.update(selected_side=None,durable_progress={},durable_records={})\n"
+        }
+      ],
+      "layouts": {
+        "module/ClassDef:OwnerAdmission": {
+          "after": [
+            "module/ClassDef:OwnerAdmission/FunctionDef:__init__",
+            "module/ClassDef:OwnerAdmission/FunctionDef:publish",
+            "module/ClassDef:OwnerAdmission/FunctionDef:_reason",
+            "module/ClassDef:OwnerAdmission/FunctionDef:recheck",
+            "module/ClassDef:OwnerAdmission/FunctionDef:_finish",
+            "module/ClassDef:OwnerAdmission/FunctionDef:expire",
+            "module/ClassDef:OwnerAdmission/AsyncFunctionDef:rendezvous",
+            "module/ClassDef:OwnerAdmission/AsyncFunctionDef:before_maintenance",
+            "module/ClassDef:OwnerAdmission/AsyncFunctionDef:boundary",
+            "module/ClassDef:OwnerAdmission/FunctionDef:accepted",
+            "module/ClassDef:OwnerAdmission/FunctionDef:refused",
+            "module/ClassDef:OwnerAdmission/FunctionDef:entry",
+            "module/ClassDef:OwnerAdmission/FunctionDef:completed",
+            "module/ClassDef:OwnerAdmission/FunctionDef:source_accepted",
+            "module/ClassDef:OwnerAdmission/FunctionDef:_release",
+            "module/ClassDef:OwnerAdmission/FunctionDef:abort",
+            "module/ClassDef:OwnerAdmission/FunctionDef:close",
+            "module/ClassDef:OwnerAdmission/AsyncFunctionDef:idle",
+            "module/ClassDef:OwnerAdmission/FunctionDef:telemetry"
+          ],
+          "before": [
+            "module/ClassDef:OwnerAdmission/FunctionDef:__init__",
+            "module/ClassDef:OwnerAdmission/FunctionDef:publish",
+            "module/ClassDef:OwnerAdmission/FunctionDef:_reason",
+            "module/ClassDef:OwnerAdmission/FunctionDef:recheck",
+            "module/ClassDef:OwnerAdmission/FunctionDef:_finish",
+            "module/ClassDef:OwnerAdmission/FunctionDef:expire",
+            "module/ClassDef:OwnerAdmission/AsyncFunctionDef:rendezvous",
+            "module/ClassDef:OwnerAdmission/AsyncFunctionDef:before_maintenance",
+            "module/ClassDef:OwnerAdmission/FunctionDef:accepted",
+            "module/ClassDef:OwnerAdmission/FunctionDef:refused",
+            "module/ClassDef:OwnerAdmission/FunctionDef:entry",
+            "module/ClassDef:OwnerAdmission/FunctionDef:completed",
+            "module/ClassDef:OwnerAdmission/FunctionDef:source_accepted",
+            "module/ClassDef:OwnerAdmission/FunctionDef:_release",
+            "module/ClassDef:OwnerAdmission/FunctionDef:abort",
+            "module/ClassDef:OwnerAdmission/FunctionDef:close",
+            "module/ClassDef:OwnerAdmission/AsyncFunctionDef:idle",
+            "module/ClassDef:OwnerAdmission/FunctionDef:telemetry"
+          ]
+        }
+      },
+      "nodes": {
+        "module/ClassDef:OwnerAdmission/AsyncFunctionDef:boundary": {
+          "after": "8d68b8c98db8990e2959f2cd3532385bd62e3eb723f6592ab2d2e7fb58e8685e",
+          "before": null
+        },
+        "module/ClassDef:OwnerAdmission/FunctionDef:completed": {
+          "after": "96eaacfb6ec47def2f6092829ffa80aea94aa07d5e7591e9cf59a6bf7aebfe97",
+          "before": "c4c614358ba383ba9be7efe6d71665ab8aa3b6b34b97fd2459ed688b7f2d1299"
+        },
+        "module/ClassDef:OwnerAdmission/FunctionDef:entry": {
+          "after": "6d9b5494027e5e0f5e9334de3843005aa85c78706e4f92f16a2aa18e006df842",
+          "before": "d036f3795873d68280b105d4c668e2431029bc0261e7b16269b69218cac31c91"
+        },
+        "module/ClassDef:OwnerAdmission/FunctionDef:refused": {
+          "after": "7520d756f2923b69b8d4238fa1e581b4cd631300c3f4eab0fd9470d2e86a17ba",
+          "before": "c4f428a95e66c72575d9969dcf8878368fbba85312133f14b1f1fdc9b133fc2f"
         }
       }
     },
@@ -1327,6 +1850,7 @@
       }
     }
   },
+  "guard_reference": "780f4015efd9fba528e97223f8e8e3b1a7322e12",
   "guards": {
     "tests/test_pump_restore_source_guard.py": {
       "after_bytes": 10728,
@@ -1410,14 +1934,18 @@
       }
     },
     "tests/test_robinhood_usd_valuation.py": {
-      "after_bytes": 376213,
-      "after_sha256": "1d54ecf67d3d62f1364c9f799fffeaf2c647ecb6c6f14b00c146233101810e55",
+      "after_bytes": 376378,
+      "after_sha256": "39ac7f9a25626f2af399fe73dd764730ef21ce9618fca52319fa41249667e65b",
       "before_bytes": 375853,
       "before_sha256": "025ffbfc71a288edda446ce8aed0a31134e56b9e2c56df9a4d65d029a67fc5a1",
       "changes": [
         {
           "after": "                (b'not 0 <= now - sampled <= 15',b'not 0 <= now - sampled <= 30'),\n                (b\"db.execute('PRAGMA query_only=ON')\",b\"db.execute('PRAGMA query_only=OFF')\")),\n        }\n        self.assertEqual(set(mutations),set(SOURCE_RECORDER_PUBLICATION_DELTAS))\n        for relative,(_,after,_,_,_) in SOURCE_RECORDER_PUBLICATION_DELTAS.items():\n            current=pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes())\n            self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact recorder transport')\n            prior=subprocess.check_output(['git','show',SOURCE_RECORDER_PUBLICATION_REFERENCE+':'+relative],cwd=ROOT)\n            self.assertEqual(source_recorder_publication_predecessor(self,relative,current),prior)\n            self.assertEqual(source_recorder_publication_predecessor(self,relative,prior),prior)\n            if relative=='meme_machine/solana_evidence_service.py':\n",
           "before": "                (b'not 0 <= now - sampled <= 15',b'not 0 <= now - sampled <= 30'),\n                (b\"db.execute('PRAGMA query_only=ON')\",b\"db.execute('PRAGMA query_only=OFF')\")),\n        }\n        self.assertEqual(set(mutations),set(SOURCE_RECORDER_PUBLICATION_DELTAS))\n        for relative,(_,after,_,_,_) in SOURCE_RECORDER_PUBLICATION_DELTAS.items():\n            current=(ROOT/relative).read_bytes()\n            self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact recorder transport')\n            prior=subprocess.check_output(['git','show',SOURCE_RECORDER_PUBLICATION_REFERENCE+':'+relative],cwd=ROOT)\n            self.assertEqual(source_recorder_publication_predecessor(self,relative,current),prior)\n            self.assertEqual(source_recorder_publication_predecessor(self,relative,prior),prior)\n            if relative=='meme_machine/solana_evidence_service.py':\n"
+        },
+        {
+          "after": "                if relative=='meme_machine/solana_evidence_service.py':\n                    with self.assertRaises(AssertionError):maintenance_entry_clock_predecessor(self,relative,changed)\n        # Pin the one necessary old79 entry normalization independently. Every\n        # original hash, lease assertion, mutation and relative ordering survives.\n        relative='tests/test_robinhood_usd_valuation.py'\n        from tests.test_operational_candidate_source_guard import original_guard_source\n        current=original_guard_source(self,relative,(ROOT/relative).read_bytes())\n        prior=subprocess.check_output(['git','show',SOURCE_RECORDER_PUBLICATION_REFERENCE+':'+relative],cwd=ROOT)\n        def old_guard(body):\n            parent=next(n for n in ast.parse(body).body if isinstance(n,ast.ClassDef) and n.name=='RobinhoodUSDTests')\n            selected=next(n for n in parent.body if isinstance(n,ast.FunctionDef)\n                and n.name=='test_maintenance_entry_clock_preserves_exact_original_leases_and_native_guards')\n",
+          "before": "                if relative=='meme_machine/solana_evidence_service.py':\n                    with self.assertRaises(AssertionError):maintenance_entry_clock_predecessor(self,relative,changed)\n        # Pin the one necessary old79 entry normalization independently. Every\n        # original hash, lease assertion, mutation and relative ordering survives.\n        relative='tests/test_robinhood_usd_valuation.py'\n        current=(ROOT/relative).read_bytes()\n        prior=subprocess.check_output(['git','show',SOURCE_RECORDER_PUBLICATION_REFERENCE+':'+relative],cwd=ROOT)\n        def old_guard(body):\n            parent=next(n for n in ast.parse(body).body if isinstance(n,ast.ClassDef) and n.name=='RobinhoodUSDTests')\n            selected=next(n for n in parent.body if isinstance(n,ast.FunctionDef)\n                and n.name=='test_maintenance_entry_clock_preserves_exact_original_leases_and_native_guards')\n"
         },
         {
           "after": "            for changed in changes:\n                self.assertNotEqual(changed,current,relative+':negative mutation changes source')\n                with self.assertRaises(AssertionError):publication_accounting_predecessor(self,relative,changed)\n\n    def test_buffered_origin_geometry_preserves_unique_full_obligation_and_original_authority(self):\n        relative=BUFFERED_PREJOIN_SOURCE;current=pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes())\n        prior=subprocess.check_output(['git','show',BUFFERED_ORIGIN_REFERENCE+':'+relative],cwd=ROOT)\n        self.assertEqual(buffered_origin_predecessor(self,relative,current),prior)\n        self.assertEqual(buffered_origin_predecessor(self,relative,prior),prior)\n        self.assertEqual(buffered_prejoin_predecessor(self,relative,current),\n            buffered_prejoin_predecessor(self,relative,prior))\n",
@@ -1434,6 +1962,10 @@
         {
           "after": "            with self.assertRaises(AssertionError):rally_predecessor(self,relative,changed)\n            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)\n\n    def test_prejoin_observation_preserves_exact_incident_gaps_and_full_ack_authority(self):\n        import hashlib\n        relative=PREJOIN_SOURCE;current=preparation_replay_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))\n        self.assertEqual(hashlib.sha256(current).hexdigest(),PREJOIN_SOURCE_AFTER,\n            relative+':active exact prejoin-observation proof')\n        prior=subprocess.check_output(['git','show',PREJOIN_SOURCE_REFERENCE+':'+relative],cwd=ROOT)\n        self.assertEqual(hashlib.sha256(prior).hexdigest(),PREJOIN_SOURCE_BEFORE,\n            relative+':independently pinned existing economic-recovery source')\n",
           "before": "            with self.assertRaises(AssertionError):rally_predecessor(self,relative,changed)\n            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)\n\n    def test_prejoin_observation_preserves_exact_incident_gaps_and_full_ack_authority(self):\n        import hashlib\n        relative=PREJOIN_SOURCE;current=preparation_replay_predecessor(self,relative,(ROOT/relative).read_bytes())\n        self.assertEqual(hashlib.sha256(current).hexdigest(),PREJOIN_SOURCE_AFTER,\n            relative+':active exact prejoin-observation proof')\n        prior=subprocess.check_output(['git','show',PREJOIN_SOURCE_REFERENCE+':'+relative],cwd=ROOT)\n        self.assertEqual(hashlib.sha256(prior).hexdigest(),PREJOIN_SOURCE_BEFORE,\n            relative+':independently pinned existing economic-recovery source')\n"
+        },
+        {
+          "after": "                (b'self.state.archive_commit_slice_and_plan(plan,receipt)',b'(None,None)'),\n                (b'self.state.fence.session!=self.generation',b'False')),\n        }\n        self.assertEqual(set(mutations),set(MAINTENANCE_ENTRY_CLOCK_DELTAS))\n        for relative,(_,after,_) in MAINTENANCE_ENTRY_CLOCK_DELTAS.items():\n            current=source_recorder_publication_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))\n            self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact maintenance clock repair')\n            prior=subprocess.check_output(['git','show',MAINTENANCE_ENTRY_CLOCK_REFERENCE+':'+relative],cwd=ROOT)\n            self.assertEqual(maintenance_entry_clock_predecessor(self,relative,current),prior)\n            self.assertEqual(maintenance_entry_clock_predecessor(self,relative,prior),prior)\n            changes=[current+b'\\n# unreviewed maintenance clock source change\\n',b'']\n",
+          "before": "                (b'self.state.archive_commit_slice_and_plan(plan,receipt)',b'(None,None)'),\n                (b'self.state.fence.session!=self.generation',b'False')),\n        }\n        self.assertEqual(set(mutations),set(MAINTENANCE_ENTRY_CLOCK_DELTAS))\n        for relative,(_,after,_) in MAINTENANCE_ENTRY_CLOCK_DELTAS.items():\n            current=source_recorder_publication_predecessor(self,relative,(ROOT/relative).read_bytes())\n            self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact maintenance clock repair')\n            prior=subprocess.check_output(['git','show',MAINTENANCE_ENTRY_CLOCK_REFERENCE+':'+relative],cwd=ROOT)\n            self.assertEqual(maintenance_entry_clock_predecessor(self,relative,current),prior)\n            self.assertEqual(maintenance_entry_clock_predecessor(self,relative,prior),prior)\n            changes=[current+b'\\n# unreviewed maintenance clock source change\\n',b'']\n"
         },
         {
           "after": "            with self.assertRaises(AssertionError):rally_predecessor(self,relative,changed)\n            with self.assertRaises(AssertionError):opportunity_predecessor(self,relative,changed)\n\n    def test_session_economic_recovery_preserves_original_incidents_and_exact_full_proofs(self):\n        import hashlib\n        relative=SESSION_ECONOMIC_RECOVERY_SOURCE;current=prejoin_source_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))\n        self.assertEqual(hashlib.sha256(current).hexdigest(),SESSION_ECONOMIC_RECOVERY_AFTER,\n            relative+':active exact independently bound session-recovery source')\n        prior=subprocess.check_output(['git','show',SESSION_ECONOMIC_RECOVERY_REFERENCE+':'+relative],cwd=ROOT)\n        self.assertEqual(hashlib.sha256(prior).hexdigest(),SESSION_ECONOMIC_RECOVERY_BEFORE,\n            relative+':independently pinned previous economic-recovery boundary')\n",
@@ -1468,6 +2000,10 @@
         {
           "call": "Call(func=Name(id='pump_restore_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='path', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='path', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
           "caller": "module/RobinhoodUSDTests/test_cross_candidate_archive_review_keeps_all_previous_source_guards"
+        },
+        {
+          "call": "Call(func=Name(id='pump_restore_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='relative', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='relative', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/RobinhoodUSDTests/test_maintenance_entry_clock_preserves_exact_original_leases_and_native_guards"
         },
         {
           "call": "Call(func=Name(id='pump_restore_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='relative', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='relative', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
@@ -1518,6 +2054,10 @@
           "caller": "module/RobinhoodUSDTests/test_session_economic_recovery_preserves_original_incidents_and_exact_full_proofs"
         },
         {
+          "call": "Call(func=Name(id='original_guard_source', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='relative', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='relative', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
+          "caller": "module/RobinhoodUSDTests/test_source_recorder_publication_reverses_only_exact_diagnostic_transport_and_test_read"
+        },
+        {
           "call": "Call(func=Name(id='pump_restore_predecessor', ctx=Load()), args=[Name(id='self', ctx=Load()), Name(id='relative', ctx=Load()), Call(func=Attribute(value=BinOp(left=Name(id='ROOT', ctx=Load()), op=Div(), right=Name(id='relative', ctx=Load())), attr='read_bytes', ctx=Load()), args=[], keywords=[])], keywords=[])",
           "caller": "module/RobinhoodUSDTests/test_source_recorder_publication_reverses_only_exact_diagnostic_transport_and_test_read"
         },
@@ -1539,6 +2079,10 @@
         "module/ClassDef:RobinhoodUSDTests/FunctionDef:test_buffered_prejoin_replay_preserves_original_partition_and_full_ack_authority": {
           "after": "076a2df0a11fe63c025f91c4da806ed883aa5ff3d186219a8f3db3a95e1d91d2",
           "before": "f257bfb5fd733a95e2e5e009be963d41736866df1a518d0123c40dd4fb2a409b"
+        },
+        "module/ClassDef:RobinhoodUSDTests/FunctionDef:test_maintenance_entry_clock_preserves_exact_original_leases_and_native_guards": {
+          "after": "df13cfa8038034f4dd37b54e97c8d32fb7577d948556968620fe23118e90ef7d",
+          "before": "b22f533007fe0ceb1c50a1d750eb3c3f23c371474519f019c6b1b87b79363e75"
         },
         "module/ClassDef:RobinhoodUSDTests/FunctionDef:test_native_startup_failure_delta_preserves_all_prior_authority_and_source_guards": {
           "after": "e97709e46806b80f29d063661d0da03828cb6b08d1afd4c5431d5f3b3b7309e3",
@@ -1565,13 +2109,13 @@
           "before": "94ec9477fe1b7177b301a030971f7015e0f0a18ebdb03dd4706a2a1f8addd243"
         },
         "module/ClassDef:RobinhoodUSDTests/FunctionDef:test_source_recorder_publication_reverses_only_exact_diagnostic_transport_and_test_read": {
-          "after": "f064d36b96bd7d12847f3f4fff4be65fa6239586a99107038aaca2ae28b96515",
+          "after": "88599be8aea8e2421be19b2937f747633891a471b1b65844edf261ea18e8d87d",
           "before": "271b7f2b1a4928cc039ef561ffb0ca24880ea820c39b0c6d8a6434680c05105c"
         }
       }
     }
   },
-  "implementation": "4b1c54a508e82e5fb7a975dc75362081cdcf77e5",
-  "implementation_tree": "86e2f44620203b0d3015a57a9d40df2d9dafe212",
+  "implementation": "f00a7727d9f64926aa36e1044f854c5ed91df990",
+  "implementation_tree": "fba8f9b10a7dc9d8d09201d801b8d8eda2d106b6",
   "schema": "authenticated-operational-candidate-source-delta-v1"
 }

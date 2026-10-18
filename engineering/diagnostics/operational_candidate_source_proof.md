@@ -1,57 +1,70 @@
 # Exact integrated candidate source proof
 
-The funding-closed operational candidate is frozen at
-`4b1c54a508e82e5fb7a975dc75362081cdcf77e5`, tree
-`86e2f44620203b0d3015a57a9d40df2d9dafe212`. This test-only component adds one
-complete inverse layer back to approved `780f4015efd9fba528e97223f8e8e3b1a7322e12`,
-tree `7646978bbfb2076aea90625c3c4a32cd4556491c`. It changes no runtime source.
+The runtime is frozen at `f00a7727d9f64926aa36e1044f854c5ed91df990`,
+tree `fba8f9b10a7dc9d8d09201d801b8d8eda2d106b6`. This test-only component
+adds one complete inverse layer back to approved
+`780f4015efd9fba528e97223f8e8e3b1a7322e12`, tree
+`7646978bbfb2076aea90625c3c4a32cd4556491c`. It changes no runtime source.
 
-The manifest authenticates every byte and length of the ten changed complete
-runtime files, each exact inverse source chunk, and every changed AST statement,
-method, class header and order. The reproducible builder verifies the complete
-changed-path census against Git before writing the fixture. There is no general
-controller, accounting, provider, AST or infrastructure exemption. Unknown source,
-arbitrary additions, truncation and partial inverses refuse; only the exact frozen
-successor and the explicitly pinned complete 780 predecessor are accepted.
+The manifest authenticates all 16 changed complete runtime files, byte lengths,
+whole-file hashes, 78 unique nonempty inverse hunks, and every changed AST node,
+class header and ordering. The builder checks the full changed-path census
+against Git and checks working runtime bytes against the immutable frozen commit.
+There is no wildcard, AST exemption or fuzzy reversal. Unknown successors,
+truncation, arbitrary additions and incomplete inverses refuse. The explicitly
+pinned complete 780 predecessor remains legitimate.
 
-The existing `pump_restore_predecessor` dispatch runs the new inverse before all
-older layers. Its original helper pin also normalizes the exact changed helper
-before checking the unchanged old helper hash. Nine direct active reads in the
-original Robinhood USD guards need the same explicit normalization: native-startup
-failure, source-recorder publication, and the seven existing source-drain recovery
-layers. Their assertions, constants, mutations
-and ordering are preserved. Both old guard files have complete before/after pins
-and exact inverses, including a fixed caller/read-hook census. Reversing only those
-hooks restores every original guard byte; the existing Pump guard's own ten-read
-legacy-file proof still runs unchanged after that inverse.
+The six added paths cover the actual maintenance owner, admission/service,
+runtime, retirement keyset and fixed failure-code changes. Specific mutation
+negatives protect FIFO reservation identity, urgent/checkpoint exclusion,
+capacity, permit expiry, absolute admission deadlines, accepted-command cleanup,
+original execution clocks, current keyset bounds and the fixed reason allowlist.
+Actual permit, admission and retention behavioral modules are each registered
+once in FAST and hosted focused CI. This source proof grants no runtime permit.
 
-This includes the genuine Pons adapter change: the new complete adapter hash is
-`97bf514e1bfbbc0a0792713fee330175159f20acc7ad5fb27703f25dd4dbd7c9`.
-Its old `52defbb90f754e7b2ea88e4527bf7bdc30d6251854f89a37f52dabbb70a931f0`
-hash is used only for the reconstructed predecessor. No old installed identity or
-historical interpretation is fabricated. Native renewal/fencing correctness is
-covered by the separate Pons owner/protection regression component.
+Both original guard files are restored completely to **780**, not to an
+implementation that already contains proof hooks. The manifest explicitly binds
+`guard_reference` to 780 and the new guard independently pins the original full
+hashes `b65170a1...` and `025ffbfc...`. Fourteen exact inverse hunks restore every
+original guard byte. Their assertions, constants, negative mutations and older
+source layers remain intact. A fixed AST census authenticates every named read
+hook. The new maintenance-entry clock active read is normalized before its original
+source-recorder predecessor. The old source-recorder test also reconstructs its
+whole self-file through the exact 780 inverse before its unchanged old literal
+and body-hash assertions. The fixed call census is 11 Pump and 21 Robinhood
+read hooks. The existing Pump helper/legacy-read normalization remains exact.
 
-This source authentication supplements the independent runtime reviews and
-focused behavioral tests; it does not by itself prove economic equivalence,
-historical recovery, provider capacity, funding authority, readiness or PAPER
-acceptance. The original 780 run remains failed. Any later runtime change requires
-a new exact frozen source, reviewed delta and appropriate test results.
+The genuine Pons adapter successor remains
+`97bf514e1bfbbc0a0792713fee330175159f20acc7ad5fb27703f25dd4dbd7c9`;
+its original `52defbb90f754e7b2ea88e4527bf7bdc30d6251854f89a37f52dabbb70a931f0`
+is used only for the reconstructed predecessor. No old installed identity or
+historical interpretation is fabricated. The private startup diagnostic repair
+also remains part of the exact full-file census; it does not replace original
+native-operation or replay state at provider boundaries.
 
-The final source-drain file is authenticated in full. Its added input admission
-uses exact census `d01237f6...` and ledger `97cafc57...` pins, preserves the default
-cancellation refusal, and still requires original session, closed join, native
-heads, gaps, archive publication, FULL/ACK and independent verification. New
-source-proof negatives refuse changing either full pin, enabling cancellation by
-default, dropping ledger/lifetime checks, or fabricating the original drain PASS.
-The real nine cancelled-source behavior cases are registered in both FAST and
-hosted focused Stage A. This source layer does not itself run protected recovery
-or establish that any actual historical obligation is resolved.
+The source-drain file remains authenticated in full. Exact cancelled-session
+census/ledger admission keeps default cancellation refusal and the original
+session, closed join, native-head/gap, archive FULL/ACK and independent verification
+requirements. Original failed drain and unresolved callback evidence are never
+reclassified by these tests. The real cancelled-source behavioral module and the
+complete new proof module each execute in FAST and hosted focused CI.
 
-The new seven proof/negative cases, seven existing Pump proof cases and nine
-cancelled-source behavioral cases pass: 23 cases in 6.711 seconds. The nine
-original CI-failed guards, source-recorder guard and seven affected source-drain
-guards pass separately under the original offline driver: 17 cases in 65.445
-seconds. Their receipt is
-`/workspace/recovery-evidence/combined-4b-original-source-guards.log`. Both FAST
-and hosted focused Stage A explicitly register the complete new proof module.
+The final focused proof selection passed 24 cases in 9.115 seconds under the
+original offline driver. It includes eight complete-proof/mutation cases, seven
+original Pump proof cases and nine actual cancelled-source behavior cases.
+Receipt: `/workspace/recovery-evidence/combined-f00-final-source-proof-focused.log`.
+The separate 18-case legacy selection passed 17 affected source/economic and
+maintenance-entry clock cases in 69.447 seconds; its one self-read failure led to
+the explicit exact guard reconstruction above. That original case then passed in
+2.948 seconds. All original assertions, pins and negative mutations remain. The
+17 successful cases use unchanged runtime and inverse behavior; the final 24-case
+proof selection validates the updated complete guard inverse. Both the failure
+receipt and corrected case are preserved:
+`/workspace/recovery-evidence/combined-f00-original-source-guards.log` and
+`/workspace/recovery-evidence/combined-f00-self-read-original-guard.log`.
+
+Source authentication supplements independent runtime review and behavioral
+validation. It establishes neither economic equivalence by itself nor historical
+recovery, provider capacity, funding authority, readiness or PAPER acceptance.
+The failed 780 run remains failed. Later runtime changes require a new exact
+freeze, complete inverse and affected validation.
