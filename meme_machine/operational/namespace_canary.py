@@ -182,6 +182,19 @@ def _arm_pid1_parent(kernel, lifeline):
     _require(not alive.poll(0), 'namespace_parent_changed')
 
 
+def _write_user_mapping(name, value):
+    codes = {'setgroups':'namespace_setgroups_refused',
+             'uid_map':'namespace_uid_map_refused', 'gid_map':'namespace_gid_map_refused'}
+    _require(name in codes, 'namespace_mapping_unreviewed')
+    try:
+        Path('/proc/self/' + name).write_text(value)
+    except OSError as error:
+        number = error.errno
+        if type(number) is int and 0 < number < 4096:
+            raise Blocked(codes[name], number) from None
+        raise
+
+
 def _setup(spec):
     kernel = Kernel()
     _require(os.geteuid() != 0, 'namespace_nonroot_required')
@@ -195,9 +208,9 @@ def _setup(spec):
     kernel.prctl(38, 1, 'namespace_no_new_privileges_refused')
     _arm_parent(kernel,spec['parent_pid'])
     kernel.unshare(USER)
-    Path('/proc/self/setgroups').write_text('deny')
-    Path('/proc/self/uid_map').write_text('0 ' + str(uid) + ' 1\n')
-    Path('/proc/self/gid_map').write_text('0 ' + str(gid) + ' 1\n')
+    _write_user_mapping('setgroups', 'deny')
+    _write_user_mapping('uid_map', '0 ' + str(uid) + ' 1\n')
+    _write_user_mapping('gid_map', '0 ' + str(gid) + ' 1\n')
     kernel.unshare(MOUNT | NET | PID | IPC)
     kernel.mount(None, '/', flags=MS_REC | MS_PRIVATE)
     _arm_parent(kernel,spec['parent_pid'])
