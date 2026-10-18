@@ -243,7 +243,7 @@ class StoppedNativeReadContextTests(unittest.TestCase):
         paths.append(path)
         return paths
 
-    def native_terminals(self, paths):
+    def native_terminals(self, paths, *, pons_cancelled=False):
         """Real disposable native transactions/ACKs, no invented projections."""
         from dataclasses import replace
         from meme_machine.shared_capital.operational_candidate import ACTIVE_REGIMES
@@ -338,13 +338,17 @@ class StoppedNativeReadContextTests(unittest.TestCase):
                 capital.reserve(identity,120,at=at,decision_hash=digest(features),trial_path=trial,
                     native_reservation_intent=dict(market='m',amount=100,gas_budget=20,now=at,features=features,kind='natural'))
                 paper.reserve(identity,market='m',amount=100,gas_budget=20,now=at,features=features)
-                paper.advance(identity,now=at+1,action='entry',quote=fixture.quote(at+1,'buy',100,1000))
-                paper.advance(identity,now=at+2,action='exit_intent')
-                position = paper.advance(identity,now=at+3,action='exit',quote=fixture.quote(at+3,'sell',1000,110))
+                if pons_cancelled:
+                    position = paper.advance(identity,now=at+1,action='cancel',cancel_reason='confirmed_no_fill')
+                else:
+                    paper.advance(identity,now=at+1,action='entry',quote=fixture.quote(at+1,'buy',100,1000))
+                    paper.advance(identity,now=at+2,action='exit_intent')
+                    position = paper.advance(identity,now=at+3,action='exit',quote=fixture.quote(at+3,'sell',1000,110))
                 capital.settle(identity,position,at=position['last_at'])
             finally:store.close()
         qualifier = dict(index=0,curve='m',token='token',source_transaction='source',vector=vector)
-        lifecycle = dict(index=0,curve='m',token='token',lifecycle_id=identity,final_position=position,status='settled')
+        lifecycle = dict(index=0,curve='m',token='token',lifecycle_id=identity,final_position=position,
+            status='entry_failed' if pons_cancelled else 'settled')
         plane = Plane(self.root/PLANE)
         plane.checkpoint('pons_cohort',dict(owner='original-stopped:123:45',phase='running',cursor=0,
             result=dict(policy_hash=active_hash('pons_current'),qualifiers=[qualifier],lifecycles=[lifecycle])))
@@ -404,6 +408,77 @@ class StoppedNativeReadContextTests(unittest.TestCase):
         restarted, _ = self.context(extra=paths)
         restarted._validate_owner = lambda identity: True
         self.assertEqual(_native_memory_facts(restarted),facts)
+
+    def test_capital_crosscheck_prebounds_each_trial_body_before_native_json_decode(self):
+        import json
+        from meme_machine.runtime.native_restore_closure import COHORT
+        from meme_machine.lanes.pons.pons_selective_ledger import JOURNAL_CATEGORY
+        from meme_machine.runtime import native_restore_context as ports
+        paths = self.native_books()
+        identities = self.native_terminals(paths)
+        trial = self.root/COHORT/'trial-0.sqlite'
+        native_id = identities['pons_current']
+        def encoding(db,table,where,args,body):
+            trigger = None
+            if table=='records':
+                trigger=db.execute("SELECT sql FROM sqlite_master WHERE name='pons_selective_records_no_update'").fetchone()[0]
+                db.execute('DROP TRIGGER pons_selective_records_no_update')
+            db.execute('UPDATE '+table+' SET body=? WHERE '+where,(body,*args))
+            if trigger:db.execute(trigger)
+        for table in ('pons_selective_paper','records'):
+            with self.subTest(table=table):
+                with sqlite3.connect(trial) as db:
+                    where, args = ('id=?',(native_id,)) if table=='pons_selective_paper' else (
+                        'category=? AND id=?',(JOURNAL_CATEGORY,native_id+':3'))
+                    original = db.execute('SELECT body FROM '+table+' WHERE '+where,args).fetchone()[0]
+                    padded = original + ' '*32768
+                    encoding(db,table,where,args,padded)
+                context, snapshots = self.context(extra=paths)
+                context.authenticate_authority()
+                loads = json.loads
+                def guarded(value, *args, **kwargs):
+                    if value == padded:raise AssertionError('native JSON decoded before bounds')
+                    return loads(value,*args,**kwargs)
+                try:
+                    with patch.object(ports,'MAX_FIELD',32768),patch.object(json,'loads',side_effect=guarded):
+                        with self.assertRaisesRegex(NativeDependencyUnavailable,'capital_replay'):
+                            context.capital(self.root/COHORT/'pons-selective-cohort-capital.sqlite')
+                finally:
+                    for db in snapshots.values():db.rollback()
+                    with sqlite3.connect(trial) as db:
+                        # Restore only this disposable whitespace encoding;
+                        # all original decoded bodies and hashes are identical.
+                        encoding(db,table,where,args,original)
+
+    def test_actual_pons_never_filled_release_needs_no_fabricated_settled_position(self):
+        from meme_machine.runtime.native_restore_closure import _native_memory_facts
+        paths = self.native_books()
+        identities = self.native_terminals(paths,pons_cancelled=True)
+        context, snapshots = self.context(extra=paths)
+        context._validate_owner = lambda identity:identity=='original-stopped:123:45'
+        before = self.writer.ledger()
+        alias = before['native_aliases']['pons:'+identities['pons_current']]
+        self.assertNotIn(alias,before['positions'])
+        with patch('sqlite3.connect',side_effect=AssertionError('fallback open')):
+            facts = _native_memory_facts(context)
+        self.assertEqual(facts['facts']['pons_current']['trials'],1)
+        self.assertEqual(self.writer.ledger(),before)
+
+    def test_cold_shared_replay_stops_at_original_per_event_deadline_hook(self):
+        from meme_machine.shared_capital.runtime import RuntimeCapital
+        self.writer.command('deadline-second-real-event','runtime_publish',{},self.now)
+        context, _ = self.context()
+        original = RuntimeCapital._apply
+        reduced = []
+        def expire(reader,state,event):
+            reduced.append(event['operation_id'])
+            result = original(reader,state,event)
+            context.deadline = time.monotonic()-1
+            return result
+        with patch.object(RuntimeCapital,'_apply',expire):
+            with self.assertRaisesRegex(TimeoutError,'native_restore_deadline'):
+                context.authenticate_authority()
+        self.assertEqual(len(reduced),1)
 
     def test_public_projection_names_roles_and_never_grants_boot_or_history_authority(self):
         from meme_machine.runtime.native_restore_closure import inspect_stopped_restore_memory

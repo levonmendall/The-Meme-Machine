@@ -215,6 +215,7 @@ class CohortCapital:
                     path=read_context.trial_identity(row['trial_path'],root=Path(self.path).parent)
                     native_manager=read_context.database(path)
                 with native_manager as native:
+                    if read_context is not None:read_context.bound_trial(native)
                     value=native.execute('SELECT body FROM pons_selective_paper WHERE id=?',(row['id'],)).fetchone()
                     event=native.execute('SELECT body,hash FROM records WHERE category=? AND id=?',
                         (JOURNAL_CATEGORY,f'{row["id"]}:{position["version"]}')).fetchone()
