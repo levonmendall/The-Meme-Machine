@@ -1,10 +1,13 @@
 """Fixed hosted-CI runtime ownership installation; never an AWS control path.
 
-Only the setup-python 3.12.14 core selected by the original copied-image
-builders is sealed. No recursive ownership operation or arbitrary path selector
-is exposed. Content identity is checked across each metadata-only installation.
+Only the setup-python 3.12.14 core and exact installed dependency files selected
+by the original copied-image builders are sealed. No recursive ownership
+operation or arbitrary path selector is exposed. Content identity is checked
+across each metadata-only installation; package files retain their original
+root-or-runner ownership and lose only group/other write permissions.
 """
 import argparse
+import base64
 from contextlib import ExitStack
 import hashlib
 import json
@@ -64,7 +67,9 @@ def failure_record(error):
              'ci_runtime_hosted_only', 'ci_runtime_fixed_selection', 'ci_runtime_executable',
              'ci_runtime_fixed_loader', 'ci_runtime_executable_mode', 'ci_runtime_stdlib_missing',
              'ci_runtime_extension_abi', 'ci_runtime_extension_missing',
-             'ci_runtime_library_missing', 'ci_runtime_library_escape', 'ci_runtime_path'}
+             'ci_runtime_library_missing', 'ci_runtime_library_escape', 'ci_runtime_path',
+             'ci_dependency_fixed_selection', 'ci_dependency_record_hash',
+             'ci_dependency_version', 'ci_dependency_record_bound'}
     code = error.args[0] if isinstance(error, Refused) and error.args else None
     record['code'] = code if type(code) is str and code in codes else None
     number = getattr(error, 'errno', None)
@@ -141,6 +146,7 @@ class _Installation:
         self.target_uid, self.target_gid = target_uid, target_gid
         self.directories = {}
         self.files = {}
+        self.dependency_hashes = {}
         self.total = 0
         self.stack = ExitStack()
 
@@ -178,16 +184,24 @@ class _Installation:
         _same_path(path, descriptor, directory=True)
         self.directories[path] = (descriptor, before, after)
 
-    def selected(self, path):
+    def selected(self, path, *, dependency_sha256=None):
         path = Path(path)
         require(path.is_absolute() and '..' not in path.parts, 'ci_runtime_path')
         inside = path.is_relative_to(self.prefix)
+        dependency = dependency_sha256 is not None
+        if dependency:
+            require(type(dependency_sha256) is str and len(dependency_sha256) == 64
+                    and all(value in '0123456789abcdef' for value in dependency_sha256)
+                    and path.is_relative_to(self.prefix/'lib/python3.12/site-packages'),
+                    'ci_dependency_fixed_selection')
         if inside:
             for directory in reversed(path.parent.parents):
                 if directory == self.prefix or self.prefix in directory.parents:
                     self.directory(directory, install=True)
             self.directory(path.parent, install=True)
         if path in self.files:
+            require(self.dependency_hashes.get(path) == dependency_sha256,
+                    'ci_dependency_record_hash')
             return self.files[path][3]
         require(len(self.files) < MAX_FILES, 'ci_runtime_file_bound')
         descriptor = _open(path)
@@ -196,26 +210,37 @@ class _Installation:
         facts=dict(source_stat=_stat_fields(before))
         require(stat.S_ISREG(before.st_mode), 'ci_runtime_regular_bound', facts=facts)
         require(before.st_uid in (self.owners if inside else (0,))
-                and not before.st_mode & 0o7022 and before.st_mode & 0o004,
+                and not before.st_mode & 0o7000
+                and (dependency or (not before.st_mode & 0o022 and before.st_mode & 0o004)),
                 'ci_runtime_file_trust', facts=facts)
         require(not inside or before.st_nlink == 1, 'ci_runtime_shared_file', facts=facts)
         require(self.total + before.st_size <= MAX_BYTES, 'ci_runtime_byte_bound', facts=facts)
         digest = _digest(descriptor, before)
-        if inside:
+        if dependency:
+            require(digest == dependency_sha256, 'ci_dependency_record_hash', facts=facts)
+            # The original package reader permits root OR its own caller UID.
+            # Keep that ownership/readability and narrow only write permissions.
+            os.fchmod(descriptor, stat.S_IMODE(before.st_mode) & ~0o022)
+        elif inside:
             os.fchown(descriptor, self.target_uid, self.target_gid)
         after = os.fstat(descriptor)
+        expected_mode = stat.S_IMODE(before.st_mode) & (~0o022 if dependency else ~0)
         require(content_identity(before) == content_identity(after)
-                and stat.S_IMODE(before.st_mode) == stat.S_IMODE(after.st_mode)
-                and after.st_uid == self.target_uid and not after.st_mode & 0o022,
+                and expected_mode == stat.S_IMODE(after.st_mode)
+                and after.st_uid == (before.st_uid if dependency else self.target_uid)
+                and (not dependency or after.st_gid == before.st_gid)
+                and not after.st_mode & 0o022,
                 'ci_runtime_metadata_only')
         require(_digest(descriptor, after) == digest, 'ci_runtime_content_changed')
         _same_path(path, descriptor)
         self.total += before.st_size
         self.files[path] = (descriptor, before, after, digest)
+        if dependency:
+            self.dependency_hashes[path] = dependency_sha256
         return digest
 
-    def read(self, path):
-        self.selected(path)
+    def read(self, path, *, dependency_sha256=None):
+        self.selected(path, dependency_sha256=dependency_sha256)
         descriptor, _, after, _ = self.files[Path(path)]
         os.lseek(descriptor, 0, os.SEEK_SET)
         value = bytearray()
@@ -234,18 +259,54 @@ class _Installation:
             require(_digest(descriptor, after) == digest, 'ci_runtime_content_changed')
             _same_path(path, descriptor)
             rows.append(dict(path=str(path), sha256=digest, bytes=after.st_size,
-                source_stat=list(identity(before)), destination_stat=list(identity(after))))
+                source_stat=list(identity(before)), destination_stat=list(identity(after)),
+                trust_policy='original_package_owner' if path in self.dependency_hashes else 'root_core',
+                record_sha256=self.dependency_hashes.get(path)))
         for path, (descriptor, _, after) in self.directories.items():
             require(identity(os.fstat(descriptor)) == identity(after), 'ci_runtime_directory_changed')
             _same_path(path, descriptor, directory=True)
         content = [dict(path=row['path'], bytes=row['bytes'], sha256=row['sha256']) for row in rows]
-        return dict(schema='fixed-hosted-ci-runtime-ownership-v1', metadata_only=True,
+        return dict(schema='fixed-hosted-ci-runtime-ownership-v2', metadata_only=True,
             python='3.12.14', files=len(rows), bytes=self.total,
+            original_package_allowed_owners=list(self.owners),
             source_content_sha256=hashlib.sha256(encoded(content)).hexdigest(),
             destination_content_sha256=hashlib.sha256(encoded(content)).hexdigest(),
             records=rows, directories=[dict(path=str(path), source_stat=list(identity(before)),
                 destination_stat=list(identity(after))) for path, (_, before, after)
                 in sorted(self.directories.items())])
+
+
+def _selected_distributions(installer, image, runtime):
+    """Mirror the original package RECORD/path contract, without live approval."""
+    summaries = {};elf_files = []
+    for name, (version, wheel, prefixes) in image.DEPENDENCIES.items():
+        package = image.importlib.metadata.distribution(name)
+        require(package.version == version, 'ci_dependency_version')
+        base = Path(package.locate_file(''))
+        require(base == installer.prefix/'lib/python3.12/site-packages'
+                and base.resolve(strict=True) == base, 'ci_dependency_fixed_selection')
+        entries = package.files
+        require(entries is not None and len(entries) <= 4096, 'ci_dependency_record_bound')
+        indexed = [(str(path), path) for path in entries if image._package_file(str(path), prefixes)]
+        require(indexed and len({name for name, _ in indexed}) == len(indexed),
+                'ci_dependency_record_bound')
+        facts = []
+        for relative, path in indexed:
+            checksum = path.hash
+            require(checksum is not None and checksum.mode == 'sha256', 'ci_dependency_record_hash')
+            try:
+                raw = base64.urlsafe_b64decode(checksum.value + '='*((-len(checksum.value))%4))
+            except (ValueError, TypeError):
+                raise Refused('ci_dependency_record_hash') from None
+            require(len(raw) == 32, 'ci_dependency_record_hash')
+            expected = raw.hex();target = base/path
+            require(target.resolve(strict=True) == target, 'ci_dependency_fixed_selection')
+            digest = installer.selected(target, dependency_sha256=expected)
+            facts.append(dict(path=relative, sha256=digest))
+            if target.suffix == '.so':elf_files.append((target, expected))
+        summaries[name] = dict(version=version, selected_files=len(facts),
+            installed_record_manifest_sha256=hashlib.sha256(encoded(facts)).hexdigest())
+    return summaries, elf_files
 
 
 def install(python_location, runner_uid, runner_gid):
@@ -268,8 +329,10 @@ def install(python_location, runner_uid, runner_gid):
         executable = Path(sys.executable).resolve(strict=True)
         require(executable.parent == PREFIX/'bin' and executable.name == 'python3.12',
                 'ci_runtime_executable')
-        def dependencies(path):
-            interpreter, needed = runtime._elf(installer.read(path))
+        def dependencies(path, dependency_sha256=None):
+            raw = (installer.read(path) if dependency_sha256 is None else
+                   installer.read(path,dependency_sha256=dependency_sha256))
+            interpreter, needed = runtime._elf(raw)
             require(interpreter in (None, '/lib64/ld-linux-x86-64.so.2'),
                     'ci_runtime_fixed_loader')
             return needed
@@ -294,6 +357,9 @@ def install(python_location, runner_uid, runner_gid):
                         'ci_runtime_extension_missing')
                 continue
             pending.extend(dependencies(path))
+        distributions, elf_files = _selected_distributions(installer, image, runtime)
+        for path, expected in elf_files:
+            pending.extend(dependencies(path, expected))
         roots = tuple(dict.fromkeys(path.resolve(strict=True) for path in (PREFIX/'lib',
             Path('/lib/x86_64-linux-gnu'), Path('/usr/lib/x86_64-linux-gnu'), Path('/lib64'),
             Path('/usr/lib64'), Path('/lib'), Path('/usr/lib')) if path.is_dir()))
@@ -309,7 +375,10 @@ def install(python_location, runner_uid, runner_gid):
             require(any(path == root or root in path.parents for root in roots),
                     'ci_runtime_library_escape')
             pending.extend(dependencies(path))
-        return installer.finish()
+        receipt = installer.finish()
+        receipt['selected_distributions'] = distributions
+        receipt['dependency_scope'] = 'INSTALLED_RECORD_OFFLINE_BOOTSTRAP_NOT_LIVE_SOURCE_APPROVAL'
+        return receipt
     finally:
         installer.close()
 
