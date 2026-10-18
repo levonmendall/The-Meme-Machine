@@ -320,3 +320,13 @@ and cannot promote via partial data. Exact-code privacy, unhashable/subclass
 negatives, original forged/crossed ACK tests and SQLite sidecar/WAL checks pass:
 nine focused cases passed after adding explicit current-stage provenance. No
 source guard or test assertion was weakened to expose this failure reason.
+
+The exact output-diagnostic source proof binds runtime
+`a3669e57c86d645483c70a603c11601b532ef13f`, tree
+`bb7f20467e6e2f046aaa661208d8d3ca5dd2dff6`. Only that existing validator-helper
+pin changes;43 reversible sources,34 other helpers, three unchanged pins, all
+legacy/caller inverses and API census remain identical. The final20 source-proof,
+output-corruption/privacy/path and original-two-case AST contract checks passed
+in18.356s without skips. Independent full-byte/code review cleared this exact
+observation scope; no outcome of the pending better-instrumented hosted read is
+assumed.
