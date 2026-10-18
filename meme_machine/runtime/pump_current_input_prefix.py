@@ -5,7 +5,7 @@ capture source metadata in the original read snapshot, and call committed only
 after the original FULL history writer returns. This reducer performs no SQL,
 provider operation or native cursor change and cannot issue a boot witness.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass,replace
 import json
 import math
 import os
@@ -292,12 +292,14 @@ class CurrentInputPrefixes:
                 raise ValueError('changed_source')
         return answer
 
-    def capture(self, first, rows, publication, *, as_of):
+    def capture(self, first, rows, publication, *, as_of,retry=False):
         """Stage fixed metadata from one original native read transaction."""
         if self.loss: return None
         try:
             self._owned()
-            if (self.staged is not None or type(first) is not int or not 0 <= first <= MAX_POSITION
+            prior=self.staged
+            if (type(retry) is not bool or prior is not None and not retry
+                    or retry and prior is None or type(first) is not int or not 0 <= first <= MAX_POSITION
                     or type(rows) not in (tuple, list) or len(rows) > MAX_ROWS
                     or type(as_of) not in (int, float) or not math.isfinite(as_of)):
                 raise ValueError('capture')
@@ -331,6 +333,20 @@ class CurrentInputPrefixes:
             ticket = _Capture(self, self.version, first, sequence, len(rows), batch_sha,
                 tuple(inherited.items()), tuple(fresh.items()),
                 None if expected is None else tuple(expected.items()), publication is not None, replay)
+            if prior is not None:
+                # A live source may publish beyond this unchanged selected
+                # native batch before its FULL retry. Keep exact membership,
+                # cut and version; only a validated monotone expected frontier
+                # may advance. This neither issues a new window nor earns any
+                # retention for the newer, still-unconsumed rows.
+                before=None if prior.expected_fresh is None else dict(prior.expected_fresh)
+                if before is not None and (expected is None
+                        or expected['records']<before['records']
+                        or expected['records']==before['records'] and expected!=before):
+                    raise ValueError('changed_retry_frontier')
+                if replace(ticket,expected_fresh=prior.expected_fresh)!=prior:
+                    raise ValueError('changed_retry')
+            self._owned()
             self.staged = ticket
             return ticket
         except Exception:
@@ -456,6 +472,7 @@ class PrivateCurrentInputContext:
         self.path=Path(value['root'])/database['relative_path']
         self.census=InheritedKeyCensus(description['upper_sequence'],description['visibility_wall'])
         self.prefixes=None;self.source=None;self.loss=None;self.staged=None
+        self.allow_staged_retry=False;self.closed_capture=None
 
     def unavailable(self):
         if self.loss is None:self.loss='INPUT_PREFIX_UNAVAILABLE'
@@ -499,8 +516,11 @@ class PrivateCurrentInputContext:
 
     def capture(self,reader,first,rows,records,*,as_of,cancelled):
         if self.loss or self.prefixes is None:return None
+        old_prefix_capture=self.prefixes.staged;old_key_capture=self.census.staged
         try:
-            if self.staged is not None or len(rows)!=len(records):raise ValueError('capture')
+            prior=self.staged
+            if (len(rows)!=len(records) or prior is not None and (not self.allow_staged_retry
+                    or self.closed_capture is not prior)):raise ValueError('capture')
             self._validate(reader,schema=True)
             cursor=reader.db.execute(FRONTIER_SQL)
             try:metadata=cursor.fetchone()
@@ -509,20 +529,46 @@ class PrivateCurrentInputContext:
             else:
                 from ..operational.normal_source_registry import validate_publication_frontier
                 publication=validate_publication_frontier(metadata[0])
-            key_capture=self.census.capture(reader.db,
-                validate=lambda:self._validate(reader),cancelled=cancelled)
+            if prior is None:
+                key_capture=self.census.capture(reader.db,
+                    validate=lambda:self._validate(reader),cancelled=cancelled)
+            else:
+                from .stop import Shutdown
+                if cancelled():raise Shutdown()
+                key_capture=prior.census
             tuples=[(raw[0],raw[3],record['scope'],raw[2],raw[8])
                 for raw,record in zip(rows,records,strict=True)]
-            retained=self.prefixes.capture(first,tuples,publication,as_of=as_of)
+            retained=self.prefixes.capture(first,tuples,publication,as_of=as_of,retry=prior is not None)
+            if retained is None:raise ValueError('retained_capture')
             ticket=_NativeCapture(self,key_capture,retained,len(rows),reader.db)
-            self.staged=ticket;return ticket
-        except Exception:self.unavailable();return None
+            self._validate(reader)
+            from .stop import Shutdown
+            if cancelled():raise Shutdown()
+            self.staged=ticket;self.closed_capture=None;return ticket
+        except BaseException as error:
+            # These tokens have not crossed this adapter's publication point.
+            # On cancellation retain any prior pending retry, or discard only
+            # the unissued transient read. No committed counter/debt is reset.
+            self.prefixes.staged=old_prefix_capture;self.census.staged=old_key_capture
+            if not isinstance(error,Exception):raise
+            self.unavailable();return None
+
+    def snapshot_closed(self,ticket,db):
+        if self.loss:return
+        try:
+            self.owner.require_current()
+            if (not self.allow_staged_retry or type(ticket) is not _NativeCapture
+                    or ticket is not self.staged or ticket.source_db is not db or db.in_transaction):
+                raise ValueError('snapshot')
+            self.closed_capture=ticket
+        except Exception:self.unavailable()
 
     def retained(self,ticket,history,count,history_path):
         if self.loss:return
         try:
             self.owner.require_current()
             if (type(ticket) is not _NativeCapture or ticket is not self.staged or ticket.issuer is not self
+                    or self.allow_staged_retry and self.closed_capture is not ticket
                     or history.db.in_transaction or ticket.source_db.in_transaction
                     or str(history.path.resolve())!=history_path
                     or type(count) is not int or count!=ticket.rows):
@@ -531,7 +577,7 @@ class PrivateCurrentInputContext:
             if self.census.loss is not None:raise ValueError('census')
             if self.census.complete:self.prefixes.census_sealed(self.census.prefix)
             if ticket.retained is not None:self.prefixes.committed(ticket.retained)
-            self.staged=None
+            self.staged=None;self.closed_capture=None
         except Exception:self.unavailable()
 
     def snapshot(self):

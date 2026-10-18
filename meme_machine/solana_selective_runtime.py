@@ -103,7 +103,9 @@ def consume_pump_discovery(tape,sequence):
         if native_work is not None:
             input_prefix=native_work.capture_input_prefix(reader,first_sequence,rows,material,as_of=as_of)
             work_batch=native_work.capture(first_sequence,rows,material,work_events)
-    finally:db.execute('ROLLBACK')
+    finally:
+        db.execute('ROLLBACK')
+        if native_work is not None:native_work.input_snapshot_closed(input_prefix,db)
     history=open_candidate_history()
     if history is not None:
         with closing(history):

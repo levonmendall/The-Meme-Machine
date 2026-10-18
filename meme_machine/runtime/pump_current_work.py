@@ -11,7 +11,7 @@ import threading
 import uuid
 
 from .economic_cohort import checksum, _hash, MAX_POSITION
-from .native_work_cohort import NativeWorkCohorts, MAX_ROWS, project_native_work
+from .native_work_cohort import NativeWorkCohorts, MAX_ROWS, NATIVE_ORDER, project_native_work
 
 
 class PumpCurrentWork:
@@ -30,6 +30,7 @@ class PumpCurrentWork:
         self.inputs = NativeWorkCohorts(self.binding, 'DISCOVERY_INPUT')
         self.evaluations = NativeWorkCohorts(self.binding, 'NATIVE_EVALUATION')
         self.source = None
+        self.ordered_windows=False;self.native_cursor=0
         self.started = False
         self.batch = None
         self.requested = None
@@ -73,30 +74,49 @@ class PumpCurrentWork:
             if self.inputs.loss is not None or self.evaluations.loss is not None:return
             self.source = detached
             binding = dict(self.binding, source_identity_sha256=value['identity_sha256'])
-            self.inputs = NativeWorkCohorts(binding, 'DISCOVERY_INPUT')
-            self.evaluations = NativeWorkCohorts(binding, 'NATIVE_EVALUATION')
-            if self.input_context is not None:self.input_context.bind_source(detached)
+            options={}
+            if self.input_context is not None:
+                self.input_context.bind_source(detached)
+                if self.input_context.loss is None and self.input_context.prefixes is not None:
+                    binding['private_owner_sha256']=self.input_context.owner.identity_sha256
+                    options['native_order']=NATIVE_ORDER
+                    self.ordered_windows=True
+                    self.input_context.allow_staged_retry=True
+            self.inputs = NativeWorkCohorts(binding, 'DISCOVERY_INPUT',**options)
+            self.evaluations = NativeWorkCohorts(binding, 'NATIVE_EVALUATION',**options)
         except Exception: self.unavailable()
 
     def capture_input_prefix(self,reader,first,rows,records,*,as_of):
         if self.input_context is None:return None
         from .stop import requested
-        return self.input_context.capture(reader,first,rows,records,as_of=as_of,cancelled=requested.is_set)
+        ticket=self.input_context.capture(reader,first,rows,records,as_of=as_of,cancelled=requested.is_set)
+        if self.ordered_windows and self.input_context.loss is not None:self.unavailable()
+        return ticket
 
     def retained_input_prefix(self,ticket,history,retained):
         if ticket is not None and self.input_context is not None:
             self.input_context.retained(ticket,history,retained,self.history_path)
+            if self.ordered_windows and self.input_context.loss is not None:self.unavailable()
+
+    def input_snapshot_closed(self,ticket,db):
+        if self.ordered_windows and ticket is not None:
+            self.input_context.snapshot_closed(ticket,db)
 
     def capture(self, first, rows, records, events):
         """Independent entire original bounded outbox selection, before outcomes."""
         try:
             self._owned()
-            if (self.batch is not None and not self.batch['finished'] or type(first) is not int
+            if not self.ordered_windows and self.batch is not None and not self.batch['finished']:
+                raise ValueError('batch')
+            if (type(first) is not int
                     or not 0 <= first <= MAX_POSITION or type(rows) is not list
                     or len(rows) > MAX_ROWS or type(records) is not list or type(events) is not list
                     or len(records) != len(rows) or len(events) != len(rows)):
                 raise ValueError('batch')
+            if self.ordered_windows and first!=self.native_cursor:raise ValueError('native_cursor')
             if not rows:
+                if self.ordered_windows and self.batch is not None and not self.batch['retained']:
+                    return None
                 self.batch = None; self.requested = None
                 return None
             from ..solana_selective_history import SelectiveHistory
@@ -119,17 +139,33 @@ class PumpCurrentWork:
                     native_filtered=event.get('event_type') in ('create','migration'),
                     outcome=None)
             frontier = checksum([first, previous, selected, self.source])
-            cid = checksum([self.binding, frontier])
+            cid = (checksum([self.inputs.binding,NATIVE_ORDER,previous,frontier])
+                if self.ordered_windows else checksum([self.binding, frontier]))
+            self._owned()
+            if self.batch is not None and not self.batch['finished']:
+                old=self.batch
+                if (not self.ordered_windows or old['retained'] or old['cid']!=cid
+                        or old['frontier']!=frontier or old['requests'] or old['evaluation_started']
+                        or self.inputs.loss is not None or self.evaluations.loss is not None):
+                    raise ValueError('batch')
+                # Exact uncommitted retry: retain original expected membership
+                # and issuance, replacing only ephemeral decoded event handles.
+                old['rows']=lookup;return old
             self.started = True
-            self.inputs.begin(cid, frontier); self.inputs.expect(cid, selected)
+            self._begin(self.inputs,cid,frontier,previous); self.inputs.expect(cid, selected)
             self.inputs.seal_expected(cid, len(selected), checksum(tuple(sorted(selected))),
                 checksum(['complete_original_discovery_prefix', first, previous, selected]))
-            self.batch = dict(cid=cid, frontier=frontier, rows=lookup, retained=False,
+            self.batch = dict(cid=cid, frontier=frontier, rows=lookup, retained=False,native_position=previous,
                 requests={}, finished=False, evaluation_started=False)
             self.requested = None
             return self.batch
         except Exception:
             self.unavailable(); return None
+
+    def _begin(self,meter,cid,frontier,position):
+        if self.ordered_windows:
+            meter.begin(cid,frontier,native_window=(meter.binding,NATIVE_ORDER,position,frontier))
+        else:meter.begin(cid,frontier)
 
     def retained(self, batch, history, retained):
         try:
@@ -139,6 +175,7 @@ class PumpCurrentWork:
                     or type(retained) is not int or retained!=len(batch['rows'])):
                 raise ValueError('publication')
             batch['retained'] = True
+            if self.ordered_windows:self.native_cursor=batch['native_position']
             for item in batch['rows'].values():
                 if item['native_filtered']:
                     self._input(item, 'NATIVE_FILTERED')
@@ -164,7 +201,7 @@ class PumpCurrentWork:
             batch = self.batch; item = batch['rows'][id(event)]
             self._input(item, 'REQUESTED')
             if not batch['evaluation_started']:
-                self.evaluations.begin(batch['cid'], batch['frontier'])
+                self._begin(self.evaluations,batch['cid'],batch['frontier'],batch['native_position'])
                 batch['evaluation_started'] = True
             key = checksum([item['pair'], item['mint'], mode, at])
             value = checksum([item['pair'], batch['frontier'], mode, at])
@@ -205,7 +242,7 @@ class PumpCurrentWork:
                     for item in batch['rows'].values()):
                 # Genuine complete original policy traversal can have zero due
                 # requests. Its independent input census must still be whole.
-                self.evaluations.begin(batch['cid'],batch['frontier'])
+                self._begin(self.evaluations,batch['cid'],batch['frontier'],batch['native_position'])
                 batch['evaluation_started']=True
             if batch['evaluation_started']:
                 for request in batch['requests'].values():
