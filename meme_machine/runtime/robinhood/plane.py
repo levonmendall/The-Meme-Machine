@@ -13,9 +13,38 @@ import os
 from pathlib import Path
 from meme_machine.runtime.sqlite_files import transient_file_size
 import sqlite3
+import stat
 import threading
 import time
 import uuid
+
+
+_PROTECTION_SCHEMA={
+    'candidate_protection_revision':'''CREATE TABLE IF NOT EXISTS candidate_protection_revision(
+      id INTEGER PRIMARY KEY CHECK(id=1),generation INTEGER NOT NULL CHECK(typeof(generation)='integer' AND generation>=0))''',
+    'candidate_protection_revision_insert':'''CREATE TRIGGER IF NOT EXISTS candidate_protection_revision_insert
+      BEFORE INSERT ON candidate_protection_revision WHEN EXISTS(SELECT 1 FROM candidate_protection_revision)
+        OR NEW.id<>1 OR typeof(NEW.generation)<>'integer' OR NEW.generation<>0
+      BEGIN SELECT RAISE(ABORT,'candidate_protection_revision_insert'); END''',
+    'candidate_protection_revision_update':'''CREATE TRIGGER IF NOT EXISTS candidate_protection_revision_update
+      BEFORE UPDATE ON candidate_protection_revision WHEN NEW.id<>OLD.id OR typeof(NEW.generation)<>'integer'
+        OR NEW.generation<>OLD.generation+1 OR NEW.generation<=OLD.generation
+      BEGIN SELECT RAISE(ABORT,'candidate_protection_revision_update'); END''',
+    'candidate_protection_revision_delete':'''CREATE TRIGGER IF NOT EXISTS candidate_protection_revision_delete
+      BEFORE DELETE ON candidate_protection_revision
+      BEGIN SELECT RAISE(ABORT,'candidate_protection_revision_delete'); END''',
+}
+for _kind,_condition in (
+        ('insert',"NEW.key='pons_cohort' OR substr(NEW.key,1,16)='native_position:'"),
+        ('update',"NEW.key='pons_cohort' OR OLD.key='pons_cohort' OR substr(NEW.key,1,16)='native_position:' OR substr(OLD.key,1,16)='native_position:'"),
+        ('delete',"OLD.key='pons_cohort' OR substr(OLD.key,1,16)='native_position:'")):
+    _name='candidate_protection_runtime_'+_kind
+    _PROTECTION_SCHEMA[_name]=('CREATE TRIGGER IF NOT EXISTS '+_name+' AFTER '+_kind.upper()+
+        ' ON runtime WHEN '+_condition+' BEGIN UPDATE candidate_protection_revision SET generation=generation+1 WHERE id=1; END')
+
+
+def _schema_sql(value):
+    return ' '.join(value.replace('IF NOT EXISTS ','').split()).rstrip(';') if isinstance(value,str) else None
 
 
 def canonical(value):
@@ -61,6 +90,11 @@ class Plane:
         self._immutable_bytes = 0
         self._immutable_version = None
         self._maintenance_stamp = None
+        self._protection_cache = None
+        self._protection_schema_version = None
+        self._owner_thread = threading.get_ident()
+        self._owner_pid = os.getpid()
+        self._closed = False
         from meme_machine.runtime.operation_costs import connect
         self.db = connect(self.path, timeout=10, isolation_level=None, check_same_thread=False,
                           diagnostic_role='pons_plane')
@@ -92,6 +126,7 @@ class Plane:
           next_at REAL NOT NULL,attempt INTEGER NOT NULL DEFAULT 0);
         CREATE INDEX IF NOT EXISTS pons_watch_due ON pons_current_watch(next_at,attempt,candidate);
         CREATE INDEX IF NOT EXISTS candidate_retirement ON candidates(observed) WHERE pending=0 AND claim IS NULL;
+        CREATE INDEX IF NOT EXISTS candidate_retirement_membership ON candidates(observed,lane,id,pending,claim) WHERE pending=0 AND claim IS NULL;
         CREATE TABLE IF NOT EXISTS observations(
           candidate TEXT NOT NULL,observation TEXT NOT NULL,body TEXT NOT NULL,at REAL NOT NULL,
           PRIMARY KEY(candidate,observation));
@@ -136,17 +171,87 @@ class Plane:
           BEGIN SELECT RAISE(ABORT,'append_only'); END;
         PRAGMA user_version=1;
         ''')
+        try:
+            self.db.executescript(';\n'.join(_PROTECTION_SCHEMA.values())+';')
+            with self.transaction():
+                self.db.execute('INSERT INTO candidate_protection_revision SELECT 1,0 WHERE NOT EXISTS(SELECT 1 FROM candidate_protection_revision)')
+                self._protection_generation()
+        except BaseException:
+            from meme_machine.runtime.sqlite_failure import preserving_cleanup
+            with preserving_cleanup():self.db.close()
+            raise
+        info=Path(self.path).stat();self._owner_inode=(info.st_dev,info.st_ino)
         self.recover()
+
+    def _protection_generation(self):
+        version=self.db.execute('PRAGMA schema_version').fetchone()[0]
+        if version!=self._protection_schema_version:
+            placeholders=','.join('?' for _ in _PROTECTION_SCHEMA)
+            actual={name:_schema_sql(sql) for name,sql in self.db.execute(
+                'SELECT name,sql FROM sqlite_master WHERE name IN ('+placeholders+')',tuple(_PROTECTION_SCHEMA))}
+            if actual!={name:_schema_sql(sql) for name,sql in _PROTECTION_SCHEMA.items()}:
+                raise ValueError('candidate_protection_schema')
+            self._protection_schema_version=version
+        rows=self.db.execute('SELECT id,generation FROM candidate_protection_revision').fetchmany(2)
+        if (len(rows)!=1 or type(rows[0][0]) is not int or rows[0][0]!=1
+                or type(rows[0][1]) is not int or not 0<=rows[0][1]<2**63):
+            raise ValueError('candidate_protection_revision')
+        generation=rows[0][1]
+        if self._protection_cache is not None and generation<self._protection_cache[0]:
+            raise ValueError('candidate_protection_revision_regression')
+        return generation
+
+    def _protection_facts(self,generation):
+        from meme_machine.runtime.operating_families import active_scope_sql
+        scope=active_scope_sql('key')
+        cached=self._protection_cache
+        if cached is not None and cached[0]==generation and cached[3]==scope:return cached
+        protected=set();native=[]
+        for key,raw in self.db.execute("SELECT key,body FROM runtime WHERE "+scope+
+                " AND (key LIKE 'native_position:%' OR key='pons_cohort')"):
+            value=json.loads(raw)
+            if key.startswith('native_position:'):
+                candidate,status=value['candidate'],value['position']['status']
+                if not isinstance(candidate,str) or not isinstance(status,str):
+                    raise ValueError('candidate_protection_native_shape')
+                native.append((key,candidate,status))
+                if status!='settled':protected.add(candidate)
+            if key=='pons_cohort':
+                for kind in ('qualifiers','lifecycles'):
+                    protected.update(row['curve'].lower() for row in value['result'].get(kind,[]) if row.get('curve'))
+        return generation,frozenset(protected),tuple(native),scope
+
+    @contextmanager
+    def borrow_checkpoint(self,path):
+        """Borrow this already validated true owner, never reopen or transfer it."""
+        with self.lock:
+            if (type(self) is not Plane or self._closed or os.getpid()!=self._owner_pid
+                    or threading.get_ident()!=self._owner_thread or self.owner!=process_identity()
+                    or Path(path).resolve()!=Path(self.path).resolve() or self.db.in_transaction):
+                raise ValueError('candidate_checkpoint_owner')
+            info=Path(self.path).stat()
+            if (not stat.S_ISREG(info.st_mode) or info.st_nlink!=1
+                    or any(part.is_symlink() for part in (Path(self.path),*Path(self.path).parents))
+                    or (info.st_dev,info.st_ino)!=self._owner_inode):raise ValueError('candidate_checkpoint_inode')
+            self._protection_generation()
+            # Preserve constructor recovery semantics on the borrowed path;
+            # integrity/schema initialization belongs to the true owner's open.
+            self.recover()
+            yield self
 
     @contextmanager
     def transaction(self):
         with self.lock:
             self.db.execute('BEGIN IMMEDIATE')
             before = self.db.total_changes
+            schema_token=self._protection_schema_version
             try:
                 yield
-                self.db.execute('COMMIT' if self.db.total_changes != before else 'ROLLBACK')
+                changed=self.db.total_changes != before
+                self.db.execute('COMMIT' if changed else 'ROLLBACK')
+                if not changed:self._protection_schema_version=schema_token
             except BaseException:
+                self._protection_schema_version=schema_token
                 from meme_machine.runtime.sqlite_failure import preserving_cleanup
                 with preserving_cleanup():
                     if self.db.in_transaction:self.db.execute('ROLLBACK')
@@ -177,9 +282,10 @@ class Plane:
         from meme_machine.runtime.operating_families import active_sql,active_scope_sql
         with self.lock:
             now = self.clock()
-            stamp = (self.db.total_changes, self.db.execute('PRAGMA data_version').fetchone()[0])
+            stamp = (self.db.total_changes, self.db.execute('PRAGMA data_version').fetchone()[0],active_scope_sql('key'))
             if self._maintenance_stamp == stamp and self._maintenance_at <= now < self._maintenance_due:
                 return
+        pending_protection=None
         with self.transaction():
             version = self.db.execute('PRAGMA data_version').fetchone()[0]
             evidence_evicted = False
@@ -197,27 +303,22 @@ class Plane:
                 if self.db.execute('SELECT COUNT(*) FROM evidence WHERE namespace=?',(namespace,)).fetchone()[0]<=limit:
                     continue
                 evidence_evicted |= self.db.execute('DELETE FROM evidence WHERE namespace=? AND key NOT IN (SELECT key FROM evidence WHERE namespace=? ORDER BY created DESC,key DESC LIMIT ?) AND NOT EXISTS(SELECT 1 FROM receipt_obligations o WHERE o.namespace=evidence.namespace AND o.key=evidence.key)',(namespace,namespace,limit)).rowcount > 0
-            protected=set()
-            # The pending/lane index makes SQLite walk every quiet candidate
-            # on each changed header. The existing retirement index seeks the
-            # exact age boundary without reconstructing that population.
-            rows=[dict(r) for r in self.db.execute('SELECT * FROM candidates INDEXED BY candidate_retirement WHERE '+active_sql('lane')+' AND pending=0 AND claim IS NULL AND observed<?',(now-86400,))]
-            native_rows=self.db.execute("SELECT key,body FROM runtime WHERE "+active_scope_sql('key')+" AND key LIKE 'native_position:%'").fetchall()
-            # With no eligible candidates or native rows, protection cannot
-            # change a retirement decision. Avoid decoding the entire cohort
-            # report on every discovery/header update in this common case.
-            protected_rows=(self.db.execute("SELECT key,body FROM runtime WHERE "+active_scope_sql('key')+" AND (key LIKE 'native_position:%' OR key='pons_cohort')")
-                if rows or native_rows else ())
-            for key,raw in protected_rows:
-                value=json.loads(raw)
-                if key.startswith('native_position:') and value['position']['status']!='settled':protected.add(value['candidate'])
-                if key=='pons_cohort':
-                    for kind in ('qualifiers','lifecycles'):
-                        protected.update(r['curve'].lower() for r in value['result'].get(kind,[]) if r.get('curve'))
+            # Membership is small and freshly evaluated at the original age
+            # cutoff. Protected rows need no payload/result hydration.
+            keys=[row[0] for row in self.db.execute('SELECT id FROM candidates INDEXED BY candidate_retirement_membership WHERE '+active_sql('lane')+' AND pending=0 AND claim IS NULL AND observed<?',(now-86400,))]
+            native_present=self.db.execute("SELECT 1 FROM runtime WHERE "+active_scope_sql('key')+
+                " AND key LIKE 'native_position:%' LIMIT 1").fetchone() is not None
+            protected=frozenset();native_rows=()
+            if keys or native_present:
+                generation=self._protection_generation()
+                pending_protection=self._protection_facts(generation)
+                _,protected,native_rows,_=pending_protection
             archive=self.history_archive() or dict(schema='robinhood-window-history-v1')
             floors=archive.setdefault('retired_ordering',{})
-            for row in rows:
-                if row['id'] in protected or row['id'].rsplit(':',1)[-1].lower() in protected:continue
+            for key in keys:
+                if key in protected or key.rsplit(':',1)[-1].lower() in protected:continue
+                row=self._row(key)
+                if row is None:continue
                 if row['pending'] or row['claim'] or row['observed']>=self.clock()-86400:continue
                 if row['result'] is not None and not self.db.execute('SELECT 1 FROM result_consumption WHERE candidate=? AND generation=?',(row['id'],row['generation'])).fetchone():continue
                 order=json.loads(row['ordering']);floors[row['lane']]=list(max(tuple(floors.get(row['lane'],[])),tuple(order)))
@@ -226,13 +327,20 @@ class Plane:
                 self.db.execute('DELETE FROM result_consumption WHERE candidate=?',(row['id'],))
                 self.db.execute('DELETE FROM rolling WHERE candidate=?',(row['id'],))
                 self.db.execute('DELETE FROM runtime WHERE key=?',('native_entry_generation:pons:'+row['id'],))
-            for key,raw in native_rows:
-                value=json.loads(raw)
-                if value['position']['status']=='settled' and value['candidate'] not in protected:
+            for key,candidate,status in native_rows:
+                if status=='settled' and candidate not in protected:
                     self.db.execute('DELETE FROM runtime WHERE key=?',(key,))
             archive['chain_hash']=digest({k:v for k,v in archive.items() if k!='chain_hash'})
             self.db.execute('INSERT INTO runtime VALUES(?,?) ON CONFLICT(key) DO UPDATE SET body=excluded.body WHERE runtime.body<>excluded.body',('window_history_archive',canonical(archive)))
+            if pending_protection is not None and self._protection_generation()!=pending_protection[0]:
+                pending_protection=None
         with self.lock:
+            # Publish only after the original transaction exits normally. A
+            # no-write ROLLBACK closes a committed read snapshot; a write path
+            # reaches this point only after its original COMMIT returned.
+            if pending_protection is not None and (self._protection_cache is None
+                    or self._protection_cache[0]<=pending_protection[0]):
+                self._protection_cache=pending_protection
             # Eviction must also evict the warm view. Another writer invalidates
             # the stamp; clock rollback and the next age boundary force a sweep.
             if evidence_evicted:self._immutable.clear();self._immutable_bytes = 0
@@ -247,7 +355,7 @@ class Plane:
             deadlines = [now+60] + [x+86400+.000001 for x in (next_candidate,next_rolling) if x is not None]
             self._maintenance_at = now
             self._maintenance_due = min(deadlines)
-            self._maintenance_stamp = (self.db.total_changes, version)
+            self._maintenance_stamp = (self.db.total_changes, version,active_scope_sql('key'))
 
     def evidence_namespaces(self):
         """Seek each retained namespace without walking its cached bodies.
@@ -599,7 +707,8 @@ class Plane:
             wal_bytes=transient_file_size(Path(self.path+'-wal')))
 
     def close(self):
-        with self.lock:self.db.close()
+        with self.lock:
+            self._closed=True;self._protection_cache=None;self.db.close()
 
 
 def native_ledger_locator(lane,ledger_path):
