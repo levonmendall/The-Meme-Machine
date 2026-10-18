@@ -409,3 +409,30 @@ class NativePrewriteReplayTests(unittest.TestCase):
                 patch.object(runtime,'connection',side_effect=AssertionError('premature financial writer')):
             with self.assertRaisesRegex(wire.NormalBootUnavailable,'no seal'):supervisor.initialize()
         self.assertEqual(consume.call_count,1)
+
+    def test_actual_final_source_check_cancellation_cannot_publish_private_context(self):
+        stopped=False;calls=0
+        original=(self.record['application_commit'],self.record['application_tree'])
+        def source():
+            nonlocal stopped,calls
+            calls+=1
+            if calls==2:stopped=True
+            return original
+        with patch.object(boot,'_source_identity',side_effect=source):
+            with self.assertRaisesRegex(wire.NormalBootUnavailable,'cancelled_before_context'):
+                boot.consume_normal_boot(self.supervisor,cancelled=lambda:stopped)
+        self.assertEqual(calls,2);self.assertIsNone(boot._ACTIVE);self.assertFalse(self.launch._consumed)
+
+    def test_actual_final_source_check_expiry_cannot_publish_private_context(self):
+        expired=False;calls=0;clock=time.monotonic
+        original=(self.record['application_commit'],self.record['application_tree'])
+        def source():
+            nonlocal expired,calls
+            calls+=1
+            if calls==2:expired=True
+            return original
+        def now():return self.record['not_after_monotonic']+1 if expired else clock()
+        with patch.object(boot,'_source_identity',side_effect=source),patch.object(boot.time,'monotonic',side_effect=now):
+            with self.assertRaisesRegex(wire.NormalBootUnavailable,'expired_before_context'):
+                boot.consume_normal_boot(self.supervisor,cancelled=lambda:False)
+        self.assertEqual(calls,2);self.assertIsNone(boot._ACTIVE);self.assertFalse(self.launch._consumed)

@@ -281,8 +281,16 @@ def consume_normal_boot(supervisor,*,cancelled):
         application_tree=record['application_tree'],supervisor=deepcopy(record['supervisor']),
         epoch_id=value['epoch_id'],inception_sha256=value['inception_sha256'],
         preserved_source_inputs=source,unknown_historical_handlers=certificate['unknown_historical_handlers'])
+    context=BootContext(launch,root,identity,_issuer=_ISSUER)
+    # Final Git/unit checks are fallible work, not an acceptance-time snapshot.
+    # Recheck their original window and cancellation after they finish and
+    # immediately before the private context becomes reachable by any caller.
+    launch.require_current(initial=True)
+    require(cancelled() is False,'cancelled_before_context')
+    require(record['issued_monotonic']<=time.monotonic()<record['not_after_monotonic'],
+        'expired_before_context')
     launch._consumed=True
-    _ACTIVE=BootContext(launch,root,identity,_issuer=_ISSUER)
+    _ACTIVE=context
     return _ACTIVE
 
 

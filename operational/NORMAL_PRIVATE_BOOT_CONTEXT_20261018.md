@@ -79,3 +79,11 @@ memory. Invalid first fixture runs are retained separately: the genuine cached
 native shared writer left a nonempty WAL, so reader refusal was correct; test
 preparation closes that fixture owner before claiming the pre-write premise.
 No kernel/systemd/AWS/provider or sustained processing acceptance was exercised.
+
+Review follow-up: initial consumption now rechecks the root/unit owner, caller
+cancellation and original time window after the final Git/identity work and
+immediately before exposing the private context. Two real all-four replay tests
+cancel or expire that final source check and leave both ACTIVE and consumed
+unset.19 focused cases pass in3.346s. Replacing only `consume_normal_boot` with
+its exact1467 function reproduces both expected failures (late success), under
+the original network guard and admitted Scratch; that failure receipt is retained.
