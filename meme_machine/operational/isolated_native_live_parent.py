@@ -339,7 +339,7 @@ class LiveNativeParent:
             transport.close();transport=None;os.close(facts_read);facts_read=None
             self._publisher=asyncio.create_task(self._publish(facts_write,produced,channel.session,
                 financial,source,scope_id,sizing_counts));facts_write=None
-            stage='live_window';deadline=time.monotonic()+seconds
+            stage='live_window';deadline=time.monotonic()+seconds;natural_drain=False
             next_storage=0;next_ownership=0
             while time.monotonic()<deadline and not self._window_stop.is_set():
                 if time.monotonic()>=next_ownership:
@@ -349,12 +349,20 @@ class LiveNativeParent:
                 if any(task.done() for task in self._servers):
                     for task in self._servers:
                         if task.done():task.result()
+                    natural_drain=True
                     break
-                if os.waitid(os.P_PID,self._child.child.pid,os.WEXITED|os.WNOHANG|os.WNOWAIT) is not None:break
+                if os.waitid(os.P_PID,self._child.child.pid,os.WEXITED|os.WNOHANG|os.WNOWAIT) is not None:
+                    natural_drain=True;break
                 await asyncio.sleep(.1)
             stage='native_drain'
             self._drain_deadline=time.monotonic()+DRAIN_SECONDS
-            result['child']=await asyncio.to_thread(self._child.stop)
+            # A peer that has already closed its IPC may be completing normal
+            # interpreter teardown. Do not introduce TERM after its accepted
+            # work ended: Python finalization can already have restored DFL.
+            # Both paths retain the same single original drain bound and the
+            # launcher's owned-group kill-before-reap containment.
+            result['child']=(await asyncio.to_thread(self._child.wait,seconds=DRAIN_SECONDS)
+                if natural_drain else await asyncio.to_thread(self._child.stop))
             result['owned_process_reaped']=self._child._reaped
             policy=native_policy_record(bytes(self._child.output['stderr']))
             result['kernel_applied']=_prepare is _REAL_PREPARE and _launch is _REAL_LAUNCH and policy is not None
