@@ -14,13 +14,16 @@ The CI-only fix installs ownership of the original selected CPython3.12.14 core
 closure under the fixed setup-python location
 `/opt/hostedtoolcache/Python/3.12.14/x64`. It pins that path, running interpreter,
 version and architecture. It opens each path component with NOFOLLOW and keeps
-the selected descriptors stable. Four exact cache ancestor directories and
+the selected descriptors stable. Five exact ancestor directories beginning at
+`/opt` and
 the enumerated selected runtime parents become root-owned and lose group/other
 write permissions; no recursive ownership operation or host-tree enumeration
 is used. Existing files must have a recognized owner, safe readable modes,
 regular-file identity, a single link inside the selected prefix and bounded
 size. Only the selected prefix files receive ownership changes. System loader
 and library files retain the original root-owned trust requirement.
+The filesystem root `/` remains a read-only trust anchor and receives no
+ownership or permission operation.
 
 The helper hashes every selected file before and after its metadata-only
 installation and rechecks content, inode/path identity and retained directory
@@ -61,3 +64,26 @@ success. Complete FAST/OPERATIONAL release dispatch remains outside this focused
 CI repair and must retain its separate execution-principal requirements before
 final promotion. No production permissions, provider workload, strategy,
 financial state, runtime source guards or PAPER readiness change here.
+
+The corrected hosted run39082953309 on
+`a684a29b7f58c42c8e7ac0f194136ea36b6bc632` then stopped at setup before any
+test phase. The `/opt` directory passed the recognized-owner check but failed
+the root-owner/nonwritable trust predicate. Its exact UID/mode was not printed,
+so neither individual cause is inferred. This terminal receipt remains a
+failure, with Stage A, root diagnostics, native cases and helper cases skipped.
+Pump39082951247 passed90 focused parity cases in3.955 seconds and151 accepted
+source/cancellation cases in5.962 seconds, with two existing skips.
+
+The follow-up moves the read-only anchor to `/` and applies the same fixed,
+metadata-only installation to the exact `/opt` directory before the existing
+cache chain. The public coordinator regression authenticates that entire six-
+directory sequence. Remaining prefix parents are already opened/sealed from
+enumerated native-image inputs; system library parents receive no permission
+repair. Bounded failure JSON now records only fixed role/code names and numeric
+source/destination stat fields, without arbitrary paths or exception messages.
+It always states FAILED/incomplete and rethrows the original failure. Negative
+fixtures cover writable-directory admission, private/invalid injected fields,
+unhashable inputs and preservation of the original failure after projection.
+All17 focused cases passed in0.206 seconds using the supported FAST driver.
+Actual hosted installation and both nonprobe executor roles still need a new
+CI receipt; no full copied-main or kernel success is claimed here.
