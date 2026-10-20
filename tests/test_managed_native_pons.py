@@ -27,7 +27,7 @@ class ManagedNativePonsTests(unittest.TestCase):
         profile = json.loads((Path(__file__).parents[1]/
             'operational/pump-first-release/deployment/paper-continuous.four-regime.json').read_text())
         profile['maximum_cpu_cores'] = '1'
-        self.profile = self.base/'profile.json'; self.profile.write_text(json.dumps(profile))
+        self.profile = self.base/'profile.json'; self.profile.write_text(json.dumps(profile)); self.profile.chmod(0o600)
         self.env = dict(MM_ROBINHOOD_READ_RPC_URL=ENDPOINT,
             MM_ROBINHOOD_STATE_DIR=str(self.root),MM_PROVIDER_DB=str(self.root/'provider.sqlite'),
             MM_RPC_CACHE_DB=str(self.root/'evidence.sqlite'),MM_RUNTIME_LANE='pons',
@@ -105,6 +105,33 @@ class ManagedNativePonsTests(unittest.TestCase):
         self.fail_receipt = False; self.consume()
         self.assertEqual(self.lane.snapshot()['durable'],1)
         self.assertTrue(self.lane.replay()['verified'])
+
+    def test_managed_receipt_pins_publish_exact_reusable_rpc_evidence(self):
+        self.enroll(); self.consume()
+        tx = self.capture['event']['transactionHash']; bh = self.capture['event']['blockHash']
+        reuse = self.lane.rpc.evidence_reuse
+        key = reuse.key('eth_getTransactionReceipt',[tx],receipts={tx:bh})
+        self.assertIsNotNone(reuse.store.get(reuse.domain,key))
+        before = len(self.calls)
+        self.lane.rpc.evidence_receipts = {tx:bh}
+        self.assertEqual(self.lane.rpc.call('eth_getTransactionReceipt',[tx],scope='pons_selective_window'),
+                         self.capture['receipt'])
+        self.assertEqual(len(self.calls),before)
+
+    def test_partial_native_batch_is_rejected_before_zipping_evidence(self):
+        with patch.object(self.lane.rpc,'batch',return_value=[]):
+            with self.assertRaisesRegex(ValueError,'native_batch_shape'):
+                self.lane.sample_head()
+
+    def test_restart_refuses_hardlinks_and_nonprivate_state(self):
+        self.lane.close(); marker = self.root/'managed-pons.json'
+        marker.chmod(0o644)
+        with self.assertRaisesRegex(ValueError,'private_file_permissions'):
+            ManagedPonsLane(self.root,GENERATION)
+        marker.chmod(0o600)
+        os.link(marker,self.base/'marker-copy')
+        with self.assertRaisesRegex(ValueError,'private_file_permissions'):
+            ManagedPonsLane(self.root,GENERATION)
 
     def test_numeric_canonical_fence_disagreement_never_publishes_completion(self):
         self.enroll()

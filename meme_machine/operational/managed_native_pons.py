@@ -37,6 +37,17 @@ def require(condition, reason):
         raise ValueError('managed_pons_' + reason)
 
 
+def private_file(path, *, parent=None):
+    path = Path(path)
+    require(path.is_absolute() and path.resolve(strict=True) == path and
+            not any(p.is_symlink() for p in (path,*path.parents)), 'private_file_path')
+    info = path.stat()
+    require(stat.S_ISREG(info.st_mode) and info.st_uid == os.geteuid() and
+            info.st_nlink == 1 and not info.st_mode & 0o077, 'private_file_permissions')
+    require(parent is None or path.parent == parent, 'private_file_parent')
+    return path
+
+
 def atomic_json(path, value):
     """Private, atomic evidence; never follow an inherited destination link."""
     path = Path(path)
@@ -72,14 +83,13 @@ def private_root(root, generation):
         require(os.environ.get(name) == str(expected), 'isolated_path_binding')
     usage = os.environ.get('MM_PROVIDER_USAGE_DB')
     if usage:
-        p = Path(usage)
-        require(p.is_absolute() and not p.is_symlink() and p.resolve().parent == root.parent,
-                'isolated_usage_binding')
+        private_file(usage,parent=root.parent)
     require(os.environ.get('MM_RUNTIME_LANE') == 'pons' and
             os.environ.get('MM_PONS_OBSERVATION_ROUTE') == 'canonical_primary',
             'managed_lane_binding')
     require(os.environ.get('MM_PROVIDER_OPERATION_MODE') == 'CONTINUOUS' and
             os.environ.get('MM_CONTINUOUS_PROVIDER_ENVELOPE'), 'production_profile_required')
+    private_file(os.environ['MM_CONTINUOUS_PROVIDER_ENVELOPE'],parent=root.parent)
     marker = root/'managed-pons.json'
     expected = dict(schema=SCHEMA, generation=generation, allocation_authority=False)
     allowed = {'managed-pons.json', 'managed-pons.lock', 'native.sqlite',
@@ -88,8 +98,8 @@ def private_root(root, generation):
         'telemetry.json', 'result.json', 'telemetry.json.new', 'result.json.new'}
     if marker.exists():
         require(json.loads(marker.read_text()) == expected, 'generation_marker')
-        require(all(p.name in allowed and p.is_file() and not p.is_symlink() and
-                    p.stat().st_uid == os.geteuid() for p in root.iterdir()), 'foreign_state')
+        require(all(p.name in allowed for p in root.iterdir()), 'foreign_state')
+        for p in root.iterdir(): private_file(p,parent=root)
     else:
         require(not any(root.iterdir()), 'fresh_generation_required')
         atomic_json(marker, expected)
@@ -107,6 +117,11 @@ class ManagedPonsLane:
         self.root = private_root(root, generation)
         self.generation = generation
         self.cancel = cancel or (lambda: False)
+        # Independent library use also creates private SQLite files regardless
+        # of the launching shell's umask. Existing files were authenticated above.
+        for name in ('managed-pons.lock','native.sqlite','provider.sqlite','evidence.sqlite'):
+            fd = os.open(self.root/name,os.O_RDWR|os.O_CREAT|os.O_NOFOLLOW,0o600)
+            os.close(fd)
         self.owner = (self.root/'managed-pons.lock').open('a')
         fcntl.flock(self.owner, fcntl.LOCK_EX | fcntl.LOCK_NB)
         self.counts = Counter(); self.failure_counts = Counter()
@@ -173,7 +188,9 @@ class ManagedPonsLane:
             group = calls[offset:offset+50]
             if self.rpc.used + len(group) > 190 or self.rpc.counts[scope] + len(group) > 180:
                 self.rpc = self._discovery()
-            out.extend(self.rpc.batch(group, scope=scope))
+            result = self.rpc.batch(group, scope=scope)
+            require(type(result) is list and len(result) == len(group), 'native_batch_shape')
+            out.extend(result)
         return out
 
     def sample_head(self):
@@ -232,7 +249,7 @@ class ManagedPonsLane:
                 labels.append(('receipt', (tx, bh)))
                 calls.append(('eth_getTransactionReceipt', [tx]))
             else: receipts[(tx, bh)] = value
-        self.rpc.evidence_receipts = dict(transactions)
+        self.rpc.evidence_receipts = {tx:bh for tx,bh in transactions}
         try:
             for (kind, key), value in zip(labels, self._batch(calls, 'pons_selective_window')):
                 if kind == 'header': headers[key] = value
@@ -356,7 +373,8 @@ class ManagedPonsLane:
             provider_usage=self.rpc.shared_admission.telemetry(),
             storage_bytes=sum(p.stat().st_size for p in self.root.iterdir() if p.is_file()),
             scope=dict(managed_admission=True,native_batches=True,native_decode=True,
-                native_current_history=True,current_qualification=True,
+                native_current_history=True,native_current_history_persistence=True,
+                current_qualification=True,complete_current_qualification=False,
                 survivor_qualification=False,financial_entries=False,
                 held_protection_live=False,
                 sizing_input='unchanged_native_unfunded_reference_constant'),observed_at=time.time())
@@ -407,6 +425,12 @@ def run_pons(root, duration, generation, *, sample_callback=None, cancel=None):
     stopped = threading.Event()
     deadline = time.monotonic() + duration
     external_cancel = cancel or (lambda: False)
+    private_root(root,generation)
+    require(os.environ.get('MM_PROVIDER_USAGE_DB'), 'production_usage_required')
+    # Install the actual continuous provider accounting/resource wrappers before
+    # constructing any RPC, even when this callable is invoked without a parent.
+    from .bounded_provider import install
+    install()
     lane = ManagedPonsLane(root,generation,cancel=lambda:stopped.is_set() or external_cancel())
     error = None; replay = None
     try:
