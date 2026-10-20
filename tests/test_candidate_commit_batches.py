@@ -13,7 +13,7 @@ from contextlib import closing
 from unittest.mock import patch
 import based58
 
-from meme_machine.solana_candidate_join import YellowstoneTransactionFrame
+from meme_machine.solana_candidate_join import YellowstoneTransactionFrame,CandidateTransactionJoin,scope_labels
 from meme_machine.solana_evidence_plane import EvidenceUnavailable
 from meme_machine.solana_rolling_history import program_scope
 from meme_machine.solana_selective_history import PROGRAMS
@@ -434,6 +434,95 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         source.stop.clear();await q.put(frame(108))
         await asyncio.wait_for(source.candidate_commits(q,self.addresses,'session',priority=0),.1)
         self.assertEqual(calls,[0,0]);self.assertEqual(q.count,0)
+
+    async def test_competing_join_producers_preserve_native_parent_order_after_backpressure(self):
+        # The same join is synchronously fed by native, WS and HTTP repair
+        # callbacks. A producer can emit another frame immediately after its
+        # blocked put returns, before an older Event waiter resumes.
+        join=CandidateTransactionJoin(self.addresses,set(),filtered_from_slot=100)
+        label=scope_labels(self.addresses)[program_scope('pump')]
+        emitted=[]
+        def joined(slot):
+            original=frame(slot);tx=original.log_transactions[0]
+            sig=tx['transaction']['signatures'][0]
+            self.assertIsNone(join.feed_log(slot,sig,tx['meta']['logMessages'],None,NOW))
+            status=pb.SubscribeUpdate(filters=[label]);status.transaction_status.slot=slot
+            status.transaction_status.index=0;status.transaction_status.signature=based58.b58decode(sig.encode())
+            self.assertIsNone(join.feed(status,status.ByteSize(),NOW))
+            meta=pb.SubscribeUpdate(filters=['b']);b=meta.block_meta
+            b.slot=slot;b.parent_slot=slot-1;b.blockhash=str(slot);b.parent_blockhash=str(slot-1)
+            b.block_time.timestamp=int(NOW);b.executed_transaction_count=1
+            self.assertIsNone(join.feed(meta,meta.ByteSize(),NOW))
+            final=pb.SubscribeUpdate(filters=['f']);final.slot.slot=slot
+            final.slot.parent=slot-1;final.slot.status=pb.SLOT_FINALIZED
+            result=join.feed(final,final.ByteSize(),NOW)
+            self.assertIsNotNone(result);emitted.append(slot)
+            return result
+        accepted=[];queue=CandidateCommitQueue(lambda a,c:accepted.append((a,c)))
+        for slot in range(100,108):await queue.put(joined(slot))
+        first=await queue.batch()
+        self.assertEqual(queue.count,CANDIDATE_COMMIT_BATCH)
+        older_waiting=asyncio.Event()
+        async def first_producer():
+            await queue.put(joined(108))
+            await older_waiting.wait()
+            await queue.put(joined(110))
+        async def second_producer():
+            value=joined(109);older_waiting.set();await queue.put(value)
+        producers=[asyncio.create_task(first_producer()),asyncio.create_task(second_producer())]
+        try:
+            await older_waiting.wait()
+            self.assertFalse(any(task.done() for task in producers))
+            self.assertEqual((queue.count,queue.bytes),(8,sum(row[1] for row in first)))
+            commit_candidate_batch(self.state,[row[0] for row in first],self.addresses,'shared-join',publish=False)
+            queue.done(first)
+            await asyncio.wait_for(asyncio.gather(*producers),1)
+            following=await queue.batch()
+            slots=[row[0].update.block.slot for row in following]
+            self.assertEqual(emitted,list(range(100,111)))
+            # The original parent check and real economic writer must both
+            # succeed, with every event and deferred proof retained in order.
+            commit_candidate_batch(self.state,[row[0] for row in following],self.addresses,'shared-join',publish=False)
+            self.assertEqual(slots,[108,109,110])
+            queue.done(following);await queue.join()
+            self.assertEqual((queue.count,queue.bytes),(0,0))
+            self.assertEqual(accepted.count((1,0)),11)
+            self.assertEqual(sum(count for _,count in accepted),11)
+            self.assertEqual(self.h.db.execute('SELECT COUNT(DISTINCT signature) FROM rolling_economic_events').fetchone()[0],11)
+            self.assertEqual({row[0] for row in self.h.db.execute('SELECT slot FROM candidate_blocks')},{110})
+            self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_pending_proofs').fetchone()[0],20)
+            self.assertEqual(self.h.db.execute('SELECT COUNT(*) FROM candidate_gaps').fetchone()[0],0)
+            before=self.snapshot(self.h)
+            self.state.writer.close();self.state,self.h=state_at(self.state.writer.path)
+            self.addCleanup(self.state.writer.close)
+            self.assertEqual(self.snapshot(self.h),before)
+        finally:
+            for task in producers:
+                if not task.done():task.cancel()
+            await asyncio.gather(*producers,return_exceptions=True)
+
+    async def test_cancelled_capacity_waiters_keep_original_frame_reservations(self):
+        # Cover both a producer owning the capacity wait and a subsequent
+        # admission waiter. Cancellation neither ACKs nor frees owner-held work.
+        for cancelled in (0,1):
+            with self.subTest(cancelled=cancelled):
+                changes=[];queue=CandidateCommitQueue(lambda a,c:changes.append((a,c)))
+                for slot in range(100,108):await queue.put(frame(slot,logs=False))
+                held=await queue.batch();before=(queue.count,queue.bytes)
+                tasks=[asyncio.create_task(queue.put(frame(slot,logs=False))) for slot in (108,109)]
+                await asyncio.sleep(0)
+                tasks[cancelled].cancel()
+                self.assertIsInstance((await asyncio.gather(tasks[cancelled],return_exceptions=True))[0],asyncio.CancelledError)
+                self.assertFalse(tasks[1-cancelled].done())
+                self.assertEqual((queue.count,queue.bytes),before)
+                self.assertEqual(changes,[(1,0)]*8)
+                queue.done(held);await asyncio.wait_for(tasks[1-cancelled],1)
+                remaining=await queue.batch()
+                self.assertEqual([row[0].update.block.slot for row in remaining],[109 if cancelled==0 else 108])
+                queue.done(remaining);await queue.join()
+                self.assertEqual((queue.count,queue.bytes),(0,0))
+                self.assertEqual(sum(a for a,_ in changes),9)
+                self.assertEqual(sum(c for _,c in changes),9)
 
     async def test_owner_held_frames_keep_count_and_byte_capacity_reserved(self):
         q=CandidateCommitQueue()
