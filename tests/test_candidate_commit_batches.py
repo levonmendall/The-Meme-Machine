@@ -268,9 +268,12 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_linked_control_delivery_and_publication_share_intake_fifo(self):
         source=SelectiveSource(SimpleNamespace(credential='offline'),None)
-        source.stop=asyncio.Event();source.control_connected=True;calls=[]
+        source.stop=asyncio.Event();source.control_connected=True;calls=[];active=[]
         async def work(fn,priority,**kw):
-            calls.append((priority,kw.get('label')));result=fn(self.state)
+            calls.append((priority,kw.get('label')))
+            active.append((priority,kw.get('label'),kw.get('component')))
+            try:result=fn(self.state)
+            finally:active.pop()
             source.stop.set();return result
         source.work=work;queue=asyncio.Queue()
         for slot in (100,101):await queue.put(frame(slot,logs=False))
@@ -278,14 +281,45 @@ class CandidateCommitBatchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(calls,[(2,'source_commit')]);self.assertEqual(source.control_committed_slot,100)
         source.stop.clear();calls.clear()
         source.batched=True
-        # Publication's delivery dependency must share its intake/FIFO class.
-        # Every byte, including duplicate deliveries, remains accounted.
+        # Publication's delivery dependency shares the same intake/FIFO
+        # owner turn. Both physical deliveries, including the duplicate, must
+        # be durably charged exactly once BEFORE real proof publication.
+        key=(int(NOW)//86400,'candidate_live','yellowstone')
+        def meter():
+            return self.h.db.execute('''SELECT raw_bytes,retained_bytes,canonical_bytes,
+                ipc_bytes,rpc_cu,calls FROM provider_delivery
+                WHERE day=? AND family=? AND transport=?''',key).fetchall()
+        self.assertEqual(meter(),[])
         await source.delivered('candidate_live','yellowstone',100,NOW)
         await source.delivered('candidate_live','yellowstone',100,NOW)
-        with patch.object(self.h.startup,'advance',return_value=None):
+        self.assertEqual(source.pending_delivery,{key:(200,NOW)})
+        self.assertEqual(meter(),[]);self.assertEqual(calls,[])
+        events=[];original_delivery=self.h.delivery;original_publish=self.h.lifecycle.publish
+        def delivery(family,transport,**options):
+            self.assertEqual(active,[(2,'source_commit','history_publication')])
+            self.assertEqual((family,transport,options),
+                ('candidate_live','yellowstone',dict(raw_bytes=200,seen=NOW)))
+            self.assertEqual(meter(),[]);events.append('delivery')
+            return original_delivery(family,transport,**options)
+        def publish():
+            self.assertEqual(active,[(2,'source_commit','history_publication')])
+            self.assertEqual(events,['delivery'])
+            self.assertEqual(meter(),[(200,0,0,0,0,0)])
+            self.assertFalse(self.h.db.in_transaction,
+                'delivery accounting must COMMIT before actual publication')
+            events.append('publication')
+            return original_publish()
+        with patch.object(self.h,'delivery',side_effect=delivery),patch.object(
+                self.h.lifecycle,'publish',side_effect=publish),patch.object(
+                self.h.startup,'advance',return_value=None):
             await asyncio.wait_for(source.publish_history(),.5)
-        self.assertEqual(calls,[(2,'source_commit'),(2,'source_commit')])
+        self.assertEqual(events,['delivery','publication'])
+        self.assertEqual(calls,[(2,'source_commit')])
         self.assertFalse(source.pending_delivery)
+        self.assertEqual(meter(),[(200,0,0,0,0,0)])
+        await source.flush_delivery();await source.flush_delivery()
+        self.assertEqual(calls,[(2,'source_commit')])
+        self.assertEqual(meter(),[(200,0,0,0,0,0)])
 
     async def test_selective_consumer_decodes_each_snapshot_body_once_and_keeps_all_history(self):
         from meme_machine import solana_selective_runtime as consumer
