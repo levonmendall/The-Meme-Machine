@@ -76,6 +76,16 @@ class ManagedWorkload(unittest.TestCase):
         self.assertLess(len(canonical(small)) * (3600 // 5 + 1), 1024**2)
         self.assertEqual(small['history']['events'], 20)
 
+    def test_qualification_projection_retains_actual_native_arrival_and_cursor_fields(self):
+        native = dict(incoming_native_events=128, durably_observed_native_events=64,
+            native_event_backlog=64, latest_source_sequence=140, durable_sequence=70,
+            stages={'creation_observed': 64}, full_qualifications=0,
+            decision_target_available=False, full_qualification_proven=False)
+        small = workload.sample_projection('pump', dict(qualification_worker=native))
+        for key, value in native.items():
+            self.assertEqual(small['qualification_worker'][key], value)
+        self.assertNotIn('source_native_events', small['qualification_worker'])
+
     def test_pons_child_binds_exact_state_and_preserves_blocked_result(self):
         from meme_machine.operational import managed_native_pons
         with tempfile.TemporaryDirectory() as tmp:

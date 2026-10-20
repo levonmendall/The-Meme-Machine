@@ -145,8 +145,9 @@ def sample_projection(lane, row):
         result['authenticated_finalized_head'] = row.get('authenticated_finalized_head')
         qualifier = row.get('qualification_worker') or {}
         result['qualification_worker'] = {k: qualifier.get(k) for k in (
-            'initialization_pending', 'observation_unavailable', 'source_native_events',
+            'initialization_pending', 'observation_unavailable', 'incoming_native_events',
             'durably_observed_native_events', 'native_event_backlog', 'stages',
+            'latest_source_sequence', 'durable_sequence',
             'full_qualifications', 'decision_target_available', 'full_qualification_proven')}
     return result
 
