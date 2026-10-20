@@ -385,7 +385,11 @@ def _failure(error):
     candidate = error.args[0] if len(error.args) == 1 else None
     code = candidate if type(candidate) is str and candidate in allowed else None
     site = None
-    if pons_boundary:
+    # Unexpected AttributeError previously hid its origin behind a generic
+    # public-workload refusal and cancelled the other lane. Attribute source
+    # location is a fixed module/function/line triple from the pinned package;
+    # exception messages, local variables, file paths and provider bodies stay private.
+    if pons_boundary or type(error) is AttributeError:
         application = Path(__file__).resolve().parents[1]
         trace = error.__traceback__
         while trace is not None:
