@@ -3068,7 +3068,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_archive_log_order_reverses_only_exact_distinct_post_prefix_sequence_match(self):
         import hashlib
-        relative=ARCHIVE_LOG_ORDER_SOURCE;current=(ROOT/relative).read_bytes()
+        relative=ARCHIVE_LOG_ORDER_SOURCE;current=audit_predecessor(self,relative,(ROOT/relative).read_bytes())
         self.assertEqual(hashlib.sha256(current).hexdigest(),ARCHIVE_LOG_ORDER_AFTER,
             relative+':active source must use the exact retained-line order repair')
         self.assertEqual(ARCHIVE_LOG_ORDER_BEFORE,ARCHIVE_LOG_CONSISTENCY_AFTER,
@@ -3941,7 +3941,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_archive_log_consistency_reverses_only_exact_zero_match_rejection(self):
         import hashlib
-        relative=ARCHIVE_LOG_CONSISTENCY_SOURCE;current=archive_log_order_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=ARCHIVE_LOG_CONSISTENCY_SOURCE;current=archive_log_order_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),ARCHIVE_LOG_CONSISTENCY_AFTER,
             relative+':active exact complete-log-consistency repair')
         prior=subprocess.check_output(['git','show',ARCHIVE_LOG_CONSISTENCY_REFERENCE+':'+relative],cwd=ROOT)
@@ -3985,7 +3985,7 @@ class RobinhoodUSDTests(unittest.TestCase):
 
     def test_retained_archive_log_shape_reverses_only_exact_join_and_receipt_metadata(self):
         import hashlib
-        relative=RETAINED_ARCHIVE_LOG_SHAPE_SOURCE;current=archive_log_consistency_predecessor(self,relative,(ROOT/relative).read_bytes())
+        relative=RETAINED_ARCHIVE_LOG_SHAPE_SOURCE;current=archive_log_consistency_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))
         self.assertEqual(hashlib.sha256(current).hexdigest(),RETAINED_ARCHIVE_LOG_SHAPE_AFTER,
             relative+':active exact retained-archive-log repair')
         prior=subprocess.check_output(['git','show',RETAINED_ARCHIVE_LOG_SHAPE_REFERENCE+':'+relative],cwd=ROOT)

@@ -201,8 +201,8 @@
   "implementation_tree": "b230f9af37cc16dbc28a0945d42d4aad0dbe726d",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
-      "bytes": 7634,
-      "sha256": "b1b3f41e52cfebf97bf7aead2a5423adf1f59fc8ac08c61a00f84e9f0917e177"
+      "bytes": 8522,
+      "sha256": "2530089f12e7cec92f7efa2edd3ec3d8243829caa389bb6135ee97edc6e85af0"
     },
     "engineering/diagnostics/managed_capacity_source_guard.template.txt": {
       "bytes": 9826,
@@ -210,8 +210,8 @@
     }
   },
   "read_guard": {
-    "after_bytes": 376880,
-    "after_sha256": "fed157797ed8e5d1e6735dbbc3099f26b5a8dc79cf9109edf40e3cf0fc147d18",
+    "after_bytes": 376979,
+    "after_sha256": "53ac85abd8d025cdebac56242aa1c774d512b0a25642ad86926c7fa3d296ea49",
     "before_bytes": 376814,
     "before_sha256": "5512e1b375dfbe960f1e6927e9528ff51b28a2a329657d3a1e42b7b47107b3e6",
     "changes": [
@@ -222,6 +222,18 @@
       {
         "after": "                publication_accounting_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n",
         "before": "                publication_accounting_predecessor(self,relative,(ROOT/relative).read_bytes()))\n"
+      },
+      {
+        "after": "        relative=ARCHIVE_LOG_ORDER_SOURCE;current=audit_predecessor(self,relative,(ROOT/relative).read_bytes())\n",
+        "before": "        relative=ARCHIVE_LOG_ORDER_SOURCE;current=(ROOT/relative).read_bytes()\n"
+      },
+      {
+        "after": "        relative=ARCHIVE_LOG_CONSISTENCY_SOURCE;current=archive_log_order_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))\n",
+        "before": "        relative=ARCHIVE_LOG_CONSISTENCY_SOURCE;current=archive_log_order_predecessor(self,relative,(ROOT/relative).read_bytes())\n"
+      },
+      {
+        "after": "        relative=RETAINED_ARCHIVE_LOG_SHAPE_SOURCE;current=archive_log_consistency_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))\n",
+        "before": "        relative=RETAINED_ARCHIVE_LOG_SHAPE_SOURCE;current=archive_log_consistency_predecessor(self,relative,(ROOT/relative).read_bytes())\n"
       }
     ],
     "path": "tests/test_robinhood_usd_valuation.py"
