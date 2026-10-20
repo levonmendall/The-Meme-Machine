@@ -2,13 +2,29 @@ import json
 import os
 from pathlib import Path
 import signal
+import subprocess
+import sys
 import tempfile
+import time
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
 from meme_machine.operational import managed_capacity_workload as workload
 from meme_machine.operational.managed_capacity_evidence import canonical
+
+
+def _accepted_decoder_fixture(directory):
+    """A spawn worker with accepted work held until its coordinator stops."""
+    root = Path(directory)
+    (root / 'decoder-ready').write_text(str(os.getpid()))
+    deadline = time.monotonic() + 10
+    while not (root / 'decoder-release').exists():
+        if time.monotonic() >= deadline:
+            raise TimeoutError('offline_decoder_not_released')
+        time.sleep(.005)
+    (root / 'decoder-committed').write_text('accepted-native-work')
+    return 'accepted-native-work'
 
 
 class ManagedWorkload(unittest.TestCase):
@@ -52,6 +68,60 @@ class ManagedWorkload(unittest.TestCase):
         with patch.object(workload.os, 'killpg') as kill:
             workload._signal_children({'pump': child}, signal.SIGTERM)
         kill.assert_called_once_with(12345, signal.SIGTERM)
+
+    def test_graceful_stop_only_signals_living_lane_coordinator(self):
+        child = SimpleNamespace(pid=12345, poll=lambda: None, send_signal=Mock())
+        with patch.object(workload.os, 'killpg') as kill:
+            workload._signal_children({'pump': child}, signal.SIGTERM)
+        child.send_signal.assert_called_once_with(signal.SIGTERM)
+        kill.assert_not_called()
+
+    def test_forced_stop_still_reaches_living_lane_descendants(self):
+        child = SimpleNamespace(pid=12345, poll=lambda: None, send_signal=Mock())
+        with patch.object(workload.os, 'killpg') as kill:
+            workload._signal_children({'pump': child}, signal.SIGKILL)
+        kill.assert_called_once_with(12345, signal.SIGKILL)
+        child.send_signal.assert_not_called()
+
+    def test_graceful_lane_stop_preserves_actual_spawn_decoder_until_commit(self):
+        # Production serve owns a spawn ProcessPool in the lane's process
+        # group. Group-wide TERM kills that accepted worker before its owner
+        # can drain it, even though the lane itself handles TERM gracefully.
+        source = str(Path(__file__).resolve().parents[1])
+        script = '''
+import multiprocessing, signal, sys
+from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from tests.test_managed_capacity_workload import _accepted_decoder_fixture
+root = Path(sys.argv[2])
+signal.signal(signal.SIGTERM, lambda *_: (root / 'decoder-release').write_text('stop'))
+with ProcessPoolExecutor(max_workers=1, mp_context=multiprocessing.get_context('spawn')) as pool:
+    future = pool.submit(_accepted_decoder_fixture, str(root))
+    assert future.result(timeout=12) == 'accepted-native-work'
+'''
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            child = subprocess.Popen([sys.executable, '-I', '-B', '-c', script, source, tmp],
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                start_new_session=True)
+            try:
+                deadline = time.monotonic() + 8
+                while not (root / 'decoder-ready').exists() and child.poll() is None:
+                    self.assertLess(time.monotonic(), deadline, 'spawn decoder readiness deadline')
+                    time.sleep(.005)
+                self.assertIsNone(child.poll(), 'lane exited before accepted decode')
+                decoder_pid = int((root / 'decoder-ready').read_text())
+                self.assertEqual(os.getpgid(decoder_pid), child.pid)
+                workload._signal_children({'pump': child}, signal.SIGTERM)
+                _, error = child.communicate(timeout=12)
+                self.assertEqual(child.returncode, 0, error.decode(errors='replace'))
+                self.assertEqual((root / 'decoder-committed').read_text(), 'accepted-native-work')
+            finally:
+                workload._signal_children({'pump': child}, signal.SIGKILL)
+                child.wait(timeout=5)
+                if child.stderr is not None:
+                    child.stderr.close()
 
     def test_readiness_requires_native_durability_not_provider_calls(self):
         self.assertFalse(workload._active('pump', dict(provider_requests=100)))

@@ -78,10 +78,17 @@ def _environment(lane, root, revision):
 
 def _signal_children(children, sig):
     for child in children.values():
-        # A dead group leader can leave native workers alive. This process
-        # created each group; the protected cgroup provides the outer fence.
         try:
-            os.killpg(child.pid, sig)
+            if sig == signal.SIGTERM and child.poll() is None:
+                # The lane owns its accepted native decode/commit work. Wake
+                # that coordinator's stop handler without terminating its
+                # ProcessPool workers before the existing drain lease ends.
+                child.send_signal(sig)
+            else:
+                # A dead leader can leave workers alive. Forced cleanup still
+                # covers the whole group created by this process, including
+                # after the bounded source/replay wait has expired.
+                os.killpg(child.pid, sig)
         except ProcessLookupError:
             pass
 
