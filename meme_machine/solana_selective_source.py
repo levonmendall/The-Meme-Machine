@@ -20,6 +20,9 @@ from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosed
 from .solana_activity_routes import ActivityRoutes,shards
 from .solana_candidate_join import CandidateTransactionJoin,candidate_subscription,MAX_PENDING_BYTES
+from .solana_stream_log_repair import (
+    explicit_truncation,log_input_reason,rebase_log_join,authenticate_supplement,FATAL_REPAIR_REASONS,
+)
 from .solana_candidate_phases import CandidatePhases,DEVELOPMENT_PHASES,phase as candidate_phase
 from .runtime.operation_costs import operation,measured
 from .solana_native_evidence import economic_transaction,pubkey,signature
@@ -670,6 +673,17 @@ class SelectiveSource:
     def observe(self,kind,**values):
         # Numeric, process-local attribution only. Reuse the existing health
         # publication; never add an evidence receipt or per-event SQL write.
+        if kind=='log_repair':
+            metric=self.pipeline_metrics.setdefault('log_repair:rolling',dict(calls=0,
+                deferred=0,duplicate_deliveries=0,http_requests=0,
+                supplements_authenticated=0,supplements_failed=0,pending_peak=0))
+            metric['calls']+=1
+            stage=values.get('stage')
+            if stage in ('deferred','duplicate_deliveries','http_requests',
+                    'supplements_authenticated','supplements_failed'):
+                metric[stage]+=1
+            count=values.get('pending')
+            if type(count) is int:metric['pending_peak']=max(metric['pending_peak'],count)
         if kind in ('joined_frame','economic_prepared','evidence_timing','publication_timing','history_delivery_timing','decode_timing'):
             plane=values.get('plane','shared')
             if plane not in ('shared','rolling','candidate'):plane='shared'
@@ -1519,6 +1533,10 @@ class SelectiveSource:
                 reason=str(exc) if isinstance(exc,EvidenceUnavailable) else type(exc).__name__
                 self.observe('rolling_retry',reason=reason)
                 self.diagnostic('rolling_retry',dict(reason=reason,complete=False))
+                # Repeating the same permanently incomplete supplement cannot
+                # repair its missing economics. Preserve its exact gap and
+                # report unavailable instead of rebuilding the entire feed.
+                if reason in FATAL_REPAIR_REASONS:raise
                 if self.rolling_publications>published:failures=0
                 failures+=1
                 await asyncio.sleep(min(8,.5*2**min(failures-1,4)))
@@ -2089,12 +2107,23 @@ class SelectiveSource:
                                 if v['err'] is None:
                                     self.handlers.phase('LOG_BUFFER_WAIT')
                                     await wait_candidate_log_space(join,join_progress,self.stop,local_stop,
-                                        result['context']['slot'],v['signature'],v['logs'])
+                                        result['context']['slot'],v['signature'],v.get('logs'))
                                     try:
                                         self.handlers.phase('LOG_JOIN')
-                                        await commit(join.feed_log(result['context']['slot'],v['signature'],v['logs'],None,seen))
+                                        if explicit_truncation(v.get('logs')):
+                                            key=(result['context']['slot'],v['signature'])
+                                            duplicate=key in join.incomplete_logs
+                                            join.defer_log(result['context']['slot'],v['signature'],v['logs'],seen)
+                                            if key in join.incomplete_logs:
+                                                self.observe('log_repair',stage='duplicate_deliveries' if duplicate else 'deferred',
+                                                    pending=len(join.incomplete_logs))
+                                        else:
+                                            await commit(join.feed_log(result['context']['slot'],v['signature'],v.get('logs'),None,seen))
                                     except EvidenceUnavailable as exc:
                                         self.diagnostic('log_join_failure',dict(reason=str(exc),**join.diagnostic()))
+                                        if str(exc)=='incomplete_finalized_logs':
+                                            self.diagnostic('log_join_failure',dict(reason=log_input_reason(v.get('logs')),
+                                                complete=False,**join.diagnostic()))
                                         raise
                         except BaseException as exc:
                             self.handlers.fail(number,exc);raise
@@ -2122,9 +2151,7 @@ class SelectiveSource:
                 try:await asyncio.wait_for(logs_available.wait(),8)
                 except TimeoutError:raise EvidenceUnavailable('rolling_delivery_frontier_unavailable') from None
                 floor=max(log_frontiers.values())+1
-                buffered=tuple(join.early_logs.items())
-                join=CandidateTransactionJoin(addresses,full,filtered_from_slot=floor,max_join_seconds=120)
-                for (slot,sig),(content,error,seen) in buffered:join.feed_log(slot,sig,content,error,seen)
+                join=rebase_log_join(join,floor)
             def warm(state):
                 from .solana_scoped_retirement import ScopedRetirement
                 h=install(state);cold=ScopedRetirement(h)
@@ -2151,9 +2178,7 @@ class SelectiveSource:
                 # recovery prefix. Keep that history and observe only its new
                 # tail instead of buying identical per-position replay logs.
                 floor=tip+1
-                buffered=tuple(join.early_logs.items())
-                join=CandidateTransactionJoin(addresses,full,filtered_from_slot=floor,max_join_seconds=120)
-                for (slot,sig),(content,error,seen) in buffered:join.feed_log(slot,sig,content,error,seen)
+                join=rebase_log_join(join,floor)
             # The native replay supplies independent identity/order witnesses;
             # RPC supplies only the old log content unavailable from WS ACKs.
             for row in sorted(desired,key=lambda r:r['priority']):
@@ -2168,9 +2193,7 @@ class SelectiveSource:
                             and not h.rolling.missing(r['family'],r['scope'],floor,tip) for r in desired)
                     if await self.work(published,min(row['priority'],3)):
                         floor=tip+1
-                        buffered=tuple(join.early_logs.items())
-                        join=CandidateTransactionJoin(addresses,full,filtered_from_slot=floor,max_join_seconds=120)
-                        for (slot,sig),(content,error,seen) in buffered:join.feed_log(slot,sig,content,error,seen)
+                        join=rebase_log_join(join,floor)
                         break
                     config=dict(transactionDetails='full',sortOrder='asc',limit=100,commitment='finalized',
                         encoding='json',maxSupportedTransactionVersion=1,filters=dict(slot=dict(gte=floor,lte=tip)))
@@ -2182,7 +2205,7 @@ class SelectiveSource:
                     if next_token is None:break
                     if next_token==token:raise EvidenceUnavailable('repair_pagination_stalled')
                     token=next_token
-            if rolling and has_checkpoint and not fresh_rolling:
+            if rolling:
                 async def repair_logs():
                     # Independent native identities determine the exact missing
                     # field. This exception fetches bodies only for the recovery
@@ -2196,12 +2219,41 @@ class SelectiveSource:
                             if frame is None:break
                             await commit(frame)
                     async def one(slot,sig):
+                        witness=None;authenticated=False
                         try:
+                            witness=join.deferred_log_witness(slot,sig)
+                            if witness is not None:self.observe('log_repair',stage='http_requests')
                             tx=await self.measured_rpc('getTransaction',[sig,dict(commitment='finalized',encoding='json',maxSupportedTransactionVersion=1)],'rolling_recovery_missing_logs',2)
+                            if witness is not None:
+                                try:
+                                    complete,receipt=authenticate_supplement(join,witness,tx,self.config.identity)
+                                except EvidenceUnavailable as error:
+                                    # Retain the actual failed input for offline
+                                    # review; none of its strings are stdout or
+                                    # permission to complete native coverage.
+                                    failed=dict(native_witness=witness,response=tx,
+                                        observed_websocket_logs=join.early_logs[(slot,sig)][0],
+                                        reason=str(error),complete=False)
+                                    await self.work(lambda s:install(s)._observation(None,
+                                        'native_stream_log_supplement_failed',failed),2)
+                                    raise
+                                await self.work(lambda s:install(s)._observation(None,
+                                    'native_stream_log_supplement',receipt),2)
+                                await commit(join.complete_deferred_log(slot,sig,complete,time.time()))
+                                while True:
+                                    frame=join.drain()
+                                    if frame is None:break
+                                    await commit(frame)
+                                authenticated=True
+                                self.observe('log_repair',stage='supplements_authenticated')
+                                return
                             if not tx or tx['slot']!=slot or tx['meta']['err'] is not None:
                                 raise EvidenceUnavailable('candidate_required_content_missing')
                             await publish_log(slot,sig,tx['meta']['logMessages'])
-                        finally:inflight.discard((slot,sig))
+                        finally:
+                            if witness is not None and not authenticated:
+                                self.observe('log_repair',stage='supplements_failed')
+                            inflight.discard((slot,sig))
                     async def block_group(keys,witness,profile):
                         from .solana_candidate_join import authenticated_block_logs
                         try:
@@ -2226,10 +2278,23 @@ class SelectiveSource:
                         while not self.stop.is_set() and not local_stop.is_set():
                             for task in list(pending):
                                 if task.done():task.result();pending.remove(task)
-                            keys=[key for key in join.missing_log_keys(tip) if key not in inflight][:max(0,8-len(inflight))]
+                            keys=[]
+                            for key in join.missing_log_keys(max(join.pending,default=tip)):
+                                if key in inflight:continue
+                                deferred=key in join.incomplete_logs
+                                if deferred:
+                                    if join.deferred_log_witness(*key) is None:continue
+                                elif not (has_checkpoint and not fresh_rolling and key[0]<=tip):continue
+                                keys.append(key)
+                                if len(keys)>=max(0,8-len(inflight)):break
+                            if len(inflight)>=8:keys=[]
                             profile=getattr(self.rpc,'block_repair_profile',None)
                             grouped=set()
-                            for group,witness in join.block_repair_groups(keys,profile,join.clock()):
+                            # A truncated packet needs its own exact WS binding;
+                            # the existing dense missing-prefix optimization is
+                            # unchanged for ordinary old recovery keys.
+                            ordinary=[key for key in keys if key not in join.incomplete_logs]
+                            for group,witness in join.block_repair_groups(ordinary,profile,join.clock()):
                                 inflight.update(group);grouped.update(group)
                                 pending.add(asyncio.create_task(block_group(group,witness,profile)))
                             for key in keys:

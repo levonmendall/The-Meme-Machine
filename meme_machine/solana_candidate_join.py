@@ -91,6 +91,9 @@ class CandidateTransactionJoin:
         self.recent={};self.recent_bytes=0
         self.replay_prefix_bytes=0
         self.early_logs={};self.early_log_bytes=0
+        # Explicit truncated WS packets occupy the same existing log budget,
+        # but cannot satisfy a successful native status or produce coverage.
+        self.incomplete_logs=set()
         self.recent_logs={}
 
     def diagnostic(self):
@@ -102,6 +105,7 @@ class CandidateTransactionJoin:
             early_log_count=len(self.early_logs),early_log_bytes=self.early_log_bytes,
             early_log_min_slot=min((k[0] for k in self.early_logs),default=None),
             early_log_max_slot=max((k[0] for k in self.early_logs),default=None),
+            incomplete_log_count=len(self.incomplete_logs),
             oldest_slot=oldest,oldest_age=self.clock()-s['started'] if s else None,
             oldest_meta=s.get('meta') is not None,oldest_finality=s.get('finality'),
             oldest_statuses=len(s.get('statuses',{})),oldest_bodies=len(s.get('bodies',{})),
@@ -130,6 +134,55 @@ class CandidateTransactionJoin:
         pending=self.pending.get(slot)
         if pending is not None:pending['missing_logs'].discard(sig)
         return self.drain()
+
+    def defer_log(self,slot,sig,logs,seen):
+        """Retain one explicitly truncated packet without completing its slot."""
+        if (type(slot) is not int or slot<=0 or not isinstance(sig,str)
+                or not isinstance(logs,list) or any(not isinstance(line,str) for line in logs)
+                or logs.count('Log truncated')!=1
+                or any('truncat' in line.lower() and line!='Log truncated' for line in logs)):
+            raise EvidenceUnavailable('incomplete_finalized_logs')
+        key=(slot,sig)
+        if slot<self.filtered_from_slot:return
+        if slot<=self.completed:raise EvidenceUnavailable('candidate_late_log_content')
+        old=self.early_logs.get(key)
+        if old is not None:
+            if key not in self.incomplete_logs or old[:2]!=(logs,None):
+                raise EvidenceUnavailable('candidate_log_content_conflict')
+            return
+        size=len(str(logs).encode())
+        if len(self.early_logs)>=32768 or self.early_log_bytes+size>MAX_PENDING_BYTES:
+            raise EvidenceUnavailable('candidate_log_buffer_pressure')
+        self.early_logs[key]=(list(logs),None,seen);self.early_log_bytes+=size
+        self.incomplete_logs.add(key)
+        pending=self.pending.get(slot)
+        if pending is not None:pending['missing_logs'].add(sig)
+
+    def complete_deferred_log(self,slot,sig,logs,seen):
+        """The caller authenticated a complete supplement against native order."""
+        key=(slot,sig)
+        if key not in self.incomplete_logs:raise EvidenceUnavailable('candidate_log_content_conflict')
+        old=self.early_logs.pop(key);self.incomplete_logs.remove(key)
+        self.early_log_bytes-=len(str(old[0]).encode())
+        return self.feed_log(slot,sig,logs,None,seen)
+
+    def deferred_log_witness(self,slot,sig):
+        """Independent finalized status/meta needed before HTTP supplementation."""
+        if (slot,sig) not in self.incomplete_logs:return None
+        s=self.pending.get(slot)
+        if s is None or s['meta'] is None or s['finality'] is None:return None
+        meta=s['meta']
+        if s['finality']!=meta.parent_slot or not meta.HasField('block_time'):
+            raise EvidenceUnavailable('yellowstone_finalized_block_shape')
+        for index,fact in s['log_required'].items():
+            if s['signature_text'][index]!=sig:continue
+            if index>=meta.executed_transaction_count:
+                raise EvidenceUnavailable('yellowstone_transaction_index_shape')
+            return dict(slot=slot,signature=sig,transaction_index=index,
+                block_time=meta.block_time.timestamp,block_hash=meta.blockhash,
+                parent_slot=meta.parent_slot,parent_block_hash=meta.parent_blockhash,
+                scopes=list(fact[3]),bank_id=fact[4])
+        return None
 
     def feed(self,update,size,seen):
         now=self.clock()
@@ -198,7 +251,8 @@ class CandidateTransactionJoin:
                     else:
                         s['log_required'][item.index]=fact
                         text=signature(fact[0]);s['signature_text'][item.index]=text
-                        if (slot,text) not in self.early_logs:s['missing_logs'].add(text)
+                        if (slot,text) not in self.early_logs or (slot,text) in self.incomplete_logs:
+                            s['missing_logs'].add(text)
             s['statuses'][item.index]=fact;s['status_seen'].setdefault(item.index,seen)
             s['max_index']=max(s['max_index'],item.index)
             s['status_bytes']+=size
