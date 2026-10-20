@@ -688,12 +688,14 @@ class SelectiveSource:
             # whose original measured_rpc/provider accounting includes retries.
             metric=self.pipeline_metrics.setdefault('log_repair:rolling',dict(calls=0,
                 deferred=0,duplicate_deliveries=0,repair_logical_calls=0,
-                supplements_authenticated=0,supplements_failed=0,pending_peak=0))
+                supplements_authenticated=0,supplements_failed=0,pending_peak=0,
+                repair_physical_requests=0,repair_retry_calls=0,batch_requests=0,batch_members=0))
             metric['calls']+=1
             stage=values.get('stage')
             if stage in ('deferred','duplicate_deliveries','repair_logical_calls',
-                    'supplements_authenticated','supplements_failed'):
-                metric[stage]+=1
+                    'supplements_authenticated','supplements_failed','repair_physical_requests',
+                    'repair_retry_calls','batch_requests','batch_members'):
+                metric[stage]+=values.get('count',1)
             count=values.get('pending')
             if type(count) is int:metric['pending_peak']=max(metric['pending_peak'],count)
         if kind in ('joined_frame','economic_prepared','evidence_timing','publication_timing','history_delivery_timing','decode_timing'):
@@ -1077,6 +1079,11 @@ class SelectiveSource:
     async def measured_rpc(self,method,params,family,priority=4):
         from .runtime.operating_families import require_active
         require_active(family)
+        def repair_receipt(receipt,attempt):
+            if family=='rolling_recovery_missing_logs':
+                self.observe('log_repair',stage='repair_physical_requests',
+                    count=receipt.get('calls',int(receipt.get('cu',0)>0)))
+                if attempt:self.observe('log_repair',stage='repair_retry_calls')
         for attempt in range(3):
             from .operational.position_continuation import position_only
             if priority>2 and position_only():raise EvidenceUnavailable('bootstrap_optional_work_closed')
@@ -1089,6 +1096,7 @@ class SelectiveSource:
             except ValueError as exc:
                 receipt=getattr(exc,'receipt',None)
                 if receipt is not None:
+                    repair_receipt(receipt,attempt)
                     await self.work(lambda s:install(s).delivery(family,'rpc',raw_bytes=receipt['bytes'],
                         rpc_cu=receipt['cu'],calls=receipt.get('calls',1)),priority)
                 from .runtime.evidence_worker import failure_diagnostic
@@ -1098,9 +1106,50 @@ class SelectiveSource:
                 await self.work(lambda s:install(s)._observation(None,'rpc_retry',dict(method=method,
                     family=family,attempt=attempt+1,deadline_reset=False,cause_kind=getattr(exc,'cause_kind',None))),priority)
                 await asyncio.sleep(.2*(attempt+1));continue
+            repair_receipt(receipt,attempt)
             await self.work(lambda s:install(s).delivery(family,'rpc',raw_bytes=receipt['bytes'],
                 rpc_cu=receipt['cu'],calls=receipt.get('calls',1)),priority)
             return result
+    async def measured_log_batch(self,signatures,priority=2):
+        """Retry only unavailable batch members, retaining successful inputs.
+
+        One bounded logical population uses the ordinary managed governor,
+        physical pacer and durable accounting. No successful member is fetched
+        again when another response in its envelope is retryable.
+        """
+        if len(signatures)==1:
+            return [await self.measured_rpc('getTransaction',[signatures[0],dict(commitment='finalized',
+                encoding='json',maxSupportedTransactionVersion=1)],'rolling_recovery_missing_logs',priority)]
+        from .runtime.evidence_worker import DeliveredRPCError,failure_diagnostic
+        from .runtime.provider_purchases import provider_work
+        from .runtime.operating_families import require_active
+        family='rolling_recovery_missing_logs';require_active(family)
+        pending=list(enumerate(signatures));result=[None]*len(pending)
+        for attempt in range(3):
+            with provider_work('recovery_restart',family='pump',consumer='recovery',retry_attempt=attempt):
+                values,receipt=await asyncio.to_thread(self.rpc.log_batch_delivered,
+                    [sig for _,sig in pending],priority)
+            await self.work(lambda s:install(s).delivery(family,'rpc',raw_bytes=receipt['bytes'],
+                rpc_cu=receipt['cu'],calls=receipt.get('calls',0)),priority)
+            self.observe('log_repair',stage='repair_physical_requests',count=receipt.get('calls',0))
+            if receipt.get('batch_members',0):
+                self.observe('log_repair',stage='batch_requests',count=receipt.get('calls',0))
+                self.observe('log_repair',stage='batch_members',count=receipt['batch_members'])
+            if attempt:self.observe('log_repair',stage='repair_retry_calls',count=len(pending))
+            retry=[];fatal=None
+            for (index,sig),value in zip(pending,values):
+                if isinstance(value,DeliveredRPCError):
+                    self.diagnostic('rpc_failure',dict(method='getTransaction',family=family,
+                        attempt=attempt+1,deadline_reset=False,diagnostic=failure_diagnostic(value)))
+                    if not value.retryable or attempt==2:fatal=fatal or value
+                    else:retry.append((index,sig))
+                else:result[index]=value
+            if fatal is not None:raise fatal
+            if not retry:return result
+            await self.work(lambda s:install(s)._observation(None,'rpc_retry',dict(method='getTransaction',
+                family=family,attempt=attempt+1,deadline_reset=False,members=len(retry))),priority)
+            await asyncio.sleep(.2*(attempt+1));pending=retry
+
     async def stream(self,channel,request,handler,family,local_stop=None,*,optional=False):
         from .runtime.operating_families import require_active
         require_active(family)
@@ -2225,7 +2274,7 @@ class SelectiveSource:
                     # Independent native identities determine the exact missing
                     # field. This exception fetches bodies only for the recovery
                     # prefix unavailable from a new WS, never every promotion.
-                    inflight=set()
+                    inflight=set();batch_inflight=False
                     async def publish_log(slot,sig,logs):
                         await self.work(lambda s:install(s)._observation(None,'selective_missing_field',dict(signature=sig,slot=slot,field='logMessages',reason='RECOVERY_GAP')),2)
                         await commit(join.feed_log(slot,sig,logs,None,time.time()))
@@ -2233,12 +2282,15 @@ class SelectiveSource:
                             frame=join.drain()
                             if frame is None:break
                             await commit(frame)
-                    async def one(slot,sig):
+                    not_fetched=object()
+                    async def one(slot,sig,fetched=not_fetched):
                         witness=None;authenticated=False
                         try:
                             witness=join.deferred_log_witness(slot,sig)
-                            if witness is not None:self.observe('log_repair',stage='repair_logical_calls')
-                            tx=await self.measured_rpc('getTransaction',[sig,dict(commitment='finalized',encoding='json',maxSupportedTransactionVersion=1)],'rolling_recovery_missing_logs',2)
+                            if fetched is not_fetched:
+                                if witness is not None:self.observe('log_repair',stage='repair_logical_calls')
+                                tx=await self.measured_rpc('getTransaction',[sig,dict(commitment='finalized',encoding='json',maxSupportedTransactionVersion=1)],'rolling_recovery_missing_logs',2)
+                            else:tx=fetched
                             if witness is not None:
                                 try:
                                     complete,receipt=authenticate_supplement(join,witness,tx,self.config.identity)
@@ -2269,6 +2321,21 @@ class SelectiveSource:
                             if witness is not None and not authenticated:
                                 self.observe('log_repair',stage='supplements_failed')
                             inflight.discard((slot,sig))
+                    async def log_batch(keys):
+                        nonlocal batch_inflight
+                        fetched=False
+                        try:
+                            for _ in keys:self.observe('log_repair',stage='repair_logical_calls')
+                            values=await self.measured_log_batch([sig for _,sig in keys],2)
+                            fetched=True
+                            # Each response still needs its exact current native
+                            # witness and original WS prefix/suffix. Ordered frame
+                            # publication remains the existing single commit queue.
+                            for (slot,sig),value in zip(keys,values):await one(slot,sig,value)
+                        finally:
+                            if not fetched:
+                                for _ in keys:self.observe('log_repair',stage='supplements_failed')
+                            inflight.difference_update(keys);batch_inflight=False
                     async def block_group(keys,witness,profile):
                         from .solana_candidate_join import authenticated_block_logs
                         try:
@@ -2298,7 +2365,7 @@ class SelectiveSource:
                                 if key in inflight:continue
                                 deferred=key in join.incomplete_logs
                                 if deferred:
-                                    if join.deferred_log_witness(*key) is None:continue
+                                    if batch_inflight or join.deferred_log_witness(*key) is None:continue
                                 elif not (has_checkpoint and not fresh_rolling and key[0]<=tip):continue
                                 keys.append(key)
                                 if len(keys)>=max(0,8-len(inflight)):break
@@ -2312,8 +2379,12 @@ class SelectiveSource:
                             for group,witness in join.block_repair_groups(ordinary,profile,join.clock()):
                                 inflight.update(group);grouped.update(group)
                                 pending.add(asyncio.create_task(block_group(group,witness,profile)))
+                            deferred=[key for key in keys if key in join.incomplete_logs]
+                            if deferred:
+                                inflight.update(deferred);batch_inflight=True
+                                pending.add(asyncio.create_task(log_batch(deferred)))
                             for key in keys:
-                                if key not in grouped:
+                                if key not in grouped and key not in deferred:
                                     inflight.add(key);pending.add(asyncio.create_task(one(*key)))
                             await asyncio.sleep(.01)
                     finally:

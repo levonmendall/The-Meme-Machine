@@ -101,6 +101,141 @@ class RepairRPC:
                 with self.lock:self.flights.pop(key,None)
         return self._call_delivered(method,params,priority)
 
+    def log_batch_delivered(self,signatures,priority=2):
+        """At most eight immutable log repairs; one existing physical grant.
+
+        Native order and log authentication remain the source join's job. The
+        bounded-provider wrapper independently charges every logical member.
+        Concurrent scalar immutable reads share the existing flight identities.
+        """
+        from concurrent.futures import Future
+        from copy import deepcopy
+        import based58
+        if (type(signatures) not in (list,tuple) or not 1<=len(signatures)<=8
+                or any(type(sig) is not str or not 64<=len(sig)<=88 for sig in signatures)
+                or len(set(signatures))!=len(signatures)):
+            raise ValueError('repair_batch_shape')
+        try:
+            if any(len(based58.b58decode(sig.encode('ascii')))!=64 for sig in signatures):raise ValueError()
+        except (ValueError,UnicodeError):raise ValueError('repair_batch_shape') from None
+        from .provider_purchases import ledger
+        purchases=ledger(self);purchases.consumer(['getTransaction']*len(signatures),family='pump')
+        def member_error(error):
+            from meme_machine.runtime.sqlite_failure import carry
+            return carry(error,DeliveredRPCError(str(error),dict(bytes=0,cu=0,calls=0),
+                retryable=error.retryable,cause_kind=error.cause_kind,
+                method='getTransaction',rpc_code=error.rpc_code,http_status=error.http_status))
+        leaders=[];entries=[]
+        with self.lock:
+            for sig in signatures:
+                params=[sig,dict(commitment='finalized',encoding='json',maxSupportedTransactionVersion=1)]
+                key=('getTransaction',json.dumps(params,sort_keys=True,separators=(',',':')),priority)
+                future=self.flights.get(key);leader=future is None
+                if leader:future=self.flights[key]=Future();leaders.append((key,future,params))
+                entries.append((future,leader))
+        receipt=dict(bytes=0,cu=0,calls=0)
+        try:
+            if leaders:
+                try:
+                    if len(leaders)==1:
+                        value,receipt=self._call_delivered('getTransaction',leaders[0][2],priority)
+                        receipt=dict(receipt,calls=1,logical_calls=1,batch_members=0);values=[value]
+                    else:
+                        values,receipt=self._log_batch_delivered([row[2] for row in leaders],priority)
+                except DeliveredRPCError as error:
+                    receipt=dict(error.receipt)
+                    receipt.setdefault('calls',int(receipt.get('cu',0)>0))
+                    # This aggregate receipt is charged once by the caller.
+                    values=[member_error(error) for _ in leaders]
+                for (_,future,_),value in zip(leaders,values):
+                    if isinstance(value,DeliveredRPCError):future.set_exception(value)
+                    else:future.set_result((deepcopy(value),dict(bytes=0,cu=0,calls=0)))
+            result=[]
+            for future,leader in entries:
+                if not leader:purchases.consumer(['getTransaction'],cache_hit=True,shared=True,family='pump')
+                try:value,_=future.result();result.append(deepcopy(value))
+                except DeliveredRPCError as error:
+                    result.append(member_error(error))
+            return result,receipt
+        except BaseException as error:
+            for _,future,_ in leaders:
+                if not future.done():future.set_exception(error)
+            raise
+        finally:
+            with self.lock:
+                for key,_,_ in leaders:self.flights.pop(key,None)
+
+    def _log_batch_delivered(self,params,priority):
+        import time
+        from .provider_purchases import ledger,work_label
+        methods=['getTransaction']*len(params)
+        purchases=ledger(self);label=work_label(family='pump')
+        started=time.monotonic();transport=None;received=0;charged=0;purchased=False;failed=True
+        receipt=lambda:dict(bytes=received,cu=charged,calls=int(purchased),
+            logical_calls=len(params) if purchased else 0,batch_members=len(params) if purchased else 0)
+        try:
+            self.governor.acquire('solana','evidence',int(priority) if os.environ.get('MM_SOLANA_EVIDENCE_PLANE_DB')
+                else (2 if priority<=2 else 50),deadline_seconds=8,methods=tuple(methods))
+            self._count('queue_microseconds',int((time.monotonic()-started)*1e6))
+            transport=time.monotonic()
+            self._count('physical_requests');self._count('logical_calls',len(params))
+            self._count('method:getTransaction',len(params));self._count('identity_calls',len(params))
+            self._count('log_batch_requests');self._count('log_batch_members',len(params))
+            charged=40*len(params)
+            body=[dict(jsonrpc='2.0',id=index,method='getTransaction',params=value)
+                for index,value in enumerate(params,1)]
+            request=urllib.request.Request(self.endpoint,json.dumps(body).encode(),{'Content-Type':'application/json'})
+            purchases.started(label,methods,len(request.data),retry=label.get('retry_attempt',0));purchased=True
+            with urllib.request.urlopen(request,timeout=8) as response:raw=response.read(16*1024*1024+1)
+            received=len(raw)
+            if received>16*1024*1024:raise ValueError('repair_response_bound')
+            value=json.loads(raw)
+            if (type(value) is not list or len(value)!=len(params)
+                    or any(type(row) is not dict or type(row.get('id')) is not int for row in value)
+                    or {row['id'] for row in value}!=set(range(1,len(params)+1))):
+                raise ValueError('repair_batch_response_identity')
+            # Validate every envelope before exposing any member. A missing,
+            # duplicate or unknown id cannot satisfy another native witness.
+            self.config.public(value);rows={row['id']:row for row in value}
+            for row in value:
+                if ('error' in row)==('result' in row):raise ValueError('repair_batch_response_shape')
+                if 'error' in row and (type(row['error']) is not dict or type(row['error'].get('code')) is not int):
+                    raise ValueError('repair_batch_response_shape')
+            result=[];limited=False
+            for index in range(1,len(params)+1):
+                row=rows[index]
+                if 'error' in row:
+                    code=row['error']['code'];limited|=code in (429,-32005)
+                    self._count('failures')
+                    if code in (429,-32005):self._count('429s')
+                    if code==-32601:self._count('unsupported_methods')
+                    result.append(DeliveredRPCError('repair_response_unavailable',dict(bytes=0,cu=0,calls=0),
+                        retryable=code in (429,-32603,-32005,-32016),cause_kind='RPCError',
+                        method='getTransaction',rpc_code=code))
+                else:result.append(row['result'])
+            if limited:self.governor.rate_limited('solana',('getTransaction',))
+            elif all(not isinstance(row,DeliveredRPCError) for row in result):
+                self.governor.succeeded('solana',('getTransaction',))
+            failed=any(isinstance(row,DeliveredRPCError) for row in result)
+            return result,receipt()
+        except urllib.error.HTTPError as error:
+            if error.code==429:
+                self._count('429s');self.governor.rate_limited('solana',('getTransaction',))
+            self._count('failures',len(params))
+            raise DeliveredRPCError('repair_http_'+str(int(error.code)),receipt(),
+                retryable=error.code in (429,502,503,504),cause_kind='HTTPError',
+                method='getTransaction',http_status=int(error.code)) from None
+        except Exception as error:
+            self._count('failures',len(params))
+            from meme_machine.runtime.sqlite_failure import carry
+            raise carry(error,DeliveredRPCError('repair_response_unavailable',receipt(),
+                retryable=isinstance(error,(TimeoutError,urllib.error.URLError,json.JSONDecodeError)),
+                cause_kind=type(error).__name__,method='getTransaction')) from None
+        finally:
+            if purchased:purchases.completed(label,received,failed=failed)
+            if transport is not None:self._count('transport_microseconds',int((time.monotonic()-transport)*1e6))
+            self._count('delivered_response_bytes',received);self._count('current_pricing_cu',charged)
+
     def _call_delivered(self,method,params,priority=4):
         import time
         if method not in ('getTransactionsForAddress','getGenesisHash','getSlot','getProgramAccountsV2','getTransaction') and not (method=='getBlock' and self.block_repair_profile and self.block_repair_profile.get('validated') is True):
@@ -137,19 +272,19 @@ class RepairRPC:
             self.config.public(value)
             self.governor.succeeded('solana',(method,))
             failed=False
-            return value['result'],dict(bytes=received,cu=charged)
+            return value['result'],dict(bytes=received,cu=charged,calls=int(purchased))
         except urllib.error.HTTPError as exc:
             if exc.code==429:
                 self._count('429s');self.governor.rate_limited('solana',(method,))
             self._count('failures')
-            raise DeliveredRPCError('repair_http_'+str(int(exc.code)),dict(bytes=received,cu=charged),
+            raise DeliveredRPCError('repair_http_'+str(int(exc.code)),dict(bytes=received,cu=charged,calls=int(purchased)),
                 retryable=exc.code in (429,502,503,504),cause_kind='HTTPError',
                 method=method,http_status=int(exc.code)) from None
         except Exception as exc:
             self._count('failures')
             retryable=isinstance(exc,(TimeoutError,urllib.error.URLError,json.JSONDecodeError)) or code in (429,-32603,-32005,-32016)
             from meme_machine.runtime.sqlite_failure import carry
-            raise carry(exc,DeliveredRPCError('repair_response_unavailable',dict(bytes=received,cu=charged),
+            raise carry(exc,DeliveredRPCError('repair_response_unavailable',dict(bytes=received,cu=charged,calls=int(purchased)),
                 retryable=retryable,cause_kind=type(exc).__name__,method=method,rpc_code=code)) from None
         finally:
             if purchased:purchases.completed(label,received,failed=failed)

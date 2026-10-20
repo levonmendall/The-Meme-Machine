@@ -32,6 +32,8 @@ jobs:
           python -m operational.tests FAST --verbose --modules \
             tests.test_managed_capacity_evidence tests.test_managed_capacity_workload \
             tests.test_managed_native_pump tests.test_managed_native_pons tests.test_robinhood_payg \
+            tests.test_managed_log_repair_batches tests.test_bounded_provider_preflight \
+            tests.test_continuous_paper tests.test_final_acquisition tests.test_governor_clock_domain \
             tests.test_managed_pons_survivor tests.test_managed_pump_qualification \
             tests.test_managed_pump_discovery_publication tests.test_solana_history_separation \
             tests.test_managed_capacity_source_guard tests.test_native_audit_source_guard \
@@ -45,4 +47,5 @@ jobs:
             tests.test_solana_source_intake.SourceIntakeTests
           python -m operational.tests OPERATIONAL --verbose --modules \
             tests.lanes.pons.test_provider_topology \
+            tests.test_governor_method_pressure tests.test_reserved_evidence_priority tests.test_solana_read_rpc \
             tests.test_solana_source_intake.LiveIntakeBoundaryTests

@@ -394,11 +394,11 @@ class SourceIntegrationTests(SelectiveEvidenceTests):
         response=MagicMock();response.__enter__.return_value.read.return_value=b'{"id":1,"result":454000000}'
         with patch('urllib.request.urlopen',return_value=response):
             value,receipt=rpc.call_delivered('getSlot',[],1)
-        self.assertEqual(value,454000000);self.assertEqual(receipt,dict(bytes=27,cu=20))
+        self.assertEqual(value,454000000);self.assertEqual(receipt,dict(bytes=27,cu=20,calls=1))
         response.__enter__.return_value.read.return_value=b'{"id":1,"error":{"code":-32005}}'
         with patch('urllib.request.urlopen',return_value=response):
             with self.assertRaises(DeliveredRPCError) as raised:rpc.call_delivered('getTransactionsForAddress',[],3)
-        self.assertEqual(raised.exception.receipt,dict(bytes=32,cu=100))
+        self.assertEqual(raised.exception.receipt,dict(bytes=32,cu=100,calls=1))
 
     def test_native_resource_exhaustion_keeps_provider_detail_without_credentials(self):
         import asyncio

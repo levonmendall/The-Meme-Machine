@@ -196,7 +196,14 @@ class FinalizedHeadObserver:
         self.requests += 1
         started = time.monotonic()
         try:
-            slot = rpc.call('getSlot', [dict(commitment='finalized')])
+            # This independently measured arrival frontier belongs to the same
+            # foreground admission class as the native source's getSlot reads.
+            # RepairRPC.call's boolean priority selects either position work (1)
+            # or speculative work (4); neither describes this required sample.
+            # Preserve the production physical clock, cooldown and eight-second
+            # admission deadline, while leaving held/reserved work (0/1) first.
+            slot, _ = rpc.call_delivered('getSlot', [dict(commitment='finalized')],
+                                         priority=2)
         except Exception as error:
             self.failures += 1
             return dict(self.last or {}, fresh=False, requests=self.requests,

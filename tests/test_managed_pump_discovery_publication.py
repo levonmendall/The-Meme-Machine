@@ -123,6 +123,42 @@ class GlobalPumpPublicationTests(unittest.TestCase):
         self.assertIsNone(self.life.unconsumed(scope, through=row.slot))
         self.assertEqual(self.worker.step()['durably_observed_native_events'], 1)
 
+    def test_trade_before_later_binding_keeps_publication_and_retries_changed_ack(self):
+        row = self.trade()
+        mint = row.payload['event']['mint']
+        self.history.ingest([row])
+        original = self.pending(row.identity)
+        self.assertEqual(len(original), 1)
+        first = capture(self.life)
+        result = deliver(first)
+        # A final-state binding census cannot establish that these recipients
+        # existed when an earlier native trade entered the discovery cursor.
+        # A binding arriving during external delivery must also retain the
+        # existing exact-snapshot ACK fence and its original pending obligation.
+        self.history.bind('pump', mint, market_address=mint,
+                          aliases=('later-curve',))
+        self.assertEqual(self.history.db.execute(
+            "SELECT COUNT(*) FROM evidence_bindings WHERE family='pump' AND market_address=?",
+            (mint,)).fetchone(), (2,))
+        self.assertFalse(acknowledge(self.life, first, result))
+        self.assertEqual(self.pending(row.identity), original)
+        retry = capture(self.life)
+        self.assertEqual(retry['rows'], first['rows'])
+        self.assertTrue(acknowledge(self.life, retry, deliver(retry)))
+        self.assertEqual(len(self.pending(row.identity)), 1)
+        self.assertIsNotNone(self.pending(row.identity)[0][4])
+        with closing(CandidateHistory(self.config.history)) as shared:
+            self.assertEqual(shared.db.execute(
+                'SELECT COUNT(*) FROM canonical_event_refs').fetchone(), (1,))
+        observed = self.worker.step()
+        self.assertEqual(observed['durably_observed_native_events'], 1)
+        self.assertEqual(observed['native_event_backlog'], 0)
+        self.assertEqual(observed['stages'], {'creation_unavailable': 1})
+        self.assertFalse(observed['full_qualification_proven'])
+        counts = managed.pump_snapshot(self.config)['history']
+        self.assertEqual(counts['funding'], 0)
+        self.assertEqual(counts['decisions'], 0)
+
     def test_unbound_pumpswap_keeps_its_existing_scoped_publication_contract(self):
         rows = [row for tx in FIXTURE['pumpswap'] for row in economic_records(
             'pumpswap', PROGRAMS['pumpswap'], deepcopy(tx),

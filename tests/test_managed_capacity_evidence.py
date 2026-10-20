@@ -12,7 +12,8 @@ class ManagedEvidence(unittest.TestCase):
     def test_failure_site_preserves_real_code_without_exception_data(self):
         from meme_machine.operational.managed_native_pump import FinalizedHeadObserver
         class Offline:
-            def call(self, *args): return 'secret-provider-credential'
+            def call_delivered(self, *args, **kwargs):
+                return 'secret-provider-credential', {}
         try:
             FinalizedHeadObserver().sample(Offline())
         except ValueError as error:
