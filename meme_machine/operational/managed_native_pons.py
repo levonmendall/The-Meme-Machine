@@ -377,7 +377,7 @@ class ManagedPonsLane:
             scope=dict(managed_admission=True,native_batches=True,native_decode=True,
                 native_current_history=True,native_current_history_persistence=True,
                 current_qualification=True,complete_current_qualification=False,
-                survivor_qualification=False,financial_entries=False,
+                postgraduation_pool_discovery=False,survivor_qualification=False,financial_entries=False,
                 held_protection_live=False,
                 sizing_input='unchanged_native_unfunded_reference_constant'),observed_at=time.time())
 
