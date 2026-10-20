@@ -37,8 +37,8 @@
       "status": "A"
     },
     "meme_machine/operational/managed_native_pons.py": {
-      "after_bytes": 40431,
-      "after_sha256": "ffeb72c3df1a2abd02a56928eb2694126ecc7bd2736dff9c64955225e6783df1",
+      "after_bytes": 40544,
+      "after_sha256": "d575d112947326e3e8db23297bcc2bb936d8cbc22e9cdba4ce8041d550572526",
       "status": "A"
     },
     "meme_machine/operational/managed_native_pump.py": {
@@ -73,8 +73,8 @@
       "status": "M"
     },
     "meme_machine/solana_candidate_join.py": {
-      "after_bytes": 27358,
-      "after_sha256": "bf3327c6e3cdec066d53e81d37c985cf1918bc8a30611ce59dec8f3513dbf7ff",
+      "after_bytes": 28170,
+      "after_sha256": "d8ba10cd5b4edb26a6edbc819684263baffe0a6b883c30cb918a1a231a3dc181",
       "before_bytes": 22910,
       "before_sha256": "cd570e5ed58519bf61ccfc553910d1a5093952e7754a9cab80d517f3e7269699",
       "changed_nodes": [
@@ -112,8 +112,8 @@
       "status": "M"
     },
     "meme_machine/solana_selective_source.py": {
-      "after_bytes": 166331,
-      "after_sha256": "13b453117ea0e919ad3a2915aabc202e9f2aaf95a3e1c2da17eb58a8f6250f94",
+      "after_bytes": 167191,
+      "after_sha256": "72fd1a510c8b8648bf54c0abf0f9e0880337814fc0717008fb29645d1be05868",
       "before_bytes": 155835,
       "before_sha256": "c21b570ff602dd190ea8e305776dbbefeffc50f214bff4a92beb43374aa8aa4c",
       "changed_nodes": [
@@ -156,7 +156,8 @@
         "__statement_44",
         "__statement_45",
         "__statement_49",
-        "__statement_50"
+        "__statement_50",
+        "wait_candidate_log_space"
       ],
       "status": "M"
     },
@@ -197,8 +198,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "2c20a422bbb62e78d477bb6b27d85c9c347fadbc",
-  "implementation_tree": "b230f9af37cc16dbc28a0945d42d4aad0dbe726d",
+  "implementation": "7d69463705351cf5cfc60cfb29692bc6b2516915",
+  "implementation_tree": "be0cc07040430c059daabf61ac01401e4ca5a838",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 8522,
