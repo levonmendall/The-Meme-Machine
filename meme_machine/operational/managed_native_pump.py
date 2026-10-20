@@ -101,6 +101,7 @@ class PumpManagedConfig:
         return dict(schema=SCHEMA, generation=self.generation,
             request_id=self.request_id, source_revision=self.source_revision,
             provider_identity=config.identity, provider=config.provider,
+            native_credential_identity=hashlib.sha256((self.token or config.credential).encode()).hexdigest(),
             native_host='solana-mainnet.streaming.alchemy.com:443',
             provider_usage_db=str(usage),
             profile_sha256=hashlib.sha256(envelope.read_bytes()).hexdigest(),
@@ -280,7 +281,9 @@ def replay_pump(config, *, seconds=60):
     def fingerprint():
         digest = hashlib.sha256()
         for path, tables in ((config.evidence, ('records', 'shared_history_cache',
-                'candidate_coverage', 'candidate_history_outbox', 'candidate_gaps')),
+                'candidate_coverage', 'candidate_history_outbox', 'candidate_gaps',
+                'stream_receipts', 'rolling_economic_events', 'scoped_cold_records',
+                'scoped_cold_addresses', 'scoped_cold_manifests', 'hot_chunks', 'hot_refs')),
                 (config.history, ('candidates', 'events', 'canonical_event_refs',
                     'source_receipts', 'history_coverage', 'funding', 'decisions'))):
             with _reader(path) as db:
@@ -290,13 +293,31 @@ def replay_pump(config, *, seconds=60):
                     if not _has_tables(db, (table,)):
                         add(digest, ['absent', table])
                         continue
-                    for row in db.execute('SELECT * FROM ' + table + ' ORDER BY rowid'):
+                    order = 'identity,hash' if table == 'hot_refs' else 'rowid'
+                    for row in db.execute('SELECT * FROM ' + table + ' ORDER BY ' + order):
                         check()
                         for value in row:
                             # Type labels distinguish a byte payload from text
                             # with the same UTF-8 encoding in the native store.
                             add(digest, type(value).__name__)
                             add(digest, value)
+                if path == config.evidence and _has_tables(db, ('scoped_cold_manifests',)):
+                    directory = config.evidence.with_suffix('.scoped-cold')
+                    for locator, expected in db.execute('SELECT path,hash FROM scoped_cold_manifests ORDER BY id'):
+                        check()
+                        cold = Path(locator)
+                        _require(cold.parent == directory and
+                            re.fullmatch('[0-9a-f]{64}\\.zlib', cold.name) is not None,
+                            'foreign_cold_reference_refused')
+                        _owned_path(directory, directory=True)
+                        _owned_path(cold)
+                        payload = hashlib.sha256()
+                        with cold.open('rb') as stream:
+                            while block := stream.read(65536):
+                                check()
+                                payload.update(block)
+                        _require(payload.hexdigest() == expected, 'cold_payload_corruption')
+                        add(digest, ['cold', locator, payload.hexdigest()])
         return digest.hexdigest()
     before = fingerprint()
     history = CandidateHistory.__new__(CandidateHistory)

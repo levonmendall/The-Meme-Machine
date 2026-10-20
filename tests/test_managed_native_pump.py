@@ -50,6 +50,8 @@ class ManagedPumpTests(unittest.TestCase):
         self.assertEqual(managed.prepare_generation(self.config, restart=True), identity)
         with self.assertRaisesRegex(ValueError, 'generation_identity_changed'):
             managed.prepare_generation(replace(self.config, source_revision='c' * 40), restart=True)
+        with self.assertRaisesRegex(ValueError, 'generation_identity_changed'):
+            managed.prepare_generation(replace(self.config, token='different-native-token'), restart=True)
         self.profile.write_text('{"changed":true}')
         with self.assertRaisesRegex(ValueError, 'generation_identity_changed'):
             managed.prepare_generation(self.config, restart=True)
@@ -154,6 +156,29 @@ class ManagedPumpTests(unittest.TestCase):
                 ('pump', 'mint', 'event', 10, 2, 0, 100, 'pump_buy', raw,
                  hashlib.sha256(raw.encode()).hexdigest()))
         with self.assertRaisesRegex(ValueError, 'foreign_canonical_reference_refused'):
+            managed.replay_pump(self.config)
+
+    def test_recursive_cold_locators_and_payload_hashes_are_isolated(self):
+        self.stores()
+        def manifest(path, checksum):
+            with sqlite3.connect(self.config.evidence) as db:
+                db.execute('CREATE TABLE IF NOT EXISTS scoped_cold_manifests('
+                    'id TEXT PRIMARY KEY,path TEXT,hash TEXT,records INTEGER,'
+                    'hot_bytes INTEGER,cold_bytes INTEGER,created REAL)')
+                db.execute('INSERT OR REPLACE INTO scoped_cold_manifests VALUES(?,?,?,?,?,?,?)',
+                    ('cold', str(path), checksum, 0, 0, 4, 100.))
+        manifest('/original/economic/archive.zlib', 'f' * 64)
+        with self.assertRaisesRegex(ValueError, 'foreign_cold_reference_refused'):
+            managed.replay_pump(self.config)
+        directory = self.config.evidence.with_suffix('.scoped-cold')
+        directory.mkdir(mode=0o700)
+        path = directory / ('a' * 64 + '.zlib')
+        path.write_bytes(b'cold')
+        path.chmod(0o600)
+        manifest(path, hashlib.sha256(b'cold').hexdigest())
+        self.assertTrue(managed.replay_pump(self.config)['verified'])
+        path.write_bytes(b'fail')
+        with self.assertRaisesRegex(ValueError, 'cold_payload_corruption'):
             managed.replay_pump(self.config)
 
     def test_replay_rejects_orphan_population_and_same_count_mutation(self):
