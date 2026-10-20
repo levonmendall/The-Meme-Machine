@@ -169,8 +169,8 @@
   "implementation_tree": "caca6554609aebe4c10fa7af712bb06a552fcf1b",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
-      "bytes": 7378,
-      "sha256": "22ea1fd339b07a9bb7e8cc85b9534bb3a76228182cd4c3b5737604a96576bde8"
+      "bytes": 7634,
+      "sha256": "b1b3f41e52cfebf97bf7aead2a5423adf1f59fc8ac08c61a00f84e9f0917e177"
     },
     "engineering/diagnostics/managed_capacity_source_guard.template.txt": {
       "bytes": 9826,
@@ -178,14 +178,18 @@
     }
   },
   "read_guard": {
-    "after_bytes": 376847,
-    "after_sha256": "ef9fc18042112a74ceabb5a022fe38997f54da1b623456e111a35d04c02dead3",
+    "after_bytes": 376880,
+    "after_sha256": "fed157797ed8e5d1e6735dbbc3099f26b5a8dc79cf9109edf40e3cf0fc147d18",
     "before_bytes": 376814,
     "before_sha256": "5512e1b375dfbe960f1e6927e9528ff51b28a2a329657d3a1e42b7b47107b3e6",
     "changes": [
       {
         "after": "            source=publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n",
         "before": "            source=publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))\n"
+      },
+      {
+        "after": "                publication_accounting_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n",
+        "before": "                publication_accounting_predecessor(self,relative,(ROOT/relative).read_bytes()))\n"
       }
     ],
     "path": "tests/test_robinhood_usd_valuation.py"

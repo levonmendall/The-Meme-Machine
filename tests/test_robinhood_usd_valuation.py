@@ -4253,7 +4253,7 @@ class RobinhoodUSDTests(unittest.TestCase):
         self.assertEqual(set(mutations),set(ARCHIVE_COMPLETE_LOGS_DELTAS))
         for relative,(_,after,_,_,_) in ARCHIVE_COMPLETE_LOGS_DELTAS.items():
             current=retained_archive_log_shape_predecessor(self,relative,
-                publication_accounting_predecessor(self,relative,(ROOT/relative).read_bytes()))
+                publication_accounting_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))
             self.assertEqual(hashlib.sha256(current).hexdigest(),after,relative+':active exact archive-log correction')
             prior=subprocess.check_output(['git','show',ARCHIVE_COMPLETE_LOGS_REFERENCE+':'+relative],cwd=ROOT)
             self.assertEqual(archive_complete_logs_predecessor(self,relative,current),prior)
