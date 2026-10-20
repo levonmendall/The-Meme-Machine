@@ -219,6 +219,7 @@ def run(root, duration_seconds, generation, request_id):
     window_started = None
     window_finished = None
     cause = None
+    workload_failure = None
     try:
         evidence.append('identity', identity)
         for lane in ('pump', 'pons'):
@@ -257,6 +258,7 @@ def run(root, duration_seconds, generation, request_id):
     except BaseException as error:
         # Neither exception messages nor URLs can cross the protected boundary.
         cause = 'workload_' + type(error).__name__
+        workload_failure = dict(error_type=type(error).__name__, origin=failure_site(error))
     finally:
         _signal_children(children, signal.SIGTERM)
         cleanup_cause = _wait_children(children, root, generation)
@@ -289,7 +291,8 @@ def run(root, duration_seconds, generation, request_id):
         concurrent_seconds=0 if window_started is None or window_finished is None else
             window_finished - window_started,
         interval_basis='process_liveness_after_initial_native_progress_requires_raw_coverage_review',
-        cause=cause, lanes=results, evidence=integrity, provider_usage=budget.usage(),
+        cause=cause, workload_failure=workload_failure,
+        lanes=results, evidence=integrity, provider_usage=budget.usage(),
         workload_completed=bool(cause is None and window_finished is not None and
             all(child.returncode == 0 for child in children.values()) and
             all(row.get('state') == 'NATIVE_RESULT' for row in results.values())),

@@ -232,11 +232,21 @@ def host_sample(pids=()):
         try:
             process = Path('/proc') / str(pid)
             fields = (process / 'stat').read_text().rpartition(')')[2].split()
-            io = dict((key, int(value)) for key, value in
-                      (line.split(':', 1) for line in (process / 'io').read_text().splitlines()))
-            result['processes'][str(pid)] = dict(start_ticks=int(fields[19]),
+            row = dict(start_ticks=int(fields[19]),
                 user_ticks=int(fields[11]), system_ticks=int(fields[12]),
-                rss_bytes=int(fields[21]) * os.sysconf('SC_PAGE_SIZE'), io=io)
+                rss_bytes=int(fields[21]) * os.sysconf('SC_PAGE_SIZE'))
+            try:
+                row['io'] = dict((key, int(value)) for key, value in
+                    (line.split(':', 1) for line in (process / 'io').read_text().splitlines()))
+            except PermissionError:
+                # An unwaited same-UID child can already be a zombie: stat is
+                # readable while Linux denies io. Preserve measured counters
+                # and let the controller poll its child; denial is not exit.
+                row.update(io=None, io_available=False, io_reason_code='permission_denied')
+            result['processes'][str(pid)] = row
+        except PermissionError:
+            result['processes'][str(pid)] = dict(available=False,
+                reason_code='process_stat_permission_denied')
         except (FileNotFoundError, ProcessLookupError):
             result['processes'][str(pid)] = dict(exited=True)
     return result

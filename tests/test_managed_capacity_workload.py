@@ -28,6 +28,100 @@ def _accepted_decoder_fixture(directory):
 
 
 class ManagedWorkload(unittest.TestCase):
+    def _run_exited_lane_sampling_race(self, *, global_denial=False):
+        """Real failed child and process-group cleanup; no native/provider work."""
+        from meme_machine.operational import bounded_provider
+        real_popen = subprocess.Popen
+        original_read = Path.read_text
+        children = {}
+        pump_program = '''
+import json, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+(root / 'result.json').write_text(json.dumps(dict(state='NATIVE_FAILED',
+    error_type='EvidenceUnavailable', financial_authority=False)))
+raise SystemExit(17)
+'''
+        pons_program = '''
+import time
+time.sleep(30)
+'''
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            def spawn(command, **kwargs):
+                lane = command[command.index('--lane') + 1]
+                program = pump_program if lane == 'pump' else pons_program
+                child = real_popen([sys.executable, '-I', '-B', '-c', program, str(root / lane)],
+                    **kwargs)
+                children[lane] = child
+                if lane == 'pump':
+                    # Do not poll/reap before the parent takes its real sample.
+                    os.waitid(os.P_PID, child.pid, os.WEXITED | os.WNOWAIT)
+                return child
+            def denied(path, *args, **kwargs):
+                target = Path('/proc/stat') if global_denial else (
+                    Path('/proc') / str(children['pump'].pid) / 'io')
+                if path == target:
+                    raise PermissionError('secret-sampling-failure-never-output')
+                return original_read(path, *args, **kwargs)
+            budget = SimpleNamespace(reap_orphans=Mock(), usage=lambda: {})
+            started = time.monotonic()
+            try:
+                with patch.object(workload, 'parameters', return_value=(root, 'a' * 40, {})), \
+                     patch.object(bounded_provider.Budget, 'create', return_value=budget), \
+                     patch.object(workload.subprocess, 'Popen', spawn), \
+                     patch.object(Path, 'read_text', denied), \
+                     patch.dict(os.environ, {}, clear=True):
+                    report = workload.run(root, 120, 'a' * 32, 'ec2-100-1')
+                rows = [json.loads(line) for part in (root / 'evidence').glob('evidence-*.jsonl')
+                        for line in part.read_text().splitlines()]
+                self.assertLess(time.monotonic() - started, 10)
+                self.assertEqual(children['pump'].returncode, 17)
+                self.assertIsNotNone(children['pons'].returncode)
+                for child in children.values():
+                    with self.assertRaises(ProcessLookupError):
+                        os.kill(child.pid, 0)
+                budget.reap_orphans.assert_called_once_with()
+                return report, rows
+            finally:
+                # A regression in the coordinator must not leak fixture children.
+                workload._signal_children(children, signal.SIGKILL)
+                for child in children.values():
+                    child.wait(timeout=5)
+
+    @unittest.skipUnless(sys.platform == 'linux' and hasattr(os, 'WNOWAIT'),
+                         'requires an unwaited Linux child')
+    def test_exited_lane_sampling_race_retains_native_failure_and_bounded_cleanup(self):
+        report, rows = self._run_exited_lane_sampling_race()
+        self.assertEqual(report['cause'], 'native_lane_exited')
+        self.assertIsNone(report['workload_failure'])
+        self.assertEqual(report['lanes']['pump']['state'], 'NATIVE_FAILED')
+        self.assertEqual(report['lanes']['pump']['error_type'], 'EvidenceUnavailable')
+        self.assertFalse(report['workload_completed'])
+        self.assertFalse(report['financial_authority'])
+        sample = next(row['value']['host'] for row in rows if row['kind'] == 'sample')
+        unavailable = [p for p in sample['processes'].values() if p.get('io_available') is False]
+        self.assertEqual(len(unavailable), 1)
+        self.assertIsNone(unavailable[0]['io'])
+        stopped = next(row['value'] for row in rows if row['kind'] == 'stopped')
+        self.assertEqual(stopped['cause'], 'native_lane_exited')
+        self.assertNotIn('secret-sampling-failure', json.dumps(report))
+
+    @unittest.skipUnless(sys.platform == 'linux' and hasattr(os, 'WNOWAIT'),
+                         'requires an unwaited Linux child')
+    def test_global_sample_permission_denial_remains_fatal_with_safe_origin(self):
+        report, rows = self._run_exited_lane_sampling_race(global_denial=True)
+        self.assertEqual(report['cause'], 'workload_PermissionError')
+        failure = report['workload_failure']
+        self.assertEqual(failure['error_type'], 'PermissionError')
+        self.assertEqual(failure['origin']['module'],
+                         'meme_machine.operational.managed_capacity_evidence')
+        self.assertEqual(failure['origin']['function'], 'host_sample')
+        self.assertGreater(failure['origin']['line'], 0)
+        self.assertEqual(report['lanes']['pump']['state'], 'NATIVE_FAILED')
+        self.assertFalse(report['workload_completed'])
+        self.assertEqual([row['kind'] for row in rows], ['identity', 'stopped'])
+        self.assertNotIn('secret-sampling-failure', json.dumps(report))
+
     def test_source_drain_and_provider_free_replay_have_separate_bounded_leases(self):
         from meme_machine.operational.managed_capacity_evidence import atomic_json
         with tempfile.TemporaryDirectory() as tmp:
