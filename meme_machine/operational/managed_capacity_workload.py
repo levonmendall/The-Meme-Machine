@@ -201,7 +201,7 @@ def run(root, duration_seconds, generation, request_id):
                 window_finished = now
                 break
             if now >= next_storage_check:
-                tree_bytes(root, limit=MAX_GENERATION_BYTES, reject_links=True)
+                tree_bytes(root, limit=MAX_GENERATION_BYTES, reject_links=True, tolerate_missing=True)
                 headroom(root, 0, warn=False)
                 next_storage_check = now + 5
             stop.wait(5)
@@ -309,8 +309,10 @@ def _child(args):
                                              financial_authority=False))
         return 0
     except BaseException as error:
+        from meme_machine.runtime.evidence_worker import failure_diagnostic
         atomic_json(root / 'result.json', dict(state='NATIVE_FAILED',
-            error_type=type(error).__name__, financial_authority=False))
+            error_type=type(error).__name__, native_failure=failure_diagnostic(error),
+            financial_authority=False))
         return 2
 
 

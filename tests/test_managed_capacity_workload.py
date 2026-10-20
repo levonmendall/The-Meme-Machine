@@ -89,3 +89,35 @@ class ManagedWorkload(unittest.TestCase):
             for request_id in ('ec2-100', 'ec2-100-0', 'ec2-0-1', 'arbitrary-shell'):
                 with self.assertRaisesRegex(ValueError, 'capacity_request_id'):
                     workload.parameters(Path(tmp), 120, 'a' * 32, request_id)
+
+    def test_pump_child_retains_native_first_error_without_credential_message(self):
+        from meme_machine.operational import managed_native_pump
+        from meme_machine.solana_evidence_plane import EvidenceUnavailable
+        import sqlite3
+        failures = [EvidenceUnavailable('writer_failed'),
+                    RuntimeError('secret-provider-credential-do-not-export'),
+                    sqlite3.OperationalError('secret-provider-credential-do-not-export')]
+        failures[-1].sqlite_errorcode = sqlite3.SQLITE_BUSY
+        failures[-1].sqlite_errorname = 'SQLITE_BUSY'
+        for error in failures:
+            with self.subTest(kind=type(error).__name__), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp); (root / 'pump').mkdir(mode=0o700)
+                env = dict(MM_SOLANA_READ_RPC_URL='https://solana-mainnet.g.alchemy.com/v2/offline-fixture',
+                    MM_CAPACITY_SOURCE_COMMIT='a' * 40,
+                    MM_CAPACITY_PROVIDER_PROFILE=str(root / 'profile.json'),
+                    MM_CAPACITY_USAGE_DB=str(root / 'provider-usage.sqlite'))
+                async def failed(*args, **kwargs):
+                    raise error
+                args = SimpleNamespace(root=str(root), lane='pump', generation='a' * 32,
+                                       duration_seconds=120, request_id='ec2-100-1')
+                with patch.dict(os.environ, env, clear=True), \
+                     patch.object(managed_native_pump, 'run_pump', failed), \
+                     patch.object(workload.signal, 'signal'):
+                    self.assertEqual(workload._child(args), 2)
+                raw = (root / 'pump/result.json').read_text()
+                self.assertNotIn('secret-provider-credential', raw)
+                native = json.loads(raw)['native_failure']
+                if isinstance(error, EvidenceUnavailable):
+                    self.assertIn('writer_failed', native)
+                if isinstance(error, sqlite3.Error):
+                    self.assertIn('SQLITE_BUSY', native)
