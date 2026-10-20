@@ -32,13 +32,13 @@
       "status": "A"
     },
     "meme_machine/operational/managed_capacity_workload.py": {
-      "after_bytes": 18432,
-      "after_sha256": "97552c2e63e16e49f2e41b5ea31ca4391be922b0c6618037c2ffcdc4e027a142",
+      "after_bytes": 18853,
+      "after_sha256": "0bcabc26719d19f90bf3c0f9730540c7d921b9bd701ffa4776e8b33fe45de104",
       "status": "A"
     },
     "meme_machine/operational/managed_native_pons.py": {
-      "after_bytes": 32245,
-      "after_sha256": "e21575303eefb7b00927b68ed8379f32c955ea88280ed5bea2c53a0c2998c387",
+      "after_bytes": 38207,
+      "after_sha256": "ffc9bd75c0ad7faf77937e9dfb16b2257b01a073671e8ecacc65a15745ff0946",
       "status": "A"
     },
     "meme_machine/operational/managed_native_pump.py": {
@@ -88,8 +88,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "aa71dce39278cf0296d058cab87ea8ddcfca63bb",
-  "implementation_tree": "5ead6472e8bed489160bef4afd7a8abdf29a06b8",
+  "implementation": "946bd7477e5846c0b3a6eaac3f3a764aca102f17",
+  "implementation_tree": "27b49fea8cd4c09911f104725dd28e6a4b747a45",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 7378,
