@@ -5,13 +5,32 @@ import signal
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from meme_machine.operational import managed_capacity_workload as workload
 from meme_machine.operational.managed_capacity_evidence import canonical
 
 
 class ManagedWorkload(unittest.TestCase):
+    def test_source_drain_and_provider_free_replay_have_separate_bounded_leases(self):
+        from meme_machine.operational.managed_capacity_evidence import atomic_json
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); (root/'pump').mkdir(mode=0o700)
+            child = SimpleNamespace(poll=lambda: None, wait=Mock())
+            elapsed = [100.]
+            def sleep(seconds): elapsed[0] += seconds
+            with patch.object(workload, 'SHUTDOWN_SECONDS', 1):
+                result = workload._wait_children({'pump': child}, root, 'a'*32,
+                    clock=lambda: elapsed[0], sleeper=sleep)
+            self.assertEqual(result, 'native_shutdown_deadline')
+            child.wait.assert_not_called()
+            self.assertLess(elapsed[0], 101.2)
+            atomic_json(root/'pump/drained.json', dict(generation='a'*32,
+                                                     native_provider_work_drained=True))
+            self.assertIsNone(workload._wait_children({'pump': child}, root, 'a'*32,
+                clock=lambda: elapsed[0], sleeper=sleep))
+            self.assertAlmostEqual(child.wait.call_args.kwargs['timeout'], workload.REPLAY_SECONDS)
+
     def test_lane_environment_never_inherits_financial_or_other_provider_secrets(self):
         env = dict(MM_SOLANA_READ_RPC_URL='solana-private-fixture',
             MM_SOLANA_YELLOWSTONE_TOKEN='yellowstone-private-fixture',

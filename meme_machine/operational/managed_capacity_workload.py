@@ -33,6 +33,7 @@ ALLOWED_ENV = frozenset(('MM_SOLANA_READ_RPC_URL', 'MM_SOLANA_YELLOWSTONE_TOKEN'
 MAX_GENERATION_BYTES = 4 * 1024**3
 READINESS_SECONDS = 300
 SHUTDOWN_SECONDS = 65
+REPLAY_SECONDS = 60
 
 
 def _require(condition, code):
@@ -121,6 +122,10 @@ def sample_projection(lane, row):
             result[key] = row.get(key)
         result['counts'] = row.get('counts')
         result['failures'] = row.get('failures')
+        survivor = row.get('survivor') or {}
+        result['survivor'] = {k: survivor.get(k) for k in ('available', 'counts',
+            'candidates', 'economic_events', 'price_points', 'raw_provider_batches',
+            'age_eligible_candidates', 'maximum_history_lag_blocks', 'observed_at', 'monotonic')}
     else:
         native = row.get('canonical') or {}
         result['canonical'] = {k: native.get(k) for k in ('finalized_blocks',
@@ -137,7 +142,40 @@ def sample_projection(lane, row):
         result['unresolved_gap_scopes'] = len(native.get('unresolved_gaps') or ())
         result['outbox'] = native.get('outbox')
         result['observation_unavailable'] = row.get('observation_unavailable')
+        qualifier = row.get('qualification_worker') or {}
+        result['qualification_worker'] = {k: qualifier.get(k) for k in (
+            'initialization_pending', 'observation_unavailable', 'source_native_events',
+            'durably_observed_native_events', 'native_event_backlog', 'stages',
+            'full_qualifications', 'decision_target_available', 'full_qualification_proven')}
     return result
+
+
+def _wait_children(children, root, generation, *, clock=time.monotonic, sleeper=time.sleep):
+    """Separate the original source-drain lease from provider-free replay."""
+    drain_until = clock() + SHUTDOWN_SECONDS
+    while clock() < drain_until:
+        pending = [lane for lane, child in children.items() if child.poll() is None]
+        if not pending:
+            return None
+        drained = True
+        for lane in pending:
+            try:
+                row = read_json(root / lane / 'drained.json')
+                drained &= row == dict(generation=generation, native_provider_work_drained=True)
+            except FileNotFoundError:
+                drained = False
+        if drained:
+            break
+        sleeper(.1)
+    else:
+        return 'native_shutdown_deadline'
+    replay_until = clock() + REPLAY_SECONDS
+    for child in children.values():
+        try:
+            child.wait(timeout=max(.01, replay_until - clock()))
+        except subprocess.TimeoutExpired:
+            return 'native_replay_deadline'
+    return None
 
 
 def run(root, duration_seconds, generation, request_id):
@@ -212,12 +250,8 @@ def run(root, duration_seconds, generation, request_id):
         cause = 'workload_' + type(error).__name__
     finally:
         _signal_children(children, signal.SIGTERM)
-        until = time.monotonic() + SHUTDOWN_SECONDS
-        for child in children.values():
-            try:
-                child.wait(timeout=max(.01, until - time.monotonic()))
-            except subprocess.TimeoutExpired:
-                cause = cause or 'native_shutdown_deadline'
+        cleanup_cause = _wait_children(children, root, generation)
+        cause = cause or cleanup_cause
         _signal_children(children, signal.SIGKILL)
         for child in children.values():
             child.wait(timeout=5)
@@ -265,6 +299,9 @@ def _child(args):
         signal.signal(sig, lambda *_: cancel.set())
     def sample(value):
         atomic_json(root / 'telemetry.json', value)
+    def drained():
+        atomic_json(root / 'drained.json', dict(generation=args.generation,
+                                              native_provider_work_drained=True))
     try:
         if args.lane == 'pump':
             from meme_machine.operational.managed_native_pump import PumpManagedConfig, run_pump
@@ -284,7 +321,8 @@ def _child(args):
                     bounded_stop.set()
                 monitor = asyncio.create_task(cancellation())
                 try:
-                    return await run_pump(config, bounded_stop, sample_callback=sample)
+                    return await run_pump(config, bounded_stop, sample_callback=sample,
+                                          drain_callback=drained)
                 finally:
                     cancel.set()
                     await monitor
@@ -300,7 +338,7 @@ def _child(args):
                 MM_RPC_CACHE_DB=str(root / 'evidence.sqlite'), MM_RUNTIME_LANE='pons',
                 MM_PONS_OBSERVATION_ROUTE='canonical_primary')
             result = run_pons(root, args.duration_seconds + READINESS_SECONDS + SHUTDOWN_SECONDS,
-                             args.generation, cancel=cancel.is_set)
+                             args.generation, cancel=cancel.is_set, drain_callback=drained)
             if result.get('error') is not None or result.get('verdict') != 'OBSERVED':
                 atomic_json(root / 'result.json', dict(state='NATIVE_FAILED', result=result,
                                                      financial_authority=False))

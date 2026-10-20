@@ -65,6 +65,7 @@ jobs:
           group = LinuxGroup(LIMITS)
           group.close()
           modules = [
+              'tests.test_managed_capacity_source_guard',
               'tests.test_pump_restore_source_guard',
               'tests.test_operational_candidate_source_guard',
               'tests.test_ea_performance_source_guard',

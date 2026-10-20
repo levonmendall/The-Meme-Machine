@@ -375,7 +375,7 @@ def replay_pump(config, *, seconds=60):
 
 
 async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_seconds=5,
-                   decision_target_lamports=None):
+                   decision_target_lamports=None, drain_callback=None):
     """Run until the parent's bounded stop; await production's original drain."""
     global _started
     _require(not _started, 'dedicated_child_process_required')
@@ -473,6 +473,8 @@ async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_
                     await drained()
             finally:
                 await asyncio.gather(sampler, return_exceptions=True)
+        if drain_callback is not None:
+            drain_callback()
         return dict(identity=identity, snapshot=pump_snapshot(config, driver=driver),
                     replay=replay_pump(config),
                     qualification_worker=qualification_metrics,

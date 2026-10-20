@@ -96,7 +96,8 @@ def private_root(root, generation):
         'native.sqlite-wal', 'native.sqlite-shm', 'provider.sqlite', 'provider.sqlite-wal',
         'provider.sqlite-shm', 'evidence.sqlite', 'evidence.sqlite-wal', 'evidence.sqlite-shm',
         'survivor.sqlite','survivor.sqlite-wal','survivor.sqlite-shm',
-        'telemetry.json', 'result.json', 'telemetry.json.new', 'result.json.new'}
+        'telemetry.json', 'result.json', 'telemetry.json.new', 'result.json.new',
+        'drained.json', 'drained.json.new'}
     if marker.exists():
         require(json.loads(marker.read_text()) == expected, 'generation_marker')
         require(all(p.name in allowed for p in root.iterdir()), 'foreign_state')
@@ -412,11 +413,13 @@ class ManagedPonsLane:
                 return self.survivor_reader.step(top)
             self.survivor_future=self.survivor_pool.submit(step)
 
-    def finish_survivor(self):
+    def finish_survivor(self, *, drain_callback=None):
         if self.survivor_future is not None:
             try:self.survivor_future.result()
             except Exception:pass
             self.poll_survivor(submit=False)
+        if drain_callback is not None:
+            drain_callback()
         def finish():
             if self.survivor_reader is None:return dict(verified=False,reason='survivor_not_started')
             try:return self.survivor_reader.replay()
@@ -468,7 +471,8 @@ class ManagedPonsLane:
         self.broker.close(); self.owner.close(); self.closed = True
 
 
-def run_pons(root, duration, generation, *, sample_callback=None, cancel=None,sample_seconds=5):
+def run_pons(root, duration, generation, *, sample_callback=None, cancel=None,sample_seconds=5,
+             drain_callback=None):
     """Parent-callable lane; bounded runtime is independent of financial services."""
     require(type(duration) in (int,float) and math.isfinite(duration) and 0 < duration <= 7200,
             'duration')
@@ -523,7 +527,7 @@ def run_pons(root, duration, generation, *, sample_callback=None, cancel=None,sa
         if error is not None:stopped.set()
         lane.pool.shutdown(wait=True,cancel_futures=True)
         lane.poll_candidate(submit=False)
-        try:survivor_replay=lane.finish_survivor()
+        try:survivor_replay=lane.finish_survivor(drain_callback=drain_callback)
         except Exception as failure:
             survivor_replay=dict(verified=False,error_type=type(failure).__name__)
             error=dict(type=type(failure).__name__,reason='survivor_native_replay_failed')
