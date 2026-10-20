@@ -67,8 +67,8 @@
       "status": "M"
     },
     "meme_machine/solana_candidate_join.py": {
-      "after_bytes": 26023,
-      "after_sha256": "b140ff8e1302b8487152e3509e630822f9bf19498fa2a54baea31c898cd3dd00",
+      "after_bytes": 27358,
+      "after_sha256": "bf3327c6e3cdec066d53e81d37c985cf1918bc8a30611ce59dec8f3513dbf7ff",
       "before_bytes": 22910,
       "before_sha256": "cd570e5ed58519bf61ccfc553910d1a5093952e7754a9cab80d517f3e7269699",
       "changed_nodes": [
@@ -78,13 +78,15 @@
         "CandidateTransactionJoin.defer_log",
         "CandidateTransactionJoin.deferred_log_witness",
         "CandidateTransactionJoin.diagnostic",
-        "CandidateTransactionJoin.feed"
+        "CandidateTransactionJoin.drain",
+        "CandidateTransactionJoin.feed",
+        "CandidateTransactionJoin.hold_complete_log"
       ],
       "status": "M"
     },
     "meme_machine/solana_selective_source.py": {
-      "after_bytes": 160157,
-      "after_sha256": "6156212b82efcff3700a29727f4681a451c26a4919bfd9d8266e26fdbdc68f12",
+      "after_bytes": 160493,
+      "after_sha256": "4abef1cd6c5fa9125102c1ad26445fab41bb4a0c21d28f18fa61865436b8becd",
       "before_bytes": 155835,
       "before_sha256": "c21b570ff602dd190ea8e305776dbbefeffc50f214bff4a92beb43374aa8aa4c",
       "changed_nodes": [
@@ -127,8 +129,8 @@
       "status": "M"
     },
     "meme_machine/solana_stream_log_repair.py": {
-      "after_bytes": 4879,
-      "after_sha256": "8b402fe80f7a52a89e23d60931032d011788309c53d93f0aa8ed3cb5686c7182",
+      "after_bytes": 5407,
+      "after_sha256": "0039bfec8abe3cc2f8a67c1e9896a1a3c7621880f4200e04b7c262f8574ff273",
       "status": "A"
     }
   },
@@ -163,8 +165,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "b1acf1870a4447944203efa78db377c3d8cc71d4",
-  "implementation_tree": "a382cf2886c426e737b0dd97af5c0640d83bea29",
+  "implementation": "11227db60ae3403a5a725fd944e931333686e7ae",
+  "implementation_tree": "b36236ffe390d089dce4645854a8651ee4f543a6",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 7378,
