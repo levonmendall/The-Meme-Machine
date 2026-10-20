@@ -674,12 +674,16 @@ class SelectiveSource:
         # Numeric, process-local attribution only. Reuse the existing health
         # publication; never add an evidence receipt or per-event SQL write.
         if kind=='log_repair':
+            # duplicate_deliveries counts packets coalesced while a repair is
+            # pending; late known partial duplicates are ignored by the join.
+            # Logical RPC invocations are distinct from transport attempts,
+            # whose original measured_rpc/provider accounting includes retries.
             metric=self.pipeline_metrics.setdefault('log_repair:rolling',dict(calls=0,
-                deferred=0,duplicate_deliveries=0,http_requests=0,
+                deferred=0,duplicate_deliveries=0,repair_logical_calls=0,
                 supplements_authenticated=0,supplements_failed=0,pending_peak=0))
             metric['calls']+=1
             stage=values.get('stage')
-            if stage in ('deferred','duplicate_deliveries','http_requests',
+            if stage in ('deferred','duplicate_deliveries','repair_logical_calls',
                     'supplements_authenticated','supplements_failed'):
                 metric[stage]+=1
             count=values.get('pending')
@@ -2225,7 +2229,7 @@ class SelectiveSource:
                         witness=None;authenticated=False
                         try:
                             witness=join.deferred_log_witness(slot,sig)
-                            if witness is not None:self.observe('log_repair',stage='http_requests')
+                            if witness is not None:self.observe('log_repair',stage='repair_logical_calls')
                             tx=await self.measured_rpc('getTransaction',[sig,dict(commitment='finalized',encoding='json',maxSupportedTransactionVersion=1)],'rolling_recovery_missing_logs',2)
                             if witness is not None:
                                 try:

@@ -341,7 +341,7 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         receipt=json.loads(self.history.db.execute("SELECT body FROM acquisition_observations WHERE kind='native_stream_log_supplement'").fetchone()[0])
         self.assertEqual(receipt['method'],'getTransaction');self.assertFalse(receipt['truncated_logs_used_as_complete'])
         metrics=self.source.pipeline_metrics['log_repair:rolling']
-        self.assertEqual((metrics['deferred'],metrics['duplicate_deliveries'],metrics['http_requests'],
+        self.assertEqual((metrics['deferred'],metrics['duplicate_deliveries'],metrics['repair_logical_calls'],
             metrics['supplements_authenticated'],metrics['supplements_failed']),(1,1,1,1,0))
 
     async def test_actual_repeated_http_truncation_preserves_gap_and_no_economic_or_coverage_claim(self):
@@ -357,7 +357,7 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
     async def test_actual_full_ws_duplicate_coalesces_with_pending_authenticated_repair(self):
         await self.actual_live(truncated=True,complete_duplicate=True)
         metrics=self.source.pipeline_metrics['log_repair:rolling']
-        self.assertEqual((metrics['deferred'],metrics['duplicate_deliveries'],metrics['http_requests'],
+        self.assertEqual((metrics['deferred'],metrics['duplicate_deliveries'],metrics['repair_logical_calls'],
             metrics['supplements_authenticated']),(1,1,1,1))
         self.assertEqual(self.source.drain_snapshot()['pending_handlers'],0)
         self.assertEqual(self.source.drain_snapshot()['queues']['rolling'],dict(accepted=1,committed=1,pending=0))
