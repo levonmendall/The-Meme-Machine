@@ -301,8 +301,9 @@ class QualificationReader:
                         failure_type=type(error).__name__), now
         except Exception as error:
             from meme_machine.solana_evidence_plane import EvidenceUnavailable, EvidenceConflict
+            from meme_machine.lanes.pump.solana_evidence_plane import EvidenceConflict as LaneConflict
             from meme_machine.lanes.pump.provider import Unavailable
-            if isinstance(error, EvidenceConflict):
+            if isinstance(error, (EvidenceConflict, LaneConflict)):
                 raise
             if not isinstance(error, (ValueError, EvidenceUnavailable, Unavailable)):
                 raise
