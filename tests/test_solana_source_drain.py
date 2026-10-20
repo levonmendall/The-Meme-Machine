@@ -188,9 +188,15 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body['queues']['scout'],dict(accepted=65,committed=65,pending=0))
 
     async def actual_live(self,*,transport_failure=False,cancel=False,commit_failure=False,repeated_cancel=False,cutoff=False,
-            truncated=False,repair_failure=False,cancel_repair=False,unsupported=False,complete_duplicate=False):
+            truncated=False,repair_failure=False,cancel_repair=False,unsupported=False,complete_duplicate=False,repair_members=1):
         import based58
         source=self.source;tx=copy.deepcopy(FIXTURE['pump'][0]);slot=tx['slot'];index=tx['transactionIndex']
+        txs=[]
+        for number in range(repair_members):
+            item=copy.deepcopy(tx);item['transactionIndex']=index+number
+            if repair_members>1:item['transaction']['signatures']=[based58.b58encode(bytes([number+1])*64).decode()]
+            txs.append(item)
+        tx=txs[0];batch_sizes=[]
         addresses={PROGRAMS[f]:program_scope(f) for f in ('pump','pumpswap')}
         statuses_ready=asyncio.Event();native_accepted=asyncio.Event()
         socket_idle=asyncio.Event();repair_entered=asyncio.Event();repair_release=asyncio.Event()
@@ -204,13 +210,22 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
             if method=='getTransaction':
                 # WS must keep reading while the selective HTTP repair is in
                 # flight, including the same transaction's duplicate packet.
-                repair_entered.set();await socket_idle.wait()
-                if cancel_repair:await repair_release.wait()
-                fetched=copy.deepcopy(tx);fetched.pop('transactionIndex',None)
+                if repair_members==1:repair_entered.set()
+                await socket_idle.wait()
+                if cancel_repair and repair_members==1:await repair_release.wait()
+                fetched=copy.deepcopy(next(item for item in txs if item['transaction']['signatures'][0]==args[0][0]));fetched.pop('transactionIndex',None)
                 if repair_failure:fetched['meta']['logMessages']=partial
                 return fetched
             return slot-1
         source.work=work;source.measured_rpc=tip
+        real_batch=source.measured_log_batch
+        async def batch(signatures,priority=2):
+            if len(signatures)==1:return await real_batch(signatures,priority)
+            batch_sizes.append(len(signatures));repair_entered.set();await socket_idle.wait()
+            if cancel_repair:await repair_release.wait()
+            return [dict(copy.deepcopy(next(item for item in txs if item['transaction']['signatures'][0]==sig)))
+                for sig in signatures]
+        source.measured_log_batch=batch
         class Socket:
             def __init__(socket):socket.acks=asyncio.Queue();socket.sent=0;socket.frontiers=iter((11,12))
             async def send(socket,raw):
@@ -222,23 +237,24 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
                     return json.dumps(dict(params=dict(subscription=subscription,result=dict(context=dict(slot=slot-1),
                         value=dict(err={'InstructionError':[0,0]},signature='failed',logs=[])))))
                 await statuses_ready.wait()
-                if socket.sent>=(2 if truncated else 1):
+                if socket.sent>=(2 if truncated else 1)*repair_members:
                     socket_idle.set();await asyncio.Event().wait()
-                socket.sent+=1
+                item=txs[socket.sent//(2 if truncated else 1)];socket.sent+=1
                 return json.dumps(dict(params=dict(subscription=11,result=dict(context=dict(slot=slot),
-                    value=dict(err=None,signature=tx['transaction']['signatures'][0],
+                    value=dict(err=None,signature=item['transaction']['signatures'][0],
                         logs=None if unsupported else partial if truncated and not (complete_duplicate and socket.sent==2)
                             else tx['meta']['logMessages'])))))
         class Connection:
             async def __aenter__(self):return Socket()
             async def __aexit__(self,*args):pass
         async def stream(channel,request,handler,family,local_stop):
-            u=pb.SubscribeUpdate(filters=[scope_labels(addresses)[program_scope('pump')]])
-            s=u.transaction_status;s.slot=slot;s.index=index;s.signature=based58.b58decode(tx['transaction']['signatures'][0].encode())
-            await handler(u,u.ByteSize(),NOW)
+            for item in txs:
+                u=pb.SubscribeUpdate(filters=[scope_labels(addresses)[program_scope('pump')]])
+                s=u.transaction_status;s.slot=slot;s.index=item['transactionIndex'];s.signature=based58.b58decode(item['transaction']['signatures'][0].encode())
+                await handler(u,u.ByteSize(),NOW)
             u=pb.SubscribeUpdate(filters=['b']);m=u.block_meta;m.slot=slot;m.parent_slot=slot-1
             m.blockhash=str(slot);m.parent_blockhash=str(slot-1);m.block_time.timestamp=tx['blockTime']
-            m.executed_transaction_count=index+1;await handler(u,u.ByteSize(),NOW)
+            m.executed_transaction_count=index+repair_members;await handler(u,u.ByteSize(),NOW)
             u=pb.SubscribeUpdate(filters=['f']);u.slot.slot=slot;u.slot.parent=slot-1;u.slot.status=pb.SLOT_FINALIZED
             await handler(u,u.ByteSize(),NOW);statuses_ready.set()
             admitted=asyncio.create_task(self.entered.wait());closing=asyncio.create_task(local_stop.wait())
@@ -293,6 +309,7 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
             elif cancel:
                 with self.assertRaises(asyncio.CancelledError):await asyncio.wait_for(task,2)
             else:await asyncio.wait_for(task,2)
+        self.last_batch_sizes=batch_sizes
         return slot
 
     async def test_actual_live_filter_replacement_finishes_accepted_commit_and_preserves_gap(self):
@@ -343,6 +360,22 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         metrics=self.source.pipeline_metrics['log_repair:rolling']
         self.assertEqual((metrics['deferred'],metrics['duplicate_deliveries'],metrics['repair_logical_calls'],
             metrics['supplements_authenticated'],metrics['supplements_failed']),(1,1,1,1,0))
+
+    async def test_actual_eight_truncated_packets_coalesce_and_authenticate_before_one_ordered_commit(self):
+        await self.actual_live(truncated=True,repair_members=8)
+        self.assertTrue(self.last_batch_sizes)
+        self.assertTrue(all(2<=size<=8 for size in self.last_batch_sizes))
+        metrics=self.source.pipeline_metrics['log_repair:rolling']
+        self.assertEqual((metrics['repair_logical_calls'],metrics['supplements_authenticated'],metrics['supplements_failed']),(8,8,0))
+        self.assertEqual(self.source.drain_snapshot()['queues']['rolling'],dict(accepted=1,committed=1,pending=0))
+        self.assertEqual(self.history.db.execute("SELECT COUNT(*) FROM acquisition_observations WHERE kind='native_stream_log_supplement'").fetchone()[0],8)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
+
+    async def test_cancel_during_multi_member_repair_waits_for_original_batch_and_ordered_owner(self):
+        await self.actual_live(truncated=True,repair_members=8,cancel_repair=True)
+        self.assertEqual(self.source.drain_snapshot()['pending_handlers'],0)
+        self.assertEqual(self.source.drain_snapshot()['queues']['rolling'],dict(accepted=1,committed=1,pending=0))
+        self.assertEqual(self.source.pipeline_metrics['log_repair:rolling']['supplements_authenticated'],8)
 
     async def test_actual_repeated_http_truncation_preserves_gap_and_no_economic_or_coverage_claim(self):
         slot=await self.actual_live(truncated=True,repair_failure=True)
