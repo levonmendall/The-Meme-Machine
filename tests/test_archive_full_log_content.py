@@ -926,8 +926,11 @@ class ArchiveFullLogContentTests(unittest.TestCase):
                         if not task.done():task.cancel()
                         await asyncio.gather(task, return_exceptions=True)
                 elif mode == 'invalid':
-                    with self.assertRaisesRegex(EvidenceUnavailable, 'archive_log_supplement_identity_unverified'):
+                    with self.assertRaisesRegex(EvidenceUnavailable, 'archive_log_supplement_identity_unverified') as caught:
                         await source.acquire()
+                    from meme_machine.runtime.evidence_worker import failure_diagnostic
+                    self.assertEqual(caught.exception.archive_log_failure_check,'fetched_slot')
+                    self.assertIn(':archive_log_check=fetched_slot',failure_diagnostic(caught.exception))
                 else:
                     await asyncio.wait_for(source.acquire(), 2)
                 self.assertEqual(self.state.acquisition_inflight, set())
@@ -967,3 +970,115 @@ class ArchiveFullLogContentTests(unittest.TestCase):
 
         asyncio.run(exercise())
         self.assertEqual(len(attempts), 3)
+
+
+class ArchiveFailureDiscriminatorTests(unittest.TestCase):
+    """Fixed attribution leaves every existing rejection and raw input intact."""
+    def variants(self):
+        original,fetched,_,_=truncated_transaction()
+        rows=[]
+        def add(check,mutate=lambda old,new:None,*,endpoint=ENDPOINT):
+            old,new=copy.deepcopy(original),copy.deepcopy(fetched)
+            mutate(old,new);rows.append((check,old,new,endpoint))
+        add('endpoint_identity',endpoint='https://provider.invalid/private-fixture-key')
+        rows.append(('response_shape',None,copy.deepcopy(fetched),ENDPOINT))
+        add('original_slot',lambda old,new:old.pop('slot'))
+        add('original_slot',lambda old,new:old.update(slot=True))
+        add('original_index',lambda old,new:old.pop('transactionIndex'))
+        add('original_index',lambda old,new:old.update(transactionIndex=False))
+        add('original_signatures',lambda old,new:old['transaction'].pop('signatures'))
+        add('original_signatures',lambda old,new:old['transaction'].update(signatures=[]))
+        add('original_meta',lambda old,new:old.pop('meta'))
+        add('fetched_meta',lambda old,new:new.pop('meta'))
+        add('original_logs',lambda old,new:old['meta'].pop('logMessages'))
+        add('fetched_logs',lambda old,new:new['meta'].pop('logMessages'))
+        add('fetched_slot',lambda old,new:new.update(slot=old['slot']+1))
+        add('original_time',lambda old,new:old.update(blockTime=True))
+        add('fetched_time',lambda old,new:new.update(blockTime=False))
+        add('block_time',lambda old,new:new.update(blockTime=old['blockTime']+1))
+        add('transaction_identity',lambda old,new:new['transaction'].update(signatures=['private-signature-fixture']))
+        add('original_error',lambda old,new:old['meta'].update(err={'private':'provider-message'}))
+        add('fetched_error',lambda old,new:new['meta'].update(err={'private':'provider-message'}))
+        add('fetched_index',lambda old,new:new.update(transactionIndex=old['transactionIndex']+1))
+        add('original_log_shape',lambda old,new:old['meta'].update(logMessages=None))
+        add('fetched_log_shape',lambda old,new:new['meta'].update(logMessages=None))
+        add('fetched_log_line',lambda old,new:new['meta'].update(logMessages=[{'private':'fixture-log'}]))
+        add('fetched_log_truncation',lambda old,new:new['meta']['logMessages'].append('Log truncated'))
+        add('marker_count',lambda old,new:old['meta'].update(logMessages=list(new['meta']['logMessages'])))
+        add('prefix',lambda old,new:new['meta']['logMessages'].__setitem__(0,'private-altered-prefix'))
+        add('retained_suffix',lambda old,new:old['meta']['logMessages'].append('private-missing-suffix'))
+        return rows
+
+    def test_every_fixed_failure_check_preserves_generic_exception_and_raw_inputs(self):
+        from meme_machine.runtime.evidence_worker import failure_diagnostic
+        from meme_machine.solana_selective_history import ARCHIVE_LOG_FAILURE_CHECKS
+        checked=set()
+        for check,original,fetched,endpoint in self.variants():
+            with self.subTest(check=check):
+                before=canonical(original),canonical(fetched)
+                with self.assertRaises(EvidenceUnavailable) as caught:
+                    join_archive_log_supplement(original,fetched,endpoint_identity=endpoint)
+                error=caught.exception
+                self.assertIs(type(error),EvidenceUnavailable)
+                self.assertEqual(error.args,('archive_log_supplement_identity_unverified',))
+                self.assertEqual(error.archive_log_failure_check,check);checked.add(check)
+                diagnostic=failure_diagnostic(error)
+                self.assertIn(':archive_log_supplement_identity_unverified',diagnostic)
+                self.assertIn(':archive_log_check='+check,diagnostic)
+                self.assertNotIn('private-',diagnostic);self.assertNotIn('provider.invalid',diagnostic)
+                self.assertEqual((canonical(original),canonical(fetched)),before)
+        self.assertEqual(checked,set(ARCHIVE_LOG_FAILURE_CHECKS))
+
+    def test_success_bytes_order_and_optional_real_native_index_remain_unchanged(self):
+        original,fetched,full,_=truncated_transaction()
+        for supplied_index in (False,True):
+            with self.subTest(supplied_index=supplied_index):
+                response=copy.deepcopy(fetched)
+                if supplied_index:response['transactionIndex']=original['transactionIndex']
+                before=canonical(original),canonical(response)
+                supplement=join_archive_log_supplement(original,response,endpoint_identity=ENDPOINT)
+                self.assertEqual(complete_archive_transaction(original,supplement,endpoint_identity=ENDPOINT),full)
+                self.assertEqual((canonical(original),canonical(response)),before)
+
+    def test_boolean_and_nonfinite_native_fields_keep_original_strict_rejections(self):
+        cases=(('original','slot','original_slot'),('original','transactionIndex','original_index'),
+            ('original','blockTime','original_time'),('fetched','slot','fetched_slot'),
+            ('fetched','transactionIndex','fetched_index'),('fetched','blockTime','fetched_time'))
+        for side,field,check in cases:
+            for value in (True,float('nan'),float('inf')):
+                with self.subTest(side=side,field=field,value=value):
+                    original,fetched,_,_=truncated_transaction()
+                    (original if side=='original' else fetched)[field]=value
+                    with self.assertRaises(EvidenceUnavailable) as caught:
+                        join_archive_log_supplement(original,fetched,endpoint_identity=ENDPOINT)
+                    self.assertEqual(caught.exception.args,('archive_log_supplement_identity_unverified',))
+                    self.assertEqual(caught.exception.archive_log_failure_check,check)
+
+    def test_emitter_refuses_unknown_nonstring_or_foreign_exception_attributes(self):
+        from meme_machine.runtime.evidence_worker import failure_diagnostic
+        for reason in ('archive_log_supplement_identity_unverified','private-unknown-message'):
+            for check in ([],{},None,True,7,'private-signature-fixture','prefix\nprivate-credential'):
+                with self.subTest(reason=reason,check=check):
+                    error=EvidenceUnavailable(reason);error.archive_log_failure_check=check
+                    diagnostic=failure_diagnostic(error)
+                    self.assertNotIn('archive_log_check=',diagnostic)
+                    self.assertNotIn('private-',diagnostic)
+        class ForeignEvidenceUnavailable(EvidenceUnavailable):pass
+        for error in (ValueError('archive_log_supplement_identity_unverified'),
+                      ForeignEvidenceUnavailable('archive_log_supplement_identity_unverified'),
+                      EvidenceUnavailable('unresolved_evidence_gap')):
+            error.archive_log_failure_check='prefix'
+            self.assertNotIn('archive_log_check=',failure_diagnostic(error))
+
+    def test_existing_redacted_cause_chain_retains_only_fixed_check(self):
+        from meme_machine.runtime.evidence_worker import failure_diagnostic
+        original,fetched,_,_=truncated_transaction()
+        fetched['transaction']['signatures']=['private-signature-fixture']
+        try:
+            try:join_archive_log_supplement(original,fetched,endpoint_identity=ENDPOINT)
+            except EvidenceUnavailable as error:
+                raise ValueError('https://provider.invalid/private-credential') from error
+        except ValueError as error:diagnostic=failure_diagnostic(error)
+        self.assertIn(':caused_by:EvidenceUnavailable:archive_log_supplement_identity_unverified',diagnostic)
+        self.assertIn(':archive_log_check=transaction_identity',diagnostic)
+        self.assertNotIn('private-',diagnostic);self.assertNotIn('provider.invalid',diagnostic)
