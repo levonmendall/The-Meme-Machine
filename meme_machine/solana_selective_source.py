@@ -2117,6 +2117,9 @@ class SelectiveSource:
                                             if key in join.incomplete_logs:
                                                 self.observe('log_repair',stage='duplicate_deliveries' if duplicate else 'deferred',
                                                     pending=len(join.incomplete_logs))
+                                        elif (result['context']['slot'],v['signature']) in join.incomplete_logs:
+                                            join.hold_complete_log(result['context']['slot'],v['signature'],v.get('logs'))
+                                            self.observe('log_repair',stage='duplicate_deliveries')
                                         else:
                                             await commit(join.feed_log(result['context']['slot'],v['signature'],v.get('logs'),None,seen))
                                     except EvidenceUnavailable as exc:

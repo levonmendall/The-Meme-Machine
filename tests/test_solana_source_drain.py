@@ -188,7 +188,7 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body['queues']['scout'],dict(accepted=65,committed=65,pending=0))
 
     async def actual_live(self,*,transport_failure=False,cancel=False,commit_failure=False,repeated_cancel=False,cutoff=False,
-            truncated=False,repair_failure=False,cancel_repair=False,unsupported=False):
+            truncated=False,repair_failure=False,cancel_repair=False,unsupported=False,complete_duplicate=False):
         import based58
         source=self.source;tx=copy.deepcopy(FIXTURE['pump'][0]);slot=tx['slot'];index=tx['transactionIndex']
         addresses={PROGRAMS[f]:program_scope(f) for f in ('pump','pumpswap')}
@@ -227,7 +227,8 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
                 socket.sent+=1
                 return json.dumps(dict(params=dict(subscription=11,result=dict(context=dict(slot=slot),
                     value=dict(err=None,signature=tx['transaction']['signatures'][0],
-                        logs=None if unsupported else partial if truncated else tx['meta']['logMessages'])))))
+                        logs=None if unsupported else partial if truncated and not (complete_duplicate and socket.sent==2)
+                            else tx['meta']['logMessages'])))))
         class Connection:
             async def __aenter__(self):return Socket()
             async def __aexit__(self,*args):pass
@@ -352,6 +353,14 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_gaps WHERE lo=? AND hi IS NULL',(slot,)).fetchone()[0],2)
         self.assertEqual(self.history.db.execute("SELECT COUNT(*) FROM acquisition_observations WHERE kind='native_stream_log_supplement_failed'").fetchone()[0],1)
         self.assertEqual(self.source.pipeline_metrics['log_repair:rolling']['supplements_failed'],1)
+
+    async def test_actual_full_ws_duplicate_coalesces_with_pending_authenticated_repair(self):
+        await self.actual_live(truncated=True,complete_duplicate=True)
+        metrics=self.source.pipeline_metrics['log_repair:rolling']
+        self.assertEqual((metrics['deferred'],metrics['duplicate_deliveries'],metrics['http_requests'],
+            metrics['supplements_authenticated']),(1,1,1,1))
+        self.assertEqual(self.source.drain_snapshot()['pending_handlers'],0)
+        self.assertEqual(self.source.drain_snapshot()['queues']['rolling'],dict(accepted=1,committed=1,pending=0))
 
     async def test_cancel_during_actual_truncation_repair_waits_for_original_result_and_owner(self):
         await self.actual_live(truncated=True,cancel_repair=True)

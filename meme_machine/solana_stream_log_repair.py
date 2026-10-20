@@ -7,7 +7,7 @@ bound to native order, program membership and the observed WS prefix/suffix.
 import copy
 import hashlib
 
-from .solana_evidence_plane import EvidenceUnavailable,canonical
+from .solana_evidence_plane import EvidenceUnavailable,canonical,digest
 from .solana_candidate_join import CandidateTransactionJoin
 from .solana_selective_history import (
     complete_archive_transaction,join_archive_log_supplement,rpc_economic_transaction,
@@ -42,6 +42,8 @@ def rebase_log_join(join,floor):
         else:replacement.feed_log(slot,sig,logs,error,seen)
         if slot>=floor and (slot,sig) in join.recent_incomplete_logs:
             replacement.recent_incomplete_logs[(slot,sig)]=join.recent_incomplete_logs[(slot,sig)]
+        if slot>=floor and (slot,sig) in join.deferred_complete_logs:
+            replacement.deferred_complete_logs[(slot,sig)]=join.deferred_complete_logs[(slot,sig)]
     return replacement
 
 
@@ -70,6 +72,8 @@ def authenticate_supplement(join,witness,fetched,endpoint_identity):
         original=copy.deepcopy(ordered);original['meta']['logMessages']=list(observed)
         supplement=join_archive_log_supplement(original,fetched,endpoint_identity=endpoint_identity)
         complete=complete_archive_transaction(original,supplement,endpoint_identity=endpoint_identity)
+        other=join.deferred_complete_logs.get(key)
+        if other is not None and other!=digest([complete['meta']['logMessages'],None]):raise KeyError()
         raw=canonical(fetched);partial=canonical(observed)
         receipt=dict(method='getTransaction',commitment='finalized',endpoint_identity=endpoint_identity,
             native_witness=witness,observed_websocket_logs=list(observed),response=fetched,

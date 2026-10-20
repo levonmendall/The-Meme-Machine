@@ -94,6 +94,7 @@ class CandidateTransactionJoin:
         # Explicit truncated WS packets occupy the same existing log budget,
         # but cannot satisfy a successful native status or produce coverage.
         self.incomplete_logs=set()
+        self.deferred_complete_logs={}
         self.recent_logs={}
         self.recent_incomplete_logs={}
 
@@ -164,10 +165,29 @@ class CandidateTransactionJoin:
         """The caller authenticated a complete supplement against native order."""
         key=(slot,sig)
         if key not in self.incomplete_logs:raise EvidenceUnavailable('candidate_log_content_conflict')
+        expected=self.deferred_complete_logs.get(key)
+        if expected is not None and expected!=digest([logs,None]):
+            raise EvidenceUnavailable('candidate_log_content_conflict')
         old=self.early_logs.pop(key);self.incomplete_logs.remove(key)
+        self.deferred_complete_logs.pop(key,None)
         self.early_log_bytes-=len(str(old[0]).encode())
         self.recent_incomplete_logs[key]=digest([old[0],old[1]])
         return self.feed_log(slot,sig,logs,None,seen)
+
+    def hold_complete_log(self,slot,sig,logs):
+        """Coalesce a complete WS duplicate while its existing repair settles.
+
+        Only a bounded hash is retained. It does not satisfy a native status;
+        the authenticated HTTP result must also agree with this observation.
+        """
+        key=(slot,sig)
+        if (key not in self.incomplete_logs or type(logs) is not list
+                or any(type(line) is not str or 'truncat' in line.lower() for line in logs)):
+            raise EvidenceUnavailable('incomplete_finalized_logs')
+        checksum=digest([logs,None]);previous=self.deferred_complete_logs.get(key)
+        if previous is not None and previous!=checksum:
+            raise EvidenceUnavailable('candidate_log_content_conflict')
+        self.deferred_complete_logs[key]=checksum
 
     def deferred_log_witness(self,slot,sig):
         """Independent finalized status/meta needed before HTTP supplementation."""

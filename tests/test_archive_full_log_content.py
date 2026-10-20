@@ -45,9 +45,9 @@ class StreamFullLogContentTests(unittest.TestCase):
         slot=full['slot'];sig=full['transaction']['signatures'][0]
         address=PROGRAMS['pump'];scope='program:pump'
         join=CandidateTransactionJoin({address:scope},set(),filtered_from_slot=slot,max_join_seconds=120)
-        # The old production path rejects this captured partial packet before
-        # its native counterpart can provide order. That exact failure caused
-        # seventeen whole-program retries in the first managed EC2 startup.
+        # Inject truncation into captured complete mainnet logs. This exercises
+        # the retained incomplete_finalized_logs failure; the actual startup's
+        # seventeen failures did not expose their packet shape or exact marker.
         with self.assertRaisesRegex(EvidenceUnavailable,'incomplete_finalized_logs'):
             join.feed_log(slot,sig,original['meta']['logMessages'],None,NOW)
         join.defer_log(slot,sig,original['meta']['logMessages'],NOW)
@@ -104,6 +104,40 @@ class StreamFullLogContentTests(unittest.TestCase):
         with self.assertRaisesRegex(EvidenceUnavailable,'candidate_stream_log_supplement_incomplete'):
             authenticate_supplement(join,witness,fetched,ENDPOINT)
         self.assertEqual(join.completed,-1);self.assertIsNone(join.drain())
+
+    def test_full_ws_duplicate_waits_for_same_authenticated_http_repair(self):
+        join,original,fetched,full,witness=self.joined()
+        logs=full['meta']['logMessages']
+        join.hold_complete_log(full['slot'],full['transaction']['signatures'][0],logs)
+        self.assertIsNone(join.drain());self.assertEqual(len(join.incomplete_logs),1)
+        complete,_=authenticate_supplement(join,witness,fetched,ENDPOINT)
+        frame=join.complete_deferred_log(full['slot'],full['transaction']['signatures'][0],complete,NOW+1)
+        self.assertEqual(pump_events(frame.log_transactions[0]),pump_events(full))
+        self.assertFalse(join.deferred_complete_logs)
+
+    def test_different_full_ws_candidate_cannot_replace_authenticated_http_content(self):
+        join,original,fetched,full,witness=self.joined()
+        wrong=list(full['meta']['logMessages']);wrong[-1]='different unobserved suffix'
+        join.hold_complete_log(full['slot'],full['transaction']['signatures'][0],wrong)
+        with self.assertRaisesRegex(EvidenceUnavailable,'supplement_identity_unverified'):
+            authenticate_supplement(join,witness,fetched,ENDPOINT)
+        self.assertIsNone(join.drain())
+
+    def test_repaired_partial_duplicate_is_rejected_after_original_recent_horizon_expires(self):
+        join,original,fetched,full,witness=self.joined();slot=full['slot'];sig=full['transaction']['signatures'][0]
+        logs,_=authenticate_supplement(join,witness,fetched,ENDPOINT)
+        join.complete_deferred_log(slot,sig,logs,NOW+1)
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_SLOTS',2):
+            for current in (slot+1,slot+2):
+                u=pb.SubscribeUpdate(filters=['b']);meta=u.block_meta;meta.slot=current;meta.parent_slot=current-1
+                meta.blockhash=str(current);meta.parent_blockhash=str(current-1)
+                meta.block_time.timestamp=full['blockTime']+current-slot;meta.executed_transaction_count=0
+                self.assertIsNone(join.feed(u,u.ByteSize(),NOW+current-slot))
+                u=pb.SubscribeUpdate(filters=['f']);u.slot.slot=current;u.slot.parent=current-1;u.slot.status=pb.SLOT_FINALIZED
+                self.assertIsNotNone(join.feed(u,u.ByteSize(),NOW+current-slot))
+        self.assertNotIn((slot,sig),join.recent_incomplete_logs)
+        with self.assertRaisesRegex(EvidenceUnavailable,'candidate_late_log_content'):
+            join.defer_log(slot,sig,original['meta']['logMessages'],NOW+3)
 
     def test_truncation_keys_coalesce_in_same_original_log_budget_and_rebase(self):
         from meme_machine.solana_candidate_join import MAX_PENDING_BYTES
