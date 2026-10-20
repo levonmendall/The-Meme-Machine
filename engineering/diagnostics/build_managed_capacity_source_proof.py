@@ -14,6 +14,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 BASE = '83c3716aefc21d59780db64beb8681e772ac628c'
 GUARD = 'tests/test_native_audit_source_guard.py'
+READ_GUARD = 'tests/test_robinhood_usd_valuation.py'
 PROOF_INPUTS = ('engineering/diagnostics/build_managed_capacity_source_proof.py',
                 'engineering/diagnostics/managed_capacity_source_guard.template.txt')
 
@@ -83,6 +84,10 @@ def main():
          b"test.assertEqual(capacity_active_delta(test,git('diff','--name-only',IMPLEMENTATION,'--','meme_machine'),IMPLEMENTATION),b'',"),
         (b'    active_runtime(test)\n    test.assertEqual(actual_delta,',
          b'    active_runtime(test)\n    actual_delta=capacity_native_delta(test,actual_delta,OLD_IMPLEMENTATION)\n    test.assertEqual(actual_delta,'),
+        (b"    for path,row in value['guards'].items():\n        body=(ROOT/path).read_bytes()\n",
+         b"    for path,row in value['guards'].items():\n        body=capacity_predecessor(test,path,(ROOT/path).read_bytes())\n"),
+        (b"        for path,row in value['guards'].items():\n            body=(ROOT/path).read_bytes()\n",
+         b"        for path,row in value['guards'].items():\n            body=capacity_predecessor(self,path,(ROOT/path).read_bytes())\n"),
     ]
     after_guard = before_guard
     for before, after in changes:
@@ -90,12 +95,27 @@ def main():
             raise ValueError('exact_guard_read_hook_required')
         after_guard = after_guard.replace(before, after, 1)
     (ROOT / GUARD).write_bytes(after_guard)
+    before_read_guard = git('show', BASE + ':' + READ_GUARD)
+    read_changes = [
+        (b"            source=publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))\n",
+         b"            source=publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n"),
+    ]
+    after_read_guard = before_read_guard
+    for before, after in read_changes:
+        if after_read_guard.count(before) != 1:
+            raise ValueError('exact_valuation_read_hook_required')
+        after_read_guard = after_read_guard.replace(before, after, 1)
+    (ROOT / READ_GUARD).write_bytes(after_read_guard)
     proof = dict(schema='authenticated-managed-capacity-source-delta-v1', base=BASE,
         base_tree=git('rev-parse', BASE + '^{tree}').decode().strip(),
         implementation=implementation,
         implementation_tree=git('rev-parse', implementation + '^{tree}').decode().strip(), files=files,
         guard=dict(path=GUARD, before_sha256=sha(before_guard), after_sha256=sha(after_guard),
             changes=[dict(before=a.decode(), after=b.decode()) for a, b in changes]),
+        read_guard=dict(path=READ_GUARD,
+            before_bytes=len(before_read_guard), before_sha256=sha(before_read_guard),
+            after_bytes=len(after_read_guard), after_sha256=sha(after_read_guard),
+            changes=[dict(before=a.decode(), after=b.decode()) for a, b in read_changes]),
         proof_inputs={p:dict(bytes=len((ROOT/p).read_bytes()), sha256=sha((ROOT/p).read_bytes()))
                       for p in PROOF_INPUTS})
     body=(json.dumps(proof, sort_keys=True, indent=2) + '\n').encode()

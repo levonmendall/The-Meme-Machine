@@ -22,6 +22,7 @@ MANIFEST_SHA256='@@MANIFEST_SHA256@@'
 MODIFIED=@@MODIFIED@@
 ADDED=@@ADDED@@
 GUARD='tests/test_native_audit_source_guard.py'
+READ_GUARD='tests/test_robinhood_usd_valuation.py'
 PROOF_INPUTS=('engineering/diagnostics/build_managed_capacity_source_proof.py',
     'engineering/diagnostics/managed_capacity_source_guard.template.txt')
 
@@ -42,6 +43,7 @@ def manifest(test):
         (BASE,BASE_TREE,IMPLEMENTATION,IMPLEMENTATION_TREE))
     test.assertEqual(set(row['files']),set(MODIFIED+ADDED))
     test.assertEqual(row['guard']['path'],GUARD)
+    test.assertEqual(row['read_guard']['path'],READ_GUARD)
     test.assertEqual(set(row['proof_inputs']),set(PROOF_INPUTS))
     for path,facts in row['proof_inputs'].items():
         body=(ROOT/path).read_bytes()
@@ -51,6 +53,7 @@ def manifest(test):
 
 
 def capacity_predecessor(test,path,current):
+    if path==READ_GUARD:return read_guard_predecessor(test,current)
     if path not in MODIFIED:return current
     row=manifest(test)['files'][path]
     text=type(current) is str
@@ -66,6 +69,25 @@ def capacity_predecessor(test,path,current):
         left,right=nodes(before),nodes(raw)
         test.assertEqual(sorted(k for k in left.keys()|right.keys() if left.get(k)!=right.get(k)),
                          row['changed_nodes'],path+':explicit changed AST nodes')
+    return before.decode() if text else before
+
+
+def read_guard_predecessor(test,current,*,require_successor=False):
+    row=manifest(test)['read_guard']
+    text=type(current) is str
+    test.assertIn(type(current),(bytes,str))
+    raw=current.encode() if text else current
+    before=git('show',BASE+':'+READ_GUARD)
+    test.assertEqual((len(before),checksum(before)),(row['before_bytes'],row['before_sha256']))
+    if require_successor or raw!=before:
+        test.assertEqual((len(raw),checksum(raw)),(row['after_bytes'],row['after_sha256']),
+            'exact valuation read hook, every historical assertion unchanged')
+        restored=raw
+        for change in reversed(row['changes']):
+            prior,after=change['before'].encode(),change['after'].encode()
+            test.assertEqual(restored.count(after),1)
+            restored=restored.replace(after,prior,1)
+        test.assertEqual(restored,before,'every valuation assertion restored byte for byte')
     return before.decode() if text else before
 
 
@@ -100,6 +122,7 @@ def active_runtime(test):
         test.assertEqual(body,git('show',IMPLEMENTATION+':'+path))
         if path in MODIFIED:capacity_predecessor(test,path,body)
     guard_predecessor(test,(ROOT/GUARD).read_bytes())
+    read_guard_predecessor(test,(ROOT/READ_GUARD).read_bytes(),require_successor=True)
     return row
 
 
@@ -162,3 +185,14 @@ class ManagedCapacitySourceGuard(unittest.TestCase):
         guard_predecessor(self,body)
         for bad in (body+b'\n',body.replace(b'assertEqual',b'assertNotEqual',1)):
             with self.assertRaises(AssertionError):guard_predecessor(self,bad)
+
+    def test_valuation_read_hook_cannot_change_original_assertions_or_source(self):
+        body=(ROOT/READ_GUARD).read_bytes()
+        before=git('show',BASE+':'+READ_GUARD)
+        self.assertEqual(read_guard_predecessor(self,body,require_successor=True),before)
+        self.assertEqual(capacity_predecessor(self,READ_GUARD,before),before)
+        self.assertEqual(capacity_predecessor(self,READ_GUARD,body.decode()),before.decode())
+        for bad in (body+b'\n',body.replace(b'assertEqual',b'assertNotEqual',1),body[:-1]):
+            with self.assertRaises(AssertionError):capacity_predecessor(self,READ_GUARD,bad)
+        with self.assertRaises(AssertionError):
+            read_guard_predecessor(self,before,require_successor=True)
