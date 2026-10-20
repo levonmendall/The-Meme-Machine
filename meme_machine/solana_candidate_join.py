@@ -95,6 +95,7 @@ class CandidateTransactionJoin:
         # but cannot satisfy a successful native status or produce coverage.
         self.incomplete_logs=set()
         self.recent_logs={}
+        self.recent_incomplete_logs={}
 
     def diagnostic(self):
         """Bounded pending-state facts; never substitute these for coverage."""
@@ -144,6 +145,7 @@ class CandidateTransactionJoin:
             raise EvidenceUnavailable('incomplete_finalized_logs')
         key=(slot,sig)
         if slot<self.filtered_from_slot:return
+        if self.recent_incomplete_logs.get(key)==digest([logs,None]):return
         if slot<=self.completed:raise EvidenceUnavailable('candidate_late_log_content')
         old=self.early_logs.get(key)
         if old is not None:
@@ -164,6 +166,7 @@ class CandidateTransactionJoin:
         if key not in self.incomplete_logs:raise EvidenceUnavailable('candidate_log_content_conflict')
         old=self.early_logs.pop(key);self.incomplete_logs.remove(key)
         self.early_log_bytes-=len(str(old[0]).encode())
+        self.recent_incomplete_logs[key]=digest([old[0],old[1]])
         return self.feed_log(slot,sig,logs,None,seen)
 
     def deferred_log_witness(self,slot,sig):
@@ -351,7 +354,8 @@ class CandidateTransactionJoin:
                 # Each consumed key belongs to one finalized slot. Removing
                 # that exact slot's keys preserves the same duplicate horizon
                 # without scanning every retained log on each new block.
-                for key in expired['consumed_log_keys']:del self.recent_logs[key]
+                for key in expired['consumed_log_keys']:
+                    del self.recent_logs[key];self.recent_incomplete_logs.pop(key,None)
         return result
 
     def missing_log_keys(self,through):

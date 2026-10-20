@@ -14,7 +14,7 @@ from .solana_selective_history import (
 )
 
 FATAL_REPAIR_REASONS=frozenset(('candidate_stream_log_supplement_incomplete',
-    'candidate_stream_log_supplement_identity_unverified'))
+    'candidate_stream_log_supplement_identity_unverified','incomplete_finalized_logs'))
 
 
 def explicit_truncation(logs):
@@ -40,6 +40,8 @@ def rebase_log_join(join,floor):
     for (slot,sig),(logs,error,seen) in tuple(join.early_logs.items()):
         if (slot,sig) in join.incomplete_logs:replacement.defer_log(slot,sig,logs,seen)
         else:replacement.feed_log(slot,sig,logs,error,seen)
+        if slot>=floor and (slot,sig) in join.recent_incomplete_logs:
+            replacement.recent_incomplete_logs[(slot,sig)]=join.recent_incomplete_logs[(slot,sig)]
     return replacement
 
 

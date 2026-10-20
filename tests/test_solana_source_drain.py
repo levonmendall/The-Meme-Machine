@@ -188,7 +188,7 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body['queues']['scout'],dict(accepted=65,committed=65,pending=0))
 
     async def actual_live(self,*,transport_failure=False,cancel=False,commit_failure=False,repeated_cancel=False,cutoff=False,
-            truncated=False,repair_failure=False,cancel_repair=False):
+            truncated=False,repair_failure=False,cancel_repair=False,unsupported=False):
         import based58
         source=self.source;tx=copy.deepcopy(FIXTURE['pump'][0]);slot=tx['slot'];index=tx['transactionIndex']
         addresses={PROGRAMS[f]:program_scope(f) for f in ('pump','pumpswap')}
@@ -226,7 +226,8 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
                     socket_idle.set();await asyncio.Event().wait()
                 socket.sent+=1
                 return json.dumps(dict(params=dict(subscription=11,result=dict(context=dict(slot=slot),
-                    value=dict(err=None,signature=tx['transaction']['signatures'][0],logs=partial if truncated else tx['meta']['logMessages'])))))
+                    value=dict(err=None,signature=tx['transaction']['signatures'][0],
+                        logs=None if unsupported else partial if truncated else tx['meta']['logMessages'])))))
         class Connection:
             async def __aenter__(self):return Socket()
             async def __aexit__(self,*args):pass
@@ -258,6 +259,10 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         with patch('meme_machine.solana_selective_source.connect',lambda *args,**kw:Connection()), \
                 patch('meme_machine.operational.position_continuation.position_only',side_effect=native_accepted.is_set) if cutoff else nullcontext():
             task=asyncio.create_task(source.rolling_programs(None) if cutoff else source.live(None,desired,local_stop))
+            if unsupported:
+                with self.assertRaisesRegex(EvidenceUnavailable,'incomplete_finalized_logs'):
+                    await asyncio.wait_for(task,2)
+                return slot
             if repair_failure:
                 with self.assertRaisesRegex(EvidenceUnavailable,'candidate_stream_log_supplement_incomplete'):
                     await asyncio.wait_for(task,2)
@@ -359,11 +364,28 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         from unittest.mock import AsyncMock
         source=self.source;source.work=self.work
         async def startup():return None
-        async def live(*args):raise EvidenceUnavailable('candidate_stream_log_supplement_incomplete')
-        source.wait_current_control=startup;source.live=AsyncMock(side_effect=live)
-        with self.assertRaisesRegex(EvidenceUnavailable,'candidate_stream_log_supplement_incomplete'):
-            await asyncio.wait_for(source.rolling_programs(None),1)
-        self.assertEqual(source.live.call_count,1)
+        source.wait_current_control=startup
+        for reason in ('candidate_stream_log_supplement_incomplete','incomplete_finalized_logs'):
+            with self.subTest(reason=reason):
+                async def live(*args):raise EvidenceUnavailable(reason)
+                source.live=AsyncMock(side_effect=live)
+                with self.assertRaisesRegex(EvidenceUnavailable,reason):
+                    await asyncio.wait_for(source.rolling_programs(None),1)
+                self.assertEqual(source.live.call_count,1)
+
+    async def test_actual_unsupported_log_shape_preserves_failed_callback_and_exact_unavailable_gap(self):
+        slot=await self.actual_live(unsupported=True)
+        self.assertEqual(self.source.source_drain['closed_sessions'],1)
+        snapshot=self.source.drain_snapshot()
+        self.assertEqual(snapshot['pending_handlers'],1)
+        self.assertEqual(snapshot['handler_accounting']['recoverable'],1)
+        self.assertEqual(snapshot['handler_accounting']['returned'],snapshot['handler_accounting']['accepted']-1)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_gaps WHERE lo=? AND hi IS NULL',(slot,)).fetchone()[0],2)
+        reason_rows=[body for kind,body in self.source.pending_diagnostics if kind=='log_join_failure']
+        self.assertEqual([body['reason'] for body in reason_rows],
+            ['incomplete_finalized_logs','candidate_stream_logs_null_or_missing'])
 
     async def test_startup_abort_preserves_accepted_early_log_below_scheduling_placeholder(self):
         source=self.source;source.work=self.work;source.batched=True

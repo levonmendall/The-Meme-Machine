@@ -77,6 +77,11 @@ class StreamFullLogContentTests(unittest.TestCase):
         self.assertEqual(join.incomplete_logs,set());self.assertEqual(join.early_log_bytes,0)
         self.assertEqual(frame.log_transactions[0]['transactionIndex'],full['transactionIndex'])
         self.assertIsNone(join.feed_log(full['slot'],full['transaction']['signatures'][0],logs,None,NOW+2))
+        join.defer_log(full['slot'],full['transaction']['signatures'][0],original['meta']['logMessages'],NOW+2)
+        self.assertFalse(join.incomplete_logs)
+        altered=list(original['meta']['logMessages']);altered[0]='changed prefix'
+        with self.assertRaisesRegex(EvidenceUnavailable,'candidate_late_log_content'):
+            join.defer_log(full['slot'],full['transaction']['signatures'][0],altered,NOW+3)
 
     def test_supplement_refuses_wrong_slot_signature_error_time_index_scope_and_prefix(self):
         for field in ('slot','signature','error','time','index','scope','prefix'):
