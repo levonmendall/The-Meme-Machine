@@ -110,7 +110,7 @@ def active_runtime(test):
         test.assertEqual((ROOT/path).read_bytes(),git('show',IMPLEMENTATION+':'+path))
         test.assertEqual(row['imports'],imports((ROOT/path).read_bytes()))
     for path,row in value['guards'].items():
-        body=(ROOT/path).read_bytes()
+        body=capacity_predecessor(test,path,(ROOT/path).read_bytes())
         test.assertEqual(hashlib.sha256(body).hexdigest(),row['after_sha256'])
         test.assertEqual(audit_predecessor(test,path,body),git('show',BASE+':'+path))
     return value
@@ -162,7 +162,7 @@ class NativeAuditSourceGuardTests(unittest.TestCase):
     def test_old_whole_guards_and_every_inner_proof_are_preserved(self):
         value=manifest(self)
         for path,row in value['guards'].items():
-            body=(ROOT/path).read_bytes()
+            body=capacity_predecessor(self,path,(ROOT/path).read_bytes())
             self.assertEqual(read_hooks(body),row['fixed_read_hooks'])
             self.assertEqual(audit_predecessor(self,path,body),git('show',BASE+':'+path))
             for bad in (body+b'\n# unknown guard\n',body.replace(b'assertEqual',b'assertNotEqual',1)):

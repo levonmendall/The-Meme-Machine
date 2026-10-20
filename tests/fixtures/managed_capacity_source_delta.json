@@ -58,7 +58,7 @@
     }
   },
   "guard": {
-    "after_sha256": "8513469330bf404a314e1b640c22bd13f6367ef4bb90c81ce5c90944bcd662ba",
+    "after_sha256": "2ac30e1fcd35323b69f5fab110c36c63e5f9c2128956cb7669ffeb4555ac1fa4",
     "before_sha256": "3f01fa22346049eec8441eec8c47e03c3536570cacf2ab8c178bfdd9a04c334f",
     "changes": [
       {
@@ -76,6 +76,14 @@
       {
         "after": "    active_runtime(test)\n    actual_delta=capacity_native_delta(test,actual_delta,OLD_IMPLEMENTATION)\n    test.assertEqual(actual_delta,",
         "before": "    active_runtime(test)\n    test.assertEqual(actual_delta,"
+      },
+      {
+        "after": "    for path,row in value['guards'].items():\n        body=capacity_predecessor(test,path,(ROOT/path).read_bytes())\n",
+        "before": "    for path,row in value['guards'].items():\n        body=(ROOT/path).read_bytes()\n"
+      },
+      {
+        "after": "        for path,row in value['guards'].items():\n            body=capacity_predecessor(self,path,(ROOT/path).read_bytes())\n",
+        "before": "        for path,row in value['guards'].items():\n            body=(ROOT/path).read_bytes()\n"
       }
     ],
     "path": "tests/test_native_audit_source_guard.py"
@@ -84,13 +92,26 @@
   "implementation_tree": "5ead6472e8bed489160bef4afd7a8abdf29a06b8",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
-      "bytes": 5798,
-      "sha256": "358dee6cd503401c930d7cfdd6e18e6f574a3ce202eb95feb5d41d30481cab55"
+      "bytes": 7378,
+      "sha256": "22ea1fd339b07a9bb7e8cc85b9534bb3a76228182cd4c3b5737604a96576bde8"
     },
     "engineering/diagnostics/managed_capacity_source_guard.template.txt": {
-      "bytes": 7849,
-      "sha256": "78509d6e920682c7df3a653a585cce51b7293582902c637b9385acd85f1b06c4"
+      "bytes": 9826,
+      "sha256": "8729061a2308463635fbb940015c2c889ecf66933ca545b3f7f40d1138cbecde"
     }
+  },
+  "read_guard": {
+    "after_bytes": 376847,
+    "after_sha256": "ef9fc18042112a74ceabb5a022fe38997f54da1b623456e111a35d04c02dead3",
+    "before_bytes": 376814,
+    "before_sha256": "5512e1b375dfbe960f1e6927e9528ff51b28a2a329657d3a1e42b7b47107b3e6",
+    "changes": [
+      {
+        "after": "            source=publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n",
+        "before": "            source=publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))\n"
+      }
+    ],
+    "path": "tests/test_robinhood_usd_valuation.py"
   },
   "schema": "authenticated-managed-capacity-source-delta-v1"
 }

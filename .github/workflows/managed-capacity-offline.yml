@@ -33,5 +33,6 @@ jobs:
             tests.test_managed_capacity_evidence tests.test_managed_capacity_workload \
             tests.test_managed_native_pump tests.test_managed_native_pons tests.test_robinhood_payg \
             tests.test_managed_pons_survivor tests.test_managed_pump_qualification \
-            tests.test_managed_capacity_source_guard tests.test_native_audit_source_guard
+            tests.test_managed_capacity_source_guard tests.test_native_audit_source_guard \
+            tests.test_robinhood_usd_valuation
           python -m operational.tests OPERATIONAL --verbose --modules tests.lanes.pons.test_provider_topology
