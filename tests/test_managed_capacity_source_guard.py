@@ -15,10 +15,10 @@ from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
 BASE='83c3716aefc21d59780db64beb8681e772ac628c'
 BASE_TREE='8afdc31b017c36bcd23dc6f89bf5011270c47cf1'
-IMPLEMENTATION='baa82e934e9f677d92897c5ab75f86fdb066f13e'
-IMPLEMENTATION_TREE='ce31e7233a64a39f2df4c3b41a4b812a32dee3fa'
+IMPLEMENTATION='aa71dce39278cf0296d058cab87ea8ddcfca63bb'
+IMPLEMENTATION_TREE='5ead6472e8bed489160bef4afd7a8abdf29a06b8'
 MANIFEST=ROOT/'tests/fixtures/managed_capacity_source_delta.json'
-MANIFEST_SHA256='8b41ab2933ea7a1e13e2c9c69743e45be8a60c28146ba602276e4aa49da4c29c'
+MANIFEST_SHA256='83e6ea9da83cee25190f7b39a13b8563b83f1129b25dba5fe5c967213ab16ee9'
 MODIFIED=('meme_machine/lanes/pons/pons_survivor_runtime.py', 'meme_machine/lanes/pons/provider_topology.py')
 ADDED=('meme_machine/operational/managed_capacity_evidence.py', 'meme_machine/operational/managed_capacity_workload.py', 'meme_machine/operational/managed_native_pons.py', 'meme_machine/operational/managed_native_pump.py', 'meme_machine/operational/managed_pons_survivor.py', 'meme_machine/operational/managed_pump_qualification.py')
 GUARD='tests/test_native_audit_source_guard.py'

@@ -32,8 +32,8 @@
       "status": "A"
     },
     "meme_machine/operational/managed_capacity_workload.py": {
-      "after_bytes": 18372,
-      "after_sha256": "45adb143399160457e826ff7999b62f6c8fc808eda5ff0b9c7cba6a4a8ddf791",
+      "after_bytes": 18432,
+      "after_sha256": "97552c2e63e16e49f2e41b5ea31ca4391be922b0c6618037c2ffcdc4e027a142",
       "status": "A"
     },
     "meme_machine/operational/managed_native_pons.py": {
@@ -80,8 +80,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "baa82e934e9f677d92897c5ab75f86fdb066f13e",
-  "implementation_tree": "ce31e7233a64a39f2df4c3b41a4b812a32dee3fa",
+  "implementation": "aa71dce39278cf0296d058cab87ea8ddcfca63bb",
+  "implementation_tree": "5ead6472e8bed489160bef4afd7a8abdf29a06b8",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 5798,
