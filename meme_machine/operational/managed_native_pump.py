@@ -107,6 +107,8 @@ class PumpManagedConfig:
             profile_sha256=hashlib.sha256(envelope.read_bytes()).hexdigest(),
             root_device=root.stat().st_dev, root_inode=root.stat().st_ino,
             canonical_history_delivery=True, economic_strategy_evaluation=False,
+            native_candidate_prospect_evaluation=True,
+            full_candidate_qualification_proven=False,
             financial_authority=False, hot_store_limit_bytes=2 * 1024**3)
 
     def environment(self):
@@ -255,6 +257,23 @@ def pump_snapshot(config, *, driver=None):
         # Accepted/committed use the same native joined-frame unit, including
         # replay. Slot frontiers and coverage above independently expose gaps.
         result['source_frames'] = driver.drain_snapshot()
+    qualification = Path(config.root) / 'qualification.sqlite'
+    if qualification.exists():
+        with _reader(qualification) as db:
+            if _has_tables(db, ('observations',)):
+                completed, cursor = db.execute('SELECT count(*),max(sequence) FROM observations').fetchone()
+                stages = dict(db.execute('SELECT stage,count(*) FROM observations GROUP BY stage'))
+                result['qualification'] = dict(durably_observed_native_events=completed,
+                    durable_sequence=cursor, stages=stages,
+                    full_qualification_proven=False,
+                    postgraduation_and_survivor_qualification_proven=False,
+                    financial_authority=False)
+        if 'qualification' in result and config.evidence.exists():
+            with _reader(config.evidence) as db:
+                if _has_tables(db, ('candidate_outbox',)):
+                    incoming = db.execute("SELECT count(*) FROM candidate_outbox WHERE scope='program:pump'").fetchone()[0]
+                    result['qualification'].update(incoming_native_events=incoming,
+                        native_event_backlog=incoming-completed)
     AlchemyEndpoint.parse(config.endpoint).public(result)
     if config.token:
         _require(config.token not in _canonical(result), 'native_credential_publication_refused')
@@ -355,13 +374,16 @@ def replay_pump(config, *, seconds=60):
                 native_state_sha256=after, canonical_source_path_isolated=True)
 
 
-async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_seconds=5):
+async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_seconds=5,
+                   decision_target_lamports=None):
     """Run until the parent's bounded stop; await production's original drain."""
     global _started
     _require(not _started, 'dedicated_child_process_required')
     _require(isinstance(stop, asyncio.Event), 'bounded_stop_event_required')
     _require(type(sample_seconds) in (int, float) and 1 <= sample_seconds <= 60,
              'sample_interval_bound')
+    _require(decision_target_lamports is None or type(decision_target_lamports) is int
+             and decision_target_lamports > 0, 'decision_target_required')
     # Check the inherited namespace before creating any state.
     _require(not any(k.startswith('MM_') for k in os.environ),
              'inherited_production_environment_refused')
@@ -375,6 +397,12 @@ async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_
         rpc, driver, serve = production_components(config)
         await asyncio.to_thread(rpc.validate_network)
         from meme_machine.runtime.evidence_worker import owner_thread_fairness
+        from .managed_pump_qualification import read_qualifications
+        qualification_metrics = dict(initialization_pending=True,
+            full_qualification_proven=False, financial_authority=False)
+        def publish_qualification(value):
+            nonlocal qualification_metrics
+            qualification_metrics = value
         async def samples():
             while not stop.is_set():
                 if sample_callback is not None:
@@ -391,34 +419,46 @@ async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_
                             observation_unavailable=code, financial_authority=False)
                     sample['pipeline'] = {k: dict(v) for k, v in driver.pipeline_metrics.items()}
                     sample['source_frames'] = driver.drain_snapshot()
+                    sample['qualification_worker'] = dict(qualification_metrics)
                     sample_callback(sample)
                 try:
                     await asyncio.wait_for(stop.wait(), sample_seconds)
                 except TimeoutError:
                     pass
         sampler = asyncio.create_task(samples())
-        workload = None
+        workload = qualification = None
         drain_deadline = None
         async def drained():
             nonlocal drain_deadline
             if drain_deadline is None:
                 drain_deadline = time.monotonic() + SHUTDOWN_SECONDS
             try:
-                await asyncio.wait_for(asyncio.shield(workload),
-                                       max(0, drain_deadline - time.monotonic()))
+                children = [t for t in (workload, qualification) if t is not None]
+                _, pending = await asyncio.wait(children,
+                    timeout=max(0, drain_deadline - time.monotonic()))
+                if pending:
+                    for child in pending:
+                        child.cancel()
+                    raise TimeoutError
+                for child in children:
+                    child.result()
             except TimeoutError:
-                workload.cancel()
                 raise ValueError('managed_pump_source_shutdown_deadline') from None
         try:
             with owner_thread_fairness():
                 workload = asyncio.create_task(serve(config.evidence, config.endpoint,
                     repair_rpc=rpc, stop=stop, source_driver=driver))
-                done, _ = await asyncio.wait((workload, sampler), return_when=asyncio.FIRST_COMPLETED)
+                qualification = asyncio.create_task(read_qualifications(config, stop,
+                    publish=publish_qualification, decision_target=decision_target_lamports))
+                done, _ = await asyncio.wait((workload, sampler, qualification), return_when=asyncio.FIRST_COMPLETED)
                 if sampler in done and not stop.is_set():
                     stop.set()
                 if workload in done and not stop.is_set():
                     workload.result()
                     raise ValueError('managed_pump_source_ended_before_stop')
+                if qualification in done and not stop.is_set():
+                    qualification.result()
+                    raise ValueError('managed_pump_qualification_ended_before_stop')
                 try:
                     if sampler.done():
                         sampler.result()
@@ -429,11 +469,12 @@ async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_
             # Parent cancellation must retain the environment and ownership
             # lock while the same production source finishes accepted work.
             try:
-                if workload is not None and not workload.done():
+                if any(t is not None and not t.done() for t in (workload, qualification)):
                     await drained()
             finally:
                 await asyncio.gather(sampler, return_exceptions=True)
         return dict(identity=identity, snapshot=pump_snapshot(config, driver=driver),
                     replay=replay_pump(config),
-                    scope='native_acquisition_decoding_canonical_candidate_history_delivery',
+                    qualification_worker=qualification_metrics,
+                    scope='native_acquisition_decoding_canonical_candidate_history_delivery_current_prospect_readside',
                     economic_strategy_evaluation=False, financial_authority=False)
