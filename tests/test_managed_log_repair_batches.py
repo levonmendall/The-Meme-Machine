@@ -168,6 +168,30 @@ class LogRepairBatchTransportTests(unittest.TestCase):
 
 
 class LogRepairSourceBatchTests(unittest.IsolatedAsyncioTestCase):
+    async def test_scalar_governor_denial_preserves_zero_actual_http_in_durable_source_accounting(self):
+        import tempfile
+        from pathlib import Path
+        from tests.test_solana_closure import state_at
+        with tempfile.TemporaryDirectory() as directory:
+            state,history=state_at(Path(directory)/'source.sqlite')
+            rpc=RepairRPC(URL,MagicMock());rpc.governor.acquire.side_effect=TimeoutError('offline capacity wait')
+            source=SelectiveSource(SimpleNamespace(credential='offline',identity='a'*64),rpc)
+            async def work(fn,priority=2,**options):return fn(state)
+            source.work=work
+            try:
+                with patch('urllib.request.urlopen') as opened:
+                    with self.assertRaises(DeliveredRPCError) as caught:
+                        await source.measured_rpc('getTransaction',[SIGS[0],dict(commitment='finalized',
+                            encoding='json',maxSupportedTransactionVersion=1)],'rolling_recovery_missing_logs',2)
+                opened.assert_not_called();self.assertEqual(caught.exception.receipt,dict(bytes=0,cu=0,calls=0))
+                self.assertEqual(history.db.execute('SELECT SUM(calls),SUM(rpc_cu),SUM(raw_bytes) FROM provider_delivery').fetchone(),(0,0,0))
+                self.assertEqual(rpc.governor.acquire.call_count,3)
+                self.assertTrue(all(call.kwargs['deadline_seconds']==8 for call in rpc.governor.acquire.call_args_list))
+                self.assertEqual(rpc.telemetry()['counters']['physical_requests'],0)
+                self.assertEqual(source.pipeline_metrics['log_repair:rolling']['repair_physical_requests'],0)
+                self.assertEqual(history.db.execute("SELECT COUNT(*) FROM acquisition_observations WHERE kind='rpc_retry'").fetchone()[0],2)
+            finally:state.writer.close()
+
     async def test_partial_retry_keeps_exact_good_response_and_accounts_only_failed_member_again(self):
         deliveries=[];observations=[];physical=[]
         class History:

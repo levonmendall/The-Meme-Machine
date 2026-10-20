@@ -272,19 +272,19 @@ class RepairRPC:
             self.config.public(value)
             self.governor.succeeded('solana',(method,))
             failed=False
-            return value['result'],dict(bytes=received,cu=charged)
+            return value['result'],dict(bytes=received,cu=charged,calls=int(purchased))
         except urllib.error.HTTPError as exc:
             if exc.code==429:
                 self._count('429s');self.governor.rate_limited('solana',(method,))
             self._count('failures')
-            raise DeliveredRPCError('repair_http_'+str(int(exc.code)),dict(bytes=received,cu=charged),
+            raise DeliveredRPCError('repair_http_'+str(int(exc.code)),dict(bytes=received,cu=charged,calls=int(purchased)),
                 retryable=exc.code in (429,502,503,504),cause_kind='HTTPError',
                 method=method,http_status=int(exc.code)) from None
         except Exception as exc:
             self._count('failures')
             retryable=isinstance(exc,(TimeoutError,urllib.error.URLError,json.JSONDecodeError)) or code in (429,-32603,-32005,-32016)
             from meme_machine.runtime.sqlite_failure import carry
-            raise carry(exc,DeliveredRPCError('repair_response_unavailable',dict(bytes=received,cu=charged),
+            raise carry(exc,DeliveredRPCError('repair_response_unavailable',dict(bytes=received,cu=charged,calls=int(purchased)),
                 retryable=retryable,cause_kind=type(exc).__name__,method=method,rpc_code=code)) from None
         finally:
             if purchased:purchases.completed(label,received,failed=failed)
