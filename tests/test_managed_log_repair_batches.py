@@ -228,3 +228,123 @@ class LogRepairSourceBatchTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(DeliveredRPCError):await source.measured_log_batch(SIGS[:2],2)
         self.assertEqual(opened.call_count,1);self.assertEqual(deliveries[0]['rpc_cu'],80)
         self.assertNotIn('native_stream_log_supplement',str(source.pipeline_metrics))
+
+
+class RepairLogOccupancyTests(unittest.IsolatedAsyncioTestCase):
+    def pressured(self):
+        case=captured_logs.StreamFullLogContentTests()
+        join,original,fetched,full,witness=case.joined()
+        slot=full['slot']
+        # Preserve a complete future packet large enough that the old prefix
+        # replacement fits the hard bound while current occupancy exceeds half.
+        future=['x'*(len(str(full['meta']['logMessages']).encode())+128)]
+        join.feed_log(slot+3,'already-buffered-future',future,None,captured_logs.NOW)
+        bound=2*join.early_log_bytes-2
+        return join,original,fetched,full,witness,bound
+
+    async def test_future_wait_rechecks_exact_native_signature_instead_of_slot_presence(self):
+        from meme_machine.solana_candidate_join import scope_labels
+        from meme_machine.solana_selective_source import wait_candidate_log_space
+        from meme_machine.yellowstone import geyser_pb2 as pb
+        join,_,_,full,_,bound=self.pressured();slot=full['slot']+1
+        wanted=SIGS[1];wrong=SIGS[2];progress=asyncio.Event();stop=asyncio.Event()
+        update=pb.SubscribeUpdate(filters=['b']);m=update.block_meta
+        m.slot=slot;m.parent_slot=slot-1;m.blockhash='next';m.parent_blockhash='prior'
+        m.block_time.timestamp=full['blockTime'];m.executed_transaction_count=1
+        join.feed(update,update.ByteSize(),captured_logs.NOW)
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound), \
+                patch('meme_machine.solana_selective_source.MAX_PENDING_BYTES',bound):
+            required=asyncio.create_task(wait_candidate_log_space(join,progress,stop,stop,slot,wanted,['required']))
+            unrelated=asyncio.create_task(wait_candidate_log_space(join,progress,stop,stop,slot,wrong,['future']))
+            try:
+                await asyncio.sleep(.01)
+                self.assertFalse(required.done());self.assertFalse(unrelated.done())
+                # A real successful scoped native status supplies this exact
+                # signature/index. Header presence alone grants no escape.
+                update=pb.SubscribeUpdate(filters=[scope_labels(join.programs)[next(iter(join.programs.values()))]])
+                update.transaction_status.slot=slot;update.transaction_status.index=0
+                update.transaction_status.signature=based58.b58decode(wanted.encode())
+                join.feed(update,update.ByteSize(),captured_logs.NOW);progress.set()
+                await asyncio.wait_for(required,.5)
+                self.assertFalse(unrelated.done())
+                join.feed_log(slot,wanted,['required'],None,captured_logs.NOW)
+                self.assertLessEqual(join.early_log_bytes,bound)
+                self.assertGreater(join.early_log_bytes,bound//2)
+                self.assertNotIn((slot,wrong),join.early_logs)
+            finally:
+                stop.set();progress.set()
+                results=await asyncio.gather(required,unrelated,return_exceptions=True)
+            self.assertIsInstance(results[1],asyncio.CancelledError)
+
+    async def test_authenticated_http_completion_frees_existing_join_and_wakes_future_packet(self):
+        from meme_machine.solana_selective_source import wait_candidate_log_space
+        from meme_machine.solana_program_decoders import pump_events
+        join,_,fetched,full,witness,bound=self.pressured();slot=full['slot'];sig=full['transaction']['signatures'][0]
+        progress=asyncio.Event();stop=asyncio.Event()
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound), \
+                patch('meme_machine.solana_selective_source.MAX_PENDING_BYTES',bound):
+            waiting=asyncio.create_task(wait_candidate_log_space(join,progress,stop,stop,slot+2,'next-future',['next']))
+            try:
+                await asyncio.sleep(.01);self.assertFalse(waiting.done())
+                complete,_=authenticate_supplement(join,witness,fetched,'a'*64)
+                frame=join.complete_deferred_log(slot,sig,complete,captured_logs.NOW+1)
+                # The production HTTP callback sets the same progress event
+                # immediately after mutation, before waiting for owner admission.
+                progress.set();await asyncio.wait_for(waiting,.5)
+                self.assertEqual(pump_events(frame.log_transactions[0]),pump_events(full))
+                join.feed_log(slot+2,'next-future',['next'],None,captured_logs.NOW+2)
+                self.assertLessEqual(join.early_log_bytes,bound//2)
+            finally:
+                stop.set();progress.set();await asyncio.gather(waiting,return_exceptions=True)
+
+    async def test_http_install_of_waiting_key_releases_duplicate_without_new_capacity(self):
+        from meme_machine.solana_selective_source import wait_candidate_log_space
+        join,_,_,full,_,bound=self.pressured();slot=full['slot']+2;sig='same-http-key';logs=['installed']
+        progress=asyncio.Event();stop=asyncio.Event()
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound),                 patch('meme_machine.solana_selective_source.MAX_PENDING_BYTES',bound):
+            waiting=asyncio.create_task(wait_candidate_log_space(join,progress,stop,stop,slot,sig,logs))
+            try:
+                await asyncio.sleep(.01);self.assertFalse(waiting.done())
+                before=join.early_log_bytes
+                join.feed_log(slot,sig,logs,None,captured_logs.NOW)
+                self.assertGreater(join.early_log_bytes,before)
+                self.assertGreater(join.early_log_bytes,bound//2)
+                self.assertNotIn(slot,join.pending) # No native-witness escape.
+                progress.set();await asyncio.wait_for(waiting,.5)
+                self.assertIsNone(join.feed_log(slot,sig,logs,None,captured_logs.NOW+1))
+                with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_content_conflict'):
+                    join.feed_log(slot,sig,['different'],None,captured_logs.NOW+1)
+            finally:
+                stop.set();progress.set();await asyncio.gather(waiting,return_exceptions=True)
+
+    async def test_future_wait_preserves_120_second_lease_and_cancellation_without_mutation(self):
+        from meme_machine.solana_selective_source import wait_candidate_log_space
+        join,_,_,full,_,bound=self.pressured();slot=full['slot']+1
+        progress=asyncio.Event();stop=asyncio.Event();before=deepcopy(join.early_logs),join.early_log_bytes,join.completed
+        self.assertEqual(join.max_join_seconds,120)
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound), \
+                patch('meme_machine.solana_selective_source.MAX_PENDING_BYTES',bound):
+            ticks=iter((0,121));join.clock=lambda:next(ticks)
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_buffer_pressure'):
+                await wait_candidate_log_space(join,progress,stop,stop,slot,'future',['held'])
+            join.clock=lambda:0
+            waiting=asyncio.create_task(wait_candidate_log_space(join,progress,stop,stop,slot,'future',['held']))
+            await asyncio.sleep(.01);self.assertFalse(waiting.done());stop.set();progress.set()
+            with self.assertRaises(asyncio.CancelledError):await asyncio.wait_for(waiting,.5)
+        self.assertEqual((join.early_logs,join.early_log_bytes,join.completed),before)
+
+    async def test_projected_decoded_bytes_preserve_hard_bound_even_below_waterline(self):
+        from meme_machine.solana_selective_source import wait_candidate_log_space
+        case=captured_logs.StreamFullLogContentTests();join,_,_,full,_=case.joined()
+        bound=2*join.early_log_bytes+128;oversized=['x'*bound]
+        self.assertLess(join.early_log_bytes,bound//2)
+        before=join.early_log_bytes,deepcopy(join.early_logs)
+        with patch('meme_machine.solana_selective_source.MAX_PENDING_BYTES',bound):
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_buffer_pressure'):
+                await wait_candidate_log_space(join,asyncio.Event(),asyncio.Event(),asyncio.Event(),
+                    full['slot']+1,'oversized',oversized)
+        self.assertEqual((join.early_log_bytes,join.early_logs),before)
+        # Compact HTTP bytes are not a decoded-log reservation. Python repr
+        # escaping/list spacing can grow; admission uses actual retained bytes.
+        logs=['\u0085']*20
+        self.assertGreater(len(str(logs).encode()),len(json.dumps(logs,ensure_ascii=False,separators=(',',':')).encode()))

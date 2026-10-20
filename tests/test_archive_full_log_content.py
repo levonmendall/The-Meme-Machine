@@ -98,6 +98,36 @@ class StreamFullLogContentTests(unittest.TestCase):
                     authenticate_supplement(join,witness,fetched,ENDPOINT)
                 self.assertEqual(len(join.incomplete_logs),1);self.assertIsNone(join.drain())
 
+    def test_complete_http_growth_at_join_bound_preserves_original_evidence_and_missing_native_work(self):
+        join,original,fetched,full,witness=self.joined();slot=full['slot'];sig=full['transaction']['signatures'][0]
+        join.hold_complete_log(slot,sig,full['meta']['logMessages'])
+        future_logs=['Program log: bounded future packet']
+        future_size=len(str(future_logs).encode());bound=join.early_log_bytes+future_size
+        with patch('meme_machine.solana_candidate_join.MAX_PENDING_BYTES',bound):
+            join.feed_log(slot+1,'future-signature',future_logs,None,NOW+1)
+            complete,_=authenticate_supplement(join,witness,fetched,ENDPOINT)
+            self.assertGreater(len(str(complete).encode()),len(str(original['meta']['logMessages']).encode()))
+            before=(copy.deepcopy(join.early_logs),join.early_log_bytes,set(join.incomplete_logs),
+                dict(join.deferred_complete_logs),dict(join.recent_incomplete_logs),join.completed,
+                set(join.pending[slot]['missing_logs']))
+            with self.assertRaisesRegex(EvidenceUnavailable,'candidate_log_buffer_pressure'):
+                join.complete_deferred_log(slot,sig,complete,NOW+2)
+            after=(copy.deepcopy(join.early_logs),join.early_log_bytes,set(join.incomplete_logs),
+                dict(join.deferred_complete_logs),dict(join.recent_incomplete_logs),join.completed,
+                set(join.pending[slot]['missing_logs']))
+            self.assertEqual(after,before)
+            self.assertEqual(join.early_log_bytes,bound)
+            self.assertEqual(join.deferred_log_witness(slot,sig),witness)
+            self.assertIsNone(join.drain())
+        # The unchanged authenticated input remains admissible after capacity
+        # becomes available; native order, exact events and duplicate handling
+        # still pass the existing join, without new provider acquisition.
+        frame=join.complete_deferred_log(slot,sig,complete,NOW+3)
+        self.assertEqual(pump_events(frame.log_transactions[0]),pump_events(full))
+        self.assertEqual(frame.log_transactions[0]['transactionIndex'],full['transactionIndex'])
+        self.assertNotIn((slot,sig),join.incomplete_logs)
+        self.assertEqual(join.early_log_bytes,future_size)
+
     def test_repeated_truncation_is_explicitly_unavailable_without_partial_coverage(self):
         join,original,fetched,full,witness=self.joined()
         fetched['meta']['logMessages']=original['meta']['logMessages']

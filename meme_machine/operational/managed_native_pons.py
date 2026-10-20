@@ -179,6 +179,15 @@ def require(condition, reason):
         raise ValueError('managed_pons_' + reason)
 
 
+def discovery_turn_blocks():
+    # Match production's coalesced turn. MarketScout retains the independent
+    # ten-block limit for each logical log query and its existing batch bound.
+    from meme_machine.lanes.pons.pons_selective_cohort import (
+        DISCOVERY_BATCH_RANGES, DISCOVERY_RANGE_BLOCKS,
+    )
+    return DISCOVERY_BATCH_RANGES * DISCOVERY_RANGE_BLOCKS
+
+
 def private_file(path, *, parent=None):
     path = Path(path)
     require(path.is_absolute() and path.resolve(strict=True) == path and
@@ -372,11 +381,9 @@ class ManagedPonsLane:
     def consume(self, first, last):
         """Complete a contiguous managed market interval, including empty blocks."""
         self._check()
-        # The unchanged production discovery coalescing bound is ten blocks.
-        from meme_machine.lanes.pons.pons_natural_observation import DISCOVERY_MAX_BLOCKS
         require(type(first) is int and type(last) is int and self.cursor is not None and
                 first == self.cursor+1 and first <= last <= self.latest and
-                last-first < DISCOVERY_MAX_BLOCKS, 'contiguous_range')
+                last-first < discovery_turn_blocks(), 'contiguous_range')
         def nominate(event, observed):
             self.broker.enqueue(event, now=observed,
                 needs_work=event['topics'][0].lower() == self.scout.curve_topics[0])
@@ -686,9 +693,8 @@ def run_pons(root, duration, generation, *, sample_callback=None, cancel=None,sa
             if time.monotonic()-lane.head_sample_at >= 1:
                 lane.sample_head()
             if lane.latest > lane.cursor:
-                from meme_machine.lanes.pons.pons_natural_observation import DISCOVERY_MAX_BLOCKS
                 try:
-                    lane.consume(lane.cursor+1,min(lane.latest,lane.cursor+DISCOVERY_MAX_BLOCKS))
+                    lane.consume(lane.cursor+1,min(lane.latest,lane.cursor+discovery_turn_blocks()))
                 except Exception as failure:
                     from meme_machine.runtime.robinhood.provider_authority import failure_class
                     reason = failure_class(failure)

@@ -168,7 +168,18 @@ class CandidateTransactionJoin:
         expected=self.deferred_complete_logs.get(key)
         if expected is not None and expected!=digest([logs,None]):
             raise EvidenceUnavailable('candidate_log_content_conflict')
-        old=self.early_logs.pop(key);self.incomplete_logs.remove(key)
+        # A complete HTTP field can be larger than its retained WS prefix.
+        # Validate the replacement against the same hard budget BEFORE removing
+        # any original evidence. A denied admission must remain retryable with
+        # the exact original prefix, duplicate fence and native missing set.
+        if (not isinstance(logs,list) or any(not isinstance(line,str)
+                or 'truncat' in line.lower() for line in logs)):
+            raise EvidenceUnavailable('incomplete_finalized_logs')
+        old=self.early_logs[key]
+        previous_bytes=len(str(old[0]).encode());complete_bytes=len(str(logs).encode())
+        if len(self.early_logs)>32768 or self.early_log_bytes-previous_bytes+complete_bytes>MAX_PENDING_BYTES:
+            raise EvidenceUnavailable('candidate_log_buffer_pressure')
+        self.early_logs.pop(key);self.incomplete_logs.remove(key)
         self.deferred_complete_logs.pop(key,None)
         self.early_log_bytes-=len(str(old[0]).encode())
         self.recent_incomplete_logs[key]=digest([old[0],old[1]])
