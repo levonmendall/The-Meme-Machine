@@ -357,19 +357,29 @@ def commit_candidate_batch(state,frames,addresses,session,*,grouped=False,publis
 
 
 async def wait_candidate_log_space(join,progress,stop,local_stop,slot,sig,logs):
-    """Backpressure the existing socket, never discard or certify its logs.
+    """Backpressure speculative WS occupancy inside the existing hard bound.
 
-    Native receipt/commit throughput may lag the other transport. Reading more
-    future logs into a full join caused a disconnect and bought the same replay
-    again. Keep its original count/byte bounds and original maximum join wait.
-    The current message and the socket's existing two-frame queue stay bounded.
+    Future WS packets must not consume the entire join while an authenticated
+    HTTP field is growing beyond its truncated prefix. The half-waterline
+    reduces speculative occupancy; decoded log sizes differ from HTTP bytes,
+    so it is not a guaranteed response reservation. A missing log named by an
+    actual native status can use the original full byte/count bound. Every wake
+    rechecks that identity so native delivery can release a waiting WS packet.
     """
     if slot<join.filtered_from_slot or slot<=join.completed or (slot,sig) in join.early_logs:return
-    if join.early_log_bytes<MAX_PENDING_BYTES//2 and len(join.early_logs)<16384:return
     size=len(str(logs).encode())
     if size>MAX_PENDING_BYTES:raise EvidenceUnavailable('candidate_log_buffer_pressure')
     started=join.clock()
-    while len(join.early_logs)>=32768 or join.early_log_bytes+size>MAX_PENDING_BYTES:
+    while True:
+        # A native/HTTP callback may have consumed this slot or installed the
+        # same key while this WS packet waited. Its original late/duplicate
+        # validator must run next without reserving these bytes twice.
+        if slot<join.filtered_from_slot or slot<=join.completed or (slot,sig) in join.early_logs:return
+        pending=join.pending.get(slot)
+        required=bool(pending is not None and sig in pending['missing_logs']
+            and any(pending['signature_text'].get(index)==sig for index in pending['log_required']))
+        byte_bound=MAX_PENDING_BYTES if required else MAX_PENDING_BYTES//2
+        if len(join.early_logs)<32768 and join.early_log_bytes+size<=byte_bound:return
         if stop.is_set() or local_stop.is_set():raise asyncio.CancelledError()
         if join.clock()-started>=join.max_join_seconds:
             raise EvidenceUnavailable('candidate_log_buffer_pressure')
@@ -2277,11 +2287,12 @@ class SelectiveSource:
                     inflight=set();batch_inflight=False
                     async def publish_log(slot,sig,logs):
                         await self.work(lambda s:install(s)._observation(None,'selective_missing_field',dict(signature=sig,slot=slot,field='logMessages',reason='RECOVERY_GAP')),2)
-                        await commit(join.feed_log(slot,sig,logs,None,time.time()))
+                        frame=join.feed_log(slot,sig,logs,None,time.time());join_progress.set()
+                        await commit(frame)
                         while True:
                             frame=join.drain()
                             if frame is None:break
-                            await commit(frame)
+                            join_progress.set();await commit(frame)
                     not_fetched=object()
                     async def one(slot,sig,fetched=not_fetched):
                         witness=None;authenticated=False
@@ -2306,11 +2317,12 @@ class SelectiveSource:
                                     raise
                                 await self.work(lambda s:install(s)._observation(None,
                                     'native_stream_log_supplement',receipt),2)
-                                await commit(join.complete_deferred_log(slot,sig,complete,time.time()))
+                                frame=join.complete_deferred_log(slot,sig,complete,time.time());join_progress.set()
+                                await commit(frame)
                                 while True:
                                     frame=join.drain()
                                     if frame is None:break
-                                    await commit(frame)
+                                    join_progress.set();await commit(frame)
                                 authenticated=True
                                 self.observe('log_repair',stage='supplements_authenticated')
                                 return
