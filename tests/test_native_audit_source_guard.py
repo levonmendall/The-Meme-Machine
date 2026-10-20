@@ -3,6 +3,7 @@
 This test-only source view has no operational or financial authority.  The
 complete current checkout is checked separately from its exact 0e9 predecessor.
 """
+from tests.test_managed_capacity_source_guard import (capacity_predecessor, capacity_active_delta, capacity_native_delta)
 import ast
 import hashlib
 import json
@@ -82,6 +83,7 @@ def _inverse(test,path,current,row):
 
 def audit_predecessor(test,path,current):
     """Only fixed complete active sources/read hooks precede old guard inputs."""
+    current=capacity_predecessor(test,path,current)
     if path not in FILES+GUARDS:return current
     value=manifest(test)
     return _inverse(test,path,current,(value['files']|value['guards'])[path])
@@ -94,7 +96,7 @@ def active_runtime(test):
     test.assertEqual(set(git('diff','--name-status',BASE,IMPLEMENTATION,'--','meme_machine').decode().splitlines()),expected)
     test.assertEqual(git('rev-parse',BASE+'^{tree}').decode().strip(),BASE_TREE)
     test.assertEqual(git('rev-parse',IMPLEMENTATION+'^{tree}').decode().strip(),IMPLEMENTATION_TREE)
-    test.assertEqual(git('diff','--name-only',IMPLEMENTATION,'--','meme_machine'),b'',
+    test.assertEqual(capacity_active_delta(test,git('diff','--name-only',IMPLEMENTATION,'--','meme_machine'),IMPLEMENTATION),b'',
         'all actual current runtime bytes match the exact complete successor')
     for options in ((),('--ignored',)):
         extra=git('ls-files','--others',*options,'--exclude-standard','--','meme_machine').decode().splitlines()
@@ -108,7 +110,7 @@ def active_runtime(test):
         test.assertEqual((ROOT/path).read_bytes(),git('show',IMPLEMENTATION+':'+path))
         test.assertEqual(row['imports'],imports((ROOT/path).read_bytes()))
     for path,row in value['guards'].items():
-        body=(ROOT/path).read_bytes()
+        body=capacity_predecessor(test,path,(ROOT/path).read_bytes())
         test.assertEqual(hashlib.sha256(body).hexdigest(),row['after_sha256'])
         test.assertEqual(audit_predecessor(test,path,body),git('show',BASE+':'+path))
     return value
@@ -122,6 +124,7 @@ def audit_predecessor_runtime_delta(test,actual_delta):
     helper.  The old guard then checks its original runtime via actual Git.
     """
     active_runtime(test)
+    actual_delta=capacity_native_delta(test,actual_delta,OLD_IMPLEMENTATION)
     test.assertEqual(actual_delta,b''.join((path+'\n').encode() for path in sorted(FILES+HELPERS)))
     return git('diff','--name-only',OLD_IMPLEMENTATION,BASE,'--','meme_machine')
 
@@ -159,7 +162,7 @@ class NativeAuditSourceGuardTests(unittest.TestCase):
     def test_old_whole_guards_and_every_inner_proof_are_preserved(self):
         value=manifest(self)
         for path,row in value['guards'].items():
-            body=(ROOT/path).read_bytes()
+            body=capacity_predecessor(self,path,(ROOT/path).read_bytes())
             self.assertEqual(read_hooks(body),row['fixed_read_hooks'])
             self.assertEqual(audit_predecessor(self,path,body),git('show',BASE+':'+path))
             for bad in (body+b'\n# unknown guard\n',body.replace(b'assertEqual',b'assertNotEqual',1)):
