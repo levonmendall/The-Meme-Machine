@@ -99,15 +99,58 @@ class ManagedNativePonsTests(unittest.TestCase):
         self.assertNotIn('OFFLINE_MANAGED_FIXTURE',json.dumps(result))
 
     def test_incomplete_receipt_keeps_scout_evidence_without_advancing_durable_blocks(self):
-        self.enroll(); self.fail_receipt = True
-        with self.assertRaises(Exception): self.consume()
+        self.enroll(); self.head = self.block+39; self.lane.sample_head()
+        self.fail_receipt = True
+        with patch.object(self.lane,'poll_candidate'):
+            with self.assertRaises(Exception): self.lane.consume(self.block,self.head)
         self.assertEqual(self.lane.cursor,self.block-1)
         self.assertEqual(self.lane.snapshot()['durable'],0)
         self.assertEqual(self.lane.snapshot()['economic_events'],0)
-        self.assertEqual(self.lane.plane.checkpoint_read('pons_scout_market_cursor'),self.block)
-        self.fail_receipt = False; self.consume()
-        self.assertEqual(self.lane.snapshot()['durable'],1)
+        self.assertEqual(self.lane.plane.checkpoint_read('pons_scout_market_cursor'),self.head)
+        self.assertEqual(self.lane.snapshot()['durable_ranges'],0)
         self.assertTrue(self.lane.replay()['verified'])
+        self.fail_receipt = False
+        with patch.object(self.lane,'poll_candidate'): self.lane.consume(self.block,self.head)
+        self.assertEqual(self.lane.snapshot()['durable'],40)
+        self.assertTrue(self.lane.replay()['verified'])
+
+    def test_production_coalesced_turn_retains_ten_block_queries_and_complete_native_replay(self):
+        from meme_machine.lanes.pons.pons_selective_cohort import (
+            DISCOVERY_BATCH_RANGES, DISCOVERY_RANGE_BLOCKS,
+        )
+        self.assertEqual((DISCOVERY_BATCH_RANGES,DISCOVERY_RANGE_BLOCKS),(4,10))
+        self.enroll(); self.head = self.block+39; self.lane.sample_head()
+        with patch.object(self.lane,'poll_candidate'), \
+                patch.object(self.lane.rpc,'batch',wraps=self.lane.rpc.batch) as batches:
+            interval = self.lane.consume(self.block,self.head)
+        log_batches = [[row for row in call.args[0] if row[0]=='eth_getLogs']
+                       for call in batches.call_args_list]
+        self.assertEqual([len(rows) for rows in log_batches if rows],[4])
+        queries = [p[0] for m,p in self.calls if m=='eth_getLogs']
+        self.assertEqual([(int(q['fromBlock'],16),int(q['toBlock'],16)) for q in queries],
+            [(self.block+offset,self.block+offset+9) for offset in range(0,40,10)])
+        self.assertEqual((interval['first'],interval['last'],interval['complete']),
+                         (self.block,self.head,True))
+        result = self.lane.snapshot()
+        self.assertEqual((result['incoming'],result['durable'],result['backlog']),(40,40,0))
+        self.assertEqual((result['durable_ranges'],result['economic_events']),(1,1))
+        self.assertFalse(result['scope']['financial_entries'])
+        history = self.lane.history.get(self.capture['event']['address'].lower())
+        self.assertEqual(history['block'],self.head)
+        replay = self.lane.replay()
+        self.assertTrue(replay['verified'])
+        self.assertEqual((replay['economic_events'],replay['contiguous_through']),(1,self.head))
+
+    def test_coalesced_turn_refuses_excessive_or_discontinuous_ranges_before_transport(self):
+        self.enroll(); self.head = self.block+40; self.lane.sample_head()
+        before = len(self.calls)
+        for first,last in ((self.block,self.head),(self.block+1,self.head)):
+            with self.subTest(first=first,last=last):
+                with self.assertRaisesRegex(ValueError,'contiguous_range'):
+                    self.lane.consume(first,last)
+                self.assertEqual(len(self.calls),before)
+                self.assertEqual(self.lane.cursor,self.block-1)
+        self.assertEqual(self.lane.snapshot()['durable_ranges'],0)
 
     def test_managed_receipt_pins_publish_exact_reusable_rpc_evidence(self):
         self.enroll(); self.consume()
@@ -146,17 +189,27 @@ class ManagedNativePonsTests(unittest.TestCase):
             ManagedPonsLane(self.root,GENERATION)
 
     def test_numeric_canonical_fence_disagreement_never_publishes_completion(self):
-        self.enroll()
+        self.enroll(); self.head = self.block+39; self.lane.sample_head()
         original = self.header
         def fork(n):
             value = original(n)
             if n==self.block: value['hash']='0x'+'99'*32
             return value
-        self.header = fork
-        with self.assertRaisesRegex(ValueError,'canonical_membership'):
-            self.consume()
+        # The disagreement appears only after immutable receipt acquisition;
+        # coalescing must retain the subsequent numeric membership fence.
+        def after_receipt(): self.header = fork
+        self.receipt_hook = after_receipt
+        with patch.object(self.lane,'poll_candidate'):
+            with self.assertRaisesRegex(ValueError,'canonical_membership'):
+                self.lane.consume(self.block,self.head)
         self.assertEqual(self.lane.snapshot()['durable'],0)
         self.assertEqual(self.lane.snapshot()['economic_events'],0)
+        self.assertEqual(self.lane.snapshot()['durable_ranges'],0)
+        self.assertEqual(self.lane.cursor,self.block-1)
+        self.header = original; self.receipt_hook = None
+        with patch.object(self.lane,'poll_candidate'): self.lane.consume(self.block,self.head)
+        self.assertEqual(self.lane.snapshot()['durable'],40)
+        self.assertTrue(self.lane.replay()['verified'])
 
     def test_restart_retains_exact_generation_cursor_corpus_and_candidate_deadline(self):
         self.enroll(); self.consume(); before = self.lane.replay()
@@ -455,6 +508,7 @@ class ManagedNativePonsTests(unittest.TestCase):
     def test_external_stop_during_real_receipt_finishes_only_the_admitted_range(self):
         from meme_machine.operational.managed_native_pons import run_pons
         external=threading.Event();self.enroll()
+        self.head=self.block+40
         self.receipt_hook=external.set
         from meme_machine.operational.bounded_provider import Budget
         usage=self.base/'provider-usage.sqlite'
@@ -475,6 +529,8 @@ class ManagedNativePonsTests(unittest.TestCase):
             result=run_pons(self.root,60,GENERATION,cancel=external.is_set)
         self.assertTrue(external.is_set())
         self.assertIsNone(result['error'])
-        self.assertEqual((result['incoming_blocks'],result['durable_blocks'],result['backlog']),(1,1,0))
+        self.assertEqual((result['incoming_blocks'],result['durable_blocks'],result['backlog']),(41,40,1))
         self.assertTrue(result['replay']['verified'])
+        self.assertEqual(result['replay']['contiguous_through'],self.block+39)
         self.assertEqual(result['durable_ranges'],1)
+        self.assertEqual(sum(m=='eth_getLogs' for m,p in self.calls),4)
