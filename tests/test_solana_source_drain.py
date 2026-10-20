@@ -187,20 +187,32 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(body['state'],'RECOVERY_REQUIRED')
         self.assertEqual(body['queues']['scout'],dict(accepted=65,committed=65,pending=0))
 
-    async def actual_live(self,*,transport_failure=False,cancel=False,commit_failure=False,repeated_cancel=False,cutoff=False):
+    async def actual_live(self,*,transport_failure=False,cancel=False,commit_failure=False,repeated_cancel=False,cutoff=False,
+            truncated=False,repair_failure=False,cancel_repair=False,unsupported=False,complete_duplicate=False):
         import based58
         source=self.source;tx=copy.deepcopy(FIXTURE['pump'][0]);slot=tx['slot'];index=tx['transactionIndex']
         addresses={PROGRAMS[f]:program_scope(f) for f in ('pump','pumpswap')}
         statuses_ready=asyncio.Event();native_accepted=asyncio.Event()
+        socket_idle=asyncio.Event();repair_entered=asyncio.Event();repair_release=asyncio.Event()
+        partial=tx['meta']['logMessages'][:4]+['Log truncated']
         async def work(fn,priority=2,**options):
             if options.get('component')=='candidate':
                 self.entered.set();await self.release.wait()
                 if commit_failure:raise EvidenceUnavailable('original_candidate_commit_failure')
             return fn(self.state)
-        async def tip(*args):return slot-1
+        async def tip(method,*args):
+            if method=='getTransaction':
+                # WS must keep reading while the selective HTTP repair is in
+                # flight, including the same transaction's duplicate packet.
+                repair_entered.set();await socket_idle.wait()
+                if cancel_repair:await repair_release.wait()
+                fetched=copy.deepcopy(tx);fetched.pop('transactionIndex',None)
+                if repair_failure:fetched['meta']['logMessages']=partial
+                return fetched
+            return slot-1
         source.work=work;source.measured_rpc=tip
         class Socket:
-            def __init__(socket):socket.acks=asyncio.Queue();socket.sent=False;socket.frontiers=iter((11,12))
+            def __init__(socket):socket.acks=asyncio.Queue();socket.sent=0;socket.frontiers=iter((11,12))
             async def send(socket,raw):
                 request=json.loads(raw);await socket.acks.put(json.dumps(dict(id=request['id'],result=request['id']+10)))
             async def recv(socket):
@@ -210,10 +222,13 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
                     return json.dumps(dict(params=dict(subscription=subscription,result=dict(context=dict(slot=slot-1),
                         value=dict(err={'InstructionError':[0,0]},signature='failed',logs=[])))))
                 await statuses_ready.wait()
-                if socket.sent:await asyncio.Event().wait()
-                socket.sent=True
+                if socket.sent>=(2 if truncated else 1):
+                    socket_idle.set();await asyncio.Event().wait()
+                socket.sent+=1
                 return json.dumps(dict(params=dict(subscription=11,result=dict(context=dict(slot=slot),
-                    value=dict(err=None,signature=tx['transaction']['signatures'][0],logs=tx['meta']['logMessages'])))))
+                    value=dict(err=None,signature=tx['transaction']['signatures'][0],
+                        logs=None if unsupported else partial if truncated and not (complete_duplicate and socket.sent==2)
+                            else tx['meta']['logMessages'])))))
         class Connection:
             async def __aenter__(self):return Socket()
             async def __aexit__(self,*args):pass
@@ -226,7 +241,15 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
             m.executed_transaction_count=index+1;await handler(u,u.ByteSize(),NOW)
             u=pb.SubscribeUpdate(filters=['f']);u.slot.slot=slot;u.slot.parent=slot-1;u.slot.status=pb.SLOT_FINALIZED
             await handler(u,u.ByteSize(),NOW);statuses_ready.set()
-            await self.entered.wait();native_accepted.set()
+            admitted=asyncio.create_task(self.entered.wait());closing=asyncio.create_task(local_stop.wait())
+            try:
+                done,_=await asyncio.wait((admitted,closing),return_when=asyncio.FIRST_COMPLETED)
+                if admitted not in done:return
+            finally:
+                for task in (admitted,closing):
+                    if not task.done():task.cancel()
+                await asyncio.gather(admitted,closing,return_exceptions=True)
+            native_accepted.set()
             if transport_failure:raise EvidenceUnavailable('candidate_native_internal')
             await local_stop.wait()
         source.stream=stream
@@ -237,6 +260,21 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         with patch('meme_machine.solana_selective_source.connect',lambda *args,**kw:Connection()), \
                 patch('meme_machine.operational.position_continuation.position_only',side_effect=native_accepted.is_set) if cutoff else nullcontext():
             task=asyncio.create_task(source.rolling_programs(None) if cutoff else source.live(None,desired,local_stop))
+            if unsupported:
+                with self.assertRaisesRegex(EvidenceUnavailable,'incomplete_finalized_logs'):
+                    await asyncio.wait_for(task,2)
+                return slot
+            if repair_failure:
+                with self.assertRaisesRegex(EvidenceUnavailable,'candidate_stream_log_supplement_incomplete'):
+                    await asyncio.wait_for(task,2)
+                return slot
+            if cancel_repair:
+                await asyncio.wait_for(repair_entered.wait(),1)
+                task.cancel();await asyncio.sleep(.01)
+                self.assertFalse(task.done());repair_release.set()
+                await asyncio.wait_for(self.entered.wait(),1);self.release.set()
+                with self.assertRaises(asyncio.CancelledError):await asyncio.wait_for(task,2)
+                return slot
             await asyncio.wait_for(native_accepted.wait(),1)
             if cancel:task.cancel()
             else:local_stop.set()
@@ -293,6 +331,70 @@ class SourceDrainTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.source.drain_snapshot()['queues']['rolling'],dict(accepted=1,committed=0,pending=1))
         self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
         self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_gaps WHERE hi IS NULL').fetchone()[0],2)
+
+    async def test_actual_truncated_ws_packets_repair_once_without_program_restart_or_partial_decode(self):
+        await self.actual_live(truncated=True)
+        self.assertEqual(self.source.source_drain['closed_sessions'],1)
+        self.assertEqual(self.source.drain_snapshot()['pending_handlers'],0)
+        self.assertEqual(self.source.drain_snapshot()['queues']['rolling'],dict(accepted=1,committed=1,pending=0))
+        self.assertGreater(self.history.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+        receipt=json.loads(self.history.db.execute("SELECT body FROM acquisition_observations WHERE kind='native_stream_log_supplement'").fetchone()[0])
+        self.assertEqual(receipt['method'],'getTransaction');self.assertFalse(receipt['truncated_logs_used_as_complete'])
+        metrics=self.source.pipeline_metrics['log_repair:rolling']
+        self.assertEqual((metrics['deferred'],metrics['duplicate_deliveries'],metrics['repair_logical_calls'],
+            metrics['supplements_authenticated'],metrics['supplements_failed']),(1,1,1,1,0))
+
+    async def test_actual_repeated_http_truncation_preserves_gap_and_no_economic_or_coverage_claim(self):
+        slot=await self.actual_live(truncated=True,repair_failure=True)
+        self.assertEqual(self.source.drain_snapshot()['pending_handlers'],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_checkpoints').fetchone()[0],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_gaps WHERE lo=? AND hi IS NULL',(slot,)).fetchone()[0],2)
+        self.assertEqual(self.history.db.execute("SELECT COUNT(*) FROM acquisition_observations WHERE kind='native_stream_log_supplement_failed'").fetchone()[0],1)
+        self.assertEqual(self.source.pipeline_metrics['log_repair:rolling']['supplements_failed'],1)
+
+    async def test_actual_full_ws_duplicate_coalesces_with_pending_authenticated_repair(self):
+        await self.actual_live(truncated=True,complete_duplicate=True)
+        metrics=self.source.pipeline_metrics['log_repair:rolling']
+        self.assertEqual((metrics['deferred'],metrics['duplicate_deliveries'],metrics['repair_logical_calls'],
+            metrics['supplements_authenticated']),(1,1,1,1))
+        self.assertEqual(self.source.drain_snapshot()['pending_handlers'],0)
+        self.assertEqual(self.source.drain_snapshot()['queues']['rolling'],dict(accepted=1,committed=1,pending=0))
+
+    async def test_cancel_during_actual_truncation_repair_waits_for_original_result_and_owner(self):
+        await self.actual_live(truncated=True,cancel_repair=True)
+        self.assertEqual(self.source.drain_snapshot()['pending_handlers'],0)
+        self.assertEqual(self.source.drain_snapshot()['queues']['rolling'],dict(accepted=1,committed=1,pending=0))
+        self.assertEqual(self.source.pipeline_metrics['log_repair:rolling']['supplements_authenticated'],1)
+        self.assertGreater(self.history.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+
+    async def test_permanent_stream_supplement_failure_is_not_an_unchanged_reconnect_loop(self):
+        from unittest.mock import AsyncMock
+        source=self.source;source.work=self.work
+        async def startup():return None
+        source.wait_current_control=startup
+        for reason in ('candidate_stream_log_supplement_incomplete','incomplete_finalized_logs'):
+            with self.subTest(reason=reason):
+                async def live(*args):raise EvidenceUnavailable(reason)
+                source.live=AsyncMock(side_effect=live)
+                with self.assertRaisesRegex(EvidenceUnavailable,reason):
+                    await asyncio.wait_for(source.rolling_programs(None),1)
+                self.assertEqual(source.live.call_count,1)
+
+    async def test_actual_unsupported_log_shape_preserves_failed_callback_and_exact_unavailable_gap(self):
+        slot=await self.actual_live(unsupported=True)
+        self.assertEqual(self.source.source_drain['closed_sessions'],1)
+        snapshot=self.source.drain_snapshot()
+        self.assertEqual(snapshot['pending_handlers'],1)
+        self.assertEqual(snapshot['handler_accounting']['recoverable'],1)
+        self.assertEqual(snapshot['handler_accounting']['returned'],snapshot['handler_accounting']['accepted']-1)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM rolling_economic_events').fetchone()[0],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_coverage').fetchone()[0],0)
+        self.assertEqual(self.history.db.execute('SELECT COUNT(*) FROM candidate_gaps WHERE lo=? AND hi IS NULL',(slot,)).fetchone()[0],2)
+        reason_rows=[body for kind,body in self.source.pending_diagnostics if kind=='log_join_failure']
+        self.assertEqual([body['reason'] for body in reason_rows],
+            ['incomplete_finalized_logs','candidate_stream_logs_null_or_missing'])
 
     async def test_startup_abort_preserves_accepted_early_log_below_scheduling_placeholder(self):
         source=self.source;source.work=self.work;source.batched=True

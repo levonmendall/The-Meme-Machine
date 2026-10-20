@@ -1,11 +1,13 @@
 """Managed Pons fresh storage and actual native decoding with offline RPC only."""
 from copy import deepcopy
+from concurrent.futures import Future
 import hashlib
 import json
 import os
 from pathlib import Path
 import tempfile
 import threading
+import time
 import unittest
 from unittest.mock import patch
 
@@ -194,6 +196,51 @@ class ManagedNativePonsTests(unittest.TestCase):
             finally: release.set()
             self.lane.future.result(timeout=2); self.lane.poll_candidate(submit=False)
         self.assertEqual(self.lane.counts['candidate_completed'],1)
+
+    def test_native_current_failure_keeps_bounded_cause_and_source_without_changing_outcome(self):
+        from meme_machine.lanes.pons.pons_natural_observation import _two_uints
+        self.enroll(); self.consume()
+        work = self.lane.broker.pop()
+        self.assertIsNotNone(work)
+        try:
+            _two_uints('0x')
+        except Exception as error:
+            self.lane.future = Future(); self.lane.future.set_exception(error)
+        self.lane.future_work = work; self.lane.future_started = time.monotonic()
+        self.lane.poll_candidate(submit=False)
+        snapshot = self.lane.snapshot()
+        self.assertEqual(snapshot['failures'], {'qualification:provider_boundary_failure': 1})
+        self.assertEqual(snapshot['failure_examples'], [dict(stage='qualification', count=1,
+            reason_code='natural_reserve_shape', origin=dict(
+                module='meme_machine.lanes.pons.pons_natural_observation',
+                function='_two_uints', line=_two_uints.__code__.co_firstlineno + 3))])
+        self.assertEqual(self.lane.counts['candidate_completed'], 0)
+        row = self.lane.plane.get(work['key'])
+        self.assertEqual(row['reason'], 'provider_boundary_failure')
+        self.assertEqual(snapshot['durable_blocks'], 1)
+        self.assertTrue(self.lane.replay()['verified'])
+
+    def test_failure_examples_never_emit_untrusted_exception_text_and_remain_bounded(self):
+        from meme_machine.lanes.pons import BoundaryError
+        from meme_machine.operational.managed_native_pons import MAX_FAILURE_EXAMPLES
+        self.lane.record_failure_example('qualification', BoundaryError(ENDPOINT))
+        self.lane.record_failure_example('qualification', ValueError('natural_reserve_shape'))
+        self.lane.record_failure_example('qualification', BoundaryError('natural_reserve_shape', ENDPOINT))
+        snapshot = self.lane.snapshot()
+        self.assertEqual(snapshot['failure_examples'], [dict(stage='qualification', count=3,
+            reason_code='unclassified_native_failure', origin={})])
+        self.assertNotIn(ENDPOINT, json.dumps(snapshot))
+        self.assertNotIn('OFFLINE_MANAGED_FIXTURE', json.dumps(snapshot))
+        for reason in ('stale_evidence_acquisition', 'candidate_generation_superseded',
+                'natural_non_native_quote_not_supported', 'curve_runtime_length',
+                'selective_evidence_batch_incomplete', 'trajectory_history_incomplete',
+                'natural_reserve_shape', 'sample_gas_units_bounds', 'sample_invalid_gas_price'):
+            self.lane.record_failure_example('qualification', BoundaryError(reason))
+        snapshot = self.lane.snapshot()
+        self.assertEqual(len(snapshot['failure_examples']), MAX_FAILURE_EXAMPLES)
+        self.assertEqual(snapshot['failure_examples_dropped'], 2)
+        self.lane.record_failure_example('qualification', BoundaryError('stale_evidence_acquisition'))
+        self.assertEqual(self.lane.snapshot()['failure_examples'][1]['count'], 2)
 
     def test_foreign_state_and_financial_environment_are_rejected_before_provider_work(self):
         self.lane.close(); before = len(self.calls)

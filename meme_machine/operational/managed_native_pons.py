@@ -32,6 +32,148 @@ ENVIRONMENT = frozenset({
 })
 
 
+# Exact committed native BoundaryError literals only. Never emit an arbitrary
+# exception message, provider response, transaction identity or credential.
+# This allowlist is diagnostic; it changes no native failure/scheduling outcome.
+SAFE_NATIVE_FAILURE_REASONS = frozenset({
+    'abi_address_padding',
+    'abi_argument_range',
+    'abi_bool_range',
+    'abi_integer_range',
+    'adjacent_candidate_header_identity',
+    'candidate_canonical_membership_disagreement',
+    'candidate_generation_superseded',
+    'candidate_identity_disagreement',
+    'confirmed_candidate_reorged',
+    'conflicting_immutable_evidence',
+    'conflicting_logs',
+    'conflicting_receipt_log',
+    'curve_closed_pending_or_completed_graduation',
+    'curve_compiled_bytecode_disagreement',
+    'curve_factory_disagreement',
+    'curve_factory_provenance',
+    'curve_immutable_disagreement',
+    'curve_launch_terms_disagreement',
+    'curve_runtime_length',
+    'curve_source_template_invalid',
+    'duplicate_block_transaction',
+    'event_data_length',
+    'event_topic_count',
+    'event_topic_length',
+    'evidence_checksum_mismatch',
+    'evidence_store_page_capacity',
+    'factory_record_shape',
+    'followup_block_hash_disagreement',
+    'future_current_head',
+    'future_event',
+    'future_evidence',
+    'future_evidence_observation',
+    'graduation_not_completed',
+    'graduation_transaction_disagreement',
+    'impossible_full_position_exit',
+    'incorrect_log_identity',
+    'ingest_capacity',
+    'insufficient_output',
+    'invalid_block_identity',
+    'invalid_buy_fee_sum',
+    'invalid_current_snipe_bps',
+    'invalid_curve_launch_time',
+    'invalid_curve_state',
+    'invalid_evidence_latency_limit',
+    'invalid_snipe_state',
+    'invalid_storage_bound',
+    'malformed_abi_words',
+    'missing_block_coverage',
+    'missing_evidence',
+    'missing_evidence_observation_wall_time',
+    'missing_or_duplicate_receipts',
+    'missing_or_unexpected_logs',
+    'missing_recipient_or_amount',
+    'missing_snipe_or_amount',
+    'mixed_evidence_kind',
+    'natural_call_shape',
+    'natural_event_capacity',
+    'natural_followup_capacity',
+    'natural_non_native_quote_not_supported',
+    'natural_rejection_capacity',
+    'natural_report_capacity',
+    'natural_reserve_shape',
+    'no_current_authenticated_pons_candidate',
+    'pons_current_recheck_head_identity',
+    'pons_current_recheck_no_recent_canonical_buy',
+    'pons_current_window_anchor_identity',
+    'pons_current_window_log_conflict',
+    'pons_current_window_log_identity',
+    'pons_current_window_range_incomplete',
+    'raw_event_identity_disagreement',
+    'receipt_block_disagreement',
+    'record_payload_capacity',
+    'removed_log_reorg',
+    'reorg_parent_conflict',
+    'sample_gas_units_bounds',
+    'sample_invalid_gas_price',
+    'scout_adaptive_page_identity',
+    'scout_journal_corruption',
+    'scout_log_array_required',
+    'scout_log_batch_shape',
+    'scout_log_conflict',
+    'scout_log_filter_identity',
+    'scout_public_boundary_identity',
+    'scout_public_reorg',
+    'scout_response_saturation',
+    'selective_cached_header_hash_conflict',
+    'selective_cached_header_number_conflict',
+    'selective_cached_header_shape',
+    'selective_cached_receipt_identity',
+    'selective_cached_transaction_identity',
+    'selective_canonical_membership_identity',
+    'selective_evidence_batch_incomplete',
+    'selective_evidence_request_bound',
+    'selective_nomination_not_buy',
+    'selective_window_header_disagreement',
+    'sequencer_discovery_block_disagreement',
+    'sequencer_discovery_start_timeout',
+    'solidity_uint256_overflow',
+    'source_artifact_unavailable_or_invalid',
+    'stale_evidence_acquisition',
+    'stale_state',
+    'storage_capacity_stop_admission',
+    'strategy_horizon_expired',
+    'trajectory_block_identity',
+    'trajectory_header_time_regression',
+    'trajectory_history_incomplete',
+    'unfinalized_state',
+    'unknown_confirmation',
+    'unknown_evidence_kind',
+    'unrelated_v4_or_lineage_disagreement',
+    'unsupported_abi_type',
+    'unsupported_dynamic_event',
+    'unsupported_event_signature',
+    'v1_factory_record_disagreement',
+    'v1_v3_currency_disagreement',
+    'v1_v3_event_identity',
+    'v1_v3_pool_disagreement',
+    'v1_v3_protocol_identity',
+    'v1_v3_token_order_disagreement',
+    'v1_v3_transaction_disagreement',
+    'wrong_chain',
+    'wrong_graduation_deployment',
+    'wrong_v1_v3_deployment',
+    'zero_sell',
+})
+MAX_FAILURE_EXAMPLES = 8
+
+
+def native_failure_example(error):
+    from meme_machine.lanes.pons import BoundaryError
+    from .managed_capacity_evidence import failure_site
+    reason = 'unclassified_native_failure'
+    if (type(error) is BoundaryError and len(error.args) == 1 and
+            type(error.args[0]) is str and error.args[0] in SAFE_NATIVE_FAILURE_REASONS):
+        reason = error.args[0]
+    return dict(reason_code=reason, origin=failure_site(error))
+
+
 def require(condition, reason):
     if not condition:
         raise ValueError('managed_pons_' + reason)
@@ -127,6 +269,7 @@ class ManagedPonsLane:
         self.owner = (self.root/'managed-pons.lock').open('a')
         fcntl.flock(self.owner, fcntl.LOCK_EX | fcntl.LOCK_NB)
         self.counts = Counter(); self.failure_counts = Counter()
+        self.failure_examples = []; self.failure_examples_dropped = 0
         self.closed = False; self.started = time.time(); self.latest = None
         self.head_sample_at = -float('inf'); self.future = None
         self.future_work = None; self.future_started = None
@@ -332,6 +475,18 @@ class ManagedPonsLane:
         for (tx, bh), receipt in receipts.items(): self.cache.remember_receipt(tx, bh, receipt)
         return interval
 
+    def record_failure_example(self, stage, error):
+        require(stage in {'qualification', 'survivor', 'acquisition'}, 'failure_stage')
+        example = dict(stage=stage, **native_failure_example(error))
+        for previous in self.failure_examples:
+            if all(previous[key] == value for key, value in example.items()):
+                previous['count'] += 1
+                return
+        if len(self.failure_examples) < MAX_FAILURE_EXAMPLES:
+            self.failure_examples.append(dict(example, count=1))
+        else:
+            self.failure_examples_dropped += 1
+
     def poll_candidate(self, *, submit=True):
         if self.future is not None and self.future.done():
             work = self.future_work
@@ -347,6 +502,7 @@ class ManagedPonsLane:
                 reason = failure_class(error)
                 self.broker.failure(work, reason)
                 self.failure_counts['qualification:' + reason] += 1
+                self.record_failure_example('qualification', error)
             finally:
                 self.future = self.future_work = None
         if submit and self.future is None and not self.cancel():
@@ -379,6 +535,8 @@ class ManagedPonsLane:
             durable_ranges=ranges,economic_events=raw,pending_candidates=pending,
             candidate_worker_active=self.future is not None,
             counts=dict(self.counts),failures=dict(self.failure_counts),
+            failure_examples=[dict(row) for row in self.failure_examples],
+            failure_examples_dropped=self.failure_examples_dropped,
             provider_usage=self.rpc.shared_admission.telemetry(),
             survivor=self.survivor_snapshot,
             storage_bytes=sum(p.stat().st_size for p in self.root.iterdir() if p.is_file()),
@@ -399,6 +557,7 @@ class ManagedPonsLane:
                 from meme_machine.runtime.robinhood.provider_authority import failure_class
                 reason=failure_class(error)
                 self.failure_counts['survivor:'+reason]+=1
+                self.record_failure_example('survivor', error)
                 self.survivor_snapshot=dict(available=False,error_type=type(error).__name__,
                     reason=reason,allocation_authority=False,observed_at=time.time())
             finally:self.survivor_future=None
@@ -506,6 +665,7 @@ def run_pons(root, duration, generation, *, sample_callback=None, cancel=None,sa
                     from meme_machine.runtime.robinhood.provider_authority import failure_class
                     reason = failure_class(failure)
                     lane.failure_counts['acquisition:'+reason] += 1
+                    lane.record_failure_example('acquisition', failure)
                     lane.plane.checkpoint('managed_incomplete',dict(first=lane.cursor+1,
                         last=lane.latest,reason=reason,complete=False))
                     # Only transient provider faults may use the existing retry

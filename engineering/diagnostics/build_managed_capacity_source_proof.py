@@ -99,6 +99,8 @@ def main():
     read_changes = [
         (b"            source=publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,(ROOT/relative).read_bytes()))\n",
          b"            source=publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n"),
+        (b"                publication_accounting_predecessor(self,relative,(ROOT/relative).read_bytes()))\n",
+         b"                publication_accounting_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n"),
     ]
     after_read_guard = before_read_guard
     for before, after in read_changes:
