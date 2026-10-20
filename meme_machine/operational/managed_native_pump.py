@@ -22,6 +22,7 @@ from meme_machine.solana_provider_config import AlchemyEndpoint
 
 SCHEMA = 'managed-native-pump-v1'
 MARKER = 'managed-native-pump.json'
+SHUTDOWN_SECONDS = 65
 FINANCIAL_NAMES = frozenset(('portfolio.sqlite', 'shared-capital.sqlite',
     'native-genesis.json', 'paper-journal.jsonl'))
 _started = False
@@ -375,6 +376,18 @@ async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_
                 except TimeoutError:
                     pass
         sampler = asyncio.create_task(samples())
+        workload = None
+        drain_deadline = None
+        async def drained():
+            nonlocal drain_deadline
+            if drain_deadline is None:
+                drain_deadline = time.monotonic() + SHUTDOWN_SECONDS
+            try:
+                await asyncio.wait_for(asyncio.shield(workload),
+                                       max(0, drain_deadline - time.monotonic()))
+            except TimeoutError:
+                workload.cancel()
+                raise ValueError('managed_pump_source_shutdown_deadline') from None
         try:
             with owner_thread_fairness():
                 workload = asyncio.create_task(serve(config.evidence, config.endpoint,
@@ -382,22 +395,23 @@ async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_
                 done, _ = await asyncio.wait((workload, sampler), return_when=asyncio.FIRST_COMPLETED)
                 if sampler in done and not stop.is_set():
                     stop.set()
+                if workload in done and not stop.is_set():
+                    workload.result()
+                    raise ValueError('managed_pump_source_ended_before_stop')
                 try:
                     if sampler.done():
                         sampler.result()
                 finally:
-                    await workload
+                    await drained()
         finally:
             stop.set()
             # Parent cancellation must retain the environment and ownership
             # lock while the same production source finishes accepted work.
-            if not workload.done():
-                try:
-                    await asyncio.wait_for(asyncio.shield(workload), 65)
-                except TimeoutError:
-                    workload.cancel()
-                    raise ValueError('managed_pump_source_shutdown_deadline') from None
-            await asyncio.gather(sampler, return_exceptions=True)
+            try:
+                if workload is not None and not workload.done():
+                    await drained()
+            finally:
+                await asyncio.gather(sampler, return_exceptions=True)
         return dict(identity=identity, snapshot=pump_snapshot(config, driver=driver),
                     replay=replay_pump(config),
                     scope='native_acquisition_decoding_canonical_candidate_history_delivery',

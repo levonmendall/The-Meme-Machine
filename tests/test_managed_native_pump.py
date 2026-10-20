@@ -227,6 +227,27 @@ class ManagedPumpTests(unittest.TestCase):
             self.assertEqual(managed.replay_pump(self.config)['events'], 0)
         asyncio.run(scenario())
 
+    def test_normal_stop_uses_one_shutdown_deadline_and_cancels_stuck_source(self):
+        async def scenario():
+            stop = asyncio.Event()
+            cancelled = []
+            rpc = SimpleNamespace(validate_network=Mock())
+            driver = SimpleNamespace(pipeline_metrics={}, drain_snapshot=lambda: {})
+            async def serve(*args, **kwargs):
+                try:
+                    await asyncio.Event().wait()
+                finally:
+                    cancelled.append(True)
+            with patch.object(managed, 'production_components', return_value=(rpc, driver, serve)), \
+                    patch.object(managed, 'SHUTDOWN_SECONDS', .03):
+                asyncio.get_running_loop().call_later(.01, stop.set)
+                with self.assertRaisesRegex(ValueError, 'source_shutdown_deadline'):
+                    await managed.run_pump(self.config, stop)
+                await asyncio.sleep(0)
+            self.assertTrue(cancelled)
+            self.assertFalse(any(k.startswith('MM_') for k in os.environ))
+        asyncio.run(scenario())
+
 
 if __name__ == '__main__':
     unittest.main()
