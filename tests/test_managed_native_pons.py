@@ -8,6 +8,7 @@ from pathlib import Path
 import tempfile
 import threading
 import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -209,16 +210,168 @@ class ManagedNativePonsTests(unittest.TestCase):
         self.lane.future_work = work; self.lane.future_started = time.monotonic()
         self.lane.poll_candidate(submit=False)
         snapshot = self.lane.snapshot()
-        self.assertEqual(snapshot['failures'], {'qualification:provider_boundary_failure': 1})
+        self.assertEqual(snapshot['failures'], {'qualification:natural_reserve_shape': 1})
+        self.assertEqual(snapshot['candidate_outcomes'], {'authoritative_evidence_failure': 1})
         self.assertEqual(snapshot['failure_examples'], [dict(stage='qualification', count=1,
             reason_code='natural_reserve_shape', origin=dict(
                 module='meme_machine.lanes.pons.pons_natural_observation',
                 function='_two_uints', line=_two_uints.__code__.co_firstlineno + 3))])
         self.assertEqual(self.lane.counts['candidate_completed'], 0)
         row = self.lane.plane.get(work['key'])
-        self.assertEqual(row['reason'], 'provider_boundary_failure')
+        self.assertEqual(row['reason'], 'natural_reserve_shape')
         self.assertEqual(snapshot['durable_blocks'], 1)
         self.assertTrue(self.lane.replay()['verified'])
+
+    def settle_candidate_error(self, work, error):
+        self.lane.future = Future(); self.lane.future.set_exception(error)
+        self.lane.future_work = work; self.lane.future_started = time.monotonic()
+        self.lane.poll_candidate(submit=False)
+
+    def claim_candidate(self, *, canonical_refresh=False):
+        observed = time.time()
+        self.lane.broker.clock = self.lane.plane.clock = lambda:observed
+        self.lane.broker.enqueue(self.capture['event'], canonical_refresh=canonical_refresh)
+        work = self.lane.broker.pop()
+        self.assertIsNotNone(work)
+        self.assertEqual(work['canonical_refresh'], canonical_refresh)
+        return work
+
+    def test_authenticated_horizon_retires_native_watch_and_survives_restart_without_completion(self):
+        from meme_machine.lanes.pons import BoundaryError
+        from meme_machine.lanes.pons import pons_selective_acquisition as acquisition
+        from meme_machine.lanes.pons.pons_selective_continuation import ENTRY_THRESHOLDS
+        work = self.claim_candidate(canonical_refresh=True)
+        curve = work['event']['address']; head = self.header(self.block+10)
+        now = time.time(); head['timestamp'] = hex(int(now))
+        launch = int(now)-ENTRY_THRESHOLDS['max_token_age_seconds']-1
+        # Synthetic authenticated identity, as in the native recheck fixtures.
+        # The real refreshed_current_candidate/evaluate_candidate boundary and
+        # native Broker/Plane retirement execute; all transport seams are offline.
+        self.lane.cache.remember_compiled(curve,'0x'+'11'*20,'0x6000',self.block,
+            self.capture['header'],dict(runtime_sha256='offline_authenticated_identity'))
+        self.lane.cache.remember_launch(curve,launch)
+        ctx = self.lane.context
+        with patch.object(acquisition.time,'time',return_value=now), \
+                patch.object(acquisition.time,'monotonic',return_value=100.), \
+                patch.object(ctx,'acquire',return_value=SimpleNamespace(telemetry=lambda:{})), \
+                patch.object(ctx,'call',return_value=head),patch.object(ctx,'batch',return_value=[head]):
+            try:
+                acquisition.evaluate_candidate(self.lane.endpoint,work['event'],[],
+                    strategy_capital_quote=10**18,evidence_context=ctx,canonical_refresh=True,
+                    evidence_observed_at=now,evidence_observed_monotonic=100.)
+            except BoundaryError as error:
+                self.assertEqual(str(error),'strategy_horizon_expired')
+                caught = error
+            else:
+                self.fail('native frozen horizon did not reject the old curve')
+        proof = deepcopy(ctx.boundary_evidence)
+        self.assertEqual((proof['launch_at'],proof['asof']),(launch,int(now)))
+        self.settle_candidate_error(work,caught)
+        snapshot = self.lane.snapshot(); row = self.lane.plane.get(work['key'])
+        self.assertEqual((row['state'],row['reason']),('strategy_rejected','strategy_horizon_expired'))
+        self.assertEqual(snapshot['candidate_outcomes'],{'strategy_rejected':1})
+        self.assertEqual(snapshot['failures'],{})
+        self.assertEqual(self.lane.counts['candidate_completed'],0)
+        self.assertEqual(self.lane.plane.db.execute('SELECT COUNT(*) FROM pons_current_watch').fetchone()[0],0)
+        details = json.loads(self.lane.plane.db.execute(
+            "SELECT details FROM transitions WHERE kind='strategy_rejected' ORDER BY seq DESC LIMIT 1").fetchone()[0])
+        self.assertEqual(details['authenticated_evidence'],proof)
+        self.lane.close(); self.lane = ManagedPonsLane(self.root,GENERATION,cancel=self.cancel.is_set)
+        self.assertIsNone(self.lane.broker.pop())
+        self.assertEqual(self.lane.plane.get(work['key'])['state'],'strategy_rejected')
+        self.assertEqual(self.lane.plane.db.execute('SELECT COUNT(*) FROM pons_current_watch').fetchone()[0],0)
+
+    def test_horizon_boundary_without_proof_does_not_retire_watch_or_count_strategy_rejection(self):
+        from meme_machine.lanes.pons import BoundaryError
+        work = self.claim_candidate(canonical_refresh=True)
+        self.lane.context.boundary_evidence = None
+        self.settle_candidate_error(work,BoundaryError('strategy_horizon_expired'))
+        snapshot = self.lane.snapshot()
+        self.assertEqual(snapshot['candidate_outcomes'],{'authoritative_evidence_failure':1})
+        self.assertEqual(snapshot['failures'],{'qualification:strategy_horizon_expired':1})
+        self.assertEqual(self.lane.plane.db.execute('SELECT COUNT(*) FROM pons_current_watch').fetchone()[0],1)
+        self.assertEqual(self.lane.counts['candidate_completed'],0)
+
+    def test_horizon_proof_cannot_retire_an_unrechecked_nomination(self):
+        from meme_machine.lanes.pons import BoundaryError
+        work = self.claim_candidate()
+        self.lane.context.boundary_evidence = dict(boundary='strategy_horizon_expired',
+            authentication_complete=True,identity={'runtime_sha256':'offline'},
+            curve=work['event']['address'],launch_at=1,asof=1_000_000)
+        self.settle_candidate_error(work,BoundaryError('strategy_horizon_expired'))
+        snapshot = self.lane.snapshot()
+        self.assertEqual(snapshot['candidate_outcomes'],{'authoritative_evidence_failure':1})
+        self.assertEqual(snapshot['failures'],{'qualification:strategy_horizon_expired':1})
+        self.assertEqual(self.lane.plane.db.execute('SELECT COUNT(*) FROM pons_current_watch').fetchone()[0],1)
+        self.assertEqual(self.lane.counts['candidate_completed'],0)
+
+    def test_native_supersession_preserves_new_pending_generation_without_provider_failure(self):
+        from meme_machine.lanes.pons import BoundaryError
+        work = self.claim_candidate()
+        newer = deepcopy(self.capture['event'])
+        newer.update(blockNumber=hex(self.block+1),blockHash=self.header(self.block+1)['hash'],
+            transactionHash='0x'+hashlib.sha256(b'newer-native-buy').hexdigest())
+        self.lane.broker.enqueue(newer)
+        before = self.lane.plane.get(work['key']); calls = len(self.calls)
+        self.lane.context.generation_guard = lambda:self.lane.plane.current(work['work'])
+        try:
+            self.lane.context.batch([('eth_chainId',[])],'pons_natural')
+        except BoundaryError as error:
+            self.assertEqual(str(error),'candidate_generation_superseded')
+            caught = error
+        else:
+            self.fail('superseded native work reached provider acquisition')
+        self.settle_candidate_error(work,caught)
+        after = self.lane.plane.get(work['key'])
+        self.assertEqual({k:after[k] for k in ('generation','payload','state','pending')},
+            {k:before[k] for k in ('generation','payload','state','pending')})
+        self.assertGreater(after['generation'],work['work']['generation'])
+        self.assertEqual(after['pending'],1); self.assertEqual(len(self.calls),calls)
+        self.assertEqual(self.lane.snapshot()['candidate_outcomes'],{'superseded':1})
+        self.assertEqual(self.lane.snapshot()['failures'],{})
+        self.assertEqual(self.lane.counts['candidate_superseded'],1)
+        self.assertEqual(self.lane.counts['candidate_completed'],0)
+
+    def test_authenticated_non_native_screen_keeps_native_proof_and_never_claims_qualification(self):
+        from meme_machine.lanes.pons import BoundaryError
+        proof = json.loads((Path(__file__).parent/
+            'fixtures/robinhood/run369-pons-accounting.json').read_text())['deferrals'][1]['immutable_proof']
+        work = self.claim_candidate()
+        proof = dict(proof,curve=work['event']['address'])
+        self.lane.context.boundary_evidence = proof
+        self.settle_candidate_error(work,BoundaryError('natural_non_native_quote_not_supported'))
+        snapshot = self.lane.snapshot(); row = self.lane.plane.get(work['key'])
+        self.assertEqual(row['state'],'structural_excluded')
+        self.assertEqual(snapshot['candidate_outcomes'],{'structural_excluded':1})
+        self.assertEqual(snapshot['failures'],{})
+        self.assertEqual(self.lane.counts['candidate_completed'],0)
+        self.assertEqual(self.lane.counts['candidate_qualified'],0)
+        details = json.loads(self.lane.plane.db.execute(
+            "SELECT details FROM transitions WHERE kind='structural_excluded' ORDER BY seq DESC LIMIT 1").fetchone()[0])
+        self.assertEqual(details['authenticated_evidence'],proof)
+
+    def test_unproven_boundary_and_genuine_provider_capacity_remain_failures(self):
+        from meme_machine.lanes.pons import BoundaryError
+        work = self.claim_candidate()
+        self.lane.context.boundary_evidence = dict(boundary='natural_non_native_quote_not_supported',
+            authentication_complete=False,pair_token='0x'+'44'*20,decision_age_seconds=0)
+        self.settle_candidate_error(work,BoundaryError('natural_non_native_quote_not_supported'))
+        self.assertEqual(self.lane.plane.get(work['key'])['state'],'authoritative_evidence_failure')
+        self.assertEqual(self.lane.snapshot()['failures'],
+            {'qualification:natural_non_native_quote_not_supported':1})
+        # A new real nomination gives a new attempt; the old proof is never
+        # enough to turn a genuine provider 429 into a structural exclusion.
+        newer = deepcopy(self.capture['event']); newer['transactionHash']='0x'+'ab'*32
+        newer['logIndex']=hex(int(newer['logIndex'],16)+1)
+        self.lane.broker.enqueue(newer); work = self.lane.broker.pop()
+        self.assertIsNotNone(work)
+        self.settle_candidate_error(work,BoundaryError('provider_http_429'))
+        self.assertEqual(self.lane.plane.get(work['key'])['state'],'provider_capacity_defer')
+        self.assertEqual(self.lane.snapshot()['failures'],
+            {'qualification:natural_non_native_quote_not_supported':1,'qualification:provider_http_429':1})
+        self.assertEqual(self.lane.snapshot()['candidate_outcomes'],
+            {'authoritative_evidence_failure':1,'provider_capacity_defer':1})
+        self.assertEqual(self.lane.counts['candidate_completed'],0)
 
     def test_failure_examples_never_emit_untrusted_exception_text_and_remain_bounded(self):
         from meme_machine.lanes.pons import BoundaryError

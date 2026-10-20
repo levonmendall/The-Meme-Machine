@@ -269,6 +269,7 @@ class ManagedPonsLane:
         self.owner = (self.root/'managed-pons.lock').open('a')
         fcntl.flock(self.owner, fcntl.LOCK_EX | fcntl.LOCK_NB)
         self.counts = Counter(); self.failure_counts = Counter()
+        self.candidate_outcomes = Counter()
         self.failure_examples = []; self.failure_examples_dropped = 0
         self.closed = False; self.started = time.time(); self.latest = None
         self.head_sample_at = -float('inf'); self.future = None
@@ -498,10 +499,35 @@ class ManagedPonsLane:
                     self.counts['candidate_qualified'] += bool(evaluation['vector'].get('current_threshold_pass'))
                 else: self.counts['candidate_superseded'] += 1
             except Exception as error:
+                from meme_machine.lanes.pons import BoundaryError
+                from meme_machine.lanes.pons.pons_selective_acquisition import authenticated_early_rejection
                 from meme_machine.runtime.robinhood.provider_authority import failure_class
-                reason = failure_class(error)
-                self.broker.failure(work, reason)
-                self.failure_counts['qualification:' + reason] += 1
+                # Match the production Current cohort's native boundary contract.
+                # Only committed fixed native reasons cross the diagnostic boundary;
+                # arbitrary exception/provider text retains its existing redaction.
+                reason = (error.args[0] if isinstance(error, BoundaryError) and
+                    len(error.args) == 1 and type(error.args[0]) is str and
+                    error.args[0] in SAFE_NATIVE_FAILURE_REASONS else failure_class(error))
+                evidence = self.context.boundary_evidence if isinstance(error, BoundaryError) else None
+                screen = authenticated_early_rejection(reason, evidence)
+                with self.plane.lock:
+                    # Plane.finish's bool means canonical evidence completed;
+                    # an ordinary rejection also commits but returns False.
+                    # Read this attempt's new native audit outcome while holding
+                    # the same owner lock, rather than inventing a classifier.
+                    before = self.plane.db.execute('SELECT MAX(seq) FROM transitions').fetchone()[0] or 0
+                    self.broker.failure(work, reason, screen=screen, evidence=evidence)
+                    recorded = self.plane.db.execute('SELECT kind FROM transitions WHERE seq>? '
+                        'AND candidate=? AND generation=? ORDER BY seq DESC LIMIT 1',
+                        (before, work['key'], work['work']['generation'])).fetchone()
+                    outcome = recorded[0] if recorded is not None else 'not_committed'
+                self.candidate_outcomes[outcome] += 1
+                if outcome == 'superseded':
+                    self.counts['candidate_superseded'] += 1
+                elif outcome not in ('strategy_rejected', 'structural_excluded'):
+                    self.failure_counts['qualification:' + reason] += 1
+                # Expected exclusions remain visible and never count as completed
+                # native qualification, market coverage or financial authority.
                 self.record_failure_example('qualification', error)
             finally:
                 self.future = self.future_work = None
@@ -510,6 +536,7 @@ class ManagedPonsLane:
             if work is not None:
                 from meme_machine.lanes.pons.pons_selective_acquisition import evaluate_candidate
                 from meme_machine.lanes.pons.pons_selective_paper import STRATEGY_CAPITAL_QUOTE
+                self.context.boundary_evidence = None
                 self.context.generation_guard = lambda: self.plane.current(work['work']) and not self.cancel()
                 self.future_work = work; self.future_started = time.monotonic()
                 observed_mono = time.monotonic() - max(0, time.time()-work['queued_at'])
@@ -535,6 +562,7 @@ class ManagedPonsLane:
             durable_ranges=ranges,economic_events=raw,pending_candidates=pending,
             candidate_worker_active=self.future is not None,
             counts=dict(self.counts),failures=dict(self.failure_counts),
+            candidate_outcomes=dict(self.candidate_outcomes),
             failure_examples=[dict(row) for row in self.failure_examples],
             failure_examples_dropped=self.failure_examples_dropped,
             provider_usage=self.rpc.shared_admission.telemetry(),
