@@ -110,13 +110,16 @@ class ManagedSurvivorTests(unittest.TestCase):
         self.plane.clock=lambda:100
         row=self.reader.history.graduate(address(1),graduation(1))
         self.scout.register_pool(row);self.reader.now=lambda:200
-        calls=[]
+        from meme_machine.lanes.pons.provider_admission import priority
+        calls=[];priorities=[];outer=[]
         class Offline:
             def batch(inner,rows,*,scope):
-                calls.extend(rows);return [[] for _ in rows]
+                priorities.append(priority(scope));calls.extend(rows);return [[] for _ in rows]
         self.reader.rpc=Offline()
-        with patch.object(self.reader,'_provider'),patch.object(self.reader,'_discover_scout'):
+        with patch.object(self.reader,'_provider',side_effect=lambda:outer.append(priority('pons_survivor'))), \
+                patch.object(self.reader,'_discover_scout'):
             self.reader.step(110)
         self.assertEqual(self.scout.snapshot()['minimum_active_pool_cursor'],110)
         self.assertEqual(len(calls),2)
         self.assertEqual(calls[0][1][0]['topics'][1],[row['graduation']['transition']['market']])
+        self.assertEqual(outer,[30]);self.assertEqual(priorities,[20])

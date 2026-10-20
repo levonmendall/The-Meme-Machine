@@ -11,6 +11,7 @@ import time
 from meme_machine.runtime.journal import canonical,digest
 from meme_machine.lanes.pons.pons_survivor_runtime import Runtime,Quotes
 from meme_machine.lanes.pons.pons_postgrad_survivor import POLICY,POLICY_HASH
+from meme_machine.lanes.pons.provider_admission import decision_work
 from .managed_native_pons import require
 
 
@@ -105,6 +106,7 @@ class SurvivorMarketReadSide:
         context.batch=batch;self.position_evidence_context=context
         return context
 
+    @decision_work(4)
     def step(self,top):
         """Production fair discovery/history/qualification turn, without entries."""
         require(not self.cancel(),'survivor_cancelled')
