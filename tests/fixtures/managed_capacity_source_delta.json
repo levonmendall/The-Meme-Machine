@@ -55,6 +55,81 @@
       "after_bytes": 24228,
       "after_sha256": "937128e9118cd0cac2589a2c3397e66ad1073352eb8cdb6f837f61630305d0cf",
       "status": "A"
+    },
+    "meme_machine/runtime/evidence_worker.py": {
+      "after_bytes": 27472,
+      "after_sha256": "2fdde714eab8acf0b98423d986d8456ad2b51b18de2787a280c07fcef0d2cc4b",
+      "before_bytes": 27121,
+      "before_sha256": "a8a81d47138248a38cf7a959c3ff231e4732f0a274c79e3ee41d0fc05ea8865c",
+      "changed_nodes": [
+        "__statement_20"
+      ],
+      "status": "M"
+    },
+    "meme_machine/solana_candidate_join.py": {
+      "after_bytes": 26023,
+      "after_sha256": "b140ff8e1302b8487152e3509e630822f9bf19498fa2a54baea31c898cd3dd00",
+      "before_bytes": 22910,
+      "before_sha256": "cd570e5ed58519bf61ccfc553910d1a5093952e7754a9cab80d517f3e7269699",
+      "changed_nodes": [
+        "CandidateTransactionJoin.__init__",
+        "CandidateTransactionJoin.__layout__",
+        "CandidateTransactionJoin.complete_deferred_log",
+        "CandidateTransactionJoin.defer_log",
+        "CandidateTransactionJoin.deferred_log_witness",
+        "CandidateTransactionJoin.diagnostic",
+        "CandidateTransactionJoin.feed"
+      ],
+      "status": "M"
+    },
+    "meme_machine/solana_selective_source.py": {
+      "after_bytes": 160157,
+      "after_sha256": "6156212b82efcff3700a29727f4681a451c26a4919bfd9d8266e26fdbdc68f12",
+      "before_bytes": 155835,
+      "before_sha256": "c21b570ff602dd190ea8e305776dbbefeffc50f214bff4a92beb43374aa8aa4c",
+      "changed_nodes": [
+        "SelectiveSource.live",
+        "SelectiveSource.observe",
+        "SelectiveSource.rolling_programs",
+        "__statement_16",
+        "__statement_17",
+        "__statement_18",
+        "__statement_19",
+        "__statement_20",
+        "__statement_21",
+        "__statement_22",
+        "__statement_23",
+        "__statement_24",
+        "__statement_25",
+        "__statement_26",
+        "__statement_27",
+        "__statement_28",
+        "__statement_29",
+        "__statement_30",
+        "__statement_31",
+        "__statement_32",
+        "__statement_33",
+        "__statement_34",
+        "__statement_35",
+        "__statement_36",
+        "__statement_37",
+        "__statement_38",
+        "__statement_39",
+        "__statement_40",
+        "__statement_41",
+        "__statement_42",
+        "__statement_43",
+        "__statement_44",
+        "__statement_45",
+        "__statement_49",
+        "__statement_50"
+      ],
+      "status": "M"
+    },
+    "meme_machine/solana_stream_log_repair.py": {
+      "after_bytes": 4879,
+      "after_sha256": "8b402fe80f7a52a89e23d60931032d011788309c53d93f0aa8ed3cb5686c7182",
+      "status": "A"
     }
   },
   "guard": {
@@ -88,8 +163,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "946bd7477e5846c0b3a6eaac3f3a764aca102f17",
-  "implementation_tree": "27b49fea8cd4c09911f104725dd28e6a4b747a45",
+  "implementation": "b1acf1870a4447944203efa78db377c3d8cc71d4",
+  "implementation_tree": "a382cf2886c426e737b0dd97af5c0640d83bea29",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 7378,

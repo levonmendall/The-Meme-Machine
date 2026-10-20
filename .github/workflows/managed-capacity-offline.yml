@@ -38,5 +38,9 @@ jobs:
             tests.test_solana_source_drain tests.test_source_drain_preservation \
             tests.test_source_handler_recovery tests.test_source_pool_cooperative_stop \
             tests.test_native_startup_lifecycle tests.test_startup_history_cancellation \
-            tests.test_sqlite_failure_attribution tests.test_pons_protection_revision
-          python -m operational.tests OPERATIONAL --verbose --modules tests.lanes.pons.test_provider_topology
+            tests.test_sqlite_failure_attribution tests.test_pons_protection_revision \
+            tests.test_archive_full_log_content tests.test_solana_selective_evidence \
+            tests.test_solana_source_intake.SourceIntakeTests
+          python -m operational.tests OPERATIONAL --verbose --modules \
+            tests.lanes.pons.test_provider_topology \
+            tests.test_solana_source_intake.LiveIntakeBoundaryTests
