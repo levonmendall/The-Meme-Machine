@@ -232,6 +232,16 @@ class PacedRpc(Rpc):
     """Existing bounded Rpc with a physical-request pace and explicit provider role."""
 
     @property
+    def endpoint(self):
+        """Expose the acquisition identity without exposing a canonical key.
+
+        MarketScout and LogWindows use this identity to look up the existing
+        endpoint/filter capability. An absent public property silently disabled
+        that production path even when the protected comparison was present.
+        """
+        return authority.reference(self._endpoint) if self.canonical_authority else self._endpoint
+
+    @property
     def evidence_deadline(self):
         # Explicit client bounds retain their established behavior. An exact
         # fallback adds only a thread-local, temporary upper bound, so peers on

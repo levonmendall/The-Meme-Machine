@@ -58,6 +58,35 @@ class WindowsCase(unittest.TestCase):
         self.assertEqual(len(self.calls),4)
         self.assertTrue(all(int(p[0]['toBlock'],16)-int(p[0]['fromBlock'],16)<10 for _,p in self.calls))
 
+    def test_actual_managed_scout_reaches_proved_window_using_nonsecret_endpoint_identity(self):
+        from meme_machine.lanes.pons.pons_natural_observation import MarketScout
+        from meme_machine.lanes.pons.provider_topology import configured_discovery_rpc
+        from meme_machine.runtime.robinhood.plane import Plane
+        plane=Plane(self.root/'managed-scout.sqlite');self.addCleanup(plane.close)
+        scout=MarketScout(plane)
+        query=dict(topics=[[scout.launch,scout.graduation,*scout.curve_topics]])
+        self.write(capability(query))
+        env=dict(MM_ROBINHOOD_READ_RPC_URL=ENDPOINT,MM_ROBINHOOD_STATE_DIR=str(self.root),
+            MM_PONS_OBSERVATION_ROUTE='canonical_primary',MM_PONS_LOG_CAPABILITY_FILE=str(self.file))
+        calls=[]
+        def transport(method,params):
+            calls.append((method,deepcopy(params)))
+            return '0x1237' if method=='eth_chainId' else []
+        pages=[dict(query,fromBlock=hex(n),toBlock=hex(n+9)) for n in range(1,41,10)]
+        with patch.dict(os.environ,env,clear=True):
+            rpc=configured_discovery_rpc(transport=transport)
+            self.assertTrue(rpc.endpoint.startswith('alchemy:'))
+            self.assertNotIn('OFFLINE_PAYG_FIXTURE',rpc.endpoint)
+            self.assertEqual(scout._pages(rpc,pages),[[]])
+            logs=[p[0] for m,p in calls if m=='eth_getLogs']
+            self.assertEqual(len(logs),1)
+            self.assertEqual((logs[0]['fromBlock'],logs[0]['toBlock']),('0x1','0x28'))
+            # A new credential cannot inherit the previous capability.
+            with patch.dict(os.environ,dict(MM_ROBINHOOD_READ_RPC_URL=ENDPOINT+'_ROTATED')):
+                rotated=configured_discovery_rpc(transport=transport)
+                calls.clear();scout._pages(rotated,pages)
+                self.assertEqual(len([1 for m,p in calls if m=='eth_getLogs']),4)
+
     def test_verified_filter_reduces_log_elements_without_changing_the_tape(self):
         self.write();planner=self.planner()
         self.assertEqual(planner.read(1,40,self.provider),[event(n) for n in range(1,41)])
