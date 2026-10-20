@@ -64,6 +64,24 @@ def private_directory(path, *, empty=False):
     return path
 
 
+def failure_site(error):
+    """First-party code coordinates only; no exception text, locals or paths."""
+    trace = error.__traceback__
+    site = {}
+    for _ in range(32):
+        if trace is None:
+            break
+        module = trace.tb_frame.f_globals.get('__name__', '')
+        function = trace.tb_frame.f_code.co_name
+        if (type(module) is str and len(module) <= 200 and
+                re.fullmatch(r'meme_machine(?:\.[A-Za-z_][A-Za-z0-9_]*)+', module)
+                and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,63}', function)
+                and function not in ('require', '_require') and 0 < trace.tb_lineno < 1000000):
+            site = dict(module=module, function=function, line=trace.tb_lineno)
+        trace = trace.tb_next
+    return site
+
+
 class Evidence:
     """One owner, create-only parts, fsync before acknowledging each sample."""
     def __init__(self, root, generation):

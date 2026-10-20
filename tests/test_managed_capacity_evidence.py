@@ -9,6 +9,19 @@ from meme_machine.operational import managed_capacity_evidence as evidence
 
 
 class ManagedEvidence(unittest.TestCase):
+    def test_failure_site_preserves_real_code_without_exception_data(self):
+        from meme_machine.operational.managed_native_pump import FinalizedHeadObserver
+        class Offline:
+            def call(self, *args): return 'secret-provider-credential'
+        try:
+            FinalizedHeadObserver().sample(Offline())
+        except ValueError as error:
+            site = evidence.failure_site(error)
+        self.assertEqual(site['module'], 'meme_machine.operational.managed_native_pump')
+        self.assertEqual(site['function'], 'sample')
+        self.assertGreater(site['line'], 0)
+        self.assertNotIn('secret-provider-credential', json.dumps(site))
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)

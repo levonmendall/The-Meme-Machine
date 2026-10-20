@@ -15,6 +15,22 @@ from meme_machine.operational import managed_native_pump as managed
 
 
 class ManagedPumpTests(unittest.TestCase):
+    def test_market_head_does_not_confuse_sql_progress_or_invent_missing_arrivals(self):
+        observer = managed.FinalizedHeadObserver()
+        rpc = SimpleNamespace(call=Mock(side_effect=[100, TimeoutError('private-provider'), 102, 99]))
+        first = observer.sample(rpc)
+        self.assertEqual(first['slot'], 100)
+        self.assertTrue(first['fresh'])
+        failed = observer.sample(rpc)
+        self.assertFalse(failed['fresh'])
+        self.assertEqual(failed['observed_monotonic'], first['observed_monotonic'])
+        self.assertNotIn('private-provider', json.dumps(failed))
+        self.assertEqual(observer.sample(rpc)['slot'], 102)
+        with self.assertRaisesRegex(ValueError, 'authenticated_head_regressed'):
+            observer.sample(rpc)
+        self.assertTrue(all(call.args == ('getSlot', [{'commitment':'finalized'}])
+                            for call in rpc.call.call_args_list))
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)

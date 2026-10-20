@@ -24,7 +24,7 @@ if __package__ in (None, ''):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from meme_machine.operational.managed_capacity_evidence import (
-    Evidence, atomic_json, host_sample, private_directory, read_json, verify)
+    Evidence, atomic_json, failure_site, host_sample, private_directory, read_json, verify)
 
 SCHEMA = 'managed-native-capacity-workload-v1'
 ALLOWED_ENV = frozenset(('MM_SOLANA_READ_RPC_URL', 'MM_SOLANA_YELLOWSTONE_TOKEN',
@@ -142,6 +142,7 @@ def sample_projection(lane, row):
         result['unresolved_gap_scopes'] = len(native.get('unresolved_gaps') or ())
         result['outbox'] = native.get('outbox')
         result['observation_unavailable'] = row.get('observation_unavailable')
+        result['authenticated_finalized_head'] = row.get('authenticated_finalized_head')
         qualifier = row.get('qualification_worker') or {}
         result['qualification_worker'] = {k: qualifier.get(k) for k in (
             'initialization_pending', 'observation_unavailable', 'source_native_events',
@@ -350,6 +351,7 @@ def _child(args):
         from meme_machine.runtime.evidence_worker import failure_diagnostic
         atomic_json(root / 'result.json', dict(state='NATIVE_FAILED',
             error_type=type(error).__name__, native_failure=failure_diagnostic(error),
+            origin=failure_site(error),
             financial_authority=False))
         return 2
 

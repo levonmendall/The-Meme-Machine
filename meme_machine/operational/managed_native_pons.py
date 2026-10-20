@@ -522,7 +522,9 @@ def run_pons(root, duration, generation, *, sample_callback=None, cancel=None,sa
                 next_sample=time.monotonic()+sample_seconds
     except Exception as failure:
         from meme_machine.runtime.robinhood.provider_authority import failure_class
-        error = dict(type=type(failure).__name__,reason=failure_class(failure))
+        from .managed_capacity_evidence import failure_site
+        error = dict(type=type(failure).__name__,reason=failure_class(failure),
+                     origin=failure_site(failure))
     finally:
         if error is not None:stopped.set()
         lane.pool.shutdown(wait=True,cancel_futures=True)

@@ -256,13 +256,16 @@ class ManagedNativePonsTests(unittest.TestCase):
         from meme_machine.operational.managed_native_pons import run_pons
         external=threading.Event();self.enroll()
         self.receipt_hook=external.set
-        usage=self.base/'provider-usage.sqlite';usage.touch(mode=0o600)
+        from meme_machine.operational.bounded_provider import Budget
+        usage=self.base/'provider-usage.sqlite'
+        Budget.create(usage,continuous=json.loads(self.profile.read_text()))
         def bind(*args,**kwargs):
             self.lane.cancel=kwargs['cancel']
             return self.lane
-        def finish():
+        def finish(**kwargs):
             self.lane.survivor_replay=dict(verified=True,events=0)
             self.lane.survivor_pool.shutdown(wait=True,cancel_futures=True)
+            if kwargs.get('drain_callback') is not None:kwargs['drain_callback']()
             return self.lane.survivor_replay
         with patch.dict(os.environ,dict(MM_PROVIDER_USAGE_DB=str(usage))), \
                 patch('meme_machine.operational.bounded_provider.install'), \

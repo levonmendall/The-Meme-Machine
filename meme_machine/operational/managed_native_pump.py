@@ -109,7 +109,8 @@ class PumpManagedConfig:
             canonical_history_delivery=True, economic_strategy_evaluation=False,
             native_candidate_prospect_evaluation=True,
             full_candidate_qualification_proven=False,
-            financial_authority=False, hot_store_limit_bytes=2 * 1024**3)
+            financial_authority=False, hot_store_limit_bytes=2 * 1024**3,
+            finalized_head_sampling_seconds=5)
 
     def environment(self):
         return dict(MM_MODE='PAPER', MM_OPERATIONAL_PHASE='OBSERVATION',
@@ -179,6 +180,33 @@ def production_components(config):
     rpc = RepairRPC(config.endpoint, Governor(os.environ['MM_PROVIDER_GOVERNOR_DB']))
     driver = SelectiveSource(rpc.config, rpc, token=config.token or rpc.config.credential)
     return rpc, driver, serve
+
+
+class FinalizedHeadObserver:
+    """Independent market frontier, charged by production RPC and governor.
+
+    Joined frame admission is not market arrival. A finalized slot frontier
+    includes skipped slots and cannot establish complete block coverage.
+    """
+    def __init__(self):
+        self.last = None
+        self.requests = self.failures = 0
+
+    def sample(self, rpc):
+        self.requests += 1
+        started = time.monotonic()
+        try:
+            slot = rpc.call('getSlot', [dict(commitment='finalized')])
+        except Exception as error:
+            self.failures += 1
+            return dict(self.last or {}, fresh=False, requests=self.requests,
+                failures=self.failures, error_type=type(error).__name__,
+                last_request_latency_seconds=time.monotonic()-started)
+        _require(type(slot) is int and 0 < slot < 2**63, 'authenticated_head_shape')
+        _require(self.last is None or slot >= self.last['slot'], 'authenticated_head_regressed')
+        self.last = dict(slot=slot, observed_monotonic=time.monotonic(), observed_at=time.time())
+        return dict(self.last, fresh=True, requests=self.requests, failures=self.failures,
+                    last_request_latency_seconds=time.monotonic()-started)
 
 
 def install_nonfinancial_history(config):
@@ -400,12 +428,14 @@ async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_
         from .managed_pump_qualification import read_qualifications
         qualification_metrics = dict(initialization_pending=True,
             full_qualification_proven=False, financial_authority=False)
+        head_observer = FinalizedHeadObserver()
         def publish_qualification(value):
             nonlocal qualification_metrics
             qualification_metrics = value
         async def samples():
             while not stop.is_set():
                 if sample_callback is not None:
+                    head = await asyncio.to_thread(head_observer.sample, rpc)
                     # SQLite reads leave the source event loop responsive.
                     # Process-local counters are copied on their owning loop.
                     try:
@@ -420,6 +450,7 @@ async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_
                     sample['pipeline'] = {k: dict(v) for k, v in driver.pipeline_metrics.items()}
                     sample['source_frames'] = driver.drain_snapshot()
                     sample['qualification_worker'] = dict(qualification_metrics)
+                    sample['authenticated_finalized_head'] = head
                     sample_callback(sample)
                 try:
                     await asyncio.wait_for(stop.wait(), sample_seconds)
@@ -444,6 +475,7 @@ async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_
                     child.result()
             except TimeoutError:
                 raise ValueError('managed_pump_source_shutdown_deadline') from None
+        primary_error = None
         try:
             with owner_thread_fairness():
                 workload = asyncio.create_task(serve(config.evidence, config.endpoint,
@@ -464,13 +496,20 @@ async def run_pump(config, stop, *, restart=False, sample_callback=None, sample_
                         sampler.result()
                 finally:
                     await drained()
+        except BaseException as error:
+            primary_error = error
+            raise
         finally:
             stop.set()
             # Parent cancellation must retain the environment and ownership
             # lock while the same production source finishes accepted work.
             try:
                 if any(t is not None and not t.done() for t in (workload, qualification)):
-                    await drained()
+                    try:
+                        await drained()
+                    except BaseException:
+                        if primary_error is None:
+                            raise
             finally:
                 await asyncio.gather(sampler, return_exceptions=True)
         if drain_callback is not None:
