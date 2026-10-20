@@ -38,6 +38,7 @@ FAST=[
  'tests.test_isolated_native_pump',
  'tests.test_isolated_native_pons',
  'tests.test_managed_native_pons',
+ 'tests.test_managed_pons_survivor',
  'tests.test_source_pool_cooperative_stop',
  'tests.test_preparation_failed_recovery',
  'tests.test_archive_full_log_content',

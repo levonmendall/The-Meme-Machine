@@ -95,6 +95,7 @@ def private_root(root, generation):
     allowed = {'managed-pons.json', 'managed-pons.lock', 'native.sqlite',
         'native.sqlite-wal', 'native.sqlite-shm', 'provider.sqlite', 'provider.sqlite-wal',
         'provider.sqlite-shm', 'evidence.sqlite', 'evidence.sqlite-wal', 'evidence.sqlite-shm',
+        'survivor.sqlite','survivor.sqlite-wal','survivor.sqlite-shm',
         'telemetry.json', 'result.json', 'telemetry.json.new', 'result.json.new'}
     if marker.exists():
         require(json.loads(marker.read_text()) == expected, 'generation_marker')
@@ -119,7 +120,7 @@ class ManagedPonsLane:
         self.cancel = cancel or (lambda: False)
         # Independent library use also creates private SQLite files regardless
         # of the launching shell's umask. Existing files were authenticated above.
-        for name in ('managed-pons.lock','native.sqlite','provider.sqlite','evidence.sqlite'):
+        for name in ('managed-pons.lock','native.sqlite','provider.sqlite','evidence.sqlite','survivor.sqlite'):
             fd = os.open(self.root/name,os.O_RDWR|os.O_CREAT|os.O_NOFOLLOW,0o600)
             os.close(fd)
         self.owner = (self.root/'managed-pons.lock').open('a')
@@ -129,6 +130,10 @@ class ManagedPonsLane:
         self.head_sample_at = -float('inf'); self.future = None
         self.future_work = None; self.future_started = None
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='pons-capacity-current')
+        self.survivor_pool=ThreadPoolExecutor(max_workers=1,thread_name_prefix='pons-capacity-survivor')
+        self.survivor_reader=None;self.survivor_future=None;self.survivor_next=0.
+        self.survivor_snapshot=dict(available=False,allocation_authority=False)
+        self.survivor_replay=None
         from meme_machine.runtime.robinhood.provider_authority import reference
         from meme_machine.lanes.pons.pons_selective_continuation import POLICY_HASH
         from meme_machine.runtime.robinhood.pons import Broker, durable_cache, shared_evidence_domain
@@ -163,6 +168,7 @@ class ManagedPonsLane:
                 self.latest = int(body['header']['number'],16)
         except BaseException:
             self.pool.shutdown(wait=False, cancel_futures=True)
+            self.survivor_pool.shutdown(wait=False,cancel_futures=True)
             if hasattr(self, 'broker'): self.broker.close()
             self.owner.close(); raise
 
@@ -373,13 +379,54 @@ class ManagedPonsLane:
             candidate_worker_active=self.future is not None,
             counts=dict(self.counts),failures=dict(self.failure_counts),
             provider_usage=self.rpc.shared_admission.telemetry(),
+            survivor=self.survivor_snapshot,
             storage_bytes=sum(p.stat().st_size for p in self.root.iterdir() if p.is_file()),
             scope=dict(managed_admission=True,native_batches=True,native_decode=True,
                 native_current_history=True,native_current_history_persistence=True,
                 current_qualification=True,complete_current_qualification=False,
-                postgraduation_pool_discovery=False,survivor_qualification=False,financial_entries=False,
+                postgraduation_pool_discovery=True,survivor_qualification=True,
+                complete_survivor_qualification=False,financial_entries=False,
                 held_protection_live=False,
-                sizing_input='unchanged_native_unfunded_reference_constant'),observed_at=time.time())
+                sizing_input='unchanged_native_unfunded_reference_constant'),observed_at=time.time(),
+            monotonic=time.monotonic(),authenticated_head_sample_monotonic=self.head_sample_at)
+
+    def poll_survivor(self,*,submit=True):
+        """Independent production three-second read turn; no financial Runtime."""
+        if self.survivor_future is not None and self.survivor_future.done():
+            try:self.survivor_snapshot=self.survivor_future.result()
+            except Exception as error:
+                from meme_machine.runtime.robinhood.provider_authority import failure_class
+                reason=failure_class(error)
+                self.failure_counts['survivor:'+reason]+=1
+                self.survivor_snapshot=dict(available=False,error_type=type(error).__name__,
+                    reason=reason,allocation_authority=False,observed_at=time.time())
+            finally:self.survivor_future=None
+        if submit and self.survivor_future is None and not self.cancel() and self.latest is not None:
+            from .managed_pons_survivor import SurvivorMarketReadSide
+            if time.monotonic()<self.survivor_next:return
+            self.survivor_next=time.monotonic()+SurvivorMarketReadSide.observation_interval_seconds
+            def step(top=self.latest):
+                if self.survivor_reader is None:
+                    self.survivor_reader=SurvivorMarketReadSide(self.root/'survivor.sqlite',
+                        self.endpoint,self.plane,self.scout,cancel=self.cancel)
+                return self.survivor_reader.step(top)
+            self.survivor_future=self.survivor_pool.submit(step)
+
+    def finish_survivor(self):
+        if self.survivor_future is not None:
+            try:self.survivor_future.result()
+            except Exception:pass
+            self.poll_survivor(submit=False)
+        def finish():
+            if self.survivor_reader is None:return dict(verified=False,reason='survivor_not_started')
+            try:return self.survivor_reader.replay()
+            finally:self.survivor_reader.close()
+        try:self.survivor_replay=self.survivor_pool.submit(finish).result()
+        except Exception:
+            self.survivor_replay=dict(verified=False,reason='survivor_replay_failed')
+            raise
+        finally:self.survivor_pool.shutdown(wait=True,cancel_futures=True)
+        return self.survivor_replay
 
     def replay(self):
         """Replay every authenticated economic row with the real native decoder."""
@@ -417,13 +464,15 @@ class ManagedPonsLane:
         if self.closed: return
         self.pool.shutdown(wait=True, cancel_futures=True)
         self.poll_candidate(submit=False)
+        if self.survivor_replay is None:self.finish_survivor()
         self.broker.close(); self.owner.close(); self.closed = True
 
 
-def run_pons(root, duration, generation, *, sample_callback=None, cancel=None):
+def run_pons(root, duration, generation, *, sample_callback=None, cancel=None,sample_seconds=5):
     """Parent-callable lane; bounded runtime is independent of financial services."""
     require(type(duration) in (int,float) and math.isfinite(duration) and 0 < duration <= 7200,
             'duration')
+    require(type(sample_seconds) in (int,float) and 1<=sample_seconds<=60,'sample_interval')
     stopped = threading.Event()
     deadline = time.monotonic() + duration
     external_cancel = cancel or (lambda: False)
@@ -433,12 +482,16 @@ def run_pons(root, duration, generation, *, sample_callback=None, cancel=None):
     # constructing any RPC, even when this callable is invoked without a parent.
     from .bounded_provider import install
     install()
-    lane = ManagedPonsLane(root,generation,cancel=lambda:stopped.is_set() or external_cancel())
-    error = None; replay = None
+    # External cancellation closes NEW admissions at the loop boundary. An
+    # admitted range and its existing workers retain their original deadlines
+    # and finish before the internal safety cancellation is raised.
+    lane = ManagedPonsLane(root,generation,cancel=stopped.is_set)
+    error = None; replay = None;next_sample=0.
     try:
         lane.sample_head()
         while time.monotonic() < deadline and not external_cancel():
             lane.poll_candidate()
+            lane.poll_survivor()
             if time.monotonic()-lane.head_sample_at >= 1:
                 lane.sample_head()
             if lane.latest > lane.cursor:
@@ -459,20 +512,29 @@ def run_pons(root, duration, generation, *, sample_callback=None, cancel=None):
                     stopped.wait(min(1,max(0,deadline-time.monotonic())))
             else:
                 stopped.wait(min(.02,max(0,deadline-time.monotonic())))
-            snapshot = lane.snapshot(); atomic_json(Path(root)/'telemetry.json',snapshot)
-            if sample_callback is not None: sample_callback(snapshot)
+            if time.monotonic()>=next_sample:
+                snapshot = lane.snapshot(); atomic_json(Path(root)/'telemetry.json',snapshot)
+                if sample_callback is not None: sample_callback(snapshot)
+                next_sample=time.monotonic()+sample_seconds
     except Exception as failure:
         from meme_machine.runtime.robinhood.provider_authority import failure_class
         error = dict(type=type(failure).__name__,reason=failure_class(failure))
     finally:
-        stopped.set()
+        if error is not None:stopped.set()
         lane.pool.shutdown(wait=True,cancel_futures=True)
         lane.poll_candidate(submit=False)
+        try:survivor_replay=lane.finish_survivor()
+        except Exception as failure:
+            survivor_replay=dict(verified=False,error_type=type(failure).__name__)
+            error=dict(type=type(failure).__name__,reason='survivor_native_replay_failed')
+        stopped.set()
         try: replay = lane.replay()
         except Exception as failure: error = dict(type=type(failure).__name__,reason='native_replay_failed')
         result = lane.snapshot()
         result.update(error=error,replay=replay,elapsed_seconds=time.time()-lane.started,
+                      survivor_replay=survivor_replay,
                       verdict='BLOCKED' if error else 'OBSERVED',production_acceptance=False)
+        atomic_json(Path(root)/'telemetry.json',result)
         atomic_json(Path(root)/'result.json',result)
         lane.close()
     return result

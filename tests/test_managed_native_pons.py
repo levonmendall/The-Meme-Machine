@@ -251,3 +251,27 @@ class ManagedNativePonsTests(unittest.TestCase):
             position_work(lambda:governor.invoke(transport,['eth_call'],'pons_protective_simulation',
                                                  deadline=clock[0]))()
         self.assertEqual(len(starts),6)
+
+    def test_external_stop_during_real_receipt_finishes_only_the_admitted_range(self):
+        from meme_machine.operational.managed_native_pons import run_pons
+        external=threading.Event();self.enroll()
+        self.receipt_hook=external.set
+        usage=self.base/'provider-usage.sqlite';usage.touch(mode=0o600)
+        def bind(*args,**kwargs):
+            self.lane.cancel=kwargs['cancel']
+            return self.lane
+        def finish():
+            self.lane.survivor_replay=dict(verified=True,events=0)
+            self.lane.survivor_pool.shutdown(wait=True,cancel_futures=True)
+            return self.lane.survivor_replay
+        with patch.dict(os.environ,dict(MM_PROVIDER_USAGE_DB=str(usage))), \
+                patch('meme_machine.operational.bounded_provider.install'), \
+                patch('meme_machine.operational.managed_native_pons.ManagedPonsLane',side_effect=bind), \
+                patch.object(self.lane,'poll_candidate'),patch.object(self.lane,'poll_survivor'), \
+                patch.object(self.lane,'finish_survivor',side_effect=finish):
+            result=run_pons(self.root,60,GENERATION,cancel=external.is_set)
+        self.assertTrue(external.is_set())
+        self.assertIsNone(result['error'])
+        self.assertEqual((result['incoming_blocks'],result['durable_blocks'],result['backlog']),(1,1,0))
+        self.assertTrue(result['replay']['verified'])
+        self.assertEqual(result['durable_ranges'],1)

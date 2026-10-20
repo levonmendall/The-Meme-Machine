@@ -48,6 +48,18 @@ def _quote_times(quote):
         evidence_available_at=getattr(stamp,'observed_at',None))
 
 
+def market_sizing_basis(runtime,target_bps,*,minimum_bps=0):
+    """Read sizing inputs independently of financial publication/entry APIs.
+
+    Normal Runtime keeps exactly its original sleeve authority and arithmetic.
+    A nonfinancial market reader may supply an explicit reference basis; that
+    basis can qualify read evidence but cannot reserve or allocate anything.
+    """
+    reference=getattr(runtime,'market_reference_basis',None)
+    if reference is not None:return reference(target_bps,minimum_bps=minimum_bps)
+    return runtime.sleeve.sizing_basis(target_bps,minimum_bps=minimum_bps)
+
+
 class Quotes:
     """Exact bounded probes, quoted at one authenticated block.
 
@@ -70,7 +82,7 @@ capacity. Searching cached quotes issues zero additional provider calls.
         rpc=runtime.rpc;key=PoolKey(**runtime.current['graduation']['key'])
         from .pons_quotes import pinned_block
         header=dict(number=hex(state['block']),hash=state['block_hash'])
-        block=pinned_block(rpc,'eth_call',header);minimum=runtime.sleeve.sizing_basis(500,minimum_bps=5)["minimum"]
+        block=pinned_block(rpc,'eth_call',header);minimum=market_sizing_basis(runtime,500,minimum_bps=5)["minimum"]
         sizes={n for n in sizes if n>=minimum and n not in self.prepared}
         if not sizes:return
         # A requested probe is execution evidence, not a reservation. The
@@ -124,7 +136,7 @@ capacity. Searching cached quotes issues zero additional provider calls.
     def loss(self,n):
         if not 0<=time.monotonic()-self.state['acquired']<=5:raise BoundaryError('survivor_stale_quote')
         if not self.prepared_ladder:
-            minimum=self.runtime.sleeve.sizing_basis(500,minimum_bps=5)['minimum']
+            minimum=market_sizing_basis(self.runtime,500,minimum_bps=5)['minimum']
             sizes={n,minimum}|{max(minimum,n//2**i) for i in range(1,4)}
             self._fetch(sizes|{2*x for x in sizes});self.prepared_ladder=True
         elif n not in self.prepared:self._fetch({n,2*n})
@@ -515,7 +527,7 @@ class Runtime:
                 buyer_groups=sorted(groups),new_buyer_groups=sorted(set(groups)-set(flow['previous_buyer_groups'])),
                 buy_quote_by_group=dict(groups),largest_buyer_flow_bps=0 if not total else max(groups.values())*10000//total,
                 creator_sell_quote=sum(e['quote'] for e in events if lower<=e['at']<upper and not e['buy'] and e['group'] in creators))
-        sizing=self.sleeve.sizing_basis(500,minimum_bps=5)
+        sizing=market_sizing_basis(self,500,minimum_bps=5)
         # Available cash is tested only after the durable decision. Identical
         # market evidence is qualified against the same realized-equity target.
         cap=min(sizing['target'],flow['turnover']//POLICY['execution']['min_turnover_multiple'])
