@@ -1081,7 +1081,8 @@ class SelectiveSource:
         require_active(family)
         def repair_receipt(receipt,attempt):
             if family=='rolling_recovery_missing_logs':
-                self.observe('log_repair',stage='repair_physical_requests',count=receipt.get('calls',1))
+                self.observe('log_repair',stage='repair_physical_requests',
+                    count=receipt.get('calls',int(receipt.get('cu',0)>0)))
                 if attempt:self.observe('log_repair',stage='repair_retry_calls')
         for attempt in range(3):
             from .operational.position_continuation import position_only
