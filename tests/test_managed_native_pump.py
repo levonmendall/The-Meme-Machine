@@ -1,5 +1,6 @@
 """Contained production-source contracts; no providers or original epoch files."""
 import asyncio
+from contextlib import closing, ExitStack
 from dataclasses import replace
 import hashlib
 import json
@@ -17,7 +18,8 @@ from meme_machine.operational import managed_native_pump as managed
 class ManagedPumpTests(unittest.TestCase):
     def test_market_head_does_not_confuse_sql_progress_or_invent_missing_arrivals(self):
         observer = managed.FinalizedHeadObserver()
-        rpc = SimpleNamespace(call=Mock(side_effect=[100, TimeoutError('private-provider'), 102, 99]))
+        rpc = SimpleNamespace(call_delivered=Mock(side_effect=[
+            (100, {}), TimeoutError('private-provider'), (102, {}), (99, {})]))
         first = observer.sample(rpc)
         self.assertEqual(first['slot'], 100)
         self.assertTrue(first['fresh'])
@@ -29,7 +31,141 @@ class ManagedPumpTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'authenticated_head_regressed'):
             observer.sample(rpc)
         self.assertTrue(all(call.args == ('getSlot', [{'commitment':'finalized'}])
-                            for call in rpc.call.call_args_list))
+                            and call.kwargs == dict(priority=2)
+                            for call in rpc.call_delivered.call_args_list))
+
+    def pressured_head(self, *, background=False, cooldown=False):
+        """Real admission/transport path, with a deterministic offline clock.
+
+        A source producer always has a foreground ticket waiting. On each
+        available physical turn it consumes that ticket through the real
+        governor, retaining its absolute deadline, then queues its next turn.
+        This models the sustained native repair pressure in the retained run;
+        no request to a market provider or financial position is made.
+        """
+        from meme_machine.runtime.evidence_worker import RepairRPC, DeliveredRPCError
+        from meme_machine.runtime.governor import Governor
+        from meme_machine.runtime.provider_purchases import ledger
+        now = [100.]
+        starts = []
+        path = self.parent / 'pressured-governor.sqlite'
+        tickets = dict(position_zero=0, held_position=1, foreground=2)
+        governor = None
+
+        def sleep(seconds):
+            now[0] += seconds
+            with closing(sqlite3.connect(path)) as db:
+                head = Governor._head(db, 'solana', now[0])
+                ready = db.execute("SELECT max(next_at,cooldown) FROM pressure "
+                                   "WHERE provider='solana'").fetchone()[0]
+                if not head or head[0] not in tickets or now[0] < ready:
+                    return
+                name = head[0]
+                deadline = db.execute('SELECT deadline FROM queue WHERE id=?',
+                                      (name,)).fetchone()[0]
+                db.execute('DELETE FROM queue WHERE id=?', (name,))
+                db.commit()
+            # Consume the producer's already queued turn through production
+            # admission. Preserve its deadline when exchanging the fixture's
+            # pending ticket for the actual governor-owned request ticket.
+            priority = tickets[name]
+            governor.acquire('solana', 'evidence', priority,
+                deadline_seconds=deadline-now[0], methods=('getTransaction',))
+            starts.append((priority, now[0]))
+            if name == 'foreground':
+                with closing(sqlite3.connect(path)) as db:
+                    db.execute('INSERT INTO queue VALUES(?,?,?,?,?,?)',
+                        (name, 'solana', 'evidence', priority, now[0], now[0]+8))
+                    db.commit()
+
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def read(self, maximum):
+                return b'{"jsonrpc":"2.0","id":1,"result":777}'
+
+        def transport(request, *, timeout):
+            self.assertEqual(timeout, 8)
+            self.assertEqual(json.loads(request.data)['method'], 'getSlot')
+            starts.append((2, now[0]))
+            return Response()
+
+        with ExitStack() as stack:
+            stack.enter_context(patch.dict(os.environ,
+                MM_SOLANA_EVIDENCE_PLANE_DB='isolated-pressure-fixture'))
+            stack.enter_context(patch('meme_machine.operational.position_continuation.provider_interval',
+                                      return_value=.5))
+            stack.enter_context(patch('meme_machine.runtime.governor.time.monotonic',
+                                      side_effect=lambda: now[0]))
+            stack.enter_context(patch('meme_machine.runtime.governor._stop_sleep',
+                                      side_effect=sleep))
+            opened = stack.enter_context(patch(
+                'meme_machine.runtime.evidence_worker.urllib.request.urlopen',
+                side_effect=transport))
+            governor = Governor(path)
+            self.assertEqual(governor.solana_interval, .5)
+            with closing(sqlite3.connect(path)) as db:
+                db.execute('INSERT INTO pressure VALUES(?,?,?,?,?)',
+                           ('solana', now[0], 0, 0, 0))
+                for name, priority in tickets.items():
+                    db.execute('INSERT INTO queue VALUES(?,?,?,?,?,?)',
+                        (name, 'solana', 'evidence', priority, 99.9, 107.9))
+                db.commit()
+            rpc = RepairRPC(self.config.endpoint, governor)
+            if cooldown:
+                # The second genuine rate event retains the existing sixteen-
+                # second method/provider cooldown, beyond admission's8s bound.
+                governor.rate_limited('solana', ('getSlot',))
+                governor.rate_limited('solana', ('getSlot',))
+            if background:
+                with self.assertRaises(DeliveredRPCError) as failed:
+                    rpc.call('getSlot', [dict(commitment='finalized')])
+                self.assertEqual(failed.exception.cause_kind, 'TimeoutError')
+                result = None
+            else:
+                result = managed.FinalizedHeadObserver().sample(rpc)
+            purchases = ledger(rpc).snapshot()['totals']
+            with closing(sqlite3.connect(path)) as db:
+                audit = db.execute('SELECT priority,granted FROM grants ORDER BY id').fetchall()
+                pending = db.execute('SELECT id FROM queue ORDER BY id').fetchall()
+            return dict(result=result, starts=starts, elapsed=now[0]-100.,
+                opened=opened.call_count, counters=dict(rpc.counts),
+                purchases=purchases, audit=audit, pending=pending)
+
+    def test_background_head_starves_under_real_foreground_governor_pressure(self):
+        result = self.pressured_head(background=True)
+        self.assertEqual(result['opened'], 0)
+        self.assertGreaterEqual(result['elapsed'], 8)
+        self.assertLess(result['elapsed'], 8.1)
+        self.assertEqual(result['audit'][-1], (4, 0))
+        self.assertEqual(result['counters']['physical_requests'], 0)
+
+    def test_required_head_uses_foreground_turn_behind_held_protection(self):
+        result = self.pressured_head()
+        self.assertEqual([priority for priority, _ in result['starts']], [0, 1, 2, 2])
+        starts = [at for _, at in result['starts']]
+        self.assertTrue(all(b-a >= .5-1e-9 for a, b in zip(starts, starts[1:])))
+        self.assertLess(result['elapsed'], 2)
+        self.assertEqual(result['result']['slot'], 777)
+        self.assertTrue(result['result']['fresh'])
+        self.assertEqual(result['audit'][-1], (2, 1))
+        self.assertEqual(result['pending'], [('foreground',)])
+        self.assertEqual(result['opened'], 1)
+        for counter in ('physical_requests', 'logical_calls', 'method:getSlot'):
+            self.assertEqual(result['counters'][counter], 1)
+        # call_delivered performs both consumer and physical accounting once.
+        for counter in ('logical_consumers', 'physical_requests', 'completed_requests'):
+            self.assertEqual(result['purchases'][counter], 1)
+
+    def test_foreground_head_still_respects_shared_rate_limit_cooldown(self):
+        result = self.pressured_head(cooldown=True)
+        self.assertEqual(result['opened'], 0)
+        self.assertFalse(result['result']['fresh'])
+        self.assertEqual(result['result']['failures'], 1)
+        self.assertNotIn('slot', result['result'])
+        self.assertEqual(result['audit'][-1], (2, 0))
+        self.assertGreaterEqual(result['elapsed'], 8)
+        self.assertLess(result['elapsed'], 8.1)
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
