@@ -37,8 +37,8 @@
       "status": "A"
     },
     "meme_machine/operational/managed_native_pons.py": {
-      "after_bytes": 38207,
-      "after_sha256": "ffc9bd75c0ad7faf77937e9dfb16b2257b01a073671e8ecacc65a15745ff0946",
+      "after_bytes": 40431,
+      "after_sha256": "ffeb72c3df1a2abd02a56928eb2694126ecc7bd2736dff9c64955225e6783df1",
       "status": "A"
     },
     "meme_machine/operational/managed_native_pump.py": {
@@ -85,11 +85,13 @@
       "status": "M"
     },
     "meme_machine/solana_selective_source.py": {
-      "after_bytes": 160826,
-      "after_sha256": "e51ba5e98e78e260da6a2e9cbb40395551e2b59eba1780024fd4cc00ab3dcd5e",
+      "after_bytes": 161434,
+      "after_sha256": "3d96a905941a2fad1acb49688b95ca538ff8001a9b95c1a32a80c41743e7130e",
       "before_bytes": 155835,
       "before_sha256": "c21b570ff602dd190ea8e305776dbbefeffc50f214bff4a92beb43374aa8aa4c",
       "changed_nodes": [
+        "CandidateCommitQueue.__init__",
+        "CandidateCommitQueue.put",
         "SelectiveSource.live",
         "SelectiveSource.observe",
         "SelectiveSource.rolling_programs",
@@ -165,8 +167,8 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "8d60b89bb7a3ee23caeb87258de41ffec4e46913",
-  "implementation_tree": "caca6554609aebe4c10fa7af712bb06a552fcf1b",
+  "implementation": "c74efbdf824dac15d3174dfe79f67c015853e286",
+  "implementation_tree": "21626c2bf6436ae26c76b0e6ce4e0603f639285e",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
       "bytes": 7634,

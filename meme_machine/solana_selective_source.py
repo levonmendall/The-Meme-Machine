@@ -383,7 +383,7 @@ class CandidateCommitQueue:
     def __init__(self,changed=None):
         self.queue=asyncio.Queue(maxsize=CANDIDATE_COMMIT_BATCH)
         self.count=0;self.bytes=0;self.space=asyncio.Event()
-        self.changed=changed
+        self.admission=asyncio.Lock();self.changed=changed
 
     async def put(self,frame):
         # Native bodies are already included in source_bytes. Body-free WS
@@ -391,11 +391,19 @@ class CandidateCommitQueue:
         size=frame.source_bytes+sum(len(canonical(tx).encode()) for tx in frame.log_transactions)
         if not 0<size<=CANDIDATE_COMMIT_BYTES:
             raise EvidenceUnavailable('candidate_commit_batch_bound')
-        while self.count>=CANDIDATE_COMMIT_BATCH or self.bytes+size>CANDIDATE_COMMIT_BYTES:
-            self.space.clear();await self.space.wait()
-        self.count+=1;self.bytes+=size
-        self.queue.put_nowait((frame,size,time.monotonic(),time.time()))
-        if self.changed:self.changed(1,0)
+        # Native, WS and HTTP-repair callbacks share one ordered join. Its
+        # frames must enter this queue in that same order, including while
+        # waiting for the owner-held batch's count/byte reservation. Event
+        # wakeup alone lets a resumed producer enqueue its next frame before
+        # an older blocked producer; the native parent check then fails.
+        # asyncio.Lock admission is FIFO. Waiting/cancellation changes no
+        # reservation; the existing durable completion alone releases it.
+        async with self.admission:
+            while self.count>=CANDIDATE_COMMIT_BATCH or self.bytes+size>CANDIDATE_COMMIT_BYTES:
+                self.space.clear();await self.space.wait()
+            self.count+=1;self.bytes+=size
+            self.queue.put_nowait((frame,size,time.monotonic(),time.time()))
+            if self.changed:self.changed(1,0)
 
     async def batch(self,producer_done=None):
         first=await self.queue.get() if producer_done is None else await next_owned(self.queue,producer_done)
