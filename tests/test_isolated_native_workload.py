@@ -588,6 +588,40 @@ class NativeFailureReceipts(unittest.TestCase):
                     self.assertIsNone(receipt['code'])
                     self.assertNotIn(canary, workload.canonical(receipt))
 
+    def test_attribute_error_in_pump_startup_reports_only_pinned_module_function_line(self):
+        # A real on-host Pump AttributeError had been swallowed as type-only,
+        # stopping Pons before either worker could make a public RPC request.
+        # No exception text or arbitrary path can enter the published receipt.
+        from meme_machine.operational import isolated_native_pump
+        canary = 'PRIVATE_ATTRIBUTE_AND_RPC_BODY https://private.invalid/token'
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(isolated_native_pump, 'PumpNativeProjection',
+                              side_effect=AttributeError(canary)):
+                try:
+                    workload._projection('pump', Path(directory))
+                except AttributeError as error:
+                    receipt = workload._failure(error)
+                else:
+                    self.fail('expected attributed Pump startup failure')
+        self.assertEqual(receipt['error_type'], 'AttributeError')
+        self.assertIsNone(receipt['code'])
+        self.assertEqual(receipt['failure_site']['module'],
+                         'meme_machine.operational.isolated_native_workload')
+        self.assertEqual(receipt['failure_site']['function'], '_projection')
+        self.assertTrue(0 < receipt['failure_site']['line'] < 100000)
+        self.assertEqual(set(receipt['failure_site']), {'module', 'function', 'line'})
+        self.assertNotIn(canary, workload.canonical(receipt))
+        self.assertNotIn('/private/', workload.canonical(receipt))
+
+    def test_foreign_attribute_error_never_exposes_external_traceback(self):
+        try:
+            raise AttributeError('PRIVATE_REMOTE_PROVIDER_KEY')
+        except AttributeError as error:
+            receipt = workload._failure(error)
+        self.assertEqual(receipt['error_type'], 'AttributeError')
+        self.assertIsNone(receipt['failure_site'])
+        self.assertNotIn('PRIVATE_REMOTE_PROVIDER_KEY', workload.canonical(receipt))
+
     def test_native_boundary_retains_only_application_failure_site_without_message_or_path(self):
         from meme_machine.lanes.pons import BoundaryError
         from meme_machine.lanes.pons.abi import calldata
