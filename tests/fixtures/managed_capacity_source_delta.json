@@ -1,0 +1,96 @@
+{
+  "base": "83c3716aefc21d59780db64beb8681e772ac628c",
+  "base_tree": "8afdc31b017c36bcd23dc6f89bf5011270c47cf1",
+  "files": {
+    "meme_machine/lanes/pons/pons_survivor_runtime.py": {
+      "after_bytes": 78803,
+      "after_sha256": "154f7fe7c1fad19571877711cf1232821ca3b1280b2ea661dc1cba22f5404aa0",
+      "before_bytes": 78202,
+      "before_sha256": "68eb6419a08a4b2fc30f5414aaa610f1b0dc413b89a8904f9e5f762eecc55163",
+      "changed_nodes": [
+        "Quotes._acquire",
+        "Quotes.loss",
+        "Runtime.reconstruct",
+        "market_sizing_basis"
+      ],
+      "status": "M"
+    },
+    "meme_machine/lanes/pons/provider_topology.py": {
+      "after_bytes": 41214,
+      "after_sha256": "b9ff990a55658354de20afa13825753ee89412e408b7bc2e2fc029c9a9fa26e5",
+      "before_bytes": 40752,
+      "before_sha256": "e2da676521ee2bce4b37ad7b4cbeeceaf2d8b83bf918cc39cd997000baf811e4",
+      "changed_nodes": [
+        "PacedRpc.__layout__",
+        "PacedRpc.endpoint"
+      ],
+      "status": "M"
+    },
+    "meme_machine/operational/managed_capacity_evidence.py": {
+      "after_bytes": 9553,
+      "after_sha256": "a1bd8ef34f4851c7401d69bf3c08bc3c65b3e4a39051796c1f4ea70a221468ff",
+      "status": "A"
+    },
+    "meme_machine/operational/managed_capacity_workload.py": {
+      "after_bytes": 18229,
+      "after_sha256": "f6eec847efbcc91f8213753c7f4c24f8db790330b20fd953630254f72cab4e06",
+      "status": "A"
+    },
+    "meme_machine/operational/managed_native_pons.py": {
+      "after_bytes": 32134,
+      "after_sha256": "377054b6ee61ef873505863760ac1759d875f2ac0808f4248476503ab6de9268",
+      "status": "A"
+    },
+    "meme_machine/operational/managed_native_pump.py": {
+      "after_bytes": 25284,
+      "after_sha256": "cc92bc3950d66485dbd7c5e181280bdcf9c25779f520c96ec9d6c5a0447a88d6",
+      "status": "A"
+    },
+    "meme_machine/operational/managed_pons_survivor.py": {
+      "after_bytes": 12185,
+      "after_sha256": "277be173e56c18b1c94b39556a28441ae6b23fa36d8c9d4ea2d817419edcc3c8",
+      "status": "A"
+    },
+    "meme_machine/operational/managed_pump_qualification.py": {
+      "after_bytes": 24228,
+      "after_sha256": "937128e9118cd0cac2589a2c3397e66ad1073352eb8cdb6f837f61630305d0cf",
+      "status": "A"
+    }
+  },
+  "guard": {
+    "after_sha256": "8513469330bf404a314e1b640c22bd13f6367ef4bb90c81ce5c90944bcd662ba",
+    "before_sha256": "3f01fa22346049eec8441eec8c47e03c3536570cacf2ab8c178bfdd9a04c334f",
+    "changes": [
+      {
+        "after": "from tests.test_managed_capacity_source_guard import (capacity_predecessor, capacity_active_delta, capacity_native_delta)\nimport ast\n",
+        "before": "import ast\n"
+      },
+      {
+        "after": "    current=capacity_predecessor(test,path,current)\n    if path not in FILES+GUARDS:return current\n",
+        "before": "    if path not in FILES+GUARDS:return current\n"
+      },
+      {
+        "after": "test.assertEqual(capacity_active_delta(test,git('diff','--name-only',IMPLEMENTATION,'--','meme_machine'),IMPLEMENTATION),b'',",
+        "before": "test.assertEqual(git('diff','--name-only',IMPLEMENTATION,'--','meme_machine'),b'',"
+      },
+      {
+        "after": "    active_runtime(test)\n    actual_delta=capacity_native_delta(test,actual_delta,OLD_IMPLEMENTATION)\n    test.assertEqual(actual_delta,",
+        "before": "    active_runtime(test)\n    test.assertEqual(actual_delta,"
+      }
+    ],
+    "path": "tests/test_native_audit_source_guard.py"
+  },
+  "implementation": "133150eae90679b8bbfe77b952158f6cd3154cd9",
+  "implementation_tree": "31ceb539eb6aa5b3c5ab11d8ad5e52fcf8a8f99a",
+  "proof_inputs": {
+    "engineering/diagnostics/build_managed_capacity_source_proof.py": {
+      "bytes": 5798,
+      "sha256": "358dee6cd503401c930d7cfdd6e18e6f574a3ce202eb95feb5d41d30481cab55"
+    },
+    "engineering/diagnostics/managed_capacity_source_guard.template.txt": {
+      "bytes": 7849,
+      "sha256": "78509d6e920682c7df3a653a585cce51b7293582902c637b9385acd85f1b06c4"
+    }
+  },
+  "schema": "authenticated-managed-capacity-source-delta-v1"
+}
