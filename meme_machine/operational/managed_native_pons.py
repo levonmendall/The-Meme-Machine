@@ -187,7 +187,9 @@ class ManagedPonsLane:
             self._check()
             group = calls[offset:offset+50]
             if self.rpc.used + len(group) > 190 or self.rpc.counts[scope] + len(group) > 180:
+                receipt_pins = getattr(self.rpc,'evidence_receipts',{})
                 self.rpc = self._discovery()
+                self.rpc.evidence_receipts = receipt_pins
             result = self.rpc.batch(group, scope=scope)
             require(type(result) is list and len(result) == len(group), 'native_batch_shape')
             out.extend(result)

@@ -123,6 +123,15 @@ class ManagedNativePonsTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'native_batch_shape'):
                 self.lane.sample_head()
 
+    def test_receipt_hash_pins_survive_native_session_rotation(self):
+        tx = self.capture['event']['transactionHash']; bh = self.capture['event']['blockHash']
+        self.lane.rpc.evidence_receipts = {tx:bh}; self.lane.rpc.used = 190
+        self.lane._batch([('eth_getTransactionReceipt',[tx])],'pons_selective_window')
+        self.assertEqual(self.lane.rpc.evidence_receipts,{tx:bh})
+        reuse = self.lane.rpc.evidence_reuse
+        key = reuse.key('eth_getTransactionReceipt',[tx],receipts={tx:bh})
+        self.assertIsNotNone(reuse.store.get(reuse.domain,key))
+
     def test_restart_refuses_hardlinks_and_nonprivate_state(self):
         self.lane.close(); marker = self.root/'managed-pons.json'
         marker.chmod(0o644)
