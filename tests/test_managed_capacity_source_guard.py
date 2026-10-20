@@ -15,11 +15,11 @@ from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
 BASE='83c3716aefc21d59780db64beb8681e772ac628c'
 BASE_TREE='8afdc31b017c36bcd23dc6f89bf5011270c47cf1'
-IMPLEMENTATION='c74efbdf824dac15d3174dfe79f67c015853e286'
-IMPLEMENTATION_TREE='21626c2bf6436ae26c76b0e6ce4e0603f639285e'
+IMPLEMENTATION='47ed909a03122d130c2236ad55fdf1e939fee8e1'
+IMPLEMENTATION_TREE='af54cbd89a119d7b6c40f3d17af46057e2adbd16'
 MANIFEST=ROOT/'tests/fixtures/managed_capacity_source_delta.json'
-MANIFEST_SHA256='d43e7d3473cb2dd235b9b232a2f643c2b31aee5a6b0e2df7da887072fd6a672f'
-MODIFIED=('meme_machine/lanes/pons/pons_survivor_runtime.py', 'meme_machine/lanes/pons/provider_topology.py', 'meme_machine/runtime/evidence_worker.py', 'meme_machine/solana_candidate_join.py', 'meme_machine/solana_selective_source.py')
+MANIFEST_SHA256='267a1ff1e78bb6a9de4a27bd10484a084e2e24d07d0625f89eeca34231e11fca'
+MODIFIED=('meme_machine/lanes/pons/pons_survivor_runtime.py', 'meme_machine/lanes/pons/provider_topology.py', 'meme_machine/runtime/evidence_worker.py', 'meme_machine/solana_candidate_join.py', 'meme_machine/solana_candidate_lifecycle.py', 'meme_machine/solana_selective_source.py')
 ADDED=('meme_machine/operational/managed_capacity_evidence.py', 'meme_machine/operational/managed_capacity_workload.py', 'meme_machine/operational/managed_native_pons.py', 'meme_machine/operational/managed_native_pump.py', 'meme_machine/operational/managed_pons_survivor.py', 'meme_machine/operational/managed_pump_qualification.py', 'meme_machine/solana_stream_log_repair.py')
 GUARD='tests/test_native_audit_source_guard.py'
 READ_GUARD='tests/test_robinhood_usd_valuation.py'

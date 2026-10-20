@@ -33,6 +33,7 @@ jobs:
             tests.test_managed_capacity_evidence tests.test_managed_capacity_workload \
             tests.test_managed_native_pump tests.test_managed_native_pons tests.test_robinhood_payg \
             tests.test_managed_pons_survivor tests.test_managed_pump_qualification \
+            tests.test_managed_pump_discovery_publication tests.test_solana_history_separation \
             tests.test_managed_capacity_source_guard tests.test_native_audit_source_guard \
             tests.test_robinhood_usd_valuation tests.test_integrated_startup_rehearsal \
             tests.test_solana_source_drain tests.test_source_drain_preservation \

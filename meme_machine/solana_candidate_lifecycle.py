@@ -218,10 +218,25 @@ class CandidateLifecycle:
     def queue_records(self,rows):
         """Called inside the canonical ingestion transaction."""
         for row in rows:
-            for family,address,market in self.db.execute('''SELECT DISTINCT family,
+            recipients=self.db.execute('''SELECT DISTINCT family,
                 substr(coverage_scope,length('candidate:'||family||':')+1),market_address
                 FROM evidence_bindings WHERE canonical_scope=? AND market_address IN ('''+','.join('?' for _ in row.addresses)+')',
-                (row.scope,*row.addresses)):
+                (row.scope,*row.addresses)).fetchall()
+            if (hasattr(self.history,'rolling') and row.scope==FAMILIES['pump']
+                    and row.kind=='event'):
+                # The global native discovery cursor includes trades whose
+                # mint was created before this source generation. A binding is
+                # evidence of a known creation/curve identity, not admission to
+                # durable history. Waiting for that absent binding strands the
+                # first discovery row and every later consumer input forever.
+                # Reuse this exact decoded event's mint and the existing
+                # outbox/delivery writer. It grants no creation, coverage,
+                # prospect, financial authority or new provider work.
+                mint=row.payload['event']['mint']
+                if not any(family=='pump' and market==mint
+                           for family,_,market in recipients):
+                    recipients.append(('pump',mint,mint))
+            for family,address,market in recipients:
                 if market not in row.addresses:continue
                 # Preserve the original first availability on duplicate delivery.
                 stored=self.db.execute('SELECT body,first_seen FROM canonical_evidence WHERE identity=?',(row.identity,)).fetchone()

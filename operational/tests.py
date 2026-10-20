@@ -4,6 +4,7 @@ import argparse,ipaddress,os,signal,socket,subprocess,sys,time,unittest,urllib.r
 FAST=[
  'tests.test_managed_capacity_source_guard',
  'tests.test_managed_pump_qualification',
+ 'tests.test_managed_pump_discovery_publication',
  'tests.test_managed_capacity_evidence',
  'tests.test_managed_capacity_workload',
  'tests.test_managed_native_pump',
