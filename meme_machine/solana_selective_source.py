@@ -375,6 +375,7 @@ async def wait_candidate_log_space(join,progress,stop,local_stop,slot,sig,logs):
         # same key while this WS packet waited. Its original late/duplicate
         # validator must run next without reserving these bytes twice.
         if slot<join.filtered_from_slot or slot<=join.completed or (slot,sig) in join.early_logs:return
+        if len(join.early_logs)<32768 and join.early_log_bytes+size<=MAX_PENDING_BYTES//2:return
         pending=join.pending.get(slot)
         required=bool(pending is not None and sig in pending['missing_logs']
             and any(pending['signature_text'].get(index)==sig for index in pending['log_required']))
