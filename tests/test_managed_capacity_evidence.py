@@ -1,6 +1,8 @@
 import json
 import os
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -113,3 +115,92 @@ class ManagedEvidence(unittest.TestCase):
         raw = json.dumps(row)
         self.assertNotIn('environ', raw)
         self.assertNotIn('cmdline', raw)
+
+    def test_process_io_permission_denial_preserves_readable_counters(self):
+        original = Path.read_text
+        target = Path('/proc') / str(os.getpid()) / 'io'
+        def denied(path, *args, **kwargs):
+            if path == target:
+                raise PermissionError('secret-counter-error-never-output')
+            return original(path, *args, **kwargs)
+        with patch.object(Path, 'read_text', denied):
+            sample = evidence.host_sample((os.getpid(),))
+        row = sample['processes'][str(os.getpid())]
+        self.assertGreater(row['start_ticks'], 0)
+        self.assertGreaterEqual(row['rss_bytes'], 0)
+        self.assertIsNone(row['io'])
+        self.assertFalse(row['io_available'])
+        self.assertEqual(row['io_reason_code'], 'permission_denied')
+        self.assertNotIn('exited', row)
+        self.assertGreater(sample['memory_bytes']['MemTotal'], 0)
+        self.assertNotIn('secret-counter-error', json.dumps(sample))
+
+    def test_process_stat_permission_denial_is_unavailable_not_exited(self):
+        original = Path.read_text
+        target = Path('/proc') / str(os.getpid()) / 'stat'
+        def denied(path, *args, **kwargs):
+            if path == target:
+                raise PermissionError('secret-counter-error-never-output')
+            return original(path, *args, **kwargs)
+        with patch.object(Path, 'read_text', denied):
+            sample = evidence.host_sample((os.getpid(),))
+        self.assertEqual(sample['processes'][str(os.getpid())],
+            dict(available=False, reason_code='process_stat_permission_denied'))
+        self.assertGreater(sample['memory_bytes']['MemTotal'], 0)
+        self.assertNotIn('secret-counter-error', json.dumps(sample))
+
+    def test_global_permission_denial_and_unexpected_process_io_errors_remain_fatal(self):
+        original = Path.read_text
+        for target, error in ((Path('/proc/stat'), PermissionError('global-denial')),
+                (Path('/proc') / str(os.getpid()) / 'io', OSError(5, 'io-failure'))):
+            def denied(path, *args, **kwargs):
+                if path == target:
+                    raise error
+                return original(path, *args, **kwargs)
+            with self.subTest(target=str(target)), patch.object(Path, 'read_text', denied):
+                with self.assertRaises(type(error)):
+                    evidence.host_sample((os.getpid(),))
+
+    @unittest.skipUnless(sys.platform == 'linux' and hasattr(os, 'WNOWAIT'),
+                         'requires Linux same-UID zombie proc counters')
+    def test_actual_unprivileged_unreaped_child_io_is_explicitly_unavailable(self):
+        # Execute the exact stdlib-only production module bytes through stdin.
+        # This also works when the repository itself is private to root: only
+        # this disposable fixture drops UID, with no source permission changes.
+        program = '''
+import json, os, pathlib, subprocess, sys
+module = {'__name__': 'offline_managed_capacity_evidence'}
+exec(compile(sys.stdin.buffer.read(), '<managed-capacity-evidence>', 'exec'), module)
+child = subprocess.Popen([sys.executable, '-I', '-B', '-c', 'raise SystemExit(17)'],
+    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+try:
+    os.waitid(os.P_PID, child.pid, os.WEXITED | os.WNOWAIT)
+    proc = pathlib.Path('/proc') / str(child.pid)
+    state = (proc / 'stat').read_text().rpartition(')')[2].split()[0]
+    denied = False
+    try:
+        (proc / 'io').read_text()
+    except PermissionError:
+        denied = True
+    sample = module['host_sample']((child.pid,))
+    print(json.dumps(dict(uid=os.geteuid(), state=state, io_denied=denied,
+        returncode_before_poll=child.returncode, process=sample['processes'][str(child.pid)])))
+finally:
+    child.wait(timeout=5)
+'''
+        identity = dict(user=65534, group=65534, extra_groups=()) if os.geteuid() == 0 else {}
+        result = subprocess.run([sys.executable, '-I', '-B', '-c', program],
+            input=Path(evidence.__file__).read_bytes(), stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, cwd='/', timeout=10, check=False,
+            env=dict(PATH='/usr/bin:/bin', LANG='C'), **identity)
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors='replace'))
+        row = json.loads(result.stdout)
+        self.assertNotEqual(row['uid'], 0)
+        self.assertEqual(row['state'], 'Z')
+        self.assertTrue(row['io_denied'])
+        self.assertIsNone(row['returncode_before_poll'])
+        self.assertGreater(row['process']['start_ticks'], 0)
+        self.assertIsNone(row['process']['io'])
+        self.assertFalse(row['process']['io_available'])
+        self.assertEqual(row['process']['io_reason_code'], 'permission_denied')
+        self.assertNotIn('exited', row['process'])

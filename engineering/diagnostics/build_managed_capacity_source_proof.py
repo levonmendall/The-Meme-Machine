@@ -101,6 +101,12 @@ def main():
          b"            source=publication_accounting_predecessor(self,relative,pump_restore_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n"),
         (b"                publication_accounting_predecessor(self,relative,(ROOT/relative).read_bytes()))\n",
          b"                publication_accounting_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n"),
+        (b"        relative=ARCHIVE_LOG_ORDER_SOURCE;current=(ROOT/relative).read_bytes()\n",
+         b"        relative=ARCHIVE_LOG_ORDER_SOURCE;current=audit_predecessor(self,relative,(ROOT/relative).read_bytes())\n"),
+        (b"        relative=ARCHIVE_LOG_CONSISTENCY_SOURCE;current=archive_log_order_predecessor(self,relative,(ROOT/relative).read_bytes())\n",
+         b"        relative=ARCHIVE_LOG_CONSISTENCY_SOURCE;current=archive_log_order_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))\n"),
+        (b"        relative=RETAINED_ARCHIVE_LOG_SHAPE_SOURCE;current=archive_log_consistency_predecessor(self,relative,(ROOT/relative).read_bytes())\n",
+         b"        relative=RETAINED_ARCHIVE_LOG_SHAPE_SOURCE;current=archive_log_consistency_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))\n"),
     ]
     after_read_guard = before_read_guard
     for before, after in read_changes:

@@ -27,13 +27,13 @@
       "status": "M"
     },
     "meme_machine/operational/managed_capacity_evidence.py": {
-      "after_bytes": 10325,
-      "after_sha256": "a34a25997ae139ec757c003f56bb39829123120051c8cf6685ac140d7ed55e4b",
+      "after_bytes": 10886,
+      "after_sha256": "b0f25ee2601fe715dd845ba526e26f8187a742caaf76c476a1fe5af58b8f240e",
       "status": "A"
     },
     "meme_machine/operational/managed_capacity_workload.py": {
-      "after_bytes": 18853,
-      "after_sha256": "0bcabc26719d19f90bf3c0f9730540c7d921b9bd701ffa4776e8b33fe45de104",
+      "after_bytes": 19017,
+      "after_sha256": "902713461a4160762d43c2b8f9f32e7bd09d5d1a84bc05ef07af81bec9c0444e",
       "status": "A"
     },
     "meme_machine/operational/managed_native_pons.py": {
@@ -57,8 +57,8 @@
       "status": "A"
     },
     "meme_machine/runtime/evidence_worker.py": {
-      "after_bytes": 36135,
-      "after_sha256": "ec8132c5e0ba66db785d9a22a0910fa9da9c924442e3fe0f5bd16b75187de0fa",
+      "after_bytes": 36572,
+      "after_sha256": "ade7a094754f96f5bf1b8d8427726ce44fc737aef5a60808068c27ce4444ac9d",
       "before_bytes": 27121,
       "before_sha256": "a8a81d47138248a38cf7a959c3ff231e4732f0a274c79e3ee41d0fc05ea8865c",
       "changed_nodes": [
@@ -66,7 +66,9 @@
         "RepairRPC._call_delivered",
         "RepairRPC._log_batch_delivered",
         "RepairRPC.log_batch_delivered",
-        "__statement_20"
+        "__statement_18",
+        "__statement_20",
+        "failure_diagnostic"
       ],
       "status": "M"
     },
@@ -95,6 +97,17 @@
       "before_sha256": "4c48fe1247281b07e3b71235c533b76afe728a31db7a8b2cae85c1878a669293",
       "changed_nodes": [
         "CandidateLifecycle.queue_records"
+      ],
+      "status": "M"
+    },
+    "meme_machine/solana_selective_history.py": {
+      "after_bytes": 70605,
+      "after_sha256": "ce05704c119c7ec7d13876eef46b3fcd7cfe4f9a8c7ec5b6d59b63fa50d64633",
+      "before_bytes": 68510,
+      "before_sha256": "d7b79f1a25b687cadc0ebe16f81ddc1ffba222402c3433378658ba39a5734ae3",
+      "changed_nodes": [
+        "__statement_20",
+        "_archive_log_join"
       ],
       "status": "M"
     },
@@ -184,12 +197,12 @@
     ],
     "path": "tests/test_native_audit_source_guard.py"
   },
-  "implementation": "bf3fb5de58b2680930f7d0ccc43d03da7b746105",
-  "implementation_tree": "58d79618c0062afab4669ad47fe333591b9c7c16",
+  "implementation": "2c20a422bbb62e78d477bb6b27d85c9c347fadbc",
+  "implementation_tree": "b230f9af37cc16dbc28a0945d42d4aad0dbe726d",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
-      "bytes": 7634,
-      "sha256": "b1b3f41e52cfebf97bf7aead2a5423adf1f59fc8ac08c61a00f84e9f0917e177"
+      "bytes": 8522,
+      "sha256": "2530089f12e7cec92f7efa2edd3ec3d8243829caa389bb6135ee97edc6e85af0"
     },
     "engineering/diagnostics/managed_capacity_source_guard.template.txt": {
       "bytes": 9826,
@@ -197,8 +210,8 @@
     }
   },
   "read_guard": {
-    "after_bytes": 376880,
-    "after_sha256": "fed157797ed8e5d1e6735dbbc3099f26b5a8dc79cf9109edf40e3cf0fc147d18",
+    "after_bytes": 376979,
+    "after_sha256": "53ac85abd8d025cdebac56242aa1c774d512b0a25642ad86926c7fa3d296ea49",
     "before_bytes": 376814,
     "before_sha256": "5512e1b375dfbe960f1e6927e9528ff51b28a2a329657d3a1e42b7b47107b3e6",
     "changes": [
@@ -209,6 +222,18 @@
       {
         "after": "                publication_accounting_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes())))\n",
         "before": "                publication_accounting_predecessor(self,relative,(ROOT/relative).read_bytes()))\n"
+      },
+      {
+        "after": "        relative=ARCHIVE_LOG_ORDER_SOURCE;current=audit_predecessor(self,relative,(ROOT/relative).read_bytes())\n",
+        "before": "        relative=ARCHIVE_LOG_ORDER_SOURCE;current=(ROOT/relative).read_bytes()\n"
+      },
+      {
+        "after": "        relative=ARCHIVE_LOG_CONSISTENCY_SOURCE;current=archive_log_order_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))\n",
+        "before": "        relative=ARCHIVE_LOG_CONSISTENCY_SOURCE;current=archive_log_order_predecessor(self,relative,(ROOT/relative).read_bytes())\n"
+      },
+      {
+        "after": "        relative=RETAINED_ARCHIVE_LOG_SHAPE_SOURCE;current=archive_log_consistency_predecessor(self,relative,audit_predecessor(self,relative,(ROOT/relative).read_bytes()))\n",
+        "before": "        relative=RETAINED_ARCHIVE_LOG_SHAPE_SOURCE;current=archive_log_consistency_predecessor(self,relative,(ROOT/relative).read_bytes())\n"
       }
     ],
     "path": "tests/test_robinhood_usd_valuation.py"

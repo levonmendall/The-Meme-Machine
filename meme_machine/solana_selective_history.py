@@ -141,46 +141,92 @@ class ArchiveLogSupplement:
     fetched_json: str
     endpoint_identity: str
 
+# Fixed rejection attribution only. None of these values carries provider data,
+# changes authentication, or permits a rejected page to be committed.
+ARCHIVE_LOG_FAILURE_CHECKS=frozenset((
+    'endpoint_identity','response_shape','original_slot','original_index',
+    'original_signatures','original_meta','fetched_meta','original_logs',
+    'fetched_logs','fetched_slot','original_time','fetched_time','block_time',
+    'transaction_identity','original_error','fetched_error','fetched_index',
+    'original_log_shape','fetched_log_shape','fetched_log_line',
+    'fetched_log_truncation','marker_count','prefix','retained_suffix',
+))
+
+
 def _archive_log_join(original,fetched,endpoint_identity):
     """Join complete logs only to the exact finalized, ordered archive row."""
+    check='endpoint_identity'
     try:
         if (not isinstance(endpoint_identity,str) or len(endpoint_identity)!=64
-                or any(c not in '0123456789abcdef' for c in endpoint_identity)
-                or not isinstance(original,dict) or not isinstance(fetched,dict)):
+                or any(c not in '0123456789abcdef' for c in endpoint_identity)):
             raise KeyError()
-        slot=original['slot'];index=original['transactionIndex']
-        signatures=original['transaction']['signatures']
-        old=original['meta'];new=fetched['meta'];logs=old['logMessages'];complete=new['logMessages']
-        if (type(slot) is not int or slot<0 or type(index) is not int or index<0
-                or not isinstance(signatures,list) or not signatures
-                or any(not isinstance(sig,str) or not sig for sig in signatures)
-                or type(fetched['slot']) is not int or fetched['slot']!=slot
-                or type(original['blockTime']) is not int or original['blockTime']<0
-                or type(fetched['blockTime']) is not int
-                or canonical(fetched['blockTime'])!=canonical(original['blockTime'])
-                or canonical(fetched['transaction'])!=canonical(original['transaction'])
-                or old['err'] is not None or new['err'] is not None
-                or 'transactionIndex' in fetched and (type(fetched['transactionIndex']) is not int
-                    or fetched['transactionIndex']!=index)
-                or not isinstance(logs,list) or not logs
-                or any(not isinstance(line,str) for line in logs)
-                or not isinstance(complete,list)
-                or any(not isinstance(line,str) or 'truncat' in line.lower() for line in complete)):
-            raise KeyError()
+        check='response_shape'
+        if not isinstance(original,dict) or not isinstance(fetched,dict):raise KeyError()
+        # Keep the original lookup order before its validation predicates. The
+        # marker records the exact field whose lookup or predicate rejected;
+        # values, logs, identifiers and provider messages never enter it.
+        check='original_slot';slot=original['slot']
+        check='original_index';index=original['transactionIndex']
+        check='original_signatures';signatures=original['transaction']['signatures']
+        check='original_meta';old=original['meta']
+        check='fetched_meta';new=fetched['meta']
+        check='original_logs';logs=old['logMessages']
+        check='fetched_logs';complete=new['logMessages']
+        check='original_slot'
+        if type(slot) is not int or slot<0:raise KeyError()
+        check='original_index'
+        if type(index) is not int or index<0:raise KeyError()
+        check='original_signatures'
+        if (not isinstance(signatures,list) or not signatures
+                or any(not isinstance(sig,str) or not sig for sig in signatures)):raise KeyError()
+        check='fetched_slot'
+        if type(fetched['slot']) is not int or fetched['slot']!=slot:raise KeyError()
+        check='original_time'
+        if type(original['blockTime']) is not int or original['blockTime']<0:raise KeyError()
+        check='fetched_time'
+        if type(fetched['blockTime']) is not int:raise KeyError()
+        check='block_time'
+        if canonical(fetched['blockTime'])!=canonical(original['blockTime']):raise KeyError()
+        check='transaction_identity'
+        if canonical(fetched['transaction'])!=canonical(original['transaction']):raise KeyError()
+        check='original_error'
+        if old['err'] is not None:raise KeyError()
+        check='fetched_error'
+        if new['err'] is not None:raise KeyError()
+        check='fetched_index'
+        if 'transactionIndex' in fetched and (type(fetched['transactionIndex']) is not int
+                or fetched['transactionIndex']!=index):raise KeyError()
+        check='original_log_shape'
+        if (not isinstance(logs,list) or not logs
+                or any(not isinstance(line,str) for line in logs)):raise KeyError()
+        check='fetched_log_shape'
+        if not isinstance(complete,list):raise KeyError()
+        # Preserve the original generator's per-line short-circuit order while
+        # distinguishing malformed elements from a genuinely incomplete reply.
+        for line in complete:
+            check='fetched_log_line'
+            if not isinstance(line,str):raise KeyError()
+            check='fetched_log_truncation'
+            if 'truncat' in line.lower():raise KeyError()
+        check='marker_count'
         markers=[i for i,line in enumerate(logs) if 'truncat' in line.lower()]
         if len(markers)!=1:raise KeyError()
         marker=markers[0];prefix=logs[:marker];suffix=logs[marker+1:]
+        check='prefix'
         if len(complete)<len(prefix) or complete[:len(prefix)]!=prefix:raise KeyError()
         # The archive may retain sparse lines after its truncation marker.
         # Match every line in order at a distinct position beyond the prefix;
         # only the entire complete response supplies decoded event indices.
+        check='retained_suffix'
         position=len(prefix)
         for line in suffix:
             while position<len(complete) and complete[position]!=line:position+=1
             if position==len(complete):raise KeyError()
             position+=1
     except (KeyError,TypeError,ValueError):
-        raise EvidenceUnavailable('archive_log_supplement_identity_unverified') from None
+        error=EvidenceUnavailable('archive_log_supplement_identity_unverified')
+        error.archive_log_failure_check=check
+        raise error from None
     # Preserve every original economic/provider field except the separately
     # authenticated missing log suffix. Its genuine native index is unchanged.
     tx=json.loads(canonical(original));tx['meta']['logMessages']=list(complete)
