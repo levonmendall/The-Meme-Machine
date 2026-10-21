@@ -377,12 +377,12 @@
   "implementation_tree": "fdaea9d5db6f8f9d6c36c146dee9bedd97361bf5",
   "proof_inputs": {
     "engineering/diagnostics/build_managed_capacity_source_proof.py": {
-      "bytes": 9312,
-      "sha256": "265404e3fafee47065071e88e95c1ebf2d4dbe5505925466cbb2ee0fac8a85ad"
+      "bytes": 10024,
+      "sha256": "1110c66269b4ca9048b81c891b3c4da39a1c42582a4876605d82cedb8a239cd1"
     },
     "engineering/diagnostics/managed_capacity_source_guard.template.txt": {
-      "bytes": 9826,
-      "sha256": "8729061a2308463635fbb940015c2c889ecf66933ca545b3f7f40d1138cbecde"
+      "bytes": 12869,
+      "sha256": "2c6e689c40973b45a193b5a07e11d1c01d4e8cc8a1c7a7a823913c4d1cfba083"
     }
   },
   "read_guard": {
@@ -422,5 +422,34 @@
     ],
     "path": "tests/test_robinhood_usd_valuation.py"
   },
-  "schema": "authenticated-managed-capacity-source-delta-v1"
+  "schema": "authenticated-managed-capacity-source-delta-v1",
+  "test_callers": {
+    "tests/test_solana_history_separation.py": {
+      "after_bytes": 91749,
+      "after_sha256": "8fabed60a03b155d12b666e64bff9430c24089ea346dbaf96daa613393fad8c6",
+      "before_bytes": 80082,
+      "before_sha256": "e7f2a1552e50eef898b4bf8920b0d40a21a67af2849ed9a79aaca60874969608",
+      "changed_nodes": [
+        "CaptureActorTests.__layout__",
+        "CaptureActorTests.__statement_0",
+        "CaptureActorTests.__statement_1",
+        "CaptureActorTests.actor",
+        "CaptureActorTests.test_corrupt_receipt_and_new_generation_never_advance_actor_ack",
+        "CaptureActorTests.test_delayed_revision_reopens_behind_cursor_without_resetting_active_tail",
+        "CaptureActorTests.test_empty_refresh_feedback_cannot_clear_rearmed_request_and_own_ack_does_not_stale_eof",
+        "CaptureActorTests.test_reader_snapshot_is_coherent_and_closed_before_consumer_write_and_fresh_ack",
+        "CaptureActorTests.test_refresh_eof_rejection_finishes_bounded_horizon_then_revisits_behind_cursor",
+        "CaptureActorTests.test_replacement_during_read_fails_closed_and_does_not_pin_reader",
+        "__statement_13",
+        "__statement_14",
+        "__statement_15",
+        "__statement_16",
+        "__statement_17",
+        "__statement_18",
+        "__statement_19",
+        "__statement_20",
+        "__statement_21"
+      ]
+    }
+  }
 }
