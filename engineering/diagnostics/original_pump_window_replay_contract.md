@@ -125,3 +125,26 @@ is part of this consumer.
 
 No privileged execution, original-path mounting or original-state permission
 change is part of this serialization or consumer.
+
+
+The repaired-runtime comparison retains the same 64-input prefix schedule and
+actual ingest/publication/reader paths. Only the separate profiled pair copies
+SQL counters around each `_evaluate` and observes real returned capture batches:
+N is outbox-row count, U is distinct (family,address) binding keys, and E counts
+batches with empty proof and refresh phases. These counters issue no SQL. SQL
+inside `_evaluate` excludes outer current-event/authentication reads and the
+later observation/cursor writes. All 5,090 observations include the nine warmup
+inputs; selected elapsed throughput still uses 5,081. Profile wall durations now
+include the extra probes and cannot be compared directly to older profile wall
+measurements. Unprofiled ABBA arms do not run these probes.
+
+`compare-reports` reads only two bounded SHA-pinned JSON reports with stdlib. It
+compares all six arms' semantic/evidence/cohort/initial/final/candidate/receipt/
+ACK/command/restart values on the same authenticated inputs. Mismatches prevent
+a comparable-timing claim. The previous and repaired runs have separate host
+activity and cache history; ABBA controls only order within each report. The
+original 90 observation-body differences remain unresolved without the
+original decision clocks/context/quotes; complete strategy parity remains
+unproven. This normalized replay cannot exercise the native acquisition/join
+repair, establish live backlog stability, or establish complete strategy or
+protection readiness.

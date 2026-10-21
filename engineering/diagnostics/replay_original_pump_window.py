@@ -27,7 +27,7 @@ from unittest.mock import patch
 
 
 SCHEMA = 'ec2-sealed-market-replay-parcel-v1'
-RUNTIME_BASELINE = 'a5b10ece7c999f17ca76ba0dd73434c9bdd4f4a5'
+RUNTIME_BASELINE = '668b50dae2ec72d447628fbd658fe0cc5d089b6d'
 SOURCE = dict(request_id='ec2-39625860455-1',
     raw_manifest_sha256='7d42914089386ffbd09ab8604c5faf98b4563cec0c6635063a8ec0e8a452c137',
     application_commit='a02900db323f8527c829273b2b68ac68f4e94377',
@@ -283,6 +283,7 @@ class Costs:
     def __init__(self):
         self.phase = 'setup'; self.rows = {}; self.stages = {}; self.connections = 0
         self.encoding = 'not_native_input'; self.primitives = {}
+        self.publication_batches = []; self.classification_sql = {}
 
     def metric(self, role, bucket):
         return self.rows.setdefault((self.phase, role, bucket),
@@ -418,6 +419,46 @@ class Costs:
         with patch.object(sqlite3, 'connect', connect):
             yield
 
+    def sql_snapshot(self):
+        # Copy process-local counters only; never issue an attribution query.
+        return {key: dict(row) for key, row in self.rows.items()
+                if key[2].startswith('trace_') or key[2].endswith('_api')}
+
+    def attribute_classification(self, stage, before):
+        need(stage in STAGES, 'profile_classification_stage')
+        for (phase, role, bucket), row in self.sql_snapshot().items():
+            previous = before.get((phase, role, bucket), {})
+            delta = {key: value-previous.get(key, 0) for key, value in row.items()}
+            need(all(value >= 0 for value in delta.values()), 'profile_sql_counter_reset')
+            if not any(delta.values()):
+                continue
+            target = self.classification_sql.setdefault((stage, phase, role, bucket),
+                dict(calls=0, wall_nanoseconds=0, cpu_nanoseconds=0, failures=0))
+            for key, value in delta.items():
+                target[key] += value
+
+    @contextmanager
+    def publication_probe(self):
+        # Observe the returned real batch; no second lookup or old publisher.
+        from meme_machine import solana_history_delivery as delivery
+        original = delivery.capture
+        def capture(*args, **kwargs):
+            snapshot = original(*args, **kwargs)
+            if snapshot is not None:
+                rows = snapshot['rows']
+                self.publication_batches.append(dict(phase=self.phase,
+                    N_outbox_rows=len(rows),
+                    U_distinct_binding_keys=len({(row[1], row[2]) for row in rows}),
+                    E_empty_second_phase=int(not snapshot['proofs'] and not snapshot['refresh']),
+                    proof_rows=len(snapshot['proofs']), refresh_rows=len(snapshot['refresh'])))
+            return snapshot
+        with patch.object(delivery, 'capture', capture):
+            yield
+
+    def classification_report(self):
+        return [dict(stage=stage, phase=phase, role=role, bucket=bucket, **row)
+                for (stage, phase, role, bucket), row in sorted(self.classification_sql.items())]
+
     def report(self):
         return [dict(phase=phase, role=role, bucket=bucket, **value)
                 for (phase, role, bucket), value in sorted(self.rows.items())]
@@ -525,7 +566,9 @@ def run_one(parcel, directory, implementation, *, profile=False):
     class ProfiledReader(base):
         def _evaluate(self, *args):
             before = time.perf_counter_ns(), time.thread_time_ns()
+            sql_before = costs.sql_snapshot()
             value = super()._evaluate(*args)
+            costs.attribute_classification(value[0]['stage'], sql_before)
             row = costs.stages.setdefault(value[0]['stage'], dict(events=0, wall_nanoseconds=0, cpu_nanoseconds=0))
             row['events'] += 1; row['wall_nanoseconds'] += time.perf_counter_ns()-before[0]
             row['cpu_nanoseconds'] += time.thread_time_ns()-before[1]
@@ -554,7 +597,8 @@ def run_one(parcel, directory, implementation, *, profile=False):
         prepared = operation('economic_preparation', lambda: [prepare_economic_record(r) for r, _, _ in records])
         operation('economic_ingest', history.ingest, prepared)
     with no_network(), costs.sqlite(directory) if profile else nullcontext(), \
-         costs.primitives_probe() if profile else nullcontext():
+         costs.primitives_probe() if profile else nullcontext(), \
+         costs.publication_probe() if profile else nullcontext():
         try:
             writer = EvidenceWriter(config.evidence, clock=lambda: clock.value)
             endpoint = parcel.record(parcel.inputs[0])[0].endpoint_identity
@@ -624,6 +668,12 @@ def run_one(parcel, directory, implementation, *, profile=False):
                 ack_intents_sha256=sha(canonical(acknowledgements)),
                 command_intents_sha256=sha(canonical(commands)), reader_restart_verified=True,
                 stage_costs=costs.stages, sql=costs.report(),
+                publication_batches=costs.publication_batches,
+                publication_population_totals={key: sum(row[key] for row in costs.publication_batches)
+                    for key in ('N_outbox_rows', 'U_distinct_binding_keys', 'E_empty_second_phase', 'proof_rows', 'refresh_rows')},
+                classification_sql=costs.classification_report(),
+                classification_sql_scope='inside_evaluate_only_excludes_outer_event_auth_current_event_lookup_observation_cursor_writes',
+                publication_population_scope='N_rows_U_distinct_family_address_E_empty_proofs_refresh_per_real_capture_profile_only',
                 controlled_batch_progress=progress,
                 controlled_backlog_scope='serial_batch_schedule_bounds_queue_by_construction_not_live_arrival_capacity',
                 primitive_costs=costs.primitive_report(),
@@ -707,12 +757,127 @@ def benchmark(parcel, directory):
             sql_timing_scope='API_and_fetch_wall_CPU_with_probe_overhead_not_statement_trace_duration',
             timed_pass_instrumentation='batch_stage_timers_only_no_SQL_or_primitive_or_per_event_probes',
             profile_order='independent_reference_optimized_cost_pair_before_timed_ABBA',
+            native_acquisition_join_repair_exercised=False,
+            profiled_observation_population='all5090_includes9_prelude_selected_timing_denominator5081',
+            profile_stage_timing_scope='includes_counter_copy_and_population_probes_do_not_compare_to_old_profile_wall',
             original_inputs_unchanged=True)
     finally:
         os.umask(original_umask)
 
 
+
+SEMANTIC_FIELDS = ('semantic_sha256', 'mapping_sha256', 'original_to_fresh_sequence',
+    'completed', 'stages', 'stages_by_cohort', 'durable_sequence',
+    'history_semantic_sha256', 'history_state_sha256', 'original_comparison',
+    'ack_intents_sha256', 'command_intents_sha256', 'reader_restart_verified',
+    'initial', 'final', 'decision_target', 'missing_provider_inputs',
+    'provider_requests', 'financial_authority', 'full_strategy_equivalence_proven',
+    'original_input_storage_encodings', 'fresh_input_storage_encodings')
+COHORT_FIELDS = ('source', 'source_manifest_sha256', 'input_parcel_sha256', 'original_endpoints',
+    'input_events', 'selected_events', 'initial_pending', 'initial_observed', 'schedule',
+    'measurement_boundary', 'selected_event_dropping', 'other_family_workload_replayed',
+    'context_rows_imported_as_state', 'context_rows_preserved_as_lineage',
+    'original_all_native_storage_encodings', 'native_context_preserved_not_admitted_by_scope',
+    'original_selected_observation_membership_available', 'original_decision_clock_replayed',
+    'original_visibility_timing_replayed', 'original_network_timing_replayed',
+    'original_sqlite_layout_preserved', 'unavailable_inputs')
+
+
+def compare_reports(previous, candidate):
+    """Compare authenticated report data only; no app/database/provider imports."""
+    for report in (previous, candidate):
+        need(report.get('schema') == 'original-pump-window-logical-compute-v1' and
+             report.get('coherent') is True and report.get('original_inputs_unchanged') is True and
+             report.get('financial_authority') is False and
+             report.get('full_strategy_equivalence_proven') is False and
+             report.get('throughput_readiness_proven') is False, 'comparison_report_boundary')
+    need(all(key in previous and key in candidate and previous[key] == candidate[key]
+             for key in COHORT_FIELDS), 'comparison_input_or_scope_mismatch')
+    comparisons = []; equivalent = True
+    for collection, implementations in (('profiled_runs', ('reference', 'optimized')),
+            ('runs', ('reference', 'optimized', 'optimized', 'reference'))):
+        old, new = previous.get(collection), candidate.get(collection)
+        need(type(old) is list and type(new) is list and len(old) == len(new) == len(implementations),
+             'comparison_arm_population')
+        for index, (left, right, implementation) in enumerate(zip(old, new, implementations)):
+            need(left.get('implementation') == right.get('implementation') == implementation and
+                 left.get('reader_restart_verified') is True and right.get('reader_restart_verified') is True,
+                 'comparison_arm_identity')
+            different = [key for key in SEMANTIC_FIELDS if key not in left or key not in right or left[key] != right[key]]
+            progress = lambda row: [{key: item[key] for key in
+                ('selected_admitted', 'incoming', 'observed', 'backlog')}
+                for item in row['controlled_batch_progress']]
+            if progress(left) != progress(right):
+                different.append('controlled_batch_progress_counts')
+            equivalent = equivalent and not different
+            comparisons.append(dict(collection=collection, index=index, implementation=implementation,
+                same_semantics=not different, differing_fields=different))
+    timing = {}
+    if equivalent:
+        for implementation in ('reference', 'optimized'):
+            old = [row for row in previous['runs'] if row['implementation'] == implementation]
+            new = [row for row in candidate['runs'] if row['implementation'] == implementation]
+            need(all(row['timing'].get('profiled') is False and
+                     row['timing'].get('usable_for_timing_comparison') is True for row in old+new),
+                 'comparison_unprofiled_timing_required')
+            measured = {}
+            for metric in ('wall_nanoseconds', 'cpu_nanoseconds'):
+                before = [row['timing'][metric] for row in old]
+                after = [row['timing'][metric] for row in new]
+                need(all(type(value) is int and value > 0 for value in before+after), 'comparison_timing_shape')
+                left, right = sum(before)/len(before), sum(after)/len(after)
+                measured[metric] = dict(previous=before, candidate=after, previous_mean=left,
+                    candidate_mean=right, reduction_percent=100*(left-right)/left)
+            timing[implementation] = measured
+    original = previous['runs'][0]['original_comparison']
+    return dict(schema='original-pump-window-report-comparison-v1', same_authenticated_inputs=True,
+        same_semantics=equivalent, arms=comparisons, timing_comparison_available=equivalent,
+        unprofiled_timing=timing, previous_runtime=previous.get('runtime_baseline_commit'),
+        candidate_runtime=candidate.get('runtime_baseline_commit'),
+        previous_consumer_sha256=previous.get('consumer_source_sha256'),
+        candidate_consumer_sha256=candidate.get('consumer_source_sha256'),
+        original_observations=original.get('original_observations'),
+        original_body_hash_matches=original.get('original_body_hash_matches'),
+        original_observation_body_differences=(original['original_observations']-original['original_body_hash_matches']
+            if type(original.get('original_observations')) is int and
+               type(original.get('original_body_hash_matches')) is int else None),
+        original_clock_or_missing_quote_differences_resolved=False,
+        original_decision_clock_replayed=False, native_acquisition_join_repair_exercised=False,
+        profile_stage_wall_times_directly_comparable=False,
+        timing_limits='different_runs_host_activity_and_cache_order_not_controlled_ABBA_only_within_each_report',
+        qualification_sql_scope='inside_evaluate_excludes_outer_event_auth_current_lookup_observation_cursor_writes',
+        full_strategy_equivalence_proven=False, throughput_readiness_proven=False, financial_authority=False)
+
+
+def compare_main(arguments):
+    parser = argparse.ArgumentParser(description='Compare SHA-pinned replay reports using stdlib only.')
+    parser.add_argument('previous', type=Path); parser.add_argument('candidate', type=Path)
+    parser.add_argument('--previous-sha256', required=True); parser.add_argument('--candidate-sha256', required=True)
+    parser.add_argument('--new-output', required=True, type=Path)
+    args = parser.parse_args(arguments); reports = []
+    for path, expected in ((args.previous, args.previous_sha256), (args.candidate, args.candidate_sha256)):
+        need(type(expected) is str and re.fullmatch('[0-9a-f]{64}', expected), 'comparison_report_pin')
+        before = fingerprint(path, 32*1024**2)
+        need(before[1] == expected, 'comparison_report_hash')
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        with os.fdopen(descriptor, 'rb') as source:
+            raw = source.read(32*1024**2+1)
+        need(len(raw) <= 32*1024**2 and sha(raw) == expected and fingerprint(path, 32*1024**2) == before,
+             'comparison_report_changed')
+        reports.append(loads(raw))
+    result = compare_reports(*reports)
+    result.update(previous_report_sha256=args.previous_sha256, candidate_report_sha256=args.candidate_sha256)
+    output = args.new_output.absolute()
+    need(output.parent.resolve(strict=True) == output.parent, 'comparison_output_parent')
+    _report(output, canonical(result)+b'\n')
+    print(json.dumps(dict(schema=result['schema'], same_semantics=result['same_semantics'],
+        comparison_sha256=sha(canonical(result)+b'\n'), financial_authority=False), sort_keys=True))
+    return result
+
 def main():
+    if sys.argv[1:2] == ['compare-reports']:
+        result = compare_main(sys.argv[2:])
+        raise SystemExit(0 if result['same_semantics'] else 2)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--parcel', required=True, type=Path)
     parser.add_argument('--manifest-sha256', required=True)

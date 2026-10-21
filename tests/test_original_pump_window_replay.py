@@ -86,6 +86,8 @@ class OriginalWindowReplayTests(unittest.TestCase):
             self.assertFalse(row['first_lazy_source_queries_traced'])
             self.assertTrue(row['timing']['usable_for_timing_comparison'])
             self.assertEqual(row['primitive_costs'], [])
+            self.assertEqual(row['publication_batches'], [])
+            self.assertEqual(row['classification_sql'], [])
             self.assertFalse(any(m['bucket'].startswith('trace_') for m in row['sql']))
             self.assertEqual(row['provider_requests'], 0)
             self.assertEqual(row['original_input_storage_encodings'], row['fresh_input_storage_encodings'])
@@ -106,12 +108,56 @@ class OriginalWindowReplayTests(unittest.TestCase):
                                 and m['calls'] > 0 for m in row['sql']))
             self.assertTrue(any(m['primitive'] == 'decode_body' and m['native_input_encoding'] == 'text'
                                 and m['calls'] > 0 for m in row['primitive_costs']))
+            self.assertTrue(row['publication_batches'])
+            for batch in row['publication_batches']:
+                self.assertLessEqual(batch['U_distinct_binding_keys'], batch['N_outbox_rows'])
+                self.assertEqual(batch['E_empty_second_phase'], int(not batch['proof_rows'] and not batch['refresh_rows']))
+            self.assertTrue(row['classification_sql'])
+            self.assertFalse(any(m['role'] == 'qualification' and m['bucket'] in ('trace_INSERT', 'trace_UPDATE')
+                                 for m in row['classification_sql']))
+            self.assertTrue(all(m['stage'] in replay.STAGES for m in row['classification_sql']))
             counts.append(sum(m['calls'] for m in row['sql'] if m['phase'] == 'qualification'
                               and m['bucket'] in ('trace_SELECT', 'trace_WITH')))
         self.assertGreater(counts[0], counts[1])
+        comparison = replay.compare_reports(result, deepcopy(result))
+        self.assertTrue(comparison['same_semantics'])
+        self.assertTrue(comparison['timing_comparison_available'])
+        self.assertFalse(comparison['native_acquisition_join_repair_exercised'])
+        changed = deepcopy(result); changed['runs'][1]['history_state_sha256']['source_receipts'] = '0'*64
+        mismatch = replay.compare_reports(result, changed)
+        self.assertFalse(mismatch['same_semantics']); self.assertFalse(mismatch['timing_comparison_available'])
+        self.assertEqual(mismatch['unprofiled_timing'], {})
+        self.assertIn('history_state_sha256', mismatch['arms'][3]['differing_fields'])
+        changed = deepcopy(result); changed['input_parcel_sha256'] = '0'*64
+        with self.assertRaisesRegex(ValueError, 'comparison_input_or_scope_mismatch'):
+            replay.compare_reports(result, changed)
         # The new stores remain private under an ordinary caller umask too.
         for path in (self.root/'abba').rglob('*.sqlite'):
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+    def test_unprofiled_arm_never_copies_sql_counters_or_observes_publication_populations(self):
+        with (patch.object(replay.Costs, 'sql_snapshot', side_effect=AssertionError('profile_only')),
+              patch.object(replay.Costs, 'publication_probe', side_effect=AssertionError('profile_only'))):
+            result = replay.run_one(CapturedParcel(), self.root/'no-probes', 'optimized')
+        self.assertEqual(result['classification_sql'], [])
+        self.assertEqual(result['publication_batches'], [])
+        self.assertFalse(result['timing']['profiled'])
+
+    def test_classification_sql_deltas_exclude_other_classifications_and_batch_writes(self):
+        costs = replay.Costs(); costs.phase = 'qualification'
+        before = costs.sql_snapshot()
+        costs.metric('candidate_reference', 'trace_SELECT')['calls'] += 3
+        costs.attribute_classification('creation_unavailable', before)
+        # The real observation write is outside _evaluate and is not assigned
+        # to either classification merely because it occurs between them.
+        costs.metric('qualification', 'trace_INSERT')['calls'] += 1
+        before = costs.sql_snapshot()
+        costs.metric('qualification', 'trace_SELECT')['calls'] += 1
+        costs.attribute_classification('native_five_second_fairness', before)
+        rows = costs.classification_report()
+        self.assertEqual(sum(row['calls'] for row in rows), 4)
+        self.assertEqual({row['stage'] for row in rows}, {'creation_unavailable', 'native_five_second_fairness'})
+        self.assertFalse(any(row['bucket'] == 'trace_INSERT' for row in rows))
 
     def test_external_commit_before_ack_replays_original_outbox_without_duplicates(self):
         from meme_machine.solana_evidence_plane import EvidenceWriter
