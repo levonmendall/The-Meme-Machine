@@ -1,4 +1,15 @@
-"""Retained economic fixtures; no provider traffic or installed epoch access."""
+"""Retained economic fixtures; no provider traffic or installed epoch access.
+
+Publication SQL cost: for N delivered rows and U distinct binding keys, reuse
+removes N-U SELECTs and the receipt batch removes 2N SAVEPOINT/RELEASE calls.
+For E snapshots with no proofs or refresh, skipping the second existing-WAL
+consumer open removes normally 31 SQL statements per snapshot (four PRAGMAs,
+25 schema statements, BEGIN and COMMIT), plus its connection open/close. Thus
+the structural total is sum(3N-U)+31E, not a measured throughput or fsync gain.
+An unnecessary empty writer's SQLITE_BUSY can disappear; necessary writes,
+authentication, outer FULL rollback and independently admitted ACK/proof turns
+retain their failure and recovery contracts.
+"""
 import asyncio
 import copy
 from dataclasses import replace
