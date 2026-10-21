@@ -503,6 +503,17 @@ class PublicationAccountingTurnTests(unittest.IsolatedAsyncioTestCase):
         original_page = delivery._proof_page
         pages = []
         captured = []
+        finished = asyncio.Event()
+        terminal = []
+        original_complete = self.source._complete_history_delivery
+        async def completed(snapshot, result, **options):
+            accepted = await original_complete(snapshot, result, **options)
+            if (accepted and 99 in pages and not snapshot['proof_scan']['more']
+                    and not (snapshot['rows'] or snapshot['proofs'] or snapshot['refresh']
+                             or snapshot['publication_ids'])):
+                terminal.append(snapshot)
+                finished.set()
+            return accepted
         def page(*args, **kwargs):
             rows = original_page(*args, **kwargs)
             pages.extend(row[3] for row in rows)
@@ -513,20 +524,30 @@ class PublicationAccountingTurnTests(unittest.IsolatedAsyncioTestCase):
             if len(captured) == 2:
                 entered.set()
                 if not release.wait(3):raise RuntimeError('offline-carried-scan-release')
-            if snapshot is None:loop.call_soon_threadsafe(self.source.stop.set)
             return snapshot
         pool = ThreadPoolExecutor(max_workers=1)
         self.source.delivery_executor = pool
         try:
             with patch.object(life, 'unconsumed', return_value=True), patch(
                     'meme_machine.solana_history_delivery.capture', observed), patch(
-                    'meme_machine.solana_history_delivery._proof_page', page):
+                    'meme_machine.solana_history_delivery._proof_page', page), patch.object(
+                    self.source, '_complete_history_delivery', completed):
                 task = self.start(self.source.candidate_history_delivery())
                 await self.wait_entered(entered)
+                self.assertEqual([label for _, label, _ in self.work.calls],
+                    ['candidate_delivery_capture', 'candidate_delivery_ack'])
                 def insert(state):
                     with state.writer.transaction():add(life, 99)
                 inserted = self.owner.submit(insert, priority=2)
                 release.set();await asyncio.wrap_future(inserted)
+                await asyncio.wait_for(finished.wait(), 3)
+                self.assertEqual(await self.query(lambda state: life._proof_delivery_progress),
+                    terminal[-1]['proof_scan']['next'])
+                count = len(captured)
+                await asyncio.sleep(.03)
+                self.assertEqual(len(captured), count, 'finished blocked work must sleep without another capture')
+                self.assertFalse(task.done())
+                self.source.stop.set()
                 await asyncio.wait_for(task, 3)
         finally:
             release.set();self.source.stop.set()
