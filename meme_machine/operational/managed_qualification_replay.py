@@ -8,6 +8,7 @@ import hashlib
 import json
 from pathlib import Path
 import tempfile
+import threading
 import time
 
 from .managed_pump_qualification import QualificationReader
@@ -69,6 +70,13 @@ def compare_readers(config, *, until, as_of, decision_target=None):
     """
     if decision_target is not None and (type(decision_target) is not int or decision_target <= 0):
         raise ValueError('qualification_replay_retained_integer_target_required')
+    def check():
+        if time.monotonic() >= until:
+            raise ValueError('qualification_replay_deadline')
+    class DeadlineCancellation(threading.Event):
+        def is_set(self):
+            return super().is_set() or time.monotonic() >= until
+    check()
     directory = Path(tempfile.mkdtemp(prefix='qualification-replay-', dir=config.root))
     results = []
     for base, name in ((ReferenceReader, 'reference'), (QualificationReader, 'optimized')):
@@ -97,6 +105,7 @@ def compare_readers(config, *, until, as_of, decision_target=None):
         provider = NoNetworkProvider()
         reader = Reader(config, clock=lambda: as_of, provider=provider,
                         decision_target=decision_target)
+        reader.cancelled = DeadlineCancellation()
         acknowledgements = []
         counts = {'history_selects': 0, 'canonical_selects': 0, 'source_selects': 0}
         def trace(key):
@@ -107,6 +116,7 @@ def compare_readers(config, *, until, as_of, decision_target=None):
         try:
             if not reader._open():
                 raise ValueError('qualification_replay_source_unavailable')
+            check()
             begun, cpu = time.monotonic(), time.thread_time()
             reader.history.db.set_trace_callback(trace('history_selects'))
             reader.plane.reader.db.set_trace_callback(trace('canonical_selects'))
@@ -121,14 +131,14 @@ def compare_readers(config, *, until, as_of, decision_target=None):
             tracked = set()
             source_complete = True
             while True:
-                if time.monotonic() >= until:
-                    raise ValueError('qualification_replay_deadline')
+                check()
                 for db in getattr(reader.history, '_source_readers', {}).values():
                     if id(db) not in tracked:
                         db.set_trace_callback(trace('source_selects'))
                         db.set_progress_handler(lambda: int(time.monotonic() >= until), 1000)
                         tracked.add(id(db))
                 snapshot = reader.step()
+                check()
                 # A lazy canonical connection can be opened within this turn.
                 # Do not report its untraced first reads as zero operations.
                 source_complete &= all(id(db) in tracked for db in
@@ -136,6 +146,7 @@ def compare_readers(config, *, until, as_of, decision_target=None):
                 if not snapshot.get('processed_this_turn'):
                     break
             output = _output(reader)
+            check()
             state = dict(snapshot)
             ack_digest = hashlib.sha256(_canonical(acknowledgements).encode()).hexdigest()
         finally:
@@ -146,12 +157,15 @@ def compare_readers(config, *, until, as_of, decision_target=None):
         # identity/rebuild path, rather than treating file existence as recovery.
         resumed = Reader(config, clock=lambda: as_of, provider=NoNetworkProvider(),
                          decision_target=decision_target)
+        resumed.cancelled = DeadlineCancellation()
         try:
             if time.monotonic() >= until or not resumed._open():
                 raise ValueError('qualification_replay_restart_unavailable')
+            check()
             resumed.plane.acknowledge = lambda *args: None
             resumed.plane.command = no_command
             after_restart = resumed.step()
+            check()
             restarted = (_output(resumed) == output
                 and after_restart == state)
         finally:
@@ -171,12 +185,14 @@ def compare_readers(config, *, until, as_of, decision_target=None):
          'native_evidence_incomplete', 'postgraduation_unproven'))
         for row in results)
     restarted = all(row['restart_verified'] for row in results)
-    return dict(verified=coherent and restarted and incomplete == 0,
-        coherent=coherent, complete=incomplete == 0 and all(
-            row['snapshot'].get('native_event_backlog') == 0 for row in results),
+    complete = incomplete == 0 and all(
+        row['snapshot'].get('native_event_backlog') == 0 for row in results)
+    return dict(verified=coherent and restarted and complete and reference['rows'] > 0,
+        coherent=coherent, complete=complete,
         reader_restart_verified=restarted, incomplete_outcomes=incomplete,
         input_rows=reference['rows'], output_rows=optimized['rows'],
         provider_requests=0, predecessor=PREDECESSOR, as_of=as_of,
         timing_order='reference_then_optimized_not_cache_neutral',
+        deadline_enforcement='original_parent_replay_lease_with_cooperative_read_cancellation',
         scope='pump_current_late_curve_published_prefix_no_uncaptured_provider_inputs',
         reference=reference, optimized=optimized)
